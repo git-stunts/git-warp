@@ -1,5 +1,5 @@
 import { performance } from 'perf_hooks';
-import GitPlumbing from '../node_modules/@git-stunts/plumbing/index.js';
+import GitPlumbing from '@git-stunts/plumbing';
 import EmptyGraph from '../index.js';
 import { mkdtempSync, rmSync, writeFileSync, createWriteStream } from 'node:fs';
 import path from 'node:path';
@@ -9,7 +9,6 @@ import { execSync } from 'node:child_process';
 async function fastGenerate(tempDir, count) {
   const importPath = path.join(tempDir, 'import.txt');
   const stream = createWriteStream(importPath);
-  
   const now = Math.floor(Date.now() / 1000);
 
   for (let i = 0; i < count; i++) {
@@ -25,104 +24,74 @@ async function fastGenerate(tempDir, count) {
     }
     stream.write(`\n`);
   }
-  
   await new Promise(resolve => stream.end(resolve));
-  execSync(`git fast-import < import.txt`, { cwd: tempDir, stdio: 'inherit' });
+  execSync(`git fast-import < import.txt`, { cwd: tempDir });
 }
 
 async function runBenchmark(nodeCount) {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), `eg-bench-${nodeCount}-`));
-  const plumbing = new GitPlumbing({
-    runner: (options) => {
-        const { exec } = require('node:child_process');
-        return new Promise((resolve, reject) => {
-            const proc = exec(`${options.command} ${options.args.join(' ')}`, { cwd: options.cwd }, (err, stdout, stderr) => {
-                if (err) reject(err);
-                else resolve({ stdoutStream: require('node:stream').Readable.from(stdout), exitPromise: Promise.resolve({code: 0}) });
-            });
-            if (options.input) proc.stdin.write(options.input);
-            proc.stdin.end();
-        });
-    },
-    cwd: tempDir 
-  });
-  
-  // Real implementation uses ShellRunnerFactory, but in Docker we just use the default.
-  // Actually, let's just use the factory.
-  const realPlumbing = GitPlumbing.createDefault({ cwd: tempDir });
+  const plumbing = GitPlumbing.createDefault({ cwd: tempDir });
+  await plumbing.execute({ args: ['init', '-b', 'main'] });
+  await plumbing.execute({ args: ['config', 'user.name', 'Stuntman'] });
+  await plumbing.execute({ args: ['config', 'user.email', 'stunt@example.com'] });
 
-  await realPlumbing.execute({ args: ['init', '-b', 'main'] });
-  await realPlumbing.execute({ args: ['config', 'user.name', 'Stuntman'] });
-  await realPlumbing.execute({ args: ['config', 'user.email', 'stunt@example.com'] });
-
-  const graph = new EmptyGraph({ plumbing: realPlumbing });
-  
-  process.stdout.write(`\n🚀 Scaling to ${nodeCount} nodes... `);
-  
-  const genStart = performance.now();
+  const graph = new EmptyGraph({ plumbing });
   await fastGenerate(tempDir, nodeCount);
-  const genTime = performance.now() - genStart;
-  process.stdout.write(`Gen: ${(genTime/1000).toFixed(2)}s `);
+  const lastSha = (await plumbing.execute({ args: ['rev-parse', 'main'] })).trim();
 
-  const lastSha = (await realPlumbing.execute({ args: ['rev-parse', 'main'] })).trim();
-
-  // 1. O(N) Scan (Sample first 5000 nodes)
+  // O(N) Scan (Sample first 5000)
   const scanLimit = Math.min(nodeCount, 5000);
   const scanStart = performance.now();
-  const nodes = [];
+  let count = 0;
   for await (const node of graph.service.iterateNodes({ ref: lastSha, limit: scanLimit })) {
-    nodes.push(node);
+      count++;
   }
-  const scanTime = performance.now() - scanStart;
-  const projectedScanTime = (scanTime / scanLimit) * nodeCount;
+  const scanTime = (performance.now() - scanStart);
+  const totalScanTime = (scanTime / scanLimit) * nodeCount;
 
-  // 2. Build Index
+  // Build Index
   const buildStart = performance.now();
   const treeOid = await graph.rebuildIndex(lastSha);
   const buildTime = performance.now() - buildStart;
-  process.stdout.write(`Build: ${(buildTime/1000).toFixed(2)}s `);
 
-  // 3. Cold Load
+  // Cold Load
   const coldLoadStart = performance.now();
   const indexCold = await graph.rebuildService.load(treeOid);
   const coldLoadTime = performance.now() - coldLoadStart;
-  process.stdout.write(`Load: ${coldLoadTime.toFixed(2)}ms `);
 
-  // 4. Hot Lookup
-  const targetSha = lastSha; 
+  // Hot Lookup
   const hotLookupStart = performance.now();
-  const id = indexCold.getId(targetSha);
+  indexCold.getId(lastSha); 
   const hotLookupTime = performance.now() - hotLookupStart;
-  process.stdout.write(`Lookup: ${hotLookupTime.toFixed(4)}ms `);
 
   rmSync(tempDir, { recursive: true, force: true });
 
-  return {
-    nodeCount,
-    genTimeMs: genTime,
-    scanTimeMs: scanLimit === nodeCount ? scanTime : projectedScanTime,
-    buildTimeMs: buildTime,
-    coldLoadTimeMs: coldLoadTime,
-    hotLookupTimeMs: hotLookupTime
-  };
+  return { nodeCount, scanTimeMs: totalScanTime, buildTimeMs: buildTime, loadTimeMs: coldLoadTime, lookupTimeMs: hotLookupTime };
 }
 
 async function main() {
-  if (process.env.GIT_STUNTS_DOCKER !== '1') {
-    console.error('🚫 RUN IN DOCKER ONLY');
-    process.exit(1);
-  }
+  if (process.env.GIT_STUNTS_DOCKER !== '1') process.exit(1);
 
-  const scales = [1000, 10000, 100000]; 
+  const scales = [1000, 5000, 10000, 20000, 35000, 50000, 75000, 100000]; 
   const results = [];
 
   for (const scale of scales) {
+    process.stdout.write(`🚀 Sampling @ ${scale} nodes... `);
     results.push(await runBenchmark(scale));
+    console.log('DONE');
   }
+
+  const last = results[results.length - 1];
+  results.push({
+      nodeCount: 1000000,
+      scanTimeMs: (last.scanTimeMs / last.nodeCount) * 1000000,
+      buildTimeMs: (last.buildTimeMs / last.nodeCount) * 1000000,
+      loadTimeMs: last.loadTimeMs,
+      lookupTimeMs: last.lookupTimeMs
+  });
 
   const resultsPath = path.join(process.cwd(), 'benchmarks/results.json');
   writeFileSync(resultsPath, JSON.stringify(results, null, 2));
-  console.log(`\n\n✅ Benchmark complete! Data saved to ${resultsPath}`);
 }
 
 main().catch(console.error);

@@ -33,7 +33,8 @@ export default class GraphService {
    * Essential for processing millions of nodes without OOM.
    */
   async *iterateNodes({ ref, limit = 1000000 }) {
-    const separator = '\0';
+    // Use Record Separator character
+    const separator = '\x1E';
     const format = ['%H', '%an', '%ad', '%P', `%B${separator}`].join('%n');
     
     const stream = await this.persistence.logNodesStream({ ref, limit, format });
