@@ -1,0 +1,28 @@
+{
+  "name": "@git-stunts/empty-graph",
+  "version": "1.0.0",
+  "description": "Git Stunts Lego Block: empty-graph",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./service": "./src/domain/services/GraphService.js",
+    "./node": "./src/domain/entities/GraphNode.js"
+  },
+  "scripts": {
+    "test": "vitest run test/unit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "author": "James Ross <james@flyingrobots.dev>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "vitest": "^2.1.8"
+  }
+}
