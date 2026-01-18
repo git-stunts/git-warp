@@ -74,6 +74,16 @@ export default class GraphPersistencePort {
   }
 
   /**
+   * Reads a tree and returns a map of path -> blob OID.
+   * Useful for lazy-loading shards without reading all blob contents.
+   * @param {string} treeOid
+   * @returns {Promise<Record<string, string>>}
+   */
+  async readTreeOids(_treeOid) {
+    throw new Error('Not implemented');
+  }
+
+  /**
    * @param {string} oid
    * @returns {Promise<Buffer>}
    */

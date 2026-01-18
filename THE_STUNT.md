@@ -54,14 +54,17 @@ We ran actual benchmarks comparing the linear `git log` scan against our new Roa
 **The Index Structure (Git Tree):**
 ```text
 /
-├── meta/
-│   └── ids.json       # SHA <-> Integer ID mapping (Global for now)
-└── shards/
-    ├── fwd_00.bitmap  # Forward Index (Parents) for SHAs starting with '00'
-    ├── fwd_01.bitmap
-    ├── ...
-    ├── rev_ff.bitmap  # Reverse Index (Children) for SHAs starting with 'ff'
+├── meta_aa.json           # SHA -> ID mapping for SHAs starting with 'aa'
+├── meta_bb.json           # SHA -> ID mapping for SHAs starting with 'bb'
+├── ...
+├── shards_fwd_aa.json     # Forward edges (Children) for nodes with prefix 'aa'
+├── shards_fwd_bb.json     #   Format: {sha: base64EncodedBitmap, ...}
+├── ...
+├── shards_rev_aa.json     # Reverse edges (Parents) for nodes with prefix 'aa'
+└── shards_rev_bb.json     #   Each node gets its own bitmap
 ```
+
+**Key Design Decision:** Each node has its own bitmap (keyed by full SHA), but files are sharded by prefix for lazy loading. This enables true O(1) per-node queries.
 
 **Benchmarking:**
 -   **Before**: `git log` walk = ~50ms per 1k nodes.

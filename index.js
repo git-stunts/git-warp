@@ -28,6 +28,8 @@ export default class EmptyGraph {
     const persistence = new GitGraphAdapter({ plumbing });
     this.service = new GraphService({ persistence });
     this.rebuildService = new CacheRebuildService({ persistence, graphService: this.service });
+    /** @type {BitmapIndexService|null} */
+    this._index = null;
   }
 
   /**
@@ -95,5 +97,60 @@ export default class EmptyGraph {
    */
   async rebuildIndex(ref) {
     return this.rebuildService.rebuild(ref);
+  }
+
+  /**
+   * Loads a pre-built bitmap index for O(1) queries.
+   * @param {string} treeOid - OID of the index tree (from rebuildIndex)
+   * @returns {Promise<void>}
+   * @example
+   * const treeOid = await graph.rebuildIndex('HEAD');
+   * await graph.loadIndex(treeOid);
+   * const parents = await graph.getParents(someSha);
+   */
+  async loadIndex(treeOid) {
+    this._index = await this.rebuildService.load(treeOid);
+  }
+
+  /**
+   * Gets parent SHAs for a node using the bitmap index.
+   * Requires loadIndex() to be called first.
+   * @param {string} sha - The node's SHA
+   * @returns {Promise<string[]>} Array of parent SHAs
+   * @throws {Error} If index is not loaded
+   * @example
+   * await graph.loadIndex(indexOid);
+   * const parents = await graph.getParents(childSha);
+   */
+  async getParents(sha) {
+    if (!this._index) {
+      throw new Error('Index not loaded. Call loadIndex(treeOid) first.');
+    }
+    return this._index.getParents(sha);
+  }
+
+  /**
+   * Gets child SHAs for a node using the bitmap index.
+   * Requires loadIndex() to be called first.
+   * @param {string} sha - The node's SHA
+   * @returns {Promise<string[]>} Array of child SHAs
+   * @throws {Error} If index is not loaded
+   * @example
+   * await graph.loadIndex(indexOid);
+   * const children = await graph.getChildren(parentSha);
+   */
+  async getChildren(sha) {
+    if (!this._index) {
+      throw new Error('Index not loaded. Call loadIndex(treeOid) first.');
+    }
+    return this._index.getChildren(sha);
+  }
+
+  /**
+   * Checks if an index is currently loaded.
+   * @returns {boolean}
+   */
+  get hasIndex() {
+    return this._index !== null;
   }
 }

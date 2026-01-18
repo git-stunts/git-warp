@@ -24,12 +24,12 @@ To avoid O(N) graph traversals, we maintain a secondary index structure persiste
 #### Index Structure (Git Tree):
 ```text
 /
-├── meta/
-│   └── ids.json       # Maps 40-char SHAs to 32-bit Integers
-└── shards/
-    ├── fwd_xx.bitmap  # Forward Edge Map (Node -> Parents)
-    └── rev_xx.bitmap  # Reverse Edge Map (Node -> Children)
+├── meta_xx.json           # Maps SHAs to IDs (sharded by prefix)
+├── shards_fwd_xx.json     # Forward edges: {sha: base64Bitmap, ...}
+└── shards_rev_xx.json     # Reverse edges: {sha: base64Bitmap, ...}
 ```
+
+Each shard file contains per-node bitmaps encoded as base64 JSON. This enables O(1) lookups while maintaining efficient storage through prefix-based sharding.
 
 ### 3. Hexagonal Architecture
 

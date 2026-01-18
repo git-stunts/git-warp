@@ -13,15 +13,18 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "vitest run test/unit",
+    "test": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest run test/unit \"$@\"; else docker compose run --build --rm test npm test -- \"$@\"; fi' --",
+    "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench test/benchmark \"$@\"; else docker compose run --build --rm test npm run benchmark -- \"$@\"; fi' --",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "pretest": "[ \"$GIT_STUNTS_DOCKER\" = \"1\" ] || (echo '🚫 RUN IN DOCKER ONLY' && exit 1)"
+    "test:local": "vitest run test/unit",
+    "benchmark:local": "vitest bench test/benchmark"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
   "dependencies": {
     "@git-stunts/plumbing": "^2.7.0",
+    "@git-stunts/trailer-codec": "^2.1.1",
     "roaring": "^2.7.0",
     "zod": "^3.24.1"
   },
@@ -29,7 +32,8 @@
     "@eslint/js": "^9.17.0",
     "eslint": "^9.17.0",
     "prettier": "^3.4.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@git-stunts/docker-guard": "^0.1.0"
   },
   "files": [
     "src",
