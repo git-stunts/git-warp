@@ -16,6 +16,9 @@ export {
   CacheRebuildService
 };
 
+/** Default ref for storing the index OID */
+const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
+
 /**
  * Facade class for the EmptyGraph library.
  */
@@ -25,11 +28,13 @@ export default class EmptyGraph {
    * @param {import('../plumbing/index.js').default} options.plumbing
    */
   constructor({ plumbing }) {
-    const persistence = new GitGraphAdapter({ plumbing });
-    this.service = new GraphService({ persistence });
-    this.rebuildService = new CacheRebuildService({ persistence, graphService: this.service });
+    this._persistence = new GitGraphAdapter({ plumbing });
+    this.service = new GraphService({ persistence: this._persistence });
+    this.rebuildService = new CacheRebuildService({ persistence: this._persistence, graphService: this.service });
     /** @type {BitmapIndexService|null} */
     this._index = null;
+    /** @type {string|null} */
+    this._indexOid = null;
   }
 
   /**
@@ -96,7 +101,9 @@ export default class EmptyGraph {
    * const treeOid = await graph.rebuildIndex('HEAD');
    */
   async rebuildIndex(ref) {
-    return this.rebuildService.rebuild(ref);
+    const oid = await this.rebuildService.rebuild(ref);
+    this._indexOid = oid;
+    return oid;
   }
 
   /**
@@ -110,6 +117,50 @@ export default class EmptyGraph {
    */
   async loadIndex(treeOid) {
     this._index = await this.rebuildService.load(treeOid);
+    this._indexOid = treeOid;
+  }
+
+  /**
+   * Saves the current index OID to a git ref.
+   * @param {string} [ref='refs/empty-graph/index'] - The ref to store the index OID
+   * @returns {Promise<void>}
+   * @throws {Error} If no index has been built or loaded
+   * @example
+   * await graph.rebuildIndex('HEAD');
+   * await graph.saveIndex(); // Saves to refs/empty-graph/index
+   */
+  async saveIndex(ref = DEFAULT_INDEX_REF) {
+    if (!this._indexOid) {
+      throw new Error('No index to save. Call rebuildIndex() or loadIndex() first.');
+    }
+    await this._persistence.updateRef(ref, this._indexOid);
+  }
+
+  /**
+   * Loads the index from a git ref.
+   * @param {string} [ref='refs/empty-graph/index'] - The ref containing the index OID
+   * @returns {Promise<boolean>} True if index was loaded, false if ref doesn't exist
+   * @example
+   * const loaded = await graph.loadIndexFromRef();
+   * if (loaded) {
+   *   const parents = await graph.getParents(someSha);
+   * }
+   */
+  async loadIndexFromRef(ref = DEFAULT_INDEX_REF) {
+    const oid = await this._persistence.readRef(ref);
+    if (!oid) {
+      return false;
+    }
+    await this.loadIndex(oid);
+    return true;
+  }
+
+  /**
+   * Gets the current index OID.
+   * @returns {string|null} The index tree OID or null if no index is loaded
+   */
+  get indexOid() {
+    return this._indexOid;
   }
 
   /**

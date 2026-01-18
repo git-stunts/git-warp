@@ -240,6 +240,49 @@ if (!graph.hasIndex) {
 }
 ```
 
+#### `indexOid`
+
+Property that returns the current index tree OID.
+
+**Returns:** `string | null`
+
+#### `async saveIndex(ref?)`
+
+Saves the current index OID to a git ref for persistence across sessions.
+
+**Parameters:**
+- `ref` (string, optional): The ref name (default: `'refs/empty-graph/index'`)
+
+**Returns:** `Promise<void>`
+
+**Throws:** `Error` if no index has been built or loaded
+
+**Example:**
+```javascript
+await graph.rebuildIndex('HEAD');
+await graph.saveIndex(); // Persists to refs/empty-graph/index
+```
+
+#### `async loadIndexFromRef(ref?)`
+
+Loads the index from a previously saved git ref.
+
+**Parameters:**
+- `ref` (string, optional): The ref name (default: `'refs/empty-graph/index'`)
+
+**Returns:** `Promise<boolean>` - True if loaded, false if ref doesn't exist
+
+**Example:**
+```javascript
+// On application startup
+const loaded = await graph.loadIndexFromRef();
+if (!loaded) {
+  await graph.rebuildIndex('HEAD');
+  await graph.saveIndex();
+}
+const parents = await graph.getParents(someSha);
+```
+
 ### `GraphNode`
 
 Immutable entity representing a graph node.

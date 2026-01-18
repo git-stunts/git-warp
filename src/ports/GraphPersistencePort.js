@@ -90,4 +90,32 @@ export default class GraphPersistencePort {
   async readBlob(_oid) {
     throw new Error('Not implemented');
   }
+
+  /**
+   * Updates a ref to point to an OID.
+   * @param {string} ref - The ref name
+   * @param {string} oid - The OID to point to
+   * @returns {Promise<void>}
+   */
+  async updateRef(_ref, _oid) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Reads the OID a ref points to.
+   * @param {string} ref - The ref name
+   * @returns {Promise<string|null>} The OID or null if ref doesn't exist
+   */
+  async readRef(_ref) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Deletes a ref.
+   * @param {string} ref - The ref name to delete
+   * @returns {Promise<void>}
+   */
+  async deleteRef(_ref) {
+    throw new Error('Not implemented');
+  }
 }

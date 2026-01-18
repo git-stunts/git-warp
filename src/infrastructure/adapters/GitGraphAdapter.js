@@ -112,4 +112,46 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     });
     return await stream.collect({ asString: false });
   }
+
+  /**
+   * Updates a ref to point to an OID.
+   * @param {string} ref - The ref name (e.g., 'refs/empty-graph/index')
+   * @param {string} oid - The OID to point to
+   * @returns {Promise<void>}
+   */
+  async updateRef(ref, oid) {
+    this._validateRef(ref);
+    await this.plumbing.execute({
+      args: ['update-ref', ref, oid]
+    });
+  }
+
+  /**
+   * Reads the OID a ref points to.
+   * @param {string} ref - The ref name
+   * @returns {Promise<string|null>} The OID or null if ref doesn't exist
+   */
+  async readRef(ref) {
+    this._validateRef(ref);
+    try {
+      const oid = await this.plumbing.execute({
+        args: ['rev-parse', ref]
+      });
+      return oid.trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Deletes a ref.
+   * @param {string} ref - The ref name to delete
+   * @returns {Promise<void>}
+   */
+  async deleteRef(ref) {
+    this._validateRef(ref);
+    await this.plumbing.execute({
+      args: ['update-ref', '-d', ref]
+    });
+  }
 }
