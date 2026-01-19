@@ -18,6 +18,9 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async commitNode({ message, parents = [], sign = false }) {
+    for (const p of parents) {
+      this._validateOid(p);
+    }
     const parentArgs = parents.flatMap(p => ['-p', p]);
     const signArgs = sign ? ['-S'] : [];
     const args = ['commit-tree', this.emptyTree, ...parentArgs, ...signArgs, '-m', message];
@@ -26,17 +29,28 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async showNode(sha) {
+    this._validateOid(sha);
     return await this.plumbing.execute({ args: ['show', '-s', '--format=%B', sha] });
   }
 
   async logNodes({ ref, limit = 50, format }) {
     this._validateRef(ref);
-    return await this.plumbing.execute({ args: ['log', `-${limit}`, `--format=${format}`, ref] });
+    const args = ['log', `-${limit}`];
+    if (format) {
+      args.push(`--format=${format}`);
+    }
+    args.push(ref);
+    return await this.plumbing.execute({ args });
   }
 
   async logNodesStream({ ref, limit = 1000000, format }) {
     this._validateRef(ref);
-    return await this.plumbing.executeStream({ args: ['log', `-${limit}`, `--format=${format}`, ref] });
+    const args = ['log', `-${limit}`];
+    if (format) {
+      args.push(`--format=${format}`);
+    }
+    args.push(ref);
+    return await this.plumbing.executeStream({ args });
   }
 
   /**
@@ -91,6 +105,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async readTreeOids(treeOid) {
+    this._validateOid(treeOid);
     const output = await this.plumbing.execute({
       args: ['ls-tree', '-r', treeOid]
     });
@@ -109,6 +124,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async readBlob(oid) {
+    this._validateOid(oid);
     const stream = await this.plumbing.executeStream({
       args: ['cat-file', 'blob', oid]
     });
@@ -123,6 +139,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async updateRef(ref, oid) {
     this._validateRef(ref);
+    this._validateOid(oid);
     await this.plumbing.execute({
       args: ['update-ref', ref, oid]
     });
@@ -155,5 +172,24 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     await this.plumbing.execute({
       args: ['update-ref', '-d', ref]
     });
+  }
+
+  /**
+   * Validates that an OID is safe to use in git commands.
+   * @param {string} oid - The OID to validate
+   * @throws {Error} If OID is invalid
+   * @private
+   */
+  _validateOid(oid) {
+    if (!oid || typeof oid !== 'string') {
+      throw new Error('OID must be a non-empty string');
+    }
+    if (oid.length > 64) {
+      throw new Error(`OID too long: ${oid.length} chars. Maximum is 64`);
+    }
+    const validOidPattern = /^[0-9a-fA-F]{4,64}$/;
+    if (!validOidPattern.test(oid)) {
+      throw new Error(`Invalid OID format: ${oid}`);
+    }
   }
 }

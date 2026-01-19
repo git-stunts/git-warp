@@ -65,10 +65,11 @@ export default class GraphService {
    */
   async *_parseNodeStream(stream) {
     let buffer = '';
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder('utf-8', { fatal: false });
 
     for await (const chunk of stream) {
-      buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk);
+      // Use stream: true to handle UTF-8 sequences split across chunks
+      buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
 
       let splitIndex;
       while ((splitIndex = buffer.indexOf(`${RECORD_SEPARATOR}\n`)) !== -1) {
@@ -81,6 +82,9 @@ export default class GraphService {
         }
       }
     }
+
+    // Flush any remaining bytes in the decoder
+    buffer += decoder.decode();
 
     // Last block
     if (buffer.trim()) {

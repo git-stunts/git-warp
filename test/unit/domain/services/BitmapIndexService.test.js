@@ -517,12 +517,12 @@ describe('BitmapIndexService', () => {
       expect(idA).toBe(0);
       expect(idB).toBe(1);
 
-      // These will fail until getParents/getChildren are implemented
-      // const parentsOfB = await service.getParents(SHA_B);
-      // expect(parentsOfB).toContain(SHA_A);
-      //
-      // const childrenOfA = await service.getChildren(SHA_A);
-      // expect(childrenOfA).toContain(SHA_B);
+      // Verify parent/child relationships
+      const parentsOfB = await service.getParents(SHA_B);
+      expect(parentsOfB).toContain(SHA_A);
+
+      const childrenOfA = await service.getChildren(SHA_A);
+      expect(childrenOfA).toContain(SHA_B);
     });
   });
 });

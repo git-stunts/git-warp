@@ -178,7 +178,7 @@ describe('BitmapIndexService - ID Lookup', () => {
     const state = BitmapIndexService.createRebuildState();
     for (let i = 0; i < 10000; i++) {
       const sha = i.toString(16).padStart(40, '0');
-      BitmapIndexService._getOrCreateId(sha, state);
+      BitmapIndexService.registerNode(sha, state);
     }
 
     const tree = BitmapIndexService.serialize(state);

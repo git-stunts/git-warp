@@ -17,7 +17,7 @@ export {
 };
 
 /** Default ref for storing the index OID */
-const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
+export const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
 
 /**
  * Facade class for the EmptyGraph library.
