@@ -35,6 +35,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   async logNodes({ ref, limit = 50, format }) {
     this._validateRef(ref);
+    this._validateLimit(limit);
     const args = ['log', `-${limit}`];
     if (format) {
       args.push(`--format=${format}`);
@@ -45,6 +46,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   async logNodesStream({ ref, limit = 1000000, format }) {
     this._validateRef(ref);
+    this._validateLimit(limit);
     const args = ['log', `-${limit}`];
     if (format) {
       args.push(`--format=${format}`);
@@ -98,25 +100,33 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async readTree(treeOid) {
     const oids = await this.readTreeOids(treeOid);
     const files = {};
-    await Promise.all(Object.entries(oids).map(async ([path, oid]) => {
+    // Process sequentially to avoid spawning thousands of concurrent readBlob calls
+    for (const [path, oid] of Object.entries(oids)) {
       files[path] = await this.readBlob(oid);
-    }));
+    }
     return files;
   }
 
   async readTreeOids(treeOid) {
     this._validateOid(treeOid);
     const output = await this.plumbing.execute({
-      args: ['ls-tree', '-r', treeOid]
+      args: ['ls-tree', '-r', '-z', treeOid]
     });
-    
+
     const oids = {};
-    const lines = output.trim().split('\n');
-    for (const line of lines) {
-      if (!line) {
+    // NUL-separated records: "mode type oid\tpath\0"
+    const records = output.split('\0');
+    for (const record of records) {
+      if (!record) {
         continue;
       }
-      const [meta, path] = line.split('\t');
+      // Format: "mode type oid\tpath"
+      const tabIndex = record.indexOf('\t');
+      if (tabIndex === -1) {
+        continue;
+      }
+      const meta = record.slice(0, tabIndex);
+      const path = record.slice(tabIndex + 1);
       const [, , oid] = meta.split(' ');
       oids[path] = oid;
     }
@@ -190,6 +200,27 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     const validOidPattern = /^[0-9a-fA-F]{4,64}$/;
     if (!validOidPattern.test(oid)) {
       throw new Error(`Invalid OID format: ${oid}`);
+    }
+  }
+
+  /**
+   * Validates that a limit is a safe positive integer.
+   * @param {number} limit - The limit to validate
+   * @throws {Error} If limit is invalid
+   * @private
+   */
+  _validateLimit(limit) {
+    if (typeof limit !== 'number' || !Number.isFinite(limit)) {
+      throw new Error('Limit must be a finite number');
+    }
+    if (!Number.isInteger(limit)) {
+      throw new Error('Limit must be an integer');
+    }
+    if (limit <= 0) {
+      throw new Error('Limit must be a positive integer');
+    }
+    if (limit > 10_000_000) {
+      throw new Error(`Limit too large: ${limit}. Maximum is 10,000,000`);
     }
   }
 }
