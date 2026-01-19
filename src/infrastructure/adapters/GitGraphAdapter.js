@@ -167,8 +167,18 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['rev-parse', ref]
       });
       return oid.trim();
-    } catch {
-      return null;
+    } catch (err) {
+      // Only return null for "ref not found" errors; rethrow others
+      const msg = (err.message || '').toLowerCase();
+      const isNotFound =
+        msg.includes('unknown revision') ||
+        msg.includes('ambiguous argument') ||
+        msg.includes('no such ref') ||
+        msg.includes('bad revision');
+      if (isNotFound) {
+        return null;
+      }
+      throw err;
     }
   }
 
