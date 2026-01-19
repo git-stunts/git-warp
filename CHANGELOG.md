@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-01-18
+
+### Added
+- **OID Validation**: New `_validateOid()` method in `GitGraphAdapter` validates all Git object IDs before use
+- **DEFAULT_INDEX_REF Export**: The default index ref constant is now exported for TypeScript consumers
+- **Benchmark Environment Notes**: Added reproducibility information to THE_STUNT.md
+
+### Changed
+- **Configurable Rebuild Limit**: `CacheRebuildService.rebuild()` now accepts an optional `{ limit }` parameter (default: 10M)
+- **Docker Compose v2**: CI workflow updated to use `docker compose` (space-separated) instead of legacy `docker-compose`
+- **Robust Parent Parsing**: Added `.filter(Boolean)` to handle empty parent lines from root commits
+- **UTF-8 Streaming**: `TextDecoder` now uses `{ stream: true }` option to correctly handle multibyte characters split across chunks
+
+### Security
+- **OID Injection Prevention**: All OIDs validated against `/^[0-9a-fA-F]{4,64}$/` pattern
+- **OID Length Limits**: OIDs cannot exceed 64 characters
+- **Format Parameter Guard**: `logNodes`/`logNodesStream` now conditionally add `--format` flag to prevent `--format=undefined`
+
+### Fixed
+- **UTF-8 Chunk Boundaries**: Commit messages with multibyte UTF-8 characters no longer corrupted when split across stream chunks
+- **Empty Parent Arrays**: Root commits now correctly return `[]` instead of `['']` for parents
+
+### Tests
+- **Stronger Assertions**: `CacheRebuildService.test.js` now verifies `writeBlob` call count
+- **End-to-End Coverage**: Enabled `getParents`/`getChildren` assertions in integration tests
+- **Public API Usage**: Benchmarks now use public `registerNode()` instead of private `_getOrCreateId()`
+
 ## [2.2.0] - 2026-01-08
 
 ### Added

@@ -353,13 +353,22 @@ const message = await graph.readNode(sha);
 const nodes = await graph.listNodes({ ref: 'abc123def' }); // Use SHA instead
 ```
 
+### Invalid OID Format
+```javascript
+// ❌ Error: Invalid OID format: not-a-valid-sha
+// ✅ Solution: OIDs must be 4-64 hexadecimal characters
+const message = await graph.readNode('abc123def456'); // Valid short SHA
+```
+
 ## Security
 
 - **Ref Validation**: All refs validated against strict patterns to prevent injection
-- **Length Limits**: Refs cannot exceed 1024 characters
+- **OID Validation**: All Git object IDs validated against `/^[0-9a-fA-F]{4,64}$/`
+- **Length Limits**: Refs cannot exceed 1024 characters, OIDs cannot exceed 64 characters
 - **No Arbitrary Commands**: Only whitelisted Git plumbing commands
 - **Delimiter Safety**: Uses ASCII Record Separator (`\x1E`) to prevent message collision
 - **Streaming Only**: No unbounded memory usage
+- **UTF-8 Safe**: Streaming decoder handles multibyte characters across chunk boundaries
 
 See [SECURITY.md](./SECURITY.md) for details.
 
