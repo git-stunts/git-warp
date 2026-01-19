@@ -306,7 +306,7 @@ Immutable entity representing a graph node.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │         EmptyGraph (Facade)                 │
 └────────────────┬────────────────────────────┘

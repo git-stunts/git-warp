@@ -12,6 +12,9 @@ export default [
         console: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        URL: "readonly",
         TextDecoder: "readonly",
         TextEncoder: "readonly"
       }

@@ -45,6 +45,11 @@ We ran actual benchmarks comparing the linear `git log` scan against our new Roa
 | 1000 | ~30ms | ~0.01ms | ~3000x |
 | 2000 | ~65ms | ~0.01ms | ~6500x |
 
+**Benchmark Environment:**
+- Node.js 22.x on macOS (Apple Silicon)
+- Benchmarks run via `npm run benchmark` inside Docker for consistency
+- Each data point is the median of 5 runs to reduce variance
+
 **Visualization**: Open `benchmarks/index.html` in your browser to see the D3.js plot of these results.
 
 ---

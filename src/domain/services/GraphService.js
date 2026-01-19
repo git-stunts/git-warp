@@ -100,7 +100,7 @@ export default class GraphService {
     const sha = lines[0];
     const author = lines[1];
     const date = lines[2];
-    const parents = lines[3] ? lines[3].split(' ') : [];
+    const parents = lines[3] ? lines[3].split(' ').filter(Boolean) : [];
     const message = lines.slice(4).join('\n').trim();
 
     return new GraphNode({ sha, author, date, message, parents });

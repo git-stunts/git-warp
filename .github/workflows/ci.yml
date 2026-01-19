@@ -30,4 +30,4 @@ jobs:
           cache: 'npm'
       - run: npm install
       - name: Run tests in Docker
-        run: docker-compose run --rm test
+        run: docker compose run --rm test

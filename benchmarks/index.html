@@ -83,6 +83,8 @@
           { "nodeCount": 1000000, "scanTimeMs": 5809.20, "buildTimeMs": 16278.89, "loadTimeMs": 925.60, "lookupTimeMs": 0.0148 }
         ];
 
+        // Payoff point: node count where loadTimeMs + lookupTimeMs < scanTimeMs
+        // At ~155k nodes, the index cold-load + O(1) lookup becomes faster than linear scan
         const inflectionX = 155172;
         const formatTime = (v) => v < 0.01 ? v.toFixed(4) + " ms" : v < 1000 ? v.toFixed(2) + " ms" : (v/1000).toFixed(2) + " s";
 

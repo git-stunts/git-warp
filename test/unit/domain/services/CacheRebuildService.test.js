@@ -30,7 +30,9 @@ describe('CacheRebuildService', () => {
   it('rebuilds the index and persists it', async () => {
     const treeOid = await service.rebuild('main');
 
+    // Verify blobs are written (one per shard type)
     expect(mockPersistence.writeBlob).toHaveBeenCalled();
+    expect(mockPersistence.writeBlob.mock.calls.length).toBeGreaterThan(0);
     expect(mockPersistence.writeTree).toHaveBeenCalled();
     expect(treeOid).toBe('tree-oid');
   });

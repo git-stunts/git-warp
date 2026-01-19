@@ -9,10 +9,10 @@ export default class CacheRebuildService {
     this.graphService = graphService;
   }
 
-  async rebuild(ref) {
+  async rebuild(ref, { limit = 10_000_000 } = {}) {
     const state = BitmapIndexService.createRebuildState();
-    
-    for await (const node of this.graphService.iterateNodes({ ref, limit: 1000000 })) {
+
+    for await (const node of this.graphService.iterateNodes({ ref, limit })) {
       BitmapIndexService.registerNode(node.sha, state);
       for (const parentSha of node.parents) {
         BitmapIndexService.addEdge(parentSha, node.sha, state);
