@@ -1,0 +1,13 @@
+services:
+  test:
+    build: .
+    environment:
+      - GIT_STUNTS_DOCKER=1
+
+  benchmark:
+    build: .
+    volumes:
+      - ./benchmarks:/app/benchmarks
+    environment:
+      - GIT_STUNTS_DOCKER=1
+    command: ["node", "benchmarks/benchmark.js"]

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Git-Mind 900: GSAP Motion Probe</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/MotionPathPlugin.min.js"></script>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        .chart-container { background: #1a1a1a; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 1px solid #333; width: 900px; margin-bottom: 40px; position: relative; }
+        
+        .line { fill: none; stroke-width: 4; stroke-linecap: round; opacity: 0.6; }
+        .line-scan { stroke: #ff4757; filter: drop-shadow(0 0 8px rgba(255, 71, 87, 0.5)); opacity: 0.9; }
+        .line-build { stroke: #ffa502; filter: drop-shadow(0 0 8px rgba(255, 165, 2, 0.5)); opacity: 0.2; }
+        .line-load { stroke: #5352ed; filter: drop-shadow(0 0 8px rgba(83, 82, 237, 0.5)); }
+        .line-lookup { stroke: #2ed573; filter: drop-shadow(0 0 8px rgba(46, 213, 115, 0.5)); }
+        
+        .axis path, .axis line { stroke: #444; }
+        .axis text { fill: #888; font-size: 12px; }
+        .grid line { stroke: #222; opacity: 0.5; }
+        
+        .legend { font-size: 14px; margin-top: 30px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; width: 100%; max-width: 600px; }
+        .legend-item { display: flex; align-items: center; gap: 12px; }
+        .box { width: 16px; height: 16px; border-radius: 4px; }
+        
+        h1 { margin: 0 0 10px 0; color: #ffa502; font-size: 32px; letter-spacing: 2px; }
+        p { color: #666; margin-bottom: 40px; font-style: italic; }
+
+        /* Payoff Markers */
+        .payoff-line { stroke: #ffa502; stroke-width: 2px; stroke-dasharray: 8,4; opacity: 0.5; }
+        .payoff-label { fill: #ffa502; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(10, 10, 10, 0.98);
+            border: 1px solid #ffa502;
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.9);
+            z-index: 100;
+            min-width: 260px;
+            backdrop-filter: blur(10px);
+        }
+        .tooltip-header { border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; font-weight: bold; color: #fff; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .tooltip-row { display: flex; justify-content: space-between; gap: 20px; font-size: 13px; margin-bottom: 6px; }
+        .speedup-badge { background: #2ed573; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 900; font-size: 11px; }
+        .mouse-line { stroke: #ffa502; stroke-width: 1px; stroke-dasharray: 4,4; opacity: 0.5; }
+
+        .skater-container { pointer-events: none; }
+    </style>
+</head>
+<body>
+    <h1>🛹 THE GIT-MIND 900</h1>
+    <p>Watch the 900: Grinding the Complexity Curve.</p>
+
+    <div class="chart-container" id="container">
+        <div id="chart"></div>
+        <div id="tooltip" class="tooltip"></div>
+        <div class="legend">
+            <div class="legend-item"><div class="box" style="background: #ff4757;"></div> <span><b>Legacy</b> (Log Walk)</span></div>
+            <div class="legend-item"><div class="box" style="background: #5352ed;"></div> <span><b>Stunt</b> (Cold Load)</span></div>
+            <div class="legend-item"><div class="box" style="background: #2ed573;"></div> <span><b>Lookup</b> (O(1) Bitmap)</span></div>
+            <div class="legend-item"><div class="box" style="background: rgba(255,165,2,0.2);"></div> <span><b>Build</b> (One-time)</span></div>
+        </div>
+    </div>
+
+    <script>
+        gsap.registerPlugin(MotionPathPlugin);
+
+        const data = [
+          { "nodeCount": 1000, "scanTimeMs": 6.80, "buildTimeMs": 701.19, "loadTimeMs": 551.04, "lookupTimeMs": 0.0045 },
+          { "nodeCount": 5000, "scanTimeMs": 27.62, "buildTimeMs": 666.35, "loadTimeMs": 475.21, "lookupTimeMs": 0.0028 },
+          { "nodeCount": 10000, "scanTimeMs": 89.61, "buildTimeMs": 820.80, "loadTimeMs": 498.95, "lookupTimeMs": 0.0033 },
+          { "nodeCount": 20000, "scanTimeMs": 114.07, "buildTimeMs": 856.46, "loadTimeMs": 566.89, "lookupTimeMs": 0.0132 },
+          { "nodeCount": 35000, "scanTimeMs": 285.57, "buildTimeMs": 1009.27, "loadTimeMs": 702.03, "lookupTimeMs": 0.0044 },
+          { "nodeCount": 50000, "scanTimeMs": 296.09, "buildTimeMs": 1087.05, "loadTimeMs": 622.52, "lookupTimeMs": 0.0040 },
+          { "nodeCount": 75000, "scanTimeMs": 470.45, "buildTimeMs": 1379.81, "loadTimeMs": 839.11, "lookupTimeMs": 0.0096 },
+          { "nodeCount": 100000, "scanTimeMs": 580.92, "buildTimeMs": 1627.88, "loadTimeMs": 925.60, "lookupTimeMs": 0.0148 },
+          { "nodeCount": 1000000, "scanTimeMs": 5809.20, "buildTimeMs": 16278.89, "loadTimeMs": 925.60, "lookupTimeMs": 0.0148 }
+        ];
+
+        // Payoff point: node count where loadTimeMs + lookupTimeMs < scanTimeMs
+        // At ~155k nodes, the index cold-load + O(1) lookup becomes faster than linear scan
+        const inflectionX = 155172;
+        const formatTime = (v) => v < 0.01 ? v.toFixed(4) + " ms" : v < 1000 ? v.toFixed(2) + " ms" : (v/1000).toFixed(2) + " s";
+
+        const margin = {top: 40, right: 50, bottom: 60, left: 80},
+              width = 900 - margin.left - margin.right,
+              height = 500 - margin.top - margin.bottom;
+
+        const svg = d3.select("#chart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLog().domain([1000, 1000000]).range([0, width]);
+        const y = d3.scaleLinear().domain([0, 7000]).range([height, 0]);
+
+        svg.append("g").attr("class", "grid").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(4).tickSize(-height).tickFormat(""));
+        svg.append("g").attr("class", "grid").call(d3.axisLeft(y).ticks(10).tickSize(-width).tickFormat(""));
+        svg.append("g").attr("transform", `translate(0,${height})`).attr("class", "axis").call(d3.axisBottom(x).ticks(4, d3.format(".0s")));
+        svg.append("g").attr("class", "axis").call(d3.axisLeft(y).tickFormat(d => d >= 1000 ? (d/1000).toFixed(0) + "s" : d + "ms"));
+
+        // Inflection Line
+        svg.append("line").attr("class", "payoff-line").attr("x1", x(inflectionX)).attr("y1", 0).attr("x2", x(inflectionX)).attr("y2", height);
+        svg.append("text").attr("class", "payoff-label").attr("x", x(inflectionX)).attr("y", -15).attr("text-anchor", "middle").text("Payoff Point");
+
+        const keys = ["scanTimeMs", "buildTimeMs", "loadTimeMs", "lookupTimeMs"];
+        const colors = ["#ff4757", "#ffa502", "#5352ed", "#2ed573"];
+
+        const pathNodes = keys.map((key, i) => {
+            const line = d3.line().x(d => x(d.nodeCount)).y(d => y(d[key])).curve(d3.curveMonotoneX);
+            return svg.append("path").datum(data).attr("class", "line").attr("id", `path-${i}`).style("stroke", colors[i]).attr("d", line).node();
+        });
+
+        // GSAP SKATEBOARD STUNT
+        const skater = svg.append("text")
+            .attr("id", "skater")
+            .attr("font-size", "34px")
+            .attr("dominant-baseline", "central")
+            .attr("text-anchor", "middle")
+            .style("opacity", "0") // Hidden initially
+            .text("🛹");
+
+        const tl = gsap.timeline({ 
+            paused: true, 
+            onStart: () => gsap.set("#skater", { opacity: 1 }),
+            onComplete: () => gsap.set("#skater", { opacity: 0 })
+        });
+
+        // Phase 1: Grind the Legacy Wall
+        tl.to("#skater", {
+            duration: 4,
+            ease: "power2.in",
+            motionPath: {
+                path: "#path-0",
+                autoRotate: true
+            }
+        })
+        // Phase 2: Kickflip at the end and vanish
+        .to("#skater", {
+            rotation: "+=360",
+            duration: 0.5,
+            scale: 1.5,
+            yoyo: true,
+            repeat: 1
+        });
+
+        // Click to Shred
+        svg.on("click", function() {
+            if (!tl.isActive()) {
+                tl.restart();
+            }
+        });
+
+        // Interactive Probe
+        const mouseG = svg.append("g").attr("class", "mouse-over-effects");
+        const mouseLine = mouseG.append("path").attr("class", "mouse-line").style("opacity", "0");
+        const mouseDots = mouseG.selectAll('.mouse-per-line').data(keys).enter().append("circle").attr("r", 6).style("stroke", (d, i) => colors[i]).style("fill", "none").style("stroke-width", "2px").style("opacity", "0");
+
+        svg.append('svg:rect')
+            .attr('width', width).attr('height', height).attr('fill', 'none').attr('pointer-events', 'all')
+            .on('mouseout', () => {
+                mouseLine.style("opacity", "0");
+                mouseDots.style("opacity", "0");
+                d3.select("#tooltip").style("display", "none");
+            })
+            .on('mouseover', () => {
+                mouseLine.style("opacity", "0.5");
+                mouseDots.style("opacity", "1");
+                d3.select("#tooltip").style("display", "block");
+            })
+            .on('mousemove', function(event) {
+                const mouseX = d3.pointer(event)[0];
+                const xVal = x.invert(mouseX);
+                mouseLine.attr("d", () => `M${mouseX},${height} L${mouseX},0`);
+
+                const sampledValues = pathNodes.map(path => {
+                    let beginning = 0, end = path.getTotalLength(), target = null;
+                    while (true) {
+                        target = Math.floor((beginning + end) / 2);
+                        const pos = path.getPointAtLength(target);
+                        if ((target === end || target === beginning) && pos.x !== mouseX) break;
+                        if (pos.x > mouseX) end = target;
+                        else if (pos.x < mouseX) beginning = target;
+                        else break;
+                    }
+                    return y.invert(path.getPointAtLength(target).y);
+                });
+
+                mouseDots.attr("cx", mouseX).attr("cy", (d, i) => y(sampledValues[i]));
+                const speedup = sampledValues[0] / sampledValues[3];
+
+                d3.select("#tooltip")
+                    .html(`
+                        <div class="tooltip-header">
+                            <span>${d3.format(",.0f")(xVal)} Nodes</span>
+                            <span class="speedup-badge">${d3.format(",.0f")(speedup)}X SPEEDUP</span>
+                        </div>
+                        <div class="tooltip-row"><span style="color:${colors[0]}">● Legacy Scan:</span> <span>${formatTime(sampledValues[0])}</span></div>
+                        <div class="tooltip-row"><span style="color:${colors[1]}">● Build Index:</span> <span>${formatTime(sampledValues[1])}</span></div>
+                        <div class="tooltip-row"><span style="color:${colors[2]}">● Stunt Load:</span> <span>${formatTime(sampledValues[2])}</span></div>
+                        <div class="tooltip-row"><span style="color:${colors[3]}">● Stunt Lookup:</span> <span>${formatTime(sampledValues[3])}</span></div>
+                    `)
+                    .style("left", (event.pageX + 20) + "px")
+                    .style("top", (event.pageY - 40) + "px");
+            });
+    </script>
+</body>
+</html>

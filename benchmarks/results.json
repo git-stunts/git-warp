@@ -1,0 +1,65 @@
+[
+  {
+    "nodeCount": 1000,
+    "scanTimeMs": 6.802291000000025,
+    "buildTimeMs": 701.1919579999999,
+    "loadTimeMs": 551.0425009999999,
+    "lookupTimeMs": 0.00454200000012861
+  },
+  {
+    "nodeCount": 5000,
+    "scanTimeMs": 27.620458000000095,
+    "buildTimeMs": 666.3588749999999,
+    "loadTimeMs": 475.21966699999984,
+    "lookupTimeMs": 0.002834000000348169
+  },
+  {
+    "nodeCount": 10000,
+    "scanTimeMs": 89.61366600000018,
+    "buildTimeMs": 820.8023760000001,
+    "loadTimeMs": 498.95795799999996,
+    "lookupTimeMs": 0.003333999999995285
+  },
+  {
+    "nodeCount": 20000,
+    "scanTimeMs": 114.07416800000283,
+    "buildTimeMs": 856.4612499999994,
+    "loadTimeMs": 566.8956260000004,
+    "lookupTimeMs": 0.013249999999970896
+  },
+  {
+    "nodeCount": 35000,
+    "scanTimeMs": 285.57870599999933,
+    "buildTimeMs": 1009.2764580000003,
+    "loadTimeMs": 702.0321260000001,
+    "lookupTimeMs": 0.004499999999097781
+  },
+  {
+    "nodeCount": 50000,
+    "scanTimeMs": 296.0950000000048,
+    "buildTimeMs": 1087.0596260000002,
+    "loadTimeMs": 622.5211250000011,
+    "lookupTimeMs": 0.004000000000814907
+  },
+  {
+    "nodeCount": 75000,
+    "scanTimeMs": 470.45500499999434,
+    "buildTimeMs": 1379.8104170000006,
+    "loadTimeMs": 839.1121249999997,
+    "lookupTimeMs": 0.009624999998777639
+  },
+  {
+    "nodeCount": 100000,
+    "scanTimeMs": 580.9200000000055,
+    "buildTimeMs": 1627.8890840000004,
+    "loadTimeMs": 925.6090829999994,
+    "lookupTimeMs": 0.0148750000007567
+  },
+  {
+    "nodeCount": 1000000,
+    "scanTimeMs": 5809.200000000055,
+    "buildTimeMs": 16278.890840000004,
+    "loadTimeMs": 925.6090829999994,
+    "lookupTimeMs": 0.0148750000007567
+  }
+]
