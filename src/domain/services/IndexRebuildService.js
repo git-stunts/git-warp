@@ -176,23 +176,50 @@ export default class IndexRebuildService {
    * **Persistence**: Reads from storage. The tree OID can be stored
    * in a ref (e.g., 'refs/empty-graph/index') for persistence across sessions.
    *
+   * **Strict Mode** (default: `true`):
+   * When `strict` is enabled (fail-closed behavior), the reader will validate
+   * shard integrity during loading. If corruption or validation failures are
+   * detected, errors are thrown immediately, allowing callers to trigger rebuilds.
+   *
+   * When `strict` is disabled (graceful degradation), the reader will attempt
+   * to continue operation despite integrity issues, which may result in
+   * incomplete or incorrect query results.
+   *
    * @param {string} treeOid - OID of the index tree (from rebuild() or a saved ref)
+   * @param {Object} [options] - Load options
+   * @param {boolean} [options.strict=true] - Enable strict integrity verification (fail-closed).
+   *   When true, throws on any shard validation or corruption errors.
+   *   When false, attempts graceful degradation.
    * @returns {Promise<BitmapIndexReader>} Configured reader ready for O(1) queries
    * @throws {Error} If treeOid is invalid or tree cannot be read
+   * @throws {ShardValidationError} (strict mode) If shard structure validation fails
+   * @throws {ShardCorruptionError} (strict mode) If shard data integrity check fails
+   * @throws {ShardLoadError} (strict mode) If shard cannot be loaded from storage
    *
    * @example
-   * // Load from a known tree OID
-   * const reader = await rebuildService.load(treeOid);
-   * const parents = await reader.getParents(someSha);
+   * // Load with strict integrity checking (default)
+   * try {
+   *   const reader = await service.load(treeOid);
+   * } catch (err) {
+   *   if (err instanceof ShardValidationError || err instanceof ShardCorruptionError) {
+   *     // Integrity failure - trigger rebuild
+   *     const newTreeOid = await service.rebuild(ref);
+   *     const reader = await service.load(newTreeOid);
+   *   }
+   * }
+   *
+   * @example
+   * // Load with graceful degradation (non-strict)
+   * const reader = await service.load(treeOid, { strict: false });
    *
    * @example
    * // Load from a saved ref
    * const savedOid = await storage.readRef('refs/empty-graph/index');
    * const reader = await rebuildService.load(savedOid);
    */
-  async load(treeOid) {
+  async load(treeOid, { strict = true } = {}) {
     const shardOids = await this.storage.readTreeOids(treeOid);
-    const reader = new BitmapIndexReader({ storage: this.storage });
+    const reader = new BitmapIndexReader({ storage: this.storage, strict });
     reader.setup(shardOids);
     return reader;
   }

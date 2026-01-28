@@ -71,4 +71,61 @@ describe('IndexRebuildService', () => {
 
     expect(treeOid).toBe('tree-oid');
   });
+
+  describe('integrity verification', () => {
+    it('load() uses strict mode by default', async () => {
+      const reader = await service.load('tree-oid');
+      expect(reader.strict).toBe(true);
+    });
+
+    it('load() allows non-strict mode via option', async () => {
+      const reader = await service.load('tree-oid', { strict: false });
+      expect(reader.strict).toBe(false);
+    });
+
+    it('strict mode throws ShardValidationError on checksum mismatch', async () => {
+      // Mock storage to return shard with wrong checksum
+      mockStorage.readTreeOids.mockResolvedValue({
+        'meta_ab.json': 'bad-checksum-oid'
+      });
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
+        version: 1,
+        checksum: 'wrong-checksum',
+        data: { 'ab123456': 0 }
+      })));
+
+      const reader = await service.load('tree-oid');
+
+      // Import error type
+      const { ShardValidationError } = await import('../../../../src/domain/errors/index.js');
+
+      await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardValidationError);
+    });
+
+    it('strict mode throws ShardCorruptionError on invalid format', async () => {
+      mockStorage.readTreeOids.mockResolvedValue({
+        'meta_ab.json': 'corrupt-oid'
+      });
+      mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid json'));
+
+      const reader = await service.load('tree-oid');
+
+      const { ShardCorruptionError } = await import('../../../../src/domain/errors/index.js');
+
+      await expect(reader.lookupId('ab123456')).rejects.toThrow(ShardCorruptionError);
+    });
+
+    it('non-strict mode returns empty on integrity failure instead of throwing', async () => {
+      mockStorage.readTreeOids.mockResolvedValue({
+        'meta_ab.json': 'bad-oid'
+      });
+      mockStorage.readBlob.mockResolvedValue(Buffer.from('invalid'));
+
+      const reader = await service.load('tree-oid', { strict: false });
+
+      // Should not throw, returns undefined for unknown ID
+      const id = await reader.lookupId('ab123456');
+      expect(id).toBeUndefined();
+    });
+  });
 });

@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 import roaring from 'roaring';
 const { RoaringBitmap32 } = roaring;
 
@@ -30,23 +32,16 @@ const BYTES_PER_ID_MAPPING = 120;
 const BITMAP_BASE_OVERHEAD = 64;
 
 /**
- * Computes a fast 32-bit hash checksum of an object.
+ * Computes a SHA-256 checksum of the given data.
+ * Used to verify shard integrity on load.
+ * Must match the algorithm in BitmapIndexBuilder and BitmapIndexReader.
  *
- * Uses a simple hash algorithm (djb2-like) for speed.
- * Not cryptographically secure, but sufficient for integrity checks.
- *
- * @param {Object} obj - The object to checksum
- * @returns {string} Hexadecimal string representation of the hash
+ * @param {Object} data - The data object to checksum
+ * @returns {string} Hex-encoded SHA-256 hash
  */
-function computeChecksum(obj) {
-  const str = JSON.stringify(obj);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return hash.toString(16);
+function computeChecksum(data) {
+  const json = JSON.stringify(data);
+  return createHash('sha256').update(json).digest('hex');
 }
 
 /**

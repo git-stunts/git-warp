@@ -10,6 +10,13 @@ import BitmapIndexReader from './src/domain/services/BitmapIndexReader.js';
 import IndexRebuildService from './src/domain/services/IndexRebuildService.js';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.js';
 import IndexStoragePort from './src/ports/IndexStoragePort.js';
+import {
+  IndexError,
+  ShardLoadError,
+  ShardCorruptionError,
+  ShardValidationError,
+  StorageError,
+} from './src/domain/errors/index.js';
 
 export {
   GraphService,
@@ -20,7 +27,14 @@ export {
   IndexRebuildService,
   GraphPersistencePort,
   IndexStoragePort,
-  DEFAULT_MAX_MESSAGE_BYTES
+  DEFAULT_MAX_MESSAGE_BYTES,
+
+  // Error types for integrity failure handling
+  IndexError,
+  ShardLoadError,
+  ShardCorruptionError,
+  ShardValidationError,
+  StorageError,
 };
 
 /** Default ref for storing the index OID */
@@ -32,6 +46,25 @@ export const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
  * Provides a simplified API over the underlying domain services.
  * Requires a persistence adapter that implements both GraphPersistencePort
  * and IndexStoragePort interfaces.
+ *
+ * ## Error Handling
+ *
+ * Error types are exported for catching specific failure modes:
+ * - {@link ShardValidationError} - Version/checksum mismatch (integrity failure)
+ * - {@link ShardCorruptionError} - Invalid shard format (data corruption)
+ * - {@link ShardLoadError} - Storage I/O failure
+ *
+ * @example
+ * import EmptyGraph, { ShardValidationError, ShardCorruptionError } from '@git-stunts/empty-graph';
+ *
+ * try {
+ *   const reader = await graph.loadIndex(treeOid);
+ * } catch (err) {
+ *   if (err instanceof ShardValidationError || err instanceof ShardCorruptionError) {
+ *     // Integrity failure - rebuild the index
+ *     const newTreeOid = await graph.rebuildIndex(ref);
+ *   }
+ * }
  *
  * @example
  * import GitPlumbing from '@git-stunts/plumbing';
