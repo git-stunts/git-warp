@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import CacheRebuildService from '../../../../src/domain/services/CacheRebuildService.js';
+import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
 
-describe('CacheRebuildService', () => {
+describe('IndexRebuildService', () => {
   let service;
-  let mockPersistence;
+  let mockStorage;
   let mockGraphService;
 
   beforeEach(() => {
-    mockPersistence = {
+    mockStorage = {
       writeBlob: vi.fn().mockResolvedValue('blob-oid'),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
+      readTreeOids: vi.fn().mockResolvedValue({}),
+      readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
     };
 
     // Mock iterateNodes as an async generator
@@ -21,8 +23,8 @@ describe('CacheRebuildService', () => {
       }
     };
 
-    service = new CacheRebuildService({
-      persistence: mockPersistence,
+    service = new IndexRebuildService({
+      storage: mockStorage,
       graphService: mockGraphService
     });
   });
@@ -31,9 +33,18 @@ describe('CacheRebuildService', () => {
     const treeOid = await service.rebuild('main');
 
     // Verify blobs are written (one per shard type)
-    expect(mockPersistence.writeBlob).toHaveBeenCalled();
-    expect(mockPersistence.writeBlob.mock.calls.length).toBeGreaterThan(0);
-    expect(mockPersistence.writeTree).toHaveBeenCalled();
+    expect(mockStorage.writeBlob).toHaveBeenCalled();
+    expect(mockStorage.writeBlob.mock.calls.length).toBeGreaterThan(0);
+    expect(mockStorage.writeTree).toHaveBeenCalled();
     expect(treeOid).toBe('tree-oid');
+  });
+
+  it('loads an index from a tree OID', async () => {
+    const reader = await service.load('tree-oid');
+
+    expect(mockStorage.readTreeOids).toHaveBeenCalledWith('tree-oid');
+    expect(reader).toBeDefined();
+    expect(typeof reader.getParents).toBe('function');
+    expect(typeof reader.getChildren).toBe('function');
   });
 });

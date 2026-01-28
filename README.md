@@ -31,10 +31,14 @@ npm install @git-stunts/empty-graph @git-stunts/plumbing
 
 ```javascript
 import GitPlumbing from '@git-stunts/plumbing';
-import EmptyGraph from '@git-stunts/empty-graph';
+import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
 
-const git = new GitPlumbing({ cwd: './my-db' });
-const graph = new EmptyGraph({ plumbing: git });
+// Create the persistence adapter
+const plumbing = new GitPlumbing({ cwd: './my-db' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+// Create the graph with injected adapter
+const graph = new EmptyGraph({ persistence });
 
 // Create a node (commit)
 const parentSha = await graph.createNode({ message: 'First Entry' });
@@ -87,12 +91,12 @@ const children = await graph.getChildren(someSha);
 
 ### `EmptyGraph`
 
-#### `constructor({ plumbing })`
+#### `constructor({ persistence })`
 
 Creates a new EmptyGraph instance.
 
 **Parameters:**
-- `plumbing` (GitPlumbing): Instance of `@git-stunts/plumbing`
+- `persistence` (GitGraphAdapter): Adapter implementing `GraphPersistencePort` & `IndexStoragePort`
 
 #### `async createNode({ message, parents = [], sign = false })`
 
@@ -160,19 +164,27 @@ for await (const node of graph.iterateNodes({ ref: 'HEAD' })) {
 }
 ```
 
-#### `async rebuildIndex(ref)`
+#### `async rebuildIndex(ref, options?)`
 
 Rebuilds the bitmap index for fast O(1) parent/child lookups.
 
 **Parameters:**
 - `ref` (string): Git ref to rebuild the index from
+- `options.limit` (number, optional): Maximum nodes to index (default: 10,000,000)
 
 **Returns:** `Promise<string>` - OID of the created index tree
+
+**Persistence:** Creates a Git tree containing sharded bitmap data (~3 files per active SHA prefix).
+
+**Memory:** O(N) where N is number of nodes. Approximately 150-200MB for 1M nodes.
 
 **Example:**
 ```javascript
 const treeOid = await graph.rebuildIndex('HEAD');
 // Store treeOid for later use with loadIndex()
+
+// With custom limit
+const treeOid = await graph.rebuildIndex('HEAD', { limit: 100000 });
 ```
 
 #### `async loadIndex(treeOid)`
@@ -183,6 +195,8 @@ Loads a pre-built bitmap index for O(1) queries.
 - `treeOid` (string): OID of the index tree (from `rebuildIndex()`)
 
 **Returns:** `Promise<void>`
+
+**Memory:** Lazy loading - shards are loaded on-demand. Initial overhead is minimal (~50KB).
 
 **Example:**
 ```javascript
@@ -306,6 +320,8 @@ Immutable entity representing a graph node.
 
 ## Architecture
 
+EmptyGraph follows hexagonal architecture (ports & adapters):
+
 ```text
 ┌─────────────────────────────────────────────┐
 │         EmptyGraph (Facade)                 │
@@ -314,18 +330,38 @@ Immutable entity representing a graph node.
       ┌──────────┴──────────┐
       │                     │
 ┌─────▼──────┐    ┌────────▼─────────┐
-│ GraphService│    │ BitmapIndexService│
+│ GraphService│    │IndexRebuildService│
 │  (Domain)   │    │    (Domain)      │
 └─────┬──────┘    └────────┬─────────┘
       │                     │
-┌─────▼──────────────────────▼─────────┐
-│     GitGraphAdapter (Infrastructure) │
-└──────────────┬───────────────────────┘
+      │    ┌────────────────┤
+      │    │                │
+┌─────▼────▼───┐    ┌──────▼────────┐
+│GraphPersistence│   │IndexStoragePort│
+│    Port       │   │    (Port)      │
+└─────┬────────┘    └──────┬────────┘
+      │                     │
+┌─────▼─────────────────────▼─────────┐
+│     GitGraphAdapter (Adapter)       │
+└──────────────┬──────────────────────┘
                │
      ┌─────────▼──────────┐
      │ @git-stunts/plumbing│
      └────────────────────┘
 ```
+
+**Key Components:**
+
+| Layer | Component | Responsibility |
+|-------|-----------|----------------|
+| Facade | `EmptyGraph` | Simplified public API |
+| Domain | `GraphService` | Node CRUD operations |
+| Domain | `IndexRebuildService` | Index building orchestration |
+| Domain | `BitmapIndexBuilder` | Pure in-memory index construction |
+| Domain | `BitmapIndexReader` | O(1) index queries |
+| Port | `GraphPersistencePort` | Graph storage contract |
+| Port | `IndexStoragePort` | Index storage contract |
+| Adapter | `GitGraphAdapter` | Git implementation of both ports |
 
 ## Error Handling
 

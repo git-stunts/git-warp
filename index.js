@@ -5,15 +5,21 @@
 import GraphService from './src/domain/services/GraphService.js';
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.js';
 import GraphNode from './src/domain/entities/GraphNode.js';
-import BitmapIndexService from './src/domain/services/BitmapIndexService.js';
-import CacheRebuildService from './src/domain/services/CacheRebuildService.js';
+import BitmapIndexBuilder from './src/domain/services/BitmapIndexBuilder.js';
+import BitmapIndexReader from './src/domain/services/BitmapIndexReader.js';
+import IndexRebuildService from './src/domain/services/IndexRebuildService.js';
+import GraphPersistencePort from './src/ports/GraphPersistencePort.js';
+import IndexStoragePort from './src/ports/IndexStoragePort.js';
 
 export {
   GraphService,
   GitGraphAdapter,
   GraphNode,
-  BitmapIndexService,
-  CacheRebuildService
+  BitmapIndexBuilder,
+  BitmapIndexReader,
+  IndexRebuildService,
+  GraphPersistencePort,
+  IndexStoragePort
 };
 
 /** Default ref for storing the index OID */
@@ -21,17 +27,33 @@ export const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
 
 /**
  * Facade class for the EmptyGraph library.
+ *
+ * Provides a simplified API over the underlying domain services.
+ * Requires a persistence adapter that implements both GraphPersistencePort
+ * and IndexStoragePort interfaces.
+ *
+ * @example
+ * import GitPlumbing from '@git-stunts/plumbing';
+ * import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
+ *
+ * const plumbing = new GitPlumbing({ cwd: './my-repo' });
+ * const persistence = new GitGraphAdapter({ plumbing });
+ * const graph = new EmptyGraph({ persistence });
  */
 export default class EmptyGraph {
   /**
+   * Creates a new EmptyGraph instance.
    * @param {Object} options
-   * @param {import('@git-stunts/plumbing').default} options.plumbing
+   * @param {GraphPersistencePort & IndexStoragePort} options.persistence - Adapter implementing both persistence ports
    */
-  constructor({ plumbing }) {
-    this._persistence = new GitGraphAdapter({ plumbing });
+  constructor({ persistence }) {
+    this._persistence = persistence;
     this.service = new GraphService({ persistence: this._persistence });
-    this.rebuildService = new CacheRebuildService({ persistence: this._persistence, graphService: this.service });
-    /** @type {BitmapIndexService|null} */
+    this.rebuildService = new IndexRebuildService({
+      graphService: this.service,
+      storage: this._persistence
+    });
+    /** @type {BitmapIndexReader|null} */
     this._index = null;
     /** @type {string|null} */
     this._indexOid = null;
@@ -96,12 +118,14 @@ export default class EmptyGraph {
   /**
    * Rebuilds the bitmap index for the graph.
    * @param {string} ref - Git ref to rebuild from
+   * @param {Object} [options] - Rebuild options
+   * @param {number} [options.limit=10000000] - Maximum nodes to index
    * @returns {Promise<string>} OID of the created index tree
    * @example
    * const treeOid = await graph.rebuildIndex('HEAD');
    */
-  async rebuildIndex(ref) {
-    const oid = await this.rebuildService.rebuild(ref);
+  async rebuildIndex(ref, options) {
+    const oid = await this.rebuildService.rebuild(ref, options);
     this._indexOid = oid;
     return oid;
   }
