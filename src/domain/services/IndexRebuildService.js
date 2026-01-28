@@ -56,14 +56,27 @@ export default class IndexRebuildService {
       }
     }
 
+    return this._persistIndex(builder);
+  }
+
+  /**
+   * Persists a built index to storage.
+   *
+   * Serializes the builder's state and writes each shard as a blob,
+   * then creates a tree containing all shards.
+   *
+   * @param {BitmapIndexBuilder} builder - The builder containing index data
+   * @returns {Promise<string>} OID of the created tree
+   * @private
+   */
+  async _persistIndex(builder) {
     const treeStructure = builder.serialize();
     const flatEntries = [];
     for (const [path, buffer] of Object.entries(treeStructure)) {
       const oid = await this.storage.writeBlob(buffer);
       flatEntries.push(`100644 blob ${oid}\t${path}`);
     }
-
-    return await this.storage.writeTree(flatEntries);
+    return this.storage.writeTree(flatEntries);
   }
 
   /**

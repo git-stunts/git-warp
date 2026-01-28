@@ -47,4 +47,28 @@ describe('IndexRebuildService', () => {
     expect(typeof reader.getParents).toBe('function');
     expect(typeof reader.getChildren).toBe('function');
   });
+
+  it('persists index from builder to storage', async () => {
+    // Create a minimal builder with known data
+    const BitmapIndexBuilder = (await import('../../../../src/domain/services/BitmapIndexBuilder.js')).default;
+    const builder = new BitmapIndexBuilder();
+    builder.registerNode('aabbccdd');
+    builder.addEdge('aabbccdd', 'eeffgghh');
+
+    const treeOid = await service._persistIndex(builder);
+
+    // Verify blobs were written for each shard
+    expect(mockStorage.writeBlob).toHaveBeenCalled();
+    // Should have meta shards and edge shards
+    const blobCalls = mockStorage.writeBlob.mock.calls;
+    expect(blobCalls.length).toBeGreaterThanOrEqual(2);
+
+    // Verify tree was created with all entries
+    expect(mockStorage.writeTree).toHaveBeenCalledTimes(1);
+    const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+    expect(treeEntries.length).toBeGreaterThanOrEqual(2);
+    expect(treeEntries.every(e => e.startsWith('100644 blob'))).toBe(true);
+
+    expect(treeOid).toBe('tree-oid');
+  });
 });

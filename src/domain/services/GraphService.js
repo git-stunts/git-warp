@@ -1,8 +1,19 @@
 import GraphNode from '../entities/GraphNode.js';
 
 /**
- * ASCII Record Separator (0x1E) - Used as delimiter in git log parsing.
- * This control character cannot appear in normal text, preventing injection.
+ * ASCII Record Separator (0x1E) - Delimits commit records in git log output.
+ *
+ * This control character cannot appear in normal text, preventing message injection.
+ * The git log format produces records in this exact structure:
+ *
+ * ```
+ * <SHA>\n
+ * <author>\n
+ * <date>\n
+ * <parents (space-separated)>\n
+ * <message body (may contain newlines)><RECORD_SEPARATOR>\n
+ * ```
+ *
  * @see https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Field_separators
  * @const {string}
  */
@@ -39,9 +50,18 @@ export default class GraphService {
   /**
    * Async generator for streaming nodes.
    * Essential for processing millions of nodes without OOM.
+   *
+   * **Log format contract**: Each record contains 5 fields separated by newlines:
+   * 1. SHA (40 hex chars)
+   * 2. Author name
+   * 3. Date string
+   * 4. Parent SHAs (space-separated, empty string for root commits)
+   * 5. Message body (may span multiple lines, terminated by RECORD_SEPARATOR)
+   *
    * @param {Object} options
    * @param {string} options.ref - Git ref to start from
    * @param {number} [options.limit=1000000] - Maximum nodes to yield (1 to 10,000,000)
+   * @yields {GraphNode}
    * @throws {Error} If limit is invalid
    */
   async *iterateNodes({ ref, limit = 1000000 }) {
@@ -95,17 +115,43 @@ export default class GraphService {
     }
   }
 
+  /**
+   * Parses a single node block into a GraphNode.
+   *
+   * Expected format (5 lines minimum):
+   * - Line 0: SHA
+   * - Line 1: Author
+   * - Line 2: Date
+   * - Line 3: Parents (space-separated, may be empty)
+   * - Lines 4+: Message body (preserved exactly, not trimmed)
+   *
+   * @param {string} block - Raw block text (without trailing RECORD_SEPARATOR)
+   * @returns {GraphNode|null} Parsed node or null if invalid
+   * @private
+   */
   _parseNode(block) {
-    const lines = block.trim().split('\n');
+    const lines = block.split('\n');
+    // Need at least 4 lines: SHA, author, date, parents
+    // Message (lines 4+) may be empty
     if (lines.length < 4) {
       return null;
     }
 
     const sha = lines[0];
+    if (!sha) {
+      return null;
+    }
+
     const author = lines[1];
     const date = lines[2];
     const parents = lines[3] ? lines[3].split(' ').filter(Boolean) : [];
-    const message = lines.slice(4).join('\n').trim();
+    // Preserve message exactly as-is (may be empty, may have leading/trailing whitespace)
+    const message = lines.slice(4).join('\n');
+
+    // GraphNode requires non-empty message, return null for empty
+    if (!message) {
+      return null;
+    }
 
     return new GraphNode({ sha, author, date, message, parents });
   }

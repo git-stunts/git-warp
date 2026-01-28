@@ -42,4 +42,78 @@ describe('GraphService', () => {
     expect(nodes[0].sha).toBe('sha1');
     expect(nodes[0].message).toBe('msg1');
   });
+
+  describe('_parseNode edge cases', () => {
+    describe('message parsing', () => {
+      it('preserves whitespace-only messages without trimming', async () => {
+        const mockPersistence = {
+          async *logNodesStream() {
+            // Message is just spaces - should be preserved
+            yield 'abc123\nauthor\n2026-01-01\n\n   \x1E\n';
+          }
+        };
+        const service = new GraphService({ persistence: mockPersistence });
+
+        const nodes = [];
+        for await (const node of service.iterateNodes({ ref: 'HEAD', limit: 10 })) {
+          nodes.push(node);
+        }
+
+        expect(nodes).toHaveLength(1);
+        expect(nodes[0].message).toBe('   '); // Preserved, not trimmed
+      });
+
+      it('preserves leading and trailing whitespace in messages', async () => {
+        const mockPersistence = {
+          async *logNodesStream() {
+            yield 'abc123\nauthor\n2026-01-01\n\n  hello world  \x1E\n';
+          }
+        };
+        const service = new GraphService({ persistence: mockPersistence });
+
+        const nodes = [];
+        for await (const node of service.iterateNodes({ ref: 'HEAD', limit: 10 })) {
+          nodes.push(node);
+        }
+
+        expect(nodes).toHaveLength(1);
+        expect(nodes[0].message).toBe('  hello world  ');
+      });
+
+      it('preserves multi-line messages with internal whitespace', async () => {
+        const mockPersistence = {
+          async *logNodesStream() {
+            yield 'abc123\nauthor\n2026-01-01\n\n  line1  \n\n  line2  \x1E\n';
+          }
+        };
+        const service = new GraphService({ persistence: mockPersistence });
+
+        const nodes = [];
+        for await (const node of service.iterateNodes({ ref: 'HEAD', limit: 10 })) {
+          nodes.push(node);
+        }
+
+        expect(nodes).toHaveLength(1);
+        expect(nodes[0].message).toBe('  line1  \n\n  line2  ');
+      });
+
+      it('skips nodes with completely empty messages', async () => {
+        const mockPersistence = {
+          async *logNodesStream() {
+            // No message content at all (just the 4 header lines)
+            yield 'abc123\nauthor\n2026-01-01\n\n\x1E\n';
+          }
+        };
+        const service = new GraphService({ persistence: mockPersistence });
+
+        const nodes = [];
+        for await (const node of service.iterateNodes({ ref: 'HEAD', limit: 10 })) {
+          nodes.push(node);
+        }
+
+        // Empty message nodes are skipped (GraphNode requires non-empty message)
+        expect(nodes).toHaveLength(0);
+      });
+    });
+  });
 });
