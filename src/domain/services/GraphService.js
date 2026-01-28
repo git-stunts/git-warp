@@ -99,7 +99,9 @@ export default class GraphService {
       throw new Error(`Invalid limit: ${limit}. Must be between 1 and 10,000,000`);
     }
 
-    const format = ['%H', '%an', '%ad', '%P', `%B${RECORD_SEPARATOR}`].join('%n');
+    // Format: SHA, author, date, parents (newline-separated), then message, terminated by NUL
+    // NUL bytes cannot appear in git commit messages, making this a safe unambiguous delimiter
+    const format = ['%H', '%an', '%ad', '%P', '%B'].join('%n') + RECORD_SEPARATOR;
 
     const stream = await this.persistence.logNodesStream({ ref, limit, format });
 

@@ -142,7 +142,7 @@ describe('GraphService', () => {
       expect(mockPersistence.logNodesStream).toHaveBeenCalledWith({
         ref: 'main',
         limit: 10,
-        format: '%H%n%an%n%ad%n%P%n%B\x1E',
+        format: '%H%n%an%n%ad%n%P%n%B\x00',
       });
     });
 
@@ -198,9 +198,10 @@ describe('GraphService', () => {
       // Use real parser (not mocked)
       const realService = new GraphService({ persistence: mockPersistence });
 
+      // NUL-terminated records (no trailing newline needed)
       const mockStream = (async function* () {
-        yield 'sha1\nauthor1\ndate1\n\nmsg1\x1E\n';
-        yield 'sha2\nauthor2\ndate2\nparent1\nmsg2\x1E\n';
+        yield 'sha1\nauthor1\ndate1\n\nmsg1\x00';
+        yield 'sha2\nauthor2\ndate2\nparent1\nmsg2\x00';
       })();
 
       mockPersistence.logNodesStream.mockResolvedValue(mockStream);

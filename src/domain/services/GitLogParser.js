@@ -1,9 +1,12 @@
 import GraphNode from '../entities/GraphNode.js';
 
 /**
- * ASCII Record Separator (0x1E) - Delimits commit records in git log output.
+ * NUL byte (0x00) - Delimits commit records in git log output.
  *
- * This control character cannot appear in normal text, preventing message injection.
+ * Git commit messages cannot contain NUL bytes - git rejects them at commit time.
+ * This makes NUL a perfectly safe delimiter that cannot appear in any field,
+ * eliminating the possibility of message injection attacks.
+ *
  * The git log format produces records in this exact structure:
  *
  * ```
@@ -11,13 +14,17 @@ import GraphNode from '../entities/GraphNode.js';
  * <author>\n
  * <date>\n
  * <parents (space-separated)>\n
- * <message body (may contain newlines)><RECORD_SEPARATOR>\n
+ * <message body (may contain newlines)>\x00
  * ```
  *
- * @see https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Field_separators
+ * Fields within each record are separated by newlines. The first 4 lines are
+ * fixed fields (SHA, author, date, parents), and all remaining content up to
+ * the NUL terminator is the message body.
+ *
+ * @see https://git-scm.com/docs/git-log (see -z option documentation)
  * @const {string}
  */
-export const RECORD_SEPARATOR = '\x1E';
+export const RECORD_SEPARATOR = '\x00';
 
 /**
  * Parser for git log output streams.
@@ -26,12 +33,18 @@ export const RECORD_SEPARATOR = '\x1E';
  * concerns. Designed as an injectable dependency for GraphService to enable
  * testing and alternative implementations.
  *
- * **Log Format Contract**: Each record contains 5 fields separated by newlines:
+ * **Log Format Contract**: Each record is NUL-terminated and contains fields
+ * separated by newlines:
  * 1. SHA (40 hex chars)
  * 2. Author name
  * 3. Date string
  * 4. Parent SHAs (space-separated, empty string for root commits)
- * 5. Message body (may span multiple lines, terminated by RECORD_SEPARATOR)
+ * 5. Message body (may span multiple lines, everything until NUL terminator)
+ *
+ * **Why NUL delimiter?** Git commit messages cannot contain NUL bytes - git
+ * rejects them at commit time. This makes NUL a perfectly safe record delimiter
+ * that eliminates parsing ambiguity, unlike 0x1E which can theoretically appear
+ * in message content.
  *
  * @example
  * // Basic usage
@@ -51,7 +64,7 @@ export default class GitLogParser {
    *
    * Handles:
    * - UTF-8 sequences split across chunk boundaries
-   * - Records delimited by RECORD_SEPARATOR
+   * - Records terminated by NUL bytes (RECORD_SEPARATOR)
    * - Streaming without loading entire history into memory
    *
    * @param {AsyncIterable<Buffer|string>} stream - The git log output stream.
@@ -73,9 +86,10 @@ export default class GitLogParser {
       buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
 
       let splitIndex;
-      while ((splitIndex = buffer.indexOf(`${RECORD_SEPARATOR}\n`)) !== -1) {
+      // Split on NUL byte - the record terminator
+      while ((splitIndex = buffer.indexOf(RECORD_SEPARATOR)) !== -1) {
         const block = buffer.slice(0, splitIndex);
-        buffer = buffer.slice(splitIndex + RECORD_SEPARATOR.length + 1);
+        buffer = buffer.slice(splitIndex + RECORD_SEPARATOR.length);
 
         const node = this.parseNode(block);
         if (node) {
@@ -99,14 +113,17 @@ export default class GitLogParser {
   /**
    * Parses a single record block into a GraphNode.
    *
-   * Expected format (5 lines minimum):
+   * Expected format (fields separated by newlines):
    * - Line 0: SHA (required, non-empty)
    * - Line 1: Author name
    * - Line 2: Date string
    * - Line 3: Parent SHAs (space-separated, may be empty for root commits)
    * - Lines 4+: Message body (preserved exactly, not trimmed)
    *
-   * @param {string} block - Raw block text (without trailing RECORD_SEPARATOR)
+   * The block should not include the trailing NUL terminator - that is stripped
+   * by the parse() method before calling parseNode().
+   *
+   * @param {string} block - Raw block text (without trailing NUL terminator)
    * @returns {GraphNode|null} Parsed node, or null if the block is malformed
    *   or has an empty message (GraphNode requires non-empty message)
    *

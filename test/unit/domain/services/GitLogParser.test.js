@@ -10,15 +10,15 @@ describe('GitLogParser', () => {
   });
 
   describe('RECORD_SEPARATOR', () => {
-    it('exports the ASCII record separator constant', () => {
-      expect(RECORD_SEPARATOR).toBe('\x1E');
+    it('exports the ASCII null character constant', () => {
+      expect(RECORD_SEPARATOR).toBe('\x00');
     });
   });
 
   describe('parse()', () => {
     it('parses a single node from stream', async () => {
       const stream = (async function* () {
-        yield 'sha1\nauthor1\ndate1\n\nmessage1\x1E\n';
+        yield 'sha1\nauthor1\ndate1\n\nmessage1\x00';
       })();
 
       const nodes = [];
@@ -37,8 +37,8 @@ describe('GitLogParser', () => {
 
     it('parses multiple nodes from stream', async () => {
       const stream = (async function* () {
-        yield 'sha1\nauthor1\ndate1\nparent1\nmessage1\x1E\n';
-        yield 'sha2\nauthor2\ndate2\nparent2a parent2b\nmessage2\x1E\n';
+        yield 'sha1\nauthor1\ndate1\nparent1\nmessage1\x00';
+        yield 'sha2\nauthor2\ndate2\nparent2a parent2b\nmessage2\x00';
       })();
 
       const nodes = [];
@@ -57,7 +57,7 @@ describe('GitLogParser', () => {
       const stream = (async function* () {
         yield 'sha1\nau';
         yield 'thor1\ndate1\n\nmess';
-        yield 'age1\x1E\n';
+        yield 'age1\x00';
       })();
 
       const nodes = [];
@@ -79,7 +79,7 @@ describe('GitLogParser', () => {
       const stream = (async function* () {
         // Split the emoji across two chunks
         yield Buffer.concat([Buffer.from('sha1\nauthor\ndate\n\n'), emojiBytes.subarray(0, 2)]);
-        yield Buffer.concat([emojiBytes.subarray(2), Buffer.from('\x1E\n')]);
+        yield Buffer.concat([emojiBytes.subarray(2), Buffer.from('\x00')]);
       })();
 
       const nodes = [];
@@ -107,9 +107,9 @@ describe('GitLogParser', () => {
 
     it('skips invalid records in stream', async () => {
       const stream = (async function* () {
-        yield 'sha1\nauthor\ndate\n\nmessage1\x1E\n';
-        yield 'invalid\x1E\n'; // Too few lines
-        yield 'sha3\nauthor\ndate\n\nmessage3\x1E\n';
+        yield 'sha1\nauthor\ndate\n\nmessage1\x00';
+        yield 'invalid\x00'; // Too few lines
+        yield 'sha3\nauthor\ndate\n\nmessage3\x00';
       })();
 
       const nodes = [];
@@ -144,6 +144,23 @@ describe('GitLogParser', () => {
       }
 
       expect(nodes).toHaveLength(0);
+    });
+
+    it('handles message containing 0x1E in stream parsing', async () => {
+      const messageWith0x1E = 'Data\x1ESeparated\x1EValues';
+      // The record separator is now \x00, so \x1E in message is fine
+      const stream = (async function* () {
+        yield `sha1\nauthor\ndate\n\n${messageWith0x1E}\x00`;
+      })();
+
+      const nodes = [];
+      for await (const node of parser.parse(stream)) {
+        nodes.push(node);
+      }
+
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].message).toBe(messageWith0x1E);
+      expect(nodes[0].message).toContain('\x1E');
     });
   });
 
@@ -212,6 +229,18 @@ describe('GitLogParser', () => {
         const node = parser.parseNode(block);
 
         expect(node.message).toBe('Line 1\nLine 2\nLine 3');
+      });
+
+      it('correctly parses message containing 0x1E record separator character', () => {
+        // 0x1E is the ASCII record separator - it should be preserved in messages
+        const messageWith0x1E = 'Line 1\x1ELine 2\x1ELine 3';
+        const block = `sha123\nAuthor Name\n2026-01-28\nparent1\n${messageWith0x1E}`;
+        const node = parser.parseNode(block);
+
+        expect(node).not.toBeNull();
+        expect(node.sha).toBe('sha123');
+        expect(node.message).toBe(messageWith0x1E);
+        expect(node.message).toContain('\x1E');
       });
     });
 
