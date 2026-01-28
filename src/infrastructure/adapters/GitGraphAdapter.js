@@ -45,10 +45,22 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     return await this.plumbing.execute({ args });
   }
 
+  /**
+   * Streams git log output for the given ref.
+   * Uses the -z flag to produce NUL-terminated output, which:
+   * - Ensures reliable parsing of commits with special characters in messages
+   * - Ignores the i18n.logOutputEncoding config setting for consistent output
+   * @param {Object} options
+   * @param {string} options.ref - The ref to log from
+   * @param {number} [options.limit=1000000] - Maximum number of commits to return
+   * @param {string} [options.format] - Custom format string for git log
+   * @returns {Promise<Stream>} A stream of git log output (NUL-terminated records)
+   */
   async logNodesStream({ ref, limit = 1000000, format }) {
     this._validateRef(ref);
     this._validateLimit(limit);
-    const args = ['log', `-${limit}`];
+    // -z flag ensures NUL-terminated output and ignores i18n.logOutputEncoding config
+    const args = ['log', '-z', `-${limit}`];
     if (format) {
       args.push(`--format=${format}`);
     }

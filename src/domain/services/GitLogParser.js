@@ -33,6 +33,16 @@ export const RECORD_SEPARATOR = '\x00';
  * concerns. Designed as an injectable dependency for GraphService to enable
  * testing and alternative implementations.
  *
+ * **Binary-First Processing**: The parser works directly with binary data for
+ * performance. Buffer.indexOf(0) is faster than string indexOf('\0') because:
+ * - No UTF-8 decoding overhead during scanning
+ * - Native C++ implementation in Node.js Buffer
+ * - Byte-level comparison vs character-level
+ *
+ * UTF-8 decoding only happens once per complete record, not during scanning.
+ * This is especially beneficial for large commit histories where most of the
+ * data is being scanned to find record boundaries.
+ *
  * **Log Format Contract**: Each record is NUL-terminated and contains fields
  * separated by newlines:
  * 1. SHA (40 hex chars)
@@ -62,13 +72,20 @@ export default class GitLogParser {
   /**
    * Parses a stream of git log output and yields GraphNode instances.
    *
-   * Handles:
-   * - UTF-8 sequences split across chunk boundaries
-   * - Records terminated by NUL bytes (RECORD_SEPARATOR)
-   * - Streaming without loading entire history into memory
+   * **Binary-first processing for performance**:
+   * - Accepts Buffer, Uint8Array, or string chunks
+   * - Finds NUL bytes (0x00) directly in binary using Buffer.indexOf(0)
+   * - Buffer.indexOf(0) is faster than string indexOf('\0') - native C++ vs JS
+   * - UTF-8 decoding only happens for complete records, not during scanning
    *
-   * @param {AsyncIterable<Buffer|string>} stream - The git log output stream.
-   *   May yield Buffer or string chunks.
+   * Handles:
+   * - UTF-8 sequences split across chunk boundaries (via binary accumulation)
+   * - Records terminated by NUL bytes (0x00)
+   * - Streaming without loading entire history into memory
+   * - Backwards compatibility with string chunks
+   *
+   * @param {AsyncIterable<Buffer|Uint8Array|string>} stream - The git log output stream.
+   *   May yield Buffer, Uint8Array, or string chunks.
    * @yields {GraphNode} Parsed graph nodes. Invalid records are silently skipped.
    *
    * @example
@@ -78,19 +95,29 @@ export default class GitLogParser {
    * }
    */
   async *parse(stream) {
-    let buffer = '';
-    const decoder = new TextDecoder('utf-8', { fatal: false });
+    let buffer = Buffer.alloc(0); // Binary buffer accumulator
 
     for await (const chunk of stream) {
-      // Use stream: true to handle UTF-8 sequences split across chunks
-      buffer += typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true });
+      // Convert string chunks to Buffer, keep Buffer chunks as-is
+      const chunkBuffer =
+        typeof chunk === 'string'
+          ? Buffer.from(chunk, 'utf-8')
+          : Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(chunk); // Uint8Array
 
-      let splitIndex;
-      // Split on NUL byte - the record terminator
-      while ((splitIndex = buffer.indexOf(RECORD_SEPARATOR)) !== -1) {
-        const block = buffer.slice(0, splitIndex);
-        buffer = buffer.slice(splitIndex + RECORD_SEPARATOR.length);
+      // Append to accumulator
+      buffer = Buffer.concat([buffer, chunkBuffer]);
 
+      // Find NUL bytes (0x00) in binary - faster than string indexOf
+      let nullIndex;
+      while ((nullIndex = buffer.indexOf(0)) !== -1) {
+        // Extract record bytes and decode to string
+        const recordBytes = buffer.subarray(0, nullIndex);
+        buffer = buffer.subarray(nullIndex + 1);
+
+        // Only decode UTF-8 for complete records
+        const block = recordBytes.toString('utf-8');
         const node = this.parseNode(block);
         if (node) {
           yield node;
@@ -98,14 +125,14 @@ export default class GitLogParser {
       }
     }
 
-    // Flush any remaining bytes in the decoder
-    buffer += decoder.decode();
-
-    // Process final block (may not have trailing separator)
-    if (buffer.trim()) {
-      const node = this.parseNode(buffer);
-      if (node) {
-        yield node;
+    // Process any remaining data (final record without trailing NUL)
+    if (buffer.length > 0) {
+      const block = buffer.toString('utf-8').trim();
+      if (block) {
+        const node = this.parseNode(block);
+        if (node) {
+          yield node;
+        }
       }
     }
   }
