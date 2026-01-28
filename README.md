@@ -87,6 +87,57 @@ const parents = await graph.getParents(someSha);
 const children = await graph.getChildren(someSha);
 ```
 
+## Working with the Bitmap Index
+
+The bitmap index enables O(1) parent/child lookups for large graphs. Here's the complete workflow:
+
+```javascript
+import GitPlumbing from '@git-stunts/plumbing';
+import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
+
+// Setup
+const plumbing = new GitPlumbing({ cwd: './my-graph-db' });
+const persistence = new GitGraphAdapter({ plumbing });
+const graph = new EmptyGraph({ persistence });
+
+// === First-time setup: Build and persist the index ===
+const treeOid = await graph.rebuildIndex('HEAD');
+await graph.saveIndex();  // Persists to refs/empty-graph/index
+console.log(`Index built: ${treeOid}`);
+
+// === Subsequent runs: Load the persisted index ===
+const loaded = await graph.loadIndexFromRef();
+if (!loaded) {
+  // Index doesn't exist yet, rebuild it
+  await graph.rebuildIndex('HEAD');
+  await graph.saveIndex();
+}
+
+// === Query parent/child relationships (O(1)) ===
+const parents = await graph.getParents(someSha);
+const children = await graph.getChildren(someSha);
+
+console.log(`Node ${someSha} has:`);
+console.log(`  ${parents.length} parents:`, parents);
+console.log(`  ${children.length} children:`, children);
+```
+
+**How it works internally:**
+
+1. `rebuildIndex()` walks the graph and builds sharded bitmap files:
+   - `meta_XX.json` - Maps SHAs to numeric IDs (sharded by SHA prefix)
+   - `shards_fwd_XX.json` - Forward edges (parent → children)
+   - `shards_rev_XX.json` - Reverse edges (child → parents)
+
+2. `loadIndex()` sets up lazy loading - shards are fetched on-demand:
+   ```javascript
+   // When you call getParents('abcd1234...')
+   // Only loads: meta_ab.json, shards_rev_ab.json
+   // Other shards remain unloaded until needed
+   ```
+
+3. `saveIndex()` / `loadIndexFromRef()` persist the index tree OID to a git ref for reuse across sessions.
+
 ## API Reference
 
 ### `EmptyGraph`

@@ -27,9 +27,28 @@ export default class BitmapIndexReader {
   }
 
   /**
-   * Configures the reader with shard OID mappings.
-   * Call this after loading a tree to set up lazy loading.
+   * Configures the reader with shard OID mappings for lazy loading.
+   *
+   * The shardOids object maps shard filenames to their Git blob OIDs.
+   * Shards are organized by type and SHA prefix:
+   * - `meta_XX.json` - SHA→ID mappings for nodes with SHA prefix XX
+   * - `shards_fwd_XX.json` - Forward edge bitmaps (parent→children)
+   * - `shards_rev_XX.json` - Reverse edge bitmaps (child→parents)
+   *
    * @param {Record<string, string>} shardOids - Map of shard path to blob OID
+   * @example
+   * // Typical shardOids structure from IndexRebuildService.load()
+   * reader.setup({
+   *   'meta_ab.json': 'a1b2c3d4e5f6...',
+   *   'meta_cd.json': 'f6e5d4c3b2a1...',
+   *   'shards_fwd_ab.json': '1234567890ab...',
+   *   'shards_rev_ab.json': 'abcdef123456...',
+   *   'shards_fwd_cd.json': '0987654321fe...',
+   *   'shards_rev_cd.json': 'fedcba098765...'
+   * });
+   *
+   * // After setup, queries will lazy-load only the shards needed
+   * const parents = await reader.getParents('abcd1234...'); // loads meta_ab, shards_rev_ab
    */
   setup(shardOids) {
     this.shardOids = new Map(Object.entries(shardOids));

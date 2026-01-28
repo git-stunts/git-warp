@@ -172,7 +172,21 @@ export class BitmapIndexBuilder {
 export class BitmapIndexReader {
   constructor(options: { storage: IndexStoragePort });
 
-  /** Configures the reader with shard OID mappings */
+  /**
+   * Configures the reader with shard OID mappings for lazy loading.
+   *
+   * The shardOids object maps shard filenames to their Git blob OIDs:
+   * - `meta_XX.json` - SHA→ID mappings for nodes with SHA prefix XX
+   * - `shards_fwd_XX.json` - Forward edge bitmaps (parent→children)
+   * - `shards_rev_XX.json` - Reverse edge bitmaps (child→parents)
+   *
+   * @example
+   * reader.setup({
+   *   'meta_ab.json': 'a1b2c3d4e5f6...',
+   *   'shards_fwd_ab.json': '1234567890ab...',
+   *   'shards_rev_ab.json': 'abcdef123456...'
+   * });
+   */
   setup(shardOids: Record<string, string>): void;
 
   /** Looks up the numeric ID for a SHA */
