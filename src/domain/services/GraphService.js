@@ -1,6 +1,7 @@
 import { performance } from 'perf_hooks';
 import GitLogParser, { RECORD_SEPARATOR } from './GitLogParser.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import { checkAborted } from '../utils/cancellation.js';
 
 /** Default maximum message size in bytes (1MB) */
 export const DEFAULT_MAX_MESSAGE_BYTES = 1048576;
@@ -136,16 +137,26 @@ export default class GraphService {
    * @param {Object} options - Query options
    * @param {string} options.ref - Git ref to start from (e.g., 'main', 'HEAD', SHA)
    * @param {number} [options.limit=1000000] - Maximum nodes to yield (1 to 10,000,000)
+   * @param {AbortSignal} [options.signal] - Optional abort signal for cancellation
    * @yields {GraphNode} Graph nodes parsed from git history
    * @throws {Error} If limit is invalid (not a number, < 1, or > 10,000,000)
+   * @throws {OperationAbortedError} If signal is aborted during iteration
    *
    * @example
    * // Stream through a large history
    * for await (const node of service.iterateNodes({ ref: 'main', limit: 1000000 })) {
    *   processNode(node);
    * }
+   *
+   * @example
+   * // Stream with cancellation support
+   * const controller = new AbortController();
+   * setTimeout(() => controller.abort(), 5000); // Cancel after 5s
+   * for await (const node of service.iterateNodes({ ref: 'main', signal: controller.signal })) {
+   *   processNode(node);
+   * }
    */
-  async *iterateNodes({ ref, limit = 1000000 }) {
+  async *iterateNodes({ ref, limit = 1000000, signal }) {
     // Validate limit to prevent DoS attacks
     if (typeof limit !== 'number' || limit < 1 || limit > 10000000) {
       this.logger.warn('Invalid limit provided', {
@@ -171,7 +182,8 @@ export default class GraphService {
     const stream = await this.persistence.logNodesStream({ ref, limit, format });
 
     let yieldedCount = 0;
-    for await (const node of this.parser.parse(stream)) {
+    for await (const node of this.parser.parse(stream, { signal })) {
+      checkAborted(signal, 'iterateNodes');
       yieldedCount++;
       yield node;
     }

@@ -201,7 +201,7 @@ describe('GraphService', () => {
         nodes.push(node);
       }
 
-      expect(mockParser.parse).toHaveBeenCalledWith(mockStream);
+      expect(mockParser.parse).toHaveBeenCalledWith(mockStream, { signal: undefined });
       expect(nodes).toHaveLength(1);
       expect(nodes[0]).toBe(mockNode);
     });

@@ -1,4 +1,5 @@
 import GraphNode from '../entities/GraphNode.js';
+import { checkAborted } from '../utils/cancellation.js';
 
 /**
  * NUL byte (0x00) - Delimits commit records in git log output.
@@ -83,21 +84,34 @@ export default class GitLogParser {
    * - Records terminated by NUL bytes (0x00)
    * - Streaming without loading entire history into memory
    * - Backwards compatibility with string chunks
+   * - Cancellation via AbortSignal
    *
    * @param {AsyncIterable<Buffer|Uint8Array|string>} stream - The git log output stream.
    *   May yield Buffer, Uint8Array, or string chunks.
+   * @param {Object} [options] - Parse options
+   * @param {AbortSignal} [options.signal] - Optional abort signal for cancellation
    * @yields {GraphNode} Parsed graph nodes. Invalid records are silently skipped.
+   * @throws {OperationAbortedError} If signal is aborted during parsing
    *
    * @example
    * const stream = persistence.logNodesStream({ ref: 'main', limit: 100, format });
    * for await (const node of parser.parse(stream)) {
    *   console.log(node.sha);
    * }
+   *
+   * @example
+   * // With cancellation support
+   * const controller = new AbortController();
+   * for await (const node of parser.parse(stream, { signal: controller.signal })) {
+   *   console.log(node.sha);
+   * }
    */
-  async *parse(stream) {
+  async *parse(stream, { signal } = {}) {
     let buffer = Buffer.alloc(0); // Binary buffer accumulator
 
     for await (const chunk of stream) {
+      checkAborted(signal, 'GitLogParser.parse');
+
       // Convert string chunks to Buffer, keep Buffer chunks as-is
       const chunkBuffer =
         typeof chunk === 'string'
@@ -112,6 +126,8 @@ export default class GitLogParser {
       // Find NUL bytes (0x00) in binary - faster than string indexOf
       let nullIndex;
       while ((nullIndex = buffer.indexOf(0)) !== -1) {
+        checkAborted(signal, 'GitLogParser.parse');
+
         // Extract record bytes and decode to string
         const recordBytes = buffer.subarray(0, nullIndex);
         buffer = buffer.subarray(nullIndex + 1);

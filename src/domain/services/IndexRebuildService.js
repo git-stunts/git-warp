@@ -3,6 +3,7 @@ import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import BitmapIndexReader from './BitmapIndexReader.js';
 import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import { checkAborted } from '../utils/cancellation.js';
 
 /**
  * Service for building and loading the bitmap index from the graph.
@@ -60,6 +61,8 @@ export default class IndexRebuildService {
    *   Receives { flushedBytes, totalFlushedBytes, flushCount }.
    * @param {Function} [options.onProgress] - Callback invoked periodically during processing.
    *   Receives { processedNodes, currentMemoryBytes }.
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation support.
+   *   When aborted, throws OperationAbortedError at the next loop boundary.
    * @returns {Promise<string>} OID of the created tree containing the index
    * @throws {Error} If ref is invalid or limit is out of range
    *
@@ -74,7 +77,7 @@ export default class IndexRebuildService {
    *   onFlush: ({ flushCount }) => console.log(`Flush #${flushCount}`),
    * });
    */
-  async rebuild(ref, { limit = 10_000_000, maxMemoryBytes, onFlush, onProgress } = {}) {
+  async rebuild(ref, { limit = 10_000_000, maxMemoryBytes, onFlush, onProgress, signal } = {}) {
     const mode = maxMemoryBytes !== undefined ? 'streaming' : 'in-memory';
     this.logger.info('Starting index rebuild', {
       operation: 'rebuild',
@@ -89,9 +92,9 @@ export default class IndexRebuildService {
     try {
       let treeOid;
       if (maxMemoryBytes !== undefined) {
-        treeOid = await this._rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress });
+        treeOid = await this._rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal });
       } else {
-        treeOid = await this._rebuildInMemory(ref, { limit, onProgress });
+        treeOid = await this._rebuildInMemory(ref, { limit, onProgress, signal });
       }
 
       const durationMs = performance.now() - startTime;
@@ -124,10 +127,11 @@ export default class IndexRebuildService {
    * @param {Object} options - Options
    * @param {number} options.limit - Maximum nodes
    * @param {Function} [options.onProgress] - Progress callback
+   * @param {AbortSignal} [options.signal] - Abort signal for cancellation
    * @returns {Promise<string>} Tree OID
    * @private
    */
-  async _rebuildInMemory(ref, { limit, onProgress }) {
+  async _rebuildInMemory(ref, { limit, onProgress, signal }) {
     const builder = new BitmapIndexBuilder();
     let processedNodes = 0;
 
@@ -138,8 +142,11 @@ export default class IndexRebuildService {
       }
 
       processedNodes++;
-      if (onProgress && processedNodes % 10000 === 0) {
-        onProgress({ processedNodes, currentMemoryBytes: null });
+      if (processedNodes % 10000 === 0) {
+        checkAborted(signal, 'rebuild');
+        if (onProgress) {
+          onProgress({ processedNodes, currentMemoryBytes: null });
+        }
       }
     }
 
@@ -155,10 +162,11 @@ export default class IndexRebuildService {
    * @param {number} options.maxMemoryBytes - Memory threshold
    * @param {Function} [options.onFlush] - Flush callback
    * @param {Function} [options.onProgress] - Progress callback
+   * @param {AbortSignal} [options.signal] - Abort signal for cancellation
    * @returns {Promise<string>} Tree OID
    * @private
    */
-  async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress }) {
+  async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal }) {
     const builder = new StreamingBitmapIndexBuilder({
       storage: this.storage,
       maxMemoryBytes,
@@ -174,12 +182,15 @@ export default class IndexRebuildService {
       }
 
       processedNodes++;
-      if (onProgress && processedNodes % 10000 === 0) {
-        const stats = builder.getMemoryStats();
-        onProgress({
-          processedNodes,
-          currentMemoryBytes: stats.estimatedBitmapBytes,
-        });
+      if (processedNodes % 10000 === 0) {
+        checkAborted(signal, 'rebuild');
+        if (onProgress) {
+          const stats = builder.getMemoryStats();
+          onProgress({
+            processedNodes,
+            currentMemoryBytes: stats.estimatedBitmapBytes,
+          });
+        }
       }
     }
 
