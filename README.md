@@ -241,7 +241,8 @@ npm run demo:bench-traversal   # Dijkstra/A*/BiA* performance at scale
 npm run demo:down
 ```
 
-The demo is **idempotent** - running `demo:setup` multiple times will clean up and recreate the data.
+> [!note]
+> The demo is **idempotent** - running `demo:setup` multiple times will clean up and recreate the data.
 
 **What the demo shows:**
 
@@ -431,7 +432,7 @@ Gets child SHAs for a node using the bitmap index. Requires `loadIndex()` to be 
 
 **Throws:** `Error` if index is not loaded
 
-**Example:*
+**Example:**
 ```javascript
 await graph.loadIndex(indexOid);
 const children = await graph.getChildren(parentSha);

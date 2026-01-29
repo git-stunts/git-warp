@@ -188,9 +188,10 @@ async function main() {
     let event;
     try {
       event = JSON.parse(message);
-    } catch {
-      // Non-JSON node: use default cost
-      return 1 * COEFF_CPU + 1 * COEFF_MEM;
+    } catch (err) {
+      // Non-JSON node: log warning and use empty object so defaults apply
+      console.warn(`Failed to parse event JSON for ${toSha.slice(0, 8)}: ${err.message}`);
+      event = {};
     }
 
     // Extract metrics from payload.metrics with sensible defaults
