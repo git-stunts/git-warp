@@ -404,6 +404,101 @@ export default class TraversalService {
   }
 
   /**
+   * Finds shortest path using A* algorithm with heuristic guidance.
+   *
+   * A* uses f(n) = g(n) + h(n) where:
+   * - g(n) = actual cost from start to n
+   * - h(n) = heuristic estimate from n to goal
+   *
+   * @param {Object} options
+   * @param {string} options.from - Starting SHA
+   * @param {string} options.to - Target SHA
+   * @param {Function} [options.weightProvider] - (fromSha, toSha) => number, defaults to 1
+   * @param {Function} [options.heuristicProvider] - (sha, targetSha) => number, defaults to 0 (becomes Dijkstra)
+   * @param {string} [options.direction='children'] - 'children' or 'parents'
+   * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number}>}
+   * @throws {TraversalError} If no path exists
+   */
+  async aStarSearch({ from, to, weightProvider = () => 1, heuristicProvider = () => 0, direction = 'children' }) {
+    this._logger.debug('aStarSearch started', { from, to, direction });
+
+    // gScore: actual cost from start to node
+    const gScore = new Map();
+    gScore.set(from, 0);
+
+    // fScore: g(n) + h(n) - used for priority queue ordering
+    const fScore = new Map();
+    const initialH = heuristicProvider(from, to);
+    fScore.set(from, initialH);
+
+    // Track previous node for path reconstruction
+    const previous = new Map();
+
+    // Use MinHeap as priority queue, ordered by fScore
+    const pq = new MinHeap();
+    pq.insert(from, initialH);
+
+    // Track visited nodes
+    const visited = new Set();
+
+    // Track nodes explored for benchmarking heuristic quality
+    let nodesExplored = 0;
+
+    while (!pq.isEmpty()) {
+      const current = pq.extractMin();
+
+      // Skip if already visited
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      nodesExplored++;
+
+      // If we reached the target, reconstruct and return path
+      if (current === to) {
+        const path = this._reconstructWeightedPath(previous, from, to);
+        const totalCost = gScore.get(to);
+        this._logger.debug('aStarSearch found', { pathLength: path.length, totalCost, nodesExplored });
+        return { path, totalCost, nodesExplored };
+      }
+
+      // Get neighbors based on direction
+      const neighbors =
+        direction === 'children'
+          ? await this._indexReader.getChildren(current)
+          : await this._indexReader.getParents(current);
+
+      // Relax edges to neighbors
+      for (const neighbor of neighbors) {
+        if (visited.has(neighbor)) {
+          continue;
+        }
+
+        const edgeWeight = weightProvider(current, neighbor);
+        const tentativeG = gScore.get(current) + edgeWeight;
+        const currentG = gScore.has(neighbor) ? gScore.get(neighbor) : Infinity;
+
+        if (tentativeG < currentG) {
+          // This path to neighbor is better
+          previous.set(neighbor, current);
+          gScore.set(neighbor, tentativeG);
+          const h = heuristicProvider(neighbor, to);
+          const f = tentativeG + h;
+          fScore.set(neighbor, f);
+          pq.insert(neighbor, f);
+        }
+      }
+    }
+
+    // No path found
+    this._logger.debug('aStarSearch not found', { from, to, nodesExplored });
+    throw new TraversalError(`No path exists from ${from} to ${to}`, {
+      code: 'NO_PATH',
+      context: { from, to, direction, nodesExplored },
+    });
+  }
+
+  /**
    * Reconstructs path from weighted search previous pointers.
    * @private
    */

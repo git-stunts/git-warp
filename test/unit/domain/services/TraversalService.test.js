@@ -788,6 +788,243 @@ describe('TraversalService', () => {
     });
   });
 
+  describe('aStarSearch', () => {
+    it('returns shortest path with no heuristic (same as Dijkstra)', async () => {
+      // With default heuristic (always 0), A* degenerates to Dijkstra
+      const result = await service.aStarSearch({ from: 'A', to: 'D' });
+
+      expect(result.path[0]).toBe('A');
+      expect(result.path[result.path.length - 1]).toBe('D');
+      // A->B->D or A->C->D, both have cost 2 with uniform weights
+      expect(result.totalCost).toBe(2);
+      expect(result.path).toHaveLength(3);
+      expect(result.nodesExplored).toBeGreaterThan(0);
+    });
+
+    it('returns optimal path with admissible heuristic', async () => {
+      // Create a graph where heuristic can guide search:
+      //
+      //     A ---(1)--- B ---(1)--- C
+      //     |                       |
+      //    (1)                     (1)
+      //     |                       |
+      //     D ---(1)--- E ---(1)--- F
+      //
+      // Path A->F can go A->B->C->F (cost 3) or A->D->E->F (cost 3)
+      // With a good heuristic, A* should explore fewer nodes
+      const gridReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = {
+            A: ['B', 'D'],
+            B: ['C'],
+            C: ['F'],
+            D: ['E'],
+            E: ['F'],
+            F: [],
+          };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const gridService = new TraversalService({ indexReader: gridReader });
+
+      // Heuristic: estimate based on "distance" to F
+      // A=2, B=2, C=1, D=2, E=1, F=0 (admissible - never overestimates)
+      const heuristic = {
+        A: 2,
+        B: 2,
+        C: 1,
+        D: 2,
+        E: 1,
+        F: 0,
+      };
+
+      const result = await gridService.aStarSearch({
+        from: 'A',
+        to: 'F',
+        heuristicProvider: (sha) => heuristic[sha] || 0,
+      });
+
+      // Should find optimal path with cost 3
+      expect(result.totalCost).toBe(3);
+      expect(result.path[0]).toBe('A');
+      expect(result.path[result.path.length - 1]).toBe('F');
+    });
+
+    it('explores fewer nodes with good heuristic', async () => {
+      // Create a wider graph where heuristic guidance matters:
+      //
+      //        A
+      //       /|\
+      //      B C D
+      //     /| | |\
+      //    E F G H I
+      //     \| | |/
+      //        J
+      //
+      // Goal is J. With no heuristic, Dijkstra explores many nodes.
+      // With heuristic pointing toward C->G->J path, fewer nodes explored.
+      const wideReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = {
+            A: ['B', 'C', 'D'],
+            B: ['E', 'F'],
+            C: ['G'],
+            D: ['H', 'I'],
+            E: ['J'],
+            F: ['J'],
+            G: ['J'],
+            H: ['J'],
+            I: ['J'],
+            J: [],
+          };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const wideService = new TraversalService({ indexReader: wideReader });
+
+      // Run Dijkstra (zero heuristic)
+      const dijkstraResult = await wideService.aStarSearch({
+        from: 'A',
+        to: 'J',
+        heuristicProvider: () => 0,
+      });
+
+      // Run A* with heuristic that favors the C path
+      // C is closest to J (h=1), B and D are farther (h=2)
+      const heuristic = {
+        A: 2,
+        B: 2,
+        C: 1,
+        D: 2,
+        E: 1,
+        F: 1,
+        G: 1,
+        H: 1,
+        I: 1,
+        J: 0,
+      };
+      const aStarResult = await wideService.aStarSearch({
+        from: 'A',
+        to: 'J',
+        heuristicProvider: (sha) => heuristic[sha] || 0,
+      });
+
+      // Both should find path with same cost
+      expect(aStarResult.totalCost).toBe(dijkstraResult.totalCost);
+
+      // A* with good heuristic should explore fewer or equal nodes
+      expect(aStarResult.nodesExplored).toBeLessThanOrEqual(dijkstraResult.nodesExplored);
+    });
+
+    it('uses heuristicProvider callback correctly', async () => {
+      const heuristicProvider = vi.fn(() => 0);
+
+      await service.aStarSearch({
+        from: 'A',
+        to: 'D',
+        heuristicProvider,
+      });
+
+      // Should have been called for initial node and each neighbor explored
+      expect(heuristicProvider).toHaveBeenCalled();
+
+      // Verify it was called with (sha, targetSha) arguments
+      const calls = heuristicProvider.mock.calls;
+      for (const [sha, targetSha] of calls) {
+        expect(typeof sha).toBe('string');
+        expect(targetSha).toBe('D'); // Target should always be 'D'
+      }
+    });
+
+    it('works with direction=parents', async () => {
+      // Traverse in reverse: from E up to A
+      const result = await service.aStarSearch({
+        from: 'E',
+        to: 'A',
+        direction: 'parents',
+      });
+
+      expect(result.path[0]).toBe('E');
+      expect(result.path[result.path.length - 1]).toBe('A');
+      // E->D->B->A or E->D->C->A, both have cost 3
+      expect(result.totalCost).toBe(3);
+      expect(result.path).toHaveLength(4);
+    });
+
+    it('throws TraversalError when no path exists', async () => {
+      // Try to go from E to A with direction='children' (impossible)
+      await expect(
+        service.aStarSearch({ from: 'E', to: 'A', direction: 'children' })
+      ).rejects.toThrow(TraversalError);
+
+      try {
+        await service.aStarSearch({ from: 'E', to: 'A', direction: 'children' });
+      } catch (error) {
+        expect(error.code).toBe('NO_PATH');
+        expect(error.context).toMatchObject({
+          from: 'E',
+          to: 'A',
+          direction: 'children',
+        });
+      }
+    });
+
+    it('handles same source and destination', async () => {
+      const result = await service.aStarSearch({ from: 'A', to: 'A' });
+
+      expect(result.path).toEqual(['A']);
+      expect(result.totalCost).toBe(0);
+      expect(result.nodesExplored).toBe(1);
+    });
+
+    it('with zero heuristic behaves like Dijkstra', async () => {
+      // Create a weighted graph
+      const weightedReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = {
+            A: ['B', 'C'],
+            B: ['D'],
+            C: ['D'],
+            D: [],
+          };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const weightedService = new TraversalService({ indexReader: weightedReader });
+
+      // A->B is expensive (10), A->C is cheap (1), both ->D is 1
+      const weightProvider = (from, to) => {
+        if (from === 'A' && to === 'B') return 10;
+        return 1;
+      };
+
+      // A* with zero heuristic
+      const aStarResult = await weightedService.aStarSearch({
+        from: 'A',
+        to: 'D',
+        weightProvider,
+        heuristicProvider: () => 0,
+      });
+
+      // Dijkstra
+      const dijkstraResult = await weightedService.weightedShortestPath({
+        from: 'A',
+        to: 'D',
+        weightProvider,
+      });
+
+      // Both should find the same optimal path
+      expect(aStarResult.path).toEqual(dijkstraResult.path);
+      expect(aStarResult.totalCost).toBe(dijkstraResult.totalCost);
+      // Should take cheap path: A->C->D (cost 2) not A->B->D (cost 11)
+      expect(aStarResult.path).toEqual(['A', 'C', 'D']);
+      expect(aStarResult.totalCost).toBe(2);
+    });
+  });
+
   describe('logging', () => {
     it('logs traversal operations', async () => {
       const mockLogger = {
