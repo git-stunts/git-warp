@@ -4,7 +4,55 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fempty-graph.svg)](https://www.npmjs.com/package/@git-stunts/empty-graph)
 
-A graph database that lives inside Git commits using the empty-tree pattern. Clean architecture with domain/infrastructure/ports separation, Roaring Bitmap indexing for O(1) lookups, and traversal services with weighted pathfinding.
+> *A **graph database that lives inside Git commits** using the **empty-tree pattern**. Stores data invisibly (no files) within Git commits using the empty-tree pattern*.
+
+## Key highlights:
+
+- Hexagonal architecture with ports/adapters and DDD patterns
+- Roaring Bitmap indexes for O(1) parent/child lookups
+- Graph traversal algorithms (BFS, DFS, Dijkstra, A*, bidirectional)
+- Streaming-first design for handling millions of nodes
+- TypeScript definitions included
+
+Example included; benchmarks ready to fire up as soon as you finish cloing the git repo.
+
+## Use Cases
+
+EmptyGraph excels at specific scenarios where Git's properties align with your requirements. Here are concrete examples of what you can build:
+
+### Event Sourcing Systems
+
+Store domain events as commits, traverse history to replay state. Each event is immutable, cryptographically verified, and automatically timestamped. Build CQRS systems where the event store is a Git repository you can clone, branch, and inspect with standard tools.
+
+```javascript
+// Each order event becomes a graph node
+const orderCreated = await graph.createNode({ message: JSON.stringify({ type: 'OrderCreated', orderId: '123', items: [...] }) });
+const paymentReceived = await graph.createNode({ message: JSON.stringify({ type: 'PaymentReceived', orderId: '123', amount: 99.99 }), parents: [orderCreated] });
+```
+
+### Knowledge Graphs & Semantic Networks
+
+Build interconnected knowledge bases where concepts link to related concepts. Perfect for documentation systems, wiki graphs, or AI training data that needs version control. Use `shortestPath()` to find connections between concepts.
+
+### Configuration & Dependency Graphs
+
+Track infrastructure-as-code dependencies, module relationships, or build graphs. Combine with GitOps workflows - your dependency graph lives in the same Git ecosystem as your infrastructure definitions.
+
+### Audit Trail Systems
+
+Every mutation is a commit with author, timestamp, and cryptographic proof. Use `git log` as your audit log, `git blame` to trace when data changed, and `git bisect` to find when relationships broke. Compliance-friendly by design.
+
+### Blockchain-like Data Structures
+
+Create immutable, content-addressed data structures with cryptographic verification. Each node's SHA proves its integrity and ancestry. Fork the graph, create branches, merge carefully - Git's distributed model handles replication.
+
+### Offline-First Applications
+
+Build apps that work without network connectivity. Clone the graph, query locally, sync when you reconnect. Perfect for field work, edge computing, or mobile apps that need local-first data with eventual consistency.
+
+### Distributed Databases
+
+Leverage Git's battle-tested sync and merge capabilities. Push to multiple remotes, fork repositories, handle conflicts with standard Git tooling. Your graph database inherits Git's distributed nature without additional infrastructure.
 
 ## Why EmptyGraph?
 
@@ -12,14 +60,116 @@ Git is usually used to track files. `EmptyGraph` subverts this by using Git's Di
 
 Because all commits point to the "Empty Tree" (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`), your data does not exist as files in the working directory—it exists entirely within the Git object database.
 
-## Features
+> [!warning]
+> **Reality Check**: When To Use This (And When **NOT** To)
 
-- **Invisible Storage**: No files are created in the working directory
-- **Atomic Operations**: Leverages Git's reference updates for ACID guarantees
-- **DAG Native**: Inherits Git's parent-child relationship model
-- **High Performance**: O(1) lookups via sharded Roaring Bitmap indexes
-- **Streaming First**: Handle millions of nodes without OOM via async generators
-- **Security Hardened**: All refs validated, command injection prevention built-in
+Let's pump the brakes... Just because you *can* store a graph in Git doesn't mean you *should*. Here's an honest assessment.
+
+### When EmptyGraph Makes Sense
+
+#### You need offline-first graph data.
+
+Git works without a network. Clone the repo, query locally, sync when you reconnect. Perfect for edge computing, field work, or airplane mode.
+
+#### You want Git-native replication.
+
+Your graph automatically inherits Git's distributed model. Fork it. Push to multiple remotes. Merge branches of graph data (carefully). No separate replication infrastructure.
+
+#### Your graph is append-mostly.
+
+Git loves immutable data. Add nodes, add edges, never delete? Perfect fit. *The reflog even lets you recover "deleted" nodes.*
+
+#### You're already in a Git ecosystem.
+
+If your workflow is Git-centric (CI/CD, GitOps, infrastructure-as-code), adding a graph that lives in Git means one less system to manage.
+
+#### You need an audit trail for free.
+
+Every mutation is a commit. `git log` is your audit log. `git blame` tells you when a node was added. `git bisect` can find when a relationship broke.
+
+#### The graph is small-to-medium (< 10M nodes).
+
+The bitmap index handles millions of nodes comfortably. At 1M nodes, you're looking at ~150-200MB of index data. That's fine.
+
+#### You value simplicity over features.
+
+No query language to learn. No cluster to manage. No connection pools. It's just JavaScript and Git.
+
+### When EmptyGraph Is A Bad Idea
+
+You should probably consider a more legit and powerful solution if:
+
+#### You need ACID transactions.
+
+Git commits are atomic, but there's no rollback, no isolation levels, no multi-statement transactions. If you need "transfer money from A to B" semantics, *please* use a real database.
+
+#### You need real-time updates.
+
+Git has no pubsub. No change streams. No WebSocket notifications. Polling `git fetch` is your only option, and it's not fast.
+
+#### You need complex queries.
+
+"Find all users who bought product X and also reviewed product Y in the last 30 days" - this requires a query planner, indexes, and probably Cypher or Gremlin. EmptyGraph gives you raw traversal primitives, not a query language (... *yet*).
+
+#### Your graph is write-heavy.
+
+Every write is a `git commit-tree` + `git commit`. That's fast, but not "10,000 writes per second" fast. Write-heavy workloads need a database that is designed for writes.
+
+#### You need to delete data (for real).
+
+GDPR "right to be forgotten"? Git's immutability works against you. Yes, you can rewrite history with `git filter-branch`, but it's painful and breaks every clone.
+
+#### The graph is huge (> 100M nodes).
+
+At some point, you're fighting Git's assumptions. Pack files get unwieldy. Index shards multiply. Clone times become brutal. Neo4j, DGraph, or TigerGraph exist for a reason.
+
+#### You need fine-grained access control.
+
+Git repos are all-or-nothing. Either you can clone it or you can't. There's no "user A can see nodes 1-100 but not 101-200." If you need row-level security, look elsewhere.
+
+> [!note]
+> There *is* a trick to accomplish this, and I'll post it in a blog post sometime. You can run a [git startgate](https://github.com/flyingrobots/git-stargate) that uses git receive hooks + encryption to achieve "distributed opaque data", but it's too hacky to include in this project and you might want to question why you want to have private data live in git in the first place.
+
+#### Your team doesn't know Git.
+
+This sounds obvious, but: if your team struggles with `git rebase`, they're going to have a bad time debugging why the graph index is corrupt after a force push.
+
+### The Honest Summary
+
+<details>
+<summary>Click to expand: When to use EmptyGraph vs alternatives</summary>
+
+| Use Case                    | EmptyGraph? | Better Alternative  |
+| --------------------------- | ----------- | ------------------- |
+| Offline-first app data      | Yes       | -                   |
+| Configuration graph         | Yes       | -                   |
+| Dependency tracking         | Yes       | -                   |
+| Knowledge base / wiki graph | Yes       | -                   |
+| Social network (prototype)  | Maybe     | Neo4j at scale      |
+| Financial transactions      | No        | PostgreSQL          |
+| Real-time collaboration     | No        | Firebase, Supabase  |
+| Analytics / OLAP            | No        | ClickHouse, DuckDB  |
+| Massive scale (100M+ nodes) | No        | TigerGraph, Neptune |
+
+</details>
+
+## EmptyGraph is a **stunt**, not a product.
+
+It's proof that Git's data model is more powerful than people realize. It's a legitimate tool for specific use cases. But it's not a replacement for purpose-built graph databases.
+
+Use it when Git's properties (content-addressing, distributed replication, offline operation, universal tooling) align with your needs. Don't use it just because it's clever.
+
+### Why It Matters
+
+Graph databases are a $3B market. They require dedicated infrastructure, specialized query languages, careful capacity planning.
+
+EmptyGraph says: "What if the graph database was just... Git?"
+
+You already have Git. Your CI knows Git. Your backups cover Git. Your team understands Git (mostly). Now that same Git repository can store arbitrary graph data with O(1) edge lookups and full traversal capabilities.
+
+The traversal algorithms aren't novel. BFS is BFS. Kahn's algorithm is 62 years old. What's novel is *where they're running*: on top of a persistence layer that's simultaneously a version control system, a content-addressed store, and the most battle-tested distributed database in existence.
+
+That's the stunt. Take something everyone has, use it for something no one intended, and make it work better than it has any right to.
 
 ## Installation
 
@@ -123,82 +273,14 @@ Shortest path from first to last event: 7 hops
 Path: 0148a1e4 → 6771a15f → 20744421 → 6025e6ca → d2abe22c → fb285001 → c96d4e65 → d0583514
 ```
 
-## Choosing the Right Method
+## Features
 
-| Scenario | Method | Reason |
-|----------|--------|--------|
-| < 1,000 nodes | `listNodes()` | Returns array, easier to work with |
-| > 1,000 nodes | `iterateNodes()` | Streams results, constant memory |
-| Single node lookup | `readNode()` | O(1) direct access |
-| Find parents/children | `getParents()` / `getChildren()` | O(1) with bitmap index |
-
-```javascript
-// Example: Processing small graphs
-const recentNodes = await graph.listNodes({ ref: 'HEAD', limit: 100 });
-recentNodes.forEach(node => console.log(node.message));
-
-// Example: Processing large graphs (memory-safe)
-for await (const node of graph.iterateNodes({ ref: 'HEAD' })) {
-  await processNode(node); // Handle millions of nodes without OOM
-}
-
-// Example: O(1) relationship queries with bitmap index
-const treeOid = await graph.rebuildIndex('HEAD');
-await graph.loadIndex(treeOid);
-const parents = await graph.getParents(someSha);
-const children = await graph.getChildren(someSha);
-```
-
-## Working with the Bitmap Index
-
-The bitmap index enables O(1) parent/child lookups for large graphs. Here's the complete workflow:
-
-```javascript
-import GitPlumbing from '@git-stunts/plumbing';
-import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
-
-// Setup
-const plumbing = new GitPlumbing({ cwd: './my-graph-db' });
-const persistence = new GitGraphAdapter({ plumbing });
-const graph = new EmptyGraph({ persistence });
-
-// === First-time setup: Build and persist the index ===
-const treeOid = await graph.rebuildIndex('HEAD');
-await graph.saveIndex();  // Persists to refs/empty-graph/index
-console.log(`Index built: ${treeOid}`);
-
-// === Subsequent runs: Load the persisted index ===
-const loaded = await graph.loadIndexFromRef();
-if (!loaded) {
-  // Index doesn't exist yet, rebuild it
-  await graph.rebuildIndex('HEAD');
-  await graph.saveIndex();
-}
-
-// === Query parent/child relationships (O(1)) ===
-const parents = await graph.getParents(someSha);
-const children = await graph.getChildren(someSha);
-
-console.log(`Node ${someSha} has:`);
-console.log(`  ${parents.length} parents:`, parents);
-console.log(`  ${children.length} children:`, children);
-```
-
-**How it works internally:**
-
-1. `rebuildIndex()` walks the graph and builds sharded bitmap files:
-   - `meta_XX.json` - Maps SHAs to numeric IDs (sharded by SHA prefix)
-   - `shards_fwd_XX.json` - Forward edges (parent → children)
-   - `shards_rev_XX.json` - Reverse edges (child → parents)
-
-2. `loadIndex()` sets up lazy loading - shards are fetched on-demand:
-   ```javascript
-   // When you call getParents('abcd1234...')
-   // Only loads: meta_ab.json, shards_rev_ab.json
-   // Other shards remain unloaded until needed
-   ```
-
-3. `saveIndex()` / `loadIndexFromRef()` persist the index tree OID to a git ref for reuse across sessions.
+- **Invisible Storage**: No files are created in the working directory
+- **Atomic Operations**: Leverages Git's reference updates for ACID guarantees
+- **DAG Native**: Inherits Git's parent-child relationship model
+- **High Performance**: O(1) lookups via sharded Roaring Bitmap indexes
+- **Streaming First**: Handle millions of nodes without OOM via async generators
+- **Security Hardened**: All refs validated, command injection prevention built-in
 
 ## API Reference
 
@@ -706,6 +788,83 @@ Immutable entity representing a graph node.
 - `message` (string): Node message/data
 - `parents` (string[]): Array of parent SHAs
 
+## Working with the Bitmap Index
+
+The bitmap index enables O(1) parent/child lookups for large graphs. Here's the complete workflow:
+
+```javascript
+import GitPlumbing from '@git-stunts/plumbing';
+import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
+
+// Setup
+const plumbing = new GitPlumbing({ cwd: './my-graph-db' });
+const persistence = new GitGraphAdapter({ plumbing });
+const graph = new EmptyGraph({ persistence });
+
+// === First-time setup: Build and persist the index ===
+const treeOid = await graph.rebuildIndex('HEAD');
+await graph.saveIndex();  // Persists to refs/empty-graph/index
+console.log(`Index built: ${treeOid}`);
+
+// === Subsequent runs: Load the persisted index ===
+const loaded = await graph.loadIndexFromRef();
+if (!loaded) {
+  // Index doesn't exist yet, rebuild it
+  await graph.rebuildIndex('HEAD');
+  await graph.saveIndex();
+}
+
+// === Query parent/child relationships (O(1)) ===
+const parents = await graph.getParents(someSha);
+const children = await graph.getChildren(someSha);
+
+console.log(`Node ${someSha} has:`);
+console.log(`  ${parents.length} parents:`, parents);
+console.log(`  ${children.length} children:`, children);
+```
+
+**How it works internally:**
+
+1. `rebuildIndex()` walks the graph and builds sharded bitmap files:
+   - `meta_XX.json` - Maps SHAs to numeric IDs (sharded by SHA prefix)
+   - `shards_fwd_XX.json` - Forward edges (parent → children)
+   - `shards_rev_XX.json` - Reverse edges (child → parents)
+
+2. `loadIndex()` sets up lazy loading - shards are fetched on-demand:
+   ```javascript
+   // When you call getParents('abcd1234...')
+   // Only loads: meta_ab.json, shards_rev_ab.json
+   // Other shards remain unloaded until needed
+   ```
+
+3. `saveIndex()` / `loadIndexFromRef()` persist the index tree OID to a git ref for reuse across sessions.
+
+## Choosing the Right Method
+
+| Scenario | Method | Reason |
+|----------|--------|--------|
+| < 1,000 nodes | `listNodes()` | Returns array, easier to work with |
+| > 1,000 nodes | `iterateNodes()` | Streams results, constant memory |
+| Single node lookup | `readNode()` | O(1) direct access |
+| Find parents/children | `getParents()` / `getChildren()` | O(1) with bitmap index |
+
+```javascript
+// Example: Processing small graphs
+const recentNodes = await graph.listNodes({ ref: 'HEAD', limit: 100 });
+recentNodes.forEach(node => console.log(node.message));
+
+// Example: Processing large graphs (memory-safe)
+for await (const node of graph.iterateNodes({ ref: 'HEAD' })) {
+  await processNode(node); // Handle millions of nodes without OOM
+}
+
+// Example: O(1) relationship queries with bitmap index
+const treeOid = await graph.rebuildIndex('HEAD');
+await graph.loadIndex(treeOid);
+const parents = await graph.getParents(someSha);
+const children = await graph.getChildren(someSha);
+```
+
 ## Performance Characteristics
 
 | Operation | Complexity | Notes |
@@ -763,30 +922,30 @@ Common errors and solutions:
 
 ### Invalid Ref Format
 ```javascript
-// ❌ Error: Invalid ref format: --upload-pack
-// ✅ Solution: Refs must be alphanumeric, /, -, _, ^, ~, or .
+// Error: Invalid ref format: --upload-pack
+// Solution: Refs must be alphanumeric, /, -, _, ^, ~, or .
 const nodes = await graph.listNodes({ ref: 'main' });
 ```
 
 ### GraphNode Validation Error
 ```javascript
-// ❌ Error: GraphNode requires a valid sha string
-// ✅ Solution: Ensure createNode returned a valid SHA
+// Error: GraphNode requires a valid sha string
+// Solution: Ensure createNode returned a valid SHA
 const sha = await graph.createNode({ message: 'data' });
 const message = await graph.readNode(sha);
 ```
 
 ### Ref Too Long
 ```javascript
-// ❌ Error: Ref too long: 2048 chars. Maximum is 1024
-// ✅ Solution: Use shorter branch names or commit SHAs
+// Error: Ref too long: 2048 chars. Maximum is 1024
+// Solution: Use shorter branch names or commit SHAs
 const nodes = await graph.listNodes({ ref: 'abc123def' }); // Use SHA instead
 ```
 
 ### Invalid OID Format
 ```javascript
-// ❌ Error: Invalid OID format: not-a-valid-sha
-// ✅ Solution: OIDs must be 4-64 hexadecimal characters
+// Error: Invalid OID format: not-a-valid-sha
+// Solution: OIDs must be 4-64 hexadecimal characters
 const message = await graph.readNode('abc123def456'); // Valid short SHA
 ```
 
@@ -801,14 +960,6 @@ const message = await graph.readNode('abc123def456'); // Valid short SHA
 - **UTF-8 Safe**: Streaming decoder handles multibyte characters across chunk boundaries
 
 See [SECURITY.md](./SECURITY.md) for details.
-
-## Use Cases
-
-- **Event Sourcing**: Store events as commits, traverse history
-- **Knowledge Graphs**: Build semantic networks with Git's DAG
-- **Blockchain-like**: Immutable, cryptographically verified data structures
-- **Distributed Databases**: Leverage Git's sync/merge capabilities
-- **Audit Trails**: Every change is a commit with author/timestamp
 
 ## Development Setup
 
