@@ -1,0 +1,33 @@
+#!/bin/sh
+# Pre-commit hook: run eslint on staged JS files
+
+# Get staged JS files using NUL-delimited output for safe filename handling
+# This handles filenames with spaces, special characters, or starting with '-'
+# Store NUL-delimited list in a temp file to avoid running git twice
+TMPFILE=$(mktemp)
+trap 'rm -f "$TMPFILE"' EXIT
+
+git diff --cached --name-only --diff-filter=ACM -z | grep -zE '\.(js|mjs|cjs)$' > "$TMPFILE"
+
+# Check if there are any JS files to lint (file will be empty if none)
+if [ ! -s "$TMPFILE" ]; then
+  exit 0
+fi
+
+echo "Running eslint on staged files..."
+
+# Run eslint using NUL-safe xargs
+# Use -- to prevent filenames starting with '-' from being treated as options
+xargs -0 npx eslint -- < "$TMPFILE"
+
+ESLINT_EXIT=$?
+
+if [ $ESLINT_EXIT -ne 0 ]; then
+  echo ""
+  echo "ESLint failed. Please fix errors before committing."
+  echo "   Run 'npx eslint --fix' to auto-fix some issues."
+  exit 1
+fi
+
+echo "ESLint passed"
+exit 0

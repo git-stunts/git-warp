@@ -5,6 +5,129 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.5.0] - 2026-01-29
+
+### Added
+- **Git Hooks**: Custom pre-commit hook runs ESLint on staged files (`npm run setup:hooks` to enable)
+- **Cancellation Support**: Abort long-running operations with `AbortSignal`
+  - `checkAborted(signal, operation)` - Throws `OperationAbortedError` if aborted
+  - `createTimeoutSignal(ms)` - Creates auto-aborting signal for timeouts
+  - Added `signal` parameter to `iterateNodes()` and `rebuildIndex()`
+  - Demo scripts now use 60-second timeout to prevent indefinite hangs
+- **Dijkstra's Algorithm**: `weightedShortestPath()` with custom weight provider
+  - Supports async weight functions for Lagrangian cost calculations
+  - Returns `{ path, totalCost }`
+- **A* Search**: `aStarSearch()` with heuristic guidance
+  - Supports both `weightProvider` and `heuristicProvider` callbacks
+  - Tie-breaking favors higher g(n) for efficiency
+  - Returns `{ path, totalCost, nodesExplored }`
+- **Bidirectional A***: `bidirectionalAStar()` - meets in the middle from both ends
+  - Separate forward/backward heuristics
+  - Optimal path finding with potentially fewer explored nodes
+- **MinHeap Utility**: `src/domain/utils/MinHeap.js` for priority queue operations
+  - Methods: `insert()`, `extractMin()`, `peekPriority()`, `isEmpty()`, `size()`
+- **Lagrangian Demo**: `npm run demo:lagrangian` - Resource-aware pathfinding
+  - Event payloads now include `metrics: { cpu, mem }` for weight calculations
+  - Demonstrates Dijkstra, A*, and cost optimization concepts
+- **Streaming Benchmark**: `npm run demo:bench-streaming` - Memory profile for 100K+ nodes
+  - Verifies constant memory overhead during iteration (~7% variance)
+  - Measures stream throughput (~24K nodes/sec)
+- **Traversal Benchmark**: `npm run demo:bench-traversal` - Weighted pathfinding at scale
+  - Tests Dijkstra, A*, Bidirectional A* on linear and diamond graphs (100-5000 nodes)
+  - Compares algorithm performance characteristics
+- **OperationAbortedError**: New error class for cancellation scenarios
+
+### Changed
+- **Cancellation**: `createTimeoutSignal()` now uses native `AbortSignal.timeout()` for cleaner implementation
+- **BitmapIndexReader**: Non-strict mode now caches empty shards on validation/parse failures to avoid repeated I/O
+- **BitmapIndexReader**: Refactored for reduced complexity with extracted helper methods (`_validateShard`, `_parseAndValidateShard`, `_loadShardBuffer`, `_getEdges`)
+- **StreamingBitmapIndexBuilder**: Parallel shard writes using `Promise.all` for improved performance during flush and finalize operations
+- **TraversalService**: `findPath()` now accepts `maxNodes` parameter for consistency with `bfs`/`dfs`
+- **index.js**: `loadIndex()` now resets cached `_traversal` so subsequent access uses the new index
+- **Async Weight Providers**: `weightProvider` callbacks now properly awaited in all algorithms
+  - Fixes bug where async weight functions returned Promises instead of numbers
+- **README**: Reorganized sections for better flow - moved Use Cases up, improved navigation
+
+### Fixed
+- **Constructor Validation**: All services now fail fast with clear error messages when required dependencies are missing
+  - `BitmapIndexReader` requires `storage`
+  - `IndexRebuildService` requires `graphService` and `storage`
+  - `StreamingBitmapIndexBuilder` requires positive `maxMemoryBytes`
+  - `GraphService` requires `persistence`, positive `maxMessageBytes`, and string `message`
+  - `TraversalService` requires `indexReader`
+- **Examples**: Improved robustness across demo scripts
+  - `lagrangian-path.js`: handles empty graphs and malformed JSON gracefully
+  - `explore.js`: guards against empty events, removes unused import, adds curly braces, adds eslint overrides, wraps all JSON.parse calls
+  - `setup.js`: clears timeout to allow immediate process exit
+  - `streaming-benchmark.js`: handles divide-by-zero and -Infinity edge cases when no heap samples
+  - `traversal-benchmark.js`: catches JSON parse errors in weight provider, refactored deep nesting
+  - `inspect-index.js`: renamed misleading `totalEdges` to `totalEdgeLists`
+  - `event-sourcing.js`: removed unused eslint-disable directives
+- **ESLint Code Style**: Comprehensive cleanup across all example scripts
+  - Added curly braces to all single-line if/else blocks
+  - Converted string concatenation to template literals
+  - Split multi-variable declarations (one-var rule)
+  - Refactored deeply nested blocks to reduce max-depth violations
+  - Converted 4-parameter functions to options objects (max-params rule)
+  - Removed unused variables and redundant eslint-disable directives
+- **Error Classes**: Removed redundant `Error.captureStackTrace` calls in `ShardValidationError` and `ShardCorruptionError`
+- **GitLogParser**: Removed `trim()` from final record to preserve message content exactly
+- **BitmapIndexReader**: `_validateShard` now guards against missing/invalid `envelope.data` before computing checksum
+- **StreamingBitmapIndexBuilder**: `_mergeChunks` wraps JSON parse, bitmap deserialize, and serialization errors in `ShardCorruptionError`
+- **Cancellation**: `checkAborted` now passes `'unknown'` as fallback when operation is undefined
+- **TraversalService**: Path reconstruction methods now guard against undefined predecessors to prevent infinite loops
+- **TraversalService**: `_reconstructBidirectionalPath` guards fixed to check `undefined` instead of `null`
+- **Tests**: Improved test stability and resilience
+  - NoOpLogger performance test uses generous threshold for CI environments
+  - BitmapIndexBuilder tests use hex-like SHAs for realism
+  - Streaming index tests store raw buffers and use resilient assertions
+  - GraphService test uses idiomatic `expect().rejects.toThrow()` pattern
+  - StreamingBitmapIndexBuilder test mock uses SHA-256 checksums matching production
+  - logging.integration test properly invokes async IIFE for `.rejects` matcher
+  - Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
+
+### Docs
+- README: Added `text` language specifier to output code blocks
+- TASKLIST: Fixed table formatting and grammar
+- ARCHITECTURE: Fixed table separator spacing, renamed CacheRebuildService to IndexRebuildService
+- WALKTHROUGH: Added language specifiers, converted bold to headings, fixed deleted demo-adapter.js reference
+- **TypeScript**: Comprehensive type declaration updates
+  - Added `OperationAbortedError`, `IndexError`, `ShardLoadError`, `ShardCorruptionError`, `ShardValidationError`, `StorageError` classes
+  - Added `checkAborted` and `createTimeoutSignal` function declarations
+  - Added `signal` parameter to `IterateNodesOptions` and `RebuildOptions`
+  - Added `maxMemoryBytes`, `onFlush`, `onProgress` to `RebuildOptions`
+  - Added `maxNodes` to `PathOptions`
+  - Added `weightedShortestPath`, `aStarSearch`, `bidirectionalAStar` method declarations
+  - Added `throwOnCycle` to `TopologicalSortOptions`
+
+## [2.4.0] - 2026-01-29
+
+### Added
+- **Interactive Docker Demo**: Production-ready demo using real `GitGraphAdapter` with plumbing
+  - `npm run demo:setup` - Creates container with sample e-commerce event graph (idempotent)
+  - `npm run demo` - Drops into container shell for exploration
+  - `npm run demo:explore` - Runs interactive graph explorer demonstrating traversal, projections, and path finding
+  - `npm run demo:inspect` - Visualizes sharded bitmap index with ASCII distribution charts
+- **Idempotent Demo Setup**: `setup.js` now detects existing demo data and cleans up before re-running
+- **Performance Telemetry**: `explore.js` includes high-resolution timing comparing O(1) bitmap lookups vs git log (with speedup factors)
+- **Index Inspector**: New `inspect-index.js` script pretty-prints shard distribution, node counts, and memory estimates
+
+### Changed
+- **Plumbing Upgrade**: Upgraded `@git-stunts/plumbing` from `^2.7.0` to `^2.8.0`
+  - Version 2.8.0 adds `log` and `show` to the command whitelist
+- **NUL Byte Handling**: `GitGraphAdapter.logNodesStream()` now strips NUL bytes from format strings
+  - The `-z` flag handles NUL termination automatically
+  - Node.js `child_process` rejects args containing null bytes
+
+### Removed
+- **Demo Adapter Hack**: Deleted `examples/demo-adapter.js` bypass adapter
+  - Demo scripts now use production `GitGraphAdapter` directly
+
+### Fixed
+- **Demo Scripts**: `examples/setup.js` and `examples/explore.js` now use proper plumbing integration
+
 ## [2.3.0] - 2026-01-18
 
 ### Added

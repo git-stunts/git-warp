@@ -16,7 +16,12 @@ export default [
         clearInterval: "readonly",
         URL: "readonly",
         TextDecoder: "readonly",
-        TextEncoder: "readonly"
+        TextEncoder: "readonly",
+        // Node.js 20+ globals
+        AbortController: "readonly",
+        AbortSignal: "readonly",
+        performance: "readonly",
+        global: "readonly"
       }
     },
     rules: {
@@ -65,7 +70,10 @@ export default [
     rules: {
       "max-lines-per-function": "off",
       "max-nested-callbacks": "off",
-      "no-console": "off"
+      "no-console": "off",
+      "no-shadow": "off",
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "curly": "off"
     }
   },
   // Relaxed rules for benchmarks
@@ -75,6 +83,26 @@ export default [
       "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
       "no-console": "off",
       "curly": "off"
+    }
+  },
+  // Relaxed rules for example scripts (CLI demos)
+  {
+    files: ["examples/**/*.js"],
+    rules: {
+      "no-console": "off",
+      "max-lines-per-function": "off",
+      "complexity": "off"
+    }
+  },
+  // Relaxed rules for specific algorithm files (graph algorithms have inherently high complexity)
+  {
+    files: ["src/domain/services/TraversalService.js", "src/domain/services/IndexRebuildService.js"],
+    rules: {
+      "complexity": ["error", 35],
+      "max-statements": ["error", 100],
+      "max-lines-per-function": ["error", 200],
+      "max-depth": ["error", 6],
+      "max-params": ["error", 6]
     }
   }
 ];

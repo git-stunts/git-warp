@@ -43,7 +43,6 @@ describe('GraphNode', () => {
 
   bench('property access (immutable getters)', () => {
     const node = new GraphNode(validProps);
-    // eslint-disable-next-line no-unused-vars
     const _ = node.sha + node.author + node.date + node.message;
   });
 });

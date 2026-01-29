@@ -45,12 +45,28 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     return await this.plumbing.execute({ args });
   }
 
+  /**
+   * Streams git log output for the given ref.
+   * Uses the -z flag to produce NUL-terminated output, which:
+   * - Ensures reliable parsing of commits with special characters in messages
+   * - Ignores the i18n.logOutputEncoding config setting for consistent output
+   * @param {Object} options
+   * @param {string} options.ref - The ref to log from
+   * @param {number} [options.limit=1000000] - Maximum number of commits to return
+   * @param {string} [options.format] - Custom format string for git log
+   * @returns {Promise<Stream>} A stream of git log output (NUL-terminated records)
+   */
   async logNodesStream({ ref, limit = 1000000, format }) {
     this._validateRef(ref);
     this._validateLimit(limit);
-    const args = ['log', `-${limit}`];
+    // -z flag ensures NUL-terminated output and ignores i18n.logOutputEncoding config
+    const args = ['log', '-z', `-${limit}`];
     if (format) {
-      args.push(`--format=${format}`);
+      // Strip NUL bytes from format - git -z flag handles NUL termination automatically
+      // Node.js child_process rejects args containing null bytes
+      // eslint-disable-next-line no-control-regex
+      const cleanFormat = format.replace(/\x00/g, '');
+      args.push(`--format=${cleanFormat}`);
     }
     args.push(ref);
     return await this.plumbing.executeStream({ args });
@@ -234,6 +250,23 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     }
     if (limit > 10_000_000) {
       throw new Error(`Limit too large: ${limit}. Maximum is 10,000,000`);
+    }
+  }
+
+  /**
+   * Pings the repository to verify accessibility.
+   * Uses `git rev-parse --git-dir` as a lightweight check.
+   * @returns {Promise<{ok: boolean, latencyMs: number}>} Health check result with latency
+   */
+  async ping() {
+    const start = Date.now();
+    try {
+      await this.plumbing.execute({ args: ['rev-parse', '--git-dir'] });
+      const latencyMs = Date.now() - start;
+      return { ok: true, latencyMs };
+    } catch {
+      const latencyMs = Date.now() - start;
+      return { ok: false, latencyMs };
     }
   }
 }

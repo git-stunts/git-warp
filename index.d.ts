@@ -3,6 +3,64 @@
  */
 
 /**
+ * Result of a ping health check.
+ */
+export interface PingResult {
+  /** Whether the ping succeeded */
+  ok: boolean;
+  /** Latency in milliseconds */
+  latencyMs: number;
+}
+
+/**
+ * Health status of a repository component.
+ */
+export interface RepositoryHealth {
+  /** Repository status */
+  status: 'healthy' | 'unhealthy';
+  /** Ping latency in milliseconds */
+  latencyMs: number;
+}
+
+/**
+ * Health status of the index component.
+ */
+export interface IndexHealth {
+  /** Index status */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  /** Whether an index is loaded */
+  loaded: boolean;
+  /** Number of shards (if loaded) */
+  shardCount?: number;
+}
+
+/**
+ * Complete health check result.
+ */
+export interface HealthResult {
+  /** Overall health status */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  /** Component health breakdown */
+  components: {
+    /** Repository health */
+    repository: RepositoryHealth;
+    /** Index health */
+    index: IndexHealth;
+  };
+  /** ISO timestamp if result is cached */
+  cachedAt?: string;
+}
+
+/**
+ * Health status constants.
+ */
+export const HealthStatus: {
+  readonly HEALTHY: 'healthy';
+  readonly DEGRADED: 'degraded';
+  readonly UNHEALTHY: 'unhealthy';
+};
+
+/**
  * Options for creating a new graph node.
  */
 export interface CreateNodeOptions {
@@ -32,6 +90,119 @@ export interface IterateNodesOptions {
   ref: string;
   /** Maximum nodes to yield (default: 1000000) */
   limit?: number;
+  /** Optional AbortSignal for cancellation support */
+  signal?: AbortSignal;
+}
+
+/**
+ * Options for rebuilding the index.
+ */
+export interface RebuildOptions {
+  /** Maximum nodes to process (default: 10000000, max: 10000000) */
+  limit?: number;
+  /** Enable streaming mode with this memory threshold in bytes */
+  maxMemoryBytes?: number;
+  /** Optional AbortSignal for cancellation support */
+  signal?: AbortSignal;
+  /** Callback invoked on each flush (streaming mode only) */
+  onFlush?: (info: { flushedBytes: number; totalFlushedBytes: number; flushCount: number }) => void;
+  /** Callback invoked periodically during processing */
+  onProgress?: (info: { processedNodes: number; currentMemoryBytes: number | null }) => void;
+}
+
+/**
+ * Direction for graph traversal.
+ */
+export type TraversalDirection = 'forward' | 'reverse';
+
+/**
+ * Node yielded during graph traversal.
+ */
+export interface TraversalNode {
+  /** The node's SHA */
+  sha: string;
+  /** Distance from start node */
+  depth: number;
+  /** SHA of the node that led to this one, or null for start */
+  parent: string | null;
+}
+
+/**
+ * Result of a path-finding operation.
+ */
+export interface PathResult {
+  /** Whether a path was found */
+  found: boolean;
+  /** Array of SHAs from source to target (empty if not found) */
+  path: string[];
+  /** Path length (-1 if not found) */
+  length: number;
+}
+
+/**
+ * Options for BFS/DFS traversal.
+ */
+export interface TraversalOptions {
+  /** Starting node SHA */
+  start: string;
+  /** Maximum nodes to visit (default: 100000) */
+  maxNodes?: number;
+  /** Maximum depth to traverse (default: 1000) */
+  maxDepth?: number;
+  /** Traversal direction (default: 'forward') */
+  direction?: TraversalDirection;
+}
+
+/**
+ * Options for ancestor/descendant traversal.
+ */
+export interface AncestorOptions {
+  /** Starting node SHA */
+  sha: string;
+  /** Maximum nodes to visit (default: 100000) */
+  maxNodes?: number;
+  /** Maximum depth to traverse (default: 1000) */
+  maxDepth?: number;
+}
+
+/**
+ * Options for path-finding operations.
+ */
+export interface PathOptions {
+  /** Source node SHA */
+  from: string;
+  /** Target node SHA */
+  to: string;
+  /** Maximum search depth (default: 1000) */
+  maxDepth?: number;
+  /** Maximum nodes to visit */
+  maxNodes?: number;
+}
+
+/**
+ * Options for finding common ancestors.
+ */
+export interface CommonAncestorsOptions {
+  /** Array of node SHAs */
+  shas: string[];
+  /** Maximum ancestors to return (default: 100) */
+  maxResults?: number;
+  /** Maximum depth to search (default: 1000) */
+  maxDepth?: number;
+}
+
+/**
+ * Options for topological sort.
+ */
+export interface TopologicalSortOptions {
+  /** Starting node SHA */
+  start: string;
+  /** Maximum nodes to yield (default: 100000) */
+  maxNodes?: number;
+  /** Direction determines dependency order (default: 'forward') */
+  direction?: TraversalDirection;
+  /** If true, throws TraversalError when cycle detected (default: false) */
+  throwOnCycle?: boolean;
 }
 
 /**
@@ -60,6 +231,7 @@ export class GraphNode {
 
 /**
  * Port interface for graph persistence operations.
+ * @abstract
  */
 export abstract class GraphPersistencePort {
   /** The empty tree SHA */
@@ -69,14 +241,119 @@ export abstract class GraphPersistencePort {
   abstract showNode(sha: string): Promise<string>;
   abstract logNodesStream(options: ListNodesOptions & { format: string }): Promise<AsyncIterable<Uint8Array | string>>;
   abstract logNodes(options: ListNodesOptions & { format: string }): Promise<string>;
+  /** Pings the repository to verify accessibility */
+  abstract ping(): Promise<PingResult>;
+}
+
+/**
+ * Port interface for index storage operations.
+ * @abstract
+ */
+export abstract class IndexStoragePort {
+  /** Writes a blob and returns its OID */
   abstract writeBlob(content: Buffer | string): Promise<string>;
+  /** Writes a tree from entries and returns its OID */
   abstract writeTree(entries: string[]): Promise<string>;
-  abstract readTree(treeOid: string): Promise<Record<string, Buffer>>;
-  abstract readTreeOids(treeOid: string): Promise<Record<string, string>>;
+  /** Reads a blob by OID */
   abstract readBlob(oid: string): Promise<Buffer>;
+  /** Reads a tree and returns a map of path to blob OID */
+  abstract readTreeOids(treeOid: string): Promise<Record<string, string>>;
+  /** Updates a ref to point to an OID */
   abstract updateRef(ref: string, oid: string): Promise<void>;
+  /** Reads the OID a ref points to */
   abstract readRef(ref: string): Promise<string | null>;
-  abstract deleteRef(ref: string): Promise<void>;
+}
+
+/**
+ * Log levels in order of severity.
+ */
+export const LogLevel: {
+  readonly DEBUG: 0;
+  readonly INFO: 1;
+  readonly WARN: 2;
+  readonly ERROR: 3;
+  readonly SILENT: 4;
+};
+
+export type LogLevelValue = 0 | 1 | 2 | 3 | 4;
+
+/**
+ * Port interface for time-related operations.
+ * @abstract
+ */
+export abstract class ClockPort {
+  /** Returns a high-resolution timestamp in milliseconds */
+  abstract now(): number;
+  /** Returns the current wall-clock time as an ISO string */
+  abstract timestamp(): string;
+}
+
+/**
+ * Clock adapter using Node.js performance API.
+ * Use this for Node.js environments.
+ */
+export class PerformanceClockAdapter extends ClockPort {
+  now(): number;
+  timestamp(): string;
+}
+
+/**
+ * Clock adapter using global performance API.
+ * Use this for Bun, Deno, and browser environments.
+ */
+export class GlobalClockAdapter extends ClockPort {
+  now(): number;
+  timestamp(): string;
+}
+
+/**
+ * Port interface for structured logging operations.
+ * @abstract
+ */
+export abstract class LoggerPort {
+  /** Log a debug-level message */
+  abstract debug(message: string, context?: Record<string, unknown>): void;
+  /** Log an info-level message */
+  abstract info(message: string, context?: Record<string, unknown>): void;
+  /** Log a warning-level message */
+  abstract warn(message: string, context?: Record<string, unknown>): void;
+  /** Log an error-level message */
+  abstract error(message: string, context?: Record<string, unknown>): void;
+  /** Create a child logger with additional base context */
+  abstract child(context: Record<string, unknown>): LoggerPort;
+}
+
+/**
+ * No-operation logger adapter.
+ * Discards all log messages. Zero overhead.
+ */
+export class NoOpLogger extends LoggerPort {
+  debug(message: string, context?: Record<string, unknown>): void;
+  info(message: string, context?: Record<string, unknown>): void;
+  warn(message: string, context?: Record<string, unknown>): void;
+  error(message: string, context?: Record<string, unknown>): void;
+  child(context: Record<string, unknown>): NoOpLogger;
+}
+
+/**
+ * Console logger adapter with structured JSON output.
+ * Supports log level filtering, timestamps, and child loggers.
+ */
+export class ConsoleLogger extends LoggerPort {
+  constructor(options?: {
+    /** Minimum log level to output (default: LogLevel.INFO) */
+    level?: LogLevelValue | 'debug' | 'info' | 'warn' | 'error' | 'silent';
+    /** Base context for all log entries */
+    context?: Record<string, unknown>;
+    /** Custom timestamp function (defaults to ISO string) */
+    timestampFn?: () => string;
+  });
+
+  debug(message: string, context?: Record<string, unknown>): void;
+  info(message: string, context?: Record<string, unknown>): void;
+  warn(message: string, context?: Record<string, unknown>): void;
+  error(message: string, context?: Record<string, unknown>): void;
+  child(context: Record<string, unknown>): ConsoleLogger;
 }
 
 /**
@@ -89,9 +366,9 @@ export interface GitPlumbing {
 }
 
 /**
- * Implementation of GraphPersistencePort using GitPlumbing.
+ * Implementation of GraphPersistencePort and IndexStoragePort using GitPlumbing.
  */
-export class GitGraphAdapter extends GraphPersistencePort {
+export class GitGraphAdapter extends GraphPersistencePort implements IndexStoragePort {
   constructor(options: { plumbing: GitPlumbing });
 
   get emptyTree(): string;
@@ -107,13 +384,20 @@ export class GitGraphAdapter extends GraphPersistencePort {
   updateRef(ref: string, oid: string): Promise<void>;
   readRef(ref: string): Promise<string | null>;
   deleteRef(ref: string): Promise<void>;
+  ping(): Promise<PingResult>;
 }
 
 /**
  * Domain service for graph database operations.
  */
 export class GraphService {
-  constructor(options: { persistence: GraphPersistencePort });
+  constructor(options: {
+    persistence: GraphPersistencePort;
+    /** Maximum allowed message size in bytes (default: 1048576) */
+    maxMessageBytes?: number;
+    /** Logger for structured logging (default: NoOpLogger) */
+    logger?: LoggerPort;
+  });
 
   createNode(options: CreateNodeOptions): Promise<string>;
   readNode(sha: string): Promise<string>;
@@ -122,73 +406,373 @@ export class GraphService {
 }
 
 /**
- * Rebuild state for BitmapIndexService.
+ * Builder for constructing bitmap indexes in memory.
+ *
+ * Pure domain class with no infrastructure dependencies.
  */
-export interface BitmapRebuildState {
-  shaToId: Map<string, number>;
-  idToSha: string[];
-  bitmaps: Map<string, unknown>;
+export class BitmapIndexBuilder {
+  /** SHA to numeric ID mappings */
+  readonly shaToId: Map<string, number>;
+  /** Numeric ID to SHA mappings */
+  readonly idToSha: string[];
+
+  constructor();
+
+  /** Registers a node and returns its numeric ID */
+  registerNode(sha: string): number;
+
+  /** Adds a directed edge from source to target */
+  addEdge(srcSha: string, tgtSha: string): void;
+
+  /** Serializes the index to a tree structure of buffers */
+  serialize(): Record<string, Buffer>;
 }
 
 /**
- * High-performance sharded bitmap index with lazy loading.
+ * Service for querying a loaded bitmap index.
+ *
+ * Provides O(1) lookups via lazy-loaded sharded bitmap data.
  */
-export class BitmapIndexService {
-  constructor(options?: { persistence?: GraphPersistencePort });
+export class BitmapIndexReader {
+  constructor(options: {
+    storage: IndexStoragePort;
+    /** If true, throw on validation failures; if false, log and return empty (default: false) */
+    strict?: boolean;
+    /** Logger for structured logging (default: NoOpLogger) */
+    logger?: LoggerPort;
+  });
 
-  /** Look up the numeric ID for a SHA */
-  lookupId(sha: string): Promise<number | undefined>;
-
-  /** Get parent SHAs for a node (O(1) via reverse bitmap) */
-  getParents(sha: string): Promise<string[]>;
-
-  /** Get child SHAs for a node (O(1) via forward bitmap) */
-  getChildren(sha: string): Promise<string[]>;
-
-  /** Set up the index with shard OIDs */
+  /**
+   * Configures the reader with shard OID mappings for lazy loading.
+   *
+   * The shardOids object maps shard filenames to their Git blob OIDs:
+   * - `meta_XX.json` - SHA→ID mappings for nodes with SHA prefix XX
+   * - `shards_fwd_XX.json` - Forward edge bitmaps (parent→children)
+   * - `shards_rev_XX.json` - Reverse edge bitmaps (child→parents)
+   *
+   * @example
+   * reader.setup({
+   *   'meta_ab.json': 'a1b2c3d4e5f6...',
+   *   'shards_fwd_ab.json': '1234567890ab...',
+   *   'shards_rev_ab.json': 'abcdef123456...'
+   * });
+   */
   setup(shardOids: Record<string, string>): void;
 
-  /** Create a new rebuild state */
-  static createRebuildState(): BitmapRebuildState;
+  /** Looks up the numeric ID for a SHA */
+  lookupId(sha: string): Promise<number | undefined>;
 
-  /** Add an edge to the rebuild state */
-  static addEdge(srcSha: string, tgtSha: string, state: BitmapRebuildState): void;
+  /** Gets parent SHAs for a node (O(1) via reverse bitmap) */
+  getParents(sha: string): Promise<string[]>;
 
-  /** Register a node in the rebuild state without adding edges */
-  static registerNode(sha: string, state: BitmapRebuildState): number;
-
-  /** Get or create a numeric ID for a SHA (internal) */
-  static _getOrCreateId(sha: string, state: BitmapRebuildState): number;
-
-  /** Serialize the rebuild state to a tree of files */
-  static serialize(state: BitmapRebuildState): Record<string, Buffer>;
+  /** Gets child SHAs for a node (O(1) via forward bitmap) */
+  getChildren(sha: string): Promise<string[]>;
 }
 
 /**
- * Service to rebuild and load the graph index.
+ * Service for building and loading the bitmap index from the graph.
  */
-export class CacheRebuildService {
-  constructor(options: { persistence: GraphPersistencePort; graphService: GraphService });
+export class IndexRebuildService {
+  constructor(options: {
+    graphService: GraphService;
+    storage: IndexStoragePort;
+    /** Logger for structured logging (default: NoOpLogger) */
+    logger?: LoggerPort;
+  });
 
-  /** Rebuild the index from a ref */
-  rebuild(ref: string): Promise<string>;
+  /**
+   * Rebuilds the bitmap index by walking the graph from a ref.
+   *
+   * **Memory**: O(N) where N is nodes. ~150-200MB for 1M nodes.
+   * **Time**: O(N) single pass.
+   */
+  rebuild(ref: string, options?: RebuildOptions): Promise<string>;
 
-  /** Load an index from a tree OID */
-  load(treeOid: string): Promise<BitmapIndexService>;
+  /**
+   * Loads a previously built index from a tree OID.
+   *
+   * **Memory**: Lazy loading - O(1) initial, shards loaded on demand.
+   */
+  load(treeOid: string): Promise<BitmapIndexReader>;
 }
+
+/**
+ * Service for performing health checks on the graph system.
+ *
+ * Follows hexagonal architecture by depending on ports, not adapters.
+ * Provides K8s-style probes (liveness vs readiness) and detailed component health.
+ */
+export class HealthCheckService {
+  constructor(options: {
+    /** Persistence port for repository checks */
+    persistence: GraphPersistencePort;
+    /** Clock port for timing operations */
+    clock: ClockPort;
+    /** How long to cache health results in milliseconds (default: 5000) */
+    cacheTtlMs?: number;
+    /** Logger for structured logging (default: NoOpLogger) */
+    logger?: LoggerPort;
+  });
+
+  /**
+   * Sets the index reader for index health checks.
+   * Call this when an index is loaded.
+   */
+  setIndexReader(reader: BitmapIndexReader | null): void;
+
+  /**
+   * K8s-style liveness probe: Is the service running?
+   * Returns true if the repository is accessible.
+   */
+  isAlive(): Promise<boolean>;
+
+  /**
+   * K8s-style readiness probe: Can the service serve requests?
+   * Returns true if all critical components are healthy.
+   */
+  isReady(): Promise<boolean>;
+
+  /**
+   * Gets detailed health information for all components.
+   * Results are cached for the configured TTL.
+   */
+  getHealth(): Promise<HealthResult>;
+}
+
+/**
+ * Service for graph traversal operations.
+ *
+ * Provides BFS, DFS, path finding, and topological sort algorithms
+ * using O(1) bitmap index lookups.
+ */
+export class TraversalService {
+  constructor(options: {
+    /** Index reader for O(1) lookups */
+    indexReader: BitmapIndexReader;
+    /** Logger for structured logging (default: NoOpLogger) */
+    logger?: LoggerPort;
+  });
+
+  /**
+   * Breadth-first traversal from a starting node.
+   */
+  bfs(options: TraversalOptions): AsyncGenerator<TraversalNode, void, unknown>;
+
+  /**
+   * Depth-first pre-order traversal from a starting node.
+   */
+  dfs(options: TraversalOptions): AsyncGenerator<TraversalNode, void, unknown>;
+
+  /**
+   * Yields all ancestors of a node (transitive closure going backwards).
+   */
+  ancestors(options: AncestorOptions): AsyncGenerator<TraversalNode, void, unknown>;
+
+  /**
+   * Yields all descendants of a node (transitive closure going forwards).
+   */
+  descendants(options: AncestorOptions): AsyncGenerator<TraversalNode, void, unknown>;
+
+  /**
+   * Finds ANY path between two nodes using BFS.
+   */
+  findPath(options: PathOptions): Promise<PathResult>;
+
+  /**
+   * Finds the shortest path between two nodes using bidirectional BFS.
+   */
+  shortestPath(options: PathOptions): Promise<PathResult>;
+
+  /**
+   * Checks if there is any path from one node to another.
+   */
+  isReachable(options: PathOptions): Promise<boolean>;
+
+  /**
+   * Finds common ancestors of multiple nodes.
+   */
+  commonAncestors(options: CommonAncestorsOptions): Promise<string[]>;
+
+  /**
+   * Yields nodes in topological order using Kahn's algorithm.
+   */
+  topologicalSort(options: TopologicalSortOptions): AsyncGenerator<TraversalNode, void, unknown>;
+
+  /**
+   * Finds shortest path using Dijkstra's algorithm with custom edge weights.
+   */
+  weightedShortestPath(options: {
+    from: string;
+    to: string;
+    weightProvider?: (fromSha: string, toSha: string) => number | Promise<number>;
+    direction?: 'children' | 'parents';
+  }): Promise<{ path: string[]; totalCost: number }>;
+
+  /**
+   * Finds shortest path using A* algorithm with heuristic guidance.
+   */
+  aStarSearch(options: {
+    from: string;
+    to: string;
+    weightProvider?: (fromSha: string, toSha: string) => number | Promise<number>;
+    heuristicProvider?: (sha: string, targetSha: string) => number | Promise<number>;
+    direction?: 'children' | 'parents';
+  }): Promise<{ path: string[]; totalCost: number; nodesExplored: number }>;
+
+  /**
+   * Bi-directional A* search - meets in the middle from both ends.
+   */
+  bidirectionalAStar(options: {
+    from: string;
+    to: string;
+    weightProvider?: (fromSha: string, toSha: string) => number | Promise<number>;
+    forwardHeuristic?: (sha: string, targetSha: string) => number | Promise<number>;
+    backwardHeuristic?: (sha: string, targetSha: string) => number | Promise<number>;
+  }): Promise<{ path: string[]; totalCost: number; nodesExplored: number }>;
+}
+
+/**
+ * Error class for graph traversal operations.
+ */
+export class TraversalError extends Error {
+  /** Error name */
+  readonly name: 'TraversalError';
+  /** Error code for programmatic handling */
+  readonly code: string;
+  /** Serializable context for debugging */
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when an operation is aborted via AbortSignal.
+ */
+export class OperationAbortedError extends Error {
+  readonly name: 'OperationAbortedError';
+  readonly code: string;
+  readonly operation?: string;
+  readonly reason: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(operation?: string, options?: {
+    reason?: string;
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Base error class for bitmap index operations.
+ */
+export class IndexError extends Error {
+  readonly name: 'IndexError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when a shard fails to load.
+ */
+export class ShardLoadError extends IndexError {
+  readonly name: 'ShardLoadError';
+  readonly shardPath?: string;
+  readonly oid?: string;
+  readonly cause?: Error;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    oid?: string;
+    cause?: Error;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when shard data is corrupted or invalid.
+ */
+export class ShardCorruptionError extends IndexError {
+  readonly name: 'ShardCorruptionError';
+  readonly shardPath?: string;
+  readonly oid?: string;
+  readonly reason?: string;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    oid?: string;
+    reason?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when shard validation fails.
+ */
+export class ShardValidationError extends IndexError {
+  readonly name: 'ShardValidationError';
+  readonly shardPath?: string;
+  readonly expected?: unknown;
+  readonly actual?: unknown;
+  readonly field?: string;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    expected?: unknown;
+    actual?: unknown;
+    field?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when a storage operation fails.
+ */
+export class StorageError extends IndexError {
+  readonly name: 'StorageError';
+  readonly operation?: 'read' | 'write';
+  readonly oid?: string;
+  readonly cause?: Error;
+
+  constructor(message: string, options?: {
+    operation?: 'read' | 'write';
+    oid?: string;
+    cause?: Error;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Checks if an AbortSignal is aborted and throws OperationAbortedError if so.
+ */
+export function checkAborted(signal?: AbortSignal, operation?: string): void;
+
+/**
+ * Creates an AbortSignal that automatically aborts after the specified timeout.
+ */
+export function createTimeoutSignal(ms: number): AbortSignal;
 
 /** Default ref for storing the index OID */
 export const DEFAULT_INDEX_REF: string;
 
 /**
  * Facade class for the EmptyGraph library.
+ *
+ * Provides a simplified API over the underlying domain services.
  */
 export default class EmptyGraph {
   /** The underlying GraphService instance */
   readonly service: GraphService;
 
-  /** The underlying CacheRebuildService instance */
-  readonly rebuildService: CacheRebuildService;
+  /** The underlying IndexRebuildService instance */
+  readonly rebuildService: IndexRebuildService;
 
   /** Whether an index is currently loaded */
   readonly hasIndex: boolean;
@@ -197,82 +781,93 @@ export default class EmptyGraph {
   readonly indexOid: string | null;
 
   /**
+   * The traversal service for graph operations.
+   * @throws {Error} If accessed before calling loadIndex()
+   */
+  readonly traversal: TraversalService;
+
+  /**
    * Creates a new EmptyGraph instance.
    * @param options Configuration options
-   * @param options.plumbing Instance of @git-stunts/plumbing
+   * @param options.persistence Adapter implementing GraphPersistencePort & IndexStoragePort
+   * @param options.maxMessageBytes Maximum allowed message size in bytes (default: 1048576)
+   * @param options.logger Logger for structured logging (default: NoOpLogger)
+   * @param options.clock Clock for timing operations (default: PerformanceClockAdapter)
+   * @param options.healthCacheTtlMs How long to cache health check results in milliseconds (default: 5000)
    */
-  constructor(options: { plumbing: GitPlumbing });
+  constructor(options: {
+    persistence: GraphPersistencePort & IndexStoragePort;
+    maxMessageBytes?: number;
+    logger?: LoggerPort;
+    clock?: ClockPort;
+    healthCacheTtlMs?: number;
+  });
 
   /**
    * Creates a new graph node as a Git commit.
-   * @param options Node creation options
-   * @returns SHA of the created commit
    */
   createNode(options: CreateNodeOptions): Promise<string>;
 
   /**
    * Reads a node's message.
-   * @param sha Commit SHA to read
-   * @returns The node's message
    */
   readNode(sha: string): Promise<string>;
 
   /**
    * Lists nodes in history (for small graphs).
-   * @param options List options
-   * @returns Array of GraphNode instances
    */
   listNodes(options: ListNodesOptions): Promise<GraphNode[]>;
 
   /**
    * Async generator for streaming large graphs.
-   * @param options Iteration options
-   * @yields GraphNode instances
    */
   iterateNodes(options: IterateNodesOptions): AsyncGenerator<GraphNode, void, unknown>;
 
   /**
    * Rebuilds the bitmap index for the graph.
-   * @param ref Git ref to rebuild from
-   * @returns OID of the created index tree
    */
-  rebuildIndex(ref: string): Promise<string>;
+  rebuildIndex(ref: string, options?: RebuildOptions): Promise<string>;
 
   /**
    * Loads a pre-built bitmap index for O(1) queries.
-   * @param treeOid OID of the index tree (from rebuildIndex)
    */
   loadIndex(treeOid: string): Promise<void>;
 
   /**
    * Saves the current index OID to a git ref.
-   * @param ref The ref to store the index OID (default: 'refs/empty-graph/index')
-   * @throws Error if no index has been built or loaded
    */
   saveIndex(ref?: string): Promise<void>;
 
   /**
    * Loads the index from a git ref.
-   * @param ref The ref containing the index OID (default: 'refs/empty-graph/index')
-   * @returns True if index was loaded, false if ref doesn't exist
    */
   loadIndexFromRef(ref?: string): Promise<boolean>;
 
   /**
    * Gets parent SHAs for a node using the bitmap index.
-   * Requires loadIndex() to be called first.
-   * @param sha The node's SHA
-   * @returns Array of parent SHAs
-   * @throws Error if index is not loaded
    */
   getParents(sha: string): Promise<string[]>;
 
   /**
    * Gets child SHAs for a node using the bitmap index.
-   * Requires loadIndex() to be called first.
-   * @param sha The node's SHA
-   * @returns Array of child SHAs
-   * @throws Error if index is not loaded
    */
   getChildren(sha: string): Promise<string[]>;
+
+  /**
+   * Gets detailed health information for all components.
+   * Results are cached for the configured TTL (default 5s).
+   */
+  getHealth(): Promise<HealthResult>;
+
+  /**
+   * K8s-style readiness probe: Can the service serve requests?
+   * Returns true only when all critical components are healthy.
+   */
+  isReady(): Promise<boolean>;
+
+  /**
+   * K8s-style liveness probe: Is the service alive?
+   * Returns true if the repository is accessible (even if degraded).
+   */
+  isAlive(): Promise<boolean>;
 }

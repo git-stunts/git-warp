@@ -118,4 +118,12 @@ export default class GraphPersistencePort {
   async deleteRef(_ref) {
     throw new Error('Not implemented');
   }
+
+  /**
+   * Pings the repository to verify accessibility.
+   * @returns {Promise<{ok: boolean, latencyMs: number}>} Health check result with latency
+   */
+  async ping() {
+    throw new Error('Not implemented');
+  }
 }
