@@ -364,10 +364,11 @@ If you add events, rebuild the index to include them:
 
 ```bash
 node -e "
-const { default: EmptyGraph } = await import('/app/index.js');
-const { default: DemoGitAdapter } = await import('/app/examples/demo-adapter.js');
+const { default: EmptyGraph, GitGraphAdapter } = await import('/app/index.js');
+const GitPlumbing = (await import('@git-stunts/plumbing')).default;
 
-const adapter = new DemoGitAdapter({ cwd: process.cwd() });
+const plumbing = new GitPlumbing({ cwd: process.cwd() });
+const adapter = new GitGraphAdapter({ plumbing });
 const graph = new EmptyGraph({ persistence: adapter });
 
 const indexOid = await graph.rebuildIndex('main');

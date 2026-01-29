@@ -67,7 +67,13 @@ async function main() {
   const events = [];
   for await (const node of graph.traversal.ancestors({ sha: headSha })) {
     const message = await graph.readNode(node.sha);
-    const event = JSON.parse(message);
+    let event;
+    try {
+      event = JSON.parse(message);
+    } catch (err) {
+      console.warn(`Warning: Failed to parse event at ${node.sha.slice(0, 8)}: ${err.message}`);
+      continue;
+    }
     events.push({ sha: node.sha, depth: node.depth, event });
   }
 
@@ -163,22 +169,39 @@ async function main() {
   }
 
   if (commonAncestor) {
-    const commonEvent = JSON.parse(await graph.readNode(commonAncestor));
+    let commonEvent;
+    try {
+      commonEvent = JSON.parse(await graph.readNode(commonAncestor));
+    } catch (err) {
+      console.warn(`Warning: Failed to parse common ancestor at ${commonAncestor.slice(0, 8)}: ${err.message}`);
+      commonEvent = { type: '<unknown>' };
+    }
     console.log(`Branch point: [${commonAncestor.slice(0, 8)}] ${commonEvent.type}`);
     console.log('');
     console.log('Main branch continued with:');
 
-    let foundBranch = false;
     for await (const node of graph.traversal.descendants({ sha: commonAncestor })) {
       if (node.sha === commonAncestor) continue;
       if (mainAncestors.has(node.sha)) {
-        const evt = JSON.parse(await graph.readNode(node.sha));
+        let evt;
+        try {
+          evt = JSON.parse(await graph.readNode(node.sha));
+        } catch (err) {
+          console.warn(`Warning: Failed to parse event at ${node.sha.slice(0, 8)}: ${err.message}`);
+          continue;
+        }
         console.log(`  → ${evt.type}`);
       }
     }
 
     console.log('\nCancelled branch has:');
-    const cancelledEvent = JSON.parse(await graph.readNode(cancelledSha));
+    let cancelledEvent;
+    try {
+      cancelledEvent = JSON.parse(await graph.readNode(cancelledSha));
+    } catch (err) {
+      console.warn(`Warning: Failed to parse cancelled event at ${cancelledSha.slice(0, 8)}: ${err.message}`);
+      cancelledEvent = { type: '<unknown>' };
+    }
     console.log(`  → ${cancelledEvent.type}`);
   }
 
@@ -200,7 +223,13 @@ async function main() {
   console.log('Events in dependency order:');
   let count = 0;
   for await (const node of graph.traversal.topologicalSort({ start: firstSha })) {
-    const evt = JSON.parse(await graph.readNode(node.sha));
+    let evt;
+    try {
+      evt = JSON.parse(await graph.readNode(node.sha));
+    } catch (err) {
+      console.warn(`Warning: Failed to parse event at ${node.sha.slice(0, 8)}: ${err.message}`);
+      continue;
+    }
     console.log(`  ${++count}. ${evt.type}`);
     if (count >= 10) break;
   }

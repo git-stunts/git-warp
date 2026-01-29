@@ -221,14 +221,17 @@ async function main() {
   printSection('PHASE 5: RESULTS');
 
   // Calculate heap variance during streaming
-  const heapVariance = maxHeap - minHeap;
+  // Handle edge case where no samples were collected
+  const heapVariance = heapSamples.length > 0 ? maxHeap - minHeap : 0;
   const avgHeap = heapSamples.length > 0
     ? heapSamples.reduce((a, b) => a + b, 0) / heapSamples.length
     : 0;
+  const displayMinHeap = heapSamples.length > 0 ? minHeap : 0;
+  const displayMaxHeap = heapSamples.length > 0 ? maxHeap : 0;
 
   console.log('Memory Profile During Streaming:\n');
-  console.log(`  Min heap:     ${heapSamples.length > 0 ? formatBytes(minHeap) : 'N/A'}`);
-  console.log(`  Max heap:     ${heapSamples.length > 0 ? formatBytes(maxHeap) : 'N/A'}`);
+  console.log(`  Min heap:     ${heapSamples.length > 0 ? formatBytes(displayMinHeap) : 'N/A'}`);
+  console.log(`  Max heap:     ${heapSamples.length > 0 ? formatBytes(displayMaxHeap) : 'N/A'}`);
   console.log(`  Variance:     ${heapSamples.length > 0 ? formatBytes(heapVariance) : 'N/A'}`);
   console.log(`  Avg heap:     ${heapSamples.length > 0 ? formatBytes(avgHeap) : 'N/A'}`);
 

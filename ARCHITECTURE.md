@@ -140,7 +140,7 @@ This ensures corrupted shards (from disk errors, partial writes, or tampering) a
 - **Services**:
     - `GraphService`: High-level graph operations.
     - `BitmapIndexService`: Index management.
-    - `CacheRebuildService`: Rebuilds the index from the log.
+    - `IndexRebuildService`: Rebuilds the index from the log.
 
 #### Infrastructure Layer (`src/infrastructure/`)
 - **Adapters**: `GitGraphAdapter` wraps `git` commands via `@git-stunts/plumbing`.

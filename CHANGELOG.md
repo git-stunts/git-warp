@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `TraversalService` requires `indexReader`
 - **Examples**: Improved robustness across demo scripts
   - `lagrangian-path.js`: handles empty graphs and malformed JSON gracefully
-  - `explore.js`: guards against empty events, removes unused import, adds curly braces, adds eslint overrides
+  - `explore.js`: guards against empty events, removes unused import, adds curly braces, adds eslint overrides, wraps all JSON.parse calls
   - `setup.js`: clears timeout to allow immediate process exit
-  - `streaming-benchmark.js`: handles divide-by-zero when no heap samples
+  - `streaming-benchmark.js`: handles divide-by-zero and -Infinity edge cases when no heap samples
   - `traversal-benchmark.js`: catches JSON parse errors in weight provider
   - `inspect-index.js`: renamed misleading `totalEdges` to `totalEdgeLists`
   - `event-sourcing.js`: added per-line eslint-disable for console.log
@@ -32,7 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GitLogParser**: Removed `trim()` from final record to preserve message content exactly
 - **BitmapIndexReader**: `_validateShard` now guards against missing/invalid `envelope.data` before computing checksum
 - **StreamingBitmapIndexBuilder**: `_mergeChunks` wraps JSON parse, bitmap deserialize, and serialization errors in `ShardCorruptionError`
-- **Cancellation**: `checkAborted` now passes raw operation name to `OperationAbortedError` to avoid double-formatting
+- **Cancellation**: `checkAborted` now passes `'unknown'` as fallback when operation is undefined
+- **TraversalService**: Path reconstruction methods now guard against undefined predecessors to prevent infinite loops
+- **TraversalService**: `_reconstructBidirectionalPath` guards fixed to check `undefined` instead of `null`
 - **Tests**: Improved test stability and resilience
   - NoOpLogger performance test uses generous threshold for CI environments
   - BitmapIndexBuilder tests use hex-like SHAs for realism
@@ -44,9 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs
 - README: Added `text` language specifier to output code blocks
 - TASKLIST: Fixed table formatting and grammar
-- ARCHITECTURE: Fixed table separator spacing
-- WALKTHROUGH: Added language specifiers to output blocks, converted bold to headings
-- **TypeScript**: Added missing `weightedShortestPath`, `aStarSearch`, `bidirectionalAStar` method declarations and `throwOnCycle` option
+- ARCHITECTURE: Fixed table separator spacing, renamed CacheRebuildService to IndexRebuildService
+- WALKTHROUGH: Added language specifiers, converted bold to headings, fixed deleted demo-adapter.js reference
+- **TypeScript**: Comprehensive type declaration updates
+  - Added `OperationAbortedError`, `IndexError`, `ShardLoadError`, `ShardCorruptionError`, `ShardValidationError`, `StorageError` classes
+  - Added `checkAborted` and `createTimeoutSignal` function declarations
+  - Added `signal` parameter to `IterateNodesOptions` and `RebuildOptions`
+  - Added `maxMemoryBytes`, `onFlush`, `onProgress` to `RebuildOptions`
+  - Added `maxNodes` to `PathOptions`
+  - Added `weightedShortestPath`, `aStarSearch`, `bidirectionalAStar` method declarations
+  - Added `throwOnCycle` to `TopologicalSortOptions`
 
 ## [2.5.0] - 2026-01-29
 

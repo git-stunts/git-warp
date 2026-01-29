@@ -714,13 +714,25 @@ export default class TraversalService {
     while (current !== from) {
       forwardPath.unshift(current);
       current = fwdPrevious.get(current);
+      if (current === undefined) {
+        // Should never happen if algorithm is correct, but guard against infinite loop
+        this._logger.error('Forward path reconstruction failed: missing predecessor', { from, to, meeting, path: forwardPath });
+        break;
+      }
     }
-    forwardPath.unshift(from);
+    if (current === from) {
+      forwardPath.unshift(from);
+    }
 
     // Build backward path (meeting -> to), excluding meeting point (already in forwardPath)
     current = meeting;
     while (current !== to) {
       current = bwdNext.get(current);
+      if (current === undefined) {
+        // Should never happen if algorithm is correct, but guard against infinite loop
+        this._logger.error('Backward path reconstruction failed: missing successor', { from, to, meeting, path: forwardPath });
+        break;
+      }
       forwardPath.push(current);
     }
 
@@ -736,6 +748,11 @@ export default class TraversalService {
     let current = to;
     while (current !== from) {
       current = previous.get(current);
+      if (current === undefined) {
+        // Should never happen if algorithm is correct, but guard against infinite loop
+        this._logger.error('Path reconstruction failed: missing predecessor', { from, to, path });
+        break;
+      }
       path.unshift(current);
     }
     return path;
@@ -750,6 +767,11 @@ export default class TraversalService {
     let current = to;
     while (current !== from) {
       current = parentMap.get(current);
+      if (current === undefined) {
+        // Should never happen if algorithm is correct, but guard against infinite loop
+        this._logger.error('Path reconstruction failed: missing predecessor', { from, to, path });
+        break;
+      }
       path.unshift(current);
     }
     return path;
@@ -763,7 +785,7 @@ export default class TraversalService {
     // Build forward path (from -> meeting)
     const forwardPath = [meeting];
     let current = meeting;
-    while (fwdParent.has(current) && fwdParent.get(current) !== null) {
+    while (fwdParent.has(current) && fwdParent.get(current) !== undefined) {
       current = fwdParent.get(current);
       forwardPath.unshift(current);
     }
@@ -773,7 +795,7 @@ export default class TraversalService {
 
     // Build backward path (meeting -> to)
     current = meeting;
-    while (bwdParent.has(current) && bwdParent.get(current) !== null) {
+    while (bwdParent.has(current) && bwdParent.get(current) !== undefined) {
       current = bwdParent.get(current);
       forwardPath.push(current);
     }

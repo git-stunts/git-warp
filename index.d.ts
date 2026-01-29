@@ -90,6 +90,8 @@ export interface IterateNodesOptions {
   ref: string;
   /** Maximum nodes to yield (default: 1000000) */
   limit?: number;
+  /** Optional AbortSignal for cancellation support */
+  signal?: AbortSignal;
 }
 
 /**
@@ -98,6 +100,14 @@ export interface IterateNodesOptions {
 export interface RebuildOptions {
   /** Maximum nodes to process (default: 10000000, max: 10000000) */
   limit?: number;
+  /** Enable streaming mode with this memory threshold in bytes */
+  maxMemoryBytes?: number;
+  /** Optional AbortSignal for cancellation support */
+  signal?: AbortSignal;
+  /** Callback invoked on each flush (streaming mode only) */
+  onFlush?: (info: { flushedBytes: number; totalFlushedBytes: number; flushCount: number }) => void;
+  /** Callback invoked periodically during processing */
+  onProgress?: (info: { processedNodes: number; currentMemoryBytes: number | null }) => void;
 }
 
 /**
@@ -165,6 +175,8 @@ export interface PathOptions {
   to: string;
   /** Maximum search depth (default: 1000) */
   maxDepth?: number;
+  /** Maximum nodes to visit */
+  maxNodes?: number;
 }
 
 /**
@@ -635,6 +647,117 @@ export class TraversalError extends Error {
     context?: Record<string, unknown>;
   });
 }
+
+/**
+ * Error thrown when an operation is aborted via AbortSignal.
+ */
+export class OperationAbortedError extends Error {
+  readonly name: 'OperationAbortedError';
+  readonly code: string;
+  readonly operation?: string;
+  readonly reason: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(operation?: string, options?: {
+    reason?: string;
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Base error class for bitmap index operations.
+ */
+export class IndexError extends Error {
+  readonly name: 'IndexError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when a shard fails to load.
+ */
+export class ShardLoadError extends IndexError {
+  readonly name: 'ShardLoadError';
+  readonly shardPath?: string;
+  readonly oid?: string;
+  readonly cause?: Error;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    oid?: string;
+    cause?: Error;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when shard data is corrupted or invalid.
+ */
+export class ShardCorruptionError extends IndexError {
+  readonly name: 'ShardCorruptionError';
+  readonly shardPath?: string;
+  readonly oid?: string;
+  readonly reason?: string;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    oid?: string;
+    reason?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when shard validation fails.
+ */
+export class ShardValidationError extends IndexError {
+  readonly name: 'ShardValidationError';
+  readonly shardPath?: string;
+  readonly expected?: unknown;
+  readonly actual?: unknown;
+  readonly field?: string;
+
+  constructor(message: string, options?: {
+    shardPath?: string;
+    expected?: unknown;
+    actual?: unknown;
+    field?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Error thrown when a storage operation fails.
+ */
+export class StorageError extends IndexError {
+  readonly name: 'StorageError';
+  readonly operation?: 'read' | 'write';
+  readonly oid?: string;
+  readonly cause?: Error;
+
+  constructor(message: string, options?: {
+    operation?: 'read' | 'write';
+    oid?: string;
+    cause?: Error;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * Checks if an AbortSignal is aborted and throws OperationAbortedError if so.
+ */
+export function checkAborted(signal?: AbortSignal, operation?: string): void;
+
+/**
+ * Creates an AbortSignal that automatically aborts after the specified timeout.
+ */
+export function createTimeoutSignal(ms: number): AbortSignal;
 
 /** Default ref for storing the index OID */
 export const DEFAULT_INDEX_REF: string;

@@ -15,7 +15,7 @@ import OperationAbortedError from '../errors/OperationAbortedError.js';
  */
 export function checkAborted(signal, operation) {
   if (signal?.aborted) {
-    throw new OperationAbortedError(operation || undefined, { context: { operation } });
+    throw new OperationAbortedError(operation || 'unknown', { context: { operation } });
   }
 }
 
