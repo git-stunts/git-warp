@@ -8,6 +8,7 @@
  */
 
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import TraversalError from '../errors/TraversalError.js';
 
 /**
  * @typedef {'forward' | 'reverse'} TraversalDirection
@@ -433,14 +434,17 @@ export default class TraversalService {
    * Yields nodes in topological order using Kahn's algorithm.
    *
    * Nodes are yielded when all their dependencies (based on direction) are satisfied.
+   * If a cycle is detected (nodes yielded < nodes discovered), a warning is logged.
    *
    * @param {Object} options
    * @param {string} options.start - Starting node SHA
    * @param {number} [options.maxNodes=100000] - Maximum nodes to yield
    * @param {TraversalDirection} [options.direction='forward'] - Direction determines dependency order
+   * @param {boolean} [options.throwOnCycle=false] - If true, throws TraversalError when cycle detected
    * @yields {TraversalNode}
+   * @throws {TraversalError} If throwOnCycle is true and a cycle is detected
    */
-  async *topologicalSort({ start, maxNodes = DEFAULT_MAX_NODES, direction = 'forward' }) {
+  async *topologicalSort({ start, maxNodes = DEFAULT_MAX_NODES, direction = 'forward', throwOnCycle = false }) {
     this._logger.debug('topologicalSort started', { start, direction, maxNodes });
 
     // Phase 1: Discover all reachable nodes and compute in-degrees
@@ -504,6 +508,37 @@ export default class TraversalService {
       }
     }
 
-    this._logger.debug('topologicalSort completed', { nodesYielded });
+    // Phase 3: Detect cycles - if we didn't yield all discovered nodes, there's a cycle
+    const cycleDetected = nodesYielded < allNodes.size;
+
+    if (cycleDetected) {
+      const cycleNodeCount = allNodes.size - nodesYielded;
+      this._logger.warn('Cycle detected in topological sort', {
+        start,
+        direction,
+        nodesYielded,
+        totalNodes: allNodes.size,
+        nodesInCycle: cycleNodeCount,
+      });
+
+      if (throwOnCycle) {
+        throw new TraversalError('Cycle detected in graph during topological sort', {
+          code: 'CYCLE_DETECTED',
+          context: {
+            start,
+            direction,
+            nodesYielded,
+            totalNodes: allNodes.size,
+            nodesInCycle: cycleNodeCount,
+          },
+        });
+      }
+    }
+
+    this._logger.debug('topologicalSort completed', {
+      nodesYielded,
+      totalNodes: allNodes.size,
+      cycleDetected,
+    });
   }
 }

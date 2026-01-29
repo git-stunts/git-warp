@@ -1,12 +1,18 @@
 # Empty Graph Task List
 
-> Last updated: 2026-01-28
+> Last updated: 2026-01-29
 
-## Project Status: ~95% Complete
+## Project Status: 100% Complete - v1.0 Ready
 
-The core is solid. Index build/query path complete. **Graph traversal algorithms now implemented.** Health checks, structured logging, and comprehensive error handling all in place. Test coverage is excellent (252 tests).
+The core is solid. Index build/query path complete. **Graph traversal algorithms implemented.** Health checks, structured logging, and comprehensive error handling all in place. Test coverage is excellent (256 tests). **Interactive Docker demo fully working with production GitGraphAdapter.**
 
-### Recent Progress (2026-01-28)
+### Recent Progress (2026-01-29)
+- Upgraded `@git-stunts/plumbing` to v2.8.0 (adds `log` and `show` to command whitelist)
+- Removed demo adapter hack (`examples/demo-adapter.js`)
+- Demo scripts now use production `GitGraphAdapter` with real plumbing
+- Fixed NUL byte handling in `GitGraphAdapter.logNodesStream()` format string
+
+### Previous Progress (2026-01-28)
 - Implemented TraversalService with 9 algorithms (BFS, DFS, ancestors, descendants, findPath, shortestPath, isReachable, commonAncestors, topologicalSort)
 - Full TypeScript declarations for traversal API
 - 27 new traversal tests
@@ -60,7 +66,7 @@ The core is solid. Index build/query path complete. **Graph traversal algorithms
 - [x] `IndexRebuildService.deep.test.js` - Stack overflow prevention for deep graphs
 - [x] `IndexRebuildService.streaming.test.js` - Memory-bounded rebuilds with progress callbacks
 - [x] Ref validation edge cases - Comprehensive via GitLogParser adversarial tests (null bytes, emoji, control chars, path traversal)
-- [ ] Circular reference detection - Not explicitly tested (Git DAGs shouldn't have cycles, but worth validating)
+- [x] Circular reference detection - `topologicalSort` now detects cycles and has `throwOnCycle` option
 
 ### ✅ Benchmark Suite (COMPLETED)
 `test/benchmark/graph.bench.js` is comprehensive, not a stub:
@@ -83,10 +89,15 @@ The core is solid. Index build/query path complete. **Graph traversal algorithms
 
 ## 🟢 P2 - Nice to Have (Polish)
 
-### Developer Experience (PARTIAL)
+### ✅ Developer Experience (COMPLETED 2026-01-28)
 - [x] Add TypeScript declarations (`.d.ts` files) - Comprehensive index.d.ts exists
-- [ ] Add examples/ directory with runnable demos
+- [x] Add examples/ directory with runnable demos - Full Docker-based interactive demo
+  - `npm run demo:setup` - Creates container with sample e-commerce events
+  - `npm run demo` - Drops into container shell
+  - `npm run demo:explore` - Runs interactive graph explorer
+  - Demonstrates event sourcing, branching, traversal, path finding
 - [x] Integration test suite (runs in Docker against real Git) - Docker test setup works
+- [x] package.json `types` and `exports` properly configured for IDE support
 
 ### ✅ Infrastructure (COMPLETED)
 - [x] Structured logging (LoggerPort, ConsoleLogger, NoOpLogger)
@@ -192,4 +203,4 @@ The implementation evolved beyond the original tasklist:
 - [x] ARCHITECTURE.md
 - [x] THE_STUNT.md
 - [x] Comprehensive benchmark suite
-- [x] 252 passing tests
+- [x] 256 passing tests

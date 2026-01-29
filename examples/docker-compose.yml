@@ -1,0 +1,33 @@
+# EmptyGraph Interactive Demo
+#
+# Usage:
+#   cd examples && docker compose up -d
+#   docker compose exec demo bash
+#
+# Or use the npm script from project root:
+#   npm run demo
+
+services:
+  demo:
+    build:
+      context: ..
+      dockerfile: examples/Dockerfile
+    volumes:
+      # Mount the package for live editing
+      - ..:/app
+      # Preserve container's node_modules (with correct native binaries)
+      - app-node-modules:/app/node_modules
+      # Persist the demo git repo between runs
+      - demo-repo:/demo
+    working_dir: /demo
+    stdin_open: true
+    tty: true
+    environment:
+      - GIT_AUTHOR_NAME=EmptyGraph Demo
+      - GIT_AUTHOR_EMAIL=demo@emptygraph.local
+      - GIT_COMMITTER_NAME=EmptyGraph Demo
+      - GIT_COMMITTER_EMAIL=demo@emptygraph.local
+
+volumes:
+  demo-repo:
+  app-node-modules:

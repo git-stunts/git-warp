@@ -4,7 +4,7 @@
   "description": "A graph database where every node is a Git commit pointing to the Empty Tree. Invisible storage, atomic operations, DAG-native.",
   "type": "module",
   "main": "index.js",
-  "types": "index.d.ts",
+  "types": "./index.d.ts",
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -22,12 +22,16 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:local": "vitest run test/unit",
-    "benchmark:local": "vitest bench test/benchmark"
+    "benchmark:local": "vitest bench test/benchmark",
+    "demo": "cd examples && docker compose up -d && docker compose exec demo bash",
+    "demo:setup": "cd examples && docker compose up -d && docker compose exec demo sh -c 'cd /app && npm install --silent && cd /demo && node /app/examples/setup.js'",
+    "demo:explore": "cd examples && docker compose exec demo node /app/examples/explore.js",
+    "demo:down": "cd examples && docker compose down -v"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
   "dependencies": {
-    "@git-stunts/plumbing": "^2.7.0",
+    "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "roaring": "^2.7.0",
     "zod": "^3.24.1"

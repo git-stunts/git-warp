@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-29
+
+### Added
+- **Interactive Docker Demo**: Production-ready demo using real `GitGraphAdapter` with plumbing
+  - `npm run demo:setup` - Creates container with sample e-commerce event graph
+  - `npm run demo` - Drops into container shell for exploration
+  - `npm run demo:explore` - Runs interactive graph explorer demonstrating traversal, projections, and path finding
+
+### Changed
+- **Plumbing Upgrade**: Upgraded `@git-stunts/plumbing` from `^2.7.0` to `^2.8.0`
+  - Version 2.8.0 adds `log` and `show` to the command whitelist
+- **NUL Byte Handling**: `GitGraphAdapter.logNodesStream()` now strips NUL bytes from format strings
+  - The `-z` flag handles NUL termination automatically
+  - Node.js `child_process` rejects args containing null bytes
+
+### Removed
+- **Demo Adapter Hack**: Deleted `examples/demo-adapter.js` bypass adapter
+  - Demo scripts now use production `GitGraphAdapter` directly
+
+### Fixed
+- **Demo Scripts**: `examples/setup.js` and `examples/explore.js` now use proper plumbing integration
+
 ## [2.3.0] - 2026-01-18
 
 ### Added

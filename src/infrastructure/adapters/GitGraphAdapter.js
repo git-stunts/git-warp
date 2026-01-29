@@ -62,7 +62,10 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     // -z flag ensures NUL-terminated output and ignores i18n.logOutputEncoding config
     const args = ['log', '-z', `-${limit}`];
     if (format) {
-      args.push(`--format=${format}`);
+      // Strip NUL bytes from format - git -z flag handles NUL termination automatically
+      // Node.js child_process rejects args containing null bytes
+      const cleanFormat = format.replace(/\x00/g, '');
+      args.push(`--format=${cleanFormat}`);
     }
     args.push(ref);
     return await this.plumbing.executeStream({ args });

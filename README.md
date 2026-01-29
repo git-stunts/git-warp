@@ -61,6 +61,51 @@ for await (const node of graph.iterateNodes({ ref: childSha })) {
 }
 ```
 
+## Interactive Demo
+
+Try EmptyGraph hands-on with our Docker-based interactive demo. It creates a sample e-commerce event graph and demonstrates traversal, event sourcing projections, and path finding.
+
+```bash
+# Prerequisites: Docker must be running
+
+# 1. Set up the demo (creates container with sample events)
+npm run demo:setup
+
+# 2. Run the interactive explorer
+npm run demo:explore
+
+# 3. (Optional) Drop into the container shell for manual exploration
+npm run demo
+
+# 4. Clean up when done
+npm run demo:down
+```
+
+**What the demo shows:**
+
+- **Event Replay**: Reconstructs the full event history using `graph.traversal.ancestors()`
+- **Event Sourcing**: Projects events into application state (users, carts, orders)
+- **Branch Comparison**: Compares main branch vs cancelled-order branch
+- **Path Finding**: Uses `graph.traversal.shortestPath()` to find paths between events
+- **Topological Sort**: Shows dependency order with `graph.traversal.topologicalSort()`
+
+**Sample output:**
+
+```
+[0148a1e4] UserCreated
+           {"userId":"user-alice-001","email":"alice@example.com","name":"Alice"}
+
+[6771a15f] CartCreated
+           {"userId":"user-alice-001","cartId":"cart-001"}
+
+[20744421] ItemAddedToCart
+           {"cartId":"cart-001","sku":"WIDGET-001","qty":2,"price":29.99}
+...
+
+Shortest path from first to last event: 7 hops
+Path: 0148a1e4 → 6771a15f → 20744421 → 6025e6ca → d2abe22c → fb285001 → c96d4e65 → d0583514
+```
+
 ## Choosing the Right Method
 
 | Scenario | Method | Reason |

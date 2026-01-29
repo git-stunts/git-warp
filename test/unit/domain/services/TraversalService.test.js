@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TraversalService from '../../../../src/domain/services/TraversalService.js';
+import TraversalError from '../../../../src/domain/errors/TraversalError.js';
 
 /**
  * Creates a mock index reader with a diamond DAG:
@@ -277,6 +278,92 @@ describe('TraversalService', () => {
       const nodes = await collectAll(service.topologicalSort({ start: 'A', maxNodes: 3 }));
 
       expect(nodes).toHaveLength(3);
+    });
+
+    it('detects cycles and yields partial results', async () => {
+      // Create a cycle: A -> B -> C -> A
+      const cyclicReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async (sha) => {
+          const edges = { B: ['A'], C: ['B'], A: ['C'] };
+          return edges[sha] || [];
+        }),
+      };
+      const cyclicService = new TraversalService({ indexReader: cyclicReader });
+
+      const nodes = await collectAll(cyclicService.topologicalSort({ start: 'A' }));
+
+      // Should yield partial results (only node A has in-degree 0 initially)
+      // The cycle B->C->A means B and C never reach in-degree 0
+      expect(nodes.length).toBeLessThan(3);
+    });
+
+    it('logs warning when cycle is detected', async () => {
+      const cyclicReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const mockLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      };
+      const cyclicService = new TraversalService({
+        indexReader: cyclicReader,
+        logger: mockLogger,
+      });
+
+      await collectAll(cyclicService.topologicalSort({ start: 'A' }));
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Cycle detected in topological sort',
+        expect.objectContaining({
+          nodesYielded: expect.any(Number),
+          totalNodes: 3,
+          nodesInCycle: expect.any(Number),
+        })
+      );
+    });
+
+    it('throws TraversalError when throwOnCycle is true and cycle detected', async () => {
+      const cyclicReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['B'], B: ['C'], C: ['A'] };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const cyclicService = new TraversalService({ indexReader: cyclicReader });
+
+      await expect(
+        collectAll(cyclicService.topologicalSort({ start: 'A', throwOnCycle: true }))
+      ).rejects.toThrow(TraversalError);
+
+      // Verify the error has the expected properties
+      try {
+        await collectAll(cyclicService.topologicalSort({ start: 'A', throwOnCycle: true }));
+      } catch (error) {
+        expect(error.code).toBe('CYCLE_DETECTED');
+        expect(error.context).toMatchObject({
+          start: 'A',
+          totalNodes: 3,
+        });
+      }
+    });
+
+    it('does not throw when throwOnCycle is true but no cycle exists', async () => {
+      const nodes = await collectAll(
+        service.topologicalSort({ start: 'A', throwOnCycle: true })
+      );
+
+      expect(nodes).toHaveLength(5);
     });
   });
 
