@@ -77,9 +77,14 @@ npm run demo:explore
 # 3. (Optional) Drop into the container shell for manual exploration
 npm run demo
 
-# 4. Clean up when done
+# 4. Inspect the bitmap index structure
+npm run demo:inspect
+
+# 5. Clean up when done
 npm run demo:down
 ```
+
+The demo is **idempotent** - running `demo:setup` multiple times will clean up and recreate the data.
 
 **What the demo shows:**
 
@@ -88,6 +93,8 @@ npm run demo:down
 - **Branch Comparison**: Compares main branch vs cancelled-order branch
 - **Path Finding**: Uses `graph.traversal.shortestPath()` to find paths between events
 - **Topological Sort**: Shows dependency order with `graph.traversal.topologicalSort()`
+- **Performance Comparison**: Shows O(1) bitmap index lookups vs git log (with speedup factors)
+- **Index Inspector**: Visualizes shard distribution with ASCII charts
 
 **Sample output:**
 

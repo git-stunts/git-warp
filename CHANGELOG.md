@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Interactive Docker Demo**: Production-ready demo using real `GitGraphAdapter` with plumbing
-  - `npm run demo:setup` - Creates container with sample e-commerce event graph
+  - `npm run demo:setup` - Creates container with sample e-commerce event graph (idempotent)
   - `npm run demo` - Drops into container shell for exploration
   - `npm run demo:explore` - Runs interactive graph explorer demonstrating traversal, projections, and path finding
+  - `npm run demo:inspect` - Visualizes sharded bitmap index with ASCII distribution charts
+- **Idempotent Demo Setup**: `setup.js` now detects existing demo data and cleans up before re-running
+- **Performance Telemetry**: `explore.js` includes high-resolution timing comparing O(1) bitmap lookups vs git log (with speedup factors)
+- **Index Inspector**: New `inspect-index.js` script pretty-prints shard distribution, node counts, and memory estimates
 
 ### Changed
 - **Plumbing Upgrade**: Upgraded `@git-stunts/plumbing` from `^2.7.0` to `^2.8.0`

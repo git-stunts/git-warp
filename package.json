@@ -26,6 +26,7 @@
     "demo": "cd examples && docker compose up -d && docker compose exec demo bash",
     "demo:setup": "cd examples && docker compose up -d && docker compose exec demo sh -c 'cd /app && npm install --silent && cd /demo && node /app/examples/setup.js'",
     "demo:explore": "cd examples && docker compose exec demo node /app/examples/explore.js",
+    "demo:inspect": "cd examples && docker compose exec demo node /app/examples/inspect-index.js",
     "demo:down": "cd examples && docker compose down -v"
   },
   "author": "James Ross <james@flyingrobots.dev>",

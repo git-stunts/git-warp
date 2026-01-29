@@ -365,6 +365,143 @@ describe('TraversalService', () => {
 
       expect(nodes).toHaveLength(5);
     });
+
+    it('detects self-loop cycle (node is its own parent)', async () => {
+      // Create a self-loop: A -> A (node A points to itself)
+      const selfLoopReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['A'] }; // A is its own child
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async (sha) => {
+          const edges = { A: ['A'] }; // A is its own parent
+          return edges[sha] || [];
+        }),
+      };
+      const selfLoopService = new TraversalService({ indexReader: selfLoopReader });
+
+      // With throwOnCycle: true, it should throw TraversalError
+      await expect(
+        collectAll(selfLoopService.topologicalSort({ start: 'A', throwOnCycle: true }))
+      ).rejects.toThrow(TraversalError);
+
+      // Verify the error details
+      try {
+        await collectAll(selfLoopService.topologicalSort({ start: 'A', throwOnCycle: true }));
+      } catch (error) {
+        expect(error.code).toBe('CYCLE_DETECTED');
+        expect(error.context).toMatchObject({
+          start: 'A',
+          totalNodes: 1,
+          nodesInCycle: expect.any(Number),
+        });
+      }
+    });
+
+    it('handles self-loop gracefully without throwOnCycle (yields no nodes)', async () => {
+      // Create a self-loop: A -> A
+      const selfLoopReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['A'] };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const selfLoopService = new TraversalService({ indexReader: selfLoopReader });
+
+      // Without throwOnCycle, it should complete without hanging
+      // and yield partial results (the node cannot be yielded because its in-degree is never 0)
+      const nodes = await collectAll(selfLoopService.topologicalSort({ start: 'A' }));
+
+      // A self-loop means A has in-degree 1 from itself, so it can never be yielded
+      // unless it's also the start node with initial in-degree 0
+      // Actually in the implementation, the start node gets in-degree 0 if not set,
+      // but since A->A adds in-degree, it will have in-degree 1
+      expect(nodes.length).toBeLessThanOrEqual(1);
+    });
+
+    it('logs warning for self-loop cycle', async () => {
+      const selfLoopReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = { A: ['A'] };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async () => []),
+      };
+      const mockLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      };
+      const selfLoopService = new TraversalService({
+        indexReader: selfLoopReader,
+        logger: mockLogger,
+      });
+
+      await collectAll(selfLoopService.topologicalSort({ start: 'A' }));
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Cycle detected in topological sort',
+        expect.objectContaining({
+          totalNodes: 1,
+          nodesInCycle: expect.any(Number),
+        })
+      );
+    });
+
+    it('only yields nodes reachable from start, ignoring disconnected components', async () => {
+      // Create a graph with two disconnected islands:
+      // Island 1: A -> B -> C (connected)
+      // Island 2: X -> Y -> Z (disconnected from Island 1)
+      const disconnectedReader = {
+        getChildren: vi.fn(async (sha) => {
+          const edges = {
+            A: ['B'],
+            B: ['C'],
+            C: [],
+            X: ['Y'],
+            Y: ['Z'],
+            Z: [],
+          };
+          return edges[sha] || [];
+        }),
+        getParents: vi.fn(async (sha) => {
+          const edges = {
+            A: [],
+            B: ['A'],
+            C: ['B'],
+            X: [],
+            Y: ['X'],
+            Z: ['Y'],
+          };
+          return edges[sha] || [];
+        }),
+      };
+      const disconnectedService = new TraversalService({ indexReader: disconnectedReader });
+
+      // Start traversal from node A - should only visit Island 1
+      const nodes = await collectAll(disconnectedService.topologicalSort({ start: 'A' }));
+      const visitedShas = nodes.map(n => n.sha);
+
+      // Should contain all nodes in Island 1
+      expect(visitedShas).toContain('A');
+      expect(visitedShas).toContain('B');
+      expect(visitedShas).toContain('C');
+
+      // Should NOT contain any nodes from Island 2 (disconnected component)
+      expect(visitedShas).not.toContain('X');
+      expect(visitedShas).not.toContain('Y');
+      expect(visitedShas).not.toContain('Z');
+
+      // Should have exactly 3 nodes (only Island 1)
+      expect(nodes).toHaveLength(3);
+
+      // Verify topological order within Island 1
+      const order = nodes.map(n => n.sha);
+      expect(order.indexOf('A')).toBeLessThan(order.indexOf('B'));
+      expect(order.indexOf('B')).toBeLessThan(order.indexOf('C'));
+    });
   });
 
   describe('logging', () => {

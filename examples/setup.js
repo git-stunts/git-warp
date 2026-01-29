@@ -34,6 +34,53 @@ async function main() {
     execSync('git init', { stdio: 'inherit' });
   }
 
+  // Pre-flight check: detect if demo has already been run
+  let existingMainRef = false;
+  let existingCancelledRef = false;
+  let existingIndexRef = false;
+
+  try {
+    execSync('git show-ref --verify refs/heads/main', { stdio: 'pipe' });
+    existingMainRef = true;
+  } catch {
+    // ref doesn't exist
+  }
+
+  try {
+    execSync('git show-ref --verify refs/heads/cancelled-order', { stdio: 'pipe' });
+    existingCancelledRef = true;
+  } catch {
+    // ref doesn't exist
+  }
+
+  try {
+    execSync('git show-ref --verify refs/empty-graph/index', { stdio: 'pipe' });
+    existingIndexRef = true;
+  } catch {
+    // ref doesn't exist
+  }
+
+  if (existingMainRef || existingCancelledRef || existingIndexRef) {
+    console.log('\n🔄 Existing demo data detected. Cleaning up...');
+
+    if (existingMainRef) {
+      execSync('git update-ref -d refs/heads/main', { stdio: 'pipe' });
+      console.log('   Deleted refs/heads/main');
+    }
+    if (existingCancelledRef) {
+      execSync('git update-ref -d refs/heads/cancelled-order', { stdio: 'pipe' });
+      console.log('   Deleted refs/heads/cancelled-order');
+    }
+    if (existingIndexRef) {
+      execSync('git update-ref -d refs/empty-graph/index', { stdio: 'pipe' });
+      console.log('   Deleted refs/empty-graph/index');
+    }
+
+    console.log('   Cleanup complete. Starting fresh...\n');
+  } else {
+    console.log('\n✨ Fresh install detected. Proceeding with setup...\n');
+  }
+
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
   const adapter = new GitGraphAdapter({ plumbing });
