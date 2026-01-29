@@ -31,26 +31,30 @@ function formatNum(n) {
 }
 
 function formatMs(ms) {
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}us`;
-  if (ms < 1000) return `${ms.toFixed(2)}ms`;
+  if (ms < 1) {
+    return `${(ms * 1000).toFixed(0)}us`;
+  }
+  if (ms < 1000) {
+    return `${ms.toFixed(2)}ms`;
+  }
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
 function printSection(title) {
-  console.log('\n' + '='.repeat(70));
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`  ${title}`);
-  console.log('='.repeat(70) + '\n');
+  console.log(`${'='.repeat(70)}\n`);
 }
 
 function printTable(headers, rows) {
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => String(r[i]).length)));
-  const sep = '+' + widths.map(w => '-'.repeat(w + 2)).join('+') + '+';
+  const sep = `+${widths.map(w => '-'.repeat(w + 2)).join('+')}+`;
 
   console.log(sep);
-  console.log('|' + headers.map((h, i) => ` ${h.padEnd(widths[i])} `).join('|') + '|');
+  console.log(`|${headers.map((h, i) => ` ${h.padEnd(widths[i])} `).join('|')}|`);
   console.log(sep);
   for (const row of rows) {
-    console.log('|' + row.map((c, i) => ` ${String(c).padEnd(widths[i])} `).join('|') + '|');
+    console.log(`|${row.map((c, i) => ` ${String(c).padEnd(widths[i])} `).join('|')}|`);
   }
   console.log(sep);
 }
@@ -87,6 +91,21 @@ async function createLinearGraph(graph, size) {
 }
 
 /**
+ * Select unique parents from the previous layer for a diamond graph node
+ */
+function selectParents(prevLayer, nodeIndex, numParents) {
+  const parents = [];
+  for (let p = 0; p < numParents; p++) {
+    const idx = (nodeIndex + p) % prevLayer.length;
+    const candidate = prevLayer[idx];
+    if (!parents.includes(candidate)) {
+      parents.push(candidate);
+    }
+  }
+  return parents;
+}
+
+/**
  * Creates a diamond/DAG structure (bidirectional shines here)
  * Multiple paths exist between start and end.
  */
@@ -112,13 +131,7 @@ async function createDiamondGraph(graph, size) {
     for (let i = 0; i < width && shas.length < size; i++) {
       // Connect to 1-3 nodes from previous layer
       const numParents = Math.min(prevLayer.length, Math.floor(Math.random() * 3) + 1);
-      const parents = [];
-      for (let p = 0; p < numParents; p++) {
-        const idx = (i + p) % prevLayer.length;
-        if (!parents.includes(prevLayer[idx])) {
-          parents.push(prevLayer[idx]);
-        }
-      }
+      const parents = selectParents(prevLayer, i, numParents);
 
       const sha = await graph.createNode({
         message: JSON.stringify({
@@ -161,7 +174,8 @@ function createWeightProvider(graph) {
     }
 
     const message = await graph.readNode(toSha);
-    let cpu = 1, mem = 1;
+    let cpu = 1;
+    let mem = 1;
     try {
       const event = JSON.parse(message);
       cpu = event.metrics?.cpu ?? 1;
@@ -190,7 +204,7 @@ function createHeuristic(depthMap, targetDepth) {
 // BENCHMARK RUNNER
 // ============================================================================
 
-async function runBenchmark(graph, shas, weightProvider, depthMap) {
+async function runBenchmark({ graph, shas, weightProvider, depthMap }) {
   const fromSha = shas[0];
   const toSha = shas[shas.length - 1];
   const targetDepth = depthMap.get(toSha) ?? shas.length;
@@ -281,7 +295,6 @@ async function main() {
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
   const adapter = new GitGraphAdapter({ plumbing });
-  const graph = new EmptyGraph({ persistence: adapter });
 
   console.log('  [OK] EmptyGraph initialized');
 
@@ -321,7 +334,7 @@ async function main() {
     const weightProvider = createWeightProvider(freshGraph);
 
     console.log(`  Running benchmarks...`);
-    const results = await runBenchmark(freshGraph, shas, weightProvider, depthMap);
+    const results = await runBenchmark({ graph: freshGraph, shas, weightProvider, depthMap });
 
     linearResults.push({ size, ...results });
 
@@ -359,7 +372,7 @@ async function main() {
     const weightProvider = createWeightProvider(freshGraph);
 
     console.log(`  Running benchmarks...`);
-    const results = await runBenchmark(freshGraph, shas, weightProvider, depthMap);
+    const results = await runBenchmark({ graph: freshGraph, shas, weightProvider, depthMap });
 
     diamondResults.push({ size, ...results });
 
@@ -445,6 +458,8 @@ async function main() {
 
 main().catch(err => {
   console.error('ERROR:', err.message);
-  if (err.stack) console.error(err.stack);
+  if (err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });

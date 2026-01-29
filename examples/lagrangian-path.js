@@ -52,9 +52,9 @@ function formatNum(n, decimals = 2, width = 8) {
  * Print a section header
  */
 function printSection(num, title) {
-  console.log('\n' + '='.repeat(70));
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`${num}. ${title}`);
-  console.log('='.repeat(70) + '\n');
+  console.log(`${'='.repeat(70)}\n`);
 }
 
 /**
@@ -62,10 +62,10 @@ function printSection(num, title) {
  */
 function printBox(lines) {
   const maxLen = Math.max(...lines.map(l => l.length));
-  const border = '+' + '-'.repeat(maxLen + 2) + '+';
+  const border = `+${'-'.repeat(maxLen + 2)}+`;
   console.log(border);
   for (const line of lines) {
-    console.log('| ' + line.padEnd(maxLen) + ' |');
+    console.log(`| ${line.padEnd(maxLen)} |`);
   }
   console.log(border);
 }
@@ -193,7 +193,7 @@ async function main() {
   // Demonstrate weight calculation for each event
   console.log('Weight calculation for each node:\n');
   console.log('  SHA      | Type                 | CPU  | MEM  | Weight');
-  console.log('  ' + '-'.repeat(60));
+  console.log(`  ${'-'.repeat(60)}`);
 
   for (const { sha, event } of events) {
     const cpu = event.payload?.metrics?.cpu ?? 1;
@@ -229,9 +229,10 @@ async function main() {
   for (let i = 0; i < dijkstraResult.path.length; i++) {
     const sha = dijkstraResult.path[i];
     const evt = events.find(e => e.sha === sha);
-    const arrow = i < dijkstraResult.path.length - 1 ? '  |' : '  *';
     console.log(`  ${sha.slice(0, 8)} - ${evt?.event.type || 'unknown'}`);
-    if (i < dijkstraResult.path.length - 1) console.log('      |');
+    if (i < dijkstraResult.path.length - 1) {
+      console.log('      |');
+    }
   }
 
   // --------------------------------------------------------------------------

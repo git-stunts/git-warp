@@ -28,8 +28,12 @@ const SAMPLE_INTERVAL = 10000; // Sample memory every N nodes
 // ============================================================================
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
@@ -48,17 +52,17 @@ function getMemoryUsage() {
 }
 
 function printSection(title) {
-  console.log('\n' + '='.repeat(70));
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`  ${title}`);
-  console.log('='.repeat(70) + '\n');
+  console.log(`${'='.repeat(70)}\n`);
 }
 
 function printBox(lines) {
   const maxLen = Math.max(...lines.map(l => l.length));
-  const border = '+' + '-'.repeat(maxLen + 2) + '+';
+  const border = `+${'-'.repeat(maxLen + 2)}+`;
   console.log(border);
   for (const line of lines) {
-    console.log('| ' + line.padEnd(maxLen) + ' |');
+    console.log(`| ${line.padEnd(maxLen)} |`);
   }
   console.log(border);
 }
@@ -277,6 +281,8 @@ async function main() {
 
 main().catch(err => {
   console.error('ERROR:', err.message);
-  if (err.stack) console.error(err.stack);
+  if (err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });

@@ -349,7 +349,7 @@ Gets child SHAs for a node using the bitmap index. Requires `loadIndex()` to be 
 
 **Throws:** `Error` if index is not loaded
 
-**Example:**
+**Example:*
 ```javascript
 await graph.loadIndex(indexOid);
 const children = await graph.getChildren(parentSha);

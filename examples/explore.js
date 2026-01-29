@@ -12,10 +12,6 @@ const { default: EmptyGraph } = await import(modulePath);
 const { GitGraphAdapter } = await import(modulePath);
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
-/* eslint-disable no-console */
-/* eslint-disable max-lines-per-function */
-/* eslint-disable complexity */
-
 /**
  * Format nanoseconds to appropriate units (ns, μs, ms)
  */
@@ -181,17 +177,20 @@ async function main() {
     console.log('Main branch continued with:');
 
     for await (const node of graph.traversal.descendants({ sha: commonAncestor })) {
-      if (node.sha === commonAncestor) continue;
-      if (mainAncestors.has(node.sha)) {
-        let evt;
-        try {
-          evt = JSON.parse(await graph.readNode(node.sha));
-        } catch (err) {
-          console.warn(`Warning: Failed to parse event at ${node.sha.slice(0, 8)}: ${err.message}`);
-          continue;
-        }
-        console.log(`  → ${evt.type}`);
+      if (node.sha === commonAncestor) {
+        continue;
       }
+      if (!mainAncestors.has(node.sha)) {
+        continue;
+      }
+      let evt;
+      try {
+        evt = JSON.parse(await graph.readNode(node.sha));
+      } catch (err) {
+        console.warn(`Warning: Failed to parse event at ${node.sha.slice(0, 8)}: ${err.message}`);
+        continue;
+      }
+      console.log(`  → ${evt.type}`);
     }
 
     console.log('\nCancelled branch has:');
@@ -231,7 +230,9 @@ async function main() {
       continue;
     }
     console.log(`  ${++count}. ${evt.type}`);
-    if (count >= 10) break;
+    if (count >= 10) {
+      break;
+    }
   }
 
   console.log('\n═══════════════════════════════════════════════════════════════');

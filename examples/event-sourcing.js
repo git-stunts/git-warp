@@ -16,7 +16,6 @@
  *   node explore.js      # Explore the graph
  */
 
-// eslint-disable-next-line no-console
 console.log(`
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║                     EVENT SOURCING WITH EMPTYGRAPH                            ║
@@ -54,5 +53,4 @@ console.log(`
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 `);
 
-// eslint-disable-next-line no-console
 console.log('Run "npm run demo:setup" to get started!\n');

@@ -93,7 +93,7 @@ async function main() {
   console.log('\n📝 Creating sample events...\n');
 
   // Create a realistic event sequence for an e-commerce order
-  const orderId = 'order-' + Date.now().toString(36);
+  const orderId = `order-${Date.now().toString(36)}`;
   const userId = 'user-alice-001';
 
   const events = [
