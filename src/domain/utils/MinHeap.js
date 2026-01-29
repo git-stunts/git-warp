@@ -55,6 +55,15 @@ class MinHeap {
   }
 
   /**
+   * Peek at the minimum priority without removing the item.
+   *
+   * @returns {number} The minimum priority value, or Infinity if empty
+   */
+  peekPriority() {
+    return this.heap.length > 0 ? this.heap[0].priority : Infinity;
+  }
+
+  /**
    * Restore heap property by bubbling up from index.
    *
    * @private

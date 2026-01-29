@@ -410,6 +410,13 @@ export default class TraversalService {
    * - g(n) = actual cost from start to n
    * - h(n) = heuristic estimate from n to goal
    *
+   * Tie-breaking strategy: When two nodes have equal f(n) values, we favor
+   * the node with higher g(n) (more actual progress made, less heuristic
+   * estimate remaining). This improves efficiency by preferring nodes that
+   * are closer to the goal. We achieve this by using priority = f - epsilon * g
+   * where epsilon is very small (1e-10), so nodes with higher g get slightly
+   * lower priority values and are extracted first from the min-heap.
+   *
    * @param {Object} options
    * @param {string} options.from - Starting SHA
    * @param {string} options.to - Target SHA
@@ -422,6 +429,10 @@ export default class TraversalService {
   async aStarSearch({ from, to, weightProvider = () => 1, heuristicProvider = () => 0, direction = 'children' }) {
     this._logger.debug('aStarSearch started', { from, to, direction });
 
+    // Epsilon for tie-breaking: small enough not to affect ordering by f,
+    // but large enough to break ties in favor of higher g (more progress made)
+    const EPSILON = 1e-10;
+
     // gScore: actual cost from start to node
     const gScore = new Map();
     gScore.set(from, 0);
@@ -429,14 +440,16 @@ export default class TraversalService {
     // fScore: g(n) + h(n) - used for priority queue ordering
     const fScore = new Map();
     const initialH = heuristicProvider(from, to);
+    const initialG = 0;
     fScore.set(from, initialH);
 
     // Track previous node for path reconstruction
     const previous = new Map();
 
-    // Use MinHeap as priority queue, ordered by fScore
+    // Use MinHeap as priority queue, ordered by fScore with tie-breaking
+    // Priority = f - epsilon * g: when f values are equal, higher g wins
     const pq = new MinHeap();
-    pq.insert(from, initialH);
+    pq.insert(from, initialH - EPSILON * initialG);
 
     // Track visited nodes
     const visited = new Set();
@@ -485,7 +498,8 @@ export default class TraversalService {
           const h = heuristicProvider(neighbor, to);
           const f = tentativeG + h;
           fScore.set(neighbor, f);
-          pq.insert(neighbor, f);
+          // Tie-breaking: subtract epsilon * g so higher g values get lower priority
+          pq.insert(neighbor, f - EPSILON * tentativeG);
         }
       }
     }
@@ -496,6 +510,217 @@ export default class TraversalService {
       code: 'NO_PATH',
       context: { from, to, direction, nodesExplored },
     });
+  }
+
+  /**
+   * Bi-directional A* search - meets in the middle from both ends.
+   *
+   * Runs two A* searches simultaneously: forward from 'from' and backward from 'to'.
+   * Terminates when the searches meet, potentially exploring far fewer nodes than
+   * unidirectional A*.
+   *
+   * @param {Object} options
+   * @param {string} options.from - Starting SHA
+   * @param {string} options.to - Target SHA
+   * @param {Function} [options.weightProvider] - (fromSha, toSha) => number
+   * @param {Function} [options.forwardHeuristic] - (sha, targetSha) => number, for forward search
+   * @param {Function} [options.backwardHeuristic] - (sha, targetSha) => number, for backward search
+   * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number}>}
+   * @throws {TraversalError} If no path exists between from and to
+   */
+  async bidirectionalAStar({
+    from,
+    to,
+    weightProvider = () => 1,
+    forwardHeuristic = () => 0,
+    backwardHeuristic = () => 0,
+  }) {
+    this._logger.debug('bidirectionalAStar started', { from, to });
+
+    // Handle trivial case
+    if (from === to) {
+      return { path: [from], totalCost: 0, nodesExplored: 1 };
+    }
+
+    // Forward search state (from -> to, using children)
+    const fwdGScore = new Map();
+    fwdGScore.set(from, 0);
+    const fwdPrevious = new Map(); // Maps node -> predecessor in forward path
+    const fwdVisited = new Set();
+    const fwdHeap = new MinHeap();
+    const fwdInitialH = forwardHeuristic(from, to);
+    fwdHeap.insert(from, fwdInitialH);
+
+    // Backward search state (to -> from, using parents)
+    const bwdGScore = new Map();
+    bwdGScore.set(to, 0);
+    const bwdNext = new Map(); // Maps node -> successor in backward path (toward 'to')
+    const bwdVisited = new Set();
+    const bwdHeap = new MinHeap();
+    const bwdInitialH = backwardHeuristic(to, from);
+    bwdHeap.insert(to, bwdInitialH);
+
+    // Best path found so far
+    let mu = Infinity; // Best total cost found
+    let meetingPoint = null;
+
+    let nodesExplored = 0;
+
+    while (!fwdHeap.isEmpty() || !bwdHeap.isEmpty()) {
+      // Get minimum f-values from each frontier
+      const fwdMinF = fwdHeap.isEmpty() ? Infinity : fwdHeap.peekPriority();
+      const bwdMinF = bwdHeap.isEmpty() ? Infinity : bwdHeap.peekPriority();
+
+      // Termination condition: when min f-value from either frontier >= best path found
+      // This guarantees optimality because any future path through unexpanded nodes
+      // would have cost >= their f-value >= mu
+      if (Math.min(fwdMinF, bwdMinF) >= mu) {
+        break;
+      }
+
+      // Expand from whichever frontier has smaller minimum f-value
+      if (fwdMinF <= bwdMinF) {
+        // Expand forward
+        const current = fwdHeap.extractMin();
+
+        if (fwdVisited.has(current)) {
+          continue;
+        }
+        fwdVisited.add(current);
+        nodesExplored++;
+
+        // Check if backward search has already visited this node - potential meeting point
+        if (bwdVisited.has(current)) {
+          const totalCost = fwdGScore.get(current) + bwdGScore.get(current);
+          if (totalCost < mu) {
+            mu = totalCost;
+            meetingPoint = current;
+          }
+        }
+
+        // Expand forward neighbors (children)
+        const children = await this._indexReader.getChildren(current);
+        for (const child of children) {
+          if (fwdVisited.has(child)) {
+            continue;
+          }
+
+          const edgeWeight = weightProvider(current, child);
+          const tentativeG = fwdGScore.get(current) + edgeWeight;
+          const currentG = fwdGScore.has(child) ? fwdGScore.get(child) : Infinity;
+
+          if (tentativeG < currentG) {
+            fwdPrevious.set(child, current);
+            fwdGScore.set(child, tentativeG);
+            const h = forwardHeuristic(child, to);
+            const f = tentativeG + h;
+            fwdHeap.insert(child, f);
+
+            // Check if this creates a new meeting point candidate
+            if (bwdGScore.has(child)) {
+              const totalCost = tentativeG + bwdGScore.get(child);
+              if (totalCost < mu) {
+                mu = totalCost;
+                meetingPoint = child;
+              }
+            }
+          }
+        }
+      } else {
+        // Expand backward
+        const current = bwdHeap.extractMin();
+
+        if (bwdVisited.has(current)) {
+          continue;
+        }
+        bwdVisited.add(current);
+        nodesExplored++;
+
+        // Check if forward search has already visited this node - potential meeting point
+        if (fwdVisited.has(current)) {
+          const totalCost = fwdGScore.get(current) + bwdGScore.get(current);
+          if (totalCost < mu) {
+            mu = totalCost;
+            meetingPoint = current;
+          }
+        }
+
+        // Expand backward neighbors (parents)
+        const parents = await this._indexReader.getParents(current);
+        for (const parent of parents) {
+          if (bwdVisited.has(parent)) {
+            continue;
+          }
+
+          // Weight is from parent -> current (the actual edge direction)
+          const edgeWeight = weightProvider(parent, current);
+          const tentativeG = bwdGScore.get(current) + edgeWeight;
+          const currentG = bwdGScore.has(parent) ? bwdGScore.get(parent) : Infinity;
+
+          if (tentativeG < currentG) {
+            bwdNext.set(parent, current);
+            bwdGScore.set(parent, tentativeG);
+            const h = backwardHeuristic(parent, from);
+            const f = tentativeG + h;
+            bwdHeap.insert(parent, f);
+
+            // Check if this creates a new meeting point candidate
+            if (fwdGScore.has(parent)) {
+              const totalCost = fwdGScore.get(parent) + tentativeG;
+              if (totalCost < mu) {
+                mu = totalCost;
+                meetingPoint = parent;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // If no meeting point found, no path exists
+    if (meetingPoint === null) {
+      this._logger.debug('bidirectionalAStar not found', { from, to, nodesExplored });
+      throw new TraversalError(`No path exists from ${from} to ${to}`, {
+        code: 'NO_PATH',
+        context: { from, to, nodesExplored },
+      });
+    }
+
+    // Reconstruct path: forward path to meeting point + backward path from meeting point
+    const path = this._reconstructBidirectionalAStarPath(fwdPrevious, bwdNext, from, to, meetingPoint);
+
+    this._logger.debug('bidirectionalAStar found', { pathLength: path.length, totalCost: mu, nodesExplored });
+    return { path, totalCost: mu, nodesExplored };
+  }
+
+  /**
+   * Reconstructs path from bidirectional A* search.
+   * @param {Map} fwdPrevious - Forward search predecessor map
+   * @param {Map} bwdNext - Backward search successor map
+   * @param {string} from - Start node
+   * @param {string} to - End node
+   * @param {string} meeting - Meeting point
+   * @returns {string[]} Complete path from start to end
+   * @private
+   */
+  _reconstructBidirectionalAStarPath(fwdPrevious, bwdNext, from, to, meeting) {
+    // Build forward path (from -> meeting)
+    const forwardPath = [];
+    let current = meeting;
+    while (current !== from) {
+      forwardPath.unshift(current);
+      current = fwdPrevious.get(current);
+    }
+    forwardPath.unshift(from);
+
+    // Build backward path (meeting -> to), excluding meeting point (already in forwardPath)
+    current = meeting;
+    while (current !== to) {
+      current = bwdNext.get(current);
+      forwardPath.push(current);
+    }
+
+    return forwardPath;
   }
 
   /**
