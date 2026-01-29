@@ -2,11 +2,20 @@
 
 > Last updated: 2026-01-29
 
-## Project Status: 100% Complete - v1.0 Ready
+## Project Status: 100% Complete - v2.5 Ship Ready
 
-The core is solid. Index build/query path complete. **Graph traversal algorithms implemented.** Health checks, structured logging, and comprehensive error handling all in place. Test coverage is excellent (256 tests). **Interactive Docker demo fully working with production GitGraphAdapter.**
+The core is solid. Index build/query path complete. **Graph traversal algorithms implemented including Dijkstra, A*, and Bidirectional A*.** Cancellation support with AbortSignal. Health checks, structured logging, and comprehensive error handling all in place. Test coverage is excellent (349 tests). **Interactive Docker demo fully working with Lagrangian pathfinding.**
 
-### Recent Progress (2026-01-29)
+### Recent Progress (2026-01-29 - Afternoon)
+- **Cancellation Support**: `AbortSignal` integration for `iterateNodes()` and `rebuildIndex()`
+- **Dijkstra's Algorithm**: `weightedShortestPath()` with async weight provider support
+- **A* Search**: `aStarSearch()` with heuristic guidance and tie-breaking
+- **Bidirectional A***: `bidirectionalAStar()` - optimal meet-in-the-middle search
+- **MinHeap Utility**: Priority queue for weighted algorithms
+- **Lagrangian Demo**: `npm run demo:lagrangian` with resource-aware pathfinding
+- **349 tests** (up from 256)
+
+### Previous Progress (2026-01-29 - Morning)
 - Upgraded `@git-stunts/plumbing` to v2.8.0 (adds `log` and `show` to command whitelist)
 - Removed demo adapter hack (`examples/demo-adapter.js`)
 - Demo scripts now use production `GitGraphAdapter` with real plumbing
@@ -36,25 +45,37 @@ The core is solid. Index build/query path complete. **Graph traversal algorithms
 - [x] Wire `IndexRebuildService.load()` to the `EmptyGraph` facade
 - [x] Add `readTreeOids()` to `GraphPersistencePort`
 
-### ✅ Graph Traversal (COMPLETED 2026-01-28)
+### ✅ Graph Traversal (COMPLETED 2026-01-29)
 - [x] `bfs()` - Breadth-first traversal with depth/node limits
 - [x] `dfs()` - Depth-first pre-order traversal
 - [x] `ancestors()` - Transitive closure going backwards
 - [x] `descendants()` - Transitive closure going forwards
 - [x] `findPath()` - Find any path between two nodes
-- [x] `shortestPath()` - Bidirectional BFS for shortest path
+- [x] `shortestPath()` - Bidirectional BFS for shortest path (unweighted)
+- [x] `weightedShortestPath()` - Dijkstra's algorithm with async weight provider
+- [x] `aStarSearch()` - A* with heuristic guidance and tie-breaking
+- [x] `bidirectionalAStar()` - Bidirectional A* (meet-in-the-middle)
 - [x] `isReachable()` - Boolean reachability check
 - [x] `commonAncestors()` - Find common ancestors of multiple nodes
 - [x] `topologicalSort()` - Kahn's algorithm for dependency order
 
 **Note:** Traversal accessed via `graph.traversal` property (lazy instantiation). Requires loaded index.
 
+### ✅ Cancellation Support (COMPLETED 2026-01-29)
+- [x] `OperationAbortedError` - Custom error for aborted operations
+- [x] `checkAborted(signal, operation)` - Throws if signal aborted
+- [x] `createTimeoutSignal(ms)` - Creates auto-aborting signal
+- [x] Signal support in `iterateNodes()` and `rebuildIndex()`
+- [x] Demo timeout protection (60s default)
+
 ### ✅ Test Coverage - Domain Layer (COMPLETED)
 - [x] `BitmapIndexBuilder.test.js` - Sharding, serialize/deserialize, query methods
 - [x] `BitmapIndexBuilder.integrity.test.js` - Merkle-like properties, deterministic serialization
 - [x] `BitmapIndexReader.test.js` - Shard loading, validation, strict mode
 - [x] `GraphNode.test.js` - 24 tests covering validation, immutability, edge cases
-- [x] `TraversalService.test.js` - 27 tests covering all algorithms with diamond DAG
+- [x] `TraversalService.test.js` - 55 tests covering all algorithms (BFS, DFS, Dijkstra, A*, bidirectional)
+- [x] `MinHeap.test.js` - 22 tests covering priority queue operations
+- [x] `cancellation.test.js` - 30 tests covering abort signal and timeout utilities
 
 ---
 
@@ -76,7 +97,7 @@ The core is solid. Index build/query path complete. **Graph traversal algorithms
 - [x] Benchmark: O(1) lookup vs iteration (1K, 10K node indexes)
 - [x] Benchmark: Memory profiling (50K edge builds)
 - [ ] Benchmark: iterateNodes memory profile for streaming 1M+ nodes
-- [ ] Benchmark: Traversal algorithm performance (BFS/DFS/shortestPath at scale)
+- [ ] Benchmark: Weighted traversal performance (Dijkstra/A*/bidirectional at scale)
 
 ### ✅ Documentation (COMPLETED 2026-01-28)
 - [x] Add `rebuildIndex()` and `loadIndex()` to README API reference
@@ -95,7 +116,8 @@ The core is solid. Index build/query path complete. **Graph traversal algorithms
   - `npm run demo:setup` - Creates container with sample e-commerce events
   - `npm run demo` - Drops into container shell
   - `npm run demo:explore` - Runs interactive graph explorer
-  - Demonstrates event sourcing, branching, traversal, path finding
+  - `npm run demo:lagrangian` - Resource-aware pathfinding with Dijkstra/A*
+  - Demonstrates event sourcing, branching, traversal, weighted path finding
 - [x] Integration test suite (runs in Docker against real Git) - Docker test setup works
 - [x] package.json `types` and `exports` properly configured for IDE support
 
@@ -193,6 +215,7 @@ The implementation evolved beyond the original tasklist:
 - [x] `LoggerPort` + ConsoleLogger + NoOpLogger
 - [x] `ClockPort` + PerformanceClockAdapter + GlobalClockAdapter
 - [x] `EmptyGraph` facade with traversal getter
+- [x] Cancellation utilities (checkAborted, createTimeoutSignal)
 - [x] Async generator streaming
 - [x] Security hardening (ref validation, adversarial input tests)
 - [x] Message size validation
@@ -203,4 +226,4 @@ The implementation evolved beyond the original tasklist:
 - [x] ARCHITECTURE.md
 - [x] THE_STUNT.md
 - [x] Comprehensive benchmark suite
-- [x] 256 passing tests
+- [x] 349 passing tests

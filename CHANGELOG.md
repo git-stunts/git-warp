@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-29
+
+### Added
+- **Cancellation Support**: Abort long-running operations with `AbortSignal`
+  - `checkAborted(signal, operation)` - Throws `OperationAbortedError` if aborted
+  - `createTimeoutSignal(ms)` - Creates auto-aborting signal for timeouts
+  - Added `signal` parameter to `iterateNodes()` and `rebuildIndex()`
+  - Demo scripts now use 60-second timeout to prevent indefinite hangs
+- **Dijkstra's Algorithm**: `weightedShortestPath()` with custom weight provider
+  - Supports async weight functions for Lagrangian cost calculations
+  - Returns `{ path, totalCost }`
+- **A* Search**: `aStarSearch()` with heuristic guidance
+  - Supports both `weightProvider` and `heuristicProvider` callbacks
+  - Tie-breaking favors higher g(n) for efficiency
+  - Returns `{ path, totalCost, nodesExplored }`
+- **Bidirectional A***: `bidirectionalAStar()` - meets in the middle from both ends
+  - Separate forward/backward heuristics
+  - Optimal path finding with potentially fewer explored nodes
+- **MinHeap Utility**: `src/domain/utils/MinHeap.js` for priority queue operations
+  - Methods: `insert()`, `extractMin()`, `peekPriority()`, `isEmpty()`, `size()`
+- **Lagrangian Demo**: `npm run demo:lagrangian` - Resource-aware pathfinding
+  - Event payloads now include `metrics: { cpu, mem }` for weight calculations
+  - Demonstrates Dijkstra, A*, and cost optimization concepts
+- **OperationAbortedError**: New error class for cancellation scenarios
+
+### Changed
+- **Async Weight Providers**: `weightProvider` callbacks now properly awaited in all algorithms
+  - Fixes bug where async weight functions returned Promises instead of numbers
+
+### Fixed
+- Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
+
 ## [2.4.0] - 2026-01-29
 
 ### Added

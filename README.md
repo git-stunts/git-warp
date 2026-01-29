@@ -80,7 +80,10 @@ npm run demo
 # 4. Inspect the bitmap index structure
 npm run demo:inspect
 
-# 5. Clean up when done
+# 5. Run Lagrangian pathfinding demo (resource-aware traversal)
+npm run demo:lagrangian
+
+# 6. Clean up when done
 npm run demo:down
 ```
 
@@ -95,6 +98,7 @@ The demo is **idempotent** - running `demo:setup` multiple times will clean up a
 - **Topological Sort**: Shows dependency order with `graph.traversal.topologicalSort()`
 - **Performance Comparison**: Shows O(1) bitmap index lookups vs git log (with speedup factors)
 - **Index Inspector**: Visualizes shard distribution with ASCII charts
+- **Lagrangian Pathfinding**: Resource-aware traversal using Dijkstra and A* with weighted costs
 
 **Sample output:**
 
@@ -413,7 +417,7 @@ if (result.found) console.log(result.path); // ['a', 'x', 'y', 'b']
 
 #### `async shortestPath({ from, to, maxDepth?, maxNodes? })`
 
-Find the shortest path between two nodes using bidirectional BFS.
+Find the shortest path between two nodes using bidirectional BFS (unweighted).
 
 **Returns:** `Promise<{ found: boolean, path: string[], length: number }>`
 
@@ -422,6 +426,83 @@ Find the shortest path between two nodes using bidirectional BFS.
 // Find shortest path (bidirectional BFS)
 const shortest = await graph.traversal.shortestPath({ from: a, to: b });
 console.log(shortest.path, shortest.length);
+```
+
+#### `async weightedShortestPath({ from, to, weightProvider?, direction? })`
+
+Find the shortest path using Dijkstra's algorithm with custom edge weights.
+
+**Parameters:**
+- `from` (string): Starting SHA
+- `to` (string): Target SHA
+- `weightProvider` (function, optional): `async (fromSha, toSha) => number`. Defaults to `() => 1`
+- `direction` ('children' | 'parents', optional): Traversal direction. Defaults to `'children'`
+
+**Returns:** `Promise<{ path: string[], totalCost: number }>`
+
+**Example:**
+```javascript
+// Lagrangian pathfinding with resource-weighted edges
+const { path, totalCost } = await graph.traversal.weightedShortestPath({
+  from: startSha,
+  to: targetSha,
+  weightProvider: async (from, to) => {
+    const message = await graph.readNode(to);
+    const event = JSON.parse(message);
+    const cpu = event.payload?.metrics?.cpu ?? 1;
+    const mem = event.payload?.metrics?.mem ?? 1;
+    return cpu * 1.0 + mem * 1.5; // Lagrangian cost
+  }
+});
+```
+
+#### `async aStarSearch({ from, to, weightProvider?, heuristicProvider?, direction? })`
+
+Find the shortest path using A* algorithm with heuristic guidance.
+
+**Parameters:**
+- `from` (string): Starting SHA
+- `to` (string): Target SHA
+- `weightProvider` (function, optional): `async (fromSha, toSha) => number`. Defaults to `() => 1`
+- `heuristicProvider` (function, optional): `(sha, targetSha) => number`. Defaults to `() => 0` (becomes Dijkstra)
+- `direction` ('children' | 'parents', optional): Traversal direction. Defaults to `'children'`
+
+**Returns:** `Promise<{ path: string[], totalCost: number, nodesExplored: number }>`
+
+**Example:**
+```javascript
+// A* with heuristic for faster pathfinding
+const { path, totalCost, nodesExplored } = await graph.traversal.aStarSearch({
+  from: startSha,
+  to: targetSha,
+  weightProvider: async (from, to) => getCost(to),
+  heuristicProvider: (sha, target) => estimateDistance(sha, target)
+});
+console.log(`Explored ${nodesExplored} nodes`);
+```
+
+#### `async bidirectionalAStar({ from, to, weightProvider?, forwardHeuristic?, backwardHeuristic? })`
+
+Bidirectional A* search that meets in the middle from both ends.
+
+**Parameters:**
+- `from` (string): Starting SHA
+- `to` (string): Target SHA
+- `weightProvider` (function, optional): `async (fromSha, toSha) => number`
+- `forwardHeuristic` (function, optional): `(sha, targetSha) => number` for forward search
+- `backwardHeuristic` (function, optional): `(sha, targetSha) => number` for backward search
+
+**Returns:** `Promise<{ path: string[], totalCost: number, nodesExplored: number }>`
+
+**Example:**
+```javascript
+// Bidirectional A* for large graphs
+const result = await graph.traversal.bidirectionalAStar({
+  from: startSha,
+  to: targetSha,
+  forwardHeuristic: (sha, target) => estimate(sha, target),
+  backwardHeuristic: (sha, target) => estimate(sha, target)
+});
 ```
 
 #### `async isReachable({ from, to, maxDepth?, maxNodes? })`
@@ -458,6 +539,33 @@ Topological sort starting from a node (dependencies before dependents).
 for await (const node of graph.traversal.topologicalSort({ start: sha })) {
   console.log(node.sha); // Dependencies before dependents
 }
+```
+
+### Cancellation Support
+
+Long-running operations can be cancelled using `AbortSignal`:
+
+```javascript
+import EmptyGraph, { createTimeoutSignal, OperationAbortedError } from '@git-stunts/empty-graph';
+
+// With manual AbortController
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5000); // Cancel after 5s
+
+try {
+  for await (const node of graph.iterateNodes({ ref: 'HEAD', signal: controller.signal })) {
+    // Process nodes...
+  }
+} catch (err) {
+  if (err instanceof OperationAbortedError) {
+    console.log('Operation cancelled');
+  }
+}
+
+// With timeout signal (auto-aborts after duration)
+const treeOid = await graph.rebuildIndex('HEAD', {
+  signal: createTimeoutSignal(30000) // 30 second timeout
+});
 ```
 
 #### Traversal Options
