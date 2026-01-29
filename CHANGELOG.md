@@ -7,14 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-01-29
+
 ### Added
 - **Git Hooks**: Custom pre-commit hook runs ESLint on staged files (`npm run setup:hooks` to enable)
+- **Cancellation Support**: Abort long-running operations with `AbortSignal`
+  - `checkAborted(signal, operation)` - Throws `OperationAbortedError` if aborted
+  - `createTimeoutSignal(ms)` - Creates auto-aborting signal for timeouts
+  - Added `signal` parameter to `iterateNodes()` and `rebuildIndex()`
+  - Demo scripts now use 60-second timeout to prevent indefinite hangs
+- **Dijkstra's Algorithm**: `weightedShortestPath()` with custom weight provider
+  - Supports async weight functions for Lagrangian cost calculations
+  - Returns `{ path, totalCost }`
+- **A* Search**: `aStarSearch()` with heuristic guidance
+  - Supports both `weightProvider` and `heuristicProvider` callbacks
+  - Tie-breaking favors higher g(n) for efficiency
+  - Returns `{ path, totalCost, nodesExplored }`
+- **Bidirectional A***: `bidirectionalAStar()` - meets in the middle from both ends
+  - Separate forward/backward heuristics
+  - Optimal path finding with potentially fewer explored nodes
+- **MinHeap Utility**: `src/domain/utils/MinHeap.js` for priority queue operations
+  - Methods: `insert()`, `extractMin()`, `peekPriority()`, `isEmpty()`, `size()`
+- **Lagrangian Demo**: `npm run demo:lagrangian` - Resource-aware pathfinding
+  - Event payloads now include `metrics: { cpu, mem }` for weight calculations
+  - Demonstrates Dijkstra, A*, and cost optimization concepts
+- **Streaming Benchmark**: `npm run demo:bench-streaming` - Memory profile for 100K+ nodes
+  - Verifies constant memory overhead during iteration (~7% variance)
+  - Measures stream throughput (~24K nodes/sec)
+- **Traversal Benchmark**: `npm run demo:bench-traversal` - Weighted pathfinding at scale
+  - Tests Dijkstra, A*, Bidirectional A* on linear and diamond graphs (100-5000 nodes)
+  - Compares algorithm performance characteristics
+- **OperationAbortedError**: New error class for cancellation scenarios
 
 ### Changed
 - **Cancellation**: `createTimeoutSignal()` now uses native `AbortSignal.timeout()` for cleaner implementation
 - **BitmapIndexReader**: Non-strict mode now caches empty shards on validation/parse failures to avoid repeated I/O
 - **TraversalService**: `findPath()` now accepts `maxNodes` parameter for consistency with `bfs`/`dfs`
 - **index.js**: `loadIndex()` now resets cached `_traversal` so subsequent access uses the new index
+- **Async Weight Providers**: `weightProvider` callbacks now properly awaited in all algorithms
+  - Fixes bug where async weight functions returned Promises instead of numbers
 
 ### Fixed
 - **Constructor Validation**: All services now fail fast with clear error messages when required dependencies are missing
@@ -52,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - GraphService test uses idiomatic `expect().rejects.toThrow()` pattern
   - StreamingBitmapIndexBuilder test mock uses SHA-256 checksums matching production
   - logging.integration test properly invokes async IIFE for `.rejects` matcher
+- Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
 
 ### Docs
 - README: Added `text` language specifier to output code blocks
@@ -66,44 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `maxNodes` to `PathOptions`
   - Added `weightedShortestPath`, `aStarSearch`, `bidirectionalAStar` method declarations
   - Added `throwOnCycle` to `TopologicalSortOptions`
-
-## [2.5.0] - 2026-01-29
-
-### Added
-- **Cancellation Support**: Abort long-running operations with `AbortSignal`
-  - `checkAborted(signal, operation)` - Throws `OperationAbortedError` if aborted
-  - `createTimeoutSignal(ms)` - Creates auto-aborting signal for timeouts
-  - Added `signal` parameter to `iterateNodes()` and `rebuildIndex()`
-  - Demo scripts now use 60-second timeout to prevent indefinite hangs
-- **Dijkstra's Algorithm**: `weightedShortestPath()` with custom weight provider
-  - Supports async weight functions for Lagrangian cost calculations
-  - Returns `{ path, totalCost }`
-- **A* Search**: `aStarSearch()` with heuristic guidance
-  - Supports both `weightProvider` and `heuristicProvider` callbacks
-  - Tie-breaking favors higher g(n) for efficiency
-  - Returns `{ path, totalCost, nodesExplored }`
-- **Bidirectional A***: `bidirectionalAStar()` - meets in the middle from both ends
-  - Separate forward/backward heuristics
-  - Optimal path finding with potentially fewer explored nodes
-- **MinHeap Utility**: `src/domain/utils/MinHeap.js` for priority queue operations
-  - Methods: `insert()`, `extractMin()`, `peekPriority()`, `isEmpty()`, `size()`
-- **Lagrangian Demo**: `npm run demo:lagrangian` - Resource-aware pathfinding
-  - Event payloads now include `metrics: { cpu, mem }` for weight calculations
-  - Demonstrates Dijkstra, A*, and cost optimization concepts
-- **Streaming Benchmark**: `npm run demo:bench-streaming` - Memory profile for 100K+ nodes
-  - Verifies constant memory overhead during iteration (~7% variance)
-  - Measures stream throughput (~24K nodes/sec)
-- **Traversal Benchmark**: `npm run demo:bench-traversal` - Weighted pathfinding at scale
-  - Tests Dijkstra, A*, Bidirectional A* on linear and diamond graphs (100-5000 nodes)
-  - Compares algorithm performance characteristics
-- **OperationAbortedError**: New error class for cancellation scenarios
-
-### Changed
-- **Async Weight Providers**: `weightProvider` callbacks now properly awaited in all algorithms
-  - Fixes bug where async weight functions returned Promises instead of numbers
-
-### Fixed
-- Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
 
 ## [2.4.0] - 2026-01-29
 

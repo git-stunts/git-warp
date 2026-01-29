@@ -660,7 +660,7 @@ const treeOid = await graph.rebuildIndex('HEAD', {
 #### Traversal Options
 
 | Option | Default | Description |
-| ------ | ------- | ----------- |
+| -------- | --------- | ------------- |
 | `maxNodes` | 100000 | Maximum number of nodes to visit |
 | `maxDepth` | 1000 | Maximum traversal depth |
 | `direction` | `'forward'` | Traversal direction: `'forward'` (children) or `'reverse'` (parents). For `bfs`/`dfs` only. |
@@ -903,7 +903,7 @@ flowchart TD
 **Key Components:**
 
 | Layer | Component | Responsibility |
-|-------|-----------|----------------|
+| --- | --- | --- |
 | Facade | `EmptyGraph` | Simplified public API |
 | Domain | `GraphService` | Node CRUD operations |
 | Domain | `IndexRebuildService` | Index building orchestration |

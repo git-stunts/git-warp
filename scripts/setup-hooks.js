@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 /**
  * Sets up git hooks for the repository.
  * Run: npm run setup:hooks
