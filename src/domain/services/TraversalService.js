@@ -383,7 +383,7 @@ export default class TraversalService {
           continue;
         }
 
-        const edgeWeight = weightProvider(current, neighbor);
+        const edgeWeight = await weightProvider(current, neighbor);
         const newDist = distances.get(current) + edgeWeight;
         const currentDist = distances.has(neighbor) ? distances.get(neighbor) : Infinity;
 
@@ -487,7 +487,7 @@ export default class TraversalService {
           continue;
         }
 
-        const edgeWeight = weightProvider(current, neighbor);
+        const edgeWeight = await weightProvider(current, neighbor);
         const tentativeG = gScore.get(current) + edgeWeight;
         const currentG = gScore.has(neighbor) ? gScore.get(neighbor) : Infinity;
 
@@ -605,7 +605,7 @@ export default class TraversalService {
             continue;
           }
 
-          const edgeWeight = weightProvider(current, child);
+          const edgeWeight = await weightProvider(current, child);
           const tentativeG = fwdGScore.get(current) + edgeWeight;
           const currentG = fwdGScore.has(child) ? fwdGScore.get(child) : Infinity;
 
@@ -653,7 +653,7 @@ export default class TraversalService {
           }
 
           // Weight is from parent -> current (the actual edge direction)
-          const edgeWeight = weightProvider(parent, current);
+          const edgeWeight = await weightProvider(parent, current);
           const tentativeG = bwdGScore.get(current) + edgeWeight;
           const currentG = bwdGScore.has(parent) ? bwdGScore.get(parent) : Infinity;
 

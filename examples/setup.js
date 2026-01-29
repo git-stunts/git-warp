@@ -98,14 +98,14 @@ async function main() {
   const userId = 'user-alice-001';
 
   const events = [
-    { type: 'UserCreated', payload: { userId, email: 'alice@example.com', name: 'Alice' } },
-    { type: 'CartCreated', payload: { userId, cartId: 'cart-001' } },
-    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'WIDGET-001', qty: 2, price: 29.99 } },
-    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'GADGET-002', qty: 1, price: 149.99 } },
-    { type: 'OrderPlaced', payload: { orderId, cartId: 'cart-001', total: 209.97 } },
-    { type: 'PaymentReceived', payload: { orderId, amount: 209.97, method: 'card' } },
-    { type: 'OrderShipped', payload: { orderId, carrier: 'FastShip', tracking: 'FS123456789' } },
-    { type: 'OrderDelivered', payload: { orderId, signature: 'A. Smith' } },
+    { type: 'UserCreated', payload: { userId, email: 'alice@example.com', name: 'Alice', metrics: { cpu: 1, mem: 2 } } },
+    { type: 'CartCreated', payload: { userId, cartId: 'cart-001', metrics: { cpu: 1, mem: 1 } } },
+    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'WIDGET-001', qty: 2, price: 29.99, metrics: { cpu: 2, mem: 3 } } },
+    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'GADGET-002', qty: 1, price: 149.99, metrics: { cpu: 2, mem: 3 } } },
+    { type: 'OrderPlaced', payload: { orderId, cartId: 'cart-001', total: 209.97, metrics: { cpu: 5, mem: 10 } } },
+    { type: 'PaymentReceived', payload: { orderId, amount: 209.97, method: 'card', metrics: { cpu: 8, mem: 5 } } },
+    { type: 'OrderShipped', payload: { orderId, carrier: 'FastShip', tracking: 'FS123456789', metrics: { cpu: 3, mem: 2 } } },
+    { type: 'OrderDelivered', payload: { orderId, signature: 'A. Smith', metrics: { cpu: 1, mem: 1 } } },
   ];
 
   let parentSha = null;
@@ -127,7 +127,7 @@ async function main() {
 
   const branchPoint = shas[4].sha; // After OrderPlaced
   const cancelledSha = await graph.createNode({
-    message: createEvent('OrderCancelled', { orderId, reason: 'Customer request' }, orderId),
+    message: createEvent('OrderCancelled', { orderId, reason: 'Customer request', metrics: { cpu: 4, mem: 3 } }, orderId),
     parents: [branchPoint],
   });
   console.log(`  ✅ OrderCancelled       → ${cancelledSha.slice(0, 8)} (branched from OrderPlaced)`);
