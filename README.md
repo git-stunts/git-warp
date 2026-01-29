@@ -810,6 +810,23 @@ See [SECURITY.md](./SECURITY.md) for details.
 - **Distributed Databases**: Leverage Git's sync/merge capabilities
 - **Audit Trails**: Every change is a commit with author/timestamp
 
+## Development Setup
+
+### Git Hooks
+
+This project uses custom git hooks (no husky). To enable pre-commit linting:
+
+```bash
+npm run setup:hooks
+```
+
+This configures git to use the hooks in `scripts/hooks/`. The pre-commit hook runs ESLint on staged JavaScript files.
+
+To bypass the hook temporarily (not recommended):
+```bash
+git commit --no-verify
+```
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.

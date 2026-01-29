@@ -1,0 +1,23 @@
+#!/bin/sh
+# Pre-commit hook: run eslint on staged JS files
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs|cjs)$')
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+echo "Running eslint on staged files..."
+
+# Run eslint on staged files
+npx eslint $STAGED_FILES
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ ESLint failed. Please fix errors before committing."
+  echo "   Run 'npx eslint --fix' to auto-fix some issues."
+  exit 1
+fi
+
+echo "✅ ESLint passed"
+exit 0

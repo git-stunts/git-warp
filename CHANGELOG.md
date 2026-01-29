@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Git Hooks**: Custom pre-commit hook runs ESLint on staged files (`npm run setup:hooks` to enable)
+
 ### Changed
 - **Cancellation**: `createTimeoutSignal()` now uses native `AbortSignal.timeout()` for cleaner implementation
 - **BitmapIndexReader**: Non-strict mode now caches empty shards on validation/parse failures to avoid repeated I/O
@@ -25,9 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `explore.js`: guards against empty events, removes unused import, adds curly braces, adds eslint overrides, wraps all JSON.parse calls
   - `setup.js`: clears timeout to allow immediate process exit
   - `streaming-benchmark.js`: handles divide-by-zero and -Infinity edge cases when no heap samples
-  - `traversal-benchmark.js`: catches JSON parse errors in weight provider
+  - `traversal-benchmark.js`: catches JSON parse errors in weight provider, refactored deep nesting
   - `inspect-index.js`: renamed misleading `totalEdges` to `totalEdgeLists`
-  - `event-sourcing.js`: added per-line eslint-disable for console.log
+  - `event-sourcing.js`: removed unused eslint-disable directives
+- **ESLint Code Style**: Comprehensive cleanup across all example scripts
+  - Added curly braces to all single-line if/else blocks
+  - Converted string concatenation to template literals
+  - Split multi-variable declarations (one-var rule)
+  - Refactored deeply nested blocks to reduce max-depth violations
+  - Converted 4-parameter functions to options objects (max-params rule)
+  - Removed unused variables and redundant eslint-disable directives
 - **Error Classes**: Removed redundant `Error.captureStackTrace` calls in `ShardValidationError` and `ShardCorruptionError`
 - **GitLogParser**: Removed `trim()` from final record to preserve message content exactly
 - **BitmapIndexReader**: `_validateShard` now guards against missing/invalid `envelope.data` before computing checksum

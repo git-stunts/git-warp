@@ -42,7 +42,8 @@
     "demo:down": "cd examples && docker compose down -v",
     "demo:lagrangian": "cd examples && docker compose exec demo node /app/examples/lagrangian-path.js",
     "demo:bench-streaming": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/streaming-benchmark.js",
-    "demo:bench-traversal": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/traversal-benchmark.js"
+    "demo:bench-traversal": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/traversal-benchmark.js",
+    "setup:hooks": "node scripts/setup-hooks.js"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
