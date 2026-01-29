@@ -166,21 +166,10 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
-   * Flushes current bitmap data to storage.
-   *
-   * Serializes all in-memory bitmaps, writes them as blobs, and clears
-   * the bitmap map. SHA→ID mappings are preserved.
-   *
-   * @returns {Promise<void>}
+   * Serializes current bitmaps into shard structure.
+   * @private
    */
-  async flush() {
-    if (this.bitmaps.size === 0) {
-      return;
-    }
-
-    const flushedBytes = this.estimatedBitmapBytes;
-
-    // Serialize current bitmaps to shards
+  _serializeBitmapsToShards() {
     const bitmapShards = { fwd: {}, rev: {} };
     for (const [key, bitmap] of this.bitmaps) {
       const type = key.substring(0, 3);
@@ -192,8 +181,17 @@ export default class StreamingBitmapIndexBuilder {
       }
       bitmapShards[type][prefix][sha] = bitmap.serialize(true).toString('base64');
     }
+    return bitmapShards;
+  }
 
-    // Write each shard as a blob and track the OID
+  /**
+   * Writes serialized bitmap shards to storage and tracks their OIDs.
+   *
+   * @param {Object} bitmapShards - Object with 'fwd' and 'rev' shard data
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _writeShardsToStorage(bitmapShards) {
     for (const type of ['fwd', 'rev']) {
       for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
         const path = `shards_${type}_${prefix}.json`;
@@ -211,6 +209,24 @@ export default class StreamingBitmapIndexBuilder {
         this.flushedChunks.get(path).push(oid);
       }
     }
+  }
+
+  /**
+   * Flushes current bitmap data to storage.
+   *
+   * Serializes all in-memory bitmaps, writes them as blobs, and clears
+   * the bitmap map. SHA→ID mappings are preserved.
+   *
+   * @returns {Promise<void>}
+   */
+  async flush() {
+    if (this.bitmaps.size === 0) {
+      return;
+    }
+
+    const flushedBytes = this.estimatedBitmapBytes;
+    const bitmapShards = this._serializeBitmapsToShards();
+    await this._writeShardsToStorage(bitmapShards);
 
     // Clear bitmaps and reset memory counter
     this.bitmaps.clear();
@@ -383,6 +399,85 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
+   * Loads a chunk from storage, parses JSON, and validates version and checksum.
+   *
+   * @param {string} oid - Blob OID of the chunk to load
+   * @returns {Promise<Object>} The validated chunk data
+   * @throws {ShardCorruptionError} If the chunk cannot be parsed or checksum is invalid
+   * @throws {ShardValidationError} If the chunk has an unsupported version
+   * @private
+   */
+  async _loadAndValidateChunk(oid) {
+    const buffer = await this.storage.readBlob(oid);
+    let envelope;
+    try {
+      envelope = JSON.parse(buffer.toString('utf-8'));
+    } catch (err) {
+      throw new ShardCorruptionError('Failed to parse shard JSON', {
+        oid,
+        reason: 'invalid_format',
+        originalError: err.message,
+      });
+    }
+
+    // Validate version
+    if (envelope.version !== SHARD_VERSION) {
+      throw new ShardValidationError('Shard version mismatch', {
+        oid,
+        expected: SHARD_VERSION,
+        actual: envelope.version,
+        field: 'version',
+      });
+    }
+
+    // Validate checksum
+    const expectedChecksum = computeChecksum(envelope.data);
+    if (envelope.checksum !== expectedChecksum) {
+      throw new ShardCorruptionError('Shard checksum mismatch', {
+        oid,
+        reason: 'invalid_checksum',
+        context: {
+          expected: expectedChecksum,
+          actual: envelope.checksum,
+        },
+      });
+    }
+
+    return envelope.data;
+  }
+
+  /**
+   * Deserializes a base64-encoded bitmap and merges it into the merged object.
+   *
+   * @param {Object} opts - Options
+   * @param {Object} opts.merged - Object mapping SHA to RoaringBitmap32 instances
+   * @param {string} opts.sha - The SHA key for this bitmap
+   * @param {string} opts.base64Bitmap - Base64-encoded serialized bitmap
+   * @param {string} opts.oid - Blob OID (for error reporting)
+   * @throws {ShardCorruptionError} If the bitmap cannot be deserialized
+   * @private
+   */
+  _mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid }) {
+    let bitmap;
+    try {
+      bitmap = RoaringBitmap32.deserialize(Buffer.from(base64Bitmap, 'base64'), true);
+    } catch (err) {
+      throw new ShardCorruptionError('Failed to deserialize bitmap', {
+        oid,
+        reason: 'invalid_bitmap',
+        originalError: err.message,
+      });
+    }
+
+    if (!merged[sha]) {
+      merged[sha] = bitmap;
+    } else {
+      // OR the bitmaps together
+      merged[sha].orInPlace(bitmap);
+    }
+  }
+
+  /**
    * Merges multiple shard chunks by ORing their bitmaps together.
    *
    * Validates version and checksum of each chunk before merging.
@@ -399,61 +494,10 @@ export default class StreamingBitmapIndexBuilder {
     const merged = {};
 
     for (const oid of oids) {
-      const buffer = await this.storage.readBlob(oid);
-      let envelope;
-      try {
-        envelope = JSON.parse(buffer.toString('utf-8'));
-      } catch (err) {
-        throw new ShardCorruptionError('Failed to parse shard JSON', {
-          oid,
-          reason: 'invalid_format',
-          originalError: err.message,
-        });
-      }
-
-      // Validate version
-      if (envelope.version !== SHARD_VERSION) {
-        throw new ShardValidationError('Shard version mismatch', {
-          oid,
-          expected: SHARD_VERSION,
-          actual: envelope.version,
-          field: 'version',
-        });
-      }
-
-      // Validate checksum
-      const expectedChecksum = computeChecksum(envelope.data);
-      if (envelope.checksum !== expectedChecksum) {
-        throw new ShardCorruptionError('Shard checksum mismatch', {
-          oid,
-          reason: 'invalid_checksum',
-          context: {
-            expected: expectedChecksum,
-            actual: envelope.checksum,
-          },
-        });
-      }
-
-      const chunk = envelope.data;
+      const chunk = await this._loadAndValidateChunk(oid);
 
       for (const [sha, base64Bitmap] of Object.entries(chunk)) {
-        let bitmap;
-        try {
-          bitmap = RoaringBitmap32.deserialize(Buffer.from(base64Bitmap, 'base64'), true);
-        } catch (err) {
-          throw new ShardCorruptionError('Failed to deserialize bitmap', {
-            oid,
-            reason: 'invalid_bitmap',
-            originalError: err.message,
-          });
-        }
-
-        if (!merged[sha]) {
-          merged[sha] = bitmap;
-        } else {
-          // OR the bitmaps together
-          merged[sha].orInPlace(bitmap);
-        }
+        this._mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid });
       }
     }
 

@@ -37,7 +37,7 @@ const checkNativeBindings = () => {
       return roaring.isNativelyInstalled;
     }
     return null; // Unknown
-  } catch (error) {
+  } catch {
     return false;
   }
 };

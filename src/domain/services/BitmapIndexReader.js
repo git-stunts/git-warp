@@ -244,6 +244,51 @@ export default class BitmapIndexReader {
   }
 
   /**
+   * Handles validation/corruption errors based on strict mode.
+   * @param {ShardCorruptionError|ShardValidationError} err - The error to handle
+   * @param {Object} context - Error context
+   * @param {string} context.path - Shard path
+   * @param {string} context.oid - Object ID
+   * @param {string} context.format - 'json' or 'bitmap'
+   * @returns {Object|RoaringBitmap32} Empty shard (non-strict mode only)
+   * @throws {ShardCorruptionError|ShardValidationError} In strict mode
+   * @private
+   */
+  _handleShardError(err, { path, oid, format }) {
+    if (this.strict) {
+      throw err;
+    }
+    this.logger.warn('Shard validation warning', {
+      operation: 'loadShard',
+      shardPath: path,
+      oid,
+      error: err.message,
+      code: err.code,
+      field: err.field,
+      expected: err.expected,
+      actual: err.actual,
+    });
+    const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
+    this.loadedShards.set(path, emptyShard);
+    return emptyShard;
+  }
+
+  /**
+   * Parses and validates a shard buffer.
+   * @param {Buffer} buffer - Raw shard buffer
+   * @param {string} path - Shard path (for error context)
+   * @param {string} oid - Object ID (for error context)
+   * @returns {Object} The validated data from the shard
+   * @throws {ShardCorruptionError} If parsing fails or format is invalid
+   * @throws {ShardValidationError} If version or checksum validation fails
+   * @private
+   */
+  _parseAndValidateShard(buffer, path, oid) {
+    const envelope = JSON.parse(new TextDecoder().decode(buffer));
+    return this._validateShard(envelope, path, oid);
+  }
+
+  /**
    * Loads a shard with validation and configurable error handling.
    *
    * In strict mode, throws on any validation failure.
@@ -281,37 +326,13 @@ export default class BitmapIndexReader {
 
     // Parse and validate the shard
     try {
-      const envelope = JSON.parse(new TextDecoder().decode(buffer));
-
-      // Validate version and checksum
-      const validatedData = this._validateShard(envelope, path, oid);
-
-      // For JSON format, use the validated data directly
-      // For bitmap format, the data contains base64-encoded bitmaps (handled by caller)
-      const data = validatedData;
-
+      const data = this._parseAndValidateShard(buffer, path, oid);
       this.loadedShards.set(path, data);
       return data;
     } catch (err) {
-      // Re-throw our custom errors in strict mode
+      // Handle our custom validation/corruption errors
       if (err instanceof ShardCorruptionError || err instanceof ShardValidationError) {
-        if (this.strict) {
-          throw err;
-        }
-        // Non-strict mode: log warning and return empty shard
-        this.logger.warn('Shard validation warning', {
-          operation: 'loadShard',
-          shardPath: path,
-          oid,
-          error: err.message,
-          code: err.code,
-          field: err.field,
-          expected: err.expected,
-          actual: err.actual,
-        });
-        const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
-        this.loadedShards.set(path, emptyShard);
-        return emptyShard;
+        return this._handleShardError(err, { path, oid, format });
       }
 
       // JSON parse errors become corruption errors
@@ -321,18 +342,7 @@ export default class BitmapIndexReader {
           oid,
           reason: 'parse_error',
         });
-        if (this.strict) {
-          throw corruptionError;
-        }
-        this.logger.warn('Shard parse warning', {
-          operation: 'loadShard',
-          shardPath: path,
-          oid,
-          error: err.message,
-        });
-        const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
-        this.loadedShards.set(path, emptyShard);
-        return emptyShard;
+        return this._handleShardError(corruptionError, { path, oid, format });
       }
 
       // Unknown errors - re-throw

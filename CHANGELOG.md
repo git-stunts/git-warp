@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - GraphService test uses idiomatic `expect().rejects.toThrow()` pattern
   - StreamingBitmapIndexBuilder test mock uses SHA-256 checksums matching production
   - logging.integration test properly invokes async IIFE for `.rejects` matcher
-- Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
+  - Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
 
 ### Docs
 - README: Added `text` language specifier to output code blocks

@@ -141,15 +141,15 @@ This sounds obvious, but: if your team struggles with `git rebase`, they're goin
 
 | Use Case                    | EmptyGraph? | Better Alternative  |
 | --------------------------- | ----------- | ------------------- |
-| Offline-first app data      | Yes       | -                   |
-| Configuration graph         | Yes       | -                   |
-| Dependency tracking         | Yes       | -                   |
-| Knowledge base / wiki graph | Yes       | -                   |
-| Social network (prototype)  | Maybe     | Neo4j at scale      |
-| Financial transactions      | No        | PostgreSQL          |
-| Real-time collaboration     | No        | Firebase, Supabase  |
-| Analytics / OLAP            | No        | ClickHouse, DuckDB  |
-| Massive scale (100M+ nodes) | No        | TigerGraph, Neptune |
+| Offline-first app data      | Yes         | -                   |
+| Configuration graph         | Yes         | -                   |
+| Dependency tracking         | Yes         | -                   |
+| Knowledge base / wiki graph | Yes         | -                   |
+| Social network (prototype)  | Maybe       | Neo4j at scale      |
+| Financial transactions      | No          | PostgreSQL          |
+| Real-time collaboration     | No          | Firebase, Supabase  |
+| Analytics / OLAP            | No          | ClickHouse, DuckDB  |
+| Massive scale (100M+ nodes) | No          | TigerGraph, Neptune |
 
 </details>
 
@@ -382,7 +382,7 @@ const treeOid = await graph.rebuildIndex('HEAD');
 // Store treeOid for later use with loadIndex()
 
 // With custom limit
-const treeOid = await graph.rebuildIndex('HEAD', { limit: 100000 });
+const limitedTreeOid = await graph.rebuildIndex('HEAD', { limit: 100000 });
 ```
 
 #### `async loadIndex(treeOid)`

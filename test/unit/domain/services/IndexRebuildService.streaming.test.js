@@ -218,7 +218,13 @@ describe('IndexRebuildService streaming mode', () => {
       // Should have flushed multiple times
       expect(flushCount).toBeGreaterThan(0);
 
-      // Memory should stay bounded (with some tolerance for batch processing)
+      // Memory should stay bounded (with some tolerance for batch processing).
+      // We use a generous 50% tolerance because:
+      // 1. Batch processing overhead - nodes are processed in batches before memory is checked
+      // 2. Flush timing - the memory check happens after adding nodes, so a batch may
+      //    temporarily exceed the threshold before the flush occurs
+      // 3. Shard data structures - internal bookkeeping (Maps, arrays) adds overhead
+      //    beyond the raw node/edge data being tracked
       const tolerance = memoryThreshold * 0.5;
       expect(maxMemorySeen).toBeLessThan(memoryThreshold + tolerance);
     });

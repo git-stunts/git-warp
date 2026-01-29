@@ -315,8 +315,9 @@ describe('BitmapIndexReader', () => {
       const result1 = await nonStrictReader.getParents('abcd1234');
       expect(result1).toEqual([]);
       expect(mockLogger.warn).toHaveBeenCalledTimes(1);
-      expect(mockLogger.warn).toHaveBeenCalledWith('Shard parse warning', expect.objectContaining({
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard validation warning', expect.objectContaining({
         shardPath: 'shards_rev_ab.json',
+        error: 'Failed to parse shard JSON',
       }));
 
       // Second access to same shard - should NOT log again (cached)
