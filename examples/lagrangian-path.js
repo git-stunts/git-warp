@@ -37,6 +37,13 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 const COEFF_CPU = 1.0;  // Weight for CPU metric
 const COEFF_MEM = 1.5;  // Weight for memory metric (memory is 50% more "expensive")
 
+/**
+ * Calculate Lagrangian cost from metrics
+ */
+function calculateLagrangianCost(cpu, mem) {
+  return (cpu * COEFF_CPU) + (mem * COEFF_MEM);
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -191,9 +198,7 @@ async function main() {
     const mem = event.payload?.metrics?.mem ?? 1;  // Default: 1 unit of memory
 
     // Compute Lagrangian cost: weighted sum of resources
-    const cost = (cpu * COEFF_CPU) + (mem * COEFF_MEM);
-
-    return cost;
+    return calculateLagrangianCost(cpu, mem);
   }
 
   // Demonstrate weight calculation for each event
@@ -204,7 +209,7 @@ async function main() {
   for (const { sha, event } of events) {
     const cpu = event.payload?.metrics?.cpu ?? 1;
     const mem = event.payload?.metrics?.mem ?? 1;
-    const weight = (cpu * COEFF_CPU) + (mem * COEFF_MEM);
+    const weight = calculateLagrangianCost(cpu, mem);
     console.log(
       `  ${sha.slice(0, 8)} | ${event.type.padEnd(20)} | ${formatNum(cpu, 1, 4)} | ${formatNum(mem, 1, 4)} | ${formatNum(weight, 2, 6)}`
     );

@@ -4,17 +4,17 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fempty-graph.svg)](https://www.npmjs.com/package/@git-stunts/empty-graph)
 
-> *A **graph database that lives inside Git commits** using the **empty-tree pattern**. Stores data invisibly (no files) within Git commits using the empty-tree pattern*.
+> *A **graph database that lives inside Git**. Stores data invisibly (no files) within Git commits using the **empty-tree pattern***.
 
 ## Key highlights:
 
-- Hexagonal architecture with ports/adapters and DDD patterns
-- Roaring Bitmap indexes for O(1) parent/child lookups
+- **Hexagonal architecture** with ports/adapters and DDD patterns
+- **Roaring Bitmap indexes for O(1) parent/child lookups**
 - Graph traversal algorithms (BFS, DFS, Dijkstra, A*, bidirectional)
-- Streaming-first design for handling millions of nodes
+- **Streaming-first design for handling millions of nodes**
 - TypeScript definitions included
 
-Example included; benchmarks ready to fire up as soon as you finish cloing the git repo.
+Example included; benchmarks ready to fire up as soon as you finish cloning the git repo.
 
 ## Use Cases
 

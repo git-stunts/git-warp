@@ -213,8 +213,9 @@ async function main() {
   console.log('');
 
   // Rough memory estimates based on typical roaring bitmap overhead
-  const bitmapOverheadPerNode = 64; // ~64 bytes per node in roaring bitmaps
-  const metadataOverhead = totalNodes * 80; // SHA (40) + ID (8) + overhead (32)
+  // These are approximations; actual memory depends on bitmap density and run lengths
+  const bitmapOverheadPerNode = 64; // ~64 bytes per node in sparse roaring bitmaps
+  const metadataOverhead = totalNodes * 80; // SHA hex (40) + numeric ID (8) + JS object overhead (~32)
   const edgeBitmapMemory = totalEdgeLists * bitmapOverheadPerNode;
   const estimatedRuntimeMemory = metadataOverhead + edgeBitmapMemory * 2; // fwd + rev
 

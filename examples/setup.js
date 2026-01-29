@@ -132,9 +132,13 @@ async function main() {
   console.log(`  ✅ OrderCancelled       → ${cancelledSha.slice(0, 8)} (branched from OrderPlaced)`);
 
   // Update refs
-  execSync(`git update-ref refs/heads/main ${parentSha}`);
-  execSync(`git update-ref refs/heads/cancelled-order ${cancelledSha}`);
-  execSync('git symbolic-ref HEAD refs/heads/main');
+  try {
+    execSync(`git update-ref refs/heads/main ${parentSha}`);
+    execSync(`git update-ref refs/heads/cancelled-order ${cancelledSha}`);
+    execSync('git symbolic-ref HEAD refs/heads/main');
+  } catch (err) {
+    throw new Error(`Failed to update git refs: ${err.message}`);
+  }
 
   console.log('\n📊 Building bitmap index...\n');
 

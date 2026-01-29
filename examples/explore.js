@@ -211,9 +211,9 @@ async function main() {
   const firstSha = events[0].sha;
   const lastSha = events[events.length - 1].sha;
 
-  const path = await graph.traversal.shortestPath({ from: firstSha, to: lastSha });
-  console.log(`Shortest path from first to last event: ${path.length} hops`);
-  console.log(`Path: ${path.path.map(s => s.slice(0, 8)).join(' → ')}`);
+  const { path: pathNodes, length: pathLength } = await graph.traversal.shortestPath({ from: firstSha, to: lastSha });
+  console.log(`Shortest path from first to last event: ${pathLength} hops`);
+  console.log(`Path: ${pathNodes.map(s => s.slice(0, 8)).join(' → ')}`);
 
   console.log('\n═══════════════════════════════════════════════════════════════');
   console.log('5. TOPOLOGICAL ORDER');
