@@ -252,6 +252,62 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
+   * Builds meta shards (SHA→ID mappings) grouped by prefix.
+   *
+   * @returns {Object} Object mapping prefix to SHA→ID maps
+   * @private
+   */
+  _buildMetaShards() {
+    const idShards = {};
+    for (const [sha, id] of this.shaToId) {
+      const prefix = sha.substring(0, 2);
+      if (!idShards[prefix]) {
+        idShards[prefix] = {};
+      }
+      idShards[prefix][sha] = id;
+    }
+    return idShards;
+  }
+
+  /**
+   * Writes meta shards to storage in parallel.
+   *
+   * @param {Object} idShards - Object mapping prefix to SHA→ID maps
+   * @returns {Promise<string[]>} Array of tree entry strings
+   * @private
+   */
+  async _writeMetaShards(idShards) {
+    return Promise.all(
+      Object.entries(idShards).map(async ([prefix, map]) => {
+        const path = `meta_${prefix}.json`;
+        const envelope = {
+          version: SHARD_VERSION,
+          checksum: computeChecksum(map),
+          data: map,
+        };
+        const buffer = Buffer.from(JSON.stringify(envelope));
+        const oid = await this.storage.writeBlob(buffer);
+        return `100644 blob ${oid}\t${path}`;
+      })
+    );
+  }
+
+  /**
+   * Processes bitmap shards, merging chunks if necessary.
+   *
+   * @returns {Promise<string[]>} Array of tree entry strings
+   * @private
+   */
+  async _processBitmapShards() {
+    return Promise.all(
+      Array.from(this.flushedChunks.entries()).map(async ([path, oids]) => {
+        const finalOid = oids.length === 1 ? oids[0] : await this._mergeChunks(oids);
+        return `100644 blob ${finalOid}\t${path}`;
+      })
+    );
+  }
+
+  /**
    * Finalizes the index and returns the tree OID.
    *
    * Performs the following:
@@ -273,53 +329,12 @@ export default class StreamingBitmapIndexBuilder {
       flushCount: this.flushCount,
     });
 
-    // Flush any remaining bitmaps
     await this.flush();
 
-    // Build meta shards (SHA→ID mappings)
-    const idShards = {};
-    for (const [sha, id] of this.shaToId) {
-      const prefix = sha.substring(0, 2);
-      if (!idShards[prefix]) {
-        idShards[prefix] = {};
-      }
-      idShards[prefix][sha] = id;
-    }
-
-    // Write meta shards in parallel
-    const metaEntries = await Promise.all(
-      Object.entries(idShards).map(async ([prefix, map]) => {
-        const path = `meta_${prefix}.json`;
-        const envelope = {
-          version: SHARD_VERSION,
-          checksum: computeChecksum(map),
-          data: map,
-        };
-        const buffer = Buffer.from(JSON.stringify(envelope));
-        const oid = await this.storage.writeBlob(buffer);
-        return `100644 blob ${oid}\t${path}`;
-      })
-    );
-
-    // Process bitmap shards in parallel - merge chunks if necessary
-    const bitmapEntries = await Promise.all(
-      Array.from(this.flushedChunks.entries()).map(async ([path, oids]) => {
-        let finalOid;
-
-        if (oids.length === 1) {
-          // Single chunk, use as-is
-          finalOid = oids[0];
-        } else {
-          // Multiple chunks, need to merge
-          finalOid = await this._mergeChunks(oids);
-        }
-
-        return `100644 blob ${finalOid}\t${path}`;
-      })
-    );
-
+    const idShards = this._buildMetaShards();
+    const metaEntries = await this._writeMetaShards(idShards);
+    const bitmapEntries = await this._processBitmapShards();
     const flatEntries = [...metaEntries, ...bitmapEntries];
-
     const treeOid = await this.storage.writeTree(flatEntries);
 
     this.logger.debug('Index finalized', {

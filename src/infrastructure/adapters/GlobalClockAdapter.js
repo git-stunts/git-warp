@@ -1,4 +1,3 @@
-/* global performance */
 import ClockPort from '../../ports/ClockPort.js';
 
 /**

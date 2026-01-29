@@ -289,6 +289,61 @@ export default class BitmapIndexReader {
   }
 
   /**
+   * Loads raw buffer from storage.
+   * @param {string} path - Shard path
+   * @param {string} oid - Object ID
+   * @returns {Promise<Buffer>} Raw buffer
+   * @throws {ShardLoadError} When storage.readBlob fails
+   * @private
+   */
+  async _loadShardBuffer(path, oid) {
+    try {
+      return await this.storage.readBlob(oid);
+    } catch (cause) {
+      throw new ShardLoadError('Failed to load shard from storage', {
+        shardPath: path,
+        oid,
+        cause,
+      });
+    }
+  }
+
+  /**
+   * Wraps an error as a ShardCorruptionError if it's a SyntaxError.
+   * Returns the original error otherwise.
+   * @param {Error} err - The error to potentially wrap
+   * @param {string} path - Shard path
+   * @param {string} oid - Object ID
+   * @returns {Error} The wrapped or original error
+   * @private
+   */
+  _wrapParseError(err, path, oid) {
+    if (err instanceof SyntaxError) {
+      return new ShardCorruptionError('Failed to parse shard JSON', {
+        shardPath: path,
+        oid,
+        reason: 'parse_error',
+      });
+    }
+    return err;
+  }
+
+  /**
+   * Attempts to handle a shard error based on its type.
+   * Returns handled result for validation/corruption errors, null otherwise.
+   * @param {Error} err - The error to handle
+   * @param {Object} context - Error context
+   * @returns {Object|RoaringBitmap32|null} Handled result or null if error should be re-thrown
+   * @private
+   */
+  _tryHandleShardError(err, context) {
+    const wrappedErr = this._wrapParseError(err, context.path, context.oid);
+    const isHandleable = wrappedErr instanceof ShardCorruptionError ||
+                         wrappedErr instanceof ShardValidationError;
+    return isHandleable ? this._handleShardError(wrappedErr, context) : null;
+  }
+
+  /**
    * Loads a shard with validation and configurable error handling.
    *
    * In strict mode, throws on any validation failure.
@@ -307,45 +362,25 @@ export default class BitmapIndexReader {
     if (this.loadedShards.has(path)) {
       return this.loadedShards.get(path);
     }
+
     const oid = this.shardOids.get(path);
+    const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
     if (!oid) {
-      return format === 'json' ? {} : new RoaringBitmap32();
+      return emptyShard;
     }
 
-    // Load the raw buffer from storage - always throw on storage errors
-    let buffer;
-    try {
-      buffer = await this.storage.readBlob(oid);
-    } catch (cause) {
-      throw new ShardLoadError('Failed to load shard from storage', {
-        shardPath: path,
-        oid,
-        cause,
-      });
-    }
+    const buffer = await this._loadShardBuffer(path, oid);
+    const context = { path, oid, format };
 
-    // Parse and validate the shard
     try {
       const data = this._parseAndValidateShard(buffer, path, oid);
       this.loadedShards.set(path, data);
       return data;
     } catch (err) {
-      // Handle our custom validation/corruption errors
-      if (err instanceof ShardCorruptionError || err instanceof ShardValidationError) {
-        return this._handleShardError(err, { path, oid, format });
+      const handled = this._tryHandleShardError(err, context);
+      if (handled !== null) {
+        return handled;
       }
-
-      // JSON parse errors become corruption errors
-      if (err instanceof SyntaxError) {
-        const corruptionError = new ShardCorruptionError('Failed to parse shard JSON', {
-          shardPath: path,
-          oid,
-          reason: 'parse_error',
-        });
-        return this._handleShardError(corruptionError, { path, oid, format });
-      }
-
-      // Unknown errors - re-throw
       throw err;
     }
   }

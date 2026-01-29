@@ -194,7 +194,7 @@ describe('Service Logging Integration', () => {
 
       it('logs error on failure', async () => {
         mockGraphService.iterateNodes = vi.fn().mockImplementation(async function* () {
-          yield new GraphNode({ sha: 'dummy', message: 'dummy', parents: [] }); // eslint-disable-line require-yield
+          yield new GraphNode({ sha: 'dummy', message: 'dummy', parents: [] });
           throw new Error('Graph error');
         });
 

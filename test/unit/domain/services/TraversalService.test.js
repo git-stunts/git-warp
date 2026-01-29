@@ -1067,7 +1067,7 @@ describe('TraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const tieBreakService = new TraversalService({ indexReader: tieBreakReader });
+      const _tieBreakService = new TraversalService({ indexReader: tieBreakReader });
 
       // Weight provider: START->A is 1, START->B is 2, A->END is 2, B->END is 1
       const weightProvider = (from, to) => {

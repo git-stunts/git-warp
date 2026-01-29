@@ -26,7 +26,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
       }
     };
 
-    const blobOids = new Map();
+    const _blobOids = new Map();
     let blobCounter = 0;
 
     const mockStorage = {

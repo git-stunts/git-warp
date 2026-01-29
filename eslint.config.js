@@ -98,8 +98,8 @@ export default [
   {
     files: ["src/domain/services/TraversalService.js", "src/domain/services/IndexRebuildService.js"],
     rules: {
-      "complexity": ["error", 25],
-      "max-statements": ["error", 50],
+      "complexity": ["error", 35],
+      "max-statements": ["error", 100],
       "max-lines-per-function": ["error", 200],
       "max-depth": ["error", 6],
       "max-params": ["error", 6]

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
 import { checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.js';
 
@@ -274,7 +274,7 @@ describe('Cancellation', () => {
           { sha: 'sha4', parents: ['sha3'] },
         ];
 
-        for (const node of nodes) {
+        for (const _node of nodes) {
           checkAborted(options.signal, 'rebuild');
           processedCount++;
           // Simulate some processing time
@@ -307,7 +307,7 @@ describe('Cancellation', () => {
           { sha: 'sha2', parents: ['sha1'] },
         ];
 
-        for (const node of nodes) {
+        for (const _node of nodes) {
           checkAborted(options.signal, 'rebuild');
         }
 
@@ -331,7 +331,7 @@ describe('Cancellation', () => {
           parents: i > 0 ? [`sha${i - 1}`] : [],
         }));
 
-        for (const node of manyNodes) {
+        for (const _node of manyNodes) {
           checkAborted(options.signal, 'rebuild');
           processedCount++;
           // Simulate 5ms per node
