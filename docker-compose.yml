@@ -1,11 +1,15 @@
 services:
   test:
-    build: .
+    build:
+      context: ..
+      dockerfile: empty-graph/Dockerfile
     environment:
       - GIT_STUNTS_DOCKER=1
 
   benchmark:
-    build: .
+    build:
+      context: ..
+      dockerfile: empty-graph/Dockerfile
     volumes:
       - ./benchmarks:/app/benchmarks
     environment:

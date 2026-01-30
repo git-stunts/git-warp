@@ -219,6 +219,16 @@ export default class BitmapIndexReader {
       }
     }
 
+    const entryCount = this._idToShaCache.length;
+    if (entryCount > 1_000_000) {
+      this.logger.warn('ID-to-SHA cache has high memory usage', {
+        operation: '_buildIdToShaMapping',
+        entryCount,
+        estimatedMemoryBytes: entryCount * 40,
+        message: `Cache contains ${entryCount} entries (~40 bytes per entry). Consider pagination or streaming for very large graphs.`,
+      });
+    }
+
     return this._idToShaCache;
   }
 

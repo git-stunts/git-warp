@@ -6,9 +6,12 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package*.json ./
+# Copy alfred first (dependency)
+COPY alfred ../alfred
+# Copy empty-graph
+COPY empty-graph/package*.json ./
 RUN npm install
-COPY . .
+COPY empty-graph .
 ENV GIT_STUNTS_DOCKER=1
 # Default to tests, but can be overridden for benchmark
 CMD ["npm", "test"]

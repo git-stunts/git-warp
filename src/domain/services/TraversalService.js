@@ -698,6 +698,64 @@ export default class TraversalService {
   }
 
   /**
+   * Unified helper to reconstruct a path by walking a predecessor map backwards.
+   *
+   * Walks from `to` back to `from` using the provided predecessor map,
+   * building the path in order from start to end.
+   *
+   * @param {Map<string, string>} predecessorMap - Maps each node to its predecessor
+   * @param {string} from - Start node (path reconstruction stops here)
+   * @param {string} to - End node (path reconstruction starts here)
+   * @param {string} [context='Path'] - Context label for error logging
+   * @returns {string[]} Path from `from` to `to`
+   * @private
+   */
+  _walkPredecessors(predecessorMap, from, to, context = 'Path') {
+    const path = [to];
+    let current = to;
+    while (current !== from) {
+      const prev = predecessorMap.get(current);
+      if (prev === undefined) {
+        // Guard against infinite loop if algorithm has a bug
+        this._logger.error(`${context} reconstruction failed: missing predecessor`, { from, to, path });
+        break;
+      }
+      current = prev;
+      path.unshift(current);
+    }
+    return path;
+  }
+
+  /**
+   * Unified helper to reconstruct a path by walking a successor map forwards.
+   *
+   * Walks from `from` to `to` using the provided successor map,
+   * building the path in order.
+   *
+   * @param {Map<string, string>} successorMap - Maps each node to its successor
+   * @param {string} from - Start node (path reconstruction starts here)
+   * @param {string} to - End node (path reconstruction stops here)
+   * @param {string} [context='Path'] - Context label for error logging
+   * @returns {string[]} Path from `from` to `to`
+   * @private
+   */
+  _walkSuccessors(successorMap, from, to, context = 'Path') {
+    const path = [from];
+    let current = from;
+    while (current !== to) {
+      const next = successorMap.get(current);
+      if (next === undefined) {
+        // Guard against infinite loop if algorithm has a bug
+        this._logger.error(`${context} reconstruction failed: missing successor`, { from, to, path });
+        break;
+      }
+      current = next;
+      path.push(current);
+    }
+    return path;
+  }
+
+  /**
    * Reconstructs path from bidirectional A* search.
    * @param {Map} fwdPrevious - Forward search predecessor map
    * @param {Map} bwdNext - Backward search successor map
@@ -708,35 +766,14 @@ export default class TraversalService {
    * @private
    */
   _reconstructBidirectionalAStarPath(fwdPrevious, bwdNext, from, to, meeting) {
-    // Build forward path (from -> meeting)
-    const forwardPath = [];
-    let current = meeting;
-    while (current !== from) {
-      forwardPath.unshift(current);
-      current = fwdPrevious.get(current);
-      if (current === undefined) {
-        // Should never happen if algorithm is correct, but guard against infinite loop
-        this._logger.error('Forward path reconstruction failed: missing predecessor', { from, to, meeting, path: forwardPath });
-        break;
-      }
-    }
-    if (current === from) {
-      forwardPath.unshift(from);
-    }
+    // Build forward path (from -> meeting) using predecessors
+    const forwardPath = this._walkPredecessors(fwdPrevious, from, meeting, 'Forward path');
 
-    // Build backward path (meeting -> to), excluding meeting point (already in forwardPath)
-    current = meeting;
-    while (current !== to) {
-      current = bwdNext.get(current);
-      if (current === undefined) {
-        // Should never happen if algorithm is correct, but guard against infinite loop
-        this._logger.error('Backward path reconstruction failed: missing successor', { from, to, meeting, path: forwardPath });
-        break;
-      }
-      forwardPath.push(current);
-    }
+    // Build backward path (meeting -> to) using successors, excluding meeting (already included)
+    const backwardPath = this._walkSuccessors(bwdNext, meeting, to, 'Backward path');
 
-    return forwardPath;
+    // Combine paths, avoiding duplicate meeting point
+    return forwardPath.concat(backwardPath.slice(1));
   }
 
   /**
@@ -744,18 +781,7 @@ export default class TraversalService {
    * @private
    */
   _reconstructWeightedPath(previous, from, to) {
-    const path = [to];
-    let current = to;
-    while (current !== from) {
-      current = previous.get(current);
-      if (current === undefined) {
-        // Should never happen if algorithm is correct, but guard against infinite loop
-        this._logger.error('Path reconstruction failed: missing predecessor', { from, to, path });
-        break;
-      }
-      path.unshift(current);
-    }
-    return path;
+    return this._walkPredecessors(previous, from, to, 'Weighted path');
   }
 
   /**
@@ -763,18 +789,7 @@ export default class TraversalService {
    * @private
    */
   _reconstructPath(parentMap, from, to) {
-    const path = [to];
-    let current = to;
-    while (current !== from) {
-      current = parentMap.get(current);
-      if (current === undefined) {
-        // Should never happen if algorithm is correct, but guard against infinite loop
-        this._logger.error('Path reconstruction failed: missing predecessor', { from, to, path });
-        break;
-      }
-      path.unshift(current);
-    }
-    return path;
+    return this._walkPredecessors(parentMap, from, to, 'Path');
   }
 
   /**

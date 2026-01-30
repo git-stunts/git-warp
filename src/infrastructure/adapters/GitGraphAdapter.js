@@ -1,4 +1,39 @@
+import { retry } from '@git-stunts/alfred';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
+
+/**
+ * Transient git errors that are safe to retry.
+ * @type {string[]}
+ */
+const TRANSIENT_ERROR_PATTERNS = [
+  'cannot lock ref',
+  'resource temporarily unavailable',
+  'connection timed out',
+];
+
+/**
+ * Determines if an error is transient and safe to retry.
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if the error is transient
+ */
+function isTransientError(error) {
+  const message = (error.message || '').toLowerCase();
+  return TRANSIENT_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+}
+
+/**
+ * Default retry options for git operations.
+ * Uses exponential backoff with decorrelated jitter.
+ * @type {import('@git-stunts/alfred').RetryOptions}
+ */
+const DEFAULT_RETRY_OPTIONS = {
+  retries: 3,
+  delay: 100,
+  maxDelay: 2000,
+  backoff: 'exponential',
+  jitter: 'decorrelated',
+  shouldRetry: isTransientError,
+};
 
 /**
  * Implementation of GraphPersistencePort using GitPlumbing.
@@ -7,10 +42,22 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   /**
    * @param {Object} options
    * @param {import('@git-stunts/plumbing').default} options.plumbing
+   * @param {import('@git-stunts/alfred').RetryOptions} [options.retryOptions] - Custom retry options
    */
-  constructor({ plumbing }) {
+  constructor({ plumbing, retryOptions = {} }) {
     super();
     this.plumbing = plumbing;
+    this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
+  }
+
+  /**
+   * Executes a git command with retry logic.
+   * @param {Object} options - Options to pass to plumbing.execute
+   * @returns {Promise<string>} Command output
+   * @private
+   */
+  async _executeWithRetry(options) {
+    return retry(() => this.plumbing.execute(options), this._retryOptions);
   }
 
   get emptyTree() {
@@ -25,13 +72,13 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     const signArgs = sign ? ['-S'] : [];
     const args = ['commit-tree', this.emptyTree, ...parentArgs, ...signArgs, '-m', message];
 
-    const oid = await this.plumbing.execute({ args });
+    const oid = await this._executeWithRetry({ args });
     return oid.trim();
   }
 
   async showNode(sha) {
     this._validateOid(sha);
-    return await this.plumbing.execute({ args: ['show', '-s', '--format=%B', sha] });
+    return await this._executeWithRetry({ args: ['show', '-s', '--format=%B', sha] });
   }
 
   /**
@@ -45,7 +92,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     // Format: SHA, author, date, parents (space-separated), then message
     // Using %x00 to separate fields for reliable parsing
     const format = '%H%x00%an <%ae>%x00%aI%x00%P%x00%B';
-    const output = await this.plumbing.execute({
+    const output = await this._executeWithRetry({
       args: ['show', '-s', `--format=${format}`, sha]
     });
 
@@ -75,7 +122,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       args.push(`--format=${format}`);
     }
     args.push(ref);
-    return await this.plumbing.execute({ args });
+    return await this._executeWithRetry({ args });
   }
 
   /**
@@ -134,7 +181,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async writeBlob(content) {
-    const oid = await this.plumbing.execute({
+    const oid = await this._executeWithRetry({
       args: ['hash-object', '-w', '--stdin'],
       input: content,
     });
@@ -142,7 +189,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   async writeTree(entries) {
-    const oid = await this.plumbing.execute({
+    const oid = await this._executeWithRetry({
       args: ['mktree'],
       input: `${entries.join('\n')}\n`,
     });
@@ -161,7 +208,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   async readTreeOids(treeOid) {
     this._validateOid(treeOid);
-    const output = await this.plumbing.execute({
+    const output = await this._executeWithRetry({
       args: ['ls-tree', '-r', '-z', treeOid]
     });
 
@@ -202,7 +249,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async updateRef(ref, oid) {
     this._validateRef(ref);
     this._validateOid(oid);
-    await this.plumbing.execute({
+    await this._executeWithRetry({
       args: ['update-ref', ref, oid]
     });
   }
@@ -215,7 +262,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async readRef(ref) {
     this._validateRef(ref);
     try {
-      const oid = await this.plumbing.execute({
+      const oid = await this._executeWithRetry({
         args: ['rev-parse', ref]
       });
       return oid.trim();
@@ -241,7 +288,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async deleteRef(ref) {
     this._validateRef(ref);
-    await this.plumbing.execute({
+    await this._executeWithRetry({
       args: ['update-ref', '-d', ref]
     });
   }
@@ -295,7 +342,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async nodeExists(sha) {
     this._validateOid(sha);
     try {
-      await this.plumbing.execute({ args: ['cat-file', '-e', sha] });
+      await this._executeWithRetry({ args: ['cat-file', '-e', sha] });
       return true;
     } catch {
       return false;
@@ -310,7 +357,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async ping() {
     const start = Date.now();
     try {
-      await this.plumbing.execute({ args: ['rev-parse', '--git-dir'] });
+      await this._executeWithRetry({ args: ['rev-parse', '--git-dir'] });
       const latencyMs = Date.now() - start;
       return { ok: true, latencyMs };
     } catch {
@@ -327,7 +374,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async countNodes(ref) {
     this._validateRef(ref);
-    const output = await this.plumbing.execute({
+    const output = await this._executeWithRetry({
       args: ['rev-list', '--count', ref]
     });
     return parseInt(output.trim(), 10);

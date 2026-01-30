@@ -1,4 +1,5 @@
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import CachedValue from '../utils/CachedValue.js';
 
 /**
  * Default TTL for health check cache in milliseconds.
@@ -53,16 +54,17 @@ export default class HealthCheckService {
   constructor({ persistence, clock, cacheTtlMs = DEFAULT_CACHE_TTL_MS, logger = new NoOpLogger() }) {
     this._persistence = persistence;
     this._clock = clock;
-    this._cacheTtlMs = cacheTtlMs;
     this._logger = logger;
 
     /** @type {import('./BitmapIndexReader.js').default|null} */
     this._indexReader = null;
 
-    // Cache state
-    this._cachedHealth = null;
-    this._cacheTimestamp = 0;
-    this._cachedTimestampIso = null;
+    // Health check cache
+    this._healthCache = new CachedValue({
+      clock,
+      ttlMs: cacheTtlMs,
+      compute: () => this._computeHealth(),
+    });
   }
 
   /**
@@ -72,29 +74,7 @@ export default class HealthCheckService {
    */
   setIndexReader(reader) {
     this._indexReader = reader;
-    this._invalidateCache();
-  }
-
-  /**
-   * Invalidates the cached health result.
-   * Call this when state changes (e.g., index loaded/unloaded).
-   */
-  _invalidateCache() {
-    this._cachedHealth = null;
-    this._cacheTimestamp = 0;
-    this._cachedTimestampIso = null;
-  }
-
-  /**
-   * Checks if the cached health result is still valid.
-   * @returns {boolean}
-   * @private
-   */
-  _isCacheValid() {
-    if (!this._cachedHealth) {
-      return false;
-    }
-    return this._clock.now() - this._cacheTimestamp < this._cacheTtlMs;
+    this._healthCache.invalidate();
   }
 
   /**
@@ -149,16 +129,32 @@ export default class HealthCheckService {
    * @property {number} [shardCount] - Number of shards (if loaded)
    */
   async getHealth() {
-    // Return cached result if valid
-    if (this._isCacheValid()) {
-      return {
-        ...this._cachedHealth,
-        cachedAt: this._cachedTimestampIso,
-      };
+    const { value, cachedAt, fromCache } = await this._healthCache.getWithMetadata();
+
+    if (cachedAt) {
+      return { ...value, cachedAt };
     }
 
-    const start = this._clock.now();
+    // Log only for fresh computations
+    if (!fromCache) {
+      this._logger.debug('Health check completed', {
+        operation: 'getHealth',
+        status: value.status,
+        repositoryStatus: value.components.repository.status,
+        indexStatus: value.components.index.status,
+      });
+    }
 
+    return value;
+  }
+
+  /**
+   * Computes health by checking all components.
+   * This is called by CachedValue when the cache is stale.
+   * @returns {Promise<Object>}
+   * @private
+   */
+  async _computeHealth() {
     // Check repository health
     const repositoryHealth = await this._checkRepository();
 
@@ -168,29 +164,13 @@ export default class HealthCheckService {
     // Determine overall status
     const status = this._computeOverallStatus(repositoryHealth, indexHealth);
 
-    const health = {
+    return {
       status,
       components: {
         repository: repositoryHealth,
         index: indexHealth,
       },
     };
-
-    // Cache the result
-    this._cachedHealth = health;
-    this._cacheTimestamp = this._clock.now();
-    this._cachedTimestampIso = this._clock.timestamp();
-
-    const durationMs = this._clock.now() - start;
-    this._logger.debug('Health check completed', {
-      operation: 'getHealth',
-      status,
-      durationMs,
-      repositoryStatus: repositoryHealth.status,
-      indexStatus: indexHealth.status,
-    });
-
-    return health;
   }
 
   /**

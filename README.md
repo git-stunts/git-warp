@@ -65,70 +65,17 @@ Because all commits point to the "Empty Tree" (`4b825dc642cb6eb9a060e54bf8d69288
 
 Let's pump the brakes... Just because you *can* store a graph in Git doesn't mean you *should*. Here's an honest assessment.
 
-### When EmptyGraph Makes Sense
-
-#### You need offline-first graph data.
-
-Git works without a network. Clone the repo, query locally, sync when you reconnect. Perfect for edge computing, field work, or airplane mode.
-
-#### You want Git-native replication.
-
-Your graph automatically inherits Git's distributed model. Fork it. Push to multiple remotes. Merge branches of graph data (carefully). No separate replication infrastructure.
-
-#### Your graph is append-mostly.
-
-Git loves immutable data. Add nodes, add edges, never delete? Perfect fit. *The reflog even lets you recover "deleted" nodes.*
-
-#### You're already in a Git ecosystem.
-
-If your workflow is Git-centric (CI/CD, GitOps, infrastructure-as-code), adding a graph that lives in Git means one less system to manage.
-
-#### You need an audit trail for free.
-
-Every mutation is a commit. `git log` is your audit log. `git blame` tells you when a node was added. `git bisect` can find when a relationship broke.
-
-#### The graph is small-to-medium (< 10M nodes).
-
-The bitmap index handles millions of nodes comfortably. At 1M nodes, you're looking at ~150-200MB of index data. That's fine.
-
-#### You value simplicity over features.
-
-No query language to learn. No cluster to manage. No connection pools. It's just JavaScript and Git.
-
-### When EmptyGraph Is A Bad Idea
-
-You should probably consider a more legit and powerful solution if:
-
-#### You need ACID transactions.
-
-Git commits are atomic, but there's no rollback, no isolation levels, no multi-statement transactions. If you need "transfer money from A to B" semantics, *please* use a real database.
-
-#### You need real-time updates.
-
-Git has no pubsub. No change streams. No WebSocket notifications. Polling `git fetch` is your only option, and it's not fast.
-
-#### You need complex queries.
-
-"Find all users who bought product X and also reviewed product Y in the last 30 days" - this requires a query planner, indexes, and probably Cypher or Gremlin. EmptyGraph gives you raw traversal primitives, not a query language (... *yet*).
-
-#### Your graph is write-heavy.
-
-Every write is a `git commit-tree` + `git commit`. That's fast, but not "10,000 writes per second" fast. Write-heavy workloads need a database that is designed for writes.
-
-#### You need to delete data (for real).
-
-GDPR "right to be forgotten"? Git's immutability works against you. Yes, you can rewrite history with `git filter-branch`, but it's painful and breaks every clone.
-
-#### The graph is huge (> 100M nodes).
-
-At some point, you're fighting Git's assumptions. Pack files get unwieldy. Index shards multiply. Clone times become brutal. Neo4j, DGraph, or TigerGraph exist for a reason.
-
-#### You need fine-grained access control.
-
-Git repos are all-or-nothing. Either you can clone it or you can't. There's no "user A can see nodes 1-100 but not 101-200." If you need row-level security, look elsewhere.
-
-> [!note]
-> There *is* a trick to accomplish this, and I'll post it in a blog post sometime. You can run a [git startgate](https://github.com/flyingrobots/git-stargate) that uses git receive hooks + encryption to achieve "distributed opaque data", but it's too hacky to include in this project and you might want to question why you want to have private data live in git in the first place.
+| Scenario                 | ✅ Good Fit                                           | ❌ Bad Fit                               | Notes                                                            |
+| ------------------------ | ---------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------- |
+| **Network connectivity** | Offline-first, edge computing, field work            | Real-time updates needed                | Git has no pubsub/WebSocket; polling `git fetch` is slow         |
+| **Replication model**    | Git-native (fork, push, merge branches)              | Fine-grained access control             | Git repos are all-or-nothing; no row-level security              |
+| **Write patterns**       | Append-mostly, immutable data                        | Write-heavy (10k+ writes/sec)           | Every write = `git commit-tree` + `git commit`                   |
+| **Existing ecosystem**   | Already Git-centric (CI/CD, GitOps, IaC)             | Team unfamiliar with Git                | Debugging corrupt indexes after force-push requires Git fluency  |
+| **Audit requirements**   | Need free audit trail (`git log`, `blame`, `bisect`) | Need true ACID transactions             | Git commits are atomic but no rollback/isolation levels          |
+| **Graph size**           | Small-to-medium (< 10M nodes)                        | Huge (> 100M nodes)                     | 1M nodes ≈ 150-200MB index; beyond 100M, pack files get unwieldy |
+| **Query complexity**     | Raw traversal primitives, simple patterns            | Complex multi-hop queries with filters  | No query planner; Cypher/Gremlin needed for complex queries      |
+| **Data deletion**        | Rarely delete (reflog recovers "deleted" nodes)      | GDPR compliance / right to be forgotten | `git filter-branch` is painful and breaks all clones             |
+| **Philosophy**           | Value simplicity over features                       | Need enterprise DB features             | No query language, no cluster, no connection pools—just JS + Git |
 
 #### Your team doesn't know Git.
 
@@ -955,6 +902,15 @@ const children = await graph.getChildren(someSha);
 | List Nodes (small) | O(n) | Linear scan up to limit |
 | Iterate Nodes (large) | O(n) | Streaming, constant memory |
 | Bitmap Index Lookup | O(1) | With `BitmapIndexService` |
+
+## Memory Considerations
+
+The `BitmapIndexReader` caches all SHA-to-ID mappings in memory for O(1) lookups. Each entry consumes approximately 40 bytes (SHA string + numeric ID). For a graph with 10 million nodes, this equates to roughly 400MB of memory.
+
+A warning is logged when the cache exceeds 1 million entries to help identify memory pressure early. For very large graphs (>10M nodes), consider:
+- Pagination strategies to limit active working sets
+- External indexing solutions (Redis, SQLite)
+- Periodic index rebuilds to remove unreachable nodes
 
 ## Architecture
 

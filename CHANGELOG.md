@@ -14,6 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `countNodes(ref)` - Count nodes reachable from a ref without loading all nodes into memory
 - **Batch Operations**: `createNodes(nodes)` - Create multiple nodes in a single operation with placeholder parent refs
 - **LRU Cache**: Loaded shards now use an LRU cache to bound memory usage
+- **Retry Logic**: `GitGraphAdapter` now retries transient Git failures with exponential backoff and decorrelated jitter
+  - Uses `@git-stunts/alfred` resilience library
+  - Retries on: "cannot lock ref", "resource temporarily unavailable", "connection timed out"
+  - Configurable via `retryOptions` constructor parameter
+- **CachedValue Utility**: Reusable TTL-based caching utility in `src/domain/utils/CachedValue.js`
+  - Extracted from `HealthCheckService` for broader use
+  - Supports `get()`, `getWithMetadata()`, `invalidate()`, and cache introspection
+- **Memory Warning**: `BitmapIndexReader` logs a warning when ID-to-SHA cache exceeds 1M entries (~40MB)
+
+### Changed
+- **TraversalService**: Refactored path reconstruction into unified `_walkPredecessors()` and `_walkSuccessors()` helpers
+- **HealthCheckService**: Now uses `CachedValue` utility instead of inline caching logic
+
+### Docs
+- **Memory Considerations**: Added README section documenting memory requirements for large graphs
 
 ## [2.5.0] - 2026-01-29
 

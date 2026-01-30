@@ -48,6 +48,7 @@
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
   "dependencies": {
+    "@git-stunts/alfred": "file:../alfred",
     "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "roaring": "^2.7.0",
