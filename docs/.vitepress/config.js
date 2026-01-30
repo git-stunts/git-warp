@@ -24,7 +24,11 @@ export default defineConfig({
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Core Concepts', link: '/guide/core-concepts' },
           { text: 'Operations & Safety', link: '/guide/operations' },
+          { text: 'Comparison', link: '/guide/comparison' },
+          { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          { text: 'Roadmap', link: '/guide/roadmap' },
           { text: 'Architecture', link: '/guide/architecture' },
+          { text: 'Interactive Demo', link: '/guide/interactive-demo' },
         ]
       },
       {
