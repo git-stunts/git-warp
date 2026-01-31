@@ -7,28 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-01-30
+
 ### Added
-- **Node Query API**: New methods for convenient node access
-  - `getNode(sha)` - Returns full GraphNode with all metadata (sha, author, date, message, parents)
-  - `hasNode(sha)` - Boolean existence check without loading full node data
-  - `countNodes(ref)` - Count nodes reachable from a ref without loading all nodes into memory
-- **Batch Operations**: `createNodes(nodes)` - Create multiple nodes in a single operation with placeholder parent refs
-- **LRU Cache**: Loaded shards now use an LRU cache to bound memory usage
-- **Retry Logic**: `GitGraphAdapter` now retries transient Git failures with exponential backoff and decorrelated jitter
+
+#### Managed Mode & Durability
+- **`EmptyGraph.open()`** - New static factory for creating managed graphs with automatic durability guarantees
+- **`GraphRefManager`** - New service for ref/anchor management
+- **Anchor commits** - Automatic creation of anchor commits to prevent GC of disconnected subgraphs
+- **`graph.sync(sha)`** - Manual ref synchronization for `autoSync: 'manual'` mode
+- **`graph.anchor(ref, shas)`** - Power user method for explicit anchor creation
+
+#### Batching API
+- **`graph.beginBatch()`** - Start a batch for efficient bulk writes
+- **`GraphBatch.createNode()`** - Create nodes without per-write ref updates
+- **`GraphBatch.commit()`** - Single octopus anchor for all batch nodes
+- **`graph.compactAnchors()`** - Utility to compact anchor chains into single octopus
+
+#### Validation & Error Handling
+- **`EmptyMessageError`** - New error type for empty message validation (code: `EMPTY_MESSAGE`)
+- Empty messages now rejected at write time (prevents "ghost nodes")
+
+#### Index Improvements
+- **Canonical JSON checksums** - Deterministic checksums for cross-engine compatibility
+- **Shard version 2** - New format with backward compatibility for v1
+- **`SUPPORTED_SHARD_VERSIONS`** - Reader accepts both v1 and v2 shards
+
+#### Performance
+- **`isAncestor()`** - New method on GitGraphAdapter for ancestry checking
+- **Fast-forward detection** - `syncHead()` skips anchor creation for linear history
+- **Octopus anchoring** - Batch.commit() creates single anchor with N parents
+
+#### Cancellation
+- AbortSignal propagation added to all TraversalService methods
+- AbortSignal support in StreamingBitmapIndexBuilder finalization
+
+#### Node Query API
+- **`getNode(sha)`** - Returns full GraphNode with all metadata (sha, author, date, message, parents)
+- **`hasNode(sha)`** - Boolean existence check without loading full node data
+- **`countNodes(ref)`** - Count nodes reachable from a ref without loading all nodes into memory
+
+#### Batch Operations
+- **`createNodes(nodes)`** - Create multiple nodes in a single operation with placeholder parent refs
+
+#### Caching & Resilience
+- **LRU Cache** - Loaded shards now use an LRU cache to bound memory usage
+- **Retry Logic** - `GitGraphAdapter` now retries transient Git failures with exponential backoff and decorrelated jitter
   - Uses `@git-stunts/alfred` resilience library
   - Retries on: "cannot lock ref", "resource temporarily unavailable", "connection timed out"
   - Configurable via `retryOptions` constructor parameter
-- **CachedValue Utility**: Reusable TTL-based caching utility in `src/domain/utils/CachedValue.js`
-  - Extracted from `HealthCheckService` for broader use
-  - Supports `get()`, `getWithMetadata()`, `invalidate()`, and cache introspection
-- **Memory Warning**: `BitmapIndexReader` logs a warning when ID-to-SHA cache exceeds 1M entries (~40MB)
+- **CachedValue Utility** - Reusable TTL-based caching utility in `src/domain/utils/CachedValue.js`
+- **Memory Warning** - `BitmapIndexReader` logs a warning when ID-to-SHA cache exceeds 1M entries (~40MB)
 
 ### Changed
-- **TraversalService**: Refactored path reconstruction into unified `_walkPredecessors()` and `_walkSuccessors()` helpers
-- **HealthCheckService**: Now uses `CachedValue` utility instead of inline caching logic
+- `SHARD_VERSION` bumped from 1 to 2 (v1 still readable)
+- **TraversalService** - Refactored path reconstruction into unified `_walkPredecessors()` and `_walkSuccessors()` helpers
+- **HealthCheckService** - Now uses `CachedValue` utility instead of inline caching logic
 
-### Docs
-- **Memory Considerations**: Added README section documenting memory requirements for large graphs
+### Fixed
+- **Durability bug** - Nodes created via `createNode()` were not reachable from any ref, making them vulnerable to Git GC
+- **Ghost nodes** - Empty messages allowed at write time but rejected during iteration
+
+### Documentation
+- Added `SEMANTICS.md` - Durability contract and anchor commit semantics
+- Updated `README.md` - Durability warning, mode selection guide, new API docs
+- Added **Memory Considerations** section documenting memory requirements for large graphs
 
 ## [2.5.0] - 2026-01-29
 

@@ -1,8 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'crypto';
 import BitmapIndexReader from '../../../../src/domain/services/BitmapIndexReader.js';
-import BitmapIndexBuilder from '../../../../src/domain/services/BitmapIndexBuilder.js';
+import BitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/BitmapIndexBuilder.js';
 import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../../../src/domain/errors/index.js';
+
+/**
+ * Creates a v1 shard envelope using JSON.stringify for checksum (legacy format).
+ */
+const createV1Shard = (data) => ({
+  version: 1,
+  checksum: createHash('sha256').update(JSON.stringify(data)).digest('hex'),
+  data,
+});
+
+/**
+ * Produces a canonical JSON string with deterministic key ordering.
+ * Mirrors the canonicalStringify function used in BitmapIndexBuilder.
+ */
+const canonicalStringify = (obj) => {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(canonicalStringify).join(',') + ']';
+  }
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalStringify(obj[k])).join(',') + '}';
+};
+
+/**
+ * Creates a v2 shard envelope using canonicalStringify for checksum (current format).
+ */
+const createV2Shard = (data) => ({
+  version: 2,
+  checksum: createHash('sha256').update(canonicalStringify(data)).digest('hex'),
+  data,
+});
 
 describe('BitmapIndexReader', () => {
   let mockStorage;
@@ -338,6 +371,158 @@ describe('BitmapIndexReader', () => {
 
       // Verify storage was only called once (not on second access)
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('shard versioning', () => {
+    it('accepts v1 shards for backward compatibility', async () => {
+      const v1Data = { 'abcd1234': 42 };
+      const v1Shard = createV1Shard(v1Data);
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v1Shard)));
+
+      reader.setup({
+        'meta_ab.json': 'v1-shard-oid'
+      });
+
+      const id = await reader.lookupId('abcd1234');
+      expect(id).toBe(42);
+    });
+
+    it('accepts v2 shards', async () => {
+      const v2Data = { 'abcd1234': 99 };
+      const v2Shard = createV2Shard(v2Data);
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v2Shard)));
+
+      reader.setup({
+        'meta_ab.json': 'v2-shard-oid'
+      });
+
+      const id = await reader.lookupId('abcd1234');
+      expect(id).toBe(99);
+    });
+
+    it('v2 checksum mismatch throws ShardValidationError in strict mode', async () => {
+      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+
+      // Create v2 shard with intentionally wrong checksum
+      const v2ShardWithBadChecksum = {
+        version: 2,
+        checksum: 'intentionally-wrong-checksum-value',
+        data: { 'abcd1234': 123 }
+      };
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v2ShardWithBadChecksum)));
+
+      strictReader.setup({
+        'meta_ab.json': 'bad-checksum-v2-oid'
+      });
+
+      await expect(strictReader.lookupId('abcd1234')).rejects.toThrow(ShardValidationError);
+
+      // Verify the error contains the expected context
+      try {
+        await strictReader.lookupId('abcd1234');
+      } catch (err) {
+        expect(err.field).toBe('checksum');
+        expect(err.shardPath).toBe('meta_ab.json');
+      }
+    });
+
+    it('v2 checksum mismatch logs warning in non-strict mode (graceful degradation)', async () => {
+      const mockLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      };
+      const nonStrictReader = new BitmapIndexReader({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      });
+
+      // Create v2 shard with intentionally wrong checksum
+      const v2ShardWithBadChecksum = {
+        version: 2,
+        checksum: 'intentionally-wrong-checksum-value',
+        data: { 'abcd1234': 123 }
+      };
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v2ShardWithBadChecksum)));
+
+      nonStrictReader.setup({
+        'meta_ab.json': 'bad-checksum-v2-oid'
+      });
+
+      // Should not throw, but return undefined (empty shard cached)
+      const result = await nonStrictReader.lookupId('abcd1234');
+      expect(result).toBeUndefined();
+
+      // Should have logged a warning
+      expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard validation warning', expect.objectContaining({
+        shardPath: 'meta_ab.json',
+        field: 'checksum',
+        error: 'Checksum mismatch',
+      }));
+    });
+
+    it('v1 checksum uses JSON.stringify, not canonicalStringify', async () => {
+      // This test verifies backward compatibility: v1 shards use JSON.stringify
+      // for checksum computation, which may produce different results than
+      // canonicalStringify for objects with unsorted keys.
+
+      // Data with keys in non-alphabetical order
+      const v1Data = { 'zebra': 1, 'alpha': 2 };
+
+      // v1 checksum computed with JSON.stringify (key order preserved)
+      const v1Checksum = createHash('sha256')
+        .update(JSON.stringify(v1Data))
+        .digest('hex');
+
+      const v1Shard = {
+        version: 1,
+        checksum: v1Checksum,
+        data: v1Data
+      };
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v1Shard)));
+
+      reader.setup({
+        'meta_ze.json': 'v1-key-order-oid'
+      });
+
+      // Should succeed because v1 uses JSON.stringify for verification
+      const id = await reader.lookupId('zebra');
+      expect(id).toBe(1);
+    });
+
+    it('v2 checksum uses canonicalStringify for deterministic ordering', async () => {
+      // Data with keys in non-alphabetical order
+      const v2Data = { 'zebra': 1, 'alpha': 2 };
+
+      // v2 checksum computed with canonicalStringify (keys sorted)
+      const v2Checksum = createHash('sha256')
+        .update(canonicalStringify(v2Data))
+        .digest('hex');
+
+      const v2Shard = {
+        version: 2,
+        checksum: v2Checksum,
+        data: v2Data
+      };
+
+      mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify(v2Shard)));
+
+      reader.setup({
+        'meta_ze.json': 'v2-canonical-oid'
+      });
+
+      // Should succeed because v2 uses canonicalStringify for verification
+      const id = await reader.lookupId('zebra');
+      expect(id).toBe(1);
     });
   });
 

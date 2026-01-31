@@ -3,6 +3,7 @@ import GitLogParser, { RECORD_SEPARATOR } from './GitLogParser.js';
 import GraphNode from '../entities/GraphNode.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
+import EmptyMessageError from '../errors/EmptyMessageError.js';
 
 /** Default maximum message size in bytes (1MB) */
 export const DEFAULT_MAX_MESSAGE_BYTES = 1048576;
@@ -74,6 +75,9 @@ export default class GraphService {
   async createNode({ message, parents = [], sign = false }) {
     if (typeof message !== 'string') {
       throw new Error('message must be a string');
+    }
+    if (message.length === 0) {
+      throw new EmptyMessageError('message must be non-empty', { operation: 'createNode' });
     }
     // Validate message size
     const messageBytes = Buffer.byteLength(message, 'utf-8');
@@ -318,6 +322,12 @@ export default class GraphService {
 
     if (typeof message !== 'string') {
       throw new Error(`Node at index ${index}: message must be a string`);
+    }
+    if (message.length === 0) {
+      throw new EmptyMessageError(`Node at index ${index}: message must be non-empty`, {
+        operation: 'createNodes',
+        context: { index }
+      });
     }
 
     const messageBytes = Buffer.byteLength(message, 'utf-8');

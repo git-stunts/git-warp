@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import BitmapIndexBuilder from '../../../../src/domain/services/BitmapIndexBuilder.js';
+import BitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/BitmapIndexBuilder.js';
 
 describe('BitmapIndexBuilder', () => {
+  describe('SHARD_VERSION export', () => {
+    it('exports SHARD_VERSION as 2 (current format)', () => {
+      expect(SHARD_VERSION).toBe(2);
+    });
+  });
+
   describe('constructor', () => {
     it('creates an empty builder', () => {
       const builder = new BitmapIndexBuilder();
@@ -64,6 +70,35 @@ describe('BitmapIndexBuilder', () => {
       expect(envelope.version).toBeDefined();
       expect(envelope.checksum).toBeDefined();
       expect(typeof envelope.data['aabbcc']).toBe('string'); // base64 encoded
+    });
+
+    it('writes v2 shards by default', () => {
+      const builder = new BitmapIndexBuilder();
+      builder.addEdge('aabbcc', 'ddeeff');
+
+      const tree = builder.serialize();
+
+      // Check meta shard
+      const metaEnvelope = JSON.parse(tree['meta_aa.json'].toString());
+      expect(metaEnvelope.version).toBe(2);
+
+      // Check forward shard
+      const fwdEnvelope = JSON.parse(tree['shards_fwd_aa.json'].toString());
+      expect(fwdEnvelope.version).toBe(2);
+
+      // Check reverse shard
+      const revEnvelope = JSON.parse(tree['shards_rev_dd.json'].toString());
+      expect(revEnvelope.version).toBe(2);
+    });
+
+    it('uses SHARD_VERSION constant for serialized version', () => {
+      const builder = new BitmapIndexBuilder();
+      builder.registerNode('testsha1');
+
+      const tree = builder.serialize();
+      const envelope = JSON.parse(tree['meta_te.json'].toString());
+
+      expect(envelope.version).toBe(SHARD_VERSION);
     });
   });
 });

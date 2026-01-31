@@ -203,7 +203,7 @@ export default class IndexRebuildService {
       }
     }
 
-    return builder.finalize();
+    return builder.finalize({ signal });
   }
 
   /**

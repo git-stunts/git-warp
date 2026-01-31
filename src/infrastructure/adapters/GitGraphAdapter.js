@@ -379,4 +379,25 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     });
     return parseInt(output.trim(), 10);
   }
+
+  /**
+   * Checks if one commit is an ancestor of another.
+   * Uses `git merge-base --is-ancestor` for efficient ancestry testing.
+   *
+   * @param {string} potentialAncestor - The commit that might be an ancestor
+   * @param {string} descendant - The commit that might be a descendant
+   * @returns {Promise<boolean>} True if potentialAncestor is an ancestor of descendant
+   */
+  async isAncestor(potentialAncestor, descendant) {
+    this._validateOid(potentialAncestor);
+    this._validateOid(descendant);
+    try {
+      await this._executeWithRetry({
+        args: ['merge-base', '--is-ancestor', potentialAncestor, descendant]
+      });
+      return true;  // Exit code 0 means it IS an ancestor
+    } catch {
+      return false; // Exit code 1 means it is NOT an ancestor
+    }
+  }
 }

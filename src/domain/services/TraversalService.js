@@ -10,6 +10,7 @@
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import TraversalError from '../errors/TraversalError.js';
 import MinHeap from '../utils/MinHeap.js';
+import { checkAborted } from '../utils/cancellation.js';
 
 /**
  * @typedef {'forward' | 'reverse'} TraversalDirection
@@ -92,6 +93,7 @@ export default class TraversalService {
    * @param {number} [options.maxNodes=100000] - Maximum nodes to visit
    * @param {number} [options.maxDepth=1000] - Maximum depth to traverse
    * @param {TraversalDirection} [options.direction='forward'] - Traversal direction
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @yields {TraversalNode}
    *
    * @example
@@ -99,7 +101,7 @@ export default class TraversalService {
    *   console.log(`${node.sha} at depth ${node.depth}`);
    * }
    */
-  async *bfs({ start, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, direction = 'forward' }) {
+  async *bfs({ start, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, direction = 'forward', signal }) {
     const visited = new Set();
     const queue = [{ sha: start, depth: 0, parent: null }];
     let nodesYielded = 0;
@@ -107,6 +109,10 @@ export default class TraversalService {
     this._logger.debug('BFS started', { start, direction, maxNodes, maxDepth });
 
     while (queue.length > 0 && nodesYielded < maxNodes) {
+      if (nodesYielded % 1000 === 0) {
+        checkAborted(signal, 'bfs');
+      }
+
       const current = queue.shift();
 
       if (visited.has(current.sha)) { continue; }
@@ -137,9 +143,10 @@ export default class TraversalService {
    * @param {number} [options.maxNodes=100000] - Maximum nodes to visit
    * @param {number} [options.maxDepth=1000] - Maximum depth to traverse
    * @param {TraversalDirection} [options.direction='forward'] - Traversal direction
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @yields {TraversalNode}
    */
-  async *dfs({ start, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, direction = 'forward' }) {
+  async *dfs({ start, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, direction = 'forward', signal }) {
     const visited = new Set();
     const stack = [{ sha: start, depth: 0, parent: null }];
     let nodesYielded = 0;
@@ -147,6 +154,10 @@ export default class TraversalService {
     this._logger.debug('DFS started', { start, direction, maxNodes, maxDepth });
 
     while (stack.length > 0 && nodesYielded < maxNodes) {
+      if (nodesYielded % 1000 === 0) {
+        checkAborted(signal, 'dfs');
+      }
+
       const current = stack.pop();
 
       if (visited.has(current.sha)) { continue; }
@@ -177,10 +188,11 @@ export default class TraversalService {
    * @param {string} options.sha - Starting node SHA
    * @param {number} [options.maxNodes=100000] - Maximum nodes to visit
    * @param {number} [options.maxDepth=1000] - Maximum depth to traverse
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @yields {TraversalNode}
    */
-  async *ancestors({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH }) {
-    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'reverse' });
+  async *ancestors({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
+    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'reverse', signal });
   }
 
   /**
@@ -190,10 +202,11 @@ export default class TraversalService {
    * @param {string} options.sha - Starting node SHA
    * @param {number} [options.maxNodes=100000] - Maximum nodes to visit
    * @param {number} [options.maxDepth=1000] - Maximum depth to traverse
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @yields {TraversalNode}
    */
-  async *descendants({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH }) {
-    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'forward' });
+  async *descendants({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
+    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'forward', signal });
   }
 
   /**
@@ -204,9 +217,10 @@ export default class TraversalService {
    * @param {string} options.to - Target node SHA
    * @param {number} [options.maxNodes=100000] - Maximum nodes to visit
    * @param {number} [options.maxDepth=1000] - Maximum search depth
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<PathResult>}
    */
-  async findPath({ from, to, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH }) {
+  async findPath({ from, to, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
     if (from === to) {
       return { found: true, path: [from], length: 0 };
     }
@@ -218,6 +232,10 @@ export default class TraversalService {
     const queue = [{ sha: from, depth: 0 }];
 
     while (queue.length > 0 && visited.size < maxNodes) {
+      if (visited.size % 1000 === 0) {
+        checkAborted(signal, 'findPath');
+      }
+
       const current = queue.shift();
 
       if (current.depth > maxDepth) { continue; }
@@ -254,9 +272,10 @@ export default class TraversalService {
    * @param {string} options.from - Source node SHA
    * @param {string} options.to - Target node SHA
    * @param {number} [options.maxDepth=1000] - Maximum search depth
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<PathResult>}
    */
-  async shortestPath({ from, to, maxDepth = DEFAULT_MAX_DEPTH }) {
+  async shortestPath({ from, to, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
     if (from === to) {
       return { found: true, path: [from], length: 0 };
     }
@@ -274,6 +293,8 @@ export default class TraversalService {
     let bwdFrontier = [to];
 
     for (let depth = 0; depth < maxDepth; depth++) {
+      checkAborted(signal, 'shortestPath');
+
       // Check if frontiers are exhausted
       if (fwdFrontier.length === 0 && bwdFrontier.length === 0) {
         break;
@@ -338,10 +359,11 @@ export default class TraversalService {
    * @param {string} options.to - Target SHA
    * @param {Function} [options.weightProvider] - Callback (fromSha, toSha) => number, defaults to 1
    * @param {string} [options.direction='children'] - 'children' or 'parents'
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<{path: string[], totalCost: number}>}
    * @throws {TraversalError} If no path exists between from and to
    */
-  async weightedShortestPath({ from, to, weightProvider = () => 1, direction = 'children' }) {
+  async weightedShortestPath({ from, to, weightProvider = () => 1, direction = 'children', signal }) {
     this._logger.debug('weightedShortestPath started', { from, to, direction });
 
     // Initialize distances map with Infinity for all except `from` (0)
@@ -359,6 +381,10 @@ export default class TraversalService {
     const visited = new Set();
 
     while (!pq.isEmpty()) {
+      if (visited.size % 1000 === 0) {
+        checkAborted(signal, 'weightedShortestPath');
+      }
+
       const current = pq.extractMin();
 
       // Skip if already visited
@@ -427,10 +453,11 @@ export default class TraversalService {
    * @param {Function} [options.weightProvider] - (fromSha, toSha) => number, defaults to 1
    * @param {Function} [options.heuristicProvider] - (sha, targetSha) => number, defaults to 0 (becomes Dijkstra)
    * @param {string} [options.direction='children'] - 'children' or 'parents'
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number}>}
    * @throws {TraversalError} If no path exists
    */
-  async aStarSearch({ from, to, weightProvider = () => 1, heuristicProvider = () => 0, direction = 'children' }) {
+  async aStarSearch({ from, to, weightProvider = () => 1, heuristicProvider = () => 0, direction = 'children', signal }) {
     this._logger.debug('aStarSearch started', { from, to, direction });
 
     // Epsilon for tie-breaking: small enough not to affect ordering by f,
@@ -462,6 +489,10 @@ export default class TraversalService {
     let nodesExplored = 0;
 
     while (!pq.isEmpty()) {
+      if (nodesExplored % 1000 === 0) {
+        checkAborted(signal, 'aStarSearch');
+      }
+
       const current = pq.extractMin();
 
       // Skip if already visited
@@ -529,6 +560,7 @@ export default class TraversalService {
    * @param {Function} [options.weightProvider] - (fromSha, toSha) => number
    * @param {Function} [options.forwardHeuristic] - (sha, targetSha) => number, for forward search
    * @param {Function} [options.backwardHeuristic] - (sha, targetSha) => number, for backward search
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number}>}
    * @throws {TraversalError} If no path exists between from and to
    */
@@ -538,6 +570,7 @@ export default class TraversalService {
     weightProvider = () => 1,
     forwardHeuristic = () => 0,
     backwardHeuristic = () => 0,
+    signal,
   }) {
     this._logger.debug('bidirectionalAStar started', { from, to });
 
@@ -571,6 +604,10 @@ export default class TraversalService {
     let nodesExplored = 0;
 
     while (!fwdHeap.isEmpty() || !bwdHeap.isEmpty()) {
+      if (nodesExplored % 1000 === 0) {
+        checkAborted(signal, 'bidirectionalAStar');
+      }
+
       // Get minimum f-values from each frontier
       const fwdMinF = fwdHeap.isEmpty() ? Infinity : fwdHeap.peekPriority();
       const bwdMinF = bwdHeap.isEmpty() ? Infinity : bwdHeap.peekPriority();
@@ -828,10 +865,11 @@ export default class TraversalService {
    * @param {string} options.from - Source node SHA
    * @param {string} options.to - Target node SHA
    * @param {number} [options.maxDepth=1000] - Maximum search depth
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<boolean>}
    */
-  async isReachable({ from, to, maxDepth = DEFAULT_MAX_DEPTH }) {
-    const result = await this.findPath({ from, to, maxDepth });
+  async isReachable({ from, to, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
+    const result = await this.findPath({ from, to, maxDepth, signal });
     return result.found;
   }
 
@@ -842,13 +880,14 @@ export default class TraversalService {
    * @param {string[]} options.shas - Array of node SHAs to find common ancestors for
    * @param {number} [options.maxResults=100] - Maximum ancestors to return
    * @param {number} [options.maxDepth=1000] - Maximum depth to search
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @returns {Promise<string[]>} Array of common ancestor SHAs
    */
-  async commonAncestors({ shas, maxResults = 100, maxDepth = DEFAULT_MAX_DEPTH }) {
+  async commonAncestors({ shas, maxResults = 100, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
     if (shas.length === 0) { return []; }
     if (shas.length === 1) {
       const ancestors = [];
-      for await (const node of this.ancestors({ sha: shas[0], maxNodes: maxResults, maxDepth })) {
+      for await (const node of this.ancestors({ sha: shas[0], maxNodes: maxResults, maxDepth, signal })) {
         ancestors.push(node.sha);
       }
       return ancestors;
@@ -861,8 +900,9 @@ export default class TraversalService {
     const requiredCount = shas.length;
 
     for (const sha of shas) {
+      checkAborted(signal, 'commonAncestors');
       const visited = new Set();
-      for await (const node of this.ancestors({ sha, maxDepth })) {
+      for await (const node of this.ancestors({ sha, maxDepth, signal })) {
         if (!visited.has(node.sha)) {
           visited.add(node.sha);
           ancestorCounts.set(node.sha, (ancestorCounts.get(node.sha) || 0) + 1);
@@ -894,10 +934,11 @@ export default class TraversalService {
    * @param {number} [options.maxNodes=100000] - Maximum nodes to yield
    * @param {TraversalDirection} [options.direction='forward'] - Direction determines dependency order
    * @param {boolean} [options.throwOnCycle=false] - If true, throws TraversalError when cycle detected
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
    * @yields {TraversalNode}
    * @throws {TraversalError} If throwOnCycle is true and a cycle is detected
    */
-  async *topologicalSort({ start, maxNodes = DEFAULT_MAX_NODES, direction = 'forward', throwOnCycle = false }) {
+  async *topologicalSort({ start, maxNodes = DEFAULT_MAX_NODES, direction = 'forward', throwOnCycle = false, signal }) {
     this._logger.debug('topologicalSort started', { start, direction, maxNodes });
 
     // Phase 1: Discover all reachable nodes and compute in-degrees
@@ -910,6 +951,10 @@ export default class TraversalService {
     allNodes.add(start);
 
     while (queue.length > 0) {
+      if (allNodes.size % 1000 === 0) {
+        checkAborted(signal, 'topologicalSort');
+      }
+
       const sha = queue.shift();
       const neighbors = await this._getNeighbors(sha, direction);
       edges.set(sha, neighbors);
@@ -940,6 +985,10 @@ export default class TraversalService {
     const depthMap = new Map([[start, 0]]);
 
     while (ready.length > 0 && nodesYielded < maxNodes) {
+      if (nodesYielded % 1000 === 0) {
+        checkAborted(signal, 'topologicalSort');
+      }
+
       const sha = ready.shift();
       const depth = depthMap.get(sha) || 0;
 

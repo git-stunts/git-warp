@@ -18,6 +18,7 @@ import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import PerformanceClockAdapter from './src/infrastructure/adapters/PerformanceClockAdapter.js';
 import GlobalClockAdapter from './src/infrastructure/adapters/GlobalClockAdapter.js';
+import GraphRefManager from './src/domain/services/GraphRefManager.js';
 import {
   IndexError,
   ShardLoadError,
@@ -28,6 +29,105 @@ import {
   OperationAbortedError,
 } from './src/domain/errors/index.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
+
+/**
+ * Batch context for efficient bulk node creation.
+ * Delays ref updates until commit() is called.
+ */
+class GraphBatch {
+  constructor(graph) {
+    this._graph = graph;
+    this._createdShas = [];
+    this._committed = false;
+  }
+
+  /**
+   * Creates a node without updating refs.
+   * @param {Object} options - Same as EmptyGraph.createNode()
+   * @returns {Promise<string>} The created SHA
+   */
+  async createNode(options) {
+    if (this._committed) {
+      throw new Error('Batch already committed');
+    }
+    const sha = await this._graph.service.createNode(options);
+    this._createdShas.push(sha);
+    return sha;
+  }
+
+  /**
+   * Finds SHAs that are tips (not ancestors of any other SHA in batch).
+   * @returns {Promise<string[]>} Array of tip SHAs
+   * @private
+   */
+  async _findDisconnectedTips() {
+    if (this._createdShas.length <= 1) {
+      return [...this._createdShas];
+    }
+
+    const tips = [];
+    for (const candidate of this._createdShas) {
+      let isAncestorOfAnother = false;
+      for (const other of this._createdShas) {
+        if (candidate !== other) {
+          if (await this._graph._persistence.isAncestor(candidate, other)) {
+            isAncestorOfAnother = true;
+            break;
+          }
+        }
+      }
+      if (!isAncestorOfAnother) {
+        tips.push(candidate);
+      }
+    }
+    return tips;
+  }
+
+  /**
+   * Commits the batch, updating the ref once.
+   * @returns {Promise<{count: number, anchor?: string}>}
+   */
+  async commit() {
+    if (this._committed) {
+      throw new Error('Batch already committed');
+    }
+    this._committed = true;
+
+    if (this._createdShas.length === 0) {
+      return { count: 0 };
+    }
+
+    // Find disconnected tips among created SHAs
+    const tips = await this._findDisconnectedTips();
+
+    // Read current ref tip
+    const currentTip = await this._graph._persistence.readRef(this._graph._ref);
+
+    // Build octopus: current tip (if exists) + all new tips
+    const parents = currentTip ? [currentTip, ...tips] : tips;
+
+    // Create single octopus anchor
+    const anchorMessage = JSON.stringify({ _type: 'anchor' });
+    const anchorSha = await this._graph._persistence.commitNode({
+      message: anchorMessage,
+      parents,
+    });
+
+    // Update ref
+    await this._graph._persistence.updateRef(this._graph._ref, anchorSha);
+
+    return {
+      count: this._createdShas.length,
+      anchor: anchorSha,
+      tips: tips.length,
+    };
+  }
+
+  /** @returns {string[]} SHAs created in this batch */
+  get createdShas() {
+    return [...this._createdShas];
+  }
+}
 
 export {
   GraphService,
@@ -53,6 +153,12 @@ export {
   ClockPort,
   PerformanceClockAdapter,
   GlobalClockAdapter,
+
+  // Ref management
+  GraphRefManager,
+
+  // Batching API
+  GraphBatch,
 
   // Error types for integrity failure handling
   IndexError,
@@ -117,6 +223,33 @@ export const DEFAULT_INDEX_REF = 'refs/empty-graph/index';
  */
 export default class EmptyGraph {
   /**
+   * Opens a managed graph with automatic durability guarantees.
+   *
+   * @param {Object} options
+   * @param {GraphPersistencePort & IndexStoragePort} options.persistence - Adapter
+   * @param {string} options.ref - The ref to manage (e.g., 'refs/empty-graph/events')
+   * @param {'managed'|'manual'} [options.mode='managed'] - Durability mode
+   * @param {'onWrite'|'manual'} [options.autoSync='onWrite'] - When to sync refs
+   * @param {number} [options.maxMessageBytes] - Max message size
+   * @param {LoggerPort} [options.logger] - Logger
+   * @param {ClockPort} [options.clock] - Clock
+   * @returns {Promise<EmptyGraph>} Configured graph instance
+   */
+  static async open({ persistence, ref, mode = 'managed', autoSync = 'onWrite', ...rest }) {
+    const graph = new EmptyGraph({ persistence, ...rest });
+    graph._ref = ref;
+    graph._mode = mode;
+    graph._autoSync = autoSync;
+    if (mode === 'managed') {
+      graph._refManager = new GraphRefManager({
+        persistence,
+        logger: graph._logger.child({ component: 'GraphRefManager' }),
+      });
+    }
+    return graph;
+  }
+
+  /**
    * Creates a new EmptyGraph instance.
    * @param {Object} options
    * @param {GraphPersistencePort & IndexStoragePort} options.persistence - Adapter implementing both persistence ports
@@ -170,7 +303,14 @@ export default class EmptyGraph {
    * });
    */
   async createNode(options) {
-    return this.service.createNode(options);
+    const sha = await this.service.createNode(options);
+
+    // In managed mode with autoSync='onWrite', sync the ref
+    if (this._mode === 'managed' && this._autoSync === 'onWrite' && this._refManager) {
+      await this._refManager.syncHead(this._ref, sha);
+    }
+
+    return sha;
   }
 
   /**
@@ -203,7 +343,54 @@ export default class EmptyGraph {
    * ]);
    */
   async createNodes(nodes) {
-    return this.service.createNodes(nodes);
+    const shas = await this.service.createNodes(nodes);
+
+    // In managed mode with autoSync='onWrite', sync with the last created node
+    if (this._mode === 'managed' && this._autoSync === 'onWrite' && this._refManager && shas.length > 0) {
+      // Sync with the last SHA - it should be reachable from all others if they're connected
+      // For disconnected nodes, multiple syncs may create anchors
+      const lastSha = shas[shas.length - 1];
+      await this._refManager.syncHead(this._ref, lastSha);
+    }
+
+    return shas;
+  }
+
+  /**
+   * Manually syncs the ref to make all pending nodes reachable.
+   * Only needed when autoSync='manual'.
+   *
+   * @param {string} [sha] - Specific SHA to sync to. If not provided, uses last created node.
+   * @returns {Promise<{updated: boolean, anchor: boolean, sha: string}>}
+   */
+  async sync(sha) {
+    if (!this._refManager) {
+      throw new Error('sync() requires managed mode. Use EmptyGraph.open() with mode="managed".');
+    }
+    if (!sha) {
+      throw new Error('sha is required for sync()');
+    }
+    return this._refManager.syncHead(this._ref, sha);
+  }
+
+  /**
+   * Begins a batch operation for efficient bulk writes.
+   *
+   * Batch mode delays ref updates until commit() is called,
+   * avoiding per-node overhead for large imports.
+   *
+   * @returns {GraphBatch} A batch context
+   * @example
+   * const tx = graph.beginBatch();
+   * const a = await tx.createNode({ message: 'A' });
+   * const b = await tx.createNode({ message: 'B', parents: [a] });
+   * await tx.commit(); // Single ref update
+   */
+  beginBatch() {
+    if (this._mode !== 'managed') {
+      throw new Error('beginBatch() requires managed mode. Use EmptyGraph.open() with mode="managed".');
+    }
+    return new GraphBatch(this);
   }
 
   /**
@@ -494,5 +681,118 @@ export default class EmptyGraph {
    */
   async countNodes(ref) {
     return this.service.countNodes(ref);
+  }
+
+  /**
+   * Creates an anchor commit to make SHAs reachable from a ref.
+   *
+   * This is an advanced method for power users who want fine-grained
+   * control over ref management. In managed mode, this is handled
+   * automatically by createNode().
+   *
+   * @param {string} ref - The ref to update
+   * @param {string|string[]} shas - SHA(s) to anchor
+   * @returns {Promise<string>} The anchor commit SHA
+   * @example
+   * // Anchor a single disconnected node
+   * const anchorSha = await graph.anchor('refs/my-graph', nodeSha);
+   *
+   * @example
+   * // Anchor multiple nodes at once
+   * const anchorSha = await graph.anchor('refs/my-graph', [sha1, sha2, sha3]);
+   */
+  async anchor(ref, shas) {
+    const shaArray = Array.isArray(shas) ? shas : [shas];
+
+    // Read current ref tip
+    const currentTip = await this._persistence.readRef(ref);
+
+    // Build parents: current tip (if exists) + new SHAs
+    const parents = currentTip ? [currentTip, ...shaArray] : shaArray;
+
+    // Create anchor commit
+    const anchorMessage = JSON.stringify({ _type: 'anchor' });
+    const anchorSha = await this._persistence.commitNode({
+      message: anchorMessage,
+      parents,
+    });
+
+    // Update ref to point to anchor
+    await this._persistence.updateRef(ref, anchorSha);
+
+    return anchorSha;
+  }
+
+  /**
+   * Compacts anchor chains into a single octopus anchor.
+   *
+   * Walks from the ref through commits, identifies real (non-anchor) tips,
+   * and creates a fresh octopus anchor with those tips as parents.
+   * Useful for cleaning up after many incremental writes.
+   *
+   * @param {string} [ref] - The ref to compact (defaults to graph's managed ref)
+   * @returns {Promise<{compacted: boolean, oldAnchors: number, tips: number, newAnchor?: string}>}
+   * @example
+   * // After many incremental writes
+   * const result = await graph.compactAnchors();
+   * console.log(`Replaced ${result.oldAnchors} anchors with 1`);
+   */
+  async compactAnchors(ref) {
+    const targetRef = ref || this._ref;
+    if (!targetRef) {
+      throw new Error('compactAnchors() requires a ref. Use EmptyGraph.open() or pass ref parameter.');
+    }
+
+    const currentTip = await this._persistence.readRef(targetRef);
+    if (!currentTip) {
+      return { compacted: false, oldAnchors: 0, tips: 0 };
+    }
+
+    // Collect all commits reachable from ref, separate anchors from real nodes
+    const anchors = [];
+    const realNodes = [];
+
+    for await (const node of this.iterateNodes({ ref: targetRef, limit: 1000000 })) {
+      if (node.message.startsWith('{"_type":"anchor"')) {
+        anchors.push(node.sha);
+      } else {
+        realNodes.push(node);
+      }
+    }
+
+    // If no anchors, nothing to compact
+    if (anchors.length === 0) {
+      return { compacted: false, oldAnchors: 0, tips: realNodes.length };
+    }
+
+    // Find tips: real nodes that have no children among real nodes
+    const hasChild = new Set();
+    for (const node of realNodes) {
+      for (const parent of node.parents) {
+        hasChild.add(parent);
+      }
+    }
+    const tips = realNodes.filter(n => !hasChild.has(n.sha)).map(n => n.sha);
+
+    if (tips.length === 0) {
+      return { compacted: false, oldAnchors: anchors.length, tips: 0 };
+    }
+
+    // Create single octopus anchor with all tips
+    const anchorMessage = JSON.stringify({ _type: 'anchor' });
+    const newAnchor = await this._persistence.commitNode({
+      message: anchorMessage,
+      parents: tips,
+    });
+
+    // Update ref to point to new anchor
+    await this._persistence.updateRef(targetRef, newAnchor);
+
+    return {
+      compacted: true,
+      oldAnchors: anchors.length,
+      tips: tips.length,
+      newAnchor,
+    };
   }
 }

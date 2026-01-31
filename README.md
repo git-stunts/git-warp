@@ -124,6 +124,10 @@ That's the stunt. Take something everyone has, use it for something no one inten
 npm install @git-stunts/empty-graph @git-stunts/plumbing
 ```
 
+## Durability
+
+> **Warning**: If you don't use managed mode or call `sync()`/`anchor()`, Git GC can prune unreachable nodes. See [SEMANTICS.md](./SEMANTICS.md) for details.
+
 ## Quick Start
 
 ```javascript
@@ -134,13 +138,15 @@ import EmptyGraph, { GitGraphAdapter } from '@git-stunts/empty-graph';
 const plumbing = new GitPlumbing({ cwd: './my-db' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-// Create the graph with injected adapter
-const graph = new EmptyGraph({ persistence });
+// Open graph in managed mode (recommended)
+const graph = await EmptyGraph.open({
+  persistence,
+  ref: 'refs/empty-graph/events',
+  mode: 'managed',  // default - automatic durability
+});
 
-// Create a node (commit)
+// Create nodes - automatically synced to ref
 const parentSha = await graph.createNode({ message: 'First Entry' });
-
-// Create a child node
 const childSha = await graph.createNode({
   message: 'Second Entry',
   parents: [parentSha]
@@ -149,14 +155,106 @@ const childSha = await graph.createNode({
 // Read data
 const message = await graph.readNode(childSha);
 
-// List linear history (small graphs)
-const nodes = await graph.listNodes({ ref: childSha, limit: 50 });
-
 // Stream large graphs (millions of nodes)
-for await (const node of graph.iterateNodes({ ref: childSha })) {
+for await (const node of graph.iterateNodes({ ref: 'refs/empty-graph/events' })) {
   console.log(node.message);
 }
 ```
+
+## Choosing a Mode
+
+### Beginner (Recommended)
+
+Use `EmptyGraph.open()` with managed mode for automatic durability:
+
+```javascript
+const graph = await EmptyGraph.open({
+  persistence,
+  ref: 'refs/empty-graph/events',
+  mode: 'managed',  // default
+});
+
+// Every write is automatically made durable
+await graph.createNode({ message: 'Safe from GC' });
+```
+
+### Batch Writer
+
+For bulk imports, use batching to reduce ref update overhead:
+
+```javascript
+const tx = graph.beginBatch();
+for (const item of items) {
+  await tx.createNode({ message: JSON.stringify(item) });
+}
+await tx.commit();  // Single ref update
+```
+
+### Power User
+
+For custom ref management, use manual mode:
+
+```javascript
+const graph = await EmptyGraph.open({
+  persistence,
+  ref: 'refs/my-graph',
+  mode: 'managed',
+  autoSync: 'manual',
+});
+
+// Create nodes without automatic ref updates
+const sha1 = await graph.createNode({ message: 'Node 1' });
+const sha2 = await graph.createNode({ message: 'Node 2' });
+
+// Explicit sync when ready
+await graph.sync(sha2);
+
+// Or use anchor() for fine-grained control
+await graph.anchor('refs/my-graph', [sha1, sha2]);
+```
+
+### Direct Constructor (Legacy)
+
+For backward compatibility, you can still use the constructor directly:
+
+```javascript
+const graph = new EmptyGraph({ persistence });
+
+// But you must manage durability yourself!
+const sha = await graph.createNode({ message: 'May be GC\'d!' });
+```
+
+## How Durability Works
+
+EmptyGraph nodes are Git commits. Git garbage collection (GC) prunes commits that are not reachable from any ref. Without ref management, your data can be silently deleted.
+
+In **managed mode**, EmptyGraph automatically maintains reachability using **anchor commits**:
+
+- **Linear history**: Fast-forward updates (no anchor needed)
+- **Disconnected roots**: Creates an anchor commit with parents `[old_tip, new_commit]`
+- **Batch imports**: Single octopus anchor with all tips as parents
+
+Anchor commits have the message `{"_type":"anchor"}` and are filtered from graph traversals—they are infrastructure, not domain data.
+
+See [docs/ANCHORING.md](./docs/ANCHORING.md) for the full algorithm and [SEMANTICS.md](./SEMANTICS.md) for the durability contract.
+
+## Performance Considerations
+
+Anchor commit overhead depends on your write pattern:
+
+| Pattern | Anchor Overhead | Notes |
+|---------|-----------------|-------|
+| Linear history | Zero | Fast-forward updates |
+| Disconnected roots (`autoSync: 'onWrite'`) | O(N) chained anchors | One anchor per disconnected write |
+| Batch imports (`beginBatch()`) | O(1) octopus anchor | Single anchor regardless of batch size |
+
+**Recommendations:**
+
+- Use `beginBatch()` for bulk imports to avoid anchor chains
+- Call `compactAnchors()` periodically to consolidate chained anchors into one octopus
+- For streaming writes with disconnected roots, consider batching or periodic compaction
+
+See [docs/ANCHORING.md](./docs/ANCHORING.md) for traversal complexity analysis.
 
 ## Interactive Demo
 
@@ -234,9 +332,33 @@ Path: 0148a1e4 → 6771a15f → 20744421 → 6025e6ca → d2abe22c → fb285001 
 
 ### `EmptyGraph`
 
+#### `static async open({ persistence, ref, mode?, autoSync?, ... })`
+
+Opens a managed graph with automatic durability guarantees. **This is the recommended way to create an EmptyGraph instance.**
+
+**Parameters:**
+- `persistence` (GitGraphAdapter): Adapter implementing `GraphPersistencePort` & `IndexStoragePort`
+- `ref` (string): The ref to manage (e.g., `'refs/empty-graph/events'`)
+- `mode` ('managed' | 'manual', optional): Durability mode. Defaults to `'managed'`
+- `autoSync` ('onWrite' | 'manual', optional): When to sync refs. Defaults to `'onWrite'`
+- `maxMessageBytes` (number, optional): Maximum message size. Defaults to 1MB
+- `logger` (LoggerPort, optional): Logger for structured logging
+- `clock` (ClockPort, optional): Clock for timing operations
+
+**Returns:** `Promise<EmptyGraph>` - Configured graph instance
+
+**Example:**
+```javascript
+const graph = await EmptyGraph.open({
+  persistence,
+  ref: 'refs/empty-graph/events',
+  mode: 'managed',
+});
+```
+
 #### `constructor({ persistence, clock?, healthCacheTtlMs? })`
 
-Creates a new EmptyGraph instance.
+Creates a new EmptyGraph instance (legacy API). Prefer `EmptyGraph.open()` for automatic durability.
 
 **Parameters:**
 - `persistence` (GitGraphAdapter): Adapter implementing `GraphPersistencePort` & `IndexStoragePort`
@@ -290,6 +412,87 @@ const shas = await graph.createNodes([
   { message: 'Merge', parents: ['$1', '$2'] },
 ]);
 ```
+
+#### `beginBatch()`
+
+Begins a batch operation for efficient bulk writes. Delays ref updates until `commit()` is called. **Requires managed mode.**
+
+**Returns:** `GraphBatch` - A batch context
+
+**Example:**
+```javascript
+const tx = graph.beginBatch();
+const a = await tx.createNode({ message: 'Node A' });
+const b = await tx.createNode({ message: 'Node B', parents: [a] });
+const result = await tx.commit();  // Single ref update
+console.log(result.count);  // 2
+console.log(result.anchor); // SHA if anchor was created, undefined otherwise
+```
+
+#### `async sync(sha)`
+
+Manually syncs the ref to make a node reachable. Only needed when `autoSync='manual'`.
+
+**Parameters:**
+- `sha` (string): The SHA to sync to the managed ref
+
+**Returns:** `Promise<{ updated: boolean, anchor: boolean, sha: string }>`
+
+**Throws:** `Error` if not in managed mode or sha is not provided
+
+**Example:**
+```javascript
+const graph = await EmptyGraph.open({
+  persistence,
+  ref: 'refs/my-graph',
+  mode: 'managed',
+  autoSync: 'manual',
+});
+
+const sha = await graph.createNode({ message: 'My node' });
+await graph.sync(sha);  // Explicitly make durable
+```
+
+#### `async anchor(ref, shas)`
+
+Creates an anchor commit to make SHAs reachable from a ref. This is an advanced method for power users who want fine-grained control over ref management.
+
+**Parameters:**
+- `ref` (string): The ref to update
+- `shas` (string | string[]): SHA(s) to anchor
+
+**Returns:** `Promise<string>` - The anchor commit SHA
+
+**Example:**
+```javascript
+// Anchor a single disconnected node
+const anchorSha = await graph.anchor('refs/my-graph', nodeSha);
+
+// Anchor multiple nodes at once
+const anchorSha = await graph.anchor('refs/my-graph', [sha1, sha2, sha3]);
+```
+
+#### `async compactAnchors(ref?)`
+
+Consolidates chained anchor commits into a single octopus anchor. Use this to clean up after many incremental writes that created disconnected roots.
+
+**Parameters:**
+- `ref` (string, optional): The ref to compact. Defaults to the managed ref.
+
+**Returns:** `Promise<{ compacted: boolean, oldAnchors: number, tips: number }>`
+- `compacted`: Whether compaction occurred
+- `oldAnchors`: Number of anchor commits replaced
+- `tips`: Number of real node tips in the new octopus anchor
+
+**Example:**
+```javascript
+// After many incremental writes with disconnected roots
+const result = await graph.compactAnchors();
+console.log(`Replaced ${result.oldAnchors} anchors with 1 octopus anchor`);
+console.log(`Now tracking ${result.tips} tips`);
+```
+
+See [docs/ANCHORING.md](./docs/ANCHORING.md) for details on when compaction is beneficial.
 
 #### `async readNode(sha)`
 

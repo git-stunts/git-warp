@@ -8,17 +8,37 @@ const { RoaringBitmap32 } = roaring;
  * Increment when changing the shard structure.
  * @const {number}
  */
-export const SHARD_VERSION = 1;
+export const SHARD_VERSION = 2;
+
+/**
+ * Produces a canonical JSON string with deterministic key ordering.
+ * Recursively sorts object keys alphabetically to ensure consistent
+ * output across different JavaScript engines.
+ *
+ * @param {*} obj - The value to stringify
+ * @returns {string} Canonical JSON string
+ */
+const canonicalStringify = (obj) => {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(canonicalStringify).join(',') + ']';
+  }
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalStringify(obj[k])).join(',') + '}';
+};
 
 /**
  * Computes a SHA-256 checksum of the given data.
- * Used to verify shard integrity on load.
+ * Uses canonical JSON stringification for deterministic output
+ * across different JavaScript engines.
  *
  * @param {Object} data - The data object to checksum
  * @returns {string} Hex-encoded SHA-256 hash
  */
 const computeChecksum = (data) => {
-  const json = JSON.stringify(data);
+  const json = canonicalStringify(data);
   return createHash('sha256').update(json).digest('hex');
 };
 

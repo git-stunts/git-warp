@@ -1,6 +1,6 @@
 # Architecture: @git-stunts/empty-graph
 
-A graph database substrate living entirely within Git commits, using the "Empty Tree" pattern for invisible storage and Roaring Bitmaps for high-performance indexing.
+A "hidden" graph database. No files, just Git commits, using the "Empty Tree" pattern for invisible storage and Roaring Bitmaps for high-performance indexing.
 
 ## 🧱 Core Concepts
 

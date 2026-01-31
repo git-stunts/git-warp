@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GraphService from '../../../../src/domain/services/GraphService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
+import EmptyMessageError from '../../../../src/domain/errors/EmptyMessageError.js';
 
 describe('GraphService', () => {
   let service;
@@ -157,6 +158,59 @@ describe('GraphService', () => {
 
       await expect(service.createNode({ message }))
         .rejects.toThrow(/600 bytes.*500 bytes/);
+    });
+  });
+
+  describe('empty message validation', () => {
+    it('createNode throws EmptyMessageError for empty message', async () => {
+      await expect(service.createNode({ message: '' }))
+        .rejects.toThrow(EmptyMessageError);
+    });
+
+    it('EmptyMessageError has code EMPTY_MESSAGE', async () => {
+      try {
+        await service.createNode({ message: '' });
+        expect.fail('Expected EmptyMessageError to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(EmptyMessageError);
+        expect(error.code).toBe('EMPTY_MESSAGE');
+      }
+    });
+
+    it('EmptyMessageError has operation createNode', async () => {
+      try {
+        await service.createNode({ message: '' });
+        expect.fail('Expected EmptyMessageError to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(EmptyMessageError);
+        expect(error.operation).toBe('createNode');
+      }
+    });
+
+    it('createNodes throws EmptyMessageError for empty message', async () => {
+      await expect(service.createNodes([{ message: '' }]))
+        .rejects.toThrow(EmptyMessageError);
+    });
+
+    it('createNodes EmptyMessageError includes index in context', async () => {
+      try {
+        await service.createNodes([
+          { message: 'Valid' },
+          { message: '' }, // Empty at index 1
+        ]);
+        expect.fail('Expected EmptyMessageError to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(EmptyMessageError);
+        expect(error.code).toBe('EMPTY_MESSAGE');
+        expect(error.operation).toBe('createNodes');
+        expect(error.context.index).toBe(1);
+      }
+    });
+
+    it('createNodes does not call persistence for empty message', async () => {
+      await expect(service.createNodes([{ message: '' }]))
+        .rejects.toThrow(EmptyMessageError);
+      expect(mockPersistence.commitNode).not.toHaveBeenCalled();
     });
   });
 
