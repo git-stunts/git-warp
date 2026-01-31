@@ -30,6 +30,21 @@ import {
 } from './src/domain/errors/index.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
+// Multi-writer graph support (WARP)
+import MultiWriterGraph from './src/domain/MultiWriterGraph.js';
+import PatchBuilder from './src/domain/services/PatchBuilder.js';
+import {
+  createNodeAdd,
+  createNodeTombstone,
+  createEdgeAdd,
+  createEdgeTombstone,
+  createPropSet,
+  createPatch,
+  createInlineValue,
+  createBlobValue,
+  createEventId,
+} from './src/domain/types/WarpTypes.js';
+
 /**
  * Batch context for efficient bulk node creation.
  * Delays ref updates until commit() is called.
@@ -172,6 +187,21 @@ export {
   // Cancellation utilities
   checkAborted,
   createTimeoutSignal,
+
+  // Multi-writer graph support (WARP)
+  MultiWriterGraph,
+  PatchBuilder,
+
+  // WARP type creators
+  createNodeAdd,
+  createNodeTombstone,
+  createEdgeAdd,
+  createEdgeTombstone,
+  createPropSet,
+  createPatch,
+  createInlineValue,
+  createBlobValue,
+  createEventId,
 };
 
 /** Default ref for storing the index OID */
@@ -247,6 +277,30 @@ export default class EmptyGraph {
       });
     }
     return graph;
+  }
+
+  /**
+   * Opens a multi-writer graph for WARP protocol.
+   *
+   * @param {Object} options
+   * @param {GraphPersistencePort} options.persistence - Git adapter
+   * @param {string} options.graphName - Graph namespace
+   * @param {string} options.writerId - This writer's ID
+   * @returns {Promise<MultiWriterGraph>} The opened multi-writer graph
+   *
+   * @example
+   * const graph = await EmptyGraph.openMultiWriter({
+   *   persistence: gitAdapter,
+   *   graphName: 'events',
+   *   writerId: 'node-1',
+   * });
+   *
+   * await graph.createPatch()
+   *   .addNode('user:alice')
+   *   .commit();
+   */
+  static async openMultiWriter({ persistence, graphName, writerId }) {
+    return MultiWriterGraph.open({ persistence, graphName, writerId });
   }
 
   /**

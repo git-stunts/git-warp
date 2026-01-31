@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-01-31
+
+### Added
+
+#### Multi-Writer Support (WARP Protocol v4)
+- **`EmptyGraph.openMultiWriter()`** - New static factory for creating multi-writer graphs with deterministic convergence
+- **`MultiWriterGraph`** - Main API class for WARP multi-writer graph operations
+- **`PatchBuilder`** - Fluent API for constructing graph mutations as atomic patches
+  - `.addNode(nodeId)` - Add a node
+  - `.removeNode(nodeId)` - Tombstone a node
+  - `.addEdge(from, to, label)` - Add an edge
+  - `.removeEdge(from, to, label)` - Tombstone an edge
+  - `.setProperty(nodeId, key, value)` - Set a property
+  - `.commit()` - Commit the patch atomically
+
+#### State Materialization
+- **`graph.materialize()`** - Reduces all patches from all writers to current state
+- **`graph.materializeAt(checkpointSha)`** - Incremental materialization from checkpoint
+- **`graph.discoverWriters()`** - List all writers that have contributed to the graph
+
+#### Checkpoints
+- **`CheckpointService`** - Create, load, and incrementally rebuild from checkpoints
+- **`graph.createCheckpoint()`** - Snapshot current state for fast recovery
+- Checkpoint format: `state.cbor`, `frontier.cbor` in Git tree
+
+#### Coverage & Sync
+- **`graph.syncCoverage()`** - Create octopus anchor ensuring all writers reachable from single ref
+
+#### CRDT Foundation
+- **`LWW` (Last-Writer-Wins)** - Register type for conflict resolution
+- **`EventId`** - Total ordering tuple `(lamport, writerId, patchSha, opIndex)`
+- **`Reducer`** - Deterministic fold algorithm with LWW semantics
+- **`Frontier`** - Writer progress tracking `Map<writerId, lastPatchSha>`
+- **`StateSerializer`** - Canonical state hashing for determinism verification
+
+#### Infrastructure
+- **`WarpMessageCodec`** - Encode/decode patch, checkpoint, and anchor commit messages with Git trailers
+- **`CborCodec`** - Canonical CBOR encoding for deterministic serialization
+- **`RefLayout`** - Ref path builders and validators for WARP ref structure
+- **`LegacyAnchorDetector`** - Backward compatibility for v3 JSON anchors
+
+#### GitGraphAdapter Extensions
+- **`commitNodeWithTree()`** - Create commits pointing to custom trees (for patch attachments)
+- **`listRefs(prefix)`** - List refs under a prefix (for writer discovery)
+
+### Performance
+- 10K patches reduce in ~100ms (50x faster than 5s requirement)
+- Memory usage ~35MB for 10K patches (well under 500MB limit)
+- Incremental materialization from checkpoints for O(new patches) recovery
+
+### Documentation
+- Added "Multi-Writer API (WARP v4)" section to README
+- Created `docs/MULTI-WRITER-GUIDE.md` - Comprehensive user guide
+- Created `docs/WARP-TECH-SPEC-ROADMAP.md` - Full protocol specification
+- Created `docs/WARP-V5-HANDOFF.md` - Handoff notes for v5 implementation
+
+### Testing
+- Determinism tests: verify `reduce([A,B]) === reduce([B,A])`
+- Tombstone stability tests: concurrent add/tombstone/property scenarios
+- Performance benchmarks: 1K, 5K, 10K, 25K patch scaling
+- v3 backward compatibility tests: legacy anchor detection
+- Integration tests: real Git operations with multiple writers
+
 ## [3.0.0] - 2025-01-30
 
 ### Added

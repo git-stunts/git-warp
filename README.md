@@ -8,6 +8,7 @@
 
 ## Key highlights:
 
+- **Multi-writer support** via WARP protocol with deterministic LWW merge
 - **Hexagonal architecture** with ports/adapters and DDD patterns
 - **Roaring Bitmap indexes for O(1) parent/child lookups**
 - Graph traversal algorithms (BFS, DFS, Dijkstra, A*, bidirectional)
@@ -1115,6 +1116,115 @@ A warning is logged when the cache exceeds 1 million entries to help identify me
 - External indexing solutions (Redis, SQLite)
 - Periodic index rebuilds to remove unreachable nodes
 
+## Multi-Writer API (WARP v4)
+
+EmptyGraph supports multi-writer convergent graphs via the WARP protocol. Multiple writers can independently create patches that deterministically merge.
+
+### Quick Start
+
+```javascript
+import { EmptyGraph, GitGraphAdapter } from 'empty-graph';
+import Plumbing from '@git-stunts/plumbing';
+
+// Setup
+const plumbing = new Plumbing({ cwd: '/path/to/repo' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+// Open multi-writer graph
+const graph = await EmptyGraph.openMultiWriter({
+  persistence,
+  graphName: 'my-graph',
+  writerId: 'writer-1',
+});
+
+// Create a patch with graph mutations
+await graph.createPatch()
+  .addNode('user:alice')
+  .setProperty('user:alice', 'name', 'Alice')
+  .addEdge('user:alice', 'group:admins', 'member-of')
+  .commit();
+
+// Materialize current state (merges all writers)
+const state = await graph.materialize();
+
+// Create checkpoint for fast recovery
+const checkpointSha = await graph.createCheckpoint();
+
+// Later: materialize incrementally from checkpoint
+const state2 = await graph.materializeAt(checkpointSha);
+```
+
+### Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Writer** | Independent actor with unique ID. Each writer has its own patch chain. |
+| **Patch** | Atomic batch of graph operations from a single writer. |
+| **EventId** | Tuple `(lamport, writerId, patchSha, opIndex)` for total ordering. |
+| **Frontier** | Map of `writerId → lastPatchSha` representing processed state. |
+| **Checkpoint** | Snapshot of materialized state for fast recovery. |
+
+### Conflict Resolution
+
+WARP uses Last-Writer-Wins (LWW) semantics. When two writers modify the same entity:
+- Higher Lamport timestamp wins
+- Same timestamp: lexicographically greater writerId wins
+- Same writerId: greater patchSha wins
+
+This guarantees **deterministic convergence** - all replicas reach identical state.
+
+### Multi-Writer Example
+
+```javascript
+// Writer 1 (on machine A)
+const alice = await EmptyGraph.openMultiWriter({
+  persistence, graphName: 'shared', writerId: 'alice'
+});
+await alice.createPatch().addNode('doc:1').commit();
+
+// Writer 2 (on machine B)
+const bob = await EmptyGraph.openMultiWriter({
+  persistence, graphName: 'shared', writerId: 'bob'
+});
+await bob.createPatch().addNode('doc:2').commit();
+
+// After git sync, either writer can materialize combined state
+const writers = await alice.discoverWriters(); // ['alice', 'bob']
+const state = await alice.materialize(); // Contains doc:1 and doc:2
+```
+
+### API Reference
+
+#### `EmptyGraph.openMultiWriter(options)`
+Opens a multi-writer graph.
+- `options.persistence` - GitGraphAdapter instance
+- `options.graphName` - Graph namespace (allows multiple graphs per repo)
+- `options.writerId` - Unique identifier for this writer
+
+#### `graph.createPatch()`
+Returns a `PatchBuilder` for fluent patch construction.
+- `.addNode(nodeId)` - Add a node
+- `.removeNode(nodeId)` - Tombstone a node
+- `.addEdge(from, to, label)` - Add an edge
+- `.removeEdge(from, to, label)` - Tombstone an edge
+- `.setProperty(nodeId, key, value)` - Set a property
+- `.commit()` - Commit the patch, returns SHA
+
+#### `graph.materialize()`
+Reduces all patches from all writers to current state.
+
+#### `graph.materializeAt(checkpointSha)`
+Incrementally materializes from a checkpoint.
+
+#### `graph.createCheckpoint()`
+Creates a checkpoint of current state. Returns checkpoint SHA.
+
+#### `graph.syncCoverage()`
+Creates octopus anchor ensuring all writers are reachable from single ref.
+
+#### `graph.discoverWriters()`
+Returns sorted array of all writer IDs.
+
 ## Architecture
 
 EmptyGraph follows hexagonal architecture (ports & adapters):
@@ -1222,6 +1332,14 @@ git commit --no-verify
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
-## License
+## License## License
+  
+Apache-2.0 © 2026 by James Ross
 
-Apache-2.0 © James Ross
+---
+
+<p align="center">
+
+<sub>Built by <a href="https://github.com/flyingrobots">FLYING•ROBOTS</a></sub>
+
+</p>
