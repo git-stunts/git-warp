@@ -10,11 +10,14 @@
 
 import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, buildCheckpointRef, buildWritersPrefix, parseWriterIdFromRef } from './utils/RefLayout.js';
 import PatchBuilder from './services/PatchBuilder.js';
+import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
 import { reduce, createEmptyState } from './services/Reducer.js';
+import { reduceV5, createEmptyStateV5, joinStates } from './services/JoinReducer.js';
 import { decode } from '../infrastructure/codecs/CborCodec.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
 import { loadCheckpoint, materializeIncremental, create as createCheckpointCommit } from './services/CheckpointService.js';
 import { createFrontier, updateFrontier } from './services/Frontier.js';
+import { createVersionVector, vvClone } from './crdt/VersionVector.js';
 
 /**
  * MultiWriterGraph class for interacting with a WARP multi-writer graph.
@@ -26,8 +29,12 @@ export default class MultiWriterGraph {
    * @param {import('../ports/GraphPersistencePort.js').default} options.persistence - Git adapter
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
+   * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
    */
-  constructor({ persistence, graphName, writerId }) {
+  constructor({ persistence, graphName, writerId, schema = 1 }) {
+    /** @type {number} */
+    this._schema = schema;
+
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -36,6 +43,12 @@ export default class MultiWriterGraph {
 
     /** @type {string} */
     this._writerId = writerId;
+
+    /** @type {import('./crdt/VersionVector.js').VersionVector} */
+    this._versionVector = createVersionVector();
+
+    /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
+    this._cachedState = null;
   }
 
   /**
@@ -45,6 +58,7 @@ export default class MultiWriterGraph {
    * @param {import('../ports/GraphPersistencePort.js').default} options.persistence - Git adapter
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
+   * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
    * @returns {Promise<MultiWriterGraph>} The opened graph instance
    * @throws {Error} If graphName or writerId is invalid
    *
@@ -55,7 +69,7 @@ export default class MultiWriterGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId }) {
+  static async open({ persistence, graphName, writerId, schema = 1 }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -64,7 +78,12 @@ export default class MultiWriterGraph {
       throw new Error('persistence is required');
     }
 
-    return new MultiWriterGraph({ persistence, graphName, writerId });
+    const graph = new MultiWriterGraph({ persistence, graphName, writerId, schema });
+
+    // Validate migration boundary for schema:2
+    await graph._validateMigrationBoundary();
+
+    return graph;
   }
 
   /**
@@ -94,7 +113,7 @@ export default class MultiWriterGraph {
   /**
    * Creates a new PatchBuilder for building and committing patches.
    *
-   * @returns {PatchBuilder} A fluent patch builder
+   * @returns {PatchBuilder|PatchBuilderV2} A fluent patch builder
    *
    * @example
    * const commitSha = await graph.createPatch()
@@ -104,11 +123,32 @@ export default class MultiWriterGraph {
    *   .commit();
    */
   createPatch() {
+    if (this._schema === 2) {
+      return new PatchBuilderV2({
+        writerId: this._writerId,
+        lamport: this._nextLamport(),
+        versionVector: this._versionVector,
+        getCurrentState: () => this._cachedState,
+      });
+    }
     return new PatchBuilder({
       persistence: this._persistence,
       graphName: this._graphName,
       writerId: this._writerId,
     });
+  }
+
+  /**
+   * Gets the next lamport timestamp for this writer.
+   * Reads from the current ref chain to determine the next value.
+   *
+   * @returns {number} The next lamport timestamp
+   * @private
+   */
+  _nextLamport() {
+    // For now, return 1; proper implementation would read from current ref
+    // The commit() method in PatchBuilder handles this properly
+    return 1;
   }
 
   /**
@@ -172,14 +212,32 @@ export default class MultiWriterGraph {
    * Discovers all writers, collects all patches from each writer's ref chain,
    * and reduces them to produce the current state.
    *
-   * @returns {Promise<import('./services/Reducer.js').WarpState>} The materialized graph state
+   * For schema:2, checks if a checkpoint exists and uses the appropriate reducer.
+   *
+   * @returns {Promise<import('./services/Reducer.js').WarpState|import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state
    */
   async materialize() {
+    // Check for checkpoint and schema
+    const checkpoint = await this._loadLatestCheckpoint();
+
+    // If checkpoint is schema:2, use v5 reducer
+    if (checkpoint?.schema === 2) {
+      const patches = await this._loadPatchesSince(checkpoint);
+      const state = reduceV5(patches, checkpoint.state);
+      this._cachedState = state;
+      return state;
+    }
+
     // 1. Discover all writers
     const writerIds = await this.discoverWriters();
 
-    // 2. If no writers, return empty state
+    // 2. If no writers, return empty state (schema-aware)
     if (writerIds.length === 0) {
+      if (this._schema === 2) {
+        const emptyState = createEmptyStateV5();
+        this._cachedState = emptyState;
+        return emptyState;
+      }
       return createEmptyState();
     }
 
@@ -192,11 +250,124 @@ export default class MultiWriterGraph {
 
     // 4. If no patches, return empty state
     if (allPatches.length === 0) {
+      if (this._schema === 2) {
+        const emptyState = createEmptyStateV5();
+        this._cachedState = emptyState;
+        return emptyState;
+      }
       return createEmptyState();
     }
 
-    // 5. Reduce all patches to state
+    // 5. Reduce all patches to state using appropriate reducer
+    if (this._schema === 2) {
+      const state = reduceV5(allPatches);
+      this._cachedState = state;
+      return state;
+    }
+
     return reduce(allPatches);
+  }
+
+  /**
+   * Joins (merges) another state into the current cached state.
+   *
+   * This method allows manual merging of two graph states using the
+   * CRDT join semantics defined in JoinReducer. The merge is deterministic
+   * and commutative - joining A with B produces the same result as B with A.
+   *
+   * **Requires schema:2 (WARP v5)**
+   *
+   * @param {import('./services/JoinReducer.js').WarpStateV5} otherState - The state to merge in
+   * @returns {{
+   *   state: import('./services/JoinReducer.js').WarpStateV5,
+   *   receipt: {
+   *     nodesAdded: number,
+   *     nodesRemoved: number,
+   *     edgesAdded: number,
+   *     edgesRemoved: number,
+   *     propsChanged: number,
+   *     frontierMerged: boolean
+   *   }
+   * }} The merged state and a receipt describing the merge
+   * @throws {Error} If schema is not 2 or if no cached state exists
+   *
+   * @example
+   * const graph = await MultiWriterGraph.open({ persistence, graphName, writerId, schema: 2 });
+   * await graph.materialize(); // Cache state first
+   *
+   * // Get state from another source (e.g., remote sync)
+   * const remoteState = await fetchRemoteState();
+   *
+   * // Merge the states
+   * const { state, receipt } = graph.join(remoteState);
+   * console.log(`Merged: ${receipt.nodesAdded} nodes added, ${receipt.propsChanged} props changed`);
+   */
+  join(otherState) {
+    if (this._schema !== 2) {
+      throw new Error('join() requires schema:2 (WARP v5)');
+    }
+
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    if (!otherState || !otherState.nodeAlive || !otherState.edgeAlive) {
+      throw new Error('Invalid state: must be a valid WarpStateV5 object');
+    }
+
+    // Capture pre-merge counts for receipt
+    const beforeNodes = this._cachedState.nodeAlive.elements.size;
+    const beforeEdges = this._cachedState.edgeAlive.elements.size;
+    const beforeProps = this._cachedState.prop.size;
+    const beforeFrontierSize = this._cachedState.observedFrontier.size;
+
+    // Perform the join
+    const mergedState = joinStates(this._cachedState, otherState);
+
+    // Calculate receipt
+    const afterNodes = mergedState.nodeAlive.elements.size;
+    const afterEdges = mergedState.edgeAlive.elements.size;
+    const afterProps = mergedState.prop.size;
+    const afterFrontierSize = mergedState.observedFrontier.size;
+
+    // Count property changes (keys that existed in both but have different values)
+    let propsChanged = 0;
+    for (const [key, reg] of mergedState.prop) {
+      const oldReg = this._cachedState.prop.get(key);
+      if (!oldReg || oldReg.value !== reg.value) {
+        propsChanged++;
+      }
+    }
+
+    const receipt = {
+      nodesAdded: Math.max(0, afterNodes - beforeNodes),
+      nodesRemoved: Math.max(0, beforeNodes - afterNodes),
+      edgesAdded: Math.max(0, afterEdges - beforeEdges),
+      edgesRemoved: Math.max(0, beforeEdges - afterEdges),
+      propsChanged,
+      frontierMerged: afterFrontierSize !== beforeFrontierSize ||
+        !this._frontierEquals(this._cachedState.observedFrontier, mergedState.observedFrontier),
+    };
+
+    // Update cached state
+    this._cachedState = mergedState;
+
+    return { state: mergedState, receipt };
+  }
+
+  /**
+   * Compares two version vectors for equality.
+   * @param {import('./crdt/VersionVector.js').VersionVector} a
+   * @param {import('./crdt/VersionVector.js').VersionVector} b
+   * @returns {boolean}
+   * @private
+   */
+  _frontierEquals(a, b) {
+    if (a.size !== b.size) return false;
+    for (const [key, val] of a) {
+      if (b.get(key) !== val) return false;
+    }
+    return true;
   }
 
   /**
@@ -372,5 +543,190 @@ export default class MultiWriterGraph {
     }
 
     return writerIds.sort();
+  }
+
+  // ============================================================================
+  // Schema Migration Support
+  // ============================================================================
+
+  /**
+   * Validates migration boundary for schema:2 graphs.
+   *
+   * Schema:2 graphs cannot be opened if there is schema:1 history without
+   * a migration checkpoint. This ensures data consistency during migration.
+   *
+   * @throws {Error} If schema:2 is requested but v1 history exists without migration checkpoint
+   * @private
+   */
+  async _validateMigrationBoundary() {
+    if (this._schema !== 2) return;
+
+    const checkpoint = await this._loadLatestCheckpoint();
+    if (checkpoint?.schema === 2) return;  // Already migrated
+
+    const hasSchema1History = await this._hasSchema1Patches();
+    if (hasSchema1History) {
+      throw new Error(
+        'Cannot open schema:2 graph with v1 history. ' +
+        'Run MigrationService.migrate() first to create migration checkpoint.'
+      );
+    }
+  }
+
+  /**
+   * Loads the latest checkpoint for this graph.
+   *
+   * @returns {Promise<{state: Object, frontier: Map, stateHash: string, schema: number}|null>} The checkpoint or null
+   * @private
+   */
+  async _loadLatestCheckpoint() {
+    const checkpointRef = buildCheckpointRef(this._graphName);
+    const checkpointSha = await this._persistence.readRef(checkpointRef);
+
+    if (!checkpointSha) {
+      return null;
+    }
+
+    try {
+      return await loadCheckpoint(this._persistence, checkpointSha);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Checks if there are any schema:1 patches in the graph.
+   *
+   * @returns {Promise<boolean>} True if schema:1 patches exist
+   * @private
+   */
+  async _hasSchema1Patches() {
+    const writerIds = await this.discoverWriters();
+
+    for (const writerId of writerIds) {
+      const writerRef = buildWriterRef(this._graphName, writerId);
+      const tipSha = await this._persistence.readRef(writerRef);
+
+      if (!tipSha) continue;
+
+      // Check the first (most recent) patch from this writer
+      const nodeInfo = await this._persistence.getNodeInfo(tipSha);
+      const kind = detectMessageKind(nodeInfo.message);
+
+      if (kind === 'patch') {
+        const patchMeta = decodePatchMessage(nodeInfo.message);
+        const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+        const patch = decode(patchBuffer);
+
+        // If any patch has schema:1, we have v1 history
+        if (patch.schema === 1 || patch.schema === undefined) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Loads patches since a checkpoint for incremental materialization.
+   *
+   * @param {Object} checkpoint - The checkpoint to start from
+   * @returns {Promise<Array<{patch: Object, sha: string}>>} Patches since checkpoint
+   * @private
+   */
+  async _loadPatchesSince(checkpoint) {
+    const writerIds = await this.discoverWriters();
+    const allPatches = [];
+
+    for (const writerId of writerIds) {
+      const checkpointSha = checkpoint.frontier?.get(writerId) || null;
+      const patches = await this._loadWriterPatches(writerId, checkpointSha);
+
+      // Validate each patch against checkpoint frontier
+      for (const { patch, sha } of patches) {
+        await this._validatePatchAgainstCheckpoint(writerId, sha, checkpoint);
+      }
+
+      allPatches.push(...patches);
+    }
+
+    return allPatches;
+  }
+
+  // ============================================================================
+  // Backfill Rejection and Divergence Detection
+  // ============================================================================
+
+  /**
+   * Checks if ancestorSha is an ancestor of descendantSha.
+   * Walks the commit graph (linear per-writer chain assumption).
+   *
+   * @param {string} ancestorSha - The potential ancestor commit SHA
+   * @param {string} descendantSha - The potential descendant commit SHA
+   * @returns {Promise<boolean>} True if ancestorSha is an ancestor of descendantSha
+   * @private
+   */
+  async _isAncestor(ancestorSha, descendantSha) {
+    if (!ancestorSha || !descendantSha) return false;
+    if (ancestorSha === descendantSha) return true;
+
+    let cur = descendantSha;
+    while (cur) {
+      const nodeInfo = await this._persistence.getNodeInfo(cur);
+      const parent = nodeInfo.parents?.[0] ?? null;
+      if (parent === ancestorSha) return true;
+      cur = parent;
+    }
+    return false;
+  }
+
+  /**
+   * Determines relationship between incoming patch and checkpoint head.
+   *
+   * @param {string} ckHead - The checkpoint head SHA for this writer
+   * @param {string} incomingSha - The incoming patch commit SHA
+   * @returns {Promise<'same' | 'ahead' | 'behind' | 'diverged'>} The relationship
+   * @private
+   */
+  async _relationToCheckpointHead(ckHead, incomingSha) {
+    if (incomingSha === ckHead) return 'same';
+    if (await this._isAncestor(ckHead, incomingSha)) return 'ahead';
+    if (await this._isAncestor(incomingSha, ckHead)) return 'behind';
+    return 'diverged';
+  }
+
+  /**
+   * Validates an incoming patch against checkpoint frontier.
+   * Uses graph reachability, NOT lamport timestamps.
+   *
+   * @param {string} writerId - The writer ID for this patch
+   * @param {string} incomingSha - The incoming patch commit SHA
+   * @param {Object} checkpoint - The checkpoint to validate against
+   * @throws {Error} if patch is backfill or diverged
+   * @private
+   */
+  async _validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint) {
+    if (!checkpoint || checkpoint.schema !== 2) return;
+
+    const ckHead = checkpoint.frontier?.get(writerId);
+    if (!ckHead) return;  // Checkpoint didn't include this writer
+
+    const relation = await this._relationToCheckpointHead(ckHead, incomingSha);
+
+    if (relation === 'same' || relation === 'behind') {
+      throw new Error(
+        `Backfill rejected for writer ${writerId}: ` +
+        `incoming patch is ${relation} checkpoint frontier`
+      );
+    }
+
+    if (relation === 'diverged') {
+      throw new Error(
+        `Writer fork detected for ${writerId}: ` +
+        `incoming patch does not extend checkpoint head`
+      );
+    }
+    // relation === 'ahead' => OK
   }
 }

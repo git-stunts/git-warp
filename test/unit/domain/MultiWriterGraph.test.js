@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MultiWriterGraph from '../../../src/domain/MultiWriterGraph.js';
 import PatchBuilder from '../../../src/domain/services/PatchBuilder.js';
+import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
+import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 
 /**
  * Creates a mock persistence adapter for testing.
@@ -359,7 +360,9 @@ describe('MultiWriterGraph', () => {
         'refs/empty-graph/events/writers/writer-2',
       ]);
 
+      // materialize() now checks for checkpoint first, then reads writer tips
       persistence.readRef
+        .mockResolvedValueOnce(null)       // checkpoint ref (none)
         .mockResolvedValueOnce(commitSha1) // writer-1 tip
         .mockResolvedValueOnce(commitSha2); // writer-2 tip
 
@@ -835,6 +838,601 @@ eg-schema: 1`;
           parents: [],
         })
       );
+    });
+  });
+
+  describe('schema version selection (WARP v5)', () => {
+    describe('createPatch with schema selection', () => {
+      it('schema 1 (default) uses PatchBuilder', async () => {
+        const persistence = createMockPersistence();
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+        });
+
+        const patchBuilder = graph.createPatch();
+
+        expect(patchBuilder).toBeInstanceOf(PatchBuilder);
+      });
+
+      it('schema 1 (explicit) uses PatchBuilder', async () => {
+        const persistence = createMockPersistence();
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 1,
+        });
+
+        const patchBuilder = graph.createPatch();
+
+        expect(patchBuilder).toBeInstanceOf(PatchBuilder);
+      });
+
+      it('schema 2 uses PatchBuilderV2', async () => {
+        const persistence = createMockPersistence();
+        // No writers, no checkpoint - fresh graph
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const patchBuilder = graph.createPatch();
+
+        expect(patchBuilder).toBeInstanceOf(PatchBuilderV2);
+      });
+    });
+
+    describe('migration boundary validation', () => {
+      it('throws error if schema:2 with v1 history and no migration checkpoint', async () => {
+        const persistence = createMockPersistence();
+
+        // Setup: There's a writer with schema:1 patches, but no migration checkpoint
+        const patchOid = 'a'.repeat(40);
+        const commitSha = 'b'.repeat(40);
+        const mockPatch = createMockPatch({
+          sha: commitSha,
+          graphName: 'events',
+          writerId: 'writer-1',
+          lamport: 1,
+          patchOid,
+          ops: [{ type: 'NodeAdd', node: 'user:alice' }],
+          parentSha: null,
+        });
+
+        persistence.listRefs.mockResolvedValue(['refs/empty-graph/events/writers/writer-1']);
+        persistence.readRef.mockImplementation((ref) => {
+          if (ref === 'refs/empty-graph/events/checkpoints/head') {
+            return Promise.resolve(null); // No checkpoint
+          }
+          return Promise.resolve(commitSha); // Writer has patches
+        });
+        persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);
+        persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
+
+        await expect(
+          MultiWriterGraph.open({
+            persistence,
+            graphName: 'events',
+            writerId: 'node-1',
+            schema: 2,
+          })
+        ).rejects.toThrow('Cannot open schema:2 graph with v1 history');
+      });
+
+      it('allows schema:2 when checkpoint has schema:2', async () => {
+        const persistence = createMockPersistence();
+
+        const checkpointSha = 'c'.repeat(40);
+        const indexOid = 'd'.repeat(40);
+
+        // Checkpoint with schema:2 exists
+        const checkpointMessage = encodeCheckpointMessage({
+          graph: 'events',
+          stateHash: 'e'.repeat(64),
+          frontierOid: 'f'.repeat(40),
+          indexOid,
+          schema: 2,
+        });
+
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockImplementation((ref) => {
+          if (ref === 'refs/empty-graph/events/checkpoints/head') {
+            return Promise.resolve(checkpointSha);
+          }
+          return Promise.resolve(null);
+        });
+        persistence.showNode.mockResolvedValue(checkpointMessage);
+        persistence.getNodeInfo.mockResolvedValue({
+          sha: checkpointSha,
+          message: checkpointMessage,
+          parents: [],
+        });
+        persistence.readTreeOids.mockResolvedValue({
+          'state.cbor': 'g'.repeat(40),
+          'frontier.cbor': 'h'.repeat(40),
+        });
+        persistence.readBlob
+          .mockResolvedValueOnce(encode({})) // frontier
+          .mockResolvedValueOnce(encode({ nodes: [], edges: [], props: [] })); // state
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        expect(graph).toBeInstanceOf(MultiWriterGraph);
+      });
+
+      it('allows schema:2 on fresh graph with no history', async () => {
+        const persistence = createMockPersistence();
+
+        // No writers, no checkpoint
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        expect(graph).toBeInstanceOf(MultiWriterGraph);
+      });
+
+      it('schema:1 does not validate migration boundary', async () => {
+        const persistence = createMockPersistence();
+
+        // Even with v1 patches, schema:1 should work
+        const patchOid = 'a'.repeat(40);
+        const commitSha = 'b'.repeat(40);
+        const mockPatch = createMockPatch({
+          sha: commitSha,
+          graphName: 'events',
+          writerId: 'writer-1',
+          lamport: 1,
+          patchOid,
+          ops: [{ type: 'NodeAdd', node: 'user:alice' }],
+          parentSha: null,
+        });
+
+        persistence.listRefs.mockResolvedValue(['refs/empty-graph/events/writers/writer-1']);
+        persistence.readRef.mockResolvedValue(commitSha);
+        persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);
+        persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
+
+        // Should not throw for schema:1
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 1,
+        });
+
+        expect(graph).toBeInstanceOf(MultiWriterGraph);
+      });
+    });
+  });
+
+  describe('backfill rejection and divergence detection', () => {
+    describe('_isAncestor', () => {
+      it('returns true when ancestorSha equals descendantSha', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const sha = 'a'.repeat(40);
+        const result = await graph._isAncestor(sha, sha);
+
+        expect(result).toBe(true);
+      });
+
+      it('returns true when ancestorSha is parent of descendantSha', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ancestorSha = 'a'.repeat(40);
+        const descendantSha = 'b'.repeat(40);
+
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: descendantSha,
+          parents: [ancestorSha],
+        });
+
+        const result = await graph._isAncestor(ancestorSha, descendantSha);
+
+        expect(result).toBe(true);
+      });
+
+      it('returns true for multi-hop ancestor relationship', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ancestorSha = 'a'.repeat(40);
+        const middleSha = 'b'.repeat(40);
+        const descendantSha = 'c'.repeat(40);
+
+        persistence.getNodeInfo
+          .mockResolvedValueOnce({ sha: descendantSha, parents: [middleSha] })
+          .mockResolvedValueOnce({ sha: middleSha, parents: [ancestorSha] });
+
+        const result = await graph._isAncestor(ancestorSha, descendantSha);
+
+        expect(result).toBe(true);
+      });
+
+      it('returns false when not an ancestor', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const sha1 = 'a'.repeat(40);
+        const sha2 = 'b'.repeat(40);
+
+        // sha2 has no parents - end of chain
+        persistence.getNodeInfo.mockResolvedValue({
+          sha: sha2,
+          parents: [],
+        });
+
+        const result = await graph._isAncestor(sha1, sha2);
+
+        expect(result).toBe(false);
+      });
+
+      it('returns false for null inputs', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        expect(await graph._isAncestor(null, 'a'.repeat(40))).toBe(false);
+        expect(await graph._isAncestor('a'.repeat(40), null)).toBe(false);
+        expect(await graph._isAncestor(null, null)).toBe(false);
+      });
+    });
+
+    describe('_relationToCheckpointHead', () => {
+      it('returns "same" when shas are equal', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const sha = 'a'.repeat(40);
+        const result = await graph._relationToCheckpointHead(sha, sha);
+
+        expect(result).toBe('same');
+      });
+
+      it('returns "ahead" when incoming extends checkpoint head', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ckHead = 'a'.repeat(40);
+        const incomingSha = 'b'.repeat(40);
+
+        // incoming has ckHead as parent (incoming is ahead)
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [ckHead],
+        });
+
+        const result = await graph._relationToCheckpointHead(ckHead, incomingSha);
+
+        expect(result).toBe('ahead');
+      });
+
+      it('returns "behind" when incoming is ancestor of checkpoint head', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const incomingSha = 'a'.repeat(40);
+        const ckHead = 'b'.repeat(40);
+
+        // First call for _isAncestor(ckHead, incomingSha) - false
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [],
+        });
+        // Second call for _isAncestor(incomingSha, ckHead) - true
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: ckHead,
+          parents: [incomingSha],
+        });
+
+        const result = await graph._relationToCheckpointHead(ckHead, incomingSha);
+
+        expect(result).toBe('behind');
+      });
+
+      it('returns "diverged" when neither is ancestor of the other', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ckHead = 'a'.repeat(40);
+        const incomingSha = 'b'.repeat(40);
+        const commonAncestor = 'c'.repeat(40);
+
+        // First call for _isAncestor(ckHead, incomingSha) - walks to commonAncestor
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [commonAncestor],
+        });
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: commonAncestor,
+          parents: [],
+        });
+        // Second call for _isAncestor(incomingSha, ckHead) - walks to commonAncestor
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: ckHead,
+          parents: [commonAncestor],
+        });
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: commonAncestor,
+          parents: [],
+        });
+
+        const result = await graph._relationToCheckpointHead(ckHead, incomingSha);
+
+        expect(result).toBe('diverged');
+      });
+    });
+
+    describe('_validatePatchAgainstCheckpoint', () => {
+      it('does not throw for schema:1 checkpoint', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const checkpoint = { schema: 1, frontier: new Map() };
+
+        // Should not throw
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
+        ).resolves.toBeUndefined();
+      });
+
+      it('does not throw when writer not in checkpoint frontier', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const checkpoint = {
+          schema: 2,
+          frontier: new Map([['other-writer', 'b'.repeat(40)]]),
+        };
+
+        // writer-1 not in checkpoint - should succeed
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', 'a'.repeat(40), checkpoint)
+        ).resolves.toBeUndefined();
+      });
+
+      it('allows patch ahead of checkpoint frontier', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ckHead = 'a'.repeat(40);
+        const incomingSha = 'b'.repeat(40);
+
+        const checkpoint = {
+          schema: 2,
+          frontier: new Map([['writer-1', ckHead]]),
+        };
+
+        // incoming has ckHead as parent (ahead)
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [ckHead],
+        });
+
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+        ).resolves.toBeUndefined();
+      });
+
+      it('rejects patch same as checkpoint head', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const sha = 'a'.repeat(40);
+
+        const checkpoint = {
+          schema: 2,
+          frontier: new Map([['writer-1', sha]]),
+        };
+
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', sha, checkpoint)
+        ).rejects.toThrow('Backfill rejected for writer writer-1: incoming patch is same checkpoint frontier');
+      });
+
+      it('rejects patch behind checkpoint head', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const incomingSha = 'a'.repeat(40);
+        const ckHead = 'b'.repeat(40);
+
+        const checkpoint = {
+          schema: 2,
+          frontier: new Map([['writer-1', ckHead]]),
+        };
+
+        // First call for _isAncestor(ckHead, incomingSha) - false
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [],
+        });
+        // Second call for _isAncestor(incomingSha, ckHead) - true (incoming is parent of ckHead)
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: ckHead,
+          parents: [incomingSha],
+        });
+
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+        ).rejects.toThrow('Backfill rejected for writer writer-1: incoming patch is behind checkpoint frontier');
+      });
+
+      it('rejects diverged patch (fork) with different error', async () => {
+        const persistence = createMockPersistence();
+        persistence.listRefs.mockResolvedValue([]);
+        persistence.readRef.mockResolvedValue(null);
+
+        const graph = await MultiWriterGraph.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          schema: 2,
+        });
+
+        const ckHead = 'a'.repeat(40);
+        const incomingSha = 'b'.repeat(40);
+        const commonAncestor = 'c'.repeat(40);
+
+        const checkpoint = {
+          schema: 2,
+          frontier: new Map([['writer-1', ckHead]]),
+        };
+
+        // First call for _isAncestor(ckHead, incomingSha) - walks to commonAncestor
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: incomingSha,
+          parents: [commonAncestor],
+        });
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: commonAncestor,
+          parents: [],
+        });
+        // Second call for _isAncestor(incomingSha, ckHead) - walks to commonAncestor
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: ckHead,
+          parents: [commonAncestor],
+        });
+        persistence.getNodeInfo.mockResolvedValueOnce({
+          sha: commonAncestor,
+          parents: [],
+        });
+
+        await expect(
+          graph._validatePatchAgainstCheckpoint('writer-1', incomingSha, checkpoint)
+        ).rejects.toThrow('Writer fork detected for writer-1: incoming patch does not extend checkpoint head');
+      });
     });
   });
 });
