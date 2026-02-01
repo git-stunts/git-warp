@@ -32,8 +32,6 @@ import WarpGraphDefault, {
   PerformanceClockAdapter,
   GlobalClockAdapter,
 
-  // Ref management
-  GraphRefManager,
 
   // Error types
   IndexError,
@@ -166,13 +164,6 @@ describe('index.js exports', () => {
     it('exports GlobalClockAdapter', () => {
       expect(GlobalClockAdapter).toBeDefined();
       expect(typeof GlobalClockAdapter).toBe('function');
-    });
-  });
-
-  describe('ref management', () => {
-    it('exports GraphRefManager', () => {
-      expect(GraphRefManager).toBeDefined();
-      expect(typeof GraphRefManager).toBe('function');
     });
   });
 

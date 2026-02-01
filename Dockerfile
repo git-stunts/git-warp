@@ -6,8 +6,6 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# Copy alfred first (dependency)
-COPY alfred ../alfred
 # Copy empty-graph
 COPY empty-graph/package*.json ./
 RUN npm install

@@ -1,12 +1,10 @@
 import { createHash } from 'crypto';
 
-import roaring from 'roaring';
-const { RoaringBitmap32 } = roaring;
-
 import ShardCorruptionError from '../errors/ShardCorruptionError.js';
 import ShardValidationError from '../errors/ShardValidationError.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
+import { getRoaringBitmap32 } from '../utils/roaring.js';
 
 /**
  * Current shard format version.
@@ -415,7 +413,7 @@ export default class StreamingBitmapIndexBuilder {
   _addToBitmap({ sha, id, type }) {
     const key = `${type}_${sha}`;
     if (!this.bitmaps.has(key)) {
-      this.bitmaps.set(key, new RoaringBitmap32());
+      this.bitmaps.set(key, new (getRoaringBitmap32())());
       this.estimatedBitmapBytes += BITMAP_BASE_OVERHEAD;
     }
 
@@ -492,7 +490,7 @@ export default class StreamingBitmapIndexBuilder {
   _mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid }) {
     let bitmap;
     try {
-      bitmap = RoaringBitmap32.deserialize(Buffer.from(base64Bitmap, 'base64'), true);
+      bitmap = getRoaringBitmap32().deserialize(Buffer.from(base64Bitmap, 'base64'), true);
     } catch (err) {
       throw new ShardCorruptionError('Failed to deserialize bitmap', {
         oid,

@@ -17,7 +17,6 @@ import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import PerformanceClockAdapter from './src/infrastructure/adapters/PerformanceClockAdapter.js';
 import GlobalClockAdapter from './src/infrastructure/adapters/GlobalClockAdapter.js';
-import GraphRefManager from './src/domain/services/GraphRefManager.js';
 import {
   IndexError,
   ShardLoadError,
@@ -65,9 +64,6 @@ export {
   ClockPort,
   PerformanceClockAdapter,
   GlobalClockAdapter,
-
-  // Ref management
-  GraphRefManager,
 
   // Error types for integrity failure handling
   IndexError,

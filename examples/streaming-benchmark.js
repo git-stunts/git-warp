@@ -1,36 +1,39 @@
 #!/usr/bin/env node
 /**
- * Streaming Benchmark - Memory Profile for 1M+ Nodes
+ * Materialization Benchmark - WarpGraph at Scale
  *
- * This benchmark tests the memory efficiency of iterateNodes() when
- * processing large graphs. It creates a chain of 1M+ nodes and streams
- * through them, measuring memory usage to verify constant memory overhead.
+ * Creates a large graph using WarpGraph patches, then materializes
+ * the state to observe time and memory characteristics.
  *
  * Run with: npm run demo:bench-streaming
  */
 
-// Import from mounted volume in Docker
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
-const { default: EmptyGraph, GitGraphAdapter } = await import(modulePath);
-import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import { execSync } from 'child_process';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
+
+const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const resolvedModulePath = path.resolve(modulePath);
+const moduleUrl = pathToFileURL(resolvedModulePath).href;
+const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const NODE_COUNT = parseInt(process.env.NODE_COUNT || '100000', 10); // Default 100K, set higher for stress
-const BATCH_SIZE = 10000; // Create nodes in batches for progress reporting
-const SAMPLE_INTERVAL = 10000; // Sample memory every N nodes
+const NODE_COUNT = parseInt(process.env.NODE_COUNT || '100000', 10);
+const NODES_PER_PATCH = parseInt(process.env.NODES_PER_PATCH || '500', 10);
+const SAMPLE_INTERVAL = parseInt(process.env.SAMPLE_INTERVAL || '10000', 10);
+
+const runId = process.env.RUN_ID || Date.now().toString(36);
+const graphName = process.env.GRAPH_NAME || `bench-stream-${runId}`;
+const writerId = process.env.WRITER_ID || 'bench';
 
 // Warn if GC control is unavailable
 if (typeof global.gc !== 'function') {
   console.warn('Warning: Run with --expose-gc for accurate memory measurements');
 }
-
-// ============================================================================
-// HELPERS
-// ============================================================================
 
 function formatBytes(bytes) {
   if (bytes < 1024) {
@@ -62,32 +65,19 @@ function printSection(title) {
   console.log(`${'='.repeat(70)}\n`);
 }
 
-function printBox(lines) {
-  const maxLen = Math.max(...lines.map(l => l.length));
-  const border = `+${'-'.repeat(maxLen + 2)}+`;
-  console.log(border);
-  for (const line of lines) {
-    console.log(`| ${line.padEnd(maxLen)} |`);
-  }
-  console.log(border);
-}
-
 // ============================================================================
 // MAIN BENCHMARK
 // ============================================================================
 
 async function main() {
   console.log('='.repeat(70));
-  console.log('  STREAMING BENCHMARK - Memory Profile for Large Graphs');
+  console.log('  WARP MATERIALIZATION BENCHMARK');
   console.log('='.repeat(70));
-  console.log(`\nTarget: ${formatNum(NODE_COUNT)} nodes\n`);
+  console.log(`\nTarget: ${formatNum(NODE_COUNT)} nodes`);
+  console.log(`Graph: ${graphName}`);
 
-  // --------------------------------------------------------------------------
-  // Phase 1: Setup
-  // --------------------------------------------------------------------------
   printSection('PHASE 1: INITIALIZATION');
 
-  // Ensure we have a clean repo
   try {
     execSync('git rev-parse --git-dir', { stdio: 'pipe' });
     console.log('  [OK] Git repository detected');
@@ -99,189 +89,91 @@ async function main() {
 
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
-  const adapter = new GitGraphAdapter({ plumbing });
-  const graph = new EmptyGraph({ persistence: adapter });
+  const persistence = new GitGraphAdapter({ plumbing });
 
-  console.log('  [OK] EmptyGraph initialized');
+  const graph = await WarpGraph.open({
+    persistence,
+    graphName,
+    writerId,
+  });
 
-  // --------------------------------------------------------------------------
-  // Phase 2: Create Large Graph
-  // --------------------------------------------------------------------------
+  console.log('  [OK] WarpGraph initialized');
+
   printSection('PHASE 2: GRAPH CREATION');
 
-  console.log(`Creating ${formatNum(NODE_COUNT)} nodes in a chain...\n`);
+  console.log(`Creating ${formatNum(NODE_COUNT)} nodes in a chain...`);
 
   const creationStart = performance.now();
-  let parentSha = null;
-  const memorySnapshots = [];
-
-  // Take initial memory snapshot
-  global.gc && global.gc(); // Force GC if available
-  const initialMemory = getMemoryUsage();
-  memorySnapshots.push({ phase: 'initial', ...initialMemory });
+  let patch = await graph.createPatch();
+  let nodesInPatch = 0;
 
   for (let i = 0; i < NODE_COUNT; i++) {
-    const message = JSON.stringify({
-      type: 'benchmark-event',
-      index: i,
-      timestamp: Date.now(),
-    });
+    const nodeId = `node:${i}`;
+    const prevNodeId = i === 0 ? null : `node:${i - 1}`;
 
-    const parents = parentSha ? [parentSha] : [];
-    parentSha = await graph.createNode({ message, parents });
+    patch.addNode(nodeId)
+      .setProperty(nodeId, 'index', i)
+      .setProperty(nodeId, 'createdAt', Date.now());
 
-    // Progress reporting
-    if ((i + 1) % BATCH_SIZE === 0) {
-      const progress = ((i + 1) / NODE_COUNT * 100).toFixed(1);
-      const elapsed = ((performance.now() - creationStart) / 1000).toFixed(1);
-      const rate = ((i + 1) / (performance.now() - creationStart) * 1000).toFixed(0);
-      console.log(`  [${progress}%] Created ${formatNum(i + 1)} nodes (${rate} nodes/sec, ${elapsed}s elapsed)`);
+    if (prevNodeId) {
+      patch.addEdge(prevNodeId, nodeId, 'next');
     }
+
+    nodesInPatch++;
+
+    if (nodesInPatch >= NODES_PER_PATCH) {
+      await patch.commit();
+      patch = await graph.createPatch();
+      nodesInPatch = 0;
+    }
+
+    if ((i + 1) % SAMPLE_INTERVAL === 0) {
+      const elapsed = ((performance.now() - creationStart) / 1000).toFixed(1);
+      const progress = ((i + 1) / NODE_COUNT * 100).toFixed(1);
+      console.log(`  [${progress}%] Created ${formatNum(i + 1)} nodes (${elapsed}s elapsed)`);
+    }
+  }
+
+  if (nodesInPatch > 0) {
+    await patch.commit();
   }
 
   const creationTime = performance.now() - creationStart;
   const creationRate = (NODE_COUNT / creationTime * 1000).toFixed(0);
 
-  // Update ref
-  execSync(`git update-ref refs/heads/bench-stream ${parentSha}`, { stdio: 'pipe' });
-
   console.log(`\n  [OK] Created ${formatNum(NODE_COUNT)} nodes in ${(creationTime / 1000).toFixed(1)}s`);
   console.log(`  [OK] Average rate: ${creationRate} nodes/sec`);
-  console.log(`  [OK] HEAD: ${parentSha.slice(0, 8)}...`);
 
-  // Memory after creation
-  global.gc && global.gc();
-  const postCreationMemory = getMemoryUsage();
-  memorySnapshots.push({ phase: 'post-creation', ...postCreationMemory });
-
-  // --------------------------------------------------------------------------
-  // Phase 3: Build Index
-  // --------------------------------------------------------------------------
-  printSection('PHASE 3: INDEX BUILDING');
-
-  console.log('Building bitmap index...\n');
-
-  const indexStart = performance.now();
-  await graph.rebuildIndex('refs/heads/bench-stream');
-  const indexTime = performance.now() - indexStart;
-
-  await graph.saveIndex();
-
-  console.log(`  [OK] Index built in ${(indexTime / 1000).toFixed(1)}s`);
+  printSection('PHASE 3: MATERIALIZATION');
 
   global.gc && global.gc();
-  const postIndexMemory = getMemoryUsage();
-  memorySnapshots.push({ phase: 'post-index', ...postIndexMemory });
+  const preMaterializeMemory = getMemoryUsage();
 
-  // --------------------------------------------------------------------------
-  // Phase 4: Streaming Iteration (The Main Benchmark)
-  // --------------------------------------------------------------------------
-  printSection('PHASE 4: STREAMING ITERATION');
-
-  console.log(`Streaming through ${formatNum(NODE_COUNT)} nodes...\n`);
-  console.log('Measuring memory at regular intervals to verify constant overhead.\n');
-
-  // Clear references to force GC to clean up
-  global.gc && global.gc();
-  const preStreamMemory = getMemoryUsage();
-  memorySnapshots.push({ phase: 'pre-stream', ...preStreamMemory });
-
-  const streamStart = performance.now();
-  let nodeCount = 0;
-  let minHeap = Infinity;
-  let maxHeap = 0;
-  const heapSamples = [];
-
-  for await (const node of graph.iterateNodes({ ref: 'refs/heads/bench-stream', limit: NODE_COUNT })) {
-    nodeCount++;
-
-    // Sample memory periodically
-    if (nodeCount % SAMPLE_INTERVAL === 0) {
-      const mem = getMemoryUsage();
-      heapSamples.push(mem.heapUsed);
-      minHeap = Math.min(minHeap, mem.heapUsed);
-      maxHeap = Math.max(maxHeap, mem.heapUsed);
-
-      const progress = (nodeCount / NODE_COUNT * 100).toFixed(1);
-      const elapsed = ((performance.now() - streamStart) / 1000).toFixed(1);
-      console.log(`  [${progress}%] Streamed ${formatNum(nodeCount)} nodes | Heap: ${formatBytes(mem.heapUsed)} | ${elapsed}s`);
-    }
-
-    // Verify node data is accessible (but don't store it)
-    if (nodeCount === 1 || nodeCount === NODE_COUNT) {
-      // Just verify we can read the message
-      void node.message;
-    }
-  }
-
-  const streamTime = performance.now() - streamStart;
-  const streamRate = (nodeCount / streamTime * 1000).toFixed(0);
+  const materializeStart = performance.now();
+  const state = await graph.materialize();
+  const materializeTime = performance.now() - materializeStart;
 
   global.gc && global.gc();
-  const postStreamMemory = getMemoryUsage();
-  memorySnapshots.push({ phase: 'post-stream', ...postStreamMemory });
+  const postMaterializeMemory = getMemoryUsage();
 
-  console.log(`\n  [OK] Streamed ${formatNum(nodeCount)} nodes in ${(streamTime / 1000).toFixed(1)}s`);
-  console.log(`  [OK] Average rate: ${streamRate} nodes/sec`);
+  console.log(`  [OK] Materialized in ${(materializeTime / 1000).toFixed(1)}s`);
+  console.log(`  [OK] Nodes: ${graph.getNodes().length}`);
+  console.log(`  [OK] Edges: ${graph.getEdges().length}`);
+  console.log(`  [OK] Properties: ${state.prop.size}`);
 
-  // --------------------------------------------------------------------------
-  // Phase 5: Results Analysis
-  // --------------------------------------------------------------------------
-  printSection('PHASE 5: RESULTS');
+  printSection('MEMORY SUMMARY');
 
-  // Calculate heap variance during streaming
-  // Handle edge case where no samples were collected
-  const heapVariance = heapSamples.length > 0 ? maxHeap - minHeap : 0;
-  const avgHeap = heapSamples.length > 0
-    ? heapSamples.reduce((a, b) => a + b, 0) / heapSamples.length
-    : 0;
-  const displayMinHeap = heapSamples.length > 0 ? minHeap : 0;
-  const displayMaxHeap = heapSamples.length > 0 ? maxHeap : 0;
+  console.log('Before materialize:');
+  console.log(`  heapUsed: ${formatBytes(preMaterializeMemory.heapUsed)}`);
+  console.log(`  heapTotal: ${formatBytes(preMaterializeMemory.heapTotal)}`);
+  console.log(`  rss: ${formatBytes(preMaterializeMemory.rss)}`);
 
-  console.log('Memory Profile During Streaming:\n');
-  console.log(`  Min heap:     ${heapSamples.length > 0 ? formatBytes(displayMinHeap) : 'N/A'}`);
-  console.log(`  Max heap:     ${heapSamples.length > 0 ? formatBytes(displayMaxHeap) : 'N/A'}`);
-  console.log(`  Variance:     ${heapSamples.length > 0 ? formatBytes(heapVariance) : 'N/A'}`);
-  console.log(`  Avg heap:     ${heapSamples.length > 0 ? formatBytes(avgHeap) : 'N/A'}`);
+  console.log('\nAfter materialize:');
+  console.log(`  heapUsed: ${formatBytes(postMaterializeMemory.heapUsed)}`);
+  console.log(`  heapTotal: ${formatBytes(postMaterializeMemory.heapTotal)}`);
+  console.log(`  rss: ${formatBytes(postMaterializeMemory.rss)}`);
 
-  // Memory should stay relatively constant - variance should be small
-  const variancePercent = (heapVariance / avgHeap * 100).toFixed(1);
-  console.log(`  Variance %:   ${variancePercent}%`);
-
-  const isConstantMemory = heapVariance < 100 * 1024 * 1024; // < 100MB variance is "constant"
-  console.log(`\n  Memory behavior: ${isConstantMemory ? 'CONSTANT (streaming works!)' : 'GROWING (potential leak)'}`);
-
-  console.log('\nMemory Snapshots:\n');
-  for (const snap of memorySnapshots) {
-    console.log(`  ${snap.phase.padEnd(15)} | Heap: ${formatBytes(snap.heapUsed).padStart(10)} | RSS: ${formatBytes(snap.rss).padStart(10)}`);
-  }
-
-  // --------------------------------------------------------------------------
-  // Summary
-  // --------------------------------------------------------------------------
-  printSection('SUMMARY');
-
-  printBox([
-    'STREAMING BENCHMARK RESULTS',
-    '',
-    `Nodes created:     ${formatNum(NODE_COUNT)}`,
-    `Creation time:     ${(creationTime / 1000).toFixed(1)}s (${creationRate} nodes/sec)`,
-    `Index build time:  ${(indexTime / 1000).toFixed(1)}s`,
-    `Stream time:       ${(streamTime / 1000).toFixed(1)}s (${streamRate} nodes/sec)`,
-    '',
-    `Heap variance:     ${formatBytes(heapVariance)} (${variancePercent}%)`,
-    `Memory behavior:   ${isConstantMemory ? 'CONSTANT' : 'GROWING'}`,
-  ]);
-
-  console.log('\nThis benchmark verifies that iterateNodes() maintains constant');
-  console.log('memory overhead regardless of graph size, making it suitable for');
-  console.log('processing arbitrarily large graphs without OOM risk.\n');
-
-  // Exit with error if memory grew unexpectedly
-  if (!isConstantMemory) {
-    console.error('WARNING: Memory variance exceeded threshold. Investigate potential leak.');
-    process.exit(1);
-  }
+  console.log('\nBenchmark complete.');
 }
 
 main().catch(err => {

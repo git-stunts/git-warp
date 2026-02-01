@@ -66,7 +66,7 @@ async function main() {
   // ============================================================================
   // Alice creates a project and assigns herself to it.
 
-  const aliceSha1 = await alice.createPatch()
+  const aliceSha1 = await (await alice.createPatch())
     .addNode('project:alpha')
     .setProperty('project:alpha', 'name', 'Project Alpha')
     .setProperty('project:alpha', 'status', 'active')
@@ -83,7 +83,7 @@ async function main() {
   // Bob doesn't know about Alice's changes yet (no materialize called).
   // He creates his own user and a different project.
 
-  const bobSha1 = await bob.createPatch()
+  const bobSha1 = await (await bob.createPatch())
     .addNode('user:bob')
     .setProperty('user:bob', 'name', 'Bob')
     .addNode('project:beta')
@@ -99,7 +99,7 @@ async function main() {
   // ============================================================================
   // Alice adds a task to her project.
 
-  const aliceSha2 = await alice.createPatch()
+  const aliceSha2 = await (await alice.createPatch())
     .addNode('task:1')
     .setProperty('task:1', 'title', 'Design system architecture')
     .setProperty('task:1', 'priority', 'high')
@@ -113,7 +113,7 @@ async function main() {
   // Step 6: Bob also adds a task
   // ============================================================================
 
-  const bobSha2 = await bob.createPatch()
+  const bobSha2 = await (await bob.createPatch())
     .addNode('task:2')
     .setProperty('task:2', 'title', 'Write documentation')
     .setProperty('task:2', 'priority', 'medium')
@@ -133,18 +133,22 @@ async function main() {
   console.log('\n[7] Materializing converged state...');
 
   // Alice materializes - she'll see Bob's changes
-  const aliceState = await alice.materialize();
+  await alice.materialize();
+  const aliceNodes = alice.getNodes();
+  const aliceEdges = alice.getEdges();
 
   console.log('\n    From Alice\'s perspective:');
-  console.log(`    - Nodes: ${aliceState.nodeAlive.elements.size}`);
-  console.log(`    - Edges: ${aliceState.edgeAlive.elements.size}`);
+  console.log(`    - Nodes: ${aliceNodes.length}`);
+  console.log(`    - Edges: ${aliceEdges.length}`);
 
   // Bob materializes - he'll see the same state
-  const bobState = await bob.materialize();
+  await bob.materialize();
+  const bobNodes = bob.getNodes();
+  const bobEdges = bob.getEdges();
 
   console.log('\n    From Bob\'s perspective:');
-  console.log(`    - Nodes: ${bobState.nodeAlive.elements.size}`);
-  console.log(`    - Edges: ${bobState.edgeAlive.elements.size}`);
+  console.log(`    - Nodes: ${bobNodes.length}`);
+  console.log(`    - Edges: ${bobEdges.length}`);
 
   // ============================================================================
   // Step 8: Verify both writers see the same state
@@ -157,8 +161,8 @@ async function main() {
   let allMatch = true;
 
   for (const nodeId of checkNodes) {
-    const inAlice = aliceState.nodeAlive.elements.has(nodeId);
-    const inBob = bobState.nodeAlive.elements.has(nodeId);
+    const inAlice = alice.hasNode(nodeId);
+    const inBob = bob.hasNode(nodeId);
     if (inAlice !== inBob) {
       console.log(`    MISMATCH: ${nodeId} - Alice: ${inAlice}, Bob: ${inBob}`);
       allMatch = false;
@@ -174,19 +178,20 @@ async function main() {
   // ============================================================================
   // Now that Bob has materialized, he can see Alice's project and join it.
 
-  const bobSha3 = await bob.createPatch()
+  const bobSha3 = await (await bob.createPatch())
     .addEdge('user:bob', 'project:alpha', 'assigned')
     .commit();
 
   console.log(`\n[9] Bob joined Project Alpha: ${bobSha3.slice(0, 8)}`);
 
   // Re-materialize to see the updated state
-  const finalState = await alice.materialize();
+  await alice.materialize();
+  const finalEdges = alice.getEdges();
 
   // Count edges to project:alpha
   let alphaAssignees = 0;
-  for (const edgeKey of finalState.edgeAlive.elements) {
-    if (edgeKey.includes('project:alpha') && edgeKey.includes('assigned')) {
+  for (const edge of finalEdges) {
+    if (edge.to === 'project:alpha' && edge.label === 'assigned') {
       alphaAssignees++;
     }
   }

@@ -1,10 +1,8 @@
-import roaring from 'roaring';
 import { createHash } from 'crypto';
 import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../errors/index.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import LRUCache from '../utils/LRUCache.js';
-
-const { RoaringBitmap32 } = roaring;
+import { getRoaringBitmap32 } from '../utils/roaring.js';
 
 /**
  * Supported shard format versions for backward compatibility.
@@ -197,6 +195,7 @@ export default class BitmapIndexReader {
     const buffer = Buffer.from(encoded, 'base64');
     let ids;
     try {
+      const RoaringBitmap32 = getRoaringBitmap32();
       const bitmap = RoaringBitmap32.deserialize(buffer, true);
       ids = bitmap.toArray();
     } catch (err) {
@@ -326,7 +325,7 @@ export default class BitmapIndexReader {
       expected: err.expected,
       actual: err.actual,
     });
-    const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
+    const emptyShard = format === 'json' ? {} : new (getRoaringBitmap32())();
     this.loadedShards.set(path, emptyShard);
     return emptyShard;
   }
@@ -422,7 +421,7 @@ export default class BitmapIndexReader {
     }
 
     const oid = this.shardOids.get(path);
-    const emptyShard = format === 'json' ? {} : new RoaringBitmap32();
+    const emptyShard = format === 'json' ? {} : new (getRoaringBitmap32())();
     if (!oid) {
       return emptyShard;
     }

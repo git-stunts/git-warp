@@ -65,7 +65,7 @@ async function main() {
   // The patch builder uses a fluent API - chain operations and call commit().
 
   // First patch: Create a user node with properties
-  const sha1 = await graph.createPatch()
+  const sha1 = await (await graph.createPatch())
     .addNode('user:alice')
     .setProperty('user:alice', 'name', 'Alice')
     .setProperty('user:alice', 'email', 'alice@example.com')
@@ -75,7 +75,7 @@ async function main() {
   console.log(`[3] Created first patch: ${sha1.slice(0, 8)}`);
 
   // Second patch: Create another user and a relationship
-  const sha2 = await graph.createPatch()
+  const sha2 = await (await graph.createPatch())
     .addNode('user:bob')
     .setProperty('user:bob', 'name', 'Bob')
     .addEdge('user:alice', 'user:bob', 'follows')
@@ -84,7 +84,7 @@ async function main() {
   console.log(`    Created second patch: ${sha2.slice(0, 8)}`);
 
   // Third patch: Add more data
-  const sha3 = await graph.createPatch()
+  const sha3 = await (await graph.createPatch())
     .addNode('post:1')
     .setProperty('post:1', 'title', 'Hello World')
     .setProperty('post:1', 'content', 'My first post!')
@@ -102,17 +102,21 @@ async function main() {
   const state = await graph.materialize();
 
   console.log('\n[4] Materialized state:');
-  console.log(`    Nodes: ${state.nodeAlive.elements.size}`);
-  console.log(`    Edges: ${state.edgeAlive.elements.size}`);
+  const nodes = graph.getNodes();
+  const edges = graph.getEdges();
+  console.log(`    Nodes: ${nodes.length}`);
+  console.log(`    Edges: ${edges.length}`);
   console.log(`    Properties: ${state.prop.size}`);
 
-  // Access node properties (key format: "nodeId|propertyName")
-  const aliceName = state.prop.get('user:alice|name');
-  const aliceEmail = state.prop.get('user:alice|email');
-  const postTitle = state.prop.get('post:1|title');
+  // Access node properties
+  const aliceProps = graph.getNodeProps('user:alice');
+  const postProps = graph.getNodeProps('post:1');
+  const aliceName = aliceProps?.get('name');
+  const aliceEmail = aliceProps?.get('email');
+  const postTitle = postProps?.get('title');
 
-  console.log(`\n    Alice: name="${aliceName?.value}", email="${aliceEmail?.value}"`);
-  console.log(`    Post 1: title="${postTitle?.value}"`);
+  console.log(`\n    Alice: name="${aliceName}", email="${aliceEmail}"`);
+  console.log(`    Post 1: title="${postTitle}"`);
 
   // ============================================================================
   // Step 5: Discover writers

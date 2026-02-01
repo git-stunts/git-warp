@@ -1,263 +1,93 @@
 #!/usr/bin/env node
 /**
- * Inspect EmptyGraph Bitmap Index Structure
+ * Inspect WarpGraph Checkpoint Structure
  *
- * Visualizes the sharded bitmap index showing shard distribution,
- * sizes, and statistics.
+ * Visualizes the WARP checkpoint tree showing blob sizes and frontier info.
  */
 
-// Import from mounted volume in Docker
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
-const { GitGraphAdapter, DEFAULT_INDEX_REF } = await import(modulePath);
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
-/**
- * Formats bytes into human-readable string
- */
+const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const resolvedModulePath = path.resolve(modulePath);
+const moduleUrl = pathToFileURL(resolvedModulePath).href;
+const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
+
+const rootDir = path.dirname(resolvedModulePath);
+const frontierUrl = pathToFileURL(path.join(rootDir, 'src/domain/services/Frontier.js')).href;
+const { deserializeFrontier } = await import(frontierUrl);
+
+const graphName = process.env.GRAPH_NAME || 'demo';
+const writerId = process.env.WRITER_ID || 'inspector';
+const createIfMissing = process.env.CREATE_CHECKPOINT === '1';
+
 function formatBytes(bytes) {
   if (bytes < 1024) { return `${bytes} B`; }
   if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-/**
- * Creates an ASCII bar chart
- */
-function createBar(value, max, width = 40) {
-  const filled = Math.round((value / max) * width);
-  return '█'.repeat(filled) + '░'.repeat(width - filled);
-}
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`; }
 
 async function main() {
   console.log('='.repeat(70));
-  console.log('  EmptyGraph Bitmap Index Inspector');
+  console.log('  WarpGraph Checkpoint Inspector');
   console.log('='.repeat(70));
   console.log('');
 
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
-  const adapter = new GitGraphAdapter({ plumbing });
+  const persistence = new GitGraphAdapter({ plumbing });
 
-  // Read the index ref
-  const indexOid = await adapter.readRef(DEFAULT_INDEX_REF);
-  if (!indexOid) {
-    console.error('No index found at', DEFAULT_INDEX_REF);
-    console.error('Run setup.js first to create an index.');
+  const checkpointRef = `refs/empty-graph/${graphName}/checkpoints/head`;
+  let checkpointSha = await persistence.readRef(checkpointRef);
+
+  if (!checkpointSha && createIfMissing) {
+    const graph = await WarpGraph.open({ persistence, graphName, writerId });
+    await graph.materialize();
+    checkpointSha = await graph.createCheckpoint();
+  }
+
+  if (!checkpointSha) {
+    console.error(`No checkpoint found at ${checkpointRef}`);
+    console.error('Run setup.js, then set CREATE_CHECKPOINT=1 to generate one.');
     process.exit(1);
   }
 
-  console.log(`Index ref: ${DEFAULT_INDEX_REF}`);
-  console.log(`Index OID: ${indexOid}`);
+  console.log(`Checkpoint ref: ${checkpointRef}`);
+  console.log(`Checkpoint SHA: ${checkpointSha}`);
   console.log('');
 
-  // Read the index tree structure
-  const shardOids = await adapter.readTreeOids(indexOid);
-  const shardPaths = Object.keys(shardOids).sort();
+  const treeOids = await persistence.readTreeOids(checkpointSha);
+  const paths = Object.keys(treeOids).sort();
 
-  // Categorize shards by type
-  const metaShards = [];
-  const fwdShards = [];
-  const revShards = [];
+  console.log('Checkpoint tree entries:');
+  for (const pathName of paths) {
+    const oid = treeOids[pathName];
+    const buffer = await persistence.readBlob(oid);
+    console.log(`  - ${pathName.padEnd(14)} ${formatBytes(buffer.length)}  ${oid}`);
+  }
 
-  for (const path of shardPaths) {
-    if (path.startsWith('meta_')) {
-      metaShards.push(path);
-    } else if (path.startsWith('shards_fwd_')) {
-      fwdShards.push(path);
-    } else if (path.startsWith('shards_rev_')) {
-      revShards.push(path);
+  if (treeOids['frontier.cbor']) {
+    const frontierBuffer = await persistence.readBlob(treeOids['frontier.cbor']);
+    const frontier = deserializeFrontier(frontierBuffer);
+    const entries = Array.from(frontier.entries());
+
+    console.log('\nFrontier writers:');
+    if (entries.length === 0) {
+      console.log('  (none)');
+    } else {
+      for (const [writer, sha] of entries) {
+        console.log(`  - ${writer}: ${sha}`);
+      }
     }
   }
 
-  // Extract unique prefixes from meta shards
-  const prefixes = metaShards.map(p => p.match(/meta_([0-9a-f]{2})\.json/)?.[1]).filter(Boolean);
-
-  console.log('-'.repeat(70));
-  console.log('  INDEX STRUCTURE SUMMARY');
-  console.log('-'.repeat(70));
-  console.log('');
-  console.log(`  Total shard files:    ${shardPaths.length}`);
-  console.log(`  Meta shards:          ${metaShards.length}`);
-  console.log(`  Forward edge shards:  ${fwdShards.length}`);
-  console.log(`  Reverse edge shards:  ${revShards.length}`);
-  console.log(`  Unique prefixes:      ${prefixes.length}`);
-  console.log('');
-
-  // Load shard data and calculate sizes
-  console.log('-'.repeat(70));
-  console.log('  LOADING SHARD DATA...');
-  console.log('-'.repeat(70));
-  console.log('');
-
-  const shardData = {};
-  let totalBytes = 0;
-  let totalNodes = 0;
-  let totalEdgeLists = 0;
-
-  for (const path of shardPaths) {
-    const oid = shardOids[path];
-    const buffer = await adapter.readBlob(oid);
-    const size = buffer.length;
-    totalBytes += size;
-
-    let parsed;
-    try {
-      parsed = JSON.parse(new TextDecoder().decode(buffer));
-    } catch (err) {
-      // Shard contains invalid JSON - will be reported as unparseable
-      console.debug(`Failed to parse shard ${path}: ${err.message}`);
-      parsed = null;
-    }
-
-    shardData[path] = {
-      oid,
-      size,
-      parsed,
-    };
-
-    // Count nodes from meta shards
-    if (path.startsWith('meta_') && parsed?.data) {
-      totalNodes += Object.keys(parsed.data).length;
-    }
-
-    // Count edge lists from forward shards
-    if (path.startsWith('shards_fwd_') && parsed?.data) {
-      totalEdgeLists += Object.keys(parsed.data).length;
-    }
-  }
-
-  console.log(`  Total index size: ${formatBytes(totalBytes)}`);
-  console.log(`  Total nodes:      ${totalNodes}`);
-  console.log(`  Edge lists:       ${totalEdgeLists}`);
-  console.log('');
-
-  // Show shard distribution by prefix
-  console.log('-'.repeat(70));
-  console.log('  SHARD DISTRIBUTION BY PREFIX');
-  console.log('-'.repeat(70));
-  console.log('');
-  console.log('  Prefix   Nodes   Meta Size    Fwd Size     Rev Size     Total');
-  console.log('  ------   -----   ---------    --------     --------     -----');
-
-  const prefixStats = [];
-
-  for (const prefix of prefixes) {
-    const metaPath = `meta_${prefix}.json`;
-    const fwdPath = `shards_fwd_${prefix}.json`;
-    const revPath = `shards_rev_${prefix}.json`;
-
-    const meta = shardData[metaPath];
-    const fwd = shardData[fwdPath];
-    const rev = shardData[revPath];
-
-    const nodeCount = meta?.parsed?.data ? Object.keys(meta.parsed.data).length : 0;
-    const metaSize = meta?.size || 0;
-    const fwdSize = fwd?.size || 0;
-    const revSize = rev?.size || 0;
-    const total = metaSize + fwdSize + revSize;
-
-    prefixStats.push({
-      prefix,
-      nodeCount,
-      metaSize,
-      fwdSize,
-      revSize,
-      total,
-    });
-
-    console.log(
-      `  ${prefix}       ${String(nodeCount).padStart(5)}   ${formatBytes(metaSize).padStart(9)}    ${formatBytes(fwdSize).padStart(8)}     ${formatBytes(revSize).padStart(8)}     ${formatBytes(total).padStart(8)}`
-    );
-  }
-
-  console.log('');
-
-  // Visual distribution chart
-  console.log('-'.repeat(70));
-  console.log('  NODE DISTRIBUTION CHART');
-  console.log('-'.repeat(70));
-  console.log('');
-
-  const maxNodes = Math.max(...prefixStats.map(p => p.nodeCount), 1);
-
-  for (const stat of prefixStats) {
-    if (stat.nodeCount > 0) {
-      const bar = createBar(stat.nodeCount, maxNodes, 40);
-      console.log(`  ${stat.prefix} ${bar} ${stat.nodeCount}`);
-    }
-  }
-
-  console.log('');
-
-  // Size distribution chart
-  console.log('-'.repeat(70));
-  console.log('  SIZE DISTRIBUTION CHART');
-  console.log('-'.repeat(70));
-  console.log('');
-
-  const maxSize = Math.max(...prefixStats.map(p => p.total), 1);
-
-  for (const stat of prefixStats) {
-    if (stat.total > 0) {
-      const bar = createBar(stat.total, maxSize, 40);
-      console.log(`  ${stat.prefix} ${bar} ${formatBytes(stat.total)}`);
-    }
-  }
-
-  console.log('');
-
-  // Memory estimate
-  console.log('-'.repeat(70));
-  console.log('  MEMORY ESTIMATES');
-  console.log('-'.repeat(70));
-  console.log('');
-
-  // Rough memory estimates based on typical roaring bitmap overhead
-  // These are approximations; actual memory depends on bitmap density and run lengths
-  const bitmapOverheadPerNode = 64; // ~64 bytes per node in sparse roaring bitmaps
-  const metadataOverhead = totalNodes * 80; // SHA hex (40) + numeric ID (8) + JS object overhead (~32)
-  const edgeBitmapMemory = totalEdgeLists * bitmapOverheadPerNode;
-  const estimatedRuntimeMemory = metadataOverhead + edgeBitmapMemory * 2; // fwd + rev
-
-  console.log(`  On-disk index size:         ${formatBytes(totalBytes)}`);
-  console.log(`  Estimated metadata memory:  ${formatBytes(metadataOverhead)}`);
-  console.log(`  Estimated bitmap memory:    ${formatBytes(edgeBitmapMemory * 2)}`);
-  console.log(`  Est. total runtime memory:  ${formatBytes(estimatedRuntimeMemory)}`);
-  console.log('');
-
-  // Shard format info
-  console.log('-'.repeat(70));
-  console.log('  SHARD FORMAT INFO');
-  console.log('-'.repeat(70));
-  console.log('');
-
-  // Sample a meta shard to show format
-  const sampleMeta = shardData[metaShards[0]]?.parsed;
-  if (sampleMeta) {
-    console.log('  Shard envelope format:');
-    console.log(`    version:  ${sampleMeta.version}`);
-    console.log(`    checksum: ${sampleMeta.checksum?.slice(0, 16)}...`);
-    console.log('    data:     { [sha]: numericId, ... }');
-    console.log('');
-  }
-
-  // Sample a forward shard to show format
-  const sampleFwd = shardData[fwdShards[0]]?.parsed;
-  if (sampleFwd) {
-    console.log('  Edge shard format:');
-    console.log(`    version:  ${sampleFwd.version}`);
-    console.log(`    checksum: ${sampleFwd.checksum?.slice(0, 16)}...`);
-    console.log('    data:     { [sha]: base64EncodedRoaringBitmap, ... }');
-    console.log('');
-  }
-
-  console.log('='.repeat(70));
-  console.log('  Inspection complete');
-  console.log('='.repeat(70));
-  console.log('');
+  console.log('\nInspector complete.');
 }
 
 main().catch(err => {
-  console.error('Error:', err.message);
+  console.error('ERROR:', err.message);
+  if (err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });

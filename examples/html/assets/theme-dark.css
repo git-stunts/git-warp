@@ -1,0 +1,40 @@
+:root {
+  --theme-1: #143a3e;
+  --theme-2: #1f5b54;
+  --theme-3: #3e9c7c;
+  --theme-4: #79c198;
+  --theme-5: #95cda1;
+
+  --color-1: var(--theme-1);
+  --color-2: var(--theme-2);
+  --color-3: var(--theme-3);
+  --color-4: var(--theme-4);
+  --color-5: var(--theme-5);
+
+  --page-bg: radial-gradient(circle at 12% 15%, rgba(20, 58, 62, 0.9) 0%, rgba(31, 91, 84, 0.82) 40%, rgba(62, 156, 124, 0.65) 100%);
+  --card-bg: rgba(20, 58, 62, 0.35);
+  --card-border: rgba(149, 205, 161, 0.4);
+  --accent: var(--theme-4);
+  --accent-2: var(--theme-3);
+  --ink: var(--theme-5);
+  --muted: rgba(149, 205, 161, 0.72);
+  --shadow: 0 24px 60px rgba(8, 28, 30, 0.45);
+
+  --chrome-bg: var(--theme-5);
+  --chrome-border: var(--theme-3);
+  --chrome-ink: var(--theme-1);
+  --chrome-muted: rgba(20, 58, 62, 0.72);
+
+  --masthead-bg: var(--chrome-bg);
+  --masthead-border: var(--chrome-border);
+
+  --logo-fill: var(--theme-5);
+  --logo-stroke: var(--theme-3);
+  --logo-stroke-width: clamp(2px, 0.6vw, 6px);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --logo-stroke-width: 3px;
+  }
+}

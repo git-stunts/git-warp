@@ -143,7 +143,6 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 
 #### Managed Mode & Durability
 - **`EmptyGraph.open()`** - New static factory for creating managed graphs with automatic durability guarantees
-- **`GraphRefManager`** - New service for ref/anchor management
 - **Anchor commits** - Automatic creation of anchor commits to prevent GC of disconnected subgraphs
 - **`graph.sync(sha)`** - Manual ref synchronization for `autoSync: 'manual'` mode
 - **`graph.anchor(ref, shas)`** - Power user method for explicit anchor creation

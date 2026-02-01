@@ -1,7 +1,7 @@
 {
   "name": "@git-stunts/empty-graph",
-  "version": "6.0.0",
-  "description": "A graph database where every node is a Git commit pointing to the Empty Tree. Invisible storage, atomic operations, DAG-native.",
+  "version": "7.0.0",
+  "description": "An experimental implementation of the WARP architecture",
   "type": "module",
   "main": "index.js",
   "types": "./index.d.ts",

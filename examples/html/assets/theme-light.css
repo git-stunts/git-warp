@@ -1,0 +1,42 @@
+:root {
+  --theme-1: #292929;
+  --theme-2: #413a39;
+  --theme-3: #a44037;
+  --theme-4: #f95242;
+  --theme-5: #ff7163;
+  --theme-6: #ff7163;
+  --theme-7: #ff7163;
+
+  --color-dark: #292929;
+  --color-deep: #413a39;
+  --color-mid: #a44037;
+  --color-accent: #f95242;
+  --color-light: #ff7163;
+
+  --page-bg: radial-gradient(circle at 12% 15%, rgba(255, 113, 99, 0.85) 0%, rgba(249, 82, 66, 0.7) 45%, rgba(164, 64, 55, 0.55) 100%);
+  --card-bg: rgba(255, 113, 99, 0.18);
+  --card-border: rgba(41, 41, 41, 0.3);
+  --accent: var(--color-accent);
+  --accent-2: var(--color-mid);
+  --ink: var(--color-dark);
+  --muted: rgba(41, 41, 41, 0.72);
+  --shadow: 0 18px 45px rgba(41, 41, 41, 0.2);
+
+  --chrome-bg: var(--color-dark);
+  --chrome-border: var(--color-deep);
+  --chrome-ink: var(--color-light);
+  --chrome-muted: rgba(255, 113, 99, 0.8);
+
+  --masthead-bg: var(--chrome-bg);
+  --masthead-border: var(--chrome-border);
+
+  --logo-fill: var(--ink);
+  --logo-stroke: var(--accent);
+  --logo-stroke-width: clamp(1.5px, 0.4vw, 3px);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --logo-stroke-width: 2px;
+  }
+}

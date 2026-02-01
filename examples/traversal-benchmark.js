@@ -1,26 +1,35 @@
 #!/usr/bin/env node
 /**
- * Traversal Benchmark - Weighted Pathfinding at Scale
+ * Traversal Benchmark - Weighted Pathfinding on WarpGraph
  *
- * Benchmarks Dijkstra, A*, and Bidirectional A* algorithms on large graphs.
- * Tests performance characteristics with varying graph sizes and topologies.
+ * Benchmarks Dijkstra and A* over materialized WarpGraph state.
+ * Builds synthetic graphs in the WARP data model and compares
+ * weighted shortest-path performance.
  *
  * Run with: npm run demo:bench-traversal
  */
 
-// Import from mounted volume in Docker
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
-const { default: EmptyGraph, GitGraphAdapter } = await import(modulePath);
-import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import { execSync } from 'child_process';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
+import { buildAdjacency, computeDepths, dijkstra, aStar } from './pathfinding.js';
+
+const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const resolvedModulePath = path.resolve(modulePath);
+const moduleUrl = pathToFileURL(resolvedModulePath).href;
+const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-// Graph sizes to benchmark
 const GRAPH_SIZES = [100, 500, 1000, 2000, 5000];
-const ITERATIONS_PER_SIZE = 3; // Run each benchmark multiple times for stability
+const ITERATIONS_PER_SIZE = 3;
+const NODES_PER_PATCH = parseInt(process.env.NODES_PER_PATCH || '250', 10);
+
+const runId = process.env.RUN_ID || Date.now().toString(36);
+const writerId = process.env.WRITER_ID || 'bench';
 
 // ============================================================================
 // HELPERS
@@ -65,34 +74,59 @@ function median(arr) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+function randomMetrics() {
+  const cpu = Math.random() * 2 + 0.5;
+  const mem = Math.random() * 3 + 0.5;
+  return { cpu, mem, weight: cpu + 1.5 * mem };
+}
+
+async function commitPatch(graph, ops) {
+  if (ops.length === 0) {
+    return;
+  }
+  const patch = await graph.createPatch();
+  for (const op of ops) {
+    op(patch);
+  }
+  await patch.commit();
+}
+
 // ============================================================================
 // GRAPH GENERATORS
 // ============================================================================
 
-/**
- * Creates a linear chain of nodes (worst case for bidirectional - no benefit)
- */
-async function createLinearGraph(graph, size) {
-  let parentSha = null;
-  const shas = [];
+async function createLinearGraph(graph, size, weightMap) {
+  const nodeIds = [];
+  let batch = [];
 
   for (let i = 0; i < size; i++) {
-    const message = JSON.stringify({
-      type: 'linear-node',
-      index: i,
-      metrics: { cpu: Math.random() * 2 + 0.5, mem: Math.random() * 3 + 0.5 },
+    const nodeId = `node:${i}`;
+    const prevNode = i === 0 ? null : `node:${i - 1}`;
+    const metrics = randomMetrics();
+    weightMap.set(nodeId, metrics.weight);
+
+    batch.push(patch => {
+      patch.addNode(nodeId)
+        .setProperty(nodeId, 'cpu', metrics.cpu)
+        .setProperty(nodeId, 'mem', metrics.mem);
+      if (prevNode) {
+        patch.addEdge(prevNode, nodeId, 'next');
+      }
     });
-    const parents = parentSha ? [parentSha] : [];
-    parentSha = await graph.createNode({ message, parents });
-    shas.push(parentSha);
+
+    nodeIds.push(nodeId);
+
+    if (nodeIds.length % NODES_PER_PATCH === 0) {
+      await commitPatch(graph, batch);
+      batch = [];
+    }
   }
 
-  return { shas, type: 'linear' };
+  await commitPatch(graph, batch);
+
+  return { nodeIds, type: 'linear' };
 }
 
-/**
- * Select unique parents from the previous layer for a diamond graph node
- */
 function selectParents(prevLayer, nodeIndex, numParents) {
   const parents = [];
   for (let p = 0; p < numParents; p++) {
@@ -105,165 +139,120 @@ function selectParents(prevLayer, nodeIndex, numParents) {
   return parents;
 }
 
-/**
- * Creates a diamond/DAG structure (bidirectional shines here)
- * Multiple paths exist between start and end.
- */
-async function createDiamondGraph(graph, size) {
-  const shas = [];
+async function createDiamondGraph(graph, size, weightMap) {
+  const nodeIds = [];
   const layers = Math.ceil(Math.sqrt(size));
   const nodesPerLayer = Math.ceil(size / layers);
 
-  // First node
-  const rootSha = await graph.createNode({
-    message: JSON.stringify({ type: 'diamond-root', index: 0, metrics: { cpu: 1, mem: 1 } }),
-    parents: [],
+  let batch = [];
+
+  const rootId = 'node:root';
+  const rootMetrics = randomMetrics();
+  weightMap.set(rootId, rootMetrics.weight);
+  batch.push(patch => {
+    patch.addNode(rootId)
+      .setProperty(rootId, 'cpu', rootMetrics.cpu)
+      .setProperty(rootId, 'mem', rootMetrics.mem);
   });
-  shas.push(rootSha);
+  nodeIds.push(rootId);
 
-  let prevLayer = [rootSha];
+  let prevLayer = [rootId];
 
-  // Build diamond layers
-  for (let layer = 1; layer < layers && shas.length < size; layer++) {
+  for (let layer = 1; layer < layers && nodeIds.length < size; layer++) {
     const currentLayer = [];
-    const width = Math.min(nodesPerLayer, size - shas.length);
+    const width = Math.min(nodesPerLayer, size - nodeIds.length);
 
-    for (let i = 0; i < width && shas.length < size; i++) {
-      // Connect to 1-3 nodes from previous layer
+    for (let i = 0; i < width && nodeIds.length < size; i++) {
+      const nodeId = `node:l${layer}-${i}`;
+      const metrics = randomMetrics();
+      weightMap.set(nodeId, metrics.weight);
+
       const numParents = Math.min(prevLayer.length, Math.floor(Math.random() * 3) + 1);
       const parents = selectParents(prevLayer, i, numParents);
 
-      const sha = await graph.createNode({
-        message: JSON.stringify({
-          type: 'diamond-node',
-          layer,
-          index: i,
-          metrics: { cpu: Math.random() * 2 + 0.5, mem: Math.random() * 3 + 0.5 },
-        }),
-        parents,
+      batch.push(patch => {
+        patch.addNode(nodeId)
+          .setProperty(nodeId, 'cpu', metrics.cpu)
+          .setProperty(nodeId, 'mem', metrics.mem);
+        for (const parent of parents) {
+          patch.addEdge(parent, nodeId, 'links');
+        }
       });
-      shas.push(sha);
-      currentLayer.push(sha);
+
+      nodeIds.push(nodeId);
+      currentLayer.push(nodeId);
+
+      if (nodeIds.length % NODES_PER_PATCH === 0) {
+        await commitPatch(graph, batch);
+        batch = [];
+      }
     }
 
     prevLayer = currentLayer;
   }
 
-  // Create a single sink node connected to last layer
   if (prevLayer.length > 1) {
-    const sinkSha = await graph.createNode({
-      message: JSON.stringify({ type: 'diamond-sink', index: shas.length, metrics: { cpu: 1, mem: 1 } }),
-      parents: prevLayer.slice(0, 3), // Connect to up to 3 final nodes
+    const sinkId = `node:sink-${nodeIds.length}`;
+    const metrics = randomMetrics();
+    weightMap.set(sinkId, metrics.weight);
+
+    batch.push(patch => {
+      patch.addNode(sinkId)
+        .setProperty(sinkId, 'cpu', metrics.cpu)
+        .setProperty(sinkId, 'mem', metrics.mem);
+      for (const parent of prevLayer.slice(0, 3)) {
+        patch.addEdge(parent, sinkId, 'links');
+      }
     });
-    shas.push(sinkSha);
+
+    nodeIds.push(sinkId);
   }
 
-  return { shas, type: 'diamond' };
-}
+  await commitPatch(graph, batch);
 
-// ============================================================================
-// WEIGHT AND HEURISTIC PROVIDERS
-// ============================================================================
-
-function createWeightProvider(graph) {
-  const cache = new Map();
-
-  return async (fromSha, toSha) => {
-    if (cache.has(toSha)) {
-      return cache.get(toSha);
-    }
-
-    const message = await graph.readNode(toSha);
-    let cpu = 1;
-    let mem = 1;
-    try {
-      const event = JSON.parse(message);
-      cpu = event.metrics?.cpu ?? 1;
-      mem = event.metrics?.mem ?? 1;
-    } catch {
-      // Fall back to default weights for non-JSON messages
-    }
-    const weight = cpu + 1.5 * mem;
-
-    cache.set(toSha, weight);
-    return weight;
-  };
-}
-
-function createHeuristic(depthMap, targetDepth) {
-  // Admissible heuristic: minimum edge weight times depth difference
-  const minWeight = 0.5 + 0.5 * 1.5; // min cpu + 1.5 * min mem
-  return (sha, _targetSha) => { // targetSha unused; target info captured via targetDepth
-    const currentDepth = depthMap.get(sha) ?? 0;
-    const dist = Math.abs(targetDepth - currentDepth);
-    return dist * minWeight;
-  };
+  return { nodeIds, type: 'diamond' };
 }
 
 // ============================================================================
 // BENCHMARK RUNNER
 // ============================================================================
 
-async function runBenchmark({ graph, shas, weightProvider, depthMap }) {
-  const fromSha = shas[0];
-  const toSha = shas[shas.length - 1];
-  const targetDepth = depthMap.get(toSha) ?? shas.length;
+async function runBenchmark({ adjacency, nodeIds, weightMap, depthMap }) {
+  const start = nodeIds[0];
+  const goal = nodeIds[nodeIds.length - 1];
+  const minWeight = Math.min(...weightMap.values(), 1);
 
-  const forwardHeuristic = createHeuristic(depthMap, targetDepth);
-  const backwardHeuristic = createHeuristic(depthMap, 0);
+  const weightForNode = (nodeId) => weightMap.get(nodeId) ?? 1;
+  const heuristic = (nodeId) => {
+    const currentDepth = depthMap.get(nodeId) ?? 0;
+    const targetDepth = depthMap.get(goal) ?? depthMap.size;
+    return Math.abs(targetDepth - currentDepth) * minWeight;
+  };
 
   const results = {
     dijkstra: { times: [], nodesExplored: 0, pathLength: 0, totalCost: 0 },
     aStar: { times: [], nodesExplored: 0, pathLength: 0, totalCost: 0 },
-    bidirectional: { times: [], nodesExplored: 0, pathLength: 0, totalCost: 0 },
   };
 
   for (let iter = 0; iter < ITERATIONS_PER_SIZE; iter++) {
-    // Dijkstra
-    const dijkstraStart = performance.now();
-    const dijkstraResult = await graph.traversal.weightedShortestPath({
-      from: fromSha,
-      to: toSha,
-      weightProvider,
-      direction: 'children',
-    });
-    results.dijkstra.times.push(performance.now() - dijkstraStart);
-    results.dijkstra.pathLength = dijkstraResult.path.length;
-    results.dijkstra.totalCost = dijkstraResult.totalCost;
+    const dStart = performance.now();
+    const dResult = dijkstra({ adjacency, start, goal, weightForNode });
+    results.dijkstra.times.push(performance.now() - dStart);
+    results.dijkstra.nodesExplored = dResult.nodesExplored;
+    results.dijkstra.pathLength = dResult.path.length;
+    results.dijkstra.totalCost = dResult.totalCost;
 
-    // A*
-    const aStarStart = performance.now();
-    const aStarResult = await graph.traversal.aStarSearch({
-      from: fromSha,
-      to: toSha,
-      weightProvider,
-      heuristicProvider: forwardHeuristic,
-      direction: 'children',
-    });
-    results.aStar.times.push(performance.now() - aStarStart);
-    results.aStar.nodesExplored = aStarResult.nodesExplored;
-    results.aStar.pathLength = aStarResult.path.length;
-    results.aStar.totalCost = aStarResult.totalCost;
-
-    // Bidirectional A*
-    const biStart = performance.now();
-    const biResult = await graph.traversal.bidirectionalAStar({
-      from: fromSha,
-      to: toSha,
-      weightProvider,
-      forwardHeuristic,
-      backwardHeuristic,
-    });
-    results.bidirectional.times.push(performance.now() - biStart);
-    results.bidirectional.nodesExplored = biResult.nodesExplored;
-    results.bidirectional.pathLength = biResult.path.length;
-    results.bidirectional.totalCost = biResult.totalCost;
+    const aStart = performance.now();
+    const aResult = aStar({ adjacency, start, goal, weightForNode, heuristic });
+    results.aStar.times.push(performance.now() - aStart);
+    results.aStar.nodesExplored = aResult.nodesExplored;
+    results.aStar.pathLength = aResult.path.length;
+    results.aStar.totalCost = aResult.totalCost;
   }
 
   return {
     dijkstra: { ...results.dijkstra, medianTime: median(results.dijkstra.times) },
     aStar: { ...results.aStar, medianTime: median(results.aStar.times) },
-    bidirectional: { ...results.bidirectional, medianTime: median(results.bidirectional.times) },
   };
 }
 
@@ -273,14 +262,11 @@ async function runBenchmark({ graph, shas, weightProvider, depthMap }) {
 
 async function main() {
   console.log('='.repeat(70));
-  console.log('  TRAVERSAL BENCHMARK - Weighted Pathfinding at Scale');
+  console.log('  WARP TRAVERSAL BENCHMARK - Weighted Pathfinding');
   console.log('='.repeat(70));
   console.log(`\nGraph sizes: ${GRAPH_SIZES.join(', ')} nodes`);
   console.log(`Iterations per size: ${ITERATIONS_PER_SIZE}\n`);
 
-  // --------------------------------------------------------------------------
-  // Setup
-  // --------------------------------------------------------------------------
   printSection('INITIALIZATION');
 
   try {
@@ -294,166 +280,89 @@ async function main() {
 
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
-  const adapter = new GitGraphAdapter({ plumbing });
+  const persistence = new GitGraphAdapter({ plumbing });
 
-  console.log('  [OK] EmptyGraph initialized');
-
-  // Results storage
   const linearResults = [];
   const diamondResults = [];
 
-  // --------------------------------------------------------------------------
-  // Linear Graph Benchmarks
-  // --------------------------------------------------------------------------
   printSection('LINEAR GRAPH BENCHMARKS');
 
-  console.log('Linear graphs represent worst-case for bidirectional search');
-  console.log('(only one path exists, so meet-in-middle provides no benefit).\n');
-
   for (const size of GRAPH_SIZES) {
-    // Create fresh graph instance to avoid state issues between sizes
-    const freshGraph = new EmptyGraph({ persistence: adapter });
+    const graphName = `bench-linear-${size}-${runId}`;
+    const graph = await WarpGraph.open({ persistence, graphName, writerId });
+    const weightMap = new Map();
 
     console.log(`\n  Creating linear graph with ${formatNum(size)} nodes...`);
-    const { shas } = await createLinearGraph(freshGraph, size);
+    const { nodeIds } = await createLinearGraph(graph, size, weightMap);
 
-    // Update ref and build index
-    const headSha = shas[shas.length - 1];
-    execSync(`git update-ref refs/heads/bench-linear-${size} ${headSha}`, { stdio: 'pipe' });
+    console.log('  Materializing state...');
+    await graph.materialize();
 
-    console.log(`  Building index...`);
-    const indexOid = await freshGraph.rebuildIndex(`refs/heads/bench-linear-${size}`);
-    await freshGraph.loadIndex(indexOid);
+    const adjacency = buildAdjacency(graph.getEdges());
+    const depthMap = computeDepths(adjacency, nodeIds[0]);
 
-    // Build depth map
-    const depthMap = new Map();
-    for await (const node of freshGraph.traversal.bfs({ start: shas[0], direction: 'forward' })) {
-      depthMap.set(node.sha, node.depth);
-    }
-
-    const weightProvider = createWeightProvider(freshGraph);
-
-    console.log(`  Running benchmarks...`);
-    const results = await runBenchmark({ graph: freshGraph, shas, weightProvider, depthMap });
+    console.log('  Running benchmarks...');
+    const results = await runBenchmark({ adjacency, nodeIds, weightMap, depthMap });
 
     linearResults.push({ size, ...results });
 
-    console.log(`  [OK] Size ${size}: Dijkstra=${formatMs(results.dijkstra.medianTime)}, A*=${formatMs(results.aStar.medianTime)}, BiA*=${formatMs(results.bidirectional.medianTime)}`);
+    console.log(`  [OK] Size ${size}: Dijkstra=${formatMs(results.dijkstra.medianTime)}, A*=${formatMs(results.aStar.medianTime)}`);
   }
 
-  // --------------------------------------------------------------------------
-  // Diamond/DAG Graph Benchmarks
-  // --------------------------------------------------------------------------
-  printSection('DIAMOND/DAG GRAPH BENCHMARKS');
-
-  console.log('Diamond graphs have multiple paths, allowing bidirectional');
-  console.log('search to potentially explore fewer nodes.\n');
+  printSection('DIAMOND GRAPH BENCHMARKS');
 
   for (const size of GRAPH_SIZES) {
-    // Create fresh graph instance to avoid state issues between sizes
-    const freshGraph = new EmptyGraph({ persistence: adapter });
+    const graphName = `bench-diamond-${size}-${runId}`;
+    const graph = await WarpGraph.open({ persistence, graphName, writerId });
+    const weightMap = new Map();
 
     console.log(`\n  Creating diamond graph with ${formatNum(size)} nodes...`);
-    const { shas } = await createDiamondGraph(freshGraph, size);
+    const { nodeIds } = await createDiamondGraph(graph, size, weightMap);
 
-    const headSha = shas[shas.length - 1];
-    execSync(`git update-ref refs/heads/bench-diamond-${size} ${headSha}`, { stdio: 'pipe' });
+    console.log('  Materializing state...');
+    await graph.materialize();
 
-    console.log(`  Building index...`);
-    const indexOid = await freshGraph.rebuildIndex(`refs/heads/bench-diamond-${size}`);
-    await freshGraph.loadIndex(indexOid);
+    const adjacency = buildAdjacency(graph.getEdges());
+    const depthMap = computeDepths(adjacency, nodeIds[0]);
 
-    // Build depth map via BFS
-    const depthMap = new Map();
-    for await (const node of freshGraph.traversal.bfs({ start: shas[0], direction: 'forward' })) {
-      depthMap.set(node.sha, node.depth);
-    }
-
-    const weightProvider = createWeightProvider(freshGraph);
-
-    console.log(`  Running benchmarks...`);
-    const results = await runBenchmark({ graph: freshGraph, shas, weightProvider, depthMap });
+    console.log('  Running benchmarks...');
+    const results = await runBenchmark({ adjacency, nodeIds, weightMap, depthMap });
 
     diamondResults.push({ size, ...results });
 
-    console.log(`  [OK] Size ${size}: Dijkstra=${formatMs(results.dijkstra.medianTime)}, A*=${formatMs(results.aStar.medianTime)}, BiA*=${formatMs(results.bidirectional.medianTime)}`);
+    console.log(`  [OK] Size ${size}: Dijkstra=${formatMs(results.dijkstra.medianTime)}, A*=${formatMs(results.aStar.medianTime)}`);
   }
 
-  // --------------------------------------------------------------------------
-  // Results Tables
-  // --------------------------------------------------------------------------
   printSection('RESULTS: LINEAR GRAPHS');
 
-  console.log('Median execution time (lower is better):\n');
   printTable(
-    ['Nodes', 'Dijkstra', 'A*', 'Bidirectional A*', 'A* Explored'],
+    ['Nodes', 'Dijkstra', 'A*', 'A* Explored'],
     linearResults.map(r => [
       formatNum(r.size),
       formatMs(r.dijkstra.medianTime),
       formatMs(r.aStar.medianTime),
-      formatMs(r.bidirectional.medianTime),
       r.aStar.nodesExplored,
     ])
   );
 
   printSection('RESULTS: DIAMOND GRAPHS');
 
-  console.log('Median execution time (lower is better):\n');
   printTable(
-    ['Nodes', 'Dijkstra', 'A*', 'Bidirectional A*', 'BiA* Explored'],
+    ['Nodes', 'Dijkstra', 'A*', 'A* Explored'],
     diamondResults.map(r => [
       formatNum(r.size),
       formatMs(r.dijkstra.medianTime),
       formatMs(r.aStar.medianTime),
-      formatMs(r.bidirectional.medianTime),
-      r.bidirectional.nodesExplored,
+      r.aStar.nodesExplored,
     ])
   );
 
-  // --------------------------------------------------------------------------
-  // Analysis
-  // --------------------------------------------------------------------------
-  printSection('ANALYSIS');
-
-  console.log('Performance Observations:\n');
-
-  // Calculate speedups for largest size
-  const largestLinear = linearResults[linearResults.length - 1];
-  const largestDiamond = diamondResults[diamondResults.length - 1];
-
-  const linearAStarSpeedup = largestLinear.dijkstra.medianTime / largestLinear.aStar.medianTime;
-  const linearBiSpeedup = largestLinear.dijkstra.medianTime / largestLinear.bidirectional.medianTime;
-  const diamondAStarSpeedup = largestDiamond.dijkstra.medianTime / largestDiamond.aStar.medianTime;
-  const diamondBiSpeedup = largestDiamond.dijkstra.medianTime / largestDiamond.bidirectional.medianTime;
-
-  console.log(`LINEAR GRAPHS (${formatNum(largestLinear.size)} nodes):`);
-  console.log(`  A* vs Dijkstra:           ${linearAStarSpeedup.toFixed(2)}x ${linearAStarSpeedup > 1 ? 'faster' : 'slower'}`);
-  console.log(`  Bidirectional vs Dijkstra: ${linearBiSpeedup.toFixed(2)}x ${linearBiSpeedup > 1 ? 'faster' : 'slower'}`);
-  console.log(`  A* nodes explored:        ${largestLinear.aStar.nodesExplored}`);
-
-  console.log(`\nDIAMOND GRAPHS (${formatNum(largestDiamond.size)} nodes):`);
-  console.log(`  A* vs Dijkstra:           ${diamondAStarSpeedup.toFixed(2)}x ${diamondAStarSpeedup > 1 ? 'faster' : 'slower'}`);
-  console.log(`  Bidirectional vs Dijkstra: ${diamondBiSpeedup.toFixed(2)}x ${diamondBiSpeedup > 1 ? 'faster' : 'slower'}`);
-  console.log(`  Bidirectional nodes explored: ${largestDiamond.bidirectional.nodesExplored}`);
-
-  console.log('\nKey Insights:\n');
-  console.log('  1. A* with a good heuristic explores fewer nodes than Dijkstra');
-  console.log('  2. Bidirectional A* shines on DAGs with multiple paths');
-  console.log('  3. For linear graphs, all algorithms perform similarly');
-  console.log('  4. Weight provider caching significantly impacts performance');
-  console.log('  5. Complexity is O((V+E) log V) for all weighted algorithms\n');
-
-  // --------------------------------------------------------------------------
-  // Summary
-  // --------------------------------------------------------------------------
   printSection('SUMMARY');
-
   console.log('Weighted traversal algorithms benchmarked successfully.\n');
-  console.log('The results demonstrate that:');
-  console.log('  - All algorithms find optimal paths (same total cost)');
-  console.log('  - A* reduces nodes explored with admissible heuristics');
-  console.log('  - Bidirectional search benefits graphs with multiple paths');
-  console.log('  - Performance scales with O((V+E) log V) as expected\n');
+  console.log('Highlights:');
+  console.log('  - Dijkstra provides the optimal baseline.');
+  console.log('  - A* explores fewer nodes with an admissible heuristic.');
+  console.log('  - Results scale with graph size and topology.\n');
 }
 
 main().catch(err => {
