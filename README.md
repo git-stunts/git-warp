@@ -1362,6 +1362,12 @@ Apache-2.0 © 2026 by James Ross
 
 ---
 
+## AIΩN Foundations Series
+
+This project is part of the [AIΩN Foundations Series](https://github.com/flyingrobots/aion/)—a reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs. empty-graph is the Git-native, JavaScript implementation: accessible, distributed, and built on CRDTs for coordination-free multi-writer collaboration.
+
+---
+
 <p align="center">
 
 <sub>Built by <a href="https://github.com/flyingrobots">FLYING•ROBOTS</a></sub>
