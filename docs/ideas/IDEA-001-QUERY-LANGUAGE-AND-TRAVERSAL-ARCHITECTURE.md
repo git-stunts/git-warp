@@ -6,10 +6,10 @@
 
 ## 1. Executive Summary
 
-This report evaluates the path forward for querying the `@git-stunts/empty-graph` Directed Acyclic Graph (DAG). While the system currently possesses strong low-level traversal capabilities, it lacks a high-level declarative query interface. We analyzed the feasibility of adopting industry standards like **Cypher** and **SPARQL** versus developing a custom domain-specific language (**EmptyQL**).
+This report evaluates the path forward for querying the `@git-stunts/empty-graph` Directed Acyclic Graph (DAG). While the system currently possesses strong low-level traversal capabilities, it lacks a high-level declarative query interface. We analyzed the feasibility of adopting industry standards like **Cypher** and **SPARQL** versus developing a custom domain-specific language (**WarpQL**).
 
 > [!important]
-> **Key Finding:** Adopting full Cypher or SPARQL introduces significant architectural mismatch risks due to EmptyGraph’s specialized immutable commit-based model. 
+> **Key Finding:** Adopting full Cypher or SPARQL introduces significant architectural mismatch risks due to WarpGraph's specialized immutable commit-based model. 
 > 
 > **We recommend a phased approach**: immediate implementation of functional predicate filtering, followed by the development of a tailored fluent DSL.
 
@@ -44,13 +44,13 @@ Cypher is highly intuitive for property graphs but assumes a mutable environment
 
 SPARQL treats the graph as a series of (Subject, Predicate, Object) triples.
 
-- **Model Fit:** Poor. EmptyGraph is optimized for parent/child lookups, not arbitrary predicate queries.
+- **Model Fit:** Poor. WarpGraph is optimized for parent/child lookups, not arbitrary predicate queries.
 - **Risk:** Requires either slow on-the-fly triple generation or a significant storage overhead for a triple-index shard.
 - **Recommendation:** Not recommended ($8-16$ weeks effort).
 
 ---
 
-## 4. Proposed Alternative: EmptyQL (Custom DSL)
+## 4. Proposed Alternative: WarpQL (Custom DSL)
 
 A fluent, chainable API tailored to the strengths of Git-based DAGs. This approach leverages the `BitmapIndexReader` directly.
 
@@ -60,7 +60,7 @@ A fluent, chainable API tailored to the strengths of Git-based DAGs. This approa
 2. **Lazy Evaluation:** Load commit messages/JSON payloads only when required by a filter.
 3. **Temporal Awareness:** Built-in support for date-range and time-windowed aggregation.
 
-### Sample Syntax (EmptyQL)
+### Sample Syntax (WarpQL)
 
 ```javascript
 const orders = await graph.query()
@@ -93,7 +93,7 @@ To maintain performance at scale ($1M+$ nodes), a custom query planner must be i
 
 ### Phase 2: Structural Evolution (Medium Effort)
 
-- Develop the **EmptyQL** fluent API.
+- Develop the **WarpQL** fluent API.
 - Build a **GraphStatistics** collector to provide metadata for the query planner.
 
 ### Phase 3: Advanced Querying (High Effort)
@@ -108,7 +108,7 @@ To maintain performance at scale ($1M+$ nodes), a custom query planner must be i
 |**Option**|**Effort**|**Value**|**Recommendation**|
 |---|---|---|---|
 |**Custom Predicates**|1-3 Days|High|**Implement Immediately**|
-|**EmptyQL DSL**|2-4 Weeks|Very High|**Primary Target**|
+|**WarpQL DSL**|2-4 Weeks|Very High|**Primary Target**|
 |**Cypher Subset**|4-8 Weeks|Medium|**Consider for UX Only**|
 |**SPARQL**|8-16 Weeks|Low|**Abandon**|
 
@@ -119,7 +119,7 @@ To maintain performance at scale ($1M+$ nodes), a custom query planner must be i
 
 ---
 
-# RFC 006: EmptyQL – A LINQ-Inspired Query Engine
+# RFC 006: WarpQL – A LINQ-Inspired Query Engine
 
 - **Author:** James Ross / Gemini
     
@@ -127,20 +127,20 @@ To maintain performance at scale ($1M+$ nodes), a custom query planner must be i
     
 - **Target Version:** 2.0.0-alpha
     
-- **Dependencies:** `GraphService`, `TraversalService`, `BitmapIndexReader`
+- **Dependencies:** `WarpGraph`, `TraversalService`, `BitmapIndexReader`
     
 
 ---
 
 ## 1. Abstract
 
-This RFC proposes **EmptyQL**, a declarative, deferred-execution query engine for `@git-stunts/empty-graph`. By adopting a LINQ-inspired fluent API, we aim to decouple query intent from traversal implementation. This engine will leverage existing async generators to provide O(1) memory overhead and utilize "predicate push-down" to exploit the bitmap indexing layer for high-speed filtering.
+This RFC proposes **WarpQL**, a declarative, deferred-execution query engine for `@git-stunts/empty-graph`. By adopting a LINQ-inspired fluent API, we aim to decouple query intent from traversal implementation. This engine will leverage existing async generators to provide O(1) memory overhead and utilize "predicate push-down" to exploit the bitmap indexing layer for high-speed filtering.
 
 ## 2. Motivation
 
-The current imperative approach requires developers to manually orchestrate `TraversalService.bfs` or `GraphService.iterateNodes`. While flexible, common patterns—such as "find the last 5 orders from this user"—require redundant logic for filtering, depth management, and data hydration.
+The current imperative approach requires developers to manually orchestrate `TraversalService.bfs` or `WarpGraph.iterateNodes`. While flexible, common patterns—such as "find the last 5 orders from this user"—require redundant logic for filtering, depth management, and data hydration.
 
-EmptyQL will address:
+WarpQL will address:
 
 - **Optimization Mismatch:** Currently, filters are often applied _after_ expensive `GraphNode` hydration.
     
@@ -153,7 +153,7 @@ EmptyQL will address:
 
 ### 3.1 The Query Provider (Deferred Execution)
 
-EmptyQL implements a "Builder" that accumulates an operation stack. No Git operations or I/O are performed until a terminal method (e.g., `.toArray()`, `.first()`) is called.
+WarpQL implements a "Builder" that accumulates an operation stack. No Git operations or I/O are performed until a terminal method (e.g., `.toArray()`, `.first()`) is called.
 
 ### 3.2 Core Pipeline Stages
 
@@ -161,7 +161,7 @@ The engine will execute queries in three distinct cost-weighted phases:
 
 1. **Index Phase (Low Cost):** Uses `BitmapIndexReader` and `TraversalService` to identify candidate SHAs.
     
-2. **Hydration Phase (Medium Cost):** Calls `GraphService.readNode(sha)` only for candidates that passed the Index Phase.
+2. **Hydration Phase (Medium Cost):** Calls `WarpGraph.readNode(sha)` only for candidates that passed the Index Phase.
     
 3. **Projection Phase (Application Logic):** Parses JSON payloads and returns the final shape.
     
@@ -182,11 +182,11 @@ const query = graph.query()
 
 ## 4. Implementation Details
 
-### 4.1 Leveraging `GraphService`
+### 4.1 Leveraging `WarpGraph`
 
-EmptyQL will wrap `iterateNodes` and `readNode`.
+WarpQL will wrap `iterateNodes` and `readNode`.
 
-- **Early Exit:** When `.limit(n)` is reached, the engine will trigger the `AbortSignal` already supported by `GraphService.iterateNodes` to close the Git log stream immediately.
+- **Early Exit:** When `.limit(n)` is reached, the engine will trigger the `AbortSignal` already supported by `WarpGraph.iterateNodes` to close the Git log stream immediately.
     
 - **Bulk Hydration:** For non-streaming terminal calls (`.toArray()`), the engine can use the sequential optimization logic seen in `createNodes` to fetch messages in batches.
     
@@ -200,7 +200,7 @@ The engine will act as a high-level coordinator for `bfs`, `dfs`, and `ancestors
 
 ### 4.3 Streaming Support
 
-EmptyQL will implement the `AsyncIterator` protocol, allowing native JS streaming:
+WarpQL will implement the `AsyncIterator` protocol, allowing native JS streaming:
 
 JavaScript
 
@@ -257,7 +257,7 @@ for await (const order of graph.query().where({ type: 'order' })) {
 
 My Gut™ says the **Pipeable Operators (Functional Composition)** approach is the superior move for the current state of `@git-stunts/empty-graph`.
 
-While the LINQ/EmptyQL API is the "sexiest" for the README, your codebase is built on lean, specialized services like `GraphService` and `TraversalService`. Forcing a monolithic `QueryBuilder` class on top of them right now feels like building a skyscraper on top of a very high-quality tent.
+While the LINQ/WarpQL API is the "sexiest" for the README, your codebase is built on lean, specialized services like `WarpGraph` and `TraversalService`. Forcing a monolithic `QueryBuilder` class on top of them right now feels like building a skyscraper on top of a very high-quality tent.
 
 Here is why my gut is leaning toward **Pipes**:
 

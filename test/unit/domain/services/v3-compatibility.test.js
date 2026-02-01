@@ -177,7 +177,7 @@ describe('v3 Backward Compatibility', () => {
         { sha: 'sha2', message: '{"_type":"anchor"}', type: 'v3-anchor' },
         { sha: 'sha3', message: '{"_type":"node","id":"2"}', type: 'v3-node' },
         { sha: 'sha4', message: encodeAnchorMessage({ graph: 'test' }), type: 'v4-anchor' },
-        { sha: 'sha5', message: 'empty-graph:patch\n\neg-kind: patch\neg-graph: test\neg-writer: w1\neg-lamport: 1\neg-patch-oid: ' + 'a'.repeat(40) + '\neg-schema: 1', type: 'v4-patch' },
+        { sha: 'sha5', message: 'empty-graph:patch\n\neg-kind: patch\neg-graph: test\neg-writer: w1\neg-lamport: 1\neg-patch-oid: ' + 'a'.repeat(40) + '\neg-schema: 2', type: 'v4-patch' },
       ];
 
       // Filter out anchors for E-plane traversal

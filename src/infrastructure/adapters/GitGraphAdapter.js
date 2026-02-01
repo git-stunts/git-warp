@@ -441,4 +441,68 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       return false; // Exit code 1 means it is NOT an ancestor
     }
   }
+
+  /**
+   * Reads a git config value.
+   * @param {string} key - The config key to read (e.g., 'warp.writerId.events')
+   * @returns {Promise<string|null>} The config value or null if not set
+   */
+  async configGet(key) {
+    this._validateConfigKey(key);
+    try {
+      const value = await this._executeWithRetry({
+        args: ['config', '--get', key]
+      });
+      return value.trim() || null;
+    } catch (err) {
+      // Exit code 1 means config key not found
+      const msg = (err.message || '').toLowerCase();
+      const stderr = (err.details?.stderr || '').toLowerCase();
+      const searchText = msg + ' ' + stderr;
+      if (searchText.includes('exit code 1') || err.exitCode === 1) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Sets a git config value.
+   * @param {string} key - The config key to set (e.g., 'warp.writerId.events')
+   * @param {string} value - The value to set
+   * @returns {Promise<void>}
+   */
+  async configSet(key, value) {
+    this._validateConfigKey(key);
+    if (typeof value !== 'string') {
+      throw new Error('Config value must be a string');
+    }
+    await this._executeWithRetry({
+      args: ['config', key, value]
+    });
+  }
+
+  /**
+   * Validates that a config key is safe to use in git commands.
+   * @param {string} key - The config key to validate
+   * @throws {Error} If key is invalid
+   * @private
+   */
+  _validateConfigKey(key) {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Config key must be a non-empty string');
+    }
+    if (key.length > 256) {
+      throw new Error(`Config key too long: ${key.length} chars. Maximum is 256`);
+    }
+    // Prevent git option injection
+    if (key.startsWith('-')) {
+      throw new Error(`Invalid config key: ${key}. Keys cannot start with -`);
+    }
+    // Allow section.subsection.key format
+    const validKeyPattern = /^[a-zA-Z][a-zA-Z0-9._-]*$/;
+    if (!validKeyPattern.test(key)) {
+      throw new Error(`Invalid config key format: ${key}`);
+    }
+  }
 }

@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import GraphService from '../../../../src/domain/services/GraphService.js';
 import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
 import BitmapIndexReader from '../../../../src/domain/services/BitmapIndexReader.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
-import NoOpLogger from '../../../../src/infrastructure/adapters/NoOpLogger.js';
 
 /**
  * Creates a mock logger that tracks all calls.
@@ -33,121 +31,6 @@ function createMockLogger() {
 }
 
 describe('Service Logging Integration', () => {
-  describe('GraphService', () => {
-    let mockPersistence;
-    let mockLogger;
-
-    beforeEach(() => {
-      mockPersistence = {
-        commitNode: vi.fn().mockResolvedValue('abc123def456'),
-        showNode: vi.fn().mockResolvedValue('Test message'),
-        logNodesStream: vi.fn().mockResolvedValue({
-          async *[Symbol.asyncIterator]() {
-            yield Buffer.from('sha1\nauthor\n2026-01-28\n\nmessage1\x00');
-            yield Buffer.from('sha2\nauthor\n2026-01-28\nsha1\nmessage2\x00');
-          }
-        }),
-      };
-      mockLogger = createMockLogger();
-    });
-
-    describe('createNode', () => {
-      it('logs debug on successful node creation', async () => {
-        const service = new GraphService({ persistence: mockPersistence, logger: mockLogger });
-
-        await service.createNode({ message: 'test' });
-
-        expect(mockLogger._calls.debug.length).toBe(1);
-        const logEntry = mockLogger._calls.debug[0];
-        expect(logEntry.msg).toBe('Node created');
-        expect(logEntry.ctx.operation).toBe('createNode');
-        expect(logEntry.ctx.sha).toBe('abc123def456');
-        expect(logEntry.ctx.parentCount).toBe(0);
-        expect(logEntry.ctx.messageBytes).toBeDefined();
-        expect(logEntry.ctx.durationMs).toBeDefined();
-      });
-
-      it('logs warn when message size exceeds limit', async () => {
-        const service = new GraphService({
-          persistence: mockPersistence,
-          logger: mockLogger,
-          maxMessageBytes: 10
-        });
-
-        await expect(service.createNode({ message: 'this message is too long' }))
-          .rejects.toThrow();
-
-        expect(mockLogger._calls.warn.length).toBe(1);
-        const logEntry = mockLogger._calls.warn[0];
-        expect(logEntry.msg).toBe('Message size exceeds limit');
-        expect(logEntry.ctx.operation).toBe('createNode');
-        expect(logEntry.ctx.maxMessageBytes).toBe(10);
-      });
-    });
-
-    describe('readNode', () => {
-      it('logs debug on successful read', async () => {
-        const service = new GraphService({ persistence: mockPersistence, logger: mockLogger });
-
-        await service.readNode('abc123');
-
-        expect(mockLogger._calls.debug.length).toBe(1);
-        const logEntry = mockLogger._calls.debug[0];
-        expect(logEntry.msg).toBe('Node read');
-        expect(logEntry.ctx.operation).toBe('readNode');
-        expect(logEntry.ctx.sha).toBe('abc123');
-        expect(logEntry.ctx.durationMs).toBeDefined();
-      });
-    });
-
-    describe('iterateNodes', () => {
-      it('logs debug at start and completion', async () => {
-        const service = new GraphService({ persistence: mockPersistence, logger: mockLogger });
-
-        const nodes = [];
-        for await (const node of service.iterateNodes({ ref: 'HEAD', limit: 10 })) {
-          nodes.push(node);
-        }
-
-        expect(mockLogger._calls.debug.length).toBe(2);
-
-        const startLog = mockLogger._calls.debug[0];
-        expect(startLog.msg).toBe('Starting node iteration');
-        expect(startLog.ctx.operation).toBe('iterateNodes');
-        expect(startLog.ctx.ref).toBe('HEAD');
-        expect(startLog.ctx.limit).toBe(10);
-
-        const endLog = mockLogger._calls.debug[1];
-        expect(endLog.msg).toBe('Node iteration complete');
-        expect(endLog.ctx.yieldedCount).toBe(2);
-        expect(endLog.ctx.durationMs).toBeDefined();
-      });
-
-      it('logs warn on invalid limit', async () => {
-        const service = new GraphService({ persistence: mockPersistence, logger: mockLogger });
-
-        await expect((async () => {
-          // eslint-disable-next-line no-unused-vars
-          for await (const node of service.iterateNodes({ ref: 'HEAD', limit: -1 })) {
-            // Should not reach here
-          }
-        })()).rejects.toThrow();
-
-        expect(mockLogger._calls.warn.length).toBe(1);
-        const logEntry = mockLogger._calls.warn[0];
-        expect(logEntry.msg).toBe('Invalid limit provided');
-        expect(logEntry.ctx.limit).toBe(-1);
-      });
-    });
-
-    describe('default logger', () => {
-      it('uses NoOpLogger by default', () => {
-        const service = new GraphService({ persistence: mockPersistence });
-        expect(service.logger).toBeInstanceOf(NoOpLogger);
-      });
-    });
-  });
-
   describe('IndexRebuildService', () => {
     let mockGraphService;
     let mockStorage;

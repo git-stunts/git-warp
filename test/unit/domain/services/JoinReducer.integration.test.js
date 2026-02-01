@@ -22,8 +22,87 @@ import {
   joinStates,
 } from '../../../../src/domain/services/JoinReducer.js';
 
-// v4 reducer for migration tests
-import { reduce, createEmptyState } from '../../../../src/domain/services/Reducer.js';
+// v4 reducer helpers (local test helpers for migration tests)
+import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.js';
+import { lwwSet, lwwMax } from '../../../../src/domain/crdt/LWW.js';
+
+/**
+ * Creates an empty v4 state for migration testing.
+ * NOTE: Test-only helper. Schema:1 is deprecated.
+ * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ */
+function createEmptyState() {
+  return {
+    nodeAlive: new Map(),
+    edgeAlive: new Map(),
+    prop: new Map(),
+  };
+}
+
+/**
+ * v4 reducer for migration testing.
+ * NOTE: Test-only helper. Schema:1 is deprecated.
+ * @param {Array<{patch: Object, sha: string}>} patches
+ * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ */
+function reduce(patches) {
+  const state = createEmptyState();
+
+  // Expand all patches to (EventId, Op) tuples
+  const tuples = [];
+  for (const { patch, sha } of patches) {
+    for (let index = 0; index < patch.ops.length; index++) {
+      tuples.push({
+        eventId: createEventId(patch.lamport, patch.writer, sha, index),
+        op: patch.ops[index],
+      });
+    }
+  }
+
+  // Sort by EventId (total order)
+  tuples.sort((a, b) => compareEventIds(a.eventId, b.eventId));
+
+  // Apply sequentially using LWW semantics
+  for (const { eventId, op } of tuples) {
+    switch (op.type) {
+      case 'NodeAdd': {
+        const current = state.nodeAlive.get(op.node);
+        const newReg = lwwSet(eventId, true);
+        state.nodeAlive.set(op.node, lwwMax(current, newReg));
+        break;
+      }
+      case 'NodeTombstone': {
+        const current = state.nodeAlive.get(op.node);
+        const newReg = lwwSet(eventId, false);
+        state.nodeAlive.set(op.node, lwwMax(current, newReg));
+        break;
+      }
+      case 'EdgeAdd': {
+        const key = encodeEdgeKey(op.from, op.to, op.label);
+        const current = state.edgeAlive.get(key);
+        const newReg = lwwSet(eventId, true);
+        state.edgeAlive.set(key, lwwMax(current, newReg));
+        break;
+      }
+      case 'EdgeTombstone': {
+        const key = encodeEdgeKey(op.from, op.to, op.label);
+        const current = state.edgeAlive.get(key);
+        const newReg = lwwSet(eventId, false);
+        state.edgeAlive.set(key, lwwMax(current, newReg));
+        break;
+      }
+      case 'PropSet': {
+        const key = encodePropKey(op.node, op.key);
+        const current = state.prop.get(key);
+        const newReg = lwwSet(eventId, op.value);
+        state.prop.set(key, lwwMax(current, newReg));
+        break;
+      }
+    }
+  }
+
+  return state;
+}
 
 // State serialization and hashing
 import {
@@ -46,9 +125,8 @@ import {
   createPropSetV2,
 } from '../../../../src/domain/types/WarpTypesV2.js';
 
-// v1 patch/op types (for migration tests)
+// v1 op types (for migration tests)
 import {
-  createPatch,
   createNodeAdd,
   createNodeTombstone,
   createEdgeAdd,
@@ -56,6 +134,30 @@ import {
   createPropSet,
   createInlineValue,
 } from '../../../../src/domain/types/WarpTypes.js';
+
+/**
+ * Creates a PatchV1 (schema:1) for migration testing.
+ * NOTE: This is a test-only helper. Schema:1 is deprecated and
+ * createPatch is no longer exported from WarpTypes.js.
+ * @param {Object} options - Patch options
+ * @param {string} options.writer - Writer ID
+ * @param {number} options.lamport - Lamport timestamp
+ * @param {Array} options.ops - Array of operations
+ * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
+ * @returns {Object} PatchV1 object
+ */
+function createPatch({ writer, lamport, ops, baseCheckpoint }) {
+  const patch = {
+    schema: 1,
+    writer,
+    lamport,
+    ops,
+  };
+  if (baseCheckpoint !== undefined) {
+    patch.baseCheckpoint = baseCheckpoint;
+  }
+  return patch;
+}
 
 // CRDT primitives
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';

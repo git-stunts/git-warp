@@ -7,13 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Query API (V7 Task 7)
+- **`graph.hasNode(nodeId)`** - Check if node exists in materialized state
+- **`graph.getNodeProps(nodeId)`** - Get all properties for a node as Map
+- **`graph.neighbors(nodeId, dir?, label?)`** - Get neighbors with direction/label filtering
+- **`graph.getNodes()`** - Get all visible node IDs
+- **`graph.getEdges()`** - Get all visible edges as `{from, to, label}` array
+
+All query methods operate on `WarpStateV5` (materialized state), never commit DAG topology.
+
+#### WARP State Index (V7 Task 6)
+- **`WarpStateIndexBuilder`** - New index builder that indexes WARP logical edges from `edgeAlive` OR-Set
+- **`buildWarpStateIndex(state)`** - Convenience function to build and serialize index from state
+- Index built from materialized state, not Git commit parents (TECH-SPEC-V7.md compliance)
+
+### Changed
+- **v7-guards.test.js** - Added `WarpStateIndexBuilder.js` to required V7 components
+
+### Documentation
+- **`docs/V7_TEST_MAPPING.md`** - Maps TECH-SPEC-V7.md Task 5 requirements to existing test files
+  - Documents how existing tests cover WARP contracts (write, materialize, convergence, determinism)
+  - Confirms legacy tests deleted (not skipped)
+  - Provides verification commands
+
+### Tests
+- Added `test/unit/domain/WarpGraph.query.test.js` (21 tests) - Query API tests
+- Added `test/unit/domain/services/WarpStateIndexBuilder.test.js` (13 tests) - WARP state index tests
+- Total test count: 1413
+
+## [6.0.0] - 2026-01-31
+
+### Breaking Changes
+
+#### WARP Unification Complete
+- **`WarpGraph` is now the recommended API** for all new projects
+- **`EmptyGraph` is now a wrapper** - Implementation moved to `EmptyGraphWrapper.js`, maintains full API compatibility
+- **Schema:2 is now the default** for `WarpGraph.open()` and `openMultiWriter()`
+- **Legacy EmptyGraph engine removed** - Old implementation frozen in wrapper for compatibility
+
+### Added
+
+#### WARP v5 (OR-Set CRDT)
+- **OR-Set CRDTs** - `Dot`, `VersionVector`, `ORSet` for add-wins semantics
+- **`JoinReducer`** - CRDT join operation with schema:2 support
+- **`PatchBuilderV2`** - Schema:2 patch builder with dot tracking
+- **`CheckpointSerializerV5`** - V5 checkpoint format with OR-Set state
+- **`SyncProtocol`** - Network sync request/response with frontier comparison
+- **`GCPolicy` & `GCMetrics`** - Tombstone garbage collection
+- **Backfill rejection** - Graph reachability validation against checkpoint frontier
+
+#### Migration Support
+- **`migrateV4toV5()`** - Exported from package root for schema migration
+- **Migration boundary validation** - Prevents opening schema:2 with unmigrated v1 history
+
+#### API Status Documentation
+- **README API Status section** - Clear guidance on recommended vs deprecated APIs
+- **Migration examples** - Code samples for EmptyGraph → WarpGraph migration
+
+### Changed
+- `WarpGraph.open()` now defaults to `schema: 2`
+- `EmptyGraph.openMultiWriter()` explicitly passes `schema: 2`
+- `EmptyGraph` constructor shows deprecation warning (once per process)
+
+### Removed
+- `src/legacy/EmptyGraphLegacy.js` - Legacy engine code removed (wrapper preserves API)
+
 ## [4.0.0] - 2026-01-31
 
 ### Added
 
 #### Multi-Writer Support (WARP Protocol v4)
 - **`EmptyGraph.openMultiWriter()`** - New static factory for creating multi-writer graphs with deterministic convergence
-- **`MultiWriterGraph`** - Main API class for WARP multi-writer graph operations
+- **`WarpGraph`** - Main API class for WARP multi-writer graph operations
 - **`PatchBuilder`** - Fluent API for constructing graph mutations as atomic patches
   - `.addNode(nodeId)` - Add a node
   - `.removeNode(nodeId)` - Tombstone a node

@@ -1,8 +1,10 @@
 /**
- * WARP OpV1/PatchV1 Types and Schema
+ * WARP Common Types and Shared Factories
  *
  * Pure type definitions using JSDoc for IDE autocomplete and documentation.
- * Factory functions for creating WARP operations and patches.
+ * Contains types and factories shared across schema versions.
+ *
+ * Note: Schema-specific types are in WarpTypesV2.js (schema:2).
  *
  * @module WarpTypes
  * @see WARP Spec Section 6
@@ -46,70 +48,6 @@
 /**
  * Value reference - either inline or blob
  * @typedef {ValueRefInline | ValueRefBlob} ValueRef
- */
-
-// ============================================================================
-// Operations (OpV1)
-// ============================================================================
-
-/**
- * Node add operation - creates a new node
- * @typedef {Object} OpNodeAdd
- * @property {'NodeAdd'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to add
- */
-
-/**
- * Node tombstone operation - marks a node as deleted
- * @typedef {Object} OpNodeTombstone
- * @property {'NodeTombstone'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to tombstone
- */
-
-/**
- * Edge add operation - creates a new edge between nodes
- * @typedef {Object} OpEdgeAdd
- * @property {'EdgeAdd'} type - Operation type discriminator
- * @property {NodeId} from - Source node ID
- * @property {NodeId} to - Target node ID
- * @property {string} label - Edge label/type
- */
-
-/**
- * Edge tombstone operation - marks an edge as deleted
- * @typedef {Object} OpEdgeTombstone
- * @property {'EdgeTombstone'} type - Operation type discriminator
- * @property {NodeId} from - Source node ID
- * @property {NodeId} to - Target node ID
- * @property {string} label - Edge label/type
- */
-
-/**
- * Property set operation - sets a property value on a node
- * @typedef {Object} OpPropSet
- * @property {'PropSet'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to set property on
- * @property {string} key - Property key
- * @property {ValueRef} value - Property value reference
- */
-
-/**
- * Union of all v1 operation types
- * @typedef {OpNodeAdd | OpNodeTombstone | OpEdgeAdd | OpEdgeTombstone | OpPropSet} OpV1
- */
-
-// ============================================================================
-// Patch
-// ============================================================================
-
-/**
- * PatchV1 - A batch of ordered operations from a single writer
- * @typedef {Object} PatchV1
- * @property {1} schema - Schema version, must be 1 for v1
- * @property {string} writer - Writer ID (identifies the source of the patch)
- * @property {number} lamport - Lamport timestamp for ordering
- * @property {OpV1[]} ops - Ordered array of operations
- * @property {string} [baseCheckpoint] - Optional checkpoint OID this patch builds on
  */
 
 // ============================================================================
@@ -201,35 +139,6 @@ export function createEdgeTombstone(from, to, label) {
  */
 export function createPropSet(node, key, value) {
   return { type: 'PropSet', node, key, value };
-}
-
-// ============================================================================
-// Factory Functions - Patch
-// ============================================================================
-
-/**
- * Creates a PatchV1
- * @param {Object} options - Patch options
- * @param {string} options.writer - Writer ID
- * @param {number} options.lamport - Lamport timestamp
- * @param {OpV1[]} options.ops - Array of operations
- * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
- * @returns {PatchV1} PatchV1 object
- */
-export function createPatch({ writer, lamport, ops, baseCheckpoint }) {
-  /** @type {PatchV1} */
-  const patch = {
-    schema: 1,
-    writer,
-    lamport,
-    ops,
-  };
-
-  if (baseCheckpoint !== undefined) {
-    patch.baseCheckpoint = baseCheckpoint;
-  }
-
-  return patch;
 }
 
 // ============================================================================

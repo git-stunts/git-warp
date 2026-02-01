@@ -35,12 +35,12 @@ Recognizing the need for a tailored solution, we proposed **EmptyQL**, a deferre
 
 - **Deferred Execution:** Build an operation stack that only executes upon terminal calls like `.toArray()`.
 - **Predicate Push-down:** Use the `BitmapIndexReader` to filter by indexed fields (author, type) before loading any commit bodies.
-- **Lazy Hydration:** Load and parse JSON payloads (`GraphService.readNode`) only for nodes that pass index filters.
+- **Lazy Hydration:** Load and parse JSON payloads (`WarpGraph.readNode`) only for nodes that pass index filters.
     
 
 ### 3.2 Key Insight from Source Code
 
-Reviewing `GraphService.js` and `TraversalService.js` revealed that the system already uses `AbortSignal` for stream cancellation and `async generators` for $O(1)$ memory efficiency. Any query engine _must_ preserve these capabilities to avoid OOM errors on graphs with $1M+$ nodes.
+Reviewing `WarpGraph.js` and `TraversalService.js` revealed that the system already uses `AbortSignal` for stream cancellation and `async generators` for $O(1)$ memory efficiency. Any query engine _must_ preserve these capabilities to avoid OOM errors on graphs with $1M+$ nodes.
 
 ---
 
@@ -83,4 +83,4 @@ const results = await collect(
 
 **Prepared by:** @flyingrobots
 
-**Source Materials:** `GraphService.js`, `TraversalService.js`, `StreamingBitmapIndexBuilder.js`.
+**Source Materials:** `WarpGraph.js`, `TraversalService.js`, `StreamingBitmapIndexBuilder.js`.

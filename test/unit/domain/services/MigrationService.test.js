@@ -1,16 +1,125 @@
 import { describe, it, expect } from 'vitest';
 import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
 import {
-  createEmptyState,
-  encodeEdgeKey,
-  encodePropKey,
-  reduce,
-} from '../../../../src/domain/services/Reducer.js';
-import {
   reduceV5,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../../src/domain/services/JoinReducer.js';
+import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.js';
+import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.js';
+
+// Re-export lwwSet/lwwMax for use in tests
+const lwwSetLocal = lwwSetImported;
+const lwwMaxLocal = lwwMaxImported;
+
+// ============================================================================
+// Test-only v4 helpers (Schema:1 is deprecated)
+// ============================================================================
+
+/**
+ * Creates an empty v4 state for migration testing.
+ * NOTE: Test-only helper. Schema:1 is deprecated.
+ * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ */
+function createEmptyState() {
+  return {
+    nodeAlive: new Map(),
+    edgeAlive: new Map(),
+    prop: new Map(),
+  };
+}
+
+/**
+ * Encodes an EdgeKey to a string for Map storage (v4 format).
+ * NOTE: Test-only helper. Use JoinReducer.encodeEdgeKey in production.
+ * @param {string} from
+ * @param {string} to
+ * @param {string} label
+ * @returns {string}
+ */
+function encodeEdgeKey(from, to, label) {
+  return `${from}\0${to}\0${label}`;
+}
+
+/**
+ * Encodes a property key for Map storage (v4 format).
+ * NOTE: Test-only helper. Use JoinReducer.encodePropKey in production.
+ * @param {string} nodeId
+ * @param {string} propKey
+ * @returns {string}
+ */
+function encodePropKey(nodeId, propKey) {
+  return `${nodeId}\0${propKey}`;
+}
+
+/**
+ * v4 reducer for migration testing.
+ * NOTE: Test-only helper. Schema:1 is deprecated.
+ * @param {Array<{patch: Object, sha: string}>} patches
+ * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ */
+function reduce(patches) {
+  const state = createEmptyState();
+
+  // Expand all patches to (EventId, Op) tuples
+  const tuples = [];
+  for (const { patch, sha } of patches) {
+    for (let index = 0; index < patch.ops.length; index++) {
+      tuples.push({
+        eventId: createEventId(patch.lamport, patch.writer, sha, index),
+        op: patch.ops[index],
+      });
+    }
+  }
+
+  // Sort by EventId (total order)
+  tuples.sort((a, b) => compareEventIds(a.eventId, b.eventId));
+
+  // Apply sequentially using LWW semantics
+  for (const { eventId, op } of tuples) {
+    switch (op.type) {
+      case 'NodeAdd': {
+        const current = state.nodeAlive.get(op.node);
+        const newReg = lwwSetLocal(eventId, true);
+        state.nodeAlive.set(op.node, lwwMaxLocal(current, newReg));
+        break;
+      }
+      case 'NodeTombstone': {
+        const current = state.nodeAlive.get(op.node);
+        const newReg = lwwSetLocal(eventId, false);
+        state.nodeAlive.set(op.node, lwwMaxLocal(current, newReg));
+        break;
+      }
+      case 'EdgeAdd': {
+        const key = encodeEdgeKey(op.from, op.to, op.label);
+        const current = state.edgeAlive.get(key);
+        const newReg = lwwSetLocal(eventId, true);
+        state.edgeAlive.set(key, lwwMaxLocal(current, newReg));
+        break;
+      }
+      case 'EdgeTombstone': {
+        const key = encodeEdgeKey(op.from, op.to, op.label);
+        const current = state.edgeAlive.get(key);
+        const newReg = lwwSetLocal(eventId, false);
+        state.edgeAlive.set(key, lwwMaxLocal(current, newReg));
+        break;
+      }
+      case 'PropSet': {
+        const key = encodePropKey(op.node, op.key);
+        const current = state.prop.get(key);
+        const newReg = lwwSetLocal(eventId, op.value);
+        state.prop.set(key, lwwMaxLocal(current, newReg));
+        break;
+      }
+    }
+  }
+
+  return state;
+}
+
+// ============================================================================
+// End of v4 test helpers
+// ============================================================================
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.js';
@@ -18,7 +127,6 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import {
-  createPatch,
   createNodeAdd,
   createNodeTombstone,
   createEdgeAdd,
@@ -32,6 +140,30 @@ import {
   createEdgeAddV2,
   createPropSetV2,
 } from '../../../../src/domain/types/WarpTypesV2.js';
+
+/**
+ * Creates a PatchV1 (schema:1) for migration testing.
+ * NOTE: This is a test-only helper. Schema:1 is deprecated and
+ * createPatch is no longer exported from WarpTypes.js.
+ * @param {Object} options - Patch options
+ * @param {string} options.writer - Writer ID
+ * @param {number} options.lamport - Lamport timestamp
+ * @param {Array} options.ops - Array of operations
+ * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
+ * @returns {Object} PatchV1 object
+ */
+function createPatch({ writer, lamport, ops, baseCheckpoint }) {
+  const patch = {
+    schema: 1,
+    writer,
+    lamport,
+    ops,
+  };
+  if (baseCheckpoint !== undefined) {
+    patch.baseCheckpoint = baseCheckpoint;
+  }
+  return patch;
+}
 
 /**
  * Helper to create a v4 state with nodes, edges, and props directly
@@ -666,7 +798,7 @@ describe('MigrationService', () => {
       /**
        * WARP v5 HARD RULE: "No interleaving v1/v2 patches in a single reducer."
        *
-       * The migration boundary enforces this at the MultiWriterGraph level:
+       * The migration boundary enforces this at the WarpGraph level:
        * - v1 patches are processed by reduce() (LWW-based) before migration
        * - A v5 checkpoint is created via migrateV4toV5()
        * - v2 patches are processed by reduceV5() (OR-Set based) after migration
@@ -780,7 +912,7 @@ describe('MigrationService', () => {
          * incorrectly because v1 patches use different operation types
          * (NodeAdd vs NodeAdd with dot, NodeTombstone vs NodeRemove with observedDots).
          *
-         * The proper enforcement happens at MultiWriterGraph._validateMigrationBoundary()
+         * The proper enforcement happens at WarpGraph._validateMigrationBoundary()
          * which prevents opening a schema:2 graph with v1 history without migration.
          */
 

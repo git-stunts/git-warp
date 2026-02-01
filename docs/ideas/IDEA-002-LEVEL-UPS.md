@@ -6,7 +6,7 @@ I prioritized ideas that are feasible with our hexagonal architecture (e.g., via
 
 ## 1. **GitHub Actions as Graph Triggers (Automated "GitOps for Graphs")**
 
-**Why Legendary?** Turn EmptyGraph into a reactive system where Git events (pushes, PRs, issues) automatically trigger graph mutations or queries. Imagine: A PR merge auto-rebuilds the index and runs traversals to validate "event chains" (e.g., in event sourcing). This makes it the ultimate GitOps tool—graphs that evolve with your repo, enabling CI/CD for knowledge bases or dependency graphs. Viral potential: "Build a self-healing wiki in GitHub Actions."
+**Why Legendary?** Turn WarpGraph into a reactive system where Git events (pushes, PRs, issues) automatically trigger graph mutations or queries. Imagine: A PR merge auto-rebuilds the index and runs traversals to validate "event chains" (e.g., in event sourcing). This makes it the ultimate GitOps tool—graphs that evolve with your repo, enabling CI/CD for knowledge bases or dependency graphs. Viral potential: "Build a self-healing wiki in GitHub Actions."
 
 **Implementation Sketch:** Add a GitHookAdapter (extending GraphPersistencePort) that listens via GitHub webhooks or local hooks. On push, detect new commits with git rev-list, then call createNodes or incrementalUpdateIndex (from your incremental ideas). Expose as a GitHub Action: uses: git-stunts/empty-graph-action@v1 with inputs like ref and traversal. Integrate health checks for "graph CI" status badges.
 
@@ -16,7 +16,7 @@ I prioritized ideas that are feasible with our hexagonal architecture (e.g., via
 
 ### 2. **Natural Language Query Interface (NLQ via LLM Integration)**
 
-- **Why Legendary?** Skip DSLs/Gremlin—let users query in plain English: "Find the shortest path from the first order event to the payment failure, weighting by CPU cost." This turns EmptyGraph into an AI-augmented DB, leveraging Git's structured history for RAG-like apps (e.g., "Summarize the ancestry of this commit"). With your pipes, it's a natural extension—LLMs parse NL to pipe compositions. Viral: "Chat with your Git history like it's ChatGPT."
+- **Why Legendary?** Skip DSLs/Gremlin—let users query in plain English: "Find the shortest path from the first order event to the payment failure, weighting by CPU cost." This turns WarpGraph into an AI-augmented DB, leveraging Git's structured history for RAG-like apps (e.g., "Summarize the ancestry of this commit"). With your pipes, it's a natural extension—LLMs parse NL to pipe compositions. Viral: "Chat with your Git history like it's ChatGPT."
 - **Implementation Sketch:** Add an NLQService that uses a lightweight LLM (e.g., via Hugging Face Transformers.js or OpenAI API adapter). Input: NL query; Output: Composed pipe (e.g., pipe(ancestors({sha}), filterByPayload(...))). Reuse TraversalService for execution. For RAG, embed commit messages via vector search (add a simple FAISS adapter). Expose as graph.nlq("query string") yielding results.
 - **Effort:** 3-4 weeks (LLM prompt engineering + integration; keep deps optional).
 - **Impact:** Epic – Positions it as "Git + AI"; demo with event sourcing queries like "Show me failed orders in the last branch."
@@ -24,20 +24,20 @@ I prioritized ideas that are feasible with our hexagonal architecture (e.g., via
 ### 3. **Graph Forking and Merging with Conflict Resolution UI**
 
 - **Why Legendary?** Git already forks/merges code—why not graphs? Enable "graph PRs" where users fork the repo, add nodes/edges, and merge with auto-conflict detection (e.g., duplicate events). This creates collaborative, versioned graphs (e.g., shared knowledge bases). Add a simple resolver UI (Web or TUI) for conflicts like "Merge these two order events?" Makes it feel like Google Docs for graphs in Git.
-- **Implementation Sketch:** Extend GraphService with forkGraph(ref) (create branch) and mergeGraph(fromRef, toRef, resolverCallback). Use Git's merge-tree for detection; resolve via callback on conflicting SHAs (check via bitmap intersections). Tie into TUI/Web for interactive resolution.
+- **Implementation Sketch:** Extend WarpGraph with forkGraph(ref) (create branch) and mergeGraph(fromRef, toRef, resolverCallback). Use Git's merge-tree for detection; resolve via callback on conflicting SHAs (check via bitmap intersections). Tie into TUI/Web for interactive resolution.
 - **Effort:** 4-6 weeks (merge logic + UI).
 - **Impact:** Game-changer – Enables distributed collab; viral for teams using Git for non-code (e.g., docs graphs).
 
 ### 4. **WASM Port for Browser-Based "Git Graph Playgrounds"**
 
-- **Why Legendary?** Run EmptyGraph entirely in the browser via WASM (compile your JS/core to WebAssembly). Users could load a Git repo from a URL (e.g., GitHub raw), build indexes client-side, and traverse without servers. Pair with a playground site (like JSFiddle for graphs) for instant demos. Bonus: Offline-first apps where graphs sync via Git remotes.
-- **Implementation Sketch:** Use wasm-pack on performance-critical parts (e.g., BitmapIndexBuilder, Roaring lib). Adapt GitGraphAdapter to a browser Git lib (e.g., isomorphic-git). Expose as EmptyGraphWasm class. Host a playground on Vercel with Monaco for queries.
+- **Why Legendary?** Run WarpGraph entirely in the browser via WASM (compile your JS/core to WebAssembly). Users could load a Git repo from a URL (e.g., GitHub raw), build indexes client-side, and traverse without servers. Pair with a playground site (like JSFiddle for graphs) for instant demos. Bonus: Offline-first apps where graphs sync via Git remotes.
+- **Implementation Sketch:** Use wasm-pack on performance-critical parts (e.g., BitmapIndexBuilder, Roaring lib). Adapt GitGraphAdapter to a browser Git lib (e.g., isomorphic-git). Expose as WarpGraphWasm class. Host a playground on Vercel with Monaco for queries.
 - **Effort:** 4-6 weeks (WASM setup + browser Git integration).
 - **Impact:** Legendary – "Git DB in your browser tab"; huge for education/demos, no install needed.
 
 ### 5. **Crypto-Verified Graphs (Blockchain-Like Integrity with Git Signatures)**
 
-- **Why Legendary?** Leverage Git's GPG signing for "verifiable graphs"—each node (commit) is signed, creating tamper-proof chains. Add proofs for traversals (e.g., "This path is signed by these authors"). This turns EmptyGraph into a lightweight blockchain alternative for audit trails or supply chains, with Git as the consensus mechanism.
+- **Why Legendary?** Leverage Git's GPG signing for "verifiable graphs"—each node (commit) is signed, creating tamper-proof chains. Add proofs for traversals (e.g., "This path is signed by these authors"). This turns WarpGraph into a lightweight blockchain alternative for audit trails or supply chains, with Git as the consensus mechanism.
 - **Implementation Sketch:** Extend createNode with mandatory signing; add verifyPath(path) using Git's verify-commit. Integrate into TraversalService with a verifiedOnly option (filter unsigned nodes via bitmap). Output Merkle-like proofs for paths.
 - **Effort:** 2-3 weeks (GPG wrappers + verification service).
 - **Impact:** High – Appeals to compliance/security folks; viral story: "Git as a blockchain without the hype."
@@ -63,4 +63,4 @@ I prioritized ideas that are feasible with our hexagonal architecture (e.g., via
 - **Effort:** 3-5 weeks (remote fetching + caching).
 - **Impact:** Revolutionary – True distributed DB; viral for enterprise use cases.
 
-These ideas avoid overlaps with prior suggestions (e.g., no more query langs or basic viz) and focus on Git's uniqueness for that "legendary" factor. If we implement 2-3 (e.g., NLQ + simulator + crypto), EmptyGraph could go from stunt to staple. Which one excites you most, James? Want me to spec one out or research feasibility (e.g., via tools)? 🚀
+These ideas avoid overlaps with prior suggestions (e.g., no more query langs or basic viz) and focus on Git's uniqueness for that "legendary" factor. If we implement 2-3 (e.g., NLQ + simulator + crypto), WarpGraph could go from stunt to staple. Which one excites you most, James? Want me to spec one out or research feasibility (e.g., via tools)? 🚀

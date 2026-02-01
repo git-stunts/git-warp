@@ -1,18 +1,18 @@
-# Anchor Commits: How EmptyGraph Maintains Durability
+# Anchor Commits: How WarpGraph Maintains Durability
 
 ## The Problem
 
-Git garbage collection (GC) prunes commits that are not reachable from any ref. EmptyGraph nodes are Git commits, so without careful ref management, your data can be silently deleted.
+Git garbage collection (GC) prunes commits that are not reachable from any ref. WarpGraph nodes are Git commits, so without careful ref management, your data can be silently deleted.
 
 ## The Solution: Anchor Commits
 
-EmptyGraph uses "anchor commits" to ensure all nodes remain reachable from the graph's managed ref.
+WarpGraph uses "anchor commits" to ensure all nodes remain reachable from the graph's managed ref.
 
 ### What is an Anchor Commit?
 
 An anchor commit is a special commit with:
 - Parents: The commits that need to be kept reachable
-- Tree: The empty tree (same as all EmptyGraph nodes)
+- Tree: The empty tree (same as all WarpGraph nodes)
 - **v4+ format (trailer-typed):**
   ```
   empty-graph:anchor
@@ -70,7 +70,7 @@ fix → ANCHOR
 - **Pro**: O(1) anchor overhead regardless of structure
 - **Con**: Requires knowing all tips upfront
 
-#### 3. Hybrid (what EmptyGraph does)
+#### 3. Hybrid (what WarpGraph does)
 
 - **`autoSync: 'onWrite'`**: Uses chained anchors with fast-forward optimization
 - **`beginBatch()`**: Uses octopus anchor on commit()

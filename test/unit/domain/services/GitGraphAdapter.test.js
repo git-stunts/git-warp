@@ -383,4 +383,146 @@ describe('GitGraphAdapter', () => {
       expect(count).toBe(123);
     });
   });
+
+  describe('configGet()', () => {
+    let mockPlumbing;
+    let adapter;
+
+    beforeEach(() => {
+      mockPlumbing = {
+        emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+        execute: vi.fn(),
+        executeStream: vi.fn(),
+      };
+      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    });
+
+    it('returns config value when set', async () => {
+      mockPlumbing.execute.mockResolvedValue('stored-value\n');
+
+      const result = await adapter.configGet('warp.writerId.events');
+
+      expect(result).toBe('stored-value');
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['config', '--get', 'warp.writerId.events'],
+      });
+    });
+
+    it('returns null when config key not found', async () => {
+      const err = new Error('exit code 1');
+      err.exitCode = 1;
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      const result = await adapter.configGet('nonexistent.key');
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when config key not found (message pattern)', async () => {
+      const err = new Error('error: exit code 1');
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      const result = await adapter.configGet('nonexistent.key');
+
+      expect(result).toBeNull();
+    });
+
+    it('validates config key before calling git', async () => {
+      await expect(adapter.configGet('--malicious'))
+        .rejects.toThrow(/Invalid config key/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty config key', async () => {
+      await expect(adapter.configGet(''))
+        .rejects.toThrow(/non-empty string/);
+    });
+
+    it('rejects too long config key', async () => {
+      const longKey = 'a'.repeat(257);
+
+      await expect(adapter.configGet(longKey))
+        .rejects.toThrow(/Config key too long/);
+    });
+
+    it('returns null for empty config value', async () => {
+      mockPlumbing.execute.mockResolvedValue('');
+
+      const result = await adapter.configGet('some.key');
+
+      expect(result).toBeNull();
+    });
+
+    it('accepts valid config key formats', async () => {
+      mockPlumbing.execute.mockResolvedValue('value\n');
+
+      await adapter.configGet('warp.writerId.my-graph');
+      await adapter.configGet('section.subsection.key');
+      await adapter.configGet('simple.key');
+
+      expect(mockPlumbing.execute).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('configSet()', () => {
+    let mockPlumbing;
+    let adapter;
+
+    beforeEach(() => {
+      mockPlumbing = {
+        emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+        execute: vi.fn(),
+        executeStream: vi.fn(),
+      };
+      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    });
+
+    it('sets config value', async () => {
+      mockPlumbing.execute.mockResolvedValue('');
+
+      await adapter.configSet('warp.writerId.events', 'w_abc123');
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['config', 'warp.writerId.events', 'w_abc123'],
+      });
+    });
+
+    it('validates config key before calling git', async () => {
+      await expect(adapter.configSet('--malicious', 'value'))
+        .rejects.toThrow(/Invalid config key/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty config key', async () => {
+      await expect(adapter.configSet('', 'value'))
+        .rejects.toThrow(/non-empty string/);
+    });
+
+    it('rejects non-string value', async () => {
+      await expect(adapter.configSet('some.key', 123))
+        .rejects.toThrow(/Config value must be a string/);
+
+      await expect(adapter.configSet('some.key', null))
+        .rejects.toThrow(/Config value must be a string/);
+    });
+
+    it('accepts empty string value', async () => {
+      mockPlumbing.execute.mockResolvedValue('');
+
+      await adapter.configSet('some.key', '');
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['config', 'some.key', ''],
+      });
+    });
+
+    it('propagates git errors', async () => {
+      mockPlumbing.execute.mockRejectedValue(new Error('permission denied'));
+
+      await expect(adapter.configSet('some.key', 'value'))
+        .rejects.toThrow('permission denied');
+    });
+  });
 });

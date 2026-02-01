@@ -4,12 +4,11 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
-import MultiWriterGraph from '../../src/domain/MultiWriterGraph.js';
-import { computeStateHash } from '../../src/domain/services/StateSerializer.js';
-import { nodeVisible, edgeVisible } from '../../src/domain/services/StateSerializer.js';
-import { encodeEdgeKey } from '../../src/domain/services/Reducer.js';
+import WarpGraph from '../../src/domain/WarpGraph.js';
+import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/StateSerializerV5.js';
+import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 
-describe('MultiWriterGraph Integration', () => {
+describe('WarpGraph Integration', () => {
   let tempDir;
   let plumbing;
   let persistence;
@@ -30,7 +29,7 @@ describe('MultiWriterGraph Integration', () => {
 
   describe('Single Writer Workflow', () => {
     it('creates patches and materializes state', async () => {
-      const graph = await MultiWriterGraph.open({
+      const graph = await WarpGraph.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -51,13 +50,13 @@ describe('MultiWriterGraph Integration', () => {
       // Materialize and verify
       const state = await graph.materialize();
 
-      expect(nodeVisible(state, 'user:alice')).toBe(true);
-      expect(nodeVisible(state, 'user:bob')).toBe(true);
-      expect(edgeVisible(state, encodeEdgeKey('user:alice', 'user:bob', 'follows'))).toBe(true);
+      expect(nodeVisibleV5(state, 'user:alice')).toBe(true);
+      expect(nodeVisibleV5(state, 'user:bob')).toBe(true);
+      expect(edgeVisibleV5(state, encodeEdgeKey('user:alice', 'user:bob', 'follows'))).toBe(true);
     });
 
     it('handles tombstones correctly', async () => {
-      const graph = await MultiWriterGraph.open({
+      const graph = await WarpGraph.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -73,14 +72,14 @@ describe('MultiWriterGraph Integration', () => {
         .commit();
 
       const state = await graph.materialize();
-      expect(nodeVisible(state, 'temp')).toBe(false);
+      expect(nodeVisibleV5(state, 'temp')).toBe(false);
     });
   });
 
   describe('Multi-Writer Workflow', () => {
     it('two writers create independent patches', async () => {
       // Writer 1: Alice
-      const alice = await MultiWriterGraph.open({
+      const alice = await WarpGraph.open({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
@@ -91,7 +90,7 @@ describe('MultiWriterGraph Integration', () => {
         .commit();
 
       // Writer 2: Bob (same repo, different writer ID)
-      const bob = await MultiWriterGraph.open({
+      const bob = await WarpGraph.open({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -104,19 +103,19 @@ describe('MultiWriterGraph Integration', () => {
       // Either writer can materialize the combined state
       const state = await alice.materialize();
 
-      expect(nodeVisible(state, 'node:a')).toBe(true);
-      expect(nodeVisible(state, 'node:b')).toBe(true);
+      expect(nodeVisibleV5(state, 'node:a')).toBe(true);
+      expect(nodeVisibleV5(state, 'node:b')).toBe(true);
     });
 
     it('discovers all writers', async () => {
-      const alice = await MultiWriterGraph.open({
+      const alice = await WarpGraph.open({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
       await alice.createPatch().addNode('a').commit();
 
-      const bob = await MultiWriterGraph.open({
+      const bob = await WarpGraph.open({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -130,7 +129,7 @@ describe('MultiWriterGraph Integration', () => {
 
   describe('Checkpoint Workflow', () => {
     it('creates and uses checkpoint', async () => {
-      const graph = await MultiWriterGraph.open({
+      const graph = await WarpGraph.open({
         persistence,
         graphName: 'test',
         writerId: 'writer1',
@@ -149,15 +148,15 @@ describe('MultiWriterGraph Integration', () => {
 
       // Materialize from checkpoint should include all nodes
       const state = await graph.materializeAt(checkpointSha);
-      expect(nodeVisible(state, 'n1')).toBe(true);
-      expect(nodeVisible(state, 'n2')).toBe(true);
+      expect(nodeVisibleV5(state, 'n1')).toBe(true);
+      expect(nodeVisibleV5(state, 'n2')).toBe(true);
     });
   });
 
   describe('Determinism', () => {
     it('same patches produce identical state hash', async () => {
       // Create repo 1
-      const graph1 = await MultiWriterGraph.open({
+      const graph1 = await WarpGraph.open({
         persistence,
         graphName: 'det-test',
         writerId: 'w1',
@@ -169,10 +168,10 @@ describe('MultiWriterGraph Integration', () => {
         .commit();
 
       const state1 = await graph1.materialize();
-      const hash1 = computeStateHash(state1);
+      const hash1 = computeStateHashV5(state1);
 
       // Create identical patches in repo 2 (same repo, fresh graph)
-      const graph2 = await MultiWriterGraph.open({
+      const graph2 = await WarpGraph.open({
         persistence,
         graphName: 'det-test-2',
         writerId: 'w1',
@@ -184,7 +183,7 @@ describe('MultiWriterGraph Integration', () => {
         .commit();
 
       const state2 = await graph2.materialize();
-      const hash2 = computeStateHash(state2);
+      const hash2 = computeStateHashV5(state2);
 
       expect(hash1).toBe(hash2);
     });
@@ -192,14 +191,14 @@ describe('MultiWriterGraph Integration', () => {
 
   describe('Coverage Sync', () => {
     it('creates coverage anchor with all writer tips', async () => {
-      const alice = await MultiWriterGraph.open({
+      const alice = await WarpGraph.open({
         persistence,
         graphName: 'cov',
         writerId: 'alice',
       });
       await alice.createPatch().addNode('a').commit();
 
-      const bob = await MultiWriterGraph.open({
+      const bob = await WarpGraph.open({
         persistence,
         graphName: 'cov',
         writerId: 'bob',

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { create, createV5, loadCheckpoint, materializeIncremental, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/CheckpointService.js';
 import { createFrontier, updateFrontier, serializeFrontier, deserializeFrontier } from '../../../../src/domain/services/Frontier.js';
-import { serializeState, deserializeState, computeStateHash } from '../../../../src/domain/services/StateSerializer.js';
 import { serializeStateV5, deserializeStateV5, computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import {
   serializeFullStateV5,
@@ -10,11 +9,8 @@ import {
   serializeAppliedVV,
   deserializeAppliedVV,
 } from '../../../../src/domain/services/CheckpointSerializerV5.js';
-import { createEmptyState, reduce, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/Reducer.js';
 import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
-import { createPatch, createNodeAdd, createEdgeAdd, createPropSet, createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
-import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import { orsetAdd, orsetRemove, orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 
@@ -41,24 +37,22 @@ describe('CheckpointService', () => {
   });
 
   describe('create', () => {
-    it('creates checkpoint commit with state and frontier blobs', async () => {
-      // Setup test data
-      const state = createEmptyState();
-      state.nodeAlive.set('x', { eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('abc123'), opIndex: 0 }, value: true });
+    it('creates schema:2 checkpoint commit with state and frontier blobs', async () => {
+      // Setup test data - V5 state (schema:2 only)
+      const state = createEmptyStateV5();
+      const dot = createDot('writer1', 1);
+      orsetAdd(state.nodeAlive, 'x', dot);
 
       const frontier = createFrontier();
       updateFrontier(frontier, 'writer1', makeOid('sha123'));
 
       // Setup mock returns with valid OIDs
-      const stateBlobOid = makeOid('aaa111');
-      const frontierBlobOid = makeOid('bbb222');
-      const treeOid = makeOid('ccc333');
-      const checkpointOid = makeOid('ddd444');
-
-      mockPersistence.writeBlob.mockResolvedValueOnce(stateBlobOid);
-      mockPersistence.writeBlob.mockResolvedValueOnce(frontierBlobOid);
-      mockPersistence.writeTree.mockResolvedValue(treeOid);
-      mockPersistence.commitNodeWithTree.mockResolvedValue(checkpointOid);
+      // V5 writes 4 blobs: state, visible, frontier, appliedVV
+      let blobIndex = 0;
+      const blobOids = [makeOid('state'), makeOid('visible'), makeOid('frontier'), makeOid('appliedvv')];
+      mockPersistence.writeBlob.mockImplementation(() => Promise.resolve(blobOids[blobIndex++]));
+      mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+      mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
       // Execute
       const checkpointSha = await create({
@@ -69,21 +63,26 @@ describe('CheckpointService', () => {
       });
 
       // Verify
-      expect(checkpointSha).toBe(checkpointOid);
-      expect(mockPersistence.writeBlob).toHaveBeenCalledTimes(2);
+      expect(checkpointSha).toBe(makeOid('checkpoint'));
+      expect(mockPersistence.writeBlob).toHaveBeenCalledTimes(4); // state, visible, frontier, appliedVV
       expect(mockPersistence.writeTree).toHaveBeenCalledTimes(1);
       expect(mockPersistence.commitNodeWithTree).toHaveBeenCalledTimes(1);
     });
 
     it('creates tree entries in sorted order', async () => {
-      const state = createEmptyState();
+      const state = createEmptyStateV5();
       const frontier = createFrontier();
 
-      // First writeBlob call is for state, second is for frontier
-      const stateOid = makeOid('aaa111'); // starts with 'aaa'
-      const frontierOid = makeOid('bbb222'); // starts with 'bbb'
-      mockPersistence.writeBlob.mockResolvedValueOnce(stateOid);
-      mockPersistence.writeBlob.mockResolvedValueOnce(frontierOid);
+      // V5 writes 4 blobs: state, visible, frontier, appliedVV
+      const stateOid = makeOid('state');
+      const visibleOid = makeOid('visible');
+      const frontierOid = makeOid('frontier');
+      const appliedVVOid = makeOid('appliedvv');
+      let blobIndex = 0;
+      mockPersistence.writeBlob.mockImplementation(() => {
+        const oids = [stateOid, visibleOid, frontierOid, appliedVVOid];
+        return Promise.resolve(oids[blobIndex++]);
+      });
       mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
       mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('sha'));
 
@@ -94,17 +93,18 @@ describe('CheckpointService', () => {
         frontier,
       });
 
-      // Tree entries should be sorted by filename (frontier.cbor < state.cbor alphabetically)
+      // Tree entries should be sorted by filename
+      // appliedVV.cbor < frontier.cbor < state.cbor < visible.cbor
       const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
-      expect(treeEntries).toHaveLength(2);
-      expect(treeEntries[0]).toContain('frontier.cbor');
-      expect(treeEntries[0]).toContain(frontierOid);
-      expect(treeEntries[1]).toContain('state.cbor');
-      expect(treeEntries[1]).toContain(stateOid);
+      expect(treeEntries).toHaveLength(4);
+      expect(treeEntries[0]).toContain('appliedVV.cbor');
+      expect(treeEntries[1]).toContain('frontier.cbor');
+      expect(treeEntries[2]).toContain('state.cbor');
+      expect(treeEntries[3]).toContain('visible.cbor');
     });
 
     it('includes parents in commit', async () => {
-      const state = createEmptyState();
+      const state = createEmptyStateV5();
       const frontier = createFrontier();
 
       mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
@@ -127,16 +127,15 @@ describe('CheckpointService', () => {
     });
 
     it('encodes checkpoint message with correct trailers', async () => {
-      const state = createEmptyState();
+      // V5 state (schema:2 only)
+      const state = createEmptyStateV5();
       const frontier = createFrontier();
 
-      const stateBlobOid = 'aabbccdd00112233445566778899aabbccddeeff';
-      const frontierBlobOid = 'ffeeddcc00112233445566778899aabbccddeeff';
-      const treeOid = '1122334400112233445566778899aabbccddeeff';
-
-      mockPersistence.writeBlob.mockResolvedValueOnce(stateBlobOid);
-      mockPersistence.writeBlob.mockResolvedValueOnce(frontierBlobOid);
-      mockPersistence.writeTree.mockResolvedValue(treeOid);
+      // V5 writes 4 blobs: state, visible, frontier, appliedVV
+      let blobIndex = 0;
+      const blobOids = ['aabbccdd00112233445566778899aabbccddeeff', 'ffeeddcc00112233445566778899aabbccddeeff', '1122334400112233445566778899aabbccddeeff', '2233445500112233445566778899aabbccddeeff'];
+      mockPersistence.writeBlob.mockImplementation(() => Promise.resolve(blobOids[blobIndex++]));
+      mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
       mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('sha'));
 
       await create({
@@ -144,7 +143,6 @@ describe('CheckpointService', () => {
         graphName: 'my-graph',
         state,
         frontier,
-        schema: 1,
       });
 
       const messageArg = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
@@ -152,36 +150,38 @@ describe('CheckpointService', () => {
 
       expect(decoded.kind).toBe('checkpoint');
       expect(decoded.graph).toBe('my-graph');
-      expect(decoded.schema).toBe(1);
-      expect(decoded.frontierOid).toBe(frontierBlobOid);
-      expect(decoded.indexOid).toBe(treeOid);
+      expect(decoded.schema).toBe(2);
     });
   });
 
   describe('loadCheckpoint', () => {
     it('loads checkpoint state and frontier from commit', async () => {
-      // Create test data
-      const originalState = {
-        nodes: ['node1', 'node2'],
-        edges: [{ from: 'node1', to: 'node2', label: 'link' }],
-        props: [{ node: 'node1', key: 'name', value: { type: 'inline', value: 'test' } }],
-      };
+      // Create V5 state (ORSet-based)
+      const v5State = createEmptyStateV5();
+      const dot = createDot('writer1', 1);
+      orsetAdd(v5State.nodeAlive, 'node1', dot);
+      orsetAdd(v5State.nodeAlive, 'node2', dot);
+      orsetAdd(v5State.edgeAlive, encodeEdgeKeyV5('node1', 'node2', 'link'), dot);
+      v5State.prop.set(encodePropKeyV5('node1', 'name'), {
+        eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('abc'), opIndex: 0 },
+        value: { type: 'inline', value: 'test' },
+      });
 
       const originalFrontier = createFrontier();
       updateFrontier(originalFrontier, 'writer1', makeOid('sha111'));
 
       // Serialize for mock returns
-      const stateBuffer = serializeState(
-        // Create a WarpState that serializes to originalState
-        createStateFromProjection(originalState)
-      );
+      const stateBuffer = serializeFullStateV5(v5State);
       const frontierBuffer = serializeFrontier(originalFrontier);
-      const stateHash = computeStateHash(createStateFromProjection(originalState));
+      const stateHash = computeStateHashV5(v5State);
+      const appliedVV = computeAppliedVV(v5State);
+      const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
       const frontierOid = makeOid('frontierOid');
       const treeOid = makeOid('treeOid');
       const frontierBlobOid = makeOid('frontierBlob');
       const stateBlobOid = makeOid('stateBlob');
+      const appliedVVBlobOid = makeOid('appliedVVBlob');
 
       // Setup mock checkpoint message
       const message = encodeCheckpointMessage({
@@ -189,7 +189,7 @@ describe('CheckpointService', () => {
         stateHash,
         frontierOid,
         indexOid: treeOid,
-        schema: 1,
+        schema: 2,
       });
 
       mockPersistence.showNode.mockResolvedValue(message);
@@ -197,10 +197,12 @@ describe('CheckpointService', () => {
       mockPersistence.readTreeOids.mockResolvedValue({
         'frontier.cbor': frontierBlobOid,
         'state.cbor': stateBlobOid,
+        'appliedVV.cbor': appliedVVBlobOid,
       });
       mockPersistence.readBlob.mockImplementation((oid) => {
         if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
         if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
+        if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
         throw new Error(`Unknown oid: ${oid}`);
       });
 
@@ -209,10 +211,11 @@ describe('CheckpointService', () => {
 
       // Verify
       expect(result.stateHash).toBe(stateHash);
-      expect(result.schema).toBe(1);
+      expect(result.schema).toBe(2);
       expect(result.frontier.get('writer1')).toBe(makeOid('sha111'));
-      expect(result.state.nodes).toContain('node1');
-      expect(result.state.nodes).toContain('node2');
+      // V5 returns full ORSet state
+      expect(result.state.nodeAlive.entries.has('node1')).toBe(true);
+      expect(result.state.nodeAlive.entries.has('node2')).toBe(true);
     });
 
     it('throws if frontier.cbor is missing', async () => {
@@ -221,7 +224,7 @@ describe('CheckpointService', () => {
         stateHash: 'a'.repeat(64),
         frontierOid: 'a'.repeat(40),
         indexOid: 'b'.repeat(40),
-        schema: 1,
+        schema: 2,
       });
 
       mockPersistence.showNode.mockResolvedValue(message);
@@ -241,7 +244,7 @@ describe('CheckpointService', () => {
         stateHash: 'a'.repeat(64),
         frontierOid: 'a'.repeat(40),
         indexOid: 'b'.repeat(40),
-        schema: 1,
+        schema: 2,
       });
 
       mockPersistence.showNode.mockResolvedValue(message);
@@ -255,406 +258,31 @@ describe('CheckpointService', () => {
       await expect(loadCheckpoint(mockPersistence, 'sha'))
         .rejects.toThrow('missing state.cbor');
     });
-  });
 
-  describe('materializeIncremental', () => {
-    it('returns checkpoint state when no new patches', async () => {
-      // Setup checkpoint data
-      const checkpointState = {
-        nodes: ['existing'],
-        edges: [],
-        props: [],
-      };
-      const sha1 = makeOid('sha1');
-      const checkpointFrontier = createFrontier();
-      updateFrontier(checkpointFrontier, 'writer1', sha1);
-
-      const stateBuffer = serializeState(createStateFromProjection(checkpointState));
-      const frontierBuffer = serializeFrontier(checkpointFrontier);
-      const stateHash = computeStateHash(createStateFromProjection(checkpointState));
-
-      const frontierOid = makeOid('frontierOid');
-      const treeOid = makeOid('treeOid');
-      const frontierBlobOid = makeOid('frontierBlob');
-      const stateBlobOid = makeOid('stateBlob');
-
+    it('throws for schema:1 checkpoints - migration required', async () => {
       const message = encodeCheckpointMessage({
         graph: 'test',
-        stateHash,
-        frontierOid,
-        indexOid: treeOid,
+        stateHash: 'a'.repeat(64),
+        frontierOid: 'a'.repeat(40),
+        indexOid: 'b'.repeat(40),
         schema: 1,
       });
 
       mockPersistence.showNode.mockResolvedValue(message);
-      mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpointSha') });
-      mockPersistence.readTreeOids.mockResolvedValue({
-        'frontier.cbor': frontierBlobOid,
-        'state.cbor': stateBlobOid,
-      });
-      mockPersistence.readBlob.mockImplementation((oid) => {
-        if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-        if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-        throw new Error(`Unknown oid: ${oid}`);
-      });
 
-      // Target frontier is same as checkpoint frontier
-      const targetFrontier = createFrontier();
-      updateFrontier(targetFrontier, 'writer1', sha1);
-
-      const patchLoader = vi.fn().mockResolvedValue([]);
-
-      // Execute
-      const result = await materializeIncremental({
-        persistence: mockPersistence,
-        graphName: 'test',
-        checkpointSha: makeOid('checkpointSha'),
-        targetFrontier,
-        patchLoader,
-      });
-
-      // Verify
-      expect(lwwValue(result.nodeAlive.get('existing'))).toBe(true);
-    });
-
-    it('applies new patches on top of checkpoint state', async () => {
-      // Setup checkpoint with node 'a'
-      const checkpointState = {
-        nodes: ['a'],
-        edges: [],
-        props: [],
-      };
-      const sha1 = makeOid('sha1');
-      const sha2 = makeOid('sha2');
-      const checkpointFrontier = createFrontier();
-      updateFrontier(checkpointFrontier, 'writer1', sha1);
-
-      const stateBuffer = serializeState(createStateFromProjection(checkpointState));
-      const frontierBuffer = serializeFrontier(checkpointFrontier);
-      const stateHash = computeStateHash(createStateFromProjection(checkpointState));
-
-      const frontierOid = makeOid('frontierOid');
-      const treeOid = makeOid('treeOid');
-      const frontierBlobOid = makeOid('frontierBlob');
-      const stateBlobOid = makeOid('stateBlob');
-
-      const message = encodeCheckpointMessage({
-        graph: 'test',
-        stateHash,
-        frontierOid,
-        indexOid: treeOid,
-        schema: 1,
-      });
-
-      mockPersistence.showNode.mockResolvedValue(message);
-      mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpointSha') });
-      mockPersistence.readTreeOids.mockResolvedValue({
-        'frontier.cbor': frontierBlobOid,
-        'state.cbor': stateBlobOid,
-      });
-      mockPersistence.readBlob.mockImplementation((oid) => {
-        if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-        if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-        throw new Error(`Unknown oid: ${oid}`);
-      });
-
-      // Target frontier has advanced
-      const targetFrontier = createFrontier();
-      updateFrontier(targetFrontier, 'writer1', sha2);
-
-      // New patch adds node 'b'
-      const newPatch = createPatch({
-        writer: 'writer1',
-        lamport: 2,
-        ops: [createNodeAdd('b')],
-      });
-
-      const patchLoader = vi.fn().mockResolvedValue([{ patch: newPatch, sha: makeOid('sha2abcd') }]);
-
-      // Execute
-      const result = await materializeIncremental({
-        persistence: mockPersistence,
-        graphName: 'test',
-        checkpointSha: makeOid('checkpointSha'),
-        targetFrontier,
-        patchLoader,
-      });
-
-      // Verify both nodes exist
-      expect(lwwValue(result.nodeAlive.get('a'))).toBe(true);
-      expect(lwwValue(result.nodeAlive.get('b'))).toBe(true);
-    });
-
-    it('handles new writers not in checkpoint frontier', async () => {
-      // Setup checkpoint with writer1 only
-      const checkpointState = {
-        nodes: ['x'],
-        edges: [],
-        props: [],
-      };
-      const sha1 = makeOid('sha1');
-      const sha2 = makeOid('sha2');
-      const checkpointFrontier = createFrontier();
-      updateFrontier(checkpointFrontier, 'writer1', sha1);
-
-      const stateBuffer = serializeState(createStateFromProjection(checkpointState));
-      const frontierBuffer = serializeFrontier(checkpointFrontier);
-      const stateHash = computeStateHash(createStateFromProjection(checkpointState));
-
-      const frontierOid = makeOid('frontierOid');
-      const treeOid = makeOid('treeOid');
-      const frontierBlobOid = makeOid('frontierBlob');
-      const stateBlobOid = makeOid('stateBlob');
-
-      const message = encodeCheckpointMessage({
-        graph: 'test',
-        stateHash,
-        frontierOid,
-        indexOid: treeOid,
-        schema: 1,
-      });
-
-      mockPersistence.showNode.mockResolvedValue(message);
-      mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpointSha') });
-      mockPersistence.readTreeOids.mockResolvedValue({
-        'frontier.cbor': frontierBlobOid,
-        'state.cbor': stateBlobOid,
-      });
-      mockPersistence.readBlob.mockImplementation((oid) => {
-        if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-        if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-        throw new Error(`Unknown oid: ${oid}`);
-      });
-
-      // Target frontier includes new writer2
-      const targetFrontier = createFrontier();
-      updateFrontier(targetFrontier, 'writer1', sha1);
-      updateFrontier(targetFrontier, 'writer2', sha2);
-
-      // Patches from both writers
-      const patch2 = createPatch({
-        writer: 'writer2',
-        lamport: 1,
-        ops: [createNodeAdd('y')],
-      });
-
-      const patchLoader = vi.fn().mockImplementation((writerId, fromSha, toSha) => {
-        if (writerId === 'writer1') return Promise.resolve([]);
-        if (writerId === 'writer2') return Promise.resolve([{ patch: patch2, sha: makeOid('sha2abcd') }]);
-        return Promise.resolve([]);
-      });
-
-      // Execute
-      const result = await materializeIncremental({
-        persistence: mockPersistence,
-        graphName: 'test',
-        checkpointSha: makeOid('checkpointSha'),
-        targetFrontier,
-        patchLoader,
-      });
-
-      // Verify
-      expect(lwwValue(result.nodeAlive.get('x'))).toBe(true);
-      expect(lwwValue(result.nodeAlive.get('y'))).toBe(true);
-    });
-
-    it('calls patchLoader with correct arguments', async () => {
-      const checkpointState = {
-        nodes: [],
-        edges: [],
-        props: [],
-      };
-      const checkpointSha1 = makeOid('checkpointSha1');
-      const checkpointFrontier = createFrontier();
-      updateFrontier(checkpointFrontier, 'writer1', checkpointSha1);
-
-      const stateBuffer = serializeState(createStateFromProjection(checkpointState));
-      const frontierBuffer = serializeFrontier(checkpointFrontier);
-      const stateHash = computeStateHash(createStateFromProjection(checkpointState));
-
-      const frontierOid = makeOid('frontierOid');
-      const treeOid = makeOid('treeOid');
-      const frontierBlobOid = makeOid('frontierBlob');
-      const stateBlobOid = makeOid('stateBlob');
-
-      const message = encodeCheckpointMessage({
-        graph: 'test',
-        stateHash,
-        frontierOid,
-        indexOid: treeOid,
-        schema: 1,
-      });
-
-      mockPersistence.showNode.mockResolvedValue(message);
-      mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpointSha') });
-      mockPersistence.readTreeOids.mockResolvedValue({
-        'frontier.cbor': frontierBlobOid,
-        'state.cbor': stateBlobOid,
-      });
-      mockPersistence.readBlob.mockImplementation((oid) => {
-        if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-        if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-        throw new Error(`Unknown oid: ${oid}`);
-      });
-
-      const targetSha1 = makeOid('targetSha1');
-      const targetSha2 = makeOid('targetSha2');
-      const targetFrontier = createFrontier();
-      updateFrontier(targetFrontier, 'writer1', targetSha1);
-      updateFrontier(targetFrontier, 'writer2', targetSha2);
-
-      const patchLoader = vi.fn().mockResolvedValue([]);
-
-      await materializeIncremental({
-        persistence: mockPersistence,
-        graphName: 'test',
-        checkpointSha: makeOid('checkpointSha'),
-        targetFrontier,
-        patchLoader,
-      });
-
-      // Verify patchLoader was called correctly
-      expect(patchLoader).toHaveBeenCalledWith('writer1', checkpointSha1, targetSha1);
-      expect(patchLoader).toHaveBeenCalledWith('writer2', null, targetSha2); // writer2 not in checkpoint
+      await expect(loadCheckpoint(mockPersistence, makeOid('v1checkpoint')))
+        .rejects.toThrow(/schema:1.*migration/i);
     });
   });
 
-  describe('roundtrip', () => {
-    it('create -> loadCheckpoint preserves data', async () => {
-      // Build state using reduce
-      const patchSha = makeOid('patchSha1234');
-      const patch = createPatch({
-        writer: 'alice',
-        lamport: 1,
-        ops: [
-          createNodeAdd('n1'),
-          createNodeAdd('n2'),
-          createEdgeAdd('n1', 'n2', 'follows'),
-          createPropSet('n1', 'name', createInlineValue('Alice')),
-        ],
-      });
-      const state = reduce([{ patch, sha: patchSha }]);
+  // Note: materializeIncremental tests removed - they relied on schema:1 checkpoints
+  // which are no longer supported as a runtime option.
 
-      const frontier = createFrontier();
-      updateFrontier(frontier, 'alice', patchSha);
+  // Note: roundtrip test using createPatch (schema:1) removed - tests now focus on schema:2
 
-      // Capture written data
-      let writtenStateBlob;
-      let writtenFrontierBlob;
-      let writtenTreeOid;
-      let writtenMessage;
-
-      const stateBlobOid = makeOid('stateOid');
-      const frontierBlobOid = makeOid('frontierOid');
-      const treeOid = makeOid('treeOid');
-      const checkpointOid = makeOid('checkpointSha');
-
-      mockPersistence.writeBlob.mockImplementation((buffer) => {
-        // First call is state, second is frontier
-        if (!writtenStateBlob) {
-          writtenStateBlob = buffer;
-          return Promise.resolve(stateBlobOid);
-        } else {
-          writtenFrontierBlob = buffer;
-          return Promise.resolve(frontierBlobOid);
-        }
-      });
-      mockPersistence.writeTree.mockImplementation((entries) => {
-        writtenTreeOid = treeOid;
-        return Promise.resolve(writtenTreeOid);
-      });
-      mockPersistence.commitNodeWithTree.mockImplementation(({ message }) => {
-        writtenMessage = message;
-        return Promise.resolve(checkpointOid);
-      });
-
-      // Create checkpoint
-      await create({
-        persistence: mockPersistence,
-        graphName: 'roundtrip-test',
-        state,
-        frontier,
-      });
-
-      // Setup mocks for loading
-      mockPersistence.showNode.mockResolvedValue(writtenMessage);
-      mockPersistence.getNodeInfo.mockResolvedValue({ sha: checkpointOid });
-      mockPersistence.readTreeOids.mockResolvedValue({
-        'frontier.cbor': frontierBlobOid,
-        'state.cbor': stateBlobOid,
-      });
-      mockPersistence.readBlob.mockImplementation((oid) => {
-        if (oid === frontierBlobOid) {
-          return Promise.resolve(writtenFrontierBlob);
-        }
-        if (oid === stateBlobOid) {
-          return Promise.resolve(writtenStateBlob);
-        }
-        throw new Error(`Unknown oid: ${oid}`);
-      });
-
-      // Load checkpoint
-      const loaded = await loadCheckpoint(mockPersistence, checkpointOid);
-
-      // Verify roundtrip preserved data
-      expect(loaded.state.nodes).toContain('n1');
-      expect(loaded.state.nodes).toContain('n2');
-      expect(loaded.state.edges).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ from: 'n1', to: 'n2', label: 'follows' }),
-        ])
-      );
-      expect(loaded.state.props).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            node: 'n1',
-            key: 'name',
-            value: { type: 'inline', value: 'Alice' },
-          }),
-        ])
-      );
-      expect(loaded.frontier.get('alice')).toBe(patchSha);
-    });
-  });
-
-  describe('schema-aware serialization', () => {
-    describe('create with schema parameter', () => {
-      it('schema 1 checkpoint uses v4 serializer', async () => {
-        // Create v4 state (LWW-based)
-        const state = createEmptyState();
-        state.nodeAlive.set('node1', {
-          eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('abc'), opIndex: 0 },
-          value: true,
-        });
-
-        const frontier = createFrontier();
-        updateFrontier(frontier, 'writer1', makeOid('sha1'));
-
-        mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
-        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
-        mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('sha'));
-
-        await create({
-          persistence: mockPersistence,
-          graphName: 'test',
-          state,
-          frontier,
-          schema: 1,
-        });
-
-        // Verify schema 1 was encoded in message
-        const messageArg = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
-        const decoded = decodeCheckpointMessage(messageArg);
-        expect(decoded.schema).toBe(1);
-
-        // Verify state was serialized (first writeBlob call)
-        const stateBuffer = mockPersistence.writeBlob.mock.calls[0][0];
-        // Should be able to deserialize with v4 deserializer
-        const deserializedState = deserializeState(stateBuffer);
-        expect(deserializedState.nodes).toContain('node1');
-      });
-
-      it('schema 2 checkpoint uses v5 full state serializer', async () => {
+  describe('schema:2 serialization', () => {
+    describe('create', () => {
+      it('creates checkpoint using v5 full state serializer', async () => {
         // Create v5 state (ORSet-based)
         const state = createEmptyStateV5();
         const dot = createDot('writer1', 1);
@@ -683,7 +311,6 @@ describe('CheckpointService', () => {
           graphName: 'test',
           state,
           frontier,
-          schema: 2,
         });
 
         // Verify schema 2 was encoded in message
@@ -705,55 +332,8 @@ describe('CheckpointService', () => {
       });
     });
 
-    describe('loadCheckpoint schema detection', () => {
-      it('loads schema 1 checkpoint with v4 deserializer', async () => {
-        const originalState = {
-          nodes: ['a', 'b'],
-          edges: [{ from: 'a', to: 'b', label: 'link' }],
-          props: [{ node: 'a', key: 'x', value: { type: 'inline', value: 42 } }],
-        };
-
-        const stateBuffer = serializeState(createStateFromProjection(originalState));
-        const frontierBuffer = serializeFrontier(createFrontier());
-        const stateHash = computeStateHash(createStateFromProjection(originalState));
-
-        const treeOid = makeOid('tree');
-        const frontierBlobOid = makeOid('frontier');
-        const stateBlobOid = makeOid('state');
-
-        const message = encodeCheckpointMessage({
-          graph: 'test',
-          stateHash,
-          frontierOid: frontierBlobOid,
-          indexOid: treeOid,
-          schema: 1,
-        });
-
-        mockPersistence.showNode.mockResolvedValue(message);
-        mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpoint') });
-        mockPersistence.readTreeOids.mockResolvedValue({
-          'frontier.cbor': frontierBlobOid,
-          'state.cbor': stateBlobOid,
-        });
-        mockPersistence.readBlob.mockImplementation((oid) => {
-          if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
-          if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
-          throw new Error(`Unknown oid: ${oid}`);
-        });
-
-        const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
-
-        expect(result.schema).toBe(1);
-        expect(result.state.nodes).toContain('a');
-        expect(result.state.nodes).toContain('b');
-        expect(result.state.edges).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({ from: 'a', to: 'b', label: 'link' }),
-          ])
-        );
-      });
-
-      it('loads schema 2 checkpoint with v5 full state deserializer', async () => {
+    describe('loadCheckpoint', () => {
+      it('loads checkpoint with v5 full state deserializer', async () => {
         // Create v5 state and serialize it using FULL STATE serializer
         const v5State = createEmptyStateV5();
         const dot = createDot('writer1', 1);
@@ -813,75 +393,8 @@ describe('CheckpointService', () => {
       });
     });
 
-    describe('roundtrip for both schemas', () => {
-      it('schema 1 roundtrip preserves data', async () => {
-        const state = createEmptyState();
-        state.nodeAlive.set('n1', {
-          eventId: { lamport: 1, writerId: 'w', patchSha: makeOid('p'), opIndex: 0 },
-          value: true,
-        });
-        state.nodeAlive.set('n2', {
-          eventId: { lamport: 2, writerId: 'w', patchSha: makeOid('p'), opIndex: 1 },
-          value: true,
-        });
-        state.edgeAlive.set(encodeEdgeKey('n1', 'n2', 'link'), {
-          eventId: { lamport: 3, writerId: 'w', patchSha: makeOid('p'), opIndex: 2 },
-          value: true,
-        });
-        state.prop.set(encodePropKey('n1', 'name'), {
-          eventId: { lamport: 4, writerId: 'w', patchSha: makeOid('p'), opIndex: 3 },
-          value: { type: 'inline', value: 'Node1' },
-        });
-
-        const frontier = createFrontier();
-        updateFrontier(frontier, 'w', makeOid('p'));
-
-        let writtenStateBlob, writtenFrontierBlob, writtenMessage;
-
-        mockPersistence.writeBlob.mockImplementation((buffer) => {
-          if (!writtenStateBlob) {
-            writtenStateBlob = buffer;
-            return Promise.resolve(makeOid('state'));
-          }
-          writtenFrontierBlob = buffer;
-          return Promise.resolve(makeOid('frontier'));
-        });
-        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
-        mockPersistence.commitNodeWithTree.mockImplementation(({ message }) => {
-          writtenMessage = message;
-          return Promise.resolve(makeOid('checkpoint'));
-        });
-
-        await create({
-          persistence: mockPersistence,
-          graphName: 'test',
-          state,
-          frontier,
-          schema: 1,
-        });
-
-        // Setup for loading
-        mockPersistence.showNode.mockResolvedValue(writtenMessage);
-        mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpoint') });
-        mockPersistence.readTreeOids.mockResolvedValue({
-          'frontier.cbor': makeOid('frontier'),
-          'state.cbor': makeOid('state'),
-        });
-        mockPersistence.readBlob.mockImplementation((oid) => {
-          if (oid === makeOid('frontier')) return Promise.resolve(writtenFrontierBlob);
-          if (oid === makeOid('state')) return Promise.resolve(writtenStateBlob);
-          throw new Error(`Unknown oid: ${oid}`);
-        });
-
-        const loaded = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
-
-        expect(loaded.schema).toBe(1);
-        expect(loaded.state.nodes.sort()).toEqual(['n1', 'n2']);
-        expect(loaded.state.edges).toHaveLength(1);
-        expect(loaded.state.props).toHaveLength(1);
-      });
-
-      it('schema 2 roundtrip preserves full ORSet data', async () => {
+    describe('roundtrip', () => {
+      it('roundtrip preserves full ORSet data', async () => {
         const state = createEmptyStateV5();
         const dot = createDot('writer1', 1);
         orsetAdd(state.nodeAlive, 'a', dot);
@@ -915,7 +428,6 @@ describe('CheckpointService', () => {
           graphName: 'test',
           state,
           frontier,
-          schema: 2,
         });
 
         // Setup for loading
@@ -1466,36 +978,3 @@ describe('CheckpointService', () => {
     });
   });
 });
-
-/**
- * Helper to create WarpState from visible projection.
- * Used for testing serialization.
- */
-function createStateFromProjection({ nodes, edges, props }) {
-  const syntheticEventId = {
-    lamport: 1,
-    writerId: '__test__',
-    patchSha: 'a'.repeat(40),
-    opIndex: 0,
-  };
-
-  const nodeAlive = new Map();
-  const edgeAlive = new Map();
-  const prop = new Map();
-
-  for (const nodeId of nodes) {
-    nodeAlive.set(nodeId, { eventId: syntheticEventId, value: true });
-  }
-
-  for (const edge of edges) {
-    const edgeKey = `${edge.from}\0${edge.to}\0${edge.label}`;
-    edgeAlive.set(edgeKey, { eventId: syntheticEventId, value: true });
-  }
-
-  for (const p of props) {
-    const propKey = `${p.node}\0${p.key}`;
-    prop.set(propKey, { eventId: syntheticEventId, value: p.value });
-  }
-
-  return { nodeAlive, edgeAlive, prop };
-}

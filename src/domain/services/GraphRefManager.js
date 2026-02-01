@@ -4,7 +4,7 @@ import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 /**
  * Domain service for managing graph ref reachability.
  *
- * This service implements the core durability contract for EmptyGraph by ensuring
+ * This service implements the core durability contract for WarpGraph by ensuring
  * that commits remain reachable from the graph ref and are not subject to Git
  * garbage collection.
  *

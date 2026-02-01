@@ -22,6 +22,7 @@ describe('WarpMessageCodec', () => {
         writer: 'node-1',
         lamport: 42,
         patchOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       expect(message).toContain('empty-graph:patch');
@@ -30,7 +31,7 @@ describe('WarpMessageCodec', () => {
       expect(message).toContain('eg-writer: node-1');
       expect(message).toContain('eg-lamport: 42');
       expect(message).toContain(`eg-patch-oid: ${VALID_OID_SHA1}`);
-      expect(message).toContain('eg-schema: 1');
+      expect(message).toContain('eg-schema: 2');
     });
 
     it('accepts custom schema version', () => {
@@ -39,10 +40,10 @@ describe('WarpMessageCodec', () => {
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
-        schema: 2,
+        schema: 3,
       });
 
-      expect(message).toContain('eg-schema: 2');
+      expect(message).toContain('eg-schema: 3');
     });
 
     it('accepts SHA-256 OIDs', () => {
@@ -152,6 +153,7 @@ describe('WarpMessageCodec', () => {
         stateHash: VALID_STATE_HASH,
         frontierOid: VALID_OID_SHA1,
         indexOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       expect(message).toContain('empty-graph:checkpoint');
@@ -160,7 +162,7 @@ describe('WarpMessageCodec', () => {
       expect(message).toContain(`eg-state-hash: ${VALID_STATE_HASH}`);
       expect(message).toContain(`eg-frontier-oid: ${VALID_OID_SHA1}`);
       expect(message).toContain(`eg-index-oid: ${VALID_OID_SHA1}`);
-      expect(message).toContain('eg-schema: 1');
+      expect(message).toContain('eg-schema: 2');
     });
 
     it('accepts custom schema version', () => {
@@ -222,12 +224,12 @@ describe('WarpMessageCodec', () => {
 
   describe('encodeAnchorMessage', () => {
     it('encodes a valid anchor message with required fields', () => {
-      const message = encodeAnchorMessage({ graph: 'events' });
+      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
       expect(message).toContain('empty-graph:anchor');
       expect(message).toContain('eg-kind: anchor');
       expect(message).toContain('eg-graph: events');
-      expect(message).toContain('eg-schema: 1');
+      expect(message).toContain('eg-schema: 2');
     });
 
     it('accepts custom schema version', () => {
@@ -252,6 +254,7 @@ describe('WarpMessageCodec', () => {
         writer: 'node-1',
         lamport: 42,
         patchOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       const decoded = decodePatchMessage(encoded);
@@ -261,7 +264,7 @@ describe('WarpMessageCodec', () => {
       expect(decoded.writer).toBe('node-1');
       expect(decoded.lamport).toBe(42);
       expect(decoded.patchOid).toBe(VALID_OID_SHA1);
-      expect(decoded.schema).toBe(1);
+      expect(decoded.schema).toBe(2);
     });
 
     it('throws when eg-kind is not patch', () => {
@@ -365,6 +368,7 @@ eg-patch-oid: ${VALID_OID_SHA1}`;
         stateHash: VALID_STATE_HASH,
         frontierOid: VALID_OID_SHA1,
         indexOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       const decoded = decodeCheckpointMessage(encoded);
@@ -374,7 +378,7 @@ eg-patch-oid: ${VALID_OID_SHA1}`;
       expect(decoded.stateHash).toBe(VALID_STATE_HASH);
       expect(decoded.frontierOid).toBe(VALID_OID_SHA1);
       expect(decoded.indexOid).toBe(VALID_OID_SHA1);
-      expect(decoded.schema).toBe(1);
+      expect(decoded.schema).toBe(2);
     });
 
     it('throws when eg-kind is not checkpoint', () => {
@@ -461,13 +465,13 @@ eg-index-oid: ${VALID_OID_SHA1}`;
 
   describe('decodeAnchorMessage', () => {
     it('decodes a valid anchor message', () => {
-      const encoded = encodeAnchorMessage({ graph: 'events' });
+      const encoded = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
       const decoded = decodeAnchorMessage(encoded);
 
       expect(decoded.kind).toBe('anchor');
       expect(decoded.graph).toBe('events');
-      expect(decoded.schema).toBe(1);
+      expect(decoded.schema).toBe(2);
     });
 
     it('throws when eg-kind is not anchor', () => {
@@ -517,6 +521,7 @@ eg-schema: invalid`;
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       expect(detectMessageKind(message)).toBe('patch');
@@ -528,13 +533,14 @@ eg-schema: invalid`;
         stateHash: VALID_STATE_HASH,
         frontierOid: VALID_OID_SHA1,
         indexOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       expect(detectMessageKind(message)).toBe('checkpoint');
     });
 
     it('detects anchor messages', () => {
-      const message = encodeAnchorMessage({ graph: 'events' });
+      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
       expect(detectMessageKind(message)).toBe('anchor');
     });
@@ -578,7 +584,7 @@ eg-schema: 1`;
         writer: 'producer-1',
         lamport: 12345,
         patchOid: VALID_OID_SHA1,
-        schema: 1,
+        schema: 2,
       };
 
       const encoded = encodePatchMessage(original);
@@ -630,7 +636,7 @@ eg-schema: 1`;
       const edgeCases = ['a', 'Graph123', 'my-graph_v2', 'team/shared/events'];
 
       for (const graph of edgeCases) {
-        const encoded = encodeAnchorMessage({ graph });
+        const encoded = encodeAnchorMessage({ graph, schema: 2 });
         const decoded = decodeAnchorMessage(encoded);
         expect(decoded.graph).toBe(graph);
       }
@@ -645,6 +651,7 @@ eg-schema: 1`;
           writer,
           lamport: 1,
           patchOid: VALID_OID_SHA1,
+          schema: 2,
         });
         const decoded = decodePatchMessage(encoded);
         expect(decoded.writer).toBe(writer);
@@ -659,6 +666,7 @@ eg-schema: 1`;
         writer: 'node-1',
         lamport: largeLamport,
         patchOid: VALID_OID_SHA1,
+        schema: 2,
       });
       const decoded = decodePatchMessage(encoded);
 
@@ -673,6 +681,7 @@ eg-schema: 1`;
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       const lines = message.split('\n');
@@ -685,6 +694,7 @@ eg-schema: 1`;
         stateHash: VALID_STATE_HASH,
         frontierOid: VALID_OID_SHA1,
         indexOid: VALID_OID_SHA1,
+        schema: 2,
       });
 
       const lines = message.split('\n');
@@ -692,14 +702,14 @@ eg-schema: 1`;
     });
 
     it('anchor message has correct title', () => {
-      const message = encodeAnchorMessage({ graph: 'events' });
+      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
       const lines = message.split('\n');
       expect(lines[0]).toBe('empty-graph:anchor');
     });
 
     it('trailers are separated by blank line from title', () => {
-      const message = encodeAnchorMessage({ graph: 'events' });
+      const message = encodeAnchorMessage({ graph: 'events', schema: 2 });
 
       const lines = message.split('\n');
       expect(lines[0]).toBe('empty-graph:anchor');

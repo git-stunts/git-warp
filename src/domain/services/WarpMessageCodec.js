@@ -145,7 +145,7 @@ function validateSchema(schema) {
  * @param {string} options.writer - The writer ID
  * @param {number} options.lamport - The Lamport timestamp (must be a positive integer)
  * @param {string} options.patchOid - The OID of the patch blob
- * @param {number} [options.schema=1] - The schema version
+ * @param {number} [options.schema=2] - The schema version (defaults to 2 for new messages)
  * @returns {string} The encoded commit message
  * @throws {Error} If any validation fails
  *
@@ -157,7 +157,7 @@ function validateSchema(schema) {
  *   patchOid: 'abc123...' // 40-char hex
  * });
  */
-export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 1 }) {
+export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 2 }) {
   // Validate inputs
   validateGraphName(graph);
   validateWriterId(writer);
@@ -187,7 +187,7 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
  * @param {string} options.stateHash - The SHA-256 hash of the materialized state
  * @param {string} options.frontierOid - The OID of the frontier blob
  * @param {string} options.indexOid - The OID of the index tree
- * @param {number} [options.schema=1] - The schema version
+ * @param {number} [options.schema=2] - The schema version (defaults to 2 for new messages)
  * @returns {string} The encoded commit message
  * @throws {Error} If any validation fails
  *
@@ -199,7 +199,7 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
  *   indexOid: 'ghi789...' // 40-char hex
  * });
  */
-export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOid, schema = 1 }) {
+export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOid, schema = 2 }) {
   // Validate inputs
   validateGraphName(graph);
   validateSha256(stateHash, 'stateHash');
@@ -233,14 +233,14 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
  *
  * @param {Object} options - The anchor message options
  * @param {string} options.graph - The graph name
- * @param {number} [options.schema=1] - The schema version
+ * @param {number} [options.schema=2] - The schema version (defaults to 2 for new messages)
  * @returns {string} The encoded commit message
  * @throws {Error} If any validation fails
  *
  * @example
  * const message = encodeAnchorMessage({ graph: 'events' });
  */
-export function encodeAnchorMessage({ graph, schema = 1 }) {
+export function encodeAnchorMessage({ graph, schema = 2 }) {
   // Validate inputs
   validateGraphName(graph);
   validateSchema(schema);

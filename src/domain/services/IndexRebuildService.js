@@ -20,7 +20,7 @@ export default class IndexRebuildService {
    * Creates an IndexRebuildService instance.
    *
    * @param {Object} options - Configuration options
-   * @param {import('./GraphService.js').default} options.graphService - Graph service for iterating nodes
+   * @param {{ iterateNodes: (options: { ref: string, limit?: number }) => AsyncGenerator<import('../entities/GraphNode.js').default> }} options.graphService - Graph service providing iterateNodes()
    * @param {import('../../ports/IndexStoragePort.js').default} options.storage - Storage adapter for persisting index
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging.
    *   Defaults to NoOpLogger (no logging).

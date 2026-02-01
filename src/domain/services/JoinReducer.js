@@ -10,7 +10,7 @@
  */
 
 import { createORSet, orsetAdd, orsetRemove, orsetJoin } from '../crdt/ORSet.js';
-import { createVersionVector, vvMerge, vvClone } from '../crdt/VersionVector.js';
+import { createVersionVector, vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId } from '../utils/EventId.js';
 
@@ -122,7 +122,11 @@ export function join(state, patch, patchSha) {
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
     applyOpV2(state, patch.ops[i], eventId);
   }
-  state.observedFrontier = vvMerge(state.observedFrontier, patch.context);
+  // Handle both Map (in-memory) and plain object (from CBOR deserialization)
+  const contextVV = patch.context instanceof Map
+    ? patch.context
+    : vvDeserialize(patch.context);
+  state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
   return state;
 }
 

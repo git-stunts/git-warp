@@ -1,23 +1,22 @@
 /**
- * MultiWriterGraph - Main API class for WARP multi-writer graph database.
+ * WarpGraph - Main API class for WARP multi-writer graph database.
  *
  * Provides a factory for opening multi-writer graphs and methods for
  * creating patches, materializing state, and managing checkpoints.
  *
- * @module domain/MultiWriterGraph
+ * @module domain/WarpGraph
  * @see WARP Spec Section 11
  */
 
 import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, buildCheckpointRef, buildWritersPrefix, parseWriterIdFromRef } from './utils/RefLayout.js';
-import PatchBuilder from './services/PatchBuilder.js';
 import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
-import { reduce, createEmptyState } from './services/Reducer.js';
-import { reduceV5, createEmptyStateV5, joinStates, cloneStateV5 } from './services/JoinReducer.js';
+import { reduceV5, createEmptyStateV5, joinStates, decodeEdgeKey, decodePropKey } from './services/JoinReducer.js';
+import { orsetContains, orsetElements } from './crdt/ORSet.js';
 import { decode } from '../infrastructure/codecs/CborCodec.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
 import { loadCheckpoint, materializeIncremental, create as createCheckpointCommit } from './services/CheckpointService.js';
 import { createFrontier, updateFrontier } from './services/Frontier.js';
-import { createVersionVector, vvClone } from './crdt/VersionVector.js';
+import { createVersionVector, vvClone, vvIncrement } from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY, shouldRunGC, executeGC } from './services/GCPolicy.js';
 import { collectGCMetrics } from './services/GCMetrics.js';
 import { computeAppliedVV } from './services/CheckpointSerializerV5.js';
@@ -27,24 +26,22 @@ import {
   applySyncResponse,
   syncNeeded,
 } from './services/SyncProtocol.js';
+import { Writer } from './warp/Writer.js';
+import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 
 /**
- * MultiWriterGraph class for interacting with a WARP multi-writer graph.
+ * WarpGraph class for interacting with a WARP multi-writer graph.
  */
-export default class MultiWriterGraph {
+export default class WarpGraph {
   /**
    * @private
    * @param {Object} options
    * @param {import('../ports/GraphPersistencePort.js').default} options.persistence - Git adapter
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
-   * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
    * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
    */
-  constructor({ persistence, graphName, writerId, schema = 1, gcPolicy = {} }) {
-    /** @type {number} */
-    this._schema = schema;
-
+  constructor({ persistence, graphName, writerId, gcPolicy = {} }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -77,19 +74,18 @@ export default class MultiWriterGraph {
    * @param {import('../ports/GraphPersistencePort.js').default} options.persistence - Git adapter
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
-   * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
    * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
-   * @returns {Promise<MultiWriterGraph>} The opened graph instance
+   * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName or writerId is invalid
    *
    * @example
-   * const graph = await MultiWriterGraph.open({
+   * const graph = await WarpGraph.open({
    *   persistence: gitAdapter,
    *   graphName: 'events',
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, schema = 1, gcPolicy = {} }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {} }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -98,9 +94,9 @@ export default class MultiWriterGraph {
       throw new Error('persistence is required');
     }
 
-    const graph = new MultiWriterGraph({ persistence, graphName, writerId, schema, gcPolicy });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy });
 
-    // Validate migration boundary for schema:2
+    // Validate migration boundary
     await graph._validateMigrationBoundary();
 
     return graph;
@@ -133,42 +129,66 @@ export default class MultiWriterGraph {
   /**
    * Creates a new PatchBuilder for building and committing patches.
    *
-   * @returns {PatchBuilder|PatchBuilderV2} A fluent patch builder
+   * @returns {Promise<PatchBuilderV2>} A fluent patch builder
    *
    * @example
-   * const commitSha = await graph.createPatch()
+   * const commitSha = await (await graph.createPatch())
    *   .addNode('user:alice')
    *   .setProperty('user:alice', 'name', 'Alice')
    *   .addEdge('user:alice', 'user:bob', 'follows')
    *   .commit();
    */
-  createPatch() {
-    if (this._schema === 2) {
-      return new PatchBuilderV2({
-        writerId: this._writerId,
-        lamport: this._nextLamport(),
-        versionVector: this._versionVector,
-        getCurrentState: () => this._cachedState,
-      });
-    }
-    return new PatchBuilder({
+  async createPatch() {
+    const { lamport, parentSha } = await this._nextLamport();
+    return new PatchBuilderV2({
       persistence: this._persistence,
       graphName: this._graphName,
       writerId: this._writerId,
+      lamport,
+      versionVector: this._versionVector,
+      getCurrentState: () => this._cachedState,
+      expectedParentSha: parentSha,
+      onCommitSuccess: () => {
+        vvIncrement(this._versionVector, this._writerId);
+      },
     });
   }
 
   /**
-   * Gets the next lamport timestamp for this writer.
-   * Reads from the current ref chain to determine the next value.
+   * Gets the next lamport timestamp and current parent SHA for this writer.
+   * Reads from the current ref chain to determine values.
    *
-   * @returns {number} The next lamport timestamp
+   * @returns {Promise<{lamport: number, parentSha: string|null}>} The next lamport and current parent
    * @private
    */
-  _nextLamport() {
-    // For now, return 1; proper implementation would read from current ref
-    // The commit() method in PatchBuilder handles this properly
-    return 1;
+  async _nextLamport() {
+    const writerRef = buildWriterRef(this._graphName, this._writerId);
+    const currentRefSha = await this._persistence.readRef(writerRef);
+
+    if (!currentRefSha) {
+      // First commit for this writer
+      return { lamport: 1, parentSha: null };
+    }
+
+    // Read the current patch commit to get its lamport timestamp
+    const commitMessage = await this._persistence.showNode(currentRefSha);
+    const kind = detectMessageKind(commitMessage);
+
+    if (kind !== 'patch') {
+      // Writer ref doesn't point to a patch commit - treat as first commit
+      return { lamport: 1, parentSha: currentRefSha };
+    }
+
+    try {
+      const patchInfo = decodePatchMessage(commitMessage);
+      return { lamport: patchInfo.lamport + 1, parentSha: currentRefSha };
+    } catch {
+      // Malformed message - error with actionable message
+      throw new Error(
+        `Failed to parse lamport from writer ref ${writerRef}: ` +
+        `commit ${currentRefSha} has invalid patch message format`
+      );
+    }
   }
 
   /**
@@ -232,33 +252,32 @@ export default class MultiWriterGraph {
    * Discovers all writers, collects all patches from each writer's ref chain,
    * and reduces them to produce the current state.
    *
-   * For schema:2, checks if a checkpoint exists and uses the appropriate reducer.
+   * Checks if a checkpoint exists and uses incremental materialization if so.
    *
-   * @returns {Promise<import('./services/Reducer.js').WarpState|import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state
    */
   async materialize() {
-    // Check for checkpoint and schema
+    // Check for checkpoint
     const checkpoint = await this._loadLatestCheckpoint();
 
-    // If checkpoint is schema:2, use v5 reducer
+    // If checkpoint exists, use incremental materialization
     if (checkpoint?.schema === 2) {
       const patches = await this._loadPatchesSince(checkpoint);
       const state = reduceV5(patches, checkpoint.state);
       this._cachedState = state;
+      this._versionVector = vvClone(state.observedFrontier);
       return state;
     }
 
     // 1. Discover all writers
     const writerIds = await this.discoverWriters();
 
-    // 2. If no writers, return empty state (schema-aware)
+    // 2. If no writers, return empty state
     if (writerIds.length === 0) {
-      if (this._schema === 2) {
-        const emptyState = createEmptyStateV5();
-        this._cachedState = emptyState;
-        return emptyState;
-      }
-      return createEmptyState();
+      const emptyState = createEmptyStateV5();
+      this._cachedState = emptyState;
+      this._versionVector = vvClone(emptyState.observedFrontier);
+      return emptyState;
     }
 
     // 3. For each writer, collect all patches
@@ -270,22 +289,17 @@ export default class MultiWriterGraph {
 
     // 4. If no patches, return empty state
     if (allPatches.length === 0) {
-      if (this._schema === 2) {
-        const emptyState = createEmptyStateV5();
-        this._cachedState = emptyState;
-        return emptyState;
-      }
-      return createEmptyState();
+      const emptyState = createEmptyStateV5();
+      this._cachedState = emptyState;
+      this._versionVector = vvClone(emptyState.observedFrontier);
+      return emptyState;
     }
 
-    // 5. Reduce all patches to state using appropriate reducer
-    if (this._schema === 2) {
-      const state = reduceV5(allPatches);
-      this._cachedState = state;
-      return state;
-    }
-
-    return reduce(allPatches);
+    // 5. Reduce all patches to state
+    const state = reduceV5(allPatches);
+    this._cachedState = state;
+    this._versionVector = vvClone(state.observedFrontier);
+    return state;
   }
 
   /**
@@ -294,8 +308,6 @@ export default class MultiWriterGraph {
    * This method allows manual merging of two graph states using the
    * CRDT join semantics defined in JoinReducer. The merge is deterministic
    * and commutative - joining A with B produces the same result as B with A.
-   *
-   * **Requires schema:2 (WARP v5)**
    *
    * @param {import('./services/JoinReducer.js').WarpStateV5} otherState - The state to merge in
    * @returns {{
@@ -309,10 +321,10 @@ export default class MultiWriterGraph {
    *     frontierMerged: boolean
    *   }
    * }} The merged state and a receipt describing the merge
-   * @throws {Error} If schema is not 2 or if no cached state exists
+   * @throws {Error} If no cached state exists
    *
    * @example
-   * const graph = await MultiWriterGraph.open({ persistence, graphName, writerId, schema: 2 });
+   * const graph = await WarpGraph.open({ persistence, graphName, writerId });
    * await graph.materialize(); // Cache state first
    *
    * // Get state from another source (e.g., remote sync)
@@ -323,10 +335,6 @@ export default class MultiWriterGraph {
    * console.log(`Merged: ${receipt.nodesAdded} nodes added, ${receipt.propsChanged} props changed`);
    */
   join(otherState) {
-    if (this._schema !== 2) {
-      throw new Error('join() requires schema:2 (WARP v5)');
-    }
-
     if (!this._cachedState) {
       throw new Error('No cached state. Call materialize() first.');
     }
@@ -398,7 +406,7 @@ export default class MultiWriterGraph {
    * incremental patches since the checkpoint.
    *
    * @param {string} checkpointSha - The checkpoint commit SHA
-   * @returns {Promise<import('./services/Reducer.js').WarpState>} The materialized graph state at the checkpoint
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state at the checkpoint
    */
   async materializeAt(checkpointSha) {
     // 1. Discover current writers to build target frontier
@@ -570,24 +578,22 @@ export default class MultiWriterGraph {
   // ============================================================================
 
   /**
-   * Validates migration boundary for schema:2 graphs.
+   * Validates migration boundary for graphs.
    *
-   * Schema:2 graphs cannot be opened if there is schema:1 history without
+   * Graphs cannot be opened if there is schema:1 history without
    * a migration checkpoint. This ensures data consistency during migration.
    *
-   * @throws {Error} If schema:2 is requested but v1 history exists without migration checkpoint
+   * @throws {Error} If v1 history exists without migration checkpoint
    * @private
    */
   async _validateMigrationBoundary() {
-    if (this._schema !== 2) return;
-
     const checkpoint = await this._loadLatestCheckpoint();
     if (checkpoint?.schema === 2) return;  // Already migrated
 
     const hasSchema1History = await this._hasSchema1Patches();
     if (hasSchema1History) {
       throw new Error(
-        'Cannot open schema:2 graph with v1 history. ' +
+        'Cannot open graph with v1 history. ' +
         'Run MigrationService.migrate() first to create migration checkpoint.'
       );
     }
@@ -758,7 +764,7 @@ export default class MultiWriterGraph {
    * Checks if GC should run based on current metrics and policy.
    * If thresholds are exceeded, runs GC on the cached state.
    *
-   * **Requires schema:2 (WARP v5) and a cached state.**
+   * **Requires a cached state.**
    *
    * @returns {{ran: boolean, result: Object|null, reasons: string[]}} GC result
    *
@@ -770,7 +776,7 @@ export default class MultiWriterGraph {
    * }
    */
   maybeRunGC() {
-    if (this._schema !== 2 || !this._cachedState) {
+    if (!this._cachedState) {
       return { ran: false, result: null, reasons: [] };
     }
 
@@ -792,10 +798,10 @@ export default class MultiWriterGraph {
    * Explicitly runs GC on the cached state.
    * Compacts tombstoned dots that are covered by the appliedVV.
    *
-   * **Requires schema:2 (WARP v5) and a cached state.**
+   * **Requires a cached state.**
    *
    * @returns {{nodesCompacted: number, edgesCompacted: number, tombstonesRemoved: number, durationMs: number}}
-   * @throws {Error} If schema is not 2 or no cached state exists
+   * @throws {Error} If no cached state exists
    *
    * @example
    * await graph.materialize();
@@ -803,10 +809,6 @@ export default class MultiWriterGraph {
    * console.log(`Removed ${result.tombstonesRemoved} tombstones in ${result.durationMs}ms`);
    */
   runGC() {
-    if (this._schema !== 2) {
-      throw new Error('runGC() requires schema:2 (WARP v5)');
-    }
-
     if (!this._cachedState) {
       throw new Error('No cached state. Call materialize() first.');
     }
@@ -830,7 +832,7 @@ export default class MultiWriterGraph {
    * @returns {Object|null} GC metrics or null if no cached state
    */
   getGCMetrics() {
-    if (this._schema !== 2 || !this._cachedState) {
+    if (!this._cachedState) {
       return null;
     }
 
@@ -914,11 +916,11 @@ export default class MultiWriterGraph {
    * Applies a sync response to the local graph state.
    * Updates the cached state with received patches.
    *
-   * **Requires schema:2 (WARP v5) and a cached state.**
+   * **Requires a cached state.**
    *
    * @param {{type: 'sync-response', frontier: Map, patches: Map}} response - The sync response
    * @returns {{state: Object, frontier: Map, applied: number}} Result with updated state
-   * @throws {Error} If schema is not 2 or no cached state exists
+   * @throws {Error} If no cached state exists
    *
    * @example
    * await graph.materialize(); // Cache state first
@@ -926,10 +928,6 @@ export default class MultiWriterGraph {
    * console.log(`Applied ${result.applied} patches from remote`);
    */
   applySyncResponse(response) {
-    if (this._schema !== 2) {
-      throw new Error('applySyncResponse() requires schema:2 (WARP v5)');
-    }
-
     if (!this._cachedState) {
       throw new Error('No cached state. Call materialize() first.');
     }
@@ -955,5 +953,271 @@ export default class MultiWriterGraph {
   async syncNeeded(remoteFrontier) {
     const localFrontier = await this.getFrontier();
     return syncNeeded(localFrontier, remoteFrontier);
+  }
+
+  // ============================================================================
+  // Writer Factory Methods
+  // ============================================================================
+
+  /**
+   * Gets or creates a Writer for this graph.
+   *
+   * If an explicit writerId is provided, it is validated and used directly.
+   * Otherwise, the writerId is resolved from git config using the key
+   * `warp.writerId.<graphName>`. If no config exists, a new canonical ID
+   * is generated and persisted.
+   *
+   * @param {string} [writerId] - Optional explicit writer ID. If not provided, resolves stable ID from git config.
+   * @returns {Promise<Writer>} A Writer instance
+   * @throws {Error} If writerId is invalid
+   *
+   * @example
+   * // Use explicit writer ID
+   * const writer = await graph.writer('alice');
+   *
+   * @example
+   * // Resolve from git config (or generate new)
+   * const writer = await graph.writer();
+   */
+  async writer(writerId) {
+    // Build config adapters for resolveWriterId
+    const configGet = async (key) => this._persistence.configGet(key);
+    const configSet = async (key, value) => this._persistence.configSet(key, value);
+
+    // Resolve the writer ID
+    const resolvedWriterId = await resolveWriterId({
+      graphName: this._graphName,
+      explicitWriterId: writerId,
+      configGet,
+      configSet,
+    });
+
+    return new Writer({
+      persistence: this._persistence,
+      graphName: this._graphName,
+      writerId: resolvedWriterId,
+      versionVector: this._versionVector,
+      getCurrentState: () => this._cachedState,
+    });
+  }
+
+  /**
+   * Creates a new Writer with a fresh canonical ID.
+   *
+   * This always generates a new unique writer ID, regardless of any
+   * existing configuration. Use this when you need a guaranteed fresh
+   * identity (e.g., spawning a new writer process).
+   *
+   * @param {Object} [opts]
+   * @param {'config'|'none'} [opts.persist='none'] - Whether to persist the new ID to git config
+   * @param {string} [opts.alias] - Optional alias for config key (used with persist:'config')
+   * @returns {Promise<Writer>} A Writer instance with new canonical ID
+   *
+   * @example
+   * // Create ephemeral writer (not persisted)
+   * const writer = await graph.createWriter();
+   *
+   * @example
+   * // Create and persist to git config
+   * const writer = await graph.createWriter({ persist: 'config' });
+   */
+  async createWriter(opts = {}) {
+    const { persist = 'none', alias } = opts;
+
+    // Generate new canonical writerId
+    const freshWriterId = generateWriterId();
+
+    // Optionally persist to git config
+    if (persist === 'config') {
+      const configKey = alias
+        ? `warp.writerId.${alias}`
+        : `warp.writerId.${this._graphName}`;
+      await this._persistence.configSet(configKey, freshWriterId);
+    }
+
+    return new Writer({
+      persistence: this._persistence,
+      graphName: this._graphName,
+      writerId: freshWriterId,
+      versionVector: this._versionVector,
+      getCurrentState: () => this._cachedState,
+    });
+  }
+
+  // ============================================================================
+  // Query API (Task 7) - Queries on Materialized WARP State
+  // ============================================================================
+
+  /**
+   * Checks if a node exists in the materialized graph state.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @param {string} nodeId - The node ID to check
+   * @returns {boolean} True if the node exists in the materialized state
+   * @throws {Error} If no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * if (graph.hasNode('user:alice')) {
+   *   console.log('Alice exists in the graph');
+   * }
+   */
+  hasNode(nodeId) {
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+    return orsetContains(this._cachedState.nodeAlive, nodeId);
+  }
+
+  /**
+   * Gets all properties for a node from the materialized state.
+   *
+   * Returns properties as a Map of key → value. Only returns properties
+   * for nodes that exist in the materialized state.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @param {string} nodeId - The node ID to get properties for
+   * @returns {Map<string, *>|null} Map of property key → value, or null if node doesn't exist
+   * @throws {Error} If no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * const props = graph.getNodeProps('user:alice');
+   * if (props) {
+   *   console.log('Name:', props.get('name'));
+   * }
+   */
+  getNodeProps(nodeId) {
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    // Check if node exists
+    if (!orsetContains(this._cachedState.nodeAlive, nodeId)) {
+      return null;
+    }
+
+    // Collect all properties for this node
+    const props = new Map();
+    for (const [propKey, register] of this._cachedState.prop) {
+      const decoded = decodePropKey(propKey);
+      if (decoded.nodeId === nodeId) {
+        props.set(decoded.propKey, register.value);
+      }
+    }
+
+    return props;
+  }
+
+  /**
+   * Gets neighbors of a node from the materialized state.
+   *
+   * Returns node IDs connected to the given node by edges in the specified direction.
+   * Direction 'outgoing' returns nodes where the given node is the edge source.
+   * Direction 'incoming' returns nodes where the given node is the edge target.
+   * Direction 'both' returns all connected nodes.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @param {string} nodeId - The node ID to get neighbors for
+   * @param {'outgoing' | 'incoming' | 'both'} [direction='both'] - Edge direction to follow
+   * @param {string} [edgeLabel] - Optional edge label filter
+   * @returns {Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>} Array of neighbor info
+   * @throws {Error} If no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * // Get all outgoing neighbors
+   * const outgoing = graph.neighbors('user:alice', 'outgoing');
+   * // Get neighbors connected by 'follows' edges
+   * const follows = graph.neighbors('user:alice', 'outgoing', 'follows');
+   */
+  neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    const neighbors = [];
+
+    // Iterate over all visible edges
+    for (const edgeKey of orsetElements(this._cachedState.edgeAlive)) {
+      const { from, to, label } = decodeEdgeKey(edgeKey);
+
+      // Filter by label if specified
+      if (edgeLabel !== undefined && label !== edgeLabel) {
+        continue;
+      }
+
+      // Check edge direction and collect neighbors
+      if ((direction === 'outgoing' || direction === 'both') && from === nodeId) {
+        // Ensure target node is visible
+        if (orsetContains(this._cachedState.nodeAlive, to)) {
+          neighbors.push({ nodeId: to, label, direction: 'outgoing' });
+        }
+      }
+
+      if ((direction === 'incoming' || direction === 'both') && to === nodeId) {
+        // Ensure source node is visible
+        if (orsetContains(this._cachedState.nodeAlive, from)) {
+          neighbors.push({ nodeId: from, label, direction: 'incoming' });
+        }
+      }
+    }
+
+    return neighbors;
+  }
+
+  /**
+   * Gets all visible nodes in the materialized state.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @returns {string[]} Array of node IDs
+   * @throws {Error} If no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * for (const nodeId of graph.getNodes()) {
+   *   console.log(nodeId);
+   * }
+   */
+  getNodes() {
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+    return [...orsetElements(this._cachedState.nodeAlive)];
+  }
+
+  /**
+   * Gets all visible edges in the materialized state.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @returns {Array<{from: string, to: string, label: string}>} Array of edge info
+   * @throws {Error} If no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * for (const edge of graph.getEdges()) {
+   *   console.log(`${edge.from} --${edge.label}--> ${edge.to}`);
+   * }
+   */
+  getEdges() {
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    const edges = [];
+    for (const edgeKey of orsetElements(this._cachedState.edgeAlive)) {
+      const { from, to, label } = decodeEdgeKey(edgeKey);
+      // Only include edges where both endpoints are visible
+      if (orsetContains(this._cachedState.nodeAlive, from) &&
+          orsetContains(this._cachedState.nodeAlive, to)) {
+        edges.push({ from, to, label });
+      }
+    }
+    return edges;
   }
 }

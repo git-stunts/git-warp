@@ -125,6 +125,30 @@ That's the stunt. Take something everyone has, use it for something no one inten
 npm install @git-stunts/empty-graph @git-stunts/plumbing
 ```
 
+## API Status
+
+| API                    | Status          | Use For                 |
+| ---------------------- | --------------- | ----------------------- |
+| `WarpGraph` (schema:2) | **Recommended** | All new projects        |
+| `WarpGraph` (schema:1) | Legacy          | Existing v4 graphs only |
+| `EmptyGraph`           | Deprecated      | Migration path only     |
+
+> **V7 Note**: The codebase is transitioning to "One WARP Core" - schema:2 only, no commit-per-node engine. See [docs/V7_CONTRACT.md](./docs/V7_CONTRACT.md) for architectural invariants.
+
+### Migration from EmptyGraph
+
+EmptyGraph predates WARP and does not support multi-writer collaboration, checkpoints, or CRDT merge semantics. New projects should use WarpGraph.
+
+### Migration from WARP v4 to v5
+
+```javascript
+import { migrateV4toV5 } from '@git-stunts/empty-graph';
+
+// Migrate v4 state to v5 format
+const v5State = migrateV4toV5(v4State, 'migration-writer-id');
+// Creates a v5 state from v4 visible projection
+```
+
 ## Durability
 
 > **Warning**: If you don't use managed mode or call `sync()`/`anchor()`, Git GC can prune unreachable nodes. See [SEMANTICS.md](./SEMANTICS.md) for details.
@@ -1333,7 +1357,7 @@ git commit --no-verify
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
 ## License## License
-  
+
 Apache-2.0 © 2026 by James Ross
 
 ---

@@ -426,38 +426,6 @@ export class GitGraphAdapter extends GraphPersistencePort implements IndexStorag
   countNodes(ref: string): Promise<number>;
 }
 
-/**
- * Domain service for graph database operations.
- */
-export class GraphService {
-  constructor(options: {
-    persistence: GraphPersistencePort;
-    /** Maximum allowed message size in bytes (default: 1048576) */
-    maxMessageBytes?: number;
-    /** Logger for structured logging (default: NoOpLogger) */
-    logger?: LoggerPort;
-  });
-
-  createNode(options: CreateNodeOptions): Promise<string>;
-  /**
-   * Creates multiple nodes in bulk.
-   * Validates all inputs upfront before creating any nodes.
-   * Supports placeholder references ('$0', '$1', etc.) to reference nodes created earlier in the batch.
-   * @param nodes Array of node specifications
-   * @param options Options for bulk creation
-   * @param options.sign Whether to GPG-sign the commits (default: false)
-   */
-  createNodes(nodes: BulkNodeSpec[], options?: { sign?: boolean }): Promise<string[]>;
-  readNode(sha: string): Promise<string>;
-  /** Checks if a node exists by SHA (efficient, does not load content) */
-  hasNode(sha: string): Promise<boolean>;
-  /** Gets a full GraphNode by SHA with all metadata */
-  getNode(sha: string): Promise<GraphNode>;
-  listNodes(options: ListNodesOptions): Promise<GraphNode[]>;
-  iterateNodes(options: IterateNodesOptions): AsyncGenerator<GraphNode, void, unknown>;
-  /** Counts nodes reachable from a ref without loading them into memory */
-  countNodes(ref: string): Promise<number>;
-}
 
 /**
  * Builder for constructing bitmap indexes in memory.
@@ -528,7 +496,8 @@ export class BitmapIndexReader {
  */
 export class IndexRebuildService {
   constructor(options: {
-    graphService: GraphService;
+    /** Graph service providing iterateNodes() for walking the graph */
+    graphService: { iterateNodes(options: IterateNodesOptions): AsyncGenerator<GraphNode, void, unknown> };
     storage: IndexStoragePort;
     /** Logger for structured logging (default: NoOpLogger) */
     logger?: LoggerPort;
@@ -813,143 +782,35 @@ export function checkAborted(signal?: AbortSignal, operation?: string): void;
  */
 export function createTimeoutSignal(ms: number): AbortSignal;
 
-/** Default ref for storing the index OID */
-export const DEFAULT_INDEX_REF: string;
-
 /**
- * Facade class for the EmptyGraph library.
+ * Multi-writer graph database using WARP CRDT protocol.
  *
- * Provides a simplified API over the underlying domain services.
+ * V7 primary API - uses patch-based storage with OR-Set semantics.
+ * See docs/V7_CONTRACT.md for architecture details.
  */
-export default class EmptyGraph {
-  /** The underlying GraphService instance */
-  readonly service: GraphService;
-
-  /** The underlying IndexRebuildService instance */
-  readonly rebuildService: IndexRebuildService;
-
-  /** Whether an index is currently loaded */
-  readonly hasIndex: boolean;
-
-  /** The current index tree OID, or null if no index is loaded */
-  readonly indexOid: string | null;
-
+export default class WarpGraph {
   /**
-   * The traversal service for graph operations.
-   * @throws {Error} If accessed before calling loadIndex()
+   * Opens or creates a multi-writer graph.
    */
-  readonly traversal: TraversalService;
-
-  /**
-   * Creates a new EmptyGraph instance.
-   * @param options Configuration options
-   * @param options.persistence Adapter implementing GraphPersistencePort & IndexStoragePort
-   * @param options.maxMessageBytes Maximum allowed message size in bytes (default: 1048576)
-   * @param options.logger Logger for structured logging (default: NoOpLogger)
-   * @param options.clock Clock for timing operations (default: PerformanceClockAdapter)
-   * @param options.healthCacheTtlMs How long to cache health check results in milliseconds (default: 5000)
-   */
-  constructor(options: {
-    persistence: GraphPersistencePort & IndexStoragePort;
-    maxMessageBytes?: number;
+  static open(options: {
+    graphName: string;
+    persistence: GraphPersistencePort;
+    writerId?: string;
     logger?: LoggerPort;
-    clock?: ClockPort;
-    healthCacheTtlMs?: number;
-  });
+  }): Promise<WarpGraph>;
 
   /**
-   * Creates a new graph node as a Git commit.
+   * Creates a new patch for adding operations.
    */
-  createNode(options: CreateNodeOptions): Promise<string>;
+  createPatch(): unknown;
 
   /**
-   * Creates multiple graph nodes in bulk.
-   * Validates all inputs upfront before creating any nodes.
-   * Supports placeholder references ('$0', '$1', etc.) to reference nodes created earlier in the batch.
-   * @param nodes Array of node specifications
-   * @param options Options for bulk creation
-   * @param options.sign Whether to GPG-sign the commits (default: false)
+   * Materializes the current graph state from all patches.
    */
-  createNodes(nodes: BulkNodeSpec[], options?: { sign?: boolean }): Promise<string[]>;
+  materialize(): Promise<unknown>;
 
   /**
-   * Reads a node's message.
+   * Gets the current version vector.
    */
-  readNode(sha: string): Promise<string>;
-
-  /**
-   * Checks if a node exists by SHA.
-   * Efficient existence check that does not load the node's content.
-   * Non-existent SHAs return false rather than throwing an error.
-   */
-  hasNode(sha: string): Promise<boolean>;
-
-  /**
-   * Gets a full GraphNode by SHA with all metadata (sha, message, author, date, parents).
-   */
-  getNode(sha: string): Promise<GraphNode>;
-
-  /**
-   * Lists nodes in history (for small graphs).
-   */
-  listNodes(options: ListNodesOptions): Promise<GraphNode[]>;
-
-  /**
-   * Async generator for streaming large graphs.
-   */
-  iterateNodes(options: IterateNodesOptions): AsyncGenerator<GraphNode, void, unknown>;
-
-  /**
-   * Rebuilds the bitmap index for the graph.
-   */
-  rebuildIndex(ref: string, options?: RebuildOptions): Promise<string>;
-
-  /**
-   * Loads a pre-built bitmap index for O(1) queries.
-   */
-  loadIndex(treeOid: string): Promise<void>;
-
-  /**
-   * Saves the current index OID to a git ref.
-   */
-  saveIndex(ref?: string): Promise<void>;
-
-  /**
-   * Loads the index from a git ref.
-   */
-  loadIndexFromRef(ref?: string): Promise<boolean>;
-
-  /**
-   * Gets parent SHAs for a node using the bitmap index.
-   */
-  getParents(sha: string): Promise<string[]>;
-
-  /**
-   * Gets child SHAs for a node using the bitmap index.
-   */
-  getChildren(sha: string): Promise<string[]>;
-
-  /**
-   * Gets detailed health information for all components.
-   * Results are cached for the configured TTL (default 5s).
-   */
-  getHealth(): Promise<HealthResult>;
-
-  /**
-   * K8s-style readiness probe: Can the service serve requests?
-   * Returns true only when all critical components are healthy.
-   */
-  isReady(): Promise<boolean>;
-
-  /**
-   * K8s-style liveness probe: Is the service alive?
-   * Returns true if the repository is accessible (even if degraded).
-   */
-  isAlive(): Promise<boolean>;
-
-  /**
-   * Counts nodes reachable from a ref without loading them into memory.
-   * Uses git rev-list --count for O(1) memory efficiency.
-   */
-  countNodes(ref: string): Promise<number>;
+  getVersionVector(): unknown;
 }

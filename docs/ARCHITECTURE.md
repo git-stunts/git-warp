@@ -1,8 +1,10 @@
-# EmptyGraph Architecture
+# WarpGraph Architecture
+
+> **V7 Transition**: This document describes the current architecture. V7 consolidates to "One WARP Core" - see [V7_CONTRACT.md](./V7_CONTRACT.md) for the target architecture where graph = materialized WARP state, not commit DAG.
 
 ## Overview
 
-EmptyGraph is a graph database built on Git. It uses Git commits pointing to the empty tree as nodes, with commit messages as payloads and parent relationships as edges.
+WarpGraph is a graph database built on Git. It uses Git commits pointing to the empty tree as nodes, with commit messages as payloads and parent relationships as edges.
 
 This architecture enables:
 - Content-addressable storage with built-in deduplication
@@ -29,7 +31,7 @@ This enables:
 
 The domain layer models the graph database concepts:
 - `GraphNode` - Immutable value object representing a node
-- `GraphService` - Node CRUD operations
+- `WarpGraph` - Node CRUD operations (the main API class)
 - `TraversalService` - Graph algorithms (BFS, DFS, shortest path)
 - `BitmapIndexBuilder/Reader` - High-performance indexing
 
@@ -51,14 +53,14 @@ This enables testing with mocks and flexible runtime configuration.
 
 ```
 +-------------------------------------------------------------+
-|                       EmptyGraph                             |  <- Facade
-|                        (index.js)                            |
+|                       WarpGraph                              |  <- Main API
+|                      (WarpGraph.js)                          |
 +-------------------------------------------------------------+
-|                     Domain Services                          |
-|  +-------------+ +---------------+ +--------------------+    |
-|  | GraphService| | IndexRebuild  | | TraversalService   |    |
-|  |             | | Service       | |                    |    |
-|  +-------------+ +---------------+ +--------------------+    |
+|                     Supporting Services                      |
+|  +---------------+ +--------------------+                    |
+|  | IndexRebuild  | | TraversalService   |                    |
+|  | Service       | |                    |                    |
+|  +---------------+ +--------------------+                    |
 |  +-------------+ +---------------+ +--------------------+    |
 |  | GraphRef    | | BitmapIndex   | | BitmapIndex        |    |
 |  | Manager     | | Builder       | | Reader             |    |
@@ -97,7 +99,7 @@ src/
 |   +-- entities/           # Immutable domain objects
 |   |   +-- GraphNode.js    # Node value object (sha, message, parents)
 |   +-- services/           # Business logic
-|   |   +-- GraphService.js          # Node CRUD operations
+|   |   +-- WarpGraph.js             # Main API - Node CRUD operations
 |   |   +-- GraphRefManager.js       # Ref/anchor management
 |   |   +-- IndexRebuildService.js   # Index orchestration
 |   |   +-- BitmapIndexBuilder.js    # In-memory index construction
@@ -135,18 +137,18 @@ src/
 
 ## Key Components
 
-### Facade: EmptyGraph
+### Main API: WarpGraph
 
-The main entry point (`index.js`) provides:
-- Simplified API over domain services
+The main entry point (`WarpGraph.js`) provides:
+- Direct graph database API
 - `open()` factory for managed mode with automatic durability
 - Batch API for efficient bulk writes
 - Health check endpoints (K8s liveness/readiness)
 - Index management (rebuild, load, save)
 
-### Domain Services
+### Core API
 
-#### GraphService
+#### WarpGraph
 
 Core node operations:
 - `createNode()` - Create a single node
@@ -278,7 +280,7 @@ Implements both `GraphPersistencePort` and `IndexStoragePort`:
 ### Write Path
 
 ```
-createNode() -> GraphService.createNode()
+createNode() -> WarpGraph.createNode()
              -> persistence.commitNode()
              -> GraphRefManager.syncHead()  (managed mode)
              -> persistence.updateRef()
@@ -299,7 +301,7 @@ getParents() -> BitmapIndexReader._getEdges()
 
 ```
 rebuildIndex() -> IndexRebuildService.rebuild()
-               -> GraphService.iterateNodes()
+               -> WarpGraph.iterateNodes()
                -> BitmapIndexBuilder.registerNode() / addEdge()
                -> builder.serialize()
                -> storage.writeBlob() (per shard, parallel)
@@ -308,7 +310,7 @@ rebuildIndex() -> IndexRebuildService.rebuild()
 
 ## The Empty Tree Trick
 
-All EmptyGraph nodes are Git commits pointing to the empty tree:
+All WarpGraph nodes are Git commits pointing to the empty tree:
 
 ```
 SHA: 4b825dc642cb6eb9a060e54bf8d69288fbee4904

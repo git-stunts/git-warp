@@ -146,4 +146,23 @@ export default class GraphPersistencePort {
   async countNodes(_ref) {
     throw new Error('Not implemented');
   }
+
+  /**
+   * Reads a git config value.
+   * @param {string} key - The config key to read (e.g., 'warp.writerId.events')
+   * @returns {Promise<string|null>} The config value or null if not set
+   */
+  async configGet(_key) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Sets a git config value.
+   * @param {string} key - The config key to set (e.g., 'warp.writerId.events')
+   * @param {string} value - The value to set
+   * @returns {Promise<void>}
+   */
+  async configSet(_key, _value) {
+    throw new Error('Not implemented');
+  }
 }

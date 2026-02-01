@@ -1,56 +1,54 @@
 #!/usr/bin/env node
 /**
- * Event Sourcing with EmptyGraph
+ * Event Sourcing with WarpGraph
  *
- * This file explains the concept. For a working interactive demo, run:
+ * This file explains the concept. For working examples, run:
  *
- *   npm run demo:setup   # Creates container with sample data
- *   npm run demo         # Drops you into the container
- *   node explore.js      # Run the interactive explorer
+ *   node setup.js         # Basic WarpGraph workflow
+ *   node multi-writer.js  # Multi-writer convergence demo
  *
- * Or manually:
+ * Or with Docker:
  *   cd examples
  *   docker compose up -d
  *   docker compose exec demo bash
- *   node setup.js        # Initialize sample data
- *   node explore.js      # Explore the graph
+ *   node setup.js         # Initialize sample data
  */
 
 console.log(`
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║                     EVENT SOURCING WITH EMPTYGRAPH                            ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║                                                                               ║
-║  EmptyGraph turns Git into an event store. Each event is a commit pointing   ║
-║  to the empty tree, with the event payload as the commit message.            ║
-║                                                                               ║
-║  Why this works:                                                              ║
-║  ┌─────────────────────────────────┬─────────────────────────────────────┐   ║
-║  │ Event Sourcing Requirement      │ Git Provides                        │   ║
-║  ├─────────────────────────────────┼─────────────────────────────────────┤   ║
-║  │ Append-only log                 │ Commits are immutable               │   ║
-║  │ Unique event IDs                │ SHA = content-addressed ID          │   ║
-║  │ Ordered sequence                │ Parent pointers = ordering          │   ║
-║  │ Audit trail                     │ git log                             │   ║
-║  │ Replication                     │ git push / git pull                 │   ║
-║  │ Integrity verification          │ SHA checksums                       │   ║
-║  │ Point-in-time recovery          │ git checkout <sha>                  │   ║
-║  │ Branching (what-if scenarios)   │ git branch                          │   ║
-║  └─────────────────────────────────┴─────────────────────────────────────┘   ║
-║                                                                               ║
-║  To try it yourself:                                                          ║
-║                                                                               ║
-║    npm run demo:setup    # Spin up container + create sample events          ║
-║    npm run demo          # Drop into the container shell                     ║
-║    node explore.js       # Interactive exploration of the event graph        ║
-║                                                                               ║
-║  Inside the container you can also run:                                       ║
-║                                                                               ║
-║    git log --oneline --all --graph   # Visualize the event DAG              ║
-║    git show <sha>                    # View raw event data                  ║
-║    git diff main cancelled-order     # Compare alternate timelines          ║
-║                                                                               ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
+========================================================================
+                    EVENT SOURCING WITH WARPGRAPH
+========================================================================
+
+WarpGraph turns Git into a multi-writer graph database. Each patch is
+a commit containing CRDT operations for nodes, edges, and properties.
+
+Why this works:
++-----------------------------------+--------------------------------------+
+| Event Sourcing Requirement        | Git + WarpGraph Provides             |
++-----------------------------------+--------------------------------------+
+| Append-only log                   | Commits are immutable                |
+| Unique event IDs                  | SHA = content-addressed ID           |
+| Multi-writer support              | Each writer has own ref chain        |
+| Conflict-free merging             | CRDT semantics (OR-Set, LWW)         |
+| Ordered sequence                  | Lamport timestamps + parent pointers |
+| Audit trail                       | git log                              |
+| Replication                       | git push / git pull                  |
+| Integrity verification            | SHA checksums                        |
+| Point-in-time recovery            | Checkpoints + materializeAt()        |
++-----------------------------------+--------------------------------------+
+
+To try it yourself:
+
+  node setup.js           # Basic workflow: open, patch, materialize
+  node multi-writer.js    # Two writers with concurrent changes
+
+Inside the repo you can also run:
+
+  git for-each-ref refs/empty-graph/   # See all graph refs
+  git log --oneline <writer-ref>       # View a writer's patch chain
+  git show <sha>                       # View raw commit data
+
+========================================================================
 `);
 
-console.log('Run "npm run demo:setup" to get started!\n');
+console.log('Run "node setup.js" to get started!\n');

@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
 import { createVersionVector, vvClone } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
+import { decodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**
  * Creates a mock V5 state for testing.
@@ -524,6 +526,188 @@ describe('PatchBuilderV2', () => {
 
       expect(result).toBe(builder);
       expect(builder.ops).toHaveLength(6);
+    });
+  });
+
+  describe('commit()', () => {
+    /**
+     * Creates a mock persistence adapter for testing commit().
+     */
+    function createMockPersistence() {
+      return {
+        readRef: vi.fn().mockResolvedValue(null),
+        showNode: vi.fn(),
+        writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)), // Valid 40-char hex OID
+        writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
+        commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
+        updateRef: vi.fn().mockResolvedValue(undefined),
+      };
+    }
+
+    it('commits a patch and returns the commit SHA', async () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      });
+
+      builder.addNode('x');
+      const sha = await builder.commit();
+
+      expect(sha).toBe('c'.repeat(40));
+      expect(persistence.writeBlob).toHaveBeenCalledOnce();
+      expect(persistence.writeTree).toHaveBeenCalledOnce();
+      expect(persistence.commitNodeWithTree).toHaveBeenCalledOnce();
+      expect(persistence.updateRef).toHaveBeenCalledWith(
+        'refs/empty-graph/test-graph/writers/writer1',
+        'c'.repeat(40)
+      );
+    });
+
+    it('throws error for empty patch', async () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      });
+
+      await expect(builder.commit()).rejects.toThrow('Cannot commit empty patch');
+    });
+
+    it('creates commit with schema:2 in trailers', async () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      });
+
+      builder.addNode('x');
+      await builder.commit();
+
+      // Check the commit message passed to commitNodeWithTree
+      const commitCall = persistence.commitNodeWithTree.mock.calls[0][0];
+      const decoded = decodePatchMessage(commitCall.message);
+
+      expect(decoded.schema).toBe(2);
+      expect(decoded.writer).toBe('writer1');
+      expect(decoded.graph).toBe('test-graph');
+      expect(decoded.lamport).toBe(1);
+    });
+
+    it('increments lamport when continuing from existing ref', async () => {
+      const persistence = createMockPersistence();
+      const existingSha = 'd'.repeat(40);
+      const existingPatchOid = 'e'.repeat(40);
+      // Simulate existing ref with lamport 5
+      persistence.readRef.mockResolvedValue(existingSha);
+      persistence.showNode.mockResolvedValue(
+        `empty-graph:patch\n\neg-kind: patch\neg-graph: test-graph\neg-writer: writer1\neg-lamport: 5\neg-patch-oid: ${existingPatchOid}\neg-schema: 2`
+      );
+
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1, // Constructor lamport is 1, but commit should use 6
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+        expectedParentSha: existingSha, // Race detection: expected parent matches current ref
+      });
+
+      builder.addNode('x');
+      await builder.commit();
+
+      // Check the commit has lamport 6 (5 + 1)
+      const commitCall = persistence.commitNodeWithTree.mock.calls[0][0];
+      const decoded = decodePatchMessage(commitCall.message);
+      expect(decoded.lamport).toBe(6);
+
+      // Parent should be the existing commit
+      expect(commitCall.parents).toEqual([existingSha]);
+    });
+
+    it('creates tree with patch.cbor blob', async () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      });
+
+      builder.addNode('x');
+      await builder.commit();
+
+      // Check writeTree was called with correct format
+      const treeCall = persistence.writeTree.mock.calls[0][0];
+      expect(treeCall).toHaveLength(1);
+      expect(treeCall[0]).toMatch(/^100644 blob [a-f0-9]+\tpatch\.cbor$/);
+    });
+
+    it('writes patch blob with CBOR encoding', async () => {
+      const persistence = createMockPersistence();
+      const vv = createVersionVector();
+      vv.set('otherWriter', 3);
+
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: vv,
+        getCurrentState: () => null,
+      });
+
+      builder.addNode('x').setProperty('x', 'name', 'X');
+      await builder.commit();
+
+      // Decode the blob that was written
+      const blobData = persistence.writeBlob.mock.calls[0][0];
+      const patch = decode(blobData);
+
+      expect(patch.schema).toBe(2);
+      expect(patch.writer).toBe('writer1');
+      expect(patch.lamport).toBe(1);
+      expect(patch.ops).toHaveLength(2);
+      expect(patch.ops[0].type).toBe('NodeAdd');
+      expect(patch.ops[1].type).toBe('PropSet');
+      // Context should be serialized version vector
+      expect(patch.context).toBeDefined();
+    });
+
+    it('first commit has no parents', async () => {
+      const persistence = createMockPersistence();
+      // No existing ref
+      persistence.readRef.mockResolvedValue(null);
+
+      const builder = new PatchBuilderV2({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      });
+
+      builder.addNode('x');
+      await builder.commit();
+
+      const commitCall = persistence.commitNodeWithTree.mock.calls[0][0];
+      expect(commitCall.parents).toEqual([]);
     });
   });
 });

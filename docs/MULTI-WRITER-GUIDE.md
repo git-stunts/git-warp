@@ -1,23 +1,18 @@
 # WARP Multi-Writer Guide
 
-This guide explains how to use EmptyGraph's multi-writer capabilities powered by the WARP (Write-Ahead Replicated Patches) protocol.
+This guide explains how to use WarpGraph's multi-writer capabilities powered by the WARP (Write-Ahead Replicated Patches) protocol.
 
 ## Overview
 
 WARP enables multiple independent writers to modify a shared graph without coordination. Changes are recorded as **patches** that deterministically merge using Last-Writer-Wins (LWW) semantics.
 
-### When to Use Multi-Writer
+### When Multi-Writer Shines
 
-Use multi-writer mode when you need:
+WarpGraph excels when you need:
 - Multiple processes/machines writing to the same graph
 - Offline-first applications that sync later
 - Distributed systems without central coordination
 - Audit trails of who changed what
-
-Use single-writer mode (standard EmptyGraph) when:
-- Only one process writes to the graph
-- You don't need merge semantics
-- Simplicity is preferred
 
 ## Core Concepts
 
@@ -29,7 +24,7 @@ A **writer** is an independent actor identified by a unique string ID. Each writ
 - Can work offline and sync later
 
 ```javascript
-const graph = await EmptyGraph.openMultiWriter({
+const graph = await WarpGraph.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'server-1',  // Unique writer ID
@@ -145,16 +140,16 @@ const state = await graph.materializeAt(checkpointSha);
 
 ## Workflows
 
-### Basic Single-Writer Workflow
+### Basic Workflow
 
 ```javascript
-import { EmptyGraph, GitGraphAdapter } from 'empty-graph';
+import { WarpGraph, GitGraphAdapter } from 'empty-graph';
 import Plumbing from '@git-stunts/plumbing';
 
 const plumbing = new Plumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await EmptyGraph.openMultiWriter({
+const graph = await WarpGraph.open({
   persistence,
   graphName: 'todos',
   writerId: 'local',
@@ -176,7 +171,7 @@ console.log(state.nodeAlive.get('todo:1')); // { eventId: {...}, value: true }
 
 ```javascript
 // === Machine A ===
-const graphA = await EmptyGraph.openMultiWriter({
+const graphA = await WarpGraph.open({
   persistence: persistenceA,
   graphName: 'shared-doc',
   writerId: 'machine-a',
@@ -188,7 +183,7 @@ await graphA.createPatch()
   .commit();
 
 // === Machine B ===
-const graphB = await EmptyGraph.openMultiWriter({
+const graphB = await WarpGraph.open({
   persistence: persistenceB,
   graphName: 'shared-doc',
   writerId: 'machine-b',

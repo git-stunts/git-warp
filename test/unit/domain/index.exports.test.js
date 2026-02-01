@@ -8,9 +8,8 @@
 import { describe, it, expect } from 'vitest';
 
 // Import everything from the main entry point
-import EmptyGraph, {
+import WarpGraphDefault, {
   // Core classes
-  GraphService,
   GitGraphAdapter,
   GraphNode,
   BitmapIndexBuilder,
@@ -21,7 +20,6 @@ import EmptyGraph, {
   TraversalService,
   GraphPersistencePort,
   IndexStoragePort,
-  DEFAULT_MAX_MESSAGE_BYTES,
 
   // Logging infrastructure
   LoggerPort,
@@ -37,9 +35,6 @@ import EmptyGraph, {
   // Ref management
   GraphRefManager,
 
-  // Batching API
-  GraphBatch,
-
   // Error types
   IndexError,
   ShardLoadError,
@@ -54,8 +49,7 @@ import EmptyGraph, {
   createTimeoutSignal,
 
   // Multi-writer graph support (WARP)
-  MultiWriterGraph,
-  PatchBuilder,
+  WarpGraph,
 
   // WARP type creators
   createNodeAdd,
@@ -63,7 +57,6 @@ import EmptyGraph, {
   createEdgeAdd,
   createEdgeTombstone,
   createPropSet,
-  createPatch,
   createInlineValue,
   createBlobValue,
   createEventId,
@@ -71,19 +64,14 @@ import EmptyGraph, {
 
 describe('index.js exports', () => {
   describe('default export', () => {
-    it('exports EmptyGraph as default', () => {
-      expect(EmptyGraph).toBeDefined();
-      expect(typeof EmptyGraph).toBe('function');
-      expect(EmptyGraph.name).toBe('EmptyGraph');
+    it('exports WarpGraph as default', () => {
+      expect(WarpGraphDefault).toBeDefined();
+      expect(typeof WarpGraphDefault).toBe('function');
+      expect(WarpGraphDefault.name).toBe('WarpGraph');
     });
   });
 
   describe('core classes', () => {
-    it('exports GraphService', () => {
-      expect(GraphService).toBeDefined();
-      expect(typeof GraphService).toBe('function');
-    });
-
     it('exports GitGraphAdapter', () => {
       expect(GitGraphAdapter).toBeDefined();
       expect(typeof GitGraphAdapter).toBe('function');
@@ -124,12 +112,6 @@ describe('index.js exports', () => {
     it('exports TraversalService', () => {
       expect(TraversalService).toBeDefined();
       expect(typeof TraversalService).toBe('function');
-    });
-
-    it('exports DEFAULT_MAX_MESSAGE_BYTES constant', () => {
-      expect(DEFAULT_MAX_MESSAGE_BYTES).toBeDefined();
-      expect(typeof DEFAULT_MAX_MESSAGE_BYTES).toBe('number');
-      expect(DEFAULT_MAX_MESSAGE_BYTES).toBe(1048576); // 1MB
     });
   });
 
@@ -194,13 +176,6 @@ describe('index.js exports', () => {
     });
   });
 
-  describe('batching API', () => {
-    it('exports GraphBatch', () => {
-      expect(GraphBatch).toBeDefined();
-      expect(typeof GraphBatch).toBe('function');
-    });
-  });
-
   describe('error types', () => {
     it('exports IndexError', () => {
       expect(IndexError).toBeDefined();
@@ -251,25 +226,14 @@ describe('index.js exports', () => {
   });
 
   describe('multi-writer graph support (WARP)', () => {
-    it('exports MultiWriterGraph', () => {
-      expect(MultiWriterGraph).toBeDefined();
-      expect(typeof MultiWriterGraph).toBe('function');
-      expect(MultiWriterGraph.name).toBe('MultiWriterGraph');
+    it('exports WarpGraph', () => {
+      expect(WarpGraph).toBeDefined();
+      expect(typeof WarpGraph).toBe('function');
+      expect(WarpGraph.name).toBe('WarpGraph');
     });
 
-    it('MultiWriterGraph has static open method', () => {
-      expect(typeof MultiWriterGraph.open).toBe('function');
-    });
-
-    it('exports PatchBuilder', () => {
-      expect(PatchBuilder).toBeDefined();
-      expect(typeof PatchBuilder).toBe('function');
-      expect(PatchBuilder.name).toBe('PatchBuilder');
-    });
-
-    it('EmptyGraph.openMultiWriter delegates to MultiWriterGraph.open', async () => {
-      // Verify the static method exists
-      expect(typeof EmptyGraph.openMultiWriter).toBe('function');
+    it('WarpGraph has static open method', () => {
+      expect(typeof WarpGraph.open).toBe('function');
     });
   });
 
@@ -310,21 +274,7 @@ describe('index.js exports', () => {
       expect(op).toEqual({ type: 'PropSet', node: 'user:alice', key: 'name', value: { type: 'inline', value: 'Alice' } });
     });
 
-    it('exports createPatch', () => {
-      expect(createPatch).toBeDefined();
-      expect(typeof createPatch).toBe('function');
-      const patch = createPatch({
-        writer: 'node-1',
-        lamport: 1,
-        ops: [createNodeAdd('user:alice')],
-      });
-      expect(patch).toEqual({
-        schema: 1,
-        writer: 'node-1',
-        lamport: 1,
-        ops: [{ type: 'NodeAdd', node: 'user:alice' }],
-      });
-    });
+    // Note: createPatch (schema:1) has been removed - use createPatchV2 from WarpTypesV2
 
     it('exports createInlineValue', () => {
       expect(createInlineValue).toBeDefined();
@@ -359,19 +309,19 @@ describe('index.js exports', () => {
   });
 
   describe('usage patterns', () => {
-    it('supports ESM named imports for MultiWriterGraph', () => {
+    it('supports ESM default and named imports for WarpGraph', () => {
       // This test verifies the import syntax works
-      // import { EmptyGraph, MultiWriterGraph } from 'empty-graph';
-      expect(EmptyGraph).toBeDefined();
-      expect(MultiWriterGraph).toBeDefined();
+      // import WarpGraph, { WarpGraph as MWG } from 'empty-graph';
+      expect(WarpGraphDefault).toBeDefined();
+      expect(WarpGraph).toBeDefined();
+      expect(WarpGraphDefault).toBe(WarpGraph);
     });
 
     it('supports importing all WARP utilities together', () => {
       // Verify all the pieces needed for WARP usage are available
-      expect(MultiWriterGraph).toBeDefined();
-      expect(PatchBuilder).toBeDefined();
+      expect(WarpGraph).toBeDefined();
       expect(createNodeAdd).toBeDefined();
-      expect(createPatch).toBeDefined();
+      // Note: createPatch (schema:1) removed - use createPatchV2 from WarpTypesV2
     });
   });
 });

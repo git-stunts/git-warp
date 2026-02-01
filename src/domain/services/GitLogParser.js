@@ -31,7 +31,7 @@ export const RECORD_SEPARATOR = '\x00';
  * Parser for git log output streams.
  *
  * Handles UTF-8 decoding, record splitting, and node instantiation as separate
- * concerns. Designed as an injectable dependency for GraphService to enable
+ * concerns. Designed as an injectable dependency for WarpGraph to enable
  * testing and alternative implementations.
  *
  * **Binary-First Processing**: The parser works directly with binary data for
@@ -65,9 +65,9 @@ export const RECORD_SEPARATOR = '\x00';
  * }
  *
  * @example
- * // Inject into GraphService for testing
+ * // Inject into WarpGraph for testing
  * const mockParser = { parse: async function*() { yield mockNode; } };
- * const service = new GraphService({ persistence, parser: mockParser });
+ * const graph = new WarpGraph({ persistence, parser: mockParser });
  */
 export default class GitLogParser {
   /**

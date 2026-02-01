@@ -1,173 +1,141 @@
 #!/usr/bin/env node
 /**
- * Setup script for EmptyGraph demo
+ * setup.js - Basic WarpGraph workflow example
  *
- * Initializes a git repo and creates sample event data
+ * Demonstrates the core WarpGraph operations:
+ * - Opening a graph with a persistence adapter
+ * - Creating patches to add nodes, edges, and properties
+ * - Materializing the graph state
+ *
+ * Prerequisites:
+ * - A git repository must exist (run `git init` first)
+ * - @git-stunts/plumbing package must be installed
+ *
+ * Run: node setup.js
  */
 
 import { execSync } from 'child_process';
-// Import from mounted volume in Docker
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
-const { default: EmptyGraph, ConsoleLogger, LogLevel } = await import(modulePath);
-const { GitGraphAdapter } = await import(modulePath);
-import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
-
-// Demo should never hang indefinitely - 60s is generous for index build
-const DEMO_TIMEOUT_MS = 60_000;
-
-function createEvent(type, payload, correlationId = null) {
-  return JSON.stringify({
-    type,
-    payload,
-    correlationId,
-    timestamp: new Date().toISOString(),
-    version: 1,
-  }, null, 2);
-}
+// Import from mounted volume in Docker, or local
+const modulePath = process.env.EMPTYGRAPH_MODULE || '../index.js';
+const { default: WarpGraph, GitGraphAdapter } = await import(modulePath);
+import Plumbing from '@git-stunts/plumbing';
 
 async function main() {
-  console.log('🚀 EmptyGraph Demo Setup\n');
+  console.log('WarpGraph Basic Setup Example\n');
+
+  // ============================================================================
+  // Step 1: Set up a git repository and persistence adapter
+  // ============================================================================
 
   // Initialize git repo if needed
   try {
     execSync('git rev-parse --git-dir', { stdio: 'pipe' });
-    console.log('📁 Git repo already initialized');
+    console.log('[1] Git repo already initialized');
   } catch {
-    console.log('📁 Initializing git repo...');
+    console.log('[1] Initializing git repo...');
     execSync('git init', { stdio: 'inherit' });
+    execSync('git config user.email "demo@example.com"', { stdio: 'pipe' });
+    execSync('git config user.name "Demo User"', { stdio: 'pipe' });
   }
 
-  // Pre-flight check: detect if demo has already been run
-  let existingMainRef = false;
-  let existingCancelledRef = false;
-  let existingIndexRef = false;
+  // Create the persistence adapter using git plumbing
+  const plumbing = Plumbing.createDefault({ cwd: process.cwd() });
+  const persistence = new GitGraphAdapter({ plumbing });
 
-  try {
-    execSync('git show-ref --verify refs/heads/main', { stdio: 'pipe' });
-    existingMainRef = true;
-  } catch {
-    // ref doesn't exist
-  }
+  // ============================================================================
+  // Step 2: Open a WarpGraph
+  // ============================================================================
+  // Each graph has a name (namespace) and is accessed by a writer with a unique ID.
+  // The writerId identifies this writer in the multi-writer system.
 
-  try {
-    execSync('git show-ref --verify refs/heads/cancelled-order', { stdio: 'pipe' });
-    existingCancelledRef = true;
-  } catch {
-    // ref doesn't exist
-  }
-
-  try {
-    execSync('git show-ref --verify refs/empty-graph/index', { stdio: 'pipe' });
-    existingIndexRef = true;
-  } catch {
-    // ref doesn't exist
-  }
-
-  if (existingMainRef || existingCancelledRef || existingIndexRef) {
-    console.log('\n🔄 Existing demo data detected. Cleaning up...');
-
-    if (existingMainRef) {
-      execSync('git update-ref -d refs/heads/main', { stdio: 'pipe' });
-      console.log('   Deleted refs/heads/main');
-    }
-    if (existingCancelledRef) {
-      execSync('git update-ref -d refs/heads/cancelled-order', { stdio: 'pipe' });
-      console.log('   Deleted refs/heads/cancelled-order');
-    }
-    if (existingIndexRef) {
-      execSync('git update-ref -d refs/empty-graph/index', { stdio: 'pipe' });
-      console.log('   Deleted refs/empty-graph/index');
-    }
-
-    console.log('   Cleanup complete. Starting fresh...\n');
-  } else {
-    console.log('\n✨ Fresh install detected. Proceeding with setup...\n');
-  }
-
-  const runner = ShellRunnerFactory.create();
-  const plumbing = new GitPlumbing({ cwd: process.cwd(), runner });
-  const adapter = new GitGraphAdapter({ plumbing });
-  const logger = new ConsoleLogger({ level: LogLevel.INFO });
-  const graph = new EmptyGraph({ persistence: adapter, logger });
-
-  console.log('\n📝 Creating sample events...\n');
-
-  // Create a realistic event sequence for an e-commerce order
-  const orderId = `order-${Date.now().toString(36)}`;
-  const userId = 'user-alice-001';
-
-  const events = [
-    { type: 'UserCreated', payload: { userId, email: 'alice@example.com', name: 'Alice', metrics: { cpu: 1, mem: 2 } } },
-    { type: 'CartCreated', payload: { userId, cartId: 'cart-001', metrics: { cpu: 1, mem: 1 } } },
-    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'WIDGET-001', qty: 2, price: 29.99, metrics: { cpu: 2, mem: 3 } } },
-    { type: 'ItemAddedToCart', payload: { cartId: 'cart-001', sku: 'GADGET-002', qty: 1, price: 149.99, metrics: { cpu: 2, mem: 3 } } },
-    { type: 'OrderPlaced', payload: { orderId, cartId: 'cart-001', total: 209.97, metrics: { cpu: 5, mem: 10 } } },
-    { type: 'PaymentReceived', payload: { orderId, amount: 209.97, method: 'card', metrics: { cpu: 8, mem: 5 } } },
-    { type: 'OrderShipped', payload: { orderId, carrier: 'FastShip', tracking: 'FS123456789', metrics: { cpu: 3, mem: 2 } } },
-    { type: 'OrderDelivered', payload: { orderId, signature: 'A. Smith', metrics: { cpu: 1, mem: 1 } } },
-  ];
-
-  let parentSha = null;
-  const shas = [];
-
-  for (const { type, payload } of events) {
-    const message = createEvent(type, payload, orderId);
-    const sha = await graph.createNode({
-      message,
-      parents: parentSha ? [parentSha] : [],
-    });
-    shas.push({ sha, type });
-    console.log(`  ✅ ${type.padEnd(20)} → ${sha.slice(0, 8)}`);
-    parentSha = sha;
-  }
-
-  // Create a branch point - a cancelled order scenario
-  console.log('\n🔀 Creating branch: cancelled-order scenario...\n');
-
-  const branchPoint = shas[4].sha; // After OrderPlaced
-  const cancelledSha = await graph.createNode({
-    message: createEvent('OrderCancelled', { orderId, reason: 'Customer request', metrics: { cpu: 4, mem: 3 } }, orderId),
-    parents: [branchPoint],
+  const graph = await WarpGraph.open({
+    persistence,
+    graphName: 'demo',       // Namespace for this graph
+    writerId: 'writer-1',    // Unique ID for this writer
   });
-  console.log(`  ✅ OrderCancelled       → ${cancelledSha.slice(0, 8)} (branched from OrderPlaced)`);
 
-  // Update refs
-  const refUpdates = [
-    { cmd: `git update-ref refs/heads/main ${parentSha}`, desc: 'main ref' },
-    { cmd: `git update-ref refs/heads/cancelled-order ${cancelledSha}`, desc: 'cancelled-order ref' },
-    { cmd: 'git symbolic-ref HEAD refs/heads/main', desc: 'HEAD symbolic ref' },
-  ];
-  for (const { cmd, desc } of refUpdates) {
-    try {
-      execSync(cmd);
-    } catch (err) {
-      throw new Error(`Failed to update ${desc}: ${err.message}`);
-    }
-  }
+  console.log(`[2] Opened graph: "${graph.graphName}" as writer: "${graph.writerId}"`);
 
-  console.log('\n📊 Building bitmap index...\n');
+  // ============================================================================
+  // Step 3: Create patches to modify the graph
+  // ============================================================================
+  // Patches are atomic units of change. Each patch can contain multiple
+  // operations: addNode, removeNode, addEdge, removeEdge, setProperty.
+  //
+  // The patch builder uses a fluent API - chain operations and call commit().
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEMO_TIMEOUT_MS);
-  let indexOid;
-  try {
-    indexOid = await graph.rebuildIndex('main', { signal: controller.signal });
-    await graph.saveIndex();
-    console.log(`  Index saved to refs/empty-graph/index (${indexOid.slice(0, 8)})`);
-  } finally {
-    clearTimeout(timeout);
-  }
+  // First patch: Create a user node with properties
+  const sha1 = await graph.createPatch()
+    .addNode('user:alice')
+    .setProperty('user:alice', 'name', 'Alice')
+    .setProperty('user:alice', 'email', 'alice@example.com')
+    .setProperty('user:alice', 'createdAt', Date.now())
+    .commit();
 
-  console.log('\n✅ Demo setup complete!\n');
-  console.log('Try these commands:');
-  console.log('  node explore.js          # Interactive exploration');
-  console.log('  git log --oneline main   # See the event chain');
-  console.log('  git log --oneline --all --graph  # See the branch');
-  console.log('  cat .git/refs/empty-graph/index  # See the index ref');
-  console.log('');
+  console.log(`[3] Created first patch: ${sha1.slice(0, 8)}`);
+
+  // Second patch: Create another user and a relationship
+  const sha2 = await graph.createPatch()
+    .addNode('user:bob')
+    .setProperty('user:bob', 'name', 'Bob')
+    .addEdge('user:alice', 'user:bob', 'follows')
+    .commit();
+
+  console.log(`    Created second patch: ${sha2.slice(0, 8)}`);
+
+  // Third patch: Add more data
+  const sha3 = await graph.createPatch()
+    .addNode('post:1')
+    .setProperty('post:1', 'title', 'Hello World')
+    .setProperty('post:1', 'content', 'My first post!')
+    .addEdge('user:alice', 'post:1', 'authored')
+    .commit();
+
+  console.log(`    Created third patch: ${sha3.slice(0, 8)}`);
+
+  // ============================================================================
+  // Step 4: Materialize the graph state
+  // ============================================================================
+  // materialize() reads all patches and computes the current state.
+  // The state uses CRDT semantics for deterministic conflict resolution.
+
+  const state = await graph.materialize();
+
+  console.log('\n[4] Materialized state:');
+  console.log(`    Nodes: ${state.nodeAlive.elements.size}`);
+  console.log(`    Edges: ${state.edgeAlive.elements.size}`);
+  console.log(`    Properties: ${state.prop.size}`);
+
+  // Access node properties (key format: "nodeId|propertyName")
+  const aliceName = state.prop.get('user:alice|name');
+  const aliceEmail = state.prop.get('user:alice|email');
+  const postTitle = state.prop.get('post:1|title');
+
+  console.log(`\n    Alice: name="${aliceName?.value}", email="${aliceEmail?.value}"`);
+  console.log(`    Post 1: title="${postTitle?.value}"`);
+
+  // ============================================================================
+  // Step 5: Discover writers
+  // ============================================================================
+  // In a multi-writer setup, you can discover all writers who have contributed.
+
+  const writers = await graph.discoverWriters();
+  console.log(`\n[5] Writers discovered: [${writers.join(', ')}]`);
+
+  // ============================================================================
+  // Step 6: View with git commands
+  // ============================================================================
+  console.log('\n[6] Git commands to explore:');
+  console.log('    git for-each-ref refs/empty-graph/  # See all graph refs');
+  console.log('    git log --oneline refs/empty-graph/demo/writers/writer-1');
+
+  console.log('\nSetup complete!');
 }
 
 main().catch(err => {
-  console.error('❌ Setup failed:', err.message);
+  console.error('Error:', err.message);
+  if (err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });

@@ -7,7 +7,6 @@ import {
   createPropSet,
   createInlineValue,
   createBlobValue,
-  createPatch,
   createEventId,
 } from '../../../../src/domain/types/WarpTypes.js';
 
@@ -179,102 +178,8 @@ describe('WarpTypes', () => {
     });
   });
 
-  describe('Patch Factory Function', () => {
-    describe('createPatch', () => {
-      it('creates PatchV1 with required fields', () => {
-        const ops = [createNodeAdd('user:alice')];
-        const result = createPatch({
-          writer: 'writer-1',
-          lamport: 1,
-          ops,
-        });
-
-        expect(result).toEqual({
-          schema: 1,
-          writer: 'writer-1',
-          lamport: 1,
-          ops: [{ type: 'NodeAdd', node: 'user:alice' }],
-        });
-      });
-
-      it('creates PatchV1 with baseCheckpoint', () => {
-        const ops = [createNodeAdd('user:bob')];
-        const result = createPatch({
-          writer: 'writer-2',
-          lamport: 5,
-          ops,
-          baseCheckpoint: 'checkpoint-sha-123',
-        });
-
-        expect(result).toEqual({
-          schema: 1,
-          writer: 'writer-2',
-          lamport: 5,
-          ops: [{ type: 'NodeAdd', node: 'user:bob' }],
-          baseCheckpoint: 'checkpoint-sha-123',
-        });
-      });
-
-      it('creates PatchV1 with multiple operations', () => {
-        const ops = [
-          createNodeAdd('user:alice'),
-          createNodeAdd('user:bob'),
-          createEdgeAdd('user:alice', 'user:bob', 'follows'),
-          createPropSet('user:alice', 'name', createInlineValue('Alice')),
-        ];
-        const result = createPatch({
-          writer: 'writer-1',
-          lamport: 10,
-          ops,
-        });
-
-        expect(result.schema).toBe(1);
-        expect(result.writer).toBe('writer-1');
-        expect(result.lamport).toBe(10);
-        expect(result.ops).toHaveLength(4);
-        expect(result.ops[0].type).toBe('NodeAdd');
-        expect(result.ops[1].type).toBe('NodeAdd');
-        expect(result.ops[2].type).toBe('EdgeAdd');
-        expect(result.ops[3].type).toBe('PropSet');
-      });
-
-      it('creates PatchV1 with empty ops array', () => {
-        const result = createPatch({
-          writer: 'writer-1',
-          lamport: 0,
-          ops: [],
-        });
-
-        expect(result).toEqual({
-          schema: 1,
-          writer: 'writer-1',
-          lamport: 0,
-          ops: [],
-        });
-      });
-
-      it('does not include baseCheckpoint when undefined', () => {
-        const result = createPatch({
-          writer: 'writer-1',
-          lamport: 1,
-          ops: [],
-          baseCheckpoint: undefined,
-        });
-
-        expect(result).not.toHaveProperty('baseCheckpoint');
-      });
-
-      it('always sets schema to 1', () => {
-        const result = createPatch({
-          writer: 'any-writer',
-          lamport: 999,
-          ops: [],
-        });
-
-        expect(result.schema).toBe(1);
-      });
-    });
-  });
+  // Note: createPatch (schema:1 factory) tests removed - schema:1 is no longer supported as runtime option.
+  // Use createPatchV2 from WarpTypesV2 for schema:2 patches.
 
   describe('EventId Factory Function', () => {
     describe('createEventId', () => {
@@ -349,64 +254,6 @@ describe('WarpTypes', () => {
     });
   });
 
-  describe('Integration - Building Complete Patches', () => {
-    it('creates a realistic patch with mixed operations', () => {
-      // Simulate creating a user and setting properties
-      const patch = createPatch({
-        writer: 'app-server-1',
-        lamport: 42,
-        ops: [
-          createNodeAdd('user:123'),
-          createPropSet('user:123', 'email', createInlineValue('alice@example.com')),
-          createPropSet('user:123', 'name', createInlineValue('Alice')),
-          createPropSet('user:123', 'profilePic', createBlobValue('sha256-of-image')),
-        ],
-        baseCheckpoint: 'previous-checkpoint-sha',
-      });
-
-      expect(patch.schema).toBe(1);
-      expect(patch.ops).toHaveLength(4);
-      expect(patch.ops[0]).toEqual({ type: 'NodeAdd', node: 'user:123' });
-      expect(patch.ops[1].type).toBe('PropSet');
-      expect(patch.ops[1].value.type).toBe('inline');
-      expect(patch.ops[3].value.type).toBe('blob');
-    });
-
-    it('creates a social graph patch', () => {
-      const patch = createPatch({
-        writer: 'social-service',
-        lamport: 100,
-        ops: [
-          createNodeAdd('user:alice'),
-          createNodeAdd('user:bob'),
-          createEdgeAdd('user:alice', 'user:bob', 'follows'),
-          createEdgeAdd('user:bob', 'user:alice', 'follows'),
-          createPropSet('user:alice', 'followingCount', createInlineValue(1)),
-          createPropSet('user:bob', 'followingCount', createInlineValue(1)),
-        ],
-      });
-
-      expect(patch.ops).toHaveLength(6);
-
-      // Verify edge operations
-      const edges = patch.ops.filter((op) => op.type === 'EdgeAdd');
-      expect(edges).toHaveLength(2);
-      expect(edges[0].label).toBe('follows');
-    });
-
-    it('creates a deletion patch', () => {
-      const patch = createPatch({
-        writer: 'cleanup-job',
-        lamport: 200,
-        ops: [
-          createEdgeTombstone('user:alice', 'user:bob', 'follows'),
-          createNodeTombstone('user:bob'),
-        ],
-      });
-
-      expect(patch.ops).toHaveLength(2);
-      expect(patch.ops[0].type).toBe('EdgeTombstone');
-      expect(patch.ops[1].type).toBe('NodeTombstone');
-    });
-  });
+  // Note: Integration tests using createPatch (schema:1) removed.
+  // See WarpTypesV2.test.js for schema:2 patch building integration tests.
 });
