@@ -49,6 +49,7 @@ const TRAILER_KEYS = {
   frontierOid: 'eg-frontier-oid',
   indexOid: 'eg-index-oid',
   schema: 'eg-schema',
+  checkpointVersion: 'eg-checkpoint',
 };
 
 /**
@@ -207,16 +208,23 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
   validateSchema(schema);
 
   const codec = getCodec();
+  const trailers = {
+    [TRAILER_KEYS.kind]: 'checkpoint',
+    [TRAILER_KEYS.graph]: graph,
+    [TRAILER_KEYS.stateHash]: stateHash,
+    [TRAILER_KEYS.frontierOid]: frontierOid,
+    [TRAILER_KEYS.indexOid]: indexOid,
+    [TRAILER_KEYS.schema]: String(schema),
+  };
+
+  // Add checkpoint version marker for V5 (schema:2)
+  if (schema === 2) {
+    trailers[TRAILER_KEYS.checkpointVersion] = 'v5';
+  }
+
   return codec.encode({
     title: MESSAGE_TITLES.checkpoint,
-    trailers: {
-      [TRAILER_KEYS.kind]: 'checkpoint',
-      [TRAILER_KEYS.graph]: graph,
-      [TRAILER_KEYS.stateHash]: stateHash,
-      [TRAILER_KEYS.frontierOid]: frontierOid,
-      [TRAILER_KEYS.indexOid]: indexOid,
-      [TRAILER_KEYS.schema]: String(schema),
-    },
+    trailers,
   });
 }
 
@@ -380,6 +388,9 @@ export function decodeCheckpointMessage(message) {
     throw new Error(`Invalid checkpoint message: eg-schema must be a positive integer, got '${schemaStr}'`);
   }
 
+  // Extract optional checkpoint version (v5 for schema:2)
+  const checkpointVersion = trailers[TRAILER_KEYS.checkpointVersion] || null;
+
   return {
     kind: 'checkpoint',
     graph,
@@ -387,6 +398,7 @@ export function decodeCheckpointMessage(message) {
     frontierOid,
     indexOid,
     schema,
+    checkpointVersion,
   };
 }
 

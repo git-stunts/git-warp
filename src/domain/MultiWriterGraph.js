@@ -12,12 +12,21 @@ import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, 
 import PatchBuilder from './services/PatchBuilder.js';
 import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
 import { reduce, createEmptyState } from './services/Reducer.js';
-import { reduceV5, createEmptyStateV5, joinStates } from './services/JoinReducer.js';
+import { reduceV5, createEmptyStateV5, joinStates, cloneStateV5 } from './services/JoinReducer.js';
 import { decode } from '../infrastructure/codecs/CborCodec.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
 import { loadCheckpoint, materializeIncremental, create as createCheckpointCommit } from './services/CheckpointService.js';
 import { createFrontier, updateFrontier } from './services/Frontier.js';
 import { createVersionVector, vvClone } from './crdt/VersionVector.js';
+import { DEFAULT_GC_POLICY, shouldRunGC, executeGC } from './services/GCPolicy.js';
+import { collectGCMetrics } from './services/GCMetrics.js';
+import { computeAppliedVV } from './services/CheckpointSerializerV5.js';
+import {
+  createSyncRequest,
+  processSyncRequest,
+  applySyncResponse,
+  syncNeeded,
+} from './services/SyncProtocol.js';
 
 /**
  * MultiWriterGraph class for interacting with a WARP multi-writer graph.
@@ -30,8 +39,9 @@ export default class MultiWriterGraph {
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
    * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
+   * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
    */
-  constructor({ persistence, graphName, writerId, schema = 1 }) {
+  constructor({ persistence, graphName, writerId, schema = 1, gcPolicy = {} }) {
     /** @type {number} */
     this._schema = schema;
 
@@ -49,6 +59,15 @@ export default class MultiWriterGraph {
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
     this._cachedState = null;
+
+    /** @type {Object} */
+    this._gcPolicy = { ...DEFAULT_GC_POLICY, ...gcPolicy };
+
+    /** @type {number} */
+    this._lastGCTime = 0;
+
+    /** @type {number} */
+    this._patchesSinceGC = 0;
   }
 
   /**
@@ -59,6 +78,7 @@ export default class MultiWriterGraph {
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
    * @param {number} [options.schema=1] - Schema version (1 for v4, 2 for v5)
+   * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
    * @returns {Promise<MultiWriterGraph>} The opened graph instance
    * @throws {Error} If graphName or writerId is invalid
    *
@@ -69,7 +89,7 @@ export default class MultiWriterGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, schema = 1 }) {
+  static async open({ persistence, graphName, writerId, schema = 1, gcPolicy = {} }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -78,7 +98,7 @@ export default class MultiWriterGraph {
       throw new Error('persistence is required');
     }
 
-    const graph = new MultiWriterGraph({ persistence, graphName, writerId, schema });
+    const graph = new MultiWriterGraph({ persistence, graphName, writerId, schema, gcPolicy });
 
     // Validate migration boundary for schema:2
     await graph._validateMigrationBoundary();
@@ -728,5 +748,212 @@ export default class MultiWriterGraph {
       );
     }
     // relation === 'ahead' => OK
+  }
+
+  // ============================================================================
+  // Garbage Collection
+  // ============================================================================
+
+  /**
+   * Checks if GC should run based on current metrics and policy.
+   * If thresholds are exceeded, runs GC on the cached state.
+   *
+   * **Requires schema:2 (WARP v5) and a cached state.**
+   *
+   * @returns {{ran: boolean, result: Object|null, reasons: string[]}} GC result
+   *
+   * @example
+   * await graph.materialize();
+   * const { ran, result, reasons } = graph.maybeRunGC();
+   * if (ran) {
+   *   console.log(`GC ran: ${result.tombstonesRemoved} tombstones removed`);
+   * }
+   */
+  maybeRunGC() {
+    if (this._schema !== 2 || !this._cachedState) {
+      return { ran: false, result: null, reasons: [] };
+    }
+
+    const metrics = collectGCMetrics(this._cachedState);
+    metrics.patchesSinceCompaction = this._patchesSinceGC;
+    metrics.lastCompactionTime = this._lastGCTime;
+
+    const { shouldRun, reasons } = shouldRunGC(metrics, this._gcPolicy);
+
+    if (!shouldRun) {
+      return { ran: false, result: null, reasons: [] };
+    }
+
+    const result = this.runGC();
+    return { ran: true, result, reasons };
+  }
+
+  /**
+   * Explicitly runs GC on the cached state.
+   * Compacts tombstoned dots that are covered by the appliedVV.
+   *
+   * **Requires schema:2 (WARP v5) and a cached state.**
+   *
+   * @returns {{nodesCompacted: number, edgesCompacted: number, tombstonesRemoved: number, durationMs: number}}
+   * @throws {Error} If schema is not 2 or no cached state exists
+   *
+   * @example
+   * await graph.materialize();
+   * const result = graph.runGC();
+   * console.log(`Removed ${result.tombstonesRemoved} tombstones in ${result.durationMs}ms`);
+   */
+  runGC() {
+    if (this._schema !== 2) {
+      throw new Error('runGC() requires schema:2 (WARP v5)');
+    }
+
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    // Compute appliedVV from current state
+    const appliedVV = computeAppliedVV(this._cachedState);
+
+    // Execute GC (mutates cached state)
+    const result = executeGC(this._cachedState, appliedVV);
+
+    // Update GC tracking
+    this._lastGCTime = Date.now();
+    this._patchesSinceGC = 0;
+
+    return result;
+  }
+
+  /**
+   * Gets current GC metrics for the cached state.
+   *
+   * @returns {Object|null} GC metrics or null if no cached state
+   */
+  getGCMetrics() {
+    if (this._schema !== 2 || !this._cachedState) {
+      return null;
+    }
+
+    const metrics = collectGCMetrics(this._cachedState);
+    metrics.patchesSinceCompaction = this._patchesSinceGC;
+    metrics.lastCompactionTime = this._lastGCTime;
+    return metrics;
+  }
+
+  /**
+   * Gets the current GC policy.
+   *
+   * @returns {Object} The GC policy configuration
+   */
+  get gcPolicy() {
+    return { ...this._gcPolicy };
+  }
+
+  // ============================================================================
+  // Network Sync API
+  // ============================================================================
+
+  /**
+   * Gets the current frontier for this graph.
+   * The frontier maps each writer to their current tip SHA.
+   *
+   * @returns {Promise<Map<string, string>>} The current frontier
+   */
+  async getFrontier() {
+    const writerIds = await this.discoverWriters();
+    const frontier = createFrontier();
+
+    for (const writerId of writerIds) {
+      const writerRef = buildWriterRef(this._graphName, writerId);
+      const tipSha = await this._persistence.readRef(writerRef);
+      if (tipSha) {
+        updateFrontier(frontier, writerId, tipSha);
+      }
+    }
+
+    return frontier;
+  }
+
+  /**
+   * Creates a sync request to send to a remote peer.
+   * The request contains the local frontier for comparison.
+   *
+   * @returns {Promise<{type: 'sync-request', frontier: Map<string, string>}>} The sync request
+   *
+   * @example
+   * const request = await graph.createSyncRequest();
+   * // Send request to remote peer...
+   */
+  async createSyncRequest() {
+    const frontier = await this.getFrontier();
+    return createSyncRequest(frontier);
+  }
+
+  /**
+   * Processes an incoming sync request and returns patches the requester needs.
+   *
+   * @param {{type: 'sync-request', frontier: Map<string, string>}} request - The incoming sync request
+   * @returns {Promise<{type: 'sync-response', frontier: Map, patches: Map}>} The sync response
+   *
+   * @example
+   * // Receive request from remote peer
+   * const response = await graph.processSyncRequest(request);
+   * // Send response back to requester...
+   */
+  async processSyncRequest(request) {
+    const localFrontier = await this.getFrontier();
+    return processSyncRequest(
+      request,
+      localFrontier,
+      this._persistence,
+      this._graphName
+    );
+  }
+
+  /**
+   * Applies a sync response to the local graph state.
+   * Updates the cached state with received patches.
+   *
+   * **Requires schema:2 (WARP v5) and a cached state.**
+   *
+   * @param {{type: 'sync-response', frontier: Map, patches: Map}} response - The sync response
+   * @returns {{state: Object, frontier: Map, applied: number}} Result with updated state
+   * @throws {Error} If schema is not 2 or no cached state exists
+   *
+   * @example
+   * await graph.materialize(); // Cache state first
+   * const result = graph.applySyncResponse(response);
+   * console.log(`Applied ${result.applied} patches from remote`);
+   */
+  applySyncResponse(response) {
+    if (this._schema !== 2) {
+      throw new Error('applySyncResponse() requires schema:2 (WARP v5)');
+    }
+
+    if (!this._cachedState) {
+      throw new Error('No cached state. Call materialize() first.');
+    }
+
+    const currentFrontier = this._cachedState.observedFrontier;
+    const result = applySyncResponse(response, this._cachedState, currentFrontier);
+
+    // Update cached state
+    this._cachedState = result.state;
+
+    // Track patches for GC
+    this._patchesSinceGC += result.applied;
+
+    return result;
+  }
+
+  /**
+   * Checks if sync is needed with a remote frontier.
+   *
+   * @param {Map<string, string>} remoteFrontier - The remote peer's frontier
+   * @returns {Promise<boolean>} True if sync would transfer any patches
+   */
+  async syncNeeded(remoteFrontier) {
+    const localFrontier = await this.getFrontier();
+    return syncNeeded(localFrontier, remoteFrontier);
   }
 }
