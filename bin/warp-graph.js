@@ -46,6 +46,9 @@ Path options:
   --dir <out|in|both>   Traversal direction (default: out)
   --label <label>       Filter by edge label (repeatable, comma-separated)
   --max-depth <n>       Maximum depth
+
+History options:
+  --node <id>           Filter patches touching node id
 `;
 
 class CliError extends Error {
@@ -394,6 +397,44 @@ function parsePathArgs(args) {
   return options;
 }
 
+function parseHistoryArgs(args) {
+  const options = { node: null };
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+
+    if (arg === '--node') {
+      const value = args[i + 1];
+      if (!value) throw usageError('Missing value for --node');
+      options.node = value;
+      i += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--node=')) {
+      options.node = arg.slice('--node='.length);
+      continue;
+    }
+
+    if (arg.startsWith('-')) {
+      throw usageError(`Unknown history option: ${arg}`);
+    }
+
+    throw usageError(`Unexpected history argument: ${arg}`);
+  }
+
+  return options;
+}
+
+function patchTouchesNode(patch, nodeId) {
+  const ops = Array.isArray(patch?.ops) ? patch.ops : [];
+  for (const op of ops) {
+    if (op.node === nodeId) return true;
+    if (op.from === nodeId || op.to === nodeId) return true;
+  }
+  return false;
+}
+
 function renderInfo(payload) {
   const lines = [`Repo: ${payload.repo}`];
   lines.push(`Graphs: ${payload.graphs.length}`);
@@ -472,6 +513,24 @@ function renderCheck(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+function renderHistory(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Writer: ${payload.writer}`,
+    `Entries: ${payload.entries.length}`,
+  ];
+
+  if (payload.nodeFilter) {
+    lines.push(`Node Filter: ${payload.nodeFilter}`);
+  }
+
+  for (const entry of payload.entries) {
+    lines.push(`- ${entry.sha} (lamport: ${entry.lamport}, ops: ${entry.opCount})`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
 function renderError(payload) {
   return `Error: ${payload.error.message}\n`;
 }
@@ -499,6 +558,11 @@ function emit(payload, { json, command }) {
 
   if (command === 'check') {
     process.stdout.write(renderCheck(payload));
+    return;
+  }
+
+  if (command === 'history') {
+    process.stdout.write(renderHistory(payload));
     return;
   }
 
@@ -675,6 +739,39 @@ async function handleCheck({ options }) {
   return { payload, exitCode: EXIT_CODES.OK };
 }
 
+async function handleHistory({ options, args }) {
+  const historyOptions = parseHistoryArgs(args);
+  const { graph, graphName } = await openGraph(options);
+  const writerId = options.writer;
+
+  if (!writerId) {
+    throw usageError('history requires --writer <id>');
+  }
+
+  const patches = await graph._loadWriterPatches(writerId);
+  if (patches.length === 0) {
+    throw notFoundError(`No patches found for writer: ${writerId}`);
+  }
+
+  const entries = patches
+    .filter(({ patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node))
+    .map(({ patch, sha }) => ({
+      sha,
+      schema: patch.schema,
+      lamport: patch.lamport,
+      opCount: Array.isArray(patch.ops) ? patch.ops.length : 0,
+    }));
+
+  const payload = {
+    graph: graphName,
+    writer: writerId,
+    nodeFilter: historyOptions.node,
+    entries,
+  };
+
+  return { payload, exitCode: EXIT_CODES.OK };
+}
+
 async function handleNotImplemented({ command }) {
   throw new CliError(`${command} is not implemented yet`, {
     code: 'E_NOT_IMPLEMENTED',
@@ -686,7 +783,7 @@ const COMMANDS = new Map([
   ['info', handleInfo],
   ['query', handleQuery],
   ['path', handlePath],
-  ['history', handleNotImplemented],
+  ['history', handleHistory],
   ['check', handleCheck],
 ]);
 

@@ -79,8 +79,8 @@
 - [x] Surface in CLI check output (JSON first)
 
 ### M3.4 CLI history definition (MVP)
-- [ ] history --writer <id> shows writer patch chain
-- [ ] optional: --node <nodeId> best-effort filter
+- [x] history --writer <id> shows writer patch chain
+- [x] optional: --node <nodeId> best-effort filter
 
 ---
 
