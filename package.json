@@ -13,7 +13,8 @@
     }
   },
   "bin": {
-    "warp-graph": "bin/warp-graph.js"
+    "warp-graph": "bin/warp-graph.js",
+    "git-warp": "bin/git-warp"
   },
   "exports": {
     ".": {

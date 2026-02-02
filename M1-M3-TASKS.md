@@ -86,3 +86,9 @@
 
 ## Docs
 - [x] Add 3 runnable examples (2-hop query, shortestPath, CLI query+path)
+
+---
+
+## Extras (post-DoD)
+- [x] Add CLI smoke tests (info, query, path, history, check)
+- [x] Tighten CLI info output (writer counts + checkpoint/coverage when scoped)

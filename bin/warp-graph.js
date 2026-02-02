@@ -8,7 +8,13 @@ import WarpGraph, {
   HealthCheckService,
   PerformanceClockAdapter,
 } from '../index.js';
-import { REF_PREFIX, buildCheckpointRef, buildCoverageRef } from '../src/domain/utils/RefLayout.js';
+import {
+  REF_PREFIX,
+  buildCheckpointRef,
+  buildCoverageRef,
+  buildWritersPrefix,
+  parseWriterIdFromRef,
+} from '../src/domain/utils/RefLayout.js';
 
 const EXIT_CODES = {
   OK: 0,
@@ -18,6 +24,7 @@ const EXIT_CODES = {
 };
 
 const HELP_TEXT = `warp-graph <command> [options]
+(or: git warp <command> [options])
 
 Commands:
   info       Summarize graphs in the repo
@@ -198,6 +205,39 @@ async function resolveGraphName(persistence, explicitGraph) {
     throw notFoundError('No graphs found in repo; specify --graph');
   }
   throw usageError('Multiple graphs found; specify --graph');
+}
+
+async function getGraphInfo(persistence, graphName, { includeWriterIds = false, includeRefs = false } = {}) {
+  const writersPrefix = buildWritersPrefix(graphName);
+  const writerRefs = typeof persistence.listRefs === 'function'
+    ? await persistence.listRefs(writersPrefix)
+    : [];
+  const writerIds = writerRefs
+    .map((ref) => parseWriterIdFromRef(ref))
+    .filter(Boolean)
+    .sort();
+
+  const info = {
+    name: graphName,
+    writers: {
+      count: writerIds.length,
+    },
+  };
+
+  if (includeWriterIds) {
+    info.writers.ids = writerIds;
+  }
+
+  if (includeRefs) {
+    const checkpointRef = buildCheckpointRef(graphName);
+    const coverageRef = buildCoverageRef(graphName);
+    const checkpointSha = await persistence.readRef(checkpointRef);
+    const coverageSha = await persistence.readRef(coverageRef);
+    info.checkpoint = { ref: checkpointRef, sha: checkpointSha || null };
+    info.coverage = { ref: coverageRef, sha: coverageSha || null };
+  }
+
+  return info;
 }
 
 async function openGraph(options) {
@@ -439,7 +479,14 @@ function renderInfo(payload) {
   const lines = [`Repo: ${payload.repo}`];
   lines.push(`Graphs: ${payload.graphs.length}`);
   for (const graph of payload.graphs) {
-    lines.push(`- ${graph.name}`);
+    const writers = graph.writers ? ` writers=${graph.writers.count}` : '';
+    lines.push(`- ${graph.name}${writers}`);
+    if (graph.checkpoint?.sha) {
+      lines.push(`  checkpoint: ${graph.checkpoint.sha}`);
+    }
+    if (graph.coverage?.sha) {
+      lines.push(`  coverage: ${graph.coverage.sha}`);
+    }
   }
   return `${lines.join('\n')}\n`;
 }
@@ -582,9 +629,25 @@ async function handleInfo({ options }) {
     throw notFoundError(`Graph not found: ${options.graph}`);
   }
 
+  const detailGraphs = new Set();
+  if (options.graph) {
+    detailGraphs.add(options.graph);
+  } else if (graphNames.length === 1) {
+    detailGraphs.add(graphNames[0]);
+  }
+
+  const graphs = [];
+  for (const name of graphNames) {
+    const includeDetails = detailGraphs.has(name);
+    graphs.push(await getGraphInfo(persistence, name, {
+      includeWriterIds: includeDetails,
+      includeRefs: includeDetails,
+    }));
+  }
+
   return {
     repo: options.repo,
-    graphs: graphNames.map((name) => ({ name })),
+    graphs,
   };
 }
 
