@@ -104,7 +104,7 @@ export function computeDepths(adjacency, start) {
 function reconstructPath(prev, start, goal) {
   const path = [];
   let current = goal;
-  while (current != null) {
+  while (current !== null) {
     path.push(current);
     if (current === start) {
       break;
