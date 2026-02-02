@@ -27,6 +27,7 @@ import {
   TraversalError,
   OperationAbortedError,
   SyncError,
+  SyncError,
 } from './src/domain/errors/index.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
@@ -80,6 +81,7 @@ export {
   StorageError,
   TraversalError,
   OperationAbortedError,
+  SyncError,
 
   // Cancellation utilities
   checkAborted,
