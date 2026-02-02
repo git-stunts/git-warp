@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 # Copy empty-graph
 COPY empty-graph/package*.json ./
+COPY empty-graph/scripts ./scripts
+COPY empty-graph/patches ./patches
 RUN npm install
 COPY empty-graph .
 RUN git init -q \
