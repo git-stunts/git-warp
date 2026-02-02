@@ -10,7 +10,9 @@ import TraversalError from '../errors/TraversalError.js';
 const DEFAULT_MAX_DEPTH = 1000;
 
 function assertDirection(direction) {
-  if (direction === undefined) return 'out';
+  if (direction === undefined) {
+    return 'out';
+  }
   if (direction === 'out' || direction === 'in' || direction === 'both') {
     return direction;
   }
@@ -21,7 +23,9 @@ function assertDirection(direction) {
 }
 
 function normalizeLabelFilter(labelFilter) {
-  if (labelFilter === undefined) return null;
+  if (labelFilter === undefined) {
+    return null;
+  }
   if (Array.isArray(labelFilter)) {
     return new Set(labelFilter);
   }
@@ -35,8 +39,12 @@ function normalizeLabelFilter(labelFilter) {
 }
 
 function filterByLabel(neighbors, labelSet) {
-  if (!labelSet) return neighbors;
-  if (labelSet.size === 0) return [];
+  if (!labelSet) {
+    return neighbors;
+  }
+  if (labelSet.size === 0) {
+    return [];
+  }
   return neighbors.filter((edge) => labelSet.has(edge.label));
 }
 
@@ -53,7 +61,9 @@ function getNeighbors({ nodeId, direction, adjacency, labelSet }) {
 
   const merged = outgoing.concat(incoming);
   merged.sort((a, b) => {
-    if (a.neighborId !== b.neighborId) return a.neighborId < b.neighborId ? -1 : 1;
+    if (a.neighborId !== b.neighborId) {
+      return a.neighborId < b.neighborId ? -1 : 1;
+    }
     return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
   });
   return merged;
@@ -100,13 +110,19 @@ export default class LogicalTraversal {
 
     while (queue.length > 0) {
       const current = queue.shift();
-      if (visited.has(current.nodeId)) continue;
-      if (current.depth > depthLimit) continue;
+      if (visited.has(current.nodeId)) {
+        continue;
+      }
+      if (current.depth > depthLimit) {
+        continue;
+      }
 
       visited.add(current.nodeId);
       result.push(current.nodeId);
 
-      if (current.depth === depthLimit) continue;
+      if (current.depth === depthLimit) {
+        continue;
+      }
 
       const neighbors = getNeighbors({
         nodeId: current.nodeId,
@@ -140,13 +156,19 @@ export default class LogicalTraversal {
 
     while (stack.length > 0) {
       const current = stack.pop();
-      if (visited.has(current.nodeId)) continue;
-      if (current.depth > depthLimit) continue;
+      if (visited.has(current.nodeId)) {
+        continue;
+      }
+      if (current.depth > depthLimit) {
+        continue;
+      }
 
       visited.add(current.nodeId);
       result.push(current.nodeId);
 
-      if (current.depth === depthLimit) continue;
+      if (current.depth === depthLimit) {
+        continue;
+      }
 
       const neighbors = getNeighbors({
         nodeId: current.nodeId,
@@ -189,7 +211,9 @@ export default class LogicalTraversal {
 
     while (queue.length > 0) {
       const current = queue.shift();
-      if (current.depth >= depthLimit) continue;
+      if (current.depth >= depthLimit) {
+        continue;
+      }
 
       const neighbors = getNeighbors({
         nodeId: current.nodeId,
@@ -199,7 +223,9 @@ export default class LogicalTraversal {
       });
 
       for (const edge of neighbors) {
-        if (visited.has(edge.neighborId)) continue;
+        if (visited.has(edge.neighborId)) {
+          continue;
+        }
         visited.add(edge.neighborId);
         parent.set(edge.neighborId, current.nodeId);
 
