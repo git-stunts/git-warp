@@ -71,7 +71,7 @@ describe('WarpGraph QueryBuilder', () => {
       .outgoing()
       .run();
 
-    expect(result.nodes).toEqual(['user:carol']);
+    expect(result.nodes).toEqual([{ id: 'user:carol' }]);
   });
 
   it('supports glob match patterns', async () => {
@@ -82,7 +82,10 @@ describe('WarpGraph QueryBuilder', () => {
     });
 
     const result = await graph.query().match('user:*').run();
-    expect(result.nodes).toEqual(['user:alice', 'user:bob']);
+    expect(result.nodes).toEqual([
+      { id: 'user:alice' },
+      { id: 'user:bob' },
+    ]);
   });
 
   it('match(*) returns all nodes in canonical order', async () => {
@@ -93,7 +96,11 @@ describe('WarpGraph QueryBuilder', () => {
     });
 
     const result = await graph.query().match('*').run();
-    expect(result.nodes).toEqual(['team:eng', 'user:alice', 'user:bob']);
+    expect(result.nodes).toEqual([
+      { id: 'team:eng' },
+      { id: 'user:alice' },
+      { id: 'user:bob' },
+    ]);
   });
 
   it('chaining order matters', async () => {
@@ -119,7 +126,10 @@ describe('WarpGraph QueryBuilder', () => {
       .outgoing()
       .run();
 
-    expect(outgoingThenIncoming.nodes).toEqual(['user:alice', 'user:carol']);
+    expect(outgoingThenIncoming.nodes).toEqual([
+      { id: 'user:alice' },
+      { id: 'user:carol' },
+    ]);
     expect(incomingThenOutgoing.nodes).toEqual([]);
   });
 
@@ -151,6 +161,29 @@ describe('WarpGraph QueryBuilder', () => {
       .outgoing()
       .run();
 
-    expect(result.nodes).toEqual(['user:bob']);
+    expect(result.nodes).toEqual([{ id: 'user:bob' }]);
+  });
+
+  it('selects fields and enforces allowed fields', async () => {
+    setupGraphState(graph, (state) => {
+      addNode(state, 'user:alice', 1);
+      addProp(state, 'user:alice', 'role', 'admin');
+    });
+
+    const idOnly = await graph.query().match('user:alice').select(['id']).run();
+    expect(idOnly.nodes).toEqual([{ id: 'user:alice' }]);
+
+    const propsOnly = await graph.query().match('user:alice').select(['props']).run();
+    expect(propsOnly.nodes).toEqual([{ props: { role: 'admin' } }]);
+
+    const defaultSelect = await graph.query().match('user:alice').select([]).run();
+    expect(defaultSelect.nodes).toEqual([{ id: 'user:alice', props: { role: 'admin' } }]);
+
+    try {
+      await graph.query().match('user:alice').select(['id', 'bogus']).run();
+    } catch (err) {
+      expect(err).toBeInstanceOf(QueryError);
+      expect(err.code).toBe('E_QUERY_SELECT_FIELD');
+    }
   });
 });

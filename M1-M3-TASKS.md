@@ -29,11 +29,11 @@
 - [x] Tests: user:* matches all user nodes; * matches all
 
 ### M1.3 Result shaping (DTO)
-- [ ] Default QueryResult DTO: { stateHash, nodes: [{ id, props? }] }
-- [ ] select(['id','props']) only; unknown field throws E_QUERY_SELECT_FIELD
-- [ ] select([]) treated same as default (select not called)
-- [ ] Deterministic output ordering (nodes sorted by id)
-- [ ] Tests: select fields, unknown field error, default shape
+- [x] Default QueryResult DTO: { stateHash, nodes: [{ id, props? }] }
+- [x] select(['id','props']) only; unknown field throws E_QUERY_SELECT_FIELD
+- [x] select([]) treated same as default (select not called)
+- [x] Deterministic output ordering (nodes sorted by id)
+- [x] Tests: select fields, unknown field error, default shape
 
 ---
 

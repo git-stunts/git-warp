@@ -244,6 +244,16 @@ export default class QueryBuilder {
    * @returns {QueryBuilder}
    */
   select(fields) {
+    if (fields === undefined) {
+      this._select = null;
+      return this;
+    }
+    if (!Array.isArray(fields)) {
+      throw new QueryError('select() expects an array of fields', {
+        code: 'E_QUERY_SELECT_TYPE',
+        context: { receivedType: typeof fields },
+      });
+    }
     this._select = fields;
     return this;
   }
@@ -296,6 +306,38 @@ export default class QueryBuilder {
       }
     }
 
-    return { stateHash, nodes: workingSet };
+    const selected = this._select;
+    const selectFields = Array.isArray(selected) && selected.length > 0 ? selected : null;
+    const allowedFields = new Set(['id', 'props']);
+    if (selectFields) {
+      for (const field of selectFields) {
+        if (!allowedFields.has(field)) {
+          throw new QueryError(`Unknown select field: ${field}`, {
+            code: 'E_QUERY_SELECT_FIELD',
+            context: { field },
+          });
+        }
+      }
+    }
+
+    const includeId = !selectFields || selectFields.includes('id');
+    const includeProps = !selectFields || selectFields.includes('props');
+
+    const nodes = workingSet.map((nodeId) => {
+      const entry = {};
+      if (includeId) {
+        entry.id = nodeId;
+      }
+      if (includeProps) {
+        const propsMap = this._graph.getNodeProps(nodeId) || new Map();
+        const props = buildPropsSnapshot(propsMap);
+        if (selectFields || Object.keys(props).length > 0) {
+          entry.props = props;
+        }
+      }
+      return entry;
+    });
+
+    return { stateHash, nodes };
   }
 }

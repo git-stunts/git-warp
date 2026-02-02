@@ -166,7 +166,10 @@ export interface QueryNodeSnapshot {
  */
 export interface QueryResultV1 {
   stateHash: string;
-  nodes: string[];
+  nodes: Array<{
+    id?: string;
+    props?: Record<string, unknown>;
+  }>;
 }
 
 /**
