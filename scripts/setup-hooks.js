@@ -12,12 +12,23 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const hooksDir = join(__dirname, 'hooks');
 
+let repoRoot = '';
+try {
+  repoRoot = execSync('git rev-parse --show-toplevel', { stdio: ['ignore', 'pipe', 'ignore'] })
+    .toString()
+    .trim();
+} catch {
+  console.log('ℹ️  Skipping git hooks setup (not a git repository).');
+  process.exit(0);
+}
+
 if (!existsSync(hooksDir)) {
   console.error('Error: hooks directory not found at', hooksDir);
   process.exit(1);
 }
 
 try {
+  process.chdir(repoRoot);
   execSync(`git config core.hooksPath "${hooksDir}"`, { stdio: 'inherit' });
   console.log('✅ Git hooks configured successfully');
   console.log(`   Hooks directory: ${hooksDir}`);

@@ -45,7 +45,7 @@
     "demo:bench-streaming": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/streaming-benchmark.js",
     "demo:bench-traversal": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/traversal-benchmark.js",
     "setup:hooks": "node scripts/setup-hooks.js",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node scripts/setup-hooks.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh"
   },
