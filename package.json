@@ -31,11 +31,11 @@
   },
   "scripts": {
     "test": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest run test/unit \"$@\"; else docker compose run --build --rm test npm test -- \"$@\"; fi' --",
-    "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench test/benchmark \"$@\"; else docker compose run --build --rm test npm run benchmark -- \"$@\"; fi' --",
+    "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose run --build --rm test npm run benchmark -- \"$@\"; fi' --",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:local": "vitest run test/unit",
-    "benchmark:local": "vitest bench test/benchmark",
+    "benchmark:local": "vitest bench --run test/benchmark",
     "demo": "cd examples && docker compose up -d && docker compose exec demo bash",
     "demo:setup": "cd examples && docker compose up -d && docker compose exec demo sh -c 'cd /app && npm install --silent && cd /demo && node /app/examples/setup.js'",
     "demo:explore": "cd examples && docker compose exec demo node /app/examples/explore.js",
