@@ -11,7 +11,7 @@
  * @see WARP v5 Spec
  */
 
-import { createVersionVector, vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
+import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
