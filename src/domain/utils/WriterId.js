@@ -136,7 +136,7 @@ export function generateWriterId({ randomBytes } = {}) {
     throw new WriterIdError('CSPRNG_UNAVAILABLE', 'randomBytes() must return Uint8Array(16)');
   }
 
-  return 'w_' + crockfordBase32(bytes).toLowerCase();
+  return `w_${crockfordBase32(bytes).toLowerCase()}`;
 }
 
 /**
@@ -167,7 +167,7 @@ export async function resolveWriterId({ graphName, explicitWriterId, configGet, 
   const key = `warp.writerId.${graphName}`;
 
   // 1) Explicit wins
-  if (explicitWriterId != null) {
+  if (explicitWriterId !== null && explicitWriterId !== undefined) {
     validateWriterId(explicitWriterId); // ref-safe validation
     return explicitWriterId;
   }
