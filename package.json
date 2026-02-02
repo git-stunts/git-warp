@@ -44,7 +44,9 @@
     "demo:lagrangian": "cd examples && docker compose exec demo node /app/examples/lagrangian-path.js",
     "demo:bench-streaming": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/streaming-benchmark.js",
     "demo:bench-traversal": "cd examples && docker compose up -d && docker compose exec demo node /app/examples/traversal-benchmark.js",
-    "setup:hooks": "node scripts/setup-hooks.js"
+    "setup:hooks": "node scripts/setup-hooks.js",
+    "install:git-warp": "bash scripts/install-git-warp.sh",
+    "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
@@ -72,7 +74,9 @@
     "README.md",
     "LICENSE",
     "NOTICE",
-    "SECURITY.md"
+    "SECURITY.md",
+    "scripts/install-git-warp.sh",
+    "scripts/uninstall-git-warp.sh"
   ],
   "repository": {
     "type": "git",
