@@ -204,6 +204,9 @@
     if (!logoContainer || !window.gsap) {
       return;
     }
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
 
     const svg = logoContainer.querySelector('svg');
     if (!svg) {
