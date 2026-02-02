@@ -12,7 +12,7 @@
 This project uses custom git hooks located in `scripts/hooks/`. Run `npm run setup:hooks` to enable them.
 - Hooks are also auto-configured on `npm install` (no-op if not a git repo).
 - `pre-commit` runs eslint on staged JS files.
-- `pre-push` runs `npm run lint` and the Docker bats CLI suite (`git-warp` commands).
+- `pre-push` runs `npm run lint`, `npm test`, `npm run benchmark`, and the Docker bats CLI suite (`git-warp` commands).
 
 ### Pre-commit Hook
 
