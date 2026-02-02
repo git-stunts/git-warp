@@ -1,5 +1,6 @@
 FROM node:22-slim
 RUN apt-get update && apt-get install -y \
+    bats \
     git \
     python3 \
     make \
@@ -10,6 +11,17 @@ WORKDIR /app
 COPY empty-graph/package*.json ./
 RUN npm install
 COPY empty-graph .
+RUN git init -q \
+  && git config user.email "container@empty-graph.local" \
+  && git config user.name "Empty Graph Container" \
+  && git add -A \
+  && git commit -m "seed empty-graph" >/dev/null
+RUN cat <<'EOF' > /usr/local/bin/warp-graph
+#!/usr/bin/env bash
+exec node /app/bin/warp-graph.js "$@"
+EOF
+RUN chmod +x /usr/local/bin/warp-graph \
+  && install -m 0755 /app/bin/git-warp /usr/local/bin/git-warp
 ENV GIT_STUNTS_DOCKER=1
 # Default to tests, but can be overridden for benchmark
 CMD ["npm", "test"]

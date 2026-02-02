@@ -392,13 +392,13 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   /**
    * Pings the repository to verify accessibility.
-   * Uses `git rev-parse --git-dir` as a lightweight check.
+   * Uses `git rev-parse --is-inside-work-tree` as a lightweight check.
    * @returns {Promise<{ok: boolean, latencyMs: number}>} Health check result with latency
    */
   async ping() {
     const start = Date.now();
     try {
-      await this._executeWithRetry({ args: ['rev-parse', '--git-dir'] });
+      await this._executeWithRetry({ args: ['rev-parse', '--is-inside-work-tree'] });
       const latencyMs = Date.now() - start;
       return { ok: true, latencyMs };
     } catch {

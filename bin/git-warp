@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const cliPath = resolve(dir, 'warp-graph.js');
-const result = spawnSync(process.execPath, [cliPath, ...process.argv.slice(2)], {
-  stdio: 'inherit',
-});
+const args = process.argv.slice(2);
+let result;
+
+if (existsSync(cliPath)) {
+  result = spawnSync(process.execPath, [cliPath, ...args], { stdio: 'inherit' });
+} else {
+  result = spawnSync('warp-graph', args, { stdio: 'inherit' });
+}
 
 process.exit(result.status ?? 1);

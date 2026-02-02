@@ -3,7 +3,6 @@
 setup() {
   PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
   export PROJECT_ROOT
-  export CLI_PATH="${PROJECT_ROOT}/bin/warp-graph.js"
   export TEST_REPO
   TEST_REPO="$(mktemp -d)"
   cd "${TEST_REPO}"
@@ -24,8 +23,10 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 const projectRoot = process.env.PROJECT_ROOT;
 const repoPath = process.env.REPO_PATH;
-const moduleUrl = pathToFileURL(resolve(projectRoot, 'index.js')).href;
-const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
+const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpGraph.js')).href;
+const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
+const { default: WarpGraph } = await import(warpGraphUrl);
+const { default: GitGraphAdapter } = await import(adapterUrl);
 
 const runner = ShellRunnerFactory.create();
 const plumbing = new GitPlumbing({ cwd: repoPath, runner });
@@ -67,7 +68,7 @@ assert_success() {
 }
 
 @test "info reports graphs and writer counts" {
-  run "${CLI_PATH}" --repo "${TEST_REPO}" --json info
+  run git warp --repo "${TEST_REPO}" --json info
   assert_success
 
   JSON="$output" python3 - <<'PY'
@@ -81,7 +82,7 @@ PY
 }
 
 @test "query returns nodes using builder" {
-  run "${CLI_PATH}" --repo "${TEST_REPO}" --graph demo --json query \
+  run git warp --repo "${TEST_REPO}" --graph demo --json query \
     --match "user:*" --outgoing follows --select id
   assert_success
 
@@ -93,7 +94,7 @@ PY
 }
 
 @test "path finds a shortest path" {
-  run "${CLI_PATH}" --repo "${TEST_REPO}" --graph demo --json path \
+  run git warp --repo "${TEST_REPO}" --graph demo --json path \
     user:alice user:carol --dir out --label follows
   assert_success
 
@@ -107,7 +108,7 @@ PY
 }
 
 @test "history returns writer patch chain" {
-  run "${CLI_PATH}" --repo "${TEST_REPO}" --graph demo --writer alice --json history
+  run git warp --repo "${TEST_REPO}" --graph demo --writer alice --json history
   assert_success
 
   JSON="$output" python3 - <<'PY'
@@ -120,7 +121,7 @@ PY
 }
 
 @test "check returns health and GC info" {
-  run "${CLI_PATH}" --repo "${TEST_REPO}" --graph demo --json check
+  run git warp --repo "${TEST_REPO}" --graph demo --json check
   assert_success
 
   JSON="$output" python3 - <<'PY'

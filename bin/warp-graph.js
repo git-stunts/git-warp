@@ -3,11 +3,10 @@
 import path from 'node:path';
 import process from 'node:process';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
-import WarpGraph, {
-  GitGraphAdapter,
-  HealthCheckService,
-  PerformanceClockAdapter,
-} from '../index.js';
+import WarpGraph from '../src/domain/WarpGraph.js';
+import GitGraphAdapter from '../src/infrastructure/adapters/GitGraphAdapter.js';
+import HealthCheckService from '../src/domain/services/HealthCheckService.js';
+import PerformanceClockAdapter from '../src/infrastructure/adapters/PerformanceClockAdapter.js';
 import {
   REF_PREFIX,
   buildCheckpointRef,
@@ -106,6 +105,11 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
 
+    if (arg === '--') {
+      positionals.push(...argv.slice(i + 1));
+      break;
+    }
+
     if (arg === '--json') {
       options.json = true;
       continue;
@@ -160,6 +164,8 @@ function parseArgs(argv) {
     }
 
     positionals.push(arg);
+    positionals.push(...argv.slice(i + 1));
+    break;
   }
 
   options.repo = path.resolve(options.repo);
