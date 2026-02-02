@@ -152,6 +152,36 @@ export interface PathResult {
 }
 
 /**
+ * Snapshot of a node passed into query predicates.
+ */
+export interface QueryNodeSnapshot {
+  id: string;
+  props: Record<string, unknown>;
+  edgesOut: Array<{ label: string; to: string }>;
+  edgesIn: Array<{ label: string; from: string }>;
+}
+
+/**
+ * Query result (MVP).
+ */
+export interface QueryResultV1 {
+  stateHash: string;
+  nodes: string[];
+}
+
+/**
+ * Fluent query builder (MVP).
+ */
+export class QueryBuilder {
+  match(pattern: string): QueryBuilder;
+  where(fn: (node: QueryNodeSnapshot) => boolean): QueryBuilder;
+  outgoing(label?: string): QueryBuilder;
+  incoming(label?: string): QueryBuilder;
+  select(fields?: string[]): QueryBuilder;
+  run(): Promise<QueryResultV1>;
+}
+
+/**
  * Options for BFS/DFS traversal.
  */
 export interface TraversalOptions {
@@ -689,6 +719,20 @@ export class OperationAbortedError extends Error {
 }
 
 /**
+ * Error class for query builder operations.
+ */
+export class QueryError extends Error {
+  readonly name: 'QueryError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
  * Base error class for bitmap index operations.
  */
 export class IndexError extends Error {
@@ -803,6 +847,11 @@ export default class WarpGraph {
    * Creates a new patch for adding operations.
    */
   createPatch(): unknown;
+
+  /**
+   * Creates a fluent query builder for the logical graph.
+   */
+  query(): QueryBuilder;
 
   /**
    * Materializes the current graph state from all patches.

@@ -13,15 +13,15 @@
 ## Milestone 1 — Fluent Query Builder (MVP)
 
 ### M1.1 graph.query() builder
-- [ ] Implement fluent builder: match → where → outgoing/incoming → select → run
-- [ ] Enforce match(pattern: string) only; non-string throws E_QUERY_MATCH_TYPE
-- [ ] Define multi-hop semantics: each hop operates on current working set
-- [ ] where() filters nodes only; predicate receives read-only snapshot
-- [ ] Predicate snapshot uses plain objects/arrays (no live Maps)
-- [ ] Run auto-materializes (M0.1)
-- [ ] Determinism: node sets canonical sort by id each step
-- [ ] Edge snapshot ordering canonical: (label, peerId)
-- [ ] Tests: two-hop traversal, chaining order matters, mutation does not affect results
+- [x] Implement fluent builder: match → where → outgoing/incoming → select → run
+- [x] Enforce match(pattern: string) only; non-string throws E_QUERY_MATCH_TYPE
+- [x] Define multi-hop semantics: each hop operates on current working set
+- [x] where() filters nodes only; predicate receives read-only snapshot
+- [x] Predicate snapshot uses plain objects/arrays (no live Maps)
+- [x] Run auto-materializes (M0.1)
+- [x] Determinism: node sets canonical sort by id each step
+- [x] Edge snapshot ordering canonical: (label, peerId)
+- [x] Tests: two-hop traversal, chaining order matters, mutation does not affect results
 
 ### M1.2 Pattern matching (nodeId glob)
 - [ ] match supports glob string (case-sensitive)
@@ -86,4 +86,3 @@
 
 ## Docs
 - [ ] Add 3 runnable examples (2-hop query, shortestPath, CLI query+path)
-

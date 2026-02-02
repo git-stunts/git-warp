@@ -19,6 +19,7 @@ import PerformanceClockAdapter from './src/infrastructure/adapters/PerformanceCl
 import GlobalClockAdapter from './src/infrastructure/adapters/GlobalClockAdapter.js';
 import {
   IndexError,
+  QueryError,
   ShardLoadError,
   ShardCorruptionError,
   ShardValidationError,
@@ -41,6 +42,7 @@ import {
   createEventId,
 } from './src/domain/types/WarpTypes.js';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
+import QueryBuilder from './src/domain/services/QueryBuilder.js';
 
 export {
   GitGraphAdapter,
@@ -67,6 +69,7 @@ export {
 
   // Error types for integrity failure handling
   IndexError,
+  QueryError,
   ShardLoadError,
   ShardCorruptionError,
   ShardValidationError,
@@ -80,6 +83,7 @@ export {
 
   // Multi-writer graph support (WARP)
   WarpGraph,
+  QueryBuilder,
 
   // WARP type creators
   createNodeAdd,

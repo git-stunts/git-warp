@@ -28,6 +28,7 @@ import {
 } from './services/SyncProtocol.js';
 import { Writer } from './warp/Writer.js';
 import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
+import QueryBuilder from './services/QueryBuilder.js';
 
 /**
  * WarpGraph class for interacting with a WARP multi-writer graph.
@@ -1047,6 +1048,15 @@ export default class WarpGraph {
   // ============================================================================
   // Query API (Task 7) - Queries on Materialized WARP State
   // ============================================================================
+
+  /**
+   * Creates a fluent query builder for the logical graph.
+   *
+   * @returns {import('./services/QueryBuilder.js').default}
+   */
+  query() {
+    return new QueryBuilder(this);
+  }
 
   /**
    * Checks if a node exists in the materialized graph state.
