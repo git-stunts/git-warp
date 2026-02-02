@@ -650,8 +650,8 @@ describe('SyncProtocol', () => {
       const persistence = createMockPersistence(commits, blobs);
 
       // Start with empty state
-      let state = createEmptyStateV5();
-      let frontier = createFrontier();
+      const state = createEmptyStateV5();
+      const frontier = createFrontier();
 
       // First sync
       const request1 = createSyncRequest(frontier);
