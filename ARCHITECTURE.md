@@ -49,7 +49,7 @@ This enables testing with mocks and flexible runtime configuration.
 
 ## Layer Diagram
 
-```
+```text
 +-------------------------------------------------------------+
 |                       WarpGraph                              |  <- Main API
 |                      (WarpGraph.js)                          |
@@ -87,11 +87,11 @@ This enables testing with mocks and flexible runtime configuration.
 |  | GlobalClock       |                                       |
 |  +-------------------+                                       |
 +-------------------------------------------------------------+
-```
+```text
 
 ## Directory Structure
 
-```
+```text
 src/
 +-- domain/
 |   +-- entities/           # Immutable domain objects
@@ -130,7 +130,7 @@ src/
     +-- IndexStoragePort.js      # Blob/tree storage
     +-- LoggerPort.js            # Structured logging contract
     +-- ClockPort.js             # Timing abstraction
-```
+```text
 
 ## Key Components
 
@@ -263,41 +263,41 @@ Implements both `GraphPersistencePort` and `IndexStoragePort`:
 
 ### Write Path
 
-```
+```text
 createNode() -> WarpGraph.createNode()
              -> persistence.commitNode()
              -> persistence.updateRef()
-```
+```text
 
 ### Read Path (with index)
 
-```
+```text
 getParents() -> BitmapIndexReader._getEdges()
              -> _getOrLoadShard() (lazy load)
              -> storage.readBlob()
              -> Validate checksum
              -> RoaringBitmap32.deserialize()
              -> Map IDs to SHAs
-```
+```text
 
 ### Index Rebuild
 
-```
+```text
 rebuildIndex() -> IndexRebuildService.rebuild()
                -> WarpGraph.iterateNodes()
                -> BitmapIndexBuilder.registerNode() / addEdge()
                -> builder.serialize()
                -> storage.writeBlob() (per shard, parallel)
                -> storage.writeTree()
-```
+```text
 
 ## The Empty Tree Trick
 
 All WarpGraph nodes are Git commits pointing to the empty tree:
 
-```
+```text
 SHA: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
-```
+```text
 
 This is the well-known SHA of an empty Git tree, automatically available in every repository.
 
@@ -317,7 +317,7 @@ This is the well-known SHA of an empty Git tree, automatically available in ever
 
 The bitmap index enables O(1) neighbor lookups. It is stored as a Git tree with sharded JSON blobs:
 
-```
+```text
 index-tree/
 +-- meta_00.json        # SHA->ID mappings for prefix "00"
 +-- meta_01.json        # SHA->ID mappings for prefix "01"
@@ -328,7 +328,7 @@ index-tree/
 +-- ...
 +-- shards_fwd_ff.json
 +-- shards_rev_ff.json
-```
+```text
 
 **Shard envelope format:**
 ```json
@@ -337,7 +337,7 @@ index-tree/
   "checksum": "sha256-hex-of-data",
   "data": { ... actual content ... }
 }
-```
+```text
 
 **Meta shard content:**
 ```json
@@ -345,14 +345,14 @@ index-tree/
   "00a1b2c3d4e5f6789...": 0,
   "00d4e5f6a7b8c9012...": 42
 }
-```
+```text
 
 **Edge shard content:**
 ```json
 {
   "00a1b2c3d4e5f6789...": "OjAAAAEAAAAAAAEAEAAAABAAAA=="
 }
-```
+```text
 
 Values are base64-encoded Roaring bitmaps containing numeric IDs of connected nodes.
 
@@ -460,6 +460,7 @@ In V7 Multi-Writer mode:
 | Index load          | O(1) initial | Lazy shard loading           |
 
 **Memory characteristics:**
+
 | Scenario              | Approximate Memory  |
 | --------------------- | ------------------- |
 | Cold start (no index) | Near-zero           |
@@ -491,7 +492,7 @@ for await (const node of graph.iterateNodes({
 })) {
   // Process node
 }
-```
+```text
 
 Supported operations:
 - `iterateNodes()`
