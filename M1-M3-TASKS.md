@@ -3,10 +3,10 @@
 > This checklist is the execution contract for Milestones 1–3. Keep it updated as tasks complete.
 
 ## Global DoD
-- [ ] All JSON output is canonical and stable (sorted ordering)
-- [ ] Determinism test passes (double-run identical JSON)
-- [ ] No API ambiguity (match/select/labelFilter semantics exactly as specified)
-- [ ] Docs include 3 runnable examples: 2-hop query, shortestPath, CLI query+path
+- [x] All JSON output is canonical and stable (sorted ordering)
+- [x] Determinism test passes (double-run identical JSON)
+- [x] No API ambiguity (match/select/labelFilter semantics exactly as specified)
+- [x] Docs include 3 runnable examples: 2-hop query, shortestPath, CLI query+path
 
 ---
 
@@ -85,4 +85,4 @@
 ---
 
 ## Docs
-- [ ] Add 3 runnable examples (2-hop query, shortestPath, CLI query+path)
+- [x] Add 3 runnable examples (2-hop query, shortestPath, CLI query+path)

@@ -103,6 +103,21 @@ describe('WarpGraph QueryBuilder', () => {
     ]);
   });
 
+  it('produces deterministic JSON across runs', async () => {
+    setupGraphState(graph, (state) => {
+      addNode(state, 'user:alice', 1);
+      addNode(state, 'user:bob', 2);
+      addNode(state, 'user:carol', 3);
+      addEdge(state, 'user:alice', 'user:bob', 'follows', 4);
+      addEdge(state, 'user:alice', 'user:carol', 'follows', 5);
+    });
+
+    const resultA = await graph.query().match('user:*').outgoing('follows').run();
+    const resultB = await graph.query().match('user:*').outgoing('follows').run();
+
+    expect(JSON.stringify(resultA)).toBe(JSON.stringify(resultB));
+  });
+
   it('chaining order matters', async () => {
     setupGraphState(graph, (state) => {
       addNode(state, 'user:alice', 1);
