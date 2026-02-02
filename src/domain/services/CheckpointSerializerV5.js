@@ -15,8 +15,7 @@
 import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
 import { orsetSerialize, orsetDeserialize } from '../crdt/ORSet.js';
 import { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
-import { decodeDot, compareDots } from '../crdt/Dot.js';
-import { compareEventIds } from '../utils/EventId.js';
+import { decodeDot } from '../crdt/Dot.js';
 
 // ============================================================================
 // Full State Serialization (for Checkpoints)
