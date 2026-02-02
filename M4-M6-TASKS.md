@@ -21,10 +21,10 @@
 - [x] Docs + CHANGELOG updated.
 
 ### M4.3 — No-coordination regression suite
-- [ ] Tests enforce: no merge commits in writer refs after sync cycles.
-- [ ] Tests enforce: commit path does not read other writers’ heads.
-- [ ] Fuzz random sync/write interleavings; invariants hold.
-- [ ] CI coverage + CONTRIBUTING note.
+- [x] Tests enforce: no merge commits in writer refs after sync cycles.
+- [x] Tests enforce: commit path does not read other writers’ heads.
+- [x] Fuzz random sync/write interleavings; invariants hold.
+- [x] CI coverage + CONTRIBUTING note.
 
 ## Milestone 5 — Edge Properties
 

@@ -41,6 +41,11 @@ npm test                 # Run all tests
 npm test -- <pattern>    # Run specific tests
 ```
 
+### No-Coordination Invariant
+
+The no-coordination regression suite is non-negotiable for multi-writer safety.
+Ensure `test/unit/domain/WarpGraph.noCoordination.test.js` passes before submitting changes.
+
 ## Pull Requests
 
 1. Create a feature branch from `main`
