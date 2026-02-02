@@ -100,7 +100,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 #### State Materialization
 - **`graph.materialize()`** - Reduces all patches from all writers to current state
 - **`graph.materializeAt(checkpointSha)`** - Incremental materialization from checkpoint
-- **`graph.discoverWriters()`** - List all writers that have contributed to the graph
+- **`graph.discoverWriters()`** - List all writers who have contributed to the graph
 
 #### Checkpoints
 - **`CheckpointService`** - Create, load, and incrementally rebuild from checkpoints
