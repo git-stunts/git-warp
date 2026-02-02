@@ -62,7 +62,9 @@ function canonicalStringify(value) {
 }
 
 function normalizeSyncPath(path) {
-  if (!path) return '/sync';
+  if (!path) {
+    return '/sync';
+  }
   return path.startsWith('/') ? path : `/${path}`;
 }
 
@@ -330,8 +332,12 @@ export default class WarpGraph {
         continue;
       }
 
-      if (!outgoing.has(from)) outgoing.set(from, []);
-      if (!incoming.has(to)) incoming.set(to, []);
+      if (!outgoing.has(from)) {
+        outgoing.set(from, []);
+      }
+      if (!incoming.has(to)) {
+        incoming.set(to, []);
+      }
 
       outgoing.get(from).push({ neighborId: to, label });
       incoming.get(to).push({ neighborId: from, label });
@@ -339,7 +345,9 @@ export default class WarpGraph {
 
     const sortNeighbors = (list) => {
       list.sort((a, b) => {
-        if (a.neighborId !== b.neighborId) return a.neighborId < b.neighborId ? -1 : 1;
+        if (a.neighborId !== b.neighborId) {
+          return a.neighborId < b.neighborId ? -1 : 1;
+        }
         return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
       });
     };
@@ -491,7 +499,6 @@ export default class WarpGraph {
     // Capture pre-merge counts for receipt
     const beforeNodes = this._cachedState.nodeAlive.elements.size;
     const beforeEdges = this._cachedState.edgeAlive.elements.size;
-    const beforeProps = this._cachedState.prop.size;
     const beforeFrontierSize = this._cachedState.observedFrontier.size;
 
     // Perform the join
@@ -500,7 +507,6 @@ export default class WarpGraph {
     // Calculate receipt
     const afterNodes = mergedState.nodeAlive.elements.size;
     const afterEdges = mergedState.edgeAlive.elements.size;
-    const afterProps = mergedState.prop.size;
     const afterFrontierSize = mergedState.observedFrontier.size;
 
     // Count property changes (keys that existed in both but have different values)
@@ -536,9 +542,13 @@ export default class WarpGraph {
    * @private
    */
   _frontierEquals(a, b) {
-    if (a.size !== b.size) return false;
+    if (a.size !== b.size) {
+      return false;
+    }
     for (const [key, val] of a) {
-      if (b.get(key) !== val) return false;
+      if (b.get(key) !== val) {
+        return false;
+      }
     }
     return true;
   }
@@ -735,7 +745,9 @@ export default class WarpGraph {
    */
   async _validateMigrationBoundary() {
     const checkpoint = await this._loadLatestCheckpoint();
-    if (checkpoint?.schema === 2) return;  // Already migrated
+    if (checkpoint?.schema === 2) {
+      return;  // Already migrated
+    }
 
     const hasSchema1History = await this._hasSchema1Patches();
     if (hasSchema1History) {
@@ -780,7 +792,9 @@ export default class WarpGraph {
       const writerRef = buildWriterRef(this._graphName, writerId);
       const tipSha = await this._persistence.readRef(writerRef);
 
-      if (!tipSha) continue;
+      if (!tipSha) {
+        continue;
+      }
 
       // Check the first (most recent) patch from this writer
       const nodeInfo = await this._persistence.getNodeInfo(tipSha);
@@ -817,7 +831,7 @@ export default class WarpGraph {
       const patches = await this._loadWriterPatches(writerId, checkpointSha);
 
       // Validate each patch against checkpoint frontier
-      for (const { patch, sha } of patches) {
+      for (const { sha } of patches) {
         await this._validatePatchAgainstCheckpoint(writerId, sha, checkpoint);
       }
 
@@ -841,14 +855,20 @@ export default class WarpGraph {
    * @private
    */
   async _isAncestor(ancestorSha, descendantSha) {
-    if (!ancestorSha || !descendantSha) return false;
-    if (ancestorSha === descendantSha) return true;
+    if (!ancestorSha || !descendantSha) {
+      return false;
+    }
+    if (ancestorSha === descendantSha) {
+      return true;
+    }
 
     let cur = descendantSha;
     while (cur) {
       const nodeInfo = await this._persistence.getNodeInfo(cur);
       const parent = nodeInfo.parents?.[0] ?? null;
-      if (parent === ancestorSha) return true;
+      if (parent === ancestorSha) {
+        return true;
+      }
       cur = parent;
     }
     return false;
@@ -863,9 +883,15 @@ export default class WarpGraph {
    * @private
    */
   async _relationToCheckpointHead(ckHead, incomingSha) {
-    if (incomingSha === ckHead) return 'same';
-    if (await this._isAncestor(ckHead, incomingSha)) return 'ahead';
-    if (await this._isAncestor(incomingSha, ckHead)) return 'behind';
+    if (incomingSha === ckHead) {
+      return 'same';
+    }
+    if (await this._isAncestor(ckHead, incomingSha)) {
+      return 'ahead';
+    }
+    if (await this._isAncestor(incomingSha, ckHead)) {
+      return 'behind';
+    }
     return 'diverged';
   }
 
@@ -880,10 +906,14 @@ export default class WarpGraph {
    * @private
    */
   async _validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint) {
-    if (!checkpoint || checkpoint.schema !== 2) return;
+    if (!checkpoint || checkpoint.schema !== 2) {
+      return;
+    }
 
     const ckHead = checkpoint.frontier?.get(writerId);
-    if (!ckHead) return;  // Checkpoint didn't include this writer
+    if (!ckHead) {
+      return;  // Checkpoint didn't include this writer
+    }
 
     const relation = await this._relationToCheckpointHead(ckHead, incomingSha);
 
@@ -1136,7 +1166,7 @@ export default class WarpGraph {
     if (!isDirectPeer) {
       try {
         targetUrl = remote instanceof URL ? new URL(remote.toString()) : new URL(remote);
-      } catch (err) {
+      } catch {
         throw new SyncError('Invalid remote URL', {
           code: 'E_SYNC_REMOTE_URL',
           context: { remote: String(remote) },
@@ -1364,7 +1394,9 @@ export default class WarpGraph {
       let aborted = false;
 
       req.on('data', (chunk) => {
-        if (aborted) return;
+        if (aborted) {
+          return;
+        }
         total += chunk.length;
         if (total > maxRequestBytes) {
           aborted = true;
@@ -1377,7 +1409,9 @@ export default class WarpGraph {
       });
 
       req.on('end', async () => {
-        if (aborted) return;
+        if (aborted) {
+          return;
+        }
         let request;
         try {
           request = body ? JSON.parse(body) : null;
@@ -1418,8 +1452,11 @@ export default class WarpGraph {
       url,
       close: () => new Promise((resolve, reject) => {
         server.close((err) => {
-          if (err) reject(err);
-          else resolve();
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
         });
       }),
     };
