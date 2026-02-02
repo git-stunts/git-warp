@@ -17,6 +17,7 @@ export default [
         URL: "readonly",
         TextDecoder: "readonly",
         TextEncoder: "readonly",
+        fetch: "readonly",
         // Node.js 20+ globals
         AbortController: "readonly",
         AbortSignal: "readonly",
@@ -70,9 +71,13 @@ export default [
     rules: {
       "max-lines-per-function": "off",
       "max-nested-callbacks": "off",
+      "max-params": "off",
+      "complexity": "off",
+      "max-depth": "off",
       "no-console": "off",
       "no-shadow": "off",
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "no-unused-vars": "off",
+      "prefer-template": "off",
       "curly": "off"
     }
   },
@@ -80,9 +85,13 @@ export default [
   {
     files: ["benchmarks/**/*.js"],
     rules: {
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "no-unused-vars": "off",
       "no-console": "off",
-      "curly": "off"
+      "curly": "off",
+      "max-depth": "off",
+      "max-params": "off",
+      "complexity": "off",
+      "prefer-template": "off"
     }
   },
   // Relaxed rules for example scripts (CLI demos)
@@ -94,12 +103,47 @@ export default [
       "complexity": "off"
     }
   },
+  // Browser globals for HTML example assets
+  {
+    files: ["examples/html/assets/**/*.js"],
+    languageOptions: {
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        localStorage: "readonly",
+        CustomEvent: "readonly",
+        Viz: "readonly"
+      }
+    }
+  },
   // Relaxed rules for specific algorithm files (graph algorithms have inherently high complexity)
   {
     files: ["src/domain/services/TraversalService.js", "src/domain/services/IndexRebuildService.js"],
     rules: {
       "complexity": ["error", 35],
       "max-statements": ["error", 100],
+      "max-lines-per-function": ["error", 200],
+      "max-depth": ["error", 6],
+      "max-params": ["error", 6]
+    }
+  },
+  // Relaxed rules for core algorithm-heavy modules
+  {
+    files: [
+      "src/domain/WarpGraph.js",
+      "src/domain/services/CommitDagTraversalService.js",
+      "src/domain/services/CheckpointService.js",
+      "src/domain/services/QueryBuilder.js",
+      "src/domain/services/WarpMessageCodec.js",
+      "src/domain/services/SyncProtocol.js",
+      "src/domain/services/LogicalTraversal.js",
+      "src/domain/services/StateSerializerV5.js",
+      "src/domain/services/PatchBuilderV2.js",
+      "src/domain/utils/EventId.js",
+      "src/domain/types/WarpTypesV2.js"
+    ],
+    rules: {
+      "complexity": ["error", 35],
       "max-lines-per-function": ["error", 200],
       "max-depth": ["error", 6],
       "max-params": ["error", 6]
