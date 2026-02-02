@@ -2,8 +2,8 @@
  * Creates a v5 checkpoint from v4 visible projection.
  * This is the migration boundary.
  */
-import { createEmptyStateV5, encodePropKey } from './JoinReducer.js';
-import { createORSet, orsetAdd } from '../crdt/ORSet.js';
+import { createEmptyStateV5 } from './JoinReducer.js';
+import { orsetAdd } from '../crdt/ORSet.js';
 import { createVersionVector, vvIncrement } from '../crdt/VersionVector.js';
 
 export function migrateV4toV5(v4State, migrationWriterId) {
