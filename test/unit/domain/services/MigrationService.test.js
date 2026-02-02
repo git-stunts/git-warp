@@ -123,7 +123,6 @@ function reduce(patches) {
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import { orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwSet, lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import {
