@@ -35,7 +35,9 @@ function assertPredicate(fn) {
 }
 
 function assertLabel(label) {
-  if (label === undefined) return;
+  if (label === undefined) {
+    return;
+  }
   if (typeof label !== 'string') {
     throw new QueryError('label must be a string', {
       code: 'E_QUERY_LABEL_TYPE',
@@ -53,7 +55,9 @@ function escapeRegex(value) {
 }
 
 function matchesPattern(nodeId, pattern) {
-  if (pattern === DEFAULT_PATTERN) return true;
+  if (pattern === DEFAULT_PATTERN) {
+    return true;
+  }
   if (pattern.includes('*')) {
     const regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, '.*')}$`);
     return regex.test(nodeId);
@@ -111,7 +115,9 @@ function buildEdgesSnapshot(edges, directionKey) {
     [directionKey]: edge.neighborId ?? edge[directionKey],
   }));
   list.sort((a, b) => {
-    if (a.label !== b.label) return a.label < b.label ? -1 : 1;
+    if (a.label !== b.label) {
+      return a.label < b.label ? -1 : 1;
+    }
     const aPeer = a[directionKey];
     const bPeer = b[directionKey];
     return aPeer < bPeer ? -1 : aPeer > bPeer ? 1 : 0;
