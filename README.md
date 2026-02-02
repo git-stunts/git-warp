@@ -224,6 +224,14 @@ await server.close();
 
 Clients should POST a `sync-request` JSON payload (use `graph.createSyncRequest()` on the caller).
 
+```javascript
+// Sync with a remote HTTP peer (uses /sync by default)
+await graph.syncWith('http://127.0.0.1:8080');
+
+// Sync directly with another graph instance
+await graph.syncWith(otherGraph);
+```
+
 ## Choosing a Mode
 
 ### Beginner (Recommended)

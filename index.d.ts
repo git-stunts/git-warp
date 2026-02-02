@@ -765,6 +765,20 @@ export class QueryError extends Error {
 }
 
 /**
+ * Error class for sync transport operations.
+ */
+export class SyncError extends Error {
+  readonly name: 'SyncError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
  * Base error class for bitmap index operations.
  */
 export class IndexError extends Error {
@@ -910,4 +924,22 @@ export default class WarpGraph {
     path?: string;
     maxRequestBytes?: number;
   }): Promise<{ close(): Promise<void>; url: string }>;
+
+  /**
+   * Syncs with a remote peer (HTTP URL or another WarpGraph instance).
+   */
+  syncWith(remote: string | WarpGraph, options?: {
+    path?: string;
+    retries?: number;
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+    timeoutMs?: number;
+    onStatus?: (event: {
+      type: string;
+      attempt: number;
+      durationMs?: number;
+      status?: number;
+      error?: Error;
+    }) => void;
+  }): Promise<{ applied: number; attempts: number }>;
 }

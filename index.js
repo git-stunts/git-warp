@@ -26,6 +26,7 @@ import {
   StorageError,
   TraversalError,
   OperationAbortedError,
+  SyncError,
 } from './src/domain/errors/index.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 

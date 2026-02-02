@@ -32,8 +32,13 @@ import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
+import SyncError from './errors/SyncError.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
+const DEFAULT_SYNC_WITH_RETRIES = 3;
+const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
+const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
+const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
 
 function canonicalizeJson(value) {
   if (Array.isArray(value)) {
@@ -51,6 +56,21 @@ function canonicalizeJson(value) {
 
 function canonicalStringify(value) {
   return JSON.stringify(canonicalizeJson(value));
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function computeBackoff(attempt, baseDelayMs, maxDelayMs) {
+  const exp = baseDelayMs * (2 ** Math.max(0, attempt - 1));
+  const jitter = exp * (0.5 + Math.random() * 0.5);
+  return Math.min(maxDelayMs, Math.max(0, Math.floor(jitter)));
+}
+
+function normalizeSyncPath(path) {
+  if (!path) return '/sync';
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
@@ -1076,6 +1096,177 @@ export default class WarpGraph {
   async syncNeeded(remoteFrontier) {
     const localFrontier = await this.getFrontier();
     return syncNeeded(localFrontier, remoteFrontier);
+  }
+
+  /**
+   * Syncs with a remote peer (HTTP or direct graph instance).
+   *
+   * @param {string|WarpGraph} remote - URL or peer graph instance
+   * @param {Object} [options]
+   * @param {string} [options.path='/sync'] - Sync path (HTTP mode)
+   * @param {number} [options.retries=3] - Retry count for retryable failures
+   * @param {number} [options.baseDelayMs=250] - Base backoff delay
+   * @param {number} [options.maxDelayMs=2000] - Max backoff delay
+   * @param {number} [options.timeoutMs=10000] - Request timeout (HTTP mode)
+   * @param {(event: {type: string, attempt: number, durationMs?: number, status?: number, error?: Error}) => void} [options.onStatus]
+   * @returns {Promise<{applied: number, attempts: number}>}
+   */
+  async syncWith(remote, options = {}) {
+    const {
+      path = '/sync',
+      retries = DEFAULT_SYNC_WITH_RETRIES,
+      baseDelayMs = DEFAULT_SYNC_WITH_BASE_DELAY_MS,
+      maxDelayMs = DEFAULT_SYNC_WITH_MAX_DELAY_MS,
+      timeoutMs = DEFAULT_SYNC_WITH_TIMEOUT_MS,
+      onStatus,
+    } = options;
+
+    const hasPathOverride = Object.prototype.hasOwnProperty.call(options, 'path');
+
+    const emit = (type, payload = {}) => {
+      if (typeof onStatus === 'function') {
+        onStatus({ type, attempt, ...payload });
+      }
+    };
+
+    const isDirectPeer = remote && typeof remote === 'object' &&
+      typeof remote.processSyncRequest === 'function';
+
+    let targetUrl = null;
+    if (!isDirectPeer) {
+      try {
+        targetUrl = remote instanceof URL ? new URL(remote.toString()) : new URL(remote);
+      } catch (err) {
+        throw new SyncError('Invalid remote URL', {
+          code: 'E_SYNC_REMOTE_URL',
+          context: { remote: String(remote) },
+        });
+      }
+
+      if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+        throw new SyncError('Unsupported remote URL protocol', {
+          code: 'E_SYNC_REMOTE_URL',
+          context: { protocol: targetUrl.protocol },
+        });
+      }
+
+      const normalizedPath = normalizeSyncPath(path);
+      if (!targetUrl.pathname || targetUrl.pathname === '/') {
+        targetUrl.pathname = normalizedPath;
+      } else if (hasPathOverride) {
+        targetUrl.pathname = normalizedPath;
+      }
+      targetUrl.hash = '';
+    }
+
+    const maxAttempts = Math.max(1, retries + 1);
+    let attempt = 0;
+    let lastError = null;
+
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      const attemptStart = Date.now();
+      emit('connecting');
+
+      try {
+        const request = await this.createSyncRequest();
+        emit('requestBuilt');
+
+        let response;
+        if (isDirectPeer) {
+          emit('requestSent');
+          response = await remote.processSyncRequest(request);
+          emit('responseReceived');
+        } else {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            emit('requestSent');
+            const res = await fetch(targetUrl.toString(), {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+                'accept': 'application/json',
+              },
+              body: JSON.stringify(request),
+              signal: controller.signal,
+            });
+
+            emit('responseReceived', { status: res.status });
+
+            if (res.status >= 500) {
+              throw new SyncError(`Remote error: ${res.status}`, {
+                code: 'E_SYNC_REMOTE',
+                context: { status: res.status },
+              });
+            }
+
+            if (res.status >= 400) {
+              throw new SyncError(`Protocol error: ${res.status}`, {
+                code: 'E_SYNC_PROTOCOL',
+                context: { status: res.status },
+              });
+            }
+
+            try {
+              response = await res.json();
+            } catch (err) {
+              throw new SyncError('Invalid JSON response', {
+                code: 'E_SYNC_PROTOCOL',
+                context: { status: res.status },
+              });
+            }
+          } catch (err) {
+            if (err?.name === 'AbortError') {
+              throw new SyncError('Sync request timed out', {
+                code: 'E_SYNC_TIMEOUT',
+              });
+            }
+            throw err;
+          } finally {
+            clearTimeout(timeout);
+          }
+        }
+
+        if (!this._cachedState) {
+          await this.materialize();
+          emit('materialized');
+        }
+
+        if (!response || typeof response !== 'object' ||
+          response.type !== 'sync-response' ||
+          !response.frontier || typeof response.frontier !== 'object' || Array.isArray(response.frontier) ||
+          !Array.isArray(response.patches)) {
+          throw new SyncError('Invalid sync response', {
+            code: 'E_SYNC_PROTOCOL',
+          });
+        }
+
+        const result = this.applySyncResponse(response);
+        emit('applied', { applied: result.applied });
+
+        const durationMs = Date.now() - attemptStart;
+        emit('complete', { durationMs, applied: result.applied });
+        return { applied: result.applied, attempts: attempt };
+      } catch (err) {
+        lastError = err;
+        const durationMs = Date.now() - attemptStart;
+
+        const code = err?.code || '';
+        const retryable = code === 'E_SYNC_REMOTE' || code === 'E_SYNC_TIMEOUT' || (!code && !isDirectPeer);
+
+        if (!retryable || attempt >= maxAttempts) {
+          emit('failed', { durationMs, error: err });
+          throw err;
+        }
+
+        const delay = computeBackoff(attempt, baseDelayMs, maxDelayMs);
+        emit('retrying', { durationMs, error: err, delayMs: delay });
+        await sleep(delay);
+      }
+    }
+
+    throw lastError || new SyncError('Sync failed', { code: 'E_SYNC_FAILED' });
   }
 
   /**

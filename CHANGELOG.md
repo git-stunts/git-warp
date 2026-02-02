@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker bats CLI test** coverage for `git warp` commands
 - **Pre-push hook** - runs Docker bats CLI suite
 - **`graph.serve()`** - one-line HTTP sync transport for multi-writer graphs
+- **`graph.syncWith()`** - sync with HTTP peer or direct graph instance
 
 #### Query API (V7 Task 7)
 - **`graph.hasNode(nodeId)`** - Check if node exists in materialized state
