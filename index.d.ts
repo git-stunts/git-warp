@@ -185,6 +185,30 @@ export class QueryBuilder {
 }
 
 /**
+ * Logical graph traversal module.
+ */
+export interface LogicalTraversal {
+  bfs(start: string, options?: {
+    maxDepth?: number;
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+  }): Promise<string[]>;
+  dfs(start: string, options?: {
+    maxDepth?: number;
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+  }): Promise<string[]>;
+  shortestPath(from: string, to: string, options?: {
+    maxDepth?: number;
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+  }): Promise<{ found: boolean; path: string[]; length: number }>;
+  connectedComponent(start: string, options?: {
+    labelFilter?: string | string[];
+  }): Promise<string[]>;
+}
+
+/**
  * Options for BFS/DFS traversal.
  */
 export interface TraversalOptions {
@@ -850,6 +874,11 @@ export default class WarpGraph {
    * Creates a new patch for adding operations.
    */
   createPatch(): unknown;
+
+  /**
+   * Logical graph traversal helpers.
+   */
+  traverse: LogicalTraversal;
 
   /**
    * Creates a fluent query builder for the logical graph.

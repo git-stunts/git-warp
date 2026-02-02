@@ -29,6 +29,7 @@ import {
 import { Writer } from './warp/Writer.js';
 import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
+import LogicalTraversal from './services/LogicalTraversal.js';
 
 /**
  * WarpGraph class for interacting with a WARP multi-writer graph.
@@ -66,6 +67,9 @@ export default class WarpGraph {
 
     /** @type {number} */
     this._patchesSinceGC = 0;
+
+    /** @type {LogicalTraversal} */
+    this.traverse = new LogicalTraversal(this);
   }
 
   /**

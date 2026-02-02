@@ -40,13 +40,13 @@
 ## Milestone 2 — Built-in Graph Traversal
 
 ### M2.1 graph.traverse module
-- [ ] Implement bfs, dfs, shortestPath (unweighted), connectedComponent
-- [ ] dir enum: 'out' | 'in' | 'both'
-- [ ] labelFilter: string | string[]
-- [ ] labelFilter semantics: array = OR; empty array = none; undefined = all
-- [ ] Deterministic neighbor expansion order: (neighborId, label)
-- [ ] Deterministic shortestPath tie-break via canonical order
-- [ ] Tests: visit order, tie-break stability, labelFilter semantics
+- [x] Implement bfs, dfs, shortestPath (unweighted), connectedComponent
+- [x] dir enum: 'out' | 'in' | 'both'
+- [x] labelFilter: string | string[]
+- [x] labelFilter semantics: array = OR; empty array = none; undefined = all
+- [x] Deterministic neighbor expansion order: (neighborId, label)
+- [x] Deterministic shortestPath tie-break via canonical order
+- [x] Tests: visit order, tie-break stability, labelFilter semantics
 
 ### M2.2 Shared adjacency cache (materialized state owned)
 - [ ] Materialize returns/stores MaterializedGraph with adjacency + stateHash
