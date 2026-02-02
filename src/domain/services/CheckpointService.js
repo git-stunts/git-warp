@@ -182,12 +182,7 @@ export async function loadCheckpoint(persistence, checkpointSha) {
     );
   }
 
-  // 3. Get commit info to extract tree OID
-  const commitInfo = await persistence.getNodeInfo(checkpointSha);
-
-  // The tree is attached to the commit - we need to parse the commit
-  // Since getNodeInfo doesn't give us tree OID, we read the tree entries
-  // via the indexOid from the message (which points to the tree)
+  // 3. Read tree entries via the indexOid from the message (points to the tree)
   const treeOids = await persistence.readTreeOids(decoded.indexOid);
 
   // 4. Read frontier.cbor blob
@@ -246,7 +241,13 @@ export async function loadCheckpoint(persistence, checkpointSha) {
  * @param {Function} options.patchLoader - Async function to load patches: (writerId, fromSha, toSha) => Array<{patch, sha}>
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5>} The materialized V5 state at targetFrontier
  */
-export async function materializeIncremental({ persistence, graphName, checkpointSha, targetFrontier, patchLoader }) {
+export async function materializeIncremental({
+  persistence,
+  graphName: _graphName,
+  checkpointSha,
+  targetFrontier,
+  patchLoader,
+}) {
   // 1. Load checkpoint state and frontier (schema:2 returns full V5 state)
   const checkpoint = await loadCheckpoint(persistence, checkpointSha);
   const checkpointFrontier = checkpoint.frontier;
