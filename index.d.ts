@@ -934,6 +934,7 @@ export default class WarpGraph {
     baseDelayMs?: number;
     maxDelayMs?: number;
     timeoutMs?: number;
+    signal?: AbortSignal;
     onStatus?: (event: {
       type: string;
       attempt: number;

@@ -27,12 +27,15 @@ import {
   applySyncResponse,
   syncNeeded,
 } from './services/SyncProtocol.js';
+import { retry, timeout, RetryExhaustedError, TimeoutError } from '@git-stunts/alfred';
 import { Writer } from './warp/Writer.js';
 import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
 import SyncError from './errors/SyncError.js';
+import { checkAborted } from './utils/cancellation.js';
+import OperationAbortedError from './errors/OperationAbortedError.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
@@ -56,16 +59,6 @@ function canonicalizeJson(value) {
 
 function canonicalStringify(value) {
   return JSON.stringify(canonicalizeJson(value));
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function computeBackoff(attempt, baseDelayMs, maxDelayMs) {
-  const exp = baseDelayMs * (2 ** Math.max(0, attempt - 1));
-  const jitter = exp * (0.5 + Math.random() * 0.5);
-  return Math.min(maxDelayMs, Math.max(0, Math.floor(jitter)));
 }
 
 function normalizeSyncPath(path) {
@@ -1108,6 +1101,7 @@ export default class WarpGraph {
    * @param {number} [options.baseDelayMs=250] - Base backoff delay
    * @param {number} [options.maxDelayMs=2000] - Max backoff delay
    * @param {number} [options.timeoutMs=10000] - Request timeout (HTTP mode)
+   * @param {AbortSignal} [options.signal] - Optional abort signal to cancel sync
    * @param {(event: {type: string, attempt: number, durationMs?: number, status?: number, error?: Error}) => void} [options.onStatus]
    * @returns {Promise<{applied: number, attempts: number}>}
    */
@@ -1118,16 +1112,11 @@ export default class WarpGraph {
       baseDelayMs = DEFAULT_SYNC_WITH_BASE_DELAY_MS,
       maxDelayMs = DEFAULT_SYNC_WITH_MAX_DELAY_MS,
       timeoutMs = DEFAULT_SYNC_WITH_TIMEOUT_MS,
+      signal,
       onStatus,
     } = options;
 
     const hasPathOverride = Object.prototype.hasOwnProperty.call(options, 'path');
-
-    const emit = (type, payload = {}) => {
-      if (typeof onStatus === 'function') {
-        onStatus({ type, attempt, ...payload });
-      }
-    };
 
     const isDirectPeer = remote && typeof remote === 'object' &&
       typeof remote.processSyncRequest === 'function';
@@ -1159,114 +1148,157 @@ export default class WarpGraph {
       targetUrl.hash = '';
     }
 
-    const maxAttempts = Math.max(1, retries + 1);
     let attempt = 0;
-    let lastError = null;
+    const emit = (type, payload = {}) => {
+      if (typeof onStatus === 'function') {
+        onStatus({ type, attempt, ...payload });
+      }
+    };
 
-    while (attempt < maxAttempts) {
+    const shouldRetry = (err) => {
+      if (isDirectPeer) {
+        return false;
+      }
+      if (err instanceof SyncError) {
+        return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
+      }
+      if (err instanceof TimeoutError) {
+        return true;
+      }
+      return false;
+    };
+
+    const executeAttempt = async () => {
+      checkAborted(signal, 'syncWith');
       attempt += 1;
       const attemptStart = Date.now();
       emit('connecting');
 
-      try {
-        const request = await this.createSyncRequest();
-        emit('requestBuilt');
+      const request = await this.createSyncRequest();
+      emit('requestBuilt');
 
-        let response;
-        if (isDirectPeer) {
-          emit('requestSent');
-          response = await remote.processSyncRequest(request);
-          emit('responseReceived');
-        } else {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), timeoutMs);
-          try {
-            emit('requestSent');
-            const res = await fetch(targetUrl.toString(), {
+      let response;
+      if (isDirectPeer) {
+        emit('requestSent');
+        response = await remote.processSyncRequest(request);
+        emit('responseReceived');
+      } else {
+        emit('requestSent');
+        let res;
+        try {
+          res = await timeout(timeoutMs, (timeoutSignal) => {
+            const combinedSignal = signal
+              ? AbortSignal.any([timeoutSignal, signal])
+              : timeoutSignal;
+            return fetch(targetUrl.toString(), {
               method: 'POST',
               headers: {
                 'content-type': 'application/json',
                 'accept': 'application/json',
               },
               body: JSON.stringify(request),
-              signal: controller.signal,
+              signal: combinedSignal,
             });
-
-            emit('responseReceived', { status: res.status });
-
-            if (res.status >= 500) {
-              throw new SyncError(`Remote error: ${res.status}`, {
-                code: 'E_SYNC_REMOTE',
-                context: { status: res.status },
-              });
-            }
-
-            if (res.status >= 400) {
-              throw new SyncError(`Protocol error: ${res.status}`, {
-                code: 'E_SYNC_PROTOCOL',
-                context: { status: res.status },
-              });
-            }
-
-            try {
-              response = await res.json();
-            } catch (err) {
-              throw new SyncError('Invalid JSON response', {
-                code: 'E_SYNC_PROTOCOL',
-                context: { status: res.status },
-              });
-            }
-          } catch (err) {
-            if (err?.name === 'AbortError') {
-              throw new SyncError('Sync request timed out', {
-                code: 'E_SYNC_TIMEOUT',
-              });
-            }
-            throw err;
-          } finally {
-            clearTimeout(timeout);
+          });
+        } catch (err) {
+          if (err?.name === 'AbortError') {
+            throw new OperationAbortedError('syncWith', { reason: 'Signal received' });
           }
-        }
-
-        if (!this._cachedState) {
-          await this.materialize();
-          emit('materialized');
-        }
-
-        if (!response || typeof response !== 'object' ||
-          response.type !== 'sync-response' ||
-          !response.frontier || typeof response.frontier !== 'object' || Array.isArray(response.frontier) ||
-          !Array.isArray(response.patches)) {
-          throw new SyncError('Invalid sync response', {
-            code: 'E_SYNC_PROTOCOL',
+          if (err instanceof TimeoutError) {
+            throw new SyncError('Sync request timed out', {
+              code: 'E_SYNC_TIMEOUT',
+              context: { timeoutMs },
+            });
+          }
+          throw new SyncError('Network error', {
+            code: 'E_SYNC_NETWORK',
+            context: { message: err?.message },
           });
         }
 
-        const result = this.applySyncResponse(response);
-        emit('applied', { applied: result.applied });
+        emit('responseReceived', { status: res.status });
 
-        const durationMs = Date.now() - attemptStart;
-        emit('complete', { durationMs, applied: result.applied });
-        return { applied: result.applied, attempts: attempt };
-      } catch (err) {
-        lastError = err;
-        const durationMs = Date.now() - attemptStart;
-
-        const code = err?.code || '';
-        const retryable = code === 'E_SYNC_REMOTE' || code === 'E_SYNC_TIMEOUT' || (!code && !isDirectPeer);
-
-        if (!retryable || attempt >= maxAttempts) {
-          emit('failed', { durationMs, error: err });
-          throw err;
+        if (res.status >= 500) {
+          throw new SyncError(`Remote error: ${res.status}`, {
+            code: 'E_SYNC_REMOTE',
+            context: { status: res.status },
+          });
         }
 
-        const delay = computeBackoff(attempt, baseDelayMs, maxDelayMs);
-        emit('retrying', { durationMs, error: err, delayMs: delay });
-        await sleep(delay);
-      }
-    }
+        if (res.status >= 400) {
+          throw new SyncError(`Protocol error: ${res.status}`, {
+            code: 'E_SYNC_PROTOCOL',
+            context: { status: res.status },
+          });
+        }
 
-    throw lastError || new SyncError('Sync failed', { code: 'E_SYNC_FAILED' });
+        try {
+          response = await res.json();
+        } catch {
+          throw new SyncError('Invalid JSON response', {
+            code: 'E_SYNC_PROTOCOL',
+            context: { status: res.status },
+          });
+        }
+      }
+
+      if (!this._cachedState) {
+        await this.materialize();
+        emit('materialized');
+      }
+
+      if (!response || typeof response !== 'object' ||
+        response.type !== 'sync-response' ||
+        !response.frontier || typeof response.frontier !== 'object' || Array.isArray(response.frontier) ||
+        !Array.isArray(response.patches)) {
+        throw new SyncError('Invalid sync response', {
+          code: 'E_SYNC_PROTOCOL',
+        });
+      }
+
+      const result = this.applySyncResponse(response);
+      emit('applied', { applied: result.applied });
+
+      const durationMs = Date.now() - attemptStart;
+      emit('complete', { durationMs, applied: result.applied });
+      return { applied: result.applied, attempts: attempt };
+    };
+
+    try {
+      return await retry(executeAttempt, {
+        retries,
+        delay: baseDelayMs,
+        maxDelay: maxDelayMs,
+        backoff: 'exponential',
+        jitter: 'decorrelated',
+        signal,
+        shouldRetry,
+        onRetry: (error, attemptNumber, delayMs) => {
+          if (typeof onStatus === 'function') {
+            onStatus({ type: 'retrying', attempt: attemptNumber, delayMs, error });
+          }
+        },
+      });
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
+        if (typeof onStatus === 'function') {
+          onStatus({ type: 'failed', attempt, error: abortedError });
+        }
+        throw abortedError;
+      }
+      if (err instanceof RetryExhaustedError) {
+        const cause = err.cause || err;
+        if (typeof onStatus === 'function') {
+          onStatus({ type: 'failed', attempt: err.attempts, error: cause });
+        }
+        throw cause;
+      }
+      if (typeof onStatus === 'function') {
+        onStatus({ type: 'failed', attempt, error: err });
+      }
+      throw err;
+    }
   }
 
   /**
