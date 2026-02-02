@@ -12,6 +12,9 @@
       ]
     }
   },
+  "bin": {
+    "warp-graph": "bin/warp-graph.js"
+  },
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -61,6 +64,7 @@
     "vitest": "^2.1.8"
   },
   "files": [
+    "bin/warp-graph.js",
     "src",
     "index.js",
     "index.d.ts",

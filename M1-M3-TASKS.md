@@ -64,9 +64,9 @@
 ## Milestone 3 — CLI Tool (warp-graph)
 
 ### M3.1 CLI skeleton
-- [ ] CLI entrypoint + routing (info, query, path, history, check)
-- [ ] Flags: --repo, --json (all commands)
-- [ ] Exit codes: 0 ok, 1 usage/config, 2 not found/no path, 3 internal
+- [x] CLI entrypoint + routing (info, query, path, history, check)
+- [x] Flags: --repo, --json (all commands)
+- [x] Exit codes: 0 ok, 1 usage/config, 2 not found/no path, 3 internal
 
 ### M3.2 Reuse query + traversal
 - [ ] CLI query calls M1.1 builder
