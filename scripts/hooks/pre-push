@@ -15,5 +15,9 @@ fi
 
 echo "Running pre-push lint..."
 npm run lint
+echo "Running pre-push unit tests..."
+npm test
+echo "Running pre-push benchmarks..."
+npm run benchmark
 echo "Running pre-push git-warp CLI bats tests..."
 docker compose run --build --rm test bats test/bats/warp-graph-cli.bats
