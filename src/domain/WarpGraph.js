@@ -20,6 +20,7 @@ import { createVersionVector, vvClone, vvIncrement } from './crdt/VersionVector.
 import { DEFAULT_GC_POLICY, shouldRunGC, executeGC } from './services/GCPolicy.js';
 import { collectGCMetrics } from './services/GCMetrics.js';
 import { computeAppliedVV } from './services/CheckpointSerializerV5.js';
+import { computeStateHashV5 } from './services/StateSerializerV5.js';
 import {
   createSyncRequest,
   processSyncRequest,
@@ -30,6 +31,16 @@ import { Writer } from './warp/Writer.js';
 import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
+import LRUCache from './utils/LRUCache.js';
+
+const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
+
+/**
+ * @typedef {Object} MaterializedGraph
+ * @property {import('./services/JoinReducer.js').WarpStateV5} state
+ * @property {string} stateHash
+ * @property {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}} adjacency
+ */
 
 /**
  * WarpGraph class for interacting with a WARP multi-writer graph.
@@ -42,8 +53,9 @@ export default class WarpGraph {
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
    * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
+   * @param {number} [options.adjacencyCacheSize] - Max materialized adjacency cache entries
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {} }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -70,6 +82,12 @@ export default class WarpGraph {
 
     /** @type {LogicalTraversal} */
     this.traverse = new LogicalTraversal(this);
+
+    /** @type {MaterializedGraph|null} */
+    this._materializedGraph = null;
+
+    /** @type {import('./utils/LRUCache.js').default|null} */
+    this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
   }
 
   /**
@@ -90,7 +108,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {} }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -99,7 +117,7 @@ export default class WarpGraph {
       throw new Error('persistence is required');
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -252,6 +270,88 @@ export default class WarpGraph {
   }
 
   /**
+   * Builds a deterministic adjacency map for the logical graph.
+   * @param {import('./services/JoinReducer.js').WarpStateV5} state
+   * @returns {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}
+   * @private
+   */
+  _buildAdjacency(state) {
+    const outgoing = new Map();
+    const incoming = new Map();
+
+    for (const edgeKey of orsetElements(state.edgeAlive)) {
+      const { from, to, label } = decodeEdgeKey(edgeKey);
+
+      if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
+        continue;
+      }
+
+      if (!outgoing.has(from)) outgoing.set(from, []);
+      if (!incoming.has(to)) incoming.set(to, []);
+
+      outgoing.get(from).push({ neighborId: to, label });
+      incoming.get(to).push({ neighborId: from, label });
+    }
+
+    const sortNeighbors = (list) => {
+      list.sort((a, b) => {
+        if (a.neighborId !== b.neighborId) return a.neighborId < b.neighborId ? -1 : 1;
+        return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+      });
+    };
+
+    for (const list of outgoing.values()) {
+      sortNeighbors(list);
+    }
+
+    for (const list of incoming.values()) {
+      sortNeighbors(list);
+    }
+
+    return { outgoing, incoming };
+  }
+
+  /**
+   * Sets the cached state and materialized graph details.
+   * @param {import('./services/JoinReducer.js').WarpStateV5} state
+   * @returns {MaterializedGraph}
+   * @private
+   */
+  _setMaterializedState(state) {
+    this._cachedState = state;
+    this._versionVector = vvClone(state.observedFrontier);
+
+    const stateHash = computeStateHashV5(state);
+    let adjacency;
+
+    if (this._adjacencyCache) {
+      adjacency = this._adjacencyCache.get(stateHash);
+      if (!adjacency) {
+        adjacency = this._buildAdjacency(state);
+        this._adjacencyCache.set(stateHash, adjacency);
+      }
+    } else {
+      adjacency = this._buildAdjacency(state);
+    }
+
+    this._materializedGraph = { state, stateHash, adjacency };
+    return this._materializedGraph;
+  }
+
+  /**
+   * Materializes the graph and returns the materialized graph details.
+   * @returns {Promise<MaterializedGraph>}
+   * @private
+   */
+  async _materializeGraph() {
+    const state = await this.materialize();
+    if (!this._materializedGraph || this._materializedGraph.state !== state) {
+      this._setMaterializedState(state);
+    }
+    return this._materializedGraph;
+  }
+
+  /**
    * Materializes the current graph state.
    *
    * Discovers all writers, collects all patches from each writer's ref chain,
@@ -269,8 +369,7 @@ export default class WarpGraph {
     if (checkpoint?.schema === 2) {
       const patches = await this._loadPatchesSince(checkpoint);
       const state = reduceV5(patches, checkpoint.state);
-      this._cachedState = state;
-      this._versionVector = vvClone(state.observedFrontier);
+      this._setMaterializedState(state);
       return state;
     }
 
@@ -280,8 +379,7 @@ export default class WarpGraph {
     // 2. If no writers, return empty state
     if (writerIds.length === 0) {
       const emptyState = createEmptyStateV5();
-      this._cachedState = emptyState;
-      this._versionVector = vvClone(emptyState.observedFrontier);
+      this._setMaterializedState(emptyState);
       return emptyState;
     }
 
@@ -295,15 +393,13 @@ export default class WarpGraph {
     // 4. If no patches, return empty state
     if (allPatches.length === 0) {
       const emptyState = createEmptyStateV5();
-      this._cachedState = emptyState;
-      this._versionVector = vvClone(emptyState.observedFrontier);
+      this._setMaterializedState(emptyState);
       return emptyState;
     }
 
     // 5. Reduce all patches to state
     const state = reduceV5(allPatches);
-    this._cachedState = state;
-    this._versionVector = vvClone(state.observedFrontier);
+    this._setMaterializedState(state);
     return state;
   }
 
@@ -460,13 +556,15 @@ export default class WarpGraph {
     };
 
     // 4. Call materializeIncremental with the checkpoint and target frontier
-    return materializeIncremental({
+    const state = await materializeIncremental({
       persistence: this._persistence,
       graphName: this._graphName,
       checkpointSha,
       targetFrontier,
       patchLoader,
     });
+    this._setMaterializedState(state);
+    return state;
   }
 
   /**

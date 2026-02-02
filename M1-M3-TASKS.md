@@ -49,10 +49,10 @@
 - [x] Tests: visit order, tie-break stability, labelFilter semantics
 
 ### M2.2 Shared adjacency cache (materialized state owned)
-- [ ] Materialize returns/stores MaterializedGraph with adjacency + stateHash
-- [ ] Query/traverse consume MaterializedGraph adjacency
-- [ ] Cache bounded (configurable cap)
-- [ ] Tests: reuse adjacency for same stateHash; eviction under cap
+- [x] Materialize returns/stores MaterializedGraph with adjacency + stateHash
+- [x] Query/traverse consume MaterializedGraph adjacency
+- [x] Cache bounded (configurable cap)
+- [x] Tests: reuse adjacency for same stateHash; eviction under cap
 
 ### M2.3 Naming cleanup: logical vs Git DAG
 - [ ] Rename Git DAG traversal to CommitDagTraversal*

@@ -4,7 +4,6 @@
  * Supports deterministic, multi-hop traversal over the logical graph.
  */
 
-import { computeStateHashV5 } from './StateSerializerV5.js';
 import QueryError from '../errors/QueryError.js';
 
 const DEFAULT_PATTERN = '*';
@@ -56,7 +55,7 @@ function escapeRegex(value) {
 function matchesPattern(nodeId, pattern) {
   if (pattern === DEFAULT_PATTERN) return true;
   if (pattern.includes('*')) {
-    const regex = new RegExp(`^${escapeRegex(pattern).replace(/\\*/g, '.*')}$`);
+    const regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, '.*')}$`);
     return regex.test(nodeId);
   }
   return nodeId === pattern;
@@ -109,8 +108,14 @@ function buildPropsSnapshot(propsMap) {
 function buildEdgesSnapshot(edges, directionKey) {
   const list = edges.map((edge) => ({
     label: edge.label,
-    [directionKey]: edge[directionKey],
+    [directionKey]: edge.neighborId ?? edge[directionKey],
   }));
+  list.sort((a, b) => {
+    if (a.label !== b.label) return a.label < b.label ? -1 : 1;
+    const aPeer = a[directionKey];
+    const bPeer = b[directionKey];
+    return aPeer < bPeer ? -1 : aPeer > bPeer ? 1 : 0;
+  });
   return deepFreeze(list);
 }
 
@@ -127,41 +132,6 @@ function createNodeSnapshot({ id, propsMap, edgesOut, edgesIn }) {
   });
 }
 
-function buildAdjacency(edges) {
-  const outgoing = new Map();
-  const incoming = new Map();
-
-  const sortedEdges = [...edges].sort((a, b) => {
-    if (a.from !== b.from) return a.from < b.from ? -1 : 1;
-    if (a.to !== b.to) return a.to < b.to ? -1 : 1;
-    return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
-  });
-
-  for (const edge of sortedEdges) {
-    if (!outgoing.has(edge.from)) outgoing.set(edge.from, []);
-    if (!incoming.has(edge.to)) incoming.set(edge.to, []);
-
-    outgoing.get(edge.from).push({ label: edge.label, to: edge.to });
-    incoming.get(edge.to).push({ label: edge.label, from: edge.from });
-  }
-
-  for (const list of outgoing.values()) {
-    list.sort((a, b) => {
-      if (a.label !== b.label) return a.label < b.label ? -1 : 1;
-      return a.to < b.to ? -1 : a.to > b.to ? 1 : 0;
-    });
-  }
-
-  for (const list of incoming.values()) {
-    list.sort((a, b) => {
-      if (a.label !== b.label) return a.label < b.label ? -1 : 1;
-      return a.from < b.from ? -1 : a.from > b.from ? 1 : 0;
-    });
-  }
-
-  return { outgoing, incoming };
-}
-
 function applyHop({ direction, label, workingSet, adjacency }) {
   const next = new Set();
   const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
@@ -173,7 +143,7 @@ function applyHop({ direction, label, workingSet, adjacency }) {
       if (labelFilter && edge.label !== labelFilter) {
         continue;
       }
-      next.add(direction === 'outgoing' ? edge.to : edge.from);
+      next.add(edge.neighborId);
     }
   }
 
@@ -263,12 +233,9 @@ export default class QueryBuilder {
    * @returns {Promise<{stateHash: string, nodes: string[]}>}
    */
   async run() {
-    const state = await this._graph.materialize();
-    const stateHash = computeStateHashV5(state);
-
+    const materialized = await this._graph._materializeGraph();
+    const { adjacency, stateHash } = materialized;
     const allNodes = sortIds(this._graph.getNodes());
-    const edges = this._graph.getEdges();
-    const adjacency = buildAdjacency(edges);
 
     const pattern = this._pattern ?? DEFAULT_PATTERN;
 

@@ -34,41 +34,6 @@ function normalizeLabelFilter(labelFilter) {
   });
 }
 
-function buildAdjacency(edges) {
-  const outgoing = new Map();
-  const incoming = new Map();
-
-  const sortedEdges = [...edges].sort((a, b) => {
-    if (a.from !== b.from) return a.from < b.from ? -1 : 1;
-    if (a.to !== b.to) return a.to < b.to ? -1 : 1;
-    return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
-  });
-
-  for (const edge of sortedEdges) {
-    if (!outgoing.has(edge.from)) outgoing.set(edge.from, []);
-    if (!incoming.has(edge.to)) incoming.set(edge.to, []);
-
-    outgoing.get(edge.from).push({ neighborId: edge.to, label: edge.label });
-    incoming.get(edge.to).push({ neighborId: edge.from, label: edge.label });
-  }
-
-  for (const list of outgoing.values()) {
-    list.sort((a, b) => {
-      if (a.neighborId !== b.neighborId) return a.neighborId < b.neighborId ? -1 : 1;
-      return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
-    });
-  }
-
-  for (const list of incoming.values()) {
-    list.sort((a, b) => {
-      if (a.neighborId !== b.neighborId) return a.neighborId < b.neighborId ? -1 : 1;
-      return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
-    });
-  }
-
-  return { outgoing, incoming };
-}
-
 function filterByLabel(neighbors, labelSet) {
   if (!labelSet) return neighbors;
   if (labelSet.size === 0) return [];
@@ -102,8 +67,8 @@ export default class LogicalTraversal {
     this._graph = graph;
   }
 
-  async _prepare(start, { direction, labelFilter, maxDepth }) {
-    await this._graph.materialize();
+  async _prepare(start, { dir, labelFilter, maxDepth }) {
+    const materialized = await this._graph._materializeGraph();
 
     if (!this._graph.hasNode(start)) {
       throw new TraversalError(`Start node not found: ${start}`, {
@@ -112,12 +77,12 @@ export default class LogicalTraversal {
       });
     }
 
-    const dir = assertDirection(direction);
+    const resolvedDir = assertDirection(dir);
     const labelSet = normalizeLabelFilter(labelFilter);
-    const adjacency = buildAdjacency(this._graph.getEdges());
+    const { adjacency } = materialized;
     const depthLimit = maxDepth ?? DEFAULT_MAX_DEPTH;
 
-    return { dir, labelSet, adjacency, depthLimit };
+    return { dir: resolvedDir, labelSet, adjacency, depthLimit };
   }
 
   /**

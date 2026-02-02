@@ -868,6 +868,7 @@ export default class WarpGraph {
     persistence: GraphPersistencePort;
     writerId?: string;
     logger?: LoggerPort;
+    adjacencyCacheSize?: number;
   }): Promise<WarpGraph>;
 
   /**
