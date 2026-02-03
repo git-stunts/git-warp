@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const modulePath = process.env.EMPTYGRAPH_MODULE || path.resolve(__dirname, '..', 'index.js');
+const modulePath = process.env.WARPGRAPH_MODULE || path.resolve(__dirname, '..', 'index.js');
 const resolvedModulePath = path.resolve(modulePath);
 const moduleUrl = pathToFileURL(resolvedModulePath).href;
 const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);

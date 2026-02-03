@@ -101,6 +101,7 @@ a:hover {
   align-items: center;
   flex: 1;
   min-width: 0;
+  width: clamp(320px, 70vw, 920px);
 }
 
 .masthead-logo svg,
@@ -112,10 +113,6 @@ a:hover {
 
 .masthead-logo svg {
   filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.25));
-}
-
-.masthead-logo {
-  width: clamp(320px, 70vw, 920px);
 }
 
 .theme-toggle-row {
@@ -154,6 +151,11 @@ a:hover {
 
 .theme-toggle:hover {
   transform: translateY(-2px);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent, #4f8cff);
+  outline-offset: 2px;
 }
 
 .theme-toggle-wrap {
@@ -224,6 +226,7 @@ a:hover {
 .theme-toggle-wrap:focus-within .theme-popover {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 .theme-popover-title {
@@ -281,6 +284,11 @@ a:hover {
   cursor: pointer;
   position: relative;
   z-index: 1001;
+}
+
+.menu-button:focus-visible {
+  outline: 2px solid var(--accent, #4f8cff);
+  outline-offset: 2px;
 }
 
 .menu-button span,

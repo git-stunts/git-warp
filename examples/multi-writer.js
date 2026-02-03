@@ -16,7 +16,7 @@
 
 import { execSync } from 'child_process';
 // Import from mounted volume in Docker, or local
-const modulePath = process.env.EMPTYGRAPH_MODULE || '../index.js';
+const modulePath = process.env.WARPGRAPH_MODULE || '../index.js';
 const { default: WarpGraph, GitGraphAdapter } = await import(modulePath);
 import Plumbing from '@git-stunts/plumbing';
 

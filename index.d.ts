@@ -180,7 +180,7 @@ export class QueryBuilder {
   where(fn: (node: QueryNodeSnapshot) => boolean): QueryBuilder;
   outgoing(label?: string): QueryBuilder;
   incoming(label?: string): QueryBuilder;
-  select(fields?: string[]): QueryBuilder;
+  select(fields?: Array<'id' | 'props'>): QueryBuilder;
   run(): Promise<QueryResultV1>;
 }
 
