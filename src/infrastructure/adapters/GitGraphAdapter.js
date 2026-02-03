@@ -35,6 +35,31 @@ const DEFAULT_RETRY_OPTIONS = {
   shouldRetry: isTransientError,
 };
 
+function parseShowRefOutput(output) {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const [oid] = trimmed.split(' ');
+  return oid || null;
+}
+
+function isMissingRefError(err) {
+  const code = err?.details?.code;
+  if (code === 1) {
+    return true;
+  }
+  const msg = (err?.message || '').toLowerCase();
+  const stderr = (err?.details?.stderr || '').toLowerCase();
+  const searchText = `${msg} ${stderr}`;
+  return (
+    searchText.includes('unknown revision') ||
+    searchText.includes('ambiguous argument') ||
+    searchText.includes('no such ref') ||
+    searchText.includes('bad revision')
+  );
+}
+
 /**
  * Implementation of GraphPersistencePort using GitPlumbing.
  */
@@ -288,29 +313,9 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       const output = await this._executeWithRetry({
         args: ['show-ref', '--verify', ref]
       });
-      const trimmed = output.trim();
-      if (!trimmed) {
-        return null;
-      }
-      const [oid] = trimmed.split(' ');
-      return oid || null;
+      return parseShowRefOutput(output);
     } catch (err) {
-      const code = err.details?.code;
-      if (code === 1) {
-        return null;
-      }
-      // Only return null for "ref not found" errors; rethrow others
-      // Check both err.message and err.details.stderr for error patterns
-      // (newer plumbing library stores stderr in details)
-      const msg = (err.message || '').toLowerCase();
-      const stderr = (err.details?.stderr || '').toLowerCase();
-      const searchText = `${msg} ${stderr}`;
-      const isNotFound =
-        searchText.includes('unknown revision') ||
-        searchText.includes('ambiguous argument') ||
-        searchText.includes('no such ref') ||
-        searchText.includes('bad revision');
-      if (isNotFound) {
+      if (isMissingRefError(err)) {
         return null;
       }
       throw err;
