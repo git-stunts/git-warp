@@ -35,31 +35,16 @@ const DEFAULT_RETRY_OPTIONS = {
   shouldRetry: isTransientError,
 };
 
-const MISSING_REF_PATTERNS = [
-  'unknown revision',
-  'ambiguous argument',
-  'no such ref',
-  'bad revision',
-];
-
-function parseShowRefOutput(output) {
-  const trimmed = output.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const [oid] = trimmed.split(' ');
-  return oid || null;
-}
-
-function isMissingRefError(err) {
-  const code = err?.details?.code;
-  if (code === 1) {
+async function refExists(execute, ref) {
+  try {
+    await execute({ args: ['show-ref', '--verify', '--quiet', ref] });
     return true;
+  } catch (err) {
+    if (err?.details?.code === 1) {
+      return false;
+    }
+    throw err;
   }
-  const msg = (err?.message || '').toLowerCase();
-  const stderr = (err?.details?.stderr || '').toLowerCase();
-  const searchText = `${msg} ${stderr}`;
-  return MISSING_REF_PATTERNS.some((pattern) => searchText.includes(pattern));
 }
 
 /**
@@ -311,17 +296,14 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async readRef(ref) {
     this._validateRef(ref);
-    try {
-      const output = await this._executeWithRetry({
-        args: ['show-ref', '--verify', ref]
-      });
-      return parseShowRefOutput(output);
-    } catch (err) {
-      if (isMissingRefError(err)) {
-        return null;
-      }
-      throw err;
+    const exists = await refExists(this._executeWithRetry.bind(this), ref);
+    if (!exists) {
+      return null;
     }
+    const oid = await this._executeWithRetry({
+      args: ['rev-parse', ref]
+    });
+    return oid.trim();
   }
 
   /**
