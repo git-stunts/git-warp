@@ -285,11 +285,20 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async readRef(ref) {
     this._validateRef(ref);
     try {
-      const oid = await this._executeWithRetry({
-        args: ['rev-parse', ref]
+      const output = await this._executeWithRetry({
+        args: ['show-ref', '--verify', ref]
       });
-      return oid.trim();
+      const trimmed = output.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const [oid] = trimmed.split(' ');
+      return oid || null;
     } catch (err) {
+      const code = err.details?.code;
+      if (code === 1) {
+        return null;
+      }
       // Only return null for "ref not found" errors; rethrow others
       // Check both err.message and err.details.stderr for error patterns
       // (newer plumbing library stores stderr in details)
