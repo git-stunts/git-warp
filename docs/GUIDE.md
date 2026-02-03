@@ -62,7 +62,7 @@ Each patch is stored as a Git commit with:
 
 Every operation gets an **EventId** for deterministic ordering:
 
-```
+```text
 EventId = (lamport, writerId, patchSha, opIndex)
 ```
 
@@ -275,7 +275,7 @@ Solution: Ensure tombstones have higher lamport than adds.
 
 WARP uses this Git ref structure:
 
-```
+```text
 refs/empty-graph/<graph>/
 ├── writers/
 │   ├── alice          # Alice's patch chain tip

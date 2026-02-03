@@ -885,15 +885,26 @@ export default class WarpGraph {
   static open(options: {
     graphName: string;
     persistence: GraphPersistencePort;
-    writerId?: string;
+    writerId: string;
     logger?: LoggerPort;
     adjacencyCacheSize?: number;
+    gcPolicy?: { type: string; [key: string]: unknown };
   }): Promise<WarpGraph>;
+
+  /**
+   * The graph namespace.
+   */
+  readonly graphName: string;
+
+  /**
+   * This writer's ID.
+   */
+  readonly writerId: string;
 
   /**
    * Creates a new patch for adding operations.
    */
-  createPatch(): unknown;
+  createPatch(): Promise<unknown>;
 
   /**
    * Returns patches from a writer's ref chain.
@@ -902,6 +913,45 @@ export default class WarpGraph {
     writerId: string,
     stopAtSha?: string | null
   ): Promise<Array<{ patch: unknown; sha: string }>>;
+
+  /**
+   * Gets all visible nodes in the materialized state.
+   */
+  getNodes(): string[];
+
+  /**
+   * Gets all visible edges in the materialized state.
+   */
+  getEdges(): Array<{ from: string; to: string; label: string }>;
+
+  /**
+   * Gets all properties for a node from the materialized state.
+   */
+  getNodeProps(nodeId: string): Map<string, unknown> | null;
+
+  /**
+   * Checks if a node exists in the materialized state.
+   */
+  hasNode(nodeId: string): boolean;
+
+  /**
+   * Gets neighbors of a node from the materialized state.
+   */
+  neighbors(
+    nodeId: string,
+    direction?: 'outgoing' | 'incoming' | 'both',
+    edgeLabel?: string,
+  ): Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+
+  /**
+   * Discovers all writers that have contributed to this graph.
+   */
+  discoverWriters(): Promise<string[]>;
+
+  /**
+   * Gets the current frontier (map of writerId to tip SHA).
+   */
+  getFrontier(): Promise<Map<string, string>>;
 
   /**
    * Logical graph traversal helpers.

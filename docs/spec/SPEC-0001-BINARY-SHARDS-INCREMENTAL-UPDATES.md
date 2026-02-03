@@ -1,6 +1,6 @@
 # Technical Specification: Binary Shards & Incremental Updates
 
-**Reference ADR:** [ADR 004](./docs/adr/proposed/ADR-004-BINARY-SHARDS-INCREMENTAL-UPDATES.md) 
+**Reference ADR:** [ADR 004](../adr/proposed/ADR-004-BINARY-SHARDS-INCREMENTAL-UPDATES.md) 
 **Status:** Implementation Ready  
 **Owner:** @flyingrobots  
 

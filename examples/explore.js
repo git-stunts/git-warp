@@ -7,10 +7,11 @@
 
 import { execSync } from 'child_process';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const modulePath = process.env.EMPTYGRAPH_MODULE || path.resolve(__dirname, '..', 'index.js');
 const resolvedModulePath = path.resolve(modulePath);
 const moduleUrl = pathToFileURL(resolvedModulePath).href;
 const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);

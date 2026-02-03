@@ -8,11 +8,12 @@
 
 import { execSync } from 'child_process';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import { buildAdjacency, computeDepths, dijkstra, aStar } from './pathfinding.js';
 
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const modulePath = process.env.EMPTYGRAPH_MODULE || path.resolve(__dirname, '..', 'index.js');
 const resolvedModulePath = path.resolve(modulePath);
 const moduleUrl = pathToFileURL(resolvedModulePath).href;
 const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
@@ -208,7 +209,9 @@ async function main() {
   console.log(`  Path length: ${dijkstraResult.path.length} nodes`);
   console.log(`  Total cost: ${dijkstraResult.totalCost.toFixed(4)}\n`);
 
-  const pathsIdentical = dijkstraResult.path.every((id, i) => id === uniformResult.path[i]);
+  const pathsIdentical =
+    dijkstraResult.path.length === uniformResult.path.length &&
+    dijkstraResult.path.every((id, i) => id === uniformResult.path[i]);
 
   if (pathsIdentical) {
     console.log('Note: Paths are identical for this graph and weighting.');

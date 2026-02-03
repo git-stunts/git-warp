@@ -18,10 +18,7 @@ RUN git init -q \
   && git config user.name "Empty Graph Container" \
   && git add -A \
   && git commit --allow-empty -m "seed empty-graph" >/dev/null
-RUN cat <<'EOF' > /usr/local/bin/warp-graph
-#!/usr/bin/env bash
-exec node /app/bin/warp-graph.js "$@"
-EOF
+RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph
 RUN chmod +x /usr/local/bin/warp-graph \
   && install -m 0755 /app/bin/git-warp /usr/local/bin/git-warp
 ENV GIT_STUNTS_DOCKER=1

@@ -414,7 +414,6 @@ a:hover {
   color: var(--muted);
   line-height: 1.7;
 }
-}
 
 .graph-grid {
   display: grid;

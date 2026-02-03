@@ -20,6 +20,6 @@ Ideas and enhancements not yet implemented.
 
 ## Ecosystem
 
-- [ ] CLI tool: `empty-graph init`, `empty-graph query`, etc.
+- [ ] CLI tool: `warp-graph init`, `warp-graph query`, etc.
 - [ ] GraphQL adapter
 - [ ] Cypher query language subset

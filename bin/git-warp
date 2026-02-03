@@ -16,4 +16,9 @@ if (existsSync(cliPath)) {
   result = spawnSync('warp-graph', args, { stdio: 'inherit' });
 }
 
+if (result.error) {
+  process.stderr.write(result.error.message + '\n');
+  process.exit(result.error.code || 1);
+}
+
 process.exit(result.status ?? 1);

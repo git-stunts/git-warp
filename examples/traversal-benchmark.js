@@ -11,11 +11,12 @@
 
 import { execSync } from 'child_process';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import { buildAdjacency, computeDepths, dijkstra, aStar } from './pathfinding.js';
 
-const modulePath = process.env.EMPTYGRAPH_MODULE || '/app/index.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const modulePath = process.env.EMPTYGRAPH_MODULE || path.resolve(__dirname, '..', 'index.js');
 const resolvedModulePath = path.resolve(modulePath);
 const moduleUrl = pathToFileURL(resolvedModulePath).href;
 const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
@@ -26,7 +27,8 @@ const { default: WarpGraph, GitGraphAdapter } = await import(moduleUrl);
 
 const GRAPH_SIZES = [100, 500, 1000, 2000, 5000];
 const ITERATIONS_PER_SIZE = 3;
-const NODES_PER_PATCH = parseInt(process.env.NODES_PER_PATCH || '250', 10);
+const parsedNodesPerPatch = parseInt(process.env.NODES_PER_PATCH || '250', 10);
+const NODES_PER_PATCH = Number.isFinite(parsedNodesPerPatch) && parsedNodesPerPatch > 0 ? parsedNodesPerPatch : 250;
 
 const runId = process.env.RUN_ID || Date.now().toString(36);
 const writerId = process.env.WRITER_ID || 'bench';

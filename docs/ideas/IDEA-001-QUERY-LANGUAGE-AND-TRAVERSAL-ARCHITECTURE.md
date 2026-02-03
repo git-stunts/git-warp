@@ -25,7 +25,7 @@ The `TraversalService.js` provides a high-performance foundation utilizing $O(1)
 |---|---|---|
 |**BFS / DFS**|Breadth/Depth-first with depth tracking|$O(V+E)$|
 |**Shortest Path**|Bidirectional BFS for optimized search|$O(b^{d/2})$|
-|**Dijkstra / A***|Weighted and heuristic-guided traversal|$O((V+E) \log V)$|
+|**Dijkstra / A\***|Weighted and heuristic-guided traversal|$O((V+E) \log V)$|
 |**Topological Sort**|Kahn’s algorithm with cycle detection|$O(V+E)$|
 
 ---

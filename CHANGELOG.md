@@ -43,8 +43,8 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
   - Documents how existing tests cover WARP contracts (write, materialize, convergence, determinism)
   - Confirms legacy tests deleted (not skipped)
   - Provides verification commands
- - Hook docs updated in README/CONTRIBUTING
- - Example imports clarified for external consumers
+- Hook docs updated in README/CONTRIBUTING
+- Example imports clarified for external consumers
 
 ### Tests
 - Added `test/unit/domain/WarpGraph.query.test.js` (21 tests) - Query API tests

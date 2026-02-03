@@ -1193,7 +1193,7 @@ EmptyGraph supports multi-writer convergent graphs via the WARP protocol. Multip
 ### Quick Start
 
 ```javascript
-import { EmptyGraph, GitGraphAdapter } from 'empty-graph';
+import { EmptyGraph, GitGraphAdapter } from '@git-stunts/empty-graph';
 import Plumbing from '@git-stunts/plumbing';
 
 // Setup
@@ -1404,7 +1404,7 @@ git commit --no-verify
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
-## License## License
+## License
 
 Apache-2.0 © 2026 by James Ross
 
