@@ -188,8 +188,8 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 | # | Codename | Version | Theme | Status |
 |---|----------|---------|-------|--------|
 | 1 | **AUTOPILOT** | v7.1.0 | Kill the Materialize Tax | Complete (merged, unreleased) |
-| 2 | **GROUNDSKEEPER** | v7.2.0 | Self-Managing Infrastructure | In progress |
-| 3 | **WEIGHTED** | v7.3.0 | Edge Properties | Planned |
+| 2 | **GROUNDSKEEPER** | v7.2.0 | Self-Managing Infrastructure | Complete (merged, unreleased) |
+| 3 | **WEIGHTED** | v7.3.0 | Edge Properties | Complete (merged, unreleased) |
 | 4 | **HANDSHAKE** | v7.4.0 | Multi-Writer Ergonomics | Planned |
 | 5 | **COMPASS** | v7.5.0 | Advanced Query Language | Planned |
 | 6 | **LIGHTHOUSE** | v7.6.0 | Observability | Planned |

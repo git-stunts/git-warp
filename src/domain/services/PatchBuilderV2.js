@@ -12,7 +12,7 @@
  */
 
 import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
-import { orsetGetDots } from '../crdt/ORSet.js';
+import { orsetGetDots, orsetContains } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
   createNodeRemoveV2,
@@ -70,6 +70,9 @@ export class PatchBuilderV2 {
 
     /** @type {import('../types/WarpTypesV2.js').OpV2[]} */
     this._ops = [];
+
+    /** @type {Set<string>} Edge keys added in this patch (for setEdgeProperty validation) */
+    this._edgesAdded = new Set();
   }
 
   /**
@@ -121,6 +124,7 @@ export class PatchBuilderV2 {
   addEdge(from, to, label) {
     const dot = vvIncrement(this._vv, this._writerId);
     this._ops.push(createEdgeAddV2(from, to, label, dot));
+    this._edgesAdded.add(encodeEdgeKey(from, to, label));
     return this;
   }
 
@@ -183,6 +187,15 @@ export class PatchBuilderV2 {
    * builder.setEdgeProperty('user:alice', 'user:bob', 'follows', 'since', '2025-01-01');
    */
   setEdgeProperty(from, to, label, key, value) {
+    // Validate edge exists in this patch or in current state
+    const ek = encodeEdgeKey(from, to, label);
+    if (!this._edgesAdded.has(ek)) {
+      const state = this._getCurrentState();
+      if (!state || !orsetContains(state.edgeAlive, ek)) {
+        throw new Error(`Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`);
+      }
+    }
+
     // Encode the edge identity as the "node" field with the \x01 prefix.
     // When JoinReducer processes: encodePropKey(op.node, op.key)
     //   = `\x01from\0to\0label` + `\0` + key

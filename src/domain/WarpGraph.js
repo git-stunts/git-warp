@@ -2000,7 +2000,8 @@ export default class WarpGraph {
     await this._ensureFreshState();
 
     // Pre-collect edge props into a lookup: "from\0to\0label" → {propKey: value}
-    // Filters out stale props whose eventId.lamport < the edge's birth lamport
+    // Filters out stale props using full EventId ordering via compareEventIds
+    // against the edge's birth EventId (clean-slate semantics on re-add)
     const edgePropsByKey = new Map();
     for (const [propKey, register] of this._cachedState.prop) {
       if (!isEdgePropKey(propKey)) {

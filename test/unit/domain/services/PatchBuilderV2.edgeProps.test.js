@@ -45,9 +45,9 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
 
     it('produces the canonical encodeEdgePropKey when run through encodePropKey', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'weight', 42);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 42);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       const mapKey = encodePropKey(op.node, op.key);
       const expected = encodeEdgePropKey('a', 'b', 'rel', 'weight');
       expect(mapKey).toBe(expected);
@@ -62,10 +62,11 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
 
       builder
+        .addEdge('a', 'b', 'rel')
         .setProperty('a', 'weight', 10)
         .setEdgeProperty('a', 'b', 'rel', 'weight', 99);
 
-      const [nodeOp, edgeOp] = builder.ops;
+      const [, nodeOp, edgeOp] = builder.ops;
 
       // Both are PropSet but with different node fields
       expect(nodeOp.type).toBe('PropSet');
@@ -139,50 +140,50 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
   describe('edge-case values', () => {
     it('handles empty string value', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'note', '');
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'note', '');
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toBe('');
     });
 
     it('handles numeric value', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'weight', 3.14);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 3.14);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toBe(3.14);
     });
 
     it('handles object value', () => {
       const builder = makeBuilder();
       const obj = { nested: true, count: 7 };
-      builder.setEdgeProperty('a', 'b', 'rel', 'meta', obj);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'meta', obj);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toEqual({ nested: true, count: 7 });
     });
 
     it('handles null value', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'deleted', null);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'deleted', null);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toBeNull();
     });
 
     it('handles boolean value', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'active', false);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'active', false);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toBe(false);
     });
 
     it('handles array value', () => {
       const builder = makeBuilder();
-      builder.setEdgeProperty('a', 'b', 'rel', 'tags', ['x', 'y']);
+      builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'tags', ['x', 'y']);
 
-      const op = builder.ops[0];
+      const op = builder.ops[1];
       expect(op.value).toEqual(['x', 'y']);
     });
   });
@@ -193,6 +194,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
   describe('chaining', () => {
     it('returns this for method chaining', () => {
       const builder = makeBuilder();
+      builder.addEdge('a', 'b', 'rel');
       const result = builder.setEdgeProperty('a', 'b', 'rel', 'k', 'v');
       expect(result).toBe(builder);
     });
@@ -206,11 +208,15 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const vv = createVersionVector();
       const builder = makeBuilder({ versionVector: vv });
 
+      builder.addEdge('a', 'b', 'rel');
+      // addEdge increments VV (creates a dot), capture the value after
+      const vvAfterEdge = builder.versionVector.get('w1');
+
       builder.setEdgeProperty('a', 'b', 'rel', 'k1', 'v1');
       builder.setEdgeProperty('a', 'b', 'rel', 'k2', 'v2');
 
-      // Props don't use dots, so VV should be untouched
-      expect(builder.versionVector.get('w1')).toBeUndefined();
+      // setEdgeProperty should NOT further increment VV
+      expect(builder.versionVector.get('w1')).toBe(vvAfterEdge);
     });
   });
 

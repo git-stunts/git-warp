@@ -78,7 +78,7 @@ export const EDGE_PROP_PREFIX = '\x01';
  * @returns {string}
  */
 export function encodeEdgePropKey(from, to, label, propKey) {
-  return `\x01${from}\0${to}\0${label}\0${propKey}`;
+  return `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}\0${propKey}`;
 }
 
 /**
@@ -97,7 +97,7 @@ export function decodeEdgePropKey(encoded) {
  * @returns {boolean}
  */
 export function isEdgePropKey(key) {
-  return key.charCodeAt(0) === 1;
+  return key[0] === EDGE_PROP_PREFIX;
 }
 
 /**

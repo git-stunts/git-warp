@@ -5,6 +5,7 @@ import {
   encodeEdgeKey,
   encodeEdgePropKey,
 } from '../../../src/domain/services/JoinReducer.js';
+import { compareEventIds } from '../../../src/domain/utils/EventId.js';
 import { orsetAdd, orsetRemove } from '../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.js';
 
@@ -28,10 +29,11 @@ function addNode(state, nodeId, writerId, counter) {
 function addEdge(state, from, to, label, writerId, counter, lamport) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot(writerId, counter));
-  // Record birth event (same as applyOpV2 does for EdgeAdd)
+  // Record birth event using full EventId comparison (same as applyOpV2)
+  const newEvent = { lamport, writerId, patchSha: 'aabbccdd', opIndex: 0 };
   const prev = state.edgeBirthEvent.get(edgeKey);
-  if (prev === undefined || lamport > prev.lamport) {
-    state.edgeBirthEvent.set(edgeKey, { lamport, writerId, patchSha: 'aabbccdd', opIndex: 0 });
+  if (!prev || compareEventIds(newEvent, prev) > 0) {
+    state.edgeBirthEvent.set(edgeKey, newEvent);
   }
 }
 
@@ -179,8 +181,10 @@ describe('WarpGraph edge property visibility (WT/VIS/1)', () => {
     // Edge is still alive because w2's dot is not tombstoned (OR-set add wins)
     const props = await graph.getEdgeProps('a', 'b', 'rel');
     expect(props).not.toBeNull();
-    // birthLamport is max(1, 1) = 1; prop has lamport 1 >= 1 → visible
-    expect(props).toEqual({ weight: 42 });
+    // Birth EventId is w2's (w2 > w1 lexicographically at same lamport).
+    // Prop was set by w1 at lamport 1, which compares < w2's birth EventId,
+    // so the prop is correctly filtered as stale.
+    expect(props).toEqual({});
   });
 
   it('concurrent add+props from two writers, one removes, re-adds -> clean slate for old props', async () => {
