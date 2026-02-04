@@ -8,6 +8,24 @@ import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { encode as cborEncode } from '../../infrastructure/codecs/CborCodec.js';
 
 /**
+ * Produces canonical JSON with lexicographically sorted keys at all levels.
+ * @param {*} value - Value to serialize
+ * @returns {string} Canonical JSON string
+ */
+function canonicalJson(value) {
+  return JSON.stringify(value, (_key, val) => {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const sorted = {};
+      for (const k of Object.keys(val).sort()) {
+        sorted[k] = val[k];
+      }
+      return sorted;
+    }
+    return val;
+  });
+}
+
+/**
  * Current shard format version.
  * @const {number}
  */
@@ -361,7 +379,7 @@ export default class StreamingBitmapIndexBuilder {
       const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
       const cborOid = await this.storage.writeBlob(Buffer.from(cborEncode(envelope)));
       flatEntries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
-      const jsonOid = await this.storage.writeBlob(Buffer.from(JSON.stringify(envelope)));
+      const jsonOid = await this.storage.writeBlob(Buffer.from(canonicalJson(envelope)));
       flatEntries.push(`100644 blob ${jsonOid}\tfrontier.json`);
     }
 

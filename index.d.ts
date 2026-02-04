@@ -504,7 +504,7 @@ export class BitmapIndexBuilder {
   addEdge(srcSha: string, tgtSha: string): void;
 
   /** Serializes the index to a tree structure of buffers */
-  serialize(): Record<string, Buffer>;
+  serialize(options?: { frontier?: Map<string, string> }): Record<string, Buffer>;
 }
 
 /**

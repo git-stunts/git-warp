@@ -70,6 +70,8 @@ export default class IndexRebuildService {
    *   Receives { processedNodes, currentMemoryBytes }.
    * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation support.
    *   When aborted, throws OperationAbortedError at the next loop boundary.
+   * @param {Map<string, string>} [options.frontier] - Frontier to persist alongside the rebuilt index.
+   *   Maps writer IDs to their tip SHAs; stored in the index tree for staleness detection.
    * @returns {Promise<string>} OID of the created tree containing the index
    * @throws {Error} If ref is invalid or limit is out of range
    *
@@ -252,6 +254,12 @@ export default class IndexRebuildService {
    * @param {boolean} [options.strict=true] - Enable strict integrity verification (fail-closed).
    *   When true, throws on any shard validation or corruption errors.
    *   When false, attempts graceful degradation.
+   * @param {Map<string, string>} [options.currentFrontier] - Frontier to compare for staleness.
+   *   Maps writer IDs to their current tip SHAs. When provided, triggers a staleness
+   *   check against the frontier stored in the index.
+   * @param {boolean} [options.autoRebuild=false] - Auto-rebuild when a stale index is detected.
+   *   Requires `rebuildRef` to be set.
+   * @param {string} [options.rebuildRef] - Git ref to rebuild from when `autoRebuild` is true.
    * @returns {Promise<BitmapIndexReader>} Configured reader ready for O(1) queries
    * @throws {Error} If treeOid is invalid or tree cannot be read
    * @throws {ShardValidationError} (strict mode) If shard structure validation fails

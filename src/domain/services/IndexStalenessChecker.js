@@ -5,6 +5,13 @@
 
 import { decode as cborDecode } from '../../infrastructure/codecs/CborCodec.js';
 
+/** @private */
+function validateEnvelope(envelope, label) {
+  if (!envelope || typeof envelope !== 'object' || !envelope.frontier || typeof envelope.frontier !== 'object') {
+    throw new Error(`invalid frontier envelope for ${label}`);
+  }
+}
+
 /**
  * Loads the frontier from an index tree's shard OIDs.
  *
@@ -17,6 +24,7 @@ export async function loadIndexFrontier(shardOids, storage) {
   if (cborOid) {
     const buffer = await storage.readBlob(cborOid);
     const envelope = cborDecode(buffer);
+    validateEnvelope(envelope, 'frontier.cbor');
     return new Map(Object.entries(envelope.frontier));
   }
 
@@ -24,6 +32,7 @@ export async function loadIndexFrontier(shardOids, storage) {
   if (jsonOid) {
     const buffer = await storage.readBlob(jsonOid);
     const envelope = JSON.parse(buffer.toString('utf-8'));
+    validateEnvelope(envelope, 'frontier.json');
     return new Map(Object.entries(envelope.frontier));
   }
 
