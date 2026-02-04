@@ -37,6 +37,7 @@ import SyncError from './errors/SyncError.js';
 import QueryError from './errors/QueryError.js';
 import { checkAborted } from './utils/cancellation.js';
 import OperationAbortedError from './errors/OperationAbortedError.js';
+import { compareEventIds } from './utils/EventId.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
@@ -1872,8 +1873,14 @@ export default class WarpGraph {
       return null;
     }
 
-    // Determine the birth lamport for clean-slate filtering
-    const birthLamport = this._cachedState.edgeBirthLamport?.get(edgeKey) ?? 0;
+    // Check node liveness for both endpoints
+    if (!orsetContains(this._cachedState.nodeAlive, from) ||
+        !orsetContains(this._cachedState.nodeAlive, to)) {
+      return null;
+    }
+
+    // Determine the birth EventId for clean-slate filtering
+    const birthEvent = this._cachedState.edgeBirthEvent?.get(edgeKey);
 
     // Collect all properties for this edge, filtering out stale props
     // (props set before the edge's most recent re-add)
@@ -1884,7 +1891,7 @@ export default class WarpGraph {
       }
       const decoded = decodeEdgePropKey(propKey);
       if (decoded.from === from && decoded.to === to && decoded.label === label) {
-        if (register.eventId && register.eventId.lamport < birthLamport) {
+        if (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0) {
           continue; // stale prop from before the edge's current incarnation
         }
         props[decoded.propKey] = register.value;
@@ -2003,8 +2010,8 @@ export default class WarpGraph {
       const ek = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
 
       // Clean-slate filter: skip props from before the edge's current incarnation
-      const birthLamport = this._cachedState.edgeBirthLamport?.get(ek) ?? 0;
-      if (register.eventId && register.eventId.lamport < birthLamport) {
+      const birthEvent = this._cachedState.edgeBirthEvent?.get(ek);
+      if (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0) {
         continue;
       }
 

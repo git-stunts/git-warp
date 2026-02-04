@@ -18,11 +18,12 @@ function addNode(state, nodeId, counter) {
 function addEdge(state, from, to, label, counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
+  state.edgeBirthEvent.set(edgeKey, { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 });
 }
 
 function addEdgeProp(state, from, to, label, key, value) {
   const propKey = encodeEdgePropKey(from, to, label, key);
-  state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
+  state.prop.set(propKey, { eventId: { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value });
 }
 
 describe('WarpGraph edge properties', () => {

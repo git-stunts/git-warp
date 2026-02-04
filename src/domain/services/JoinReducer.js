@@ -12,7 +12,7 @@
 import { createORSet, orsetAdd, orsetRemove, orsetJoin } from '../crdt/ORSet.js';
 import { createVersionVector, vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
-import { createEventId } from '../utils/EventId.js';
+import { createEventId, compareEventIds } from '../utils/EventId.js';
 
 /**
  * Encodes an EdgeKey to a string for Map storage.
@@ -74,6 +74,7 @@ export const EDGE_PROP_PREFIX = '\x01';
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @param {string} propKey - Property name
+ * @warning Fields must not contain the null character (\0) as it is used as the internal separator.
  * @returns {string}
  */
 export function encodeEdgePropKey(from, to, label, propKey) {
@@ -105,7 +106,7 @@ export function isEdgePropKey(key) {
  * @property {import('../crdt/ORSet.js').ORSet} edgeAlive - ORSet of alive edges
  * @property {Map<string, import('../crdt/LWW.js').LWWRegister>} prop - Properties with LWW
  * @property {import('../crdt/VersionVector.js').VersionVector} observedFrontier - Observed version vector
- * @property {Map<string, number>} edgeBirthLamport - EdgeKey → lamport of most recent EdgeAdd (for clean-slate prop visibility)
+ * @property {Map<string, import('../utils/EventId.js').EventId>} edgeBirthEvent - EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility)
  */
 
 /**
@@ -118,7 +119,7 @@ export function createEmptyStateV5() {
     edgeAlive: createORSet(),
     prop: new Map(),
     observedFrontier: createVersionVector(),
-    edgeBirthLamport: new Map(),
+    edgeBirthEvent: new Map(),
   };
 }
 
@@ -141,13 +142,13 @@ export function applyOpV2(state, op, eventId) {
     case 'EdgeAdd': {
       const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
       orsetAdd(state.edgeAlive, edgeKey, op.dot);
-      // Track the lamport at which this edge incarnation was born.
-      // On re-add after remove, the higher lamport replaces the old one,
+      // Track the EventId at which this edge incarnation was born.
+      // On re-add after remove, the greater EventId replaces the old one,
       // allowing the query layer to filter out stale properties.
-      if (state.edgeBirthLamport) {
-        const prevBirth = state.edgeBirthLamport.get(edgeKey);
-        if (prevBirth === undefined || eventId.lamport > prevBirth) {
-          state.edgeBirthLamport.set(edgeKey, eventId.lamport);
+      if (state.edgeBirthEvent) {
+        const prev = state.edgeBirthEvent.get(edgeKey);
+        if (!prev || compareEventIds(eventId, prev) > 0) {
+          state.edgeBirthEvent.set(edgeKey, eventId);
         }
       }
       break;
@@ -204,7 +205,7 @@ export function joinStates(a, b) {
     edgeAlive: orsetJoin(a.edgeAlive, b.edgeAlive),
     prop: mergeProps(a.prop, b.prop),
     observedFrontier: vvMerge(a.observedFrontier, b.observedFrontier),
-    edgeBirthLamport: mergeEdgeBirthLamport(a.edgeBirthLamport, b.edgeBirthLamport),
+    edgeBirthEvent: mergeEdgeBirthEvent(a.edgeBirthEvent, b.edgeBirthEvent),
   };
 }
 
@@ -227,19 +228,19 @@ function mergeProps(a, b) {
 }
 
 /**
- * Merges two edgeBirthLamport maps by taking the max lamport per key.
+ * Merges two edgeBirthEvent maps by taking the greater EventId per key.
  *
- * @param {Map<string, number>} a
- * @param {Map<string, number>} b
- * @returns {Map<string, number>}
+ * @param {Map<string, import('../utils/EventId.js').EventId>} a
+ * @param {Map<string, import('../utils/EventId.js').EventId>} b
+ * @returns {Map<string, import('../utils/EventId.js').EventId>}
  */
-function mergeEdgeBirthLamport(a, b) {
+function mergeEdgeBirthEvent(a, b) {
   const result = new Map(a || []);
   if (b) {
-    for (const [key, lamport] of b) {
+    for (const [key, eventId] of b) {
       const existing = result.get(key);
-      if (existing === undefined || lamport > existing) {
-        result.set(key, lamport);
+      if (!existing || compareEventIds(eventId, existing) > 0) {
+        result.set(key, eventId);
       }
     }
   }
@@ -273,6 +274,6 @@ export function cloneStateV5(state) {
     edgeAlive: orsetJoin(state.edgeAlive, createORSet()),
     prop: new Map(state.prop),
     observedFrontier: vvClone(state.observedFrontier),
-    edgeBirthLamport: new Map(state.edgeBirthLamport || []),
+    edgeBirthEvent: new Map(state.edgeBirthEvent || []),
   };
 }

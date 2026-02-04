@@ -199,8 +199,9 @@ export class PatchBuilderV2 {
    * @returns {import('../types/WarpTypesV2.js').PatchV2} The constructed patch
    */
   build() {
+    const schema = this._ops.some(op => op.type === 'PropSet' && op.node.charCodeAt(0) === 1) ? 3 : 2;
     return createPatchV2({
-      schema: 2,
+      schema,
       writer: this._writerId,
       lamport: this._lamport,
       context: this._vv,
@@ -259,8 +260,9 @@ export class PatchBuilderV2 {
     // Note: Dots were assigned using constructor lamport, but commit lamport may differ.
     // For now, we use the calculated lamport for the patch metadata.
     // The dots themselves are independent of patch lamport (they use VV counters).
+    const schema = this._ops.some(op => op.type === 'PropSet' && op.node.charCodeAt(0) === 1) ? 3 : 2;
     const patch = {
-      schema: 2,
+      schema,
       writer: this._writerId,
       lamport,
       context: vvSerialize(this._vv),
@@ -284,7 +286,7 @@ export class PatchBuilderV2 {
       writer: this._writerId,
       lamport,
       patchOid: patchBlobOid,
-      schema: 2,
+      schema,
     });
 
     // 8. Create commit with tree, linking to previous patch as parent if exists

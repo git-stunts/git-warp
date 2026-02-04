@@ -24,14 +24,14 @@ function addNode(state, nodeId, writerId, counter) {
   orsetAdd(state.nodeAlive, nodeId, createDot(writerId, counter));
 }
 
-/** Adds an edge to the ORSet and records its birth lamport. */
+/** Adds an edge to the ORSet and records its birth event. */
 function addEdge(state, from, to, label, writerId, counter, lamport) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot(writerId, counter));
-  // Record birth lamport (same as applyOpV2 does for EdgeAdd)
-  const prev = state.edgeBirthLamport.get(edgeKey);
-  if (prev === undefined || lamport > prev) {
-    state.edgeBirthLamport.set(edgeKey, lamport);
+  // Record birth event (same as applyOpV2 does for EdgeAdd)
+  const prev = state.edgeBirthEvent.get(edgeKey);
+  if (prev === undefined || lamport > prev.lamport) {
+    state.edgeBirthEvent.set(edgeKey, { lamport, writerId, patchSha: 'aabbccdd', opIndex: 0 });
   }
 }
 
@@ -245,7 +245,7 @@ describe('WarpGraph edge property visibility (WT/VIS/1)', () => {
 
     // The prop is still in the map (not physically deleted)
     const propKey = encodeEdgePropKey('a', 'b', 'rel', 'weight');
-    expect(state => graph._cachedState.prop.has(propKey)).toBeTruthy();
+    expect(graph._cachedState.prop.has(propKey)).toBeTruthy();
 
     // But it is not surfaced via getEdgeProps
     const props = await graph.getEdgeProps('a', 'b', 'rel');

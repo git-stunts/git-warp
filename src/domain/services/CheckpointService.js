@@ -1,10 +1,10 @@
 /**
  * Checkpoint Service for WARP multi-writer graph database.
  *
- * Provides functionality for creating and loading schema:2 checkpoints,
- * as well as incremental state materialization from checkpoints.
+ * Provides functionality for creating and loading schema:2 and schema:3
+ * checkpoints, as well as incremental state materialization from checkpoints.
  *
- * This service only supports schema:2 (V5) checkpoints. Schema:1 (V4)
+ * This service supports schema:2 and schema:3 (V5) checkpoints. Schema:1 (V4)
  * checkpoints must be migrated before use.
  *
  * @module CheckpointService
@@ -332,13 +332,13 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
     });
   }
 
-  // Reconstruct edgeBirthLamport: synthetic birth at lamport 0
+  // Reconstruct edgeBirthEvent: synthetic birth at lamport 0
   // so checkpoint-loaded props pass the visibility filter
-  const edgeBirthLamport = new Map();
+  const edgeBirthEvent = new Map();
   for (const edge of edges) {
     const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
-    edgeBirthLamport.set(edgeKey, 0);
+    edgeBirthEvent.set(edgeKey, { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 });
   }
 
-  return { nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthLamport };
+  return { nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent };
 }

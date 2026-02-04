@@ -97,7 +97,7 @@
 /**
  * PatchV2 - A batch of ordered operations from a single writer
  * @typedef {Object} PatchV2
- * @property {2} schema - Schema version, must be 2 for v2
+ * @property {2|3} schema - Schema version (2 for node-only, 3 for edge properties)
  * @property {string} writer - Writer ID (identifies the source of the patch)
  * @property {number} lamport - Lamport timestamp for ordering
  * @property {VersionVector} context - Writer's observed frontier (NOT global stability)
