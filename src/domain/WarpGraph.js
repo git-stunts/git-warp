@@ -1217,8 +1217,7 @@ export default class WarpGraph {
       } catch {
         throw new SyncError('Invalid remote URL', {
           code: 'E_SYNC_REMOTE_URL',
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string -- remote is a string or URL
-        context: { remote: String(remote) },
+        context: { remote },
         });
       }
 
@@ -1409,8 +1408,7 @@ export default class WarpGraph {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const { createServer } = await import('node:http');
 
-    // eslint-disable-next-line @typescript-eslint/require-await -- handler dispatches to async methods internally
-    const server = createServer(async (req, res) => {
+    const server = createServer((req, res) => {
       const contentType = (req.headers['content-type'] || '').toLowerCase();
       if (contentType && !contentType.startsWith('application/json')) {
         res.writeHead(400, { 'content-type': 'application/json' });
