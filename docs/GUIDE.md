@@ -43,13 +43,14 @@ A **patch** is an atomic batch of graph operations. Operations include:
 - `NodeTombstone` - Delete a node
 - `EdgeAdd` - Create an edge
 - `EdgeTombstone` - Delete an edge
-- `PropSet` - Set a property value
+- `PropSet` - Set a property value (also targets edge properties when used with `setEdgeProperty()`)
 
 ```javascript
 await graph.createPatch()
   .addNode('user:alice')
   .setProperty('user:alice', 'email', 'alice@example.com')
   .addEdge('user:alice', 'org:acme', 'works-at')
+  .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'since', '2024-06')
   .commit();
 ```
 
@@ -117,6 +118,61 @@ const state = await graph.materialize();
 // Property 'temp.data' is not visible
 // Edge 'temp->other' is not visible
 ```
+
+## Edge Properties
+
+Edges can carry properties just like nodes. Edge properties use LWW (Last-Write-Wins) semantics identical to node properties.
+
+### Setting Edge Properties
+
+```javascript
+await graph.createPatch()
+  .addNode('user:alice')
+  .addNode('user:bob')
+  .addEdge('user:alice', 'user:bob', 'follows')
+  .setEdgeProperty('user:alice', 'user:bob', 'follows', 'since', '2024-01')
+  .setEdgeProperty('user:alice', 'user:bob', 'follows', 'weight', 0.9)
+  .commit();
+```
+
+### Reading Edge Properties
+
+```javascript
+// Get all edges with their properties
+const edges = await graph.getEdges();
+// [{ from: 'user:alice', to: 'user:bob', label: 'follows', props: { since: '2024-01', weight: 0.9 } }]
+
+// Get properties for a specific edge
+const props = await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
+// { since: '2024-01', weight: 0.9 }
+```
+
+### Visibility Rules
+
+Edge properties are only visible when the parent edge is alive:
+
+- **Remove edge**: all its properties become invisible
+- **Re-add edge**: starts with a clean slate — old properties are NOT restored
+
+This prevents stale property data from leaking through after edge lifecycle changes.
+
+### Multi-Writer Conflict Resolution
+
+Edge properties follow the same LWW resolution as node properties:
+
+1. Higher Lamport timestamp wins
+2. Tie: higher writer ID wins (lexicographic)
+3. Tie: higher patch SHA wins
+
+Two writers setting the same edge property concurrently will deterministically converge to the same winner, regardless of patch arrival order.
+
+### Schema Compatibility
+
+Edge properties require schema v3 (introduced in v7.3.0). When syncing:
+
+- **v3 → v2 with edge props**: v2 reader throws `E_SCHEMA_UNSUPPORTED` with upgrade guidance
+- **v3 → v2 with node-only ops**: succeeds (schema number alone is not a rejection criterion)
+- **v2 → v3**: always succeeds (v2 patches are valid v3 input)
 
 ## Auto-Materialize and Auto-Checkpoint
 

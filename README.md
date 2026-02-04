@@ -36,6 +36,7 @@ await (await graph.createPatch())
   .addNode('user:bob')
   .setProperty('user:bob', 'name', 'Bob')
   .addEdge('user:alice', 'user:bob', 'manages')
+  .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024')
   .commit();
 
 // Query the graph
@@ -124,7 +125,8 @@ await graph.getNodes();                              // ['user:alice', 'user:bob
 await graph.hasNode('user:alice');                   // true
 await graph.getNodeProps('user:alice');              // Map { 'name' => 'Alice', 'role' => 'admin' }
 await graph.neighbors('user:alice', 'outgoing');    // [{ nodeId: 'user:bob', label: 'manages', direction: 'outgoing' }]
-await graph.getEdges();                              // [{ from: 'user:alice', to: 'user:bob', label: 'manages' }]
+await graph.getEdges();                              // [{ from: 'user:alice', to: 'user:bob', label: 'manages', props: {} }]
+await graph.getEdgeProps('user:alice', 'user:bob', 'manages');  // { weight: 0.9 } or null
 ```
 
 ### Fluent Query Builder
@@ -154,17 +156,17 @@ if (result.found) {
 
 ## Patch Operations
 
-The patch builder supports six operations:
+The patch builder supports seven operations:
 
 ```javascript
 const sha = await (await graph.createPatch())
-  .addNode('n1')                        // create a node
-  .removeNode('n1')                     // tombstone a node
-  .addEdge('n1', 'n2', 'label')        // create a directed edge
-  .removeEdge('n1', 'n2', 'label')     // tombstone an edge
-  .setProperty('n1', 'key', 'value')   // set a property (LWW)
-  .setProperty('n1', 'data', { nested: true })  // values can be any serializable type
-  .commit();                            // commit as a single atomic patch
+  .addNode('n1')                                    // create a node
+  .removeNode('n1')                                 // tombstone a node
+  .addEdge('n1', 'n2', 'label')                    // create a directed edge
+  .removeEdge('n1', 'n2', 'label')                 // tombstone an edge
+  .setProperty('n1', 'key', 'value')               // set a node property (LWW)
+  .setEdgeProperty('n1', 'n2', 'label', 'weight', 0.8)  // set an edge property (LWW)
+  .commit();                                        // commit as a single atomic patch
 ```
 
 Each `commit()` creates one Git commit containing all the operations, advances the writer's Lamport clock, and updates the writer's ref via compare-and-swap.

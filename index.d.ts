@@ -887,6 +887,22 @@ export function checkAborted(signal?: AbortSignal, operation?: string): void;
 export function createTimeoutSignal(ms: number): AbortSignal;
 
 /**
+ * Encodes an edge property key for Map storage.
+ * Format: \x01from\0to\0label\0propKey
+ */
+export function encodeEdgePropKey(from: string, to: string, label: string, propKey: string): string;
+
+/**
+ * Decodes an edge property key string.
+ */
+export function decodeEdgePropKey(encoded: string): { from: string; to: string; label: string; propKey: string };
+
+/**
+ * Returns true if the encoded key is an edge property key.
+ */
+export function isEdgePropKey(key: string): boolean;
+
+/**
  * Multi-writer graph database using WARP CRDT protocol.
  *
  * V7 primary API - uses patch-based storage with OR-Set semantics.
@@ -945,12 +961,18 @@ export default class WarpGraph {
   /**
    * Gets all visible edges in the materialized state.
    */
-  getEdges(): Array<{ from: string; to: string; label: string }>;
+  getEdges(): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>;
 
   /**
    * Gets all properties for a node from the materialized state.
    */
   getNodeProps(nodeId: string): Map<string, unknown> | null;
+
+  /**
+   * Gets all properties for an edge from the materialized state.
+   * Returns null if the edge does not exist or is tombstoned.
+   */
+  getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null;
 
   /**
    * Checks if a node exists in the materialized state.

@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Error Handling
 - **`QueryError` with error codes**: State guard throws now use `QueryError` with `E_NO_STATE` (no cached state) and `E_STALE_STATE` (dirty state) instead of bare `Error`.
 
+#### GROUNDSKEEPER — Index Health & GC
+- **Index staleness detection** (`GK/IDX/1-2`): Frontier metadata stored alongside bitmap indexes. `loadIndexFrontier()` and `checkStaleness()` detect when writer tips have advanced past the indexed state. Auto-rebuild option on `IndexRebuildService.load()`.
+- **Tombstone garbage collection** (`GK/GC/1`): `GCPolicy` wired into post-materialize path (opt-in via `gcPolicy` option). Warns when tombstone ratio exceeds threshold.
+
+#### WEIGHTED — Edge Properties (v7.3.0)
+- **Edge property key encoding** (`WT/EPKEY/1`): `encodeEdgePropKey()`/`decodeEdgePropKey()` with `\x01` prefix for collision-free namespacing against node property keys.
+- **`patch.setEdgeProperty(from, to, label, key, value)`** (`WT/OPS/1`): New PatchBuilderV2 method for setting properties on edges. Generates `PropSet` ops in the edge namespace.
+- **LWW semantics for edge properties** (`WT/OPS/2`): Existing JoinReducer LWW pipeline handles edge properties transparently — no special-case logic needed.
+- **`graph.getEdgeProps(from, to, label)`** (`WT/OPS/3`): New convenience method returning edge properties as a plain object. `getEdges()` now returns a `props` field on each edge.
+- **Schema v3** (`WT/SCHEMA/1`): Minimal schema bump signaling edge property support. `detectSchemaVersion()` auto-detects from ops. Codec handles v2 and v3 transparently.
+- **Mixed-version sync safety** (`WT/SCHEMA/2`): `assertOpsCompatible()` guard throws `E_SCHEMA_UNSUPPORTED` when v2 reader encounters edge property ops. Node-only v3 patches accepted by v2 readers. Fail fast, never silently drop data.
+- **Edge property visibility gating** (`WT/VIS/1`): Edge props invisible when parent edge is tombstoned. Birth-lamport tracking ensures re-adding an edge starts with a clean slate (old props not restored).
+- **`SchemaUnsupportedError`** — New error class with code `E_SCHEMA_UNSUPPORTED` for sync compatibility failures.
+
 #### Query API (V7 Task 7)
 - **`graph.hasNode(nodeId)`** - Check if node exists in materialized state
 - **`graph.getNodeProps(nodeId)`** - Get all properties for a node as Map
@@ -78,7 +92,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - Added `test/unit/domain/services/HookInstaller.test.js` (29 tests) — hook install/upgrade/append/replace
 - Added `test/unit/domain/WarpGraph.query.test.js` (21 tests) - Query API tests
 - Added `test/unit/domain/services/WarpStateIndexBuilder.test.js` (13 tests) - WARP state index tests
-- Total test count: 1571 (67 test files)
+- Total test count: 1764 (78 test files)
 
 ## [6.0.0] - 2026-01-31
 
