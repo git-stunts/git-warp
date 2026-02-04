@@ -224,7 +224,7 @@ LIGHTHOUSE ────────────────→ HOLOGRAM ──�
 ## Task DAG
 
 <!-- ROADMAP:DAG:START -->
-```text
+```
 Key: ■ CLOSED   ◆ OPEN   ○ BLOCKED
 
 AUTOPILOT        (v7.1.0)  ████████████████████  100%  (10/10)
@@ -239,8 +239,8 @@ AUTOPILOT        (v7.1.0)  █████████████████�
   ■ AP/LAZY/1           →  AP/LAZY/2
   ■ AP/LAZY/2         
 
-GROUNDSKEEPER    (v7.2.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/4)
-  ◆ GK/FRONTIER/1       →  PL/WATCH/2
+GROUNDSKEEPER    (v7.2.0)  █████░░░░░░░░░░░░░░░   25%  (1/4)
+  ■ GK/FRONTIER/1       →  PL/WATCH/2
   ◆ GK/GC/1           
   ◆ GK/IDX/1            →  GK/IDX/2
   ○ GK/IDX/2          
@@ -687,7 +687,7 @@ Once the materialize tax is gone, the next friction layer is infrastructure that
 
 #### GK/FRONTIER/1 — Implement hasFrontierChanged() method
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to cheaply check if the graph has new data without materializing.
 - **Requirements:**
   - `graph.hasFrontierChanged()` compares `_cachedState.observedFrontier` against current writer refs.
