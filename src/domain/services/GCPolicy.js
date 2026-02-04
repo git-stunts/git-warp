@@ -7,6 +7,7 @@ import { collectGCMetrics } from './GCMetrics.js';
 
 /**
  * @typedef {Object} GCPolicy
+ * @property {boolean} enabled - Whether automatic GC is enabled (default: false)
  * @property {number} tombstoneRatioThreshold - Ratio of tombstones that triggers GC (0.0-1.0)
  * @property {number} entryCountThreshold - Total entries that triggers GC
  * @property {number} minPatchesSinceCompaction - Minimum patches between GCs
@@ -38,6 +39,7 @@ import { collectGCMetrics } from './GCMetrics.js';
 
 /** @type {Readonly<GCPolicy>} */
 export const DEFAULT_GC_POLICY = Object.freeze({
+  enabled: false, // Must opt-in to automatic GC
   tombstoneRatioThreshold: 0.3, // 30% tombstones triggers GC
   entryCountThreshold: 50000, // 50K entries triggers GC
   minPatchesSinceCompaction: 1000, // Min patches between GCs

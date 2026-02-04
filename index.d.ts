@@ -888,7 +888,16 @@ export default class WarpGraph {
     writerId: string;
     logger?: LoggerPort;
     adjacencyCacheSize?: number;
-    gcPolicy?: { type: string; [key: string]: unknown };
+    gcPolicy?: {
+      enabled?: boolean;
+      tombstoneRatioThreshold?: number;
+      entryCountThreshold?: number;
+      minPatchesSinceCompaction?: number;
+      maxTimeSinceCompaction?: number;
+      compactOnCheckpoint?: boolean;
+    };
+    checkpointPolicy?: { every: number };
+    autoMaterialize?: boolean;
   }): Promise<WarpGraph>;
 
   /**
