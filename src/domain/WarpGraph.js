@@ -141,6 +141,9 @@ export default class WarpGraph {
 
     /** @type {import('./utils/LRUCache.js').default|null} */
     this._adjacencyCache = adjacencyCacheSize > 0 ? new LRUCache(adjacencyCacheSize) : null;
+
+    /** @type {Map<string, string>|null} */
+    this._lastFrontier = null;
   }
 
   /**
@@ -503,6 +506,7 @@ export default class WarpGraph {
     }
 
     this._setMaterializedState(state);
+    this._lastFrontier = await this.getFrontier();
     this._patchesSinceCheckpoint = patchCount;
 
     // Auto-checkpoint if policy is set and threshold exceeded.
@@ -1131,6 +1135,34 @@ export default class WarpGraph {
     }
 
     return frontier;
+  }
+
+  /**
+   * Checks whether any writer tip has changed since the last materialize.
+   *
+   * O(writers) comparison of stored writer tip SHAs against current refs.
+   * Cheap "has anything changed?" check without materialization.
+   *
+   * @returns {Promise<boolean>} True if frontier has changed (or never materialized)
+   */
+  async hasFrontierChanged() {
+    if (this._lastFrontier === null) {
+      return true;
+    }
+
+    const current = await this.getFrontier();
+
+    if (current.size !== this._lastFrontier.size) {
+      return true;
+    }
+
+    for (const [writerId, tipSha] of current) {
+      if (this._lastFrontier.get(writerId) !== tipSha) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

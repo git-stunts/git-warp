@@ -954,6 +954,12 @@ export default class WarpGraph {
   getFrontier(): Promise<Map<string, string>>;
 
   /**
+   * Checks whether any writer tip has changed since the last materialize.
+   * O(writers) comparison — cheap "has anything changed?" check without materialization.
+   */
+  hasFrontierChanged(): Promise<boolean>;
+
+  /**
    * Creates a checkpoint snapshot of the current materialized state.
    */
   createCheckpoint(): Promise<string>;
