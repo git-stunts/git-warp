@@ -239,9 +239,9 @@ AUTOPILOT        (v7.1.0)  █████████████████�
   ■ AP/LAZY/1           →  AP/LAZY/2
   ■ AP/LAZY/2         
 
-GROUNDSKEEPER    (v7.2.0)  ███████████████░░░░░   75%  (3/4)
+GROUNDSKEEPER    (v7.2.0)  ████████████████████  100%  (4/4)
   ■ GK/FRONTIER/1       →  PL/WATCH/2
-  ◆ GK/GC/1           
+  ■ GK/GC/1           
   ■ GK/IDX/1            →  GK/IDX/2
   ■ GK/IDX/2          
 
@@ -652,7 +652,7 @@ Once the materialize tax is gone, the next friction layer is infrastructure that
 
 #### GK/GC/1 — Wire GC check into post-materialize path
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want tombstones cleaned up automatically so I don't have to think about GC.
 - **Requirements:**
   - Accept `gcPolicy` option on `WarpGraph.open()`: `{ enabled: boolean, tombstoneRatioThreshold?: number, ... }`.
