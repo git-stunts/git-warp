@@ -175,10 +175,10 @@ export async function loadCheckpoint(persistence, checkpointSha) {
   const decoded = decodeCheckpointMessage(message);
 
   // 2. Reject schema:1 checkpoints - migration required
-  if (decoded.schema !== 2) {
+  if (decoded.schema !== 2 && decoded.schema !== 3) {
     throw new Error(
       `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
-        `Only schema:2 checkpoints are supported. Please migrate using MigrationService.`
+        `Only schema:2 and schema:3 checkpoints are supported. Please migrate using MigrationService.`
     );
   }
 

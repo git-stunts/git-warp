@@ -170,7 +170,7 @@ export function createPropSetV2(node, key, value) {
 /**
  * Creates a PatchV2
  * @param {Object} options - Patch options
- * @param {2} [options.schema=2] - Schema version (always 2 for V2)
+ * @param {2|3} [options.schema=2] - Schema version (2 for node-only, 3 for edge properties)
  * @param {string} options.writer - Writer ID
  * @param {number} options.lamport - Lamport timestamp
  * @param {VersionVector} options.context - Writer's observed frontier
