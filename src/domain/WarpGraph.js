@@ -251,7 +251,8 @@ export default class WarpGraph {
         vvIncrement(this._versionVector, this._writerId);
         this._patchesSinceCheckpoint++;
         // Eager re-materialize: apply the just-committed patch to cached state
-        if (this._cachedState && patch && sha) {
+        // Only when the cache is clean — applying a patch to stale state would be incorrect
+        if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
         } else {
@@ -1594,7 +1595,7 @@ export default class WarpGraph {
       onCommitSuccess: ({ patch, sha } = {}) => {
         vvIncrement(this._versionVector, resolvedWriterId);
         this._patchesSinceCheckpoint++;
-        if (this._cachedState && patch && sha) {
+        if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
         } else {
@@ -1647,7 +1648,7 @@ export default class WarpGraph {
       onCommitSuccess: ({ patch, sha } = {}) => {
         vvIncrement(this._versionVector, freshWriterId);
         this._patchesSinceCheckpoint++;
-        if (this._cachedState && patch && sha) {
+        if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
         } else {
