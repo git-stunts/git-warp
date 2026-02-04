@@ -200,7 +200,7 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 
 ## Dependency Graph (Milestone Level)
 
-```
+```text
 AUTOPILOT ──→ GROUNDSKEEPER ──→ PULSE
     │                              ↑
     └──→ HANDSHAKE                 │
@@ -223,7 +223,7 @@ LIGHTHOUSE ────────────────→ HOLOGRAM ──�
 ## Task DAG
 
 <!-- ROADMAP:DAG:START -->
-```
+```text
 Key: ■ CLOSED   ◆ OPEN   ○ BLOCKED
 
 AUTOPILOT        (v7.1.0)  ████████████████████  100%  (10/10)

@@ -139,7 +139,7 @@ export default class StreamingBitmapIndexBuilder {
    * @returns {Promise<number>} The assigned numeric ID
    */
   registerNode(sha) {
-    return this._getOrCreateId(sha);
+    return Promise.resolve(this._getOrCreateId(sha));
   }
 
   /**

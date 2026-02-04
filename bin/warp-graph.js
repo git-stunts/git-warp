@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import readline from 'node:readline';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import WarpGraph from '../src/domain/WarpGraph.js';
 import GitGraphAdapter from '../src/infrastructure/adapters/GitGraphAdapter.js';
@@ -1066,11 +1066,11 @@ function createHookInstaller() {
 function execGitConfigValue(repoPath, key) {
   try {
     if (key === '--git-dir') {
-      return execSync(`git -C ${repoPath} rev-parse --git-dir`, {
+      return execFileSync('git', ['-C', repoPath, 'rev-parse', '--git-dir'], {
         encoding: 'utf8',
       }).trim();
     }
-    return execSync(`git -C ${repoPath} config ${key}`, {
+    return execFileSync('git', ['-C', repoPath, 'config', key], {
       encoding: 'utf8',
     }).trim();
   } catch {

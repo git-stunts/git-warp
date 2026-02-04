@@ -250,21 +250,20 @@ export default class QueryBuilder {
 
     for (const op of this._operations) {
       if (op.type === 'where') {
-        const filtered = [];
-        for (const nodeId of workingSet) {
-          const propsMap = (await this._graph.getNodeProps(nodeId)) || new Map();
-          const edgesOut = adjacency.outgoing.get(nodeId) || [];
-          const edgesIn = adjacency.incoming.get(nodeId) || [];
-          const snapshot = createNodeSnapshot({
-            id: nodeId,
-            propsMap,
-            edgesOut,
-            edgesIn,
-          });
-          if (op.fn(snapshot)) {
-            filtered.push(nodeId);
-          }
-        }
+        const snapshots = await Promise.all(
+          workingSet.map(async (nodeId) => {
+            const propsMap = (await this._graph.getNodeProps(nodeId)) || new Map();
+            const edgesOut = adjacency.outgoing.get(nodeId) || [];
+            const edgesIn = adjacency.incoming.get(nodeId) || [];
+            return {
+              nodeId,
+              snapshot: createNodeSnapshot({ id: nodeId, propsMap, edgesOut, edgesIn }),
+            };
+          })
+        );
+        const filtered = snapshots
+          .filter(({ snapshot }) => op.fn(snapshot))
+          .map(({ nodeId }) => nodeId);
         workingSet = sortIds(filtered);
         continue;
       }
@@ -296,21 +295,22 @@ export default class QueryBuilder {
     const includeId = !selectFields || selectFields.includes('id');
     const includeProps = !selectFields || selectFields.includes('props');
 
-    const nodes = [];
-    for (const nodeId of workingSet) {
-      const entry = {};
-      if (includeId) {
-        entry.id = nodeId;
-      }
-      if (includeProps) {
-        const propsMap = (await this._graph.getNodeProps(nodeId)) || new Map();
-        const props = buildPropsSnapshot(propsMap);
-        if (selectFields || Object.keys(props).length > 0) {
-          entry.props = props;
+    const nodes = await Promise.all(
+      workingSet.map(async (nodeId) => {
+        const entry = {};
+        if (includeId) {
+          entry.id = nodeId;
         }
-      }
-      nodes.push(entry);
-    }
+        if (includeProps) {
+          const propsMap = (await this._graph.getNodeProps(nodeId)) || new Map();
+          const props = buildPropsSnapshot(propsMap);
+          if (selectFields || Object.keys(props).length > 0) {
+            entry.props = props;
+          }
+        }
+        return entry;
+      })
+    );
 
     return { stateHash, nodes };
   }

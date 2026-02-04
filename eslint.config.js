@@ -1,5 +1,9 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Base: recommended + strict-type-checked for src/ and bin/ ────────────────
 // Every rule is "error". Zero warnings. Zero tolerance.
@@ -27,7 +31,7 @@ export default tseslint.config(
       parser: tseslint.parser,
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: __dirname,
       },
       globals: {
         process: "readonly",

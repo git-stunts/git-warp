@@ -50,6 +50,7 @@ export class Writer {
    * @param {string} options.writerId - This writer's ID
    * @param {import('../crdt/VersionVector.js').VersionVector} options.versionVector - Current version vector
    * @param {Function} options.getCurrentState - Function to get current materialized state
+   * @param {Function} [options.onCommitSuccess] - Callback invoked after successful commit with { patch, sha }
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess }) {
     validateWriterId(writerId);

@@ -12,6 +12,8 @@
   },
   "include": [
     "src/**/*.js",
-    "bin/**/*.js"
+    "bin/**/*.js",
+    "scripts/**/*.js",
+    "test/**/*.js"
   ]
 }

@@ -125,6 +125,9 @@ export default class WarpGraph {
     this._checkpointPolicy = checkpointPolicy || null;
 
     /** @type {boolean} */
+    this._checkpointing = false;
+
+    /** @type {boolean} */
     this._autoMaterialize = autoMaterialize;
 
     /** @type {LogicalTraversal} */
@@ -490,8 +493,9 @@ export default class WarpGraph {
     this._setMaterializedState(state);
     this._patchesSinceCheckpoint = patchCount;
 
-    // Auto-checkpoint if policy is set and threshold exceeded
-    if (this._checkpointPolicy && patchCount >= this._checkpointPolicy.every) {
+    // Auto-checkpoint if policy is set and threshold exceeded.
+    // Guard prevents recursion: createCheckpoint() calls materialize() internally.
+    if (this._checkpointPolicy && !this._checkpointing && patchCount >= this._checkpointPolicy.every) {
       try {
         await this.createCheckpoint();
         this._patchesSinceCheckpoint = 0;
@@ -694,8 +698,17 @@ export default class WarpGraph {
       }
     }
 
-    // 3. Materialize current state
-    const state = await this.materialize();
+    // 3. Materialize current state (reuse cached if fresh, guard against recursion)
+    const prevCheckpointing = this._checkpointing;
+    this._checkpointing = true;
+    let state;
+    try {
+      state = (this._cachedState && !this._stateDirty)
+        ? this._cachedState
+        : await this.materialize();
+    } finally {
+      this._checkpointing = prevCheckpointing;
+    }
 
     // 4. Call CheckpointService.create()
     const checkpointSha = await createCheckpointCommit({
