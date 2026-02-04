@@ -47,7 +47,8 @@ async function refExists(execute, ref) {
     await execute({ args: ['show-ref', '--verify', '--quiet', ref] });
     return true;
   } catch (err) {
-    if (err?.details?.code === 1) {
+    const exitCode = err?.details?.code ?? err?.exitCode ?? err?.code;
+    if (exitCode === 1) {
       return false;
     }
     throw err;
@@ -374,10 +375,18 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     if (!exists) {
       return null;
     }
-    const oid = await this._executeWithRetry({
-      args: ['rev-parse', ref]
-    });
-    return oid.trim();
+    try {
+      const oid = await this._executeWithRetry({
+        args: ['rev-parse', ref]
+      });
+      return oid.trim();
+    } catch (err) {
+      const exitCode = err?.details?.code ?? err?.exitCode ?? err?.code;
+      if (exitCode === 1) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -445,8 +454,12 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     try {
       await this._executeWithRetry({ args: ['cat-file', '-e', sha] });
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      const exitCode = err?.details?.code ?? err?.exitCode ?? err?.code;
+      if (exitCode === 1) {
+        return false;
+      }
+      throw err;
     }
   }
 

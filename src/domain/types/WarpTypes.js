@@ -131,6 +131,11 @@ export function createBlobValue(oid) {
  * @property {ValueRef} value - Property value reference
  */
 
+/**
+ * Any graph operation
+ * @typedef {OpNodeAdd | OpNodeTombstone | OpEdgeAdd | OpEdgeTombstone | OpPropSet} Op
+ */
+
 // ============================================================================
 // Factory Functions - Operations
 // ============================================================================

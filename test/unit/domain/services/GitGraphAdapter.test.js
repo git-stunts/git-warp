@@ -241,19 +241,20 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns false when node does not exist', async () => {
-      mockPlumbing.execute.mockRejectedValue(new Error('fatal: Not a valid object name'));
+      const err = new Error('fatal: Not a valid object name');
+      err.details = { code: 1 };
+      mockPlumbing.execute.mockRejectedValue(err);
 
       const exists = await adapter.nodeExists('abc123def456789012345678901234567890abcd');
 
       expect(exists).toBe(false);
     });
 
-    it('returns false on any git error', async () => {
+    it('rethrows non-missing-object errors', async () => {
       mockPlumbing.execute.mockRejectedValue(new Error('some git error'));
 
-      const exists = await adapter.nodeExists('abc123');
-
-      expect(exists).toBe(false);
+      await expect(adapter.nodeExists('abc123'))
+        .rejects.toThrow('some git error');
     });
 
     it('validates OID before calling git', async () => {

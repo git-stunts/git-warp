@@ -36,14 +36,14 @@ import { collectGCMetrics } from './GCMetrics.js';
  * @property {number} timeSinceCompaction - Time (ms) since last GC
  */
 
-/** @type {GCPolicy} */
-export const DEFAULT_GC_POLICY = {
+/** @type {Readonly<GCPolicy>} */
+export const DEFAULT_GC_POLICY = Object.freeze({
   tombstoneRatioThreshold: 0.3, // 30% tombstones triggers GC
   entryCountThreshold: 50000, // 50K entries triggers GC
   minPatchesSinceCompaction: 1000, // Min patches between GCs
   maxTimeSinceCompaction: 86400000, // 24 hours max between GCs
   compactOnCheckpoint: true, // Auto-compact on checkpoint
-};
+});
 
 /**
  * Determines if GC should run based on metrics and policy.

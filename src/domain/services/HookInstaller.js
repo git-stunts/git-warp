@@ -147,10 +147,16 @@ export class HookInstaller {
 
     if (classification.appended) {
       const updated = replaceDelimitedSection(existing, stamped);
-      this._fs.writeFileSync(hookPath, updated, { mode: 0o755 });
+      // If delimiters were corrupted, replaceDelimitedSection returns unchanged content — fall back to overwrite
+      if (updated === existing) {
+        this._fs.writeFileSync(hookPath, stamped, { mode: 0o755 });
+      } else {
+        this._fs.writeFileSync(hookPath, updated, { mode: 0o755 });
+      }
     } else {
       this._fs.writeFileSync(hookPath, stamped, { mode: 0o755 });
     }
+    this._fs.chmodSync(hookPath, 0o755);
 
     return {
       action: 'upgraded',
@@ -164,6 +170,7 @@ export class HookInstaller {
     const body = stripShebang(stamped);
     const appended = buildAppendedContent(existing, body);
     this._fs.writeFileSync(hookPath, appended, { mode: 0o755 });
+    this._fs.chmodSync(hookPath, 0o755);
     return {
       action: 'appended',
       hookPath,
@@ -180,6 +187,7 @@ export class HookInstaller {
     }
 
     this._fs.writeFileSync(hookPath, stamped, { mode: 0o755 });
+    this._fs.chmodSync(hookPath, 0o755);
     return {
       action: 'replaced',
       hookPath,
