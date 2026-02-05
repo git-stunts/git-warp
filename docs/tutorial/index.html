@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chronos Clash: Flight School</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+  <header>
+    <h1>CHRONOS CLASH</h1>
+    <div class="status">SYSTEM: OPERATIONAL</div>
+  </header>
+
+  <main id="app">
+    <section class="card">
+      <h2>Mission Briefing</h2>
+      <p>Welcome, Time Agent. You are here to learn the technology behind <strong>WARP</strong>—the system that allows us to manage history itself without central coordination.</p>
+      <p>In this series of simulations, we will build <strong>Chronos Clash</strong>, a tool for collaborative world-building where every choice creates a branch in the causal web.</p>
+      
+      <div class="lesson-list">
+        <div class="card" v-for="lesson in lessons" :key="lesson.id">
+          <h3>Lesson {{ lesson.id }}: {{ lesson.title }}</h3>
+          <p>{{ lesson.desc }}</p>
+          <a :href="lesson.link" class="btn-primary" style="display: inline-block; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px;">START MISSION</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    PRODUCED BY FLYING ROBOTS // AIΩN FOUNDATIONS
+  </footer>
+
+  <script>
+    const { createApp } = Vue
+    createApp({
+      data() {
+        return {
+          lessons: [
+            { id: 1, title: "The Ghost in the Machine", desc: "Learn how to store data in Git without creating a single file in your workspace.", link: "lesson-1.html" },
+            { id: 2, title: "The Worldline", desc: "Discover the 'Tick' and how we create a deterministic chain of events.", link: "lesson-2.html" },
+            { id: 3, title: "No Room for Conflict", desc: "Understand CRDTs and how multiple agents can edit the same worldline simultaneously.", link: "lesson-3.html" },
+            { id: 4, title: "X-Ray Vision", desc: "Explore the Roaring Bitmap index that makes querying massive histories O(1).", link: "lesson-4.html" }
+          ]
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

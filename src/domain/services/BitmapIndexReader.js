@@ -3,6 +3,7 @@ import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../e
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
+import { canonicalStringify } from '../utils/canonicalStringify.js';
 
 /**
  * Supported shard format versions for backward compatibility.
@@ -17,25 +18,6 @@ const SUPPORTED_SHARD_VERSIONS = [1, 2];
  * @const {number}
  */
 const DEFAULT_MAX_CACHED_SHARDS = 100;
-
-/**
- * Produces a canonical JSON string with deterministic key ordering.
- * Recursively sorts object keys alphabetically to ensure consistent
- * output across different JavaScript engines.
- *
- * @param {*} obj - The value to stringify
- * @returns {string} Canonical JSON string
- */
-const canonicalStringify = (obj) => {
-  if (obj === null || typeof obj !== 'object') {
-    return JSON.stringify(obj);
-  }
-  if (Array.isArray(obj)) {
-    return `[${obj.map(canonicalStringify).join(',')}]`;
-  }
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map(k => `${JSON.stringify(k)}:${canonicalStringify(obj[k])}`).join(',')}}`;
-};
 
 /**
  * Computes a SHA-256 checksum of the given data.

@@ -1632,7 +1632,9 @@ export default class WarpGraph {
     let pollInFlight = false;
     if (poll) {
       pollIntervalId = setInterval(async () => {
-        if (pollInFlight) return;
+        if (pollInFlight) {
+          return;
+        }
         pollInFlight = true;
         try {
           const changed = await this.hasFrontierChanged();
@@ -1685,7 +1687,7 @@ export default class WarpGraph {
           }
         } else {
           // Skip non-replay subscribers when diff is empty
-          if (!subscriber.pendingReplay && isEmptyDiff(diff)) {
+          if (isEmptyDiff(diff)) {
             continue;
           }
           subscriber.onChange(diff);

@@ -157,7 +157,13 @@ function sortKeys(value) {
   // Handle Map instances - convert to sorted object
   if (value instanceof Map) {
     const sorted = {};
-    const keys = Array.from(value.keys()).sort();
+    const keys = Array.from(value.keys());
+    for (const key of keys) {
+      if (typeof key !== 'string') {
+        throw new TypeError(`Map keys must be strings for CBOR encoding, got ${typeof key}`);
+      }
+    }
+    keys.sort();
     for (const key of keys) {
       sorted[key] = sortKeys(value.get(key));
     }

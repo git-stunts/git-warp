@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 2: The Worldline</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/index.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>CHRONOS CLASH</h1>
+    <a href="index.html" style="color: var(--text-2); text-decoration: none;">&larr; BACK TO HUB</a>
+  </header>
+
+  <main id="app">
+    <section class="card">
+      <h2>Lesson 2: The Worldline</h2>
+      <p>Time doesn't just flow; it ticks. In <strong>Chronos Clash</strong>, every change to the story is a <strong>Tick</strong>.</p>
+      
+      <p>A Tick is an atomic package of changes. It can add a new character, move them to a new room, and update their inventory all at once. Because we use <strong>Double-Pushout (DPO) Rewriting</strong>, we can guarantee that if two agents make independent changes, the order they arrive doesn't matter. The result is always the same.</p>
+
+      <div class="card">
+        <h3>Worldline Simulation</h3>
+        <p>Advance the worldline by applying a Tick. Watch the "Chronos" chain grow!</p>
+        
+        <button @click="advanceTime" class="btn-primary" :disabled="isTicking">ADVANCE WORLDLINE (TICK)</button>
+        
+        <div class="viz-container" id="viz"></div>
+
+        <div v-if="ticks.length > 0">
+          <h4>Current State:</h4>
+          <ul>
+            <li v-for="prop in state" :key="prop.key"><strong>{{ prop.key }}:</strong> {{ prop.value }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="lesson-nav">
+        <a href="lesson-1.html" class="btn-primary" style="background: var(--surface-3);">PREVIOUS</a>
+        <a href="lesson-3.html" class="btn-primary">NEXT: NO ROOM FOR CONFLICT &rarr;</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const { createApp } = Vue
+    const hpccWasm = window["@hpcc-js/wasm"];
+
+    createApp({
+      data() {
+        return {
+          ticks: [],
+          state: [
+            { key: "Timeline", value: "Alpha" },
+            { key: "Active Characters", value: 0 },
+            { key: "Energy Level", value: 100 }
+          ],
+          isTicking: false
+        }
+      },
+      methods: {
+        async advanceTime() {
+          this.isTicking = true;
+          const tickNum = this.ticks.length + 1;
+          const sha = Math.random().toString(16).substring(2, 10);
+          
+          this.ticks.push({ num: tickNum, sha });
+          
+          // Update simulated state
+          this.state[1].value += Math.floor(Math.random() * 3);
+          this.state[2].value -= Math.floor(Math.random() * 10);
+          
+          await this.renderGraph();
+          this.isTicking = false;
+        },
+        async renderGraph() {
+          let dot = `digraph G {
+            rankdir=LR;
+            bgcolor="transparent";
+            node [shape=circle, style=filled, fillcolor="#334155", fontcolor="white", fontname="Inter", width=1];
+            edge [color="#94a3b8", penwidth=2];
+            
+            Start [label="U0", fillcolor="#1e293b"];
+          `;
+
+          let prev = "Start";
+          this.ticks.forEach((t) => {
+            const name = `Tick${t.num}`;
+            dot += `${name} [label="U${t.num}
+${t.sha}"];
+`;
+            dot += `${prev} -> ${name} [label="tick"];
+`;
+            prev = name;
+          });
+
+          dot += "}";
+          
+          const vizElement = document.getElementById("viz");
+          const svg = await hpccWasm.graphviz.layout(dot, "svg", "dot");
+          vizElement.innerHTML = svg;
+        }
+      },
+      mounted() {
+        this.renderGraph();
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

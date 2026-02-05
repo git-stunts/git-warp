@@ -5,32 +5,14 @@ import ShardValidationError from '../errors/ShardValidationError.js';
 import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
+import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { encode as cborEncode } from '../../infrastructure/codecs/CborCodec.js';
-
-/**
- * Produces a canonical JSON string with deterministic key ordering.
- * Recursively sorts object keys alphabetically to ensure consistent
- * output across different JavaScript engines.
- *
- * @param {*} obj - The value to stringify
- * @returns {string} Canonical JSON string
- */
-const canonicalStringify = (obj) => {
-  if (obj === null || typeof obj !== 'object') {
-    return JSON.stringify(obj);
-  }
-  if (Array.isArray(obj)) {
-    return `[${obj.map(canonicalStringify).join(',')}]`;
-  }
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map(k => `${JSON.stringify(k)}:${canonicalStringify(obj[k])}`).join(',')}}`;
-};
 
 /**
  * Current shard format version.
  * @const {number}
  */
-export const SHARD_VERSION = 1;
+export const SHARD_VERSION = 2;
 
 /**
  * Default memory threshold before flushing (50MB).
