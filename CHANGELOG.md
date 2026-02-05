@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.1] — Documentation
+
+### Documentation
+
+- **Comprehensive JSDoc pass**: Added or enhanced JSDoc documentation across the entire codebase.
+  - **WarpGraph.js**: Added JSDoc to 3 helper functions (`canonicalizeJson`, `canonicalStringify`, `normalizeSyncPath`), added `@throws` to ~15 async methods, added `@deprecated` to `createWriter()`, improved return types, enhanced `query()` with examples.
+  - **JoinReducer.js**: Documented 19 functions including `applyOpV2`, `nodeAddOutcome`, `edgeAddOutcome`, `propSetOutcome`, `join`, `joinStates`, `reduceV5`, `cloneStateV5`.
+  - **PatchBuilderV2.js**: Enhanced all public methods with `@throws`, examples, and fluent return type documentation.
+  - **QueryBuilder.js**: Added 17 helper function docs, 8 class method docs, new type definitions (`AdjacencyMaps`, `AggregateSpec`, `QueryResult`).
+  - **LogicalTraversal.js**: Documented 4 helper functions and standardized traversal method documentation.
+  - **CRDT primitives** (`Dot.js`, `VersionVector.js`, `ORSet.js`, `LWW.js`): Added module-level documentation explaining CRDT concepts (semilattice properties, add-wins semantics, GC safety invariants, EventId comparison logic).
+  - **StreamingBitmapIndexBuilder.js**: Documented 15 methods including `registerNode`, `addEdge`, `flush`, `finalize`, `getMemoryStats`.
+  - **CommitDagTraversalService.js**: Added `@throws` to traversal helpers, documented edge cases.
+  - **IndexRebuildService.js**: Module-level docs, comprehensive `@throws` documentation.
+  - **SyncProtocol.js**: Enhanced all functions with complete parameter docs and protocol overview.
+  - **GitGraphAdapter.js**: Module-level docs, `TRANSIENT_ERROR_PATTERNS` rationale, retry strategy documentation.
+  - **CborCodec.js**: Module-level docs on canonical encoding, `@example` blocks for encode/decode.
+  - **Utility files** (`roaring.js`, `TickReceipt.js`): Full JSDoc for lazy-loading strategy and validation helpers.
+  - **Error classes** (`QueryError.js`, `SyncError.js`): Added error code tables, context structure documentation, usage examples.
+
 ## [7.7.0] — PULSE
 
 ### Added

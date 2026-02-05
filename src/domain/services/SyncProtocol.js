@@ -5,15 +5,35 @@
  * efficient synchronization between nodes by comparing frontiers and
  * exchanging only the patches each side is missing.
  *
+ * **Protocol Overview**:
+ *
  * The protocol is based on per-writer chains where each writer has
- * a linear history of patches. Sync works by:
- * 1. Exchanging frontiers (Map<writerId, lastPatchSha>)
- * 2. Computing what each side needs based on frontier differences
- * 3. Loading and transmitting the missing patches
- * 4. Applying received patches to local state
+ * a linear history of patches. Each writer's chain is independent,
+ * enabling lock-free concurrent writes. Sync works by:
+ *
+ * 1. **Frontier Exchange**: Each node sends its frontier (Map<writerId, tipSha>)
+ * 2. **Delta Computation**: Compare frontiers to determine what each side is missing
+ * 3. **Patch Transfer**: Load and transmit missing patches in chronological order
+ * 4. **State Application**: Apply received patches using CRDT merge semantics
+ *
+ * **Protocol Messages**:
+ * - `SyncRequest`: Contains requester's frontier
+ * - `SyncResponse`: Contains responder's frontier + patches the requester needs
+ *
+ * **Assumptions**:
+ * - Writer chains are linear (no forks within a single writer)
+ * - Patches are append-only (no history rewriting)
+ * - CRDT semantics ensure convergence regardless of apply order
+ *
+ * **Error Handling**:
+ * - Divergence detection: If a writer's chain has forked (rare, indicates bug
+ *   or corruption), the protocol detects this and skips that writer
+ * - Schema compatibility: Patches are validated against known op types before apply
  *
  * @module domain/services/SyncProtocol
  * @see WARP V5 Spec Section 11 (Network Sync)
+ * @see JoinReducer - CRDT merge implementation
+ * @see Frontier - Frontier manipulation utilities
  */
 
 import { decode } from '../../infrastructure/codecs/CborCodec.js';
@@ -28,10 +48,19 @@ import { vvDeserialize } from '../crdt/VersionVector.js';
 
 /**
  * Normalizes a patch after CBOR deserialization.
- * Converts context from plain object to VersionVector (Map).
  *
- * @param {Object} patch - The raw decoded patch
- * @returns {Object} The normalized patch with context as a Map
+ * CBOR deserialization returns plain JavaScript objects, but the CRDT
+ * merge logic (JoinReducer) expects the context field to be a Map
+ * (VersionVector). This function performs the conversion in-place.
+ *
+ * **Mutation**: This function mutates the input patch object for efficiency.
+ * The original object reference is returned.
+ *
+ * @param {Object} patch - The raw decoded patch from CBOR
+ * @param {Object|Map} [patch.context] - The causal context (version vector).
+ *   If present as a plain object, will be converted to a Map.
+ * @param {Array} patch.ops - The patch operations (not modified)
+ * @returns {Object} The same patch object with context converted to Map
  * @private
  */
 function normalizePatch(patch) {
@@ -45,11 +74,29 @@ function normalizePatch(patch) {
 
 /**
  * Loads a patch from a commit.
- * Reads the commit message to get the patch OID, then reads the patch blob.
+ *
+ * WARP stores patches as Git blobs, with the blob OID embedded in the
+ * commit message. This function:
+ * 1. Reads the commit message via `showNode()`
+ * 2. Decodes the message to extract the patch blob OID
+ * 3. Reads the blob and CBOR-decodes it
+ * 4. Normalizes the patch (converts context to Map)
+ *
+ * **Commit message format**: The message is encoded using WarpMessageCodec
+ * and contains metadata (schema version, writer info) plus the patch OID.
  *
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence layer
- * @param {string} sha - Commit SHA
- * @returns {Promise<Object>} The decoded patch object
+ *   providing showNode() and readBlob() methods
+ * @param {string} sha - The 40-character commit SHA to load the patch from
+ * @returns {Promise<Object>} The decoded and normalized patch object containing:
+ *   - `ops`: Array of patch operations
+ *   - `context`: VersionVector (Map) of causal dependencies
+ *   - `writerId`: The writer who created this patch
+ *   - `lamport`: Lamport timestamp for ordering
+ * @throws {Error} If the commit cannot be read (invalid SHA, not found)
+ * @throws {Error} If the commit message cannot be decoded (malformed, wrong schema)
+ * @throws {Error} If the patch blob cannot be read (blob not found, I/O error)
+ * @throws {Error} If the patch blob cannot be CBOR-decoded (corrupted data)
  * @private
  */
 async function loadPatchFromCommit(persistence, sha) {
@@ -67,20 +114,42 @@ async function loadPatchFromCommit(persistence, sha) {
 
 /**
  * Loads patches for a writer between two SHAs.
- * Walks commit graph from `toSha` back to `fromSha` (exclusive).
+ *
+ * Walks the commit graph backwards from `toSha` to `fromSha` (exclusive),
+ * collecting patches along the way. Returns them in chronological order
+ * (oldest first) for correct application.
+ *
+ * **Ancestry requirement**: `toSha` must be a descendant of `fromSha` in the
+ * writer's linear chain. If not, a divergence error is thrown. This would
+ * indicate either a bug (same writer forked) or data corruption.
+ *
+ * **Performance**: O(N) where N is the number of commits between fromSha and toSha.
+ * Each commit requires two reads: commit info (for parent) and patch blob.
  *
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence layer
- * @param {string} graphName - Graph name
- * @param {string} writerId - Writer ID
- * @param {string|null} fromSha - Start SHA (exclusive), null for all
- * @param {string} toSha - End SHA (inclusive)
- * @returns {Promise<Array<{patch: Object, sha: string}>>} Patches in chronological order
- * @throws {Error} If divergence detected (fromSha not ancestor of toSha)
+ *   providing getNodeInfo(), showNode(), and readBlob() methods
+ * @param {string} graphName - Graph name (used in error messages, not for lookups)
+ * @param {string} writerId - Writer ID (used in error messages, not for lookups)
+ * @param {string|null} fromSha - Start SHA (exclusive). Pass null to load ALL patches
+ *   for this writer from the beginning of their chain.
+ * @param {string} toSha - End SHA (inclusive). This is typically the writer's current tip.
+ * @returns {Promise<Array<{patch: Object, sha: string}>>} Array of patch objects in
+ *   chronological order (oldest first). Each entry contains:
+ *   - `patch`: The decoded patch object
+ *   - `sha`: The commit SHA this patch came from
+ * @throws {Error} If divergence is detected: "Divergence detected: {toSha} does not
+ *   descend from {fromSha} for writer {writerId}". This indicates the writer's chain
+ *   has forked, which should not happen under normal operation.
+ * @throws {Error} If any commit or patch cannot be loaded (propagated from loadPatchFromCommit)
  *
  * @example
- * // Load all patches from writer 'node-1' from sha-a to sha-c
+ * // Load patches from sha-a (exclusive) to sha-c (inclusive)
  * const patches = await loadPatchRange(persistence, 'events', 'node-1', 'sha-a', 'sha-c');
  * // Returns [{patch, sha: 'sha-b'}, {patch, sha: 'sha-c'}] in chronological order
+ *
+ * @example
+ * // Load ALL patches for a new writer
+ * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
 export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha) {
   const patches = [];
@@ -115,20 +184,36 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
 /**
  * Computes what patches each side needs based on frontiers.
  *
- * For each writer:
- * - If writer is in remote but not local: local needs all patches (from: null)
- * - If writer is in local but not remote: remote needs all patches (from: null)
- * - If writer is in both with different heads: need from local head to remote head
- *   (or vice versa depending on ancestry)
+ * This is the core delta computation for sync. By comparing frontiers
+ * (which writer SHAs each side has), we determine:
+ * - What local needs from remote (to catch up)
+ * - What remote needs from local (to catch up)
+ * - Which writers are completely new to each side
  *
- * @param {Map<string, string>} localFrontier - Local writer heads
- * @param {Map<string, string>} remoteFrontier - Remote writer heads
- * @returns {{
- *   needFromRemote: Map<string, {from: string|null, to: string}>,
- *   needFromLocal: Map<string, {from: string|null, to: string}>,
- *   newWritersForLocal: string[],
- *   newWritersForRemote: string[]
- * }}
+ * **Algorithm**:
+ * 1. For each writer in remote frontier:
+ *    - Not in local? Local needs all patches (from: null)
+ *    - Different SHA? Local needs patches from its SHA to remote's SHA
+ * 2. For each writer in local frontier:
+ *    - Not in remote? Remote needs all patches (from: null)
+ *    - Different SHA and not already in needFromRemote? Remote needs patches
+ *
+ * **Assumptions**:
+ * - When SHAs differ, we assume remote is ahead. The actual ancestry
+ *   is verified during loadPatchRange() which will throw on divergence.
+ * - Writers with identical SHAs in both frontiers are already in sync.
+ *
+ * **Pure function**: Does not modify inputs or perform I/O.
+ *
+ * @param {Map<string, string>} localFrontier - Local writer heads.
+ *   Maps writerId to the SHA of their latest patch commit.
+ * @param {Map<string, string>} remoteFrontier - Remote writer heads.
+ *   Maps writerId to the SHA of their latest patch commit.
+ * @returns {Object} Sync delta containing:
+ *   - `needFromRemote`: Map<writerId, {from: string|null, to: string}> - Patches local needs
+ *   - `needFromLocal`: Map<writerId, {from: string|null, to: string}> - Patches remote needs
+ *   - `newWritersForLocal`: string[] - Writers that local has never seen
+ *   - `newWritersForRemote`: string[] - Writers that remote has never seen
  *
  * @example
  * const local = new Map([['w1', 'sha-a'], ['w2', 'sha-b']]);
@@ -192,28 +277,54 @@ export function computeSyncDelta(localFrontier, remoteFrontier) {
 // -----------------------------------------------------------------------------
 
 /**
+ * A sync request message sent from one node to another.
+ *
+ * The requester sends its current frontier, allowing the responder to
+ * compute what patches the requester is missing.
+ *
  * @typedef {Object} SyncRequest
- * @property {'sync-request'} type - Message type discriminator
- * @property {Object.<string, string>} frontier - Requester's frontier as plain object
+ * @property {'sync-request'} type - Message type discriminator for protocol parsing
+ * @property {Object.<string, string>} frontier - Requester's frontier as a plain object.
+ *   Keys are writer IDs, values are the SHA of each writer's latest known patch.
+ *   Converted from Map for JSON serialization.
  */
 
 /**
+ * A sync response message containing patches the requester needs.
+ *
+ * The responder includes its own frontier (so the requester knows what
+ * the responder is missing) and the patches the requester needs to catch up.
+ *
  * @typedef {Object} SyncResponse
- * @property {'sync-response'} type - Message type discriminator
- * @property {Object.<string, string>} frontier - Responder's frontier as plain object
- * @property {Array<{writerId: string, sha: string, patch: Object}>} patches - Patches the requester needs
+ * @property {'sync-response'} type - Message type discriminator for protocol parsing
+ * @property {Object.<string, string>} frontier - Responder's frontier as a plain object.
+ *   Keys are writer IDs, values are SHAs.
+ * @property {Array<{writerId: string, sha: string, patch: Object}>} patches - Patches
+ *   the requester needs, in chronological order per writer. Contains:
+ *   - `writerId`: The writer who created this patch
+ *   - `sha`: The commit SHA this patch came from (for frontier updates)
+ *   - `patch`: The decoded patch object with ops and context
  */
 
 /**
  * Creates a sync request message.
  *
- * @param {Map<string, string>} frontier - Local frontier
- * @returns {SyncRequest}
+ * Converts the frontier Map to a plain object for JSON serialization.
+ * The resulting message can be sent over HTTP, WebSocket, or any other
+ * transport that supports JSON.
+ *
+ * **Wire format**: The message is a simple JSON object suitable for
+ * transmission. No additional encoding is required.
+ *
+ * @param {Map<string, string>} frontier - Local frontier mapping writer IDs
+ *   to their latest known patch SHAs
+ * @returns {SyncRequest} A sync request message ready for serialization
  *
  * @example
  * const frontier = new Map([['w1', 'sha-a'], ['w2', 'sha-b']]);
  * const request = createSyncRequest(frontier);
  * // { type: 'sync-request', frontier: { w1: 'sha-a', w2: 'sha-b' } }
+ * // Send over HTTP: await fetch(url, { body: JSON.stringify(request) })
  */
 export function createSyncRequest(frontier) {
   // Convert Map to plain object for serialization
@@ -231,15 +342,37 @@ export function createSyncRequest(frontier) {
 /**
  * Processes a sync request and returns patches the requester needs.
  *
- * @param {SyncRequest} request - Incoming sync request
- * @param {Map<string, string>} localFrontier - Local frontier
+ * This is the server-side handler for sync requests. It:
+ * 1. Converts the incoming frontier from plain object to Map
+ * 2. Computes what the requester is missing (using computeSyncDelta)
+ * 3. Loads the missing patches from storage
+ * 4. Returns a response with the local frontier and patches
+ *
+ * **Error handling**: If divergence is detected for a writer (their chain
+ * has forked), that writer is silently skipped. The requester will not
+ * receive patches for that writer and may need to handle this separately
+ * (e.g., full resync, manual intervention).
+ *
+ * **Performance**: O(P) where P is the total number of patches to load.
+ * Each patch requires reading commit info + patch blob.
+ *
+ * @param {SyncRequest} request - Incoming sync request containing the requester's frontier
+ * @param {Map<string, string>} localFrontier - Local frontier (what this node has)
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence
- * @param {string} graphName - Graph name
- * @returns {Promise<SyncResponse>}
+ *   layer for loading patches
+ * @param {string} graphName - Graph name for error messages and logging
+ * @returns {Promise<SyncResponse>} Response containing local frontier and patches.
+ *   Patches are ordered chronologically within each writer.
+ * @throws {Error} If patch loading fails for reasons other than divergence
+ *   (e.g., corrupted data, I/O error)
  *
  * @example
- * const response = await processSyncRequest(request, localFrontier, persistence, 'events');
- * // Returns patches the requester needs to catch up
+ * // Server-side sync handler
+ * app.post('/sync', async (req, res) => {
+ *   const request = req.body;
+ *   const response = await processSyncRequest(request, localFrontier, persistence, 'events');
+ *   res.json(response);
+ * });
  */
 export async function processSyncRequest(request, localFrontier, persistence, graphName) {
   // Convert incoming frontier from object to Map
@@ -290,16 +423,44 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
 /**
  * Applies a sync response to local state.
  *
- * @param {SyncResponse} response - Incoming sync response
- * @param {import('./JoinReducer.js').WarpStateV5} state - Current state
- * @param {Map<string, string>} frontier - Current frontier
- * @returns {{state: import('./JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}}
+ * This is the client-side handler for sync responses. It:
+ * 1. Clones state and frontier to avoid mutating inputs
+ * 2. Groups patches by writer for correct ordering
+ * 3. Validates each patch against known op types (schema compatibility)
+ * 4. Applies patches using CRDT merge semantics (JoinReducer.join)
+ * 5. Updates the frontier with new writer tips
+ *
+ * **CRDT convergence**: Patches can be applied in any order and the final
+ * state will be identical. However, applying in chronological order (as
+ * provided) is slightly more efficient.
+ *
+ * **Schema validation**: Patches are checked against SCHEMA_V3 before apply.
+ * If a patch contains op types we don't understand (from a newer schema),
+ * assertOpsCompatible throws to prevent silent data loss. The caller should
+ * upgrade their client before retrying.
+ *
+ * **Immutability**: This function does not modify the input state or frontier.
+ * It returns new objects.
+ *
+ * @param {SyncResponse} response - Incoming sync response containing patches
+ * @param {import('./JoinReducer.js').WarpStateV5} state - Current CRDT state
+ *   (nodeAlive, edgeAlive, prop, observedFrontier)
+ * @param {Map<string, string>} frontier - Current frontier mapping writer IDs to SHAs
+ * @returns {Object} Result containing:
+ *   - `state`: New WarpStateV5 with patches applied
+ *   - `frontier`: New frontier with updated writer tips
+ *   - `applied`: Number of patches successfully applied
+ * @throws {Error} If a patch contains unsupported op types (schema incompatibility).
+ *   The error message will indicate which op type is unknown.
  *
  * @example
+ * // Client-side sync handler
+ * const response = await fetch('/sync', { ... }).then(r => r.json());
  * const result = applySyncResponse(response, currentState, currentFrontier);
- * // result.state - Updated state with new patches applied
- * // result.frontier - Updated frontier
- * // result.applied - Number of patches applied
+ * console.log(`Applied ${result.applied} patches`);
+ * // Update local state
+ * currentState = result.state;
+ * currentFrontier = result.frontier;
  */
 export function applySyncResponse(response, state, frontier) {
   // Clone state and frontier to avoid mutating inputs
@@ -353,9 +514,28 @@ export function applySyncResponse(response, state, frontier) {
 /**
  * Checks if a sync is needed between two frontiers.
  *
+ * A fast comparison to determine if two nodes have diverged. This can be
+ * used to skip expensive sync operations when nodes are already in sync.
+ *
+ * **Comparison logic**:
+ * 1. If frontier sizes differ, sync is needed (different writer sets)
+ * 2. If any writer has a different SHA, sync is needed
+ * 3. Otherwise, frontiers are identical and no sync is needed
+ *
+ * **Note**: This only checks for differences, not direction. Even if this
+ * returns true, it's possible that local is ahead of remote (not just behind).
+ *
  * @param {Map<string, string>} localFrontier - Local frontier
  * @param {Map<string, string>} remoteFrontier - Remote frontier
- * @returns {boolean} True if frontiers differ
+ * @returns {boolean} True if frontiers differ and sync is needed
+ *
+ * @example
+ * if (syncNeeded(localFrontier, remoteFrontier)) {
+ *   const request = createSyncRequest(localFrontier);
+ *   // ... perform sync
+ * } else {
+ *   console.log('Already in sync');
+ * }
  */
 export function syncNeeded(localFrontier, remoteFrontier) {
   // Different number of writers means sync needed
@@ -377,8 +557,21 @@ export function syncNeeded(localFrontier, remoteFrontier) {
 /**
  * Creates an empty sync response (used when no patches are needed).
  *
- * @param {Map<string, string>} frontier - Local frontier
- * @returns {SyncResponse}
+ * This is a convenience function for responding to sync requests when
+ * the requester is already up-to-date (or ahead). The response includes
+ * the local frontier but no patches.
+ *
+ * **Use case**: When processSyncRequest would return no patches anyway,
+ * this provides a more efficient path.
+ *
+ * @param {Map<string, string>} frontier - Local frontier to include in the response
+ * @returns {SyncResponse} A sync response with empty patches array
+ *
+ * @example
+ * // Shortcut when requester is already in sync
+ * if (!syncNeeded(remoteFrontier, localFrontier)) {
+ *   return createEmptySyncResponse(localFrontier);
+ * }
  */
 export function createEmptySyncResponse(frontier) {
   const frontierObj = {};

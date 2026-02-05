@@ -76,21 +76,73 @@ function validateOp(op, index) {
   }
 }
 
-/** @param {unknown} value  @param {number} i */
+/**
+ * Validates that an operation type is one of the allowed OP_TYPES.
+ *
+ * Valid operation types correspond to the six patch operations defined
+ * in PatchBuilderV2: NodeAdd, NodeTombstone, EdgeAdd, EdgeTombstone,
+ * PropSet, and BlobValue.
+ *
+ * @param {unknown} value - The operation type to validate
+ * @param {number} i - Index of the operation in the ops array (for error messages)
+ * @returns {void}
+ * @throws {Error} If value is not a string or not one of the valid OP_TYPES
+ *
+ * @example
+ * validateOpType('NodeAdd', 0); // OK
+ * validateOpType('InvalidOp', 0); // throws Error
+ * validateOpType(123, 0); // throws Error
+ */
 function validateOpType(value, i) {
   if (typeof value !== 'string' || !opTypeSet.has(value)) {
     throw new Error(`ops[${i}].op must be one of: ${OP_TYPES.join(', ')}`);
   }
 }
 
-/** @param {unknown} value  @param {number} i */
+/**
+ * Validates that an operation target is a non-empty string.
+ *
+ * The target identifies what entity was affected by the operation:
+ * - For node operations: the node ID (e.g., "user:alice")
+ * - For edge operations: the edge key (e.g., "user:alice\0user:bob\0follows")
+ * - For property operations: the property key (e.g., "user:alice\0name")
+ *
+ * @param {unknown} value - The target to validate
+ * @param {number} i - Index of the operation in the ops array (for error messages)
+ * @returns {void}
+ * @throws {Error} If value is not a non-empty string
+ *
+ * @example
+ * validateOpTarget('user:alice', 0); // OK
+ * validateOpTarget('', 0); // throws Error
+ * validateOpTarget(null, 0); // throws Error
+ */
 function validateOpTarget(value, i) {
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`ops[${i}].target must be a non-empty string`);
   }
 }
 
-/** @param {unknown} value  @param {number} i */
+/**
+ * Validates that an operation result is one of the allowed RESULT_TYPES.
+ *
+ * Valid results describe the outcome of applying the operation:
+ * - `'applied'`: The operation was successfully applied to the state
+ * - `'superseded'`: The operation was overridden by a concurrent write
+ *   (e.g., LWW register where another writer had a higher timestamp)
+ * - `'redundant'`: The operation had no effect because the state already
+ *   reflected it (e.g., adding a node that was already present)
+ *
+ * @param {unknown} value - The result to validate
+ * @param {number} i - Index of the operation in the ops array (for error messages)
+ * @returns {void}
+ * @throws {Error} If value is not a string or not one of the valid RESULT_TYPES
+ *
+ * @example
+ * validateOpResult('applied', 0); // OK
+ * validateOpResult('superseded', 1); // OK
+ * validateOpResult('failed', 0); // throws Error
+ */
 function validateOpResult(value, i) {
   if (typeof value !== 'string' || !resultTypeSet.has(value)) {
     throw new Error(`ops[${i}].result must be one of: ${RESULT_TYPES.join(', ')}`);
@@ -191,11 +243,35 @@ export function canonicalJson(receipt) {
 }
 
 /**
- * JSON.stringify replacer that sorts object keys alphabetically.
+ * JSON.stringify replacer callback that sorts object keys alphabetically.
  *
- * @param {string} _key - Current key (unused)
- * @param {unknown} value - Current value
- * @returns {unknown} Value with sorted keys if object
+ * This function is passed as the second argument to `JSON.stringify()` and
+ * is called recursively for every key-value pair in the object being serialized.
+ * For plain objects, it returns a new object with keys in sorted order, ensuring
+ * deterministic JSON output regardless of property insertion order.
+ *
+ * Arrays are passed through unchanged since their order is semantically significant.
+ * Primitive values (strings, numbers, booleans, null) are also passed through unchanged.
+ *
+ * This is essential for producing canonical JSON representations that can be
+ * compared byte-for-byte or hashed consistently.
+ *
+ * @param {string} _key - The current property key being processed (unused)
+ * @param {unknown} value - The current value being processed
+ * @returns {unknown} For objects: a new object with alphabetically sorted keys.
+ *   For arrays and primitives: the value unchanged.
+ *
+ * @example
+ * // Used internally by canonicalJson
+ * JSON.stringify({ b: 1, a: 2 }, sortedReplacer);
+ * // Returns: '{"a":2,"b":1}'
+ *
+ * @example
+ * // Nested objects are also sorted
+ * JSON.stringify({ z: { b: 1, a: 2 }, y: 3 }, sortedReplacer);
+ * // Returns: '{"y":3,"z":{"a":2,"b":1}}'
+ *
+ * @private
  */
 function sortedReplacer(_key, value) {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {

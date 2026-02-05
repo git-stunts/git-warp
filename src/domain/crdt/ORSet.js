@@ -2,6 +2,86 @@ import { encodeDot, decodeDot, compareDots } from './Dot.js';
 import { vvContains } from './VersionVector.js';
 
 /**
+ * @fileoverview ORSet - Observed-Remove Set with Add-Wins Semantics
+ *
+ * An ORSet (Observed-Remove Set) is a CRDT that allows concurrent add and
+ * remove operations on a set while guaranteeing convergence. This implementation
+ * uses "add-wins" semantics: when an add and remove happen concurrently, the
+ * add wins.
+ *
+ * ## Add-Wins Semantics
+ *
+ * The key insight of OR-Sets is that removals only affect adds they have
+ * *observed*. When you remove an element, you're really saying "remove all
+ * the add operations I've seen for this element." Any concurrent add (one
+ * you haven't seen) survives.
+ *
+ * This is implemented via dots:
+ * - Each add operation is tagged with a unique dot (writerId, counter)
+ * - Remove records which dots it has observed (the "observed set")
+ * - The element is present if ANY of its dots is not tombstoned
+ *
+ * Example of add-wins:
+ * ```
+ * Writer A: add("x") with dot (A,1)
+ * Writer B: (concurrently) remove("x") with observed dots {}
+ * Result: "x" is present (dot (A,1) was not observed by B's remove)
+ * ```
+ *
+ * Example of remove-wins (when add was observed):
+ * ```
+ * Writer A: add("x") with dot (A,1)
+ * Writer B: (after sync) remove("x") with observed dots {(A,1)}
+ * Result: "x" is absent (all its dots are tombstoned)
+ * ```
+ *
+ * ## Global Tombstones
+ *
+ * This implementation uses a **global tombstone set** rather than per-element
+ * tombstones. This is an optimization for space efficiency:
+ *
+ * - **Global tombstones**: A single Set<encodedDot> holds all tombstoned dots
+ *   across all elements. When checking if an element is present, we check if
+ *   ANY of its dots is NOT in the global tombstone set.
+ *
+ * - **Why global**: In a graph database, nodes and edges may be added/removed
+ *   many times. Per-element tombstone tracking would require storing removed
+ *   dots with each element forever. Global tombstones allow efficient compaction.
+ *
+ * - **Correctness**: Tombstones are dots, not elements. A dot uniquely identifies
+ *   one add operation. Tombstoning dot (A,5) only affects that specific add,
+ *   not any other add of the same element with a different dot.
+ *
+ * ## Semilattice Properties
+ *
+ * orsetJoin forms a join-semilattice:
+ * - **Commutative**: orsetJoin(a, b) equals orsetJoin(b, a)
+ * - **Associative**: orsetJoin(orsetJoin(a, b), c) equals orsetJoin(a, orsetJoin(b, c))
+ * - **Idempotent**: orsetJoin(a, a) equals a
+ *
+ * The join takes the union of both entries and tombstones. This ensures:
+ * - All adds from all replicas are preserved
+ * - All removes from all replicas are preserved
+ * - Convergence regardless of merge order
+ *
+ * ## Garbage Collection Safety
+ *
+ * The orsetCompact function removes tombstoned dots to reclaim memory, but
+ * must do so safely to avoid "zombie" resurrections:
+ *
+ * **GC Safety Invariant**: A tombstoned dot may only be compacted if ALL
+ * replicas have observed it. This is tracked via the version vector: if
+ * vvContains(includedVV, dot) is true for the "included" frontier, then
+ * all replicas have seen this dot and its tombstone.
+ *
+ * **What happens if violated**: If we compact (A,5) before replica B has seen
+ * it, and B later sends an add with dot (A,5), we'd have no tombstone to
+ * suppress it, causing a resurrection.
+ *
+ * @module crdt/ORSet
+ */
+
+/**
  * ORSet (Observed-Remove Set) - A CRDT set that supports add and remove operations.
  *
  * This is a GLOBAL OR-Set (one per category, not per element). It tracks:
@@ -170,12 +250,41 @@ export function orsetJoin(a, b) {
  * Compacts the ORSet by removing tombstoned dots that are <= includedVV.
  * Mutates the set.
  *
- * CRITICAL for GC safety:
- * - Only remove TOMBSTONED dots that are <= includedVV
- * - NEVER remove live (non-tombstoned) dots just because they're <= vv
+ * ## GC Safety Invariant
+ *
+ * This function implements safe garbage collection for OR-Set tombstones.
+ * The invariant is: **only compact dots that ALL replicas have observed**.
+ *
+ * The `includedVV` parameter represents the "stable frontier" - the version
+ * vector that all known replicas have reached. A dot (writerId, counter) is
+ * safe to compact if:
+ *
+ * 1. The dot is TOMBSTONED (it was removed)
+ * 2. The dot is <= includedVV (all replicas have seen it)
+ *
+ * ### Why both conditions?
+ *
+ * - **Condition 1 (tombstoned)**: Live dots must never be compacted. Removing
+ *   a live dot would make the element disappear incorrectly.
+ *
+ * - **Condition 2 (<= includedVV)**: If a replica hasn't seen this dot yet,
+ *   it might send it later. Without the tombstone, we'd have no record that
+ *   it was deleted, causing resurrection.
+ *
+ * ### Correctness Proof Sketch
+ *
+ * After compaction of dot D:
+ * - D is removed from entries (if present)
+ * - D is removed from tombstones
+ *
+ * If replica B later sends D:
+ * - Since D <= includedVV, B has already observed D
+ * - B's state must also have D tombstoned (or never had it)
+ * - Therefore B cannot send D as a live add
  *
  * @param {ORSet} set - The ORSet to compact
- * @param {import('./VersionVector.js').VersionVector} includedVV - The version vector for compaction
+ * @param {import('./VersionVector.js').VersionVector} includedVV - The stable frontier version vector.
+ *   All replicas are known to have observed at least this causal context.
  */
 export function orsetCompact(set, includedVV) {
   for (const [element, dots] of set.entries) {

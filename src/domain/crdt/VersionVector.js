@@ -1,6 +1,70 @@
 import { createDot } from './Dot.js';
 
 /**
+ * @fileoverview VersionVector - Causality Tracking via Join-Semilattice
+ *
+ * A version vector is a fundamental data structure for tracking causality in
+ * distributed systems. It maps each writer ID to the highest operation counter
+ * observed from that writer, forming a compact summary of "what has been seen."
+ *
+ * ## Semilattice Structure
+ *
+ * Version vectors form a **join-semilattice** under the pointwise maximum
+ * operation (vvMerge). A join-semilattice is a partially ordered set where
+ * every pair of elements has a least upper bound (join).
+ *
+ * The semilattice properties of vvMerge:
+ *
+ * - **Commutative**: vvMerge(a, b) = vvMerge(b, a)
+ *   Order of merge doesn't matter
+ *
+ * - **Associative**: vvMerge(vvMerge(a, b), c) = vvMerge(a, vvMerge(b, c))
+ *   Grouping of merges doesn't matter
+ *
+ * - **Idempotent**: vvMerge(a, a) = a
+ *   Merging with self is a no-op
+ *
+ * These properties guarantee that any replica can merge updates from any other
+ * replica in any order, and all will converge to the same state. This is the
+ * foundation of conflict-free replicated data types (CRDTs).
+ *
+ * ## Concurrent Conflict-Free Merges
+ *
+ * Version vectors enable concurrent merges without coordination:
+ *
+ * 1. **No locks needed**: Any replica can accept updates at any time
+ * 2. **Eventual consistency**: All replicas converge given sufficient communication
+ * 3. **Order independence**: Updates can arrive in any order
+ *
+ * When two writers concurrently create patches, each has a version vector that
+ * doesn't include the other's patch. When merged, the result includes both,
+ * and the semilattice properties ensure consistency.
+ *
+ * ## Relationship to Patch Causality
+ *
+ * In git-warp, each patch carries a version vector representing its causal
+ * context - all patches it has observed. This enables:
+ *
+ * - **Happens-before detection**: If vv_a <= vv_b, then a happens-before b
+ * - **Concurrency detection**: If neither vv_a <= vv_b nor vv_b <= vv_a, they're concurrent
+ * - **Dot containment**: A dot (writerId, counter) is "observed" if vv[writerId] >= counter
+ *
+ * The version vector grows monotonically: each patch advances at least its own
+ * writer's counter, and may advance others via merge.
+ *
+ * ## Partial Order
+ *
+ * Version vectors are partially ordered by vvDescends (componentwise <=):
+ * - vv_a <= vv_b iff for all writerIds w: vv_a[w] <= vv_b[w]
+ *
+ * This forms a **causal order** where vv_a <= vv_b means "a causally precedes b"
+ * or "b has observed all of a's history." Incomparable vectors represent
+ * concurrent states.
+ *
+ * @module crdt/VersionVector
+ */
+
+/**
  * VersionVector - A map from writerId to counter representing observed operations.
  * Used to track causality and determine what operations a writer has observed.
  *

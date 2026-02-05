@@ -10,21 +10,44 @@ import { checkAborted } from '../utils/cancellation.js';
  * Service for building and loading the bitmap index from the graph.
  *
  * This service orchestrates index creation by walking the graph and persisting
- * the resulting bitmap shards to storage via the IndexStoragePort.
+ * the resulting bitmap shards to storage via the IndexStoragePort. The bitmap
+ * index enables O(1) neighbor lookups (children/parents) after a one-time
+ * O(N) rebuild cost.
  *
- * Supports two build modes:
- * - **In-memory** (default): Fast, but requires O(N) memory
- * - **Streaming**: Memory-bounded, flushes to storage periodically
+ * **Build Modes**:
+ * - **In-memory** (default): Fast, but requires O(N) memory. Best for graphs
+ *   under ~1M nodes or systems with ample RAM.
+ * - **Streaming**: Memory-bounded, flushes to storage periodically. Required
+ *   for very large graphs that exceed available memory.
+ *
+ * **Index Structure**: The index is stored as a Git tree containing:
+ * - `meta_XX.json`: SHA-to-numeric-ID mappings (256 shards by SHA prefix)
+ * - `shards_fwd_XX.json`: Forward edge bitmaps (for child lookups)
+ * - `shards_rev_XX.json`: Reverse edge bitmaps (for parent lookups)
+ * - `frontier.json`: Writer frontier snapshot (for staleness detection)
+ *
+ * **Staleness Detection**: The index stores the frontier at build time.
+ * On load, the current frontier can be compared to detect if new patches
+ * have been written since the index was built.
+ *
+ * @module domain/services/IndexRebuildService
+ * @see BitmapIndexBuilder
+ * @see BitmapIndexReader
+ * @see StreamingBitmapIndexBuilder
  */
 export default class IndexRebuildService {
   /**
    * Creates an IndexRebuildService instance.
    *
    * @param {Object} options - Configuration options
-   * @param {{ iterateNodes: (options: { ref: string, limit?: number }) => AsyncGenerator<import('../entities/GraphNode.js').default> }} options.graphService - Graph service providing iterateNodes()
-   * @param {import('../../ports/IndexStoragePort.js').default} options.storage - Storage adapter for persisting index
-   * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging.
-   *   Defaults to NoOpLogger (no logging).
+   * @param {Object} options.graphService - Graph service providing node iteration.
+   *   Must implement `iterateNodes({ ref, limit }) => AsyncGenerator<GraphNode>`.
+   * @param {import('../../ports/IndexStoragePort.js').default} options.storage - Storage adapter
+   *   for persisting index blobs and trees. Typically GitGraphAdapter.
+   * @param {import('../../ports/LoggerPort.js').default} [options.logger=NoOpLogger] - Logger for
+   *   structured logging. Defaults to NoOpLogger (no logging).
+   * @throws {Error} If graphService is not provided
+   * @throws {Error} If storage adapter is not provided
    */
   constructor({ graphService, storage, logger = new NoOpLogger() }) {
     if (!graphService) {
@@ -73,7 +96,10 @@ export default class IndexRebuildService {
    * @param {Map<string, string>} [options.frontier] - Frontier to persist alongside the rebuilt index.
    *   Maps writer IDs to their tip SHAs; stored in the index tree for staleness detection.
    * @returns {Promise<string>} OID of the created tree containing the index
-   * @throws {Error} If ref is invalid or limit is out of range
+   * @throws {Error} If maxMemoryBytes is specified but not positive
+   * @throws {OperationAbortedError} If the signal is aborted during rebuild
+   * @throws {Error} If graphService.iterateNodes() fails (e.g., invalid ref)
+   * @throws {Error} If storage.writeBlob() or storage.writeTree() fails
    *
    * @example
    * // In-memory rebuild (default, fast)
@@ -135,12 +161,25 @@ export default class IndexRebuildService {
   /**
    * In-memory rebuild implementation (original behavior).
    *
+   * Loads all nodes into memory, builds the complete index, then persists
+   * in a single batch. This is the fastest approach but requires O(N) memory
+   * where N is the number of nodes.
+   *
+   * **Memory usage**: Approximately 150-200 bytes per node for the bitmap
+   * data structures, plus temporary overhead during serialization.
+   *
    * @param {string} ref - Git ref to traverse from
    * @param {Object} options - Options
-   * @param {number} options.limit - Maximum nodes
-   * @param {Function} [options.onProgress] - Progress callback
-   * @param {AbortSignal} [options.signal] - Abort signal for cancellation
-   * @returns {Promise<string>} Tree OID
+   * @param {number} options.limit - Maximum nodes to process
+   * @param {Function} [options.onProgress] - Progress callback invoked every 10,000 nodes.
+   *   Receives `{ processedNodes: number, currentMemoryBytes: null }`.
+   * @param {AbortSignal} [options.signal] - Abort signal for cancellation. Checked every
+   *   10,000 nodes to balance responsiveness with performance.
+   * @param {Map<string, string>} [options.frontier] - Frontier to persist with the index
+   * @returns {Promise<string>} Tree OID of the persisted index
+   * @throws {OperationAbortedError} If the signal is aborted during iteration
+   * @throws {Error} If node iteration fails (e.g., invalid ref, Git error)
+   * @throws {Error} If index persistence fails (storage error)
    * @private
    */
   async _rebuildInMemory(ref, { limit, onProgress, signal, frontier }) {
@@ -168,14 +207,38 @@ export default class IndexRebuildService {
   /**
    * Streaming rebuild implementation with memory-bounded operation.
    *
+   * Uses StreamingBitmapIndexBuilder to flush bitmap data to storage when
+   * memory usage exceeds the threshold. Multiple chunks are written during
+   * iteration, then merged at finalization.
+   *
+   * **Memory usage**: Bounded by `maxMemoryBytes`. When exceeded, current
+   * bitmap data is serialized and flushed to storage, freeing memory for
+   * continued iteration.
+   *
+   * **I/O pattern**: Higher I/O than in-memory mode due to intermediate
+   * flushes. Each flush writes partial shards that are later merged.
+   *
+   * **Trade-offs**: Use streaming mode when:
+   * - Graph is too large to fit in memory
+   * - Memory is constrained (container limits, shared systems)
+   * - You can tolerate longer rebuild times for lower memory usage
+   *
    * @param {string} ref - Git ref to traverse from
    * @param {Object} options - Options
-   * @param {number} options.limit - Maximum nodes
-   * @param {number} options.maxMemoryBytes - Memory threshold
-   * @param {Function} [options.onFlush] - Flush callback
-   * @param {Function} [options.onProgress] - Progress callback
-   * @param {AbortSignal} [options.signal] - Abort signal for cancellation
-   * @returns {Promise<string>} Tree OID
+   * @param {number} options.limit - Maximum nodes to process
+   * @param {number} options.maxMemoryBytes - Memory threshold in bytes. When estimated
+   *   bitmap memory exceeds this, a flush is triggered.
+   * @param {Function} [options.onFlush] - Flush callback invoked after each flush.
+   *   Receives `{ flushedBytes, totalFlushedBytes, flushCount }`.
+   * @param {Function} [options.onProgress] - Progress callback invoked every 10,000 nodes.
+   *   Receives `{ processedNodes, currentMemoryBytes }`.
+   * @param {AbortSignal} [options.signal] - Abort signal for cancellation. Checked every
+   *   10,000 nodes during iteration and at finalization.
+   * @param {Map<string, string>} [options.frontier] - Frontier to persist with the index
+   * @returns {Promise<string>} Tree OID of the persisted index
+   * @throws {OperationAbortedError} If the signal is aborted during iteration or finalization
+   * @throws {Error} If node iteration fails (e.g., invalid ref, Git error)
+   * @throws {Error} If flush or finalization fails (storage error)
    * @private
    */
   async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier }) {
@@ -215,8 +278,18 @@ export default class IndexRebuildService {
    * Serializes the builder's state and writes each shard as a blob,
    * then creates a tree containing all shards.
    *
+   * **Persistence format**: Creates a flat tree with entries like:
+   * - `100644 blob <oid>\tmeta_00.json`
+   * - `100644 blob <oid>\tshards_fwd_00.json`
+   * - `100644 blob <oid>\tshards_rev_00.json`
+   * - `100644 blob <oid>\tfrontier.json` (if frontier provided)
+   *
    * @param {BitmapIndexBuilder} builder - The builder containing index data
+   * @param {Object} [options] - Persistence options
+   * @param {Map<string, string>} [options.frontier] - Frontier to include in the tree
    * @returns {Promise<string>} OID of the created tree
+   * @throws {Error} If storage.writeBlob() fails for any shard
+   * @throws {Error} If storage.writeTree() fails
    * @private
    */
   async _persistIndex(builder, { frontier } = {}) {
@@ -260,11 +333,17 @@ export default class IndexRebuildService {
    * @param {boolean} [options.autoRebuild=false] - Auto-rebuild when a stale index is detected.
    *   Requires `rebuildRef` to be set.
    * @param {string} [options.rebuildRef] - Git ref to rebuild from when `autoRebuild` is true.
-   * @returns {Promise<BitmapIndexReader>} Configured reader ready for O(1) queries
-   * @throws {Error} If treeOid is invalid or tree cannot be read
+   *   Required if `autoRebuild` is true.
+   * @returns {Promise<BitmapIndexReader>} Configured reader ready for O(1) queries.
+   *   The reader lazily loads shards on demand; initial load is O(1).
+   * @throws {Error} If treeOid is invalid or tree cannot be read from storage
+   * @throws {Error} If autoRebuild is true but rebuildRef is not provided
    * @throws {ShardValidationError} (strict mode) If shard structure validation fails
+   *   (e.g., missing required fields, invalid format)
    * @throws {ShardCorruptionError} (strict mode) If shard data integrity check fails
+   *   (e.g., checksum mismatch, truncated data)
    * @throws {ShardLoadError} (strict mode) If shard cannot be loaded from storage
+   *   (e.g., blob not found, I/O error)
    *
    * @example
    * // Load with strict integrity checking (default)

@@ -154,8 +154,13 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Registers a node without adding edges.
    *
-   * @param {string} sha - The node's SHA
-   * @returns {Promise<number>} The assigned numeric ID
+   * This method assigns a numeric ID to the given SHA if it hasn't been
+   * registered before. The ID is used internally for bitmap indexing.
+   * If the node has already been registered, returns the existing ID.
+   *
+   * @param {string} sha - The node's SHA (40-character hex string)
+   * @returns {Promise<number>} The assigned numeric ID (0-indexed, monotonically increasing)
+   * @async
    */
   registerNode(sha) {
     return Promise.resolve(this._getOrCreateId(sha));
@@ -164,11 +169,17 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Adds a directed edge from source to target node.
    *
-   * May trigger a flush if memory threshold is exceeded after adding.
+   * Creates or updates bitmap entries for both forward (src → tgt) and
+   * reverse (tgt → src) edge lookups. Both nodes are automatically registered
+   * if not already present.
    *
-   * @param {string} srcSha - Source node SHA (parent)
-   * @param {string} tgtSha - Target node SHA (child)
-   * @returns {Promise<void>}
+   * May trigger an automatic flush if memory usage exceeds the configured
+   * `maxMemoryBytes` threshold after adding the edge.
+   *
+   * @param {string} srcSha - Source node SHA (parent, 40-character hex string)
+   * @param {string} tgtSha - Target node SHA (child, 40-character hex string)
+   * @returns {Promise<void>} Resolves when edge is added (and flushed if necessary)
+   * @async
    */
   async addEdge(srcSha, tgtSha) {
     const srcId = this._getOrCreateId(srcSha);
@@ -184,7 +195,13 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
-   * Serializes current bitmaps into shard structure.
+   * Serializes current in-memory bitmaps into a shard structure.
+   *
+   * Groups bitmaps by type ('fwd' or 'rev') and SHA prefix (first 2 hex chars).
+   * Each bitmap is serialized to a portable format and base64-encoded.
+   *
+   * @returns {{fwd: Object<string, Object<string, string>>, rev: Object<string, Object<string, string>>}}
+   *   Object with 'fwd' and 'rev' keys, each mapping prefix to SHA→base64Bitmap entries
    * @private
    */
   _serializeBitmapsToShards() {
@@ -205,8 +222,14 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Writes serialized bitmap shards to storage and tracks their OIDs.
    *
-   * @param {Object} bitmapShards - Object with 'fwd' and 'rev' shard data
-   * @returns {Promise<void>}
+   * Each shard is wrapped in a versioned envelope with a checksum before writing.
+   * The resulting blob OIDs are tracked in `flushedChunks` for later merging.
+   * Writes are performed in parallel for efficiency.
+   *
+   * @param {{fwd: Object<string, Object<string, string>>, rev: Object<string, Object<string, string>>}} bitmapShards
+   *   Object with 'fwd' and 'rev' keys containing prefix-grouped bitmap data
+   * @returns {Promise<void>} Resolves when all shards have been written
+   * @async
    * @private
    */
   async _writeShardsToStorage(bitmapShards) {
@@ -239,10 +262,20 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Flushes current bitmap data to storage.
    *
-   * Serializes all in-memory bitmaps, writes them as blobs, and clears
-   * the bitmap map. SHA→ID mappings are preserved.
+   * Serializes all in-memory bitmaps, writes them as versioned blob chunks,
+   * and clears the bitmap map to free memory. SHA→ID mappings are preserved
+   * in memory as they are required for global ID consistency.
    *
-   * @returns {Promise<void>}
+   * This method is called automatically when memory usage exceeds
+   * `maxMemoryBytes`, but can also be called manually to force a flush.
+   *
+   * If no bitmaps are in memory (e.g., after a previous flush), this
+   * method returns immediately without performing any I/O.
+   *
+   * Invokes the `onFlush` callback (if configured) after successful flush.
+   *
+   * @returns {Promise<void>} Resolves when flush is complete
+   * @async
    */
   async flush() {
     if (this.bitmaps.size === 0) {
@@ -277,9 +310,14 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
-   * Builds meta shards (SHA→ID mappings) grouped by prefix.
+   * Builds meta shards (SHA→ID mappings) grouped by SHA prefix.
    *
-   * @returns {Object} Object mapping prefix to SHA→ID maps
+   * Groups all registered SHA→ID mappings by the first two hex characters
+   * of the SHA. This enables efficient loading of only relevant shards
+   * during index reads.
+   *
+   * @returns {Object<string, Object<string, number>>} Object mapping 2-char hex prefix
+   *   to objects of SHA→numeric ID mappings
    * @private
    */
   _buildMetaShards() {
@@ -297,8 +335,14 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Writes meta shards to storage in parallel.
    *
-   * @param {Object} idShards - Object mapping prefix to SHA→ID maps
-   * @returns {Promise<string[]>} Array of tree entry strings
+   * Each shard is wrapped in a versioned envelope with checksum before writing.
+   * Writes are performed in parallel using Promise.all for efficiency.
+   *
+   * @param {Object<string, Object<string, number>>} idShards - Object mapping 2-char hex prefix
+   *   to objects of SHA→numeric ID mappings
+   * @returns {Promise<string[]>} Array of Git tree entry strings in format
+   *   "100644 blob <oid>\tmeta_<prefix>.json"
+   * @async
    * @private
    */
   async _writeMetaShards(idShards) {
@@ -318,11 +362,23 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
-   * Processes bitmap shards, merging chunks if necessary.
+   * Processes bitmap shards, merging multiple chunks if necessary.
+   *
+   * For each shard path, if multiple chunks were flushed during the build,
+   * they are merged by ORing their bitmaps together. Single-chunk shards
+   * are used directly without merging.
+   *
+   * Processing is parallelized across shard paths for efficiency.
    *
    * @param {Object} [options] - Options
-   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
-   * @returns {Promise<string[]>} Array of tree entry strings
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation.
+   *   If aborted, throws an error with code 'ABORT_ERR'.
+   * @returns {Promise<string[]>} Array of Git tree entry strings in format
+   *   "100644 blob <oid>\tshards_<type>_<prefix>.json"
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version (from _mergeChunks)
+   * @throws {ShardCorruptionError} If a chunk's checksum is invalid (from _mergeChunks)
+   * @async
    * @private
    */
   async _processBitmapShards({ signal } = {}) {
@@ -338,18 +394,37 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Finalizes the index and returns the tree OID.
    *
-   * Performs the following:
-   * 1. Flushes any remaining bitmap data
-   * 2. Writes meta shards (SHA→ID mappings) in parallel
-   * 3. Merges multi-chunk shards by ORing bitmaps together in parallel
-   * 4. Creates and returns the final tree
+   * Performs the following steps:
+   * 1. Flushes any remaining in-memory bitmap data to storage
+   * 2. Builds and writes meta shards (SHA→ID mappings) grouped by prefix
+   * 3. Merges multi-chunk bitmap shards by ORing bitmaps together
+   * 4. Optionally writes frontier metadata for staleness detection
+   * 5. Creates and returns the final Git tree containing all shards
    *
-   * Meta shards and bitmap shards are processed in parallel using Promise.all
+   * Meta shards and bitmap shards are processed using Promise.all
    * since they are independent (prefix-based partitioning).
    *
+   * The resulting tree structure:
+   * ```
+   * index-tree/
+   *   meta_00.json ... meta_ff.json       # SHA→ID mappings by prefix
+   *   shards_fwd_00.json ... shards_fwd_ff.json  # Forward edge bitmaps
+   *   shards_rev_00.json ... shards_rev_ff.json  # Reverse edge bitmaps
+   *   frontier.cbor                       # Optional: CBOR-encoded frontier
+   *   frontier.json                       # Optional: JSON-encoded frontier
+   * ```
+   *
    * @param {Object} [options] - Finalization options
-   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
-   * @returns {Promise<string>} OID of the created tree containing the index
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation.
+   *   If aborted, throws an error with code 'ABORT_ERR'.
+   * @param {Map<string, number>} [options.frontier] - Optional version vector frontier
+   *   (writerId → clock) for staleness detection. If provided, frontier.cbor and
+   *   frontier.json files are included in the tree.
+   * @returns {Promise<string>} OID of the created Git tree containing the complete index
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version during merge
+   * @throws {ShardCorruptionError} If a chunk's checksum is invalid during merge
+   * @async
    */
   async finalize({ signal, frontier } = {}) {
     this.logger.debug('Finalizing index', {
@@ -396,15 +471,20 @@ export default class StreamingBitmapIndexBuilder {
   }
 
   /**
-   * Returns current memory statistics.
+   * Returns current memory statistics for monitoring and debugging.
    *
-   * @returns {Object} Memory statistics
-   * @returns {number} return.estimatedBitmapBytes - Current in-memory bitmap size
-   * @returns {number} return.estimatedMappingBytes - Estimated SHA→ID mapping size
-   * @returns {number} return.totalFlushedBytes - Total bytes written to storage
-   * @returns {number} return.flushCount - Number of flush operations
-   * @returns {number} return.nodeCount - Number of registered nodes
-   * @returns {number} return.bitmapCount - Number of in-memory bitmaps
+   * Useful for understanding memory pressure during index building and
+   * tuning the `maxMemoryBytes` threshold.
+   *
+   * @returns {Object} Memory statistics object
+   * @property {number} estimatedBitmapBytes - Current estimated size of in-memory bitmaps in bytes.
+   *   This is an approximation based on bitmap operations; actual memory usage may vary.
+   * @property {number} estimatedMappingBytes - Estimated size of SHA→ID mappings in bytes.
+   *   Calculated as nodeCount * BYTES_PER_ID_MAPPING (120 bytes per entry).
+   * @property {number} totalFlushedBytes - Total bytes flushed to storage across all flush operations.
+   * @property {number} flushCount - Number of flush operations performed so far.
+   * @property {number} nodeCount - Total number of unique nodes registered (by SHA).
+   * @property {number} bitmapCount - Number of bitmaps currently held in memory.
    */
   getMemoryStats() {
     return {
@@ -420,8 +500,14 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Gets or creates a numeric ID for a SHA.
    *
-   * @param {string} sha - The SHA to look up or register
-   * @returns {number} The numeric ID
+   * If the SHA has been seen before, returns its existing ID.
+   * Otherwise, assigns the next available ID (equal to current array length)
+   * and stores the bidirectional mapping.
+   *
+   * IDs are assigned sequentially starting from 0 in the order nodes are first seen.
+   *
+   * @param {string} sha - The SHA to look up or register (40-character hex string)
+   * @returns {number} The numeric ID (0-indexed, monotonically increasing)
    * @private
    */
   _getOrCreateId(sha) {
@@ -437,10 +523,19 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Adds an ID to a node's bitmap and updates memory estimate.
    *
-   * @param {Object} opts - Options
-   * @param {string} opts.sha - The SHA to use as key
-   * @param {number} opts.id - The ID to add to the bitmap
-   * @param {string} opts.type - 'fwd' or 'rev'
+   * Creates a new RoaringBitmap32 if this is the first edge for the given
+   * SHA and type combination. Updates the `estimatedBitmapBytes` counter
+   * to track memory usage for automatic flushing.
+   *
+   * Memory estimation:
+   * - New bitmap: adds BITMAP_BASE_OVERHEAD (64 bytes)
+   * - New entry in existing bitmap: adds ~4 bytes (approximation)
+   *
+   * @param {Object} opts - Options object
+   * @param {string} opts.sha - The SHA to use as bitmap key (40-character hex string)
+   * @param {number} opts.id - The numeric ID to add to the bitmap
+   * @param {'fwd'|'rev'} opts.type - Edge direction type: 'fwd' for forward edges
+   *   (this node's children), 'rev' for reverse edges (this node's parents)
    * @private
    */
   _addToBitmap({ sha, id, type }) {
@@ -464,10 +559,19 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Loads a chunk from storage, parses JSON, and validates version and checksum.
    *
-   * @param {string} oid - Blob OID of the chunk to load
-   * @returns {Promise<Object>} The validated chunk data
-   * @throws {ShardCorruptionError} If the chunk cannot be parsed or checksum is invalid
-   * @throws {ShardValidationError} If the chunk has an unsupported version
+   * Performs the following validation steps:
+   * 1. Reads blob from storage by OID
+   * 2. Parses JSON envelope (throws ShardCorruptionError if invalid)
+   * 3. Validates version matches SHARD_VERSION (throws ShardValidationError if mismatch)
+   * 4. Recomputes and validates checksum (throws ShardCorruptionError if mismatch)
+   *
+   * @param {string} oid - Git blob OID of the chunk to load (40-character hex string)
+   * @returns {Promise<Object<string, string>>} The validated chunk data (SHA→base64Bitmap mappings)
+   * @throws {ShardCorruptionError} If the chunk cannot be parsed as JSON or checksum is invalid.
+   *   Error context includes: oid, reason ('invalid_format' or 'invalid_checksum'), originalError
+   * @throws {ShardValidationError} If the chunk has an unsupported version.
+   *   Error context includes: oid, expected version, actual version, field
+   * @async
    * @private
    */
   async _loadAndValidateChunk(oid) {
@@ -512,12 +616,18 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Deserializes a base64-encoded bitmap and merges it into the merged object.
    *
-   * @param {Object} opts - Options
-   * @param {Object} opts.merged - Object mapping SHA to RoaringBitmap32 instances
-   * @param {string} opts.sha - The SHA key for this bitmap
-   * @param {string} opts.base64Bitmap - Base64-encoded serialized bitmap
-   * @param {string} opts.oid - Blob OID (for error reporting)
-   * @throws {ShardCorruptionError} If the bitmap cannot be deserialized
+   * If no bitmap exists for the SHA in the merged object, the deserialized bitmap
+   * is stored directly. If a bitmap already exists, the new bitmap is ORed into
+   * it using `orInPlace` to combine edge sets.
+   *
+   * @param {Object} opts - Options object
+   * @param {Object<string, RoaringBitmap32>} opts.merged - Object mapping SHA to
+   *   RoaringBitmap32 instances (mutated in place)
+   * @param {string} opts.sha - The SHA key for this bitmap (40-character hex string)
+   * @param {string} opts.base64Bitmap - Base64-encoded serialized RoaringBitmap32 data
+   * @param {string} opts.oid - Git blob OID of the source chunk (for error reporting)
+   * @throws {ShardCorruptionError} If the bitmap cannot be deserialized from base64.
+   *   Error context includes: oid, reason ('invalid_bitmap'), originalError
    * @private
    */
   _mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid }) {
@@ -543,15 +653,31 @@ export default class StreamingBitmapIndexBuilder {
   /**
    * Merges multiple shard chunks by ORing their bitmaps together.
    *
-   * Validates version and checksum of each chunk before merging.
-   * Throws ShardValidationError on version mismatch or ShardCorruptionError on checksum mismatch.
+   * This is called during finalization when a shard path has multiple flushed
+   * chunks that need to be combined. Each chunk is loaded, validated, and its
+   * bitmaps are ORed together by SHA key.
    *
-   * @param {string[]} oids - Blob OIDs of chunks to merge
-   * @param {Object} [options] - Options
-   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation
-   * @returns {Promise<string>} OID of merged shard blob
-   * @throws {ShardValidationError} If a chunk has an unsupported version
-   * @throws {ShardCorruptionError} If a chunk's checksum does not match
+   * The merge process:
+   * 1. Iterates through each chunk OID
+   * 2. Loads and validates each chunk (version + checksum)
+   * 3. Deserializes bitmaps and ORs them together by SHA
+   * 4. Serializes the merged result with new checksum
+   * 5. Writes the merged blob to storage
+   *
+   * Supports cancellation via AbortSignal between chunk processing iterations.
+   *
+   * @param {string[]} oids - Git blob OIDs of chunks to merge (40-character hex strings)
+   * @param {Object} [options] - Options object
+   * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation.
+   *   Checked between chunk iterations; if aborted, throws with code 'ABORT_ERR'.
+   * @returns {Promise<string>} Git blob OID of the merged shard (40-character hex string)
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version.
+   *   Contains context: oid, expected version, actual version
+   * @throws {ShardCorruptionError} If a chunk's checksum does not match, JSON parsing fails,
+   *   bitmap deserialization fails, or final serialization fails.
+   *   Contains context: oid/reason and relevant details
+   * @async
    * @private
    */
   async _mergeChunks(oids, { signal } = {}) {

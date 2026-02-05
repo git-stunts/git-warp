@@ -1,4 +1,61 @@
 /**
+ * @fileoverview Dot - Unique Operation Identity for CRDT Semantics
+ *
+ * In distributed systems, concurrent operations can arrive in any order and may
+ * conflict. To resolve conflicts deterministically without coordination, each
+ * operation must carry a unique, globally recognizable identity. This is the
+ * role of a "dot."
+ *
+ * ## What is a Dot?
+ *
+ * A dot is a (writerId, counter) pair that uniquely identifies a single CRDT
+ * operation. Think of it as a "birth certificate" for an operation:
+ *
+ * - **writerId**: Identifies which writer created this operation. Each writer
+ *   in the system has a unique ID (e.g., "alice", "bob", or a UUID).
+ *
+ * - **counter**: A monotonically increasing integer for this writer. Each time
+ *   a writer creates an operation, it increments its counter. The first
+ *   operation is counter=1, the second is counter=2, and so on.
+ *
+ * Together, (writerId, counter) forms a globally unique identifier because:
+ * 1. No two writers share the same writerId
+ * 2. No single writer uses the same counter twice
+ *
+ * ## Why Dots Matter for CRDTs
+ *
+ * Dots enable "add-wins" semantics in OR-Sets. When an element is added, the
+ * add operation's dot is recorded. When an element is removed, only the dots
+ * that the remover has *observed* are tombstoned. This means:
+ *
+ * - Concurrent add + remove: The add wins (its dot wasn't observed by the remove)
+ * - Sequential add then remove: The remove wins (it observed the add's dot)
+ * - Re-add after remove: The new add wins (new dot wasn't observed by old remove)
+ *
+ * Without dots, you cannot distinguish "concurrent add" from "re-add after
+ * remove," leading to either lost updates or zombie elements.
+ *
+ * ## Dots and Causality
+ *
+ * Dots relate to causality through version vectors. A version vector is a map
+ * from writerId to the highest counter seen from that writer. If vv[writerId]
+ * >= dot.counter, then the dot has been "observed" or "included" in that causal
+ * context.
+ *
+ * This enables:
+ * - **Causality tracking**: Know which operations have been seen
+ * - **Safe garbage collection**: Only compact dots that all replicas have seen
+ * - **Conflict detection**: Concurrent operations have dots not in each other's context
+ *
+ * ## Encoding
+ *
+ * Dots are encoded as strings "writerId:counter" for use as Map/Set keys. The
+ * lastIndexOf(':') parsing handles writerIds that contain colons.
+ *
+ * @module crdt/Dot
+ */
+
+/**
  * Dot - Unique operation identifier for CRDT operations.
  * A dot is a (writerId, counter) pair that uniquely identifies an operation.
  *

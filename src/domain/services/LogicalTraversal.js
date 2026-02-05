@@ -9,6 +9,13 @@ import TraversalError from '../errors/TraversalError.js';
 
 const DEFAULT_MAX_DEPTH = 1000;
 
+/**
+ * Validates and normalizes an edge direction parameter.
+ *
+ * @param {string|undefined} direction - The direction to validate ('out', 'in', or 'both')
+ * @returns {'out'|'in'|'both'} The validated direction, defaulting to 'out' if undefined
+ * @throws {TraversalError} If the direction is not one of the valid values
+ */
 function assertDirection(direction) {
   if (direction === undefined) {
     return 'out';
@@ -22,6 +29,16 @@ function assertDirection(direction) {
   });
 }
 
+/**
+ * Normalizes a label filter into a Set for efficient lookup.
+ *
+ * Accepts a single label string, an array of labels, or undefined. Returns
+ * a Set containing the label(s) or null if no filter is specified.
+ *
+ * @param {string|string[]|undefined} labelFilter - The label filter to normalize
+ * @returns {Set<string>|null} A Set of labels for filtering, or null if no filter
+ * @throws {TraversalError} If labelFilter is neither a string, array, nor undefined
+ */
 function normalizeLabelFilter(labelFilter) {
   if (labelFilter === undefined) {
     return null;
@@ -38,6 +55,17 @@ function normalizeLabelFilter(labelFilter) {
   });
 }
 
+/**
+ * Filters a list of neighbor edges by label.
+ *
+ * If no label set is provided (null), returns all neighbors unchanged.
+ * If an empty label set is provided, returns an empty array.
+ * Otherwise, returns only edges whose label is in the set.
+ *
+ * @param {Array<{neighborId: string, label: string}>} neighbors - The list of neighbor edges to filter
+ * @param {Set<string>|null} labelSet - The set of allowed labels, or null to allow all
+ * @returns {Array<{neighborId: string, label: string}>} The filtered list of neighbor edges
+ */
 function filterByLabel(neighbors, labelSet) {
   if (!labelSet) {
     return neighbors;
@@ -48,6 +76,25 @@ function filterByLabel(neighbors, labelSet) {
   return neighbors.filter((edge) => labelSet.has(edge.label));
 }
 
+/**
+ * Retrieves neighbors of a node based on direction and label filter.
+ *
+ * Returns outgoing neighbors for 'out', incoming neighbors for 'in', or
+ * a merged and sorted list of both for 'both'. Results are filtered by
+ * label if a label set is provided.
+ *
+ * For 'both' direction, neighbors are sorted first by neighborId, then by label,
+ * ensuring deterministic traversal order.
+ *
+ * @param {Object} params - The neighbor lookup parameters
+ * @param {string} params.nodeId - The node ID to get neighbors for
+ * @param {'out'|'in'|'both'} params.direction - The edge direction to follow
+ * @param {Object} params.adjacency - The adjacency structure from materialized graph
+ * @param {Map<string, Array<{neighborId: string, label: string}>>} params.adjacency.outgoing - Outgoing edge map
+ * @param {Map<string, Array<{neighborId: string, label: string}>>} params.adjacency.incoming - Incoming edge map
+ * @param {Set<string>|null} params.labelSet - The set of allowed labels, or null to allow all
+ * @returns {Array<{neighborId: string, label: string}>} The list of neighbor edges
+ */
 function getNeighbors({ nodeId, direction, adjacency, labelSet }) {
   const outgoing = filterByLabel(adjacency.outgoing.get(nodeId) || [], labelSet);
   const incoming = filterByLabel(adjacency.incoming.get(nodeId) || [], labelSet);
@@ -79,6 +126,24 @@ export default class LogicalTraversal {
     this._graph = graph;
   }
 
+  /**
+   * Prepares common traversal state by materializing the graph and validating inputs.
+   *
+   * This private method is called by all traversal methods to ensure the graph is
+   * materialized, the start node exists, and options are normalized.
+   *
+   * @private
+   * @param {string} start - The starting node ID for traversal
+   * @param {Object} options - The traversal options to normalize
+   * @param {'out'|'in'|'both'} [options.dir] - Edge direction to follow
+   * @param {string|string[]} [options.labelFilter] - Edge label(s) to include
+   * @param {number} [options.maxDepth] - Maximum depth to traverse
+   * @returns {Promise<{dir: 'out'|'in'|'both', labelSet: Set<string>|null, adjacency: Object, depthLimit: number}>}
+   *   The normalized traversal parameters
+   * @throws {TraversalError} If the start node is not found (NODE_NOT_FOUND)
+   * @throws {TraversalError} If the direction is invalid (INVALID_DIRECTION)
+   * @throws {TraversalError} If the labelFilter is invalid (INVALID_LABEL_FILTER)
+   */
   async _prepare(start, { dir, labelFilter, maxDepth }) {
     const materialized = await this._graph._materializeGraph();
 

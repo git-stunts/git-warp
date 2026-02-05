@@ -1,9 +1,71 @@
+/**
+ * @fileoverview Git-backed persistence adapter for WARP graph storage.
+ *
+ * This module provides the concrete implementation of {@link GraphPersistencePort}
+ * that translates high-level graph operations into Git plumbing commands. It serves
+ * as the primary adapter in the hexagonal architecture, bridging the domain layer
+ * to the underlying Git storage substrate.
+ *
+ * ## Architecture Role
+ *
+ * In WARP's hexagonal architecture, GitGraphAdapter sits at the infrastructure layer:
+ *
+ * ```
+ *   Domain (WarpGraph, JoinReducer)
+ *            ↓
+ *   Ports (GraphPersistencePort - abstract interface)
+ *            ↓
+ *   Adapters (GitGraphAdapter - this module)
+ *            ↓
+ *   External (@git-stunts/plumbing → Git)
+ * ```
+ *
+ * All graph data is stored as Git commits pointing to the well-known empty tree
+ * (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`). This design means no files appear
+ * in the working directory, yet all data inherits Git's content-addressing,
+ * cryptographic integrity, and distributed replication capabilities.
+ *
+ * ## Multi-Writer Concurrency
+ *
+ * WARP supports multiple concurrent writers without coordination. Each writer
+ * maintains an independent patch chain under `refs/warp/<graph>/writers/<writerId>`.
+ * This adapter handles the inevitable lock contention via automatic retry with
+ * exponential backoff for transient Git errors (ref locks, I/O timeouts).
+ *
+ * ## Security
+ *
+ * All user-supplied inputs (refs, OIDs, config keys) are validated before being
+ * passed to Git commands to prevent command injection attacks. See the private
+ * `_validate*` methods for validation rules.
+ *
+ * @module infrastructure/adapters/GitGraphAdapter
+ * @see {@link GraphPersistencePort} for the abstract interface contract
+ * @see {@link https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain} for Git plumbing concepts
+ */
+
 import { retry } from '@git-stunts/alfred';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
 
 /**
- * Transient git errors that are safe to retry.
+ * Transient Git errors that are safe to retry automatically.
+ *
+ * These patterns represent temporary conditions that resolve on their own:
+ *
+ * - **"cannot lock ref"**: Another process holds the ref lock (common in multi-writer
+ *   scenarios where multiple writers attempt concurrent commits). Git uses file-based
+ *   locking (`<ref>.lock` files), so concurrent writes naturally contend.
+ *
+ * - **"resource temporarily unavailable"**: OS-level I/O contention, typically from
+ *   file descriptor limits or NFS lock issues on network filesystems.
+ *
+ * - **"connection timed out"**: Network issues when the Git repository is accessed
+ *   over a network protocol (SSH, HTTPS) or when using NFS-mounted storage.
+ *
+ * Non-transient errors (e.g., "repository not found", "permission denied") are NOT
+ * retried and propagate immediately to the caller.
+ *
  * @type {string[]}
+ * @private
  */
 const TRANSIENT_ERROR_PATTERNS = [
   'cannot lock ref',
@@ -56,18 +118,84 @@ async function refExists(execute, ref) {
 }
 
 /**
- * Implementation of GraphPersistencePort using GitPlumbing.
+ * Concrete implementation of {@link GraphPersistencePort} using Git plumbing commands.
  *
- * Translates graph persistence operations into Git plumbing commands
- * (commit-tree, hash-object, update-ref, etc.). All write operations
- * use retry logic with exponential backoff to handle transient Git
- * lock contention in concurrent multi-writer scenarios.
+ * This adapter translates abstract graph persistence operations into Git plumbing
+ * commands (`commit-tree`, `hash-object`, `update-ref`, `cat-file`, etc.). It serves
+ * as the bridge between WARP's domain logic and Git's content-addressed storage.
+ *
+ * ## Retry Strategy
+ *
+ * All write operations use automatic retry with exponential backoff to handle
+ * transient Git errors. This is essential for multi-writer scenarios where
+ * concurrent writers may contend for ref locks:
+ *
+ * - **Retries**: 3 attempts by default
+ * - **Initial delay**: 100ms
+ * - **Max delay**: 2000ms (2 seconds)
+ * - **Backoff**: Exponential with decorrelated jitter to prevent thundering herd
+ * - **Retry condition**: Only transient errors (see {@link TRANSIENT_ERROR_PATTERNS})
+ *
+ * Custom retry options can be provided via the constructor to tune behavior
+ * for specific deployment environments (e.g., longer delays for NFS storage).
+ *
+ * ## Thread Safety
+ *
+ * This adapter is safe for concurrent use from multiple async contexts within
+ * the same Node.js process. Git's file-based locking provides external
+ * synchronization, and the retry logic handles lock contention gracefully.
+ *
+ * @extends GraphPersistencePort
+ * @see {@link GraphPersistencePort} for the abstract interface contract
+ * @see {@link DEFAULT_RETRY_OPTIONS} for retry configuration details
+ *
+ * @example
+ * // Basic usage with default retry options
+ * import Plumbing from '@git-stunts/plumbing';
+ * import GitGraphAdapter from './GitGraphAdapter.js';
+ *
+ * const plumbing = new Plumbing({ cwd: '/path/to/repo' });
+ * const adapter = new GitGraphAdapter({ plumbing });
+ *
+ * // Create a commit pointing to the empty tree
+ * const sha = await adapter.commitNode({ message: 'patch data...' });
+ *
+ * @example
+ * // Custom retry options for high-latency storage
+ * const adapter = new GitGraphAdapter({
+ *   plumbing,
+ *   retryOptions: {
+ *     retries: 5,
+ *     delay: 200,
+ *     maxDelay: 5000,
+ *   }
+ * });
  */
 export default class GitGraphAdapter extends GraphPersistencePort {
   /**
-   * @param {Object} options
-   * @param {import('@git-stunts/plumbing').default} options.plumbing
-   * @param {import('@git-stunts/alfred').RetryOptions} [options.retryOptions] - Custom retry options
+   * Creates a new GitGraphAdapter instance.
+   *
+   * @param {Object} options - Configuration options
+   * @param {import('@git-stunts/plumbing').default} options.plumbing - The Git plumbing
+   *   instance to use for executing Git commands. Must be initialized with a valid
+   *   repository path.
+   * @param {import('@git-stunts/alfred').RetryOptions} [options.retryOptions={}] - Custom
+   *   retry options to override the defaults. Useful for tuning retry behavior based
+   *   on deployment environment:
+   *   - `retries` (number): Maximum retry attempts (default: 3)
+   *   - `delay` (number): Initial delay in ms (default: 100)
+   *   - `maxDelay` (number): Maximum delay cap in ms (default: 2000)
+   *   - `backoff` ('exponential'|'linear'|'constant'): Backoff strategy
+   *   - `jitter` ('full'|'decorrelated'|'none'): Jitter strategy
+   *   - `shouldRetry` (function): Custom predicate for retryable errors
+   *
+   * @throws {Error} If plumbing is not provided
+   *
+   * @example
+   * const adapter = new GitGraphAdapter({
+   *   plumbing: new Plumbing({ cwd: '/repo' }),
+   *   retryOptions: { retries: 5, delay: 200 }
+   * });
    */
   constructor({ plumbing, retryOptions = {} }) {
     super();

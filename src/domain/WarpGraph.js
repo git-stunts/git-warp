@@ -47,6 +47,15 @@ const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
 const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
 const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
 
+/**
+ * Recursively canonicalizes a JSON value by sorting object keys alphabetically.
+ * Arrays are processed element-by-element; primitives pass through unchanged.
+ * Used to produce deterministic JSON output for sync request/response hashing.
+ *
+ * @param {*} value - Any JSON-serializable value
+ * @returns {*} The canonicalized value with sorted object keys
+ * @private
+ */
 function canonicalizeJson(value) {
   if (Array.isArray(value)) {
     return value.map(canonicalizeJson);
@@ -61,10 +70,26 @@ function canonicalizeJson(value) {
   return value;
 }
 
+/**
+ * Produces a canonical JSON string with sorted keys for deterministic comparison.
+ * Wraps canonicalizeJson + JSON.stringify for sync protocol use.
+ *
+ * @param {*} value - Any JSON-serializable value
+ * @returns {string} Canonical JSON string
+ * @private
+ */
 function canonicalStringify(value) {
   return JSON.stringify(canonicalizeJson(value));
 }
 
+/**
+ * Normalizes a sync endpoint path to ensure it starts with '/'.
+ * Returns '/sync' if no path is provided.
+ *
+ * @param {string|undefined|null} path - The sync path to normalize
+ * @returns {string} Normalized path starting with '/'
+ * @private
+ */
 function normalizeSyncPath(path) {
   if (!path) {
     return '/sync';
@@ -537,8 +562,14 @@ export default class WarpGraph {
    * When false or omitted (default), returns just the state for backward
    * compatibility with zero receipt overhead.
    *
+   * Side effects: Updates internal cached state, version vector, last frontier,
+   * and patches-since-checkpoint counter. May trigger auto-checkpoint and GC
+   * based on configured policies. Notifies subscribers if state changed.
+   *
    * @param {{receipts?: boolean}} [options] - Optional configuration
    * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
+   * @throws {Error} If checkpoint loading fails or patch decoding fails
+   * @throws {Error} If writer ref access or patch blob reading fails
    */
   async materialize(options) {
     const t0 = this._clock.now();
@@ -752,6 +783,13 @@ export default class WarpGraph {
    *
    * @param {string} checkpointSha - The checkpoint commit SHA
    * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state at the checkpoint
+   * @throws {Error} If checkpoint SHA is invalid or not found
+   * @throws {Error} If checkpoint loading or patch decoding fails
+   *
+   * @example
+   * // Time-travel to a previous checkpoint
+   * const oldState = await graph.materializeAt('abc123');
+   * console.log('Nodes at checkpoint:', [...oldState.nodeAlive.elements.keys()]);
    */
   async materializeAt(checkpointSha) {
     // 1. Discover current writers to build target frontier
@@ -818,6 +856,9 @@ export default class WarpGraph {
    * frontier information, and updates the checkpoint ref.
    *
    * @returns {Promise<string>} The checkpoint commit SHA
+   * @throws {Error} If materialization fails
+   * @throws {Error} If checkpoint commit creation fails
+   * @throws {Error} If ref update fails
    */
   async createCheckpoint() {
     const t0 = this._clock.now();
@@ -877,9 +918,12 @@ export default class WarpGraph {
    * Syncs coverage information across writers.
    *
    * Creates an octopus anchor commit with all writer tips as parents,
-   * then updates the coverage ref to point to this anchor.
+   * then updates the coverage ref to point to this anchor. The "octopus anchor"
+   * is a merge commit that records which writer tips have been observed,
+   * enabling efficient replication and consistency checks.
    *
    * @returns {Promise<void>}
+   * @throws {Error} If ref access or commit creation fails
    */
   async syncCoverage() {
     // 1. Discover all writers
@@ -921,6 +965,7 @@ export default class WarpGraph {
    * extracts writer IDs from the ref paths.
    *
    * @returns {Promise<string[]>} Sorted array of writer IDs
+   * @throws {Error} If listing refs fails
    */
   async discoverWriters() {
     const prefix = buildWritersPrefix(this._graphName);
@@ -1266,7 +1311,14 @@ export default class WarpGraph {
   /**
    * Gets current GC metrics for the cached state.
    *
-   * @returns {Object|null} GC metrics or null if no cached state
+   * @returns {{
+   *   nodeCount: number,
+   *   edgeCount: number,
+   *   tombstoneCount: number,
+   *   tombstoneRatio: number,
+   *   patchesSinceCompaction: number,
+   *   lastCompactionTime: number
+   * }|null} GC metrics or null if no cached state
    */
   getGCMetrics() {
     if (!this._cachedState) {
@@ -1294,9 +1346,10 @@ export default class WarpGraph {
 
   /**
    * Gets the current frontier for this graph.
-   * The frontier maps each writer to their current tip SHA.
+   * The frontier maps each writer ID to their current tip SHA.
    *
-   * @returns {Promise<Map<string, string>>} The current frontier
+   * @returns {Promise<Map<string, string>>} Map of writerId to tip SHA
+   * @throws {Error} If listing refs fails
    */
   async getFrontier() {
     const writerIds = await this.discoverWriters();
@@ -1320,6 +1373,7 @@ export default class WarpGraph {
    * Cheap "has anything changed?" check without materialization.
    *
    * @returns {Promise<boolean>} True if frontier has changed (or never materialized)
+   * @throws {Error} If listing refs fails
    */
   async hasFrontierChanged() {
     if (this._lastFrontier === null) {
@@ -1353,6 +1407,7 @@ export default class WarpGraph {
    *   writers: number,
    *   frontier: Record<string, string>,
    * }>} The graph status
+   * @throws {Error} If listing refs fails
    */
   async status() {
     // Determine cachedState
@@ -1405,10 +1460,11 @@ export default class WarpGraph {
    * One handler's error does not prevent other handlers from being called.
    *
    * @param {Object} options - Subscription options
-   * @param {Function} options.onChange - Called with diff when graph changes
-   * @param {Function} [options.onError] - Called if onChange throws an error
+   * @param {(diff: import('./services/StateDiff.js').StateDiff) => void} options.onChange - Called with diff when graph changes
+   * @param {(error: Error) => void} [options.onError] - Called if onChange throws an error
    * @param {boolean} [options.replay=false] - If true, immediately fires onChange with initial state diff
-   * @returns {{unsubscribe: Function}} Subscription handle
+   * @returns {{unsubscribe: () => void}} Subscription handle
+   * @throws {Error} If onChange is not a function
    *
    * @example
    * const { unsubscribe } = graph.subscribe({
@@ -1484,10 +1540,13 @@ export default class WarpGraph {
    *
    * @param {string} pattern - Glob pattern (e.g., 'user:*', 'order:123', '*')
    * @param {Object} options - Watch options
-   * @param {Function} options.onChange - Called with filtered diff when matching changes occur
-   * @param {Function} [options.onError] - Called if onChange throws an error
+   * @param {(diff: import('./services/StateDiff.js').StateDiff) => void} options.onChange - Called with filtered diff when matching changes occur
+   * @param {(error: Error) => void} [options.onError] - Called if onChange throws an error
    * @param {number} [options.poll] - Poll interval in ms (min 1000); checks frontier and auto-materializes
-   * @returns {{unsubscribe: Function}} Subscription handle
+   * @returns {{unsubscribe: () => void}} Subscription handle
+   * @throws {Error} If pattern is not a string
+   * @throws {Error} If onChange is not a function
+   * @throws {Error} If poll is provided but less than 1000
    *
    * @example
    * const { unsubscribe } = graph.watch('user:*', {
@@ -1639,6 +1698,7 @@ export default class WarpGraph {
    * The request contains the local frontier for comparison.
    *
    * @returns {Promise<{type: 'sync-request', frontier: Map<string, string>}>} The sync request
+   * @throws {Error} If listing refs fails
    *
    * @example
    * const request = await graph.createSyncRequest();
@@ -1654,6 +1714,7 @@ export default class WarpGraph {
    *
    * @param {{type: 'sync-request', frontier: Map<string, string>}} request - The incoming sync request
    * @returns {Promise<{type: 'sync-response', frontier: Map, patches: Map}>} The sync response
+   * @throws {Error} If listing refs or reading patches fails
    *
    * @example
    * // Receive request from remote peer
@@ -1719,6 +1780,7 @@ export default class WarpGraph {
    *
    * @param {Map<string, string>} remoteFrontier - The remote peer's frontier
    * @returns {Promise<boolean>} True if sync would transfer any patches
+   * @throws {Error} If listing refs fails
    */
   async syncNeeded(remoteFrontier) {
     const localFrontier = await this.getFrontier();
@@ -2133,10 +2195,12 @@ export default class WarpGraph {
    * existing configuration. Use this when you need a guaranteed fresh
    * identity (e.g., spawning a new writer process).
    *
+   * @deprecated Use `writer()` to resolve a stable ID from git config, or `writer(id)` with an explicit ID.
    * @param {Object} [opts]
    * @param {'config'|'none'} [opts.persist='none'] - Whether to persist the new ID to git config
    * @param {string} [opts.alias] - Optional alias for config key (used with persist:'config')
    * @returns {Promise<Writer>} A Writer instance with new canonical ID
+   * @throws {Error} If config operations fail (when persist:'config')
    *
    * @example
    * // Create ephemeral writer (not persisted)
@@ -2229,7 +2293,21 @@ export default class WarpGraph {
   /**
    * Creates a fluent query builder for the logical graph.
    *
-   * @returns {import('./services/QueryBuilder.js').default}
+   * The query builder provides a chainable API for querying nodes, filtering
+   * by patterns and properties, traversing edges, and selecting results.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached,
+   * or use autoMaterialize option when opening the graph.
+   *
+   * @returns {import('./services/QueryBuilder.js').default} A fluent query builder
+   *
+   * @example
+   * await graph.materialize();
+   * const users = await graph.query()
+   *   .match('user:*')
+   *   .where('active', true)
+   *   .outgoing('follows')
+   *   .select('*');
    */
   query() {
     return new QueryBuilder(this);
