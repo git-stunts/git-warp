@@ -358,6 +358,21 @@ export default class QueryBuilder {
         context: { receivedType: typeof spec },
       });
     }
+    const numericKeys = ['sum', 'avg', 'min', 'max'];
+    for (const key of numericKeys) {
+      if (spec[key] !== undefined && typeof spec[key] !== 'string') {
+        throw new QueryError(`aggregate() expects ${key} to be a string path`, {
+          code: 'E_QUERY_AGGREGATE_TYPE',
+          context: { key, receivedType: typeof spec[key] },
+        });
+      }
+    }
+    if (spec.count !== undefined && typeof spec.count !== 'boolean') {
+      throw new QueryError('aggregate() expects count to be boolean', {
+        code: 'E_QUERY_AGGREGATE_TYPE',
+        context: { key: 'count', receivedType: typeof spec.count },
+      });
+    }
     this._aggregate = spec;
     return this;
   }
@@ -505,9 +520,11 @@ export default class QueryBuilder {
         } else if (key === 'avg') {
           result.avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
         } else if (key === 'min') {
-          result.min = values.length > 0 ? Math.min(...values) : 0;
+          result.min =
+            values.length > 0 ? values.reduce((m, v) => (v < m ? v : m), Infinity) : 0;
         } else if (key === 'max') {
-          result.max = values.length > 0 ? Math.max(...values) : 0;
+          result.max =
+            values.length > 0 ? values.reduce((m, v) => (v > m ? v : m), -Infinity) : 0;
         }
       }
     }
