@@ -12,10 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### PULSE — Subscriptions & Reactivity (v7.7.0)
 - **State diff engine** (`PL/DIFF/1`): New `diffStates(before, after)` function computes deterministic diff between two `WarpStateV5` materialized states. Returns `{ nodes: { added, removed }, edges: { added, removed }, props: { set, removed } }`. Handles null `before` (initial state). O(N) single-pass comparison. Deterministic output ordering (sorted keys/IDs). Used by subscription system to notify handlers of graph changes. Includes `isEmptyDiff()` and `createEmptyDiff()` utilities.
 - **Subscription API** (`PL/SUB/1`): New `graph.subscribe({ onChange, onError? })` returns `{ unsubscribe() }`. After `materialize()`, if state changed since last materialize, computes diff and calls `onChange(diff)` for all subscribers. Errors in handlers are isolated — caught and forwarded to `onError` if provided. Multiple subscribers supported. Unsubscribe stops future notifications.
+- **Optional initial replay** (`PL/SUB/2`): New `replay` option for `graph.subscribe({ onChange, replay: true })`. When set, immediately fires `onChange` with a diff from empty state to current state. If cached state is not yet available (no prior `materialize()`), replay is deferred until the first `materialize()` call. Enables subscribers to bootstrap with current graph state without missing data.
+- **Pattern-based watch** (`PL/WATCH/1`): New `graph.watch(pattern, { onChange, onError? })` returns `{ unsubscribe() }`. Like `subscribe()` but filters changes to only those matching the glob pattern. Filters apply to node IDs in `nodes.added`/`nodes.removed`, edge endpoints (`from`/`to`), and property `nodeId`. Uses same glob syntax as `query().match()` (e.g., `'user:*'`, `'order:123'`, `'*'`). Handler not called if all changes are filtered out. Reuses subscription infrastructure.
 
 ### Tests
 - Added `test/unit/domain/services/StateDiff.test.js` (27 tests) — node/edge/prop diffs, null before, identical states, determinism
-- Added `test/unit/domain/WarpGraph.subscribe.test.js` (16 tests) — subscribe/unsubscribe, onChange after materialize, error isolation, multiple subscribers
+- Added `test/unit/domain/WarpGraph.subscribe.test.js` (28 tests) — subscribe/unsubscribe, onChange after materialize, error isolation, multiple subscribers, replay option
+- Added `test/unit/domain/WarpGraph.watch.test.js` (26 tests) — pattern filtering for nodes/edges/props, glob patterns, unsubscribe, error handling
 
 ## [7.6.0] — LIGHTHOUSE
 

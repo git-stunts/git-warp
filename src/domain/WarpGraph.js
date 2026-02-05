@@ -620,10 +620,12 @@ export default class WarpGraph {
       this._maybeRunGC(state);
 
       // Notify subscribers if state changed since last notification
+      // Also handles deferred replay for subscribers added with replay: true before cached state
       if (this._subscribers.length > 0) {
+        const hasPendingReplay = this._subscribers.some(s => s.pendingReplay);
         const diff = diffStates(this._lastNotifiedState, state);
-        if (!isEmptyDiff(diff)) {
-          this._notifySubscribers(diff);
+        if (!isEmptyDiff(diff) || hasPendingReplay) {
+          this._notifySubscribers(diff, state);
         }
       }
       // Clone state to prevent eager path mutations from affecting the baseline
@@ -1395,12 +1397,17 @@ export default class WarpGraph {
    * The `onChange` handler is called after each `materialize()` that results in
    * state changes. The handler receives a diff object describing what changed.
    *
+   * When `replay: true` is set and `_cachedState` is available, immediately
+   * fires `onChange` with a diff from empty state to current state. If
+   * `_cachedState` is null, replay is deferred until the first materialize.
+   *
    * Errors thrown by handlers are caught and forwarded to `onError` if provided.
    * One handler's error does not prevent other handlers from being called.
    *
    * @param {Object} options - Subscription options
    * @param {Function} options.onChange - Called with diff when graph changes
    * @param {Function} [options.onError] - Called if onChange throws an error
+   * @param {boolean} [options.replay=false] - If true, immediately fires onChange with initial state diff
    * @returns {{unsubscribe: Function}} Subscription handle
    *
    * @example
@@ -1414,14 +1421,40 @@ export default class WarpGraph {
    *
    * // Later, to stop receiving updates:
    * unsubscribe();
+   *
+   * @example
+   * // With replay: get initial state immediately
+   * await graph.materialize();
+   * graph.subscribe({
+   *   onChange: (diff) => console.log('Initial or changed:', diff),
+   *   replay: true, // Immediately fires with current state as additions
+   * });
    */
-  subscribe({ onChange, onError }) {
+  subscribe({ onChange, onError, replay = false }) {
     if (typeof onChange !== 'function') {
       throw new Error('onChange must be a function');
     }
 
-    const subscriber = { onChange, onError };
+    const subscriber = { onChange, onError, pendingReplay: replay && !this._cachedState };
     this._subscribers.push(subscriber);
+
+    // Immediate replay if requested and cached state is available
+    if (replay && this._cachedState) {
+      const diff = diffStates(null, this._cachedState);
+      if (!isEmptyDiff(diff)) {
+        try {
+          onChange(diff);
+        } catch (err) {
+          if (onError) {
+            try {
+              onError(err);
+            } catch {
+              // onError itself threw — swallow to prevent cascade
+            }
+          }
+        }
+      }
+    }
 
     return {
       unsubscribe: () => {
@@ -1434,14 +1467,112 @@ export default class WarpGraph {
   }
 
   /**
+   * Watches for graph changes matching a pattern.
+   *
+   * Like `subscribe()`, but only fires for changes where node IDs match the
+   * provided glob pattern. Uses the same pattern syntax as `query().match()`.
+   *
+   * - Nodes: filters `added` and `removed` to matching IDs
+   * - Edges: filters to edges where `from` or `to` matches the pattern
+   * - Props: filters to properties where `nodeId` matches the pattern
+   *
+   * If all changes are filtered out, the handler is not called.
+   *
+   * @param {string} pattern - Glob pattern (e.g., 'user:*', 'order:123', '*')
+   * @param {Object} options - Watch options
+   * @param {Function} options.onChange - Called with filtered diff when matching changes occur
+   * @param {Function} [options.onError] - Called if onChange throws an error
+   * @returns {{unsubscribe: Function}} Subscription handle
+   *
+   * @example
+   * const { unsubscribe } = graph.watch('user:*', {
+   *   onChange: (diff) => {
+   *     // Only user node changes arrive here
+   *     console.log('User nodes added:', diff.nodes.added);
+   *   },
+   * });
+   *
+   * // Later, to stop receiving updates:
+   * unsubscribe();
+   */
+  watch(pattern, { onChange, onError }) {
+    if (typeof pattern !== 'string') {
+      throw new Error('pattern must be a string');
+    }
+    if (typeof onChange !== 'function') {
+      throw new Error('onChange must be a function');
+    }
+
+    // Pattern matching: same logic as QueryBuilder.match()
+    const matchesPattern = (nodeId) => {
+      if (pattern === '*') {
+        return true;
+      }
+      if (pattern.includes('*')) {
+        // Escape regex special chars except *, then replace * with .*
+        const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`^${escaped.replace(/\*/g, '.*')}$`);
+        return regex.test(nodeId);
+      }
+      return nodeId === pattern;
+    };
+
+    // Filtered onChange that only passes matching changes
+    const filteredOnChange = (diff) => {
+      const filteredDiff = {
+        nodes: {
+          added: diff.nodes.added.filter(matchesPattern),
+          removed: diff.nodes.removed.filter(matchesPattern),
+        },
+        edges: {
+          added: diff.edges.added.filter(e => matchesPattern(e.from) || matchesPattern(e.to)),
+          removed: diff.edges.removed.filter(e => matchesPattern(e.from) || matchesPattern(e.to)),
+        },
+        props: {
+          set: diff.props.set.filter(p => matchesPattern(p.nodeId)),
+          removed: diff.props.removed.filter(p => matchesPattern(p.nodeId)),
+        },
+      };
+
+      // Only call handler if there are matching changes
+      const hasChanges =
+        filteredDiff.nodes.added.length > 0 ||
+        filteredDiff.nodes.removed.length > 0 ||
+        filteredDiff.edges.added.length > 0 ||
+        filteredDiff.edges.removed.length > 0 ||
+        filteredDiff.props.set.length > 0 ||
+        filteredDiff.props.removed.length > 0;
+
+      if (hasChanges) {
+        onChange(filteredDiff);
+      }
+    };
+
+    // Reuse subscription infrastructure
+    return this.subscribe({ onChange: filteredOnChange, onError });
+  }
+
+  /**
    * Notifies all subscribers of state changes.
+   * Handles deferred replay for subscribers added with `replay: true` before
+   * cached state was available.
    * @param {import('./services/StateDiff.js').StateDiffResult} diff
+   * @param {import('./services/JoinReducer.js').WarpStateV5} currentState - The current state for deferred replay
    * @private
    */
-  _notifySubscribers(diff) {
+  _notifySubscribers(diff, currentState) {
     for (const subscriber of this._subscribers) {
       try {
-        subscriber.onChange(diff);
+        // Handle deferred replay: on first notification, send full state diff instead
+        if (subscriber.pendingReplay) {
+          subscriber.pendingReplay = false;
+          const replayDiff = diffStates(null, currentState);
+          if (!isEmptyDiff(replayDiff)) {
+            subscriber.onChange(replayDiff);
+          }
+        } else {
+          subscriber.onChange(diff);
+        }
       } catch (err) {
         if (subscriber.onError) {
           try {
