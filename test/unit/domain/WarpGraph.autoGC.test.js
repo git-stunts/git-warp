@@ -92,6 +92,9 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     graph._cachedState = createHighTombstoneState();
     graph._stateDirty = false;
 
+    // Clear logger.info after materialize (which now logs timing)
+    logger.info.mockClear();
+
     // Call materialize — since no writers exist, it'll reduce to empty state
     // but _maybeRunGC runs on the fresh state. Let's trigger it directly.
     // Better approach: test _maybeRunGC directly with injected state

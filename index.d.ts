@@ -1100,3 +1100,79 @@ export default class WarpGraph {
     }) => void;
   }): Promise<{ applied: number; attempts: number }>;
 }
+
+// ============================================================================
+// Tick Receipts (LIGHTHOUSE)
+// ============================================================================
+
+/**
+ * Valid operation types that can appear in a tick receipt.
+ */
+export type TickReceiptOpType = 'NodeAdd' | 'NodeTombstone' | 'EdgeAdd' | 'EdgeTombstone' | 'PropSet' | 'BlobValue';
+
+/**
+ * Valid result values for an operation outcome.
+ */
+export type TickReceiptResult = 'applied' | 'superseded' | 'redundant';
+
+/**
+ * Per-operation outcome within a tick receipt.
+ */
+export interface OpOutcome {
+  /** Operation type */
+  readonly op: TickReceiptOpType;
+  /** Node ID or edge key */
+  readonly target: string;
+  /** Outcome of the operation */
+  readonly result: TickReceiptResult;
+  /** Human-readable explanation */
+  readonly reason?: string;
+}
+
+/**
+ * Immutable record of per-operation outcomes from a single patch application.
+ *
+ * @see Paper II, Section 5 -- Tick receipts
+ */
+export interface TickReceipt {
+  /** SHA of the patch commit */
+  readonly patchSha: string;
+  /** Writer ID that produced the patch */
+  readonly writer: string;
+  /** Lamport timestamp of the patch */
+  readonly lamport: number;
+  /** Per-operation outcomes (frozen) */
+  readonly ops: readonly Readonly<OpOutcome>[];
+}
+
+/**
+ * Creates an immutable TickReceipt.
+ *
+ * @throws {Error} If any parameter is invalid
+ */
+export function createTickReceipt(params: {
+  patchSha: string;
+  writer: string;
+  lamport: number;
+  ops: Array<{
+    op: TickReceiptOpType;
+    target: string;
+    result: TickReceiptResult;
+    reason?: string;
+  }>;
+}): Readonly<TickReceipt>;
+
+/**
+ * Produces a deterministic JSON string for a TickReceipt (sorted keys at every level).
+ */
+export function tickReceiptCanonicalJson(receipt: TickReceipt): string;
+
+/**
+ * Valid operation types that can appear in a tick receipt.
+ */
+export const TICK_RECEIPT_OP_TYPES: readonly TickReceiptOpType[];
+
+/**
+ * Valid result values for an operation outcome.
+ */
+export const TICK_RECEIPT_RESULT_TYPES: readonly TickReceiptResult[];

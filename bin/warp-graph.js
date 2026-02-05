@@ -576,11 +576,34 @@ function renderPath(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+const ANSI_GREEN = '\x1b[32m';
+const ANSI_YELLOW = '\x1b[33m';
+const ANSI_RED = '\x1b[31m';
+const ANSI_DIM = '\x1b[2m';
+const ANSI_RESET = '\x1b[0m';
+
+function colorCachedState(state) {
+  if (state === 'fresh') {
+    return `${ANSI_GREEN}${state}${ANSI_RESET}`;
+  }
+  if (state === 'stale') {
+    return `${ANSI_YELLOW}${state}${ANSI_RESET}`;
+  }
+  return `${ANSI_RED}${ANSI_DIM}${state}${ANSI_RESET}`;
+}
+
 function renderCheck(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     `Health: ${payload.health.status}`,
   ];
+
+  if (payload.status) {
+    lines.push(`Cached State: ${colorCachedState(payload.status.cachedState)}`);
+    lines.push(`Patches Since Checkpoint: ${payload.status.patchesSinceCheckpoint}`);
+    lines.push(`Tombstone Ratio: ${payload.status.tombstoneRatio.toFixed(2)}`);
+    lines.push(`Writers: ${payload.status.writers}`);
+  }
 
   if (payload.checkpoint?.sha) {
     lines.push(`Checkpoint: ${payload.checkpoint.sha}`);
@@ -591,7 +614,9 @@ function renderCheck(payload) {
     lines.push('Checkpoint: none');
   }
 
-  lines.push(`Writers: ${payload.writers.count}`);
+  if (!payload.status) {
+    lines.push(`Writers: ${payload.writers.count}`);
+  }
   for (const head of payload.writers.heads) {
     lines.push(`- ${head.writerId}: ${head.sha}`);
   }
@@ -864,6 +889,7 @@ async function handleCheck({ options }) {
   const { graph, graphName, persistence } = await openGraph(options);
   const health = await getHealth(persistence);
   const gcMetrics = await getGcMetrics(graph);
+  const status = await graph.status();
   const writerHeads = await collectWriterHeads(graph);
   const checkpoint = await loadCheckpointInfo(persistence, graphName);
   const coverage = await loadCoverageInfo(persistence, graphName, writerHeads);
@@ -879,6 +905,7 @@ async function handleCheck({ options }) {
       coverage,
       gcMetrics,
       hook,
+      status,
     }),
     exitCode: EXIT_CODES.OK,
   };
@@ -969,6 +996,7 @@ function buildCheckPayload({
   coverage,
   gcMetrics,
   hook,
+  status,
 }) {
   return {
     repo,
@@ -982,6 +1010,7 @@ function buildCheckPayload({
     coverage,
     gc: gcMetrics,
     hook: hook || null,
+    status: status || null,
   };
 }
 

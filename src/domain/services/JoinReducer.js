@@ -13,6 +13,8 @@ import { createORSet, orsetAdd, orsetRemove, orsetJoin } from '../crdt/ORSet.js'
 import { createVersionVector, vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
+import { createTickReceipt } from '../types/TickReceipt.js';
+import { encodeDot } from '../crdt/Dot.js';
 
 /**
  * Encodes an EdgeKey to a string for Map storage.
@@ -170,25 +172,223 @@ export function applyOpV2(state, op, eventId) {
 }
 
 /**
+ * Maps internal op types to TickReceipt op types.
+ * NodeRemove → NodeTombstone, EdgeRemove → EdgeTombstone.
+ * @param {string} opType - Internal operation type
+ * @returns {string} TickReceipt-compatible operation type
+ */
+const RECEIPT_OP_TYPE = {
+  NodeAdd: 'NodeAdd',
+  NodeRemove: 'NodeTombstone',
+  EdgeAdd: 'EdgeAdd',
+  EdgeRemove: 'EdgeTombstone',
+  PropSet: 'PropSet',
+  BlobValue: 'BlobValue',
+};
+
+/**
+ * Determines the receipt outcome for a NodeAdd operation.
+ * @param {ORSet} orset - The node OR-Set
+ * @param {Object} op - The operation
+ * @returns {{target: string, result: string}}
+ */
+function nodeAddOutcome(orset, op) {
+  const encoded = encodeDot(op.dot);
+  const existingDots = orset.entries.get(op.node);
+  if (existingDots && existingDots.has(encoded)) {
+    return { target: op.node, result: 'redundant' };
+  }
+  return { target: op.node, result: 'applied' };
+}
+
+/**
+ * Determines the receipt outcome for a NodeRemove operation.
+ * @param {ORSet} orset - The node OR-Set
+ * @param {Object} op - The operation
+ * @returns {{target: string, result: string}}
+ */
+function nodeRemoveOutcome(orset, op) {
+  // Check if any of the observed dots are currently non-tombstoned
+  let effective = false;
+  for (const encodedDot of op.observedDots) {
+    if (!orset.tombstones.has(encodedDot)) {
+      // This dot exists and is not yet tombstoned, so the remove is effective
+      // Check if any entry actually has this dot
+      for (const dots of orset.entries.values()) {
+        if (dots.has(encodedDot)) {
+          effective = true;
+          break;
+        }
+      }
+      if (effective) {
+        break;
+      }
+    }
+  }
+  const target = op.node || '*';
+  return { target, result: effective ? 'applied' : 'redundant' };
+}
+
+/**
+ * Determines the receipt outcome for an EdgeAdd operation.
+ * @param {ORSet} orset - The edge OR-Set
+ * @param {Object} op - The operation
+ * @param {string} edgeKey - Encoded edge key
+ * @returns {{target: string, result: string}}
+ */
+function edgeAddOutcome(orset, op, edgeKey) {
+  const encoded = encodeDot(op.dot);
+  const existingDots = orset.entries.get(edgeKey);
+  if (existingDots && existingDots.has(encoded)) {
+    return { target: edgeKey, result: 'redundant' };
+  }
+  return { target: edgeKey, result: 'applied' };
+}
+
+/**
+ * Determines the receipt outcome for an EdgeRemove operation.
+ * @param {ORSet} orset - The edge OR-Set
+ * @param {Object} op - The operation
+ * @returns {{target: string, result: string}}
+ */
+function edgeRemoveOutcome(orset, op) {
+  let effective = false;
+  for (const encodedDot of op.observedDots) {
+    if (!orset.tombstones.has(encodedDot)) {
+      for (const dots of orset.entries.values()) {
+        if (dots.has(encodedDot)) {
+          effective = true;
+          break;
+        }
+      }
+      if (effective) {
+        break;
+      }
+    }
+  }
+  // Construct target from op fields if available
+  const target = (op.from && op.to && op.label)
+    ? encodeEdgeKey(op.from, op.to, op.label)
+    : '*';
+  return { target, result: effective ? 'applied' : 'redundant' };
+}
+
+/**
+ * Determines the receipt outcome for a PropSet operation.
+ * @param {Map} propMap - The properties map
+ * @param {Object} op - The operation
+ * @param {import('../utils/EventId.js').EventId} eventId - The event ID for this op
+ * @returns {{target: string, result: string, reason?: string}}
+ */
+function propSetOutcome(propMap, op, eventId) {
+  const key = encodePropKey(op.node, op.key);
+  const current = propMap.get(key);
+  const target = key;
+
+  if (!current) {
+    // No existing value -- this write wins
+    return { target, result: 'applied' };
+  }
+
+  // Compare the incoming EventId with the existing register's EventId
+  const cmp = compareEventIds(eventId, current.eventId);
+  if (cmp > 0) {
+    // Incoming write wins
+    return { target, result: 'applied' };
+  }
+  if (cmp < 0) {
+    // Existing write wins
+    const winner = current.eventId;
+    return {
+      target,
+      result: 'superseded',
+      reason: `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`,
+    };
+  }
+  // Same EventId -- redundant (exact same write)
+  return { target, result: 'redundant' };
+}
+
+/**
  * Joins a patch into state.
  * Mutates state in place.
  *
  * @param {WarpStateV5} state
  * @param {Object} patch - The patch to apply
  * @param {string} patchSha - The SHA of the patch commit
- * @returns {WarpStateV5}
+ * @param {boolean} [collectReceipts=false] - When true, computes and returns receipt data
+ * @returns {WarpStateV5|{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}} State, or {state, receipt} when collectReceipts is true
  */
-export function join(state, patch, patchSha) {
-  for (let i = 0; i < patch.ops.length; i++) {
-    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    applyOpV2(state, patch.ops[i], eventId);
+export function join(state, patch, patchSha, collectReceipts) {
+  // ZERO-COST: when collectReceipts is falsy, skip all receipt logic
+  if (!collectReceipts) {
+    for (let i = 0; i < patch.ops.length; i++) {
+      const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+      applyOpV2(state, patch.ops[i], eventId);
+    }
+    const contextVV = patch.context instanceof Map
+      ? patch.context
+      : vvDeserialize(patch.context);
+    state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+    return state;
   }
-  // Handle both Map (in-memory) and plain object (from CBOR deserialization)
+
+  // Receipt-enabled path
+  const opResults = [];
+  for (let i = 0; i < patch.ops.length; i++) {
+    const op = patch.ops[i];
+    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+
+    // Determine outcome BEFORE applying the op (state is pre-op)
+    let outcome;
+    switch (op.type) {
+      case 'NodeAdd':
+        outcome = nodeAddOutcome(state.nodeAlive, op);
+        break;
+      case 'NodeRemove':
+        outcome = nodeRemoveOutcome(state.nodeAlive, op);
+        break;
+      case 'EdgeAdd': {
+        const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
+        outcome = edgeAddOutcome(state.edgeAlive, op, edgeKey);
+        break;
+      }
+      case 'EdgeRemove':
+        outcome = edgeRemoveOutcome(state.edgeAlive, op);
+        break;
+      case 'PropSet':
+        outcome = propSetOutcome(state.prop, op, eventId);
+        break;
+      default:
+        // Unknown or BlobValue — always applied
+        outcome = { target: op.node || op.oid || '*', result: 'applied' };
+        break;
+    }
+
+    // Apply the op (mutates state)
+    applyOpV2(state, op, eventId);
+
+    const receiptOp = RECEIPT_OP_TYPE[op.type] || op.type;
+    const entry = { op: receiptOp, target: outcome.target, result: outcome.result };
+    if (outcome.reason) {
+      entry.reason = outcome.reason;
+    }
+    opResults.push(entry);
+  }
+
   const contextVV = patch.context instanceof Map
     ? patch.context
     : vvDeserialize(patch.context);
   state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
-  return state;
+
+  const receipt = createTickReceipt({
+    patchSha,
+    writer: patch.writer,
+    lamport: patch.lamport,
+    ops: opResults,
+  });
+
+  return { state, receipt };
 }
 
 /**
@@ -250,12 +450,28 @@ function mergeEdgeBirthEvent(a, b) {
 /**
  * Reduces patches to a V5 state.
  *
+ * When `options.receipts` is true, returns `{ state, receipts }` where
+ * receipts is an array of TickReceipt objects (one per patch).
+ * When false (default), returns just the state with ZERO receipt overhead.
+ *
  * @param {Array<{patch: Object, sha: string}>} patches
  * @param {WarpStateV5} [initialState] - Optional starting state (for incremental)
- * @returns {WarpStateV5}
+ * @param {{receipts?: boolean}} [options] - Optional configuration
+ * @returns {WarpStateV5|{state: WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}}
  */
-export function reduceV5(patches, initialState) {
+export function reduceV5(patches, initialState, options) {
   const state = initialState ? cloneStateV5(initialState) : createEmptyStateV5();
+
+  // ZERO-COST: only check options when provided and truthy
+  if (options && options.receipts) {
+    const receipts = [];
+    for (const { patch, sha } of patches) {
+      const result = join(state, patch, sha, true);
+      receipts.push(result.receipt);
+    }
+    return { state, receipts };
+  }
+
   for (const { patch, sha } of patches) {
     join(state, patch, sha);
   }

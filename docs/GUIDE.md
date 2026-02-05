@@ -595,6 +595,108 @@ Example output lines:
 - `Hook: installed (v7.0.0) — upgrade available, run 'git warp install-hooks'`
 - `Hook: not installed — run 'git warp install-hooks'`
 
+## Observability
+
+### Graph Status
+
+`graph.status()` returns a lightweight snapshot of the graph's operational health. It is O(writers) and does not trigger materialization.
+
+```javascript
+const status = await graph.status();
+console.log(status);
+// {
+//   cachedState: 'fresh',          // 'fresh' | 'stale' | 'none'
+//   patchesSinceCheckpoint: 12,
+//   tombstoneRatio: 0.03,
+//   writers: 2,
+//   frontier: { alice: 'abc123...', bob: 'def456...' },
+// }
+```
+
+| Field | Description |
+|---|---|
+| `cachedState` | `'none'` if never materialized, `'stale'` if dirty or frontier changed, `'fresh'` otherwise |
+| `patchesSinceCheckpoint` | Number of patches applied since last checkpoint |
+| `tombstoneRatio` | Fraction of tombstoned vs total entries (0 if no cached state) |
+| `writers` | Number of active writers discovered from refs |
+| `frontier` | Map of writer IDs to their latest patch SHAs |
+
+The CLI also surfaces this:
+
+```bash
+git warp check        # Human-readable with color-coded staleness
+git warp check --json # Machine-readable JSON
+```
+
+### Operation Timing
+
+Core operations emit structured timing logs when a logger is injected:
+
+```javascript
+import { ConsoleLogger } from '@git-stunts/git-warp';
+
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'my-graph',
+  writerId: 'local',
+  logger: new ConsoleLogger(),
+});
+
+await graph.materialize();
+// [warp] materialize completed in 142ms (23 patches)
+
+await graph.createCheckpoint();
+// [warp] createCheckpoint completed in 45ms
+```
+
+Timed operations:
+- `materialize()` — logs patch count
+- `syncWith()` — logs applied patch count
+- `createCheckpoint()` — logs completion time
+- `runGC()` — logs tombstones removed count
+
+Failed operations also log timing with error context. Timing uses the injected `ClockPort` (defaults to `PerformanceClockAdapter`), making it testable with mock clocks.
+
+### Tick Receipts
+
+When debugging multi-writer conflicts, `materialize({ receipts: true })` returns per-patch decision records explaining exactly what happened during materialization.
+
+```javascript
+const { state, receipts } = await graph.materialize({ receipts: true });
+
+for (const receipt of receipts) {
+  console.log(`Patch ${receipt.patchSha} (writer: ${receipt.writer}, lamport: ${receipt.lamport})`);
+  for (const op of receipt.ops) {
+    console.log(`  ${op.op} ${op.target}: ${op.result}`);
+    if (op.reason) console.log(`    reason: ${op.reason}`);
+  }
+}
+```
+
+Each receipt corresponds to one patch and contains per-op outcomes:
+
+| Result | Meaning |
+|---|---|
+| `applied` | Operation took effect (new node/edge, winning property write) |
+| `superseded` | Operation lost to a higher-priority concurrent write (LWW) |
+| `redundant` | Operation had no effect (duplicate add, already-removed tombstone) |
+
+For `superseded` PropSet operations, the `reason` field shows the winner:
+```
+PropSet user:alice.name: superseded
+  reason: LWW: writer bob at lamport 43 wins
+```
+
+**Zero-cost when disabled:** When receipts are not requested (the default), materialization has strictly zero overhead — no arrays allocated, no strings constructed. The return type remains `state` (not wrapped in an object).
+
+```javascript
+// Default — no overhead, returns state directly
+const state = await graph.materialize();
+
+// With receipts — returns { state, receipts }
+const { state, receipts } = await graph.materialize({ receipts: true });
+```
+
 ## Troubleshooting
 
 ### "My changes aren't appearing"
@@ -652,5 +754,4 @@ refs/warp/<graph>/
 
 ## Further Reading
 
-- [WARP Technical Specification](./WARP-TECH-SPEC-ROADMAP.md) - Full protocol details
-- [Architecture](../ARCHITECTURE.md) - System design, Durability, and Anchoring
+- [Architecture](../ARCHITECTURE.md) - System design and anchoring

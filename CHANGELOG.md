@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.0] — LIGHTHOUSE
+
+### Added
+
+#### LIGHTHOUSE — Observability (v7.6.0)
+- **`graph.status()` API** (`LH/STATUS/1`): New async method returns a lightweight operational health snapshot: `{ cachedState: 'fresh' | 'stale' | 'none', patchesSinceCheckpoint, tombstoneRatio, writers, frontier }`. O(writers) cost — does NOT trigger materialization. `cachedState` reflects dirty flag and frontier change detection.
+- **Structured operation timing** (`LH/TIMING/1`): Core operations (`materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`) now emit structured timing logs via `LoggerPort` at info level. Format: `[warp] materialize completed in 142ms (23 patches)`. Uses injected `ClockPort` for testable timing. New `clock` option on `WarpGraph.open()` (defaults to `PerformanceClockAdapter`). Failed operations log timing with error context.
+- **CLI status enhancement** (`LH/CLI/1`): `git warp check` now surfaces full `graph.status()` output. Human mode: color-coded staleness (green/yellow/red) with patch count, tombstone ratio, and writer count. JSON mode: raw `status` object included in check payload.
+- **Tick receipt data structure** (`LH/RECEIPTS/1`): New `TickReceipt` immutable type: `{ patchSha, writer, lamport, ops: [{ op, target, result, reason? }] }`. Deep-frozen after creation. Canonical JSON serialization with deterministic key ordering. Exported from package root: `createTickReceipt`, `tickReceiptCanonicalJson`, `TICK_RECEIPT_OP_TYPES`, `TICK_RECEIPT_RESULT_TYPES`. TypeScript declarations added to `index.d.ts`.
+- **Tick receipt emission during materialization** (`LH/RECEIPTS/2`): New `materialize({ receipts: true })` returns `{ state, receipts }` with per-patch decision records. Each receipt records per-op outcomes: `applied`, `superseded` (with LWW winner reason), or `redundant`. **Zero-cost invariant**: when `receipts` is false/omitted (default), strictly zero overhead — no arrays allocated, no strings constructed on the hot path. Return type unchanged (just `state`). OR-Set decisions: NodeAdd/EdgeAdd track new-dot vs re-add. NodeTombstone/EdgeTombstone track effective vs already-gone. PropSet decisions: LWW comparison with reason string showing winner info.
+
+### Tests
+- Added `test/unit/domain/WarpGraph.status.test.js` (21 tests) — status() field correctness, no-materialize guarantee
+- Added `test/unit/domain/WarpGraph.timing.test.js` (15 tests) — timing logs for all 4 operations, clock injection
+- Added `test/unit/domain/WarpGraph.receipts.test.js` (19 tests) — receipt emission, backward compatibility, zero-cost
+- Added `test/unit/domain/types/TickReceipt.test.js` (44 tests) — construction, immutability, validation, canonical JSON
+- Added `test/unit/domain/services/JoinReducer.receipts.test.js` (29 tests) — per-op outcome correctness
+- Total new tests: 128. Suite total: 1992 tests across 91 files.
+
 ## [7.5.0] — COMPASS
 
 ### Added

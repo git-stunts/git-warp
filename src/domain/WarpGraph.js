@@ -38,6 +38,7 @@ import QueryError from './errors/QueryError.js';
 import { checkAborted } from './utils/cancellation.js';
 import OperationAbortedError from './errors/OperationAbortedError.js';
 import { compareEventIds } from './utils/EventId.js';
+import PerformanceClockAdapter from '../infrastructure/adapters/PerformanceClockAdapter.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
@@ -95,8 +96,9 @@ export default class WarpGraph {
    * @param {boolean} [options.autoMaterialize=false] - If true, query methods auto-materialize instead of throwing
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node that still has edges or properties
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
+   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to PerformanceClockAdapter)
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -151,8 +153,33 @@ export default class WarpGraph {
     /** @type {import('../ports/LoggerPort.js').default|null} */
     this._logger = logger || null;
 
+    /** @type {import('../ports/ClockPort.js').default} */
+    this._clock = clock || new PerformanceClockAdapter();
+
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
+  }
+
+  /**
+   * Logs a timing message for a completed or failed operation.
+   * @param {string} op - Operation name (e.g. 'materialize')
+   * @param {number} t0 - Start timestamp from this._clock.now()
+   * @param {Object} [opts] - Options
+   * @param {string} [opts.metrics] - Extra metrics string to append in parentheses
+   * @param {Error} [opts.error] - If set, logs a failure message instead
+   * @private
+   */
+  _logTiming(op, t0, { metrics, error } = {}) {
+    if (!this._logger) {
+      return;
+    }
+    const elapsed = Math.round(this._clock.now() - t0);
+    if (error) {
+      this._logger.info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
+    } else {
+      const suffix = metrics ? ` (${metrics})` : '';
+      this._logger.info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
+    }
   }
 
   /**
@@ -168,6 +195,7 @@ export default class WarpGraph {
    * @param {boolean} [options.autoMaterialize] - If true, query methods auto-materialize instead of throwing
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData] - Policy when deleting a node that still has edges or properties (default: 'warn')
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
+   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to PerformanceClockAdapter)
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -178,7 +206,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -210,7 +238,7 @@ export default class WarpGraph {
       }
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -493,64 +521,102 @@ export default class WarpGraph {
    *
    * Checks if a checkpoint exists and uses incremental materialization if so.
    *
-   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5>} The materialized graph state
+   * When `options.receipts` is true, returns `{ state, receipts }` where
+   * receipts is an array of TickReceipt objects (one per applied patch).
+   * When false or omitted (default), returns just the state for backward
+   * compatibility with zero receipt overhead.
+   *
+   * @param {{receipts?: boolean}} [options] - Optional configuration
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
    */
-  async materialize() {
-    // Check for checkpoint
-    const checkpoint = await this._loadLatestCheckpoint();
+  async materialize(options) {
+    const t0 = this._clock.now();
+    // ZERO-COST: only resolve receipts flag when options provided
+    const collectReceipts = options && options.receipts;
+    try {
+      // Check for checkpoint
+      const checkpoint = await this._loadLatestCheckpoint();
 
-    let state;
-    let patchCount = 0;
+      let state;
+      let receipts;
+      let patchCount = 0;
 
-    // If checkpoint exists, use incremental materialization
-    if (checkpoint?.schema === 2 || checkpoint?.schema === 3) {
-      const patches = await this._loadPatchesSince(checkpoint);
-      state = reduceV5(patches, checkpoint.state);
-      patchCount = patches.length;
-    } else {
-      // 1. Discover all writers
-      const writerIds = await this.discoverWriters();
-
-      // 2. If no writers, return empty state
-      if (writerIds.length === 0) {
-        state = createEmptyStateV5();
-      } else {
-        // 3. For each writer, collect all patches
-        const allPatches = [];
-        for (const writerId of writerIds) {
-          const writerPatches = await this._loadWriterPatches(writerId);
-          allPatches.push(...writerPatches);
-        }
-
-        // 4. If no patches, return empty state
-        if (allPatches.length === 0) {
-          state = createEmptyStateV5();
+      // If checkpoint exists, use incremental materialization
+      if (checkpoint?.schema === 2 || checkpoint?.schema === 3) {
+        const patches = await this._loadPatchesSince(checkpoint);
+        if (collectReceipts) {
+          const result = reduceV5(patches, checkpoint.state, { receipts: true });
+          state = result.state;
+          receipts = result.receipts;
         } else {
-          // 5. Reduce all patches to state
-          state = reduceV5(allPatches);
-          patchCount = allPatches.length;
+          state = reduceV5(patches, checkpoint.state);
+        }
+        patchCount = patches.length;
+      } else {
+        // 1. Discover all writers
+        const writerIds = await this.discoverWriters();
+
+        // 2. If no writers, return empty state
+        if (writerIds.length === 0) {
+          state = createEmptyStateV5();
+          if (collectReceipts) {
+            receipts = [];
+          }
+        } else {
+          // 3. For each writer, collect all patches
+          const allPatches = [];
+          for (const writerId of writerIds) {
+            const writerPatches = await this._loadWriterPatches(writerId);
+            allPatches.push(...writerPatches);
+          }
+
+          // 4. If no patches, return empty state
+          if (allPatches.length === 0) {
+            state = createEmptyStateV5();
+            if (collectReceipts) {
+              receipts = [];
+            }
+          } else {
+            // 5. Reduce all patches to state
+            if (collectReceipts) {
+              const result = reduceV5(allPatches, undefined, { receipts: true });
+              state = result.state;
+              receipts = result.receipts;
+            } else {
+              state = reduceV5(allPatches);
+            }
+            patchCount = allPatches.length;
+          }
         }
       }
-    }
 
-    this._setMaterializedState(state);
-    this._lastFrontier = await this.getFrontier();
-    this._patchesSinceCheckpoint = patchCount;
+      this._setMaterializedState(state);
+      this._lastFrontier = await this.getFrontier();
+      this._patchesSinceCheckpoint = patchCount;
 
-    // Auto-checkpoint if policy is set and threshold exceeded.
-    // Guard prevents recursion: createCheckpoint() calls materialize() internally.
-    if (this._checkpointPolicy && !this._checkpointing && patchCount >= this._checkpointPolicy.every) {
-      try {
-        await this.createCheckpoint();
-        this._patchesSinceCheckpoint = 0;
-      } catch {
-        // Checkpoint failure does not break materialize — continue silently
+      // Auto-checkpoint if policy is set and threshold exceeded.
+      // Guard prevents recursion: createCheckpoint() calls materialize() internally.
+      if (this._checkpointPolicy && !this._checkpointing && patchCount >= this._checkpointPolicy.every) {
+        try {
+          await this.createCheckpoint();
+          this._patchesSinceCheckpoint = 0;
+        } catch {
+          // Checkpoint failure does not break materialize — continue silently
+        }
       }
+
+      this._maybeRunGC(state);
+
+      this._logTiming('materialize', t0, { metrics: `${patchCount} patches` });
+
+      if (collectReceipts) {
+        return { state, receipts };
+      }
+      return state;
+    } catch (err) {
+      this._logTiming('materialize', t0, { error: err });
+      throw err;
     }
-
-    this._maybeRunGC(state);
-
-    return state;
   }
 
   /**
@@ -730,49 +796,57 @@ export default class WarpGraph {
    * @returns {Promise<string>} The checkpoint commit SHA
    */
   async createCheckpoint() {
-    // 1. Discover all writers
-    const writers = await this.discoverWriters();
-
-    // 2. Build frontier (map of writerId → tip SHA)
-    const frontier = createFrontier();
-    const parents = [];
-
-    for (const writerId of writers) {
-      const writerRef = buildWriterRef(this._graphName, writerId);
-      const sha = await this._persistence.readRef(writerRef);
-      if (sha) {
-        updateFrontier(frontier, writerId, sha);
-        parents.push(sha);
-      }
-    }
-
-    // 3. Materialize current state (reuse cached if fresh, guard against recursion)
-    const prevCheckpointing = this._checkpointing;
-    this._checkpointing = true;
-    let state;
+    const t0 = this._clock.now();
     try {
-      state = (this._cachedState && !this._stateDirty)
-        ? this._cachedState
-        : await this.materialize();
-    } finally {
-      this._checkpointing = prevCheckpointing;
+      // 1. Discover all writers
+      const writers = await this.discoverWriters();
+
+      // 2. Build frontier (map of writerId → tip SHA)
+      const frontier = createFrontier();
+      const parents = [];
+
+      for (const writerId of writers) {
+        const writerRef = buildWriterRef(this._graphName, writerId);
+        const sha = await this._persistence.readRef(writerRef);
+        if (sha) {
+          updateFrontier(frontier, writerId, sha);
+          parents.push(sha);
+        }
+      }
+
+      // 3. Materialize current state (reuse cached if fresh, guard against recursion)
+      const prevCheckpointing = this._checkpointing;
+      this._checkpointing = true;
+      let state;
+      try {
+        state = (this._cachedState && !this._stateDirty)
+          ? this._cachedState
+          : await this.materialize();
+      } finally {
+        this._checkpointing = prevCheckpointing;
+      }
+
+      // 4. Call CheckpointService.create()
+      const checkpointSha = await createCheckpointCommit({
+        persistence: this._persistence,
+        graphName: this._graphName,
+        state,
+        frontier,
+        parents,
+      });
+
+      // 5. Update checkpoint ref
+      const checkpointRef = buildCheckpointRef(this._graphName);
+      await this._persistence.updateRef(checkpointRef, checkpointSha);
+
+      this._logTiming('createCheckpoint', t0);
+
+      // 6. Return checkpoint SHA
+      return checkpointSha;
+    } catch (err) {
+      this._logTiming('createCheckpoint', t0, { error: err });
+      throw err;
     }
-
-    // 4. Call CheckpointService.create()
-    const checkpointSha = await createCheckpointCommit({
-      persistence: this._persistence,
-      graphName: this._graphName,
-      state,
-      frontier,
-      parents,
-    });
-
-    // 5. Update checkpoint ref
-    const checkpointRef = buildCheckpointRef(this._graphName);
-    await this._persistence.updateRef(checkpointRef, checkpointSha);
-
-    // 6. Return checkpoint SHA
-    return checkpointSha;
   }
 
   /**
@@ -1138,23 +1212,31 @@ export default class WarpGraph {
    * console.log(`Removed ${result.tombstonesRemoved} tombstones in ${result.durationMs}ms`);
    */
   runGC() {
-    if (!this._cachedState) {
-      throw new QueryError('No cached state. Call materialize() first.', {
-        code: 'E_NO_STATE',
-      });
+    const t0 = this._clock.now();
+    try {
+      if (!this._cachedState) {
+        throw new QueryError('No cached state. Call materialize() first.', {
+          code: 'E_NO_STATE',
+        });
+      }
+
+      // Compute appliedVV from current state
+      const appliedVV = computeAppliedVV(this._cachedState);
+
+      // Execute GC (mutates cached state)
+      const result = executeGC(this._cachedState, appliedVV);
+
+      // Update GC tracking
+      this._lastGCTime = Date.now();
+      this._patchesSinceGC = 0;
+
+      this._logTiming('runGC', t0, { metrics: `${result.tombstonesRemoved} tombstones removed` });
+
+      return result;
+    } catch (err) {
+      this._logTiming('runGC', t0, { error: err });
+      throw err;
     }
-
-    // Compute appliedVV from current state
-    const appliedVV = computeAppliedVV(this._cachedState);
-
-    // Execute GC (mutates cached state)
-    const result = executeGC(this._cachedState, appliedVV);
-
-    // Update GC tracking
-    this._lastGCTime = Date.now();
-    this._patchesSinceGC = 0;
-
-    return result;
   }
 
   /**
@@ -1233,6 +1315,56 @@ export default class WarpGraph {
     }
 
     return false;
+  }
+
+  /**
+   * Returns a lightweight status snapshot of the graph's operational state.
+   *
+   * This method is O(writers) and does NOT trigger materialization.
+   *
+   * @returns {Promise<{
+   *   cachedState: 'fresh' | 'stale' | 'none',
+   *   patchesSinceCheckpoint: number,
+   *   tombstoneRatio: number,
+   *   writers: number,
+   *   frontier: Record<string, string>,
+   * }>} The graph status
+   */
+  async status() {
+    // Determine cachedState
+    let cachedState;
+    if (this._cachedState === null) {
+      cachedState = 'none';
+    } else if (this._stateDirty || await this.hasFrontierChanged()) {
+      cachedState = 'stale';
+    } else {
+      cachedState = 'fresh';
+    }
+
+    // patchesSinceCheckpoint
+    const patchesSinceCheckpoint = this._patchesSinceCheckpoint;
+
+    // tombstoneRatio
+    let tombstoneRatio = 0;
+    if (this._cachedState) {
+      const metrics = collectGCMetrics(this._cachedState);
+      tombstoneRatio = metrics.tombstoneRatio;
+    }
+
+    // writers and frontier
+    const frontier = await this.getFrontier();
+    const writers = frontier.size;
+
+    // Convert frontier Map to plain object
+    const frontierObj = Object.fromEntries(frontier);
+
+    return {
+      cachedState,
+      patchesSinceCheckpoint,
+      tombstoneRatio,
+      writers,
+      frontier: frontierObj,
+    };
   }
 
   /**
@@ -1336,6 +1468,7 @@ export default class WarpGraph {
    * @throws {OperationAbortedError} If abort signal fires
    */
   async syncWith(remote, options = {}) {
+    const t0 = this._clock.now();
     const {
       path = '/sync',
       retries = DEFAULT_SYNC_WITH_RETRIES,
@@ -1385,16 +1518,11 @@ export default class WarpGraph {
     };
 
     const shouldRetry = (err) => {
-      if (isDirectPeer) {
-        return false;
-      }
+      if (isDirectPeer) { return false; }
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
       }
-      if (err instanceof TimeoutError) {
-        return true;
-      }
-      return false;
+      return err instanceof TimeoutError;
     };
 
     const executeAttempt = async () => {
@@ -1509,12 +1637,15 @@ export default class WarpGraph {
         },
       });
 
+      this._logTiming('syncWith', t0, { metrics: `${syncResult.applied} patches applied` });
+
       if (materializeAfterSync) {
         if (!this._cachedState) { await this.materialize(); }
         return { ...syncResult, state: this._cachedState };
       }
       return syncResult;
     } catch (err) {
+      this._logTiming('syncWith', t0, { error: err });
       if (err?.name === 'AbortError') {
         const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
         if (typeof onStatus === 'function') {

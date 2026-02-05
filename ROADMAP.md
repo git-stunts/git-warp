@@ -224,7 +224,7 @@ LIGHTHOUSE ────────────────→ HOLOGRAM ──�
 ## Task DAG
 
 <!-- ROADMAP:DAG:START -->
-```text
+```
 Key: ■ CLOSED   ◆ OPEN   ○ BLOCKED
 
 AUTOPILOT        (v7.1.0)  ████████████████████  100%  (10/10)
@@ -269,12 +269,12 @@ COMPASS          (v7.5.0)  █████████████████�
   ■ CP/MULTIHOP/1     
   ■ CP/WHERE/1        
 
-LIGHTHOUSE       (v7.6.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/5)
-  ○ LH/CLI/1          
-  ◆ LH/RECEIPTS/1       →  LH/RECEIPTS/2
-  ○ LH/RECEIPTS/2       →  HG/IO/1
-  ◆ LH/STATUS/1         →  LH/CLI/1
-  ◆ LH/TIMING/1       
+LIGHTHOUSE       (v7.6.0)  ████████████████████  100%  (5/5)
+  ■ LH/CLI/1          
+  ■ LH/RECEIPTS/1       →  LH/RECEIPTS/2
+  ■ LH/RECEIPTS/2       →  HG/IO/1
+  ■ LH/STATUS/1         →  LH/CLI/1
+  ■ LH/TIMING/1       
 
 PULSE            (v7.7.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/5)
   ◆ PL/DIFF/1           →  PL/SUB/1
@@ -286,7 +286,7 @@ PULSE            (v7.7.0)  ░░░░░░░░░░░░░░░░░�
 HOLOGRAM         (v8.0.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/7)
   ○ HG/BTR/1          
   ◆ HG/FORK/1         
-  ○ HG/IO/1             →  HG/IO/2, HG/SLICE/1, EC/TEMPORAL/1
+  ◆ HG/IO/1             →  HG/IO/2, HG/SLICE/1, EC/TEMPORAL/1
   ○ HG/IO/2             →  HG/SLICE/1
   ◆ HG/PROV/1           →  HG/SLICE/1, HG/WORM/1, HG/BTR/1
   ○ HG/SLICE/1        
@@ -1249,7 +1249,7 @@ The library is opaque at runtime. Users can't see what's happening without addin
 
 #### LH/STATUS/1 — Implement graph.status() method
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want a single call that tells me everything about my graph's health.
 - **Requirements:**
   - Returns:
@@ -1289,7 +1289,7 @@ The library is opaque at runtime. Users can't see what's happening without addin
 
 #### LH/TIMING/1 — Add structured timing to core operations
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to see how long each operation takes so I can identify bottlenecks.
 - **Requirements:**
   - Wrap `materialize()`, `syncWith()`, `createCheckpoint()`, `rebuildIndex()`, `runGC()` with timing.
@@ -1318,7 +1318,7 @@ The library is opaque at runtime. Users can't see what's happening without addin
 
 #### LH/CLI/1 — Wire graph.status() into CLI check output
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want `git warp check` to show the same info as `graph.status()`.
 - **Requirements:**
   - `git warp check` outputs all fields from `graph.status()`.
@@ -1346,7 +1346,7 @@ The library is opaque at runtime. Users can't see what's happening without addin
 
 #### LH/RECEIPTS/1 — Define receipt data structure
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As the system, I need a well-defined structure for recording materialization decisions.
 - **Requirements:**
   - Define `TickReceipt` type:
@@ -1377,7 +1377,7 @@ The library is opaque at runtime. Users can't see what's happening without addin
 
 #### LH/RECEIPTS/2 — Emit receipts during patch application
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to see exactly what happened during materialization — which ops were applied and which were superseded.
 - **Requirements:**
   - Add `{ receipts: true }` option to `materialize()`.
@@ -1572,7 +1572,7 @@ Implements the theory from Papers III–IV. The mathematical foundations for pro
 
 #### HG/IO/1 — Extend PatchV2 with reads/writes fields
 
-- **Status:** `BLOCKED`
+- **Status:** `OPEN`
 - **User Story:** As the system, I need each patch to declare which nodes it reads and writes for provenance tracking.
 - **Requirements:**
   - Add optional `reads: string[]` and `writes: string[]` fields to PatchV2.

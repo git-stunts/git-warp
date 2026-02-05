@@ -45,6 +45,12 @@ import {
 } from './src/domain/types/WarpTypes.js';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
+import {
+  createTickReceipt,
+  canonicalJson as tickReceiptCanonicalJson,
+  OP_TYPES as TICK_RECEIPT_OP_TYPES,
+  RESULT_TYPES as TICK_RECEIPT_RESULT_TYPES,
+} from './src/domain/types/TickReceipt.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -104,6 +110,12 @@ export {
 
   // WARP migration
   migrateV4toV5,
+
+  // Tick receipts (LIGHTHOUSE)
+  createTickReceipt,
+  tickReceiptCanonicalJson,
+  TICK_RECEIPT_OP_TYPES,
+  TICK_RECEIPT_RESULT_TYPES,
 };
 
 // WarpGraph is the primary API for V7

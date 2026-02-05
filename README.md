@@ -271,6 +271,32 @@ const graph = await WarpGraph.open({
 });
 ```
 
+## Observability
+
+```javascript
+// Operational health snapshot (does not trigger materialization)
+const status = await graph.status();
+// {
+//   cachedState: 'fresh',          // 'fresh' | 'stale' | 'none'
+//   patchesSinceCheckpoint: 12,
+//   tombstoneRatio: 0.03,
+//   writers: 2,
+//   frontier: { alice: 'abc...', bob: 'def...' },
+// }
+
+// Tick receipts: see exactly what happened during materialization
+const { state, receipts } = await graph.materialize({ receipts: true });
+for (const receipt of receipts) {
+  for (const op of receipt.ops) {
+    if (op.result === 'superseded') {
+      console.log(`${op.op} on ${op.target}: ${op.reason}`);
+    }
+  }
+}
+```
+
+Core operations (`materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`) emit structured timing logs via `LoggerPort` when a logger is injected.
+
 ## CLI
 
 The CLI is available as `warp-graph` or as a Git subcommand `git warp`.
@@ -291,7 +317,7 @@ git warp path --from user:alice --to user:bob --dir out
 # Show patch history for a writer
 git warp history --writer alice
 
-# Check graph health and GC status
+# Check graph health, status, and GC metrics
 git warp check
 ```
 
