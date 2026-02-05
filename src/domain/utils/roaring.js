@@ -28,6 +28,13 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 /**
+ * Sentinel indicating availability has not been checked yet.
+ * @const {symbol}
+ * @private
+ */
+const NOT_CHECKED = Symbol('NOT_CHECKED');
+
+/**
  * Cached reference to the loaded roaring module.
  * @type {Object|null}
  * @private
@@ -36,11 +43,11 @@ let roaringModule = null;
 
 /**
  * Cached result of native availability check.
- * `null` means not yet checked or indeterminate.
- * @type {boolean|null}
+ * `NOT_CHECKED` means not yet checked, `null` means indeterminate.
+ * @type {boolean|symbol|null}
  * @private
  */
-let nativeAvailability = null;
+let nativeAvailability = NOT_CHECKED;
 
 /**
  * Lazily loads and caches the roaring module.
@@ -118,7 +125,7 @@ export function getRoaringBitmap32() {
  * };
  */
 export function getNativeRoaringAvailable() {
-  if (nativeAvailability !== null) {
+  if (nativeAvailability !== NOT_CHECKED) {
     return nativeAvailability;
   }
 

@@ -655,8 +655,12 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['merge-base', '--is-ancestor', potentialAncestor, descendant]
       });
       return true;  // Exit code 0 means it IS an ancestor
-    } catch {
-      return false; // Exit code 1 means it is NOT an ancestor
+    } catch (err) {
+      const exitCode = err?.details?.code ?? err?.exitCode ?? err?.code;
+      if (exitCode === 1) {
+        return false; // Exit code 1 means it is NOT an ancestor
+      }
+      throw err; // Re-throw unexpected errors
     }
   }
 

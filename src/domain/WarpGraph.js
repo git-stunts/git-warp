@@ -1679,6 +1679,10 @@ export default class WarpGraph {
             subscriber.onChange(replayDiff);
           }
         } else {
+          // Skip non-replay subscribers when diff is empty
+          if (!subscriber.pendingReplay && isEmptyDiff(diff)) {
+            continue;
+          }
           subscriber.onChange(diff);
         }
       } catch (err) {

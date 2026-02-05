@@ -136,7 +136,8 @@ function sortKeys(value) {
   }
 
   // Handle plain objects - sort keys and recursively process values
-  if (typeof value === 'object' && value.constructor === Object) {
+  // Note: value.constructor === undefined handles Object.create(null) objects
+  if (typeof value === 'object' && (value.constructor === Object || value.constructor === undefined)) {
     const sorted = {};
     const keys = Object.keys(value).sort();
     for (const key of keys) {

@@ -157,10 +157,13 @@ describe('StateDiff', () => {
         const after = createEmptyStateV5();
 
         applyOps(after, [
-          createEdgeAddOp('z', 'a', 'label', 'w1', 1),
-          createEdgeAddOp('a', 'z', 'label', 'w1', 2),
-          createEdgeAddOp('a', 'a', 'zebra', 'w1', 3),
-          createEdgeAddOp('a', 'a', 'alpha', 'w1', 4),
+          // Add nodes first - edges are only visible if both endpoints exist
+          createNodeAddOp('a', 'w1', 1),
+          createNodeAddOp('z', 'w1', 2),
+          createEdgeAddOp('z', 'a', 'label', 'w1', 3),
+          createEdgeAddOp('a', 'z', 'label', 'w1', 4),
+          createEdgeAddOp('a', 'a', 'zebra', 'w1', 5),
+          createEdgeAddOp('a', 'a', 'alpha', 'w1', 6),
         ], 'w1');
 
         const diff = diffStates(before, after);
@@ -171,6 +174,78 @@ describe('StateDiff', () => {
           { from: 'a', to: 'z', label: 'label' },
           { from: 'z', to: 'a', label: 'label' },
         ]);
+      });
+
+      it('excludes edges with missing endpoints from diff', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        // Add edge without nodes - edge should be invisible
+        applyOps(after, [
+          createEdgeAddOp('orphan:a', 'orphan:b', 'dangling', 'w1', 1),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        // Edge should not appear as added since endpoints don't exist
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('excludes edges when source node is missing', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        applyOps(after, [
+          // Only add target node, not source
+          createNodeAddOp('target', 'w1', 1),
+          createEdgeAddOp('missing', 'target', 'half', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('excludes edges when target node is missing', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        applyOps(after, [
+          // Only add source node, not target
+          createNodeAddOp('source', 'w1', 1),
+          createEdgeAddOp('source', 'missing', 'half', 'w1', 2),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        expect(diff.edges.added).toEqual([]);
+      });
+
+      it('removes edge from diff when endpoint node disappears', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        // Before: both nodes and edge exist
+        applyOps(before, [
+          createNodeAddOp('a', 'w1', 1),
+          createNodeAddOp('b', 'w1', 2),
+          createEdgeAddOp('a', 'b', 'link', 'w1', 3),
+        ], 'w1');
+
+        // After: edge still in edgeAlive but node 'b' is gone
+        applyOps(after, [
+          createNodeAddOp('a', 'w1', 1),
+          createEdgeAddOp('a', 'b', 'link', 'w1', 3),
+        ], 'w1');
+
+        const diff = diffStates(before, after);
+
+        // The edge should be in 'removed' because it was visible before (both endpoints alive)
+        // but invisible after (endpoint 'b' is missing)
+        expect(diff.edges.removed).toEqual([
+          { from: 'a', to: 'b', label: 'link' },
+        ]);
+        expect(diff.edges.added).toEqual([]);
       });
     });
 

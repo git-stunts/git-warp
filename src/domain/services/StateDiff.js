@@ -8,7 +8,7 @@
  * @see ROADMAP.md PL/DIFF/1
  */
 
-import { orsetElements } from '../crdt/ORSet.js';
+import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { lwwValue } from '../crdt/LWW.js';
 import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './JoinReducer.js';
 
@@ -178,8 +178,25 @@ function setAdded(before, after) {
 function diffNodesAndEdges(before, after) {
   const beforeNodes = before ? new Set(orsetElements(before.nodeAlive)) : new Set();
   const afterNodes = new Set(orsetElements(after.nodeAlive));
-  const beforeEdges = before ? new Set(orsetElements(before.edgeAlive)) : new Set();
-  const afterEdges = new Set(orsetElements(after.edgeAlive));
+
+  // Filter edges to only include those with visible endpoints (both nodes must be alive).
+  // This ensures diffs respect node visibility rules - edges with tombstoned endpoints
+  // are treated as invisible.
+  const beforeEdges = before
+    ? new Set(
+        orsetElements(before.edgeAlive).filter((edgeKey) => {
+          const { from, to } = decodeEdgeKey(edgeKey);
+          return orsetContains(before.nodeAlive, from) && orsetContains(before.nodeAlive, to);
+        })
+      )
+    : new Set();
+
+  const afterEdges = new Set(
+    orsetElements(after.edgeAlive).filter((edgeKey) => {
+      const { from, to } = decodeEdgeKey(edgeKey);
+      return orsetContains(after.nodeAlive, from) && orsetContains(after.nodeAlive, to);
+    })
+  );
 
   const nodesAdded = setAdded(beforeNodes, afterNodes);
   const nodesRemoved = setAdded(afterNodes, beforeNodes);

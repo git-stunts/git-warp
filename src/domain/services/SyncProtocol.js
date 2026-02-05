@@ -169,9 +169,11 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
 
   // If fromSha was specified but we didn't reach it, we have divergence
   if (fromSha && cur === null) {
-    throw new Error(
+    const err = new Error(
       `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`
     );
+    err.code = 'E_SYNC_DIVERGENCE';
+    throw err;
   }
 
   return patches;
@@ -400,7 +402,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
     } catch (err) {
       // If we detect divergence, skip this writer
       // The requester may need to handle this separately
-      if (err.message.includes('Divergence detected')) {
+      if (err.code === 'E_SYNC_DIVERGENCE' || err.message.includes('Divergence detected')) {
         continue;
       }
       throw err;

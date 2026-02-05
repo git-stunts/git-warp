@@ -107,22 +107,30 @@ export function encodeEdgePropKey(from, to, label, propKey) {
 }
 
 /**
- * Decodes an edge property key string.
- * @param {string} encoded - Encoded edge property key (must start with \x01)
- * @returns {{from: string, to: string, label: string, propKey: string}}
- */
-export function decodeEdgePropKey(encoded) {
-  const [from, to, label, propKey] = encoded.slice(1).split('\0');
-  return { from, to, label, propKey };
-}
-
-/**
  * Returns true if the encoded key is an edge property key.
  * @param {string} key - Encoded property key
  * @returns {boolean}
  */
 export function isEdgePropKey(key) {
   return key[0] === EDGE_PROP_PREFIX;
+}
+
+/**
+ * Decodes an edge property key string.
+ * @param {string} encoded - Encoded edge property key (must start with \x01)
+ * @returns {{from: string, to: string, label: string, propKey: string}}
+ * @throws {Error} If the encoded key is missing the edge property prefix
+ * @throws {Error} If the encoded key does not contain exactly 4 segments
+ */
+export function decodeEdgePropKey(encoded) {
+  if (!isEdgePropKey(encoded)) {
+    throw new Error('Invalid edge property key: missing prefix');
+  }
+  const [from, to, label, propKey] = encoded.slice(1).split('\0');
+  if (propKey === undefined) {
+    throw new Error('Invalid edge property key: expected 4 segments');
+  }
+  return { from, to, label, propKey };
 }
 
 /**

@@ -373,6 +373,10 @@ export default class IndexRebuildService {
       strict,
     });
 
+    if (autoRebuild && !rebuildRef) {
+      throw new Error('rebuildRef is required when autoRebuild is true');
+    }
+
     const startTime = performance.now();
     const shardOids = await this.storage.readTreeOids(treeOid);
     const shardCount = Object.keys(shardOids).length;
