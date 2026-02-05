@@ -1,6 +1,6 @@
-# EmptyGraph Demo Walkthrough
+# Git Warp Demo Walkthrough
 
-Welcome to the EmptyGraph interactive demo! This guide walks you through using Git as an event store - one of the most powerful applications of the "invisible database" pattern.
+Welcome to the git-warp interactive demo! This guide walks you through using Git as an event store - one of the most powerful applications of the "invisible database" pattern.
 
 By the end of this walkthrough, you'll understand:
 - How Git commits become event records
@@ -37,7 +37,7 @@ This command:
 You should see output like:
 
 ```text
-🚀 EmptyGraph Demo Setup
+🚀 git-warp Demo Setup
 
 📁 Initializing git repo...
 Initialized empty Git repository in /demo/.git/
@@ -156,8 +156,8 @@ git cat-file -p a3a69ce
 ```text
 tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904
 parent b44d50a...
-author EmptyGraph Demo <demo@emptygraph.local> 1706478887 +0000
-committer EmptyGraph Demo <demo@emptygraph.local> 1706478887 +0000
+author git-warp Demo <demo@git-warp.local> 1706478887 +0000
+committer git-warp Demo <demo@git-warp.local> 1706478887 +0000
 
 {
   "type": "OrderDelivered",
@@ -183,7 +183,7 @@ Or from your host machine:
 npm run demo:explore
 ```
 
-This script demonstrates EmptyGraph's traversal capabilities.
+This script demonstrates git-warp's traversal capabilities.
 
 ### Section 1: Event Replay
 
@@ -365,12 +365,12 @@ If you add events, rebuild the index to include them:
 ```bash
 node -e "
 // Note: This script reflects the v2.5.0 API. Check index.js exports if API has changed.
-const { default: EmptyGraph, GitGraphAdapter } = await import('/app/index.js');
+const { default: WarpGraph, GitGraphAdapter } = await import('/app/index.js');
 const GitPlumbing = (await import('@git-stunts/plumbing')).default;
 
 const plumbing = new GitPlumbing({ cwd: process.cwd() });
 const adapter = new GitGraphAdapter({ plumbing });
-const graph = new EmptyGraph({ persistence: adapter });
+const graph = new WarpGraph({ persistence: adapter });
 
 const indexOid = await graph.rebuildIndex('main');
 await graph.saveIndex();

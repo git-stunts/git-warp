@@ -489,6 +489,51 @@ describe('JoinReducer receipts', () => {
   });
 
   // =========================================================================
+  // Unknown / forward-compatible op types
+  // =========================================================================
+
+  describe('unknown op types (forward-compat)', () => {
+    it('unknown op is applied to state but excluded from receipt ops', () => {
+      const state = createEmptyStateV5();
+      // Mix a known op with an unknown future op type
+      const patch = makePatch({
+        writer: 'w1',
+        lamport: 1,
+        ops: [
+          nodeAdd('n1', createDot('w1', 1)),
+          { type: 'FutureOpV99', node: 'n1', payload: 'exotic' },
+          propSet('n1', 'name', 'Alice'),
+        ],
+      });
+
+      // Must not throw despite the unknown op type
+      const { state: resultState, receipt } = join(state, patch, 'abcd1234', true);
+
+      // The unknown op is silently skipped in the receipt
+      expect(receipt.ops).toHaveLength(2);
+      expect(receipt.ops[0].op).toBe('NodeAdd');
+      expect(receipt.ops[1].op).toBe('PropSet');
+
+      // State was still mutated (applyOpV2 ran for all ops, unknown ones are no-ops)
+      expect(resultState).toBe(state);
+    });
+
+    it('patch with only unknown ops yields receipt with empty ops', () => {
+      const state = createEmptyStateV5();
+      const patch = makePatch({
+        writer: 'w1',
+        lamport: 1,
+        ops: [
+          { type: 'Experimental', node: 'x1' },
+        ],
+      });
+
+      const { receipt } = join(state, patch, 'abcd1234', true);
+      expect(receipt.ops).toHaveLength(0);
+    });
+  });
+
+  // =========================================================================
   // Full lifecycle: multi-writer with conflicts
   // =========================================================================
 

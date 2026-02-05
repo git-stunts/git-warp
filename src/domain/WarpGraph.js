@@ -314,6 +314,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
+          if (this._lastFrontier) {
+            this._lastFrontier.set(this._writerId, sha);
+          }
         } else {
           this._stateDirty = true;
         }
@@ -1431,6 +1435,16 @@ export default class WarpGraph {
     // Update cached state
     this._cachedState = result.state;
 
+    // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale.
+    // Merge the response's per-writer tips into the stored frontier snapshot.
+    if (this._lastFrontier && Array.isArray(response.patches)) {
+      for (const { writerId, sha } of response.patches) {
+        if (writerId && sha) {
+          this._lastFrontier.set(writerId, sha);
+        }
+      }
+    }
+
     // Track patches for GC
     this._patchesSinceGC += result.applied;
 
@@ -1838,6 +1852,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
+          if (this._lastFrontier) {
+            this._lastFrontier.set(resolvedWriterId, sha);
+          }
         } else {
           this._stateDirty = true;
         }
@@ -1898,6 +1916,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
+          if (this._lastFrontier) {
+            this._lastFrontier.set(freshWriterId, sha);
+          }
         } else {
           this._stateDirty = true;
         }

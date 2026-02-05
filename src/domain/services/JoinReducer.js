@@ -13,7 +13,7 @@ import { createORSet, orsetAdd, orsetRemove, orsetJoin } from '../crdt/ORSet.js'
 import { createVersionVector, vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
-import { createTickReceipt } from '../types/TickReceipt.js';
+import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
 import { encodeDot } from '../crdt/Dot.js';
 
 /**
@@ -185,6 +185,9 @@ const RECEIPT_OP_TYPE = {
   PropSet: 'PropSet',
   BlobValue: 'BlobValue',
 };
+
+/** Set of valid receipt op types (from TickReceipt) for fast membership checks. */
+const VALID_RECEIPT_OPS = new Set(OP_TYPES);
 
 /**
  * Determines the receipt outcome for a NodeAdd operation.
@@ -369,6 +372,10 @@ export function join(state, patch, patchSha, collectReceipts) {
     applyOpV2(state, op, eventId);
 
     const receiptOp = RECEIPT_OP_TYPE[op.type] || op.type;
+    // Skip unknown/forward-compatible op types that aren't valid receipt ops
+    if (!VALID_RECEIPT_OPS.has(receiptOp)) {
+      continue;
+    }
     const entry = { op: receiptOp, target: outcome.target, result: outcome.result };
     if (outcome.reason) {
       entry.reason = outcome.reason;

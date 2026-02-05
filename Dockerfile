@@ -15,7 +15,7 @@ RUN npm install
 COPY git-warp .
 RUN git init -q \
   && git config user.email "container@git-warp.local" \
-  && git config user.name "Empty Graph Container" \
+  && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/bin/warp-graph.js "$@"' > /usr/local/bin/warp-graph

@@ -630,7 +630,9 @@ function renderCheck(payload) {
 
   if (payload.gc) {
     lines.push(`Tombstones: ${payload.gc.totalTombstones}`);
-    lines.push(`Tombstone Ratio: ${payload.gc.tombstoneRatio}`);
+    if (!payload.status) {
+      lines.push(`Tombstone Ratio: ${payload.gc.tombstoneRatio}`);
+    }
   }
 
   if (payload.hook) {

@@ -682,7 +682,7 @@ Each receipt corresponds to one patch and contains per-op outcomes:
 | `redundant` | Operation had no effect (duplicate add, already-removed tombstone) |
 
 For `superseded` PropSet operations, the `reason` field shows the winner:
-```
+```text
 PropSet user:alice.name: superseded
   reason: LWW: writer bob at lamport 43 wins
 ```

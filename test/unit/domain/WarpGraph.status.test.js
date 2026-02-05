@@ -359,6 +359,142 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     expect(status.frontier).not.toBeInstanceOf(Map);
   });
 
+  // =========================================================================
+  // Eager-apply: _lastFrontier kept in sync after local commit
+  // =========================================================================
+
+  it('returns cachedState "fresh" after eager commit (not "stale")', async () => {
+    // 1. Materialize an empty graph — establishes _lastFrontier = empty Map
+    persistence.listRefs.mockResolvedValue([]);
+    await graph.materialize();
+
+    // 2. Configure mocks for a first-time commit
+    const writerRef = 'refs/warp/test/writers/writer-1';
+    persistence.readRef.mockResolvedValue(null);
+    persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
+    persistence.writeTree.mockResolvedValue('b'.repeat(40));
+    persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
+    persistence.updateRef.mockResolvedValue(undefined);
+
+    // 3. Commit a patch (triggers onCommitSuccess with eager apply)
+    await (await graph.createPatch()).addNode('test:node').commit();
+
+    // 4. After commit, update listRefs/readRef to reflect the new ref
+    persistence.listRefs.mockResolvedValue([writerRef]);
+    persistence.readRef.mockImplementation((ref) => {
+      if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
+      return Promise.resolve(null);
+    });
+
+    // 5. status() should report "fresh" — the eager apply updated _lastFrontier
+    const status = await graph.status();
+    expect(status.cachedState).toBe('fresh');
+  });
+
+  it('hasFrontierChanged() returns false after eager commit', async () => {
+    // 1. Materialize an empty graph
+    persistence.listRefs.mockResolvedValue([]);
+    await graph.materialize();
+
+    // 2. Configure mocks for a first-time commit
+    const writerRef = 'refs/warp/test/writers/writer-1';
+    persistence.readRef.mockResolvedValue(null);
+    persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
+    persistence.writeTree.mockResolvedValue('b'.repeat(40));
+    persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA);
+    persistence.updateRef.mockResolvedValue(undefined);
+
+    // 3. Commit a patch
+    await (await graph.createPatch()).addNode('test:node').commit();
+
+    // 4. After commit, update listRefs/readRef to reflect the new ref
+    persistence.listRefs.mockResolvedValue([writerRef]);
+    persistence.readRef.mockImplementation((ref) => {
+      if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
+      return Promise.resolve(null);
+    });
+
+    // 5. hasFrontierChanged() should return false — frontier was updated eagerly
+    expect(await graph.hasFrontierChanged()).toBe(false);
+  });
+
+  // =========================================================================
+  // applySyncResponse: _lastFrontier kept in sync after sync
+  // =========================================================================
+
+  it('returns cachedState "fresh" after applySyncResponse (not "stale")', async () => {
+    // 1. Materialize an empty graph
+    persistence.listRefs.mockResolvedValue([]);
+    await graph.materialize();
+
+    // 2. Build a sync response with one patch from a remote writer
+    const remoteSha = FAKE_COMMIT_SHA_2;
+    const syncResponse = {
+      type: 'sync-response',
+      frontier: { 'writer-2': remoteSha },
+      patches: [
+        {
+          writerId: 'writer-2',
+          sha: remoteSha,
+          patch: { schema: 2, ops: [], context: {} },
+        },
+      ],
+    };
+
+    // 3. Apply the sync response
+    graph.applySyncResponse(syncResponse);
+
+    // 4. After sync, listRefs/readRef reflect the remote writer
+    const writerRef2 = 'refs/warp/test/writers/writer-2';
+    persistence.listRefs.mockResolvedValue([writerRef2]);
+    persistence.readRef.mockImplementation((ref) => {
+      if (ref === writerRef2) return Promise.resolve(remoteSha);
+      return Promise.resolve(null);
+    });
+
+    // 5. status() should report "fresh" — applySyncResponse updated _lastFrontier
+    const status = await graph.status();
+    expect(status.cachedState).toBe('fresh');
+  });
+
+  it('hasFrontierChanged() returns false after applySyncResponse', async () => {
+    // 1. Materialize an empty graph
+    persistence.listRefs.mockResolvedValue([]);
+    await graph.materialize();
+
+    // 2. Build a sync response with patches from a remote writer
+    const remoteSha = FAKE_COMMIT_SHA_2;
+    const syncResponse = {
+      type: 'sync-response',
+      frontier: { 'writer-2': remoteSha },
+      patches: [
+        {
+          writerId: 'writer-2',
+          sha: remoteSha,
+          patch: { schema: 2, ops: [], context: {} },
+        },
+      ],
+    };
+
+    // 3. Apply the sync response
+    graph.applySyncResponse(syncResponse);
+
+    // 4. After sync, readRef reflects the remote writer
+    const writerRef2 = 'refs/warp/test/writers/writer-2';
+    persistence.listRefs.mockResolvedValue([writerRef2]);
+    persistence.readRef.mockImplementation((ref) => {
+      if (ref === writerRef2) return Promise.resolve(remoteSha);
+      return Promise.resolve(null);
+    });
+
+    // 5. hasFrontierChanged() should return false
+    expect(await graph.hasFrontierChanged()).toBe(false);
+  });
+
+  // =========================================================================
+  // Full return shape
+  // =========================================================================
+
   it('returns consistent snapshot after full lifecycle', async () => {
     const writerRef = 'refs/warp/test/writers/writer-1';
     const patchMessage = encodePatchMessage({
