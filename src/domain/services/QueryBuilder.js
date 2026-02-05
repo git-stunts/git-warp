@@ -38,8 +38,23 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function isPrimitive(value) {
+  return value === null || (typeof value !== 'object' && typeof value !== 'function');
+}
+
 function objectToPredicate(obj) {
   const entries = Object.entries(obj);
+  for (const [key, value] of entries) {
+    if (!isPrimitive(value)) {
+      throw new QueryError(
+        'where() object shorthand only accepts primitive property values',
+        {
+          code: 'E_QUERY_WHERE_VALUE_TYPE',
+          context: { key, receivedType: typeof value },
+        }
+      );
+    }
+  }
   return ({ props }) => {
     for (const [key, value] of entries) {
       if (!(key in props) || props[key] !== value) {
@@ -159,10 +174,29 @@ function normalizeDepth(depth) {
     return [1, 1];
   }
   if (typeof depth === 'number') {
+    if (!Number.isInteger(depth) || depth < 0) {
+      throw new QueryError('depth must be a non-negative integer', {
+        code: 'E_QUERY_DEPTH_TYPE',
+        context: { value: depth },
+      });
+    }
     return [depth, depth];
   }
   if (Array.isArray(depth) && depth.length === 2) {
-    return [depth[0], depth[1]];
+    const [min, max] = depth;
+    if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max < 0) {
+      throw new QueryError('depth values must be non-negative integers', {
+        code: 'E_QUERY_DEPTH_TYPE',
+        context: { value: depth },
+      });
+    }
+    if (min > max) {
+      throw new QueryError('depth min must be <= max', {
+        code: 'E_QUERY_DEPTH_RANGE',
+        context: { min, max },
+      });
+    }
+    return [min, max];
   }
   throw new QueryError('depth must be a number or [min, max] array', {
     code: 'E_QUERY_DEPTH_TYPE',
@@ -196,6 +230,12 @@ function applyMultiHop({ direction, label, workingSet, adjacency, depth }) {
   const result = new Set();
   let currentLevel = new Set(workingSet);
   const visited = new Set(workingSet);
+
+  if (minDepth === 0) {
+    for (const nodeId of workingSet) {
+      result.add(nodeId);
+    }
+  }
 
   for (let hop = 1; hop <= maxDepth; hop++) {
     const nextLevel = new Set();

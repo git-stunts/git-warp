@@ -338,7 +338,7 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
     ]);
   });
 
-  it('depth [0,0] returns nothing (no self-inclusion)', async () => {
+  it('depth [0,0] returns the start set (self-inclusion)', async () => {
     setupGraphState(graph, (state) => {
       addNode(state, 'node:a', 1);
       addNode(state, 'node:b', 2);
@@ -351,7 +351,7 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
       .outgoing('next', { depth: [0, 0] })
       .run();
 
-    expect(result.nodes).toEqual([]);
+    expect(result.nodes).toEqual([{ id: 'node:a' }]);
   });
 
   it('throws E_QUERY_DEPTH_TYPE for invalid depth', () => {
