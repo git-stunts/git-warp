@@ -1,8 +1,8 @@
 # Roadmap
 
 > Execution plan for `@git-stunts/git-warp` from v7.1.0 onward.
-> Current release: v7.0.0. Main branch: v7.6.0 complete (AUTOPILOT through LIGHTHOUSE merged, unreleased).
-> Active milestone: PULSE (v7.7.0).
+> Current release: v7.0.0. Main branch: v7.7.0 complete (AUTOPILOT through PULSE merged, unreleased).
+> Next milestone: HOLOGRAM (v8.0.0).
 
 ## How to Read This Document
 
@@ -193,7 +193,7 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 | 4 | **HANDSHAKE** | v7.4.0 | Multi-Writer Ergonomics | Complete (merged, unreleased) |
 | 5 | **COMPASS** | v7.5.0 | Advanced Query Language | Complete (merged, unreleased) |
 | 6 | **LIGHTHOUSE** | v7.6.0 | Observability | Complete (merged, unreleased) |
-| 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Planned |
+| 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Complete (merged, unreleased) |
 | 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Planned |
 | 9 | **ECHO** | v9.0.0 | Observer Geometry | Speculative |
 

@@ -221,6 +221,47 @@ if (result.found) {
 }
 ```
 
+## Subscriptions & Reactivity
+
+React to graph changes without polling. Handlers are called after `materialize()` when state has changed.
+
+### Subscribe to All Changes
+
+```javascript
+const { unsubscribe } = graph.subscribe({
+  onChange: (diff) => {
+    console.log('Nodes added:', diff.nodes.added);
+    console.log('Nodes removed:', diff.nodes.removed);
+    console.log('Edges added:', diff.edges.added);
+    console.log('Props changed:', diff.props.set);
+  },
+  onError: (err) => console.error('Handler error:', err),
+  replay: true,  // immediately fire with current state
+});
+
+// Make changes and materialize to trigger handlers
+await (await graph.createPatch()).addNode('user:charlie').commit();
+await graph.materialize();  // onChange fires with the diff
+
+unsubscribe();  // stop receiving updates
+```
+
+### Watch with Pattern Filtering
+
+Only receive changes for nodes matching a glob pattern:
+
+```javascript
+const { unsubscribe } = graph.watch('user:*', {
+  onChange: (diff) => {
+    // Only includes user:* nodes, their edges, and their properties
+    console.log('User changes:', diff);
+  },
+  poll: 5000,  // optional: check for remote changes every 5s
+});
+```
+
+When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and auto-materializes if remote changes are detected.
+
 ## Patch Operations
 
 The patch builder supports seven operations:

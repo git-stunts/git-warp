@@ -397,6 +397,123 @@ const result = await graph.query()
 | `E_QUERY_AGGREGATE_TYPE` | `aggregate()` receives invalid spec or field types |
 | `E_QUERY_AGGREGATE_TERMINAL` | `select()`/`outgoing()`/`incoming()` called after `aggregate()` |
 
+## Subscriptions & Reactivity
+
+WarpGraph provides a reactive subscription system to respond to graph changes without polling.
+
+### graph.subscribe()
+
+Subscribe to all graph changes. Handlers fire after `materialize()` when state differs from the previous materialization.
+
+```javascript
+const { unsubscribe } = graph.subscribe({
+  onChange: (diff) => {
+    // diff.nodes.added: string[] — node IDs added
+    // diff.nodes.removed: string[] — node IDs removed
+    // diff.edges.added: { from, to, label }[] — edges added
+    // diff.edges.removed: { from, to, label }[] — edges removed
+    // diff.props.set: { nodeId, propKey, oldValue, newValue }[] — properties set/changed
+    // diff.props.removed: { nodeId, propKey, oldValue }[] — properties removed
+
+    console.log('Graph changed:', diff);
+  },
+  onError: (err) => {
+    // Called if onChange throws (doesn't block other handlers)
+    console.error('Handler error:', err);
+  },
+});
+
+// Trigger a change
+await (await graph.createPatch()).addNode('item:new').commit();
+await graph.materialize();  // onChange fires
+
+// Stop receiving updates
+unsubscribe();
+```
+
+### Initial Replay
+
+Get the current state immediately when subscribing:
+
+```javascript
+const { unsubscribe } = graph.subscribe({
+  onChange: (diff) => {
+    // First call: diff from empty to current state (all nodes/edges as "added")
+    // Subsequent calls: incremental diffs
+  },
+  replay: true,  // immediately fire with current state
+});
+```
+
+If no cached state exists yet, replay is deferred until the first `materialize()`.
+
+### graph.watch()
+
+Watch for changes matching a specific pattern. Uses the same glob syntax as `query().match()`.
+
+```javascript
+// Only receive changes for user:* nodes
+const { unsubscribe } = graph.watch('user:*', {
+  onChange: (diff) => {
+    // diff only contains:
+    // - nodes.added/removed where node ID matches 'user:*'
+    // - edges where from OR to matches 'user:*'
+    // - props where nodeId matches 'user:*'
+    console.log('User changed:', diff);
+  },
+});
+```
+
+Pattern examples:
+- `'user:*'` — matches `user:alice`, `user:bob`, etc.
+- `'*:123'` — matches `user:123`, `order:123`, etc.
+- `'doc:*:draft'` — matches `doc:1:draft`, `doc:abc:draft`, etc.
+- `'*'` — matches everything (same as `subscribe()`)
+
+### Polling for Remote Changes
+
+Automatically detect and materialize remote changes (e.g., from `git pull` or sync):
+
+```javascript
+const { unsubscribe } = graph.watch('order:*', {
+  onChange: (diff) => {
+    console.log('Order updated:', diff);
+  },
+  poll: 5000,  // check every 5 seconds
+});
+
+// Polling calls hasFrontierChanged() periodically
+// If frontier changed, auto-materializes and fires handlers
+```
+
+Minimum poll interval is 1000ms. The interval is automatically cleaned up on `unsubscribe()`.
+
+### Multiple Subscribers
+
+Multiple handlers can coexist. Each receives the same diff independently.
+
+```javascript
+graph.subscribe({ onChange: handleAuditLog });
+graph.subscribe({ onChange: updateCache });
+graph.watch('user:*', { onChange: notifyUserService });
+graph.watch('order:*', { onChange: updateOrderDashboard, poll: 3000 });
+```
+
+### Error Isolation
+
+Errors in one handler don't affect others:
+
+```javascript
+graph.subscribe({
+  onChange: () => { throw new Error('Oops'); },
+  onError: (err) => console.error('Caught:', err),  // receives the error
+});
+
+graph.subscribe({
+  onChange: (diff) => console.log('Still works:', diff),  // still called
+});
+```
+
 ## Workflows
 
 ### Basic Workflow
