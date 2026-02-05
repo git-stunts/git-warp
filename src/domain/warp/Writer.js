@@ -60,8 +60,9 @@ export class Writer {
    * @param {import('../crdt/VersionVector.js').VersionVector} options.versionVector - Current version vector
    * @param {Function} options.getCurrentState - Function to get current materialized state
    * @param {Function} [options.onCommitSuccess] - Callback invoked after successful commit with { patch, sha }
+   * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node with attached data
    */
-  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess }) {
+  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn' }) {
     validateWriterId(writerId);
 
     /** @type {import('../../ports/GraphPersistencePort.js').default} */
@@ -81,6 +82,9 @@ export class Writer {
 
     /** @type {Function|undefined} */
     this._onCommitSuccess = onCommitSuccess;
+
+    /** @type {'reject'|'cascade'|'warn'} */
+    this._onDeleteWithData = onDeleteWithData;
   }
 
   /**
@@ -154,6 +158,7 @@ export class Writer {
       getCurrentState: this._getCurrentState,
       expectedParentSha: expectedOldHead,
       onCommitSuccess: this._onCommitSuccess,
+      onDeleteWithData: this._onDeleteWithData,
     });
 
     // Return PatchSession wrapping the builder

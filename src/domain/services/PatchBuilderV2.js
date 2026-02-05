@@ -12,7 +12,7 @@
  */
 
 import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
-import { orsetGetDots, orsetContains } from '../crdt/ORSet.js';
+import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
   createNodeRemoveV2,
@@ -25,6 +25,35 @@ import { encodeEdgeKey, EDGE_PROP_PREFIX } from './JoinReducer.js';
 import { encode } from '../../infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, decodePatchMessage } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
+import { WriterError } from '../warp/Writer.js';
+
+/**
+ * Inspects materialized state for edges and properties attached to a node.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state - Materialized state
+ * @param {string} nodeId - Node to inspect
+ * @returns {{ edges: string[], props: string[], hasData: boolean }}
+ */
+function findAttachedData(state, nodeId) {
+  const edges = [];
+  const props = [];
+
+  for (const key of orsetElements(state.edgeAlive)) {
+    const parts = key.split('\0');
+    if (parts[0] === nodeId || parts[1] === nodeId) {
+      edges.push(key);
+    }
+  }
+
+  const propPrefix = `${nodeId}\0`;
+  for (const key of state.prop.keys()) {
+    if (key.startsWith(propPrefix)) {
+      props.push(key);
+    }
+  }
+
+  return { edges, props, hasData: edges.length > 0 || props.length > 0 };
+}
 
 /**
  * Fluent builder for creating WARP v5 patches with dots and observed-remove semantics.
@@ -42,8 +71,9 @@ export class PatchBuilderV2 {
    * @param {Function} options.getCurrentState - Function that returns the current materialized state
    * @param {string|null} [options.expectedParentSha] - Expected parent SHA for race detection
    * @param {Function|null} [options.onCommitSuccess] - Callback invoked after successful commit
+   * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node with attached data
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn' }) {
     /** @type {import('../../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -73,6 +103,9 @@ export class PatchBuilderV2 {
 
     /** @type {Set<string>} Edge keys added in this patch (for setEdgeProperty validation) */
     this._edgesAdded = new Set();
+
+    /** @type {'reject'|'cascade'|'warn'} */
+    this._onDeleteWithData = onDeleteWithData;
   }
 
   /**
@@ -104,6 +137,48 @@ export class PatchBuilderV2 {
   removeNode(nodeId) {
     // Get observed dots from current state (orsetGetDots returns already-encoded dot strings)
     const state = this._getCurrentState();
+
+    // Cascade mode: auto-generate EdgeRemove ops for all connected edges before NodeRemove.
+    // Generated ops appear in the patch for auditability.
+    if (this._onDeleteWithData === 'cascade' && state) {
+      const { edges } = findAttachedData(state, nodeId);
+      for (const edgeKey of edges) {
+        const [from, to, label] = edgeKey.split('\0');
+        const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
+        this._ops.push(createEdgeRemoveV2(from, to, label, edgeDots));
+      }
+    }
+
+    // Best-effort delete-guard validation at build time (reject/warn modes)
+    if (state && this._onDeleteWithData !== 'cascade') {
+      const { edges, props, hasData } = findAttachedData(state, nodeId);
+      if (hasData) {
+        const details = [];
+        if (edges.length > 0) {
+          details.push(`${edges.length} edge(s)`);
+        }
+        if (props.length > 0) {
+          details.push(`${props.length} propert${props.length === 1 ? 'y' : 'ies'}`);
+        }
+        const summary = details.join(' and ');
+
+        if (this._onDeleteWithData === 'reject') {
+          throw new Error(
+            `Cannot delete node '${nodeId}': node has attached data (${summary}). ` +
+            `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`
+          );
+        }
+
+        if (this._onDeleteWithData === 'warn') {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[warp] Deleting node '${nodeId}' which has attached data (${summary}). ` +
+            `Orphaned data will remain in state.`
+          );
+        }
+      }
+    }
+
     const observedDots = state ? [...orsetGetDots(state.nodeAlive, nodeId)] : [];
     this._ops.push(createNodeRemoveV2(nodeId, observedDots));
     return this;
@@ -250,11 +325,13 @@ export class PatchBuilderV2 {
     const currentRefSha = await this._persistence.readRef(writerRef);
 
     if (currentRefSha !== this._expectedParentSha) {
-      throw new Error(
-        `Concurrent commit detected: writer ref ${writerRef} has advanced. ` +
-        `Expected parent ${this._expectedParentSha || '(none)'}, found ${currentRefSha || '(none)'}. ` +
-        `Call createPatch() again to retry.`
+      const err = new WriterError(
+        'WRITER_CAS_CONFLICT',
+        'Commit failed: writer ref was updated by another process. Re-materialize and retry.'
       );
+      err.expectedSha = this._expectedParentSha;
+      err.actualSha = currentRefSha;
+      throw err;
     }
 
     // 3. Calculate lamport and parent from current ref state

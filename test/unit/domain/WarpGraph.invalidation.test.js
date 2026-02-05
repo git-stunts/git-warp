@@ -195,7 +195,7 @@ describe('WarpGraph dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)'
       .mockResolvedValueOnce(FAKE_COMMIT_SHA);
 
     const patch = (await graph.createPatch()).addNode('test:node');
-    await expect(patch.commit()).rejects.toThrow('Concurrent commit detected');
+    await expect(patch.commit()).rejects.toThrow('Commit failed: writer ref was updated by another process');
 
     expect(graph._stateDirty).toBe(false);
   });

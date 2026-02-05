@@ -224,7 +224,7 @@ LIGHTHOUSE ────────────────→ HOLOGRAM ──�
 ## Task DAG
 
 <!-- ROADMAP:DAG:START -->
-```text
+```
 Key: ■ CLOSED   ◆ OPEN   ○ BLOCKED
 
 AUTOPILOT        (v7.1.0)  ████████████████████  100%  (10/10)
@@ -254,15 +254,15 @@ WEIGHTED         (v7.3.0)  █████████████████�
   ■ WT/SCHEMA/2       
   ■ WT/VIS/1          
 
-HANDSHAKE        (v7.4.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/8)
-  ◆ HS/CAS/1          
-  ◆ HS/DELGUARD/1       →  HS/DELGUARD/2, HS/DELGUARD/3
-  ○ HS/DELGUARD/2     
-  ○ HS/DELGUARD/3     
-  ◆ HS/ERR/1            →  HS/ERR/2
-  ○ HS/ERR/2          
-  ◆ HS/SYNC/1         
-  ◆ HS/WRITER/1       
+HANDSHAKE        (v7.4.0)  ████████████████████  100%  (8/8)
+  ■ HS/CAS/1          
+  ■ HS/DELGUARD/1       →  HS/DELGUARD/2, HS/DELGUARD/3
+  ■ HS/DELGUARD/2     
+  ■ HS/DELGUARD/3     
+  ■ HS/ERR/1            →  HS/ERR/2
+  ■ HS/ERR/2          
+  ■ HS/SYNC/1         
+  ■ HS/WRITER/1       
 
 COMPASS          (v7.5.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/3)
   ◆ CP/AGG/1          
@@ -920,7 +920,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/WRITER/1 — Consolidate to two-form writer() API
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want one obvious way to get a writer so I don't have to understand three different methods.
 - **Requirements:**
   - `graph.writer()` — stable identity, resolved from git config or generated and persisted on first use.
@@ -952,7 +952,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/SYNC/1 — Add materialize option to syncWith()
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to sync and rematerialize in one call so I can't forget.
 - **Requirements:**
   - Add `{ materialize: boolean }` option to `syncWith()` (default `false`).
@@ -980,7 +980,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/ERR/1 — Audit and classify existing error messages
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want error messages that tell me exactly what went wrong and how to fix it.
 - **Requirements:**
   - Audit all error throws in WarpGraph.js and services.
@@ -999,7 +999,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/ERR/2 — Add error codes and recovery hints
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want error codes I can match on and human-readable recovery instructions.
 - **Requirements:**
   - Each domain error gets a unique code (e.g., `E_STATE_NEVER_MATERIALIZED`, `E_STATE_STALE_WRITE`, `E_STATE_STALE_SYNC`).
@@ -1028,7 +1028,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/CAS/1 — Detect and surface CAS failures with guidance
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to know when my commit failed due to a concurrent write, not a Git error.
 - **Requirements:**
   - Detect when `PatchBuilderV2.commit()` fails due to ref compare-and-swap mismatch.
@@ -1057,7 +1057,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/DELGUARD/1 — Add onDeleteWithData policy option
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to configure what happens when I delete a node that has properties or edges.
 - **Requirements:**
   - Add `onDeleteWithData: 'reject' | 'cascade' | 'warn'` option to `WarpGraph.open()`.
@@ -1075,7 +1075,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/DELGUARD/2 — Implement reject and warn modes
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want node deletion to fail or warn when the node has attached data.
 - **Requirements:**
   - **Two-layer validation:**
@@ -1106,7 +1106,7 @@ The multi-writer story works but has sharp edges around writer identity, sync wo
 
 #### HS/DELGUARD/3 — Implement cascade mode
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want the option to automatically clean up edges and properties when I delete a node.
 - **Requirements:**
   - `'cascade'`: auto-generate `EdgeRemove` ops for all connected edges and clear properties before `NodeRemove`.

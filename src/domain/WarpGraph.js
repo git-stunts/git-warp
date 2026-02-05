@@ -93,9 +93,10 @@ export default class WarpGraph {
    * @param {number} [options.adjacencyCacheSize] - Max materialized adjacency cache entries
    * @param {{every: number}} [options.checkpointPolicy] - Auto-checkpoint policy; creates a checkpoint every N patches
    * @param {boolean} [options.autoMaterialize=false] - If true, query methods auto-materialize instead of throwing
+   * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node that still has edges or properties
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, logger }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -149,6 +150,9 @@ export default class WarpGraph {
 
     /** @type {import('../ports/LoggerPort.js').default|null} */
     this._logger = logger || null;
+
+    /** @type {'reject'|'cascade'|'warn'} */
+    this._onDeleteWithData = onDeleteWithData;
   }
 
   /**
@@ -162,9 +166,10 @@ export default class WarpGraph {
    * @param {number} [options.adjacencyCacheSize] - Max materialized adjacency cache entries
    * @param {{every: number}} [options.checkpointPolicy] - Auto-checkpoint policy; creates a checkpoint every N patches
    * @param {boolean} [options.autoMaterialize] - If true, query methods auto-materialize instead of throwing
+   * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData] - Policy when deleting a node that still has edges or properties (default: 'warn')
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    * @returns {Promise<WarpGraph>} The opened graph instance
-   * @throws {Error} If graphName, writerId, or checkpointPolicy is invalid
+   * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
    * @example
    * const graph = await WarpGraph.open({
@@ -173,7 +178,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, logger }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -197,7 +202,15 @@ export default class WarpGraph {
       throw new Error('autoMaterialize must be a boolean');
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, logger });
+    // Validate onDeleteWithData
+    if (onDeleteWithData !== undefined) {
+      const valid = ['reject', 'cascade', 'warn'];
+      if (!valid.includes(onDeleteWithData)) {
+        throw new Error(`onDeleteWithData must be one of: ${valid.join(', ')}`);
+      }
+    }
+
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -230,6 +243,14 @@ export default class WarpGraph {
   }
 
   /**
+   * Gets the onDeleteWithData policy.
+   * @returns {'reject'|'cascade'|'warn'} The delete-with-data policy
+   */
+  get onDeleteWithData() {
+    return this._onDeleteWithData;
+  }
+
+  /**
    * Creates a new PatchBuilder for building and committing patches.
    *
    * On successful commit, the internal `onCommitSuccess` callback receives
@@ -256,6 +277,7 @@ export default class WarpGraph {
       versionVector: this._versionVector,
       getCurrentState: () => this._cachedState,
       expectedParentSha: parentSha,
+      onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: ({ patch, sha } = {}) => {
         vvIncrement(this._versionVector, this._writerId);
         this._patchesSinceCheckpoint++;
@@ -1306,7 +1328,8 @@ export default class WarpGraph {
    * @param {number} [options.timeoutMs=10000] - Request timeout (HTTP mode)
    * @param {AbortSignal} [options.signal] - Optional abort signal to cancel sync
    * @param {(event: {type: string, attempt: number, durationMs?: number, status?: number, error?: Error}) => void} [options.onStatus]
-   * @returns {Promise<{applied: number, attempts: number}>}
+   * @param {boolean} [options.materialize=false] - If true, auto-materialize after sync and include state in result
+   * @returns {Promise<{applied: number, attempts: number, state?: import('./services/JoinReducer.js').WarpStateV5}>}
    * @throws {SyncError} If remote URL is invalid (code: `E_SYNC_REMOTE_URL`)
    * @throws {SyncError} If remote returns error or invalid response (code: `E_SYNC_REMOTE`, `E_SYNC_PROTOCOL`)
    * @throws {SyncError} If request times out (code: `E_SYNC_TIMEOUT`)
@@ -1321,13 +1344,12 @@ export default class WarpGraph {
       timeoutMs = DEFAULT_SYNC_WITH_TIMEOUT_MS,
       signal,
       onStatus,
+      materialize: materializeAfterSync = false,
     } = options;
 
     const hasPathOverride = Object.prototype.hasOwnProperty.call(options, 'path');
-
     const isDirectPeer = remote && typeof remote === 'object' &&
       typeof remote.processSyncRequest === 'function';
-
     let targetUrl = null;
     if (!isDirectPeer) {
       try {
@@ -1472,7 +1494,7 @@ export default class WarpGraph {
     };
 
     try {
-      return await retry(executeAttempt, {
+      const syncResult = await retry(executeAttempt, {
         retries,
         delay: baseDelayMs,
         maxDelay: maxDelayMs,
@@ -1486,6 +1508,12 @@ export default class WarpGraph {
           }
         },
       });
+
+      if (materializeAfterSync) {
+        if (!this._cachedState) { await this.materialize(); }
+        return { ...syncResult, state: this._cachedState };
+      }
+      return syncResult;
     } catch (err) {
       if (err?.name === 'AbortError') {
         const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
@@ -1672,6 +1700,7 @@ export default class WarpGraph {
       writerId: resolvedWriterId,
       versionVector: this._versionVector,
       getCurrentState: () => this._cachedState,
+      onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: ({ patch, sha } = {}) => {
         vvIncrement(this._versionVector, resolvedWriterId);
         this._patchesSinceCheckpoint++;
@@ -1706,6 +1735,12 @@ export default class WarpGraph {
    * const writer = await graph.createWriter({ persist: 'config' });
    */
   async createWriter(opts = {}) {
+    if (this._logger) {
+      this._logger.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
+    }
+    // eslint-disable-next-line no-console
+    console.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
+
     const { persist = 'none', alias } = opts;
 
     // Generate new canonical writerId
@@ -1725,6 +1760,7 @@ export default class WarpGraph {
       writerId: freshWriterId,
       versionVector: this._versionVector,
       getCurrentState: () => this._cachedState,
+      onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: ({ patch, sha } = {}) => {
         vvIncrement(this._versionVector, freshWriterId);
         this._patchesSinceCheckpoint++;
@@ -1757,14 +1793,16 @@ export default class WarpGraph {
       return;
     }
     if (!this._cachedState) {
-      throw new QueryError('No cached state. Call materialize() first.', {
-        code: 'E_NO_STATE',
-      });
+      throw new QueryError(
+        'No cached state. Call materialize() to load initial state, or pass autoMaterialize: true to WarpGraph.open().',
+        { code: 'E_NO_STATE' },
+      );
     }
     if (this._stateDirty) {
-      throw new QueryError('Cached state is dirty. Call materialize() to refresh.', {
-        code: 'E_STALE_STATE',
-      });
+      throw new QueryError(
+        'Cached state is stale. Call materialize() to refresh, or enable autoMaterialize.',
+        { code: 'E_STALE_STATE' },
+      );
     }
   }
 

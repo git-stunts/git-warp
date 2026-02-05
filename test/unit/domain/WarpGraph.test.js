@@ -1677,7 +1677,7 @@ eg-schema: 2`;
         persistence.readRef.mockResolvedValueOnce(concurrentCommitSha);
 
         await expect(builder1.commit()).rejects.toThrow(
-          /Concurrent commit detected.*Expected parent \(none\).*found.*Call createPatch\(\) again/
+          /Commit failed: writer ref was updated by another process/
         );
       });
 
@@ -1718,8 +1718,8 @@ eg-schema: 2`;
         // Now builder2 tries to commit, but ref has advanced
         persistence.readRef.mockResolvedValueOnce(commit1Sha); // builder2 commit check - now points to commit1
 
-        await expect(builder2.commit()).rejects.toThrow('Concurrent commit detected');
-        await expect(builder2.commit()).rejects.toThrow('Call createPatch() again to retry');
+        await expect(builder2.commit()).rejects.toThrow('Commit failed: writer ref was updated by another process');
+        await expect(builder2.commit()).rejects.toThrow('Re-materialize and retry');
       });
 
       it('allows commit when ref matches expected parent', async () => {
