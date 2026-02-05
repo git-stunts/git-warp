@@ -16,13 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tick receipt data structure** (`LH/RECEIPTS/1`): New `TickReceipt` immutable type: `{ patchSha, writer, lamport, ops: [{ op, target, result, reason? }] }`. Deep-frozen after creation. Canonical JSON serialization with deterministic key ordering. Exported from package root: `createTickReceipt`, `tickReceiptCanonicalJson`, `TICK_RECEIPT_OP_TYPES`, `TICK_RECEIPT_RESULT_TYPES`. TypeScript declarations added to `index.d.ts`.
 - **Tick receipt emission during materialization** (`LH/RECEIPTS/2`): New `materialize({ receipts: true })` returns `{ state, receipts }` with per-patch decision records. Each receipt records per-op outcomes: `applied`, `superseded` (with LWW winner reason), or `redundant`. **Zero-cost invariant**: when `receipts` is false/omitted (default), strictly zero overhead — no arrays allocated, no strings constructed on the hot path. Return type unchanged (just `state`). OR-Set decisions: NodeAdd/EdgeAdd track new-dot vs re-add. NodeTombstone/EdgeTombstone track effective vs already-gone. PropSet decisions: LWW comparison with reason string showing winner info.
 
+### Fixed
+- **`status()` false staleness after eager commits**: `_lastFrontier` is now updated in all three `onCommitSuccess` callbacks and after `applySyncResponse()`, so `status()` correctly reports `'fresh'` instead of `'stale'` after local writes and sync operations.
+- **Receipt forward-compatibility**: Unknown/future op types in the receipt-enabled materialization path are now silently skipped instead of throwing a validation error. The op is still applied to state; it just doesn't appear in the receipt.
+- **Duplicate tombstone ratio in CLI**: `git warp check` no longer prints tombstone ratio twice when `graph.status()` is available.
+- **`EmptyGraph` branding in WALKTHROUGH.md**: Replaced all remaining occurrences with `git-warp`/`Git Warp`.
+- **`Empty Graph Container` in Dockerfile**: Updated to `Git Warp Container`.
+
 ### Tests
-- Added `test/unit/domain/WarpGraph.status.test.js` (21 tests) — status() field correctness, no-materialize guarantee
+- Added `test/unit/domain/WarpGraph.status.test.js` (25 tests) — status() field correctness, no-materialize guarantee, frontier freshness after eager commits and sync
 - Added `test/unit/domain/WarpGraph.timing.test.js` (15 tests) — timing logs for all 4 operations, clock injection
 - Added `test/unit/domain/WarpGraph.receipts.test.js` (19 tests) — receipt emission, backward compatibility, zero-cost
 - Added `test/unit/domain/types/TickReceipt.test.js` (44 tests) — construction, immutability, validation, canonical JSON
-- Added `test/unit/domain/services/JoinReducer.receipts.test.js` (29 tests) — per-op outcome correctness
-- Total new tests: 128. Suite total: 1992 tests across 91 files.
+- Added `test/unit/domain/services/JoinReducer.receipts.test.js` (31 tests) — per-op outcome correctness, unknown op forward-compatibility
+- Total new tests: 134. Suite total: 1998 tests across 91 files.
 
 ## [7.5.0] — COMPASS
 
