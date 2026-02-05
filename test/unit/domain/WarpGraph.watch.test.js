@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -452,6 +452,277 @@ describe('WarpGraph.watch() (PL/WATCH/1)', () => {
       const subscribeDiff = subscribeHandler.mock.calls[0][0];
       expect(subscribeDiff.nodes.added).toContain('user:alice');
       expect(subscribeDiff.nodes.added).toContain('order:123');
+    });
+  });
+});
+
+describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
+  let repo;
+  let graph;
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  beforeEach(async () => {
+    repo = await createRepo();
+    graph = await WarpGraph.open({
+      persistence: repo.persistence,
+      graphName: 'test',
+      writerId: 'w1',
+    });
+  });
+
+  afterEach(async () => {
+    vi.clearAllTimers();
+    await repo.cleanup();
+  });
+
+  describe('validation', () => {
+    it('throws if poll is less than 1000', () => {
+      expect(() => graph.watch('user:*', { onChange: () => {}, poll: 500 }))
+        .toThrow('poll must be a number >= 1000');
+    });
+
+    it('throws if poll is not a number', () => {
+      expect(() => graph.watch('user:*', { onChange: () => {}, poll: 'fast' }))
+        .toThrow('poll must be a number >= 1000');
+    });
+
+    it('accepts poll of exactly 1000', () => {
+      const { unsubscribe } = graph.watch('user:*', { onChange: () => {}, poll: 1000 });
+      expect(unsubscribe).toBeDefined();
+      unsubscribe();
+    });
+
+    it('accepts poll greater than 1000', () => {
+      const { unsubscribe } = graph.watch('user:*', { onChange: () => {}, poll: 5000 });
+      expect(unsubscribe).toBeDefined();
+      unsubscribe();
+    });
+  });
+
+  describe('polling behavior', () => {
+    it('calls hasFrontierChanged on poll interval', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 2000 });
+
+      // No calls yet
+      expect(hasFrontierChangedSpy).not.toHaveBeenCalled();
+
+      // Advance past first interval
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+
+      // Advance past second interval
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+    });
+
+    it('calls materialize when frontier has changed', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue();
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+      expect(materializeSpy).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+      materializeSpy.mockRestore();
+    });
+
+    it('does not call materialize when frontier has not changed', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue();
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+      expect(materializeSpy).not.toHaveBeenCalled();
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+      materializeSpy.mockRestore();
+    });
+
+    it('unsubscribe stops polling', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+
+      // Advance more time — should not call again
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(1);
+
+      hasFrontierChangedSpy.mockRestore();
+    });
+
+    it('unsubscribe is idempotent with polling', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+
+      unsubscribe();
+      unsubscribe(); // Should not throw
+      unsubscribe();
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(hasFrontierChangedSpy).not.toHaveBeenCalled();
+
+      hasFrontierChangedSpy.mockRestore();
+    });
+  });
+
+  describe('error handling', () => {
+    it('calls onError when hasFrontierChanged throws', async () => {
+      const onChange = vi.fn();
+      const onError = vi.fn();
+      const error = new Error('Frontier check failed');
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockRejectedValue(error);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onError).toHaveBeenCalledWith(error);
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+    });
+
+    it('calls onError when materialize throws', async () => {
+      const onChange = vi.fn();
+      const onError = vi.fn();
+      const error = new Error('Materialize failed');
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockRejectedValue(error);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onError).toHaveBeenCalledWith(error);
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+      materializeSpy.mockRestore();
+    });
+
+    it('swallows error if onError throws', async () => {
+      const onChange = vi.fn();
+      const onError = vi.fn(() => {
+        throw new Error('onError itself failed');
+      });
+      const error = new Error('Frontier check failed');
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockRejectedValue(error);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
+
+      // Should not throw
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onError).toHaveBeenCalled();
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+    });
+
+    it('continues polling after error', async () => {
+      const onChange = vi.fn();
+      const onError = vi.fn();
+      const error = new Error('Frontier check failed');
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged')
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue(false);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, onError, poll: 1000 });
+
+      // First poll - error
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      // Second poll - success
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(hasFrontierChangedSpy).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+    });
+  });
+
+  describe('integration with subscription', () => {
+    it('subscription receives diff when poll triggers materialize', async () => {
+      // This test verifies the integration: poll -> hasFrontierChanged -> materialize -> handler
+      const onChange = vi.fn();
+
+      // Mock hasFrontierChanged to return true (simulating remote changes)
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
+
+      // Mock materialize to call _notifySubscribers with a diff containing user:bob
+      const mockDiff = {
+        nodes: { added: ['user:bob'], removed: [] },
+        edges: { added: [], removed: [] },
+        props: { set: [], removed: [] },
+      };
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockImplementation(async () => {
+        // Simulate what materialize does: notify subscribers
+        graph._notifySubscribers(mockDiff, {});
+      });
+
+      const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Handler should have been called with user:bob
+      expect(hasFrontierChangedSpy).toHaveBeenCalled();
+      expect(materializeSpy).toHaveBeenCalled();
+      expect(onChange).toHaveBeenCalled();
+      const diff = onChange.mock.calls[0][0];
+      expect(diff.nodes.added).toContain('user:bob');
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
+      materializeSpy.mockRestore();
+    });
+
+    it('no polling without poll option', async () => {
+      const onChange = vi.fn();
+      const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
+
+      const { unsubscribe } = graph.watch('user:*', { onChange });
+
+      await vi.advanceTimersByTimeAsync(10000);
+
+      expect(hasFrontierChangedSpy).not.toHaveBeenCalled();
+
+      unsubscribe();
+      hasFrontierChangedSpy.mockRestore();
     });
   });
 });

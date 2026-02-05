@@ -1478,10 +1478,15 @@ export default class WarpGraph {
    *
    * If all changes are filtered out, the handler is not called.
    *
+   * When `poll` is set, periodically checks `hasFrontierChanged()` and auto-materializes
+   * if the frontier has changed (e.g., remote writes detected). The poll interval must
+   * be at least 1000ms.
+   *
    * @param {string} pattern - Glob pattern (e.g., 'user:*', 'order:123', '*')
    * @param {Object} options - Watch options
    * @param {Function} options.onChange - Called with filtered diff when matching changes occur
    * @param {Function} [options.onError] - Called if onChange throws an error
+   * @param {number} [options.poll] - Poll interval in ms (min 1000); checks frontier and auto-materializes
    * @returns {{unsubscribe: Function}} Subscription handle
    *
    * @example
@@ -1492,15 +1497,27 @@ export default class WarpGraph {
    *   },
    * });
    *
+   * @example
+   * // With polling: checks every 5s for remote changes
+   * const { unsubscribe } = graph.watch('user:*', {
+   *   onChange: (diff) => console.log('User changed:', diff),
+   *   poll: 5000,
+   * });
+   *
    * // Later, to stop receiving updates:
    * unsubscribe();
    */
-  watch(pattern, { onChange, onError }) {
+  watch(pattern, { onChange, onError, poll }) {
     if (typeof pattern !== 'string') {
       throw new Error('pattern must be a string');
     }
     if (typeof onChange !== 'function') {
       throw new Error('onChange must be a function');
+    }
+    if (poll !== undefined) {
+      if (typeof poll !== 'number' || poll < 1000) {
+        throw new Error('poll must be a number >= 1000');
+      }
     }
 
     // Pattern matching: same logic as QueryBuilder.match()
@@ -1549,7 +1566,39 @@ export default class WarpGraph {
     };
 
     // Reuse subscription infrastructure
-    return this.subscribe({ onChange: filteredOnChange, onError });
+    const subscription = this.subscribe({ onChange: filteredOnChange, onError });
+
+    // Polling: periodically check frontier and auto-materialize if changed
+    let pollIntervalId = null;
+    if (poll) {
+      pollIntervalId = setInterval(async () => {
+        try {
+          const changed = await this.hasFrontierChanged();
+          if (changed) {
+            await this.materialize();
+            // Subscription system will notify via filteredOnChange
+          }
+        } catch (err) {
+          if (onError) {
+            try {
+              onError(err);
+            } catch {
+              // onError itself threw — swallow to prevent cascade
+            }
+          }
+        }
+      }, poll);
+    }
+
+    return {
+      unsubscribe: () => {
+        if (pollIntervalId !== null) {
+          clearInterval(pollIntervalId);
+          pollIntervalId = null;
+        }
+        subscription.unsubscribe();
+      },
+    };
   }
 
   /**
