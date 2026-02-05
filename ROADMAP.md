@@ -276,11 +276,11 @@ LIGHTHOUSE       (v7.6.0)  █████████████████�
   ■ LH/STATUS/1         →  LH/CLI/1
   ■ LH/TIMING/1       
 
-PULSE            (v7.7.0)  ████░░░░░░░░░░░░░░░░   20%  (1/5)
+PULSE            (v7.7.0)  ████████░░░░░░░░░░░░   40%  (2/5)
   ■ PL/DIFF/1           →  PL/SUB/1
-  ◆ PL/SUB/1            →  PL/WATCH/1, PL/SUB/2
-  ○ PL/SUB/2          
-  ○ PL/WATCH/1          →  PL/WATCH/2
+  ■ PL/SUB/1            →  PL/WATCH/1, PL/SUB/2
+  ◆ PL/SUB/2          
+  ◆ PL/WATCH/1          →  PL/WATCH/2
   ○ PL/WATCH/2        
 
 HOLOGRAM         (v8.0.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/7)
@@ -1459,7 +1459,7 @@ Enable developers to react to graph changes without polling.
 
 #### PL/SUB/1 — Implement subscribe/unsubscribe
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to register handlers that fire when the graph changes.
 - **Requirements:**
   - `graph.subscribe({ onChange(diff), onError?(err) })` returns `{ unsubscribe() }`.
@@ -1485,7 +1485,7 @@ Enable developers to react to graph changes without polling.
 
 #### PL/SUB/2 — Optional initial replay
 
-- **Status:** `BLOCKED`
+- **Status:** `OPEN`
 - **User Story:** As a developer subscribing to an existing graph, I want an initial snapshot so I don't miss current state.
 - **Requirements:**
   - `subscribe({ onChange, replay: true })` immediately fires `onChange` with diff from empty state to current.
@@ -1513,7 +1513,7 @@ Enable developers to react to graph changes without polling.
 
 #### PL/WATCH/1 — Implement pattern-based filtering
 
-- **Status:** `BLOCKED`
+- **Status:** `OPEN`
 - **User Story:** As a developer, I want to watch only specific nodes for changes.
 - **Requirements:**
   - `graph.watch('user:*', { onChange(diff) })` — only fires for changes matching the glob pattern.

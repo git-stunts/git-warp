@@ -10,7 +10,8 @@
 
 import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, buildCheckpointRef, buildWritersPrefix, parseWriterIdFromRef } from './utils/RefLayout.js';
 import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
-import { reduceV5, createEmptyStateV5, joinStates, join as joinPatch, decodeEdgeKey, decodePropKey, isEdgePropKey, decodeEdgePropKey, encodeEdgeKey } from './services/JoinReducer.js';
+import { reduceV5, createEmptyStateV5, joinStates, join as joinPatch, decodeEdgeKey, decodePropKey, isEdgePropKey, decodeEdgePropKey, encodeEdgeKey, cloneStateV5 } from './services/JoinReducer.js';
+import { diffStates, isEmptyDiff } from './services/StateDiff.js';
 import { orsetContains, orsetElements } from './crdt/ORSet.js';
 import { decode } from '../infrastructure/codecs/CborCodec.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
@@ -158,6 +159,12 @@ export default class WarpGraph {
 
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
+
+    /** @type {Array<{onChange: Function, onError?: Function}>} */
+    this._subscribers = [];
+
+    /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
+    this._lastNotifiedState = null;
   }
 
   /**
@@ -537,6 +544,7 @@ export default class WarpGraph {
     const t0 = this._clock.now();
     // ZERO-COST: only resolve receipts flag when options provided
     const collectReceipts = options && options.receipts;
+
     try {
       // Check for checkpoint
       const checkpoint = await this._loadLatestCheckpoint();
@@ -610,6 +618,16 @@ export default class WarpGraph {
       }
 
       this._maybeRunGC(state);
+
+      // Notify subscribers if state changed since last notification
+      if (this._subscribers.length > 0) {
+        const diff = diffStates(this._lastNotifiedState, state);
+        if (!isEmptyDiff(diff)) {
+          this._notifySubscribers(diff);
+        }
+      }
+      // Clone state to prevent eager path mutations from affecting the baseline
+      this._lastNotifiedState = cloneStateV5(state);
 
       this._logTiming('materialize', t0, { metrics: `${patchCount} patches` });
 
@@ -1369,6 +1387,71 @@ export default class WarpGraph {
       writers,
       frontier: frontierObj,
     };
+  }
+
+  /**
+   * Subscribes to graph changes.
+   *
+   * The `onChange` handler is called after each `materialize()` that results in
+   * state changes. The handler receives a diff object describing what changed.
+   *
+   * Errors thrown by handlers are caught and forwarded to `onError` if provided.
+   * One handler's error does not prevent other handlers from being called.
+   *
+   * @param {Object} options - Subscription options
+   * @param {Function} options.onChange - Called with diff when graph changes
+   * @param {Function} [options.onError] - Called if onChange throws an error
+   * @returns {{unsubscribe: Function}} Subscription handle
+   *
+   * @example
+   * const { unsubscribe } = graph.subscribe({
+   *   onChange: (diff) => {
+   *     console.log('Nodes added:', diff.nodes.added);
+   *     console.log('Nodes removed:', diff.nodes.removed);
+   *   },
+   *   onError: (err) => console.error('Handler error:', err),
+   * });
+   *
+   * // Later, to stop receiving updates:
+   * unsubscribe();
+   */
+  subscribe({ onChange, onError }) {
+    if (typeof onChange !== 'function') {
+      throw new Error('onChange must be a function');
+    }
+
+    const subscriber = { onChange, onError };
+    this._subscribers.push(subscriber);
+
+    return {
+      unsubscribe: () => {
+        const index = this._subscribers.indexOf(subscriber);
+        if (index !== -1) {
+          this._subscribers.splice(index, 1);
+        }
+      },
+    };
+  }
+
+  /**
+   * Notifies all subscribers of state changes.
+   * @param {import('./services/StateDiff.js').StateDiffResult} diff
+   * @private
+   */
+  _notifySubscribers(diff) {
+    for (const subscriber of this._subscribers) {
+      try {
+        subscriber.onChange(diff);
+      } catch (err) {
+        if (subscriber.onError) {
+          try {
+            subscriber.onError(err);
+          } catch {
+            // onError itself threw — swallow to prevent cascade
+          }
+        }
+      }
+    }
   }
 
   /**
