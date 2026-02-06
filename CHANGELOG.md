@@ -30,6 +30,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - **Negative index support in `ProvenancePayload.at()`**: Negative indices now work correctly (e.g., `payload.at(-1)` returns the last patch), matching JavaScript array semantics.
 - **Defensive copies from `PatchBuilderV2` getters**: The `reads` and `writes` getters now return frozen copies instead of the live internal Sets, preventing external mutation.
 - **Forward `provenanceIndex` in `CheckpointService.create()`**: The `create()` wrapper now forwards the optional `provenanceIndex` parameter to `createV5()`, preventing silent data loss when using the convenience API.
+- **Strip `writerId` from wormhole patches**: `createWormhole()` now strips the extraneous `writerId` field from patches before constructing `ProvenancePayload`, matching the documented `PatchEntry` type contract and reducing serialization size.
 
 ### Refactored
 
@@ -41,6 +42,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 
 - **Provenance semantics in `PatchBuilderV2`**: Added design note explaining why `removeNode`/`removeEdge` are tracked as reads (observed-dot dependencies) rather than writes (new data creation).
 - **`loadCheckpoint` return type**: Updated JSDoc to include the optional `provenanceIndex` field in the documented return shape.
+- **Updated `errors/index.js` module JSDoc**: Comment now correctly describes "domain operations" instead of stale "bitmap index operations".
 
 ### Tests
 - Added provenance tracking tests to `PatchBuilderV2.test.js` (+20 tests)
@@ -52,6 +54,10 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - Added `test/unit/domain/WarpGraph.patchesFor.test.js` (13 tests) — provenance queries
 - Added `test/unit/domain/WarpGraph.materializeSlice.test.js` (19 tests) — causal cones, slice correctness
 - Added `WormholeError` to index exports test coverage
+- **Test quality improvements**:
+  - Made `ProvenanceIndex` stress test deterministic by removing wall-clock timing assertion (performance testing belongs in benchmarks)
+  - Deduplicated `createMockPersistence` helper in `PatchBuilderV2.test.js`
+  - Consolidated doubled async assertions in `WarpGraph.fork.test.js` to avoid calling `graph.fork()` twice per test
 
 ## [7.7.1] — Documentation & Hardening
 
