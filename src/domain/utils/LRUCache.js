@@ -92,6 +92,8 @@ class LRUCache {
 
   /**
    * Clears all entries from the cache.
+   *
+   * @returns {void}
    */
   clear() {
     this._cache.clear();

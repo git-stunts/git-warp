@@ -267,6 +267,8 @@ export async function loadCheckpoint(persistence, checkpointSha) {
  * @param {import('./Frontier.js').Frontier} options.targetFrontier - The target frontier to materialize to
  * @param {Function} options.patchLoader - Async function to load patches: (writerId, fromSha, toSha) => Array<{patch, sha}>
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5>} The materialized V5 state at targetFrontier
+ * @throws {Error} If checkpoint is schema:1 (migration required)
+ * @throws {Error} If checkpoint is missing required blobs (state.cbor, frontier.cbor)
  */
 export async function materializeIncremental({
   persistence,

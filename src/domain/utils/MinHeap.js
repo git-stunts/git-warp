@@ -18,6 +18,7 @@ class MinHeap {
    *
    * @param {*} item - The item to insert
    * @param {number} priority - Priority value (lower = higher priority)
+   * @returns {void}
    */
   insert(item, priority) {
     this.heap.push({ item, priority });
