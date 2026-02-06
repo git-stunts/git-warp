@@ -28,10 +28,19 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - **Dirty state guard in `patchesFor`**: Added state guard to `patchesFor()` to throw `E_STALE_STATE` when cached state is dirty and `autoMaterialize` is off.
 - **HMAC key validation in BTR**: `createBTR()` now validates that the HMAC key is provided and non-empty, throwing early on misconfiguration.
 - **Negative index support in `ProvenancePayload.at()`**: Negative indices now work correctly (e.g., `payload.at(-1)` returns the last patch), matching JavaScript array semantics.
+- **Defensive copies from `PatchBuilderV2` getters**: The `reads` and `writes` getters now return frozen copies instead of the live internal Sets, preventing external mutation.
+- **Forward `provenanceIndex` in `CheckpointService.create()`**: The `create()` wrapper now forwards the optional `provenanceIndex` parameter to `createV5()`, preventing silent data loss when using the convenience API.
 
 ### Refactored
 
 - **`ProvenanceIndex` DRY refactor**: Extracted common patterns in `ProvenanceIndex` to reduce duplication; added defensive copy on `getPatchesFor()` return value to prevent external mutation.
+- **DRY up patch construction in `PatchBuilderV2`**: Have `commit()` use `createPatchV2()` for patch construction, consolidating the conditional reads/writes inclusion logic in one place.
+- **DRY up `REQUIRED_FIELDS` in `BoundaryTransitionRecord`**: Use the module-level constant in `deserializeBTR()` instead of a local duplicate.
+
+### Documentation
+
+- **Provenance semantics in `PatchBuilderV2`**: Added design note explaining why `removeNode`/`removeEdge` are tracked as reads (observed-dot dependencies) rather than writes (new data creation).
+- **`loadCheckpoint` return type**: Updated JSDoc to include the optional `provenanceIndex` field in the documented return shape.
 
 ### Tests
 - Added provenance tracking tests to `PatchBuilderV2.test.js` (+20 tests)
