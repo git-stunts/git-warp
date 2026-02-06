@@ -21,6 +21,18 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - **Boundary Transition Records** (`HG/BTR/1`): New BTR packaging format binds `(h_in, h_out, U_0, P, t, kappa)` for tamper-evident exchange. `createBTR(initialState, payload, { key })` creates signed records. `verifyBTR(btr, key)` validates HMAC and optional replay. CBOR serialization via `serializeBTR()`/`deserializeBTR()`.
 - **graph.fork() API** (`HG/FORK/1`): New `graph.fork({ from, at, forkName?, forkWriterId? })` creates a forked graph at a specific point in a writer's chain. Fork shares history up to `at` commit (Git content-addressed dedup). Fork gets a new writer ID and operates independently. Mutual isolation verified. New `ForkError` class with typed error codes.
 
+### Fixed
+
+- **Error surfacing in `_loadPatchBySha`**: Errors during patch loading are now properly thrown instead of being swallowed, improving debuggability when patches fail to load.
+- **Fresh state guard in `materializeSlice`**: Now ensures fresh state before accessing the provenance index, preventing stale index reads after writes.
+- **Dirty state guard in `patchesFor`**: Added state guard to `patchesFor()` to throw `E_STALE_STATE` when cached state is dirty and `autoMaterialize` is off.
+- **HMAC key validation in BTR**: `createBTR()` now validates that the HMAC key is provided and non-empty, throwing early on misconfiguration.
+- **Negative index support in `ProvenancePayload.at()`**: Negative indices now work correctly (e.g., `payload.at(-1)` returns the last patch), matching JavaScript array semantics.
+
+### Refactored
+
+- **`ProvenanceIndex` DRY refactor**: Extracted common patterns in `ProvenanceIndex` to reduce duplication; added defensive copy on `getPatchesFor()` return value to prevent external mutation.
+
 ### Tests
 - Added provenance tracking tests to `PatchBuilderV2.test.js` (+20 tests)
 - Added `test/unit/domain/services/ProvenancePayload.test.js` (49 tests) — monoid laws, replay verification, fuzz tests
@@ -30,6 +42,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - Added `test/unit/domain/WarpGraph.fork.test.js` (20 tests) — fork creation, isolation, edge cases
 - Added `test/unit/domain/WarpGraph.patchesFor.test.js` (13 tests) — provenance queries
 - Added `test/unit/domain/WarpGraph.materializeSlice.test.js` (19 tests) — causal cones, slice correctness
+- Added `WormholeError` to index exports test coverage
 
 ## [7.7.1] — Documentation & Hardening
 
