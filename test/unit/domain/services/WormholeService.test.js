@@ -199,13 +199,6 @@ describe('WormholeService', () => {
       const { persistence } = createMockPersistence([]);
       const nonexistent = generateOid(99999);
 
-      await expect(createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: nonexistent,
-        toSha: nonexistent,
-      })).rejects.toThrow(WormholeError);
-
       try {
         await createWormhole({
           persistence,
@@ -213,7 +206,9 @@ describe('WormholeService', () => {
           fromSha: nonexistent,
           toSha: nonexistent,
         });
+        expect.fail('Expected WormholeError');
       } catch (err) {
+        expect(err).toBeInstanceOf(WormholeError);
         expect(err.code).toBe('E_WORMHOLE_SHA_NOT_FOUND');
         expect(err.context.sha).toBe(nonexistent);
       }
@@ -234,13 +229,6 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const nonexistent = generateOid(99999);
 
-      await expect(createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: sha1,
-        toSha: nonexistent,
-      })).rejects.toThrow(WormholeError);
-
       try {
         await createWormhole({
           persistence,
@@ -248,7 +236,9 @@ describe('WormholeService', () => {
           fromSha: sha1,
           toSha: nonexistent,
         });
+        expect.fail('Expected WormholeError');
       } catch (err) {
+        expect(err).toBeInstanceOf(WormholeError);
         expect(err.code).toBe('E_WORMHOLE_SHA_NOT_FOUND');
         expect(err.context.sha).toBe(nonexistent);
       }
@@ -276,13 +266,6 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const sha2 = getSha(2);
 
-      await expect(createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: sha1,
-        toSha: sha2,
-      })).rejects.toThrow(WormholeError);
-
       try {
         await createWormhole({
           persistence,
@@ -290,7 +273,9 @@ describe('WormholeService', () => {
           fromSha: sha1,
           toSha: sha2,
         });
+        expect.fail('Expected WormholeError');
       } catch (err) {
+        expect(err).toBeInstanceOf(WormholeError);
         expect(err.code).toBe('E_WORMHOLE_INVALID_RANGE');
       }
     });
@@ -316,13 +301,6 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const sha2 = getSha(2);
 
-      await expect(createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: sha1,
-        toSha: sha2,
-      })).rejects.toThrow(WormholeError);
-
       try {
         await createWormhole({
           persistence,
@@ -330,7 +308,9 @@ describe('WormholeService', () => {
           fromSha: sha1,
           toSha: sha2,
         });
+        expect.fail('Expected WormholeError');
       } catch (err) {
+        expect(err).toBeInstanceOf(WormholeError);
         expect(err.code).toBe('E_WORMHOLE_MULTI_WRITER');
         expect(err.context.expectedWriter).toBe('bob');
         expect(err.context.actualWriter).toBe('alice');
@@ -528,11 +508,11 @@ describe('WormholeService', () => {
         payload: new ProvenancePayload([]),
       };
 
-      await expect(composeWormholes(wormhole1, wormhole2)).rejects.toThrow(WormholeError);
-
       try {
         await composeWormholes(wormhole1, wormhole2);
+        expect.fail('Expected WormholeError');
       } catch (err) {
+        expect(err).toBeInstanceOf(WormholeError);
         expect(err.code).toBe('E_WORMHOLE_MULTI_WRITER');
       }
     });
