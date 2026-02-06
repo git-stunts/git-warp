@@ -296,8 +296,33 @@ export function serializeWormhole(wormhole) {
  *
  * @param {Object} json - The JSON object to deserialize
  * @returns {WormholeEdge} The deserialized wormhole
+ * @throws {WormholeError} If the JSON structure is invalid
  */
 export function deserializeWormhole(json) {
+  // Validate required fields
+  if (!json || typeof json !== 'object') {
+    throw new WormholeError('Invalid wormhole JSON: expected object', {
+      code: 'E_INVALID_WORMHOLE_JSON',
+    });
+  }
+
+  const requiredFields = ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload'];
+  for (const field of requiredFields) {
+    if (json[field] === undefined) {
+      throw new WormholeError(`Invalid wormhole JSON: missing required field '${field}'`, {
+        code: 'E_INVALID_WORMHOLE_JSON',
+        context: { missingField: field },
+      });
+    }
+  }
+
+  if (typeof json.patchCount !== 'number' || json.patchCount < 0) {
+    throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
+      code: 'E_INVALID_WORMHOLE_JSON',
+      context: { patchCount: json.patchCount },
+    });
+  }
+
   return {
     fromSha: json.fromSha,
     toSha: json.toSha,

@@ -630,6 +630,47 @@ describe('WormholeService', () => {
         orsetContains(stateRestored.nodeAlive, 'node-b')
       );
     });
+
+    it('throws on null/undefined input', () => {
+      expect(() => deserializeWormhole(null)).toThrow(WormholeError);
+      expect(() => deserializeWormhole(null)).toThrow('expected object');
+      expect(() => deserializeWormhole(undefined)).toThrow(WormholeError);
+    });
+
+    it('throws on missing required fields', () => {
+      const validBase = {
+        fromSha: 'abc123',
+        toSha: 'def456',
+        writerId: 'alice',
+        patchCount: 2,
+        payload: { version: 1, patches: [] },
+      };
+
+      // Test each required field
+      for (const field of ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload']) {
+        const incomplete = { ...validBase };
+        delete incomplete[field];
+        expect(() => deserializeWormhole(incomplete)).toThrow(`missing required field '${field}'`);
+      }
+    });
+
+    it('throws on invalid patchCount', () => {
+      expect(() => deserializeWormhole({
+        fromSha: 'abc123',
+        toSha: 'def456',
+        writerId: 'alice',
+        patchCount: -1,
+        payload: { version: 1, patches: [] },
+      })).toThrow('patchCount must be a non-negative number');
+
+      expect(() => deserializeWormhole({
+        fromSha: 'abc123',
+        toSha: 'def456',
+        writerId: 'alice',
+        patchCount: 'two',
+        payload: { version: 1, patches: [] },
+      })).toThrow('patchCount must be a non-negative number');
+    });
   });
 
   describe('materialization equivalence', () => {

@@ -170,7 +170,9 @@ class ProvenancePayload {
       return initialState ? cloneStateV5(initialState) : createEmptyStateV5();
     }
 
-    // Use JoinReducer's reduceV5 for deterministic materialization
+    // Use JoinReducer's reduceV5 for deterministic materialization.
+    // Note: reduceV5 returns { state, receipts } when options.receipts is truthy,
+    // but returns bare WarpStateV5 when no options passed (as here).
     return reduceV5(this.#patches, initialState);
   }
 
