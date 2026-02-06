@@ -40,7 +40,8 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
  * ├── state.cbor           # AUTHORITATIVE: Full V5 state (ORSets + props)
  * ├── visible.cbor         # CACHE ONLY: Visible projection for fast queries
  * ├── frontier.cbor        # Writer frontiers
- * └── appliedVV.cbor       # Version vector of dots in state
+ * ├── appliedVV.cbor       # Version vector of dots in state
+ * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
  * @param {Object} options - Checkpoint creation options
@@ -50,10 +51,11 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
  * @param {import('./Frontier.js').Frontier} options.frontier - Writer frontier map
  * @param {string[]} [options.parents=[]] - Parent commit SHAs (typically prior checkpoint or patch commits)
  * @param {boolean} [options.compact=true] - Whether to compact tombstoned dots before saving
+ * @param {import('./ProvenanceIndex.js').ProvenanceIndex} [options.provenanceIndex] - Optional provenance index to persist
  * @returns {Promise<string>} The checkpoint commit SHA
  */
-export async function create({ persistence, graphName, state, frontier, parents = [], compact = true }) {
-  return await createV5({ persistence, graphName, state, frontier, parents, compact });
+export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex }) {
+  return await createV5({ persistence, graphName, state, frontier, parents, compact, provenanceIndex });
 }
 
 /**
