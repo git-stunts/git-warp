@@ -114,10 +114,28 @@ export class PatchBuilderV2 {
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
 
-    /** @type {Set<string>} Nodes/edges read by this patch (for provenance tracking) */
+    /**
+     * Nodes/edges read by this patch (for provenance tracking).
+     *
+     * Design note: "reads" track observed-dot dependencies — entities whose
+     * state was consulted to build this patch. Remove operations read the
+     * entity to observe its dots (OR-Set semantics). "Writes" track new data
+     * creation (adds). This distinction enables finer-grained provenance
+     * queries like "which patches wrote to X?" vs "which patches depended on X?"
+     *
+     * @type {Set<string>}
+     */
     this._reads = new Set();
 
-    /** @type {Set<string>} Nodes/edges written by this patch (for provenance tracking) */
+    /**
+     * Nodes/edges written by this patch (for provenance tracking).
+     *
+     * Writes represent new data creation: NodeAdd writes the node, EdgeAdd
+     * writes the edge key, PropSet writes the node. Remove operations are
+     * intentionally tracked only as reads (see _reads comment above).
+     *
+     * @type {Set<string>}
+     */
     this._writes = new Set();
   }
 
