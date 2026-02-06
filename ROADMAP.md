@@ -194,7 +194,7 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 | 5 | **COMPASS** | v7.5.0 | Advanced Query Language | Complete (merged, unreleased) |
 | 6 | **LIGHTHOUSE** | v7.6.0 | Observability | Complete (merged, unreleased) |
 | 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Complete (merged, unreleased) |
-| 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Planned |
+| 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Complete (merged, unreleased) |
 | 9 | **ECHO** | v9.0.0 | Observer Geometry | Speculative |
 
 ---
