@@ -182,7 +182,7 @@ export async function createV5({
  *
  * @param {import('../../infrastructure/adapters/GitGraphAdapter.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
- * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV?: Map<string, number>}>} The loaded checkpoint data
+ * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV?: Map<string, number>, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
 export async function loadCheckpoint(persistence, checkpointSha) {
