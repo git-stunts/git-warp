@@ -188,6 +188,8 @@ export class PatchBuilderV2 {
         const [from, to, label] = edgeKey.split('\0');
         const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
         this._ops.push(createEdgeRemoveV2(from, to, label, edgeDots));
+        // Provenance: cascade-generated EdgeRemove reads the edge key (to observe its dots)
+        this._reads.add(edgeKey);
       }
     }
 
