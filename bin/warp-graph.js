@@ -41,6 +41,7 @@ Commands:
 Options:
   --repo <path>     Path to git repo (default: cwd)
   --json            Emit JSON output
+  --view [mode]     Visual output (ascii, browser, svg:FILE, html:FILE)
   --graph <name>    Graph name (required if repo has multiple graphs)
   --writer <id>     Writer id (default: cli)
   -h, --help        Show this help
@@ -136,6 +137,7 @@ function createDefaultOptions() {
   return {
     repo: process.cwd(),
     json: false,
+    view: null,
     graph: null,
     writer: 'cli',
     help: false,
@@ -152,6 +154,22 @@ function consumeBaseArg({ argv, index, options, optionDefs, positionals }) {
 
   if (arg === '--json') {
     options.json = true;
+    return { consumed: 0 };
+  }
+
+  if (arg === '--view') {
+    // Valid view modes: ascii, browser, svg:FILE, html:FILE
+    // Don't consume known commands as modes
+    const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'materialize', 'install-hooks'];
+    const nextArg = argv[index + 1];
+    const isViewMode = nextArg &&
+      !nextArg.startsWith('-') &&
+      !KNOWN_COMMANDS.includes(nextArg);
+    if (isViewMode) {
+      options.view = nextArg;
+      return { consumed: 1 };
+    }
+    options.view = 'ascii'; // default mode
     return { consumed: 0 };
   }
 
@@ -1327,6 +1345,10 @@ async function main() {
     process.stdout.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.OK;
     return;
+  }
+
+  if (options.json && options.view) {
+    throw usageError('--json and --view are mutually exclusive');
   }
 
   const command = positionals[0];
