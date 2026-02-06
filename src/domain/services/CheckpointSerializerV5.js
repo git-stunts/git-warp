@@ -209,7 +209,9 @@ function deserializeEdgeBirthEvent(obj) {
   if (birthData && Array.isArray(birthData)) {
     for (const [key, val] of birthData) {
       if (typeof val === 'number') {
-        // Legacy format: bare lamport number → synthesize minimal EventId
+        // Legacy format: bare lamport number → synthesize minimal EventId.
+        // Empty writerId and placeholder patchSha are sentinels indicating
+        // this EventId was reconstructed from pre-v5 data, not a real writer.
         edgeBirthEvent.set(key, { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 });
       } else {
         edgeBirthEvent.set(key, val);

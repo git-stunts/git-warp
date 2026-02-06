@@ -67,6 +67,7 @@ describe('CheckpointSerializerV5', () => {
       expect(restored.edgeAlive.entries.size).toBe(0);
       expect(restored.prop.size).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
+      expect(restored.edgeBirthEvent.size).toBe(0);
     });
 
     it('returns empty state when buffer is undefined', () => {
@@ -76,6 +77,7 @@ describe('CheckpointSerializerV5', () => {
       expect(restored.edgeAlive.entries.size).toBe(0);
       expect(restored.prop.size).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
+      expect(restored.edgeBirthEvent.size).toBe(0);
     });
 
     it('handles buffer with missing nodeAlive and edgeAlive fields', () => {
@@ -87,6 +89,12 @@ describe('CheckpointSerializerV5', () => {
       expect(restored.edgeAlive.entries.size).toBe(0);
       expect(restored.prop.size).toBe(0);
       expect(restored.observedFrontier.size).toBe(0);
+      expect(restored.edgeBirthEvent.size).toBe(0);
+    });
+
+    it('throws on unsupported version', () => {
+      const buffer = encode({ version: 'full-v6' });
+      expect(() => deserializeFullStateV5(buffer)).toThrow(/Unsupported full state version/);
     });
 
     it('round-trips empty state', () => {
@@ -195,6 +203,53 @@ describe('CheckpointSerializerV5', () => {
       expect(restored.observedFrontier.size).toBe(2);
       expect(restored.observedFrontier.get('alice')).toBe(5);
       expect(restored.observedFrontier.get('bob')).toBe(3);
+    });
+
+    it('round-trips state with edgeBirthEvent', () => {
+      const state = buildStateV5({
+        nodes: [
+          { nodeId: 'a', writerId: 'alice', counter: 1 },
+          { nodeId: 'b', writerId: 'alice', counter: 2 },
+        ],
+        edges: [{ from: 'a', to: 'b', label: 'knows', writerId: 'alice', counter: 3 }],
+      });
+
+      const edgeKey = encodeEdgeKey('a', 'b', 'knows');
+      const birthEventId = mockEventId(3, 'alice', 'deadbeef', 0);
+      state.edgeBirthEvent.set(edgeKey, birthEventId);
+
+      const buffer = serializeFullStateV5(state);
+      const restored = deserializeFullStateV5(buffer);
+
+      expect(restored.edgeBirthEvent.size).toBe(1);
+      const restoredEvent = restored.edgeBirthEvent.get(edgeKey);
+      expect(restoredEvent.lamport).toBe(3);
+      expect(restoredEvent.writerId).toBe('alice');
+      expect(restoredEvent.patchSha).toBe('deadbeef');
+      expect(restoredEvent.opIndex).toBe(0);
+    });
+
+    it('deserializes legacy bare-lamport edgeBirthEvent format', () => {
+      // Legacy checkpoints stored edgeBirthEvent as [edgeKey, lamportNumber] pairs
+      const edgeKey = encodeEdgeKey('x', 'y', 'link');
+      const buffer = encode({
+        version: 'full-v5',
+        nodeAlive: {},
+        edgeAlive: {},
+        prop: [],
+        observedFrontier: {},
+        edgeBirthEvent: [[edgeKey, 42]],
+      });
+
+      const restored = deserializeFullStateV5(buffer);
+
+      expect(restored.edgeBirthEvent.size).toBe(1);
+      const event = restored.edgeBirthEvent.get(edgeKey);
+      expect(event.lamport).toBe(42);
+      // Legacy sentinel values
+      expect(event.writerId).toBe('');
+      expect(event.patchSha).toBe('0000');
+      expect(event.opIndex).toBe(0);
     });
 
     it('round-trips complex state with all components', () => {

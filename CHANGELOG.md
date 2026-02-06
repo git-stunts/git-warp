@@ -5,13 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [8.0.0] — HOLOGRAM
+## [Unreleased] — HOLOGRAM
+
+### Breaking Changes
+
+- **`patchesFor()` is now async**: `patchesFor(entityId)` now uses `_ensureFreshState()` like other query methods, so it auto-materializes when `autoMaterialize` is enabled. The return type changed from `string[]` to `Promise<string[]>` — all call sites must be `await`ed.
 
 ### Added
 
 #### HOLOGRAM — Provenance & Holography (v8.0.0)
 
-Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and prefix forks.
+Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational Holography & Provenance Payloads) and [Paper IV](https://doi.org/10.5281/zenodo.18038297) (Rulial Distance & Observer Geometry) from the AION Foundations Series: provenance payloads, slicing, wormholes, BTRs, and prefix forks.
 
 - **Patch I/O declarations** (`HG/IO/1`): Patches now carry optional `reads` and `writes` string arrays for provenance tracking. Auto-populated during `commitPatch()` by inspecting ops: `NodeAdd(X)` writes X; `NodeRemove(X)` reads X; `EdgeAdd(A→B)` reads A, reads B, writes edge key; `EdgeRemove(A→B)` reads edge key; `PropSet(X, key)` reads and writes X. Backward compatible — legacy patches without fields load correctly.
 - **Provenance index** (`HG/IO/2`): New `ProvenanceIndex` class maps node/edge IDs to contributing patch SHAs. New `graph.patchesFor(entityId)` returns all patches that affected an entity. Index built during materialization, persisted in checkpoints, updated incrementally on commit.
@@ -32,7 +36,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - **`ProvenanceIndex` missing entries guard**: `deserialize()` and `fromJSON()` now throw `"Missing or invalid ProvenanceIndex entries"` if the entries field is undefined or not an array, instead of failing with cryptic iteration errors.
 - **`ProvenanceIndex` deterministic iteration**: `[Symbol.iterator]` now uses `#sortedEntries()` to yield entities in deterministic sorted order, matching `toJSON()` and `serialize()` behavior.
 - **`deserializeWormhole` structural validation**: Now validates JSON structure before constructing the wormhole, providing clear error messages for missing/invalid fields instead of cryptic failures deep in `ProvenancePayload.fromJSON`.
-- **`patchesFor` auto-materialize alignment**: Now uses `_ensureFreshState()` like other query methods, so it auto-materializes when `autoMaterialize` is enabled. **Breaking**: now returns `Promise<string[]>`.
+- **`patchesFor` auto-materialize alignment**: Now uses `_ensureFreshState()` for consistency with other query methods (see Breaking Changes above).
 - **Remove misleading `Object.freeze` from `PatchBuilderV2`**: The `reads` and `writes` getters no longer call `Object.freeze()` on the returned Set since it doesn't prevent Set mutations anyway. The defensive copy is the real protection.
 - **Error surfacing in `_loadPatchBySha`**: Errors during patch loading are now properly thrown instead of being swallowed, improving debuggability when patches fail to load.
 - **Fresh state guard in `materializeSlice`**: Now ensures fresh state before accessing the provenance index, preventing stale index reads after writes.
@@ -73,6 +77,8 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - Added `test/unit/domain/WarpGraph.patchesFor.test.js` (13 tests) — provenance queries
 - Added `test/unit/domain/WarpGraph.materializeSlice.test.js` (19 tests) — causal cones, slice correctness
 - Added `WormholeError` to index exports test coverage
+- Added `test/unit/domain/errors/ForkError.test.js` (4 tests) — constructor null-safety, defaults
+- Strengthened `CheckpointSerializerV5.test.js` (+6 tests) — edgeBirthEvent round-trip, legacy bare-lamport format, version mismatch error, edgeBirthEvent assertions on null/undefined/missing-field paths
 - **Test quality improvements**:
   - Made `ProvenanceIndex` stress test deterministic by removing wall-clock timing assertion (performance testing belongs in benchmarks)
   - Deduplicated `createMockPersistence` helper in `PatchBuilderV2.test.js`
