@@ -1214,6 +1214,7 @@ export class ProvenanceIndex {
    * Creates a ProvenanceIndex from a JSON-serialized object.
    */
   static fromJSON(json: Record<string, string[]>): ProvenanceIndex;
+}
 
 /**
  * Error thrown when a fork operation fails.
