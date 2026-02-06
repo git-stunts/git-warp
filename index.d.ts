@@ -1325,3 +1325,234 @@ export class ProvenancePayload {
    */
   static fromJSON(json: PatchEntry[]): ProvenancePayload;
 }
+
+// ============================================================================
+// Boundary Transition Records (HOLOGRAM)
+// ============================================================================
+
+/**
+ * Boundary Transition Record - Tamper-evident provenance packaging.
+ *
+ * Binds (h_in, h_out, U_0, P, t, kappa) for auditable exchange of graph
+ * segments between parties who don't share full history.
+ *
+ * @see Paper III, Section 4 -- Boundary Transition Records
+ */
+export interface BTR {
+  /** BTR format version */
+  readonly version: number;
+  /** Hash of input state (hex SHA-256) */
+  readonly h_in: string;
+  /** Hash of output state (hex SHA-256) */
+  readonly h_out: string;
+  /** Serialized initial state (CBOR) */
+  readonly U_0: Buffer;
+  /** Serialized provenance payload */
+  readonly P: PatchEntry[];
+  /** ISO 8601 timestamp */
+  readonly t: string;
+  /** Authentication tag (hex HMAC-SHA256) */
+  readonly kappa: string;
+}
+
+/**
+ * Result of BTR verification.
+ */
+export interface BTRVerificationResult {
+  /** Whether the BTR is valid */
+  valid: boolean;
+  /** Reason for failure (if invalid) */
+  reason?: string;
+}
+
+/**
+ * Options for creating a BTR.
+ */
+export interface CreateBTROptions {
+  /** HMAC key for authentication */
+  key: string | Buffer;
+  /** Custom ISO timestamp (defaults to now) */
+  timestamp?: string;
+}
+
+/**
+ * Options for verifying a BTR.
+ */
+export interface VerifyBTROptions {
+  /** Also verify replay produces h_out (default: false) */
+  verifyReplay?: boolean;
+}
+
+/**
+ * Creates a Boundary Transition Record from an initial state and payload.
+ *
+ * @param initialState - The input state U_0
+ * @param payload - The provenance payload P
+ * @param options - Creation options including key and optional timestamp
+ * @throws {TypeError} If payload is not a ProvenancePayload
+ */
+export function createBTR(
+  initialState: WarpStateV5,
+  payload: ProvenancePayload,
+  options: CreateBTROptions
+): BTR;
+
+/**
+ * Verifies a Boundary Transition Record.
+ *
+ * @param btr - The BTR to verify
+ * @param key - HMAC key
+ * @param options - Verification options
+ */
+export function verifyBTR(
+  btr: BTR,
+  key: string | Buffer,
+  options?: VerifyBTROptions
+): BTRVerificationResult;
+
+/**
+ * Replays a BTR to produce the final state.
+ *
+ * @param btr - The BTR to replay
+ * @returns The final state and its hash
+ */
+export function replayBTR(btr: BTR): { state: WarpStateV5; h_out: string };
+
+/**
+ * Serializes a BTR to CBOR bytes for transport.
+ *
+ * @param btr - The BTR to serialize
+ */
+export function serializeBTR(btr: BTR): Buffer;
+
+/**
+ * Deserializes a BTR from CBOR bytes.
+ *
+ * @param bytes - CBOR-encoded BTR
+ * @throws {Error} If the bytes are not valid CBOR or missing required fields
+ */
+export function deserializeBTR(bytes: Buffer): BTR;
+
+// ============================================================================
+// Wormhole Compression (HOLOGRAM)
+// ============================================================================
+
+/**
+ * Error thrown when a wormhole operation fails.
+ */
+export class WormholeError extends Error {
+  readonly name: 'WormholeError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
+ * A compressed range of patches (wormhole).
+ *
+ * A WormholeEdge contains:
+ * - The SHA of the first (oldest) patch in the range (fromSha)
+ * - The SHA of the last (newest) patch in the range (toSha)
+ * - The writer ID who created all patches in the range
+ * - A ProvenancePayload containing all patches for replay
+ */
+export interface WormholeEdge {
+  /** SHA of the first (oldest) patch commit */
+  readonly fromSha: string;
+  /** SHA of the last (newest) patch commit */
+  readonly toSha: string;
+  /** Writer ID of all patches in the range */
+  readonly writerId: string;
+  /** Sub-payload for replay */
+  readonly payload: ProvenancePayload;
+  /** Number of patches compressed */
+  readonly patchCount: number;
+}
+
+/**
+ * Options for creating a wormhole.
+ */
+export interface CreateWormholeOptions {
+  /** Git persistence adapter */
+  persistence: GraphPersistencePort;
+  /** Name of the graph */
+  graphName: string;
+  /** SHA of the first (oldest) patch commit */
+  fromSha: string;
+  /** SHA of the last (newest) patch commit */
+  toSha: string;
+}
+
+/**
+ * Options for composing wormholes.
+ */
+export interface ComposeWormholesOptions {
+  /** Git persistence adapter (for validation) */
+  persistence?: GraphPersistencePort;
+}
+
+/**
+ * Creates a wormhole compressing a range of patches.
+ *
+ * The range is specified by two patch SHAs from the same writer. The `fromSha`
+ * must be an ancestor of `toSha` in the writer's patch chain. Both endpoints
+ * are inclusive in the wormhole.
+ *
+ * @throws {WormholeError} If fromSha or toSha doesn't exist (E_WORMHOLE_SHA_NOT_FOUND)
+ * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
+ * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
+ * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
+ */
+export function createWormhole(options: CreateWormholeOptions): Promise<WormholeEdge>;
+
+/**
+ * Composes two consecutive wormholes into a single wormhole.
+ *
+ * The wormholes must be from the same writer. When persistence is provided,
+ * validates that the wormholes are actually consecutive in the commit chain.
+ *
+ * @throws {WormholeError} If wormholes are from different writers (E_WORMHOLE_MULTI_WRITER)
+ * @throws {WormholeError} If wormholes are not consecutive (E_WORMHOLE_INVALID_RANGE)
+ */
+export function composeWormholes(
+  first: WormholeEdge,
+  second: WormholeEdge,
+  options?: ComposeWormholesOptions
+): Promise<WormholeEdge>;
+
+/**
+ * Replays a wormhole's sub-payload to materialize the compressed state.
+ *
+ * @param wormhole - The wormhole to replay
+ * @param initialState - Optional initial state to start from
+ */
+export function replayWormhole(
+  wormhole: WormholeEdge,
+  initialState?: WarpStateV5
+): WarpStateV5;
+
+/**
+ * Serializes a wormhole to a JSON-serializable object.
+ */
+export function serializeWormhole(wormhole: WormholeEdge): {
+  fromSha: string;
+  toSha: string;
+  writerId: string;
+  patchCount: number;
+  payload: PatchEntry[];
+};
+
+/**
+ * Deserializes a wormhole from a JSON object.
+ */
+export function deserializeWormhole(json: {
+  fromSha: string;
+  toSha: string;
+  writerId: string;
+  patchCount: number;
+  payload: PatchEntry[];
+}): WormholeEdge;

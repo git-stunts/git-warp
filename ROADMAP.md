@@ -283,14 +283,14 @@ PULSE            (v7.7.0)  █████████████████�
   ■ PL/WATCH/1          →  PL/WATCH/2
   ■ PL/WATCH/2        
 
-HOLOGRAM         (v8.0.0)  █████████░░░░░░░░░░░   43%  (3/7)
-  ◆ HG/BTR/1          
+HOLOGRAM         (v8.0.0)  ████████████████████  100%  (7/7)
+  ■ HG/BTR/1          
   ■ HG/FORK/1         
   ■ HG/IO/1             →  HG/IO/2, HG/SLICE/1, EC/TEMPORAL/1
-  ◆ HG/IO/2             →  HG/SLICE/1
+  ■ HG/IO/2             →  HG/SLICE/1
   ■ HG/PROV/1           →  HG/SLICE/1, HG/WORM/1, HG/BTR/1
-  ○ HG/SLICE/1        
-  ◆ HG/WORM/1         
+  ■ HG/SLICE/1        
+  ■ HG/WORM/1         
 
 ECHO             (v9.0.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/3)
   ○ EC/COST/1         
@@ -1600,7 +1600,7 @@ Implements the theory from Papers III–IV. The mathematical foundations for pro
 
 #### HG/IO/2 — Build nodeId-to-patchSha index
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As the system, I need to quickly answer "which patches affected node X?" without replaying all patches.
 - **Requirements:**
   - Build index `Map<nodeId, Set<patchSha>>` from I/O declarations.
@@ -1664,7 +1664,7 @@ Implements the theory from Papers III–IV. The mathematical foundations for pro
 
 #### HG/SLICE/1 — Compute backward causal cone and partial materialize
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to materialize only the data relevant to a specific node instead of the full graph.
 - **Requirements:**
   - `graph.materializeSlice(nodeId)` returns `{ state, receipts? }` containing only the causal cone for that node.
@@ -1696,7 +1696,7 @@ Implements the theory from Papers III–IV. The mathematical foundations for pro
 
 #### HG/WORM/1 — Implement wormhole compression
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to compress a range of patches into a single wormhole that preserves provenance.
 - **Requirements:**
   - `graph.createWormhole(fromPatchSha, toPatchSha)` → `WormholeEdge`.
@@ -1726,7 +1726,7 @@ Implements the theory from Papers III–IV. The mathematical foundations for pro
 
 #### HG/BTR/1 — Implement BTR packaging format
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to package a graph segment as a verifiable artifact for exchange.
 - **Requirements:**
   - BTR binds `(h_in, h_out, U_0, P, t, kappa)`:

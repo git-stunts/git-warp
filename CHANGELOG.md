@@ -5,19 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [8.0.0] — HOLOGRAM (in progress)
+## [8.0.0] — HOLOGRAM
 
 ### Added
 
 #### HOLOGRAM — Provenance & Holography (v8.0.0)
+
+Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and prefix forks.
+
 - **Patch I/O declarations** (`HG/IO/1`): Patches now carry optional `reads` and `writes` string arrays for provenance tracking. Auto-populated during `commitPatch()` by inspecting ops: `NodeAdd(X)` writes X; `NodeRemove(X)` reads X; `EdgeAdd(A→B)` reads A, reads B, writes edge key; `EdgeRemove(A→B)` reads edge key; `PropSet(X, key)` reads and writes X. Backward compatible — legacy patches without fields load correctly.
-- **ProvenancePayload class** (`HG/PROV/1`): New `ProvenancePayload` class implements the boundary encoding `(U_0, P)` from Paper III as a first-class type with monoid operations. Constructor accepts ordered patch sequence. `concat(other)` for monoid composition. `static identity()` for empty payload. `replay(initialState?)` for deterministic materialization. Immutable after construction. Monoid laws verified: `identity.concat(p) === p`, `p.concat(identity) === p`, `(a.concat(b)).concat(c) === a.concat(b.concat(c))`. Additional utilities: `at()`, `slice()`, `toJSON()`, `fromJSON()`, and `Symbol.iterator`.
-- **graph.fork() API** (`HG/FORK/1`): New `graph.fork({ from, at, forkName?, forkWriterId? })` creates a forked graph at a specific point in a writer's chain. Fork shares history up to `at` commit (Git content-addressed dedup). Fork gets a new writer ID and operates independently. Mutual isolation: writes to fork don't appear in original, writes to original after fork don't appear in fork. New `ForkError` class with codes: `E_FORK_WRITER_NOT_FOUND`, `E_FORK_PATCH_NOT_FOUND`, `E_FORK_PATCH_NOT_IN_CHAIN`, `E_FORK_NAME_INVALID`, `E_FORK_ALREADY_EXISTS`.
+- **Provenance index** (`HG/IO/2`): New `ProvenanceIndex` class maps node/edge IDs to contributing patch SHAs. New `graph.patchesFor(entityId)` returns all patches that affected an entity. Index built during materialization, persisted in checkpoints, updated incrementally on commit.
+- **ProvenancePayload class** (`HG/PROV/1`): New `ProvenancePayload` class implements the boundary encoding `(U_0, P)` from Paper III as a first-class type with monoid operations. Constructor accepts ordered patch sequence. `concat(other)` for monoid composition. `static identity()` for empty payload. `replay(initialState?)` for deterministic materialization. Immutable after construction. Monoid laws verified. Additional utilities: `at()`, `slice()`, `toJSON()`, `fromJSON()`, and `Symbol.iterator`.
+- **Slice materialization** (`HG/SLICE/1`): New `graph.materializeSlice(nodeId)` computes backward causal cone and materializes only patches that contributed to the target node. Uses BFS over ProvenanceIndex, topologically sorts patches by Lamport timestamp, replays via ProvenancePayload. Returns `{ state, patchCount, receipts? }`.
+- **Wormhole compression** (`HG/WORM/1`): New `graph.createWormhole(fromSha, toSha)` compresses a range of patches into a single wormhole edge. Wormhole contains sub-payload (ProvenancePayload) for replay. `composeWormholes(first, second)` for monoid composition. `replayWormhole()` for materialization. New `WormholeError` class with typed error codes.
+- **Boundary Transition Records** (`HG/BTR/1`): New BTR packaging format binds `(h_in, h_out, U_0, P, t, kappa)` for tamper-evident exchange. `createBTR(initialState, payload, { key })` creates signed records. `verifyBTR(btr, key)` validates HMAC and optional replay. CBOR serialization via `serializeBTR()`/`deserializeBTR()`.
+- **graph.fork() API** (`HG/FORK/1`): New `graph.fork({ from, at, forkName?, forkWriterId? })` creates a forked graph at a specific point in a writer's chain. Fork shares history up to `at` commit (Git content-addressed dedup). Fork gets a new writer ID and operates independently. Mutual isolation verified. New `ForkError` class with typed error codes.
 
 ### Tests
 - Added provenance tracking tests to `PatchBuilderV2.test.js` (+20 tests)
 - Added `test/unit/domain/services/ProvenancePayload.test.js` (49 tests) — monoid laws, replay verification, fuzz tests
+- Added `test/unit/domain/services/ProvenanceIndex.test.js` (38 tests) — index construction, queries, serialization
+- Added `test/unit/domain/services/WormholeService.test.js` (17 tests) — compression, composition, replay
+- Added `test/unit/domain/services/BoundaryTransitionRecord.test.js` (42 tests) — creation, verification, tamper detection
 - Added `test/unit/domain/WarpGraph.fork.test.js` (20 tests) — fork creation, isolation, edge cases
+- Added `test/unit/domain/WarpGraph.patchesFor.test.js` (13 tests) — provenance queries
+- Added `test/unit/domain/WarpGraph.materializeSlice.test.js` (19 tests) — causal cones, slice correctness
 
 ## [7.7.1] — Documentation & Hardening
 

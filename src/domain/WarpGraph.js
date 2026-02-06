@@ -11,6 +11,8 @@
 import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, buildCheckpointRef, buildWritersPrefix, parseWriterIdFromRef } from './utils/RefLayout.js';
 import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
 import { reduceV5, createEmptyStateV5, joinStates, join as joinPatch, decodeEdgeKey, decodePropKey, isEdgePropKey, decodeEdgePropKey, encodeEdgeKey, cloneStateV5 } from './services/JoinReducer.js';
+import { ProvenanceIndex } from './services/ProvenanceIndex.js';
+import { ProvenancePayload } from './services/ProvenancePayload.js';
 import { diffStates, isEmptyDiff } from './services/StateDiff.js';
 import { orsetContains, orsetElements } from './crdt/ORSet.js';
 import { decode } from '../infrastructure/codecs/CborCodec.js';
@@ -37,6 +39,7 @@ import LRUCache from './utils/LRUCache.js';
 import SyncError from './errors/SyncError.js';
 import QueryError from './errors/QueryError.js';
 import ForkError from './errors/ForkError.js';
+import { createWormhole as createWormholeImpl } from './services/WormholeService.js';
 import { checkAborted } from './utils/cancellation.js';
 import OperationAbortedError from './errors/OperationAbortedError.js';
 import { compareEventIds } from './utils/EventId.js';
@@ -191,6 +194,9 @@ export default class WarpGraph {
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
     this._lastNotifiedState = null;
+
+    /** @type {import('./services/ProvenanceIndex.js').ProvenanceIndex|null} */
+    this._provenanceIndex = null;
   }
 
   /**
@@ -347,6 +353,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Update provenance index with new patch
+          if (this._provenanceIndex) {
+            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+          }
           // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
           if (this._lastFrontier) {
             this._lastFrontier.set(this._writerId, sha);
@@ -596,6 +606,14 @@ export default class WarpGraph {
           state = reduceV5(patches, checkpoint.state);
         }
         patchCount = patches.length;
+
+        // Build provenance index: start from checkpoint index if present, then add new patches
+        this._provenanceIndex = checkpoint.provenanceIndex
+          ? checkpoint.provenanceIndex.clone()
+          : new ProvenanceIndex();
+        for (const { patch, sha } of patches) {
+          this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+        }
       } else {
         // 1. Discover all writers
         const writerIds = await this.discoverWriters();
@@ -603,6 +621,7 @@ export default class WarpGraph {
         // 2. If no writers, return empty state
         if (writerIds.length === 0) {
           state = createEmptyStateV5();
+          this._provenanceIndex = new ProvenanceIndex();
           if (collectReceipts) {
             receipts = [];
           }
@@ -617,6 +636,7 @@ export default class WarpGraph {
           // 4. If no patches, return empty state
           if (allPatches.length === 0) {
             state = createEmptyStateV5();
+            this._provenanceIndex = new ProvenanceIndex();
             if (collectReceipts) {
               receipts = [];
             }
@@ -630,6 +650,12 @@ export default class WarpGraph {
               state = reduceV5(allPatches);
             }
             patchCount = allPatches.length;
+
+            // Build provenance index from all patches
+            this._provenanceIndex = new ProvenanceIndex();
+            for (const { patch, sha } of allPatches) {
+              this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+            }
           }
         }
       }
@@ -892,13 +918,14 @@ export default class WarpGraph {
         this._checkpointing = prevCheckpointing;
       }
 
-      // 4. Call CheckpointService.create()
+      // 4. Call CheckpointService.create() with provenance index if available
       const checkpointSha = await createCheckpointCommit({
         persistence: this._persistence,
         graphName: this._graphName,
         state,
         frontier,
         parents,
+        provenanceIndex: this._provenanceIndex,
       });
 
       // 5. Update checkpoint ref
@@ -2188,6 +2215,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Update provenance index with new patch
+          if (this._provenanceIndex) {
+            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+          }
           // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
           if (this._lastFrontier) {
             this._lastFrontier.set(resolvedWriterId, sha);
@@ -2254,6 +2285,10 @@ export default class WarpGraph {
         if (this._cachedState && !this._stateDirty && patch && sha) {
           joinPatch(this._cachedState, patch, sha);
           this._setMaterializedState(this._cachedState);
+          // Update provenance index with new patch
+          if (this._provenanceIndex) {
+            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+          }
           // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
           if (this._lastFrontier) {
             this._lastFrontier.set(freshWriterId, sha);
@@ -2747,5 +2782,357 @@ export default class WarpGraph {
       this._logTiming('fork', t0, { error: err });
       throw err;
     }
+  }
+
+  // ============================================================================
+  // Wormhole API (HOLOGRAM)
+  // ============================================================================
+
+  /**
+   * Creates a wormhole compressing a range of patches.
+   *
+   * A wormhole is a compressed representation of a contiguous range of patches
+   * from a single writer. It preserves provenance by storing the original
+   * patches as a ProvenancePayload that can be replayed during materialization.
+   *
+   * **Key Properties:**
+   * - **Provenance Preservation**: The wormhole contains the full sub-payload,
+   *   allowing exact replay of the compressed segment.
+   * - **Monoid Composition**: Two consecutive wormholes can be composed by
+   *   concatenating their sub-payloads (use `WormholeService.composeWormholes`).
+   * - **Materialization Equivalence**: A wormhole + remaining patches produces
+   *   the same state as materializing all patches.
+   *
+   * @param {string} fromSha - SHA of the first (oldest) patch commit in the range
+   * @param {string} toSha - SHA of the last (newest) patch commit in the range
+   * @returns {Promise<{fromSha: string, toSha: string, writerId: string, payload: import('./services/ProvenancePayload.js').default, patchCount: number}>} The created wormhole edge
+   * @throws {WormholeError} If fromSha or toSha doesn't exist (E_WORMHOLE_SHA_NOT_FOUND)
+   * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
+   * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
+   * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
+   *
+   * @example
+   * // Compress a range of patches into a wormhole
+   * const wormhole = await graph.createWormhole('abc123...', 'def456...');
+   * console.log(`Compressed ${wormhole.patchCount} patches`);
+   *
+   * // The wormhole payload can be replayed to get the same state
+   * const state = wormhole.payload.replay();
+   *
+   * @example
+   * // Compress first 50 patches, then materialize with remaining
+   * const patches = await graph.getWriterPatches('alice');
+   * const wormhole = await graph.createWormhole(patches[0].sha, patches[49].sha);
+   *
+   * // Replay wormhole then remaining patches produces same state
+   * const wormholeState = wormhole.payload.replay();
+   * const remainingPayload = new ProvenancePayload(patches.slice(50));
+   * const finalState = remainingPayload.replay(wormholeState);
+   */
+  async createWormhole(fromSha, toSha) {
+    const t0 = this._clock.now();
+
+    try {
+      const wormhole = await createWormholeImpl({
+        persistence: this._persistence,
+        graphName: this._graphName,
+        fromSha,
+        toSha,
+      });
+
+      this._logTiming('createWormhole', t0, {
+        metrics: `${wormhole.patchCount} patches from=${fromSha.slice(0, 7)} to=${toSha.slice(0, 7)}`,
+      });
+
+      return wormhole;
+    } catch (err) {
+      this._logTiming('createWormhole', t0, { error: err });
+      throw err;
+    }
+  }
+
+  // ============================================================================
+  // Provenance Index API (HG/IO/2)
+  // ============================================================================
+
+  /**
+   * Returns all patch SHAs that affected a given node or edge.
+   *
+   * "Affected" means the patch either read from or wrote to the entity
+   * (based on the patch's I/O declarations from HG/IO/1).
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   * The provenance index is built during materialization.
+   *
+   * @param {string} entityId - The node ID or edge key to query
+   * @returns {string[]} Array of patch SHAs that affected the entity, sorted alphabetically
+   * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
+   *
+   * @example
+   * await graph.materialize();
+   * const shas = graph.patchesFor('user:alice');
+   * console.log(`Node user:alice was affected by ${shas.length} patches:`, shas);
+   *
+   * @example
+   * // Query which patches affected an edge
+   * const edgeKey = encodeEdgeKey('user:alice', 'user:bob', 'follows');
+   * const edgeShas = graph.patchesFor(edgeKey);
+   */
+  patchesFor(entityId) {
+    if (!this._provenanceIndex) {
+      throw new QueryError('No provenance index. Call materialize() first.', {
+        code: 'E_NO_STATE',
+      });
+    }
+    return this._provenanceIndex.patchesFor(entityId);
+  }
+
+  // ============================================================================
+  // Slice Materialization (HG/SLICE/1)
+  // ============================================================================
+
+  /**
+   * Materializes only the backward causal cone for a specific node.
+   *
+   * This implements the slicing theorem from Paper III (Computational Holography):
+   * Given a target node v, compute its backward causal cone D(v) - the set of
+   * all patches that contributed to v's current state - and replay only those.
+   *
+   * The algorithm:
+   * 1. Start with patches that directly wrote to the target node
+   * 2. For each patch in the cone, find patches it depends on (via reads)
+   * 3. Recursively gather all dependencies
+   * 4. Topologically sort by Lamport timestamp (causal order)
+   * 5. Replay the sorted patches against empty state
+   *
+   * **Requires a cached state.** Call materialize() first to build the provenance index.
+   *
+   * @param {string} nodeId - The target node ID to materialize the cone for
+   * @param {{receipts?: boolean}} [options] - Optional configuration
+   * @returns {Promise<{state: import('./services/JoinReducer.js').WarpStateV5, patchCount: number, receipts?: import('../types/TickReceipt.js').TickReceipt[]}>}
+   *   Returns the sliced state with the patch count (for comparison with full materialization)
+   * @throws {QueryError} If no provenance index exists (code: `E_NO_STATE`)
+   * @throws {Error} If patch loading fails
+   *
+   * @example
+   * await graph.materialize();
+   *
+   * // Materialize only the causal cone for a specific node
+   * const slice = await graph.materializeSlice('user:alice');
+   * console.log(`Slice required ${slice.patchCount} patches`);
+   *
+   * // The sliced state contains only the target node and its dependencies
+   * const props = slice.state.prop;
+   *
+   * @example
+   * // Compare with full materialization
+   * const fullState = await graph.materialize();
+   * const slice = await graph.materializeSlice('node:target');
+   *
+   * // Slice should have fewer patches (unless the entire graph is connected)
+   * console.log(`Full: all patches, Slice: ${slice.patchCount} patches`);
+   */
+  async materializeSlice(nodeId, options) {
+    const t0 = this._clock.now();
+    const collectReceipts = options && options.receipts;
+
+    try {
+      if (!this._provenanceIndex) {
+        throw new QueryError('No provenance index. Call materialize() first.', {
+          code: 'E_NO_STATE',
+        });
+      }
+
+      // 1. Compute backward causal cone using BFS over the provenance index
+      const conePatches = await this._computeBackwardCone(nodeId);
+
+      // 2. If no patches in cone, return empty state
+      if (conePatches.size === 0) {
+        const emptyState = createEmptyStateV5();
+        this._logTiming('materializeSlice', t0, { metrics: '0 patches (empty cone)' });
+        return {
+          state: emptyState,
+          patchCount: 0,
+          ...(collectReceipts ? { receipts: [] } : {}),
+        };
+      }
+
+      // 3. Load full patch data for each SHA in the cone
+      const patchEntries = await this._loadPatchesBySha([...conePatches]);
+
+      // 4. Topologically sort by causal order (Lamport timestamp, then writer, then SHA)
+      const sortedPatches = this._sortPatchesCausally(patchEntries);
+
+      // 5. Create ProvenancePayload and replay
+      const payload = new ProvenancePayload(sortedPatches);
+      const state = collectReceipts
+        ? payload.replay()
+        : payload.replay();
+
+      // For receipts, we need to use reduceV5 directly
+      if (collectReceipts) {
+        const result = reduceV5(sortedPatches, undefined, { receipts: true });
+        this._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
+        return {
+          state: result.state,
+          patchCount: sortedPatches.length,
+          receipts: result.receipts,
+        };
+      }
+
+      this._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
+      return {
+        state,
+        patchCount: sortedPatches.length,
+      };
+    } catch (err) {
+      this._logTiming('materializeSlice', t0, { error: err });
+      throw err;
+    }
+  }
+
+  /**
+   * Computes the backward causal cone for a node.
+   *
+   * Uses BFS over the provenance index:
+   * 1. Find all patches that wrote to the target node
+   * 2. For each patch, find entities it read from
+   * 3. Find all patches that wrote to those entities
+   * 4. Repeat until no new patches are found
+   *
+   * @param {string} nodeId - The target node ID
+   * @returns {Promise<Set<string>>} Set of patch SHAs in the causal cone
+   * @private
+   */
+  async _computeBackwardCone(nodeId) {
+    const cone = new Set();
+    const visited = new Set(); // Visited entities
+    const queue = [nodeId]; // BFS queue of entities to process
+
+    while (queue.length > 0) {
+      const entityId = queue.shift();
+
+      if (visited.has(entityId)) {
+        continue;
+      }
+      visited.add(entityId);
+
+      // Get all patches that affected this entity
+      const patchShas = this._provenanceIndex.patchesFor(entityId);
+
+      for (const sha of patchShas) {
+        if (cone.has(sha)) {
+          continue;
+        }
+        cone.add(sha);
+
+        // Load the patch to find its read dependencies
+        const patch = await this._loadPatchBySha(sha);
+        if (patch && patch.reads) {
+          // Add all read dependencies to the queue
+          for (const readEntity of patch.reads) {
+            if (!visited.has(readEntity)) {
+              queue.push(readEntity);
+            }
+          }
+        }
+      }
+    }
+
+    return cone;
+  }
+
+  /**
+   * Loads a single patch by its SHA.
+   *
+   * @param {string} sha - The patch commit SHA
+   * @returns {Promise<Object|null>} The decoded patch object, or null if not a patch
+   * @private
+   */
+  async _loadPatchBySha(sha) {
+    try {
+      const nodeInfo = await this._persistence.getNodeInfo(sha);
+      const kind = detectMessageKind(nodeInfo.message);
+
+      if (kind !== 'patch') {
+        return null;
+      }
+
+      const patchMeta = decodePatchMessage(nodeInfo.message);
+      const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+      return decode(patchBuffer);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Loads multiple patches by their SHAs.
+   *
+   * @param {string[]} shas - Array of patch commit SHAs
+   * @returns {Promise<Array<{patch: Object, sha: string}>>} Array of patch entries
+   * @private
+   */
+  async _loadPatchesBySha(shas) {
+    const entries = [];
+
+    for (const sha of shas) {
+      const patch = await this._loadPatchBySha(sha);
+      if (patch) {
+        entries.push({ patch, sha });
+      }
+    }
+
+    return entries;
+  }
+
+  /**
+   * Sorts patches in causal order for deterministic replay.
+   *
+   * Sort order: Lamport timestamp (ascending), then writer ID, then SHA.
+   * This ensures deterministic ordering regardless of discovery order.
+   *
+   * @param {Array<{patch: Object, sha: string}>} patches - Unsorted patch entries
+   * @returns {Array<{patch: Object, sha: string}>} Sorted patch entries
+   * @private
+   */
+  _sortPatchesCausally(patches) {
+    return [...patches].sort((a, b) => {
+      // Primary: Lamport timestamp (ascending - earlier patches first)
+      const lamportDiff = (a.patch.lamport || 0) - (b.patch.lamport || 0);
+      if (lamportDiff !== 0) {
+        return lamportDiff;
+      }
+
+      // Secondary: Writer ID (lexicographic)
+      const writerCmp = (a.patch.writer || '').localeCompare(b.patch.writer || '');
+      if (writerCmp !== 0) {
+        return writerCmp;
+      }
+
+      // Tertiary: SHA (lexicographic) for total ordering
+      return a.sha.localeCompare(b.sha);
+    });
+  }
+
+  /**
+   * Gets the current provenance index for this graph.
+   *
+   * The provenance index maps node/edge IDs to the patch SHAs that affected them.
+   * It is built during materialization from the patches' I/O declarations.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @returns {import('./services/ProvenanceIndex.js').ProvenanceIndex|null} The provenance index, or null if not materialized
+   *
+   * @example
+   * await graph.materialize();
+   * const index = graph.provenanceIndex;
+   * if (index) {
+   *   console.log(`Index contains ${index.size} entities`);
+   * }
+   */
+  get provenanceIndex() {
+    return this._provenanceIndex;
   }
 }

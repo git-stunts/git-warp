@@ -29,6 +29,7 @@ import {
   TraversalError,
   OperationAbortedError,
   SyncError,
+  WormholeError,
 } from './src/domain/errors/index.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
@@ -55,6 +56,24 @@ import {
 
 // Provenance payload (HOLOGRAM)
 import ProvenancePayload from './src/domain/services/ProvenancePayload.js';
+
+// Boundary Transition Records (HOLOGRAM)
+import {
+  createBTR,
+  verifyBTR,
+  replayBTR,
+  serializeBTR,
+  deserializeBTR,
+} from './src/domain/services/BoundaryTransitionRecord.js';
+
+// Wormhole compression (HOLOGRAM)
+import {
+  createWormhole,
+  composeWormholes,
+  replayWormhole,
+  serializeWormhole,
+  deserializeWormhole,
+} from './src/domain/services/WormholeService.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -94,6 +113,7 @@ export {
   TraversalError,
   OperationAbortedError,
   SyncError,
+  WormholeError,
 
   // Cancellation utilities
   checkAborted,
@@ -124,6 +144,20 @@ export {
 
   // Provenance payload (HOLOGRAM)
   ProvenancePayload,
+
+  // Boundary Transition Records (HOLOGRAM)
+  createBTR,
+  verifyBTR,
+  replayBTR,
+  serializeBTR,
+  deserializeBTR,
+
+  // Wormhole compression (HOLOGRAM)
+  createWormhole,
+  composeWormholes,
+  replayWormhole,
+  serializeWormhole,
+  deserializeWormhole,
 };
 
 // WarpGraph is the primary API for V7
