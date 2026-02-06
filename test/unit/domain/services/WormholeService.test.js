@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createWormhole,
   composeWormholes,
@@ -9,116 +9,22 @@ import {
 import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
 import WormholeError from '../../../../src/domain/errors/WormholeError.js';
 import {
-  createEmptyStateV5,
   reduceV5,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
-import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
-
-// Helper functions for creating test patches
-function createNodeAddV2(node, dot) {
-  return { type: 'NodeAdd', node, dot };
-}
-
-function createEdgeAddV2(from, to, label, dot) {
-  return { type: 'EdgeAdd', from, to, label, dot };
-}
-
-function createPropSetV2(node, key, value) {
-  return { type: 'PropSet', node, key, value };
-}
-
-function createPatchV2({ writer, lamport, ops, context }) {
-  return {
-    schema: 2,
-    writer,
-    lamport,
-    ops,
-    context: context || createVersionVector(),
-  };
-}
-
-/**
- * Generates a valid 40-character hex OID from a number.
- * @param {number} n - Number to generate OID from
- * @returns {string} 40-character hex string
- */
-function generateOid(n) {
-  // Create a deterministic 40-char hex string from the number
-  const hex = n.toString(16).padStart(40, '0');
-  return hex.slice(-40);
-}
-
-/**
- * Creates a mock persistence adapter with a simple in-memory commit chain.
- * Uses numeric indices to generate valid 40-character hex SHA strings for commits and blobs.
- *
- * @param {Array<{index: number, patch: Object, parentIndex: number|null, writerId: string, lamport: number}>} commits - Commits to populate
- * @param {string} graphName - The graph name for validation
- * @returns {{persistence: Object, getSha: (index: number) => string}} Mock persistence adapter and SHA lookup
- */
-function createMockPersistence(commits, graphName = 'test-graph') {
-  const commitMap = new Map();
-  const blobMap = new Map();
-  const shaMap = new Map(); // index -> sha
-
-  for (const commit of commits) {
-    // Generate valid 40-char hex SHAs
-    const sha = generateOid(commit.index * 1000);
-    const parentSha = commit.parentIndex !== null ? generateOid(commit.parentIndex * 1000) : null;
-    shaMap.set(commit.index, sha);
-
-    // Encode the patch and store as a blob
-    const patchBuffer = encode(commit.patch);
-    // Generate a valid 40-character hex OID for the blob
-    const patchOid = generateOid(commit.index * 1000 + 1);
-    blobMap.set(patchOid, patchBuffer);
-
-    // Create the commit message
-    const message = encodePatchMessage({
-      graph: graphName,
-      writer: commit.writerId,
-      lamport: commit.lamport,
-      patchOid,
-      schema: 2,
-    });
-
-    commitMap.set(sha, {
-      message,
-      parents: parentSha ? [parentSha] : [],
-      patchOid,
-    });
-  }
-
-  const persistence = {
-    nodeExists: vi.fn(async (sha) => commitMap.has(sha)),
-    getNodeInfo: vi.fn(async (sha) => {
-      const commit = commitMap.get(sha);
-      if (!commit) {
-        throw new Error(`Commit not found: ${sha}`);
-      }
-      return { message: commit.message, parents: commit.parents };
-    }),
-    readBlob: vi.fn(async (oid) => {
-      const blob = blobMap.get(oid);
-      if (!blob) {
-        throw new Error(`Blob not found: ${oid}`);
-      }
-      return blob;
-    }),
-  };
-
-  const getSha = (index) => shaMap.get(index);
-
-  return { persistence, getSha };
-}
+import {
+  createNodeAddV2,
+  createEdgeAddV2,
+  createPropSetV2,
+  createPatchV2,
+  generateOidFromNumber as generateOid,
+  createPopulatedMockPersistence as createMockPersistence,
+  createDot,
+  createInlineValue,
+} from '../../../helpers/warpGraphTestUtils.js';
 
 describe('WormholeService', () => {
   describe('createWormhole', () => {
@@ -199,19 +105,15 @@ describe('WormholeService', () => {
       const { persistence } = createMockPersistence([]);
       const nonexistent = generateOid(99999);
 
-      try {
-        await createWormhole({
-          persistence,
-          graphName: 'test-graph',
-          fromSha: nonexistent,
-          toSha: nonexistent,
-        });
-        expect.fail('Expected WormholeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(WormholeError);
-        expect(err.code).toBe('E_WORMHOLE_SHA_NOT_FOUND');
-        expect(err.context.sha).toBe(nonexistent);
-      }
+      await expect(createWormhole({
+        persistence,
+        graphName: 'test-graph',
+        fromSha: nonexistent,
+        toSha: nonexistent,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_SHA_NOT_FOUND',
+        context: { sha: nonexistent },
+      });
     });
 
     it('throws E_WORMHOLE_SHA_NOT_FOUND for missing toSha', async () => {
@@ -229,19 +131,15 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const nonexistent = generateOid(99999);
 
-      try {
-        await createWormhole({
-          persistence,
-          graphName: 'test-graph',
-          fromSha: sha1,
-          toSha: nonexistent,
-        });
-        expect.fail('Expected WormholeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(WormholeError);
-        expect(err.code).toBe('E_WORMHOLE_SHA_NOT_FOUND');
-        expect(err.context.sha).toBe(nonexistent);
-      }
+      await expect(createWormhole({
+        persistence,
+        graphName: 'test-graph',
+        fromSha: sha1,
+        toSha: nonexistent,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_SHA_NOT_FOUND',
+        context: { sha: nonexistent },
+      });
     });
 
     it('throws E_WORMHOLE_INVALID_RANGE when fromSha is not ancestor of toSha', async () => {
@@ -266,18 +164,14 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const sha2 = getSha(2);
 
-      try {
-        await createWormhole({
-          persistence,
-          graphName: 'test-graph',
-          fromSha: sha1,
-          toSha: sha2,
-        });
-        expect.fail('Expected WormholeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(WormholeError);
-        expect(err.code).toBe('E_WORMHOLE_INVALID_RANGE');
-      }
+      await expect(createWormhole({
+        persistence,
+        graphName: 'test-graph',
+        fromSha: sha1,
+        toSha: sha2,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_INVALID_RANGE',
+      });
     });
 
     it('throws E_WORMHOLE_MULTI_WRITER when patches span multiple writers', async () => {
@@ -301,20 +195,15 @@ describe('WormholeService', () => {
       const sha1 = getSha(1);
       const sha2 = getSha(2);
 
-      try {
-        await createWormhole({
-          persistence,
-          graphName: 'test-graph',
-          fromSha: sha1,
-          toSha: sha2,
-        });
-        expect.fail('Expected WormholeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(WormholeError);
-        expect(err.code).toBe('E_WORMHOLE_MULTI_WRITER');
-        expect(err.context.expectedWriter).toBe('bob');
-        expect(err.context.actualWriter).toBe('alice');
-      }
+      await expect(createWormhole({
+        persistence,
+        graphName: 'test-graph',
+        fromSha: sha1,
+        toSha: sha2,
+      })).rejects.toMatchObject({
+        code: 'E_WORMHOLE_MULTI_WRITER',
+        context: { expectedWriter: 'bob', actualWriter: 'alice' },
+      });
     });
 
     it('throws E_WORMHOLE_SHA_NOT_FOUND for null/undefined inputs', async () => {
@@ -508,13 +397,9 @@ describe('WormholeService', () => {
         payload: new ProvenancePayload([]),
       };
 
-      try {
-        await composeWormholes(wormhole1, wormhole2);
-        expect.fail('Expected WormholeError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(WormholeError);
-        expect(err.code).toBe('E_WORMHOLE_MULTI_WRITER');
-      }
+      await expect(composeWormholes(wormhole1, wormhole2)).rejects.toMatchObject({
+        code: 'E_WORMHOLE_MULTI_WRITER',
+      });
     });
 
     it('composition is associative (monoid property)', async () => {

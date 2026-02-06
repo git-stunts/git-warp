@@ -28,30 +28,28 @@ describe('WarpGraph.fork', () => {
   });
 
   describe('parameter validation', () => {
-    it('throws E_FORK_WRITER_NOT_FOUND when from is missing', async () => {
+    it('throws E_FORK_INVALID_ARGS when from is missing', async () => {
       const err = await graph.fork({ at: SHA1 }).catch(e => e);
       expect(err).toBeInstanceOf(ForkError);
-      expect(err.code).toBe('E_FORK_WRITER_NOT_FOUND');
+      expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
-    it('throws E_FORK_WRITER_NOT_FOUND when from is not a string', async () => {
+    it('throws E_FORK_INVALID_ARGS when from is not a string', async () => {
       const err = await graph.fork({ from: 123, at: SHA1 }).catch(e => e);
       expect(err).toBeInstanceOf(ForkError);
-      expect(err.code).toBe('E_FORK_WRITER_NOT_FOUND');
+      expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
-    it('throws E_FORK_PATCH_NOT_FOUND when at is missing', async () => {
-      persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/alice']);
+    it('throws E_FORK_INVALID_ARGS when at is missing', async () => {
       const err = await graph.fork({ from: 'alice' }).catch(e => e);
       expect(err).toBeInstanceOf(ForkError);
-      expect(err.code).toBe('E_FORK_PATCH_NOT_FOUND');
+      expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
-    it('throws E_FORK_PATCH_NOT_FOUND when at is not a string', async () => {
-      persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/alice']);
+    it('throws E_FORK_INVALID_ARGS when at is not a string', async () => {
       const err = await graph.fork({ from: 'alice', at: 123 }).catch(e => e);
       expect(err).toBeInstanceOf(ForkError);
-      expect(err.code).toBe('E_FORK_PATCH_NOT_FOUND');
+      expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
   });
 
@@ -192,12 +190,12 @@ describe('WarpGraph.fork', () => {
       const fork = await graph.fork({ from: 'alice', at: SHA1 });
 
       expect(fork).toBeInstanceOf(WarpGraph);
-      expect(fork.graphName).toMatch(/^test-graph-fork-\d+$/);
+      expect(fork.graphName).toMatch(/^test-graph-fork-\d+-[a-z0-9]{4}$/);
       expect(fork.writerId).toMatch(/^w_[0-9a-hjkmnp-tv-z]{26}$/);
 
       // Verify updateRef was called to point fork writer at the fork point
       expect(persistence.updateRef).toHaveBeenCalledWith(
-        expect.stringMatching(/^refs\/warp\/test-graph-fork-\d+\/writers\/w_/),
+        expect.stringMatching(/^refs\/warp\/test-graph-fork-\d+-[a-z0-9]{4}\/writers\/w_/),
         SHA1
       );
     });
@@ -318,7 +316,7 @@ describe('WarpGraph.fork', () => {
           forkWriterId: 'invalid/writer',
         })
       ).rejects.toMatchObject({
-        code: 'E_FORK_NAME_INVALID',
+        code: 'E_FORK_WRITER_ID_INVALID',
       });
     });
   });

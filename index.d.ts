@@ -1180,20 +1180,37 @@ export default class WarpGraph {
 /**
  * Index mapping entities (nodes/edges) to the patches that affected them.
  *
- * Used for provenance queries and slice materialization.
+ * Used for provenance queries and slice materialization. Implements HG/IO/2
+ * from the AION Foundations Series, enabling quick answers to "which patches
+ * affected node X?" without replaying all patches.
  */
 export class ProvenanceIndex {
   constructor(initialIndex?: Map<string, Set<string>>);
 
   /**
-   * Adds a patch to the index, recording which entities it read/wrote.
+   * Creates an empty ProvenanceIndex.
    */
-  addPatch(patchSha: string, reads?: string[], writes?: string[]): void;
+  static empty(): ProvenanceIndex;
+
+  /**
+   * Adds a patch to the index, recording which entities it read/wrote.
+   * Both reads and writes are indexed because both indicate the patch
+   * "affected" the entity.
+   *
+   * @returns This index for chaining
+   */
+  addPatch(patchSha: string, reads?: string[], writes?: string[]): this;
 
   /**
    * Returns patch SHAs that affected a given entity.
+   * The returned array is sorted alphabetically for determinism.
    */
   patchesFor(entityId: string): string[];
+
+  /**
+   * Returns whether the index has any entries for a given entity.
+   */
+  has(entityId: string): boolean;
 
   /**
    * Number of entities tracked in the index.
@@ -1201,19 +1218,58 @@ export class ProvenanceIndex {
   readonly size: number;
 
   /**
+   * Returns all entity IDs in the index, sorted alphabetically.
+   */
+  entities(): string[];
+
+  /**
+   * Clears all entries from the index.
+   *
+   * @returns This index for chaining
+   */
+  clear(): this;
+
+  /**
+   * Merges another index into this one. All entries from the other index
+   * are added to this index.
+   *
+   * @returns This index for chaining
+   */
+  merge(other: ProvenanceIndex): this;
+
+  /**
    * Creates a deep clone of this index.
    */
   clone(): ProvenanceIndex;
 
   /**
-   * Returns a JSON-serializable representation of this index.
+   * Serializes the index to CBOR format for checkpoint storage.
    */
-  toJSON(): Record<string, string[]>;
+  serialize(): Buffer;
 
   /**
-   * Creates a ProvenanceIndex from a JSON-serialized object.
+   * Deserializes an index from CBOR format.
+   *
+   * @throws Error if the buffer contains an unsupported version
    */
-  static fromJSON(json: Record<string, string[]>): ProvenanceIndex;
+  static deserialize(buffer: Buffer): ProvenanceIndex;
+
+  /**
+   * Returns a JSON-serializable representation of this index.
+   */
+  toJSON(): { version: number; entries: Array<[string, string[]]> };
+
+  /**
+   * Creates a ProvenanceIndex from a JSON representation.
+   *
+   * @throws Error if the JSON contains an unsupported version
+   */
+  static fromJSON(json: { version: number; entries: Array<[string, string[]]> }): ProvenanceIndex;
+
+  /**
+   * Iterator over [entityId, patchShas[]] pairs in deterministic order.
+   */
+  [Symbol.iterator](): IterableIterator<[string, string[]]>;
 }
 
 /**

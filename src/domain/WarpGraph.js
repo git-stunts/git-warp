@@ -345,26 +345,7 @@ export default class WarpGraph {
       getCurrentState: () => this._cachedState,
       expectedParentSha: parentSha,
       onDeleteWithData: this._onDeleteWithData,
-      onCommitSuccess: ({ patch, sha } = {}) => {
-        vvIncrement(this._versionVector, this._writerId);
-        this._patchesSinceCheckpoint++;
-        // Eager re-materialize: apply the just-committed patch to cached state
-        // Only when the cache is clean — applying a patch to stale state would be incorrect
-        if (this._cachedState && !this._stateDirty && patch && sha) {
-          joinPatch(this._cachedState, patch, sha);
-          this._setMaterializedState(this._cachedState);
-          // Update provenance index with new patch
-          if (this._provenanceIndex) {
-            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
-          }
-          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
-          if (this._lastFrontier) {
-            this._lastFrontier.set(this._writerId, sha);
-          }
-        } else {
-          this._stateDirty = true;
-        }
-      },
+      onCommitSuccess: (opts) => this._onPatchCommitted(this._writerId, opts),
     });
   }
 
@@ -545,6 +526,37 @@ export default class WarpGraph {
 
     this._materializedGraph = { state, stateHash, adjacency };
     return this._materializedGraph;
+  }
+
+  /**
+   * Callback invoked after a patch is successfully committed.
+   *
+   * Updates version vector, patch count, cached state (if clean),
+   * provenance index, and frontier tracking.
+   *
+   * @param {string} writerId - The writer ID that committed the patch
+   * @param {{patch?: Object, sha?: string}} [opts] - Commit details
+   * @private
+   */
+  _onPatchCommitted(writerId, { patch, sha } = {}) {
+    vvIncrement(this._versionVector, writerId);
+    this._patchesSinceCheckpoint++;
+    // Eager re-materialize: apply the just-committed patch to cached state
+    // Only when the cache is clean — applying a patch to stale state would be incorrect
+    if (this._cachedState && !this._stateDirty && patch && sha) {
+      joinPatch(this._cachedState, patch, sha);
+      this._setMaterializedState(this._cachedState);
+      // Update provenance index with new patch
+      if (this._provenanceIndex) {
+        this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
+      }
+      // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
+      if (this._lastFrontier) {
+        this._lastFrontier.set(writerId, sha);
+      }
+    } else {
+      this._stateDirty = true;
+    }
   }
 
   /**
@@ -2209,24 +2221,7 @@ export default class WarpGraph {
       versionVector: this._versionVector,
       getCurrentState: () => this._cachedState,
       onDeleteWithData: this._onDeleteWithData,
-      onCommitSuccess: ({ patch, sha } = {}) => {
-        vvIncrement(this._versionVector, resolvedWriterId);
-        this._patchesSinceCheckpoint++;
-        if (this._cachedState && !this._stateDirty && patch && sha) {
-          joinPatch(this._cachedState, patch, sha);
-          this._setMaterializedState(this._cachedState);
-          // Update provenance index with new patch
-          if (this._provenanceIndex) {
-            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
-          }
-          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
-          if (this._lastFrontier) {
-            this._lastFrontier.set(resolvedWriterId, sha);
-          }
-        } else {
-          this._stateDirty = true;
-        }
-      },
+      onCommitSuccess: (opts) => this._onPatchCommitted(resolvedWriterId, opts),
     });
   }
 
@@ -2279,24 +2274,7 @@ export default class WarpGraph {
       versionVector: this._versionVector,
       getCurrentState: () => this._cachedState,
       onDeleteWithData: this._onDeleteWithData,
-      onCommitSuccess: ({ patch, sha } = {}) => {
-        vvIncrement(this._versionVector, freshWriterId);
-        this._patchesSinceCheckpoint++;
-        if (this._cachedState && !this._stateDirty && patch && sha) {
-          joinPatch(this._cachedState, patch, sha);
-          this._setMaterializedState(this._cachedState);
-          // Update provenance index with new patch
-          if (this._provenanceIndex) {
-            this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
-          }
-          // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale
-          if (this._lastFrontier) {
-            this._lastFrontier.set(freshWriterId, sha);
-          }
-        } else {
-          this._stateDirty = true;
-        }
-      },
+      onCommitSuccess: (commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts),
     });
   }
 
@@ -2672,15 +2650,15 @@ export default class WarpGraph {
     try {
       // Validate required parameters
       if (!from || typeof from !== 'string') {
-        throw new ForkError('from is required and must be a string', {
-          code: 'E_FORK_WRITER_NOT_FOUND',
+        throw new ForkError("Required parameter 'from' is missing or not a string", {
+          code: 'E_FORK_INVALID_ARGS',
           context: { from },
         });
       }
 
       if (!at || typeof at !== 'string') {
-        throw new ForkError('at is required and must be a string', {
-          code: 'E_FORK_PATCH_NOT_FOUND',
+        throw new ForkError("Required parameter 'at' is missing or not a string", {
+          code: 'E_FORK_INVALID_ARGS',
           context: { at },
         });
       }
@@ -2723,8 +2701,9 @@ export default class WarpGraph {
         });
       }
 
-      // 4. Generate or validate fork name
-      const resolvedForkName = forkName || `${this._graphName}-fork-${Date.now()}`;
+      // 4. Generate or validate fork name (add random suffix to prevent collisions)
+      const resolvedForkName =
+        forkName ?? `${this._graphName}-fork-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       try {
         validateGraphName(resolvedForkName);
       } catch (err) {
@@ -2750,7 +2729,7 @@ export default class WarpGraph {
         validateWriterId(resolvedForkWriterId);
       } catch (err) {
         throw new ForkError(`Invalid fork writer ID: ${err.message}`, {
-          code: 'E_FORK_NAME_INVALID',
+          code: 'E_FORK_WRITER_ID_INVALID',
           context: { forkWriterId: resolvedForkWriterId, originalError: err.message },
         });
       }
@@ -2948,10 +2927,11 @@ export default class WarpGraph {
       }
 
       // 1. Compute backward causal cone using BFS over the provenance index
-      const conePatches = await this._computeBackwardCone(nodeId);
+      // Returns Map<sha, patch> with patches already loaded (avoids double I/O)
+      const conePatchMap = await this._computeBackwardCone(nodeId);
 
       // 2. If no patches in cone, return empty state
-      if (conePatches.size === 0) {
+      if (conePatchMap.size === 0) {
         const emptyState = createEmptyStateV5();
         this._logTiming('materializeSlice', t0, { metrics: '0 patches (empty cone)' });
         return {
@@ -2961,22 +2941,20 @@ export default class WarpGraph {
         };
       }
 
-      // 3. Load full patch data for each SHA in the cone
-      const patchEntries = await this._loadPatchesBySha([...conePatches]);
+      // 3. Convert cached patches to entry format (patches already loaded by _computeBackwardCone)
+      const patchEntries = [];
+      for (const [sha, patch] of conePatchMap) {
+        patchEntries.push({ patch, sha });
+      }
 
       // 4. Topologically sort by causal order (Lamport timestamp, then writer, then SHA)
       const sortedPatches = this._sortPatchesCausally(patchEntries);
 
-      // 5. Create ProvenancePayload and replay
-      const payload = new ProvenancePayload(sortedPatches);
-      const state = collectReceipts
-        ? payload.replay()
-        : payload.replay();
+      // 5. Replay: use reduceV5 directly when collecting receipts, otherwise use ProvenancePayload
+      this._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
 
-      // For receipts, we need to use reduceV5 directly
       if (collectReceipts) {
         const result = reduceV5(sortedPatches, undefined, { receipts: true });
-        this._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
         return {
           state: result.state,
           patchCount: sortedPatches.length,
@@ -2984,9 +2962,9 @@ export default class WarpGraph {
         };
       }
 
-      this._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
+      const payload = new ProvenancePayload(sortedPatches);
       return {
-        state,
+        state: payload.replay(),
         patchCount: sortedPatches.length,
       };
     } catch (err) {
@@ -3004,12 +2982,16 @@ export default class WarpGraph {
    * 3. Find all patches that wrote to those entities
    * 4. Repeat until no new patches are found
    *
+   * Returns a Map of SHA → patch to avoid double-loading (the cone
+   * computation needs to read patches for their read-dependencies,
+   * so we cache them for later replay).
+   *
    * @param {string} nodeId - The target node ID
-   * @returns {Promise<Set<string>>} Set of patch SHAs in the causal cone
+   * @returns {Promise<Map<string, Object>>} Map of patch SHA to loaded patch object
    * @private
    */
   async _computeBackwardCone(nodeId) {
-    const cone = new Set();
+    const cone = new Map(); // sha → patch (cache loaded patches)
     const visited = new Set(); // Visited entities
     const queue = [nodeId]; // BFS queue of entities to process
 
@@ -3028,12 +3010,13 @@ export default class WarpGraph {
         if (cone.has(sha)) {
           continue;
         }
-        cone.add(sha);
 
-        // Load the patch to find its read dependencies
+        // Load the patch and cache it
         const patch = await this._loadPatchBySha(sha);
+        cone.set(sha, patch);
+
+        // Add read dependencies to the queue
         if (patch && patch.reads) {
-          // Add all read dependencies to the queue
           for (const readEntity of patch.reads) {
             if (!visited.has(readEntity)) {
               queue.push(readEntity);

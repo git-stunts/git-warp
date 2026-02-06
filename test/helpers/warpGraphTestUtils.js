@@ -273,7 +273,7 @@ export function createMockPatchWithIO(
       sha,
       message,
       author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
+      date: '2026-01-01T00:00:00.000Z',
       parents: parentSha ? [parentSha] : [],
     },
   };
@@ -338,7 +338,7 @@ export function createMockPatch({
       sha,
       message,
       author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
+      date: '2026-01-01T00:00:00.000Z',
       parents: parentSha ? [parentSha] : [],
     },
   };
@@ -485,7 +485,7 @@ export function createSamplePatches() {
         lamport: 1,
         ops: [createNodeAddV2('node-a', createDot('A', 1))],
       }),
-      sha: 'aaaa1111',
+      sha: generateOidFromNumber(0xaaaa1111),
     },
     patchB: {
       patch: createPatchV2({
@@ -493,7 +493,7 @@ export function createSamplePatches() {
         lamport: 2,
         ops: [createNodeAddV2('node-b', createDot('B', 1))],
       }),
-      sha: 'bbbb2222',
+      sha: generateOidFromNumber(0xbbbb2222),
     },
     patchC: {
       patch: createPatchV2({
@@ -504,7 +504,7 @@ export function createSamplePatches() {
           createPropSetV2('node-a', 'name', createInlineValue('Alice')),
         ],
       }),
-      sha: 'cccc3333',
+      sha: generateOidFromNumber(0xcccc3333),
     },
   };
 }

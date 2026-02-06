@@ -23,6 +23,11 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 
 ### Fixed
 
+- **`materializeSlice` duplicate replay**: Fixed bug where `payload.replay()` was always called even when `collectReceipts` was true, causing double materialization. Now branches cleanly: uses `reduceV5()` directly when collecting receipts, `ProvenancePayload.replay()` otherwise.
+- **`materializeSlice` double I/O optimization**: `_computeBackwardCone()` now returns `Map<sha, patch>` with already-loaded patches instead of `Set<sha>`, eliminating a second round of patch loading during slice materialization.
+- **Fork parameter validation error codes**: Changed error codes from `E_FORK_WRITER_NOT_FOUND`/`E_FORK_PATCH_NOT_FOUND` to `E_FORK_INVALID_ARGS` for missing/invalid `from` and `at` parameters. These codes now properly distinguish between "missing argument" vs "entity not found after lookup".
+- **Fork writer ID validation error code**: Changed error code from `E_FORK_NAME_INVALID` to `E_FORK_WRITER_ID_INVALID` when `forkWriterId` validation fails.
+- **Fork name collision prevention**: Auto-generated fork names now include a 4-character random suffix (e.g., `graph-fork-1234567890-abcd`) to prevent collisions when two `fork()` calls happen within the same millisecond.
 - **Consolidated full-state serialization**: `StateSerializerV5.serializeFullStateV5` and `deserializeFullStateV5` now delegate to `CheckpointSerializerV5`, ensuring BTR and Checkpoint use the same canonical format. Eliminates wire-format incompatibility between the two serializers.
 - **`ProvenanceIndex` missing entries guard**: `deserialize()` and `fromJSON()` now throw `"Missing or invalid ProvenanceIndex entries"` if the entries field is undefined or not an array, instead of failing with cryptic iteration errors.
 - **`ProvenanceIndex` deterministic iteration**: `[Symbol.iterator]` now uses `#sortedEntries()` to yield entities in deterministic sorted order, matching `toJSON()` and `serialize()` behavior.
@@ -40,6 +45,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 
 ### Refactored
 
+- **Extract `_onPatchCommitted` helper**: Consolidated the duplicated `onCommitSuccess` callback (from `createPatch()`, `writer()`, and `createWriter()`) into a single `_onPatchCommitted(writerId, opts)` method. Any future changes to post-commit behavior now happen in one place.
 - **`ProvenanceIndex` DRY refactor**: Extracted common patterns in `ProvenanceIndex` to reduce duplication; added defensive copy on `getPatchesFor()` return value to prevent external mutation.
 - **DRY up patch construction in `PatchBuilderV2`**: Have `commit()` use `createPatchV2()` for patch construction, consolidating the conditional reads/writes inclusion logic in one place.
 - **Consolidate `REQUIRED_FIELDS` in `BoundaryTransitionRecord`**: Use the module-level constant in `deserializeBTR()` instead of a local duplicate.
@@ -67,6 +73,18 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
   - Consolidated doubled async assertions in `WormholeService.test.js` (5 instances)
   - Created `test/helpers/warpGraphTestUtils.js` with shared utilities (OID generators, mock persistence, V2 operation helpers, patch factories) designed for parallel-safe execution
   - Refactored `patchesFor`, `materializeSlice`, `BoundaryTransitionRecord`, and `ProvenancePayload` tests to use shared utilities, removing ~250 lines of duplication
+  - Fixed non-deterministic dates in test helpers — `createMockPatchWithIO` and `createMockPatch` now use fixed date `'2026-01-01T00:00:00.000Z'` instead of `new Date().toISOString()`
+  - Fixed inconsistent SHA format in `createSamplePatches()` — now uses `generateOidFromNumber()` for 40-character OIDs instead of 8-character strings
+  - Refactored `WormholeService.test.js` to use shared utilities from `warpGraphTestUtils.js`, eliminating ~100 lines of duplicated helpers
+  - Converted 5 error tests in `WormholeService.test.js` from try/catch + `expect.fail()` to idiomatic `expect().rejects.toMatchObject()` pattern
+
+### TypeScript
+
+- **`ProvenanceIndex` type declarations**: Updated `index.d.ts` to match the runtime API:
+  - Changed `toJSON()` return type to `{ version: number; entries: Array<[string, string[]]> }`
+  - Changed `fromJSON()` parameter type to match
+  - Changed `addPatch()` return type from `void` to `this`
+  - Added missing methods: `static empty()`, `has()`, `entities()`, `clear()`, `merge()`, `serialize()`, `static deserialize()`, and `[Symbol.iterator]()`
 
 ## [7.7.1] — Documentation & Hardening
 
