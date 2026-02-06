@@ -358,9 +358,8 @@ describe('ProvenanceIndex', () => {
       expect(shas.length).toBe(4);
     });
 
-    it('stress: 1000 patches build time is reasonable', () => {
+    it('stress: 1000 patches index correctly', () => {
       const index = new ProvenanceIndex();
-      const start = Date.now();
 
       for (let i = 0; i < 1000; i++) {
         const reads = [`node:${i % 10}`, `node:${(i + 1) % 10}`];
@@ -368,12 +367,7 @@ describe('ProvenanceIndex', () => {
         index.addPatch(`patch-${i}`, reads, writes);
       }
 
-      const elapsed = Date.now() - start;
-
-      // Should complete in under 1 second (usually <100ms)
-      expect(elapsed).toBeLessThan(1000);
-
-      // Verify correctness
+      // Verify correctness (performance testing belongs in benchmarks, not unit tests)
       expect(index.size).toBe(10); // nodes 0-9
       expect(index.patchesFor('node:0').length).toBeGreaterThan(0);
     });
