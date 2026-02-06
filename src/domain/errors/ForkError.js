@@ -53,8 +53,9 @@ export default class ForkError extends Error {
   constructor(message, options = {}) {
     super(message);
     this.name = 'ForkError';
-    this.code = options.code || 'FORK_ERROR';
-    this.context = options.context || {};
+    const opts = options || {};
+    this.code = opts.code || 'FORK_ERROR';
+    this.context = opts.context || {};
     Error.captureStackTrace?.(this, this.constructor);
   }
 }

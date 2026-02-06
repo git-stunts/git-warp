@@ -38,6 +38,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 - **Fresh state guard in `materializeSlice`**: Now ensures fresh state before accessing the provenance index, preventing stale index reads after writes.
 - **Dirty state guard in `patchesFor`**: Added state guard to `patchesFor()` to throw `E_STALE_STATE` when cached state is dirty and `autoMaterialize` is off.
 - **HMAC key validation in BTR**: `createBTR()` now validates that the HMAC key is provided and non-empty, throwing early on misconfiguration.
+- **`ForkError` constructor null-safety**: Constructor now coalesces `options` before reading properties, so `new ForkError(msg, null)` no longer throws `TypeError`.
 - **Negative index support in `ProvenancePayload.at()`**: Negative indices now work correctly (e.g., `payload.at(-1)` returns the last patch), matching JavaScript array semantics.
 - **Defensive copies from `PatchBuilderV2` getters**: The `reads` and `writes` getters now return frozen copies instead of the live internal Sets, preventing external mutation.
 - **Forward `provenanceIndex` in `CheckpointService.create()`**: The `create()` wrapper now forwards the optional `provenanceIndex` parameter to `createV5()`, preventing silent data loss when using the convenience API.
