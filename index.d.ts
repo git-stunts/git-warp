@@ -1135,7 +1135,85 @@ export default class WarpGraph {
     /** Writer ID for the fork. Defaults to a new canonical ID. */
     forkWriterId?: string;
   }): Promise<WarpGraph>;
+
+  /**
+   * Creates a wormhole compressing a range of patches.
+   *
+   * The range is specified by two patch SHAs from the same writer. The `fromSha`
+   * must be an ancestor of `toSha` in the writer's patch chain.
+   */
+  createWormhole(fromSha: string, toSha: string): Promise<WormholeEdge>;
+
+  /**
+   * Returns patch SHAs that affected a given entity (node or edge).
+   *
+   * Requires a provenance index built during materialization.
+   *
+   * @throws {QueryError} If no provenance index exists (call materialize first)
+   */
+  patchesFor(entityId: string): string[];
+
+  /**
+   * Materializes only the backward causal cone for a specific node.
+   *
+   * Uses the provenance index to identify which patches contributed to the
+   * target node's state, then replays only those patches.
+   *
+   * @throws {QueryError} If no provenance index exists (call materialize first)
+   */
+  materializeSlice(nodeId: string, options?: {
+    /** If true, collect tick receipts */
+    receipts?: boolean;
+  }): Promise<{
+    state: WarpStateV5;
+    patchCount: number;
+    receipts?: TickReceipt[];
+  }>;
+
+  /**
+   * The provenance index mapping entities to contributing patches.
+   * Available after materialize() has been called.
+   */
+  readonly provenanceIndex: ProvenanceIndex | null;
 }
+
+/**
+ * Index mapping entities (nodes/edges) to the patches that affected them.
+ *
+ * Used for provenance queries and slice materialization.
+ */
+export class ProvenanceIndex {
+  constructor(initialIndex?: Map<string, Set<string>>);
+
+  /**
+   * Adds a patch to the index, recording which entities it read/wrote.
+   */
+  addPatch(patchSha: string, reads?: string[], writes?: string[]): void;
+
+  /**
+   * Returns patch SHAs that affected a given entity.
+   */
+  patchesFor(entityId: string): string[];
+
+  /**
+   * Number of entities tracked in the index.
+   */
+  readonly size: number;
+
+  /**
+   * Creates a deep clone of this index.
+   */
+  clone(): ProvenanceIndex;
+
+  /**
+   * Returns a JSON-serializable representation of this index.
+   */
+  toJSON(): Record<string, string[]>;
+
+  /**
+   * Creates a ProvenanceIndex from a JSON-serialized object.
+   */
+  static fromJSON(json: Record<string, string[]>): ProvenanceIndex;
 
 /**
  * Error thrown when a fork operation fails.
