@@ -1405,6 +1405,11 @@ async function main() {
     throw usageError(`Unknown command: ${command}`);
   }
 
+  const VIEW_SUPPORTED_COMMANDS = ['info', 'check'];
+  if (options.view && !VIEW_SUPPORTED_COMMANDS.includes(command)) {
+    throw usageError(`--view is not supported for '${command}'. Supported commands: ${VIEW_SUPPORTED_COMMANDS.join(', ')}`);
+  }
+
   const result = await handler({
     command,
     args: positionals.slice(1),
