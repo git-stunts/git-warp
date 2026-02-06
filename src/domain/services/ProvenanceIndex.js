@@ -59,10 +59,18 @@ class ProvenanceIndex {
   /**
    * Creates a new ProvenanceIndex.
    *
-   * @param {Map<string, Set<string>>} [initialIndex] - Optional initial index data
+   * @param {Map<string, Set<string>>} [initialIndex] - Optional initial index data (defensively copied)
    */
   constructor(initialIndex) {
-    this.#index = initialIndex || new Map();
+    if (initialIndex) {
+      // Defensive copy to prevent external mutation
+      this.#index = new Map();
+      for (const [k, v] of initialIndex) {
+        this.#index.set(k, new Set(v));
+      }
+    } else {
+      this.#index = new Map();
+    }
   }
 
   /**
@@ -216,6 +224,21 @@ class ProvenanceIndex {
   }
 
   /**
+   * Returns sorted entries for deterministic output.
+   *
+   * @returns {Array<[string, string[]]>} Sorted array of [entityId, sortedShas[]] pairs
+   * @private
+   */
+  #sortedEntries() {
+    const entries = [];
+    for (const [entityId, shas] of this.#index) {
+      entries.push([entityId, [...shas].sort()]);
+    }
+    entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    return entries;
+  }
+
+  /**
    * Serializes the index to CBOR format for checkpoint storage.
    *
    * The serialized format is a sorted array of [entityId, sortedShas[]] pairs
@@ -224,15 +247,22 @@ class ProvenanceIndex {
    * @returns {Buffer} CBOR-encoded index
    */
   serialize() {
-    // Convert to sorted array of [entityId, sortedShas] for determinism
-    const entries = [];
-    for (const [entityId, shas] of this.#index) {
-      entries.push([entityId, [...shas].sort()]);
-    }
-    // Sort by entityId for deterministic output
-    entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    return encode({ version: 1, entries: this.#sortedEntries() });
+  }
 
-    return encode({ version: 1, entries });
+  /**
+   * Builds an index Map from an entries array.
+   *
+   * @param {Array<[string, string[]]>} entries - Array of [entityId, shas[]] pairs
+   * @returns {Map<string, Set<string>>} The built index
+   * @private
+   */
+  static #buildIndex(entries) {
+    const index = new Map();
+    for (const [entityId, shas] of entries) {
+      index.set(entityId, new Set(shas));
+    }
+    return index;
   }
 
   /**
@@ -249,12 +279,7 @@ class ProvenanceIndex {
       throw new Error(`Unsupported ProvenanceIndex version: ${obj.version}`);
     }
 
-    const index = new Map();
-    for (const [entityId, shas] of obj.entries) {
-      index.set(entityId, new Set(shas));
-    }
-
-    return new ProvenanceIndex(index);
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries));
   }
 
   /**
@@ -263,12 +288,7 @@ class ProvenanceIndex {
    * @returns {Object} Object with version and entries array
    */
   toJSON() {
-    const entries = [];
-    for (const [entityId, shas] of this.#index) {
-      entries.push([entityId, [...shas].sort()]);
-    }
-    entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    return { version: 1, entries };
+    return { version: 1, entries: this.#sortedEntries() };
   }
 
   /**
@@ -283,12 +303,7 @@ class ProvenanceIndex {
       throw new Error(`Unsupported ProvenanceIndex version: ${json.version}`);
     }
 
-    const index = new Map();
-    for (const [entityId, shas] of json.entries) {
-      index.set(entityId, new Set(shas));
-    }
-
-    return new ProvenanceIndex(index);
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(json.entries));
   }
 
   /**

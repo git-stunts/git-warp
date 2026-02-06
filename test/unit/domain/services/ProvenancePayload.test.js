@@ -501,9 +501,24 @@ describe('ProvenancePayload', () => {
       const { patchA } = createSamplePatches();
       const payload = new ProvenancePayload([patchA]);
 
-      expect(payload.at(-1)).toBeUndefined();
+      // Positive out of bounds
       expect(payload.at(1)).toBeUndefined();
       expect(payload.at(100)).toBeUndefined();
+      // Negative out of bounds (beyond start)
+      expect(payload.at(-2)).toBeUndefined();
+      expect(payload.at(-100)).toBeUndefined();
+    });
+
+    it('supports negative indices like Array.prototype.at()', () => {
+      const { patchA, patchB, patchC } = createSamplePatches();
+      const payload = new ProvenancePayload([patchA, patchB, patchC]);
+
+      // -1 returns last element
+      expect(payload.at(-1)).toEqual(patchC);
+      // -2 returns second to last
+      expect(payload.at(-2)).toEqual(patchB);
+      // -3 returns first element
+      expect(payload.at(-3)).toEqual(patchA);
     });
   });
 
