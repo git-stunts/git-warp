@@ -48,6 +48,7 @@ import {
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
 import ObserverView from './src/domain/services/ObserverView.js';
+import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   createTickReceipt,
   canonicalJson as tickReceiptCanonicalJson,
@@ -124,6 +125,7 @@ export {
   WarpGraph,
   QueryBuilder,
   ObserverView,
+  computeTranslationCost,
 
   // WARP type creators
   createNodeAdd,

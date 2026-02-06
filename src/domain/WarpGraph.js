@@ -36,6 +36,7 @@ import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
 import ObserverView from './services/ObserverView.js';
+import { computeTranslationCost } from './services/TranslationCost.js';
 import LRUCache from './utils/LRUCache.js';
 import SyncError from './errors/SyncError.js';
 import QueryError from './errors/QueryError.js';
@@ -2373,6 +2374,43 @@ export default class WarpGraph {
   async observer(name, config) {
     await this._ensureFreshState();
     return new ObserverView({ name, config, graph: this });
+  }
+
+  /**
+   * Computes the directed MDL translation cost from observer A to observer B.
+   *
+   * The cost measures how much information is lost when translating from
+   * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached,
+   * or use autoMaterialize option when opening the graph.
+   *
+   * @param {Object} configA - Observer configuration for A
+   * @param {string} configA.match - Glob pattern for visible nodes
+   * @param {string[]} [configA.expose] - Property keys to include
+   * @param {string[]} [configA.redact] - Property keys to exclude
+   * @param {Object} configB - Observer configuration for B
+   * @param {string} configB.match - Glob pattern for visible nodes
+   * @param {string[]} [configB.expose] - Property keys to include
+   * @param {string[]} [configB.redact] - Property keys to exclude
+   * @returns {Promise<{cost: number, breakdown: {nodeLoss: number, edgeLoss: number, propLoss: number}}>}
+   * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {QueryError} If cached state is dirty (code: `E_STALE_STATE`)
+   *
+   * @see Paper IV, Section 4 -- Directed rulial cost
+   *
+   * @example
+   * await graph.materialize();
+   * const result = await graph.translationCost(
+   *   { match: 'user:*' },
+   *   { match: 'user:*', redact: ['ssn'] }
+   * );
+   * console.log(result.cost);       // e.g. 0.04
+   * console.log(result.breakdown);  // { nodeLoss: 0, edgeLoss: 0, propLoss: 0.2 }
+   */
+  async translationCost(configA, configB) {
+    await this._ensureFreshState();
+    return computeTranslationCost(configA, configB, this._cachedState);
   }
 
   /**

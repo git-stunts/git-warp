@@ -292,8 +292,8 @@ HOLOGRAM         (v8.0.0)  █████████████████�
   ■ HG/SLICE/1        
   ■ HG/WORM/1         
 
-ECHO             (v9.0.0)  █████████████░░░░░░░   67%  (2/3)
-  ◆ EC/COST/1         
+ECHO             (v9.0.0)  ████████████████████  100%  (3/3)
+  ■ EC/COST/1         
   ■ EC/TEMPORAL/1     
   ■ EC/VIEW/1           →  EC/COST/1
 
@@ -1834,7 +1834,7 @@ Paper IV defines observers as resource-bounded functors and introduces rulial di
 
 #### EC/COST/1 — Implement MDL cost estimation
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a system designer, I want to estimate how much information is lost when translating between two observer views.
 - **Requirements:**
   - `graph.translationCost(observerA, observerB)` returns `{ cost: number, breakdown: {...} }`.
