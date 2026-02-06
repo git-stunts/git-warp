@@ -2994,9 +2994,10 @@ export default class WarpGraph {
     const cone = new Map(); // sha → patch (cache loaded patches)
     const visited = new Set(); // Visited entities
     const queue = [nodeId]; // BFS queue of entities to process
+    let qi = 0;
 
-    while (queue.length > 0) {
-      const entityId = queue.shift();
+    while (qi < queue.length) {
+      const entityId = queue[qi++];
 
       if (visited.has(entityId)) {
         continue;

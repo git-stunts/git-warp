@@ -51,6 +51,7 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
 ### Refactored
 
 - **Deduplicate `createEmptyStateV5`**: `CheckpointSerializerV5` now imports `createEmptyStateV5` from `JoinReducer.js` instead of reimplementing it locally.
+- **`_computeBackwardCone` BFS optimization**: Replaced `queue.shift()` (O(n) per pop) with an index pointer for O(1) dequeue, avoiding quadratic behavior on large causal cones.
 - **Extract `_onPatchCommitted` helper**: Consolidated the duplicated `onCommitSuccess` callback (from `createPatch()`, `writer()`, and `createWriter()`) into a single `_onPatchCommitted(writerId, opts)` method. Any future changes to post-commit behavior now happen in one place.
 - **`ProvenanceIndex` DRY refactor**: Extracted common patterns in `ProvenanceIndex` to reduce duplication; added defensive copy on `getPatchesFor()` return value to prevent external mutation.
 - **DRY up patch construction in `PatchBuilderV2`**: Have `commit()` use `createPatchV2()` for patch construction, consolidating the conditional reads/writes inclusion logic in one place.
