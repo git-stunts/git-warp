@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "7.5.0",
+  "version": "8.0.0",
   "description": "An experimental implementation of the WARP architecture",
   "type": "module",
   "main": "index.js",
