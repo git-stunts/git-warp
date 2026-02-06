@@ -155,8 +155,9 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha })
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
 
-  const payload = new ProvenancePayload(patches);
   const writerId = patches.length > 0 ? patches[0].writerId : null;
+  // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
+  const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
 
   return { fromSha, toSha, writerId, payload, patchCount: patches.length };
 }
