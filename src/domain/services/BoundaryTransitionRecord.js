@@ -325,9 +325,8 @@ export function serializeBTR(btr) {
 export function deserializeBTR(bytes) {
   const obj = decode(bytes);
 
-  // Validate structure
-  const requiredFields = ['version', 'h_in', 'h_out', 'U_0', 'P', 't', 'kappa'];
-  for (const field of requiredFields) {
+  // Validate structure (reuse module-level constant for consistency with validateBTRStructure)
+  for (const field of REQUIRED_FIELDS) {
     if (!(field in obj)) {
       throw new Error(`Invalid BTR: missing field ${field}`);
     }
