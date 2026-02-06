@@ -1,0 +1,32 @@
+<svg viewBox="0 0 500 350" xmlns="http://www.w3.org/2000/svg">
+  <rect width="500" height="350" fill="#1e293b" rx="8"/>
+
+  <text x="250" y="30" fill="#60a5fa" font-family="monospace" font-size="14" text-anchor="middle">Observer: O_∂ (Boundary)</text>
+
+  <text x="30" y="65" fill="#94a3b8" font-family="monospace" font-size="11">DESCRIPTION</text>
+  <rect x="30" y="75" width="440" height="50" rx="4" fill="#0f172a" stroke="#334155"/>
+  <text x="50" y="95" fill="#e2e8f0" font-family="monospace" font-size="10">Maps history h to boundary artefact (U₀, P)</text>
+  <text x="50" y="115" fill="#64748b" font-family="monospace" font-size="9">Sees only the compact representation, not interior states</text>
+
+  <text x="30" y="150" fill="#94a3b8" font-family="monospace" font-size="11">TRACE FORMAT</text>
+  <rect x="30" y="160" width="440" height="40" rx="4" fill="#0f172a" stroke="#334155"/>
+  <text x="50" y="185" fill="#60a5fa" font-family="monospace" font-size="10">{ h_in: Hash, payload: [Patch], h_out: Hash, auth: Sig }</text>
+
+  <text x="30" y="225" fill="#94a3b8" font-family="monospace" font-size="11">TRANSLATIONS FROM O_∂</text>
+
+  <rect x="30" y="240" width="215" height="45" rx="4" fill="#14532d" stroke="#22c55e"/>
+  <text x="50" y="260" fill="#22c55e" font-family="monospace" font-size="10">→ O_sum: O(1)</text>
+  <text x="50" y="275" fill="#64748b" font-family="monospace" font-size="8">T: extract hash + patch count</text>
+
+  <rect x="255" y="240" width="215" height="45" rx="4" fill="#7c2d12" stroke="#f59e0b"/>
+  <text x="275" y="260" fill="#fbbf24" font-family="monospace" font-size="10">→ O_sem: O(n)</text>
+  <text x="275" y="275" fill="#64748b" font-family="monospace" font-size="8">T: replay + extract invariants</text>
+
+  <rect x="30" y="295" width="215" height="45" rx="4" fill="#450a0a" stroke="#ef4444"/>
+  <text x="50" y="315" fill="#ef4444" font-family="monospace" font-size="10">→ O_bulk: ∞</text>
+  <text x="50" y="330" fill="#64748b" font-family="monospace" font-size="8">T: replay exceeds τ budget</text>
+
+  <rect x="255" y="295" width="215" height="45" rx="4" fill="#450a0a" stroke="#ef4444"/>
+  <text x="275" y="315" fill="#ef4444" font-family="monospace" font-size="10">→ O_prov: ∞</text>
+  <text x="275" y="330" fill="#64748b" font-family="monospace" font-size="8">T: need bulk states first</text>
+</svg>

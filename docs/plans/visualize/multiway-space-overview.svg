@@ -1,0 +1,178 @@
+<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="mw-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+    </marker>
+    <marker id="det-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+    </marker>
+    <filter id="path-glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="500" y="35" fill="#e2e8f0" font-family="monospace" font-size="18" text-anchor="middle">Multiway Space MW(U, R)</text>
+  <text x="500" y="55" fill="#64748b" font-family="monospace" font-size="12" text-anchor="middle">Chronos (worldline) through the Aion (possibility space)</text>
+
+  <!-- Time axis label -->
+  <text x="30" y="100" fill="#64748b" font-family="monospace" font-size="10">tick 0</text>
+  <text x="30" y="200" fill="#64748b" font-family="monospace" font-size="10">tick 1</text>
+  <text x="30" y="300" fill="#64748b" font-family="monospace" font-size="10">tick 2</text>
+  <text x="30" y="400" fill="#64748b" font-family="monospace" font-size="10">tick 3</text>
+  <text x="30" y="500" fill="#64748b" font-family="monospace" font-size="10">tick 4</text>
+
+  <!-- Horizontal time lines -->
+  <line x1="70" y1="100" x2="750" y2="100" stroke="#1e293b" stroke-width="1"/>
+  <line x1="70" y1="200" x2="750" y2="200" stroke="#1e293b" stroke-width="1"/>
+  <line x1="70" y1="300" x2="750" y2="300" stroke="#1e293b" stroke-width="1"/>
+  <line x1="70" y1="400" x2="750" y2="400" stroke="#1e293b" stroke-width="1"/>
+  <line x1="70" y1="500" x2="750" y2="500" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- INITIAL STATE (tick 0) -->
+  <circle cx="400" cy="100" r="25" fill="#1e3a5f" stroke="#3b82f6" stroke-width="3" filter="url(#path-glow)"/>
+  <text x="400" y="105" fill="#60a5fa" font-family="monospace" font-size="11" text-anchor="middle">U₀</text>
+
+  <!-- TICK 1: Branch point (Kairos) -->
+  <!-- Alternative 1 (not taken) -->
+  <circle cx="250" cy="200" r="20" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="250" y="205" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₁ₐ</text>
+  <line x1="380" y1="120" x2="265" y2="185" stroke="#475569" stroke-width="1" opacity="0.5" marker-end="url(#mw-arrow)"/>
+  <text x="305" y="145" fill="#475569" font-family="monospace" font-size="7" opacity="0.5">μ₀ₐ</text>
+
+  <!-- Alternative 2 (TAKEN - on worldline) -->
+  <circle cx="400" cy="200" r="25" fill="#14532d" stroke="#22c55e" stroke-width="3" filter="url(#path-glow)"/>
+  <text x="400" y="205" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₁</text>
+  <line x1="400" y1="128" x2="400" y2="172" stroke="#22c55e" stroke-width="3" marker-end="url(#det-arrow)"/>
+  <text x="415" y="150" fill="#22c55e" font-family="monospace" font-size="9">μ₀ ✓</text>
+
+  <!-- Alternative 3 (not taken) -->
+  <circle cx="550" cy="200" r="20" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="550" y="205" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₁ᵦ</text>
+  <line x1="420" y1="120" x2="535" y2="185" stroke="#475569" stroke-width="1" opacity="0.5" marker-end="url(#mw-arrow)"/>
+  <text x="490" y="145" fill="#475569" font-family="monospace" font-size="7" opacity="0.5">μ₀ᵦ</text>
+
+  <!-- Kairos marker at tick 1 -->
+  <rect x="360" y="130" width="80" height="18" rx="9" fill="#7c2d12" stroke="#f59e0b"/>
+  <text x="400" y="143" fill="#fbbf24" font-family="monospace" font-size="8" text-anchor="middle">KAIROS</text>
+
+  <!-- TICK 2: Linear (no branching) -->
+  <circle cx="400" cy="300" r="25" fill="#14532d" stroke="#22c55e" stroke-width="3" filter="url(#path-glow)"/>
+  <text x="400" y="305" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₂</text>
+  <line x1="400" y1="228" x2="400" y2="272" stroke="#22c55e" stroke-width="3" marker-end="url(#det-arrow)"/>
+  <text x="415" y="250" fill="#22c55e" font-family="monospace" font-size="9">μ₁ ✓</text>
+
+  <!-- Continue alternative branch (not taken, dead end) -->
+  <circle cx="250" cy="300" r="18" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.3"/>
+  <text x="250" y="305" fill="#475569" font-family="monospace" font-size="8" text-anchor="middle" opacity="0.3">U₂ₐ</text>
+  <line x1="250" y1="222" x2="250" y2="280" stroke="#475569" stroke-width="1" opacity="0.3"/>
+
+  <!-- TICK 3: Another branch point -->
+  <!-- Alternative (not taken) -->
+  <circle cx="300" cy="400" r="20" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="300" y="405" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₃ₐ</text>
+  <line x1="385" y1="322" x2="315" y2="382" stroke="#475569" stroke-width="1" opacity="0.5" marker-end="url(#mw-arrow)"/>
+
+  <!-- TAKEN -->
+  <circle cx="450" cy="400" r="25" fill="#14532d" stroke="#22c55e" stroke-width="3" filter="url(#path-glow)"/>
+  <text x="450" y="405" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₃</text>
+  <line x1="410" y1="322" x2="440" y2="375" stroke="#22c55e" stroke-width="3" marker-end="url(#det-arrow)"/>
+  <text x="440" y="345" fill="#22c55e" font-family="monospace" font-size="9">μ₂ ✓</text>
+
+  <!-- Alternative (not taken) -->
+  <circle cx="550" cy="400" r="20" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="550" y="405" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₃ᵦ</text>
+  <line x1="415" y1="322" x2="535" y2="382" stroke="#475569" stroke-width="1" opacity="0.5" marker-end="url(#mw-arrow)"/>
+
+  <!-- Kairos marker at tick 3 -->
+  <rect x="410" y="330" width="80" height="18" rx="9" fill="#7c2d12" stroke="#f59e0b"/>
+  <text x="450" y="343" fill="#fbbf24" font-family="monospace" font-size="8" text-anchor="middle">KAIROS</text>
+
+  <!-- TICK 4: Merge point -->
+  <!-- Multiple paths converge -->
+  <circle cx="400" cy="500" r="25" fill="#14532d" stroke="#22c55e" stroke-width="3" filter="url(#path-glow)"/>
+  <text x="400" y="505" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₄</text>
+  <line x1="445" y1="425" x2="410" y2="475" stroke="#22c55e" stroke-width="3" marker-end="url(#det-arrow)"/>
+  <text x="440" y="450" fill="#22c55e" font-family="monospace" font-size="9">μ₃ ✓</text>
+
+  <!-- Alternative paths also reaching U₄ (merge) -->
+  <line x1="320" y1="418" x2="380" y2="480" stroke="#475569" stroke-width="1" opacity="0.4" stroke-dasharray="4,2"/>
+  <line x1="545" y1="420" x2="420" y2="480" stroke="#475569" stroke-width="1" opacity="0.4" stroke-dasharray="4,2"/>
+
+  <!-- Merge indicator -->
+  <rect x="360" y="530" width="80" height="18" rx="9" fill="#1e3a5f" stroke="#3b82f6"/>
+  <text x="400" y="543" fill="#60a5fa" font-family="monospace" font-size="8" text-anchor="middle">MERGE</text>
+
+  <!-- Legend Panel -->
+  <rect x="780" y="80" width="200" height="280" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="800" y="105" fill="#94a3b8" font-family="monospace" font-size="12">LEGEND</text>
+
+  <!-- Chronos -->
+  <circle cx="810" cy="140" r="12" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="830" y="145" fill="#22c55e" font-family="monospace" font-size="10">Chronos (worldline)</text>
+
+  <!-- Aion states -->
+  <circle cx="810" cy="175" r="12" fill="#1e293b" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="830" y="180" fill="#64748b" font-family="monospace" font-size="10">Aion (alternatives)</text>
+
+  <!-- Kairos -->
+  <rect x="798" y="200" width="24" height="14" rx="7" fill="#7c2d12" stroke="#f59e0b"/>
+  <text x="830" y="212" fill="#f59e0b" font-family="monospace" font-size="10">Kairos (branch)</text>
+
+  <!-- Merge -->
+  <rect x="798" y="230" width="24" height="14" rx="7" fill="#1e3a5f" stroke="#3b82f6"/>
+  <text x="830" y="242" fill="#60a5fa" font-family="monospace" font-size="10">Merge point</text>
+
+  <!-- Lines -->
+  <line x1="798" y1="270" x2="822" y2="270" stroke="#22c55e" stroke-width="3"/>
+  <text x="830" y="275" fill="#22c55e" font-family="monospace" font-size="10">Selected path</text>
+
+  <line x1="798" y1="300" x2="822" y2="300" stroke="#475569" stroke-width="1" opacity="0.5"/>
+  <text x="830" y="305" fill="#64748b" font-family="monospace" font-size="10">Alternative path</text>
+
+  <line x1="798" y1="330" x2="822" y2="330" stroke="#475569" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="830" y="335" fill="#64748b" font-family="monospace" font-size="10">Merge path</text>
+
+  <!-- Stats Panel -->
+  <rect x="780" y="380" width="200" height="180" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="800" y="405" fill="#94a3b8" font-family="monospace" font-size="12">METRICS</text>
+
+  <text x="800" y="435" fill="#64748b" font-family="monospace" font-size="10">States explored: 11</text>
+  <text x="800" y="455" fill="#64748b" font-family="monospace" font-size="10">Worldline length: 5</text>
+  <text x="800" y="475" fill="#64748b" font-family="monospace" font-size="10">Kairos points: 2</text>
+  <text x="800" y="495" fill="#64748b" font-family="monospace" font-size="10">Merge points: 1</text>
+  <text x="800" y="515" fill="#64748b" font-family="monospace" font-size="10">Branching factor: 2.2</text>
+  <text x="800" y="535" fill="#64748b" font-family="monospace" font-size="10">Dead ends: 3</text>
+
+  <!-- Controls -->
+  <rect x="30" y="580" width="950" height="60" rx="8" fill="#1e293b" stroke="#334155"/>
+
+  <text x="50" y="615" fill="#64748b" font-family="monospace" font-size="10">View:</text>
+  <rect x="90" y="598" width="100" height="28" rx="4" fill="#22c55e"/>
+  <text x="140" y="617" fill="#fff" font-family="monospace" font-size="10" text-anchor="middle">Worldline</text>
+
+  <rect x="200" y="598" width="100" height="28" rx="4" fill="#334155"/>
+  <text x="250" y="617" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">Full Graph</text>
+
+  <rect x="310" y="598" width="100" height="28" rx="4" fill="#334155"/>
+  <text x="360" y="617" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">Branches Only</text>
+
+  <text x="450" y="615" fill="#64748b" font-family="monospace" font-size="10">|</text>
+
+  <text x="480" y="615" fill="#64748b" font-family="monospace" font-size="10">Depth:</text>
+  <rect x="530" y="605" width="100" height="8" rx="4" fill="#334155"/>
+  <rect x="530" y="605" width="60" height="8" rx="4" fill="#3b82f6"/>
+  <text x="640" y="615" fill="#94a3b8" font-family="monospace" font-size="10">4</text>
+
+  <text x="700" y="615" fill="#64748b" font-family="monospace" font-size="10">|</text>
+
+  <rect x="730" y="598" width="120" height="28" rx="4" fill="#334155"/>
+  <text x="790" y="617" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">↻ Explore Alt</text>
+
+  <rect x="860" y="598" width="100" height="28" rx="4" fill="#334155"/>
+  <text x="910" y="617" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">📤 Export</text>
+</svg>

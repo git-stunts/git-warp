@@ -1,0 +1,335 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+    <filter id="coneGlow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5f5f5"/>
+      <stop offset="100%" style="stop-color:#e0e0e0"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#42a5f5"/>
+      <stop offset="100%" style="stop-color:#1976d2"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#26c6da"/>
+      <stop offset="100%" style="stop-color:#00838f"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#66bb6a"/>
+      <stop offset="100%" style="stop-color:#388e3c"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffb74d"/>
+      <stop offset="100%" style="stop-color:#f57c00"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#666"/>
+    </marker>
+    <marker id="coneArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#00bcd4"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="600" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">Causal Cone Slicer - Interaction Sequence</text>
+
+  <!-- Panel 1: Initial View (full provenance graph) -->
+  <g transform="translate(20, 50)">
+    <rect width="420" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="420" height="28" rx="12" fill="url(#blueGrad)"/>
+    <rect x="0" y="14" width="420" height="14" fill="url(#blueGrad)"/>
+    <text x="210" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">1. Initial View - Full Provenance Graph</text>
+
+    <!-- Graph area -->
+    <rect x="15" y="40" width="250" height="185" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="25" y="55" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#666">PROVENANCE GRAPH</text>
+
+    <!-- All nodes equal (no cone selected yet) -->
+    <!-- Layer 1: Source values -->
+    <circle cx="55" cy="90" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="55" y="94" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c1</text>
+
+    <circle cx="115" cy="85" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="115" y="89" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c2</text>
+
+    <circle cx="55" cy="155" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="55" y="159" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c3</text>
+
+    <circle cx="115" cy="160" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="115" y="164" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">v1</text>
+
+    <!-- Layer 2: Intermediate -->
+    <circle cx="165" cy="95" r="14" fill="#e8f5e9" stroke="#4caf50" stroke-width="1.5"/>
+    <text x="165" y="93" text-anchor="middle" font-family="monospace" font-size="7" fill="#2e7d32">sum</text>
+    <text x="165" y="102" text-anchor="middle" font-family="monospace" font-size="6" fill="#2e7d32">12</text>
+
+    <circle cx="165" cy="165" r="14" fill="#e8f5e9" stroke="#4caf50" stroke-width="1.5"/>
+    <text x="165" y="163" text-anchor="middle" font-family="monospace" font-size="7" fill="#2e7d32">sum</text>
+    <text x="165" y="172" text-anchor="middle" font-family="monospace" font-size="6" fill="#2e7d32">3</text>
+
+    <!-- Layer 3: Final -->
+    <circle cx="220" cy="125" r="16" fill="#fff3e0" stroke="#ff9800" stroke-width="1.5"/>
+    <text x="220" y="129" text-anchor="middle" font-family="monospace" font-size="8" fill="#e65100">total</text>
+
+    <!-- Edges (all grey, equal) -->
+    <line x1="68" y1="87" x2="152" y2="93" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="115" y1="72" x2="152" y2="88" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="68" y1="155" x2="152" y2="162" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="178" y1="100" x2="205" y2="118" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="178" y1="160" x2="205" y2="132" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Outside cone node (v1 has no path to total) -->
+    <line x1="128" y1="158" x2="150" y2="155" stroke="#999" stroke-width="1" opacity="0.5"/>
+
+    <!-- Info panel -->
+    <rect x="275" y="40" width="130" height="185" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="285" y="58" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#666">Instructions</text>
+
+    <text x="285" y="80" font-family="Arial, sans-serif" font-size="9" fill="#333">Click any value</text>
+    <text x="285" y="95" font-family="Arial, sans-serif" font-size="9" fill="#333">to view its</text>
+    <text x="285" y="110" font-family="Arial, sans-serif" font-size="9" fill="#333">causal cone.</text>
+
+    <rect x="285" y="125" width="110" height="25" rx="4" fill="#e3f2fd" stroke="#2196f3"/>
+    <text x="340" y="142" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565c0">No target selected</text>
+
+    <text x="285" y="175" font-family="Arial, sans-serif" font-size="9" fill="#666">All values shown</text>
+    <text x="285" y="190" font-family="Arial, sans-serif" font-size="9" fill="#666">equally weighted</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <g transform="translate(445, 170)">
+    <path d="M0,0 L20,0" stroke="#2196f3" stroke-width="3" fill="none"/>
+    <polygon points="20,-5 32,0 20,5" fill="#2196f3"/>
+  </g>
+
+  <!-- Panel 2: Select Target -->
+  <g transform="translate(460, 50)">
+    <rect width="420" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="420" height="28" rx="12" fill="url(#amberGrad)"/>
+    <rect x="0" y="14" width="420" height="14" fill="url(#amberGrad)"/>
+    <text x="210" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">2. Select Target - Click "total"</text>
+
+    <!-- Graph area -->
+    <rect x="15" y="40" width="250" height="185" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="25" y="55" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#666">PROVENANCE GRAPH</text>
+
+    <!-- Nodes (same as before but total is highlighted with cursor) -->
+    <circle cx="55" cy="90" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="55" y="94" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c1</text>
+
+    <circle cx="115" cy="85" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="115" y="89" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c2</text>
+
+    <circle cx="55" cy="155" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="55" y="159" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">c3</text>
+
+    <circle cx="115" cy="160" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="1.5"/>
+    <text x="115" y="164" text-anchor="middle" font-family="monospace" font-size="8" fill="#1565c0">v1</text>
+
+    <circle cx="165" cy="95" r="14" fill="#e8f5e9" stroke="#4caf50" stroke-width="1.5"/>
+    <text x="165" y="93" text-anchor="middle" font-family="monospace" font-size="7" fill="#2e7d32">sum</text>
+    <text x="165" y="102" text-anchor="middle" font-family="monospace" font-size="6" fill="#2e7d32">12</text>
+
+    <circle cx="165" cy="165" r="14" fill="#e8f5e9" stroke="#4caf50" stroke-width="1.5"/>
+    <text x="165" y="163" text-anchor="middle" font-family="monospace" font-size="7" fill="#2e7d32">sum</text>
+    <text x="165" y="172" text-anchor="middle" font-family="monospace" font-size="6" fill="#2e7d32">3</text>
+
+    <!-- Target with selection ring and cursor -->
+    <circle cx="220" cy="125" r="20" fill="none" stroke="#ff9800" stroke-width="2" stroke-dasharray="4,2">
+      <animate attributeName="stroke-dashoffset" from="0" to="12" dur="0.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="220" cy="125" r="16" fill="#fff3e0" stroke="#ff9800" stroke-width="2"/>
+    <text x="220" y="129" text-anchor="middle" font-family="monospace" font-size="8" fill="#e65100">total</text>
+
+    <!-- Cursor clicking on total -->
+    <polygon points="235,140 245,155 240,155 243,165 237,165 234,155 229,155" fill="#333"/>
+    <circle cx="235" cy="140" r="6" fill="none" stroke="#ff9800" stroke-width="2" opacity="0.6"/>
+
+    <!-- Edges -->
+    <line x1="68" y1="87" x2="152" y2="93" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="115" y1="72" x2="152" y2="88" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="68" y1="155" x2="152" y2="162" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="178" y1="100" x2="205" y2="118" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="178" y1="160" x2="205" y2="132" stroke="#999" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="128" y1="158" x2="150" y2="155" stroke="#999" stroke-width="1" opacity="0.5"/>
+
+    <!-- Info panel -->
+    <rect x="275" y="40" width="130" height="185" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="285" y="58" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Computing...</text>
+
+    <text x="285" y="80" font-family="Arial, sans-serif" font-size="9" fill="#333">Target selected:</text>
+    <rect x="285" y="88" width="60" height="20" rx="4" fill="#fff3e0" stroke="#ff9800"/>
+    <text x="315" y="102" text-anchor="middle" font-family="monospace" font-size="9" fill="#e65100">total</text>
+
+    <!-- Computing indicator -->
+    <circle cx="340" cy="140" r="15" fill="none" stroke="#e0e0e0" stroke-width="3"/>
+    <path d="M340 125 A15 15 0 0 1 355 140" stroke="#ff9800" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <text x="340" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Computing</text>
+    <text x="340" y="182" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">D(total)...</text>
+  </g>
+
+  <!-- Panel 3: Analyze Dependencies (cone highlighted) -->
+  <g transform="translate(20, 310)">
+    <rect width="420" height="270" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="420" height="28" rx="12" fill="url(#cyanGrad)"/>
+    <rect x="0" y="14" width="420" height="14" fill="url(#cyanGrad)"/>
+    <text x="210" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">3. Analyze Dependencies - Cone Highlighted</text>
+
+    <!-- Graph area -->
+    <rect x="15" y="40" width="250" height="215" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="25" y="55" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#00838f">CAUSAL CONE D(total)</text>
+
+    <!-- Outside cone nodes (faded) -->
+    <circle cx="115" cy="175" r="14" fill="#f5f5f5" stroke="#9e9e9e" stroke-width="1" opacity="0.4"/>
+    <text x="115" y="179" text-anchor="middle" font-family="monospace" font-size="8" fill="#9e9e9e">v1</text>
+
+    <!-- IN CONE: highlighted with cyan glow -->
+    <!-- Source values in cone -->
+    <circle cx="55" cy="100" r="15" fill="#e0f7fa" stroke="#00bcd4" stroke-width="2" filter="url(#coneGlow)"/>
+    <text x="55" y="104" text-anchor="middle" font-family="monospace" font-size="8" fill="#00838f">c1</text>
+
+    <circle cx="115" cy="95" r="15" fill="#e0f7fa" stroke="#00bcd4" stroke-width="2" filter="url(#coneGlow)"/>
+    <text x="115" y="99" text-anchor="middle" font-family="monospace" font-size="8" fill="#00838f">c2</text>
+
+    <circle cx="55" cy="175" r="15" fill="#e0f7fa" stroke="#00bcd4" stroke-width="2" filter="url(#coneGlow)"/>
+    <text x="55" y="179" text-anchor="middle" font-family="monospace" font-size="8" fill="#00838f">c3</text>
+
+    <!-- Intermediate values in cone -->
+    <circle cx="160" cy="105" r="15" fill="#b2ebf2" stroke="#00bcd4" stroke-width="2" filter="url(#coneGlow)"/>
+    <text x="160" y="103" text-anchor="middle" font-family="monospace" font-size="7" fill="#00838f">sum</text>
+    <text x="160" y="112" text-anchor="middle" font-family="monospace" font-size="6" fill="#00838f">12</text>
+
+    <circle cx="160" cy="175" r="15" fill="#b2ebf2" stroke="#00bcd4" stroke-width="2" filter="url(#coneGlow)"/>
+    <text x="160" y="173" text-anchor="middle" font-family="monospace" font-size="7" fill="#00838f">sum</text>
+    <text x="160" y="182" text-anchor="middle" font-family="monospace" font-size="6" fill="#00838f">3</text>
+
+    <!-- Target value (glow) -->
+    <circle cx="215" cy="140" r="18" fill="#80deea" stroke="#00bcd4" stroke-width="3" filter="url(#coneGlow)"/>
+    <text x="215" y="138" text-anchor="middle" font-family="monospace" font-size="9" fill="#006064">total</text>
+    <text x="215" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" fill="#006064">TARGET</text>
+
+    <!-- Cone edges (cyan) -->
+    <line x1="69" y1="97" x2="146" y2="103" stroke="#00bcd4" stroke-width="2" marker-end="url(#coneArrow)"/>
+    <line x1="115" y1="81" x2="146" y2="98" stroke="#00bcd4" stroke-width="2" marker-end="url(#coneArrow)"/>
+    <line x1="69" y1="175" x2="146" y2="175" stroke="#00bcd4" stroke-width="2" marker-end="url(#coneArrow)"/>
+    <line x1="173" y1="110" x2="200" y2="130" stroke="#00bcd4" stroke-width="2" marker-end="url(#coneArrow)"/>
+    <line x1="173" y1="170" x2="200" y2="150" stroke="#00bcd4" stroke-width="2" marker-end="url(#coneArrow)"/>
+
+    <!-- Patch labels on edges -->
+    <rect x="90" y="85" width="22" height="12" rx="3" fill="#00bcd4"/>
+    <text x="101" y="94" text-anchor="middle" font-family="monospace" font-size="7" fill="white">u2</text>
+
+    <rect x="90" y="168" width="22" height="12" rx="3" fill="#00bcd4"/>
+    <text x="101" y="177" text-anchor="middle" font-family="monospace" font-size="7" fill="white">u3</text>
+
+    <rect x="185" y="118" width="22" height="12" rx="3" fill="#00bcd4"/>
+    <text x="196" y="127" text-anchor="middle" font-family="monospace" font-size="7" fill="white">u5</text>
+
+    <!-- Slice payload panel -->
+    <rect x="275" y="40" width="130" height="215" rx="6" fill="#e0f7fa" stroke="#00bcd4"/>
+    <text x="285" y="58" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#00838f">SLICE PAYLOAD</text>
+
+    <text x="285" y="78" font-family="Arial, sans-serif" font-size="9" fill="#333">Required patches:</text>
+
+    <rect x="285" y="85" width="110" height="22" rx="3" fill="white" stroke="#00bcd4"/>
+    <text x="290" y="100" font-family="monospace" font-size="8" fill="#00838f">u2: c1+c2 = sum12</text>
+
+    <rect x="285" y="112" width="110" height="22" rx="3" fill="white" stroke="#00bcd4"/>
+    <text x="290" y="127" font-family="monospace" font-size="8" fill="#00838f">u3: c3 = sum3</text>
+
+    <rect x="285" y="139" width="110" height="22" rx="3" fill="white" stroke="#00bcd4"/>
+    <text x="290" y="154" font-family="monospace" font-size="8" fill="#00838f">u5: sum = total</text>
+
+    <line x1="285" y1="172" x2="395" y2="172" stroke="#b2ebf2"/>
+
+    <text x="285" y="188" font-family="Arial, sans-serif" font-size="9" fill="#666">Skipped:</text>
+    <text x="285" y="202" font-family="monospace" font-size="8" fill="#9e9e9e">u0, u1, u4, u6, u7, u8</text>
+
+    <rect x="285" y="215" width="110" height="30" rx="4" fill="#00bcd4"/>
+    <text x="340" y="234" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">67% savings</text>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <g transform="translate(445, 445)">
+    <path d="M0,0 L20,0" stroke="#4caf50" stroke-width="3" fill="none"/>
+    <polygon points="20,-5 32,0 20,5" fill="#4caf50"/>
+  </g>
+
+  <!-- Panel 4: Replay Slice -->
+  <g transform="translate(460, 310)">
+    <rect width="420" height="270" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="420" height="28" rx="12" fill="url(#greenGrad)"/>
+    <rect x="0" y="14" width="420" height="14" fill="url(#greenGrad)"/>
+    <text x="210" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">4. Replay Slice - Partial Materialization</text>
+
+    <!-- Replay visualization area -->
+    <rect x="15" y="40" width="250" height="215" rx="6" fill="#e8f5e9" stroke="#4caf50"/>
+    <text x="25" y="55" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#2e7d32">REPLAYING SLICE</text>
+
+    <!-- Animated replay showing values appearing -->
+    <!-- Step markers -->
+    <rect x="25" y="65" width="230" height="40" rx="4" fill="white" stroke="#4caf50"/>
+    <text x="35" y="80" font-family="monospace" font-size="8" fill="#2e7d32">Step 1: Load initial values</text>
+    <text x="35" y="95" font-family="monospace" font-size="8" fill="#666">c1=10, c2=20, c3=15</text>
+    <circle cx="235" cy="85" r="8" fill="#4caf50"/>
+    <path d="M231 85 L234 88 L239 83" stroke="white" stroke-width="1.5" fill="none"/>
+
+    <rect x="25" y="110" width="230" height="40" rx="4" fill="white" stroke="#4caf50"/>
+    <text x="35" y="125" font-family="monospace" font-size="8" fill="#2e7d32">Step 2: Apply u2, u3</text>
+    <text x="35" y="140" font-family="monospace" font-size="8" fill="#666">sum12=30, sum3=15</text>
+    <circle cx="235" cy="130" r="8" fill="#4caf50"/>
+    <path d="M231 130 L234 133 L239 128" stroke="white" stroke-width="1.5" fill="none"/>
+
+    <rect x="25" y="155" width="230" height="40" rx="4" fill="white" stroke="#4caf50"/>
+    <text x="35" y="170" font-family="monospace" font-size="8" fill="#2e7d32">Step 3: Apply u5</text>
+    <text x="35" y="185" font-family="monospace" font-size="8" fill="#666">total=45</text>
+    <circle cx="235" cy="175" r="8" fill="#4caf50"/>
+    <path d="M231 175 L234 178 L239 173" stroke="white" stroke-width="1.5" fill="none"/>
+
+    <!-- Result box -->
+    <rect x="25" y="200" width="230" height="45" rx="4" fill="#c8e6c9" stroke="#4caf50" stroke-width="2"/>
+    <text x="140" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#2e7d32">Result: total = 45</text>
+    <text x="140" y="236" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#388e3c">Verified: hash matches full replay</text>
+
+    <!-- Efficiency stats panel -->
+    <rect x="275" y="40" width="130" height="215" rx="6" fill="#fafafa" stroke="#ddd"/>
+    <text x="285" y="58" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#2e7d32">EFFICIENCY STATS</text>
+
+    <!-- Full payload bar -->
+    <text x="285" y="80" font-family="Arial, sans-serif" font-size="9" fill="#666">Full payload:</text>
+    <rect x="285" y="88" width="110" height="14" rx="3" fill="#e0e0e0"/>
+    <rect x="285" y="88" width="110" height="14" rx="3" fill="#90a4ae"/>
+    <text x="340" y="99" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">9 patches</text>
+
+    <!-- Slice payload bar -->
+    <text x="285" y="120" font-family="Arial, sans-serif" font-size="9" fill="#666">Slice payload:</text>
+    <rect x="285" y="128" width="110" height="14" rx="3" fill="#e0e0e0"/>
+    <rect x="285" y="128" width="37" height="14" rx="3" fill="#4caf50"/>
+    <text x="310" y="139" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">3</text>
+
+    <!-- Savings callout -->
+    <rect x="285" y="155" width="110" height="50" rx="6" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+    <text x="340" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2e7d32">67%</text>
+    <text x="340" y="192" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#388e3c">reduction</text>
+
+    <!-- Hash verification -->
+    <rect x="285" y="215" width="110" height="30" rx="4" fill="#c8e6c9"/>
+    <circle cx="300" cy="230" r="8" fill="#4caf50"/>
+    <path d="M296 230 L299 233 L304 228" stroke="white" stroke-width="2" fill="none"/>
+    <text x="320" y="234" font-family="Arial, sans-serif" font-size="9" fill="#2e7d32">Hash verified</text>
+  </g>
+
+  <!-- Legend at bottom -->
+  <rect x="20" y="590" width="860" height="2" fill="#ddd"/>
+</svg>

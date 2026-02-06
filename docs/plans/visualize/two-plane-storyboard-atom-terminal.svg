@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#333">Atom Terminal Sequence</text>
+
+  <!-- Panel 1: Deep in the hierarchy -->
+  <g transform="translate(20, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 1: Deep in Hierarchy</text>
+
+    <!-- Breadcrumb -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#f3e5f5"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="8" fill="#7b1fa2">root &gt; v2 &gt; u2 &gt; w1</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#7e57c2"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">depth 3</text>
+
+    <!-- Context layer -->
+    <rect x="15" y="55" width="230" height="35" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="8" fill="#bbb">alpha(u2) (context)</text>
+    <circle cx="70" cy="80" r="6" fill="#ffe0b2" stroke="#ffb74d"/>
+    <circle cx="110" cy="76" r="8" fill="#ffe0b2" stroke="#ff9800" stroke-width="2"/>
+    <text x="110" y="79" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#e65100">w1</text>
+    <circle cx="150" cy="80" r="6" fill="#ffe0b2" stroke="#ffb74d"/>
+
+    <!-- Current level with leaf nodes -->
+    <rect x="15" y="100" width="230" height="115" rx="4" fill="#fff" stroke="#9c27b0" stroke-width="2"/>
+    <text x="25" y="115" font-family="system-ui, sans-serif" font-size="9" fill="#7b1fa2" font-weight="bold">alpha(w1)</text>
+
+    <!-- Mixed nodes - some are atoms -->
+    <circle cx="60" cy="155" r="12" fill="#e1bee7" stroke="#9c27b0" stroke-width="2"/>
+    <text x="60" y="159" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#4a148c">z1</text>
+
+    <!-- Atom leaf - distinct style -->
+    <rect x="100" y="140" width="40" height="30" rx="4" fill="#f3e5f5" stroke="#9c27b0" stroke-width="2"/>
+    <text x="120" y="152" text-anchor="middle" font-family="system-ui, sans-serif" font-size="7" fill="#7b1fa2">Atom</text>
+    <text x="120" y="163" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#9c27b0">(p)</text>
+
+    <circle cx="180" cy="155" r="12" fill="#e1bee7" stroke="#9c27b0" stroke-width="2"/>
+    <text x="180" y="159" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#4a148c">z2</text>
+
+    <line x1="72" y1="153" x2="100" y2="155" stroke="#9c27b0" stroke-width="1.5"/>
+    <line x1="140" y1="155" x2="168" y2="155" stroke="#9c27b0" stroke-width="1.5"/>
+
+    <!-- Cursor pointing to atom -->
+    <path d="M135,145 L135,161 L142,155 L138,155 L143,165 L140,166 L135,156 L135,161" fill="#333"/>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">User clicks Atom(p) leaf</text>
+  </g>
+
+  <!-- Arrow 1-2 -->
+  <path d="M290,170 L320,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 2: Atom selected -->
+  <g transform="translate(330, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 2: Atom Selected</text>
+
+    <!-- Breadcrumb - terminal -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#fce4ec"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="7" fill="#c2185b">root &gt; v2 &gt; u2 &gt; w1 &gt; Atom</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#e91e63"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">LEAF</text>
+
+    <!-- Context layer -->
+    <rect x="15" y="55" width="230" height="35" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="8" fill="#bbb">alpha(w1) (context)</text>
+    <circle cx="60" cy="80" r="6" fill="#e1bee7" stroke="#ba68c8"/>
+    <rect x="95" y="73" width="30" height="14" rx="2" fill="#e1bee7" stroke="#9c27b0" stroke-width="2"/>
+    <text x="110" y="83" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#7b1fa2">Atom</text>
+    <circle cx="160" cy="80" r="6" fill="#e1bee7" stroke="#ba68c8"/>
+
+    <!-- Attachment plane showing "terminal" state -->
+    <rect x="15" y="100" width="230" height="115" rx="4" fill="#fff" stroke="#e91e63" stroke-width="2"/>
+    <text x="25" y="115" font-family="system-ui, sans-serif" font-size="9" fill="#c2185b" font-weight="bold">Terminal: Cannot drill deeper</text>
+
+    <!-- Atom payload preview -->
+    <rect x="30" y="125" width="200" height="80" rx="4" fill="#fce4ec" stroke="#f48fb1"/>
+
+    <text x="130" y="145" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#c2185b" font-weight="bold">Atom(p)</text>
+    <text x="130" y="165" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#666">No further attachments</text>
+    <text x="130" y="185" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#999">Payload available below...</text>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">Terminal node identified</text>
+  </g>
+
+  <!-- Arrow 2-3 -->
+  <path d="M600,170 L630,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 3: Payload display -->
+  <g transform="translate(640, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 3: Payload Displayed</text>
+
+    <!-- Breadcrumb -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#fce4ec"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="7" fill="#c2185b">root &gt; v2 &gt; u2 &gt; w1 &gt; Atom</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#e91e63"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">LEAF</text>
+
+    <!-- Context layer -->
+    <rect x="15" y="55" width="230" height="35" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="8" fill="#bbb">alpha(w1) (context)</text>
+    <circle cx="60" cy="80" r="6" fill="#e1bee7" stroke="#ba68c8"/>
+    <rect x="95" y="73" width="30" height="14" rx="2" fill="#fce4ec" stroke="#e91e63" stroke-width="2"/>
+    <text x="110" y="83" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#c2185b">Atom</text>
+    <circle cx="160" cy="80" r="6" fill="#e1bee7" stroke="#ba68c8"/>
+
+    <!-- Payload panel -->
+    <rect x="15" y="100" width="230" height="115" rx="4" fill="#fff" stroke="#4caf50" stroke-width="2"/>
+    <text x="25" y="115" font-family="system-ui, sans-serif" font-size="9" fill="#2e7d32" font-weight="bold">Payload Inspector</text>
+
+    <!-- Payload details card -->
+    <rect x="25" y="122" width="210" height="85" rx="4" fill="#e8f5e9" stroke="#a5d6a7"/>
+
+    <!-- Type icon and label -->
+    <rect x="35" y="130" width="60" height="18" rx="3" fill="#c8e6c9"/>
+    <text x="65" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#2e7d32">blob</text>
+
+    <!-- Hash -->
+    <text x="35" y="162" font-family="system-ui, sans-serif" font-size="9" fill="#666">SHA:</text>
+    <text x="60" y="162" font-family="monospace" font-size="8" fill="#1565c0">0x7f3a2b...</text>
+
+    <!-- Size -->
+    <text x="145" y="162" font-family="system-ui, sans-serif" font-size="9" fill="#666">Size:</text>
+    <text x="175" y="162" font-family="monospace" font-size="8" fill="#1565c0">1.2 KB</text>
+
+    <!-- Preview -->
+    <text x="35" y="180" font-family="system-ui, sans-serif" font-size="9" fill="#666">Preview:</text>
+    <rect x="35" y="185" width="190" height="16" rx="2" fill="#fff" stroke="#c8e6c9"/>
+    <text x="40" y="196" font-family="monospace" font-size="7" fill="#333">{  "type": "config", ... }</text>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">Opaque payload revealed</text>
+  </g>
+
+  <!-- Bottom row: Complete atom view -->
+  <g transform="translate(200, 310)">
+    <rect width="500" height="260" rx="8" fill="#fff" stroke="#4caf50" stroke-width="3" filter="url(#shadow)"/>
+    <rect width="500" height="24" rx="8" fill="#e8f5e9" stroke="#4caf50" stroke-width="1"/>
+    <text x="250" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#2e7d32">Complete Atom View</text>
+
+    <!-- Full breadcrumb -->
+    <rect x="15" y="32" width="470" height="20" rx="3" fill="#fce4ec"/>
+    <text x="25" y="46" font-family="system-ui, sans-serif" font-size="9" fill="#666">
+      <tspan fill="#2196f3">root</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#2196f3">v2</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#4caf50">u2</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#ff9800">w1</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#e91e63" font-weight="bold">Atom(p)</tspan>
+    </text>
+
+    <!-- Two-column layout -->
+    <!-- Left: Context stack -->
+    <rect x="15" y="60" width="220" height="180" rx="4" fill="#fafafa" stroke="#e0e0e0"/>
+    <text x="25" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#999" font-weight="bold">Navigation Path</text>
+
+    <!-- Compressed path visualization -->
+    <rect x="25" y="85" width="200" height="25" rx="3" fill="#e3f2fd" stroke="#90caf9"/>
+    <text x="35" y="101" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">G(v2) -> alpha(v2)</text>
+
+    <path d="M125,110 L125,120" stroke="#bbb" stroke-width="1"/>
+
+    <rect x="25" y="120" width="200" height="25" rx="3" fill="#c8e6c9" stroke="#81c784"/>
+    <text x="35" y="136" font-family="system-ui, sans-serif" font-size="9" fill="#388e3c">alpha(v2)(u2) -> alpha(u2)</text>
+
+    <path d="M125,145 L125,155" stroke="#bbb" stroke-width="1"/>
+
+    <rect x="25" y="155" width="200" height="25" rx="3" fill="#ffe0b2" stroke="#ffb74d"/>
+    <text x="35" y="171" font-family="system-ui, sans-serif" font-size="9" fill="#ef6c00">alpha(u2)(w1) -> alpha(w1)</text>
+
+    <path d="M125,180 L125,190" stroke="#bbb" stroke-width="1"/>
+
+    <rect x="25" y="190" width="200" height="30" rx="3" fill="#fce4ec" stroke="#f48fb1" stroke-width="2"/>
+    <text x="35" y="206" font-family="system-ui, sans-serif" font-size="9" fill="#c2185b" font-weight="bold">alpha(w1)(?) = Atom(p)</text>
+    <text x="35" y="216" font-family="system-ui, sans-serif" font-size="8" fill="#999">Terminal: no further nesting</text>
+
+    <!-- Right: Payload details -->
+    <rect x="250" y="60" width="235" height="180" rx="4" fill="#fff" stroke="#4caf50" stroke-width="2"/>
+    <text x="260" y="78" font-family="system-ui, sans-serif" font-size="11" fill="#2e7d32" font-weight="bold">Atom Payload Details</text>
+
+    <!-- Payload info card -->
+    <rect x="260" y="88" width="215" height="140" rx="4" fill="#e8f5e9"/>
+
+    <!-- Type badge -->
+    <rect x="270" y="98" width="50" height="20" rx="4" fill="#4caf50"/>
+    <text x="295" y="112" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#fff">blob</text>
+
+    <!-- Metadata -->
+    <text x="270" y="135" font-family="system-ui, sans-serif" font-size="10" fill="#333" font-weight="bold">Metadata</text>
+    <text x="270" y="150" font-family="system-ui, sans-serif" font-size="9" fill="#666">SHA: <tspan font-family="monospace" fill="#1565c0">0x7f3a2b9c...</tspan></text>
+    <text x="270" y="165" font-family="system-ui, sans-serif" font-size="9" fill="#666">Size: <tspan font-family="monospace" fill="#1565c0">1,234 bytes</tspan></text>
+    <text x="270" y="180" font-family="system-ui, sans-serif" font-size="9" fill="#666">MIME: <tspan font-family="monospace" fill="#1565c0">application/json</tspan></text>
+
+    <!-- Preview section -->
+    <text x="270" y="200" font-family="system-ui, sans-serif" font-size="10" fill="#333" font-weight="bold">Content Preview</text>
+    <rect x="270" y="205" width="195" height="18" rx="2" fill="#fff" stroke="#c8e6c9"/>
+    <text x="275" y="217" font-family="monospace" font-size="8" fill="#333">{ "type": "config", "v": 2 }</text>
+
+    <!-- Status bar -->
+    <rect x="15" y="245" width="470" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="25" y="254" font-family="monospace" font-size="8" fill="#666">Terminal node | Press ESC to go up | Click breadcrumb to jump | Copy payload: Ctrl+C</text>
+  </g>
+
+  <!-- Arrow from panel 3 to final -->
+  <path d="M770,290 L770,310 L710,310" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+</svg>

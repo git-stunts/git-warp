@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.0] - 2025-02-06
+
+### Added
+- **Visualization system** - New `--view` flag for visual ASCII output
+  - `git warp --view info` - Graph overview with writer timelines and box-framed summaries
+  - `git warp --view check` - Health dashboard with progress bars and status indicators
+- Visualization module scaffold (`src/visualization/`) with ASCII renderers and utilities
+- Snapshot tests for ASCII renderer output stability
+
+### Infrastructure
+- Added dependencies: chalk, boxen, cli-table3, figures, string-width, wrap-ansi
+
 ## [7.7.1] — Documentation & Hardening
 
 ### Documentation
