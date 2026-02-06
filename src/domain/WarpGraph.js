@@ -2937,6 +2937,9 @@ export default class WarpGraph {
     const collectReceipts = options && options.receipts;
 
     try {
+      // Ensure fresh state before accessing provenance index
+      await this._ensureFreshState();
+
       if (!this._provenanceIndex) {
         throw new QueryError('No provenance index. Call materialize() first.', {
           code: 'E_NO_STATE',
