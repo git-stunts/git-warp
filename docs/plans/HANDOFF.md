@@ -84,10 +84,10 @@ Time Model:        Chronos = linear worldline time
 
 ### 1. Read and Analyzed the Papers
 Located at:
-- `/Users/james/git/aion-paper-01/paper/main.tex`
-- `/Users/james/git/aion-paper-02/paper/main.tex`
-- `/Users/james/git/aion-paper-03/paper/main.tex`
-- `/Users/james/git/aion-paper-04/paper/main.tex`
+- `~/git/aion-paper-01/paper/main.tex`
+- `~/git/aion-paper-02/paper/main.tex`
+- `~/git/aion-paper-03/paper/main.tex`
+- `~/git/aion-paper-04/paper/main.tex`
 
 ### 2. Created Visualization Plans
 All plans are in: **`docs/plans/visualize/`**
@@ -224,10 +224,10 @@ The git-warp CLI can be extended with `--view` flags for inline visualizations. 
 8. `docs/plans/visualize/temporal-logic-satisfaction.md`
 
 ### Papers (if deep understanding needed)
-- `/Users/james/git/aion-paper-01/paper/main.tex` (Paper I: static structure)
-- `/Users/james/git/aion-paper-02/paper/main.tex` (Paper II: dynamics)
-- `/Users/james/git/aion-paper-03/paper/main.tex` (Paper III: holography)
-- `/Users/james/git/aion-paper-04/paper/main.tex` (Paper IV: observers)
+- `~/git/aion-paper-01/paper/main.tex` (Paper I: static structure)
+- `~/git/aion-paper-02/paper/main.tex` (Paper II: dynamics)
+- `~/git/aion-paper-03/paper/main.tex` (Paper III: holography)
+- `~/git/aion-paper-04/paper/main.tex` (Paper IV: observers)
 
 ---
 
@@ -328,7 +328,7 @@ This repo stores graph data as Git commits. Rewriting history destroys data.
 ## Starting Point for Next Session
 
 ```bash
-cd /Users/james/git/git-stunts/git-warp-viewer
+cd git-warp-viewer
 cat docs/plans/visualize/README.md
 cat docs/plans/visualize/frequency.md
 ```

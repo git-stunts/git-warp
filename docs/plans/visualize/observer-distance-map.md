@@ -73,7 +73,7 @@ Observers close in distance can translate between each other cheaply.
 
 ## ASCII Terminal Version
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  OBSERVER DISTANCE MAP                                                       ║
 ║  D_{τ,m}(O₁, O₂) - Rulial distance between observers                        ║
@@ -97,7 +97,7 @@ Observers close in distance can translate between each other cheaply.
 ║       │                           │                    │                    ║
 ║  ┌────┴────┐                ┌─────┴─────┐        ┌────┴────┐               ║
 ║  │ O_sum   │────O(k)───────→│  O_audit  │←─O(1)──│ O_prov  │               ║
-║  │Summary  │                │   Audit   │        │Provnance│               ║
+║  │Summary  │                │   Audit   │        │Provenance│              ║
 ║  └─────────┘                └───────────┘        └─────────┘               ║
 ║                                                                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣

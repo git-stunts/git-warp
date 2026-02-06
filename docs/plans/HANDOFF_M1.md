@@ -59,7 +59,7 @@ git checkout -b feature/visualization-m1
 ### M1.1: Visualization Module Scaffold
 **Create the directory structure and base utilities.**
 
-```
+```text
 git-warp/src/visualization/
 ├── index.js                 # Exports
 ├── renderers/
@@ -109,7 +109,7 @@ if (argv.view) {
 **First real visualization — show graph overview with writer timelines.**
 
 Expected output:
-```
+```text
 ╔══════════════════════════════════════════════════════════════════╗
 ║  WARP GRAPHS IN REPOSITORY                                       ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -132,7 +132,7 @@ Expected output:
 **Health dashboard with progress bars and status indicators.**
 
 Expected output:
-```
+```text
 ╔══════════════════════════════════════════════════════════════════╗
 ║  GRAPH HEALTH: my-graph                                          ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -172,7 +172,7 @@ test('info view renders correctly', () => {
 
 ## Implementation Order
 
-```
+```text
 M1.1 (scaffold)
     ↓
 M1.2 (--view flag)

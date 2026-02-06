@@ -184,13 +184,15 @@ This is specialized tooling for formal verification. Most users won't write temp
 
 ## Summary Table
 
-| Rank | Visualization | Frequency | Feasibility | Build Order |
-|------|---------------|-----------|-------------|-------------|
-| 1 | Causal Cone Slicer | ★★★☆☆ | ✅ 95% | 1st (ready) |
-| 2 | Holographic Reconstruction | ★★★★☆ | ✅ 95% | 2nd (ready) |
-| 3 | Two-Plane Explorer | ★★★★★ | ⚠️ 60% | 3rd (adapted) |
-| 4 | Tick Receipt Theater | ★★★★☆ | ⚠️ 50% | 4th (adapted) |
-| 5 | Multiway Worldline | ★★☆☆☆ | ⚠️ 40% | 5th (partial) |
+The table below is ordered by **build priority** (feasibility-adjusted), not by the frequency ranking used in the body sections above.
+
+| Build Priority | Visualization | Frequency | Feasibility | Notes |
+|----------------|---------------|-----------|-------------|-------|
+| 1 | Causal Cone Slicer | ★★★☆☆ | ✅ 95% | Ready |
+| 2 | Holographic Reconstruction | ★★★★☆ | ✅ 95% | Ready |
+| 3 | Two-Plane Explorer | ★★★★★ | ⚠️ 60% | Adapted |
+| 4 | Tick Receipt Theater | ★★★★☆ | ⚠️ 50% | Adapted |
+| 5 | Multiway Worldline | ★★☆☆☆ | ⚠️ 40% | Partial |
 | 6 | Wormhole Compression | ★★★☆☆ | ❌ 20% | Blocked |
 | 7 | Observer Distance Map | ★★☆☆☆ | ❌ 15% | Research |
 | 8 | Temporal Logic | ★☆☆☆☆ | ❌ 10% | Research |

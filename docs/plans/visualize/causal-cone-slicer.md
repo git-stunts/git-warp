@@ -17,12 +17,14 @@ The Causal Cone Slicer visualizes the derivation graph D(v) for any value v in t
 - **Backward cone computation** — BFS from target through provenance index
 
 **Key API Mappings:**
+
 | Paper III Concept | Implementation |
 |---|---|
 | Derivation graph D(v) | `_computeBackwardCone(nodeId)` via BFS |
 | Slice payload P\|_{D(v)} | `materializeSlice()` returns filtered patches |
 | Provenance tracking | ProvenanceIndex + patch reads/writes |
 | Partial materialization | Only cone patches are replayed |
+
 
 **Code Example:**
 ```javascript
@@ -74,7 +76,7 @@ The slicer:
 
 ## ASCII Terminal Version
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  CAUSAL CONE SLICER                                                          ║
 ║  Target: total_count                                                         ║
@@ -141,7 +143,7 @@ The interaction follows a 4-step flow:
 
 ### Multi-Value Selection
 Select multiple values to see their combined cone:
-```
+```text
 Selected: [total] [status]
 Combined cone: D(total) ∪ D(status)
 Required patches: μ₂, μ₃, μ₄, μ₅, μ₇

@@ -135,7 +135,7 @@ const bar = '█'.repeat(progress) + '░'.repeat(total - progress);
 
 **Decision**: Add `--view` flags to existing git-warp CLI commands rather than creating a separate package.
 
-**Location**: Changes go in `/Users/james/git/git-stunts/git-warp/bin/warp-graph.js`
+**Location**: Changes go in `bin/warp-graph.js`
 
 **Pattern**:
 ```bash
