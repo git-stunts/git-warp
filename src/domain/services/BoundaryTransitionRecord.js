@@ -22,8 +22,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
 import { ProvenancePayload } from './ProvenancePayload.js';
-import { serializeStateV5, computeStateHashV5 } from './StateSerializerV5.js';
-import { createEmptyStateV5 } from './JoinReducer.js';
+import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from './StateSerializerV5.js';
 
 /**
  * HMAC algorithm used for authentication tags.
@@ -132,7 +131,7 @@ export function createBTR(initialState, payload, options) {
   const { key, timestamp = new Date().toISOString() } = options;
 
   const h_in = computeStateHashV5(initialState);
-  const U_0 = serializeStateV5(initialState);
+  const U_0 = serializeFullStateV5(initialState);
   const finalState = payload.replay(initialState);
   const h_out = computeStateHashV5(finalState);
   const P = payload.toJSON();
@@ -274,22 +273,19 @@ export function replayBTR(btr) {
 /**
  * Deserializes the initial state from the U_0 field.
  *
- * The U_0 field contains the visible projection of the state (nodes, edges, props).
- * For replay, we start from an empty state since the payload contains all the
- * operations needed to reconstruct the graph.
+ * The U_0 field contains the complete WarpStateV5 serialized via
+ * serializeFullStateV5, including full CRDT internals (ORSet entries,
+ * tombstones, LWW registers, version vectors).
  *
- * Note: In a full implementation, U_0 could contain a complete state snapshot
- * for efficiency. For now, we use it primarily for h_in verification.
+ * This ensures replay starts from the exact initial state, producing
+ * the correct h_out hash.
  *
- * @param {Buffer} _U_0 - Serialized state (unused, kept for API compatibility)
+ * @param {Buffer} U_0 - Serialized full state
  * @returns {import('./JoinReducer.js').WarpStateV5} The deserialized state
  * @private
  */
-function deserializeInitialState(_U_0) {
-  // For BTR replay, we start from empty state
-  // The payload contains all operations needed
-  // U_0 is used for h_in verification, not for seeding replay
-  return createEmptyStateV5();
+function deserializeInitialState(U_0) {
+  return deserializeFullStateV5(U_0);
 }
 
 /**

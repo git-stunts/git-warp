@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
-import { orsetContains, orsetElements } from '../crdt/ORSet.js';
+import { orsetContains, orsetElements, orsetSerialize, orsetDeserialize, createORSet } from '../crdt/ORSet.js';
+import { vvSerialize, vvDeserialize, createVersionVector } from '../crdt/VersionVector.js';
 import { decodeEdgeKey, decodePropKey } from './JoinReducer.js';
 
 /**
@@ -134,4 +135,112 @@ export function computeStateHashV5(state) {
  */
 export function deserializeStateV5(buffer) {
   return decode(buffer);
+}
+
+// ============================================================================
+// Full State Serialization (for BTR replay)
+// ============================================================================
+
+/**
+ * Serializes complete WarpStateV5 to CBOR bytes.
+ * Unlike serializeStateV5, this includes the full CRDT internals:
+ * - ORSet entries and tombstones for nodeAlive/edgeAlive
+ * - Full LWW registers for props
+ * - Full version vector for observedFrontier
+ * - Edge birth events for clean-slate prop visibility
+ *
+ * Used for BTR creation where exact state reconstruction is required.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @returns {Buffer}
+ */
+export function serializeFullStateV5(state) {
+  // Serialize ORSets with full internal structure
+  const nodeAliveSer = orsetSerialize(state.nodeAlive);
+  const edgeAliveSer = orsetSerialize(state.edgeAlive);
+
+  // Serialize props with full LWW register data
+  const propsSer = [];
+  const sortedPropKeys = [...state.prop.keys()].sort();
+  for (const propKey of sortedPropKeys) {
+    const register = state.prop.get(propKey);
+    propsSer.push([propKey, register]);
+  }
+
+  // Serialize version vector
+  const frontierSer = vvSerialize(state.observedFrontier);
+
+  // Serialize edge birth events
+  const edgeBirthSer = [];
+  if (state.edgeBirthEvent) {
+    const sortedEdgeKeys = [...state.edgeBirthEvent.keys()].sort();
+    for (const edgeKey of sortedEdgeKeys) {
+      edgeBirthSer.push([edgeKey, state.edgeBirthEvent.get(edgeKey)]);
+    }
+  }
+
+  return encode({
+    version: 'full-v5',
+    nodeAlive: nodeAliveSer,
+    edgeAlive: edgeAliveSer,
+    props: propsSer,
+    observedFrontier: frontierSer,
+    edgeBirthEvent: edgeBirthSer,
+  });
+}
+
+/**
+ * Deserializes complete WarpStateV5 from CBOR bytes.
+ * Reconstructs the full CRDT state including ORSet internals.
+ *
+ * @param {Buffer} buffer
+ * @returns {import('./JoinReducer.js').WarpStateV5}
+ */
+export function deserializeFullStateV5(buffer) {
+  const obj = decode(buffer);
+
+  // Handle legacy or empty states
+  if (!obj || obj.version !== 'full-v5') {
+    // Return empty state for non-full serializations
+    return {
+      nodeAlive: createORSet(),
+      edgeAlive: createORSet(),
+      prop: new Map(),
+      observedFrontier: createVersionVector(),
+      edgeBirthEvent: new Map(),
+    };
+  }
+
+  // Deserialize ORSets
+  const nodeAlive = orsetDeserialize(obj.nodeAlive || {});
+  const edgeAlive = orsetDeserialize(obj.edgeAlive || {});
+
+  // Deserialize props
+  const prop = new Map();
+  if (obj.props && Array.isArray(obj.props)) {
+    for (const [propKey, register] of obj.props) {
+      prop.set(propKey, register);
+    }
+  }
+
+  // Deserialize version vector
+  const observedFrontier = obj.observedFrontier
+    ? vvDeserialize(obj.observedFrontier)
+    : createVersionVector();
+
+  // Deserialize edge birth events
+  const edgeBirthEvent = new Map();
+  if (obj.edgeBirthEvent && Array.isArray(obj.edgeBirthEvent)) {
+    for (const [edgeKey, eventId] of obj.edgeBirthEvent) {
+      edgeBirthEvent.set(edgeKey, eventId);
+    }
+  }
+
+  return {
+    nodeAlive,
+    edgeAlive,
+    prop,
+    observedFrontier,
+    edgeBirthEvent,
+  };
 }
