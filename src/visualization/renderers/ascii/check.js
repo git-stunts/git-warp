@@ -84,9 +84,10 @@ function getTombstoneHealth(ratio) {
  * @returns {string}
  */
 function tombstoneBar(percent, width = 20) {
-  const filled = Math.round((percent / 100) * width);
-  const empty = width - filled;
-  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty);
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+  const filledCount = Math.round((clampedPercent / 100) * width);
+  const emptyCount = width - filledCount;
+  const bar = '\u2588'.repeat(filledCount) + '\u2591'.repeat(emptyCount);
 
   // Invert: lower tombstone ratio is better (green), higher is bad (red)
   if (percent <= TOMBSTONE_HEALTHY_MAX * 100) {
@@ -201,8 +202,12 @@ function getOverallHealth(health) {
       return { text: 'DEGRADED', symbol: '\u26A0', color: colors.warning };
     case 'unhealthy':
       return { text: 'UNHEALTHY', symbol: '\u2717', color: colors.error };
-    default:
-      return { text: health.status.toUpperCase(), symbol: '?', color: colors.muted };
+    default: {
+      const safeStatus = typeof health.status === 'string' && health.status.length
+        ? health.status
+        : 'UNKNOWN';
+      return { text: safeStatus.toUpperCase(), symbol: '?', color: colors.muted };
+    }
   }
 }
 

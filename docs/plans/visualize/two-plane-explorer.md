@@ -76,13 +76,13 @@ As the user selects different skeleton positions, the attachment plane updates t
 
 ### Depth Limiting
 Users can set a maximum unfolding depth. Attachments beyond that depth render as collapsed badges:
-```
+```text
 [+] depth 3+ (click to expand)
 ```
 
 ### Property Inspection
 Hovering over a node shows its properties (from the LWW registers):
-```
+```text
 ┌─────────────────────────┐
 │ v₂                      │
 ├─────────────────────────┤
@@ -95,7 +95,7 @@ Hovering over a node shows its properties (from the LWW registers):
 
 ### Edge Attachment View
 Clicking an edge shows β(e) - the WARP attached to that edge:
-```
+```text
 Edge e₁: v₁ → v₂
 ├─ label: "calls"
 └─ attachment: (WARP with 2 nodes)

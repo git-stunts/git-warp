@@ -361,11 +361,11 @@ git warp history --writer alice
 # Check graph health, status, and GC metrics
 git warp check
 
-# Visualize query results in the browser
+# Visualize query results (ascii output by default)
 git warp query --match 'user:*' --outgoing manages --view
 ```
 
-All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view` to open an interactive visualization in the browser.
+All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or browser, svg:FILE, html:FILE).
 
 ## Architecture
 

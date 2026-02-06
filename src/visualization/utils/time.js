@@ -1,5 +1,9 @@
 export function timeAgo(date) {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  const ts = new Date(date).getTime();
+  if (isNaN(ts)) {
+    return 'unknown';
+  }
+  const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
 
   if (seconds < 60) {return `${seconds}s ago`;}
   const minutes = Math.floor(seconds / 60);

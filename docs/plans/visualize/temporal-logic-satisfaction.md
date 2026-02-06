@@ -74,7 +74,7 @@ The viewer shows:
 
 ## Syntax Reference
 
-```
+```text
 State formulas (φ):
   p          - atomic proposition (predicate on trace)
   ¬φ         - negation
@@ -98,7 +98,7 @@ Path formulas (ψ):
 
 ## ASCII Terminal Version
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  TEMPORAL LOGIC SATISFACTION                                                 ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
@@ -184,7 +184,7 @@ Path formulas (ψ):
 
 ### Proposition Editor
 Define atomic propositions as predicates on trace:
-```
+```text
 p_expose := trace.contains("receipt")
 p_merge  := state.branch_count == 1
 p_safe   := state.invariant("no_deadlock")
