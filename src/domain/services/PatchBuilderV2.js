@@ -618,31 +618,35 @@ export class PatchBuilderV2 {
   /**
    * Gets the set of node/edge IDs read by this patch.
    *
-   * Returns the internal Set of reads tracked for provenance. This includes:
+   * Returns a frozen copy of the reads tracked for provenance. This includes:
    * - Nodes read via `removeNode` (to observe dots)
    * - Endpoint nodes read via `addEdge` (implicit existence reference)
    * - Edge keys read via `removeEdge` (to observe dots)
    * - Nodes read via `setProperty` (implicit existence reference)
    * - Edge keys read via `setEdgeProperty` (implicit existence reference)
    *
-   * @returns {Set<string>} Set of node IDs and encoded edge keys that were read
+   * Note: Returns a defensive copy to prevent external mutation.
+   *
+   * @returns {ReadonlySet<string>} Frozen set of node IDs and encoded edge keys that were read
    */
   get reads() {
-    return this._reads;
+    return Object.freeze(new Set(this._reads));
   }
 
   /**
    * Gets the set of node/edge IDs written by this patch.
    *
-   * Returns the internal Set of writes tracked for provenance. This includes:
+   * Returns a frozen copy of the writes tracked for provenance. This includes:
    * - Nodes written via `addNode`
    * - Edge keys written via `addEdge`
    * - Nodes written via `setProperty`
    * - Edge keys written via `setEdgeProperty`
    *
-   * @returns {Set<string>} Set of node IDs and encoded edge keys that were written
+   * Note: Returns a defensive copy to prevent external mutation.
+   *
+   * @returns {ReadonlySet<string>} Frozen set of node IDs and encoded edge keys that were written
    */
   get writes() {
-    return this._writes;
+    return Object.freeze(new Set(this._writes));
   }
 }
