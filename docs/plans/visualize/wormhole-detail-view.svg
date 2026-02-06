@@ -1,0 +1,43 @@
+<svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="400" fill="#1e293b" rx="8"/>
+
+  <!-- Header -->
+  <text x="300" y="30" fill="#8b5cf6" font-family="monospace" font-size="16" text-anchor="middle">Wormhole W₁ Detail</text>
+
+  <!-- Boundary visualization -->
+  <ellipse cx="300" cy="120" rx="200" ry="50" fill="none" stroke="#8b5cf6" stroke-width="3"/>
+
+  <!-- Entry point -->
+  <circle cx="100" cy="120" r="20" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="100" y="125" fill="#60a5fa" font-family="monospace" font-size="10" text-anchor="middle">U₀</text>
+
+  <!-- Exit point -->
+  <circle cx="500" cy="120" r="20" fill="#1e3a5f" stroke="#22c55e" stroke-width="2"/>
+  <text x="500" y="125" fill="#22c55e" font-family="monospace" font-size="10" text-anchor="middle">U₃</text>
+
+  <!-- Interior (collapsed) -->
+  <text x="300" y="115" fill="#06b6d4" font-family="monospace" font-size="10" text-anchor="middle">Collapsed interior</text>
+  <text x="300" y="130" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">(3 ticks)</text>
+
+  <!-- BTR Record -->
+  <rect x="50" y="180" width="500" height="200" rx="6" fill="#0f172a" stroke="#334155"/>
+  <text x="70" y="205" fill="#94a3b8" font-family="monospace" font-size="11">BOUNDARY TRANSITION RECORD</text>
+
+  <text x="70" y="235" fill="#64748b" font-family="monospace" font-size="10">h_in (input hash):</text>
+  <text x="200" y="235" fill="#60a5fa" font-family="monospace" font-size="10">0x3a7f8b2c9d1e4f5a...</text>
+
+  <text x="70" y="260" fill="#64748b" font-family="monospace" font-size="10">h_out (output hash):</text>
+  <text x="200" y="260" fill="#22c55e" font-family="monospace" font-size="10">0x8c2d1f9a3b4e7c6d...</text>
+
+  <text x="70" y="285" fill="#64748b" font-family="monospace" font-size="10">Payload P₀:₃:</text>
+  <text x="200" y="285" fill="#a78bfa" font-family="monospace" font-size="10">(μ₀, μ₁, μ₂) = 248 bytes</text>
+
+  <text x="70" y="310" fill="#64748b" font-family="monospace" font-size="10">Timestamp t:</text>
+  <text x="200" y="310" fill="#e2e8f0" font-family="monospace" font-size="10">2025-12-15T14:32:17Z</text>
+
+  <text x="70" y="335" fill="#64748b" font-family="monospace" font-size="10">Auth tag κ:</text>
+  <text x="200" y="335" fill="#22c55e" font-family="monospace" font-size="10">✓ sig_ed25519(0x7a8b...)</text>
+
+  <text x="70" y="360" fill="#64748b" font-family="monospace" font-size="10">Interior size:</text>
+  <text x="200" y="360" fill="#f59e0b" font-family="monospace" font-size="10">4,096 bytes (compressed from 12,288)</text>
+</svg>

@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#333">Drill Down Sequence (Recursive)</text>
+
+  <!-- Panel 1: Starting state - viewing alpha(v2) -->
+  <g transform="translate(20, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 1: Viewing alpha(v2)</text>
+
+    <!-- Breadcrumb -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#e3f2fd"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">root &gt; v2</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#7e57c2"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">depth 1</text>
+
+    <!-- Skeleton plane (faded context) -->
+    <rect x="15" y="55" width="230" height="50" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="9" fill="#bbb">Skeleton G (context)</text>
+    <circle cx="60" cy="88" r="8" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+    <circle cx="110" cy="82" r="10" fill="#e3f2fd" stroke="#90caf9" stroke-width="2"/>
+    <text x="110" y="86" text-anchor="middle" font-family="system-ui, sans-serif" font-size="7" fill="#64b5f6">v2</text>
+    <circle cx="160" cy="90" r="8" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+
+    <!-- Attachment plane with nested graph -->
+    <rect x="15" y="115" width="230" height="100" rx="4" fill="#fff" stroke="#4caf50" stroke-width="2"/>
+    <text x="25" y="130" font-family="system-ui, sans-serif" font-size="9" fill="#2e7d32" font-weight="bold">alpha(v2)</text>
+
+    <!-- Nested WARP graph -->
+    <circle cx="60" cy="165" r="12" fill="#c8e6c9" stroke="#4caf50" stroke-width="2"/>
+    <text x="60" y="169" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#1b5e20">u1</text>
+    <circle cx="130" cy="155" r="12" fill="#c8e6c9" stroke="#4caf50" stroke-width="2"/>
+    <text x="130" y="159" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#1b5e20">u2</text>
+    <circle cx="200" cy="165" r="12" fill="#c8e6c9" stroke="#4caf50" stroke-width="2"/>
+    <text x="200" y="169" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#1b5e20">u3</text>
+    <line x1="72" y1="163" x2="118" y2="157" stroke="#4caf50" stroke-width="1.5"/>
+    <line x1="142" y1="157" x2="188" y2="163" stroke="#4caf50" stroke-width="1.5"/>
+
+    <!-- Cursor on u2 -->
+    <path d="M145,150 L145,166 L152,160 L148,160 L153,170 L150,171 L145,161 L145,166" fill="#333"/>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">User clicks nested node u2</text>
+  </g>
+
+  <!-- Arrow 1-2 -->
+  <path d="M290,170 L320,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 2: Zooming animation -->
+  <g transform="translate(330, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 2: Drilling Down</text>
+
+    <!-- Breadcrumb updating with animation hint -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#fff3e0"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="9" fill="#e65100">root &gt; v2 &gt; u2</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#7e57c2"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">depth 2</text>
+
+    <!-- Context shrinking -->
+    <rect x="15" y="55" width="230" height="35" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="8" fill="#bbb">alpha(v2) (context)</text>
+    <circle cx="60" cy="80" r="6" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+    <circle cx="110" cy="76" r="8" fill="#c8e6c9" stroke="#81c784" stroke-width="2"/>
+    <text x="110" y="79" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#388e3c">u2</text>
+    <circle cx="160" cy="80" r="6" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+
+    <!-- Attachment plane zooming -->
+    <rect x="15" y="100" width="230" height="115" rx="4" fill="#fff" stroke="#ff9800" stroke-width="2"/>
+    <text x="25" y="115" font-family="system-ui, sans-serif" font-size="9" fill="#e65100" font-weight="bold">Loading alpha(u2)...</text>
+
+    <!-- Zoom effect - expanding from center -->
+    <circle cx="130" cy="160" r="30" fill="none" stroke="#ffcc80" stroke-width="2" stroke-dasharray="8,4">
+      <animate attributeName="r" values="20;40;20" dur="1s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="130" cy="160" r="15" fill="#fff3e0" stroke="#ff9800" stroke-width="2"/>
+    <text x="130" y="164" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#e65100">...</text>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">Attachment plane zooms in</text>
+  </g>
+
+  <!-- Arrow 2-3 -->
+  <path d="M600,170 L630,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 3: New level displayed -->
+  <g transform="translate(640, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 3: Deeper Level</text>
+
+    <!-- Breadcrumb -->
+    <rect x="15" y="32" width="175" height="18" rx="3" fill="#fff3e0"/>
+    <text x="25" y="44" font-family="system-ui, sans-serif" font-size="9" fill="#e65100">root &gt; v2 &gt; u2</text>
+    <rect x="195" y="32" width="50" height="18" rx="9" fill="#7e57c2"/>
+    <text x="220" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">depth 2</text>
+
+    <!-- Context now shows u2 -->
+    <rect x="15" y="55" width="230" height="35" rx="4" fill="#fafafa" stroke="#e0e0e0" stroke-width="1"/>
+    <text x="25" y="68" font-family="system-ui, sans-serif" font-size="8" fill="#bbb">alpha(v2) (context)</text>
+    <circle cx="60" cy="80" r="6" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+    <circle cx="110" cy="76" r="8" fill="#c8e6c9" stroke="#4caf50" stroke-width="2"/>
+    <text x="110" y="79" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#1b5e20">u2</text>
+    <circle cx="160" cy="80" r="6" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+
+    <!-- New attachment level -->
+    <rect x="15" y="100" width="230" height="115" rx="4" fill="#fff" stroke="#ff9800" stroke-width="2"/>
+    <text x="25" y="115" font-family="system-ui, sans-serif" font-size="9" fill="#e65100" font-weight="bold">alpha(u2)</text>
+
+    <!-- Deeper nested graph -->
+    <circle cx="70" cy="160" r="11" fill="#ffe0b2" stroke="#ff9800" stroke-width="2"/>
+    <text x="70" y="164" text-anchor="middle" font-family="system-ui, sans-serif" font-size="7" fill="#e65100">w1</text>
+    <circle cx="130" cy="150" r="11" fill="#ffe0b2" stroke="#ff9800" stroke-width="2"/>
+    <text x="130" y="154" text-anchor="middle" font-family="system-ui, sans-serif" font-size="7" fill="#e65100">w2</text>
+    <circle cx="190" cy="160" r="11" fill="#ffe0b2" stroke="#ff9800" stroke-width="2"/>
+    <text x="190" y="164" text-anchor="middle" font-family="system-ui, sans-serif" font-size="7" fill="#e65100">w3</text>
+    <line x1="81" y1="158" x2="119" y2="152" stroke="#ff9800" stroke-width="1.5"/>
+    <line x1="141" y1="152" x2="179" y2="158" stroke="#ff9800" stroke-width="1.5"/>
+
+    <!-- Caption -->
+    <text x="130" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">alpha(u2) is now visible</text>
+  </g>
+
+  <!-- Bottom row: Full recursive view -->
+  <g transform="translate(200, 310)">
+    <rect width="500" height="260" rx="8" fill="#fff" stroke="#4caf50" stroke-width="3" filter="url(#shadow)"/>
+    <rect width="500" height="24" rx="8" fill="#e8f5e9" stroke="#4caf50" stroke-width="1"/>
+    <text x="250" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#2e7d32">Recursive Navigation State</text>
+
+    <!-- Full breadcrumb trail -->
+    <rect x="15" y="32" width="420" height="20" rx="3" fill="#f5f5f5"/>
+    <text x="25" y="46" font-family="system-ui, sans-serif" font-size="10" fill="#666">
+      <tspan fill="#2196f3">root</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#2196f3">v2</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#4caf50">u2</tspan>
+      <tspan fill="#999"> &gt; </tspan>
+      <tspan fill="#ff9800" font-weight="bold">w1</tspan>
+    </text>
+    <rect x="440" y="32" width="50" height="20" rx="10" fill="#7e57c2"/>
+    <text x="465" y="46" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#fff">depth 3</text>
+
+    <!-- Stacked context layers -->
+    <rect x="15" y="60" width="220" height="180" rx="4" fill="#fafafa" stroke="#e0e0e0"/>
+    <text x="25" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#999" font-weight="bold">Context Stack</text>
+
+    <!-- Layer 1: root -->
+    <rect x="25" y="85" width="200" height="40" rx="3" fill="#e3f2fd" stroke="#90caf9"/>
+    <text x="35" y="100" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">Skeleton G</text>
+    <circle cx="80" cy="112" r="6" fill="#bbdefb" stroke="#64b5f6"/>
+    <circle cx="110" cy="108" r="8" fill="#bbdefb" stroke="#2196f3" stroke-width="2"/>
+    <text x="110" y="111" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#1565c0">v2</text>
+    <circle cx="140" cy="112" r="6" fill="#bbdefb" stroke="#64b5f6"/>
+
+    <!-- Layer 2: alpha(v2) -->
+    <rect x="25" y="130" width="200" height="40" rx="3" fill="#c8e6c9" stroke="#81c784"/>
+    <text x="35" y="145" font-family="system-ui, sans-serif" font-size="9" fill="#388e3c">alpha(v2)</text>
+    <circle cx="80" cy="157" r="6" fill="#a5d6a7" stroke="#66bb6a"/>
+    <circle cx="110" cy="153" r="8" fill="#a5d6a7" stroke="#4caf50" stroke-width="2"/>
+    <text x="110" y="156" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#1b5e20">u2</text>
+    <circle cx="140" cy="157" r="6" fill="#a5d6a7" stroke="#66bb6a"/>
+
+    <!-- Layer 3: alpha(u2) -->
+    <rect x="25" y="175" width="200" height="40" rx="3" fill="#ffe0b2" stroke="#ffb74d"/>
+    <text x="35" y="190" font-family="system-ui, sans-serif" font-size="9" fill="#ef6c00">alpha(u2)</text>
+    <circle cx="80" cy="202" r="8" fill="#ffcc80" stroke="#ff9800" stroke-width="2"/>
+    <text x="80" y="205" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" fill="#e65100">w1</text>
+    <circle cx="110" cy="198" r="6" fill="#ffcc80" stroke="#ffb74d"/>
+    <circle cx="140" cy="202" r="6" fill="#ffcc80" stroke="#ffb74d"/>
+
+    <!-- Current view: alpha(w1) -->
+    <rect x="250" y="60" width="235" height="180" rx="4" fill="#fff" stroke="#f44336" stroke-width="2"/>
+    <text x="260" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#c62828" font-weight="bold">Current View: alpha(w1)</text>
+
+    <!-- Deepest level graph or indicator -->
+    <circle cx="320" cy="140" r="14" fill="#ffcdd2" stroke="#f44336" stroke-width="2"/>
+    <text x="320" y="144" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#c62828">x1</text>
+    <circle cx="380" cy="130" r="14" fill="#ffcdd2" stroke="#f44336" stroke-width="2"/>
+    <text x="380" y="134" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#c62828">x2</text>
+    <circle cx="440" cy="145" r="14" fill="#ffcdd2" stroke="#f44336" stroke-width="2"/>
+    <text x="440" y="149" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#c62828">x3</text>
+    <line x1="334" y1="138" x2="366" y2="132" stroke="#f44336" stroke-width="1.5"/>
+    <line x1="394" y1="132" x2="426" y2="143" stroke="#f44336" stroke-width="1.5"/>
+
+    <!-- Escape hint -->
+    <rect x="260" y="190" width="215" height="40" rx="4" fill="#ffebee"/>
+    <text x="270" y="210" font-family="system-ui, sans-serif" font-size="10" fill="#c62828">Press ESC to go up one level</text>
+    <text x="270" y="224" font-family="system-ui, sans-serif" font-size="9" fill="#999">or click breadcrumb to jump</text>
+
+    <!-- Status bar -->
+    <rect x="15" y="245" width="470" height="12" rx="2" fill="#f5f5f5"/>
+    <text x="25" y="254" font-family="monospace" font-size="8" fill="#666">depth: 3 | can drill: yes | Esc: go up | Click breadcrumb to jump</text>
+  </g>
+
+  <!-- Arrow from panel 3 to final -->
+  <path d="M770,290 L770,310 L710,310" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+</svg>

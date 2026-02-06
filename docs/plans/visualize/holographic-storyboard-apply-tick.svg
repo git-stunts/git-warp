@@ -1,0 +1,349 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5f5f5"/>
+      <stop offset="100%" style="stop-color:#e0e0e0"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#42a5f5"/>
+      <stop offset="100%" style="stop-color:#1976d2"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#66bb6a"/>
+      <stop offset="100%" style="stop-color:#388e3c"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffb74d"/>
+      <stop offset="100%" style="stop-color:#f57c00"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ce93d8"/>
+      <stop offset="100%" style="stop-color:#8e24aa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="600" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="450" y="35" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#333">Apply Tick Sequence (Patch mu_i)</text>
+
+  <!-- Panel 1: Show Patch Detail -->
+  <g transform="translate(15, 55)">
+    <rect width="210" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="210" height="30" rx="12" fill="url(#orangeGrad)"/>
+    <rect x="0" y="15" width="210" height="15" fill="url(#orangeGrad)"/>
+    <text x="105" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="white">Panel 1: Patch Detail</text>
+
+    <!-- Patch detail panel -->
+    <rect x="10" y="40" width="190" height="190" rx="6" fill="#fff3e0" stroke="#ff9800"/>
+
+    <text x="105" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#e65100">Patch mu_15</text>
+
+    <!-- Operation list -->
+    <rect x="18" y="68" width="174" height="150" rx="4" fill="white"/>
+
+    <text x="25" y="85" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#666">Operations:</text>
+
+    <g transform="translate(25, 95)">
+      <rect width="160" height="18" rx="3" fill="#e3f2fd"/>
+      <text x="5" y="13" font-family="monospace" font-size="8" fill="#1565c0">+ NodeAdd(user:dave)</text>
+    </g>
+    <g transform="translate(25, 117)">
+      <rect width="160" height="18" rx="3" fill="#e3f2fd"/>
+      <text x="5" y="13" font-family="monospace" font-size="8" fill="#1565c0">+ EdgeAdd(alice->dave)</text>
+    </g>
+    <g transform="translate(25, 139)">
+      <rect width="160" height="18" rx="3" fill="#e8f5e9"/>
+      <text x="5" y="13" font-family="monospace" font-size="8" fill="#2e7d32">~ PropSet(dave.role)</text>
+    </g>
+    <g transform="translate(25, 161)">
+      <rect width="160" height="18" rx="3" fill="#ffebee"/>
+      <text x="5" y="13" font-family="monospace" font-size="8" fill="#c62828">- NodeTomb(temp:1)</text>
+    </g>
+
+    <text x="105" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Writer: alice | Tick: 15</text>
+  </g>
+
+  <!-- Arrow 1->2 -->
+  <g transform="translate(228, 175)">
+    <path d="M0,0 L20,0" stroke="#ff9800" stroke-width="3" fill="none"/>
+    <polygon points="20,-5 30,0 20,5" fill="#ff9800"/>
+  </g>
+
+  <!-- Panel 2: Apply Animation -->
+  <g transform="translate(240, 55)">
+    <rect width="210" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="210" height="30" rx="12" fill="url(#purpleGrad)"/>
+    <rect x="0" y="15" width="210" height="15" fill="url(#purpleGrad)"/>
+    <text x="105" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="white">Panel 2: State Transition</text>
+
+    <!-- Animation view -->
+    <rect x="10" y="40" width="190" height="190" rx="6" fill="#fafafa" stroke="#ddd"/>
+
+    <!-- Before state -->
+    <g transform="translate(20, 55)">
+      <text x="40" y="0" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#666">U_15</text>
+      <rect x="0" y="8" width="80" height="55" rx="4" fill="#e0e0e0" stroke="#999"/>
+
+      <!-- Mini graph -->
+      <circle cx="25" cy="30" r="5" fill="#2196f3"/>
+      <circle cx="55" cy="25" r="5" fill="#2196f3"/>
+      <circle cx="40" cy="45" r="5" fill="#2196f3"/>
+      <line x1="29" y1="32" x2="36" y2="43" stroke="#666" stroke-width="1"/>
+      <line x1="51" y1="27" x2="44" y2="43" stroke="#666" stroke-width="1"/>
+    </g>
+
+    <!-- Transformation arrow -->
+    <g transform="translate(105, 90)">
+      <path d="M0,0 L0,30" stroke="#9c27b0" stroke-width="3"/>
+      <polygon points="-5,30 0,40 5,30" fill="#9c27b0"/>
+      <text x="15" y="20" font-family="Arial, sans-serif" font-size="8" fill="#9c27b0">mu_15</text>
+    </g>
+
+    <!-- After state (with glow) -->
+    <g transform="translate(20, 140)">
+      <text x="40" y="0" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#4caf50">U_16</text>
+      <rect x="0" y="8" width="80" height="55" rx="4" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" filter="url(#glow)"/>
+
+      <!-- Mini graph with new node -->
+      <circle cx="25" cy="30" r="5" fill="#2196f3"/>
+      <circle cx="55" cy="25" r="5" fill="#2196f3"/>
+      <circle cx="40" cy="45" r="5" fill="#2196f3"/>
+      <circle cx="65" cy="45" r="5" fill="#4caf50" filter="url(#glow)"/>
+      <line x1="29" y1="32" x2="36" y2="43" stroke="#666" stroke-width="1"/>
+      <line x1="51" y1="27" x2="44" y2="43" stroke="#666" stroke-width="1"/>
+      <line x1="56" y1="29" x2="62" y2="42" stroke="#4caf50" stroke-width="1.5"/>
+    </g>
+
+    <!-- Delta indicator -->
+    <g transform="translate(110, 150)">
+      <rect width="85" height="60" rx="4" fill="#fff3e0" stroke="#ff9800"/>
+      <text x="42" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#e65100">Delta</text>
+      <text x="8" y="30" font-family="monospace" font-size="7" fill="#333">+1 node</text>
+      <text x="8" y="42" font-family="monospace" font-size="7" fill="#333">+1 edge</text>
+      <text x="8" y="54" font-family="monospace" font-size="7" fill="#333">+1 prop</text>
+    </g>
+  </g>
+
+  <!-- Arrow 2->3 -->
+  <g transform="translate(453, 175)">
+    <path d="M0,0 L20,0" stroke="#4caf50" stroke-width="3" fill="none"/>
+    <polygon points="20,-5 30,0 20,5" fill="#4caf50"/>
+  </g>
+
+  <!-- Panel 3: New State with Glow -->
+  <g transform="translate(465, 55)">
+    <rect width="210" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="210" height="30" rx="12" fill="url(#greenGrad)"/>
+    <rect x="0" y="15" width="210" height="15" fill="url(#greenGrad)"/>
+    <text x="105" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="white">Panel 3: New State</text>
+
+    <!-- New state display -->
+    <rect x="10" y="40" width="190" height="190" rx="6" fill="#e8f5e9" stroke="#4caf50"/>
+
+    <!-- State visualization with glow effect -->
+    <rect x="25" y="55" width="160" height="100" rx="8" fill="white" stroke="#4caf50" stroke-width="3" filter="url(#glow)"/>
+    <text x="105" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2e7d32">U_16</text>
+
+    <!-- Graph visualization -->
+    <circle cx="60" cy="105" r="8" fill="#2196f3"/>
+    <circle cx="105" cy="95" r="8" fill="#2196f3"/>
+    <circle cx="150" cy="100" r="8" fill="#2196f3"/>
+    <circle cx="80" cy="130" r="8" fill="#2196f3"/>
+    <circle cx="130" cy="135" r="8" fill="#4caf50" stroke="#fff" stroke-width="2" filter="url(#glow)"/>
+
+    <line x1="67" y1="109" x2="78" y2="125" stroke="#666" stroke-width="1.5"/>
+    <line x1="110" y1="100" x2="127" y2="128" stroke="#666" stroke-width="1.5"/>
+    <line x1="145" y1="105" x2="133" y2="130" stroke="#4caf50" stroke-width="2"/>
+
+    <!-- Hash verification -->
+    <rect x="25" y="165" width="160" height="55" rx="4" fill="white" stroke="#4caf50"/>
+    <text x="105" y="182" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#2e7d32">Hash Verified</text>
+    <text x="105" y="197" text-anchor="middle" font-family="monospace" font-size="8" fill="#333">a7c3f2...e8d1b4</text>
+    <g transform="translate(135, 205)">
+      <circle r="8" fill="#4caf50"/>
+      <path d="M-4 0 L-1 3 L4 -3" stroke="white" stroke-width="2" fill="none"/>
+    </g>
+  </g>
+
+  <!-- Arrow 3->4 -->
+  <g transform="translate(678, 175)">
+    <path d="M0,0 L20,0" stroke="#2196f3" stroke-width="3" fill="none"/>
+    <polygon points="20,-5 30,0 20,5" fill="#2196f3"/>
+  </g>
+
+  <!-- Panel 4: Progress Update -->
+  <g transform="translate(690, 55)">
+    <rect width="195" height="240" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="195" height="30" rx="12" fill="url(#blueGrad)"/>
+    <rect x="0" y="15" width="195" height="15" fill="url(#blueGrad)"/>
+    <text x="97" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="white">Panel 4: Progress</text>
+
+    <!-- Progress display -->
+    <rect x="10" y="40" width="175" height="190" rx="6" fill="#e3f2fd" stroke="#2196f3"/>
+
+    <!-- Counter -->
+    <text x="97" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1565c0">16/42</text>
+    <text x="97" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Ticks Applied</text>
+
+    <!-- Progress bar -->
+    <rect x="20" y="105" width="155" height="16" rx="8" fill="#bbdefb"/>
+    <rect x="20" y="105" width="59" height="16" rx="8" fill="#2196f3"/>
+    <text x="97" y="115" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">38%</text>
+
+    <!-- Mini timeline -->
+    <g transform="translate(20, 135)">
+      <line x1="0" y1="10" x2="155" y2="10" stroke="#ccc" stroke-width="2"/>
+
+      <!-- Completed nodes -->
+      <circle cx="10" cy="10" r="5" fill="#4caf50"/>
+      <circle cx="35" cy="10" r="5" fill="#4caf50"/>
+      <circle cx="60" cy="10" r="5" fill="#4caf50"/>
+
+      <!-- Current node -->
+      <circle cx="85" cy="10" r="6" fill="#2196f3" stroke="white" stroke-width="2"/>
+
+      <!-- Pending nodes -->
+      <circle cx="110" cy="10" r="5" fill="#e0e0e0"/>
+      <circle cx="135" cy="10" r="5" fill="#e0e0e0"/>
+
+      <text x="77" y="35" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666">Current: mu_15 applied</text>
+    </g>
+
+    <!-- ETA -->
+    <rect x="20" y="175" width="155" height="45" rx="4" fill="white" stroke="#ddd"/>
+    <text x="97" y="193" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#666">Estimated Remaining</text>
+    <text x="97" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1565c0">~1.5 sec</text>
+  </g>
+
+  <!-- Bottom panel: Detailed view of tick application -->
+  <g transform="translate(20, 310)">
+    <rect width="860" height="270" rx="12" fill="white" filter="url(#shadow)"/>
+    <rect width="860" height="30" rx="12" fill="#37474f"/>
+    <rect x="0" y="15" width="860" height="15" fill="#37474f"/>
+    <text x="430" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Tick Application: U_i + mu_i = U_{i+1}</text>
+
+    <!-- Before state -->
+    <g transform="translate(30, 55)">
+      <text x="90" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#666">Current State: U_15</text>
+
+      <rect x="0" y="25" width="180" height="140" rx="8" fill="#f5f5f5" stroke="#ccc" stroke-width="2"/>
+
+      <!-- Graph nodes -->
+      <circle cx="50" cy="75" r="12" fill="#2196f3"/>
+      <text x="50" y="79" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">alice</text>
+
+      <circle cx="130" cy="65" r="12" fill="#2196f3"/>
+      <text x="130" y="69" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">bob</text>
+
+      <circle cx="90" cy="120" r="12" fill="#2196f3"/>
+      <text x="90" y="124" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">carol</text>
+
+      <!-- Temp node (to be deleted) -->
+      <circle cx="150" cy="120" r="10" fill="#ffcdd2" stroke="#e57373" stroke-dasharray="3,2"/>
+      <text x="150" y="124" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" fill="#c62828">temp</text>
+
+      <!-- Edges -->
+      <line x1="60" y1="80" x2="80" y2="110" stroke="#666" stroke-width="2"/>
+      <line x1="120" y1="75" x2="100" y2="110" stroke="#666" stroke-width="2"/>
+
+      <!-- State hash -->
+      <text x="90" y="175" text-anchor="middle" font-family="monospace" font-size="9" fill="#999">hash: e5f7a2...c3d1b8</text>
+    </g>
+
+    <!-- Plus sign -->
+    <g transform="translate(220, 115)">
+      <circle r="20" fill="#ff9800"/>
+      <text x="0" y="7" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">+</text>
+    </g>
+
+    <!-- Patch operations -->
+    <g transform="translate(260, 55)">
+      <text x="100" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#e65100">Patch: mu_15</text>
+
+      <rect x="0" y="25" width="200" height="140" rx="8" fill="#fff3e0" stroke="#ff9800" stroke-width="2"/>
+
+      <!-- Operations -->
+      <g transform="translate(15, 45)">
+        <rect width="170" height="25" rx="4" fill="#e3f2fd"/>
+        <circle cx="12" cy="12" r="8" fill="#4caf50"/>
+        <text x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">+</text>
+        <text x="30" y="17" font-family="monospace" font-size="9" fill="#1565c0">NodeAdd(user:dave)</text>
+      </g>
+
+      <g transform="translate(15, 78)">
+        <rect width="170" height="25" rx="4" fill="#e3f2fd"/>
+        <circle cx="12" cy="12" r="8" fill="#4caf50"/>
+        <text x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">+</text>
+        <text x="30" y="17" font-family="monospace" font-size="9" fill="#1565c0">EdgeAdd(alice,dave)</text>
+      </g>
+
+      <g transform="translate(15, 111)">
+        <rect width="170" height="25" rx="4" fill="#ffebee"/>
+        <circle cx="12" cy="12" r="8" fill="#f44336"/>
+        <text x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">-</text>
+        <text x="30" y="17" font-family="monospace" font-size="9" fill="#c62828">NodeTomb(temp:1)</text>
+      </g>
+
+      <text x="100" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Writer: alice | EventId: 15.1</text>
+    </g>
+
+    <!-- Equals sign -->
+    <g transform="translate(470, 115)">
+      <circle r="20" fill="#4caf50"/>
+      <text x="0" y="7" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">=</text>
+    </g>
+
+    <!-- After state -->
+    <g transform="translate(510, 55)">
+      <text x="125" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2e7d32">New State: U_16</text>
+
+      <rect x="0" y="25" width="250" height="140" rx="8" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" filter="url(#glow)"/>
+
+      <!-- Graph nodes -->
+      <circle cx="50" cy="75" r="12" fill="#2196f3"/>
+      <text x="50" y="79" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">alice</text>
+
+      <circle cx="130" cy="65" r="12" fill="#2196f3"/>
+      <text x="130" y="69" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">bob</text>
+
+      <circle cx="90" cy="120" r="12" fill="#2196f3"/>
+      <text x="90" y="124" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">carol</text>
+
+      <!-- New node (dave) with glow -->
+      <circle cx="180" cy="90" r="12" fill="#4caf50" stroke="#fff" stroke-width="2" filter="url(#glow)"/>
+      <text x="180" y="94" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="white">dave</text>
+
+      <!-- Edges -->
+      <line x1="60" y1="80" x2="80" y2="110" stroke="#666" stroke-width="2"/>
+      <line x1="120" y1="75" x2="100" y2="110" stroke="#666" stroke-width="2"/>
+      <line x1="60" y1="70" x2="168" y2="85" stroke="#4caf50" stroke-width="2"/>
+
+      <!-- temp node is gone (shown as ghost) -->
+      <circle cx="210" cy="130" r="8" fill="none" stroke="#e0e0e0" stroke-dasharray="3,2"/>
+      <text x="210" y="148" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" fill="#ccc">(deleted)</text>
+
+      <!-- State hash -->
+      <text x="125" y="175" text-anchor="middle" font-family="monospace" font-size="9" fill="#2e7d32">hash: a7c3f2...e8d1b4 (verified)</text>
+    </g>
+
+    <!-- Verification badge -->
+    <g transform="translate(770, 195)">
+      <rect width="80" height="50" rx="8" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+      <circle cx="40" cy="18" r="12" fill="#4caf50"/>
+      <path d="M34 18 L38 22 L46 14" stroke="white" stroke-width="3" fill="none"/>
+      <text x="40" y="42" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#2e7d32">Verified</text>
+    </g>
+  </g>
+</svg>

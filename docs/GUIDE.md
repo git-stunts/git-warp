@@ -745,6 +745,32 @@ git warp check        # Human-readable with color-coded staleness
 git warp check --json # Machine-readable JSON
 ```
 
+### Visual Output
+
+The `--view` flag enables visual ASCII output for supported commands. It is a global option that can be placed before the command name.
+
+**Supported modes:**
+- `ascii` (default when `--view` is used) — renders output as ASCII art/diagrams
+- `browser` — opens output in default browser (coming in future release)
+- `svg:FILE` — saves output as SVG to specified file (coming in future release)
+- `html:FILE` — saves output as HTML to specified file (coming in future release)
+
+**Currently supported commands:**
+- `info` — displays graph overview with ASCII visualization
+- `check` — displays health status with ASCII visualization
+
+**Usage:**
+
+```bash
+git warp --view info              # ASCII visualization of graph info
+git warp --view check             # ASCII visualization of health status
+git warp --view=ascii info        # Explicit ASCII mode (same as above)
+```
+
+**Notes:**
+- The `--view` flag is mutually exclusive with `--json`. Using both will result in an error.
+- When `--view` is specified without a mode, it defaults to `ascii`.
+
 ### Operation Timing
 
 Core operations emit structured timing logs when a logger is injected:

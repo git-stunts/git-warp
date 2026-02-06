@@ -1,0 +1,279 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650">
+  <defs>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+
+    <!-- Panel background gradient -->
+    <linearGradient id="panelBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fafafa"/>
+      <stop offset="100%" style="stop-color:#f0f0f0"/>
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f44336"/>
+    </marker>
+
+    <!-- Checkmark -->
+    <symbol id="checkmark" viewBox="0 0 24 24">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#4caf50"/>
+    </symbol>
+
+    <!-- X mark -->
+    <symbol id="xmark" viewBox="0 0 24 24">
+      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="#f44336"/>
+    </symbol>
+  </defs>
+
+  <!-- Title bar -->
+  <rect x="0" y="0" width="900" height="40" fill="#1a237e"/>
+  <text x="450" y="27" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white">Tick Receipt Theater: Left-Most-Wins Scheduler Animation</text>
+
+  <!-- Panel 1: Initial State (top-left) -->
+  <g transform="translate(20, 55)">
+    <rect x="0" y="0" width="420" height="270" rx="8" ry="8" fill="url(#panelBg)" stroke="#333" stroke-width="2" filter="url(#shadow)"/>
+
+    <!-- Panel header -->
+    <rect x="0" y="0" width="420" height="30" rx="8" ry="0" fill="#37474f"/>
+    <text x="15" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Frame 1: Initial State</text>
+    <circle cx="395" cy="15" r="8" fill="#78909c"/>
+    <text x="395" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">1</text>
+
+    <!-- Content area -->
+    <text x="15" y="55" font-family="monospace" font-size="11" fill="#333">Cand(U) = {m1, m2, m3, m4, m5, m6, m7, m8}</text>
+    <text x="15" y="75" font-family="monospace" font-size="11" fill="#333">B = {} (empty batch)</text>
+    <text x="15" y="95" font-family="monospace" font-size="11" fill="#333">E_rej = {}</text>
+
+    <!-- Candidate boxes - all grey/pending -->
+    <g transform="translate(15, 110)">
+      <!-- Row 1 -->
+      <rect x="0" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="22.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m1</text>
+
+      <rect x="50" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m2</text>
+
+      <rect x="100" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m3</text>
+
+      <rect x="150" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m4</text>
+
+      <!-- Row 2 -->
+      <rect x="0" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="22.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m5</text>
+
+      <rect x="50" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m6</text>
+
+      <rect x="100" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m7</text>
+
+      <rect x="150" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m8</text>
+    </g>
+
+    <!-- Legend -->
+    <g transform="translate(230, 120)">
+      <rect x="0" y="0" width="170" height="80" rx="4" fill="#fff" stroke="#ccc" stroke-width="1"/>
+      <text x="10" y="18" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#333">Legend:</text>
+
+      <rect x="10" y="28" width="20" height="14" rx="2" fill="#9e9e9e"/>
+      <text x="35" y="39" font-family="Arial, sans-serif" font-size="10" fill="#333">Pending</text>
+
+      <rect x="90" y="28" width="20" height="14" rx="2" fill="#4caf50"/>
+      <text x="115" y="39" font-family="Arial, sans-serif" font-size="10" fill="#333">Accepted</text>
+
+      <rect x="10" y="50" width="20" height="14" rx="2" fill="#f44336"/>
+      <text x="35" y="61" font-family="Arial, sans-serif" font-size="10" fill="#333">Rejected</text>
+    </g>
+
+    <text x="210" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#666">All candidates shown as pending (grey)</text>
+  </g>
+
+  <!-- Panel 2: Process m1 (top-right) -->
+  <g transform="translate(460, 55)">
+    <rect x="0" y="0" width="420" height="270" rx="8" ry="8" fill="url(#panelBg)" stroke="#333" stroke-width="2" filter="url(#shadow)"/>
+
+    <!-- Panel header -->
+    <rect x="0" y="0" width="420" height="30" rx="8" ry="0" fill="#37474f"/>
+    <text x="15" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Frame 2: Process m1</text>
+    <circle cx="395" cy="15" r="8" fill="#78909c"/>
+    <text x="395" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">2</text>
+
+    <!-- Decision box -->
+    <rect x="15" y="40" width="390" height="65" rx="4" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+    <text x="25" y="60" font-family="monospace" font-size="11" fill="#333">Check: Is m1 independent of B={}?</text>
+    <use href="#checkmark" x="25" y="68" width="16" height="16"/>
+    <text x="45" y="82" font-family="Arial, sans-serif" font-size="11" fill="#2e7d32" font-weight="bold">Yes (B is empty, trivially independent)</text>
+
+    <!-- Updated state -->
+    <text x="15" y="125" font-family="monospace" font-size="11" fill="#333">B = {m1}</text>
+
+    <!-- Candidate boxes - m1 is green -->
+    <g transform="translate(15, 140)">
+      <!-- Row 1 -->
+      <rect x="0" y="0" width="45" height="35" rx="4" fill="#4caf50" stroke="#388e3c" stroke-width="2"/>
+      <text x="22.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m1</text>
+
+      <rect x="50" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m2</text>
+
+      <rect x="100" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m3</text>
+
+      <rect x="150" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m4</text>
+
+      <!-- Row 2 -->
+      <rect x="0" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="22.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m5</text>
+
+      <rect x="50" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m6</text>
+
+      <rect x="100" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m7</text>
+
+      <rect x="150" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m8</text>
+    </g>
+
+    <!-- Highlight arrow pointing to m1 -->
+    <path d="M 240 160 L 70 160" stroke="#4caf50" stroke-width="2" fill="none" stroke-dasharray="5,3"/>
+    <text x="260" y="165" font-family="Arial, sans-serif" font-size="10" fill="#4caf50" font-weight="bold">ACCEPTED</text>
+
+    <text x="210" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#666">m1 accepted into batch (first candidate)</text>
+  </g>
+
+  <!-- Panel 3: Process m2 (bottom-left) -->
+  <g transform="translate(20, 340)">
+    <rect x="0" y="0" width="420" height="290" rx="8" ry="8" fill="url(#panelBg)" stroke="#333" stroke-width="2" filter="url(#shadow)"/>
+
+    <!-- Panel header -->
+    <rect x="0" y="0" width="420" height="30" rx="8" ry="0" fill="#37474f"/>
+    <text x="15" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Frame 3: Process m2</text>
+    <circle cx="395" cy="15" r="8" fill="#78909c"/>
+    <text x="395" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">3</text>
+
+    <!-- Decision box - independence check -->
+    <rect x="15" y="40" width="390" height="95" rx="4" fill="#e8f5e9" stroke="#4caf50" stroke-width="2"/>
+    <text x="25" y="60" font-family="monospace" font-size="11" fill="#333">Check: Is m2 independent of B={m1}?</text>
+
+    <!-- Footprint comparison -->
+    <text x="25" y="80" font-family="monospace" font-size="10" fill="#555">Del(m1) n Use(m2) = {} </text>
+    <use href="#checkmark" x="210" y="68" width="14" height="14"/>
+
+    <text x="25" y="95" font-family="monospace" font-size="10" fill="#555">Del(m2) n Use(m1) = {} </text>
+    <use href="#checkmark" x="210" y="83" width="14" height="14"/>
+
+    <use href="#checkmark" x="25" y="105" width="16" height="16"/>
+    <text x="45" y="118" font-family="Arial, sans-serif" font-size="11" fill="#2e7d32" font-weight="bold">Independent! No footprint overlap.</text>
+
+    <!-- Updated state -->
+    <text x="15" y="155" font-family="monospace" font-size="11" fill="#333">B = {m1, m2}</text>
+
+    <!-- Candidate boxes - m1, m2 are green -->
+    <g transform="translate(15, 170)">
+      <!-- Row 1 -->
+      <rect x="0" y="0" width="45" height="35" rx="4" fill="#4caf50" stroke="#388e3c" stroke-width="2"/>
+      <text x="22.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m1</text>
+
+      <rect x="50" y="0" width="45" height="35" rx="4" fill="#4caf50" stroke="#388e3c" stroke-width="2"/>
+      <text x="72.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m2</text>
+
+      <rect x="100" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m3</text>
+
+      <rect x="150" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m4</text>
+
+      <!-- Row 2 -->
+      <rect x="0" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="22.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m5</text>
+
+      <rect x="50" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m6</text>
+
+      <rect x="100" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m7</text>
+
+      <rect x="150" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m8</text>
+    </g>
+
+    <text x="210" y="275" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#666">m2 accepted (independent of m1)</text>
+  </g>
+
+  <!-- Panel 4: Process m3 - CONFLICT (bottom-right) -->
+  <g transform="translate(460, 340)">
+    <rect x="0" y="0" width="420" height="290" rx="8" ry="8" fill="url(#panelBg)" stroke="#333" stroke-width="2" filter="url(#shadow)"/>
+
+    <!-- Panel header -->
+    <rect x="0" y="0" width="420" height="30" rx="8" ry="0" fill="#37474f"/>
+    <text x="15" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Frame 4: Process m3 - CONFLICT</text>
+    <circle cx="395" cy="15" r="8" fill="#f44336"/>
+    <text x="395" y="19" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">4</text>
+
+    <!-- Decision box - conflict detected -->
+    <rect x="15" y="40" width="390" height="95" rx="4" fill="#ffebee" stroke="#f44336" stroke-width="2"/>
+    <text x="25" y="60" font-family="monospace" font-size="11" fill="#333">Check: Is m3 independent of B={m1,m2}?</text>
+
+    <!-- Footprint comparison -->
+    <text x="25" y="80" font-family="monospace" font-size="10" fill="#555">Del(m1) n Use(m3) = {} </text>
+    <use href="#checkmark" x="210" y="68" width="14" height="14"/>
+
+    <text x="25" y="95" font-family="monospace" font-size="10" fill="#c62828">Del(m3) n Use(m1) = {v7} </text>
+    <use href="#xmark" x="210" y="83" width="14" height="14"/>
+
+    <use href="#xmark" x="25" y="105" width="16" height="16"/>
+    <text x="45" y="118" font-family="Arial, sans-serif" font-size="11" fill="#c62828" font-weight="bold">CONFLICT with m1! m3 would delete v7 used by m1.</text>
+
+    <!-- Updated state -->
+    <text x="15" y="155" font-family="monospace" font-size="11" fill="#333">E_rej = {m3}, blocked_by(m3) = m1</text>
+
+    <!-- Candidate boxes - m1, m2 green, m3 red -->
+    <g transform="translate(15, 170)">
+      <!-- Row 1 -->
+      <rect x="0" y="0" width="45" height="35" rx="4" fill="#4caf50" stroke="#388e3c" stroke-width="2"/>
+      <text x="22.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m1</text>
+
+      <rect x="50" y="0" width="45" height="35" rx="4" fill="#4caf50" stroke="#388e3c" stroke-width="2"/>
+      <text x="72.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m2</text>
+
+      <rect x="100" y="0" width="45" height="35" rx="4" fill="#f44336" stroke="#c62828" stroke-width="2"/>
+      <text x="122.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m3</text>
+
+      <rect x="150" y="0" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="22" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m4</text>
+
+      <!-- Row 2 -->
+      <rect x="0" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="22.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m5</text>
+
+      <rect x="50" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="72.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m6</text>
+
+      <rect x="100" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="122.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m7</text>
+
+      <rect x="150" y="45" width="45" height="35" rx="4" fill="#9e9e9e" stroke="#757575" stroke-width="1"/>
+      <text x="172.5" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">m8</text>
+
+      <!-- Blocking arrow from m1 to m3 -->
+      <path d="M 37.5 -5 Q 80 -30 122.5 -5" stroke="#f44336" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
+      <text x="80" y="-35" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#c62828" font-weight="bold">blocks</text>
+    </g>
+
+    <!-- Conflict explanation box -->
+    <rect x="220" y="170" width="185" height="60" rx="4" fill="#fff" stroke="#f44336" stroke-width="1"/>
+    <text x="230" y="188" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#c62828">Footprint Conflict:</text>
+    <text x="230" y="202" font-family="monospace" font-size="9" fill="#333">m3 deletes vertex v7</text>
+    <text x="230" y="215" font-family="monospace" font-size="9" fill="#333">m1 uses vertex v7</text>
+    <text x="230" y="228" font-family="Arial, sans-serif" font-size="9" fill="#c62828">Left-most wins: m1 accepted first</text>
+
+    <text x="210" y="275" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-style="italic" fill="#666">m3 rejected (conflicts with m1, blocking arrow drawn)</text>
+  </g>
+</svg>

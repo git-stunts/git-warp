@@ -1,0 +1,248 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ASCII Renderers > renderCheckView > renders degraded graph with warnings 1`] = `
+"╔══════════════════════════ HEALTH ═══════════════════════════╗
+║                                                             ║
+║     GRAPH HEALTH: degraded-graph                            ║
+║                                                             ║
+║     Cache:       ████████████████░░░░ 80% stale             ║
+║     Tombstones:  ████░░░░░░░░░░░░░░░░ 22% (warning)         ║
+║     Patches:     50 since checkpoint                        ║
+║                                                             ║
+║     Writers:     alice (abc1234)                            ║
+║     Checkpoint:  oldchec (30m ago) ✓                        ║
+║     Coverage:    ⚠ missing: bob, charlie                    ║
+║     Hooks:       ✓ installed (v7.4.0) — upgrade available   ║
+║                                                             ║
+║     Overall: ⚠ DEGRADED                                     ║
+║                                                             ║
+╚═════════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders graph with foreign hook 1`] = `
+"╔═══════════════════════ HEALTH ═══════════════════════╗
+║                                                      ║
+║     GRAPH HEALTH: foreign-hook-graph                 ║
+║                                                      ║
+║     Cache:       ████████████████████ 100% fresh     ║
+║     Tombstones:  ░░░░░░░░░░░░░░░░░░░░ 2% (healthy)   ║
+║     Patches:     5 since checkpoint                  ║
+║                                                      ║
+║     Writers:     alice (abc1234)                     ║
+║     Checkpoint:  checkpo (1m ago) ✓                  ║
+║     Coverage:    ✓ all writers merged                ║
+║     Hooks:       ⚠ foreign hook present              ║
+║                                                      ║
+║     Overall: ⚠ DEGRADED                              ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders healthy graph 1`] = `
+"╔═══════════════════════ HEALTH ═══════════════════════╗
+║                                                      ║
+║     GRAPH HEALTH: test-graph                         ║
+║                                                      ║
+║     Cache:       ████████████████████ 100% fresh     ║
+║     Tombstones:  █░░░░░░░░░░░░░░░░░░░ 5% (healthy)   ║
+║     Patches:     3 since checkpoint                  ║
+║                                                      ║
+║     Writers:     alice (abc1234) | bob (def5678)     ║
+║     Checkpoint:  checkpo (2m ago) ✓                  ║
+║     Coverage:    ✓ all writers merged                ║
+║     Hooks:       ✓ installed (v7.5.0)                ║
+║                                                      ║
+║     Overall: ✓ HEALTHY                               ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders unhealthy graph 1`] = `
+"╔════════════════════════ HEALTH ════════════════════════╗
+║                                                        ║
+║     GRAPH HEALTH: unhealthy-graph                      ║
+║                                                        ║
+║     Cache:       ░░░░░░░░░░░░░░░░░░░░ 0% none          ║
+║     Tombstones:  █████████░░░░░░░░░░░ 45% (critical)   ║
+║     Patches:     200 since checkpoint                  ║
+║                                                        ║
+║     Writers:     none                                  ║
+║     Checkpoint:  none                                  ║
+║     Coverage:    none                                  ║
+║     Hooks:       ✗ not installed                       ║
+║                                                        ║
+║     Overall: ✗ UNHEALTHY                               ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders with critical tombstone ratio 1`] = `
+"╔════════════════════════ HEALTH ════════════════════════╗
+║                                                        ║
+║     GRAPH HEALTH: tombstone-heavy                      ║
+║                                                        ║
+║     Cache:       ████████████████████ 100% fresh       ║
+║     Tombstones:  ███████████░░░░░░░░░ 55% (critical)   ║
+║     Patches:     10 since checkpoint                   ║
+║                                                        ║
+║     Writers:     cleanup-needed (abc1234)              ║
+║     Checkpoint:  checkpo (2h ago) ✓                    ║
+║     Coverage:    ✓ all writers merged                  ║
+║     Hooks:       ✓ installed (v7.5.0)                  ║
+║                                                        ║
+║     Overall: ✗ UNHEALTHY                               ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders with no checkpoint 1`] = `
+"╔═══════════════════════ HEALTH ═══════════════════════╗
+║                                                      ║
+║     GRAPH HEALTH: no-checkpoint-graph                ║
+║                                                      ║
+║     Cache:       ░░░░░░░░░░░░░░░░░░░░ 0% none        ║
+║     Tombstones:  ░░░░░░░░░░░░░░░░░░░░ 0% (healthy)   ║
+║                                                      ║
+║     Writers:     alice (abc1234)                     ║
+║     Checkpoint:  none                                ║
+║     Coverage:    none                                ║
+║     Hooks:       unknown                             ║
+║                                                      ║
+║     Overall: ✓ HEALTHY                               ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderCheckView > renders with unknown health status 1`] = `
+"╔═══════════════════════ HEALTH ═══════════════════════╗
+║                                                      ║
+║     GRAPH HEALTH: unknown-graph                      ║
+║                                                      ║
+║     Cache:       ░░░░░░░░░░░░░░░░░░░░ 0% none        ║
+║     Tombstones:  ░░░░░░░░░░░░░░░░░░░░ 0% (healthy)   ║
+║                                                      ║
+║     Writers:     none                                ║
+║     Checkpoint:  none                                ║
+║     Coverage:    none                                ║
+║     Hooks:       unknown                             ║
+║                                                      ║
+║     Overall: ? UNKNOWN                               ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > handles null/undefined data gracefully 1`] = `
+"No data available
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > handles null/undefined data gracefully 2`] = `
+"No data available
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > handles null/undefined data gracefully 3`] = `
+"No data available
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders empty repo 1`] = `
+"╔════════════════ WARP GRAPHS ═════════════════╗
+║                                              ║
+║   No WARP graphs found in this repository.   ║
+║                                              ║
+╚══════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders graph with checkpoint but no sha 1`] = `
+"╔═══════════════════ WARP GRAPHS IN REPOSITORY ════════════════════╗
+║                                                                  ║
+║   ┌──────────────────────────────────────────────────────────┐   ║
+║   │ 📊 no-checkpoint-sha                                     │   ║
+║   │ Writers: 1 (alice)                                       │   ║
+║   │   alice  ●─────────────●─────────────●─ (3 patches)      │   ║
+║   │ Checkpoint: none ⚠                                      │    ║
+║   └──────────────────────────────────────────────────────────┘   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders graph with many writers (truncation) 1`] = `
+"╔═════════════════════════ WARP GRAPHS IN REPOSITORY ═════════════════════════╗
+║                                                                             ║
+║   ┌──────────────────────────────────────────────────────────┐              ║
+║   │ 📊 busy-graph                                            │              ║
+║   │ Writers: 8 (writer1, writer2, writer3, writer4, writer5...) │           ║
+║   │   writer1 ●─────●─────●─────●─────●─────●─────●─────● (100 patches) │   ║
+║   │   writer2 ●────●────●────●────●────●────●────● (80 patches) │           ║
+║   │   writer3 ●───●───●───●───●───●───●───● (60 patches)     │              ║
+║   │   writer4 ●──●──●──●──●──●──●──● (40 patches)            │              ║
+║   │   writer5 ●─●─●─●─●─●─●─● (20 patches)                   │              ║
+║   │   writer6 ●●●●●●●●──── (10 patches)                      │              ║
+║   │   writer7 ●●●●●──── (5 patches)                          │              ║
+║   │   writer8 ● (1 patch)                                    │              ║
+║   │ Checkpoint: deadbee (1d ago) ✓                           │              ║
+║   └──────────────────────────────────────────────────────────┘              ║
+║                                                                             ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders graph with no writers 1`] = `
+"╔═══════════════════ WARP GRAPHS IN REPOSITORY ════════════════════╗
+║                                                                  ║
+║   ┌──────────────────────────────────────────────────────────┐   ║
+║   │ 📊 empty-graph                                           │   ║
+║   │ Writers: 0                                               │   ║
+║   └──────────────────────────────────────────────────────────┘   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders multiple graphs 1`] = `
+"╔════════════════════════ WARP GRAPHS IN REPOSITORY ═════════════════════════╗
+║                                                                            ║
+║   ┌──────────────────────────────────────────────────────────┐             ║
+║   │ 📊 graph-alpha                                           │             ║
+║   │ Writers: 3 (alice, bob, charlie)                         │             ║
+║   │   alice   ●─────●─────●─────●─────●─────●─────●─────● (10 patches) │   ║
+║   │   bob     ●────●────●────●────● (5 patches)              │             ║
+║   │   charlie ●────● (2 patches)                             │             ║
+║   │ Checkpoint: aaa1111 (1h ago) ✓                           │             ║
+║   │ Coverage: bbb5555                                        │             ║
+║   └──────────────────────────────────────────────────────────┘             ║
+║                                                                            ║
+║   ┌──────────────────────────────────────────────────────────┐             ║
+║   │ 📊 graph-beta                                            │             ║
+║   │ Writers: 1 (solo-writer)                                 │             ║
+║   │   solo-writer ● (1 patch)                                │             ║
+║   └──────────────────────────────────────────────────────────┘             ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderInfoView > renders single graph with writers 1`] = `
+"╔════════════════════ WARP GRAPHS IN REPOSITORY ═════════════════════╗
+║                                                                    ║
+║   ┌──────────────────────────────────────────────────────────┐     ║
+║   │ 📊 test-graph                                            │     ║
+║   │ Writers: 2 (alice, bob)                                  │     ║
+║   │   alice  ●────────●────────●────────●────────● (5 patches) │   ║
+║   │   bob    ●────────●────────● (3 patches)                 │     ║
+║   │ Checkpoint: abc1234 (5m ago) ✓                           │     ║
+║   └──────────────────────────────────────────────────────────┘     ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+"
+`;

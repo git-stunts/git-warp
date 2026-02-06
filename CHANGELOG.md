@@ -86,6 +86,16 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
   - Changed `addPatch()` return type from `void` to `this`
   - Added missing methods: `static empty()`, `has()`, `entities()`, `clear()`, `merge()`, `serialize()`, `static deserialize()`, and `[Symbol.iterator]()`
 
+## [7.8.0] - 2025-02-06
+
+### Added
+- **Visualization system** - New `--view` flag for visual ASCII output
+  - `git warp --view info` - Graph overview with writer timelines and box-framed summaries
+  - `git warp --view check` - Health dashboard with progress bars and status indicators
+- Visualization module scaffold (`src/visualization/`) with ASCII renderers and utilities
+- Snapshot tests for ASCII renderer output stability
+- Dependencies: chalk, boxen, cli-table3, figures, string-width, wrap-ansi
+
 ## [7.7.1] — Documentation & Hardening
 
 ### Documentation

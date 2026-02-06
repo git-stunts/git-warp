@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#333">Initial Load Sequence</text>
+
+  <!-- Panel 1: User clicks open -->
+  <g transform="translate(20, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 1: User Action</text>
+
+    <!-- File browser mockup -->
+    <rect x="20" y="40" width="220" height="140" rx="4" fill="#fafafa" stroke="#ccc"/>
+    <text x="30" y="58" font-family="monospace" font-size="10" fill="#333">📁 my-project/</text>
+    <text x="40" y="74" font-family="monospace" font-size="10" fill="#333">📁 .git/</text>
+    <text x="40" y="90" font-family="monospace" font-size="10" fill="#333">📁 refs/warp/</text>
+    <rect x="50" y="96" width="120" height="16" rx="2" fill="#e3f2fd" stroke="#2196f3"/>
+    <text x="56" y="108" font-family="monospace" font-size="10" fill="#1565c0">📊 my-graph</text>
+    <text x="40" y="126" font-family="monospace" font-size="10" fill="#999">📁 objects/</text>
+
+    <!-- Cursor -->
+    <path d="M175,102 L175,118 L182,112 L178,112 L183,122 L180,123 L175,113 L175,118" fill="#333"/>
+
+    <!-- Caption -->
+    <text x="130" y="200" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">User selects a WARP graph</text>
+    <text x="130" y="215" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#666">from the repository browser</text>
+  </g>
+
+  <!-- Arrow 1→2 -->
+  <path d="M290,170 L320,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 2: Loading state -->
+  <g transform="translate(330, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 2: System Loading</text>
+
+    <!-- Two-plane layout skeleton -->
+    <rect x="20" y="40" width="220" height="80" rx="4" fill="#fafafa" stroke="#ccc"/>
+    <text x="130" y="55" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">SKELETON PLANE</text>
+
+    <!-- Loading spinner -->
+    <circle cx="130" cy="85" r="15" fill="none" stroke="#e0e0e0" stroke-width="3"/>
+    <path d="M130,70 A15,15 0 0,1 145,85" fill="none" stroke="#2196f3" stroke-width="3" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" from="0 130 85" to="360 130 85" dur="1s" repeatCount="indefinite"/>
+    </path>
+
+    <rect x="20" y="130" width="220" height="80" rx="4" fill="#fafafa" stroke="#ccc"/>
+    <text x="130" y="145" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">ATTACHMENT PLANE</text>
+    <text x="130" y="175" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#ccc">waiting...</text>
+
+    <!-- Caption -->
+    <text x="130" y="225" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">System loads WARP state U₀</text>
+  </g>
+
+  <!-- Arrow 2→3 -->
+  <path d="M600,170 L630,170" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Panel 3: Loaded state -->
+  <g transform="translate(640, 50)">
+    <rect width="260" height="240" rx="8" fill="#fff" stroke="#ddd" stroke-width="2" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">Panel 3: Skeleton Rendered</text>
+
+    <!-- Two-plane layout with graph -->
+    <rect x="20" y="40" width="220" height="80" rx="4" fill="#fff" stroke="#2196f3" stroke-width="2"/>
+    <text x="130" y="55" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#2196f3">SKELETON PLANE</text>
+
+    <!-- Simple graph -->
+    <circle cx="70" cy="85" r="12" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="70" y="89" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₁</text>
+    <circle cx="130" cy="75" r="12" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="130" y="79" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₂</text>
+    <circle cx="190" cy="90" r="12" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="190" y="94" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₃</text>
+    <line x1="82" y1="85" x2="118" y2="77" stroke="#2196f3" stroke-width="1.5"/>
+    <line x1="142" y1="77" x2="178" y2="88" stroke="#2196f3" stroke-width="1.5"/>
+
+    <!-- Attachment plane empty -->
+    <rect x="20" y="130" width="220" height="80" rx="4" fill="#fafafa" stroke="#ccc"/>
+    <text x="130" y="145" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">ATTACHMENT PLANE</text>
+    <text x="130" y="170" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">Click a node or edge</text>
+    <text x="130" y="185" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">to inspect</text>
+
+    <!-- Caption -->
+    <text x="130" y="225" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#333">Skeleton G renders with nodes</text>
+  </g>
+
+  <!-- Bottom row: Final state panel -->
+  <g transform="translate(330, 310)">
+    <rect width="260" height="260" rx="8" fill="#fff" stroke="#4caf50" stroke-width="3" filter="url(#shadow)"/>
+    <rect width="260" height="24" rx="8" fill="#e8f5e9" stroke="#4caf50" stroke-width="1"/>
+    <text x="130" y="16" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#2e7d32">✓ Ready State</text>
+
+    <!-- Breadcrumb -->
+    <rect x="20" y="35" width="220" height="20" rx="4" fill="#f5f5f5"/>
+    <text x="30" y="49" font-family="system-ui, sans-serif" font-size="10" fill="#666">📍 root</text>
+
+    <!-- Two-plane layout with graph -->
+    <rect x="20" y="60" width="220" height="85" rx="4" fill="#fff" stroke="#2196f3" stroke-width="2"/>
+    <text x="30" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#2196f3" font-weight="bold">Skeleton G</text>
+
+    <!-- Graph with hover hint -->
+    <circle cx="70" cy="105" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="70" y="109" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₁</text>
+    <circle cx="130" cy="95" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="130" y="99" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₂</text>
+    <circle cx="190" cy="110" r="14" fill="#e3f2fd" stroke="#2196f3" stroke-width="2"/>
+    <text x="190" y="114" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" fill="#1565c0">v₃</text>
+    <line x1="84" y1="105" x2="116" y2="97" stroke="#2196f3" stroke-width="1.5"/>
+    <line x1="144" y1="97" x2="176" y2="108" stroke="#2196f3" stroke-width="1.5"/>
+
+    <!-- Attachment plane with instruction -->
+    <rect x="20" y="155" width="220" height="75" rx="4" fill="#fff9c4" stroke="#ffc107" stroke-width="2"/>
+    <text x="30" y="170" font-family="system-ui, sans-serif" font-size="10" fill="#f57f17" font-weight="bold">Attachment α(−)</text>
+    <text x="130" y="195" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#666">👆 Select a node above</text>
+    <text x="130" y="210" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#999">to see its attachment</text>
+
+    <!-- Status bar -->
+    <rect x="20" y="238" width="220" height="16" rx="2" fill="#f5f5f5"/>
+    <text x="30" y="250" font-family="monospace" font-size="9" fill="#666">3 nodes | 2 edges | depth: 0</text>
+  </g>
+
+  <!-- Arrow from panel 3 to final -->
+  <path d="M770,290 L770,340 L600,340" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+</svg>

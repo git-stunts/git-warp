@@ -1,0 +1,149 @@
+<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="boundaryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="bulkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa"/>
+    </marker>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="500" y="35" fill="#e2e8f0" font-family="monospace" font-size="20" text-anchor="middle">Computational Holography</text>
+  <text x="500" y="55" fill="#64748b" font-family="monospace" font-size="12" text-anchor="middle">The boundary (U₀, P) uniquely determines the interior worldline</text>
+
+  <!-- Boundary Section (compact representation) -->
+  <rect x="30" y="80" width="200" height="280" rx="12" fill="#1e3a5f" stroke="url(#boundaryGrad)" stroke-width="3"/>
+  <text x="130" y="110" fill="#60a5fa" font-family="monospace" font-size="14" text-anchor="middle">BOUNDARY</text>
+  <text x="130" y="130" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">(U₀, P)</text>
+
+  <!-- Initial state box -->
+  <rect x="50" y="150" width="160" height="60" rx="6" fill="#0f172a" stroke="#3b82f6"/>
+  <text x="130" y="175" fill="#60a5fa" font-family="monospace" font-size="11" text-anchor="middle">U₀</text>
+  <text x="130" y="195" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">Initial State</text>
+
+  <!-- Payload box -->
+  <rect x="50" y="220" width="160" height="130" rx="6" fill="#0f172a" stroke="#8b5cf6"/>
+  <text x="130" y="245" fill="#a78bfa" font-family="monospace" font-size="11" text-anchor="middle">P = (μ₀...μ₄)</text>
+  <text x="65" y="270" fill="#64748b" font-family="monospace" font-size="9">μ₀: AddNode</text>
+  <text x="65" y="285" fill="#64748b" font-family="monospace" font-size="9">μ₁: SetProp</text>
+  <text x="65" y="300" fill="#64748b" font-family="monospace" font-size="9">μ₂: AddEdge</text>
+  <text x="65" y="315" fill="#64748b" font-family="monospace" font-size="9">μ₃: SetProp</text>
+  <text x="65" y="330" fill="#64748b" font-family="monospace" font-size="9">μ₄: AddNode</text>
+
+  <!-- Arrow from boundary to interior -->
+  <path d="M 235 220 Q 300 220 300 150 Q 300 100 370 100" stroke="#60a5fa" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+  <text x="290" y="80" fill="#60a5fa" font-family="monospace" font-size="10" transform="rotate(-15 290 80)">Replay(B)</text>
+
+  <!-- Interior Volume (expanded worldline) -->
+  <rect x="350" y="80" width="620" height="280" rx="12" fill="url(#bulkGrad)" stroke="#334155" stroke-width="2"/>
+  <text x="660" y="110" fill="#e2e8f0" font-family="monospace" font-size="14" text-anchor="middle">INTERIOR VOLUME (Bulk)</text>
+
+  <!-- Worldline states -->
+  <!-- U₀ -->
+  <circle cx="420" cy="200" r="35" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="420" y="195" fill="#60a5fa" font-family="monospace" font-size="12" text-anchor="middle">U₀</text>
+  <text x="420" y="210" fill="#94a3b8" font-family="monospace" font-size="8" text-anchor="middle">tick 0</text>
+
+  <!-- μ₀ arrow -->
+  <line x1="458" y1="200" x2="502" y2="200" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="480" y="190" fill="#a78bfa" font-family="monospace" font-size="8" text-anchor="middle">μ₀</text>
+
+  <!-- U₁ -->
+  <circle cx="540" cy="200" r="35" fill="#1e3a5f" stroke="#22c55e" stroke-width="2" filter="url(#glow2)"/>
+  <text x="540" y="195" fill="#22c55e" font-family="monospace" font-size="12" text-anchor="middle">U₁</text>
+  <text x="540" y="210" fill="#94a3b8" font-family="monospace" font-size="8" text-anchor="middle">tick 1</text>
+
+  <!-- μ₁ arrow -->
+  <line x1="578" y1="200" x2="622" y2="200" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="600" y="190" fill="#a78bfa" font-family="monospace" font-size="8" text-anchor="middle">μ₁</text>
+
+  <!-- U₂ (currently reconstructing) -->
+  <circle cx="660" cy="200" r="35" fill="#1e3a5f" stroke="#f59e0b" stroke-width="3">
+    <animate attributeName="stroke-opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  <text x="660" y="195" fill="#f59e0b" font-family="monospace" font-size="12" text-anchor="middle">U₂</text>
+  <text x="660" y="210" fill="#fbbf24" font-family="monospace" font-size="8" text-anchor="middle">building...</text>
+
+  <!-- μ₂ arrow (pending) -->
+  <line x1="698" y1="200" x2="742" y2="200" stroke="#475569" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="720" y="190" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">μ₂</text>
+
+  <!-- U₃ (pending) -->
+  <circle cx="780" cy="200" r="35" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+  <text x="780" y="195" fill="#64748b" font-family="monospace" font-size="12" text-anchor="middle">U₃</text>
+  <text x="780" y="210" fill="#475569" font-family="monospace" font-size="8" text-anchor="middle">pending</text>
+
+  <!-- μ₃ arrow (pending) -->
+  <line x1="818" y1="200" x2="862" y2="200" stroke="#475569" stroke-width="2" stroke-dasharray="4,2"/>
+
+  <!-- U₄ (pending) -->
+  <circle cx="900" cy="200" r="35" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+  <text x="900" y="195" fill="#64748b" font-family="monospace" font-size="12" text-anchor="middle">U₄</text>
+
+  <!-- State detail panel -->
+  <rect x="30" y="400" width="940" height="120" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="50" y="430" fill="#94a3b8" font-family="monospace" font-size="12">APPLY(U₁, μ₁) → U₂</text>
+
+  <!-- Current patch detail -->
+  <rect x="50" y="445" width="280" height="60" rx="4" fill="#0f172a" stroke="#8b5cf6"/>
+  <text x="70" y="470" fill="#a78bfa" font-family="monospace" font-size="10">μ₁: SetProp</text>
+  <text x="70" y="488" fill="#64748b" font-family="monospace" font-size="9">entity=v₃, key="status", value="active"</text>
+
+  <!-- Arrow -->
+  <text x="355" y="480" fill="#60a5fa" font-family="monospace" font-size="20">→</text>
+
+  <!-- Resulting state delta -->
+  <rect x="390" y="445" width="280" height="60" rx="4" fill="#0f172a" stroke="#22c55e"/>
+  <text x="410" y="470" fill="#22c55e" font-family="monospace" font-size="10">U₂ delta:</text>
+  <text x="410" y="488" fill="#86efac" font-family="monospace" font-size="9">+ prop(v₃, "status") = "active"</text>
+
+  <!-- Hash verification -->
+  <rect x="700" y="445" width="250" height="60" rx="4" fill="#0f172a" stroke="#334155"/>
+  <text x="720" y="470" fill="#64748b" font-family="monospace" font-size="10">Verification:</text>
+  <text x="720" y="488" fill="#22c55e" font-family="monospace" font-size="9">hash(U₂) = 0x7f3a... ✓</text>
+
+  <!-- Progress section -->
+  <rect x="30" y="540" width="940" height="80" rx="8" fill="#1e293b" stroke="#334155"/>
+
+  <text x="50" y="570" fill="#94a3b8" font-family="monospace" font-size="12">RECONSTRUCTION PROGRESS</text>
+
+  <!-- Progress bar -->
+  <rect x="50" y="585" width="800" height="20" rx="10" fill="#0f172a"/>
+  <rect x="50" y="585" width="320" height="20" rx="10" fill="url(#boundaryGrad)"/>
+
+  <!-- Tick markers -->
+  <circle cx="50" cy="595" r="4" fill="#3b82f6"/>
+  <circle cx="250" cy="595" r="4" fill="#22c55e"/>
+  <circle cx="450" cy="595" r="4" fill="#f59e0b"/>
+  <circle cx="650" cy="595" r="4" fill="#475569"/>
+  <circle cx="850" cy="595" r="4" fill="#475569"/>
+
+  <text x="50" y="625" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₀</text>
+  <text x="250" y="625" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₁</text>
+  <text x="450" y="625" fill="#f59e0b" font-family="monospace" font-size="9" text-anchor="middle">U₂ ▸</text>
+  <text x="650" y="625" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₃</text>
+  <text x="850" y="625" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">U₄</text>
+
+  <!-- Stats -->
+  <text x="880" y="575" fill="#64748b" font-family="monospace" font-size="10">2/5 ticks</text>
+  <text x="880" y="595" fill="#64748b" font-family="monospace" font-size="10">40% complete</text>
+
+  <!-- Holography equation -->
+  <rect x="30" y="640" width="940" height="50" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+  <text x="500" y="672" fill="#60a5fa" font-family="monospace" font-size="14" text-anchor="middle">
+    Theorem: Replay(U₀, P) = U₀ → U₁ → U₂ → ... → Uₙ  (unique up to isomorphism)
+  </text>
+</svg>

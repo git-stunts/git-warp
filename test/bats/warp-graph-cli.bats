@@ -160,3 +160,9 @@ PY
   echo "$output" | grep -q "Patches Since Checkpoint:"
   echo "$output" | grep -q "Tombstone Ratio:"
 }
+
+@test "--view with unsupported command produces error" {
+  run git warp --repo "${TEST_REPO}" --graph demo --view query --match "user:*"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -qi "view.*not supported\|unsupported.*view"
+}

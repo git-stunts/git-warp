@@ -1,0 +1,187 @@
+<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="sat-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+    </marker>
+    <marker id="vio-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="500" y="35" fill="#e2e8f0" font-family="monospace" font-size="18" text-anchor="middle">Temporal Logic Satisfaction</text>
+
+  <!-- Formula display -->
+  <rect x="200" y="50" width="600" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="500" y="77" fill="#a78bfa" font-family="monospace" font-size="16" text-anchor="middle">A G F p_expose</text>
+
+  <!-- Formula breakdown -->
+  <text x="500" y="110" fill="#64748b" font-family="monospace" font-size="11" text-anchor="middle">"On all paths, globally, exposure eventually occurs"</text>
+
+  <!-- Worldline with satisfaction markers -->
+  <rect x="30" y="130" width="700" height="250" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="50" y="155" fill="#94a3b8" font-family="monospace" font-size="12">CHRONOS (Worldline) - Evaluating: G F p_expose</text>
+
+  <!-- States with satisfaction coloring -->
+  <!-- U₀ - p_expose = false, but F p_expose = true (will eventually be true) -->
+  <circle cx="100" cy="250" r="30" fill="#14532d" stroke="#22c55e" stroke-width="3"/>
+  <text x="100" y="245" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₀</text>
+  <text x="100" y="260" fill="#86efac" font-family="monospace" font-size="8" text-anchor="middle">F ✓</text>
+  <text x="100" y="300" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">p=false</text>
+
+  <!-- U₁ -->
+  <circle cx="220" cy="250" r="30" fill="#14532d" stroke="#22c55e" stroke-width="3"/>
+  <text x="220" y="245" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₁</text>
+  <text x="220" y="260" fill="#86efac" font-family="monospace" font-size="8" text-anchor="middle">F ✓</text>
+  <text x="220" y="300" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">p=false</text>
+
+  <!-- U₂ - p_expose = true! -->
+  <circle cx="340" cy="250" r="30" fill="#1e3a5f" stroke="#3b82f6" stroke-width="3"/>
+  <text x="340" y="245" fill="#60a5fa" font-family="monospace" font-size="11" text-anchor="middle">U₂</text>
+  <text x="340" y="260" fill="#93c5fd" font-family="monospace" font-size="8" text-anchor="middle">p ✓</text>
+  <text x="340" y="300" fill="#3b82f6" font-family="monospace" font-size="8" text-anchor="middle">p=TRUE</text>
+
+  <!-- U₃ -->
+  <circle cx="460" cy="250" r="30" fill="#14532d" stroke="#22c55e" stroke-width="3"/>
+  <text x="460" y="245" fill="#22c55e" font-family="monospace" font-size="11" text-anchor="middle">U₃</text>
+  <text x="460" y="260" fill="#86efac" font-family="monospace" font-size="8" text-anchor="middle">F ✓</text>
+  <text x="460" y="300" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">p=false</text>
+
+  <!-- U₄ - p_expose = true again -->
+  <circle cx="580" cy="250" r="30" fill="#1e3a5f" stroke="#3b82f6" stroke-width="3"/>
+  <text x="580" y="245" fill="#60a5fa" font-family="monospace" font-size="11" text-anchor="middle">U₄</text>
+  <text x="580" y="260" fill="#93c5fd" font-family="monospace" font-size="8" text-anchor="middle">p ✓</text>
+  <text x="580" y="300" fill="#3b82f6" font-family="monospace" font-size="8" text-anchor="middle">p=TRUE</text>
+
+  <!-- Arrows -->
+  <line x1="133" y1="250" x2="187" y2="250" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+  <line x1="253" y1="250" x2="307" y2="250" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+  <line x1="373" y1="250" x2="427" y2="250" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+  <line x1="493" y1="250" x2="547" y2="250" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+
+  <!-- G F annotation -->
+  <path d="M 100 200 C 100 170 580 170 580 200" stroke="#22c55e" stroke-width="2" fill="none" stroke-dasharray="6,3"/>
+  <text x="340" y="175" fill="#22c55e" font-family="monospace" font-size="10" text-anchor="middle">G F p_expose: at every point, p eventually holds</text>
+
+  <!-- Satisfaction result -->
+  <rect x="640" y="200" width="80" height="100" rx="6" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="680" y="240" fill="#22c55e" font-family="monospace" font-size="20" text-anchor="middle">✓</text>
+  <text x="680" y="270" fill="#86efac" font-family="monospace" font-size="10" text-anchor="middle">SATISFIED</text>
+  <text x="680" y="285" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">on worldline</text>
+
+  <!-- Multiway view with counterexample -->
+  <rect x="30" y="400" width="700" height="200" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="50" y="425" fill="#94a3b8" font-family="monospace" font-size="12">AION (Multiway) - Evaluating: A G F p_expose</text>
+
+  <!-- Main worldline (same as above, abbreviated) -->
+  <circle cx="100" cy="500" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="100" y="505" fill="#22c55e" font-family="monospace" font-size="9" text-anchor="middle">U₀</text>
+
+  <!-- Branch point -->
+  <circle cx="220" cy="470" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="220" y="475" fill="#22c55e" font-family="monospace" font-size="9" text-anchor="middle">U₁</text>
+
+  <!-- Alternative branch (violates!) -->
+  <circle cx="220" cy="550" r="20" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+  <text x="220" y="555" fill="#ef4444" font-family="monospace" font-size="9" text-anchor="middle">U₁'</text>
+
+  <!-- Continuing violation path -->
+  <circle cx="340" cy="550" r="20" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+  <text x="340" y="555" fill="#ef4444" font-family="monospace" font-size="9" text-anchor="middle">U₂'</text>
+  <text x="340" y="580" fill="#ef4444" font-family="monospace" font-size="8" text-anchor="middle">¬F p!</text>
+
+  <!-- Continuing main path -->
+  <circle cx="340" cy="470" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="340" y="475" fill="#22c55e" font-family="monospace" font-size="9" text-anchor="middle">U₂</text>
+
+  <circle cx="460" cy="470" r="20" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="460" y="475" fill="#22c55e" font-family="monospace" font-size="9" text-anchor="middle">U₃</text>
+
+  <!-- Arrows -->
+  <line x1="122" y1="490" x2="198" y2="475" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+  <line x1="122" y1="510" x2="198" y2="545" stroke="#ef4444" stroke-width="2" marker-end="url(#vio-arrow)"/>
+  <line x1="242" y1="470" x2="318" y2="470" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+  <line x1="242" y1="550" x2="318" y2="550" stroke="#ef4444" stroke-width="2" marker-end="url(#vio-arrow)"/>
+  <line x1="362" y1="470" x2="438" y2="470" stroke="#22c55e" stroke-width="2" marker-end="url(#sat-arrow)"/>
+
+  <!-- Counterexample highlight -->
+  <rect x="200" y="530" width="180" height="50" rx="4" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="290" y="525" fill="#ef4444" font-family="monospace" font-size="8" text-anchor="middle">COUNTEREXAMPLE</text>
+
+  <!-- A G F result (fails due to alternative path) -->
+  <rect x="500" y="440" width="220" height="150" rx="6" fill="#450a0a" stroke="#ef4444" stroke-width="2"/>
+  <text x="610" y="480" fill="#ef4444" font-family="monospace" font-size="20" text-anchor="middle">✗</text>
+  <text x="610" y="510" fill="#fca5a5" font-family="monospace" font-size="10" text-anchor="middle">VIOLATED</text>
+  <text x="610" y="530" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">A G F p_expose fails</text>
+  <text x="610" y="550" fill="#64748b" font-family="monospace" font-size="8" text-anchor="middle">Counterexample path:</text>
+  <text x="610" y="570" fill="#ef4444" font-family="monospace" font-size="9" text-anchor="middle">U₀ → U₁' → U₂' → ...</text>
+
+  <!-- Right panel: Formula builder -->
+  <rect x="750" y="130" width="230" height="470" rx="8" fill="#1e293b" stroke="#334155"/>
+  <text x="770" y="160" fill="#94a3b8" font-family="monospace" font-size="12">FORMULA</text>
+
+  <!-- Current formula -->
+  <rect x="765" y="175" width="200" height="35" rx="4" fill="#0f172a" stroke="#8b5cf6"/>
+  <text x="865" y="198" fill="#a78bfa" font-family="monospace" font-size="11" text-anchor="middle">A G F p_expose</text>
+
+  <!-- Atomic propositions -->
+  <text x="770" y="235" fill="#94a3b8" font-family="monospace" font-size="10">Atomic Props:</text>
+
+  <rect x="770" y="250" width="85" height="25" rx="4" fill="#1e3a5f" stroke="#3b82f6"/>
+  <text x="812" y="267" fill="#60a5fa" font-family="monospace" font-size="9" text-anchor="middle">p_expose</text>
+
+  <rect x="865" y="250" width="85" height="25" rx="4" fill="#334155"/>
+  <text x="907" y="267" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="middle">p_merge</text>
+
+  <rect x="770" y="285" width="85" height="25" rx="4" fill="#334155"/>
+  <text x="812" y="302" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="middle">p_safe</text>
+
+  <rect x="865" y="285" width="85" height="25" rx="4" fill="#334155"/>
+  <text x="907" y="302" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="middle">p_valid</text>
+
+  <!-- Operators -->
+  <text x="770" y="335" fill="#94a3b8" font-family="monospace" font-size="10">Operators:</text>
+
+  <rect x="770" y="350" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="790" y="367" fill="#22c55e" font-family="monospace" font-size="10" text-anchor="middle">A</text>
+
+  <rect x="820" y="350" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="840" y="367" fill="#f59e0b" font-family="monospace" font-size="10" text-anchor="middle">E</text>
+
+  <rect x="870" y="350" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="890" y="367" fill="#06b6d4" font-family="monospace" font-size="10" text-anchor="middle">G</text>
+
+  <rect x="920" y="350" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="940" y="367" fill="#ec4899" font-family="monospace" font-size="10" text-anchor="middle">F</text>
+
+  <rect x="770" y="385" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="790" y="402" fill="#8b5cf6" font-family="monospace" font-size="10" text-anchor="middle">X</text>
+
+  <rect x="820" y="385" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="840" y="402" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">U</text>
+
+  <rect x="870" y="385" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="890" y="402" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">¬</text>
+
+  <rect x="920" y="385" width="40" height="25" rx="4" fill="#334155"/>
+  <text x="940" y="402" fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle">∧</text>
+
+  <!-- Example formulas -->
+  <text x="770" y="435" fill="#94a3b8" font-family="monospace" font-size="10">Examples:</text>
+
+  <rect x="770" y="450" width="190" height="22" rx="4" fill="#334155"/>
+  <text x="865" y="465" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">A G p_safe (safety)</text>
+
+  <rect x="770" y="480" width="190" height="22" rx="4" fill="#334155"/>
+  <text x="865" y="495" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">E F p_merge (liveness)</text>
+
+  <rect x="770" y="510" width="190" height="22" rx="4" fill="#334155"/>
+  <text x="865" y="525" fill="#64748b" font-family="monospace" font-size="9" text-anchor="middle">A (p_req U p_ack)</text>
+
+  <!-- Evaluate button -->
+  <rect x="770" y="550" width="190" height="35" rx="6" fill="#22c55e"/>
+  <text x="865" y="573" fill="#fff" font-family="monospace" font-size="11" text-anchor="middle">▶ EVALUATE</text>
+</svg>
