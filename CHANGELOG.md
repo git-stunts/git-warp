@@ -58,6 +58,9 @@ Implements Papers III–IV: provenance payloads, slicing, wormholes, BTRs, and p
   - Made `ProvenanceIndex` stress test deterministic by removing wall-clock timing assertion (performance testing belongs in benchmarks)
   - Deduplicated `createMockPersistence` helper in `PatchBuilderV2.test.js`
   - Consolidated doubled async assertions in `WarpGraph.fork.test.js` to avoid calling `graph.fork()` twice per test
+  - Consolidated doubled async assertions in `WormholeService.test.js` (5 instances)
+  - Created `test/helpers/warpGraphTestUtils.js` with shared utilities (OID generators, mock persistence, V2 operation helpers, patch factories) designed for parallel-safe execution
+  - Refactored `patchesFor`, `materializeSlice`, `BoundaryTransitionRecord`, and `ProvenancePayload` tests to use shared utilities, removing ~250 lines of duplication
 
 ## [7.7.1] — Documentation & Hardening
 
