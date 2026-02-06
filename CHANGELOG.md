@@ -5,25 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [7.7.1] — Documentation
+## [7.7.1] — Documentation & Hardening
 
 ### Documentation
 
 - **Comprehensive JSDoc pass**: Added or enhanced JSDoc documentation across the entire codebase.
-  - **WarpGraph.js**: Added JSDoc to 3 helper functions (`canonicalizeJson`, `canonicalStringify`, `normalizeSyncPath`), added `@throws` to ~15 async methods, added `@deprecated` to `createWriter()`, improved return types, enhanced `query()` with examples.
-  - **JoinReducer.js**: Documented 19 functions including `applyOpV2`, `nodeAddOutcome`, `edgeAddOutcome`, `propSetOutcome`, `join`, `joinStates`, `reduceV5`, `cloneStateV5`.
+  - **WarpGraph.js**: Added JSDoc to 3 helper functions, added `@throws` to ~15 async methods, added `@deprecated` to `createWriter()`, improved return types, enhanced `query()` with examples.
+  - **JoinReducer.js**: Documented 19 functions including `applyOpV2`, outcome helpers, `join`, `joinStates`, `reduceV5`, `cloneStateV5`.
   - **PatchBuilderV2.js**: Enhanced all public methods with `@throws`, examples, and fluent return type documentation.
-  - **QueryBuilder.js**: Added 17 helper function docs, 8 class method docs, new type definitions (`AdjacencyMaps`, `AggregateSpec`, `QueryResult`).
-  - **LogicalTraversal.js**: Documented 4 helper functions and standardized traversal method documentation.
-  - **CRDT primitives** (`Dot.js`, `VersionVector.js`, `ORSet.js`, `LWW.js`): Added module-level documentation explaining CRDT concepts (semilattice properties, add-wins semantics, GC safety invariants, EventId comparison logic).
-  - **StreamingBitmapIndexBuilder.js**: Documented 15 methods including `registerNode`, `addEdge`, `flush`, `finalize`, `getMemoryStats`.
-  - **CommitDagTraversalService.js**: Added `@throws` to traversal helpers, documented edge cases.
-  - **IndexRebuildService.js**: Module-level docs, comprehensive `@throws` documentation.
-  - **SyncProtocol.js**: Enhanced all functions with complete parameter docs and protocol overview.
-  - **GitGraphAdapter.js**: Module-level docs, `TRANSIENT_ERROR_PATTERNS` rationale, retry strategy documentation.
-  - **CborCodec.js**: Module-level docs on canonical encoding, `@example` blocks for encode/decode.
-  - **Utility files** (`roaring.js`, `TickReceipt.js`): Full JSDoc for lazy-loading strategy and validation helpers.
-  - **Error classes** (`QueryError.js`, `SyncError.js`): Added error code tables, context structure documentation, usage examples.
+  - **QueryBuilder.js**: Added 17 helper function docs, 8 class method docs, new type definitions.
+  - **LogicalTraversal.js**: Documented helper functions and standardized traversal method documentation.
+  - **CRDT primitives**: Added module-level documentation explaining semilattice properties, add-wins semantics, GC safety invariants, EventId comparison logic.
+  - **Services**: Documented `StreamingBitmapIndexBuilder`, `CommitDagTraversalService`, `IndexRebuildService`, `SyncProtocol` with comprehensive `@throws` and parameter docs.
+  - **Infrastructure**: `GitGraphAdapter` module-level docs, retry strategy; `CborCodec` canonical encoding docs.
+  - **Utilities & Errors**: `roaring.js`, `TickReceipt.js`, `QueryError`, `SyncError` with error code tables and examples.
+
+### Fixed
+
+- **StreamingBitmapIndexBuilder checksum compatibility**: Use `canonicalStringify` for deterministic checksums; bump `SHARD_VERSION` to 2 for reader compatibility; cache `RoaringBitmap32` constructor for performance.
+- **GitGraphAdapter robustness**: Fail fast when `plumbing` is missing; include `stderr` in transient error detection; preserve empty-string config values; harden exit-code detection in `isAncestor` and `configGet`.
+- **JoinReducer validation**: Enforce exactly 4 segments in `decodeEdgePropKey` (no silent truncation on malformed keys).
+- **StateDiff edge visibility**: Filter edges by endpoint visibility — edges with tombstoned endpoints are now treated as invisible. Use precomputed node sets for O(1) lookups.
+- **WarpGraph watch polling**: Add `pollInFlight` guard to prevent overlapping async poll cycles causing state mismatches.
+- **WarpGraph subscriber notifications**: Skip notifying non-replay subscribers when diff is empty.
+- **CborCodec**: Validate Map keys are strings; fix RFC 7049 doc to clarify we use JS lexicographic sort, not canonical CBOR.
+- **SyncProtocol**: Use typed error code `E_SYNC_DIVERGENCE` for divergence detection instead of fragile string matching.
+- **IndexRebuildService**: Enforce `rebuildRef` requirement when `autoRebuild` is true.
+- **roaring.js**: Use Symbol sentinel to distinguish "not checked" from "indeterminate" availability.
+
+### Refactoring
+
+- **Centralized `canonicalStringify`**: New `src/domain/utils/canonicalStringify.js` shared by `BitmapIndexBuilder`, `BitmapIndexReader`, and `StreamingBitmapIndexBuilder` to prevent checksum algorithm drift.
+
+### Types
+
+- **index.d.ts**: Added `LoadOptions` interface for `IndexRebuildService.load()` with `strict`, `currentFrontier`, `autoRebuild`, and `rebuildRef` options.
 
 ## [7.7.0] — PULSE
 
