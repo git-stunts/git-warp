@@ -840,6 +840,197 @@ const state = await graph.materialize();
 const { state, receipts } = await graph.materialize({ receipts: true });
 ```
 
+## Observer Views
+
+Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV.
+
+### Creating an Observer
+
+```javascript
+await graph.materialize();
+
+const view = await graph.observer('userView', {
+  match: 'user:*',                // glob pattern — only user:* nodes visible
+  redact: ['ssn', 'password'],    // these properties are hidden
+});
+```
+
+The returned `ObserverView` is read-only and supports the same query/traverse API as `WarpGraph`.
+
+### Observer Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| `match` | `string` | Glob pattern for visible nodes (`*` = wildcard) |
+| `expose` | `string[]` | Whitelist of property keys to include (optional) |
+| `redact` | `string[]` | Blacklist of property keys to exclude (optional, takes precedence over expose) |
+
+If both `expose` and `redact` are specified for the same key, `redact` wins.
+
+### Querying Through an Observer
+
+```javascript
+// All standard read methods work
+const nodes = await view.getNodes();           // only user:* nodes
+const exists = await view.hasNode('user:alice'); // true
+const props = await view.getNodeProps('user:alice'); // Map without 'ssn' or 'password'
+
+// Fluent query builder
+const admins = await view.query()
+  .match('user:*')
+  .where({ role: 'admin' })
+  .run();
+
+// Traversals
+const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
+  dir: 'outgoing',
+});
+const bfsResult = await view.traverse.bfs('user:alice', { dir: 'outgoing' });
+```
+
+### Edge Visibility
+
+Edges are only visible when **both** endpoints pass the match filter:
+
+```javascript
+// Graph has: user:alice --manages--> server:prod
+const view = await graph.observer('users', { match: 'user:*' });
+const edges = await view.getEdges(); // [] — server:prod doesn't match 'user:*'
+```
+
+### Multiple Observers
+
+Different observers can coexist on the same graph with different projections:
+
+```javascript
+const publicView = await graph.observer('public', {
+  match: '*',
+  redact: ['ssn', 'password', 'salary'],
+});
+
+const hrView = await graph.observer('hr', {
+  match: 'employee:*',
+  expose: ['name', 'department', 'salary'],
+});
+
+const adminView = await graph.observer('admin', {
+  match: '*',
+  // No expose/redact — sees everything
+});
+```
+
+## Translation Cost
+
+Estimate the information loss when translating between two observer views. Based on Minimum Description Length (MDL) from Paper IV.
+
+### Computing Cost
+
+```javascript
+await graph.materialize();
+
+const result = await graph.translationCost(
+  { match: 'user:*' },                          // observer A
+  { match: 'user:*', redact: ['ssn'] },         // observer B
+);
+
+console.log(result.cost);       // 0.04 (small loss — only ssn is hidden)
+console.log(result.breakdown);  // { nodeLoss: 0, edgeLoss: 0, propLoss: 0.2 }
+```
+
+### Cost Semantics
+
+The cost is **directed** — it measures what A can see that B cannot:
+
+```javascript
+// A sees everything, B sees a subset → cost > 0
+await graph.translationCost({ match: '*' }, { match: 'user:*' });  // high cost
+
+// A sees a subset, B sees everything → cost 0 (nothing lost)
+await graph.translationCost({ match: 'user:*' }, { match: '*' });  // 0
+```
+
+| Scenario | Cost |
+|---|---|
+| Identical observers | 0 |
+| A sees everything, B sees nothing | 1 |
+| A sees nothing | 0 (nothing to lose) |
+| Completely disjoint match patterns | 1 |
+
+### Breakdown Fields
+
+| Field | Weight | Description |
+|---|---|---|
+| `nodeLoss` | 50% | Fraction of A's nodes invisible to B |
+| `edgeLoss` | 30% | Fraction of A's edges invisible to B |
+| `propLoss` | 20% | Fraction of A's properties invisible to B |
+
+## Temporal Queries
+
+Query properties of a node's history across time. Implements CTL*-style temporal logic from Paper IV.
+
+### `graph.temporal.always()`
+
+Returns `true` if the predicate held at every tick where the node existed:
+
+```javascript
+// Was user:alice always active?
+const alwaysActive = await graph.temporal.always(
+  'user:alice',
+  (snapshot) => snapshot.props.status === 'active',
+  { since: 0 },
+);
+```
+
+### `graph.temporal.eventually()`
+
+Returns `true` if the predicate held at any tick (short-circuits on first match):
+
+```javascript
+// Was this PR ever merged?
+const wasMerged = await graph.temporal.eventually(
+  'pr:42',
+  (snapshot) => snapshot.props.status === 'merged',
+);
+```
+
+### Predicate Snapshots
+
+The predicate receives a node snapshot at each tick:
+
+```javascript
+{
+  id: 'user:alice',    // node ID
+  exists: true,        // whether the node exists at this tick
+  props: {             // plain object with unwrapped property values
+    status: 'active',
+    name: 'Alice',
+  },
+}
+```
+
+Property values are unwrapped from their CRDT envelopes — you can compare directly with `===`.
+
+### The `since` Option
+
+Filter history to only consider ticks at or after a Lamport timestamp:
+
+```javascript
+// Only check ticks from lamport 10 onward
+const result = await graph.temporal.always(
+  'node:x',
+  (n) => n.props.valid === true,
+  { since: 10 },
+);
+```
+
+Patches before `since` are still applied to build correct state, but the predicate is not evaluated on them.
+
+### Edge Cases
+
+- Node never existed in the range: `always` returns `false`, `eventually` returns `false`
+- Empty history (no patches): both return `false`
+- `since` defaults to `0` when omitted
+
 ## Troubleshooting
 
 ### "My changes aren't appearing"

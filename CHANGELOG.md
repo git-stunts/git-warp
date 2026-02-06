@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — ECHO
+
+### Added
+
+#### ECHO — Observer Geometry (v9.0.0)
+
+Implements [Paper IV](https://doi.org/10.5281/zenodo.18038297) (Echo and the WARP Core) from the AION Foundations Series: observer-scoped views, temporal queries, and translation cost estimation.
+
+- **Observer-scoped views** (`EC/VIEW/1`): New `graph.observer(name, config)` returns a read-only `ObserverView` projecting the materialized graph through an observer lens. Config accepts `match` (glob pattern for visible nodes), `expose` (property key whitelist), and `redact` (property key blacklist — takes precedence over expose). The view supports the full query/traverse API: `hasNode()`, `getNodes()`, `getNodeProps()`, `getEdges()`, `query()`, and `traverse.*` (BFS, DFS, shortestPath). Edges are only visible when both endpoints pass the match filter. Requires materialized state.
+- **Temporal query operators** (`EC/TEMPORAL/1`): New `graph.temporal.always(nodeId, predicate, { since })` and `graph.temporal.eventually(nodeId, predicate, { since })` implement CTL*-style temporal logic over patch history. Both operators replay patches incrementally, extracting node snapshots at each tick boundary and evaluating the predicate. `always` returns true only if the predicate held at every tick where the node existed. `eventually` short-circuits on the first true tick. The `since` option filters by Lamport timestamp. Predicates receive `{ id, exists, props }` with unwrapped property values.
+- **Translation cost estimation** (`EC/COST/1`): New `graph.translationCost(configA, configB)` computes the directed MDL (Minimum Description Length) cost of translating observer A's view into observer B's view. Returns `{ cost, breakdown: { nodeLoss, edgeLoss, propLoss } }` normalized to [0, 1]. Weights: node loss 50%, edge loss 30%, property loss 20%. Identical views produce cost 0; completely disjoint views produce cost 1. The cost is asymmetric: `cost(A→B) ≠ cost(B→A)` in general.
+
+### Tests
+
+- Added `test/unit/domain/services/ObserverView.test.js` (23 tests) — node visibility, property filtering, edge visibility, query/traverse through observer
+- Added `test/unit/domain/services/TemporalQuery.test.js` (23 tests) — always/eventually operators, acceptance criteria, multi-writer scenarios
+- Added `test/unit/domain/services/TranslationCost.test.js` (16 tests) — identical/disjoint/subset configs, property redaction, edge loss, normalization
+- Total new tests: 62. Suite total: 2410 tests across 106 files.
+
+### TypeScript
+
+- Added `ObserverConfig`, `ObserverView`, `TemporalQuery`, `TranslationCostBreakdown`, `TranslationCostResult` type declarations
+- Added `observer()`, `translationCost()`, and `temporal` getter to `WarpGraph` class
+
 ## [8.0.0] — HOLOGRAM
 
 ### Breaking Changes
