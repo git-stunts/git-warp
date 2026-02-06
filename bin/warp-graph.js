@@ -18,6 +18,8 @@ import {
   parseWriterIdFromRef,
 } from '../src/domain/utils/RefLayout.js';
 import { HookInstaller, classifyExistingHook } from '../src/domain/services/HookInstaller.js';
+import { renderInfoView } from '../src/visualization/renderers/ascii/info.js';
+import { renderCheckView } from '../src/visualization/renderers/ascii/check.js';
 
 const EXIT_CODES = {
   OK: 0,
@@ -254,7 +256,12 @@ async function resolveGraphName(persistence, explicitGraph) {
   throw usageError('Multiple graphs found; specify --graph');
 }
 
-async function getGraphInfo(persistence, graphName, { includeWriterIds = false, includeRefs = false } = {}) {
+async function getGraphInfo(persistence, graphName, {
+  includeWriterIds = false,
+  includeRefs = false,
+  includeWriterPatches = false,
+  includeCheckpointDate = false,
+} = {}) {
   const writersPrefix = buildWritersPrefix(graphName);
   const writerRefs = typeof persistence.listRefs === 'function'
     ? await persistence.listRefs(writersPrefix)
@@ -275,13 +282,35 @@ async function getGraphInfo(persistence, graphName, { includeWriterIds = false, 
     info.writers.ids = writerIds;
   }
 
-  if (includeRefs) {
+  if (includeRefs || includeCheckpointDate) {
     const checkpointRef = buildCheckpointRef(graphName);
     const coverageRef = buildCoverageRef(graphName);
     const checkpointSha = await persistence.readRef(checkpointRef);
     const coverageSha = await persistence.readRef(coverageRef);
-    info.checkpoint = { ref: checkpointRef, sha: checkpointSha || null };
+
+    const checkpoint = { ref: checkpointRef, sha: checkpointSha || null };
+
+    if (includeCheckpointDate && checkpointSha) {
+      const checkpointDate = await readCheckpointDate(persistence, checkpointSha);
+      checkpoint.date = checkpointDate;
+    }
+
+    info.checkpoint = checkpoint;
     info.coverage = { ref: coverageRef, sha: coverageSha || null };
+  }
+
+  if (includeWriterPatches && writerIds.length > 0) {
+    const graph = await WarpGraph.open({
+      persistence,
+      graphName,
+      writerId: 'cli',
+    });
+    const writerPatches = {};
+    for (const writerId of writerIds) {
+      const patches = await graph.getWriterPatches(writerId);
+      writerPatches[writerId] = patches.length;
+    }
+    info.writerPatches = writerPatches;
   }
 
   return info;
@@ -695,14 +724,18 @@ function renderError(payload) {
   return `Error: ${payload.error.message}\n`;
 }
 
-function emit(payload, { json, command }) {
+function emit(payload, { json, command, view }) {
   if (json) {
     process.stdout.write(`${stableStringify(payload)}\n`);
     return;
   }
 
   if (command === 'info') {
-    process.stdout.write(renderInfo(payload));
+    if (view) {
+      process.stdout.write(renderInfoView(payload));
+    } else {
+      process.stdout.write(renderInfo(payload));
+    }
     return;
   }
 
@@ -717,7 +750,11 @@ function emit(payload, { json, command }) {
   }
 
   if (command === 'check') {
-    process.stdout.write(renderCheck(payload));
+    if (view) {
+      process.stdout.write(renderCheckView(payload));
+    } else {
+      process.stdout.write(renderCheck(payload));
+    }
     return;
   }
 
@@ -766,12 +803,17 @@ async function handleInfo({ options }) {
     detailGraphs.add(graphNames[0]);
   }
 
+  // In view mode, include extra data for visualization
+  const isViewMode = Boolean(options.view);
+
   const graphs = [];
   for (const name of graphNames) {
     const includeDetails = detailGraphs.has(name);
     graphs.push(await getGraphInfo(persistence, name, {
-      includeWriterIds: includeDetails,
-      includeRefs: includeDetails,
+      includeWriterIds: includeDetails || isViewMode,
+      includeRefs: includeDetails || isViewMode,
+      includeWriterPatches: isViewMode,
+      includeCheckpointDate: isViewMode,
     }));
   }
 
@@ -1374,7 +1416,7 @@ async function main() {
     : { payload: result, exitCode: EXIT_CODES.OK };
 
   if (normalized.payload !== undefined) {
-    emit(normalized.payload, { json: options.json, command });
+    emit(normalized.payload, { json: options.json, command, view: options.view });
   }
   process.exitCode = normalized.exitCode ?? EXIT_CODES.OK;
 }
