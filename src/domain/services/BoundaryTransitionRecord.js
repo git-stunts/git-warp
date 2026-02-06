@@ -19,7 +19,7 @@
  * @see Paper III, Section 4 -- Boundary Transition Records
  */
 
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { serializeStateV5, computeStateHashV5 } from './StateSerializerV5.js';
@@ -165,7 +165,7 @@ function validateBTRStructure(btr) {
 }
 
 /**
- * Verifies HMAC authentication tag.
+ * Verifies HMAC authentication tag using timing-safe comparison.
  * @private
  */
 function verifyHmac(btr, key) {
@@ -178,7 +178,17 @@ function verifyHmac(btr, key) {
     t: btr.t,
   };
   const expectedKappa = computeHmac(fields, key);
-  return btr.kappa === expectedKappa;
+
+  // Convert hex strings to buffers for timing-safe comparison
+  const actualBuf = Buffer.from(btr.kappa, 'hex');
+  const expectedBuf = Buffer.from(expectedKappa, 'hex');
+
+  // Check lengths first to avoid timingSafeEqual throwing on length mismatch
+  if (actualBuf.length !== expectedBuf.length) {
+    return false;
+  }
+
+  return timingSafeEqual(actualBuf, expectedBuf);
 }
 
 /**
