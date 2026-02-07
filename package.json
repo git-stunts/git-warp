@@ -24,6 +24,9 @@
     "./node": {
       "types": "./index.d.ts",
       "default": "./src/domain/entities/GraphNode.js"
+    },
+    "./visualization": {
+      "default": "./src/visualization/index.js"
     }
   },
   "engines": {

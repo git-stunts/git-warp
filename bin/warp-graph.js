@@ -44,6 +44,7 @@ Commands:
   history          Show writer history
   check            Report graph health/GC status
   materialize      Materialize and checkpoint all graphs
+  view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
   install-hooks    Install post-merge git hook
 
 Options:
@@ -759,8 +760,12 @@ function emit(payload, { json, command, view }) {
   if (command === 'query') {
     if (view && typeof view === 'string' && view.startsWith('svg:')) {
       const svgPath = view.slice(4);
-      fs.writeFileSync(svgPath, payload._renderedSvg);
-      process.stderr.write(`SVG written to ${svgPath}\n`);
+      if (!payload._renderedSvg) {
+        process.stderr.write('No graph data — skipping SVG export.\n');
+      } else {
+        fs.writeFileSync(svgPath, payload._renderedSvg);
+        process.stderr.write(`SVG written to ${svgPath}\n`);
+      }
     } else if (view) {
       process.stdout.write(`${payload._renderedAscii}\n`);
     } else {
@@ -772,8 +777,12 @@ function emit(payload, { json, command, view }) {
   if (command === 'path') {
     if (view && typeof view === 'string' && view.startsWith('svg:')) {
       const svgPath = view.slice(4);
-      fs.writeFileSync(svgPath, payload._renderedSvg);
-      process.stderr.write(`SVG written to ${svgPath}\n`);
+      if (!payload._renderedSvg) {
+        process.stderr.write('No path found — skipping SVG export.\n');
+      } else {
+        fs.writeFileSync(svgPath, payload._renderedSvg);
+        process.stderr.write(`SVG written to ${svgPath}\n`);
+      }
     } else if (view) {
       process.stdout.write(renderPathView(payload));
     } else {
@@ -895,8 +904,11 @@ async function handleQuery({ options, args }) {
       const edges = await graph.getEdges();
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
-      payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
-      payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+      if (typeof options.view === 'string' && options.view.startsWith('svg:')) {
+        payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+      } else {
+        payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
+      }
     }
 
     return {
@@ -1446,6 +1458,34 @@ function getHookStatusForCheck(repoPath) {
   }
 }
 
+async function handleView({ options, args }) {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw usageError('view command requires an interactive terminal (TTY)');
+  }
+
+  const viewMode = (args[0] === '--list' || args[0] === 'list') ? 'list'
+    : (args[0] === '--log' || args[0] === 'log') ? 'log'
+      : 'list';
+
+  try {
+    const { startTui } = await import('@git-stunts/git-warp-tui');
+    await startTui({
+      repo: options.repo || '.',
+      graph: options.graph || 'default',
+      mode: viewMode,
+    });
+  } catch (err) {
+    if (err.code === 'ERR_MODULE_NOT_FOUND' || (err.message && err.message.includes('Cannot find module'))) {
+      throw usageError(
+        'Interactive TUI requires @git-stunts/git-warp-tui.\n' +
+        '  Install with: npm install -g @git-stunts/git-warp-tui',
+      );
+    }
+    throw err;
+  }
+  return { payload: undefined, exitCode: 0 };
+}
+
 const COMMANDS = new Map([
   ['info', handleInfo],
   ['query', handleQuery],
@@ -1453,6 +1493,7 @@ const COMMANDS = new Map([
   ['history', handleHistory],
   ['check', handleCheck],
   ['materialize', handleMaterialize],
+  ['view', handleView],
   ['install-hooks', handleInstallHooks],
 ]);
 
