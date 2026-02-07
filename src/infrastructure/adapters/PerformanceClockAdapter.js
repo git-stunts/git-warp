@@ -6,6 +6,8 @@ import ClockPort from '../../ports/ClockPort.js';
  *
  * Provides high-resolution timing via performance.now() and
  * wall-clock timestamps via Date.toISOString().
+ *
+ * @extends ClockPort
  */
 export default class PerformanceClockAdapter extends ClockPort {
   /**

@@ -1,106 +1,104 @@
-# WARP Multi-Writer Guide
+# WarpGraph User Guide
 
-This guide explains how to use WarpGraph's multi-writer capabilities powered by the WARP (Write-Ahead Replicated Patches) protocol.
+WarpGraph is a multi-writer graph database that uses Git commits as its storage substrate. Multiple independent writers can modify the same graph without coordination — changes merge deterministically using CRDTs, and Git provides content-addressing, cryptographic integrity, and distributed replication for free.
 
-## Overview
+## When to Use WarpGraph
 
-WARP enables multiple independent writers to modify a shared graph without coordination. Changes are recorded as **patches** that deterministically merge using Last-Writer-Wins (LWW) semantics.
+- **Multiple processes or machines** writing to the same graph
+- **Offline-first applications** that sync later
+- **Distributed systems** without central coordination
+- **Audit trails** — every change is a Git commit with full provenance
+- **Embedded graph storage** — no database server needed, just a Git repo
 
-### When Multi-Writer Shines
+## Prerequisites
 
-WarpGraph excels when you need:
-- Multiple processes/machines writing to the same graph
-- Offline-first applications that sync later
-- Distributed systems without central coordination
-- Audit trails of who changed what
+- Node.js >= 20.0.0
+- Git >= 2.0
 
-## Core Concepts
+## Installation
 
-### Writers
-
-A **writer** is an independent actor identified by a unique string ID. Each writer:
-- Maintains its own chain of patches under `refs/warp/<graph>/writers/<writerId>`
-- Assigns Lamport timestamps to operations
-- Can work offline and sync later
-
-```javascript
-const graph = await WarpGraph.open({
-  persistence,
-  graphName: 'my-graph',
-  writerId: 'server-1',  // Unique writer ID
-});
+```bash
+npm install @git-stunts/git-warp
 ```
 
-**Writer ID best practices:**
-- Use stable identifiers (hostname, UUID, user ID)
-- Keep IDs short but unique
-- Don't reuse IDs across different logical writers
+---
 
-### Patches
+## Quick Start
 
-A **patch** is an atomic batch of graph operations. Operations include:
-- `NodeAdd` - Create a node
-- `NodeTombstone` - Delete a node
-- `EdgeAdd` - Create an edge
-- `EdgeTombstone` - Delete an edge
-- `PropSet` - Set a property value (also targets edge properties when used with `setEdgeProperty()`)
+```javascript
+import { WarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import Plumbing from '@git-stunts/plumbing';
+
+// 1. Point at a Git repo
+const plumbing = new Plumbing({ cwd: './my-repo' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+// 2. Open a graph
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'todos',
+  writerId: 'local',
+});
+
+// 3. Write some data
+await graph.createPatch()
+  .addNode('todo:1')
+  .setProperty('todo:1', 'title', 'Buy groceries')
+  .setProperty('todo:1', 'done', false)
+  .addEdge('todo:1', 'list:shopping', 'belongs-to')
+  .commit();
+
+// 4. Materialize and read
+await graph.materialize();
+
+const nodes = await graph.getNodes();
+// ['list:shopping', 'todo:1']
+
+const props = await graph.getNodeProps('todo:1');
+// Map { 'title' => 'Buy groceries', 'done' => false }
+
+const exists = await graph.hasNode('todo:1');
+// true
+```
+
+That's it. Your graph data is stored as Git commits — invisible to normal Git workflows but inheriting all of Git's properties.
+
+---
+
+## Writing Data
+
+All writes go through **patches** — atomic batches of graph operations. A patch can contain any combination of node adds/removes, edge adds/removes, and property sets. Each patch becomes a single Git commit.
+
+### Creating Patches
 
 ```javascript
 await graph.createPatch()
   .addNode('user:alice')
-  .setProperty('user:alice', 'email', 'alice@example.com')
-  .addEdge('user:alice', 'org:acme', 'works-at')
-  .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'since', '2024-06')
+  .addNode('user:bob')
+  .setProperty('user:alice', 'name', 'Alice')
+  .setProperty('user:bob', 'name', 'Bob')
+  .addEdge('user:alice', 'user:bob', 'follows')
   .commit();
 ```
 
-Each patch is stored as a Git commit with:
-- CBOR-encoded operations in `patch.cbor` blob
-- Metadata in Git trailers (writer, writerId, lamport, graph name)
-- Parent pointing to previous patch from same writer
+All methods on the patch builder are chainable. Nothing is written until `commit()` is called.
 
-### EventId and Ordering
+### Operations
 
-Every operation gets an **EventId** for deterministic ordering:
+| Operation | Method | Description |
+|---|---|---|
+| Add node | `.addNode(nodeId)` | Creates a node |
+| Remove node | `.removeNode(nodeId)` | Tombstones a node (hides it and its edges/props) |
+| Add edge | `.addEdge(from, to, label)` | Creates a directed, labeled edge |
+| Remove edge | `.removeEdge(from, to, label)` | Tombstones an edge |
+| Set node property | `.setProperty(nodeId, key, value)` | Sets a property on a node |
+| Set edge property | `.setEdgeProperty(from, to, label, key, value)` | Sets a property on an edge |
 
-```text
-EventId = (lamport, writerId, patchSha, opIndex)
-```
+Property values must be JSON-serializable (strings, numbers, booleans, null, arrays, plain objects).
 
-Comparison is lexicographic:
-1. Higher lamport wins
-2. Same lamport → lexicographically greater writerId wins
-3. Same writerId → greater patchSha wins
-4. Same patchSha → higher opIndex wins
+### Removing Nodes
 
-This ensures identical merge results regardless of patch arrival order.
-
-### Last-Writer-Wins (LWW)
-
-When two writers modify the same entity, the operation with the higher EventId wins:
-
-```javascript
-// Writer A at lamport=1: sets name to "Alice"
-// Writer B at lamport=2: sets name to "Alicia"
-// Result: name is "Alicia" (lamport 2 > 1)
-```
-
-For concurrent operations (same lamport):
-```javascript
-// Writer "alice" at lamport=5: sets color to "red"
-// Writer "bob" at lamport=5: sets color to "blue"
-// Result: color is "blue" ("bob" > "alice" lexicographically)
-```
-
-### Visibility Rules
-
-Not everything in state is visible. Visibility predicates:
-
-- **Node visible**: `node_alive[nodeId].value === true`
-- **Edge visible**: edge alive AND both endpoints visible
-- **Property visible**: node visible AND property exists
-
-**Tombstone cascading**: Deleting a node automatically hides its edges and properties.
+When you remove a node, its edges and properties become invisible automatically (tombstone cascading):
 
 ```javascript
 await graph.createPatch()
@@ -110,75 +108,113 @@ await graph.createPatch()
   .commit();
 
 await graph.createPatch()
-  .removeNode('temp')  // Tombstone
+  .removeNode('temp')
   .commit();
 
-const state = await graph.materialize();
-// Node 'temp' is not visible
-// Property 'temp.data' is not visible
-// Edge 'temp->other' is not visible
+await graph.materialize();
+await graph.hasNode('temp');    // false
+await graph.getEdges();         // [] — edge is hidden too
 ```
 
-## Edge Properties
+The `onDeleteWithData` option (set on `WarpGraph.open()`) controls what happens when you remove a node that has attached edges or properties:
 
-Edges can carry properties just like nodes. Edge properties use LWW (Last-Write-Wins) semantics identical to node properties.
+| Policy | Behavior |
+|---|---|
+| `'warn'` (default) | Removes the node, logs a warning about orphaned data |
+| `'cascade'` | Removes the node and explicitly tombstones its edges |
+| `'reject'` | Throws an error if the node has attached data |
 
-### Setting Edge Properties
+### Edge Properties
+
+Edges can carry properties just like nodes:
 
 ```javascript
 await graph.createPatch()
-  .addNode('user:alice')
-  .addNode('user:bob')
-  .addEdge('user:alice', 'user:bob', 'follows')
-  .setEdgeProperty('user:alice', 'user:bob', 'follows', 'since', '2024-01')
-  .setEdgeProperty('user:alice', 'user:bob', 'follows', 'weight', 0.9)
+  .addEdge('user:alice', 'org:acme', 'works-at')
+  .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'since', '2024-06')
+  .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'role', 'engineer')
   .commit();
 ```
 
-### Reading Edge Properties
+Edge properties follow the same conflict resolution rules as node properties (see [Appendix A](#appendix-a-conflict-resolution-internals)). When an edge is removed and re-added, it starts with a clean slate — old properties are not restored.
+
+### The Writer Convenience API
+
+For repeated writes, the `Writer` API is more ergonomic than `createPatch()`:
 
 ```javascript
-// Get all edges with their properties
-const edges = await graph.getEdges();
-// [{ from: 'user:alice', to: 'user:bob', label: 'follows', props: { since: '2024-01', weight: 0.9 } }]
+const writer = await graph.writer();
 
-// Get properties for a specific edge
-const props = await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
-// { since: '2024-01', weight: 0.9 }
+// Option 1: One-shot build-and-commit
+const sha = await writer.commitPatch(p => {
+  p.addNode('user:carol');
+  p.setProperty('user:carol', 'name', 'Carol');
+});
+
+// Option 2: Multi-step session
+const session = await writer.beginPatch();
+session.addNode('user:dave');
+session.setProperty('user:dave', 'name', 'Dave');
+const sha2 = await session.commit();
 ```
 
-### Visibility Rules
+The Writer handles ref management and compare-and-swap (CAS) safety automatically. If another process advances the writer ref between `beginPatch()` and `commit()`, the commit fails with `WRITER_REF_ADVANCED` rather than silently losing data.
 
-Edge properties are only visible when the parent edge is alive:
+### Writer ID Resolution
 
-- **Remove edge**: all its properties become invisible
-- **Re-add edge**: starts with a clean slate — old properties are NOT restored
+When you call `graph.writer()` without arguments, the ID is resolved from git config (`warp.writerId.<graphName>`). If no config exists, a new canonical ID is generated and persisted. This gives each clone a stable, unique identity.
 
-This prevents stale property data from leaking through after edge lifecycle changes.
+To use an explicit ID:
 
-### Multi-Writer Conflict Resolution
+```javascript
+const writer = await graph.writer('machine-a');
+```
 
-Edge properties follow the same LWW resolution as node properties:
+**Writer ID best practices:**
+- Use stable identifiers (hostname, UUID, user ID)
+- Keep IDs short but unique
+- Don't reuse IDs across different logical writers
 
-1. Higher Lamport timestamp wins
-2. Tie: higher writer ID wins (lexicographic)
-3. Tie: higher patch SHA wins
+---
 
-Two writers setting the same edge property concurrently will deterministically converge to the same winner, regardless of patch arrival order.
+## Reading Data
 
-### Schema Compatibility
+Before reading, you need to **materialize** — this replays all patches from all writers to compute the current state.
 
-Edge properties require schema v3 (introduced in v7.3.0). When syncing:
+### Materialization
 
-- **v3 → v2 with edge props**: v2 reader throws `E_SCHEMA_UNSUPPORTED` with upgrade guidance
-- **v3 → v2 with node-only ops**: succeeds (schema number alone is not a rejection criterion)
-- **v2 → v3**: always succeeds (v2 patches are valid v3 input)
+```javascript
+const state = await graph.materialize();
+```
 
-## Auto-Materialize and Auto-Checkpoint
+After materializing, all read methods work against the cached state:
+
+```javascript
+// Check existence
+await graph.hasNode('user:alice');           // true
+
+// Get all nodes
+await graph.getNodes();                      // ['user:alice', 'user:bob']
+
+// Get node properties
+await graph.getNodeProps('user:alice');       // Map { 'name' => 'Alice' }
+
+// Get all edges (with their properties)
+await graph.getEdges();
+// [{ from: 'user:alice', to: 'user:bob', label: 'follows', props: {} }]
+
+// Get edge properties
+await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
+// { since: '2024-01' } or null if edge doesn't exist
+
+// Get neighbors
+await graph.neighbors('user:alice', 'outgoing');
+// [{ nodeId: 'user:bob', label: 'follows', direction: 'outgoing' }]
+```
 
 ### Auto-Materialize
 
-By default, query methods throw if no materialized state exists. With `autoMaterialize: true`, query methods automatically materialize before returning results:
+By default, reading without materializing first throws an error. To have reads auto-materialize:
 
 ```javascript
 const graph = await WarpGraph.open({
@@ -188,71 +224,42 @@ const graph = await WarpGraph.open({
   autoMaterialize: true,
 });
 
-// No explicit materialize() needed — queries auto-materialize
+// No explicit materialize() needed
 const nodes = await graph.getNodes();
-const exists = await graph.hasNode('user:alice');
-const result = await graph.query().match('user:*').run();
 ```
-
-When `autoMaterialize` is off (the default), querying dirty state throws `QueryError` with code `E_STALE_STATE`, and querying without any cached state throws `QueryError` with code `E_NO_STATE`.
-
-### Auto-Checkpoint
-
-Configure automatic checkpointing to keep materialization fast:
-
-```javascript
-const graph = await WarpGraph.open({
-  persistence,
-  graphName: 'my-graph',
-  writerId: 'local',
-  checkpointPolicy: { every: 500 },
-});
-```
-
-After `materialize()` processes 500+ patches, a checkpoint is created automatically. The counter resets after each checkpoint. Checkpoint failures are swallowed — they never break materialization.
 
 ### Eager Re-Materialize
 
-After a local commit, the patch is applied eagerly to cached state. This means queries immediately reflect local writes without calling `materialize()` again:
+After a local `commit()`, the patch is applied eagerly to the cached state. Queries immediately reflect local writes without calling `materialize()` again:
 
 ```javascript
 await graph.materialize();
 
-await (await graph.createPatch())
+await graph.createPatch()
   .addNode('user:carol')
   .commit();
 
-// No re-materialize needed — eager apply already updated state
+// Already reflected — no re-materialize needed
 await graph.hasNode('user:carol'); // true
 ```
 
-This works for all write paths: `createPatch().commit()`, `writer.commitPatch()`, and `PatchSession.commit()`.
+### Visibility Rules
 
-### Frontiers and Checkpoints
+Not everything stored in the graph is visible when reading:
 
-A **frontier** tracks the last-seen patch from each writer:
-```javascript
-Map { 'alice' => 'abc123...', 'bob' => 'def456...' }
-```
+- **Node visible**: The node has been added and not tombstoned (or re-added after tombstone)
+- **Edge visible**: The edge is alive AND both endpoint nodes are visible
+- **Property visible**: The owning node (or edge) is visible AND the property has been set
 
-A **checkpoint** is a snapshot of materialized state at a known frontier:
-- Stored as Git commit with `state.cbor` and `frontier.cbor`
-- Enables fast recovery without replaying all patches
-- Created with `graph.createCheckpoint()`
+Tombstoning a node automatically hides its edges and properties without explicitly removing them.
 
-```javascript
-// Create checkpoint after significant work
-const checkpointSha = await graph.createCheckpoint();
+---
 
-// Later: fast recovery
-const state = await graph.materializeAt(checkpointSha);
-```
+## Querying
 
-## Query Builder
+### Query Builder
 
-The fluent query builder provides pattern matching, filtering, multi-hop traversal, field selection, and aggregation over materialized state. All query methods require materialized state — either call `materialize()` first or use `autoMaterialize: true`.
-
-### Basics
+The fluent query builder provides pattern matching, filtering, multi-hop traversal, field selection, and aggregation.
 
 ```javascript
 const result = await graph.query()
@@ -269,29 +276,33 @@ const result = await graph.query()
 // }
 ```
 
-### Filtering with `where()`
+#### Pattern Matching
 
-**Object shorthand** — filters by strict equality on primitive values (string, number, boolean, null). Multiple properties use AND semantics:
+`match()` accepts glob-style patterns:
+
+- `'*'` — matches all nodes
+- `'user:*'` — matches `user:alice`, `user:bob`, etc.
+- `'*:admin'` — matches `org:admin`, `team:admin`, etc.
+- `'doc:*:draft'` — matches `doc:1:draft`, `doc:abc:draft`, etc.
+
+#### Filtering with `where()`
+
+**Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:
 
 ```javascript
-// Single property
 .where({ role: 'admin' })
-
-// Multiple properties (AND)
 .where({ role: 'admin', active: true })
-
-// Null values
 .where({ status: null })
 ```
 
-**Function form** — for arbitrary predicates:
+**Function form** — arbitrary predicates:
 
 ```javascript
 .where(({ props }) => props.age >= 18)
 .where(({ edgesOut }) => edgesOut.length > 0)
 ```
 
-Object and function forms can be chained freely:
+Both forms can be chained:
 
 ```javascript
 const result = await graph.query()
@@ -301,14 +312,14 @@ const result = await graph.query()
   .run();
 ```
 
-> **Note:** Object shorthand only accepts primitive values. Non-primitive values (objects, arrays, functions) throw `QueryError` with code `E_QUERY_WHERE_VALUE_TYPE` because materialized property snapshots are cloned, so reference equality (`===`) would never match.
+> **Note:** Object shorthand only accepts primitive values (string, number, boolean, null). Non-primitive values throw `QueryError` with code `E_QUERY_WHERE_VALUE_TYPE`.
 
-### Multi-Hop Traversal
+#### Multi-Hop Traversal
 
-`outgoing()` and `incoming()` accept an optional `{ depth }` option. The default is `[1, 1]` (single hop), preserving backward compatibility.
+`outgoing()` and `incoming()` follow edges with optional depth control:
 
 ```javascript
-// Single hop (default) — immediate neighbors
+// Single hop (default)
 .outgoing('manages')
 
 // Exactly 2 hops
@@ -317,36 +328,34 @@ const result = await graph.query()
 // Range [1, 3] — neighbors at hops 1, 2, and 3
 .outgoing('next', { depth: [1, 3] })
 
-// Include start set — depth 0 = self-inclusion
+// Include self — depth 0 = start set
 .outgoing('next', { depth: [0, 2] })
 
-// Incoming edges work identically
+// Incoming edges
 .incoming('child', { depth: [1, 5] })
 ```
 
-Traversal is cycle-safe — visited nodes are tracked and never revisited. Results are deterministically sorted by node ID.
+Traversal is cycle-safe and results are deterministically sorted.
 
-Depth values must be non-negative integers with min ≤ max. Invalid depths throw `QueryError` with code `E_QUERY_DEPTH_TYPE` or `E_QUERY_DEPTH_RANGE`.
-
-#### Example: Org Chart
+**Example — Org chart:**
 
 ```javascript
-// Find all reports (direct and indirect, up to 3 levels deep)
+// All reports up to 3 levels deep
 const reports = await graph.query()
   .match('user:ceo')
   .outgoing('manages', { depth: [1, 3] })
   .run();
 
-// Find all ancestors of a node
+// All ancestors
 const chain = await graph.query()
   .match('user:intern')
   .incoming('manages', { depth: [1, 10] })
   .run();
 ```
 
-### Aggregation
+#### Aggregation
 
-`aggregate()` computes numeric summaries over matched nodes. It is a **terminal operation** — calling `select()`, `outgoing()`, or `incoming()` after `aggregate()` throws.
+`aggregate()` computes numeric summaries. It is a terminal operation — calling `select()`, `outgoing()`, or `incoming()` after it throws.
 
 ```javascript
 const stats = await graph.query()
@@ -361,19 +370,16 @@ const stats = await graph.query()
   })
   .run();
 
-// stats = { stateHash: '...', count: 5, sum: 250, avg: 50, min: 10, max: 100 }
+// { stateHash: '...', count: 5, sum: 250, avg: 50, min: 10, max: 100 }
 ```
 
-Property paths use dot notation. The `props.` prefix is optional — `'total'` and `'props.total'` are equivalent. Non-numeric property values are silently skipped during aggregation.
+The `props.` prefix is optional — `'total'` and `'props.total'` are equivalent. Non-numeric values are skipped silently.
 
-Spec fields are validated: `sum`/`avg`/`min`/`max` must be strings (property paths), `count` must be boolean.
+#### Composing Steps
 
-### Composing Query Steps
-
-Query steps compose left-to-right. Each step narrows the working set before the next step runs:
+Steps compose left-to-right, each narrowing the working set:
 
 ```javascript
-// Start with all users → filter to admins → traverse to their reports → aggregate
 const result = await graph.query()
   .match('user:*')
   .where({ role: 'admin' })
@@ -382,168 +388,56 @@ const result = await graph.query()
   .run();
 ```
 
-### Error Codes
+### Graph Traversals
 
-| Code | Thrown when |
-|---|---|
-| `E_QUERY_MATCH_TYPE` | `match()` receives a non-string |
-| `E_QUERY_WHERE_TYPE` | `where()` receives neither a function nor a plain object |
-| `E_QUERY_WHERE_VALUE_TYPE` | Object shorthand contains a non-primitive value |
-| `E_QUERY_LABEL_TYPE` | Edge label is not a string |
-| `E_QUERY_DEPTH_TYPE` | Depth is not a non-negative integer or valid `[min, max]` array |
-| `E_QUERY_DEPTH_RANGE` | Depth min > max |
-| `E_QUERY_SELECT_FIELD` | `select()` contains an unknown field |
-| `E_QUERY_SELECT_TYPE` | `select()` receives a non-array |
-| `E_QUERY_AGGREGATE_TYPE` | `aggregate()` receives invalid spec or field types |
-| `E_QUERY_AGGREGATE_TERMINAL` | `select()`/`outgoing()`/`incoming()` called after `aggregate()` |
+The `graph.traverse` object provides algorithmic traversal over the materialized graph.
 
-## Subscriptions & Reactivity
+All traversal methods accept:
+- `dir` — `'out'`, `'in'`, or `'both'` (default: `'out'`)
+- `labelFilter` — string or string array to filter by edge label
+- `maxDepth` — maximum traversal depth (default: 1000)
 
-WarpGraph provides a reactive subscription system to respond to graph changes without polling.
-
-### graph.subscribe()
-
-Subscribe to all graph changes. Handlers fire after `materialize()` when state differs from the previous materialization.
+#### BFS
 
 ```javascript
-const { unsubscribe } = graph.subscribe({
-  onChange: (diff) => {
-    // diff.nodes.added: string[] — node IDs added
-    // diff.nodes.removed: string[] — node IDs removed
-    // diff.edges.added: { from, to, label }[] — edges added
-    // diff.edges.removed: { from, to, label }[] — edges removed
-    // diff.props.set: { nodeId, propKey, oldValue, newValue }[] — properties set/changed
-    // diff.props.removed: { nodeId, propKey, oldValue }[] — properties removed
-
-    console.log('Graph changed:', diff);
-  },
-  onError: (err) => {
-    // Called if onChange throws (doesn't block other handlers)
-    console.error('Handler error:', err);
-  },
+const visited = await graph.traverse.bfs('user:alice', {
+  dir: 'out',
+  labelFilter: 'follows',
+  maxDepth: 5,
 });
-
-// Trigger a change
-await (await graph.createPatch()).addNode('item:new').commit();
-await graph.materialize();  // onChange fires
-
-// Stop receiving updates
-unsubscribe();
+// ['user:alice', 'user:bob', 'user:carol', ...]
 ```
 
-### Initial Replay
-
-Get the current state immediately when subscribing:
+#### DFS
 
 ```javascript
-const { unsubscribe } = graph.subscribe({
-  onChange: (diff) => {
-    // First call: diff from empty to current state (all nodes/edges as "added")
-    // Subsequent calls: incremental diffs
-  },
-  replay: true,  // immediately fire with current state
-});
+const visited = await graph.traverse.dfs('user:alice', { dir: 'out' });
 ```
 
-If no cached state exists yet, replay is deferred until the first `materialize()`.
-
-### graph.watch()
-
-Watch for changes matching a specific pattern. Uses the same glob syntax as `query().match()`.
+#### Shortest Path
 
 ```javascript
-// Only receive changes for user:* nodes
-const { unsubscribe } = graph.watch('user:*', {
-  onChange: (diff) => {
-    // diff only contains:
-    // - nodes.added/removed where node ID matches 'user:*'
-    // - edges where from OR to matches 'user:*'
-    // - props where nodeId matches 'user:*'
-    console.log('User changed:', diff);
-  },
+const result = await graph.traverse.shortestPath('user:alice', 'user:dave', {
+  dir: 'out',
 });
+// { found: true, path: ['user:alice', 'user:bob', 'user:dave'], length: 2 }
+// or { found: false, path: [], length: -1 }
 ```
 
-Pattern examples:
-- `'user:*'` — matches `user:alice`, `user:bob`, etc.
-- `'*:123'` — matches `user:123`, `order:123`, etc.
-- `'doc:*:draft'` — matches `doc:1:draft`, `doc:abc:draft`, etc.
-- `'*'` — matches everything (same as `subscribe()`)
-
-### Polling for Remote Changes
-
-Automatically detect and materialize remote changes (e.g., from `git pull` or sync):
+#### Connected Component
 
 ```javascript
-const { unsubscribe } = graph.watch('order:*', {
-  onChange: (diff) => {
-    console.log('Order updated:', diff);
-  },
-  poll: 5000,  // check every 5 seconds
-});
-
-// Polling calls hasFrontierChanged() periodically
-// If frontier changed, auto-materializes and fires handlers
+const component = await graph.traverse.connectedComponent('user:alice');
+// All nodes reachable from user:alice in either direction
 ```
 
-Minimum poll interval is 1000ms. The interval is automatically cleaned up on `unsubscribe()`.
+---
 
-### Multiple Subscribers
+## Multi-Writer Collaboration
 
-Multiple handlers can coexist. Each receives the same diff independently.
+WarpGraph's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
 
-```javascript
-graph.subscribe({ onChange: handleAuditLog });
-graph.subscribe({ onChange: updateCache });
-graph.watch('user:*', { onChange: notifyUserService });
-graph.watch('order:*', { onChange: updateOrderDashboard, poll: 3000 });
-```
-
-### Error Isolation
-
-Errors in one handler don't affect others:
-
-```javascript
-graph.subscribe({
-  onChange: () => { throw new Error('Oops'); },
-  onError: (err) => console.error('Caught:', err),  // receives the error
-});
-
-graph.subscribe({
-  onChange: (diff) => console.log('Still works:', diff),  // still called
-});
-```
-
-## Workflows
-
-### Basic Workflow
-
-```javascript
-import { WarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
-import Plumbing from '@git-stunts/plumbing';
-
-const plumbing = new Plumbing({ cwd: './my-repo' });
-const persistence = new GitGraphAdapter({ plumbing });
-
-const graph = await WarpGraph.open({
-  persistence,
-  graphName: 'todos',
-  writerId: 'local',
-});
-
-// Add items
-await graph.createPatch()
-  .addNode('todo:1')
-  .setProperty('todo:1', 'title', 'Buy groceries')
-  .setProperty('todo:1', 'done', false)
-  .commit();
-
-// Query state
-const state = await graph.materialize();
-console.log(state.nodeAlive.get('todo:1')); // { eventId: {...}, value: true }
-```
-
-### Multi-Writer Collaboration
+### How It Works
 
 ```javascript
 // === Machine A ===
@@ -571,48 +465,63 @@ await graphB.createPatch()
   .commit();
 
 // === After git sync (push/pull) ===
-// Both machines can now see all content
 const stateA = await graphA.materialize();
 const stateB = await graphB.materialize();
 // stateA and stateB are identical
 ```
 
-### Checkpoint and Recovery
+### Conflict Resolution
+
+When two writers modify the same property concurrently, the conflict is resolved deterministically using **Last-Writer-Wins (LWW)** semantics. The winner is the operation with the higher priority, compared in this order:
+
+1. Higher Lamport timestamp wins
+2. Tie → lexicographically greater writer ID wins
+3. Tie → greater patch SHA wins
 
 ```javascript
-// Periodic checkpointing (e.g., every 1000 patches)
-const checkpointSha = await graph.createCheckpoint();
-console.log(`Checkpoint created: ${checkpointSha}`);
+// Writer A at lamport=1: sets name to "Alice"
+// Writer B at lamport=2: sets name to "Alicia"
+// Result: "Alicia" (lamport 2 > 1)
 
-// Fast startup: materialize from checkpoint
-const state = await graph.materializeAt(checkpointSha);
-// Only processes patches since checkpoint, not entire history
+// Writer "alice" at lamport=5: sets color to "red"
+// Writer "bob" at lamport=5: sets color to "blue"
+// Result: "blue" ("bob" > "alice" lexicographically)
 ```
 
-#### Automatic Checkpointing
+For nodes and edges, **add wins over concurrent remove** — if writer A adds a node and writer B removes it concurrently, the node survives (OR-Set semantics). A remove only takes effect against the specific add events it observed.
 
-```javascript
-// Auto-checkpoint: no manual intervention needed
-const graph = await WarpGraph.open({
-  persistence,
-  graphName: 'todos',
-  writerId: 'local',
-  checkpointPolicy: { every: 500 },
-});
-
-// After 500+ patches, materialize() creates a checkpoint automatically
-await graph.materialize();
-```
+For the full details, see [Appendix A](#appendix-a-conflict-resolution-internals).
 
 ### Discovering Writers
 
 ```javascript
 const writers = await graph.discoverWriters();
-console.log('Active writers:', writers);
 // ['alice', 'bob', 'charlie']
-
-// Useful for monitoring, debugging, or UI
 ```
+
+### Syncing
+
+The simplest sync is via Git itself — `git push` and `git pull`. After pulling, call `materialize()` to see the updates.
+
+For programmatic sync without Git remotes:
+
+```javascript
+// Direct sync between two graph instances
+const result = await graphA.syncWith(graphB);
+console.log(`Applied ${result.applied} patches`);
+
+// HTTP sync
+const result = await graph.syncWith('http://peer:3000', {
+  retries: 3,
+  timeoutMs: 10000,
+});
+
+// Serve a sync endpoint
+const { close, url } = await graph.serve({ port: 3000 });
+// Peers can now POST to http://localhost:3000/sync
+```
+
+For details on the sync protocol, see [Appendix F](#appendix-f-sync-protocol).
 
 ### Coverage Sync
 
@@ -621,159 +530,406 @@ Ensure all writers are reachable from a single ref (useful for cloning):
 ```javascript
 await graph.syncCoverage();
 // Creates octopus anchor at refs/warp/<graph>/coverage/head
-// All writer tips are now parents of this commit
 ```
 
-## Git Hooks
+### Checking for Remote Changes
 
-### Post-Merge Hook
-
-WarpGraph ships a `post-merge` Git hook that runs after every `git merge` or `git pull` and checks whether any warp writer refs (`refs/warp/`) changed during the merge.
-
-If warp refs changed, the hook prints an informational message:
-
+```javascript
+const changed = await graph.hasFrontierChanged();
+if (changed) {
+  await graph.materialize();
+}
 ```
+
+---
+
+## Checkpoints & Performance
+
+### Checkpoints
+
+A **checkpoint** is a snapshot of materialized state at a known point in history. Without checkpoints, materialization replays every patch from every writer. With a checkpoint, it loads the snapshot and only replays patches since then.
+
+```javascript
+// Create a checkpoint manually
+const sha = await graph.createCheckpoint();
+
+// Later: fast recovery from checkpoint
+const state = await graph.materializeAt(sha);
+```
+
+### Auto-Checkpoint
+
+Configure automatic checkpointing so you never have to think about it:
+
+```javascript
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'my-graph',
+  writerId: 'local',
+  checkpointPolicy: { every: 500 },
+});
+
+// After 500+ patches, materialize() creates a checkpoint automatically
+await graph.materialize();
+```
+
+Checkpoint failures are swallowed — they never break materialization.
+
+### Performance Tips
+
+1. **Batch operations** — group related changes into single patches
+2. **Checkpoint regularly** — use `checkpointPolicy: { every: 500 }` or call `createCheckpoint()` manually
+3. **Use auto-materialize** for read-heavy workloads — avoids manual `materialize()` calls
+4. **Limit concurrent writers** — more writers = more merge overhead at materialization time
+5. **Build bitmap indexes** for large graphs — enables O(1) neighbor lookups (see [Appendix H](#appendix-h-bitmap-indexes))
+
+| Operation | Complexity | Notes |
+|---|---|---|
+| Write (createPatch + commit) | O(1) | Append-only commit |
+| Materialization | O(P) | P = total patches across all writers |
+| Query (after materialization) | O(N) | N = nodes matching pattern |
+| Indexed neighbor lookup | O(1) | Requires bitmap index |
+| Checkpoint creation | O(state) | Snapshot for fast recovery |
+
+---
+
+## Subscriptions & Reactivity
+
+### `graph.subscribe()`
+
+Subscribe to all graph changes. Handlers fire after `materialize()` when state differs from the previous materialization.
+
+```javascript
+const { unsubscribe } = graph.subscribe({
+  onChange: (diff) => {
+    // diff.nodes.added    — string[] of added node IDs
+    // diff.nodes.removed  — string[] of removed node IDs
+    // diff.edges.added    — { from, to, label }[] of added edges
+    // diff.edges.removed  — { from, to, label }[] of removed edges
+    // diff.props.set      — { nodeId, propKey, oldValue, newValue }[]
+    // diff.props.removed  — { nodeId, propKey, oldValue }[]
+    console.log('Graph changed:', diff);
+  },
+  onError: (err) => {
+    console.error('Handler error:', err);
+  },
+});
+
+await graph.createPatch().addNode('item:new').commit();
+await graph.materialize();  // onChange fires
+
+unsubscribe();
+```
+
+### Initial Replay
+
+Get the current state immediately when subscribing:
+
+```javascript
+const { unsubscribe } = graph.subscribe({
+  onChange: (diff) => {
+    // First call: diff from empty to current state (all adds)
+    // Subsequent calls: incremental diffs
+  },
+  replay: true,
+});
+```
+
+### `graph.watch()`
+
+Watch for changes matching a specific glob pattern:
+
+```javascript
+const { unsubscribe } = graph.watch('user:*', {
+  onChange: (diff) => {
+    // Only contains changes where node IDs match 'user:*'
+    // Edges included when from OR to matches
+    console.log('User changed:', diff);
+  },
+});
+```
+
+### Polling for Remote Changes
+
+Automatically detect and materialize remote changes:
+
+```javascript
+const { unsubscribe } = graph.watch('order:*', {
+  onChange: (diff) => {
+    console.log('Order updated:', diff);
+  },
+  poll: 5000,  // check every 5 seconds
+});
+```
+
+Minimum poll interval is 1000ms. Cleaned up automatically on `unsubscribe()`.
+
+### Multiple Subscribers
+
+Multiple handlers coexist. Errors in one don't affect others:
+
+```javascript
+graph.subscribe({ onChange: handleAuditLog });
+graph.subscribe({ onChange: updateCache });
+graph.watch('user:*', { onChange: notifyUserService });
+graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
+```
+
+---
+
+## Advanced Topics
+
+### Observer Views
+
+Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV (Echo and the WARP Core).
+
+```javascript
+await graph.materialize();
+
+const view = await graph.observer('userView', {
+  match: 'user:*',              // only user:* nodes visible
+  redact: ['ssn', 'password'],  // these properties are hidden
+});
+```
+
+The returned `ObserverView` is read-only and supports the same query/traverse API:
+
+```javascript
+const nodes = await view.getNodes();
+const props = await view.getNodeProps('user:alice');  // Map without 'ssn' or 'password'
+const admins = await view.query().match('user:*').where({ role: 'admin' }).run();
+const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: 'out' });
+```
+
+#### Observer Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| `match` | `string` | Glob pattern for visible nodes |
+| `expose` | `string[]` | Whitelist of property keys to include (optional) |
+| `redact` | `string[]` | Blacklist of property keys to exclude (optional, takes precedence) |
+
+Edges are only visible when **both** endpoints pass the match filter:
+
+```javascript
+// Graph has: user:alice --manages--> server:prod
+const view = await graph.observer('users', { match: 'user:*' });
+const edges = await view.getEdges(); // [] — server:prod doesn't match
+```
+
+Multiple observers can coexist with different projections:
+
+```javascript
+const publicView = await graph.observer('public', {
+  match: '*',
+  redact: ['ssn', 'password', 'salary'],
+});
+
+const hrView = await graph.observer('hr', {
+  match: 'employee:*',
+  expose: ['name', 'department', 'salary'],
+});
+
+const adminView = await graph.observer('admin', {
+  match: '*',   // sees everything
+});
+```
+
+### Translation Cost
+
+Estimate the information loss when translating between two observer views. Based on Minimum Description Length (MDL) from Paper IV.
+
+```javascript
+await graph.materialize();
+
+const result = await graph.translationCost(
+  { match: 'user:*' },                        // observer A
+  { match: 'user:*', redact: ['ssn'] },       // observer B
+);
+
+console.log(result.cost);       // 0.04 (small loss — only ssn hidden)
+console.log(result.breakdown);  // { nodeLoss: 0, edgeLoss: 0, propLoss: 0.2 }
+```
+
+The cost is **directed** — it measures what A can see that B cannot:
+
+```javascript
+await graph.translationCost({ match: '*' }, { match: 'user:*' });  // high cost
+await graph.translationCost({ match: 'user:*' }, { match: '*' });  // 0 (nothing lost)
+```
+
+| Scenario | Cost |
+|---|---|
+| Identical observers | 0 |
+| A sees everything, B sees nothing | 1 |
+| A sees nothing | 0 (nothing to lose) |
+| Completely disjoint match patterns | 1 |
+
+**Breakdown weights:** nodeLoss (50%), edgeLoss (30%), propLoss (20%).
+
+### Temporal Queries
+
+Query properties across a node's history. Implements CTL*-style temporal logic from Paper IV.
+
+#### `graph.temporal.always()`
+
+Returns `true` if the predicate held at every tick where the node existed:
+
+```javascript
+const alwaysActive = await graph.temporal.always(
+  'user:alice',
+  (snapshot) => snapshot.props.status === 'active',
+  { since: 0 },
+);
+```
+
+#### `graph.temporal.eventually()`
+
+Returns `true` if the predicate held at any tick (short-circuits on first match):
+
+```javascript
+const wasMerged = await graph.temporal.eventually(
+  'pr:42',
+  (snapshot) => snapshot.props.status === 'merged',
+);
+```
+
+**Predicate snapshots** provide `{ id, exists, props }` where `props` is a plain object with unwrapped values — compare directly with `===`.
+
+The `since` option filters to ticks at or after a Lamport timestamp. Patches before `since` are still applied to build correct state, but the predicate is not evaluated on them.
+
+**Edge cases:**
+- Node never existed in the range: both return `false`
+- Empty history: both return `false`
+- `since` defaults to `0`
+
+### Forks
+
+Create a fork of a graph at a specific point in a writer's history:
+
+```javascript
+const forked = await graph.fork({
+  from: 'alice',        // writer to fork from
+  at: 'abc123...',      // patch SHA to fork at
+  forkName: 'experiment',
+  forkWriterId: 'fork-writer',
+});
+
+// forked is a new WarpGraph sharing history up to the fork point
+await forked.createPatch().addNode('new:node').commit();
+```
+
+Due to Git's content-addressed storage, shared history is automatically deduplicated.
+
+### Wormholes
+
+Compress a contiguous range of patches into a single wormhole edge:
+
+```javascript
+const wormhole = await graph.createWormhole('oldest-sha', 'newest-sha');
+// { fromSha, toSha, writerId, payload, patchCount }
+```
+
+Wormholes preserve provenance — the payload can be replayed to recover the exact intermediate states. Two consecutive wormholes can be composed (monoid concatenation).
+
+### Provenance
+
+After materialization, query which patches affected a given entity:
+
+```javascript
+await graph.materialize();
+const shas = await graph.patchesFor('user:alice');
+// ['abc123...', 'def456...'] — sorted alphabetically
+```
+
+### Slice Materialization
+
+Materialize only the backward causal cone for a specific node — useful when you only care about one entity's state and want to skip irrelevant patches:
+
+```javascript
+await graph.materialize(); // builds provenance index
+const { state, patchCount } = await graph.materializeSlice('user:alice');
+// patchCount shows how many patches were in the cone vs full history
+```
+
+---
+
+## Operations
+
+### CLI
+
+Available as `warp-graph` or `git warp` (after `npm run install:git-warp`):
+
+```bash
+git warp info                                          # List graphs in repo
+git warp query --match 'user:*' --outgoing manages     # Query nodes
+git warp path --from user:alice --to user:bob --dir out # Find path
+git warp history --writer alice                         # Patch history
+git warp check                                         # Health/GC status
+git warp materialize                                   # Materialize all graphs
+git warp materialize --graph my-graph                  # Single graph
+git warp install-hooks                                 # Install post-merge hook
+```
+
+All commands accept `--repo <path>`, `--graph <name>`, `--json`.
+
+Visual ASCII output is available with `--view`:
+
+```bash
+git warp --view info     # ASCII visualization
+git warp --view check    # Health status visualization
+```
+
+`--view` is mutually exclusive with `--json`.
+
+### Git Hooks
+
+WarpGraph ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
+
+```text
 [warp] Writer refs changed during merge. Call materialize() to see updates.
 ```
 
 The hook **never blocks a merge** — it always exits 0.
 
-### Auto-Materialize
-
-Enable automatic materialization and checkpointing after pulls:
+Enable auto-materialize after pulls:
 
 ```bash
 git config warp.autoMaterialize true
 ```
 
-When enabled, the post-merge hook will automatically run `git warp materialize` whenever warp refs change during a merge. This materializes all graphs and creates checkpoints so the local state is always up to date.
-
-When disabled or unset (the default), the hook prints the informational warning shown above.
-
-### `git warp materialize`
-
-Materialize and checkpoint graphs explicitly:
-
-```bash
-git warp materialize                          # All graphs in the repo
-git warp materialize --graph my-graph         # Single graph
-git warp materialize --json                   # JSON output
-```
-
-For each graph, the command materializes state, counts nodes and edges, and creates a checkpoint. Output:
-
-```
-my-graph: 42 nodes, 18 edges, checkpoint abc123...
-```
-
-### Installing the Hook
-
-Use the `install-hooks` CLI command:
+Install the hook:
 
 ```bash
 git warp install-hooks
-# or: warp-graph install-hooks --repo /path/to/repo
 ```
 
-If a `post-merge` hook already exists, the command offers three options interactively:
-
-1. **Append** — keeps your existing hook and adds the warp section (delimited, upgradeable)
-2. **Replace** — backs up the existing hook to `post-merge.backup` and installs fresh
-3. **Skip** — do nothing
-
-If the warp hook is already installed, running the command again either reports "up to date" or offers to upgrade to the current version.
-
-### Non-Interactive / CI Usage
-
-In non-interactive environments (no TTY), use `--force` to replace any existing hook:
-
-```bash
-git warp install-hooks --force
-```
-
-The `--force` flag always backs up an existing hook before replacing it.
-
-Both `--json` and `--force` flags are supported:
-
-```bash
-git warp install-hooks --json --force
-```
-
-### Checking Hook Status
-
-The `check` command reports hook status:
-
-```bash
-git warp check
-```
-
-Example output lines:
-- `Hook: installed (v7.1.0) — up to date`
-- `Hook: installed (v7.0.0) — upgrade available, run 'git warp install-hooks'`
-- `Hook: not installed — run 'git warp install-hooks'`
-
-## Observability
+If a hook already exists, you're offered three options: **Append** (keeps existing hook), **Replace** (backs up existing), or **Skip**. In CI, use `--force` to replace automatically.
 
 ### Graph Status
 
-`graph.status()` returns a lightweight snapshot of the graph's operational health. It is O(writers) and does not trigger materialization.
-
 ```javascript
 const status = await graph.status();
-console.log(status);
 // {
-//   cachedState: 'fresh',          // 'fresh' | 'stale' | 'none'
+//   cachedState: 'fresh',           // 'fresh' | 'stale' | 'none'
 //   patchesSinceCheckpoint: 12,
 //   tombstoneRatio: 0.03,
 //   writers: 2,
-//   frontier: { alice: 'abc123...', bob: 'def456...' },
+//   frontier: { alice: 'abc...', bob: 'def...' },
 // }
 ```
 
 | Field | Description |
 |---|---|
-| `cachedState` | `'none'` if never materialized, `'stale'` if dirty or frontier changed, `'fresh'` otherwise |
-| `patchesSinceCheckpoint` | Number of patches applied since last checkpoint |
-| `tombstoneRatio` | Fraction of tombstoned vs total entries (0 if no cached state) |
-| `writers` | Number of active writers discovered from refs |
-| `frontier` | Map of writer IDs to their latest patch SHAs |
+| `cachedState` | `'none'` = never materialized, `'stale'` = frontier changed, `'fresh'` = up to date |
+| `patchesSinceCheckpoint` | Patches since last checkpoint |
+| `tombstoneRatio` | Fraction of tombstoned entries (0 if no cached state) |
+| `writers` | Number of active writers |
+| `frontier` | Writer IDs → latest patch SHAs |
 
-The CLI also surfaces this:
+### Logging
 
-```bash
-git warp check        # Human-readable with color-coded staleness
-git warp check --json # Machine-readable JSON
-```
-
-### Visual Output
-
-The `--view` flag enables visual ASCII output for supported commands. It is a global option that can be placed before the command name.
-
-**Supported modes:**
-- `ascii` (default when `--view` is used) — renders output as ASCII art/diagrams
-- `browser` — opens output in default browser (coming in future release)
-- `svg:FILE` — saves output as SVG to specified file (coming in future release)
-- `html:FILE` — saves output as HTML to specified file (coming in future release)
-
-**Currently supported commands:**
-- `info` — displays graph overview with ASCII visualization
-- `check` — displays health status with ASCII visualization
-
-**Usage:**
-
-```bash
-git warp --view info              # ASCII visualization of graph info
-git warp --view check             # ASCII visualization of health status
-git warp --view=ascii info        # Explicit ASCII mode (same as above)
-```
-
-**Notes:**
-- The `--view` flag is mutually exclusive with `--json`. Using both will result in an error.
-- When `--view` is specified without a mode, it defaults to `ascii`.
-
-### Operation Timing
-
-Core operations emit structured timing logs when a logger is injected:
+Inject a logger for structured timing output:
 
 ```javascript
 import { ConsoleLogger } from '@git-stunts/git-warp';
@@ -787,22 +943,198 @@ const graph = await WarpGraph.open({
 
 await graph.materialize();
 // [warp] materialize completed in 142ms (23 patches)
-
-await graph.createCheckpoint();
-// [warp] createCheckpoint completed in 45ms
 ```
 
-Timed operations:
-- `materialize()` — logs patch count
-- `syncWith()` — logs applied patch count
-- `createCheckpoint()` — logs completion time
-- `runGC()` — logs tombstones removed count
+Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`.
 
-Failed operations also log timing with error context. Timing uses the injected `ClockPort` (defaults to `PerformanceClockAdapter`), making it testable with mock clocks.
+---
 
-### Tick Receipts
+## Troubleshooting
 
-When debugging multi-writer conflicts, `materialize({ receipts: true })` returns per-patch decision records explaining exactly what happened during materialization.
+### "My changes aren't appearing"
+
+1. Verify `commit()` was called on the patch
+2. Check the writer ref exists: `git show-ref | grep warp`
+3. Ensure you're materializing the same `graphName`
+4. If using `autoMaterialize: false` (the default), call `materialize()` after writing
+
+### "State differs between machines"
+
+1. Both machines must sync (`git push` / `git pull`) before materializing
+2. Verify both use the same `graphName`
+3. Check that writer IDs are unique per machine — reusing an ID causes Lamport clock confusion
+
+### "Materialization is slow"
+
+1. Enable auto-checkpointing: `checkpointPolicy: { every: 500 }`
+2. Or create checkpoints manually: `await graph.createCheckpoint()`
+3. Use `materializeAt(sha)` for incremental recovery
+4. Batch operations into fewer, larger patches
+
+### "Deleted node still appears"
+
+This can happen when a concurrent add has higher priority than the remove:
+
+```javascript
+// Writer A adds node at lamport=5
+// Writer B removes node at lamport=3
+// Result: node is VISIBLE (add at 5 beats remove at 3)
+```
+
+This is correct OR-Set behavior — a remove only affects add events it has *observed*. To ensure a remove takes effect, the removing writer must first materialize (to observe the add) and then issue the remove. See [Appendix A](#appendix-a-conflict-resolution-internals) for details.
+
+### "QueryError: E_NO_STATE"
+
+You're trying to read without materializing first. Either:
+- Call `await graph.materialize()` before queries
+- Set `autoMaterialize: true` on `WarpGraph.open()`
+
+### "QueryError: E_STALE_STATE"
+
+The frontier has changed since the last materialization (e.g., after a `git pull`). Call `materialize()` again.
+
+---
+
+## Appendixes
+
+### Appendix A: Conflict Resolution Internals
+
+#### EventId
+
+Every operation gets a unique **EventId** for deterministic ordering:
+
+```text
+EventId = (lamport, writerId, patchSha, opIndex)
+```
+
+Comparison is lexicographic: lamport first, then writerId, then patchSha, then opIndex. This total order ensures identical merge results regardless of patch arrival order.
+
+#### LWW (Last-Writer-Wins)
+
+Properties use LWW registers. When two writers set the same property, the operation with the higher EventId wins. This is the resolution described in the [Conflict Resolution](#conflict-resolution) section.
+
+#### OR-Set (Observed-Remove Set)
+
+Nodes and edges use OR-Set semantics. Each add operation creates a unique **dot** (writerId + counter). A remove operation specifies which dots it has *observed* — it only removes those specific dots. If a concurrent add creates a new dot that the remove hasn't observed, the element survives.
+
+This means: **add wins over concurrent remove**. A remove only takes effect against add events it has seen. To remove something reliably, first materialize (to observe all current dots), then issue the remove.
+
+#### Version Vectors
+
+Each writer maintains a Lamport clock (monotonically increasing counter). The **version vector** is a map from writer IDs to their last-seen counters. It tracks causality — which patches each writer has observed.
+
+#### Causal Context
+
+Each patch carries its version vector as causal context. This allows the reducer to determine which operations are concurrent (neither has seen the other) vs. causally ordered (one happened after the other).
+
+### Appendix B: Git Ref Layout
+
+```text
+refs/warp/<graphName>/
+├── writers/
+│   ├── alice          # Alice's patch chain tip
+│   ├── bob            # Bob's patch chain tip
+│   └── ...
+├── checkpoints/
+│   └── head           # Latest checkpoint
+└── coverage/
+    └── head           # Octopus anchor (all writer tips)
+```
+
+Each writer's ref points to the tip of their patch chain. Patches are Git commits whose parents point to the previous patch from the same writer. All commits point to Git's well-known empty tree (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`), making data invisible to normal Git workflows.
+
+### Appendix C: Patch Format
+
+Each patch is a Git commit containing:
+
+- **CBOR-encoded operations** in a blob referenced from the commit message
+- **Metadata** in Git trailers: writer, writerId, lamport, graph name, schema version
+- **Parent** pointing to the previous patch from the same writer
+
+Six operation types (schema v3):
+
+| Op | Fields | Description |
+|---|---|---|
+| `NodeAdd` | `node`, `dot` | Create node with unique dot |
+| `NodeTombstone` | `node`, `observedDots` | Delete node (observed-remove) |
+| `EdgeAdd` | `from`, `to`, `label`, `dot` | Create directed edge with dot |
+| `EdgeTombstone` | `from`, `to`, `label`, `observedDots` | Delete edge (observed-remove) |
+| `PropSet` | `node`, `key`, `value` | Set node property (LWW) |
+| `PropSet` (edge) | `from`, `to`, `label`, `key`, `value` | Set edge property (LWW) |
+
+**Schema compatibility:**
+- v3 → v2 with edge props: v2 reader throws `E_SCHEMA_UNSUPPORTED`
+- v3 → v2 with node-only ops: succeeds
+- v2 → v3: always succeeds
+
+### Appendix D: Error Code Reference
+
+#### Query Errors
+
+| Code | Thrown When |
+|---|---|
+| `E_NO_STATE` | Reading without materializing first |
+| `E_STALE_STATE` | Frontier changed since last materialization |
+| `E_QUERY_MATCH_TYPE` | `match()` receives a non-string |
+| `E_QUERY_WHERE_TYPE` | `where()` receives neither a function nor a plain object |
+| `E_QUERY_WHERE_VALUE_TYPE` | Object shorthand contains a non-primitive value |
+| `E_QUERY_LABEL_TYPE` | Edge label is not a string |
+| `E_QUERY_DEPTH_TYPE` | Depth is not a non-negative integer or valid `[min, max]` array |
+| `E_QUERY_DEPTH_RANGE` | Depth min > max |
+| `E_QUERY_SELECT_FIELD` | `select()` contains an unknown field |
+| `E_QUERY_SELECT_TYPE` | `select()` receives a non-array |
+| `E_QUERY_AGGREGATE_TYPE` | `aggregate()` receives invalid spec or field types |
+| `E_QUERY_AGGREGATE_TERMINAL` | `select()`/`outgoing()`/`incoming()` called after `aggregate()` |
+
+#### Sync Errors
+
+| Code | Thrown When |
+|---|---|
+| `E_SYNC_REMOTE_URL` | Invalid remote URL |
+| `E_SYNC_REMOTE` | Remote returned an error |
+| `E_SYNC_PROTOCOL` | Invalid sync response format |
+| `E_SYNC_TIMEOUT` | Request timed out |
+| `E_SYNC_DIVERGENCE` | Writer chains have diverged |
+
+#### Fork Errors
+
+| Code | Thrown When |
+|---|---|
+| `E_FORK_WRITER_NOT_FOUND` | Source writer doesn't exist |
+| `E_FORK_PATCH_NOT_FOUND` | Fork point SHA doesn't exist |
+| `E_FORK_PATCH_NOT_IN_CHAIN` | Fork point not in writer's chain |
+| `E_FORK_NAME_INVALID` | Invalid fork graph name |
+| `E_FORK_ALREADY_EXISTS` | Graph with fork name already has refs |
+
+#### Wormhole Errors
+
+| Code | Thrown When |
+|---|---|
+| `E_WORMHOLE_SHA_NOT_FOUND` | Patch SHA doesn't exist |
+| `E_WORMHOLE_INVALID_RANGE` | fromSha is not an ancestor of toSha |
+| `E_WORMHOLE_MULTI_WRITER` | Patches span multiple writers |
+| `E_WORMHOLE_NOT_PATCH` | Commit is not a patch commit |
+| `E_WORMHOLE_EMPTY_RANGE` | No patches in specified range |
+
+#### Traversal Errors
+
+| Code | Thrown When |
+|---|---|
+| `NODE_NOT_FOUND` | Start node doesn't exist |
+| `INVALID_DIRECTION` | Direction is not `'out'`, `'in'`, or `'both'` |
+| `INVALID_LABEL_FILTER` | Label filter is not a string or array |
+
+#### Writer Errors
+
+| Code | Thrown When |
+|---|---|
+| `EMPTY_PATCH` | Committing a patch with no operations |
+| `WRITER_REF_ADVANCED` | CAS failure — another process advanced the ref |
+| `PERSIST_WRITE_FAILED` | Git operations failed |
+
+### Appendix E: Tick Receipts
+
+When debugging multi-writer conflicts, `materialize({ receipts: true })` returns per-patch decision records:
 
 ```javascript
 const { state, receipts } = await graph.materialize({ receipts: true });
@@ -816,85 +1148,194 @@ for (const receipt of receipts) {
 }
 ```
 
-Each receipt corresponds to one patch and contains per-op outcomes:
+Per-op outcomes:
 
 | Result | Meaning |
 |---|---|
-| `applied` | Operation took effect (new node/edge, winning property write) |
-| `superseded` | Operation lost to a higher-priority concurrent write (LWW) |
-| `redundant` | Operation had no effect (duplicate add, already-removed tombstone) |
+| `applied` | Operation took effect |
+| `superseded` | Lost to a higher-priority concurrent write (LWW) |
+| `redundant` | No effect (duplicate add, already-removed tombstone) |
 
 For `superseded` PropSet operations, the `reason` field shows the winner:
+
 ```text
 PropSet user:alice.name: superseded
   reason: LWW: writer bob at lamport 43 wins
 ```
 
-**Zero-cost when disabled:** When receipts are not requested (the default), materialization has strictly zero overhead — no arrays allocated, no strings constructed. The return type remains `state` (not wrapped in an object).
+**Zero-cost when disabled:** When receipts are not requested (the default), there is strictly zero overhead — no arrays allocated, no strings constructed.
 
 ```javascript
-// Default — no overhead, returns state directly
+// Default — returns state directly, no overhead
 const state = await graph.materialize();
 
 // With receipts — returns { state, receipts }
 const { state, receipts } = await graph.materialize({ receipts: true });
 ```
 
-## Troubleshooting
+### Appendix F: Sync Protocol
 
-### "My changes aren't appearing"
+WarpGraph provides a request/response sync protocol for programmatic synchronization without Git remotes.
 
-1. Check that `commit()` was called on the patch
-2. Verify the writer ref exists: `git show-ref | grep warp`
-3. Ensure you're materializing the same graph name
+#### Protocol Flow
 
-### "State differs between writers"
+1. **Client** sends a sync request containing its frontier (writer → tip SHA map)
+2. **Server** compares frontiers, loads missing patches, returns them in a sync response
+3. **Client** applies the response to its local state
 
-1. Both writers must sync (git push/pull) before materializing
-2. Verify both are using the same `graphName`
-3. Check for Lamport clock issues (writer ID reuse)
+#### Programmatic API
 
-### "Materialization is slow"
-
-1. Enable auto-checkpointing: `checkpointPolicy: { every: 500 }` on `WarpGraph.open()`
-2. Create checkpoints manually with `graph.createCheckpoint()` if not using auto-checkpointing
-3. Use `materializeAt(checkpointSha)` for incremental recovery
-4. Consider reducing patch frequency (batch operations)
-
-### "Node should be deleted but still appears"
-
-Tombstone might have lower EventId than a later add:
 ```javascript
-// Writer A: addNode at lamport=5
-// Writer B: removeNode at lamport=3
-// Result: node is VISIBLE (5 > 3, add wins)
+// Client side
+const request = await graph.createSyncRequest();
+// Send request to server...
+
+// Server side
+const response = await graph.processSyncRequest(request);
+// Send response to client...
+
+// Client side
+const { applied } = graph.applySyncResponse(response);
 ```
 
-Solution: Ensure tombstones have higher lamport than adds.
+#### High-Level API
 
-## Performance Tips
+For most use cases, use `syncWith()` which handles the full round-trip:
 
-1. **Batch operations** - Group related changes into single patches
-2. **Checkpoint regularly** - Use `checkpointPolicy: { every: 500 }` for automatic checkpointing, or call `createCheckpoint()` manually
-3. **Use incremental materialization** - `materializeAt()` vs `materialize()`
-4. **Limit concurrent writers** - More writers = more merge overhead
+```javascript
+// Direct sync (in-process)
+const result = await graphA.syncWith(graphB);
 
-## Ref Layout
+// HTTP sync
+const result = await graph.syncWith('http://peer:3000/sync', {
+  retries: 3,
+  baseDelayMs: 250,
+  maxDelayMs: 2000,
+  timeoutMs: 10000,
+  signal: abortController.signal,
+  onStatus: (event) => console.log(event.type, event.attempt),
+  materialize: true,  // auto-materialize after sync
+});
+// result = { applied: 5, attempts: 1, state: ... }
+```
 
-WARP uses this Git ref structure:
+#### Sync Server
+
+```javascript
+const { close, url } = await graph.serve({
+  port: 3000,
+  host: '127.0.0.1',
+  path: '/sync',
+  maxRequestBytes: 4 * 1024 * 1024,
+});
+
+// Peers sync with: await peerGraph.syncWith(url);
+
+await close(); // shut down
+```
+
+### Appendix G: Garbage Collection
+
+Over time, tombstoned entries accumulate in ORSets. Garbage collection compacts these to reclaim memory.
+
+#### Automatic GC
+
+Configure GC policy on `WarpGraph.open()`:
+
+```javascript
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'my-graph',
+  writerId: 'local',
+  gcPolicy: {
+    enabled: true,
+    tombstoneRatioThreshold: 0.3,     // 30% tombstones triggers GC
+    entryCountThreshold: 50000,        // or 50K total entries
+    minPatchesSinceCompaction: 1000,   // at least 1000 patches between GCs
+    maxTimeSinceCompaction: 86400000,  // 24h max between GCs
+    compactOnCheckpoint: true,         // auto-compact when checkpointing
+  },
+});
+```
+
+Automatic GC runs during `materialize()` when thresholds are exceeded.
+
+#### Manual GC
+
+```javascript
+// Check if GC is needed
+const { ran, result, reasons } = await graph.maybeRunGC();
+
+// Force GC
+const result = await graph.runGC();
+// { nodesCompacted, edgesCompacted, tombstonesRemoved, durationMs }
+
+// Inspect metrics
+const metrics = graph.getGCMetrics();
+// { nodeCount, edgeCount, tombstoneCount, tombstoneRatio, ... }
+```
+
+#### Safety
+
+GC only compacts tombstoned dots that are **covered by the applied version vector** — dots that all known writers have observed. This ensures GC never removes information that an unsynced writer might still need.
+
+### Appendix H: Bitmap Indexes
+
+For large graphs, bitmap indexes provide O(1) neighbor lookups instead of scanning all edges.
+
+#### Building an Index
+
+Indexes are built via `IndexRebuildService`:
+
+```javascript
+import { IndexRebuildService } from '@git-stunts/git-warp';
+
+const service = new IndexRebuildService({
+  graphService,  // provides iterateNodes()
+  storage,       // IndexStoragePort for persisting blobs
+});
+
+// In-memory build (fast, requires O(N) memory)
+const treeOid = await service.rebuild('HEAD');
+
+// Streaming build (bounded memory)
+const treeOid = await service.rebuild('HEAD', {
+  maxMemoryBytes: 50 * 1024 * 1024,  // 50MB ceiling
+  onFlush: ({ flushCount }) => console.log(`Flush #${flushCount}`),
+});
+```
+
+#### Loading an Index
+
+```javascript
+const reader = await service.load(treeOid, {
+  strict: true,          // validate shard integrity (default)
+  currentFrontier,       // for staleness detection
+  autoRebuild: true,     // rebuild if stale
+  rebuildRef: 'HEAD',
+});
+```
+
+#### Index Structure
+
+Indexes use Roaring bitmaps, sharded by SHA prefix for lazy loading:
 
 ```text
-refs/warp/<graph>/
-├── writers/
-│   ├── alice          # Alice's patch chain tip
-│   ├── bob            # Bob's patch chain tip
-│   └── ...
-├── checkpoints/
-│   └── head           # Latest checkpoint
-└── coverage/
-    └── head           # Octopus anchor (optional)
+index-tree/
+  meta_00.json ... meta_ff.json           # SHA → numeric ID mappings
+  shards_fwd_00.json ... shards_fwd_ff.json  # Forward edges (parent → children)
+  shards_rev_00.json ... shards_rev_ff.json  # Reverse edges (child → parents)
 ```
+
+Memory: initial load near-zero (lazy); single shard 0.5–2 MB; full index at 1M nodes ~150–200 MB.
+
+---
 
 ## Further Reading
 
-- [Architecture](../ARCHITECTURE.md) - System design and anchoring
+- [Architecture](../ARCHITECTURE.md) — system design and internals
+- [CLAUDE.md](../CLAUDE.md) — developer reference with paper-to-code mappings
+- Paper I — *WARP Graphs: A Worldline Algebra for Recursive Provenance*
+- Paper II — *Canonical State Evolution and Deterministic Worldlines*
+- Paper III — *Computational Holography & Provenance Payloads*
+- Paper IV — *Echo and the WARP Core*

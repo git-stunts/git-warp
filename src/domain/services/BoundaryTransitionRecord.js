@@ -152,6 +152,9 @@ const REQUIRED_FIELDS = ['version', 'h_in', 'h_out', 'U_0', 'P', 't', 'kappa'];
 
 /**
  * Validates BTR structure and returns failure reason if invalid.
+ *
+ * @param {*} btr - The BTR object to validate
+ * @returns {string|null} Error message if invalid, null if valid
  * @private
  */
 function validateBTRStructure(btr) {
@@ -171,6 +174,10 @@ function validateBTRStructure(btr) {
 
 /**
  * Verifies HMAC authentication tag using timing-safe comparison.
+ *
+ * @param {BTR} btr - The BTR to verify
+ * @param {string|Buffer} key - HMAC key
+ * @returns {boolean} True if the HMAC tag matches
  * @private
  */
 function verifyHmac(btr, key) {
@@ -198,6 +205,9 @@ function verifyHmac(btr, key) {
 
 /**
  * Verifies replay produces expected h_out.
+ *
+ * @param {BTR} btr - The BTR to verify
+ * @returns {string|null} Error message if replay mismatch, null if valid
  * @private
  */
 function verifyReplayHash(btr) {

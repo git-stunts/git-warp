@@ -292,10 +292,10 @@ HOLOGRAM         (v8.0.0)  █████████████████�
   ■ HG/SLICE/1        
   ■ HG/WORM/1         
 
-ECHO             (v9.0.0)  ░░░░░░░░░░░░░░░░░░░░    0%  (0/3)
-  ○ EC/COST/1         
-  ◆ EC/TEMPORAL/1     
-  ◆ EC/VIEW/1           →  EC/COST/1
+ECHO             (v9.0.0)  ████████████████████  100%  (3/3)
+  ■ EC/COST/1         
+  ■ EC/TEMPORAL/1     
+  ■ EC/VIEW/1           →  EC/COST/1
 
 Cross-Milestone Dependencies:
   AP/CKPT/2           →  LH/STATUS/1 (LIGHTHOUSE)
@@ -1801,7 +1801,7 @@ Paper IV defines observers as resource-bounded functors and introduces rulial di
 
 #### EC/VIEW/1 — Define observer configuration
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to define named observers that project the graph into scoped views.
 - **Requirements:**
   - `graph.observer(name, config)` where config specifies:
@@ -1834,7 +1834,7 @@ Paper IV defines observers as resource-bounded functors and introduces rulial di
 
 #### EC/COST/1 — Implement MDL cost estimation
 
-- **Status:** `BLOCKED`
+- **Status:** `CLOSED`
 - **User Story:** As a system designer, I want to estimate how much information is lost when translating between two observer views.
 - **Requirements:**
   - `graph.translationCost(observerA, observerB)` returns `{ cost: number, breakdown: {...} }`.
@@ -1864,7 +1864,7 @@ Paper IV defines observers as resource-bounded functors and introduces rulial di
 
 #### EC/TEMPORAL/1 — Implement always/eventually operators
 
-- **Status:** `OPEN`
+- **Status:** `CLOSED`
 - **User Story:** As a developer, I want to query temporal properties of graph history.
 - **Requirements:**
   - `graph.temporal.always(nodeId, predicate, { since: tick })` — true if predicate held at every tick since `since`.

@@ -9,6 +9,8 @@ import ClockPort from '../../ports/ClockPort.js';
  * - Browsers
  *
  * For Node.js, use PerformanceClockAdapter instead (uses perf_hooks).
+ *
+ * @extends ClockPort
  */
 export default class GlobalClockAdapter extends ClockPort {
   /**

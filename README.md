@@ -262,6 +262,48 @@ const { unsubscribe } = graph.watch('user:*', {
 
 When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and auto-materializes if remote changes are detected.
 
+## Observer Views
+
+Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
+
+```javascript
+// Create an observer that only sees user:* nodes, with sensitive fields hidden
+const view = await graph.observer('publicApi', {
+  match: 'user:*',
+  redact: ['ssn', 'password'],
+});
+
+const users = await view.getNodes();                // only user:* nodes
+const props = await view.getNodeProps('user:alice'); // Map without ssn/password
+const result = await view.query().match('user:*').where({ role: 'admin' }).run();
+
+// Measure information loss between two observer perspectives
+const { cost, breakdown } = await graph.translationCost(
+  { match: '*' },                         // full view
+  { match: 'user:*', redact: ['ssn'] },   // restricted view
+);
+// cost ∈ [0, 1] — 0 = identical views, 1 = completely disjoint
+```
+
+## Temporal Queries
+
+CTL*-style temporal operators over patch history (Paper IV).
+
+```javascript
+// Was this node always in 'active' status?
+const alwaysActive = await graph.temporal.always(
+  'user:alice',
+  (snapshot) => snapshot.props.status === 'active',
+  { since: 0 },
+);
+
+// Was this PR ever merged?
+const wasMerged = await graph.temporal.eventually(
+  'pr:42',
+  (snapshot) => snapshot.props.status === 'merged',
+);
+```
+
 ## Patch Operations
 
 The patch builder supports seven operations:
@@ -391,6 +433,9 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `LogicalTraversal` -- graph traversal over materialized state
 - `SyncProtocol` -- multi-writer synchronization
 - `CheckpointService` -- state snapshot creation and loading
+- `ObserverView` -- read-only filtered graph projections
+- `TemporalQuery` -- CTL* temporal operators over history
+- `TranslationCost` -- MDL cost estimation between observer views
 - `BitmapIndexBuilder` / `BitmapIndexReader` -- roaring bitmap indexes
 - `VersionVector` / `ORSet` / `LWW` -- CRDT primitives
 
@@ -416,7 +461,7 @@ npm run test:bats       # CLI integration tests (Docker + BATS)
 
 ## AIΩN Foundations Series
 
-This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers define WARP graphs as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip them with deterministic tick-based operational semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), and develop computational holography, provenance payloads, and prefix forks ([Paper III](https://doi.org/10.5281/zenodo.17963669)). This codebase implements the core data structures and multi-writer collaboration protocol described in those papers.
+This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers define WARP graphs as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip them with deterministic tick-based operational semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), develop computational holography, provenance payloads, and prefix forks ([Paper III](https://doi.org/10.5281/zenodo.17963669)), and introduce observer geometry with rulial distance and temporal logic ([Paper IV](https://doi.org/10.5281/zenodo.18038297)). This codebase implements the core data structures and multi-writer collaboration protocol described in those papers.
 
 ## License
 

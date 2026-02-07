@@ -958,6 +958,86 @@ export function decodeEdgePropKey(encoded: string): { from: string; to: string; 
 export function isEdgePropKey(key: string): boolean;
 
 /**
+ * Configuration for an observer view.
+ */
+export interface ObserverConfig {
+  /** Glob pattern for visible nodes (e.g. 'user:*') */
+  match: string;
+  /** Property keys to include (whitelist). If omitted, all non-redacted properties are visible. */
+  expose?: string[];
+  /** Property keys to exclude (blacklist). Takes precedence over expose. */
+  redact?: string[];
+}
+
+/**
+ * Read-only observer view of a materialized WarpGraph state.
+ *
+ * Provides the same query/traverse API as WarpGraph, but filtered
+ * by observer configuration (match pattern, expose, redact).
+ * Edges are only visible when both endpoints pass the match filter.
+ *
+ * @see Paper IV, Section 3 -- Observers as resource-bounded functors
+ */
+export class ObserverView {
+  /** Observer name */
+  readonly name: string;
+
+  /** Logical graph traversal helpers scoped to this observer */
+  traverse: LogicalTraversal;
+
+  /** Checks if a node exists and is visible to this observer */
+  hasNode(nodeId: string): Promise<boolean>;
+
+  /** Gets all visible nodes that match the observer pattern */
+  getNodes(): Promise<string[]>;
+
+  /** Gets filtered properties for a visible node (null if hidden or missing) */
+  getNodeProps(nodeId: string): Promise<Map<string, unknown> | null>;
+
+  /** Gets all visible edges (both endpoints must match the observer pattern) */
+  getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
+
+  /** Creates a fluent query builder operating on the filtered view */
+  query(): QueryBuilder;
+}
+
+/**
+ * Breakdown of MDL translation cost components.
+ */
+export interface TranslationCostBreakdown {
+  /** Fraction of A's nodes not visible to B */
+  nodeLoss: number;
+  /** Fraction of A's edges not visible to B */
+  edgeLoss: number;
+  /** Fraction of A's properties not visible to B */
+  propLoss: number;
+}
+
+/**
+ * Result of a directed MDL translation cost computation.
+ */
+export interface TranslationCostResult {
+  /** Weighted cost normalized to [0, 1] */
+  cost: number;
+  /** Per-component breakdown */
+  breakdown: TranslationCostBreakdown;
+}
+
+/**
+ * Computes the directed MDL translation cost from observer A to observer B.
+ *
+ * @param configA - Observer configuration for A
+ * @param configB - Observer configuration for B
+ * @param state - WarpStateV5 materialized state
+ * @see Paper IV, Section 4 -- Directed rulial cost
+ */
+export function computeTranslationCost(
+  configA: ObserverConfig,
+  configB: ObserverConfig,
+  state: WarpStateV5
+): TranslationCostResult;
+
+/**
  * Multi-writer graph database using WARP CRDT protocol.
  *
  * V7 primary API - uses patch-based storage with OR-Set semantics.
@@ -1078,6 +1158,25 @@ export default class WarpGraph {
    * Creates a fluent query builder for the logical graph.
    */
   query(): QueryBuilder;
+
+  /**
+   * Creates a read-only observer view of the current materialized state.
+   *
+   * The observer sees only nodes matching the `match` glob pattern, with
+   * property visibility controlled by `expose` and `redact` lists.
+   * Edges are only visible when both endpoints pass the match filter.
+   */
+  observer(name: string, config: ObserverConfig): Promise<ObserverView>;
+
+  /**
+   * Computes the directed MDL translation cost from observer A to observer B.
+   *
+   * The cost measures how much information is lost when translating from
+   * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
+   *
+   * @see Paper IV, Section 4 -- Directed rulial cost
+   */
+  translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
   /**
    * Materializes the current graph state from all patches.

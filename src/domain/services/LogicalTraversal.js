@@ -116,6 +116,13 @@ function getNeighbors({ nodeId, direction, adjacency, labelSet }) {
   return merged;
 }
 
+/**
+ * Deterministic graph traversal engine for the materialized WARP graph.
+ *
+ * Provides BFS, DFS, shortest path (Dijkstra/A*), topological sort, and
+ * connected component algorithms over the logical node/edge OR-Sets.
+ * All traversals produce deterministic results via sorted neighbor ordering.
+ */
 export default class LogicalTraversal {
   /**
    * Creates a new LogicalTraversal.

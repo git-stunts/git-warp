@@ -35,6 +35,8 @@ import { Writer } from './warp/Writer.js';
 import { generateWriterId, resolveWriterId } from './utils/WriterId.js';
 import QueryBuilder from './services/QueryBuilder.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
+import ObserverView from './services/ObserverView.js';
+import { computeTranslationCost } from './services/TranslationCost.js';
 import LRUCache from './utils/LRUCache.js';
 import SyncError from './errors/SyncError.js';
 import QueryError from './errors/QueryError.js';
@@ -44,6 +46,7 @@ import { checkAborted } from './utils/cancellation.js';
 import OperationAbortedError from './errors/OperationAbortedError.js';
 import { compareEventIds } from './utils/EventId.js';
 import PerformanceClockAdapter from '../infrastructure/adapters/PerformanceClockAdapter.js';
+import { TemporalQuery } from './services/TemporalQuery.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
@@ -197,6 +200,9 @@ export default class WarpGraph {
 
     /** @type {import('./services/ProvenanceIndex.js').ProvenanceIndex|null} */
     this._provenanceIndex = null;
+
+    /** @type {import('./services/TemporalQuery.js').TemporalQuery|null} */
+    this._temporalQuery = null;
   }
 
   /**
@@ -2338,6 +2344,79 @@ export default class WarpGraph {
   }
 
   /**
+   * Creates a read-only observer view of the current materialized state.
+   *
+   * The observer sees only nodes matching the `match` glob pattern, with
+   * property visibility controlled by `expose` and `redact` lists.
+   * Edges are only visible when both endpoints pass the match filter.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached,
+   * or use autoMaterialize option when opening the graph.
+   *
+   * @param {string} name - Observer name
+   * @param {Object} config - Observer configuration
+   * @param {string} config.match - Glob pattern for visible nodes (e.g. 'user:*')
+   * @param {string[]} [config.expose] - Property keys to include (whitelist)
+   * @param {string[]} [config.redact] - Property keys to exclude (blacklist, takes precedence over expose)
+   * @returns {Promise<import('./services/ObserverView.js').default>} A read-only observer view
+   * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {QueryError} If cached state is dirty (code: `E_STALE_STATE`)
+   *
+   * @example
+   * await graph.materialize();
+   * const view = await graph.observer('userView', {
+   *   match: 'user:*',
+   *   redact: ['ssn', 'password'],
+   * });
+   * const users = await view.getNodes();
+   * const result = await view.query().match('user:*').run();
+   */
+  async observer(name, config) {
+    if (!config || typeof config.match !== 'string') {
+      throw new Error('observer config.match must be a string');
+    }
+    await this._ensureFreshState();
+    return new ObserverView({ name, config, graph: this });
+  }
+
+  /**
+   * Computes the directed MDL translation cost from observer A to observer B.
+   *
+   * The cost measures how much information is lost when translating from
+   * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached,
+   * or use autoMaterialize option when opening the graph.
+   *
+   * @param {Object} configA - Observer configuration for A
+   * @param {string} configA.match - Glob pattern for visible nodes
+   * @param {string[]} [configA.expose] - Property keys to include
+   * @param {string[]} [configA.redact] - Property keys to exclude
+   * @param {Object} configB - Observer configuration for B
+   * @param {string} configB.match - Glob pattern for visible nodes
+   * @param {string[]} [configB.expose] - Property keys to include
+   * @param {string[]} [configB.redact] - Property keys to exclude
+   * @returns {Promise<{cost: number, breakdown: {nodeLoss: number, edgeLoss: number, propLoss: number}}>}
+   * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {QueryError} If cached state is dirty (code: `E_STALE_STATE`)
+   *
+   * @see Paper IV, Section 4 -- Directed rulial cost
+   *
+   * @example
+   * await graph.materialize();
+   * const result = await graph.translationCost(
+   *   { match: 'user:*' },
+   *   { match: 'user:*', redact: ['ssn'] }
+   * );
+   * console.log(result.cost);       // e.g. 0.04
+   * console.log(result.breakdown);  // { nodeLoss: 0, edgeLoss: 0, propLoss: 0.2 }
+   */
+  async translationCost(configA, configB) {
+    await this._ensureFreshState();
+    return computeTranslationCost(configA, configB, this._cachedState);
+  }
+
+  /**
    * Checks if a node exists in the materialized graph state.
    *
    * **Requires a cached state.** Call materialize() first if not already cached.
@@ -3097,6 +3176,46 @@ export default class WarpGraph {
       // Tertiary: SHA (lexicographic) for total ordering
       return a.sha.localeCompare(b.sha);
     });
+  }
+
+  /**
+   * Gets the temporal query interface for CTL*-style temporal operators.
+   *
+   * Returns a TemporalQuery instance that provides `always` and `eventually`
+   * operators for evaluating predicates across the graph's history.
+   *
+   * The instance is lazily created on first access and reused thereafter.
+   *
+   * @returns {import('./services/TemporalQuery.js').TemporalQuery} Temporal query interface
+   *
+   * @example
+   * const alwaysActive = await graph.temporal.always(
+   *   'user:alice',
+   *   n => n.props.status === 'active',
+   *   { since: 0 }
+   * );
+   *
+   * @example
+   * const eventuallyMerged = await graph.temporal.eventually(
+   *   'user:alice',
+   *   n => n.props.status === 'merged'
+   * );
+   */
+  get temporal() {
+    if (!this._temporalQuery) {
+      this._temporalQuery = new TemporalQuery({
+        loadAllPatches: async () => {
+          const writerIds = await this.discoverWriters();
+          const allPatches = [];
+          for (const writerId of writerIds) {
+            const writerPatches = await this._loadWriterPatches(writerId);
+            allPatches.push(...writerPatches);
+          }
+          return this._sortPatchesCausally(allPatches);
+        },
+      });
+    }
+    return this._temporalQuery;
   }
 
   /**

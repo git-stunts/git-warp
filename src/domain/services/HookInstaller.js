@@ -41,6 +41,13 @@ export function classifyExistingHook(content) {
   return { kind: 'foreign' };
 }
 
+/**
+ * Extracts the warp hook version from a hook file's content.
+ *
+ * @param {string} content - File content to search
+ * @returns {string|null} The version string, or null if not found
+ * @private
+ */
 function extractVersion(content) {
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -75,7 +82,7 @@ export class HookInstaller {
    * Get the current hook status for a repo.
    *
    * @param {string} repoPath - Path to git repo
-   * @returns {{ installed: boolean, version?: string, current: boolean, hookPath: string }}
+   * @returns {{ installed: boolean, version?: string, current?: boolean, foreign?: boolean, hookPath: string }}
    */
   getHookStatus(repoPath) {
     const hookPath = this._resolveHookPath(repoPath);
@@ -132,6 +139,7 @@ export class HookInstaller {
     throw new Error(`Unknown install strategy: ${strategy}`);
   }
 
+  /** @private */
   _freshInstall(hookPath, content) {
     this._fs.writeFileSync(hookPath, content, { mode: 0o755 });
     this._fs.chmodSync(hookPath, 0o755);
@@ -142,6 +150,7 @@ export class HookInstaller {
     };
   }
 
+  /** @private */
   _upgradeInstall(hookPath, stamped) {
     const existing = this._readFile(hookPath);
     const classification = classifyExistingHook(existing);
@@ -166,6 +175,7 @@ export class HookInstaller {
     };
   }
 
+  /** @private */
   _appendInstall(hookPath, stamped) {
     const existing = this._readFile(hookPath) || '';
     const body = stripShebang(stamped);
@@ -179,6 +189,7 @@ export class HookInstaller {
     };
   }
 
+  /** @private */
   _replaceInstall(hookPath, stamped) {
     const existing = this._readFile(hookPath);
     let backupPath;
@@ -198,15 +209,18 @@ export class HookInstaller {
     };
   }
 
+  /** @private */
   _loadTemplate() {
     const templatePath = join(this._templateDir, 'post-merge.sh');
     return this._fs.readFileSync(templatePath, 'utf8');
   }
 
+  /** @private */
   _stampVersion(template) {
     return template.replaceAll(VERSION_PLACEHOLDER, this._version);
   }
 
+  /** @private */
   _resolveHooksDir(repoPath) {
     const customPath = this._execGitConfig(repoPath, 'core.hooksPath');
     if (customPath) {
@@ -221,10 +235,12 @@ export class HookInstaller {
     return join(repoPath, '.git', 'hooks');
   }
 
+  /** @private */
   _resolveHookPath(repoPath) {
     return join(this._resolveHooksDir(repoPath), 'post-merge');
   }
 
+  /** @private */
   _readFile(filePath) {
     try {
       return this._fs.readFileSync(filePath, 'utf8');
@@ -233,6 +249,7 @@ export class HookInstaller {
     }
   }
 
+  /** @private */
   _ensureDir(dirPath) {
     if (!this._fs.existsSync(dirPath)) {
       this._fs.mkdirSync(dirPath, { recursive: true });
@@ -240,6 +257,14 @@ export class HookInstaller {
   }
 }
 
+/**
+ * Resolves a hooks path, handling both absolute and relative paths.
+ *
+ * @param {string} customPath - The custom hooks path from git config
+ * @param {string} repoPath - The repo root path for resolving relative paths
+ * @returns {string} Resolved absolute hooks directory path
+ * @private
+ */
 function resolveHooksPath(customPath, repoPath) {
   if (customPath.startsWith('/')) {
     return customPath;
@@ -247,12 +272,25 @@ function resolveHooksPath(customPath, repoPath) {
   return resolve(repoPath, customPath);
 }
 
+/**
+ * Reads the package version from package.json.
+ *
+ * @returns {string} The package version string
+ * @private
+ */
 function readPackageVersion() {
   const require = createRequire(import.meta.url);
   const pkg = require('../../../package.json');
   return pkg.version;
 }
 
+/**
+ * Strips the shebang line from hook content.
+ *
+ * @param {string} content - Hook file content
+ * @returns {string} Content without the shebang line
+ * @private
+ */
 function stripShebang(content) {
   const lines = content.split('\n');
   if (lines[0] && lines[0].startsWith('#!')) {
@@ -261,11 +299,29 @@ function stripShebang(content) {
   return content;
 }
 
+/**
+ * Builds content by appending the warp hook body to existing hook content.
+ *
+ * @param {string} existing - Existing hook file content
+ * @param {string} body - Warp hook body to append (without shebang)
+ * @returns {string} Combined hook content
+ * @private
+ */
 function buildAppendedContent(existing, body) {
   const trimmed = existing.trimEnd();
   return `${trimmed}\n\n${body}`;
 }
 
+/**
+ * Replaces the delimited warp section in an existing hook file.
+ *
+ * Returns the original content unchanged if delimiters are not found.
+ *
+ * @param {string} existing - Existing hook file content
+ * @param {string} stamped - New version-stamped hook content
+ * @returns {string} Updated content with replaced section, or original if delimiters missing
+ * @private
+ */
 function replaceDelimitedSection(existing, stamped) {
   const body = stripShebang(stamped);
   const startIdx = existing.indexOf(DELIMITER_START_PREFIX);

@@ -164,6 +164,17 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha })
 
 /**
  * Collects patches from toSha back to fromSha (newest-first order).
+ *
+ * Walks the parent chain from toSha towards fromSha, collecting and
+ * validating each commit along the way.
+ *
+ * @param {Object} options
+ * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence - Git persistence adapter
+ * @param {string} options.graphName - Expected graph name
+ * @param {string} options.fromSha - SHA of the first (oldest) patch commit
+ * @param {string} options.toSha - SHA of the last (newest) patch commit
+ * @returns {Promise<Array<{patch: Object, sha: string, writerId: string}>>} Patches in newest-first order
+ * @throws {WormholeError} If fromSha is not an ancestor of toSha or range is empty
  * @private
  */
 async function collectPatchRange({ persistence, graphName, fromSha, toSha }) {
