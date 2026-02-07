@@ -1104,6 +1104,11 @@ export default class WarpGraph {
   getNodeProps(nodeId: string): Map<string, unknown> | null;
 
   /**
+   * Returns the number of property entries in the materialized state.
+   */
+  getPropertyCount(): Promise<number>;
+
+  /**
    * Gets all properties for an edge from the materialized state.
    * Returns null if the edge does not exist or is tombstoned.
    */

@@ -2672,6 +2672,20 @@ export default class WarpGraph {
     return edges;
   }
 
+  /**
+   * Returns the number of property entries in the materialized state.
+   *
+   * **Requires a cached state.** Call materialize() first if not already cached.
+   *
+   * @returns {Promise<number>} Number of property entries
+   * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
+   * @throws {QueryError} If cached state is dirty (code: `E_STALE_STATE`)
+   */
+  async getPropertyCount() {
+    await this._ensureFreshState();
+    return this._cachedState.prop.size;
+  }
+
   // ============================================================================
   // Fork API (HOLOGRAM)
   // ============================================================================

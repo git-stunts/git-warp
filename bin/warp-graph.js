@@ -1156,8 +1156,7 @@ async function materializeOneGraph({ persistence, graphName, writerId }) {
     totalPatchCount += patches.length;
   }
 
-  // Count properties from the materialized state
-  const properties = graph._cachedState?.prop?.size ?? 0;
+  const properties = await graph.getPropertyCount();
 
   return {
     graph: graphName,

@@ -17,6 +17,16 @@ Implements [Paper IV](https://doi.org/10.5281/zenodo.18038297) (Echo and the WAR
 - **Temporal query operators** (`EC/TEMPORAL/1`): New `graph.temporal.always(nodeId, predicate, { since })` and `graph.temporal.eventually(nodeId, predicate, { since })` implement CTL*-style temporal logic over patch history. Both operators replay patches incrementally, extracting node snapshots at each tick boundary and evaluating the predicate. `always` returns true only if the predicate held at every tick where the node existed. `eventually` short-circuits on the first true tick. The `since` option filters by Lamport timestamp. Predicates receive `{ id, exists, props }` with unwrapped property values.
 - **Translation cost estimation** (`EC/COST/1`): New `graph.translationCost(configA, configB)` computes the directed MDL (Minimum Description Length) cost of translating observer A's view into observer B's view. Returns `{ cost, breakdown: { nodeLoss, edgeLoss, propLoss } }` normalized to [0, 1]. Weights: node loss 50%, edge loss 30%, property loss 20%. Identical views produce cost 0; completely disjoint views produce cost 1. The cost is asymmetric: `cost(A→B) ≠ cost(B→A)` in general.
 
+#### Visualization M2 — History, Path, Materialize Renderers (v7.8.1)
+
+- **`git warp --view history`**: Patch timeline renderer with operation summaries, pagination, and node filtering. Shows per-patch operation counts (nodes added/removed, edges added/removed, properties set) with color-coded indicators.
+- **`git warp --view path`**: Visual path diagram between two nodes with arrow connectors and edge labels. Supports line-wrapping for long paths and displays hop count.
+- **`git warp --view materialize`**: Progress dashboard showing per-writer patch contribution bars, node/edge/property statistics with scaled bar charts, and checkpoint creation status.
+- **`summarizeOps` export**: New public function from `history.js` for computing operation type counts from patch ops arrays.
+- **`graph.getPropertyCount()`**: New public method on `WarpGraph` returning the number of property entries in materialized state, replacing direct `_cachedState` access in the CLI.
+- **Enriched `handleMaterialize` payload**: CLI now populates `writers` (per-writer patch counts), `properties`, and `patchCount` fields for the view renderer.
+- **Enriched `handleHistory` payload**: CLI now includes `opSummary` in history entries for real operation summaries instead of `(empty)` fallbacks.
+
 ### Documentation
 
 - **GUIDE.md comprehensive rewrite**: Restructured from concept-first reference manual to progressive-disclosure user guide. Quick Start with full working example now at the top. New sections: Writing Data (Writer API, PatchSession, edge properties, onDeleteWithData), Reading Data (all query methods), Graph Traversals (BFS, DFS, shortest path, connected component), Forks, Wormholes, Provenance, Slice Materialization, GC, Bitmap Indexes, Sync Protocol, CLI, Git Hooks. Internal CRDT details moved from user-facing examples to 8 appendixes (Conflict Resolution Internals, Git Ref Layout, Patch Format, Error Code Reference, Tick Receipts, Sync Protocol, Garbage Collection, Bitmap Indexes). Scrubbed raw `WarpStateV5` shapes from user-facing sections; all examples now use the public API (`hasNode`, `getNodeProps`, etc.).

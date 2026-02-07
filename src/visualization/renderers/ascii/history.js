@@ -188,6 +188,10 @@ function renderSingleWriterTimeline(payload, options) {
   }
 
   const { displayEntries, truncated, hiddenCount } = paginateEntries(entries, pageSize, showAll);
+  if (displayEntries.length === 0) {
+    lines.push(colors.muted('  (no patches)'));
+    return lines;
+  }
   const maxLamport = Math.max(...displayEntries.map((e) => e.lamport));
   const lamportWidth = String(maxLamport).length;
 
@@ -269,6 +273,10 @@ function renderMultiWriterTimeline(payload, options) {
   }
 
   const { displayEntries, truncated, hiddenCount } = paginateEntries(allEntries, pageSize, showAll);
+  if (displayEntries.length === 0) {
+    lines.push(colors.muted('  (no patches)'));
+    return lines;
+  }
   const maxLamport = Math.max(...displayEntries.map((e) => e.lamport));
   const lamportWidth = String(maxLamport).length;
   const maxWriterIdLen = Math.max(...writerIds.map((id) => id.length), 6);
