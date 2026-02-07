@@ -42,6 +42,14 @@ function toRow(px) {
   return Math.round(px / CELL_H) + MARGIN;
 }
 
+function scaleW(px) {
+  return Math.round(px / CELL_W);
+}
+
+function scaleH(px) {
+  return Math.round(px / CELL_H);
+}
+
 function createGrid(rows, cols) {
   const grid = [];
   for (let r = 0; r < rows; r++) {
@@ -74,8 +82,8 @@ function writeString(grid, r, c, str) {
 function stampNode(grid, node) {
   const r = toRow(node.y);
   const c = toCol(node.x);
-  const w = Math.max(toCol(node.width), 4);
-  const h = Math.max(toRow(node.height), 3);
+  const w = Math.max(scaleW(node.width), 4);
+  const h = Math.max(scaleH(node.height), 3);
 
   // Top border
   writeChar(grid, r, c, BOX.tl);
@@ -280,8 +288,8 @@ function buildNodeSet(nodes) {
   for (const node of nodes) {
     const r = toRow(node.y);
     const c = toCol(node.x);
-    const w = Math.max(toCol(node.width), 4);
-    const h = Math.max(toRow(node.height), 3);
+    const w = Math.max(scaleW(node.width), 4);
+    const h = Math.max(scaleH(node.height), 3);
     for (let dr = 0; dr < h; dr++) {
       for (let dc = 0; dc < w; dc++) {
         set.add(`${r + dr},${c + dc}`);
@@ -315,8 +323,8 @@ export function renderGraphView(positionedGraph, options = {}) {
     });
   }
 
-  const totalCols = toCol(positionedGraph.width) + MARGIN * 2;
-  const totalRows = toRow(positionedGraph.height) + MARGIN * 2;
+  const totalCols = scaleW(positionedGraph.width) + MARGIN * 2;
+  const totalRows = scaleH(positionedGraph.height) + MARGIN * 2;
 
   const grid = createGrid(totalRows, totalCols);
   const nodeSet = buildNodeSet(nodes);
