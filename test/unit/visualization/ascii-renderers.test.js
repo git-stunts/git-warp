@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { renderInfoView } from '../../../src/visualization/renderers/ascii/info.js';
 import { renderCheckView } from '../../../src/visualization/renderers/ascii/check.js';
 import { renderMaterializeView } from '../../../src/visualization/renderers/ascii/materialize.js';
-import { renderHistoryView } from '../../../src/visualization/renderers/ascii/history.js';
+import { renderHistoryView, summarizeOps } from '../../../src/visualization/renderers/ascii/history.js';
 import { renderPathView } from '../../../src/visualization/renderers/ascii/path.js';
 import { stripAnsi } from '../../../src/visualization/utils/ansi.js';
 
@@ -587,6 +587,22 @@ describe('ASCII Renderers', () => {
       expect(stripAnsi(renderMaterializeView(undefined))).toMatchSnapshot();
       expect(stripAnsi(renderMaterializeView({}))).toMatchSnapshot();
     });
+
+    it('renders noOp state (already materialized)', () => {
+      const mockData = {
+        graphs: [
+          {
+            graph: 'up-to-date-graph',
+            noOp: true,
+            nodes: 42,
+            edges: 87,
+            properties: 120,
+          },
+        ],
+      };
+      const output = stripAnsi(renderMaterializeView(mockData));
+      expect(output).toMatchSnapshot();
+    });
   });
 
   describe('renderHistoryView', () => {
@@ -757,6 +773,44 @@ describe('ASCII Renderers', () => {
     it('handles null/undefined data gracefully', () => {
       expect(stripAnsi(renderHistoryView(null))).toMatchSnapshot();
       expect(stripAnsi(renderHistoryView(undefined))).toMatchSnapshot();
+    });
+
+    it('renders history from raw ops via summarizeOps', () => {
+      const ops = [
+        { type: 'NodeAdd' },
+        { type: 'NodeAdd' },
+        { type: 'EdgeAdd' },
+        { type: 'PropSet' },
+        { type: 'PropSet' },
+        { type: 'PropSet' },
+        { type: 'NodeTombstone' },
+      ];
+      const summary = summarizeOps(ops);
+      expect(summary).toEqual({
+        NodeAdd: 2,
+        EdgeAdd: 1,
+        PropSet: 3,
+        NodeTombstone: 1,
+        EdgeTombstone: 0,
+        BlobValue: 0,
+      });
+
+      // Also snapshot the rendered output when entry uses raw ops
+      const mockData = {
+        graph: 'test-graph',
+        writer: 'alice',
+        nodeFilter: null,
+        entries: [
+          {
+            sha: 'abc1234567890abcdef',
+            lamport: 1,
+            opCount: 7,
+            ops,
+          },
+        ],
+      };
+      const output = stripAnsi(renderHistoryView(mockData));
+      expect(output).toMatchSnapshot();
     });
   });
 

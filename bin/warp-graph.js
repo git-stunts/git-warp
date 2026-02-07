@@ -23,6 +23,9 @@ import { renderCheckView } from '../src/visualization/renderers/ascii/check.js';
 import { renderHistoryView, summarizeOps } from '../src/visualization/renderers/ascii/history.js';
 import { renderPathView } from '../src/visualization/renderers/ascii/path.js';
 import { renderMaterializeView } from '../src/visualization/renderers/ascii/materialize.js';
+import { renderGraphView } from '../src/visualization/renderers/ascii/graph.js';
+import { renderSvg } from '../src/visualization/renderers/svg/index.js';
+import { layoutGraph, queryResultToGraphData, pathResultToGraphData } from '../src/visualization/layouts/index.js';
 
 const EXIT_CODES = {
   OK: 0,
@@ -754,12 +757,24 @@ function emit(payload, { json, command, view }) {
   }
 
   if (command === 'query') {
-    process.stdout.write(renderQuery(payload));
+    if (view && typeof view === 'string' && view.startsWith('svg:')) {
+      const svgPath = view.slice(4);
+      fs.writeFileSync(svgPath, payload._renderedSvg);
+      process.stderr.write(`SVG written to ${svgPath}\n`);
+    } else if (view) {
+      process.stdout.write(`${payload._renderedAscii}\n`);
+    } else {
+      process.stdout.write(renderQuery(payload));
+    }
     return;
   }
 
   if (command === 'path') {
-    if (view) {
+    if (view && typeof view === 'string' && view.startsWith('svg:')) {
+      const svgPath = view.slice(4);
+      fs.writeFileSync(svgPath, payload._renderedSvg);
+      process.stderr.write(`SVG written to ${svgPath}\n`);
+    } else if (view) {
       process.stdout.write(renderPathView(payload));
     } else {
       process.stdout.write(renderPath(payload));
@@ -874,8 +889,18 @@ async function handleQuery({ options, args }) {
 
   try {
     const result = await builder.run();
+    const payload = buildQueryPayload(graphName, result);
+
+    if (options.view) {
+      const edges = await graph.getEdges();
+      const graphData = queryResultToGraphData(payload, edges);
+      const positioned = await layoutGraph(graphData, { type: 'query' });
+      payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
+      payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+    }
+
     return {
-      payload: buildQueryPayload(graphName, result),
+      payload,
       exitCode: EXIT_CODES.OK,
     };
   } catch (error) {
@@ -950,13 +975,21 @@ async function handlePath({ options, args }) {
       }
     );
 
+    const payload = {
+      graph: graphName,
+      from: pathOptions.from,
+      to: pathOptions.to,
+      ...result,
+    };
+
+    if (options.view && result.found && typeof options.view === 'string' && options.view.startsWith('svg:')) {
+      const graphData = pathResultToGraphData(payload);
+      const positioned = await layoutGraph(graphData, { type: 'path' });
+      payload._renderedSvg = renderSvg(positioned, { title: `${graphName} path` });
+    }
+
     return {
-      payload: {
-        graph: graphName,
-        from: pathOptions.from,
-        to: pathOptions.to,
-        ...result,
-      },
+      payload,
       exitCode: result.found ? EXIT_CODES.OK : EXIT_CODES.NOT_FOUND,
     };
   } catch (error) {
@@ -1453,7 +1486,7 @@ async function main() {
     throw usageError(`Unknown command: ${command}`);
   }
 
-  const VIEW_SUPPORTED_COMMANDS = ['info', 'check', 'history', 'path', 'materialize'];
+  const VIEW_SUPPORTED_COMMANDS = ['info', 'check', 'history', 'path', 'materialize', 'query'];
   if (options.view && !VIEW_SUPPORTED_COMMANDS.includes(command)) {
     throw usageError(`--view is not supported for '${command}'. Supported commands: ${VIEW_SUPPORTED_COMMANDS.join(', ')}`);
   }

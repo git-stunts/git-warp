@@ -206,6 +206,7 @@ export default tseslint.config(
       "src/domain/services/PatchBuilderV2.js",
       "src/domain/utils/EventId.js",
       "src/domain/types/WarpTypesV2.js",
+      "src/visualization/renderers/ascii/graph.js",
       "bin/warp-graph.js",
     ],
     rules: {

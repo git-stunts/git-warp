@@ -11,3 +11,4 @@ export { renderCheckView } from './check.js';
 export { renderMaterializeView } from './materialize.js';
 export { renderHistoryView, summarizeOps } from './history.js';
 export { renderPathView } from './path.js';
+export { renderGraphView } from './graph.js';

@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SVG renderer > snapshot test for full SVG output 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" width="280" height="280">
+<title>Snapshot Test</title>
+<rect width="100%" height="100%" fill="#1e1e2e"/>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7"
+    refX="10" refY="3.5" orient="auto" fill="#a6adc8">
+    <polygon points="0 0, 10 3.5, 0 7"/>
+  </marker>
+</defs>
+<style>
+  .node rect { fill: #313244; stroke: #89b4fa; stroke-width: 2; rx: 6; }
+  .node text { fill: #cdd6f4; font-family: monospace; font-size: 13px; dominant-baseline: central; text-anchor: middle; }
+  .edge polyline { fill: none; stroke: #a6adc8; stroke-width: 1.5; marker-end: url(#arrowhead); }
+  .edge-label { fill: #bac2de; font-family: monospace; font-size: 11px; text-anchor: middle; }
+</style>
+<g transform="translate(40,40)">
+<g class="edge">
+  <polyline points="40,40 40,100"/>
+  <text class="edge-label" x="40" y="94">knows</text>
+</g>
+<g class="node">
+  <rect x="0" y="0" width="80" height="40"/>
+  <text x="40" y="20">Alice</text>
+</g>
+<g class="node">
+  <rect x="0" y="100" width="80" height="40"/>
+  <text x="40" y="120">Bob</text>
+</g>
+</g>
+</svg>"
+`;

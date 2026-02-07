@@ -171,6 +171,20 @@ exports[`ASCII Renderers > renderHistoryView > renders empty multi-writer timeli
 "
 `;
 
+exports[`ASCII Renderers > renderHistoryView > renders history from raw ops via summarizeOps 1`] = `
+"╔═════════════════ PATCH HISTORY ══════════════════╗
+║                                                  ║
+║     WRITER: alice                                ║
+║                                                  ║
+║     ┌                                            ║
+║     └● L1 abc1234  +2node +1edge ~3prop -1node   ║
+║                                                  ║
+║     Total: 1 patch                               ║
+║                                                  ║
+╚══════════════════════════════════════════════════╝
+"
+`;
+
 exports[`ASCII Renderers > renderHistoryView > renders history with node filter 1`] = `
 "╔═══════ PATCH HISTORY ═══════╗
 ║                             ║
@@ -549,6 +563,23 @@ exports[`ASCII Renderers > renderMaterializeView > renders multiple graphs mater
 ║     ✓ 2 graphs materialized successfully                 ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
+"
+`;
+
+exports[`ASCII Renderers > renderMaterializeView > renders noOp state (already materialized) 1`] = `
+"╔═════════════════ MATERIALIZE ═════════════════╗
+║                                               ║
+║     📊 up-to-date-graph                       ║
+║                                               ║
+║     ✓ Already materialized (no new patches)   ║
+║                                               ║
+║     Nodes:       42                           ║
+║     Edges:       87                           ║
+║     Properties:  120                          ║
+║                                               ║
+║     ✓ 1 graph materialized successfully       ║
+║                                               ║
+╚═══════════════════════════════════════════════╝
 "
 `;
 
