@@ -563,7 +563,7 @@ export function createMockClock(step = 42) {
       time += step;
       return t;
     }),
-    timestamp: vi.fn(() => '2026-01-01T00:00:00.000Z'),
+    timestamp: vi.fn(() => new Date(time).toISOString()),
   };
 }
 
@@ -585,20 +585,25 @@ export function createMockClock(step = 42) {
  */
 export async function createGitRepo(label = 'test') {
   const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
+  try {
+    const plumbing = Plumbing.createDefault({ cwd: tempDir });
+    await plumbing.execute({ args: ['init'] });
+    await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
+    await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
+    const persistence = new GitGraphAdapter({ plumbing });
 
-  return {
-    tempDir,
-    plumbing,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
+    return {
+      tempDir,
+      plumbing,
+      persistence,
+      async cleanup() {
+        await rm(tempDir, { recursive: true, force: true });
+      },
+    };
+  } catch (err) {
+    await rm(tempDir, { recursive: true, force: true });
+    throw err;
+  }
 }
 
 // ============================================================================
@@ -648,6 +653,7 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  */
 export function setupGraphState(graph, seedFn) {
   const state = createEmptyStateV5();
+  // COUPLING: relies on WarpGraph internal field `_cachedState`
   graph._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);

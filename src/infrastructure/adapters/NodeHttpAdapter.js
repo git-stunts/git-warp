@@ -17,6 +17,7 @@ async function dispatch(req, res, { handler, logger }) {
       if (totalBytes > MAX_BODY_BYTES) {
         res.writeHead(413, { 'Content-Type': 'text/plain' });
         res.end('Payload Too Large');
+        req.destroy();
         return;
       }
       chunks.push(chunk);

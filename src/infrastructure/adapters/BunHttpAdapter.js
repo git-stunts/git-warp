@@ -1,7 +1,11 @@
 import HttpServerPort from '../../ports/HttpServerPort.js';
 
 const ERROR_BODY = 'Internal Server Error';
-const ERROR_BODY_LENGTH = ERROR_BODY.length.toString();
+const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
+const ERROR_BODY_LENGTH = String(ERROR_BODY_BYTES.byteLength);
+
+/** Absolute streaming body limit (10 MB) — matches NodeHttpAdapter. */
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
 /**
  * Converts a Bun Request into the plain-object format expected by
@@ -18,7 +22,14 @@ async function toPortRequest(request) {
 
   let body;
   if (request.method !== 'GET' && request.method !== 'HEAD') {
+    const cl = headers['content-length'];
+    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
     const ab = await request.arrayBuffer();
+    if (ab.byteLength > MAX_BODY_BYTES) {
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
     if (ab.byteLength > 0) {
       body = new Uint8Array(ab);
     }
@@ -61,6 +72,12 @@ function createFetchHandler(requestHandler, logger) {
       const portRes = await requestHandler(portReq);
       return toResponse(portRes);
     } catch (err) {
+      if (err.status === 413) {
+        return new Response('Payload Too Large', {
+          status: 413,
+          headers: { 'Content-Type': 'text/plain', 'Content-Length': '17' },
+        });
+      }
       logger.error('BunHttpAdapter dispatch error', err);
       return new Response(ERROR_BODY, {
         status: 500,
@@ -76,6 +93,9 @@ function createFetchHandler(requestHandler, logger) {
 /**
  * Starts a Bun server and invokes the callback with (null) on success
  * or (err) on failure.
+ *
+ * Note: Bun.serve() is synchronous, so cb fires on the same tick
+ * (unlike Node's server.listen which defers via the event loop).
  *
  * @param {{ port: number, hostname?: string, fetch: Function }} serveOptions
  * @param {Function|undefined} cb - Node-style callback

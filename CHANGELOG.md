@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`NodeCryptoAdapter.hash()` / `hmac()` now use `async`**: Previously used `Promise.resolve()` wrapping, which let synchronous throws (e.g. unsupported algorithm) escape as uncaught exceptions instead of rejected promises. Now properly `async` so all errors become rejections.
 - **`index.d.ts` HttpServerPort type declarations**: `listen()`, `close()`, and `address()` signatures now match the actual callback-based implementation. Previously declared a Promise-based options-object API that no adapter implemented.
+- **`PatchBuilderV2` silent catch now logs**: The empty `catch {}` around `onCommitSuccess` now captures the error and logs it via `this._logger.warn()` with the commit SHA, aiding debugging when eager re-materialize fails. Accepts optional `logger` constructor param (defaults to `nullLogger`).
+- **`DenoHttpAdapter.addressImpl()` type guard**: `state.server.addr` is now guarded against non-`NetAddr` types (`UnixAddr`, `VsockAddr`) by checking `addr.transport` before destructuring `hostname`/`port`. Returns `null` for non-TCP/UDP addresses.
+- **`DenoHttpAdapter` / `BunHttpAdapter` body size limit**: Both adapters now enforce `MAX_BODY_BYTES` (10 MB) matching `NodeHttpAdapter`. Pre-checks `Content-Length` header and post-checks `arrayBuffer.byteLength`, returning 413 Payload Too Large on breach.
+- **`NodeHttpAdapter` destroys request on 413**: After responding with 413 Payload Too Large, `req.destroy()` is now called to tear down the socket and stop buffering the remaining payload.
+- **`BoundaryTransitionRecord` `hexToUint8Array` validation**: Now throws `RangeError` on odd-length or non-string input, preventing silent garbage output in the security-adjacent HMAC verification path.
+- **`BoundaryTransitionRecord` JSDoc types**: Updated 7 `@param`/`@returns`/`@property` annotations from `Buffer` to `Uint8Array` to accurately reflect cross-runtime support via `WebCryptoAdapter`.
+- **`DenoHttpAdapter.listenImpl()` simplified**: Removed unnecessary intermediate closure — logic is now inlined at the call site.
+- **`BunHttpAdapter` `ERROR_BODY_LENGTH`**: Now derived from `TextEncoder().encode().byteLength` instead of `String.length`, correctly measuring bytes rather than UTF-16 code units.
+
+### Tests
+
+- Benchmark consistency: All `runBenchmark()` calls in `Compaction.benchmark.js` and `ReducerV5.benchmark.js` now pass `WARMUP_RUNS` and `MEASURED_RUNS` explicitly instead of relying on matching defaults.
+- `createMockClock`: `timestamp()` now derives from the advancing `time` counter via `new Date(time).toISOString()` instead of returning a static string, ensuring coherence with `now()`.
+- `createGitRepo`: Temp directory is now cleaned up in a `catch` block if git init or config fails, preventing CI temp dir accumulation.
+- `setupGraphState`: Added coupling comment documenting reliance on `WarpGraph._cachedState` internal field.
+- `BunHttpAdapter` `startServer` JSDoc: Added note about `Bun.serve()` synchronous callback timing differing from Node's async `server.listen`.
+- Suite total: 2809 tests across 129 files.
 
 ## [10.1.0] — BULKHEAD (cont.)
 

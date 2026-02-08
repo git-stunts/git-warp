@@ -319,7 +319,7 @@ describe('ORSet Compaction Benchmarks', () => {
 
       const stats = await runBenchmark(() => {
         orsetCompact(set, vv);
-      });
+      }, WARMUP_RUNS, MEASURED_RUNS);
 
       console.log(`\n  Empty ORSet compaction: ${stats.median.toFixed(3)}ms`);
 
@@ -342,7 +342,7 @@ describe('ORSet Compaction Benchmarks', () => {
 
       const stats = await runBenchmark(() => {
         orsetCompact(cloneORSet(set), vv);
-      });
+      }, WARMUP_RUNS, MEASURED_RUNS);
 
       console.log(`\n  1K entries, no tombstones: ${stats.median.toFixed(2)}ms`);
 
@@ -356,7 +356,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const stats = await runBenchmark(() => {
         const clone = cloneORSet(set);
         orsetCompact(clone, vv);
-      });
+      }, WARMUP_RUNS, MEASURED_RUNS);
 
       // Compact the original
       orsetCompact(set, vv);

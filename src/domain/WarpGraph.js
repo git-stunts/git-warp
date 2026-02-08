@@ -328,6 +328,7 @@ export default class WarpGraph {
       onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: (opts) => this._onPatchCommitted(this._writerId, opts),
       codec: this._codec,
+      logger: this._logger,
     });
   }
 

@@ -42,6 +42,9 @@ function uint8ArrayToHex(bytes) {
  * @returns {Uint8Array}
  */
 function hexToUint8Array(hex) {
+  if (typeof hex !== 'string' || hex.length % 2 !== 0) {
+    throw new RangeError(`Invalid hex string (length ${hex?.length})`);
+  }
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
     bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
@@ -74,10 +77,10 @@ const BTR_VERSION = 1;
  * @param {number} fields.version - BTR format version
  * @param {string} fields.h_in - Hash of input state
  * @param {string} fields.h_out - Hash of output state
- * @param {Buffer} fields.U_0 - Serialized initial state
+ * @param {Uint8Array} fields.U_0 - Serialized initial state
  * @param {Array} fields.P - Serialized provenance payload
  * @param {string} fields.t - ISO timestamp
- * @param {string|Buffer} key - HMAC key
+ * @param {string|Uint8Array} key - HMAC key
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {Promise<string>} Hex-encoded HMAC tag
  * @private
@@ -103,7 +106,7 @@ async function computeHmac(fields, key, { crypto, codec }) {
  * @property {number} version - BTR format version
  * @property {string} h_in - Hash of input state (hex SHA-256)
  * @property {string} h_out - Hash of output state (hex SHA-256)
- * @property {Buffer} U_0 - Serialized initial state (CBOR)
+ * @property {Uint8Array} U_0 - Serialized initial state (CBOR)
  * @property {Array} P - Serialized provenance payload
  * @property {string} t - ISO 8601 timestamp
  * @property {string} kappa - Authentication tag (hex HMAC-SHA256)
@@ -145,7 +148,7 @@ async function computeHmac(fields, key, { crypto, codec }) {
  * @param {import('./JoinReducer.js').WarpStateV5} initialState - The input state U_0
  * @param {ProvenancePayload} payload - The provenance payload P
  * @param {Object} options - BTR creation options
- * @param {string|Buffer} options.key - HMAC key for authentication
+ * @param {string|Uint8Array} options.key - HMAC key for authentication
  * @param {string} [options.timestamp] - ISO timestamp (defaults to now)
  * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance
  * @returns {Promise<BTR>} The created BTR
@@ -204,7 +207,7 @@ function validateBTRStructure(btr) {
  * Verifies HMAC authentication tag using timing-safe comparison.
  *
  * @param {BTR} btr - The BTR to verify
- * @param {string|Buffer} key - HMAC key
+ * @param {string|Uint8Array} key - HMAC key
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {Promise<boolean>} True if the HMAC tag matches
  * @private
@@ -328,7 +331,7 @@ export async function replayBTR(btr, { crypto, codec } = {}) {
  * This ensures replay starts from the exact initial state, producing
  * the correct h_out hash.
  *
- * @param {Buffer} U_0 - Serialized full state
+ * @param {Uint8Array} U_0 - Serialized full state
  * @returns {import('./JoinReducer.js').WarpStateV5} The deserialized state
  * @private
  */
@@ -345,7 +348,7 @@ function deserializeInitialState(U_0, { codec } = {}) {
  * @param {BTR} btr - The BTR to serialize
  * @param {Object} [options]
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
- * @returns {Buffer} CBOR-encoded BTR
+ * @returns {Uint8Array} CBOR-encoded BTR
  */
 export function serializeBTR(btr, { codec } = {}) {
   const c = codec || defaultCodec;
@@ -363,7 +366,7 @@ export function serializeBTR(btr, { codec } = {}) {
 /**
  * Deserializes a BTR from CBOR bytes.
  *
- * @param {Buffer} bytes - CBOR-encoded BTR
+ * @param {Uint8Array} bytes - CBOR-encoded BTR
  * @param {Object} [options]
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {BTR} The deserialized BTR

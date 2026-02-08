@@ -192,7 +192,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       let state;
       const stats = await runBenchmark(() => {
         state = reduceV5(patches);
-      });
+      }, WARMUP_RUNS, MEASURED_RUNS);
 
       // Measure memory after
       const memAfter = process.memoryUsage().heapUsed;

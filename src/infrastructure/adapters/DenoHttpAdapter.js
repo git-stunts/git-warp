@@ -3,6 +3,9 @@ import HttpServerPort from '../../ports/HttpServerPort.js';
 const ERROR_BODY = 'Internal Server Error';
 const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
 
+/** Absolute streaming body limit (10 MB) — matches NodeHttpAdapter. */
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 /**
  * Converts a Deno Request into the plain-object format expected by
  * HttpServerPort request handlers.
@@ -18,7 +21,14 @@ async function toPlainRequest(request) {
 
   let body;
   if (request.body) {
+    const cl = headers['content-length'];
+    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
     const arrayBuf = await request.arrayBuffer();
+    if (arrayBuf.byteLength > MAX_BODY_BYTES) {
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
     if (arrayBuf.byteLength > 0) {
       body = new Uint8Array(arrayBuf);
     }
@@ -61,6 +71,13 @@ function createHandler(requestHandler, logger) {
       const response = await requestHandler(plain);
       return toDenoResponse(response);
     } catch (err) {
+      if (err.status === 413) {
+        const msg = new TextEncoder().encode('Payload Too Large');
+        return new Response(msg, {
+          status: 413,
+          headers: { 'Content-Type': 'text/plain', 'Content-Length': String(msg.byteLength) },
+        });
+      }
       logger.error('DenoHttpAdapter dispatch error', err);
       return new Response(ERROR_BODY_BYTES, {
         status: 500,
@@ -69,40 +86,6 @@ function createHandler(requestHandler, logger) {
           'Content-Length': String(ERROR_BODY_BYTES.byteLength),
         },
       });
-    }
-  };
-}
-
-/**
- * Starts the Deno HTTP server on the given port/hostname.
- *
- * @param {object} state - Shared mutable state `{ server }`
- * @param {Function} handler - Deno.serve handler
- * @param {number} port
- */
-function listenImpl(state, handler, port) {
-  return (host, callback) => {
-    const cb = typeof host === 'function' ? host : callback;
-    const hostname = typeof host === 'string' ? host : undefined;
-
-    try {
-      const serveOptions = {
-        port,
-        onListen() {
-          if (cb) {
-            cb(null);
-          }
-        },
-      };
-      if (hostname !== undefined) {
-        serveOptions.hostname = hostname;
-      }
-
-      state.server = globalThis.Deno.serve(serveOptions, handler);
-    } catch (err) {
-      if (cb) {
-        cb(err);
-      }
     }
   };
 }
@@ -145,11 +128,14 @@ function addressImpl(state) {
   if (!state.server) {
     return null;
   }
-  const { hostname, port } = state.server.addr;
+  const { addr } = state.server;
+  if (addr.transport !== 'tcp' && addr.transport !== 'udp') {
+    return null;
+  }
   return {
-    address: hostname,
-    port,
-    family: hostname.includes(':') ? 'IPv6' : 'IPv4',
+    address: addr.hostname,
+    port: addr.port,
+    family: addr.hostname.includes(':') ? 'IPv6' : 'IPv4',
   };
 }
 
@@ -180,7 +166,28 @@ export default class DenoHttpAdapter extends HttpServerPort {
 
     return {
       listen: (port, host, callback) => {
-        listenImpl(state, handler, port)(host, callback);
+        const cb = typeof host === 'function' ? host : callback;
+        const hostname = typeof host === 'string' ? host : undefined;
+
+        try {
+          const serveOptions = {
+            port,
+            onListen() {
+              if (cb) {
+                cb(null);
+              }
+            },
+          };
+          if (hostname !== undefined) {
+            serveOptions.hostname = hostname;
+          }
+
+          state.server = globalThis.Deno.serve(serveOptions, handler);
+        } catch (err) {
+          if (cb) {
+            cb(err);
+          }
+        }
       },
       close: (callback) => {
         closeImpl(state, callback);

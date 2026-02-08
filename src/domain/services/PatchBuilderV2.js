@@ -12,6 +12,7 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.js';
+import nullLogger from '../utils/nullLogger.js';
 import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
@@ -81,8 +82,9 @@ export class PatchBuilderV2 {
    * @param {Function|null} [options.onCommitSuccess] - Callback invoked after successful commit
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node with attached data
    * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
+   * @param {{ warn: Function }} [options.logger] - Logger for non-fatal warnings
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger }) {
     /** @type {import('../../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -118,6 +120,9 @@ export class PatchBuilderV2 {
 
     /** @type {import('../../ports/CodecPort.js').default} */
     this._codec = codec || defaultCodec;
+
+    /** @type {{ warn: Function }} */
+    this._logger = logger || nullLogger;
 
     /**
      * Nodes/edges read by this patch (for provenance tracking).
@@ -582,8 +587,9 @@ export class PatchBuilderV2 {
     if (this._onCommitSuccess) {
       try {
         await this._onCommitSuccess({ patch, sha: newCommitSha });
-      } catch {
+      } catch (err) {
         // Commit is already persisted — log but don't fail the caller.
+        this._logger.warn(`[warp] onCommitSuccess callback failed (sha=${newCommitSha}):`, err);
       }
     }
 
