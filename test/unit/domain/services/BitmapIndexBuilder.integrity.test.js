@@ -3,18 +3,18 @@ import BitmapIndexBuilder from '../../../../src/domain/services/BitmapIndexBuild
 
 describe('BitmapIndexBuilder Integrity Tests', () => {
   describe('Merkle-like properties', () => {
-    it('produces different serialization for different graph structures', () => {
+    it('produces different serialization for different graph structures', async () => {
       // Graph A: a -> b -> c (linear)
       const builderA = new BitmapIndexBuilder();
       builderA.addEdge('aaa', 'bbb');
       builderA.addEdge('bbb', 'ccc');
-      const treeA = builderA.serialize();
+      const treeA = await builderA.serialize();
 
       // Graph B: a -> b, a -> c (fork)
       const builderB = new BitmapIndexBuilder();
       builderB.addEdge('aaa', 'bbb');
       builderB.addEdge('aaa', 'ccc');
-      const treeB = builderB.serialize();
+      const treeB = await builderB.serialize();
 
       // The forward shard for 'aaa' should differ
       const fwdA = treeA['shards_fwd_aa.json']?.toString();
@@ -23,7 +23,7 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
       expect(fwdA).not.toBe(fwdB);
     });
 
-    it('produces identical serialization for identical graphs', () => {
+    it('produces identical serialization for identical graphs', async () => {
       const builder1 = new BitmapIndexBuilder();
       builder1.addEdge('aaa', 'bbb');
       builder1.addEdge('bbb', 'ccc');
@@ -32,8 +32,8 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
       builder2.addEdge('aaa', 'bbb');
       builder2.addEdge('bbb', 'ccc');
 
-      const tree1 = builder1.serialize();
-      const tree2 = builder2.serialize();
+      const tree1 = await builder1.serialize();
+      const tree2 = await builder2.serialize();
 
       // Same structure should produce same output
       expect(Object.keys(tree1).sort()).toEqual(Object.keys(tree2).sort());
@@ -43,15 +43,15 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
       }
     });
 
-    it('detects when a node is added to an existing graph', () => {
+    it('detects when a node is added to an existing graph', async () => {
       const builder1 = new BitmapIndexBuilder();
       builder1.addEdge('aaa', 'bbb');
-      const tree1 = builder1.serialize();
+      const tree1 = await builder1.serialize();
 
       const builder2 = new BitmapIndexBuilder();
       builder2.addEdge('aaa', 'bbb');
       builder2.addEdge('bbb', 'ccc'); // Extra edge
-      const tree2 = builder2.serialize();
+      const tree2 = await builder2.serialize();
 
       // tree2 should have more shards or different content
       const keys1 = Object.keys(tree1).sort();

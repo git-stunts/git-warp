@@ -13,12 +13,12 @@ export { SHARD_VERSION };
  *
  * @param {Object} data - The data object to checksum
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {string} Hex-encoded SHA-256 hash
+ * @returns {Promise<string|null>} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data, crypto) => {
+const computeChecksum = async (data, crypto) => {
   if (!crypto) { return null; }
   const json = canonicalStringify(data);
-  return crypto.hash('sha256', json);
+  return await crypto.hash('sha256', json);
 };
 
 /** @type {boolean|null} Whether native Roaring bindings are available (null = unknown until first use) */
@@ -36,11 +36,11 @@ const ensureRoaringBitmap32 = () => {
  * Wraps data in a version/checksum envelope.
  * @param {Object} data - The data to wrap
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {Object} Envelope with version, checksum, and data
+ * @returns {Promise<Object>} Envelope with version, checksum, and data
  */
-const wrapShard = (data, crypto) => ({
+const wrapShard = async (data, crypto) => ({
   version: SHARD_VERSION,
-  checksum: computeChecksum(data, crypto),
+  checksum: await computeChecksum(data, crypto),
   data,
 });
 
@@ -142,9 +142,9 @@ export default class BitmapIndexBuilder {
    *
    * Each shard is wrapped in a version/checksum envelope for integrity verification.
    *
-   * @returns {Record<string, Buffer>} Map of path → serialized content
+   * @returns {Promise<Record<string, Buffer>>} Map of path → serialized content
    */
-  serialize({ frontier } = {}) {
+  async serialize({ frontier } = {}) {
     const tree = {};
 
     // Serialize ID mappings (sharded by prefix)
@@ -157,7 +157,7 @@ export default class BitmapIndexBuilder {
       idShards[prefix][sha] = id;
     }
     for (const [prefix, map] of Object.entries(idShards)) {
-      tree[`meta_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(map, this._crypto)));
+      tree[`meta_${prefix}.json`] = Buffer.from(JSON.stringify(await wrapShard(map, this._crypto)));
     }
 
     // Serialize bitmaps (sharded by prefix, per-node within shard)
@@ -176,7 +176,7 @@ export default class BitmapIndexBuilder {
 
     for (const type of ['fwd', 'rev']) {
       for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
-        tree[`shards_${type}_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(shardData, this._crypto)));
+        tree[`shards_${type}_${prefix}.json`] = Buffer.from(JSON.stringify(await wrapShard(shardData, this._crypto)));
       }
     }
 

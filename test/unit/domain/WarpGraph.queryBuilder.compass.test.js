@@ -1,25 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
+import { encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
-
-function setupGraphState(graph, seedFn) {
-  const state = createEmptyStateV5();
-  graph._cachedState = state;
-  graph.materialize = vi.fn().mockResolvedValue(state);
-  seedFn(state);
-}
-
-function addNode(state, nodeId, counter) {
-  orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
-}
-
-function addEdge(state, from, to, label, counter) {
-  const edgeKey = encodeEdgeKey(from, to, label);
-  orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
-}
+import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
 
 let lamportCounter = 0;
 function addProp(state, nodeId, key, value) {
@@ -50,9 +33,9 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('where({ role: "admin" }) returns only admin nodes', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
-      addNode(state, 'user:carol', 3);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
+      addNodeToState(state, 'user:carol', 3);
       addProp(state, 'user:alice', 'role', 'admin');
       addProp(state, 'user:bob', 'role', 'viewer');
       addProp(state, 'user:carol', 'role', 'admin');
@@ -72,8 +55,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('multiple properties in object = AND semantics', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
       addProp(state, 'user:alice', 'role', 'admin');
       addProp(state, 'user:alice', 'active', true);
       addProp(state, 'user:bob', 'role', 'admin');
@@ -93,9 +76,9 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('chained object + function filters', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
-      addNode(state, 'user:carol', 3);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
+      addNodeToState(state, 'user:carol', 3);
       addProp(state, 'user:alice', 'role', 'admin');
       addProp(state, 'user:alice', 'age', 30);
       addProp(state, 'user:bob', 'role', 'admin');
@@ -118,8 +101,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('empty object matches all nodes', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
     });
 
     const result = await graph
@@ -136,8 +119,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('property value is null — filters correctly', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
       addProp(state, 'user:alice', 'status', null);
       addProp(state, 'user:bob', 'status', 'active');
     });
@@ -155,8 +138,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('non-existent property in filter excludes node', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
       addProp(state, 'user:alice', 'role', 'admin');
     });
 
@@ -179,8 +162,8 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
 
   it('accepts arrays as values (strict equality)', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'user:alice', 1);
-      addNode(state, 'user:bob', 2);
+      addNodeToState(state, 'user:alice', 1);
+      addNodeToState(state, 'user:bob', 2);
       addProp(state, 'user:alice', 'tags', 'solo');
       addProp(state, 'user:bob', 'tags', 'team');
     });
@@ -212,13 +195,13 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('depth [1,3] on linear chain A→B→C→D returns B,C,D', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addNode(state, 'node:d', 4);
-      addEdge(state, 'node:a', 'node:b', 'next', 5);
-      addEdge(state, 'node:b', 'node:c', 'next', 6);
-      addEdge(state, 'node:c', 'node:d', 'next', 7);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addNodeToState(state, 'node:d', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 5);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 6);
+      addEdgeToState(state, 'node:c', 'node:d', 'next', 7);
     });
 
     const result = await graph
@@ -236,13 +219,13 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('depth 2 from A returns only hop-2 nodes', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addNode(state, 'node:d', 4);
-      addEdge(state, 'node:a', 'node:b', 'next', 5);
-      addEdge(state, 'node:b', 'node:c', 'next', 6);
-      addEdge(state, 'node:c', 'node:d', 'next', 7);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addNodeToState(state, 'node:d', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 5);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 6);
+      addEdgeToState(state, 'node:c', 'node:d', 'next', 7);
     });
 
     const result = await graph
@@ -256,12 +239,12 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('cycles do not cause infinite loops', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:b', 'next', 4);
-      addEdge(state, 'node:b', 'node:c', 'next', 5);
-      addEdge(state, 'node:c', 'node:a', 'next', 6); // cycle
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 4);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 5);
+      addEdgeToState(state, 'node:c', 'node:a', 'next', 6); // cycle
     });
 
     const result = await graph
@@ -278,11 +261,11 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('default depth [1,1] preserves existing single-hop behavior', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:b', 'next', 4);
-      addEdge(state, 'node:b', 'node:c', 'next', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 4);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 5);
     });
 
     const result = await graph
@@ -296,11 +279,11 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('incoming with depth [1,2] works in reverse', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:b', 'next', 4);
-      addEdge(state, 'node:b', 'node:c', 'next', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 4);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 5);
     });
 
     const result = await graph
@@ -317,13 +300,13 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('depth [2,3] excludes hop-1 nodes', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addNode(state, 'node:d', 4);
-      addEdge(state, 'node:a', 'node:b', 'next', 5);
-      addEdge(state, 'node:b', 'node:c', 'next', 6);
-      addEdge(state, 'node:c', 'node:d', 'next', 7);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addNodeToState(state, 'node:d', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 5);
+      addEdgeToState(state, 'node:b', 'node:c', 'next', 6);
+      addEdgeToState(state, 'node:c', 'node:d', 'next', 7);
     });
 
     const result = await graph
@@ -340,9 +323,9 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('depth [0,0] returns the start set (self-inclusion)', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addEdge(state, 'node:a', 'node:b', 'next', 3);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addEdgeToState(state, 'node:a', 'node:b', 'next', 3);
     });
 
     const result = await graph
@@ -366,15 +349,15 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
 
   it('branching graph with depth [1,2] returns all reachable nodes', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:root', 1);
-      addNode(state, 'node:l1a', 2);
-      addNode(state, 'node:l1b', 3);
-      addNode(state, 'node:l2a', 4);
-      addNode(state, 'node:l2b', 5);
-      addEdge(state, 'node:root', 'node:l1a', 'child', 6);
-      addEdge(state, 'node:root', 'node:l1b', 'child', 7);
-      addEdge(state, 'node:l1a', 'node:l2a', 'child', 8);
-      addEdge(state, 'node:l1b', 'node:l2b', 'child', 9);
+      addNodeToState(state, 'node:root', 1);
+      addNodeToState(state, 'node:l1a', 2);
+      addNodeToState(state, 'node:l1b', 3);
+      addNodeToState(state, 'node:l2a', 4);
+      addNodeToState(state, 'node:l2b', 5);
+      addEdgeToState(state, 'node:root', 'node:l1a', 'child', 6);
+      addEdgeToState(state, 'node:root', 'node:l1b', 'child', 7);
+      addEdgeToState(state, 'node:l1a', 'node:l2a', 'child', 8);
+      addEdgeToState(state, 'node:l1b', 'node:l2b', 'child', 9);
     });
 
     const result = await graph
@@ -414,9 +397,9 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('count returns correct node count', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
-      addNode(state, 'order:3', 3);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
+      addNodeToState(state, 'order:3', 3);
     });
 
     const result = await graph
@@ -431,9 +414,9 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('sum computes correctly over numeric property', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
-      addNode(state, 'order:3', 3);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
+      addNodeToState(state, 'order:3', 3);
       addProp(state, 'order:1', 'total', 10);
       addProp(state, 'order:2', 'total', 20);
       addProp(state, 'order:3', 'total', 30);
@@ -451,9 +434,9 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('avg, min, max on numeric props', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
-      addNode(state, 'order:3', 3);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
+      addNodeToState(state, 'order:3', 3);
       addProp(state, 'order:1', 'total', 10);
       addProp(state, 'order:2', 'total', 20);
       addProp(state, 'order:3', 'total', 30);
@@ -472,9 +455,9 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('non-numeric values are silently skipped', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
-      addNode(state, 'order:3', 3);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
+      addNodeToState(state, 'order:3', 3);
       addProp(state, 'order:1', 'total', 10);
       addProp(state, 'order:2', 'total', 'not-a-number');
       addProp(state, 'order:3', 'total', 30);
@@ -534,7 +517,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('single node aggregate', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
+      addNodeToState(state, 'order:1', 1);
       addProp(state, 'order:1', 'total', 42);
     });
 
@@ -553,8 +536,8 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('all non-numeric values yield sum=0', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
       addProp(state, 'order:1', 'total', 'abc');
       addProp(state, 'order:2', 'total', true);
     });
@@ -570,7 +553,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('stateHash is included in aggregate result', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
+      addNodeToState(state, 'order:1', 1);
     });
 
     const result = await graph
@@ -584,9 +567,9 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('where + aggregate composes correctly', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
-      addNode(state, 'order:2', 2);
-      addNode(state, 'order:3', 3);
+      addNodeToState(state, 'order:1', 1);
+      addNodeToState(state, 'order:2', 2);
+      addNodeToState(state, 'order:3', 3);
       addProp(state, 'order:1', 'status', 'paid');
       addProp(state, 'order:1', 'total', 10);
       addProp(state, 'order:2', 'status', 'pending');
@@ -608,7 +591,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
 
   it('property path without props. prefix works', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'order:1', 1);
+      addNodeToState(state, 'order:1', 1);
       addProp(state, 'order:1', 'total', 50);
     });
 

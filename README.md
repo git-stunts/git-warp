@@ -426,6 +426,8 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `GitGraphAdapter` -- wraps `@git-stunts/plumbing` for Git operations
 - `ClockAdapter` -- unified clock (factory: `ClockAdapter.node()`, `ClockAdapter.global()`)
 - `NodeCryptoAdapter` -- cryptographic operations via `node:crypto`
+- `WebCryptoAdapter` -- cryptographic operations via Web Crypto API (browsers, Deno, Bun, Node 20+)
+- `NodeHttpAdapter` / `BunHttpAdapter` / `DenoHttpAdapter` -- HTTP server per runtime
 - `ConsoleLogger` / `NoOpLogger` -- logging implementations
 - `CborCodec` -- CBOR serialization for patches
 

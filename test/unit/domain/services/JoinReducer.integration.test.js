@@ -337,7 +337,7 @@ function getVisibleNodes(v4State) {
 // ============================================================================
 
 describe('KILLER TEST 1: Permutation Invariance', () => {
-  it('any permutation of schema-2 patches produces same state hash', () => {
+  it('any permutation of schema-2 patches produces same state hash', async () => {
     // Generate 20 random v2 patches
     const patches = generatePatches(20);
     const hashes = new Set();
@@ -346,14 +346,14 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     for (let i = 0; i < 100; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
-      hashes.add(computeStateHashV5(state));
+      hashes.add(await computeStateHashV5(state));
     }
 
     // All permutations should produce the same hash
     expect(hashes.size).toBe(1);
   });
 
-  it('produces identical state for 3 patches in all 6 permutations', () => {
+  it('produces identical state for 3 patches in all 6 permutations', async () => {
     const patchA = {
       patch: createPatchV2({
         writer: 'A',
@@ -394,13 +394,13 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
       [patchC, patchB, patchA],
     ];
 
-    const hashes = permutations.map((p) => computeStateHashV5(reduceV5(p)));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHashV5(reduceV5(p))));
 
     // All should be identical
     expect(new Set(hashes).size).toBe(1);
   });
 
-  it('stress test: 50 patches with varied operations', () => {
+  it('stress test: 50 patches with varied operations', async () => {
     const patches = generateV2Patches(50);
     const hashes = new Set();
 
@@ -408,7 +408,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
     for (let i = 0; i < 50; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
-      hashes.add(computeStateHashV5(state));
+      hashes.add(await computeStateHashV5(state));
     }
 
     expect(hashes.size).toBe(1);
@@ -420,7 +420,7 @@ describe('KILLER TEST 1: Permutation Invariance', () => {
 // ============================================================================
 
 describe('KILLER TEST 2: Migration Boundary Test', () => {
-  it('v4 -> v5 migration preserves visible projection', () => {
+  it('v4 -> v5 migration preserves visible projection', async () => {
     // Build v4 graph with adds/removes
     const v4Patches = [
       {
@@ -506,7 +506,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
     const finalA = reduceV5(v5Patches, v5State);
     const finalB = reduceV5(shuffle(v5Patches), v5State);
 
-    expect(computeStateHashV5(finalA)).toBe(computeStateHashV5(finalB));
+    expect(await computeStateHashV5(finalA)).toBe(await computeStateHashV5(finalB));
   });
 
   it('migration preserves props for visible nodes only', () => {
@@ -595,7 +595,7 @@ describe('KILLER TEST 2: Migration Boundary Test', () => {
 // ============================================================================
 
 describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', () => {
-  it('concurrent add + remove with empty observedDots => add wins', () => {
+  it('concurrent add + remove with empty observedDots => add wins', async () => {
     // Writer A: add node X with dot a1
     const patchA = {
       patch: createPatchV2({
@@ -627,7 +627,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     expect(nodeVisibleV5(stateBA, 'X')).toBe(true);
 
     // Same hash regardless of order
-    expect(computeStateHashV5(stateAB)).toBe(computeStateHashV5(stateBA));
+    expect(await computeStateHashV5(stateAB)).toBe(await computeStateHashV5(stateBA));
   });
 
   it('remove only removes observed dots - concurrent add survives', () => {
@@ -714,7 +714,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     expect(nodeVisibleV5(state, 'X')).toBe(false);
   });
 
-  it('edge concurrent add/remove follows same semantics', () => {
+  it('edge concurrent add/remove follows same semantics', async () => {
     // Create nodes first
     const nodePatches = [
       {
@@ -761,7 +761,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
     // Edge should be visible (add wins)
     expect(edgeVisibleV5(stateAB, edgeKey)).toBe(true);
     expect(edgeVisibleV5(stateBA, edgeKey)).toBe(true);
-    expect(computeStateHashV5(stateAB)).toBe(computeStateHashV5(stateBA));
+    expect(await computeStateHashV5(stateAB)).toBe(await computeStateHashV5(stateBA));
   });
 });
 
@@ -770,11 +770,11 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
 // ============================================================================
 
 describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
-  it('compaction does not change visible state hash', () => {
+  it('compaction does not change visible state hash', async () => {
     // Apply patches
     const patches = generateV2Patches(50);
     const state = reduceV5(patches);
-    const hashBefore = computeStateHashV5(state);
+    const hashBefore = await computeStateHashV5(state);
 
     // Create checkpoint with compaction
     const includedVV = computeIncludedVV(patches);
@@ -782,7 +782,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     orsetCompact(state.edgeAlive, includedVV);
 
     // Hash must match - compaction didn't eat the graph
-    const hashAfter = computeStateHashV5(state);
+    const hashAfter = await computeStateHashV5(state);
     expect(hashAfter).toBe(hashBefore);
   });
 
@@ -852,7 +852,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     expect(nodeVisibleV5(state, 'live-node')).toBe(true);
   });
 
-  it('incremental compaction is safe', () => {
+  it('incremental compaction is safe', async () => {
     // Generate patches in waves
     const wave1 = generateV2Patches(20);
     const wave2 = generateV2Patches(20);
@@ -860,7 +860,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 
     // Full reduce
     const fullState = reduceV5([...wave1, ...wave2, ...wave3]);
-    const fullHash = computeStateHashV5(fullState);
+    const fullHash = await computeStateHashV5(fullState);
 
     // Incremental with compaction between waves
     let state = reduceV5(wave1);
@@ -876,7 +876,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     state = reduceV5(wave3, state);
 
     // Final hash should match full reduce
-    expect(computeStateHashV5(state)).toBe(fullHash);
+    expect(await computeStateHashV5(state)).toBe(fullHash);
   });
 });
 
@@ -885,7 +885,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
 // ============================================================================
 
 describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
-  it('forked states merged in different orders produce identical hash', () => {
+  it('forked states merged in different orders produce identical hash', async () => {
     // Create initial state S with some baseline data
     const basePatches = [
       {
@@ -953,8 +953,8 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Assert: ResultA state hash == ResultB state hash
-    const hashA = computeStateHashV5(resultA);
-    const hashB = computeStateHashV5(resultB);
+    const hashA = await computeStateHashV5(resultA);
+    const hashB = await computeStateHashV5(resultB);
 
     expect(hashA).toBe(hashB);
 
@@ -970,7 +970,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     expect(nodeVisibleV5(resultB, 'bob-node')).toBe(true);
   });
 
-  it('diamond merge with conflicting operations produces identical hash', () => {
+  it('diamond merge with conflicting operations produces identical hash', async () => {
     // State S - common ancestor
     const basePatches = [
       {
@@ -1019,7 +1019,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Hashes must be identical regardless of merge order
-    expect(computeStateHashV5(resultA)).toBe(computeStateHashV5(resultB));
+    expect(await computeStateHashV5(resultA)).toBe(await computeStateHashV5(resultB));
 
     // Bob's value wins (higher lamport)
     const propKey = encodePropKey('target', 'value');
@@ -1027,7 +1027,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     expect(lwwValue(resultB.prop.get(propKey))).toEqual(createInlineValue('bob-value'));
   });
 
-  it('diamond with add/remove conflicts produces identical hash', () => {
+  it('diamond with add/remove conflicts produces identical hash', async () => {
     // State S with a node that will be concurrently modified
     const basePatches = [
       {
@@ -1074,7 +1074,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
     const resultB = joinStates(s2WithP2, s1WithP1);
 
     // Hashes must be identical
-    expect(computeStateHashV5(resultA)).toBe(computeStateHashV5(resultB));
+    expect(await computeStateHashV5(resultA)).toBe(await computeStateHashV5(resultB));
 
     // Node should be visible (Bob's add wasn't observed by Alice's remove)
     expect(nodeVisibleV5(resultA, 'contested')).toBe(true);
@@ -1087,7 +1087,7 @@ describe('KILLER TEST 5: Diamond Test - True Lattice Confluence', () => {
 // ============================================================================
 
 describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
-  it('100 random patches shuffled into 5 permutations produce identical state hashes', () => {
+  it('100 random patches shuffled into 5 permutations produce identical state hashes', async () => {
     // Generate 100 random patches with varied operations
     const patches = generatePatches(100, {
       writers: ['writerA', 'writerB', 'writerC', 'writerD', 'writerE'],
@@ -1109,11 +1109,11 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const state5 = reduceV5(permutation5);
 
     // Compute hashes
-    const hash1 = computeStateHashV5(state1);
-    const hash2 = computeStateHashV5(state2);
-    const hash3 = computeStateHashV5(state3);
-    const hash4 = computeStateHashV5(state4);
-    const hash5 = computeStateHashV5(state5);
+    const hash1 = await computeStateHashV5(state1);
+    const hash2 = await computeStateHashV5(state2);
+    const hash3 = await computeStateHashV5(state3);
+    const hash4 = await computeStateHashV5(state4);
+    const hash5 = await computeStateHashV5(state5);
 
     // Assert: All 5 resulting state hashes are identical
     expect(hash1).toBe(hash2);
@@ -1122,7 +1122,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     expect(hash4).toBe(hash5);
   });
 
-  it('100 deterministic patches with varied ops produce identical hashes across 5 shuffles', () => {
+  it('100 deterministic patches with varied ops produce identical hashes across 5 shuffles', async () => {
     // Generate 100 deterministic patches with nodes, edges, and props
     const patches = generateV2Patches(100);
 
@@ -1131,7 +1131,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
-      hashes.push(computeStateHashV5(state));
+      hashes.push(await computeStateHashV5(state));
     }
 
     // All hashes must be identical
@@ -1139,7 +1139,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     expect(uniqueHashes.size).toBe(1);
   });
 
-  it('chaos test with interleaved add/remove operations', () => {
+  it('chaos test with interleaved add/remove operations', async () => {
     // Generate patches with a mix of adds and removes
     const patches = [];
     const writerCounters = new Map();
@@ -1188,14 +1188,14 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     for (let i = 0; i < 5; i++) {
       const shuffled = shuffle(patches);
       const state = reduceV5(shuffled);
-      hashes.push(computeStateHashV5(state));
+      hashes.push(await computeStateHashV5(state));
     }
 
     // All 5 hashes must be identical
     expect(new Set(hashes).size).toBe(1);
   });
 
-  it('chaos test verification: patches are actually shuffled differently', () => {
+  it('chaos test verification: patches are actually shuffled differently', async () => {
     // Generate patches
     const patches = generatePatches(100);
 
@@ -1215,7 +1215,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     // This test ensures our shuffle is working
     // With 100 patches, probability of all 5 having same first element is (1/100)^4 ≈ 0
     // We don't assert this strictly as it could flake, but we verify hashes are still identical
-    const hashes = permutations.map((p) => computeStateHashV5(reduceV5(p)));
+    const hashes = await Promise.all(permutations.map((p) => computeStateHashV5(reduceV5(p))));
     expect(new Set(hashes).size).toBe(1);
   });
 });
@@ -1226,7 +1226,7 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
 
 describe('Additional WARP v5 Integration Tests', () => {
   describe('Props with LWW semantics', () => {
-    it('concurrent prop sets resolve by EventId (lamport, writer, sha, index)', () => {
+    it('concurrent prop sets resolve by EventId (lamport, writer, sha, index)', async () => {
       const patchA = {
         patch: createPatchV2({
           writer: 'A',
@@ -1260,7 +1260,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       expect(lwwValue(stateBA.prop.get(propKey))).toEqual(createInlineValue('blue'));
 
       // Same hash
-      expect(computeStateHashV5(stateAB)).toBe(computeStateHashV5(stateBA));
+      expect(await computeStateHashV5(stateAB)).toBe(await computeStateHashV5(stateBA));
     });
 
     it('same lamport: writer ID is tiebreaker', () => {
@@ -1378,7 +1378,7 @@ describe('Additional WARP v5 Integration Tests', () => {
   });
 
   describe('Large-scale determinism', () => {
-    it('100 patches with complex operations produce consistent hash', () => {
+    it('100 patches with complex operations produce consistent hash', async () => {
       const patches = generateV2Patches(100);
       const hashes = new Set();
 
@@ -1386,7 +1386,7 @@ describe('Additional WARP v5 Integration Tests', () => {
       for (let i = 0; i < 20; i++) {
         const shuffled = shuffle(patches);
         const state = reduceV5(shuffled);
-        hashes.add(computeStateHashV5(state));
+        hashes.add(await computeStateHashV5(state));
       }
 
       expect(hashes.size).toBe(1);

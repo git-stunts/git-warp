@@ -723,7 +723,7 @@ describe('MigrationService', () => {
         expect(lwwValue(finalState.prop.get(charliePropKey))).toEqual(createInlineValue('Charlie'));
       });
 
-      it('permutation invariance holds for v5 patches applied after migration', () => {
+      it('permutation invariance holds for v5 patches applied after migration', async () => {
         // Build v4 state
         const v4Patches = [
           {
@@ -776,9 +776,9 @@ describe('MigrationService', () => {
         const stateBAC = reduceV5([v5PatchB, v5PatchA, v5PatchC], v5State);
 
         // All orders produce the same hash (permutation invariance)
-        const hashABC = computeStateHashV5(stateABC);
-        const hashCBA = computeStateHashV5(stateCBA);
-        const hashBAC = computeStateHashV5(stateBAC);
+        const hashABC = await computeStateHashV5(stateABC);
+        const hashCBA = await computeStateHashV5(stateCBA);
+        const hashBAC = await computeStateHashV5(stateBAC);
 
         expect(hashABC).toBe(hashCBA);
         expect(hashABC).toBe(hashBAC);

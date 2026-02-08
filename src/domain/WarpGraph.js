@@ -485,15 +485,15 @@ export default class WarpGraph {
   /**
    * Sets the cached state and materialized graph details.
    * @param {import('./services/JoinReducer.js').WarpStateV5} state
-   * @returns {MaterializedGraph}
+   * @returns {Promise<MaterializedGraph>}
    * @private
    */
-  _setMaterializedState(state) {
+  async _setMaterializedState(state) {
     this._cachedState = state;
     this._stateDirty = false;
     this._versionVector = vvClone(state.observedFrontier);
 
-    const stateHash = computeStateHashV5(state, { crypto: this._crypto, codec: this._codec });
+    const stateHash = await computeStateHashV5(state, { crypto: this._crypto, codec: this._codec });
     let adjacency;
 
     if (this._adjacencyCache) {
@@ -520,14 +520,14 @@ export default class WarpGraph {
    * @param {{patch?: Object, sha?: string}} [opts] - Commit details
    * @private
    */
-  _onPatchCommitted(writerId, { patch, sha } = {}) {
+  async _onPatchCommitted(writerId, { patch, sha } = {}) {
     vvIncrement(this._versionVector, writerId);
     this._patchesSinceCheckpoint++;
     // Eager re-materialize: apply the just-committed patch to cached state
     // Only when the cache is clean — applying a patch to stale state would be incorrect
     if (this._cachedState && !this._stateDirty && patch && sha) {
       joinPatch(this._cachedState, patch, sha);
-      this._setMaterializedState(this._cachedState);
+      await this._setMaterializedState(this._cachedState);
       // Update provenance index with new patch
       if (this._provenanceIndex) {
         this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
@@ -549,7 +549,7 @@ export default class WarpGraph {
   async _materializeGraph() {
     const state = await this.materialize();
     if (!this._materializedGraph || this._materializedGraph.state !== state) {
-      this._setMaterializedState(state);
+      await this._setMaterializedState(state);
     }
     return this._materializedGraph;
   }
@@ -654,7 +654,7 @@ export default class WarpGraph {
         }
       }
 
-      this._setMaterializedState(state);
+      await this._setMaterializedState(state);
       this._lastFrontier = await this.getFrontier();
       this._patchesSinceCheckpoint = patchCount;
 
@@ -867,7 +867,7 @@ export default class WarpGraph {
       patchLoader,
       codec: this._codec,
     });
-    this._setMaterializedState(state);
+    await this._setMaterializedState(state);
     return state;
   }
 

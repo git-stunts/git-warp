@@ -1,32 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-
-async function createRepo() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'emptygraph-syncmat-'));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return {
-    tempDir,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
-}
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('syncWith({ materialize }) option', () => {
   it('syncWith(peer, { materialize: true }) returns fresh state in result', async () => {
-    const repoA = await createRepo();
-    const repoB = await createRepo();
+    const repoA = await createGitRepo('syncmat');
+    const repoB = await createGitRepo('syncmat');
 
     try {
       const alice = await WarpGraph.open({
@@ -61,8 +40,8 @@ describe('syncWith({ materialize }) option', () => {
   }, { timeout: 20000 });
 
   it('syncWith(peer) (default) does NOT auto-materialize — result has no state field', async () => {
-    const repoA = await createRepo();
-    const repoB = await createRepo();
+    const repoA = await createGitRepo('syncmat');
+    const repoB = await createGitRepo('syncmat');
 
     try {
       const alice = await WarpGraph.open({
@@ -92,8 +71,8 @@ describe('syncWith({ materialize }) option', () => {
   }, { timeout: 20000 });
 
   it('sync applies 0 patches + materialize:true — materialize still runs', async () => {
-    const repoA = await createRepo();
-    const repoB = await createRepo();
+    const repoA = await createGitRepo('syncmat');
+    const repoB = await createGitRepo('syncmat');
 
     try {
       const alice = await WarpGraph.open({

@@ -109,7 +109,7 @@ describe('WarpStateIndexBuilder', () => {
   });
 
   describe('serialize()', () => {
-    it('produces deterministic output', () => {
+    it('produces deterministic output', async () => {
       const state = createEmptyStateV5();
 
       orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
@@ -119,11 +119,11 @@ describe('WarpStateIndexBuilder', () => {
       // Build twice and compare
       const builder1 = new WarpStateIndexBuilder();
       builder1.buildFromState(state);
-      const tree1 = builder1.serialize();
+      const tree1 = await builder1.serialize();
 
       const builder2 = new WarpStateIndexBuilder();
       builder2.buildFromState(state);
-      const tree2 = builder2.serialize();
+      const tree2 = await builder2.serialize();
 
       // Same keys
       expect(Object.keys(tree1).sort()).toEqual(Object.keys(tree2).sort());
@@ -134,7 +134,7 @@ describe('WarpStateIndexBuilder', () => {
       }
     });
 
-    it('produces sharded output structure', () => {
+    it('produces sharded output structure', async () => {
       const state = createEmptyStateV5();
 
       orsetAdd(state.nodeAlive, 'node-a', createDot('w1', 1));
@@ -143,7 +143,7 @@ describe('WarpStateIndexBuilder', () => {
 
       const builder = new WarpStateIndexBuilder();
       builder.buildFromState(state);
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
 
       // Should have meta and shard files
       const keys = Object.keys(tree);
@@ -158,14 +158,14 @@ describe('WarpStateIndexBuilder', () => {
   });
 
   describe('buildWarpStateIndex() convenience function', () => {
-    it('builds and serializes in one call', () => {
+    it('builds and serializes in one call', async () => {
       const state = createEmptyStateV5();
 
       orsetAdd(state.nodeAlive, 'x', createDot('w1', 1));
       orsetAdd(state.nodeAlive, 'y', createDot('w1', 2));
       orsetAdd(state.edgeAlive, encodeEdgeKey('x', 'y', 'link'), createDot('w1', 3));
 
-      const { tree, stats } = buildWarpStateIndex(state);
+      const { tree, stats } = await buildWarpStateIndex(state);
 
       expect(stats.nodes).toBe(2);
       expect(stats.edges).toBe(1);
@@ -225,7 +225,7 @@ describe('WarpStateIndexBuilder', () => {
   });
 
   describe('stress test', () => {
-    it('handles large graph (1000 nodes, 5000 edges)', () => {
+    it('handles large graph (1000 nodes, 5000 edges)', async () => {
       const state = createEmptyStateV5();
 
       // Add 1000 nodes
@@ -247,7 +247,7 @@ describe('WarpStateIndexBuilder', () => {
       expect(stats.edges).toBe(5000);
 
       // Should be able to serialize without error
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
       expect(Object.keys(tree).length).toBeGreaterThan(0);
     });
   });

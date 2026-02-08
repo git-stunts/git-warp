@@ -9,9 +9,9 @@ export default class CryptoPort {
    * Computes a hash digest of the given data.
    * @param {string} algorithm - Hash algorithm (e.g. 'sha1', 'sha256')
    * @param {string|Buffer|Uint8Array} data - Data to hash
-   * @returns {string} Hex-encoded digest
+   * @returns {Promise<string>} Hex-encoded digest
    */
-  hash(_algorithm, _data) {
+  async hash(_algorithm, _data) {
     throw new Error('CryptoPort.hash() not implemented');
   }
 
@@ -20,9 +20,9 @@ export default class CryptoPort {
    * @param {string} algorithm - Hash algorithm (e.g. 'sha256')
    * @param {string|Buffer|Uint8Array} key - HMAC key
    * @param {string|Buffer|Uint8Array} data - Data to authenticate
-   * @returns {Buffer|Uint8Array} Raw HMAC digest
+   * @returns {Promise<Buffer|Uint8Array>} Raw HMAC digest
    */
-  hmac(_algorithm, _key, _data) {
+  async hmac(_algorithm, _key, _data) {
     throw new Error('CryptoPort.hmac() not implemented');
   }
 

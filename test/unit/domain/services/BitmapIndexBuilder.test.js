@@ -45,12 +45,12 @@ describe('BitmapIndexBuilder', () => {
   });
 
   describe('serialize', () => {
-    it('produces sharded output structure', () => {
+    it('produces sharded output structure', async () => {
       const builder = new BitmapIndexBuilder();
       builder.registerNode('aabbcc');
       builder.addEdge('aabbcc', 'aaddee');
 
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
 
       // Should have meta shard for 'aa' prefix
       expect(tree['meta_aa.json']).toBeDefined();
@@ -59,11 +59,11 @@ describe('BitmapIndexBuilder', () => {
       expect(Object.keys(tree).some(k => k.startsWith('shards_rev_'))).toBe(true);
     });
 
-    it('encodes bitmaps as base64 in JSON', () => {
+    it('encodes bitmaps as base64 in JSON', async () => {
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbcc', 'aaddee');
 
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
       const envelope = JSON.parse(tree['shards_fwd_aa.json'].toString());
 
       // Shard is wrapped in version/checksum envelope
@@ -72,11 +72,11 @@ describe('BitmapIndexBuilder', () => {
       expect(typeof envelope.data['aabbcc']).toBe('string'); // base64 encoded
     });
 
-    it('writes v2 shards by default', () => {
+    it('writes v2 shards by default', async () => {
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbcc', 'ddeeff');
 
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
 
       // Check meta shard
       const metaEnvelope = JSON.parse(tree['meta_aa.json'].toString());
@@ -91,11 +91,11 @@ describe('BitmapIndexBuilder', () => {
       expect(revEnvelope.version).toBe(2);
     });
 
-    it('uses SHARD_VERSION constant for serialized version', () => {
+    it('uses SHARD_VERSION constant for serialized version', async () => {
       const builder = new BitmapIndexBuilder();
       builder.registerNode('testsha1');
 
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
       const envelope = JSON.parse(tree['meta_te.json'].toString());
 
       expect(envelope.version).toBe(SHARD_VERSION);

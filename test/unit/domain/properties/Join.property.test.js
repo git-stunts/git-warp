@@ -221,24 +221,24 @@ describe('JoinReducer property tests', () => {
   });
 
   describe('State Hash Determinism', () => {
-    it('same state produces same hash', () => {
-      fc.assert(
-        fc.property(stateArb, (state) => {
-          const hash1 = computeStateHashV5(state);
-          const hash2 = computeStateHashV5(state);
+    it('same state produces same hash', async () => {
+      await fc.assert(
+        fc.asyncProperty(stateArb, async (state) => {
+          const hash1 = await computeStateHashV5(state);
+          const hash2 = await computeStateHashV5(state);
           return hash1 === hash2;
         }),
         { numRuns: 100 }
       );
     });
 
-    it('join order does not affect hash: hash(join(a,b)) === hash(join(b,a))', () => {
-      fc.assert(
-        fc.property(stateArb, stateArb, (a, b) => {
+    it('join order does not affect hash: hash(join(a,b)) === hash(join(b,a))', async () => {
+      await fc.assert(
+        fc.asyncProperty(stateArb, stateArb, async (a, b) => {
           const ab = joinStates(a, b);
           const ba = joinStates(b, a);
-          const hashAB = computeStateHashV5(ab);
-          const hashBA = computeStateHashV5(ba);
+          const hashAB = await computeStateHashV5(ab);
+          const hashBA = await computeStateHashV5(ba);
           return hashAB === hashBA;
         }),
         { numRuns: 100 }
@@ -283,14 +283,14 @@ describe('JoinReducer property tests', () => {
       hexStringArb
     ).map(([patch, sha]) => ({ patch, sha }));
 
-    it('any permutation of patches produces same state hash', () => {
-      fc.assert(
-        fc.property(
+    it('any permutation of patches produces same state hash', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.array(patchWithShaArb, { minLength: 2, maxLength: 10 }),
-          (patches) => {
+          async (patches) => {
             // Reduce patches in original order
             const state1 = reduceV5(patches);
-            const hash1 = computeStateHashV5(state1);
+            const hash1 = await computeStateHashV5(state1);
 
             // Shuffle patches using Fisher-Yates
             const shuffled = [...patches];
@@ -301,7 +301,7 @@ describe('JoinReducer property tests', () => {
 
             // Reduce shuffled patches
             const state2 = reduceV5(shuffled);
-            const hash2 = computeStateHashV5(state2);
+            const hash2 = await computeStateHashV5(state2);
 
             return hash1 === hash2;
           }
@@ -310,11 +310,11 @@ describe('JoinReducer property tests', () => {
       );
     });
 
-    it('reducing patches individually then joining equals reducing all at once', () => {
-      fc.assert(
-        fc.property(
+    it('reducing patches individually then joining equals reducing all at once', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.array(patchWithShaArb, { minLength: 2, maxLength: 5 }),
-          (patches) => {
+          async (patches) => {
             // Reduce all at once
             const allAtOnce = reduceV5(patches);
 
@@ -325,7 +325,7 @@ describe('JoinReducer property tests', () => {
               createEmptyStateV5()
             );
 
-            return computeStateHashV5(allAtOnce) === computeStateHashV5(joined);
+            return (await computeStateHashV5(allAtOnce)) === (await computeStateHashV5(joined));
           }
         ),
         { numRuns: 50 }

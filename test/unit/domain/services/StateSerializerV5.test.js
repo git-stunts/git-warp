@@ -345,17 +345,17 @@ describe('StateSerializerV5', () => {
   });
 
   describe('computeStateHashV5', () => {
-    it('returns 64-char hex string (SHA-256)', () => {
+    it('returns 64-char hex string (SHA-256)', async () => {
       const state = buildStateV5({
         nodes: [{ nodeId: 'a' }],
       });
 
-      const hash = computeStateHashV5(state, { crypto });
+      const hash = await computeStateHashV5(state, { crypto });
 
       expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
 
-    it('produces same hash for same state (determinism)', () => {
+    it('produces same hash for same state (determinism)', async () => {
       const state1 = buildStateV5({
         nodes: [{ nodeId: 'a' }, { nodeId: 'b' }],
         edges: [{ from: 'a', to: 'b', label: 'knows' }],
@@ -368,10 +368,10 @@ describe('StateSerializerV5', () => {
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
 
-      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
     });
 
-    it('produces different hashes for different states', () => {
+    it('produces different hashes for different states', async () => {
       const state1 = buildStateV5({
         nodes: [{ nodeId: 'a' }],
       });
@@ -380,13 +380,13 @@ describe('StateSerializerV5', () => {
         nodes: [{ nodeId: 'b' }],
       });
 
-      expect(computeStateHashV5(state1, { crypto })).not.toBe(computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHashV5(state1, { crypto })).not.toBe(await computeStateHashV5(state2, { crypto }));
     });
 
-    it('empty state has consistent hash', () => {
+    it('empty state has consistent hash', async () => {
       const state = createEmptyStateV5();
-      const hash1 = computeStateHashV5(state, { crypto });
-      const hash2 = computeStateHashV5(state, { crypto });
+      const hash1 = await computeStateHashV5(state, { crypto });
+      const hash2 = await computeStateHashV5(state, { crypto });
 
       expect(hash1).toBe(hash2);
     });
@@ -428,7 +428,7 @@ describe('StateSerializerV5', () => {
   });
 
   describe('determinism (CRITICAL WARP invariant)', () => {
-    it('ORSet add-remove semantics produce consistent hash', () => {
+    it('ORSet add-remove semantics produce consistent hash', async () => {
       // State 1: Add node, then another writer removes it
       const state1 = createEmptyStateV5();
       orsetAdd(state1.nodeAlive, 'a', mockDot('alice', 1));
@@ -442,10 +442,10 @@ describe('StateSerializerV5', () => {
       orsetRemove(state2.nodeAlive, observedDots2);
 
       // Both should have empty visible state (node removed)
-      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
     });
 
-    it('concurrent add after remove wins correctly', () => {
+    it('concurrent add after remove wins correctly', async () => {
       // State where a concurrent add survives a remove
       const state1 = createEmptyStateV5();
 
@@ -464,10 +464,10 @@ describe('StateSerializerV5', () => {
       // Both should show 'n' as visible
       expect(nodeVisibleV5(state1, 'n')).toBe(true);
       expect(nodeVisibleV5(state2, 'n')).toBe(true);
-      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
     });
 
-    it('different insertion orders produce same hash when final state is same', () => {
+    it('different insertion orders produce same hash when final state is same', async () => {
       // Build states with nodes added in different orders
       const state1 = createEmptyStateV5();
       orsetAdd(state1.nodeAlive, 'zebra', mockDot('w1', 1));
@@ -479,7 +479,7 @@ describe('StateSerializerV5', () => {
       orsetAdd(state2.nodeAlive, 'mango', mockDot('w2', 2));
       orsetAdd(state2.nodeAlive, 'zebra', mockDot('w2', 3));
 
-      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
+      expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
     });
   });
 });

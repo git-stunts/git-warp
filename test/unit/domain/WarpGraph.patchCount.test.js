@@ -2,25 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn(),
-    showNode: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 /**
  * Creates a minimal schema:2 patch object.

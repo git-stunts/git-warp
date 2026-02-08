@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "exports": {
     ".": "./index.js",
     "./visualization": "./src/visualization/index.js"

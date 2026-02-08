@@ -1,8 +1,8 @@
 # Roadmap
 
 > Execution plan for `@git-stunts/git-warp` from v7.1.0 onward.
-> Current release: v7.0.0. Main branch: v9.0.0 complete (AUTOPILOT through ECHO merged, unreleased).
-> Next milestone: BULKHEAD (v10.0.0).
+> Current release: v10.1.0. All milestones through BULKHEAD complete.
+> Main branch: v10.0.0 (BULKHEAD). Release branch: v10.1.0 (async CryptoPort + multi-runtime adapters).
 
 ## How to Read This Document
 
@@ -206,16 +206,16 @@ Hardens the architecture against runtime coupling. Creates missing port interfac
 
 | # | Codename | Version | Theme | Status |
 |---|----------|---------|-------|--------|
-| 1 | **AUTOPILOT** | v7.1.0 | Kill the Materialize Tax | Complete (merged, unreleased) |
-| 2 | **GROUNDSKEEPER** | v7.2.0 | Self-Managing Infrastructure | Complete (merged, unreleased) |
-| 3 | **WEIGHTED** | v7.3.0 | Edge Properties | Complete (merged, unreleased) |
-| 4 | **HANDSHAKE** | v7.4.0 | Multi-Writer Ergonomics | Complete (merged, unreleased) |
-| 5 | **COMPASS** | v7.5.0 | Advanced Query Language | Complete (merged, unreleased) |
-| 6 | **LIGHTHOUSE** | v7.6.0 | Observability | Complete (merged, unreleased) |
-| 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Complete (merged, unreleased) |
-| 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Complete (merged, unreleased) |
-| 9 | **ECHO** | v9.0.0 | Observer Geometry | Speculative |
-| 10 | **BULKHEAD** | v10.0.0 | Hexagonal Purity & Structural Integrity | Open |
+| 1 | **AUTOPILOT** | v7.1.0 | Kill the Materialize Tax | Complete |
+| 2 | **GROUNDSKEEPER** | v7.2.0 | Self-Managing Infrastructure | Complete |
+| 3 | **WEIGHTED** | v7.3.0 | Edge Properties | Complete |
+| 4 | **HANDSHAKE** | v7.4.0 | Multi-Writer Ergonomics | Complete |
+| 5 | **COMPASS** | v7.5.0 | Advanced Query Language | Complete |
+| 6 | **LIGHTHOUSE** | v7.6.0 | Observability | Complete |
+| 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Complete |
+| 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Complete |
+| 9 | **ECHO** | v9.0.0 | Observer Geometry | Complete |
+| 10 | **BULKHEAD** | v10.0.0 | Hexagonal Purity & Structural Integrity | Complete |
 
 ---
 

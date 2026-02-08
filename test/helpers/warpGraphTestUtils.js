@@ -6,8 +6,15 @@
  * them in individual test files.
  */
 import { vi } from 'vitest';
+import { mkdtemp, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import Plumbing from '@git-stunts/plumbing';
+import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/WarpMessageCodec.js';
+import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+import { orsetAdd } from '../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
 import { createInlineValue } from '../../src/domain/types/WarpTypes.js';
@@ -510,6 +517,144 @@ export function createSamplePatches() {
 }
 
 // ============================================================================
+// Mock Logger
+// ============================================================================
+
+/**
+ * Creates a mock logger with all methods stubbed.
+ *
+ * @returns {Object} Mock logger with vi.fn() methods
+ *
+ * @example
+ * const logger = createMockLogger();
+ * logger.info.mock.calls; // check logged messages
+ */
+export function createMockLogger() {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  };
+}
+
+// ============================================================================
+// Mock Clock
+// ============================================================================
+
+/**
+ * Creates a deterministic mock clock for testing timed operations.
+ * Each call to now() advances by `step` milliseconds.
+ *
+ * @param {number} [step=42] - Milliseconds to advance per now() call
+ * @returns {Object} Mock clock with now() and timestamp() methods
+ *
+ * @example
+ * const clock = createMockClock(10);
+ * clock.now(); // 1000
+ * clock.now(); // 1010
+ */
+export function createMockClock(step = 42) {
+  let time = 1000;
+  return {
+    now: vi.fn(() => {
+      const t = time;
+      time += step;
+      return t;
+    }),
+    timestamp: vi.fn(() => new Date().toISOString()),
+  };
+}
+
+// ============================================================================
+// Git Repository Setup
+// ============================================================================
+
+/**
+ * Creates a temporary git repository with persistence adapter.
+ * Call cleanup() when done to remove the temp directory.
+ *
+ * @param {string} [label='test'] - Label for the temp directory prefix
+ * @returns {Promise<{tempDir: string, plumbing: Object, persistence: Object, cleanup: () => Promise<void>}>}
+ *
+ * @example
+ * let repo;
+ * beforeEach(async () => { repo = await createGitRepo(); });
+ * afterEach(async () => { await repo.cleanup(); });
+ */
+export async function createGitRepo(label = 'test') {
+  const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
+  const plumbing = Plumbing.createDefault({ cwd: tempDir });
+  await plumbing.execute({ args: ['init'] });
+  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
+  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
+  const persistence = new GitGraphAdapter({ plumbing });
+
+  return {
+    tempDir,
+    plumbing,
+    persistence,
+    async cleanup() {
+      await rm(tempDir, { recursive: true, force: true });
+    },
+  };
+}
+
+// ============================================================================
+// State Seeding Helpers
+// ============================================================================
+
+/**
+ * Adds a node to a V5 state's alive set.
+ *
+ * @param {Object} state - WarpStateV5
+ * @param {string} nodeId - Node ID
+ * @param {number} counter - Dot counter
+ * @param {string} [writerId='w1'] - Writer ID for the dot
+ */
+export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
+  orsetAdd(state.nodeAlive, nodeId, createDot(writerId, counter));
+}
+
+/**
+ * Adds an edge to a V5 state's alive set.
+ *
+ * @param {Object} state - WarpStateV5
+ * @param {string} from - Source node ID
+ * @param {string} to - Target node ID
+ * @param {string} label - Edge label
+ * @param {number} counter - Dot counter
+ * @param {string} [writerId='w1'] - Writer ID for the dot
+ */
+export function addEdgeToState(state, from, to, label, counter, writerId = 'w1') {
+  const edgeKey = encodeEdgeKey(from, to, label);
+  orsetAdd(state.edgeAlive, edgeKey, createDot(writerId, counter));
+}
+
+/**
+ * Seeds a graph instance with a fresh empty state and applies a seed function.
+ * Patches the graph's internal state and materialize method for testing.
+ *
+ * @param {Object} graph - WarpGraph instance
+ * @param {Function} seedFn - Function that receives the state and populates it
+ * @returns {Object} The seeded WarpStateV5
+ *
+ * @example
+ * setupGraphState(graph, (state) => {
+ *   addNodeToState(state, 'user:alice', 1);
+ *   addEdgeToState(state, 'user:alice', 'user:bob', 'follows', 2);
+ * });
+ */
+export function setupGraphState(graph, seedFn) {
+  const state = createEmptyStateV5();
+  graph._cachedState = state;
+  graph.materialize = vi.fn().mockResolvedValue(state);
+  seedFn(state);
+  return state;
+}
+
+// ============================================================================
 // Re-exports for convenience
 // ============================================================================
 
@@ -517,3 +662,4 @@ export function createSamplePatches() {
 export { createDot } from '../../src/domain/crdt/Dot.js';
 export { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 export { createInlineValue } from '../../src/domain/types/WarpTypes.js';
+export { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';

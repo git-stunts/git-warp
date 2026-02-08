@@ -53,10 +53,10 @@ const BTR_VERSION = 1;
  * @param {string} fields.t - ISO timestamp
  * @param {string|Buffer} key - HMAC key
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {string} Hex-encoded HMAC tag
+ * @returns {Promise<string>} Hex-encoded HMAC tag
  * @private
  */
-function computeHmac(fields, key, { crypto, codec }) {
+async function computeHmac(fields, key, { crypto, codec }) {
   const c = codec || defaultCodec;
   const message = c.encode({
     version: fields.version,
@@ -67,7 +67,7 @@ function computeHmac(fields, key, { crypto, codec }) {
     t: fields.t,
   });
 
-  const rawHmac = crypto.hmac(HMAC_ALGORITHM, key, message);
+  const rawHmac = await crypto.hmac(HMAC_ALGORITHM, key, message);
   return Buffer.from(rawHmac).toString('hex');
 }
 
@@ -121,10 +121,10 @@ function computeHmac(fields, key, { crypto, codec }) {
  * @param {string|Buffer} options.key - HMAC key for authentication
  * @param {string} [options.timestamp] - ISO timestamp (defaults to now)
  * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance
- * @returns {BTR} The created BTR
+ * @returns {Promise<BTR>} The created BTR
  * @throws {TypeError} If payload is not a ProvenancePayload
  */
-export function createBTR(initialState, payload, options) {
+export async function createBTR(initialState, payload, options) {
   if (!(payload instanceof ProvenancePayload)) {
     throw new TypeError('payload must be a ProvenancePayload');
   }
@@ -137,14 +137,14 @@ export function createBTR(initialState, payload, options) {
     throw new Error('Invalid HMAC key: key must not be empty');
   }
 
-  const h_in = computeStateHashV5(initialState, { crypto, codec });
+  const h_in = await computeStateHashV5(initialState, { crypto, codec });
   const U_0 = serializeFullStateV5(initialState, { codec });
   const finalState = payload.replay(initialState);
-  const h_out = computeStateHashV5(finalState, { crypto, codec });
+  const h_out = await computeStateHashV5(finalState, { crypto, codec });
   const P = payload.toJSON();
 
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
-  const kappa = computeHmac(fields, key, { crypto, codec });
+  const kappa = await computeHmac(fields, key, { crypto, codec });
 
   return { ...fields, kappa };
 }
@@ -179,10 +179,10 @@ function validateBTRStructure(btr) {
  * @param {BTR} btr - The BTR to verify
  * @param {string|Buffer} key - HMAC key
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {boolean} True if the HMAC tag matches
+ * @returns {Promise<boolean>} True if the HMAC tag matches
  * @private
  */
-function verifyHmac(btr, key, { crypto, codec }) {
+async function verifyHmac(btr, key, { crypto, codec }) {
   const fields = {
     version: btr.version,
     h_in: btr.h_in,
@@ -191,7 +191,7 @@ function verifyHmac(btr, key, { crypto, codec }) {
     P: btr.P,
     t: btr.t,
   };
-  const expectedKappa = computeHmac(fields, key, { crypto, codec });
+  const expectedKappa = await computeHmac(fields, key, { crypto, codec });
 
   // Convert hex strings to buffers for timing-safe comparison
   const actualBuf = Buffer.from(btr.kappa, 'hex');
@@ -209,12 +209,12 @@ function verifyHmac(btr, key, { crypto, codec }) {
  * Verifies replay produces expected h_out.
  *
  * @param {BTR} btr - The BTR to verify
- * @returns {string|null} Error message if replay mismatch, null if valid
+ * @returns {Promise<string|null>} Error message if replay mismatch, null if valid
  * @private
  */
-function verifyReplayHash(btr, { crypto, codec } = {}) {
+async function verifyReplayHash(btr, { crypto, codec } = {}) {
   try {
-    const result = replayBTR(btr, { crypto, codec });
+    const result = await replayBTR(btr, { crypto, codec });
     if (result.h_out !== btr.h_out) {
       return `Replay produced different h_out: expected ${btr.h_out}, got ${result.h_out}`;
     }
@@ -239,9 +239,9 @@ function verifyReplayHash(btr, { crypto, codec } = {}) {
  * @param {Object} [options] - Verification options
  * @param {boolean} [options.verifyReplay=false] - Also verify replay produces h_out
  * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance
- * @returns {VerificationResult} Verification result with valid flag and optional reason
+ * @returns {Promise<VerificationResult>} Verification result with valid flag and optional reason
  */
-export function verifyBTR(btr, key, options = {}) {
+export async function verifyBTR(btr, key, options = {}) {
   const { crypto, codec } = options;
 
   const structureError = validateBTRStructure(btr);
@@ -249,12 +249,12 @@ export function verifyBTR(btr, key, options = {}) {
     return { valid: false, reason: structureError };
   }
 
-  if (!verifyHmac(btr, key, { crypto, codec })) {
+  if (!(await verifyHmac(btr, key, { crypto, codec }))) {
     return { valid: false, reason: 'Authentication tag mismatch' };
   }
 
   if (options.verifyReplay) {
-    const replayError = verifyReplayHash(btr, { crypto, codec });
+    const replayError = await verifyReplayHash(btr, { crypto, codec });
     if (replayError) {
       return { valid: false, reason: replayError };
     }
@@ -270,11 +270,11 @@ export function verifyBTR(btr, key, options = {}) {
  * encoding (U_0, P), replay uniquely determines the interior worldline.
  *
  * @param {BTR} btr - The BTR to replay
- * @returns {{ state: import('./JoinReducer.js').WarpStateV5, h_out: string }}
+ * @returns {Promise<{ state: import('./JoinReducer.js').WarpStateV5, h_out: string }>}
  *   The final state and its hash
  * @throws {Error} If replay fails
  */
-export function replayBTR(btr, { crypto, codec } = {}) {
+export async function replayBTR(btr, { crypto, codec } = {}) {
   // Deserialize initial state from U_0
   // Note: U_0 is the full serialized state (via serializeFullStateV5)
   const initialState = deserializeInitialState(btr.U_0, { codec });
@@ -286,7 +286,7 @@ export function replayBTR(btr, { crypto, codec } = {}) {
   const finalState = payload.replay(initialState);
 
   // Compute h_out
-  const h_out = computeStateHashV5(finalState, { crypto, codec });
+  const h_out = await computeStateHashV5(finalState, { crypto, codec });
 
   return { state: finalState, h_out };
 }

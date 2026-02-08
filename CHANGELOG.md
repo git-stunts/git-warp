@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.1.0] — BULKHEAD (cont.)
+
+### Breaking Changes
+
+- **`CryptoPort.hash()` and `CryptoPort.hmac()` are now async**: Both methods now return `Promise<string>` and `Promise<Buffer|Uint8Array>` respectively, enabling Web Crypto API support across browsers, Deno, and Bun. All domain callers updated to `await`. If you have a custom `CryptoPort` implementation, update `hash()` and `hmac()` to return Promises (or use `Promise.resolve()` to wrap synchronous results, as `NodeCryptoAdapter` does).
+- **Functions that were synchronous are now async**: `computeStateHashV5()`, `BitmapIndexBuilder.serialize()`, `WarpStateIndexBuilder.serialize()`, `buildWarpStateIndex()`, `createBTR()`, `verifyBTR()`, `replayBTR()`. All return Promises and must be `await`ed.
+
+### Added
+
+- **`WebCryptoAdapter`**: New `CryptoPort` implementation using the standard Web Crypto API (`globalThis.crypto.subtle`). Works in browsers, Deno, Bun, and Node.js 20+. Includes XOR-based constant-time comparison for environments without `crypto.timingSafeEqual`.
+- **`BunHttpAdapter`**: New `HttpServerPort` implementation using `Bun.serve()`. Bridges between Bun's `Request`/`Response` API and the port's plain-object contract. Includes error handling with 500 responses.
+- **`DenoHttpAdapter`**: New `HttpServerPort` implementation using `Deno.serve()`. Same bridging pattern as `BunHttpAdapter`, with graceful shutdown support.
+- **`CommitPort.commitNodeWithTree()`**: New method for creating commits pointing to a specified tree (used by `CheckpointService` and `PatchBuilderV2`).
+- **`CommitPort.nodeExists()`**: New method for checking whether a commit exists.
+- **`RefPort.listRefs()`**: New method for listing refs matching a prefix.
+
+### Refactored
+
+- **Port composition via prototype mixin**: `GraphPersistencePort` and `IndexStoragePort` are now composed from their focused ports (`CommitPort`, `BlobPort`, `TreePort`, `RefPort`, `ConfigPort`) via prototype descriptor copying, replacing ~300 lines of duplicated method stubs. Collision detection prevents silent shadowing. `GraphPersistencePort` remains the backward-compatible composite — existing `GitGraphAdapter` implementations require no changes.
+- **`NodeHttpAdapter` error handling**: Extracted `dispatch()` helper that wraps request handling in try/catch and returns 500 on unhandled errors, preventing silent connection hangs.
+- **Test DRY refactoring**: 22 test files migrated to shared helpers from `test/helpers/warpGraphTestUtils.js` (`createMockPersistence`, `createMockLogger`, `createMockClock`, `createGitRepo`, `addNodeToState`, `addEdgeToState`, `setupGraphState`). New `test/benchmark/benchmarkUtils.js` consolidates benchmark utilities (`TestClock`, `median`, `forceGC`, `logEnvironment`, `randomHex`, `runBenchmark`). Net reduction of ~400 lines across test files.
+
+### Tests
+
+- Added `GraphPersistencePort.test.js` — validates prototype mixin composition, collision detection, and focused port coverage
+- Updated `CryptoPort.test.js` for async `hash()`/`hmac()` semantics
+- Suite total: 2837 tests across 132 files
+
 ## [10.0.0] — BULKHEAD
 
 ### Added

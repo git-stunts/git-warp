@@ -299,7 +299,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _persistIndex(builder, { frontier } = {}) {
-    const treeStructure = builder.serialize({ frontier });
+    const treeStructure = await builder.serialize({ frontier });
     const flatEntries = [];
     for (const [path, buffer] of Object.entries(treeStructure)) {
       const oid = await this.storage.writeBlob(buffer);

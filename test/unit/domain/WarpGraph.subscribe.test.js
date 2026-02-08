@@ -1,35 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { isEmptyDiff } from '../../../src/domain/services/StateDiff.js';
-
-async function createRepo() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'warp-subscribe-'));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return {
-    tempDir,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
-}
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
   let repo;
   let graph;
 
   beforeEach(async () => {
-    repo = await createRepo();
+    repo = await createGitRepo('subscribe');
     graph = await WarpGraph.open({
       persistence: repo.persistence,
       graphName: 'test',
@@ -300,7 +279,7 @@ describe('WarpGraph.subscribe() with replay option (PL/SUB/2)', () => {
   let graph;
 
   beforeEach(async () => {
-    repo = await createRepo();
+    repo = await createGitRepo('subscribe');
     graph = await WarpGraph.open({
       persistence: repo.persistence,
       graphName: 'test',

@@ -25,12 +25,12 @@ const DEFAULT_MAX_CACHED_SHARDS = 100;
  * @param {Object} data - The data object to checksum
  * @param {number} version - Shard version (1 uses JSON.stringify, 2+ uses canonicalStringify)
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {string} Hex-encoded SHA-256 hash
+ * @returns {Promise<string|null>} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data, version, crypto) => {
+const computeChecksum = async (data, version, crypto) => {
   if (!crypto) { return null; }
   const json = version === 1 ? JSON.stringify(data) : canonicalStringify(data);
-  return crypto.hash('sha256', json);
+  return await crypto.hash('sha256', json);
 };
 
 /**
@@ -244,12 +244,12 @@ export default class BitmapIndexReader {
    * @param {Object} envelope - The shard envelope to validate
    * @param {string} path - Shard path (for error context)
    * @param {string} oid - Object ID (for error context)
-   * @returns {Object} The validated data from the envelope
+   * @returns {Promise<Object>} The validated data from the envelope
    * @throws {ShardCorruptionError} If envelope format is invalid
    * @throws {ShardValidationError} If version or checksum validation fails
    * @private
    */
-  _validateShard(envelope, path, oid) {
+  async _validateShard(envelope, path, oid) {
     if (!envelope || typeof envelope !== 'object') {
       throw new ShardCorruptionError('Invalid shard format', {
         shardPath: path,
@@ -274,7 +274,7 @@ export default class BitmapIndexReader {
       });
     }
     // Use version-appropriate checksum computation for backward compatibility
-    const actualChecksum = computeChecksum(envelope.data, envelope.version, this._crypto);
+    const actualChecksum = await computeChecksum(envelope.data, envelope.version, this._crypto);
     if (actualChecksum !== null && envelope.checksum !== actualChecksum) {
       throw new ShardValidationError('Checksum mismatch', {
         shardPath: path,
@@ -321,14 +321,14 @@ export default class BitmapIndexReader {
    * @param {Buffer} buffer - Raw shard buffer
    * @param {string} path - Shard path (for error context)
    * @param {string} oid - Object ID (for error context)
-   * @returns {Object} The validated data from the shard
+   * @returns {Promise<Object>} The validated data from the shard
    * @throws {ShardCorruptionError} If parsing fails or format is invalid
    * @throws {ShardValidationError} If version or checksum validation fails
    * @private
    */
-  _parseAndValidateShard(buffer, path, oid) {
+  async _parseAndValidateShard(buffer, path, oid) {
     const envelope = JSON.parse(new TextDecoder().decode(buffer));
-    return this._validateShard(envelope, path, oid);
+    return await this._validateShard(envelope, path, oid);
   }
 
   /**
@@ -416,7 +416,7 @@ export default class BitmapIndexReader {
     const context = { path, oid, format };
 
     try {
-      const data = this._parseAndValidateShard(buffer, path, oid);
+      const data = await this._parseAndValidateShard(buffer, path, oid);
       this.loadedShards.set(path, data);
       return data;
     } catch (err) {

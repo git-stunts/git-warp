@@ -21,6 +21,30 @@ WarpGraph is a multi-writer graph database that uses Git commits as its storage 
 npm install @git-stunts/git-warp
 ```
 
+### Multi-Runtime Support
+
+The domain layer has no direct Node.js built-in imports. Runtime-specific adapters are provided for crypto and HTTP:
+
+| Runtime | Crypto Adapter | HTTP Adapter |
+|---------|---------------|--------------|
+| Node.js | `NodeCryptoAdapter` | `NodeHttpAdapter` |
+| Deno | `WebCryptoAdapter` | `DenoHttpAdapter` |
+| Bun | `WebCryptoAdapter` | `BunHttpAdapter` |
+| Browser | `WebCryptoAdapter` | N/A |
+
+```javascript
+import { WebCryptoAdapter } from '@git-stunts/git-warp';
+
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'demo',
+  writerId: 'writer-1',
+  crypto: new WebCryptoAdapter(),  // uses globalThis.crypto.subtle
+});
+```
+
+If no crypto adapter is provided, checksum computation gracefully returns `null` (checksums are optional for correctness — they protect against bit-rot, not CRDT convergence).
+
 ---
 
 ## Quick Start

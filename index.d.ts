@@ -420,6 +420,19 @@ export const LogLevel: {
 export type LogLevelValue = 0 | 1 | 2 | 3 | 4;
 
 /**
+ * Port interface for cryptographic operations.
+ * @abstract
+ */
+export abstract class CryptoPort {
+  /** Computes a hash digest of the given data */
+  abstract hash(algorithm: string, data: string | Buffer | Uint8Array): Promise<string>;
+  /** Computes an HMAC of the given data */
+  abstract hmac(algorithm: string, key: string | Buffer | Uint8Array, data: string | Buffer | Uint8Array): Promise<Buffer | Uint8Array>;
+  /** Constant-time comparison of two buffers */
+  abstract timingSafeEqual(a: Buffer | Uint8Array, b: Buffer | Uint8Array): boolean;
+}
+
+/**
  * Port interface for time-related operations.
  * @abstract
  */
@@ -551,6 +564,82 @@ export class GitGraphAdapter extends GraphPersistencePort implements IndexStorag
   configSet(key: string, value: string): Promise<void>;
 }
 
+/**
+ * Node.js crypto adapter implementing CryptoPort.
+ *
+ * Uses Node.js built-in crypto module for hash and HMAC operations.
+ */
+export class NodeCryptoAdapter extends CryptoPort {
+  constructor();
+  hash(algorithm: string, data: string | Buffer | Uint8Array): Promise<string>;
+  hmac(algorithm: string, key: string | Buffer | Uint8Array, data: string | Buffer | Uint8Array): Promise<Buffer | Uint8Array>;
+  timingSafeEqual(a: Buffer | Uint8Array, b: Buffer | Uint8Array): boolean;
+}
+
+/**
+ * Web Crypto API adapter implementing CryptoPort.
+ *
+ * Uses the standard Web Crypto API (globalThis.crypto.subtle) which is
+ * available in browsers, Deno, Bun, and Node.js 20+.
+ */
+export class WebCryptoAdapter extends CryptoPort {
+  constructor(options?: { subtle?: SubtleCrypto });
+  hash(algorithm: string, data: string | Buffer | Uint8Array): Promise<string>;
+  hmac(algorithm: string, key: string | Buffer | Uint8Array, data: string | Buffer | Uint8Array): Promise<Buffer | Uint8Array>;
+  timingSafeEqual(a: Buffer | Uint8Array, b: Buffer | Uint8Array): boolean;
+}
+
+/**
+ * Port interface for HTTP server operations.
+ * @abstract
+ */
+export abstract class HttpServerPort {
+  abstract createServer(requestHandler: (request: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: Buffer | Uint8Array;
+  }) => Promise<{ status?: number; headers?: Record<string, string>; body?: string | Uint8Array }>): {
+    listen(options: { port: number; host?: string }): Promise<{ url: string }>;
+    close(): Promise<void>;
+  };
+}
+
+/**
+ * Bun HTTP adapter implementing HttpServerPort.
+ *
+ * Uses globalThis.Bun.serve() to create an HTTP server.
+ */
+export class BunHttpAdapter extends HttpServerPort {
+  constructor(options?: { logger?: { error: (msg: string) => void } });
+  createServer(requestHandler: (request: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: Buffer | Uint8Array;
+  }) => Promise<{ status?: number; headers?: Record<string, string>; body?: string | Uint8Array }>): {
+    listen(options: { port: number; host?: string }): Promise<{ url: string }>;
+    close(): Promise<void>;
+  };
+}
+
+/**
+ * Deno HTTP adapter implementing HttpServerPort.
+ *
+ * Uses globalThis.Deno.serve() (Deno 1.35+) to create an HTTP server.
+ */
+export class DenoHttpAdapter extends HttpServerPort {
+  constructor(options?: { logger?: { error: (msg: string) => void } });
+  createServer(requestHandler: (request: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: Buffer | Uint8Array;
+  }) => Promise<{ status?: number; headers?: Record<string, string>; body?: string | Uint8Array }>): {
+    listen(options: { port: number; host?: string }): Promise<{ url: string }>;
+    close(): Promise<void>;
+  };
+}
 
 /**
  * Builder for constructing bitmap indexes in memory.
@@ -572,8 +661,44 @@ export class BitmapIndexBuilder {
   addEdge(srcSha: string, tgtSha: string): void;
 
   /** Serializes the index to a tree structure of buffers */
-  serialize(options?: { frontier?: Map<string, string> }): Record<string, Buffer>;
+  serialize(options?: { frontier?: Map<string, string> }): Promise<Record<string, Buffer>>;
 }
+
+/**
+ * Builder for constructing bitmap indexes from materialized WARP state.
+ *
+ * This builder creates adjacency indexes from WarpStateV5.edgeAlive OR-Set,
+ * NOT from Git commit DAG topology.
+ */
+export class WarpStateIndexBuilder {
+  constructor(options?: { crypto?: CryptoPort });
+
+  /**
+   * Builds an index from materialized WARP state.
+   */
+  buildFromState(state: WarpStateV5): { builder: BitmapIndexBuilder; stats: { nodes: number; edges: number } };
+
+  /**
+   * Serializes the index to a tree structure of buffers.
+   */
+  serialize(): Promise<Record<string, Buffer>>;
+}
+
+/**
+ * Builds a bitmap index from materialized WARP state.
+ *
+ * Convenience function that creates a WarpStateIndexBuilder, builds from state,
+ * and returns the serialized tree and stats.
+ */
+export function buildWarpStateIndex(state: WarpStateV5): Promise<{ tree: Record<string, Buffer>; stats: { nodes: number; edges: number } }>;
+
+/**
+ * Computes a deterministic hash of a WarpStateV5 state.
+ *
+ * Uses canonical serialization to ensure the same state always produces
+ * the same hash regardless of property iteration order.
+ */
+export function computeStateHashV5(state: WarpStateV5, options: { crypto: CryptoPort; codec?: unknown }): Promise<string | null>;
 
 /**
  * Service for querying a loaded bitmap index.
@@ -1651,7 +1776,7 @@ export function createBTR(
   initialState: WarpStateV5,
   payload: ProvenancePayload,
   options: CreateBTROptions
-): BTR;
+): Promise<BTR>;
 
 /**
  * Verifies a Boundary Transition Record.
@@ -1664,7 +1789,7 @@ export function verifyBTR(
   btr: BTR,
   key: string | Buffer,
   options?: VerifyBTROptions
-): BTRVerificationResult;
+): Promise<BTRVerificationResult>;
 
 /**
  * Replays a BTR to produce the final state.
@@ -1672,7 +1797,7 @@ export function verifyBTR(
  * @param btr - The BTR to replay
  * @returns The final state and its hash
  */
-export function replayBTR(btr: BTR): { state: WarpStateV5; h_out: string };
+export function replayBTR(btr: BTR): Promise<{ state: WarpStateV5; h_out: string }>;
 
 /**
  * Serializes a BTR to CBOR bytes for transport.

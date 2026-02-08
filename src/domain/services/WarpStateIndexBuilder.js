@@ -89,10 +89,10 @@ export default class WarpStateIndexBuilder {
   /**
    * Serializes the index to a tree structure of buffers.
    *
-   * @returns {Record<string, Buffer>} Map of path → serialized content
+   * @returns {Promise<Record<string, Buffer>>} Map of path → serialized content
    */
-  serialize() {
-    return this._builder.serialize();
+  async serialize() {
+    return await this._builder.serialize();
   }
 
   /**
@@ -109,7 +109,7 @@ export default class WarpStateIndexBuilder {
  * Convenience function to build and serialize a WARP state index.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - The materialized state
- * @returns {{tree: Record<string, Buffer>, stats: {nodes: number, edges: number}}} Serialized index and stats
+ * @returns {Promise<{tree: Record<string, Buffer>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *
  * @example
  * import { buildWarpStateIndex } from './WarpStateIndexBuilder.js';
@@ -117,9 +117,9 @@ export default class WarpStateIndexBuilder {
  * const state = await graph.materialize();
  * const { tree, stats } = buildWarpStateIndex(state);
  */
-export function buildWarpStateIndex(state) {
+export async function buildWarpStateIndex(state) {
   const indexBuilder = new WarpStateIndexBuilder();
   const { stats } = indexBuilder.buildFromState(state);
-  const tree = indexBuilder.serialize();
+  const tree = await indexBuilder.serialize();
   return { tree, stats };
 }

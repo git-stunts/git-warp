@@ -1,31 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-
-async function createRepo() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'emptygraph-cascade-'));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return {
-    tempDir,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
-}
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   it('cascade delete generates EdgeRemove ops for 3 connected edges + NodeRemove', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -73,7 +52,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('materialized state has no dangling edges after cascade delete', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -114,7 +93,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('cascade delete on node with no edges produces only NodeRemove', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -145,7 +124,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('cascade delete handles both incoming and outgoing edges', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -198,7 +177,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('cascade delete handles self-loop edge correctly', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -244,7 +223,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('generated EdgeRemove ops appear in committed patch (auditable)', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -288,7 +267,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('cascade mode preserves unrelated edges', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -330,7 +309,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
   }, { timeout: 15000 });
 
   it('without cascade mode, removeNode does not generate EdgeRemove ops', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('cascade');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,

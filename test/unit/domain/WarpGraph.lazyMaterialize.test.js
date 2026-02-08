@@ -23,29 +23,11 @@ import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCode
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 const FAKE_BLOB_OID = 'a'.repeat(40);
 const FAKE_TREE_OID = 'b'.repeat(40);
 const FAKE_COMMIT_SHA = 'c'.repeat(40);
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn(),
-    showNode: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
 
 /**
  * Configure mock persistence so a first-time writer commit succeeds.

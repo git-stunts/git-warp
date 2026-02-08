@@ -36,12 +36,12 @@ const BITMAP_BASE_OVERHEAD = 64;
  *
  * @param {Object} data - The data object to checksum
  * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
- * @returns {string} Hex-encoded SHA-256 hash
+ * @returns {Promise<string|null>} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data, crypto) => {
+const computeChecksum = async (data, crypto) => {
   if (!crypto) { return null; }
   const json = canonicalStringify(data);
-  return crypto.hash('sha256', json);
+  return await crypto.hash('sha256', json);
 };
 
 /**
@@ -229,7 +229,7 @@ export default class StreamingBitmapIndexBuilder {
         const path = `shards_${type}_${prefix}.json`;
         const envelope = {
           version: SHARD_VERSION,
-          checksum: computeChecksum(shardData, this._crypto),
+          checksum: await computeChecksum(shardData, this._crypto),
           data: shardData,
         };
         const buffer = Buffer.from(JSON.stringify(envelope));
@@ -340,7 +340,7 @@ export default class StreamingBitmapIndexBuilder {
         const path = `meta_${prefix}.json`;
         const envelope = {
           version: SHARD_VERSION,
-          checksum: computeChecksum(map, this._crypto),
+          checksum: await computeChecksum(map, this._crypto),
           data: map,
         };
         const buffer = Buffer.from(JSON.stringify(envelope));
@@ -587,7 +587,7 @@ export default class StreamingBitmapIndexBuilder {
     }
 
     // Validate checksum
-    const expectedChecksum = computeChecksum(envelope.data, this._crypto);
+    const expectedChecksum = await computeChecksum(envelope.data, this._crypto);
     if (envelope.checksum !== expectedChecksum) {
       throw new ShardCorruptionError('Shard checksum mismatch', {
         oid,
@@ -691,7 +691,7 @@ export default class StreamingBitmapIndexBuilder {
     // Wrap merged result in envelope with version and checksum
     const mergedEnvelope = {
       version: SHARD_VERSION,
-      checksum: computeChecksum(result, this._crypto),
+      checksum: await computeChecksum(result, this._crypto),
       data: result,
     };
 

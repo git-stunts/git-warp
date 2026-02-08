@@ -124,11 +124,11 @@ export function serializeStateV5(state, { codec } = {}) {
  * @param {Object} [options] - Options
  * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
- * @returns {string} Hex-encoded SHA-256 hash
+ * @returns {Promise<string|null>} Hex-encoded SHA-256 hash, or null if no crypto
  */
-export function computeStateHashV5(state, { crypto, codec } = {}) {
+export async function computeStateHashV5(state, { crypto, codec } = {}) {
   const serialized = serializeStateV5(state, { codec });
-  return crypto ? crypto.hash('sha256', serialized) : null;
+  return crypto ? await crypto.hash('sha256', serialized) : null;
 }
 
 /**

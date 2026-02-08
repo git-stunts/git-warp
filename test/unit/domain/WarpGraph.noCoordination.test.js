@@ -1,29 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import fc from 'fast-check';
-import { mkdtemp, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.js';
-
-async function createRepo() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'emptygraph-nocoord-'));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return {
-    tempDir,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
-}
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 async function assertLinearWriterChain(persistence, graphName, writerId) {
   const writerRef = buildWriterRef(graphName, writerId);
@@ -38,8 +17,8 @@ async function assertLinearWriterChain(persistence, graphName, writerId) {
 
 describe('No-coordination regression suite', () => {
   it('keeps writer refs linear after sync cycles', async () => {
-    const repoA = await createRepo();
-    const repoB = await createRepo();
+    const repoA = await createGitRepo('nocoord');
+    const repoB = await createGitRepo('nocoord');
 
     try {
       const alice = await WarpGraph.open({
@@ -91,7 +70,7 @@ describe('No-coordination regression suite', () => {
   }, { timeout: 20000 });
 
   it('does not enumerate other writer heads during commit', async () => {
-    const repo = await createRepo();
+    const repo = await createGitRepo('nocoord');
     try {
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
@@ -118,8 +97,8 @@ describe('No-coordination regression suite', () => {
 
     await fc.assert(
       fc.asyncProperty(opArb, async (ops) => {
-        const repoA = await createRepo();
-        const repoB = await createRepo();
+        const repoA = await createGitRepo('nocoord');
+        const repoB = await createGitRepo('nocoord');
 
         try {
           const alice = await WarpGraph.open({

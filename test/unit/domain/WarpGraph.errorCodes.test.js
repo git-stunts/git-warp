@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 /**
  * HS/ERR/2 — Error codes and recovery hints for state-related errors.
@@ -17,25 +18,6 @@ import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCode
 const FAKE_BLOB_OID = 'a'.repeat(40);
 const FAKE_TREE_OID = 'b'.repeat(40);
 const FAKE_COMMIT_SHA = 'c'.repeat(40);
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn(),
-    showNode: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
 
 /**
  * Configure mock persistence so a first-time writer commit succeeds.

@@ -1,27 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import Plumbing from '@git-stunts/plumbing';
-import GitGraphAdapter from '../../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-
-async function createRepo() {
-  const tempDir = await mkdtemp(join(tmpdir(), 'emptygraph-delguard-'));
-  const plumbing = Plumbing.createDefault({ cwd: tempDir });
-  await plumbing.execute({ args: ['init'] });
-  await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
-  await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
-  const persistence = new GitGraphAdapter({ plumbing });
-
-  return {
-    tempDir,
-    persistence,
-    async cleanup() {
-      await rm(tempDir, { recursive: true, force: true });
-    },
-  };
-}
+import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
   let repo;
@@ -39,7 +18,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
   describe('reject mode', () => {
     it('throws when deleting a node that has properties', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -63,7 +42,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('throws when deleting a node that has edges', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -88,7 +67,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('throws when deleting a node that is an edge target', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -113,7 +92,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('succeeds when deleting a node with no attached data', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -138,7 +117,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('mentions both edges and properties in error when both exist', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -163,7 +142,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('error message suggests cascade mode', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -191,7 +170,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
   describe('warn mode', () => {
     it('logs console.warn and commits when deleting node with properties', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -228,7 +207,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('logs console.warn when deleting node with edges', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -260,7 +239,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('does not warn when deleting node with no attached data', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -296,7 +275,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
   describe('Writer API', () => {
     it('reject mode works through writer().beginPatch()', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -321,7 +300,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
     }, { timeout: 15000 });
 
     it('warn mode works through writer().commitPatch()', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -363,7 +342,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
   describe('cascade mode (validation skipped)', () => {
     it('does not throw or warn when deleting node with attached data', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',
@@ -406,7 +385,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
   describe('no cached state', () => {
     it('reject mode does not throw when no state is available', async () => {
-      repo = await createRepo();
+      repo = await createGitRepo('delguard');
       const graph = await WarpGraph.open({
         persistence: repo.persistence,
         graphName: 'test',

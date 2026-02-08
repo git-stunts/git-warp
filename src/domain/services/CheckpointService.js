@@ -109,7 +109,7 @@ export async function createV5({
 
   // 4. Serialize visible projection (CACHE)
   const visibleBuffer = serializeStateV5(checkpointState, { codec });
-  const stateHash = computeStateHashV5(checkpointState, { codec, crypto });
+  const stateHash = await computeStateHashV5(checkpointState, { codec, crypto });
 
   // 5. Serialize frontier and appliedVV
   const frontierBuffer = serializeFrontier(frontier, { codec });

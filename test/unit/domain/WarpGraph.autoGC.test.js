@@ -3,6 +3,7 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
+import { createMockPersistence, createMockLogger } from '../../helpers/warpGraphTestUtils.js';
 
 /**
  * GK/GC/1 — Wire GC into post-materialize (opt-in, warn-by-default).
@@ -10,35 +11,6 @@ import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
  * After materialize, check GC metrics. Warn by default. Execute only
  * when gcPolicy.enabled === true.
  */
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
-
-function createMockLogger() {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn().mockReturnThis(),
-  };
-}
 
 /**
  * Create a state with lots of tombstones to trigger GC thresholds.
@@ -68,6 +40,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
 
   beforeEach(() => {
     persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValue(null);
   });
 
   it('default gcPolicy (enabled: false) + high tombstones → warning logged, no GC', async () => {

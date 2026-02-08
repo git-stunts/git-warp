@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { encode as cborEncode } from '../../../src/infrastructure/codecs/CborCodec.js';
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 /**
  * LH/STATUS/1 — graph.status()
@@ -16,25 +17,6 @@ const FAKE_COMMIT_SHA_3 = 'e'.repeat(40);
 
 /** CBOR-encoded empty V5 patch with required context field */
 const EMPTY_PATCH_CBOR = Buffer.from(cborEncode({ schema: 2, ops: [], context: {} }));
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn(),
-    showNode: vi.fn(),
-    writeBlob: vi.fn(),
-    writeTree: vi.fn(),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn(),
-    commitNodeWithTree: vi.fn(),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
 
 /** Configure mocks for a single writer with one patch */
 function mockSingleWriter(persistence, { writerRef, commitSha, patchMessage }) {

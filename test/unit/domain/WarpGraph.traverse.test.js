@@ -1,24 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-import { createEmptyStateV5, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
-import { createDot } from '../../../src/domain/crdt/Dot.js';
-
-function setupGraphState(graph, seedFn) {
-  const state = createEmptyStateV5();
-  graph._cachedState = state;
-  graph.materialize = vi.fn().mockResolvedValue(state);
-  seedFn(state);
-}
-
-function addNode(state, nodeId, counter) {
-  orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
-}
-
-function addEdge(state, from, to, label, counter) {
-  const edgeKey = encodeEdgeKey(from, to, label);
-  orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
-}
+import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph logical traversal', () => {
   let mockPersistence;
@@ -42,11 +24,11 @@ describe('WarpGraph logical traversal', () => {
 
   it('bfs visits neighbors in canonical order', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:c', 'z', 4);
-      addEdge(state, 'node:a', 'node:b', 'a', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:c', 'z', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'a', 5);
     });
 
     const result = await graph.traverse.bfs('node:a', { dir: 'out', maxDepth: 1 });
@@ -55,11 +37,11 @@ describe('WarpGraph logical traversal', () => {
 
   it('dfs follows canonical neighbor order', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:c', 'z', 4);
-      addEdge(state, 'node:a', 'node:b', 'a', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:c', 'z', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'a', 5);
     });
 
     const result = await graph.traverse.dfs('node:a', { dir: 'out', maxDepth: 1 });
@@ -68,14 +50,14 @@ describe('WarpGraph logical traversal', () => {
 
   it('shortestPath uses canonical tie-breaks', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addNode(state, 'node:d', 4);
-      addEdge(state, 'node:a', 'node:b', 'x', 5);
-      addEdge(state, 'node:a', 'node:c', 'x', 6);
-      addEdge(state, 'node:b', 'node:d', 'x', 7);
-      addEdge(state, 'node:c', 'node:d', 'x', 8);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addNodeToState(state, 'node:d', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'x', 5);
+      addEdgeToState(state, 'node:a', 'node:c', 'x', 6);
+      addEdgeToState(state, 'node:b', 'node:d', 'x', 7);
+      addEdgeToState(state, 'node:c', 'node:d', 'x', 8);
     });
 
     const result = await graph.traverse.shortestPath('node:a', 'node:d', { dir: 'out' });
@@ -84,11 +66,11 @@ describe('WarpGraph logical traversal', () => {
 
   it('labelFilter supports string and array (OR semantics)', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:a', 'node:b', 'follows', 4);
-      addEdge(state, 'node:a', 'node:c', 'blocks', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:a', 'node:b', 'follows', 4);
+      addEdgeToState(state, 'node:a', 'node:c', 'blocks', 5);
     });
 
     const followsOnly = await graph.traverse.bfs('node:a', { dir: 'out', labelFilter: 'follows' });
@@ -100,9 +82,9 @@ describe('WarpGraph logical traversal', () => {
 
   it('labelFilter empty array returns only the start node', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addEdge(state, 'node:a', 'node:b', 'follows', 3);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addEdgeToState(state, 'node:a', 'node:b', 'follows', 3);
     });
 
     const result = await graph.traverse.bfs('node:a', { dir: 'out', labelFilter: [] });
@@ -111,11 +93,11 @@ describe('WarpGraph logical traversal', () => {
 
   it('connectedComponent uses both directions', async () => {
     setupGraphState(graph, (state) => {
-      addNode(state, 'node:a', 1);
-      addNode(state, 'node:b', 2);
-      addNode(state, 'node:c', 3);
-      addEdge(state, 'node:b', 'node:a', 'follows', 4);
-      addEdge(state, 'node:c', 'node:b', 'follows', 5);
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addEdgeToState(state, 'node:b', 'node:a', 'follows', 4);
+      addEdgeToState(state, 'node:c', 'node:b', 'follows', 5);
     });
 
     const result = await graph.traverse.connectedComponent('node:a');

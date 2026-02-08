@@ -180,7 +180,7 @@ describe('CheckpointService', () => {
       // Serialize for mock returns
       const stateBuffer = serializeFullStateV5(v5State);
       const frontierBuffer = serializeFrontier(originalFrontier);
-      const stateHash = computeStateHashV5(v5State, { crypto });
+      const stateHash = await computeStateHashV5(v5State, { crypto });
       const appliedVV = computeAppliedVV(v5State);
       const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -356,7 +356,7 @@ describe('CheckpointService', () => {
         // V5 checkpoints use full state serialization
         const stateBuffer = serializeFullStateV5(v5State);
         const frontierBuffer = serializeFrontier(createFrontier());
-        const stateHash = computeStateHashV5(v5State, { crypto });
+        const stateHash = await computeStateHashV5(v5State, { crypto });
         const appliedVV = computeAppliedVV(v5State);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -693,7 +693,7 @@ describe('CheckpointService', () => {
         const frontierBuffer = serializeFrontier(frontier);
         const appliedVV = computeAppliedVV(originalState);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
-        const stateHash = computeStateHashV5(originalState, { crypto });
+        const stateHash = await computeStateHashV5(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -756,7 +756,7 @@ describe('CheckpointService', () => {
 
         const stateBuffer = serializeFullStateV5(originalState);
         const frontierBuffer = serializeFrontier(frontier);
-        const stateHash = computeStateHashV5(originalState, { crypto });
+        const stateHash = await computeStateHashV5(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -920,7 +920,7 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         // Compute hash before compaction
-        const hashBeforeCompact = computeStateHashV5(state, { crypto });
+        const hashBeforeCompact = await computeStateHashV5(state, { crypto });
 
         // Create checkpoint with compaction
         let writtenVisibleBlob;

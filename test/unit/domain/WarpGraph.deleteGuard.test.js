@@ -1,15 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-
-function createMockPersistence() {
-  return {
-    readRef: vi.fn().mockResolvedValue(null),
-    listRefs: vi.fn().mockResolvedValue([]),
-    updateRef: vi.fn().mockResolvedValue(),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(),
-  };
-}
+import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph onDeleteWithData option', () => {
   it('defaults to warn when not specified', async () => {

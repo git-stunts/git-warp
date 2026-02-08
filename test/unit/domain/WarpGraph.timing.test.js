@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import { createMockPersistence, createMockLogger, createMockClock } from '../../helpers/warpGraphTestUtils.js';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -13,47 +14,6 @@ const crypto = new NodeCryptoAdapter();
  * Failed operations still log timing with error context.
  */
 
-function createMockPersistence() {
-  return {
-    readRef: vi.fn().mockResolvedValue(null),
-    showNode: vi.fn(),
-    writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)),
-    writeTree: vi.fn().mockResolvedValue('b'.repeat(40)),
-    readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
-    commitNode: vi.fn().mockResolvedValue('c'.repeat(40)),
-    commitNodeWithTree: vi.fn().mockResolvedValue('d'.repeat(40)),
-    updateRef: vi.fn(),
-    listRefs: vi.fn().mockResolvedValue([]),
-    getNodeInfo: vi.fn(),
-    ping: vi.fn().mockResolvedValue({ ok: true, latencyMs: 1 }),
-    configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(undefined),
-  };
-}
-
-function createMockLogger() {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn().mockReturnThis(),
-  };
-}
-
-function createMockClock(step = 42) {
-  let time = 1000;
-  return {
-    now: vi.fn(() => {
-      const t = time;
-      time += step;
-      return t;
-    }),
-    timestamp: vi.fn(() => new Date().toISOString()),
-  };
-}
-
 describe('WarpGraph operation timing (LH/TIMING/1)', () => {
   let persistence;
   let logger;
@@ -61,6 +21,11 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
   beforeEach(() => {
     persistence = createMockPersistence();
+    persistence.readRef.mockResolvedValue(null);
+    persistence.writeBlob.mockResolvedValue('a'.repeat(40));
+    persistence.writeTree.mockResolvedValue('b'.repeat(40));
+    persistence.commitNode.mockResolvedValue('c'.repeat(40));
+    persistence.commitNodeWithTree.mockResolvedValue('d'.repeat(40));
     logger = createMockLogger();
     clock = createMockClock(42);
   });

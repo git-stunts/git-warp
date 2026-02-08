@@ -9,8 +9,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { performance } from 'perf_hooks';
-import os from 'os';
 import {
   createORSet,
   orsetAdd,
@@ -21,6 +19,7 @@ import {
 } from '../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
+import { logEnvironment, forceGC, runBenchmark } from './benchmarkUtils.js';
 
 // ============================================================================
 // Configuration
@@ -38,73 +37,6 @@ const SOFT_TARGETS = {
   5000: 50,     // 5K entries: 50ms
   10000: 100,   // 10K entries: 100ms
 };
-
-// ============================================================================
-// Utilities
-// ============================================================================
-
-/**
- * Logs environment information for reproducibility
- */
-function logEnvironment() {
-  console.log(`\n  Node.js: ${process.version}`);
-  console.log(`  CPU: ${os.cpus()[0].model}`);
-  console.log(`  Platform: ${os.platform()} ${os.arch()}`);
-  console.log(`  GC available: ${typeof global.gc === 'function'}`);
-}
-
-/**
- * Computes median of an array of numbers
- */
-function median(arr) {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
-/**
- * Forces garbage collection if available
- */
-function forceGC() {
-  if (typeof global.gc === 'function') {
-    global.gc();
-  }
-}
-
-/**
- * Runs a benchmark with warmup and multiple measured runs.
- * Returns statistics about the runs.
- *
- * @param {Function} fn - The function to benchmark
- * @param {number} warmupRuns - Number of warmup runs
- * @param {number} measuredRuns - Number of measured runs
- * @returns {{median: number, min: number, max: number, times: number[]}}
- */
-function runBenchmark(fn, warmupRuns = WARMUP_RUNS, measuredRuns = MEASURED_RUNS) {
-  // Warmup runs
-  for (let i = 0; i < warmupRuns; i++) {
-    forceGC();
-    fn();
-  }
-
-  // Measured runs
-  const times = [];
-  for (let i = 0; i < measuredRuns; i++) {
-    forceGC();
-    const start = performance.now();
-    fn();
-    times.push(performance.now() - start);
-  }
-
-  return {
-    median: median(times),
-    min: Math.min(...times),
-    max: Math.max(...times),
-    times,
-  };
-}
 
 // ============================================================================
 // ORSet Setup Utilities

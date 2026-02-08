@@ -7,6 +7,7 @@ import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.j
 import WarpGraph from '../../src/domain/WarpGraph.js';
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/StateSerializerV5.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
+import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 describe('WarpGraph Integration', () => {
   let tempDir;
@@ -69,6 +70,9 @@ describe('WarpGraph Integration', () => {
         .addNode('temp')
         .setProperty('temp', 'data', 'value')
         .commit();
+
+      // Materialize so removeNode can observe the add-dots for the tombstone
+      await graph.materialize();
 
       const rmPatch = await graph.createPatch();
       await rmPatch
@@ -137,6 +141,7 @@ describe('WarpGraph Integration', () => {
         persistence,
         graphName: 'test',
         writerId: 'writer1',
+        crypto: new NodeCryptoAdapter(),
       });
 
       // Create some patches
@@ -172,7 +177,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       const state1 = await graph1.materialize();
-      const hash1 = computeStateHashV5(state1);
+      const hash1 = await computeStateHashV5(state1);
 
       // Create identical patches in repo 2 (same repo, fresh graph)
       const graph2 = await WarpGraph.open({
@@ -187,7 +192,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       const state2 = await graph2.materialize();
-      const hash2 = computeStateHashV5(state2);
+      const hash2 = await computeStateHashV5(state2);
 
       expect(hash1).toBe(hash2);
     });

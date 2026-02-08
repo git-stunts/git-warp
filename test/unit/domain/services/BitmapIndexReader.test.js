@@ -99,7 +99,7 @@ describe('BitmapIndexReader', () => {
       // Build a real index
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbccdd', 'eeffgghh');
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
 
       // Mock storage to return serialized data
       mockStorage.readBlob.mockImplementation(async (oid) => {
@@ -167,7 +167,7 @@ describe('BitmapIndexReader', () => {
       // Build a real index for comparison
       const builder = new BitmapIndexBuilder();
       builder.addEdge('aabbccdd', 'eeffgghh');
-      const tree = builder.serialize();
+      const tree = await builder.serialize();
 
       let callCount = 0;
       mockStorage.readBlob.mockImplementation(async (oid) => {
