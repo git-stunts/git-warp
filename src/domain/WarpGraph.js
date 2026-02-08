@@ -10,12 +10,13 @@
 
 import { validateGraphName, validateWriterId, buildWriterRef, buildCoverageRef, buildCheckpointRef, buildWritersPrefix, parseWriterIdFromRef } from './utils/RefLayout.js';
 import { PatchBuilderV2 } from './services/PatchBuilderV2.js';
-import { reduceV5, createEmptyStateV5, joinStates, join as joinPatch, decodeEdgeKey, decodePropKey, isEdgePropKey, decodeEdgePropKey, encodeEdgeKey, cloneStateV5 } from './services/JoinReducer.js';
+import { reduceV5, createEmptyStateV5, joinStates, join as joinPatch, cloneStateV5 } from './services/JoinReducer.js';
+import { decodeEdgeKey, decodePropKey, isEdgePropKey, decodeEdgePropKey, encodeEdgeKey } from './services/KeyCodec.js';
 import { ProvenanceIndex } from './services/ProvenanceIndex.js';
 import { ProvenancePayload } from './services/ProvenancePayload.js';
 import { diffStates, isEmptyDiff } from './services/StateDiff.js';
 import { orsetContains, orsetElements } from './crdt/ORSet.js';
-import { decode } from '../infrastructure/codecs/CborCodec.js';
+import defaultCodec from './utils/defaultCodec.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
 import { loadCheckpoint, materializeIncremental, create as createCheckpointCommit } from './services/CheckpointService.js';
 import { createFrontier, updateFrontier } from './services/Frontier.js';
@@ -45,49 +46,15 @@ import { createWormhole as createWormholeImpl } from './services/WormholeService
 import { checkAborted } from './utils/cancellation.js';
 import OperationAbortedError from './errors/OperationAbortedError.js';
 import { compareEventIds } from './utils/EventId.js';
-import PerformanceClockAdapter from '../infrastructure/adapters/PerformanceClockAdapter.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
+import HttpSyncServer from './services/HttpSyncServer.js';
+import defaultClock from './utils/defaultClock.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 const DEFAULT_SYNC_WITH_RETRIES = 3;
 const DEFAULT_SYNC_WITH_BASE_DELAY_MS = 250;
 const DEFAULT_SYNC_WITH_MAX_DELAY_MS = 2000;
 const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
-
-/**
- * Recursively canonicalizes a JSON value by sorting object keys alphabetically.
- * Arrays are processed element-by-element; primitives pass through unchanged.
- * Used to produce deterministic JSON output for sync request/response hashing.
- *
- * @param {*} value - Any JSON-serializable value
- * @returns {*} The canonicalized value with sorted object keys
- * @private
- */
-function canonicalizeJson(value) {
-  if (Array.isArray(value)) {
-    return value.map(canonicalizeJson);
-  }
-  if (value && typeof value === 'object') {
-    const sorted = {};
-    for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalizeJson(value[key]);
-    }
-    return sorted;
-  }
-  return value;
-}
-
-/**
- * Produces a canonical JSON string with sorted keys for deterministic comparison.
- * Wraps canonicalizeJson + JSON.stringify for sync protocol use.
- *
- * @param {*} value - Any JSON-serializable value
- * @returns {string} Canonical JSON string
- * @private
- */
-function canonicalStringify(value) {
-  return JSON.stringify(canonicalizeJson(value));
-}
 
 /**
  * Normalizes a sync endpoint path to ensure it starts with '/'.
@@ -129,9 +96,10 @@ export default class WarpGraph {
    * @param {boolean} [options.autoMaterialize=false] - If true, query methods auto-materialize instead of throwing
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node that still has edges or properties
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
-   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to PerformanceClockAdapter)
+   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
+   * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -187,7 +155,13 @@ export default class WarpGraph {
     this._logger = logger || null;
 
     /** @type {import('../ports/ClockPort.js').default} */
-    this._clock = clock || new PerformanceClockAdapter();
+    this._clock = clock || defaultClock;
+
+    /** @type {import('../ports/CryptoPort.js').default|undefined} */
+    this._crypto = crypto;
+
+    /** @type {import('../ports/CodecPort.js').default} */
+    this._codec = codec || defaultCodec;
 
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
@@ -240,7 +214,8 @@ export default class WarpGraph {
    * @param {boolean} [options.autoMaterialize] - If true, query methods auto-materialize instead of throwing
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData] - Policy when deleting a node that still has edges or properties (default: 'warn')
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
-   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to PerformanceClockAdapter)
+   * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
+   * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -251,7 +226,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -283,7 +258,7 @@ export default class WarpGraph {
       }
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -352,6 +327,7 @@ export default class WarpGraph {
       expectedParentSha: parentSha,
       onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: (opts) => this._onPatchCommitted(this._writerId, opts),
+      codec: this._codec,
     });
   }
 
@@ -442,7 +418,7 @@ export default class WarpGraph {
 
       // Read the patch blob
       const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
-      const patch = decode(patchBuffer);
+      const patch = this._codec.decode(patchBuffer);
 
       patches.push({ patch, sha: currentSha });
 
@@ -517,7 +493,7 @@ export default class WarpGraph {
     this._stateDirty = false;
     this._versionVector = vvClone(state.observedFrontier);
 
-    const stateHash = computeStateHashV5(state);
+    const stateHash = computeStateHashV5(state, { crypto: this._crypto, codec: this._codec });
     let adjacency;
 
     if (this._adjacencyCache) {
@@ -868,7 +844,7 @@ export default class WarpGraph {
 
         const patchMeta = decodePatchMessage(message);
         const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
-        const patch = decode(patchBuffer);
+        const patch = this._codec.decode(patchBuffer);
 
         patches.push({ patch, sha: currentSha });
 
@@ -889,6 +865,7 @@ export default class WarpGraph {
       checkpointSha,
       targetFrontier,
       patchLoader,
+      codec: this._codec,
     });
     this._setMaterializedState(state);
     return state;
@@ -944,6 +921,8 @@ export default class WarpGraph {
         frontier,
         parents,
         provenanceIndex: this._provenanceIndex,
+        crypto: this._crypto,
+        codec: this._codec,
       });
 
       // 5. Update checkpoint ref
@@ -1072,7 +1051,7 @@ export default class WarpGraph {
     }
 
     try {
-      return await loadCheckpoint(this._persistence, checkpointSha);
+      return await loadCheckpoint(this._persistence, checkpointSha, { codec: this._codec });
     } catch {
       return null;
     }
@@ -1102,7 +1081,7 @@ export default class WarpGraph {
       if (kind === 'patch') {
         const patchMeta = decodePatchMessage(nodeInfo.message);
         const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
-        const patch = decode(patchBuffer);
+        const patch = this._codec.decode(patchBuffer);
 
         // If any patch has schema:1, we have v1 history
         if (patch.schema === 1 || patch.schema === undefined) {
@@ -1783,7 +1762,8 @@ export default class WarpGraph {
       request,
       localFrontier,
       this._persistence,
-      this._graphName
+      this._graphName,
+      { codec: this._codec }
     );
   }
 
@@ -2073,114 +2053,23 @@ export default class WarpGraph {
    * @returns {Promise<{close: () => Promise<void>, url: string}>} Server handle
    * @throws {Error} If port is not a number
    */
-  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES } = {}) {
+  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort } = {}) {
     if (typeof port !== 'number') {
       throw new Error('serve() requires a numeric port');
     }
+    if (!httpPort) {
+      throw new Error('serve() requires an httpPort adapter');
+    }
 
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    const { createServer } = await import('node:http');
-
-    const server = createServer((req, res) => {
-      const contentType = (req.headers['content-type'] || '').toLowerCase();
-      if (contentType && !contentType.startsWith('application/json')) {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(canonicalStringify({ error: 'Expected application/json' }));
-        return;
-      }
-
-      let requestUrl;
-      try {
-        requestUrl = new URL(req.url || '/', `http://${req.headers.host || host}`);
-      } catch {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(canonicalStringify({ error: 'Invalid URL' }));
-        return;
-      }
-
-      if (requestUrl.pathname !== normalizedPath) {
-        res.writeHead(404, { 'content-type': 'application/json' });
-        res.end(canonicalStringify({ error: 'Not Found' }));
-        return;
-      }
-
-      if (req.method !== 'POST') {
-        res.writeHead(405, { 'content-type': 'application/json' });
-        res.end(canonicalStringify({ error: 'Method Not Allowed' }));
-        return;
-      }
-
-      let total = 0;
-      let body = '';
-      let aborted = false;
-
-      req.on('data', (chunk) => {
-        if (aborted) {
-          return;
-        }
-        total += chunk.length;
-        if (total > maxRequestBytes) {
-          aborted = true;
-          res.writeHead(413, { 'content-type': 'application/json' });
-          res.end(canonicalStringify({ error: 'Request too large' }));
-          req.destroy();
-          return;
-        }
-        body += chunk.toString('utf-8');
-      });
-
-      req.on('end', async () => {
-        if (aborted) {
-          return;
-        }
-        let request;
-        try {
-          request = body ? JSON.parse(body) : null;
-        } catch {
-          res.writeHead(400, { 'content-type': 'application/json' });
-          res.end(canonicalStringify({ error: 'Invalid JSON' }));
-          return;
-        }
-
-        if (!request || typeof request !== 'object' || request.type !== 'sync-request' ||
-          !request.frontier || typeof request.frontier !== 'object' || Array.isArray(request.frontier)) {
-          res.writeHead(400, { 'content-type': 'application/json' });
-          res.end(canonicalStringify({ error: 'Invalid sync request' }));
-          return;
-        }
-
-        try {
-          const response = await this.processSyncRequest(request);
-          res.writeHead(200, { 'content-type': 'application/json' });
-          res.end(canonicalStringify(response));
-        } catch (err) {
-          res.writeHead(500, { 'content-type': 'application/json' });
-          res.end(canonicalStringify({ error: err?.message || 'Sync failed' }));
-        }
-      });
+    const httpServer = new HttpSyncServer({
+      httpPort,
+      graph: this,
+      path,
+      host,
+      maxRequestBytes,
     });
 
-    await new Promise((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(port, host, resolve);
-    });
-
-    const address = server.address();
-    const actualPort = typeof address === 'object' && address ? address.port : port;
-    const url = `http://${host}:${actualPort}${normalizedPath}`;
-
-    return {
-      url,
-      close: () => new Promise((resolve, reject) => {
-        server.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      }),
-    };
+    return await httpServer.listen(port);
   }
 
   // ============================================================================
@@ -2228,6 +2117,7 @@ export default class WarpGraph {
       getCurrentState: () => this._cachedState,
       onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: (opts) => this._onPatchCommitted(resolvedWriterId, opts),
+      codec: this._codec,
     });
   }
 
@@ -2281,6 +2171,7 @@ export default class WarpGraph {
       getCurrentState: () => this._cachedState,
       onDeleteWithData: this._onDeleteWithData,
       onCommitSuccess: (commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts),
+      codec: this._codec,
     });
   }
 
@@ -2910,6 +2801,7 @@ export default class WarpGraph {
         graphName: this._graphName,
         fromSha,
         toSha,
+        codec: this._codec,
       });
 
       this._logTiming('createWormhole', t0, {
@@ -3141,7 +3033,7 @@ export default class WarpGraph {
 
     const patchMeta = decodePatchMessage(nodeInfo.message);
     const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
-    return decode(patchBuffer);
+    return this._codec.decode(patchBuffer);
   }
 
   /**

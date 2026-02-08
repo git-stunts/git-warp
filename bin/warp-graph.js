@@ -9,7 +9,7 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import WarpGraph from '../src/domain/WarpGraph.js';
 import GitGraphAdapter from '../src/infrastructure/adapters/GitGraphAdapter.js';
 import HealthCheckService from '../src/domain/services/HealthCheckService.js';
-import PerformanceClockAdapter from '../src/infrastructure/adapters/PerformanceClockAdapter.js';
+import ClockAdapter from '../src/infrastructure/adapters/ClockAdapter.js';
 import {
   REF_PREFIX,
   buildCheckpointRef,
@@ -1045,7 +1045,7 @@ async function handleCheck({ options }) {
 }
 
 async function getHealth(persistence) {
-  const clock = new PerformanceClockAdapter();
+  const clock = ClockAdapter.node();
   const healthService = new HealthCheckService({ persistence, clock });
   return await healthService.getHealth();
 }
@@ -1295,9 +1295,16 @@ function renderInstallHooks(payload) {
 }
 
 function createHookInstaller() {
+  const __filename = new URL(import.meta.url).pathname;
+  const __dirname = path.dirname(__filename);
+  const templateDir = path.resolve(__dirname, '..', 'hooks');
+  const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'));
   return new HookInstaller({
     fs,
     execGitConfig: execGitConfigValue,
+    version,
+    templateDir,
+    path,
   });
 }
 

@@ -431,8 +431,22 @@ export abstract class ClockPort {
 }
 
 /**
- * Clock adapter using Node.js performance API.
- * Use this for Node.js environments.
+ * Unified clock adapter supporting both Node.js and global performance APIs.
+ *
+ * Use the static factory methods for common cases:
+ * - `ClockAdapter.node()` -- Node.js `perf_hooks.performance`
+ * - `ClockAdapter.global()` -- `globalThis.performance` (Bun/Deno/browsers)
+ */
+export class ClockAdapter extends ClockPort {
+  constructor(options?: { performanceImpl?: Performance });
+  static node(): ClockAdapter;
+  static global(): ClockAdapter;
+  now(): number;
+  timestamp(): string;
+}
+
+/**
+ * @deprecated Use ClockAdapter instead. Backward-compatibility re-export.
  */
 export class PerformanceClockAdapter extends ClockPort {
   now(): number;
@@ -440,8 +454,7 @@ export class PerformanceClockAdapter extends ClockPort {
 }
 
 /**
- * Clock adapter using global performance API.
- * Use this for Bun, Deno, and browser environments.
+ * @deprecated Use ClockAdapter instead. Backward-compatibility re-export.
  */
 export class GlobalClockAdapter extends ClockPort {
   now(): number;

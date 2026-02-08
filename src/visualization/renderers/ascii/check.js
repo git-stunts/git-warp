@@ -10,39 +10,12 @@ import { createBox } from './box.js';
 import { progressBar } from './progress.js';
 import { colors } from './colors.js';
 import { padRight } from '../../utils/unicode.js';
+import { formatAge } from './formatters.js';
 
 // Health thresholds
 const TOMBSTONE_HEALTHY_MAX = 0.15;     // < 15% tombstones = healthy
 const TOMBSTONE_WARNING_MAX = 0.30;     // < 30% tombstones = warning
 const CACHE_STALE_PENALTY = 20;         // Reduce "freshness" score for stale cache
-
-/**
- * Format seconds as human-readable time (e.g., "2m", "1h", "3d").
- * @param {number|null} seconds
- * @returns {string}
- */
-function formatAge(seconds) {
-  if (seconds === null || seconds === undefined) {
-    return 'unknown';
-  }
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
-    return 'unknown';
-  }
-  const secs = Math.floor(seconds);
-  if (secs < 60) {
-    return `${secs}s`;
-  }
-  const minutes = Math.floor(secs / 60);
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
 
 /**
  * Get cache freshness percentage and state.

@@ -1,6 +1,5 @@
-import { createHash } from 'crypto';
 import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../errors/index.js';
-import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import nullLogger from '../utils/nullLogger.js';
 import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
@@ -24,12 +23,14 @@ const DEFAULT_MAX_CACHED_SHARDS = 100;
  * Used to verify shard integrity on load.
  *
  * @param {Object} data - The data object to checksum
- * @param {number} [version=2] - Shard version (1 uses JSON.stringify, 2+ uses canonicalStringify)
+ * @param {number} version - Shard version (1 uses JSON.stringify, 2+ uses canonicalStringify)
+ * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {string} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data, version = 2) => {
+const computeChecksum = (data, version, crypto) => {
+  if (!crypto) { return null; }
   const json = version === 1 ? JSON.stringify(data) : canonicalStringify(data);
-  return createHash('sha256').update(json).digest('hex');
+  return crypto.hash('sha256', json);
 };
 
 /**
@@ -83,7 +84,7 @@ export default class BitmapIndexReader {
    * @param {number} [options.maxCachedShards=100] - Maximum number of shards to keep in the LRU cache.
    *   When exceeded, least recently used shards are evicted to free memory.
    */
-  constructor({ storage, strict = false, logger = new NoOpLogger(), maxCachedShards = DEFAULT_MAX_CACHED_SHARDS } = {}) {
+  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = {}) {
     if (!storage) {
       throw new Error('BitmapIndexReader requires a storage adapter');
     }
@@ -91,6 +92,8 @@ export default class BitmapIndexReader {
     this.strict = strict;
     this.logger = logger;
     this.maxCachedShards = maxCachedShards;
+    /** @type {import('../../ports/CryptoPort.js').default} */
+    this._crypto = crypto;
     this.shardOids = new Map(); // path -> OID
     this.loadedShards = new LRUCache(maxCachedShards); // path -> Data
     this._idToShaCache = null; // Lazy-built reverse mapping
@@ -271,8 +274,8 @@ export default class BitmapIndexReader {
       });
     }
     // Use version-appropriate checksum computation for backward compatibility
-    const actualChecksum = computeChecksum(envelope.data, envelope.version);
-    if (envelope.checksum !== actualChecksum) {
+    const actualChecksum = computeChecksum(envelope.data, envelope.version, this._crypto);
+    if (actualChecksum !== null && envelope.checksum !== actualChecksum) {
       throw new ShardValidationError('Checksum mismatch', {
         shardPath: path,
         expected: envelope.checksum,

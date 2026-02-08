@@ -14,7 +14,7 @@
  */
 
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './JoinReducer.js';
+import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 
 /**
  * Tests whether a string matches a glob-style pattern.

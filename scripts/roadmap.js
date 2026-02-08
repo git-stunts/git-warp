@@ -31,6 +31,7 @@ const MILESTONES = [
   { code: 'PL', name: 'PULSE', version: 'v7.7.0' },
   { code: 'HG', name: 'HOLOGRAM', version: 'v8.0.0' },
   { code: 'EC', name: 'ECHO', version: 'v9.0.0' },
+  { code: 'BK', name: 'BULKHEAD', version: 'v10.0.0' },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

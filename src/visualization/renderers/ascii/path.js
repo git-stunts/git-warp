@@ -6,18 +6,13 @@
 import stringWidth from 'string-width';
 import { createBox } from './box.js';
 import { colors } from './colors.js';
+import { ARROW } from './symbols.js';
 
 // Default terminal width for wrapping
 const DEFAULT_TERMINAL_WIDTH = 80;
 
 // Box content padding (for inner width calculation)
 const BOX_PADDING = 4;
-
-// Arrow characters for path visualization
-const ARROW = {
-  line: '\u2500',      // ─
-  right: '\u25B6',     // ▶
-};
 
 /**
  * Formats a node ID for display, truncating if necessary.

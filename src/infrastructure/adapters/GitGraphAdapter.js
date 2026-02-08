@@ -135,6 +135,13 @@ async function refExists(execute, ref) {
  * commands (`commit-tree`, `hash-object`, `update-ref`, `cat-file`, etc.). It serves
  * as the bridge between WARP's domain logic and Git's content-addressed storage.
  *
+ * Implements all five focused ports via the composite GraphPersistencePort:
+ * - {@link CommitPort} — commit creation, reading, logging, counting, ping
+ * - {@link BlobPort} — blob read/write
+ * - {@link TreePort} — tree read/write, emptyTree getter
+ * - {@link RefPort} — ref update/read/delete
+ * - {@link ConfigPort} — git config get/set
+ *
  * ## Retry Strategy
  *
  * All write operations use automatic retry with exponential backoff to handle
@@ -157,6 +164,11 @@ async function refExists(execute, ref) {
  * synchronization, and the retry logic handles lock contention gracefully.
  *
  * @extends GraphPersistencePort
+ * @implements {CommitPort}
+ * @implements {BlobPort}
+ * @implements {TreePort}
+ * @implements {RefPort}
+ * @implements {ConfigPort}
  * @see {@link GraphPersistencePort} for the abstract interface contract
  * @see {@link DEFAULT_RETRY_OPTIONS} for retry configuration details
  *

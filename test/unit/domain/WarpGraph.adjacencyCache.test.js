@@ -3,6 +3,9 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 function addNode(state, nodeId, counter) {
   orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
@@ -38,6 +41,7 @@ describe('WarpGraph adjacency cache', () => {
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
+      crypto,
     });
   });
 
@@ -58,6 +62,7 @@ describe('WarpGraph adjacency cache', () => {
       graphName: 'test',
       writerId: 'writer-1',
       adjacencyCacheSize: 1,
+      crypto,
     });
 
     const stateOne = createSeededState();

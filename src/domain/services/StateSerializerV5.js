@@ -1,7 +1,6 @@
-import { createHash } from 'crypto';
-import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../utils/defaultCodec.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
-import { decodeEdgeKey, decodePropKey } from './JoinReducer.js';
+import { decodeEdgeKey, decodePropKey } from './KeyCodec.js';
 
 /**
  * State Serialization and Hashing for WARP v5
@@ -74,9 +73,12 @@ export function propVisibleV5(state, propKey) {
  * Same canonical ordering as v4 for visible projection.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Buffer}
  */
-export function serializeStateV5(state) {
+export function serializeStateV5(state, { codec } = {}) {
+  const c = codec || defaultCodec;
   // 1. Collect visible nodes, sorted
   const nodes = [...orsetElements(state.nodeAlive)].sort();
 
@@ -113,27 +115,33 @@ export function serializeStateV5(state) {
   });
 
   // Encode as canonical CBOR
-  return encode({ nodes, edges: visibleEdges, props: visibleProps });
+  return c.encode({ nodes, edges: visibleEdges, props: visibleProps });
 }
 
 /**
  * Computes SHA-256 hash of canonical state bytes.
  * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {Object} [options] - Options
+ * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {string} Hex-encoded SHA-256 hash
  */
-export function computeStateHashV5(state) {
-  const serialized = serializeStateV5(state);
-  return createHash('sha256').update(serialized).digest('hex');
+export function computeStateHashV5(state, { crypto, codec } = {}) {
+  const serialized = serializeStateV5(state, { codec });
+  return crypto ? crypto.hash('sha256', serialized) : null;
 }
 
 /**
  * Deserializes state from CBOR bytes.
  * Note: This reconstructs the visible projection only.
  * @param {Buffer} buffer
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props: Array<{node: string, key: string, value: *}>}}
  */
-export function deserializeStateV5(buffer) {
-  return decode(buffer);
+export function deserializeStateV5(buffer, { codec } = {}) {
+  const c = codec || defaultCodec;
+  return c.decode(buffer);
 }
 
 // ============================================================================

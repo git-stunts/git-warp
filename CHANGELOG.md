@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — ECHO
+## [10.0.0] — BULKHEAD
+
+### Added
+
+#### BULKHEAD — Hexagonal Architecture Hardening (v10.0.0)
+
+Architectural hardening milestone that eliminates all hexagonal boundary violations — domain code no longer imports from Node.js built-ins or concrete infrastructure adapters. This unblocks multi-runtime publishing (JSR/Deno/Bun).
+
+- **Port injection for codec** (`BK/WIRE/2`): All domain services now accept `codec` via dependency injection instead of importing `CborCodec` directly. Domain-local `defaultCodec.js` provides a fallback using `cbor-x` directly. Pattern: `this._codec = codec || defaultCodec`.
+- **Port injection for crypto** (`BK/WIRE/1`): All domain services now accept `crypto` via `CryptoPort` instead of importing `node:crypto`. Graceful degradation: `computeChecksum()` and `computeStateHashV5()` return `null` when no crypto adapter is provided.
+- **Hex boundary violations eliminated** (`BK/WIRE/3`): Zero imports from `node:crypto`, `node:http`, `node:module`, `node:path`, `node:url`, or `perf_hooks` in `src/domain/`. All infrastructure access goes through injected ports.
+- **Consolidated clock adapter** (`BK/DRY/2`): Merged `PerformanceClockAdapter` and `GlobalClockAdapter` into single `ClockAdapter` with constructor DI and factory statics (`ClockAdapter.node()`, `ClockAdapter.global()`). Old adapter files are now re-export shims marked `@deprecated`.
+- **Five focused persistence ports** (`BK/SRP/4`): Split `GraphPersistencePort` (14+ methods) into `CommitPort`, `BlobPort`, `TreePort`, `RefPort`, and `ConfigPort`. `GraphPersistencePort` remains as backward-compatible composite. Domain services document their minimal port surface via JSDoc.
+- **`CodecPort` interface** (`BK/PORT/1`): New abstract port for encode/decode operations.
+- **`CryptoPort` interface** (`BK/PORT/2`): New abstract port for hash/HMAC operations.
+- **`HttpServerPort` interface** (`BK/PORT/3`): New abstract port for HTTP server operations.
+- **`NodeCryptoAdapter`**: Infrastructure adapter implementing `CryptoPort` using `node:crypto`.
+- **`NodeHttpAdapter`**: Infrastructure adapter implementing `HttpServerPort` using `node:http`.
+- **`defaultCodec.js`**: Domain-local CBOR codec using `cbor-x` directly (no infrastructure import).
+- **`defaultClock.js`**: Domain-local clock using `globalThis.performance`.
+- **`nullLogger.js`**: Domain-local no-op `LoggerPort` for silent defaults.
+- **Domain service decomposition** (`BK/SRP/1-3`): `WarpMessageCodec` split into focused sub-codecs (`AnchorMessageCodec`, `CheckpointMessageCodec`, `PatchMessageCodec`, `MessageCodecInternal`, `MessageSchemaDetector`). `CommitDagTraversalService` split into `DagTraversal`, `DagTopology`, `DagPathFinding`. `HttpSyncServer` extracted from `SyncProtocol`.
+- **`KeyCodec`** (`BK/SRP/2`): Extracted key encoding/decoding from `JoinReducer` into standalone service.
+- **Error hierarchy** (`BK/ERR/1`): All domain errors now extend `WarpError` base class. New `WriterError` for writer-specific failures.
+
+### Tests
+
+- Added port contract tests: `CodecPort.test.js`, `CryptoPort.test.js`, `HttpServerPort.test.js`, `CommitPort.test.js`, `BlobPort.test.js`, `TreePort.test.js`, `RefPort.test.js`, `ConfigPort.test.js`
+- Added `WarpError.test.js`, `WriterError.test.js`, `KeyCodec.test.js`, `HttpSyncServer.test.js`
+- Added shared ASCII renderer test: `ascii-shared.test.js`
+- Updated all existing test files to inject `NodeCryptoAdapter` where crypto is needed
+- Suite total: 2725 tests across 126 files
+
+## [9.0.0] — ECHO
 
 ### Added
 

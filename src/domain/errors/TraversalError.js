@@ -1,8 +1,10 @@
+import WarpError from './WarpError.js';
+
 /**
  * Error class for graph traversal operations.
  *
  * @class TraversalError
- * @extends Error
+ * @extends WarpError
  *
  * @property {string} name - The error name ('TraversalError')
  * @property {string} code - Error code for programmatic handling (default: 'TRAVERSAL_ERROR')
@@ -14,20 +16,8 @@
  *   context: { sha: 'abc123', operation: 'bfs' }
  * });
  */
-export default class TraversalError extends Error {
-  /**
-   * Creates a new TraversalError.
-   *
-   * @param {string} message - Human-readable error message
-   * @param {Object} [options={}] - Error options
-   * @param {string} [options.code='TRAVERSAL_ERROR'] - Error code for programmatic handling
-   * @param {Object} [options.context={}] - Serializable context for debugging
-   */
+export default class TraversalError extends WarpError {
   constructor(message, options = {}) {
-    super(message);
-    this.name = 'TraversalError';
-    this.code = options.code || 'TRAVERSAL_ERROR';
-    this.context = options.context || {};
-    Error.captureStackTrace?.(this, this.constructor);
+    super(message, 'TRAVERSAL_ERROR', options);
   }
 }

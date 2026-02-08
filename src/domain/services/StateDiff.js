@@ -10,7 +10,7 @@
 
 import { orsetElements } from '../crdt/ORSet.js';
 import { lwwValue } from '../crdt/LWW.js';
-import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './JoinReducer.js';
+import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
 
 /**
  * @typedef {Object} EdgeChange

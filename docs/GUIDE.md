@@ -41,7 +41,7 @@ const graph = await WarpGraph.open({
 });
 
 // 3. Write some data
-await graph.createPatch()
+await (await graph.createPatch())
   .addNode('todo:1')
   .setProperty('todo:1', 'title', 'Buy groceries')
   .setProperty('todo:1', 'done', false)
@@ -72,7 +72,7 @@ All writes go through **patches** — atomic batches of graph operations. A patc
 ### Creating Patches
 
 ```javascript
-await graph.createPatch()
+await (await graph.createPatch())
   .addNode('user:alice')
   .addNode('user:bob')
   .setProperty('user:alice', 'name', 'Alice')
@@ -101,13 +101,13 @@ Property values must be JSON-serializable (strings, numbers, booleans, null, arr
 When you remove a node, its edges and properties become invisible automatically (tombstone cascading):
 
 ```javascript
-await graph.createPatch()
+await (await graph.createPatch())
   .addNode('temp')
   .setProperty('temp', 'data', 'value')
   .addEdge('temp', 'other', 'link')
   .commit();
 
-await graph.createPatch()
+await (await graph.createPatch())
   .removeNode('temp')
   .commit();
 
@@ -129,7 +129,7 @@ The `onDeleteWithData` option (set on `WarpGraph.open()`) controls what happens 
 Edges can carry properties just like nodes:
 
 ```javascript
-await graph.createPatch()
+await (await graph.createPatch())
   .addEdge('user:alice', 'org:acme', 'works-at')
   .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'since', '2024-06')
   .setEdgeProperty('user:alice', 'org:acme', 'works-at', 'role', 'engineer')
@@ -235,7 +235,7 @@ After a local `commit()`, the patch is applied eagerly to the cached state. Quer
 ```javascript
 await graph.materialize();
 
-await graph.createPatch()
+await (await graph.createPatch())
   .addNode('user:carol')
   .commit();
 
@@ -447,7 +447,7 @@ const graphA = await WarpGraph.open({
   writerId: 'machine-a',
 });
 
-await graphA.createPatch()
+await (await graphA.createPatch())
   .addNode('section:intro')
   .setProperty('section:intro', 'text', 'Hello World')
   .commit();
@@ -459,7 +459,7 @@ const graphB = await WarpGraph.open({
   writerId: 'machine-b',
 });
 
-await graphB.createPatch()
+await (await graphB.createPatch())
   .addNode('section:conclusion')
   .setProperty('section:conclusion', 'text', 'The End')
   .commit();
@@ -615,7 +615,7 @@ const { unsubscribe } = graph.subscribe({
   },
 });
 
-await graph.createPatch().addNode('item:new').commit();
+await (await graph.createPatch()).addNode('item:new').commit();
 await graph.materialize();  // onChange fires
 
 unsubscribe();
@@ -816,7 +816,7 @@ const forked = await graph.fork({
 });
 
 // forked is a new WarpGraph sharing history up to the fork point
-await forked.createPatch().addNode('new:node').commit();
+await (await forked.createPatch()).addNode('new:node').commit();
 ```
 
 Due to Git's content-addressed storage, shared history is automatically deduplicated.

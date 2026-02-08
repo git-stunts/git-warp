@@ -13,6 +13,9 @@ import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as 
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
 import { orsetAdd, orsetRemove, orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 // Helper to create valid 40-char hex OIDs for testing
 const makeOid = (prefix) => {
@@ -60,6 +63,7 @@ describe('CheckpointService', () => {
         graphName: 'test-graph',
         state,
         frontier,
+        crypto,
       });
 
       // Verify
@@ -91,6 +95,7 @@ describe('CheckpointService', () => {
         graphName: 'test',
         state,
         frontier,
+        crypto,
       });
 
       // Tree entries should be sorted by filename
@@ -117,6 +122,7 @@ describe('CheckpointService', () => {
         state,
         frontier,
         parents: [makeOid('parent1'), makeOid('parent2')],
+        crypto,
       });
 
       expect(mockPersistence.commitNodeWithTree).toHaveBeenCalledWith(
@@ -143,6 +149,7 @@ describe('CheckpointService', () => {
         graphName: 'my-graph',
         state,
         frontier,
+        crypto,
       });
 
       const messageArg = mockPersistence.commitNodeWithTree.mock.calls[0][0].message;
@@ -173,7 +180,7 @@ describe('CheckpointService', () => {
       // Serialize for mock returns
       const stateBuffer = serializeFullStateV5(v5State);
       const frontierBuffer = serializeFrontier(originalFrontier);
-      const stateHash = computeStateHashV5(v5State);
+      const stateHash = computeStateHashV5(v5State, { crypto });
       const appliedVV = computeAppliedVV(v5State);
       const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -311,6 +318,7 @@ describe('CheckpointService', () => {
           graphName: 'test',
           state,
           frontier,
+          crypto,
         });
 
         // Verify schema 2 was encoded in message
@@ -348,7 +356,7 @@ describe('CheckpointService', () => {
         // V5 checkpoints use full state serialization
         const stateBuffer = serializeFullStateV5(v5State);
         const frontierBuffer = serializeFrontier(createFrontier());
-        const stateHash = computeStateHashV5(v5State);
+        const stateHash = computeStateHashV5(v5State, { crypto });
         const appliedVV = computeAppliedVV(v5State);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
 
@@ -428,6 +436,7 @@ describe('CheckpointService', () => {
           graphName: 'test',
           state,
           frontier,
+          crypto,
         });
 
         // Setup for loading
@@ -571,6 +580,7 @@ describe('CheckpointService', () => {
           graphName: 'test',
           state,
           frontier,
+          crypto,
         });
 
         // Verify 4 blobs were written (state, visible, frontier, appliedVV)
@@ -615,6 +625,7 @@ describe('CheckpointService', () => {
           state,
           frontier,
           compact: true,
+          crypto,
         });
 
         // Verify the state blob was compacted (tombstoned entry removed)
@@ -649,6 +660,7 @@ describe('CheckpointService', () => {
           state,
           frontier,
           compact: false,
+          crypto,
         });
 
         // Verify the state blob preserves tombstoned entry
@@ -681,7 +693,7 @@ describe('CheckpointService', () => {
         const frontierBuffer = serializeFrontier(frontier);
         const appliedVV = computeAppliedVV(originalState);
         const appliedVVBuffer = serializeAppliedVV(appliedVV);
-        const stateHash = computeStateHashV5(originalState);
+        const stateHash = computeStateHashV5(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -744,7 +756,7 @@ describe('CheckpointService', () => {
 
         const stateBuffer = serializeFullStateV5(originalState);
         const frontierBuffer = serializeFrontier(frontier);
-        const stateHash = computeStateHashV5(originalState);
+        const stateHash = computeStateHashV5(originalState, { crypto });
 
         const treeOid = makeOid('tree');
         const stateBlobOid = makeOid('state');
@@ -842,6 +854,7 @@ describe('CheckpointService', () => {
           frontier,
           schema: 2,
           compact: false, // Don't compact to preserve all state
+          crypto,
         });
 
         // Setup mocks for loading
@@ -907,7 +920,7 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         // Compute hash before compaction
-        const hashBeforeCompact = computeStateHashV5(state);
+        const hashBeforeCompact = computeStateHashV5(state, { crypto });
 
         // Create checkpoint with compaction
         let writtenVisibleBlob;
@@ -929,6 +942,7 @@ describe('CheckpointService', () => {
           frontier,
           schema: 2,
           compact: true,
+          crypto,
         });
 
         // Verify the state hash in checkpoint message matches visible projection
@@ -973,6 +987,7 @@ describe('CheckpointService', () => {
           state,
           frontier,
           compact: false,
+          crypto,
         });
 
         // Deserialize and verify appliedVV

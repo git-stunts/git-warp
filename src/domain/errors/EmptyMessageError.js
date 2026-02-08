@@ -42,7 +42,6 @@ export default class EmptyMessageError extends IndexError {
       context,
     });
 
-    this.name = 'EmptyMessageError';
     this.operation = options.operation;
   }
 }

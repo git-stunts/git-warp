@@ -7,13 +7,6 @@
  * @module domain/services/HookInstaller
  */
 
-import { createRequire } from 'node:module';
-import { join, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_TEMPLATE_DIR = resolve(__dirname, '..', '..', 'hooks');
-
 const DELIMITER_START_PREFIX = '# --- @git-stunts/git-warp post-merge hook';
 const DELIMITER_END = '# --- end @git-stunts/git-warp ---';
 const VERSION_MARKER_PREFIX = '# warp-hook-version:';
@@ -68,14 +61,16 @@ export class HookInstaller {
    * @param {Object} deps - Injected dependencies
    * @param {Object} deps.fs - Filesystem adapter with methods: readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync, copyFileSync
    * @param {(repoPath: string, key: string) => string|null} deps.execGitConfig - Function to read git config values
-   * @param {string} [deps.version] - Package version (default: read from package.json)
-   * @param {string} [deps.templateDir] - Directory containing hook templates
+   * @param {string} deps.version - Package version
+   * @param {string} deps.templateDir - Directory containing hook templates
+   * @param {{ join: (...segments: string[]) => string, resolve: (...segments: string[]) => string }} deps.path - Path utilities (join and resolve)
    */
-  constructor({ fs, execGitConfig, version, templateDir } = {}) {
+  constructor({ fs, execGitConfig, version, templateDir, path } = {}) {
     this._fs = fs;
     this._execGitConfig = execGitConfig;
-    this._templateDir = templateDir || DEFAULT_TEMPLATE_DIR;
-    this._version = version || readPackageVersion();
+    this._templateDir = templateDir;
+    this._version = version;
+    this._path = path;
   }
 
   /**
@@ -117,7 +112,7 @@ export class HookInstaller {
    */
   install(repoPath, { strategy }) {
     const hooksDir = this._resolveHooksDir(repoPath);
-    const hookPath = join(hooksDir, 'post-merge');
+    const hookPath = this._path.join(hooksDir, 'post-merge');
     const template = this._loadTemplate();
     const stamped = this._stampVersion(template);
 
@@ -211,7 +206,7 @@ export class HookInstaller {
 
   /** @private */
   _loadTemplate() {
-    const templatePath = join(this._templateDir, 'post-merge.sh');
+    const templatePath = this._path.join(this._templateDir, 'post-merge.sh');
     return this._fs.readFileSync(templatePath, 'utf8');
   }
 
@@ -224,20 +219,20 @@ export class HookInstaller {
   _resolveHooksDir(repoPath) {
     const customPath = this._execGitConfig(repoPath, 'core.hooksPath');
     if (customPath) {
-      return resolveHooksPath(customPath, repoPath);
+      return resolveHooksPath(customPath, repoPath, this._path);
     }
 
     const gitDir = this._execGitConfig(repoPath, '--git-dir');
     if (gitDir) {
-      return join(resolve(repoPath, gitDir), 'hooks');
+      return this._path.join(this._path.resolve(repoPath, gitDir), 'hooks');
     }
 
-    return join(repoPath, '.git', 'hooks');
+    return this._path.join(repoPath, '.git', 'hooks');
   }
 
   /** @private */
   _resolveHookPath(repoPath) {
-    return join(this._resolveHooksDir(repoPath), 'post-merge');
+    return this._path.join(this._resolveHooksDir(repoPath), 'post-merge');
   }
 
   /** @private */
@@ -262,26 +257,15 @@ export class HookInstaller {
  *
  * @param {string} customPath - The custom hooks path from git config
  * @param {string} repoPath - The repo root path for resolving relative paths
+ * @param {{ resolve: (...segments: string[]) => string }} pathUtils - Path utilities
  * @returns {string} Resolved absolute hooks directory path
  * @private
  */
-function resolveHooksPath(customPath, repoPath) {
+function resolveHooksPath(customPath, repoPath, pathUtils) {
   if (customPath.startsWith('/')) {
     return customPath;
   }
-  return resolve(repoPath, customPath);
-}
-
-/**
- * Reads the package version from package.json.
- *
- * @returns {string} The package version string
- * @private
- */
-function readPackageVersion() {
-  const require = createRequire(import.meta.url);
-  const pkg = require('../../../package.json');
-  return pkg.version;
+  return pathUtils.resolve(repoPath, customPath);
 }
 
 /**

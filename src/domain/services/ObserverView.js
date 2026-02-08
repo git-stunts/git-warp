@@ -12,7 +12,7 @@
 import QueryBuilder from './QueryBuilder.js';
 import LogicalTraversal from './LogicalTraversal.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
-import { decodeEdgeKey } from './JoinReducer.js';
+import { decodeEdgeKey } from './KeyCodec.js';
 
 /**
  * Tests whether a string matches a glob-style pattern.

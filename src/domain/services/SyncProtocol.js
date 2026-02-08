@@ -36,7 +36,7 @@
  * @see Frontier - Frontier manipulation utilities
  */
 
-import { decode } from '../../infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../utils/defaultCodec.js';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from './WarpMessageCodec.js';
 import { join, cloneStateV5 } from './JoinReducer.js';
 import { cloneFrontier, updateFrontier } from './Frontier.js';
@@ -86,8 +86,10 @@ function normalizePatch(patch) {
  * and contains metadata (schema version, writer info) plus the patch OID.
  *
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence layer
- *   providing showNode() and readBlob() methods
+ *   (uses CommitPort.showNode() + BlobPort.readBlob() methods)
  * @param {string} sha - The 40-character commit SHA to load the patch from
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {Promise<Object>} The decoded and normalized patch object containing:
  *   - `ops`: Array of patch operations
  *   - `context`: VersionVector (Map) of causal dependencies
@@ -99,14 +101,15 @@ function normalizePatch(patch) {
  * @throws {Error} If the patch blob cannot be CBOR-decoded (corrupted data)
  * @private
  */
-async function loadPatchFromCommit(persistence, sha) {
+async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = {}) {
+  const codec = codecOpt || defaultCodec;
   // Read commit message to extract patch OID
   const message = await persistence.showNode(sha);
   const decoded = decodePatchMessage(message);
 
   // Read and decode the patch blob
   const patchBuffer = await persistence.readBlob(decoded.patchOid);
-  const patch = decode(patchBuffer);
+  const patch = codec.decode(patchBuffer);
 
   // Normalize the patch (convert context from object to Map)
   return normalizePatch(patch);
@@ -127,7 +130,7 @@ async function loadPatchFromCommit(persistence, sha) {
  * Each commit requires two reads: commit info (for parent) and patch blob.
  *
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence layer
- *   providing getNodeInfo(), showNode(), and readBlob() methods
+ *   (uses CommitPort.getNodeInfo()/showNode() + BlobPort.readBlob() methods)
  * @param {string} graphName - Graph name (used in error messages, not for lookups)
  * @param {string} writerId - Writer ID (used in error messages, not for lookups)
  * @param {string|null} fromSha - Start SHA (exclusive). Pass null to load ALL patches
@@ -151,7 +154,7 @@ async function loadPatchFromCommit(persistence, sha) {
  * // Load ALL patches for a new writer
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
-export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha) {
+export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec } = {}) {
   const patches = [];
   let cur = toSha;
 
@@ -160,7 +163,7 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
     const commitInfo = await persistence.getNodeInfo(cur);
 
     // Load patch from commit
-    const patch = await loadPatchFromCommit(persistence, cur);
+    const patch = await loadPatchFromCommit(persistence, cur, { codec });
     patches.unshift({ patch, sha: cur }); // Prepend for chronological order
 
     // Move to parent (first parent in linear chain)
@@ -361,7 +364,7 @@ export function createSyncRequest(frontier) {
  * @param {SyncRequest} request - Incoming sync request containing the requester's frontier
  * @param {Map<string, string>} localFrontier - Local frontier (what this node has)
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence
- *   layer for loading patches
+ *   layer for loading patches (uses CommitPort + BlobPort methods)
  * @param {string} graphName - Graph name for error messages and logging
  * @returns {Promise<SyncResponse>} Response containing local frontier and patches.
  *   Patches are ordered chronologically within each writer.
@@ -376,7 +379,7 @@ export function createSyncRequest(frontier) {
  *   res.json(response);
  * });
  */
-export async function processSyncRequest(request, localFrontier, persistence, graphName) {
+export async function processSyncRequest(request, localFrontier, persistence, graphName, { codec } = {}) {
   // Convert incoming frontier from object to Map
   const remoteFrontier = new Map(Object.entries(request.frontier));
 
@@ -393,7 +396,8 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
         graphName,
         writerId,
         range.from,
-        range.to
+        range.to,
+        { codec }
       );
 
       for (const { patch, sha } of writerPatches) {

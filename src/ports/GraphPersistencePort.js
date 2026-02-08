@@ -5,9 +5,26 @@
  * storage layer. Concrete adapters (e.g., GitGraphAdapter) implement this
  * interface to provide actual Git operations.
  *
+ * This is a **composite port** that implements the union of five focused ports:
+ *
+ * - {@link CommitPort} — commit creation, reading, logging, counting, ping
+ * - {@link BlobPort} — blob read/write
+ * - {@link TreePort} — tree read/write, emptyTree getter
+ * - {@link RefPort} — ref update/read/delete
+ * - {@link ConfigPort} — git config get/set
+ *
+ * Domain services should document which focused port(s) they actually depend on
+ * via JSDoc, even though they accept the full GraphPersistencePort at runtime.
+ * This enables future narrowing without breaking backward compatibility.
+ *
  * All methods throw by default and must be overridden by implementations.
  *
  * @abstract
+ * @implements {CommitPort}
+ * @implements {BlobPort}
+ * @implements {TreePort}
+ * @implements {RefPort}
+ * @implements {ConfigPort}
  */
 export default class GraphPersistencePort {
   /**

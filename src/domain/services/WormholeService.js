@@ -20,10 +20,10 @@
  * @module domain/services/WormholeService
  */
 
+import defaultCodec from '../utils/defaultCodec.js';
 import ProvenancePayload from './ProvenancePayload.js';
 import WormholeError from '../errors/WormholeError.js';
 import { detectMessageKind, decodePatchMessage } from './WarpMessageCodec.js';
-import { decode } from '../../infrastructure/codecs/CborCodec.js';
 
 /**
  * Validates that a SHA parameter is a non-empty string.
@@ -70,7 +70,8 @@ async function verifyShaExists(persistence, sha, paramName) {
  * @throws {WormholeError} On validation errors
  * @private
  */
-async function processCommit({ persistence, sha, graphName, expectedWriter }) {
+async function processCommit({ persistence, sha, graphName, expectedWriter, codec: codecOpt }) {
+  const codec = codecOpt || defaultCodec;
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
 
@@ -99,7 +100,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter }) {
   }
 
   const patchBuffer = await persistence.readBlob(patchMeta.patchOid);
-  const patch = decode(patchBuffer);
+  const patch = codec.decode(patchBuffer);
 
   return {
     patch,
@@ -144,13 +145,13 @@ async function processCommit({ persistence, sha, graphName, expectedWriter }) {
  * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
  * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
  */
-export async function createWormhole({ persistence, graphName, fromSha, toSha }) {
+export async function createWormhole({ persistence, graphName, fromSha, toSha, codec }) {
   validateSha(fromSha, 'fromSha');
   validateSha(toSha, 'toSha');
   await verifyShaExists(persistence, fromSha, 'fromSha');
   await verifyShaExists(persistence, toSha, 'toSha');
 
-  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha });
+  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, codec });
 
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
@@ -177,13 +178,13 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha })
  * @throws {WormholeError} If fromSha is not an ancestor of toSha or range is empty
  * @private
  */
-async function collectPatchRange({ persistence, graphName, fromSha, toSha }) {
+async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec }) {
   const patches = [];
   let currentSha = toSha;
   let writerId = null;
 
   while (currentSha) {
-    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId });
+    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 

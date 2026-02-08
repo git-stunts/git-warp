@@ -50,11 +50,8 @@ export default class ShardLoadError extends IndexError {
       context,
     });
 
-    this.name = 'ShardLoadError';
     this.shardPath = options.shardPath;
     this.oid = options.oid;
     this.cause = options.cause;
-
-    Error.captureStackTrace?.(this, this.constructor);
   }
 }

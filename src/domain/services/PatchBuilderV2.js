@@ -11,6 +11,7 @@
  * @see WARP v5 Spec
  */
 
+import defaultCodec from '../utils/defaultCodec.js';
 import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
@@ -21,11 +22,10 @@ import {
   createPropSetV2,
   createPatchV2,
 } from '../types/WarpTypesV2.js';
-import { encodeEdgeKey, EDGE_PROP_PREFIX } from './JoinReducer.js';
-import { encode } from '../../infrastructure/codecs/CborCodec.js';
+import { encodeEdgeKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
 import { encodePatchMessage, decodePatchMessage } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
-import { WriterError } from '../warp/Writer.js';
+import WriterError from '../errors/WriterError.js';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -71,6 +71,7 @@ export class PatchBuilderV2 {
    *
    * @param {Object} options
    * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence - Git adapter
+   *   (uses CommitPort + RefPort + BlobPort + TreePort methods)
    * @param {string} options.graphName - Graph namespace
    * @param {string} options.writerId - This writer's ID
    * @param {number} options.lamport - Lamport timestamp for this patch
@@ -79,8 +80,9 @@ export class PatchBuilderV2 {
    * @param {string|null} [options.expectedParentSha] - Expected parent SHA for race detection
    * @param {Function|null} [options.onCommitSuccess] - Callback invoked after successful commit
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node with attached data
+   * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn' }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec }) {
     /** @type {import('../../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -113,6 +115,9 @@ export class PatchBuilderV2 {
 
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
+
+    /** @type {import('../../ports/CodecPort.js').default} */
+    this._codec = codec || defaultCodec;
 
     /**
      * Nodes/edges read by this patch (for provenance tracking).
@@ -543,7 +548,7 @@ export class PatchBuilderV2 {
     });
 
     // 4. Encode patch as CBOR
-    const patchCbor = encode(patch);
+    const patchCbor = this._codec.encode(patch);
 
     // 5. Write patch.cbor blob
     const patchBlobOid = await this._persistence.writeBlob(patchCbor);

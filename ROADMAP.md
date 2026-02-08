@@ -1,8 +1,8 @@
 # Roadmap
 
 > Execution plan for `@git-stunts/git-warp` from v7.1.0 onward.
-> Current release: v7.0.0. Main branch: v7.7.0 complete (AUTOPILOT through PULSE merged, unreleased).
-> Next milestone: HOLOGRAM (v8.0.0).
+> Current release: v7.0.0. Main branch: v9.0.0 complete (AUTOPILOT through ECHO merged, unreleased).
+> Next milestone: BULKHEAD (v10.0.0).
 
 ## How to Read This Document
 
@@ -181,6 +181,25 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 - New `graph.translationCost(observerA, observerB)` for MDL cost estimation.
 - New `graph.temporal.always()`/`eventually()` for CTL*-style temporal queries over history.
 
+### v10.0.0 — BULKHEAD
+
+**Hexagonal Purity & Structural Integrity**
+
+Hardens the architecture against runtime coupling. Creates missing port interfaces (CryptoPort, CodecPort, HttpServerPort), wires all domain code through abstractions, decomposes god-objects by SRP, and eliminates DRY violations. Unblocks multi-runtime publishing (JSR/Deno/Bun) by removing direct Node.js built-in imports from the domain layer.
+
+**Features (recommended order):**
+- BK/PORTS — Missing port interfaces (CryptoPort, CodecPort, HttpServerPort)
+- BK/WIRE — Wire domain services through ports (remove all hex boundary violations)
+- BK/SRP — Single responsibility decomposition (KeyCodec, MessageCodec split, DAG traversal split, persistence port split)
+- BK/DRY — DRY consolidation (WarpError base class, clock adapters, ASCII renderer utils)
+- BK/CLASS — One class per file (WriterError extraction)
+
+**User-Facing Changes:**
+- All port interfaces exported from main entry point for custom adapter implementations.
+- `WarpGraph.open()` accepts explicit `crypto`, `codec`, `clock`, `logger` options for dependency injection.
+- `GraphPersistencePort` split into `CommitPort`, `BlobPort`, `TreePort`, `RefPort`, `ConfigPort` — existing `GitGraphAdapter` implements all (backward compatible composite).
+- No behavioral changes. All existing tests must continue to pass.
+
 ---
 
 ## Milestone Summary
@@ -196,6 +215,7 @@ Observer-scoped views, translation costs, and temporal queries from Paper IV.
 | 7 | **PULSE** | v7.7.0 | Subscriptions & Reactivity | Complete (merged, unreleased) |
 | 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Complete (merged, unreleased) |
 | 9 | **ECHO** | v9.0.0 | Observer Geometry | Speculative |
+| 10 | **BULKHEAD** | v10.0.0 | Hexagonal Purity & Structural Integrity | Open |
 
 ---
 
@@ -211,9 +231,12 @@ WEIGHTED (independent)             │
 COMPASS (independent)              │
                                    │
 LIGHTHOUSE ────────────────→ HOLOGRAM ──→ ECHO
+
+BULKHEAD (independent)
 ```
 
 - GROUNDSKEEPER depends on AUTOPILOT (auto-materialize foundation).
+- BULKHEAD can proceed independently (architectural refactor, no feature dependencies).
 - PULSE depends on GROUNDSKEEPER (frontier change detection).
 - HOLOGRAM depends on LIGHTHOUSE (tick receipts as foundation).
 - ECHO depends on HOLOGRAM (provenance payloads).
@@ -224,7 +247,7 @@ LIGHTHOUSE ────────────────→ HOLOGRAM ──�
 ## Task DAG
 
 <!-- ROADMAP:DAG:START -->
-```text
+```
 Key: ■ CLOSED   ◆ OPEN   ○ BLOCKED
 
 AUTOPILOT        (v7.1.0)  ████████████████████  100%  (10/10)
@@ -296,6 +319,23 @@ ECHO             (v9.0.0)  █████████████████�
   ■ EC/COST/1         
   ■ EC/TEMPORAL/1     
   ■ EC/VIEW/1           →  EC/COST/1
+
+BULKHEAD         (v10.0.0)  ████████████████████  100%  (15/15)
+  ■ BK/CLASS/1        
+  ■ BK/DRY/1            →  BK/CLASS/1
+  ■ BK/DRY/2          
+  ■ BK/DRY/3          
+  ■ BK/PORTS/1          →  BK/WIRE/1
+  ■ BK/PORTS/2          →  BK/WIRE/2
+  ■ BK/PORTS/3          →  BK/WIRE/4
+  ■ BK/SRP/1          
+  ■ BK/SRP/2          
+  ■ BK/SRP/3          
+  ■ BK/SRP/4          
+  ■ BK/WIRE/1           →  BK/SRP/4
+  ■ BK/WIRE/2           →  BK/SRP/4
+  ■ BK/WIRE/3           →  BK/DRY/2, BK/SRP/4
+  ■ BK/WIRE/4         
 
 Cross-Milestone Dependencies:
   AP/CKPT/2           →  LH/STATUS/1 (LIGHTHOUSE)
@@ -1888,6 +1928,491 @@ Paper IV defines observers as resource-bounded functors and introduces rulial di
 
 ---
 
+## Milestone 10 — BULKHEAD (v10.0.0)
+
+**Hexagonal Purity & Structural Integrity**
+
+The architecture claims hexagonal design but has significant boundary violations: 25+ domain files import directly from infrastructure or Node.js built-ins. This milestone creates the missing port interfaces, wires all domain services through abstractions, decomposes oversized modules by SRP, and eliminates DRY violations. The primary unlock is multi-runtime publishing (JSR for Deno/Bun) — impossible today because the domain layer is hardwired to `node:crypto`, `node:http`, and concrete adapters.
+
+### Feature: BK/PORTS — Missing Port Interfaces
+
+**Rationale:** Three categories of infrastructure dependency have no port abstraction: cryptographic hashing (5 domain files import `node:crypto`), serialization (15 domain files import `CborCodec` directly), and HTTP serving (`WarpGraph.serve()` inlines `node:http`). Without ports for these, domain code cannot run outside Node.js and cannot be unit-tested without the real implementations.
+
+#### BK/PORTS/1 — Define CryptoPort and NodeCryptoAdapter
+
+- **Status:** `CLOSED`
+- **User Story:** As a library consumer targeting Deno or Bun, I want cryptographic operations abstracted behind a port so the domain layer doesn't depend on `node:crypto`.
+- **Requirements:**
+  - Create `src/ports/CryptoPort.js` with abstract methods:
+    - `hash(algorithm, data)` → hex string.
+    - `hmac(algorithm, key, data)` → Buffer/Uint8Array.
+    - `timingSafeEqual(a, b)` → boolean.
+  - Create `src/infrastructure/adapters/NodeCryptoAdapter.js` implementing `CryptoPort` using Node.js `crypto` module.
+  - Adapter is the only file that imports `node:crypto`.
+  - Port follows existing `ClockPort`/`LoggerPort` pattern (class with methods that throw "not implemented").
+- **Acceptance Criteria:**
+  - `NodeCryptoAdapter` passes all method contracts.
+  - `CryptoPort` base class throws on direct calls.
+  - Hash output matches `crypto.createHash()` for same input.
+- **Scope:** Interface + one concrete adapter.
+- **Out of Scope:** Web Crypto API adapter, streaming hash.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~50 prod + ~40 test
+- **Blocked by:** None
+- **Blocking:** BK/WIRE/1
+- **Definition of Done:** Port + adapter pass unit tests. Adapter produces correct hashes and HMACs.
+- **Test Plan:**
+  - Golden path: hash("sha1", "hello") matches known digest.
+  - Golden path: hmac round-trip matches crypto.createHmac.
+  - Golden path: timingSafeEqual with matching/non-matching buffers.
+  - Edge cases: empty input, large input, invalid algorithm.
+
+#### BK/PORTS/2 — Define CodecPort and update CborCodec
+
+- **Status:** `CLOSED`
+- **User Story:** As a library consumer, I want serialization abstracted behind a port so alternative codecs (JSON, MessagePack, Protocol Buffers) can be substituted.
+- **Requirements:**
+  - Create `src/ports/CodecPort.js` with abstract methods:
+    - `encode(data)` → Buffer/Uint8Array.
+    - `decode(bytes)` → object.
+  - Update `src/infrastructure/codecs/CborCodec.js` to extend `CodecPort`.
+  - Preserve existing `encode`/`decode` function exports for backward compatibility during migration.
+- **Acceptance Criteria:**
+  - `CborCodec` passes as a `CodecPort` instance (`instanceof` check).
+  - Existing encode/decode behavior unchanged.
+  - Round-trip: encode → decode === original for all serializable types.
+- **Scope:** Interface definition + CborCodec conformance.
+- **Out of Scope:** Alternative codec implementations (JSON, MessagePack).
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~30 prod + ~30 test
+- **Blocked by:** None
+- **Blocking:** BK/WIRE/2
+- **Definition of Done:** CodecPort defined. CborCodec extends it. Existing tests pass.
+- **Test Plan:**
+  - Golden path: CborCodec instanceof CodecPort === true.
+  - Golden path: existing CBOR round-trip tests still pass.
+  - Edge cases: encode(undefined), decode(empty buffer).
+
+#### BK/PORTS/3 — Define HttpServerPort and NodeHttpAdapter
+
+- **Status:** `CLOSED`
+- **User Story:** As the system, I want HTTP server creation abstracted behind a port so `WarpGraph.serve()` doesn't inline `node:http`.
+- **Requirements:**
+  - Create `src/ports/HttpServerPort.js` with abstract methods:
+    - `createServer(requestHandler)` → server object with `listen(port, callback)` and `close()`.
+  - Create `src/infrastructure/adapters/NodeHttpAdapter.js` implementing `HttpServerPort` using `node:http`.
+  - Request handler receives `{ method, url, body }` and returns `{ status, headers, body }` — no raw `req`/`res` objects in domain.
+- **Acceptance Criteria:**
+  - `NodeHttpAdapter` creates a working HTTP server.
+  - Request handler contract is platform-agnostic (no Node.js `IncomingMessage`/`ServerResponse`).
+  - Server starts and stops cleanly.
+- **Scope:** Interface + Node.js adapter.
+- **Out of Scope:** HTTPS, middleware, WebSocket support.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~50 prod + ~40 test
+- **Blocked by:** None
+- **Blocking:** BK/WIRE/4
+- **Definition of Done:** Port + adapter pass unit tests. Server handles basic request/response cycle.
+- **Test Plan:**
+  - Golden path: start server → send request → receive response → stop server.
+  - Edge cases: request with body, request without body, concurrent requests.
+
+---
+
+### Feature: BK/WIRE — Domain Hex Compliance
+
+**Rationale:** 25+ domain files import directly from `node:crypto`, `infrastructure/codecs/CborCodec.js`, or concrete adapter classes. Each import is a hexagonal boundary violation that couples domain logic to specific infrastructure choices. This feature systematically replaces every violation with port injection.
+
+#### BK/WIRE/1 — Replace crypto imports with CryptoPort injection
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want domain services to receive crypto capabilities via injection so they can be tested with mock implementations.
+- **Requirements:**
+  - Update 5 domain files to accept `CryptoPort` via constructor options:
+    - `BitmapIndexBuilder.js` — uses `createHash`
+    - `BitmapIndexReader.js` — uses `createHash`
+    - `StreamingBitmapIndexBuilder.js` — uses `createHash`
+    - `StateSerializerV5.js` — uses `createHash`
+    - `BoundaryTransitionRecord.js` — uses `createHmac`, `timingSafeEqual`
+  - Remove all `import { createHash } from 'crypto'` and `import { createHmac, timingSafeEqual } from 'crypto'` from domain files.
+  - `WarpGraph` provides `CryptoPort` instance to services during construction.
+  - Default: `NodeCryptoAdapter` when no explicit port provided.
+- **Acceptance Criteria:**
+  - Zero `node:crypto` or `crypto` imports in `src/domain/`.
+  - All existing tests pass with `NodeCryptoAdapter` injected.
+  - Services can be instantiated with a mock crypto port in tests.
+- **Scope:** Crypto port wiring for 5 files.
+- **Out of Scope:** Changing hash algorithms or crypto behavior.
+- **Estimated Hours:** 4
+- **Estimated LOC:** ~80 prod + ~120 test
+- **Blocked by:** BK/PORTS/1
+- **Blocking:** BK/SRP/4
+- **Definition of Done:** No crypto imports in domain. All tests green. Mock crypto works in new tests.
+- **Test Plan:**
+  - Golden path: BitmapIndexBuilder with mock crypto produces correct shard keys.
+  - Golden path: BoundaryTransitionRecord with mock crypto creates/verifies BTRs.
+  - Regression: full test suite passes with NodeCryptoAdapter.
+  - Edge cases: service constructed without explicit crypto (default applies).
+
+#### BK/WIRE/2 — Replace CborCodec imports with CodecPort injection
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want serialization decoupled from domain logic so I can swap codec implementations without modifying business rules.
+- **Requirements:**
+  - Update 15 domain files to accept `CodecPort` via constructor options:
+    - `WarpGraph.js`, `PatchBuilderV2.js`, `JoinReducer.js` (via WarpGraph)
+    - `CheckpointSerializerV5.js`, `StateSerializerV5.js`
+    - `SyncProtocol.js`, `WormholeService.js`
+    - `BitmapIndexBuilder.js`, `StreamingBitmapIndexBuilder.js`
+    - `BoundaryTransitionRecord.js`, `Frontier.js`
+    - `IndexStalenessChecker.js`, `ProvenanceIndex.js`
+    - `WarpMessageCodec.js` (encode/decode functions accept codec param)
+  - Remove all `import { encode, decode } from '../../infrastructure/codecs/CborCodec.js'` from domain files.
+  - `WarpGraph` provides `CodecPort` instance during service construction.
+  - Default: `CborCodec` when no explicit port provided.
+- **Acceptance Criteria:**
+  - Zero `CborCodec` imports in `src/domain/`.
+  - All existing tests pass with `CborCodec` injected.
+  - A mock codec (e.g., JSON-based) can be substituted in tests.
+- **Scope:** Codec port wiring for 15 files.
+- **Out of Scope:** Actually implementing alternative codecs.
+- **Estimated Hours:** 6
+- **Estimated LOC:** ~120 prod + ~180 test
+- **Blocked by:** BK/PORTS/2
+- **Blocking:** BK/SRP/4
+- **Definition of Done:** No CborCodec imports in domain. All tests green. Mock codec works.
+- **Test Plan:**
+  - Golden path: PatchBuilderV2 with mock codec produces valid patch.
+  - Golden path: full materialize cycle with CborCodec injected.
+  - Regression: full test suite passes.
+  - Edge cases: service constructed without explicit codec (default applies).
+
+#### BK/WIRE/3 — Remove concrete adapter imports from domain
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want domain code to depend only on port abstractions, never on specific adapter implementations.
+- **Requirements:**
+  - Remove `import PerformanceClockAdapter` from `WarpGraph.js` — accept `ClockPort` via constructor option with default.
+  - Remove `import NoOpLogger` from 5 domain services:
+    - `CommitDagTraversalService.js`
+    - `IndexRebuildService.js`
+    - `HealthCheckService.js`
+    - `BitmapIndexReader.js`
+    - `StreamingBitmapIndexBuilder.js`
+  - Services that need a default logger should accept `undefined` and guard calls: `this.logger?.info(...)` or receive logger from parent.
+  - Remove `node:module`, `node:path`, `node:url` imports from `HookInstaller.js` — inject template directory path and package version as constructor params.
+  - Remove `node:module` import from `roaring.js` — accept roaring module as a parameter or use dynamic import.
+- **Acceptance Criteria:**
+  - Zero imports from `src/infrastructure/` in `src/domain/`.
+  - Zero `node:module`, `node:path`, `node:url` imports in `src/domain/`.
+  - All existing tests pass.
+- **Scope:** Remove all remaining hex boundary violations.
+- **Out of Scope:** Changing logger behavior or clock precision.
+- **Estimated Hours:** 3
+- **Estimated LOC:** ~60 prod + ~80 test
+- **Blocked by:** None
+- **Blocking:** BK/DRY/2, BK/SRP/4
+- **Definition of Done:** No infrastructure imports in domain. Grep confirms zero boundary crossings.
+- **Test Plan:**
+  - Golden path: WarpGraph with injected ClockPort uses correct clock.
+  - Golden path: CommitDagTraversalService without logger runs silently.
+  - Golden path: HookInstaller with injected paths resolves templates.
+  - Regression: full test suite passes.
+  - Verification: `grep -r "infrastructure" src/domain/` returns zero results.
+
+#### BK/WIRE/4 — Extract serve() from WarpGraph into HttpSyncServer
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want the HTTP sync server separated from the graph facade so WarpGraph doesn't mix business logic with HTTP handling.
+- **Requirements:**
+  - Create `src/domain/services/HttpSyncServer.js` containing the logic currently in `WarpGraph.serve()` (lines ~2076–2210).
+  - `HttpSyncServer` accepts `HttpServerPort`, `SyncProtocol`, and `WarpGraph` references via constructor.
+  - `HttpSyncServer.listen(port)` starts the server.
+  - Request handling (JSON parsing, route dispatch, error responses) lives in the new service.
+  - `WarpGraph.serve()` becomes a thin delegate: creates `HttpSyncServer` and calls `listen()`.
+  - No raw `node:http` usage anywhere in domain — all through `HttpServerPort`.
+- **Acceptance Criteria:**
+  - `WarpGraph.serve()` still works identically from user perspective.
+  - `HttpSyncServer` is independently testable with mock `HttpServerPort`.
+  - Zero `node:http` imports in `src/domain/`.
+- **Scope:** Extract and delegate. No new sync features.
+- **Out of Scope:** REST API changes, new endpoints, authentication.
+- **Estimated Hours:** 5
+- **Estimated LOC:** ~120 prod + ~150 test
+- **Blocked by:** BK/PORTS/3
+- **Blocking:** None
+- **Definition of Done:** serve() works end-to-end. HttpSyncServer testable in isolation.
+- **Test Plan:**
+  - Golden path: WarpGraph.serve() starts server → sync request → correct response.
+  - Golden path: HttpSyncServer with mock port handles sync request.
+  - Known failures: invalid JSON body → 400 response.
+  - Edge cases: server close during request, port already in use.
+
+---
+
+### Feature: BK/SRP — Single Responsibility Decomposition
+
+**Rationale:** Several services exceed reasonable complexity bounds. `WarpGraph.js` handles 14+ responsibilities at 3255 LOC. `CommitDagTraversalService.js` bundles 8 algorithms at 1402 LOC. `JoinReducer.js` mixes key encoding with CRDT logic. `WarpMessageCodec.js` handles three message types with 11 exports. Decomposing these improves testability, maintainability, and code navigation.
+
+#### BK/SRP/1 — Extract KeyCodec from JoinReducer
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want key encoding/decoding separated from CRDT reduction so each module has one reason to change.
+- **Requirements:**
+  - Create `src/domain/services/KeyCodec.js` with:
+    - `FIELD_SEPARATOR` constant (`\0`)
+    - `EDGE_PROP_PREFIX` constant (`\x01`)
+    - `encodeEdgeKey(from, to, label)` → string
+    - `decodeEdgeKey(key)` → `{ from, to, label }`
+    - `encodePropKey(id, key)` → string
+    - `decodePropKey(encoded)` → `{ id, key }`
+    - `encodeEdgePropKey(from, to, label, propKey)` → string
+    - `decodeEdgePropKey(encoded)` → `{ from, to, label, propKey }`
+    - `isEdgePropKey(key)` → boolean
+  - `JoinReducer.js` imports from `KeyCodec.js` instead of defining these inline.
+  - Update all other importers (`PatchBuilderV2`, `CheckpointService`, etc.) to import from `KeyCodec`.
+  - Remove duplicated `\0` split logic from `PatchBuilderV2` and other files.
+- **Acceptance Criteria:**
+  - All encode/decode functions produce identical output to current implementations.
+  - `JoinReducer` no longer exports key functions (re-export from KeyCodec for one version if needed).
+  - No `\0` literal splits remain outside `KeyCodec`.
+- **Scope:** Pure extraction — no behavior changes.
+- **Out of Scope:** New key formats, key validation.
+- **Estimated Hours:** 3
+- **Estimated LOC:** ~80 prod + ~80 test
+- **Blocked by:** None
+- **Blocking:** None
+- **Definition of Done:** KeyCodec is the single source of truth for key encoding. All tests pass.
+- **Test Plan:**
+  - Golden path: encode → decode round-trip for all key types.
+  - Regression: full test suite (especially JoinReducer, PatchBuilderV2, CheckpointService tests).
+  - Edge cases: keys containing separator characters, empty strings, unicode.
+
+#### BK/SRP/2 — Split WarpMessageCodec into focused codecs
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want message encoding separated by message type so changes to patch format don't risk breaking checkpoint encoding.
+- **Requirements:**
+  - Split `WarpMessageCodec.js` (576 LOC, 11 exports) into:
+    - `src/domain/services/PatchMessageCodec.js` — `encodePatchMessage`, `decodePatchMessage`
+    - `src/domain/services/CheckpointMessageCodec.js` — `encodeCheckpointMessage`, `decodeCheckpointMessage`
+    - `src/domain/services/AnchorMessageCodec.js` — `encodeAnchorMessage`, `decodeAnchorMessage`
+    - `src/domain/services/MessageSchemaDetector.js` — `detectSchemaVersion`, `detectMessageKind`, `assertOpsCompatible`, `SCHEMA_V2`, `SCHEMA_V3`
+  - `WarpMessageCodec.js` becomes a facade re-exporting from all four modules (backward compat).
+  - Each sub-codec accepts `CodecPort` as a dependency.
+- **Acceptance Criteria:**
+  - All existing imports from `WarpMessageCodec` continue to work (facade re-export).
+  - Each sub-codec is independently importable and testable.
+  - Encode/decode behavior unchanged.
+- **Scope:** Module split with facade. No format changes.
+- **Out of Scope:** New message types, schema changes.
+- **Estimated Hours:** 4
+- **Estimated LOC:** ~100 prod + ~100 test
+- **Blocked by:** None
+- **Blocking:** None
+- **Definition of Done:** Four focused modules behind one facade. All codec tests pass.
+- **Test Plan:**
+  - Golden path: each sub-codec encodes/decodes correctly in isolation.
+  - Regression: existing WarpMessageCodec tests pass via facade.
+  - Edge cases: cross-import between sub-codecs (should be zero).
+
+#### BK/SRP/3 — Split CommitDagTraversalService into focused services
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want graph algorithms separated by concern so BFS changes don't require understanding A* implementation.
+- **Requirements:**
+  - Split `CommitDagTraversalService.js` (1402 LOC) into:
+    - `src/domain/services/DagTraversal.js` — BFS, DFS, ancestor/descendant enumeration, reachability
+    - `src/domain/services/DagPathFinding.js` — path finding, shortest path, weighted shortest path, A*, bidirectional A*
+    - `src/domain/services/DagTopology.js` — topological sort, common ancestor finding
+  - Each service accepts `persistence` and `logger` via constructor (same pattern as current).
+  - `CommitDagTraversalService.js` becomes a facade composing all three (backward compat).
+  - Add `CommitDagTraversalService` complexity exemption to the three new files in `eslint.config.js`.
+- **Acceptance Criteria:**
+  - All existing `CommitDagTraversalService` method calls work via facade.
+  - Each sub-service is independently testable.
+  - Algorithm behavior unchanged.
+- **Scope:** Module split with facade. No algorithm changes.
+- **Out of Scope:** New traversal algorithms, performance optimization.
+- **Estimated Hours:** 5
+- **Estimated LOC:** ~150 prod + ~180 test
+- **Blocked by:** None
+- **Blocking:** None
+- **Definition of Done:** Three focused services behind one facade. All traversal tests pass.
+- **Test Plan:**
+  - Golden path: BFS, DFS, shortest path, A*, topo sort all work via facade.
+  - Golden path: each sub-service tested independently.
+  - Regression: existing CommitDagTraversalService test suite passes.
+  - Edge cases: empty graph, single node, disconnected components.
+
+#### BK/SRP/4 — Split GraphPersistencePort into focused ports
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want persistence concerns separated so services that only need ref operations don't depend on blob or tree methods.
+- **Requirements:**
+  - Split `GraphPersistencePort.js` (14+ methods) into:
+    - `src/ports/CommitPort.js` — `commitNode`, `showNode`, `getNodeInfo`, `logNodes`, `logNodesStream`, `countNodes`
+    - `src/ports/BlobPort.js` — `writeBlob`, `readBlob`
+    - `src/ports/TreePort.js` — `writeTree`, `readTree`, `readTreeOids`
+    - `src/ports/RefPort.js` — `updateRef`, `readRef`, `deleteRef`
+    - `src/ports/ConfigPort.js` — `configGet`, `configSet`
+  - `GraphPersistencePort.js` becomes a composite extending all five (backward compat).
+  - `GitGraphAdapter.js` implements all five interfaces.
+  - Domain services updated to accept only the ports they need:
+    - `PatchBuilderV2` → `CommitPort` + `RefPort`
+    - `BitmapIndexBuilder` → `BlobPort` + `TreePort` + `RefPort`
+    - `SyncProtocol` → `CommitPort` + `RefPort`
+  - `emptyTree` getter moves to `TreePort`.
+  - `IndexStoragePort` updated to compose `BlobPort` + `TreePort` + `RefPort`.
+- **Acceptance Criteria:**
+  - `GraphPersistencePort` still works as a single composite (backward compat).
+  - Services that only need refs don't depend on blob/tree methods.
+  - `GitGraphAdapter instanceof CommitPort` (and all others) is `true`.
+- **Scope:** Port decomposition + service narrowing.
+- **Out of Scope:** Multiple adapter implementations, in-memory adapters.
+- **Estimated Hours:** 6
+- **Estimated LOC:** ~150 prod + ~200 test
+- **Blocked by:** BK/WIRE/1, BK/WIRE/2, BK/WIRE/3
+- **Blocking:** None
+- **Definition of Done:** Five focused ports. Services accept minimal port surface. All tests pass.
+- **Test Plan:**
+  - Golden path: PatchBuilderV2 accepts CommitPort + RefPort only — commit works.
+  - Golden path: BitmapIndexBuilder accepts BlobPort + TreePort + RefPort — index builds.
+  - Regression: full test suite passes with GitGraphAdapter providing all ports.
+  - Edge cases: service receives wrong port type → clear error.
+
+---
+
+### Feature: BK/DRY — DRY Consolidation
+
+**Rationale:** The DRY audit found repeated boilerplate across 8 error classes, duplicate clock adapters, and reimplemented formatting functions across 6 ASCII renderers. Consolidation reduces maintenance surface and bug duplication risk.
+
+#### BK/DRY/1 — Extract WarpError base class
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want a single base error class so error construction boilerplate isn't duplicated across 8+ files.
+- **Requirements:**
+  - Create `src/domain/errors/WarpError.js` with shared constructor logic:
+    - Accepts `message`, `defaultCode`, `options`.
+    - Sets `this.name` from `constructor.name`.
+    - Sets `this.code` from `options.code` or `defaultCode`.
+    - Sets `this.context` from `options.context` or `{}`.
+    - Calls `Error.captureStackTrace?.(this, this.constructor)`.
+  - Update error classes to extend `WarpError`:
+    - `IndexError`, `TraversalError`, `SchemaUnsupportedError`, `OperationAbortedError`, `QueryError`, `SyncError`, and others.
+  - Each subclass reduces to a one-line constructor calling `super(message, 'DEFAULT_CODE', options)`.
+- **Acceptance Criteria:**
+  - All error classes extend `WarpError`.
+  - `instanceof WarpError` is true for all domain errors.
+  - Error codes, messages, and stack traces preserved.
+  - Existing catch blocks continue to work.
+- **Scope:** Base class + subclass updates.
+- **Out of Scope:** New error types, error code registry.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~50 prod + ~60 test
+- **Blocked by:** None
+- **Blocking:** BK/CLASS/1
+- **Definition of Done:** All error classes use WarpError. Boilerplate eliminated.
+- **Test Plan:**
+  - Golden path: throw IndexError → instanceof WarpError, instanceof Error.
+  - Golden path: error.code, error.context preserved.
+  - Regression: existing error-handling tests pass.
+  - Edge cases: error without options, error with custom code.
+
+#### BK/DRY/2 — Consolidate clock adapters
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want one clock adapter implementation instead of two byte-for-byte identical files.
+- **Requirements:**
+  - Merge `PerformanceClockAdapter.js` and `GlobalClockAdapter.js` into single `ClockAdapter.js`.
+  - Constructor accepts optional `performanceImpl` (defaults to `globalThis.performance`).
+  - Factory static methods for common cases:
+    - `ClockAdapter.node()` — uses `perf_hooks.performance`.
+    - `ClockAdapter.global()` — uses `globalThis.performance`.
+  - Update all imports. Keep old file names as re-exports for one version (backward compat).
+- **Acceptance Criteria:**
+  - Single implementation file.
+  - `ClockAdapter.node()` matches old `PerformanceClockAdapter` behavior.
+  - `ClockAdapter.global()` matches old `GlobalClockAdapter` behavior.
+- **Scope:** Merge two files into one.
+- **Out of Scope:** New clock features, high-resolution timers.
+- **Estimated Hours:** 1
+- **Estimated LOC:** ~30 prod + ~30 test
+- **Blocked by:** BK/WIRE/3
+- **Blocking:** None
+- **Definition of Done:** One clock adapter. Old files are re-export shims.
+- **Test Plan:**
+  - Golden path: ClockAdapter.node().now() returns monotonic value.
+  - Golden path: ClockAdapter.global().now() returns monotonic value.
+  - Regression: existing timing tests pass.
+
+#### BK/DRY/3 — Extract ASCII renderer shared utilities
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer working on visualization, I want shared formatting functions and symbols defined once instead of reimplemented in every renderer.
+- **Requirements:**
+  - Create `src/visualization/renderers/ascii/formatters.js`:
+    - `formatNumber(n)` — locale-formatted number with NaN guard.
+    - `formatSha(sha)` — truncated to 7 chars, muted color.
+    - `formatAge(seconds)` — human-readable time delta.
+    - `formatWriterName(writerId)` — truncated writer display.
+  - Create `src/visualization/renderers/ascii/symbols.js`:
+    - `TIMELINE` — `{ vertical, dot, connector, end, top, line }`
+    - `ARROW` — `{ line, right, left }`
+    - `TREE` — `{ branch, last, vertical, space }`
+  - Update 6 renderer files (`check.js`, `info.js`, `history.js`, `path.js`, `materialize.js`, `graph.js`) to import from shared modules.
+  - Delete duplicate local definitions.
+- **Acceptance Criteria:**
+  - No duplicate `formatNumber`, `formatSha`, `formatAge` definitions across renderers.
+  - No duplicate Unicode symbol constants across renderers.
+  - All visualization snapshot tests pass.
+- **Scope:** Extract + update imports.
+- **Out of Scope:** New formatters, new renderers, color scheme changes.
+- **Estimated Hours:** 3
+- **Estimated LOC:** ~80 prod + ~100 test
+- **Blocked by:** None
+- **Blocking:** None
+- **Definition of Done:** Shared modules exist. No duplicate formatting code. Snapshot tests pass.
+- **Test Plan:**
+  - Golden path: formatNumber(1234567) → "1,234,567".
+  - Golden path: formatSha("abc1234def") → muted "abc1234".
+  - Regression: all visualization ASCII snapshot tests pass unchanged.
+  - Edge cases: formatNumber(NaN), formatAge(0), null SHA.
+
+---
+
+### Feature: BK/CLASS — One Class Per File
+
+**Rationale:** The audit found one file violating the one-class-per-file principle. The codebase already establishes the pattern in `src/domain/errors/` where each error gets its own file.
+
+#### BK/CLASS/1 — Extract WriterError from Writer.js
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want WriterError in its own file following the established error class pattern.
+- **Requirements:**
+  - Create `src/domain/errors/WriterError.js` with the `WriterError` class.
+  - `WriterError` extends `WarpError` (from BK/DRY/1).
+  - Update `Writer.js` to import `WriterError` from new location.
+  - Update any other files importing `WriterError` from `Writer.js`.
+  - Re-export `WriterError` from `Writer.js` for one version (backward compat).
+- **Acceptance Criteria:**
+  - `WriterError` lives in `src/domain/errors/WriterError.js`.
+  - `import { WriterError } from '../warp/Writer.js'` still works (re-export).
+  - `WriterError instanceof WarpError` is `true`.
+- **Scope:** File extraction + re-export shim.
+- **Out of Scope:** New error types for Writer.
+- **Estimated Hours:** 1
+- **Estimated LOC:** ~20 prod + ~20 test
+- **Blocked by:** BK/DRY/1
+- **Blocking:** None
+- **Definition of Done:** WriterError in its own file, extends WarpError. All tests pass.
+- **Test Plan:**
+  - Golden path: throw WriterError → instanceof WarpError, instanceof Error.
+  - Regression: existing Writer tests pass.
+  - Backward compat: import from Writer.js still works.
+
+---
+
 ## Non-Goals
 
 Things this project should not try to become:
@@ -1912,4 +2437,5 @@ Things this project should not try to become:
 | PULSE | 3 | 5 | 16 | ~820 |
 | HOLOGRAM | 6 | 7 | 36 | ~1,780 |
 | ECHO | 3 | 3 | 17 | ~820 |
-| **Total** | **35** | **52** | **181** | **~8,930** |
+| BULKHEAD | 5 | 15 | 49 | ~2,580 |
+| **Total** | **40** | **67** | **230** | **~11,510** |

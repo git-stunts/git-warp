@@ -1,4 +1,4 @@
-import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../utils/defaultCodec.js';
 
 /**
  * Frontier: Map of writerId -> lastSeenPatchSha
@@ -49,25 +49,31 @@ export function getWriters(frontier) {
  * Serializes frontier to canonical CBOR bytes.
  * Keys are sorted for determinism.
  * @param {Frontier} frontier
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} options.codec - Codec for serialization
  * @returns {Buffer}
  */
-export function serializeFrontier(frontier) {
+export function serializeFrontier(frontier, { codec } = {}) {
+  const c = codec || defaultCodec;
   // Convert Map to sorted object for deterministic encoding
   const obj = {};
   const sortedKeys = Array.from(frontier.keys()).sort();
   for (const key of sortedKeys) {
     obj[key] = frontier.get(key);
   }
-  return encode(obj);
+  return c.encode(obj);
 }
 
 /**
  * Deserializes frontier from CBOR bytes.
  * @param {Buffer} buffer
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} options.codec - Codec for deserialization
  * @returns {Frontier}
  */
-export function deserializeFrontier(buffer) {
-  const obj = decode(buffer);
+export function deserializeFrontier(buffer, { codec } = {}) {
+  const c = codec || defaultCodec;
+  const obj = c.decode(buffer);
   const frontier = new Map();
   for (const [writerId, patchSha] of Object.entries(obj)) {
     frontier.set(writerId, patchSha);

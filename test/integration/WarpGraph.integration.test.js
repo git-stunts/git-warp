@@ -36,13 +36,15 @@ describe('WarpGraph Integration', () => {
       });
 
       // Create first patch
-      await graph.createPatch()
+      const patch1 = await graph.createPatch();
+      await patch1
         .addNode('user:alice')
         .setProperty('user:alice', 'name', 'Alice')
         .commit();
 
       // Create second patch
-      await graph.createPatch()
+      const patch2 = await graph.createPatch();
+      await patch2
         .addNode('user:bob')
         .addEdge('user:alice', 'user:bob', 'follows')
         .commit();
@@ -62,12 +64,14 @@ describe('WarpGraph Integration', () => {
         writerId: 'alice',
       });
 
-      await graph.createPatch()
+      const addPatch = await graph.createPatch();
+      await addPatch
         .addNode('temp')
         .setProperty('temp', 'data', 'value')
         .commit();
 
-      await graph.createPatch()
+      const rmPatch = await graph.createPatch();
+      await rmPatch
         .removeNode('temp')
         .commit();
 
@@ -85,7 +89,7 @@ describe('WarpGraph Integration', () => {
         writerId: 'alice',
       });
 
-      await alice.createPatch()
+      await (await alice.createPatch())
         .addNode('node:a')
         .commit();
 
@@ -96,7 +100,7 @@ describe('WarpGraph Integration', () => {
         writerId: 'bob',
       });
 
-      await bob.createPatch()
+      await (await bob.createPatch())
         .addNode('node:b')
         .commit();
 
@@ -113,14 +117,14 @@ describe('WarpGraph Integration', () => {
         graphName: 'shared',
         writerId: 'alice',
       });
-      await alice.createPatch().addNode('a').commit();
+      await (await alice.createPatch()).addNode('a').commit();
 
       const bob = await WarpGraph.open({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
       });
-      await bob.createPatch().addNode('b').commit();
+      await (await bob.createPatch()).addNode('b').commit();
 
       const writers = await alice.discoverWriters();
       expect(writers).toEqual(['alice', 'bob']);
@@ -136,15 +140,15 @@ describe('WarpGraph Integration', () => {
       });
 
       // Create some patches
-      await graph.createPatch().addNode('n1').commit();
-      await graph.createPatch().addNode('n2').commit();
+      await (await graph.createPatch()).addNode('n1').commit();
+      await (await graph.createPatch()).addNode('n2').commit();
 
       // Create checkpoint
       const checkpointSha = await graph.createCheckpoint();
       expect(checkpointSha).toMatch(/^[0-9a-f]{40}$/);
 
       // Add more patches after checkpoint
-      await graph.createPatch().addNode('n3').commit();
+      await (await graph.createPatch()).addNode('n3').commit();
 
       // Materialize from checkpoint should include all nodes
       const state = await graph.materializeAt(checkpointSha);
@@ -162,7 +166,7 @@ describe('WarpGraph Integration', () => {
         writerId: 'w1',
       });
 
-      await graph1.createPatch()
+      await (await graph1.createPatch())
         .addNode('x')
         .setProperty('x', 'v', 42)
         .commit();
@@ -177,7 +181,7 @@ describe('WarpGraph Integration', () => {
         writerId: 'w1',
       });
 
-      await graph2.createPatch()
+      await (await graph2.createPatch())
         .addNode('x')
         .setProperty('x', 'v', 42)
         .commit();
@@ -196,14 +200,14 @@ describe('WarpGraph Integration', () => {
         graphName: 'cov',
         writerId: 'alice',
       });
-      await alice.createPatch().addNode('a').commit();
+      await (await alice.createPatch()).addNode('a').commit();
 
       const bob = await WarpGraph.open({
         persistence,
         graphName: 'cov',
         writerId: 'bob',
       });
-      await bob.createPatch().addNode('b').commit();
+      await (await bob.createPatch()).addNode('b').commit();
 
       // Sync coverage
       await alice.syncCoverage();

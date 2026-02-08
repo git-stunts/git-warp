@@ -24,7 +24,8 @@ import { encodeCheckpointMessage, decodeCheckpointMessage } from './WarpMessageC
 import { createORSet, orsetAdd, orsetCompact } from '../crdt/ORSet.js';
 import { createDot } from '../crdt/Dot.js';
 import { createVersionVector } from '../crdt/VersionVector.js';
-import { encodeEdgeKey, encodePropKey, cloneStateV5, reduceV5 } from './JoinReducer.js';
+import { cloneStateV5, reduceV5 } from './JoinReducer.js';
+import { encodeEdgeKey, encodePropKey } from './KeyCodec.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 
 // ============================================================================
@@ -45,7 +46,7 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
  * ```
  *
  * @param {Object} options - Checkpoint creation options
- * @param {import('../../infrastructure/adapters/GitGraphAdapter.js').default} options.persistence - Git persistence adapter
+ * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence - Git persistence adapter
  * @param {string} options.graphName - Name of the graph
  * @param {import('./JoinReducer.js').WarpStateV5} options.state - The V5 state to checkpoint
  * @param {import('./Frontier.js').Frontier} options.frontier - Writer frontier map
@@ -54,8 +55,8 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
  * @param {import('./ProvenanceIndex.js').ProvenanceIndex} [options.provenanceIndex] - Optional provenance index to persist
  * @returns {Promise<string>} The checkpoint commit SHA
  */
-export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex }) {
-  return await createV5({ persistence, graphName, state, frontier, parents, compact, provenanceIndex });
+export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto }) {
+  return await createV5({ persistence, graphName, state, frontier, parents, compact, provenanceIndex, codec, crypto });
 }
 
 /**
@@ -72,7 +73,7 @@ export async function create({ persistence, graphName, state, frontier, parents 
  * ```
  *
  * @param {Object} options - Checkpoint creation options
- * @param {import('../../infrastructure/adapters/GitGraphAdapter.js').default} options.persistence - Git persistence adapter
+ * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence - Git persistence adapter
  * @param {string} options.graphName - Name of the graph
  * @param {import('./JoinReducer.js').WarpStateV5} options.state - The V5 state to checkpoint
  * @param {import('./Frontier.js').Frontier} options.frontier - Writer frontier map
@@ -89,6 +90,8 @@ export async function createV5({
   parents = [],
   compact = true,
   provenanceIndex,
+  codec,
+  crypto,
 }) {
   // 1. Compute appliedVV from actual state dots
   const appliedVV = computeAppliedVV(state);
@@ -102,15 +105,15 @@ export async function createV5({
   }
 
   // 3. Serialize full state (AUTHORITATIVE)
-  const stateBuffer = serializeFullStateV5(checkpointState);
+  const stateBuffer = serializeFullStateV5(checkpointState, { codec });
 
   // 4. Serialize visible projection (CACHE)
-  const visibleBuffer = serializeStateV5(checkpointState);
-  const stateHash = computeStateHashV5(checkpointState);
+  const visibleBuffer = serializeStateV5(checkpointState, { codec });
+  const stateHash = computeStateHashV5(checkpointState, { codec, crypto });
 
   // 5. Serialize frontier and appliedVV
-  const frontierBuffer = serializeFrontier(frontier);
-  const appliedVVBuffer = serializeAppliedVV(appliedVV);
+  const frontierBuffer = serializeFrontier(frontier, { codec });
+  const appliedVVBuffer = serializeAppliedVV(appliedVV, { codec });
 
   // 6. Write blobs to git
   const stateBlobOid = await persistence.writeBlob(stateBuffer);
@@ -121,7 +124,7 @@ export async function createV5({
   // 6b. Optionally serialize and write provenance index
   let provenanceIndexBlobOid = null;
   if (provenanceIndex) {
-    const provenanceIndexBuffer = provenanceIndex.serialize();
+    const provenanceIndexBuffer = provenanceIndex.serialize({ codec });
     provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
   }
 
@@ -182,12 +185,12 @@ export async function createV5({
  * Schema:1 checkpoints are not supported and will throw an error.
  * Use MigrationService to upgrade schema:1 checkpoints first.
  *
- * @param {import('../../infrastructure/adapters/GitGraphAdapter.js').default} persistence - Git persistence adapter
+ * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
  * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV?: Map<string, number>, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
-export async function loadCheckpoint(persistence, checkpointSha) {
+export async function loadCheckpoint(persistence, checkpointSha, { codec } = {}) {
   // 1. Read commit message and decode
   const message = await persistence.showNode(checkpointSha);
   const decoded = decodeCheckpointMessage(message);
@@ -209,7 +212,7 @@ export async function loadCheckpoint(persistence, checkpointSha) {
     throw new Error(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
   }
   const frontierBuffer = await persistence.readBlob(frontierOid);
-  const frontier = deserializeFrontier(frontierBuffer);
+  const frontier = deserializeFrontier(frontierBuffer, { codec });
 
   // 5. Read state.cbor blob and deserialize as V5 full state
   const stateOid = treeOids['state.cbor'];
@@ -219,14 +222,14 @@ export async function loadCheckpoint(persistence, checkpointSha) {
   const stateBuffer = await persistence.readBlob(stateOid);
 
   // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
-  const state = deserializeFullStateV5(stateBuffer);
+  const state = deserializeFullStateV5(stateBuffer, { codec });
 
   // Load appliedVV if present
   let appliedVV = null;
   const appliedVVOid = treeOids['appliedVV.cbor'];
   if (appliedVVOid) {
     const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
-    appliedVV = deserializeAppliedVV(appliedVVBuffer);
+    appliedVV = deserializeAppliedVV(appliedVVBuffer, { codec });
   }
 
   // Load provenanceIndex if present (HG/IO/2)
@@ -234,7 +237,7 @@ export async function loadCheckpoint(persistence, checkpointSha) {
   const provenanceIndexOid = treeOids['provenanceIndex.cbor'];
   if (provenanceIndexOid) {
     const provenanceIndexBuffer = await persistence.readBlob(provenanceIndexOid);
-    provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer);
+    provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, { codec });
   }
 
   return {
@@ -261,7 +264,7 @@ export async function loadCheckpoint(persistence, checkpointSha) {
  * loadCheckpoint to throw an error.
  *
  * @param {Object} options - Materialization options
- * @param {import('../../infrastructure/adapters/GitGraphAdapter.js').default} options.persistence - Git persistence adapter
+ * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence - Git persistence adapter
  * @param {string} options.graphName - Name of the graph
  * @param {string} options.checkpointSha - The schema:2 checkpoint commit SHA to start from
  * @param {import('./Frontier.js').Frontier} options.targetFrontier - The target frontier to materialize to
@@ -276,9 +279,10 @@ export async function materializeIncremental({
   checkpointSha,
   targetFrontier,
   patchLoader,
+  codec,
 }) {
   // 1. Load checkpoint state and frontier (schema:2 returns full V5 state)
-  const checkpoint = await loadCheckpoint(persistence, checkpointSha);
+  const checkpoint = await loadCheckpoint(persistence, checkpointSha, { codec });
   const checkpointFrontier = checkpoint.frontier;
 
   // 2. Use checkpoint state directly (schema:2 stores full V5 state)

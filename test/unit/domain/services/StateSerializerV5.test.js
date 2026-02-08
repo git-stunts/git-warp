@@ -17,6 +17,9 @@ import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 /**
  * Helper to create a mock EventId for testing.
@@ -347,7 +350,7 @@ describe('StateSerializerV5', () => {
         nodes: [{ nodeId: 'a' }],
       });
 
-      const hash = computeStateHashV5(state);
+      const hash = computeStateHashV5(state, { crypto });
 
       expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
@@ -365,7 +368,7 @@ describe('StateSerializerV5', () => {
         props: [{ nodeId: 'a', key: 'name', value: createInlineValue('Alice') }],
       });
 
-      expect(computeStateHashV5(state1)).toBe(computeStateHashV5(state2));
+      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
     });
 
     it('produces different hashes for different states', () => {
@@ -377,13 +380,13 @@ describe('StateSerializerV5', () => {
         nodes: [{ nodeId: 'b' }],
       });
 
-      expect(computeStateHashV5(state1)).not.toBe(computeStateHashV5(state2));
+      expect(computeStateHashV5(state1, { crypto })).not.toBe(computeStateHashV5(state2, { crypto }));
     });
 
     it('empty state has consistent hash', () => {
       const state = createEmptyStateV5();
-      const hash1 = computeStateHashV5(state);
-      const hash2 = computeStateHashV5(state);
+      const hash1 = computeStateHashV5(state, { crypto });
+      const hash2 = computeStateHashV5(state, { crypto });
 
       expect(hash1).toBe(hash2);
     });
@@ -439,7 +442,7 @@ describe('StateSerializerV5', () => {
       orsetRemove(state2.nodeAlive, observedDots2);
 
       // Both should have empty visible state (node removed)
-      expect(computeStateHashV5(state1)).toBe(computeStateHashV5(state2));
+      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
     });
 
     it('concurrent add after remove wins correctly', () => {
@@ -461,7 +464,7 @@ describe('StateSerializerV5', () => {
       // Both should show 'n' as visible
       expect(nodeVisibleV5(state1, 'n')).toBe(true);
       expect(nodeVisibleV5(state2, 'n')).toBe(true);
-      expect(computeStateHashV5(state1)).toBe(computeStateHashV5(state2));
+      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
     });
 
     it('different insertion orders produce same hash when final state is same', () => {
@@ -476,7 +479,7 @@ describe('StateSerializerV5', () => {
       orsetAdd(state2.nodeAlive, 'mango', mockDot('w2', 2));
       orsetAdd(state2.nodeAlive, 'zebra', mockDot('w2', 3));
 
-      expect(computeStateHashV5(state1)).toBe(computeStateHashV5(state2));
+      expect(computeStateHashV5(state1, { crypto })).toBe(computeStateHashV5(state2, { crypto }));
     });
   });
 });

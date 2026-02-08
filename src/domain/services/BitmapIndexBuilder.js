@@ -1,7 +1,6 @@
-import { createHash } from 'crypto';
+import defaultCodec from '../utils/defaultCodec.js';
 import { getRoaringBitmap32, getNativeRoaringAvailable } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
-import { encode as cborEncode } from '../../infrastructure/codecs/CborCodec.js';
 import { SHARD_VERSION } from '../utils/shardVersion.js';
 
 // Re-export for backwards compatibility
@@ -13,11 +12,13 @@ export { SHARD_VERSION };
  * across different JavaScript engines.
  *
  * @param {Object} data - The data object to checksum
+ * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {string} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data) => {
+const computeChecksum = (data, crypto) => {
+  if (!crypto) { return null; }
   const json = canonicalStringify(data);
-  return createHash('sha256').update(json).digest('hex');
+  return crypto.hash('sha256', json);
 };
 
 /** @type {boolean|null} Whether native Roaring bindings are available (null = unknown until first use) */
@@ -34,11 +35,12 @@ const ensureRoaringBitmap32 = () => {
 /**
  * Wraps data in a version/checksum envelope.
  * @param {Object} data - The data to wrap
+ * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {Object} Envelope with version, checksum, and data
  */
-const wrapShard = (data) => ({
+const wrapShard = (data, crypto) => ({
   version: SHARD_VERSION,
-  checksum: computeChecksum(data),
+  checksum: computeChecksum(data, crypto),
   data,
 });
 
@@ -47,13 +49,13 @@ const wrapShard = (data) => ({
  * @param {Map<string, string>} frontier - Writer→tip SHA map
  * @param {Record<string, Buffer>} tree - Target tree to add entries to
  */
-function serializeFrontierToTree(frontier, tree) {
+function serializeFrontierToTree(frontier, tree, codec) {
   const sorted = {};
   for (const key of Array.from(frontier.keys()).sort()) {
     sorted[key] = frontier.get(key);
   }
   const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
-  tree['frontier.cbor'] = Buffer.from(cborEncode(envelope));
+  tree['frontier.cbor'] = Buffer.from(codec.encode(envelope));
   tree['frontier.json'] = Buffer.from(canonicalStringify(envelope));
 }
 
@@ -62,6 +64,9 @@ function serializeFrontierToTree(frontier, tree) {
  *
  * This is a pure domain class with no infrastructure dependencies.
  * Create an instance, add nodes and edges, then serialize to persist.
+ *
+ * Callers that persist the serialized output typically need
+ * BlobPort + TreePort + RefPort from the persistence layer.
  *
  * **Performance Note**: Uses Roaring Bitmaps for compression. Native bindings
  * provide best performance. Check `NATIVE_ROARING_AVAILABLE` export if
@@ -82,8 +87,16 @@ export default class BitmapIndexBuilder {
    * - SHA to numeric ID mappings (for compact bitmap storage)
    * - Forward edge bitmaps (parent → children)
    * - Reverse edge bitmaps (child → parents)
+   *
+   * @param {Object} [options] - Configuration options
+   * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort instance for hashing
+   * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
    */
-  constructor() {
+  constructor({ crypto, codec } = {}) {
+    /** @type {import('../../ports/CryptoPort.js').default} */
+    this._crypto = crypto;
+    /** @type {import('../../ports/CodecPort.js').default|undefined} */
+    this._codec = codec || defaultCodec;
     /** @type {Map<string, number>} */
     this.shaToId = new Map();
     /** @type {string[]} */
@@ -144,7 +157,7 @@ export default class BitmapIndexBuilder {
       idShards[prefix][sha] = id;
     }
     for (const [prefix, map] of Object.entries(idShards)) {
-      tree[`meta_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(map)));
+      tree[`meta_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(map, this._crypto)));
     }
 
     // Serialize bitmaps (sharded by prefix, per-node within shard)
@@ -163,12 +176,12 @@ export default class BitmapIndexBuilder {
 
     for (const type of ['fwd', 'rev']) {
       for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
-        tree[`shards_${type}_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(shardData)));
+        tree[`shards_${type}_${prefix}.json`] = Buffer.from(JSON.stringify(wrapShard(shardData, this._crypto)));
       }
     }
 
     if (frontier) {
-      serializeFrontierToTree(frontier, tree);
+      serializeFrontierToTree(frontier, tree, this._codec);
     }
 
     return tree;

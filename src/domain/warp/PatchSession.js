@@ -10,7 +10,7 @@
  */
 
 import { buildWriterRef } from '../utils/RefLayout.js';
-import { WriterError } from './Writer.js';
+import WriterError from '../errors/WriterError.js';
 
 /**
  * Fluent patch session for building and committing graph mutations.

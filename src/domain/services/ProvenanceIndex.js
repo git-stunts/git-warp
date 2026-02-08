@@ -1,3 +1,5 @@
+import defaultCodec from '../utils/defaultCodec.js';
+
 /**
  * ProvenanceIndex - Node-to-Patch SHA Index
  *
@@ -14,8 +16,6 @@
  *
  * @module domain/services/ProvenanceIndex
  */
-
-import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
 
 /**
  * ProvenanceIndex - Maps node/edge IDs to contributing patch SHAs.
@@ -244,10 +244,13 @@ class ProvenanceIndex {
    * The serialized format is a sorted array of [entityId, sortedShas[]] pairs
    * for deterministic output.
    *
+   * @param {Object} [options]
+   * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
    * @returns {Buffer} CBOR-encoded index
    */
-  serialize() {
-    return encode({ version: 1, entries: this.#sortedEntries() });
+  serialize({ codec } = {}) {
+    const c = codec || defaultCodec;
+    return c.encode({ version: 1, entries: this.#sortedEntries() });
   }
 
   /**
@@ -269,11 +272,14 @@ class ProvenanceIndex {
    * Deserializes an index from CBOR format.
    *
    * @param {Buffer} buffer - CBOR-encoded index
+   * @param {Object} [options]
+   * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
    * @returns {ProvenanceIndex} The deserialized index
    * @throws {Error} If the buffer contains an unsupported version
    */
-  static deserialize(buffer) {
-    const obj = decode(buffer);
+  static deserialize(buffer, { codec } = {}) {
+    const c = codec || defaultCodec;
+    const obj = c.decode(buffer);
 
     if (obj.version !== 1) {
       throw new Error(`Unsupported ProvenanceIndex version: ${obj.version}`);

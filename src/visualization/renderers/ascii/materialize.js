@@ -10,6 +10,7 @@ import { progressBar } from './progress.js';
 import { colors } from './colors.js';
 import { padRight } from '../../utils/unicode.js';
 import { truncate } from '../../utils/truncate.js';
+import { formatNumber, formatSha } from './formatters.js';
 
 // Bar chart settings
 const BAR_WIDTH = 20;
@@ -31,27 +32,6 @@ function statBar(value, maxValue, width = BAR_WIDTH) {
   const emptyCount = width - filledCount;
   const bar = '\u2588'.repeat(filledCount) + '\u2591'.repeat(emptyCount);
   return colors.primary(bar);
-}
-
-/**
- * Format a number with thousands separator for readability.
- * @param {number} n - Number to format
- * @returns {string} Formatted number string
- */
-function formatNumber(n) {
-  if (typeof n !== 'number' || !Number.isFinite(n)) {
-    return '0';
-  }
-  return n.toLocaleString('en-US');
-}
-
-/**
- * Format a SHA for display (first 7 characters).
- * @param {string|null} sha - Full SHA or null
- * @returns {string} Shortened SHA or 'none'
- */
-function formatSha(sha) {
-  return sha ? colors.muted(sha.slice(0, 7)) : colors.muted('none');
 }
 
 /**

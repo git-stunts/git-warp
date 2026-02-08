@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
 import BitmapIndexReader from '../../../../src/domain/services/BitmapIndexReader.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 /**
  * Creates a mock logger that tracks all calls.
@@ -172,7 +175,8 @@ describe('Service Logging Integration', () => {
         const reader = new BitmapIndexReader({
           storage: mockStorage,
           strict: false,
-          logger: mockLogger
+          logger: mockLogger,
+          crypto,
         });
         reader.setup({ 'meta_sh.json': 'blob-oid' });
 

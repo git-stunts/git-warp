@@ -26,7 +26,8 @@
  * @see Paper IV - Echo and the WARP Core (CTL* temporal logic on histories)
  */
 
-import { createEmptyStateV5, join as joinPatch, decodePropKey } from './JoinReducer.js';
+import { createEmptyStateV5, join as joinPatch } from './JoinReducer.js';
+import { decodePropKey } from './KeyCodec.js';
 import { orsetContains } from '../crdt/ORSet.js';
 
 /**

@@ -15,6 +15,7 @@ import LoggerPort from './src/ports/LoggerPort.js';
 import ClockPort from './src/ports/ClockPort.js';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
+import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
 import PerformanceClockAdapter from './src/infrastructure/adapters/PerformanceClockAdapter.js';
 import GlobalClockAdapter from './src/infrastructure/adapters/GlobalClockAdapter.js';
 import {
@@ -100,6 +101,7 @@ export {
 
   // Clock infrastructure
   ClockPort,
+  ClockAdapter,
   PerformanceClockAdapter,
   GlobalClockAdapter,
 

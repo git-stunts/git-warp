@@ -12,7 +12,7 @@
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
-import { encode, decode } from '../../infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../utils/defaultCodec.js';
 import { orsetSerialize, orsetDeserialize } from '../crdt/ORSet.js';
 import { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
 import { decodeDot } from '../crdt/Dot.js';
@@ -35,9 +35,12 @@ import { createEmptyStateV5 } from './JoinReducer.js';
  * }
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Buffer} CBOR-encoded full state
  */
-export function serializeFullStateV5(state) {
+export function serializeFullStateV5(state, { codec } = {}) {
+  const c = codec || defaultCodec;
   // Serialize ORSets using existing serialization
   const nodeAliveObj = orsetSerialize(state.nodeAlive);
   const edgeAliveObj = orsetSerialize(state.edgeAlive);
@@ -75,22 +78,26 @@ export function serializeFullStateV5(state) {
     edgeBirthEvent: edgeBirthArray,
   };
 
-  return encode(obj);
+  return c.encode(obj);
 }
 
 /**
  * Deserializes full V5 state. Used for resume.
  *
  * @param {Buffer} buffer - CBOR-encoded full state
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
-export function deserializeFullStateV5(buffer) {
+// eslint-disable-next-line complexity
+export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
+  const codec = codecOpt || defaultCodec;
   // Handle null/undefined buffer before attempting decode
   if (buffer === null || buffer === undefined) {
     return createEmptyStateV5();
   }
 
-  const obj = decode(buffer);
+  const obj = codec.decode(buffer);
 
   // Handle null/undefined decoded result: return empty state
   if (obj === null || obj === undefined) {
@@ -161,21 +168,27 @@ export function computeAppliedVV(state) {
  * Serializes appliedVV to CBOR format.
  *
  * @param {Map<string, number>} vv - Version vector (Map<writerId, counter>)
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Buffer} CBOR-encoded version vector
  */
-export function serializeAppliedVV(vv) {
+export function serializeAppliedVV(vv, { codec } = {}) {
+  const c = codec || defaultCodec;
   const obj = vvSerialize(vv);
-  return encode(obj);
+  return c.encode(obj);
 }
 
 /**
  * Deserializes appliedVV from CBOR format.
  *
  * @param {Buffer} buffer - CBOR-encoded version vector
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {Map<string, number>} Version vector
  */
-export function deserializeAppliedVV(buffer) {
-  const obj = decode(buffer);
+export function deserializeAppliedVV(buffer, { codec } = {}) {
+  const c = codec || defaultCodec;
+  const obj = c.decode(buffer);
   return vvDeserialize(obj);
 }
 

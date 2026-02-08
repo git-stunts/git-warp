@@ -50,11 +50,8 @@ export default class StorageError extends IndexError {
       context,
     });
 
-    this.name = 'StorageError';
     this.operation = options.operation;
     this.oid = options.oid;
     this.cause = options.cause;
-
-    Error.captureStackTrace?.(this, this.constructor);
   }
 }

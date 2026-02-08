@@ -1,0 +1,295 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import HttpSyncServer from '../../../../src/domain/services/HttpSyncServer.js';
+
+function canonicalizeJson(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeJson);
+  }
+  if (value && typeof value === 'object') {
+    const sorted = {};
+    for (const key of Object.keys(value).sort()) {
+      sorted[key] = canonicalizeJson(value[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
+function canonicalStringify(value) {
+  return JSON.stringify(canonicalizeJson(value));
+}
+
+/**
+ * Creates a mock HttpServerPort that captures the request handler
+ * and lets tests invoke it directly without network I/O.
+ */
+function createMockPort() {
+  let handler;
+  let listenCallback;
+  let closeCallback;
+  const addressValue = { port: 9999 };
+
+  return {
+    port: {
+      createServer(requestHandler) {
+        handler = requestHandler;
+        return {
+          listen(_port, _host, cb) {
+            if (typeof _host === 'function') {
+              cb = _host;
+            }
+            listenCallback = cb;
+            if (cb) cb(null);
+          },
+          close(cb) {
+            closeCallback = cb;
+            if (cb) cb(null);
+          },
+          address() {
+            return addressValue;
+          },
+        };
+      },
+    },
+    getHandler() {
+      return handler;
+    },
+    setAddress(addr) {
+      addressValue.port = addr.port;
+    },
+  };
+}
+
+describe('HttpSyncServer', () => {
+  let mockPort;
+  let graph;
+
+  beforeEach(() => {
+    mockPort = createMockPort();
+    graph = {
+      processSyncRequest: vi.fn().mockResolvedValue({
+        type: 'sync-response',
+        frontier: {},
+        patches: [],
+      }),
+    };
+  });
+
+  it('throws if port is not a number', async () => {
+    const server = new HttpSyncServer({
+      httpPort: mockPort.port,
+      graph,
+    });
+    await expect(server.listen('abc')).rejects.toThrow('listen() requires a numeric port');
+  });
+
+  it('returns url and close handle on listen', async () => {
+    const server = new HttpSyncServer({
+      httpPort: mockPort.port,
+      graph,
+      host: '127.0.0.1',
+      path: '/sync',
+    });
+
+    const handle = await server.listen(9999);
+    expect(handle.url).toBe('http://127.0.0.1:9999/sync');
+    expect(typeof handle.close).toBe('function');
+    await handle.close();
+  });
+
+  it('normalizes path without leading slash', async () => {
+    const server = new HttpSyncServer({
+      httpPort: mockPort.port,
+      graph,
+      path: 'custom',
+    });
+
+    const handle = await server.listen(9999);
+    expect(handle.url).toBe('http://127.0.0.1:9999/custom');
+    await handle.close();
+  });
+
+  describe('request handling', () => {
+    let handler;
+
+    beforeEach(async () => {
+      const server = new HttpSyncServer({
+        httpPort: mockPort.port,
+        graph,
+        host: '127.0.0.1',
+        path: '/sync',
+      });
+      await server.listen(9999);
+      handler = mockPort.getHandler();
+    });
+
+    it('returns 400 for non-JSON content type', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'text/plain', host: '127.0.0.1:9999' },
+        body: undefined,
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Expected application/json' });
+    });
+
+    it('returns 400 for invalid URL', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '://bad',
+        headers: { host: '://bad' },
+        body: undefined,
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid URL' });
+    });
+
+    it('returns 404 for wrong path', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/other',
+        headers: { host: '127.0.0.1:9999' },
+        body: undefined,
+      });
+      expect(res.status).toBe(404);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Not Found' });
+    });
+
+    it('returns 405 for non-POST method', async () => {
+      const res = await handler({
+        method: 'GET',
+        url: '/sync',
+        headers: { host: '127.0.0.1:9999' },
+        body: undefined,
+      });
+      expect(res.status).toBe(405);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Method Not Allowed' });
+    });
+
+    it('returns 413 for oversized request', async () => {
+      const server = new HttpSyncServer({
+        httpPort: mockPort.port,
+        graph,
+        maxRequestBytes: 10,
+      });
+      await server.listen(9999);
+      const h = mockPort.getHandler();
+
+      const res = await h({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from('x'.repeat(20)),
+      });
+      expect(res.status).toBe(413);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Request too large' });
+    });
+
+    it('returns 400 for invalid JSON body', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from('{bad json'),
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid JSON' });
+    });
+
+    it('returns 400 for invalid sync request structure', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'not-sync' })),
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid sync request' });
+    });
+
+    it('returns 400 when frontier is an array', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: [] })),
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid sync request' });
+    });
+
+    it('returns 400 when frontier is missing', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request' })),
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid sync request' });
+    });
+
+    it('returns 200 with canonical JSON for valid sync request', async () => {
+      const payload = {
+        type: 'sync-response',
+        frontier: { b: '2', a: '1' },
+        patches: [{ writerId: 'w1', sha: 's1', patch: { z: 1, a: 2 } }],
+      };
+      graph.processSyncRequest.mockResolvedValue(payload);
+
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
+      });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe(canonicalStringify(payload));
+    });
+
+    it('returns 500 when processSyncRequest throws', async () => {
+      graph.processSyncRequest.mockRejectedValue(new Error('boom'));
+
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
+      });
+      expect(res.status).toBe(500);
+      expect(JSON.parse(res.body)).toEqual({ error: 'boom' });
+    });
+
+    it('allows requests without content-type header', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('allows application/json with charset', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json; charset=utf-8', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('handles empty body as invalid sync request', async () => {
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { host: '127.0.0.1:9999' },
+        body: undefined,
+      });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid sync request' });
+    });
+  });
+});

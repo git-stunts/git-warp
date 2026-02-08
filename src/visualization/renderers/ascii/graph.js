@@ -7,6 +7,7 @@
 
 import { createBox } from './box.js';
 import { colors } from './colors.js';
+import { ARROW } from './symbols.js';
 
 // ── Scaling constants ────────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ const CELL_W = 8;
 const CELL_H = 4;
 const MARGIN = 2;
 
-// ── Box-drawing characters ───────────────────────────────────────────────────
+// ── Box-drawing characters (short keys for tight grid-stamping loops) ───────
 
 const BOX = {
   tl: '\u250C', // ┌
@@ -23,13 +24,6 @@ const BOX = {
   br: '\u2518', // ┘
   h: '\u2500',  // ─
   v: '\u2502',  // │
-};
-
-const ARROW = {
-  right: '\u25B6', // ▶
-  down: '\u25BC',  // ▼
-  left: '\u25C0',  // ◀
-  up: '\u25B2',    // ▲
 };
 
 // ── Grid helpers ─────────────────────────────────────────────────────────────

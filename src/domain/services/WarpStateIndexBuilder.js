@@ -12,7 +12,7 @@
 
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
-import { decodeEdgeKey } from './JoinReducer.js';
+import { decodeEdgeKey } from './KeyCodec.js';
 
 /**
  * Builds a bitmap index from materialized WARP state.
@@ -30,10 +30,12 @@ import { decodeEdgeKey } from './JoinReducer.js';
 export default class WarpStateIndexBuilder {
   /**
    * Creates a new WarpStateIndexBuilder.
+   * @param {Object} [options] - Configuration
+   * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort for shard checksums
    */
-  constructor() {
+  constructor({ crypto } = {}) {
     /** @type {BitmapIndexBuilder} */
-    this._builder = new BitmapIndexBuilder();
+    this._builder = new BitmapIndexBuilder({ crypto });
   }
 
   /**

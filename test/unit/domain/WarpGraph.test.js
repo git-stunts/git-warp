@@ -10,6 +10,9 @@ import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 /**
  * Creates a mock persistence adapter for testing.
@@ -776,6 +779,7 @@ eg-schema: 2`;
         persistence,
         graphName: 'events',
         writerId: 'node-1',
+        crypto,
       });
 
       const writerSha = 'a'.repeat(40);
@@ -811,6 +815,7 @@ eg-schema: 2`;
         persistence,
         graphName: 'events',
         writerId: 'node-1',
+        crypto,
       });
 
       const writerSha = 'a'.repeat(40);
@@ -843,6 +848,7 @@ eg-schema: 2`;
         persistence,
         graphName: 'events',
         writerId: 'node-1',
+        crypto,
       });
 
       const writerSha = 'a'.repeat(40);
@@ -871,6 +877,7 @@ eg-schema: 2`;
         persistence,
         graphName: 'events',
         writerId: 'node-1',
+        crypto,
       });
 
       const writer1Sha = 'a'.repeat(40);
@@ -907,6 +914,7 @@ eg-schema: 2`;
         persistence,
         graphName: 'events',
         writerId: 'node-1',
+        crypto,
       });
 
       const checkpointSha = 'c'.repeat(40);

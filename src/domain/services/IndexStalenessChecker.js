@@ -3,7 +3,7 @@
  * frontier metadata stored at build time against current writer refs.
  */
 
-import { decode as cborDecode } from '../../infrastructure/codecs/CborCodec.js';
+import defaultCodec from '../utils/defaultCodec.js';
 
 /** @private */
 function validateEnvelope(envelope, label) {
@@ -17,13 +17,16 @@ function validateEnvelope(envelope, label) {
  *
  * @param {Record<string, string>} shardOids - Map of path → blob OID from readTreeOids
  * @param {import('../../ports/IndexStoragePort.js').default} storage - Storage adapter
+ * @param {Object} [options]
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {Promise<Map<string, string>|null>} Frontier map, or null if not present (legacy index)
  */
-export async function loadIndexFrontier(shardOids, storage) {
+export async function loadIndexFrontier(shardOids, storage, { codec } = {}) {
+  const c = codec || defaultCodec;
   const cborOid = shardOids['frontier.cbor'];
   if (cborOid) {
     const buffer = await storage.readBlob(cborOid);
-    const envelope = cborDecode(buffer);
+    const envelope = c.decode(buffer);
     validateEnvelope(envelope, 'frontier.cbor');
     return new Map(Object.entries(envelope.frontier));
   }

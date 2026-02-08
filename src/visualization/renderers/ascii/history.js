@@ -7,18 +7,10 @@ import { colors } from './colors.js';
 import { createBox } from './box.js';
 import { padRight, padLeft } from '../../utils/unicode.js';
 import { truncate } from '../../utils/truncate.js';
+import { TIMELINE } from './symbols.js';
 
 // Default pagination settings
 const DEFAULT_PAGE_SIZE = 20;
-
-// Timeline characters
-const TIMELINE = {
-  vertical: '\u2502',     // │
-  dot: '\u25CF',          // ●
-  connector: '\u251C',    // ├
-  end: '\u2514',          // └
-  top: '\u250C',          // ┌
-};
 
 // Operation type to display info mapping
 const OP_DISPLAY = {

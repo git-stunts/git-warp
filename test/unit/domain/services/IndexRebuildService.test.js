@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 describe('IndexRebuildService', () => {
   let service;
@@ -25,7 +28,8 @@ describe('IndexRebuildService', () => {
 
     service = new IndexRebuildService({
       storage: mockStorage,
-      graphService: mockGraphService
+      graphService: mockGraphService,
+      crypto,
     });
   });
 

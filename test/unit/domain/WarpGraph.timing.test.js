@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 /**
  * LH/TIMING/1 — Add structured timing to core operations.
@@ -149,6 +152,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         writerId: 'writer-1',
         logger,
         clock,
+        crypto,
       });
 
       const sha = await graph.createCheckpoint();
@@ -166,6 +170,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         writerId: 'writer-1',
         logger,
         clock,
+        crypto,
       });
 
       await graph.createCheckpoint();
@@ -181,6 +186,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         writerId: 'writer-1',
         logger,
         clock,
+        crypto,
       });
 
       // Make writeBlob fail AFTER open() succeeds so createCheckpoint fails

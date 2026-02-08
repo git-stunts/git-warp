@@ -14,35 +14,17 @@
  * @see WARP Writer Spec v1
  */
 
+import defaultCodec from '../utils/defaultCodec.js';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 import { vvClone } from '../crdt/VersionVector.js';
+import WriterError from '../errors/WriterError.js';
 
-/**
- * Error class for Writer operations.
- *
- * @class WriterError
- * @extends Error
- *
- * @property {string} name - The error name ('WriterError')
- * @property {string} code - Error code for programmatic handling
- * @property {Error} [cause] - Original error that caused this error
- */
-export class WriterError extends Error {
-  /**
-   * @param {string} code - Error code
-   * @param {string} message - Human-readable error message
-   * @param {Error} [cause] - Original error that caused this error
-   */
-  constructor(code, message, cause) {
-    super(message);
-    this.name = 'WriterError';
-    this.code = code;
-    this.cause = cause;
-  }
-}
+// Re-export for backward compatibility — consumers importing from Writer.js
+// should migrate to importing from '../errors/WriterError.js' directly.
+export { WriterError };
 
 /**
  * Writer class for creating and committing patches to a WARP graph.
@@ -62,7 +44,7 @@ export class Writer {
    * @param {Function} [options.onCommitSuccess] - Callback invoked after successful commit with { patch, sha }
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node with attached data
    */
-  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn' }) {
+  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec }) {
     validateWriterId(writerId);
 
     /** @type {import('../../ports/GraphPersistencePort.js').default} */
@@ -85,6 +67,9 @@ export class Writer {
 
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
+
+    /** @type {import('../../ports/CodecPort.js').default|undefined} */
+    this._codec = codec || defaultCodec;
   }
 
   /**
@@ -159,6 +144,7 @@ export class Writer {
       expectedParentSha: expectedOldHead,
       onCommitSuccess: this._onCommitSuccess,
       onDeleteWithData: this._onDeleteWithData,
+      codec: this._codec,
     });
 
     // Return PatchSession wrapping the builder

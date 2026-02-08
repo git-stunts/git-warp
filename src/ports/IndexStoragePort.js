@@ -5,6 +5,10 @@
  * the sharded bitmap index data. Adapters implement this interface
  * to store indexes in different backends (Git, filesystem, etc.).
  *
+ * This port is a subset of the focused ports: it uses methods from
+ * {@link BlobPort} (writeBlob, readBlob), {@link TreePort} (writeTree,
+ * readTreeOids), and {@link RefPort} (updateRef, readRef).
+ *
  * @abstract
  */
 export default class IndexStoragePort {

@@ -9,7 +9,7 @@
  * ## Why Lazy Loading?
  *
  * The `roaring` package includes native C++ bindings that can take 50-100ms to
- * initialize on cold start. By deferring the `require()` call until first use,
+ * initialize on cold start. By deferring the load until first use,
  * applications that don't use bitmap indexes avoid this overhead entirely.
  *
  * ## Module Caching
@@ -22,10 +22,6 @@
  * @see BitmapIndexBuilder - Primary consumer of roaring bitmaps
  * @see StreamingBitmapIndexBuilder - Memory-bounded variant
  */
-
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
 
 /**
  * Sentinel indicating availability has not been checked yet.
@@ -52,8 +48,8 @@ let nativeAvailability = NOT_CHECKED;
 /**
  * Lazily loads and caches the roaring module.
  *
- * Uses Node.js `createRequire` to load the CommonJS `roaring` package
- * from an ES module context. The module is cached after first load.
+ * Uses a top-level-await-friendly pattern with dynamic import.
+ * The module is cached after first load.
  *
  * @returns {Object} The roaring module exports
  * @throws {Error} If the roaring package is not installed or fails to load
@@ -61,9 +57,38 @@ let nativeAvailability = NOT_CHECKED;
  */
 function loadRoaring() {
   if (!roaringModule) {
-    roaringModule = require('roaring');
+    throw new Error('Roaring module not loaded. Call initRoaring() first or ensure top-level await import completed.');
   }
   return roaringModule;
+}
+
+/**
+ * Initializes the roaring module. Must be called before getRoaringBitmap32().
+ * This is called automatically via top-level await when the module is imported,
+ * but can also be called manually with a pre-loaded module for testing.
+ *
+ * @param {Object} [mod] - Pre-loaded roaring module (for testing/DI)
+ * @returns {Promise<void>}
+ */
+export async function initRoaring(mod) {
+  if (mod) {
+    roaringModule = mod;
+    return;
+  }
+  if (!roaringModule) {
+    roaringModule = await import('roaring');
+    // Handle both ESM default export and CJS module.exports
+    if (roaringModule.default && roaringModule.default.RoaringBitmap32) {
+      roaringModule = roaringModule.default;
+    }
+  }
+}
+
+// Auto-initialize on module load (top-level await)
+try {
+  await initRoaring();
+} catch {
+  // Roaring may not be installed; functions will throw on use
 }
 
 /**

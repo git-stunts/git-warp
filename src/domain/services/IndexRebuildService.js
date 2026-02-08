@@ -1,9 +1,9 @@
-import { performance } from 'perf_hooks';
+import defaultCodec from '../utils/defaultCodec.js';
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';
 import BitmapIndexReader from './BitmapIndexReader.js';
 import StreamingBitmapIndexBuilder from './StreamingBitmapIndexBuilder.js';
 import { loadIndexFrontier, checkStaleness } from './IndexStalenessChecker.js';
-import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import nullLogger from '../utils/nullLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
 
 /**
@@ -44,12 +44,13 @@ export default class IndexRebuildService {
    *   Must implement `iterateNodes({ ref, limit }) => AsyncGenerator<GraphNode>`.
    * @param {import('../../ports/IndexStoragePort.js').default} options.storage - Storage adapter
    *   for persisting index blobs and trees. Typically GitGraphAdapter.
-   * @param {import('../../ports/LoggerPort.js').default} [options.logger=NoOpLogger] - Logger for
-   *   structured logging. Defaults to NoOpLogger (no logging).
+   * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for
+   *   structured logging. Defaults to null logger (no logging).
+   * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for checksums
    * @throws {Error} If graphService is not provided
    * @throws {Error} If storage adapter is not provided
    */
-  constructor({ graphService, storage, logger = new NoOpLogger() }) {
+  constructor({ graphService, storage, logger = nullLogger, codec, crypto }) {
     if (!graphService) {
       throw new Error('IndexRebuildService requires a graphService');
     }
@@ -59,6 +60,10 @@ export default class IndexRebuildService {
     this.graphService = graphService;
     this.storage = storage;
     this.logger = logger;
+    /** @type {import('../../ports/CodecPort.js').default|undefined} */
+    this._codec = codec || defaultCodec;
+    /** @type {import('../../ports/CryptoPort.js').default|undefined} */
+    this._crypto = crypto;
   }
 
   /**
@@ -183,7 +188,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildInMemory(ref, { limit, onProgress, signal, frontier }) {
-    const builder = new BitmapIndexBuilder();
+    const builder = new BitmapIndexBuilder({ crypto: this._crypto });
     let processedNodes = 0;
 
     for await (const node of this.graphService.iterateNodes({ ref, limit })) {
@@ -246,6 +251,7 @@ export default class IndexRebuildService {
       storage: this.storage,
       maxMemoryBytes,
       onFlush,
+      crypto: this._crypto,
     });
 
     let processedNodes = 0;
@@ -383,7 +389,7 @@ export default class IndexRebuildService {
 
     // Staleness check
     if (currentFrontier) {
-      const indexFrontier = await loadIndexFrontier(shardOids, this.storage);
+      const indexFrontier = await loadIndexFrontier(shardOids, this.storage, { codec: this._codec });
       if (indexFrontier) {
         const result = checkStaleness(indexFrontier, currentFrontier);
         if (result.stale) {
@@ -404,7 +410,7 @@ export default class IndexRebuildService {
       }
     }
 
-    const reader = new BitmapIndexReader({ storage: this.storage, strict, logger: this.logger.child({ component: 'BitmapIndexReader' }) });
+    const reader = new BitmapIndexReader({ storage: this.storage, strict, logger: this.logger.child({ component: 'BitmapIndexReader' }), crypto: this._crypto });
     reader.setup(shardOids);
 
     const durationMs = performance.now() - startTime;

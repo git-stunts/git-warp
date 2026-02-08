@@ -30,6 +30,7 @@ import WarpGraphDefault, {
 
   // Clock infrastructure
   ClockPort,
+  ClockAdapter,
   PerformanceClockAdapter,
   GlobalClockAdapter,
 
@@ -163,6 +164,11 @@ describe('index.js exports', () => {
     it('exports ClockPort', () => {
       expect(ClockPort).toBeDefined();
       expect(typeof ClockPort).toBe('function');
+    });
+
+    it('exports ClockAdapter', () => {
+      expect(ClockAdapter).toBeDefined();
+      expect(typeof ClockAdapter).toBe('function');
     });
 
     it('exports PerformanceClockAdapter', () => {

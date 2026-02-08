@@ -1,12 +1,10 @@
-import { createHash } from 'crypto';
-
+import defaultCodec from '../utils/defaultCodec.js';
 import ShardCorruptionError from '../errors/ShardCorruptionError.js';
 import ShardValidationError from '../errors/ShardValidationError.js';
-import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import nullLogger from '../utils/nullLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
-import { encode as cborEncode } from '../../infrastructure/codecs/CborCodec.js';
 import { SHARD_VERSION } from '../utils/shardVersion.js';
 
 // Re-export for backwards compatibility
@@ -37,11 +35,13 @@ const BITMAP_BASE_OVERHEAD = 64;
  * across different JavaScript engines.
  *
  * @param {Object} data - The data object to checksum
+ * @param {import('../../ports/CryptoPort.js').default} crypto - CryptoPort instance
  * @returns {string} Hex-encoded SHA-256 hash
  */
-const computeChecksum = (data) => {
+const computeChecksum = (data, crypto) => {
+  if (!crypto) { return null; }
   const json = canonicalStringify(data);
-  return createHash('sha256').update(json).digest('hex');
+  return crypto.hash('sha256', json);
 };
 
 /**
@@ -90,13 +90,19 @@ export default class StreamingBitmapIndexBuilder {
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging.
    *   Defaults to NoOpLogger (no logging).
    */
-  constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = new NoOpLogger() }) {
+  constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = nullLogger, crypto, codec }) {
     if (!storage) {
       throw new Error('StreamingBitmapIndexBuilder requires a storage adapter');
     }
     if (maxMemoryBytes <= 0) {
       throw new Error('maxMemoryBytes must be a positive number');
     }
+
+    /** @type {import('../../ports/CryptoPort.js').default} */
+    this._crypto = crypto;
+
+    /** @type {import('../../ports/CodecPort.js').default|undefined} */
+    this._codec = codec || defaultCodec;
 
     /** @type {Object} */
     this.storage = storage;
@@ -223,7 +229,7 @@ export default class StreamingBitmapIndexBuilder {
         const path = `shards_${type}_${prefix}.json`;
         const envelope = {
           version: SHARD_VERSION,
-          checksum: computeChecksum(shardData),
+          checksum: computeChecksum(shardData, this._crypto),
           data: shardData,
         };
         const buffer = Buffer.from(JSON.stringify(envelope));
@@ -334,7 +340,7 @@ export default class StreamingBitmapIndexBuilder {
         const path = `meta_${prefix}.json`;
         const envelope = {
           version: SHARD_VERSION,
-          checksum: computeChecksum(map),
+          checksum: computeChecksum(map, this._crypto),
           data: map,
         };
         const buffer = Buffer.from(JSON.stringify(envelope));
@@ -435,7 +441,7 @@ export default class StreamingBitmapIndexBuilder {
         sorted[key] = frontier.get(key);
       }
       const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
-      const cborOid = await this.storage.writeBlob(Buffer.from(cborEncode(envelope)));
+      const cborOid = await this.storage.writeBlob(Buffer.from(this._codec.encode(envelope)));
       flatEntries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
       const jsonOid = await this.storage.writeBlob(Buffer.from(canonicalStringify(envelope)));
       flatEntries.push(`100644 blob ${jsonOid}\tfrontier.json`);
@@ -581,7 +587,7 @@ export default class StreamingBitmapIndexBuilder {
     }
 
     // Validate checksum
-    const expectedChecksum = computeChecksum(envelope.data);
+    const expectedChecksum = computeChecksum(envelope.data, this._crypto);
     if (envelope.checksum !== expectedChecksum) {
       throw new ShardCorruptionError('Shard checksum mismatch', {
         oid,
@@ -685,7 +691,7 @@ export default class StreamingBitmapIndexBuilder {
     // Wrap merged result in envelope with version and checksum
     const mergedEnvelope = {
       version: SHARD_VERSION,
-      checksum: computeChecksum(result),
+      checksum: computeChecksum(result, this._crypto),
       data: result,
     };
 

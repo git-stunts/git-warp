@@ -49,7 +49,6 @@ export default class ShardCorruptionError extends IndexError {
       context,
     });
 
-    this.name = 'ShardCorruptionError';
     this.shardPath = options.shardPath;
     this.oid = options.oid;
     this.reason = options.reason;

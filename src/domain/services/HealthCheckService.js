@@ -1,4 +1,4 @@
-import NoOpLogger from '../../infrastructure/adapters/NoOpLogger.js';
+import nullLogger from '../utils/nullLogger.js';
 import CachedValue from '../utils/CachedValue.js';
 
 /**
@@ -51,7 +51,7 @@ export default class HealthCheckService {
    * @param {number} [options.cacheTtlMs=5000] - How long to cache health results in milliseconds
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    */
-  constructor({ persistence, clock, cacheTtlMs = DEFAULT_CACHE_TTL_MS, logger = new NoOpLogger() }) {
+  constructor({ persistence, clock, cacheTtlMs = DEFAULT_CACHE_TTL_MS, logger = nullLogger }) {
     this._persistence = persistence;
     this._clock = clock;
     this._logger = logger;

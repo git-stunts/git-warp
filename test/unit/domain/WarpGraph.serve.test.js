@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
+import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
 function canonicalizeJson(value) {
   if (Array.isArray(value)) {
@@ -53,7 +54,7 @@ describe('WarpGraph serve', () => {
 
     graph.processSyncRequest = vi.fn().mockResolvedValue(payload);
 
-    const server = await graph.serve({ port: 0 });
+    const server = await graph.serve({ port: 0, httpPort: new NodeHttpAdapter() });
     try {
       const res = await fetch(server.url, {
         method: 'POST',
@@ -70,7 +71,7 @@ describe('WarpGraph serve', () => {
   });
 
   it('returns 400 for invalid JSON', async () => {
-    const server = await graph.serve({ port: 0 });
+    const server = await graph.serve({ port: 0, httpPort: new NodeHttpAdapter() });
     try {
       const res = await fetch(server.url, {
         method: 'POST',

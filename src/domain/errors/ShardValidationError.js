@@ -53,7 +53,6 @@ export default class ShardValidationError extends IndexError {
       context,
     });
 
-    this.name = 'ShardValidationError';
     this.shardPath = options.shardPath;
     this.expected = options.expected;
     this.actual = options.actual;

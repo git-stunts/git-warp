@@ -8,8 +8,9 @@ import stringWidth from 'string-width';
 import { colors } from './colors.js';
 import { padRight } from '../../utils/unicode.js';
 import { timeAgo } from '../../utils/time.js';
+import { TIMELINE } from './symbols.js';
 
-// Box drawing characters
+// Box drawing characters (info.js uses verbose key names for card rendering)
 const BOX = {
   topLeft: '\u250C',     // ┌
   topRight: '\u2510',    // ┐
@@ -17,12 +18,6 @@ const BOX = {
   bottomRight: '\u2518', // ┘
   horizontal: '\u2500',  // ─
   vertical: '\u2502',    // │
-};
-
-// Timeline characters
-const TIMELINE = {
-  line: '\u2500',        // ─
-  dot: '\u25CF',         // ●
 };
 
 // Maximum timeline width for patches

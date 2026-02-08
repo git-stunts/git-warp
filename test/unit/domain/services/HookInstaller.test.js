@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import path from 'node:path';
 import { HookInstaller, classifyExistingHook } from '../../../../src/domain/services/HookInstaller.js';
 
 const VERSION = '7.1.0';
@@ -34,6 +35,7 @@ function makeInstaller(fsFiles = {}, gitOverrides = {}) {
     execGitConfig,
     version: VERSION,
     templateDir: '/tmpl',
+    path,
   });
   return { installer, fs, execGitConfig };
 }

@@ -3,6 +3,9 @@ import { createHash } from 'crypto';
 import BitmapIndexReader from '../../../../src/domain/services/BitmapIndexReader.js';
 import BitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/BitmapIndexBuilder.js';
 import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../../../src/domain/errors/index.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 
 /**
  * Creates a v1 shard envelope using JSON.stringify for checksum (legacy format).
@@ -221,7 +224,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardValidationError on checksum mismatch', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true, crypto });
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
         version: 1,
         checksum: 'wrong-checksum-value',
@@ -404,7 +407,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('v2 checksum mismatch throws ShardValidationError in strict mode', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true, crypto });
 
       // Create v2 shard with intentionally wrong checksum
       const v2ShardWithBadChecksum = {
@@ -441,6 +444,7 @@ describe('BitmapIndexReader', () => {
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
+        crypto,
       });
 
       // Create v2 shard with intentionally wrong checksum

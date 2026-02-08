@@ -414,15 +414,19 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 The codebase follows hexagonal architecture with ports and adapters:
 
 **Ports** define abstract interfaces for infrastructure:
-- `GraphPersistencePort` -- Git operations (read/write commits, refs)
+- `GraphPersistencePort` -- Git operations (composite of CommitPort, BlobPort, TreePort, RefPort, ConfigPort)
+- `CommitPort` / `BlobPort` / `TreePort` / `RefPort` / `ConfigPort` -- focused persistence interfaces
 - `IndexStoragePort` -- bitmap index storage
+- `CodecPort` -- encode/decode operations
+- `CryptoPort` -- hash/HMAC operations
 - `LoggerPort` -- structured logging
 - `ClockPort` -- time measurement
 
 **Adapters** implement the ports:
 - `GitGraphAdapter` -- wraps `@git-stunts/plumbing` for Git operations
+- `ClockAdapter` -- unified clock (factory: `ClockAdapter.node()`, `ClockAdapter.global()`)
+- `NodeCryptoAdapter` -- cryptographic operations via `node:crypto`
 - `ConsoleLogger` / `NoOpLogger` -- logging implementations
-- `PerformanceClockAdapter` / `GlobalClockAdapter` -- clock implementations
 - `CborCodec` -- CBOR serialization for patches
 
 **Domain** contains the core logic:

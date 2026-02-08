@@ -55,6 +55,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
+import CodecPort from '../../ports/CodecPort.js';
 
 /**
  * Pre-configured cbor-x encoder instance.
@@ -362,4 +363,22 @@ export function decode(buffer) {
  * const bytes = cbor.encode({ key: 'value' });
  * const data = cbor.decode(bytes);
  */
-export default { encode, decode };
+/**
+ * CBOR codec implementing CodecPort with canonical/deterministic encoding.
+ *
+ * @class CborCodec
+ * @extends CodecPort
+ */
+export class CborCodec extends CodecPort {
+  /** @inheritdoc */
+  encode(data) {
+    return encode(data);
+  }
+
+  /** @inheritdoc */
+  decode(buffer) {
+    return decode(buffer);
+  }
+}
+
+export default new CborCodec();
