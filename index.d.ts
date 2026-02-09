@@ -704,7 +704,7 @@ export function buildWarpStateIndex(state: WarpStateV5): Promise<{ tree: Record<
  * Uses canonical serialization to ensure the same state always produces
  * the same hash regardless of property iteration order.
  */
-export function computeStateHashV5(state: WarpStateV5, options: { crypto: CryptoPort; codec?: unknown }): Promise<string | null>;
+export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
 
 /**
  * Service for querying a loaded bitmap index.
@@ -1803,7 +1803,7 @@ export function verifyBTR(
  * @param btr - The BTR to replay
  * @returns The final state and its hash
  */
-export function replayBTR(btr: BTR): Promise<{ state: WarpStateV5; h_out: string }>;
+export function replayBTR(btr: BTR, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<{ state: WarpStateV5; h_out: string }>;
 
 /**
  * Serializes a BTR to CBOR bytes for transport.

@@ -8,6 +8,41 @@ const ERROR_BODY_LENGTH = String(ERROR_BODY_BYTES.byteLength);
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
 /**
+ * Reads a ReadableStream body with a byte-count limit.
+ * Aborts immediately when the limit is exceeded, preventing full buffering.
+ *
+ * @param {ReadableStream} bodyStream
+ * @returns {Promise<Uint8Array|undefined>}
+ */
+async function readStreamBody(bodyStream) {
+  const reader = bodyStream.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel();
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
+    chunks.push(value);
+  }
+  if (total === 0) {
+    return undefined;
+  }
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+/**
  * Converts a Bun Request into the plain-object format expected by
  * HttpServerPort request handlers.
  *
@@ -26,12 +61,8 @@ async function toPortRequest(request) {
     if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
       throw Object.assign(new Error('Payload Too Large'), { status: 413 });
     }
-    const ab = await request.arrayBuffer();
-    if (ab.byteLength > MAX_BODY_BYTES) {
-      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
-    }
-    if (ab.byteLength > 0) {
-      body = new Uint8Array(ab);
+    if (request.body) {
+      body = await readStreamBody(request.body);
     }
   }
 

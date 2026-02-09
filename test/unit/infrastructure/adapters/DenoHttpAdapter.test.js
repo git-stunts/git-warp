@@ -1,4 +1,4 @@
-/* global Request, Response */
+/* global Request, Response, ReadableStream, Headers */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
 
@@ -322,6 +322,66 @@ describe('DenoHttpAdapter', () => {
       const server = adapter.createServer(() => ({ status: 200 }));
 
       expect(() => server.close()).not.toThrow();
+    });
+  });
+
+  describe('body size enforcement', () => {
+    it('rejects request with Content-Length exceeding MAX_BODY_BYTES', async () => {
+      const handler = vi.fn(() => ({ status: 200 }));
+      const adapter = new DenoHttpAdapter();
+      const server = adapter.createServer(handler);
+      server.listen(3000);
+
+      const denoHandler = getCapturedHandler();
+      const request = new Request('http://localhost:3000/big', {
+        method: 'POST',
+        headers: { 'Content-Length': String(11 * 1024 * 1024) },
+        body: 'small',
+      });
+
+      const response = await denoHandler(request);
+
+      expect(response.status).toBe(413);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('uses streaming to enforce body limit without calling arrayBuffer', async () => {
+      const handler = vi.fn(() => ({ status: 200 }));
+      const adapter = new DenoHttpAdapter();
+      const server = adapter.createServer(handler);
+      server.listen(3000);
+
+      const denoHandler = getCapturedHandler();
+
+      // Create a ReadableStream that exceeds 10MB
+      const chunkSize = 1024 * 1024; // 1MB
+      let chunksDelivered = 0;
+      const stream = new ReadableStream({
+        pull(controller) {
+          if (chunksDelivered >= 11) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(new Uint8Array(chunkSize));
+          chunksDelivered++;
+        },
+      });
+
+      const arrayBufferSpy = vi.fn();
+      const request = {
+        method: 'POST',
+        url: 'http://localhost:3000/stream',
+        headers: new Headers(),
+        body: stream,
+        arrayBuffer: arrayBufferSpy,
+      };
+
+      const response = await denoHandler(request);
+
+      expect(response.status).toBe(413);
+      expect(handler).not.toHaveBeenCalled();
+      // Streaming should be used — arrayBuffer() should NOT be called
+      expect(arrayBufferSpy).not.toHaveBeenCalled();
     });
   });
 

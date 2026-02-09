@@ -228,7 +228,8 @@ describe('BoundaryTransitionRecord', () => {
       const payload = ProvenancePayload.identity();
 
       const btr = await createBTR(initialState, payload, { key: testKey, crypto });
-      const tampered = { ...btr, kappa: 'fake_kappa_value' };
+      // Use valid hex that differs from the real kappa
+      const tampered = { ...btr, kappa: 'aa'.repeat(btr.kappa.length / 2) };
 
       const result = await verifyBTR(tampered, testKey, { crypto });
 
@@ -526,6 +527,22 @@ describe('BoundaryTransitionRecord', () => {
   });
 
   describe('security properties', () => {
+    it('rejects kappa containing non-hex characters', async () => {
+      const initialState = createEmptyStateV5();
+      const payload = ProvenancePayload.identity();
+
+      const btr = await createBTR(initialState, payload, { key: testKey, crypto });
+
+      // Replace last two chars with invalid hex 'GG'
+      const invalidKappa = btr.kappa.slice(0, -2) + 'GG';
+      const tampered = { ...btr, kappa: invalidKappa };
+
+      const result = await verifyBTR(tampered, testKey, { crypto });
+
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('Invalid hex');
+    });
+
     it('single bit flip in kappa is detected', async () => {
       const initialState = createEmptyStateV5();
       const payload = ProvenancePayload.identity();

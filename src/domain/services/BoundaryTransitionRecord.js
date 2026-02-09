@@ -47,7 +47,11 @@ function hexToUint8Array(hex) {
   }
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    const byte = parseInt(hex.substring(i, i + 2), 16);
+    if (Number.isNaN(byte)) {
+      throw new RangeError(`Invalid hex byte at offset ${i}: ${hex.substring(i, i + 2)}`);
+    }
+    bytes[i / 2] = byte;
   }
   return bytes;
 }
@@ -279,7 +283,16 @@ export async function verifyBTR(btr, key, options = {}) {
     return { valid: false, reason: structureError };
   }
 
-  if (!(await verifyHmac(btr, key, { crypto, codec }))) {
+  let hmacValid;
+  try {
+    hmacValid = await verifyHmac(btr, key, { crypto, codec });
+  } catch (err) {
+    if (err instanceof RangeError) {
+      return { valid: false, reason: `Invalid hex in authentication tag: ${err.message}` };
+    }
+    throw err;
+  }
+  if (!hmacValid) {
     return { valid: false, reason: 'Authentication tag mismatch' };
   }
 

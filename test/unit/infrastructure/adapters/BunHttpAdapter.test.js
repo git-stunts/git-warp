@@ -1,3 +1,4 @@
+/* global ReadableStream */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import BunHttpAdapter from '../../../../src/infrastructure/adapters/BunHttpAdapter.js';
 import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
@@ -35,6 +36,27 @@ function createMockRequest(opts = {}) {
   const url = opts.url || 'http://localhost:3000/test?q=1';
   const headerMap = new Map(Object.entries(opts.headers || {}));
   const bodyContent = opts.body || '';
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(bodyContent);
+
+  // Build a ReadableStream-like body for streaming reads
+  const body = bytes.byteLength > 0
+    ? {
+      getReader() {
+        let read = false;
+        return {
+          async read() {
+            if (read) {
+              return { done: true, value: undefined };
+            }
+            read = true;
+            return { done: false, value: new Uint8Array(bytes) };
+          },
+          async cancel() {},
+        };
+      },
+    }
+    : null;
 
   return {
     method,
@@ -46,9 +68,8 @@ function createMockRequest(opts = {}) {
         });
       },
     },
+    body,
     arrayBuffer() {
-      const encoder = new TextEncoder();
-      const bytes = encoder.encode(bodyContent);
       return Promise.resolve(bytes.buffer);
     },
   };
@@ -346,6 +367,74 @@ describe('BunHttpAdapter', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toBe('text/plain;charset=UTF-8');
+    });
+  });
+
+  describe('body size enforcement', () => {
+    it('rejects request with Content-Length exceeding MAX_BODY_BYTES', async () => {
+      const { serve, mockServer } = createMockBunServe();
+      globalThis.Bun = { serve };
+
+      const handler = vi.fn(async () => ({ status: 200 }));
+      const adapter = new BunHttpAdapter();
+      const server = adapter.createServer(handler);
+      server.listen(8000);
+
+      const mockReq = createMockRequest({
+        method: 'POST',
+        url: 'http://localhost:8000/big',
+        headers: { 'content-length': String(11 * 1024 * 1024) },
+        body: 'small',
+      });
+
+      const response = await mockServer._fetch(mockReq);
+
+      expect(response.status).toBe(413);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('uses streaming to enforce body limit without calling arrayBuffer', async () => {
+      const { serve, mockServer } = createMockBunServe();
+      globalThis.Bun = { serve };
+
+      const handler = vi.fn(async () => ({ status: 200 }));
+      const adapter = new BunHttpAdapter();
+      const server = adapter.createServer(handler);
+      server.listen(8001);
+
+      // Create a mock request with a ReadableStream body > 10MB
+      const chunkSize = 1024 * 1024; // 1MB
+      let chunksDelivered = 0;
+      const stream = new ReadableStream({
+        pull(controller) {
+          if (chunksDelivered >= 11) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(new Uint8Array(chunkSize));
+          chunksDelivered++;
+        },
+      });
+
+      const arrayBufferSpy = vi.fn();
+      const mockReq = {
+        method: 'POST',
+        url: 'http://localhost:8001/stream',
+        headers: {
+          forEach() {
+            // No content-length header — chunked
+          },
+        },
+        body: stream,
+        arrayBuffer: arrayBufferSpy,
+      };
+
+      const response = await mockServer._fetch(mockReq);
+
+      expect(response.status).toBe(413);
+      expect(handler).not.toHaveBeenCalled();
+      // Streaming should be used — arrayBuffer() should NOT be called
+      expect(arrayBufferSpy).not.toHaveBeenCalled();
     });
   });
 

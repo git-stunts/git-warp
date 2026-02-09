@@ -563,7 +563,11 @@ export function createMockClock(step = 42) {
       time += step;
       return t;
     }),
-    timestamp: vi.fn(() => new Date(time).toISOString()),
+    timestamp: vi.fn(() => {
+      const t = time;
+      time += step;
+      return new Date(t).toISOString();
+    }),
   };
 }
 
