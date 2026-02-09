@@ -109,6 +109,8 @@ export default class WarpStateIndexBuilder {
  * Convenience function to build and serialize a WARP state index.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - The materialized state
+ * @param {Object} [options] - Configuration
+ * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort for shard checksums
  * @returns {Promise<{tree: Record<string, Buffer>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *
  * @example
@@ -117,8 +119,8 @@ export default class WarpStateIndexBuilder {
  * const state = await graph.materialize();
  * const { tree, stats } = buildWarpStateIndex(state);
  */
-export async function buildWarpStateIndex(state) {
-  const indexBuilder = new WarpStateIndexBuilder();
+export async function buildWarpStateIndex(state, { crypto } = {}) {
+  const indexBuilder = new WarpStateIndexBuilder({ crypto });
   const { stats } = indexBuilder.buildFromState(state);
   const tree = await indexBuilder.serialize();
   return { tree, stats };

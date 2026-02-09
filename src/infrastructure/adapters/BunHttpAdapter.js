@@ -4,6 +4,9 @@ const ERROR_BODY = 'Internal Server Error';
 const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
 const ERROR_BODY_LENGTH = String(ERROR_BODY_BYTES.byteLength);
 
+const PAYLOAD_TOO_LARGE = 'Payload Too Large';
+const PAYLOAD_TOO_LARGE_LENGTH = String(new TextEncoder().encode(PAYLOAD_TOO_LARGE).byteLength);
+
 /** Absolute streaming body limit (10 MB) — matches NodeHttpAdapter. */
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
@@ -104,9 +107,9 @@ function createFetchHandler(requestHandler, logger) {
       return toResponse(portRes);
     } catch (err) {
       if (err.status === 413) {
-        return new Response('Payload Too Large', {
+        return new Response(PAYLOAD_TOO_LARGE, {
           status: 413,
-          headers: { 'Content-Type': 'text/plain', 'Content-Length': '17' },
+          headers: { 'Content-Type': 'text/plain', 'Content-Length': PAYLOAD_TOO_LARGE_LENGTH },
         });
       }
       logger.error('BunHttpAdapter dispatch error', err);
@@ -140,6 +143,28 @@ function startServer(serveOptions, cb) {
   return server;
 }
 
+/**
+ * Safely stops a Bun server, forwarding errors to the callback.
+ *
+ * @param {{ server: Object|null }} state - Shared mutable state
+ * @param {Function} [callback]
+ */
+function stopServer(state, callback) {
+  try {
+    if (state.server) {
+      state.server.stop();
+      state.server = null;
+    }
+    if (callback) {
+      callback();
+    }
+  } catch (err) {
+    if (callback) {
+      callback(err);
+    }
+  }
+}
+
 const noopLogger = { error() {} };
 
 /**
@@ -162,7 +187,7 @@ export default class BunHttpAdapter extends HttpServerPort {
   /** @inheritdoc */
   createServer(requestHandler) {
     const fetchHandler = createFetchHandler(requestHandler, this._logger);
-    let server = null;
+    const state = { server: null };
 
     return {
       listen(port, host, callback) {
@@ -175,7 +200,7 @@ export default class BunHttpAdapter extends HttpServerPort {
         }
 
         try {
-          server = startServer(serveOptions, cb);
+          state.server = startServer(serveOptions, cb);
         } catch (err) {
           if (cb) {
             cb(err);
@@ -183,24 +208,16 @@ export default class BunHttpAdapter extends HttpServerPort {
         }
       },
 
-      close(callback) {
-        if (server) {
-          server.stop();
-          server = null;
-        }
-        if (callback) {
-          callback();
-        }
-      },
+      close: (callback) => stopServer(state, callback),
 
       address() {
-        if (!server) {
+        if (!state.server) {
           return null;
         }
         return {
-          address: server.hostname,
-          port: server.port,
-          family: server.hostname.includes(':') ? 'IPv6' : 'IPv4',
+          address: state.server.hostname,
+          port: state.server.port,
+          family: state.server.hostname.includes(':') ? 'IPv6' : 'IPv4',
         };
       },
     };

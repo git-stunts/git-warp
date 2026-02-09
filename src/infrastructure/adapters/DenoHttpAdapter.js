@@ -55,7 +55,7 @@ async function toPlainRequest(request) {
   });
 
   let body;
-  if (request.body) {
+  if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
     const cl = headers['content-length'];
     if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
       throw Object.assign(new Error('Payload Too Large'), { status: 413 });

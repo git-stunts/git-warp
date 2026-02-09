@@ -269,7 +269,7 @@ async function verifyReplayHash(btr, { crypto, codec } = {}) {
  * is O(|P|) and optional for performance-sensitive scenarios.
  *
  * @param {BTR} btr - The BTR to verify
- * @param {string|Buffer} key - HMAC key
+ * @param {string|Uint8Array} key - HMAC key
  * @param {Object} [options] - Verification options
  * @param {boolean} [options.verifyReplay=false] - Also verify replay produces h_out
  * @param {import('../../ports/CryptoPort.js').default} options.crypto - CryptoPort instance

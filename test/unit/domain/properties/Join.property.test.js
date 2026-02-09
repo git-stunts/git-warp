@@ -7,6 +7,9 @@ import {
   reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+const crypto = new NodeCryptoAdapter();
 import { createORSet, orsetAdd, orsetRemove, orsetSerialize } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector, vvSerialize } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
@@ -224,8 +227,8 @@ describe('JoinReducer property tests', () => {
     it('same state produces same hash', async () => {
       await fc.assert(
         fc.asyncProperty(stateArb, async (state) => {
-          const hash1 = await computeStateHashV5(state);
-          const hash2 = await computeStateHashV5(state);
+          const hash1 = await computeStateHashV5(state, { crypto });
+          const hash2 = await computeStateHashV5(state, { crypto });
           return hash1 === hash2;
         }),
         { numRuns: 100 }
@@ -237,8 +240,8 @@ describe('JoinReducer property tests', () => {
         fc.asyncProperty(stateArb, stateArb, async (a, b) => {
           const ab = joinStates(a, b);
           const ba = joinStates(b, a);
-          const hashAB = await computeStateHashV5(ab);
-          const hashBA = await computeStateHashV5(ba);
+          const hashAB = await computeStateHashV5(ab, { crypto });
+          const hashBA = await computeStateHashV5(ba, { crypto });
           return hashAB === hashBA;
         }),
         { numRuns: 100 }
@@ -290,7 +293,7 @@ describe('JoinReducer property tests', () => {
           async (patches) => {
             // Reduce patches in original order
             const state1 = reduceV5(patches);
-            const hash1 = await computeStateHashV5(state1);
+            const hash1 = await computeStateHashV5(state1, { crypto });
 
             // Shuffle patches using Fisher-Yates
             const shuffled = [...patches];
@@ -301,7 +304,7 @@ describe('JoinReducer property tests', () => {
 
             // Reduce shuffled patches
             const state2 = reduceV5(shuffled);
-            const hash2 = await computeStateHashV5(state2);
+            const hash2 = await computeStateHashV5(state2, { crypto });
 
             return hash1 === hash2;
           }
@@ -325,7 +328,7 @@ describe('JoinReducer property tests', () => {
               createEmptyStateV5()
             );
 
-            return (await computeStateHashV5(allAtOnce)) === (await computeStateHashV5(joined));
+            return (await computeStateHashV5(allAtOnce, { crypto })) === (await computeStateHashV5(joined, { crypto }));
           }
         ),
         { numRuns: 50 }

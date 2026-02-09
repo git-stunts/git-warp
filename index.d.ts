@@ -696,7 +696,7 @@ export class WarpStateIndexBuilder {
  * Convenience function that creates a WarpStateIndexBuilder, builds from state,
  * and returns the serialized tree and stats.
  */
-export function buildWarpStateIndex(state: WarpStateV5): Promise<{ tree: Record<string, Buffer>; stats: { nodes: number; edges: number } }>;
+export function buildWarpStateIndex(state: WarpStateV5, options?: { crypto?: CryptoPort }): Promise<{ tree: Record<string, Buffer>; stats: { nodes: number; edges: number } }>;
 
 /**
  * Computes a deterministic hash of a WarpStateV5 state.
@@ -1757,9 +1757,13 @@ export interface BTRVerificationResult {
  */
 export interface CreateBTROptions {
   /** HMAC key for authentication */
-  key: string | Buffer;
+  key: string | Uint8Array;
   /** Custom ISO timestamp (defaults to now) */
   timestamp?: string;
+  /** CryptoPort instance for HMAC computation */
+  crypto?: CryptoPort;
+  /** Custom codec for serialization */
+  codec?: unknown;
 }
 
 /**
@@ -1768,6 +1772,10 @@ export interface CreateBTROptions {
 export interface VerifyBTROptions {
   /** Also verify replay produces h_out (default: false) */
   verifyReplay?: boolean;
+  /** CryptoPort instance for HMAC verification */
+  crypto?: CryptoPort;
+  /** Custom codec for serialization */
+  codec?: unknown;
 }
 
 /**
@@ -1793,7 +1801,7 @@ export function createBTR(
  */
 export function verifyBTR(
   btr: BTR,
-  key: string | Buffer,
+  key: string | Uint8Array,
   options?: VerifyBTROptions
 ): Promise<BTRVerificationResult>;
 
