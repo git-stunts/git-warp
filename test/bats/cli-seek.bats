@@ -40,7 +40,7 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
   assert_success
 
-  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick +1
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick=+1
   assert_success
 
   JSON="$output" python3 - <<'PY'
@@ -128,7 +128,7 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 2
   assert_success
 
-  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick -1
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick=-1
   assert_success
 
   JSON="$output" python3 - <<'PY'

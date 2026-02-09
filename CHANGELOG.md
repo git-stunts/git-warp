@@ -42,6 +42,7 @@ Adds cursor-based time travel for exploring graph history. Navigate to any Lampo
 - **Seek timeline duplicate 0**: `buildSeekTimeline` no longer prepends tick 0 when `ticks` already contains it, preventing a duplicate dot in the timeline.
 - **Seek timeline label drift**: Tick labels now stay vertically aligned under their dots for multi-digit tick values by computing target column positions instead of using fixed-width padding.
 - **RefLayout docstring**: Added `cursor/active` and `cursor/saved/<name>` to the module-level ref layout listing.
+- **BATS seek tests**: Use `--tick=+1` / `--tick=-1` syntax instead of `--tick +1` / `--tick -1` to avoid parser ambiguity with signed numbers.
 
 ### Tests
 
