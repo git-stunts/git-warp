@@ -53,7 +53,7 @@ export default class WarpStateIndexBuilder {
    * const state = await graph.materialize();
    * const { builder, stats } = new WarpStateIndexBuilder().buildFromState(state);
    * console.log(`Indexed ${stats.nodes} nodes, ${stats.edges} edges`);
-   * const indexTree = builder.serialize();
+   * const indexTree = await builder.serialize();
    */
   buildFromState(state) {
     if (!state || !state.nodeAlive || !state.edgeAlive) {
@@ -117,7 +117,7 @@ export default class WarpStateIndexBuilder {
  * import { buildWarpStateIndex } from './WarpStateIndexBuilder.js';
  *
  * const state = await graph.materialize();
- * const { tree, stats } = buildWarpStateIndex(state);
+ * const { tree, stats } = await buildWarpStateIndex(state);
  */
 export async function buildWarpStateIndex(state, { crypto } = {}) {
   const indexBuilder = new WarpStateIndexBuilder({ crypto });
