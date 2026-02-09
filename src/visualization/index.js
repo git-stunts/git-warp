@@ -1,5 +1,11 @@
+/* @ts-self-types="./index.d.ts" */
+
 /**
- * Visualization module - main exports
+ * @module
+ *
+ * Visualization module for rendering WARP graph data as ASCII tables,
+ * SVG diagrams, and interactive browser views. Includes ELK-based
+ * graph layout, ANSI formatting utilities, and CLI renderers.
  */
 
 // ASCII renderers

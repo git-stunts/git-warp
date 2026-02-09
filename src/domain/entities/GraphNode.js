@@ -1,3 +1,12 @@
+/* @ts-self-types="./GraphNode.d.ts" */
+
+/**
+ * @module
+ *
+ * Immutable value object representing a single graph node backed by a
+ * Git commit pointing to the empty tree.
+ */
+
 /**
  * Immutable domain entity representing a node in the graph.
  *

@@ -1,5 +1,24 @@
+/* @ts-self-types="./index.d.ts" */
+
 /**
- * @fileoverview Empty Graph - A graph database substrate using Git commits pointing to the empty tree.
+ * @module
+ *
+ * Deterministic WARP graph over Git: graph-native storage, traversal,
+ * and tooling. All graph state lives as Git commits pointing to the
+ * well-known empty tree — invisible to normal Git workflows, but
+ * inheriting content-addressing, cryptographic integrity, and
+ * distributed replication.
+ *
+ * @example
+ * ```ts
+ * import WarpGraph from "@git-stunts/git-warp";
+ *
+ * const graph = await WarpGraph.open({ repo: ".", graphName: "myGraph" });
+ * const patch = await graph.createPatch("writer-1");
+ * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
+ * await patch.commit();
+ * const state = await graph.materialize();
+ * ```
  */
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.js';
