@@ -48,6 +48,7 @@ const wrapShard = async (data, crypto) => ({
  * Serializes a frontier Map into CBOR and JSON blobs in the given tree.
  * @param {Map<string, string>} frontier - Writer→tip SHA map
  * @param {Record<string, Buffer>} tree - Target tree to add entries to
+ * @param {import('../../ports/CodecPort.js').default} codec - Codec for CBOR serialization
  */
 function serializeFrontierToTree(frontier, tree, codec) {
   const sorted = {};
@@ -142,6 +143,8 @@ export default class BitmapIndexBuilder {
    *
    * Each shard is wrapped in a version/checksum envelope for integrity verification.
    *
+   * @param {Object} [options] - Serialization options
+   * @param {Map<string, string>} [options.frontier] - Writer→tip SHA map to include in the tree
    * @returns {Promise<Record<string, Buffer>>} Map of path → serialized content
    */
   async serialize({ frontier } = {}) {

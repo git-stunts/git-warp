@@ -65,6 +65,7 @@ export function createEmptyStateV5() {
  * - `EdgeAdd`: Adds an edge to the edgeAlive OR-Set and tracks its birth event
  * - `EdgeRemove`: Removes observed dots from the edgeAlive OR-Set (tombstoning)
  * - `PropSet`: Sets a property using LWW (Last-Write-Wins) semantics based on EventId
+ * - `BlobValue`: No-op in state; recorded in tick receipts for provenance tracking
  * - Unknown types: Silently ignored for forward compatibility
  *
  * **Warning**: This function mutates `state` in place. For immutable operations,
@@ -72,7 +73,7 @@ export function createEmptyStateV5() {
  *
  * @param {WarpStateV5} state - The state to mutate. Modified in place.
  * @param {Object} op - The operation to apply
- * @param {string} op.type - One of: 'NodeAdd', 'NodeRemove', 'EdgeAdd', 'EdgeRemove', 'PropSet'
+ * @param {string} op.type - One of: 'NodeAdd', 'NodeRemove', 'EdgeAdd', 'EdgeRemove', 'PropSet', 'BlobValue'
  * @param {string} [op.node] - Node ID (for NodeAdd, NodeRemove, PropSet)
  * @param {import('../crdt/Dot.js').Dot} [op.dot] - Dot identifier (for NodeAdd, EdgeAdd)
  * @param {string[]} [op.observedDots] - Encoded dots to remove (for NodeRemove, EdgeRemove)

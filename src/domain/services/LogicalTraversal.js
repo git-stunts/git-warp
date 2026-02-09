@@ -280,6 +280,8 @@ export default class LogicalTraversal {
    * @param {'out'|'in'|'both'} [options.dir] - Edge direction to follow
    * @param {string|string[]} [options.labelFilter] - Edge label(s) to include
    * @returns {Promise<{found: boolean, path: string[], length: number}>}
+   *   When `found` is true, `path` contains the node IDs from `from` to `to` and
+   *   `length` is the hop count. When `found` is false, `path` is empty and `length` is -1.
    * @throws {TraversalError} If the start node is not found or direction is invalid
    */
   async shortestPath(from, to, options = {}) {
@@ -338,6 +340,7 @@ export default class LogicalTraversal {
    *
    * @param {string} start - Starting node ID
    * @param {Object} [options] - Traversal options
+   * @param {number} [options.maxDepth] - Maximum depth to traverse (default: 1000)
    * @param {string|string[]} [options.labelFilter] - Edge label(s) to include
    * @returns {Promise<string[]>} Node IDs in visit order
    * @throws {TraversalError} If the start node is not found

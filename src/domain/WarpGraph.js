@@ -98,6 +98,7 @@ export default class WarpGraph {
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
+   * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
    */
   constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
@@ -216,6 +217,7 @@ export default class WarpGraph {
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
+   * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -573,7 +575,7 @@ export default class WarpGraph {
    * based on configured policies. Notifies subscribers if state changed.
    *
    * @param {{receipts?: boolean}} [options] - Optional configuration
-   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
    * @throws {Error} If checkpoint loading fails or patch decoding fails
    * @throws {Error} If writer ref access or patch blob reading fails
    */
@@ -2051,8 +2053,10 @@ export default class WarpGraph {
    * @param {string} [options.host='127.0.0.1'] - Host to bind
    * @param {string} [options.path='/sync'] - Path to handle sync requests
    * @param {number} [options.maxRequestBytes=4194304] - Max request size in bytes
+   * @param {import('../ports/HttpServerPort.js').default} options.httpPort - HTTP server adapter (required)
    * @returns {Promise<{close: () => Promise<void>, url: string}>} Server handle
    * @throws {Error} If port is not a number
+   * @throws {Error} If httpPort adapter is not provided
    */
   async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort } = {}) {
     if (typeof port !== 'number') {
@@ -2607,6 +2611,8 @@ export default class WarpGraph {
    * @throws {ForkError} If `at` SHA is not in the writer's chain (code: `E_FORK_PATCH_NOT_IN_CHAIN`)
    * @throws {ForkError} If fork graph name is invalid (code: `E_FORK_NAME_INVALID`)
    * @throws {ForkError} If a graph with the fork name already has refs (code: `E_FORK_ALREADY_EXISTS`)
+   * @throws {ForkError} If required parameters are missing or invalid (code: `E_FORK_INVALID_ARGS`)
+   * @throws {ForkError} If forkWriterId is invalid (code: `E_FORK_WRITER_ID_INVALID`)
    *
    * @example
    * // Fork from alice's chain at a specific commit
@@ -2875,7 +2881,7 @@ export default class WarpGraph {
    *
    * @param {string} nodeId - The target node ID to materialize the cone for
    * @param {{receipts?: boolean}} [options] - Optional configuration
-   * @returns {Promise<{state: import('./services/JoinReducer.js').WarpStateV5, patchCount: number, receipts?: import('../types/TickReceipt.js').TickReceipt[]}>}
+   * @returns {Promise<{state: import('./services/JoinReducer.js').WarpStateV5, patchCount: number, receipts?: import('./types/TickReceipt.js').TickReceipt[]}>}
    *   Returns the sliced state with the patch count (for comparison with full materialization)
    * @throws {QueryError} If no provenance index exists (code: `E_NO_STATE`)
    * @throws {Error} If patch loading fails

@@ -1,6 +1,12 @@
 import stripAnsiLib from 'strip-ansi';
 
-// Strip ANSI escape codes for snapshot testing
+/**
+ * Strips ANSI escape codes from a string.
+ * Used primarily for snapshot testing to get deterministic output.
+ *
+ * @param {string} str - The string potentially containing ANSI escape codes
+ * @returns {string} The string with all ANSI codes removed
+ */
 export function stripAnsi(str) {
   return stripAnsiLib(str);
 }

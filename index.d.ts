@@ -255,6 +255,7 @@ export interface LogicalTraversal {
     labelFilter?: string | string[];
   }): Promise<{ found: boolean; path: string[]; length: number }>;
   connectedComponent(start: string, options?: {
+    maxDepth?: number;
     labelFilter?: string | string[];
   }): Promise<string[]>;
 }
@@ -718,6 +719,8 @@ export class BitmapIndexReader {
     strict?: boolean;
     /** Logger for structured logging (default: NoOpLogger) */
     logger?: LoggerPort;
+    /** CryptoPort instance for checksum verification. When not provided, checksum validation is skipped. */
+    crypto?: CryptoPort;
   });
 
   /**
@@ -1181,6 +1184,242 @@ export function computeTranslationCost(
   state: WarpStateV5
 ): TranslationCostResult;
 
+// ============================================================================
+// State Diff (PULSE subscriptions)
+// ============================================================================
+
+/**
+ * Edge change in a state diff.
+ */
+export interface EdgeChange {
+  from: string;
+  to: string;
+  label: string;
+}
+
+/**
+ * Property set/changed entry in a state diff.
+ */
+export interface PropSet {
+  key: string;
+  nodeId: string;
+  propKey: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
+/**
+ * Property removed entry in a state diff.
+ */
+export interface PropRemoved {
+  key: string;
+  nodeId: string;
+  propKey: string;
+  oldValue: unknown;
+}
+
+/**
+ * Deterministic diff between two materialized states.
+ */
+export interface StateDiffResult {
+  nodes: { added: string[]; removed: string[] };
+  edges: { added: EdgeChange[]; removed: EdgeChange[] };
+  props: { set: PropSet[]; removed: PropRemoved[] };
+}
+
+// ============================================================================
+// Temporal Query (Paper IV CTL* operators)
+// ============================================================================
+
+/**
+ * Node snapshot passed to temporal predicates.
+ */
+export interface TemporalNodeSnapshot {
+  id: string;
+  exists: boolean;
+  props: Record<string, unknown>;
+}
+
+/**
+ * CTL*-style temporal operators over WARP graph history.
+ */
+export interface TemporalQuery {
+  /** True iff predicate holds at every tick since `since` where the node exists. */
+  always(
+    nodeId: string,
+    predicate: (snapshot: TemporalNodeSnapshot) => boolean,
+    options?: { since?: number },
+  ): Promise<boolean>;
+
+  /** True iff predicate holds at some tick since `since`. */
+  eventually(
+    nodeId: string,
+    predicate: (snapshot: TemporalNodeSnapshot) => boolean,
+    options?: { since?: number },
+  ): Promise<boolean>;
+}
+
+// ============================================================================
+// Writer & PatchSession
+// ============================================================================
+
+/**
+ * Fluent patch session for building and committing graph mutations.
+ */
+export class PatchSession {
+  /** Adds a node to the graph. */
+  addNode(nodeId: string): this;
+  /** Removes a node from the graph. */
+  removeNode(nodeId: string): this;
+  /** Adds an edge between two nodes. */
+  addEdge(from: string, to: string, label: string): this;
+  /** Removes an edge between two nodes. */
+  removeEdge(from: string, to: string, label: string): this;
+  /** Sets a property on a node. */
+  setProperty(nodeId: string, key: string, value: unknown): this;
+  /** Builds the patch object without committing. */
+  build(): unknown;
+  /** Commits the patch with CAS protection. */
+  commit(): Promise<string>;
+  /** Number of operations in this patch. */
+  readonly opCount: number;
+}
+
+/**
+ * Writer - WARP writer abstraction for safe graph mutations.
+ */
+export class Writer {
+  /** The writer's ID. */
+  readonly writerId: string;
+  /** The graph namespace. */
+  readonly graphName: string;
+  /** Gets the current writer head SHA. */
+  head(): Promise<string | null>;
+  /** Begins a new patch session. */
+  beginPatch(): Promise<PatchSession>;
+  /** Builds and commits a patch in one call. */
+  commitPatch(build: (p: PatchSession) => void | Promise<void>): Promise<string>;
+}
+
+/**
+ * Error class for Writer operations.
+ */
+export class WriterError extends Error {
+  readonly name: 'WriterError';
+  readonly code: string;
+  readonly cause?: Error;
+
+  constructor(code: string, message: string, cause?: Error);
+}
+
+// ============================================================================
+// GC Types
+// ============================================================================
+
+/**
+ * GC policy configuration.
+ */
+export interface GCPolicyConfig {
+  enabled: boolean;
+  tombstoneRatioThreshold: number;
+  entryCountThreshold: number;
+  minPatchesSinceCompaction: number;
+  maxTimeSinceCompaction: number;
+  compactOnCheckpoint: boolean;
+}
+
+/**
+ * Result of a GC execution.
+ */
+export interface GCExecuteResult {
+  nodesCompacted: number;
+  edgesCompacted: number;
+  tombstonesRemoved: number;
+  durationMs: number;
+}
+
+/**
+ * GC metrics for the cached state.
+ */
+export interface GCMetrics {
+  nodeCount: number;
+  edgeCount: number;
+  tombstoneCount: number;
+  tombstoneRatio: number;
+  patchesSinceCompaction: number;
+  lastCompactionTime: number;
+}
+
+/**
+ * Result of maybeRunGC().
+ */
+export interface MaybeGCResult {
+  ran: boolean;
+  result: GCExecuteResult | null;
+  reasons: string[];
+}
+
+// ============================================================================
+// Sync Protocol Types
+// ============================================================================
+
+/**
+ * Sync request message.
+ */
+export interface SyncRequest {
+  type: 'sync-request';
+  frontier: Record<string, string>;
+}
+
+/**
+ * Sync response message.
+ */
+export interface SyncResponse {
+  type: 'sync-response';
+  frontier: Record<string, string>;
+  patches: Array<{ writerId: string; sha: string; patch: unknown }>;
+}
+
+/**
+ * Result of applySyncResponse().
+ */
+export interface ApplySyncResult {
+  state: WarpStateV5;
+  frontier: Map<string, number>;
+  applied: number;
+}
+
+// ============================================================================
+// Status snapshot
+// ============================================================================
+
+/**
+ * Lightweight status snapshot of the graph.
+ */
+export interface WarpGraphStatus {
+  cachedState: 'fresh' | 'stale' | 'none';
+  patchesSinceCheckpoint: number;
+  tombstoneRatio: number;
+  writers: number;
+  frontier: Record<string, string>;
+}
+
+// ============================================================================
+// Join Receipt
+// ============================================================================
+
+/**
+ * Receipt from a join (CRDT merge) operation.
+ */
+export interface JoinReceipt {
+  nodesAdded: number;
+  nodesRemoved: number;
+  edgesAdded: number;
+  edgesRemoved: number;
+  propsChanged: number;
+  frontierMerged: boolean;
+}
+
 /**
  * Multi-writer graph database using WARP CRDT protocol.
  *
@@ -1207,6 +1446,10 @@ export default class WarpGraph {
     };
     checkpointPolicy?: { every: number };
     autoMaterialize?: boolean;
+    onDeleteWithData?: 'reject' | 'cascade' | 'warn';
+    clock?: ClockPort;
+    crypto?: CryptoPort;
+    codec?: unknown;
   }): Promise<WarpGraph>;
 
   /**
@@ -1235,17 +1478,17 @@ export default class WarpGraph {
   /**
    * Gets all visible nodes in the materialized state.
    */
-  getNodes(): string[];
+  getNodes(): Promise<string[]>;
 
   /**
    * Gets all visible edges in the materialized state.
    */
-  getEdges(): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>;
+  getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
   /**
    * Gets all properties for a node from the materialized state.
    */
-  getNodeProps(nodeId: string): Map<string, unknown> | null;
+  getNodeProps(nodeId: string): Promise<Map<string, unknown> | null>;
 
   /**
    * Returns the number of property entries in the materialized state.
@@ -1256,12 +1499,12 @@ export default class WarpGraph {
    * Gets all properties for an edge from the materialized state.
    * Returns null if the edge does not exist or is tombstoned.
    */
-  getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null;
+  getEdgeProps(from: string, to: string, label: string): Promise<Record<string, unknown> | null>;
 
   /**
    * Checks if a node exists in the materialized state.
    */
-  hasNode(nodeId: string): boolean;
+  hasNode(nodeId: string): Promise<boolean>;
 
   /**
    * Gets neighbors of a node from the materialized state.
@@ -1270,7 +1513,7 @@ export default class WarpGraph {
     nodeId: string,
     direction?: 'outgoing' | 'incoming' | 'both',
     edgeLabel?: string,
-  ): Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+  ): Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>;
 
   /**
    * Discovers all writers that have contributed to this graph.
@@ -1333,11 +1576,6 @@ export default class WarpGraph {
   materialize(): Promise<unknown>;
 
   /**
-   * Gets the current version vector.
-   */
-  getVersionVector(): unknown;
-
-  /**
    * Starts a built-in sync server for this graph.
    */
   serve(options: {
@@ -1345,6 +1583,7 @@ export default class WarpGraph {
     host?: string;
     path?: string;
     maxRequestBytes?: number;
+    httpPort: HttpServerPort;
   }): Promise<{ close(): Promise<void>; url: string }>;
 
   /**
@@ -1423,6 +1662,77 @@ export default class WarpGraph {
    * Available after materialize() has been called.
    */
   readonly provenanceIndex: ProvenanceIndex | null;
+
+  /** Gets the persistence adapter. */
+  get persistence(): GraphPersistencePort;
+
+  /** Gets the onDeleteWithData policy. */
+  get onDeleteWithData(): 'reject' | 'cascade' | 'warn';
+
+  /** Synchronous CRDT merge of another state into the cached state. */
+  join(otherState: WarpStateV5): { state: WarpStateV5; receipt: JoinReceipt };
+
+  /** Creates an octopus anchor commit recording all writer tips. */
+  syncCoverage(): Promise<void>;
+
+  /** Returns a lightweight status snapshot of the graph. */
+  status(): Promise<WarpGraphStatus>;
+
+  /** Subscribes to graph changes after each materialize(). */
+  subscribe(options: {
+    onChange: (diff: StateDiffResult) => void;
+    onError?: (error: Error) => void;
+    replay?: boolean;
+  }): { unsubscribe: () => void };
+
+  /** Filtered watcher that only fires for changes matching a glob pattern. */
+  watch(
+    pattern: string,
+    options: {
+      onChange: (diff: StateDiffResult) => void;
+      onError?: (error: Error) => void;
+      poll?: number;
+    },
+  ): { unsubscribe: () => void };
+
+  /** Creates a sync request containing the local frontier. */
+  createSyncRequest(): Promise<SyncRequest>;
+
+  /** Processes an incoming sync request and returns patches the requester needs. */
+  processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
+
+  /** Applies a sync response to the cached state. */
+  applySyncResponse(response: SyncResponse): ApplySyncResult;
+
+  /** Checks if sync is needed with a remote frontier. */
+  syncNeeded(remoteFrontier: Map<string, string>): Promise<boolean>;
+
+  /** Gets or creates a Writer, optionally resolving from git config. */
+  writer(writerId?: string): Promise<Writer>;
+
+  /**
+   * Creates a new Writer with a fresh canonical ID.
+   * @deprecated Use writer() or writer(id) instead.
+   */
+  createWriter(opts?: {
+    persist?: 'config' | 'none';
+    alias?: string;
+  }): Promise<Writer>;
+
+  /** Checks GC thresholds and runs GC if needed. */
+  maybeRunGC(): MaybeGCResult;
+
+  /** Explicitly runs GC on the cached state. */
+  runGC(): GCExecuteResult;
+
+  /** Gets current GC metrics for the cached state. */
+  getGCMetrics(): GCMetrics | null;
+
+  /** Gets the current GC policy configuration. */
+  get gcPolicy(): GCPolicyConfig;
+
+  /** CTL*-style temporal operators over graph history. */
+  get temporal(): TemporalQuery;
 }
 
 /**
@@ -1609,6 +1919,109 @@ export const TICK_RECEIPT_OP_TYPES: readonly TickReceiptOpType[];
  * Valid result values for an operation outcome.
  */
 export const TICK_RECEIPT_RESULT_TYPES: readonly TickReceiptResult[];
+
+// ============================================================================
+// WARP Type Constructors
+// ============================================================================
+
+/** Operation: node add */
+export interface OpNodeAdd {
+  readonly type: 'NodeAdd';
+  readonly node: string;
+}
+
+/** Operation: node tombstone */
+export interface OpNodeTombstone {
+  readonly type: 'NodeTombstone';
+  readonly node: string;
+}
+
+/** Operation: edge add */
+export interface OpEdgeAdd {
+  readonly type: 'EdgeAdd';
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+}
+
+/** Operation: edge tombstone */
+export interface OpEdgeTombstone {
+  readonly type: 'EdgeTombstone';
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+}
+
+/** Operation: property set */
+export interface OpPropSet {
+  readonly type: 'PropSet';
+  readonly node: string;
+  readonly key: string;
+  readonly value: ValueRef;
+}
+
+/** Inline value reference */
+export interface ValueRefInline {
+  readonly type: 'inline';
+  readonly value: unknown;
+}
+
+/** Blob value reference */
+export interface ValueRefBlob {
+  readonly type: 'blob';
+  readonly oid: string;
+}
+
+/** Value reference -- either inline or blob */
+export type ValueRef = ValueRefInline | ValueRefBlob;
+
+/** EventId for total ordering of operations across patches */
+export interface EventId {
+  readonly lamport: number;
+  readonly writerId: string;
+  readonly patchSha: string;
+  readonly opIndex: number;
+}
+
+/** Creates a NodeAdd operation. */
+export function createNodeAdd(node: string): OpNodeAdd;
+
+/** Creates a NodeTombstone operation. */
+export function createNodeTombstone(node: string): OpNodeTombstone;
+
+/** Creates an EdgeAdd operation. */
+export function createEdgeAdd(from: string, to: string, label: string): OpEdgeAdd;
+
+/** Creates an EdgeTombstone operation. */
+export function createEdgeTombstone(from: string, to: string, label: string): OpEdgeTombstone;
+
+/** Creates a PropSet operation. */
+export function createPropSet(node: string, key: string, value: ValueRef): OpPropSet;
+
+/** Creates an inline value reference. */
+export function createInlineValue(value: unknown): ValueRefInline;
+
+/** Creates a blob value reference. */
+export function createBlobValue(oid: string): ValueRefBlob;
+
+/** Creates an EventId for total ordering of operations. */
+export function createEventId(options: {
+  lamport: number;
+  writerId: string;
+  patchSha: string;
+  opIndex: number;
+}): EventId;
+
+// ============================================================================
+// WARP Migration
+// ============================================================================
+
+/** Migrates a V4 visible-projection state to a V5 state with ORSet internals. */
+export function migrateV4toV5(v4State: {
+  nodeAlive: Map<string, { value: boolean }>;
+  edgeAlive: Map<string, { value: boolean }>;
+  prop: Map<string, unknown>;
+}, migrationWriterId: string): WarpStateV5;
 
 /**
  * A patch entry in a provenance payload.

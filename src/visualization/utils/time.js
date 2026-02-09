@@ -1,3 +1,9 @@
+/**
+ * Formats a date as a human-readable relative time string (e.g. "5m ago", "3d ago").
+ *
+ * @param {string|number|Date} date - The date to format (any value accepted by `new Date()`)
+ * @returns {string} Relative time string, or 'unknown' if the date is invalid
+ */
 export function timeAgo(date) {
   const ts = new Date(date).getTime();
   if (isNaN(ts)) {
@@ -14,6 +20,12 @@ export function timeAgo(date) {
   return `${days}d ago`;
 }
 
+/**
+ * Formats a duration in milliseconds as a human-readable string (e.g. "150ms", "3s", "2m 30s").
+ *
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration string
+ */
 export function formatDuration(ms) {
   if (ms < 1000) {return `${ms}ms`;}
   const seconds = Math.floor(ms / 1000);

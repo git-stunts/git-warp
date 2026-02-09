@@ -83,6 +83,8 @@ export default class BitmapIndexReader {
    *   Defaults to NoOpLogger (no logging).
    * @param {number} [options.maxCachedShards=100] - Maximum number of shards to keep in the LRU cache.
    *   When exceeded, least recently used shards are evicted to free memory.
+   * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort instance for checksum verification.
+   *   When not provided, checksum validation is skipped.
    */
   constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = {}) {
     if (!storage) {
@@ -376,6 +378,9 @@ export default class BitmapIndexReader {
    * Returns handled result for validation/corruption errors, null otherwise.
    * @param {Error} err - The error to handle
    * @param {Object} context - Error context
+   * @param {string} context.path - Shard path
+   * @param {string} context.oid - Object ID
+   * @param {string} context.format - 'json' or 'bitmap'
    * @returns {Object|RoaringBitmap32|null} Handled result or null if error should be re-thrown
    * @private
    */

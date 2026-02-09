@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.1.1] — BULKHEAD (cont.)
 
+### Documentation
+
+- **JSDoc audit across domain services**: Added missing `@param` tags for `codec` and `crypto` options in `BitmapIndexBuilder`, `BitmapIndexReader`, `CheckpointService`, `WarpGraph` constructor and `open()`. Documented `BlobValue` op type in `JoinReducer.applyOpV2`. Documented `shortestPath` failure return and `connectedComponent.maxDepth` in `LogicalTraversal`. Typed `getCurrentState` and `onCommitSuccess` callbacks in `Writer`.
+- **JSDoc for visualization layer**: Added JSDoc to all undocumented exports in `renderers/ascii/` (`createBox`, `progressBar`, `createTable`) and `utils/` (`stripAnsi`, `timeAgo`, `formatDuration`, `truncate`, `padRight`, `padLeft`, `center`).
+- **`WarpGraph.js` JSDoc fixes**: Added `@param httpPort` and `@throws` to `serve()`. Added 2 missing `@throws` codes to `fork()`. Fixed `TickReceipt` import path (`../types/` → `./types/`).
+- **`index.d.ts` critical fixes**: Fixed 6 methods incorrectly declared as synchronous (`getNodes`, `getEdges`, `getNodeProps`, `getEdgeProps`, `hasNode`, `neighbors` — all return `Promise`). Removed nonexistent `getVersionVector()`. Added missing params to `open()` (`onDeleteWithData`, `clock`, `crypto`, `codec`), `serve()` (`httpPort`), and `BitmapIndexReader` (`crypto`). Added `maxDepth` to `connectedComponent` options.
+- **`index.d.ts` completeness**: Added 18 missing public `WarpGraph` method declarations (`writer()`, `subscribe()`, `watch()`, `status()`, `syncCoverage()`, `createSyncRequest()`, `processSyncRequest()`, `applySyncResponse()`, `syncNeeded()`, `maybeRunGC()`, `runGC()`, `getGCMetrics()`, `join()`, `createWriter()`, getters for `persistence`, `onDeleteWithData`, `gcPolicy`, `temporal`). Added supporting type declarations (`StateDiffResult`, `Writer`, `PatchSession`, `WriterError`, GC types, sync protocol types, `TemporalQuery`, `TemporalNodeSnapshot`). Added 9 missing runtime export declarations (`createNodeAdd`, `createNodeTombstone`, `createEdgeAdd`, `createEdgeTombstone`, `createPropSet`, `createInlineValue`, `createBlobValue`, `createEventId`, `migrateV4toV5`) with supporting op/value types.
+
 ### Fixed
 
 - **`NodeCryptoAdapter.hash()` / `hmac()` now use `async`**: Previously used `Promise.resolve()` wrapping, which let synchronous throws (e.g. unsupported algorithm) escape as uncaught exceptions instead of rejected promises. Now properly `async` so all errors become rejections.

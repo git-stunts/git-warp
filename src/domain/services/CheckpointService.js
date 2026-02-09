@@ -53,6 +53,8 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
  * @param {string[]} [options.parents=[]] - Parent commit SHAs (typically prior checkpoint or patch commits)
  * @param {boolean} [options.compact=true] - Whether to compact tombstoned dots before saving
  * @param {import('./ProvenanceIndex.js').ProvenanceIndex} [options.provenanceIndex] - Optional provenance index to persist
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization
+ * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort for state hash computation
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto }) {
@@ -80,6 +82,8 @@ export async function create({ persistence, graphName, state, frontier, parents 
  * @param {string[]} [options.parents=[]] - Parent commit SHAs
  * @param {boolean} [options.compact=true] - Whether to compact tombstoned dots before saving
  * @param {import('./ProvenanceIndex.js').ProvenanceIndex} [options.provenanceIndex] - Optional provenance index to persist
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization
+ * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort for state hash computation
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function createV5({
@@ -187,6 +191,8 @@ export async function createV5({
  *
  * @param {import('../../ports/GraphPersistencePort.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
+ * @param {Object} [options] - Load options
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for CBOR deserialization
  * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV?: Map<string, number>, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
@@ -269,6 +275,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
  * @param {string} options.checkpointSha - The schema:2 checkpoint commit SHA to start from
  * @param {import('./Frontier.js').Frontier} options.targetFrontier - The target frontier to materialize to
  * @param {Function} options.patchLoader - Async function to load patches: (writerId, fromSha, toSha) => Array<{patch, sha}>
+ * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for CBOR deserialization
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5>} The materialized V5 state at targetFrontier
  * @throws {Error} If checkpoint is schema:1 (migration required)
  * @throws {Error} If checkpoint is missing required blobs (state.cbor, frontier.cbor)
