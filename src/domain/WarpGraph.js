@@ -1658,28 +1658,29 @@ export default class WarpGraph {
     let pollIntervalId = null;
     let pollInFlight = false;
     if (poll) {
-      pollIntervalId = setInterval(async () => {
+      pollIntervalId = setInterval(() => {
         if (pollInFlight) {
           return;
         }
         pollInFlight = true;
-        try {
-          const changed = await this.hasFrontierChanged();
-          if (changed) {
-            await this.materialize();
-            // Subscription system will notify via filteredOnChange
-          }
-        } catch (err) {
-          if (onError) {
-            try {
-              onError(err);
-            } catch {
-              // onError itself threw — swallow to prevent cascade
+        this.hasFrontierChanged()
+          .then(async (changed) => {
+            if (changed) {
+              await this.materialize();
             }
-          }
-        } finally {
-          pollInFlight = false;
-        }
+          })
+          .catch((err) => {
+            if (onError) {
+              try {
+                onError(err);
+              } catch {
+                // onError itself threw — swallow to prevent cascade
+              }
+            }
+          })
+          .finally(() => {
+            pollInFlight = false;
+          });
       }, poll);
     }
 
