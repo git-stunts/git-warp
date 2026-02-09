@@ -1,0 +1,74 @@
+name: Release Preflight (PR)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test
+        run: npm run test:local --if-present
+
+      - name: npm pack dry-run
+        run: npm pack --dry-run
+
+      - name: JSR dry-run
+        run: npx -y jsr publish --dry-run
+
+      - name: Compute predicted dist-tag from package version
+        id: predict
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DIST=latest
+          PRE=false
+          if [[ "$VERSION" =~ -(rc|beta|alpha)\. ]]; then
+            PRE=true
+            if [[ "$VERSION" =~ -rc\. ]]; then DIST=next; fi
+            if [[ "$VERSION" =~ -beta\. ]]; then DIST=beta; fi
+            if [[ "$VERSION" =~ -alpha\. ]]; then DIST=alpha; fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist=$DIST" >> "$GITHUB_OUTPUT"
+          echo "pre=$PRE" >> "$GITHUB_OUTPUT"
+
+      - name: PR comment (release preview)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              "## Release Preflight",
+              "",
+              `- package version: \`${{ steps.predict.outputs.version }}\``,
+              `- prerelease: \`${{ steps.predict.outputs.pre }}\``,
+              `- npm dist-tag on release: \`${{ steps.predict.outputs.dist }}\``,
+              "- npm pack dry-run: passed",
+              "- jsr publish dry-run: passed",
+              "",
+              "If you tag this commit as `v${{ steps.predict.outputs.version }}`, release workflow will publish."
+            ].join("\n");
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body
+            });

@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-rc.*"
+      - "v*.*.*-beta.*"
+      - "v*.*.*-alpha.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify build, metadata, publishability
+    runs-on: ubuntu-latest
+    outputs:
+      tag_version: ${{ steps.meta.outputs.tag_version }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      npm_dist_tag: ${{ steps.meta.outputs.npm_dist_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test (local unit)
+        run: npm run test:local --if-present
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      - name: Compute release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "tag_version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ "$TAG_VERSION" =~ -(rc|beta|alpha)\. ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            if [[ "$TAG_VERSION" =~ -rc\. ]]; then
+              echo "npm_dist_tag=next" >> "$GITHUB_OUTPUT"
+            elif [[ "$TAG_VERSION" =~ -beta\. ]]; then
+              echo "npm_dist_tag=beta" >> "$GITHUB_OUTPUT"
+            else
+              echo "npm_dist_tag=alpha" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify tag == package.json version
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.meta.outputs.tag_version }}"
+          echo "package.json: $PKG_VERSION"
+          echo "tag:          $TAG_VERSION"
+          test "$PKG_VERSION" = "$TAG_VERSION"
+
+      - name: Verify jsr version == tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${{ steps.meta.outputs.tag_version }}"
+          if [ -f jsr.json ]; then
+            JSR_VERSION=$(node -p "require('./jsr.json').version")
+          elif [ -f jsr.jsonc ]; then
+            JSR_VERSION=$(grep -Eo '"version"\s*:\s*"[^"]+"' jsr.jsonc | head -n1 | sed -E 's/.*"([^"]+)"/\1/')
+          else
+            echo "Missing jsr.json/jsr.jsonc"
+            exit 1
+          fi
+          echo "jsr:          $JSR_VERSION"
+          echo "tag:          $TAG_VERSION"
+          test "$JSR_VERSION" = "$TAG_VERSION"
+
+      - name: Verify published files
+        run: npm pack --dry-run
+
+      - name: Verify JSR publishability
+        run: npx -y jsr publish --dry-run
+
+  publish_npm:
+    name: Publish npm
+    runs-on: ubuntu-latest
+    needs: verify
+    permissions:
+      contents: read
+      id-token: write
+    environment: npm
+    continue-on-error: true
+    outputs:
+      package_name: ${{ steps.pkg.outputs.name }}
+      version: ${{ steps.pkg.outputs.version }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20 for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Upgrade npm CLI
+        run: npm i -g npm@latest
+
+      - name: Read package metadata
+        id: pkg
+        shell: bash
+        run: |
+          echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish npm (retry x3)
+        uses: ./.github/actions/retry
+        with:
+          attempts: "3"
+          delay_seconds: "15"
+          command: npm publish --access public --tag "${{ needs.verify.outputs.npm_dist_tag }}" --provenance
+
+  publish_jsr:
+    name: Publish JSR
+    runs-on: ubuntu-latest
+    needs: verify
+    permissions:
+      contents: read
+      id-token: write
+    environment: jsr
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish JSR (retry x3)
+        uses: ./.github/actions/retry
+        with:
+          attempts: "3"
+          delay_seconds: "15"
+          command: npx -y jsr publish
+
+  github_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [verify, publish_npm, publish_jsr]
+    if: ${{ always() && needs.verify.result == 'success' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Build registry summary
+        id: summary
+        shell: bash
+        run: |
+          cat > RELEASE_SUMMARY.md << 'EOF'
+          ## Registry publish summary
+
+          - npm: `${{ needs.publish_npm.result }}`
+          - JSR: `${{ needs.publish_jsr.result }}`
+
+          Dist-tag: `${{ needs.verify.outputs.npm_dist_tag }}`
+          Version: `${{ needs.verify.outputs.tag_version }}`
+
+          If one registry failed, re-run only that job from Actions.
+          EOF
+
+      - name: Create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ needs.verify.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          append_body: true
+          body_path: RELEASE_SUMMARY.md
+
+      - name: Fail if both registries failed
+        if: ${{ needs.publish_npm.result != 'success' && needs.publish_jsr.result != 'success' }}
+        run: |
+          echo "Both npm and JSR publish failed."
+          exit 1

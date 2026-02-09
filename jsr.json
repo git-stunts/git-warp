@@ -3,6 +3,7 @@
   "version": "10.1.1",
   "exports": {
     ".": "./index.js",
+    "./node": "./src/domain/entities/GraphNode.js",
     "./visualization": "./src/visualization/index.js"
   },
   "publish": {

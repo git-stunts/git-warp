@@ -1,0 +1,44 @@
+name: "Retry Command"
+description: "Run a shell command with retry/backoff"
+
+inputs:
+  command:
+    description: "Command to run"
+    required: true
+  attempts:
+    description: "How many attempts"
+    required: false
+    default: "3"
+  delay_seconds:
+    description: "Base delay between retries"
+    required: false
+    default: "15"
+
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        RETRY_CMD: ${{ inputs.command }}
+        RETRY_ATTEMPTS: ${{ inputs.attempts }}
+        RETRY_DELAY: ${{ inputs.delay_seconds }}
+      run: |
+        set -euo pipefail
+        n=1
+        until [ "$n" -gt "$RETRY_ATTEMPTS" ]; do
+          echo "Attempt $n/$RETRY_ATTEMPTS: $RETRY_CMD"
+          if bash -c "$RETRY_CMD"; then
+            echo "Success"
+            exit 0
+          fi
+
+          if [ "$n" -lt "$RETRY_ATTEMPTS" ]; then
+            SLEEP=$((RETRY_DELAY * n))
+            echo "Failed attempt $n. Retrying in ${SLEEP}s..."
+            sleep "$SLEEP"
+          fi
+          n=$((n+1))
+        done
+
+        echo "Command failed after $RETRY_ATTEMPTS attempts."
+        exit 1
