@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.2.1] — 2026-02-09 — Compact ASCII graphs & hero GIF
+
+### Changed
+
+- **Compact ASCII node rendering**: Nodes are now 3 rows (border + label + border) instead of variable-height boxes, producing much denser graph output.
+- **Tighter ELK layout spacing**: `nodeNode` reduced from 40→30, `betweenLayers` from 60→40, `NODE_HEIGHT` from 40→30 across all layout presets.
+- **ASCII cell scaling**: `CELL_W` changed from 8→10 and `CELL_H` from 4→10 for better proportions with compact nodes.
+- **Hero GIF revamp**: New Catppuccin Mocha theme, 6 scenes (empty log, info, query, path, warp refs, commit DAG), wider terminal (960×520).
+- **README hero GIF**: Embedded `hero.gif` at the top of `README.md`.
+
 ## [10.2.0] — 2026-02-09 — Multi-runtime test matrix
 
 Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Deno. Fixes the `materialize` CLI command crashing when creating checkpoints. Expands end-to-end coverage from 8 BATS tests and 7 integration tests to 56 BATS tests and 54 integration tests.
@@ -32,7 +42,7 @@ Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Den
 - **Extract `writeHtmlExport` helper**: Deduplicated the HTML wrapper template in `emit()` (query and path branches) into a shared `writeHtmlExport()` function.
 - **Docker images run as non-root**: All four test images (`node20`, `node22`, `bun`, `deno`) now run tests as a non-root user to mirror CI environments and catch permission issues early.
 - **Docker `--no-install-recommends`**: All Dockerfiles use `--no-install-recommends` to reduce image size and build time.
-- **Pin Deno base image**: `Dockerfile.deno` now uses `denoland/deno:2.1` instead of `latest` for reproducible builds.
+- **Pin Deno base image**: `Dockerfile.deno` now uses `denoland/deno:2.1.9` instead of `latest` for reproducible builds (the short `2.1` tag does not exist on Docker Hub).
 - **Add `--build` to individual runtime scripts**: `test:node20`, `test:node22`, `test:bun`, `test:deno` now include `--build` so Dockerfile changes are always picked up.
 - **Extract shared BATS seed setup**: Duplicated boilerplate (project root resolution, dynamic imports, persistence creation) extracted to `test/bats/helpers/seed-setup.js`.
 - **Remove redundant CI Node.js setup**: `test-node` job no longer installs Node/npm on the host — tests run entirely in Docker, saving ~30-60s per matrix entry.
@@ -44,6 +54,7 @@ Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Den
 - **BATS info temp dir cleanup**: Empty-repo test now uses `trap ... RETURN` to clean up temp directory on assertion failure.
 - **BATS seed scripts include crypto**: All `WarpGraph.open()` calls in seed scripts now pass `NodeCryptoAdapter` via the shared `seed-setup.js` module, matching the CLI and preventing `createCheckpoint()` crashes.
 - **Stricter HTML export BATS test**: `--view html:FILE` test now asserts `<!DOCTYPE` and `<html` instead of falling back to `<svg`, ensuring raw SVG cannot pass as valid HTML output.
+- **Deno Docker cache permissions**: `Dockerfile.deno` now chowns `/deno-dir` (Deno's global cache) to the `deno` user, fixing `Permission denied` errors when Deno fetches npm packages at runtime.
 
 ### Docs
 

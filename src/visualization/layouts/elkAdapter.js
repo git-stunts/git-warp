@@ -6,20 +6,20 @@ const LAYOUT_PRESETS = {
   query: {
     'elk.algorithm': 'layered',
     'elk.direction': 'DOWN',
-    'elk.spacing.nodeNode': '40',
-    'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+    'elk.spacing.nodeNode': '30',
+    'elk.layered.spacing.nodeNodeBetweenLayers': '40',
   },
   path: {
     'elk.algorithm': 'layered',
     'elk.direction': 'RIGHT',
-    'elk.spacing.nodeNode': '40',
-    'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+    'elk.spacing.nodeNode': '30',
+    'elk.layered.spacing.nodeNodeBetweenLayers': '40',
   },
   slice: {
     'elk.algorithm': 'layered',
     'elk.direction': 'DOWN',
-    'elk.spacing.nodeNode': '40',
-    'elk.layered.spacing.nodeNodeBetweenLayers': '60',
+    'elk.spacing.nodeNode': '30',
+    'elk.layered.spacing.nodeNodeBetweenLayers': '40',
   },
 };
 
@@ -46,7 +46,7 @@ function estimateNodeWidth(label) {
   return Math.max((label?.length ?? 0) * charWidth + padding, minWidth);
 }
 
-const NODE_HEIGHT = 40;
+const NODE_HEIGHT = 30;
 
 /**
  * Converts normalised graph data to an ELK graph JSON object.

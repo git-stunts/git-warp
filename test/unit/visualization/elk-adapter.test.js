@@ -54,7 +54,7 @@ describe('elkAdapter', () => {
       const elk = toElkGraph(graphData);
       // 'short' = 5 chars * 9 + 24 = 69, min is 80
       expect(elk.children[0].width).toBe(80);
-      expect(elk.children[0].height).toBe(40);
+      expect(elk.children[0].height).toBe(30);
     });
 
     it('widens nodes for long labels', () => {

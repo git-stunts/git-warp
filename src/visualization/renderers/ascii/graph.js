@@ -2,7 +2,9 @@
  * ASCII graph renderer: maps ELK-positioned nodes and edges onto a character grid.
  *
  * Pixel-to-character scaling:
- *   cellW = 8 px/char, cellH = 4 px/char (approximate monospace aspect ratio)
+ *   cellW = 10, cellH = 10
+ *   ELK uses NODE_HEIGHT=40, nodeNode=40, betweenLayers=60.
+ *   At cellH=10: 40px → 4 rows, compact 3-row nodes fit with natural gaps.
  */
 
 import { createBox } from './box.js';
@@ -11,8 +13,8 @@ import { ARROW } from './symbols.js';
 
 // ── Scaling constants ────────────────────────────────────────────────────────
 
-const CELL_W = 8;
-const CELL_H = 4;
+const CELL_W = 10;
+const CELL_H = 10;
 const MARGIN = 2;
 
 // ── Box-drawing characters (short keys for tight grid-stamping loops) ───────
@@ -76,8 +78,8 @@ function writeString(grid, r, c, str) {
 function stampNode(grid, node) {
   const r = toRow(node.y);
   const c = toCol(node.x);
-  const w = Math.max(scaleW(node.width), 4);
-  const h = Math.max(scaleH(node.height), 3);
+  const w = Math.max(toCol(node.width), 4);
+  const h = 3; // Always: border + label + border
 
   // Top border
   writeChar(grid, r, c, BOX.tl);
@@ -87,10 +89,8 @@ function stampNode(grid, node) {
   writeChar(grid, r, c + w - 1, BOX.tr);
 
   // Side borders
-  for (let j = 1; j < h - 1; j++) {
-    writeChar(grid, r + j, c, BOX.v);
-    writeChar(grid, r + j, c + w - 1, BOX.v);
-  }
+  writeChar(grid, r + 1, c, BOX.v);
+  writeChar(grid, r + 1, c + w - 1, BOX.v);
 
   // Bottom border
   writeChar(grid, r + h - 1, c, BOX.bl);
@@ -99,13 +99,13 @@ function stampNode(grid, node) {
   }
   writeChar(grid, r + h - 1, c + w - 1, BOX.br);
 
-  // Label (centered)
+  // Label (always on row 1)
   const label = node.label ?? node.id;
   const maxLabel = w - 4;
   const truncated = label.length > maxLabel
     ? `${label.slice(0, Math.max(maxLabel - 1, 1))}\u2026`
     : label;
-  const labelRow = r + Math.floor(h / 2);
+  const labelRow = r + 1;
   const labelCol = c + Math.max(1, Math.floor((w - truncated.length) / 2));
   writeString(grid, labelRow, labelCol, truncated);
 }
@@ -282,8 +282,8 @@ function buildNodeSet(nodes) {
   for (const node of nodes) {
     const r = toRow(node.y);
     const c = toCol(node.x);
-    const w = Math.max(scaleW(node.width), 4);
-    const h = Math.max(scaleH(node.height), 3);
+    const w = Math.max(toCol(node.width), 4);
+    const h = 3; // Match compact node height
     for (let dr = 0; dr < h; dr++) {
       for (let dc = 0; dc < w; dc++) {
         set.add(`${r + dr},${c + dc}`);

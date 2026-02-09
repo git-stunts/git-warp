@@ -4,6 +4,10 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
 
+<p align="center">
+  <img src="hero.gif" alt="git-warp CLI demo" width="600">
+</p>
+
 A multi-writer graph database that uses Git commits as its storage substrate. Graph state is stored as commits pointing to the empty tree (`4b825dc...`), making the data invisible to normal Git workflows while inheriting Git's content-addressing, cryptographic integrity, and distributed replication.
 
 Writers collaborate without coordination using CRDTs (OR-Set for nodes/edges, LWW registers for properties). Every writer maintains an independent patch chain; materialization deterministically merges all writers into a single consistent view.
