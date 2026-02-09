@@ -87,7 +87,7 @@ PY
   JSON="$output" python3 - <<'PY'
 import json, os
 data = json.loads(os.environ["JSON"])
-r = data["results"][0]
+r = data["graphs"][0]
 # 3 users + 1 project = 4 nodes
 assert r["nodes"] == 4, f"expected 4 nodes, got {r['nodes']}"
 # alice->project:alpha (owns) + bob->project:alpha (contributes) = 2 edges

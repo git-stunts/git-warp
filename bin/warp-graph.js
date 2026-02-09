@@ -339,6 +339,12 @@ async function getGraphInfo(persistence, graphName, {
 async function openGraph(options) {
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
+  if (options.graph) {
+    const graphNames = await listGraphNames(persistence);
+    if (!graphNames.includes(options.graph)) {
+      throw notFoundError(`Graph not found: ${options.graph}`);
+    }
+  }
   const graph = await WarpGraph.open({
     persistence,
     graphName,
@@ -769,6 +775,15 @@ function emit(payload, { json, command, view }) {
         fs.writeFileSync(svgPath, payload._renderedSvg);
         process.stderr.write(`SVG written to ${svgPath}\n`);
       }
+    } else if (view && typeof view === 'string' && view.startsWith('html:')) {
+      const htmlPath = view.slice(5);
+      if (!payload._renderedSvg) {
+        process.stderr.write('No graph data — skipping HTML export.\n');
+      } else {
+        const html = `<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>git-warp</title></head><body>\n${payload._renderedSvg}\n</body></html>`;
+        fs.writeFileSync(htmlPath, html);
+        process.stderr.write(`HTML written to ${htmlPath}\n`);
+      }
     } else if (view) {
       process.stdout.write(`${payload._renderedAscii}\n`);
     } else {
@@ -785,6 +800,15 @@ function emit(payload, { json, command, view }) {
       } else {
         fs.writeFileSync(svgPath, payload._renderedSvg);
         process.stderr.write(`SVG written to ${svgPath}\n`);
+      }
+    } else if (view && typeof view === 'string' && view.startsWith('html:')) {
+      const htmlPath = view.slice(5);
+      if (!payload._renderedSvg) {
+        process.stderr.write('No path found — skipping HTML export.\n');
+      } else {
+        const html = `<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>git-warp</title></head><body>\n${payload._renderedSvg}\n</body></html>`;
+        fs.writeFileSync(htmlPath, html);
+        process.stderr.write(`HTML written to ${htmlPath}\n`);
       }
     } else if (view) {
       process.stdout.write(renderPathView(payload));
@@ -907,7 +931,7 @@ async function handleQuery({ options, args }) {
       const edges = await graph.getEdges();
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
-      if (typeof options.view === 'string' && options.view.startsWith('svg:')) {
+      if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
         payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
       } else {
         payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
@@ -997,7 +1021,7 @@ async function handlePath({ options, args }) {
       ...result,
     };
 
-    if (options.view && result.found && typeof options.view === 'string' && options.view.startsWith('svg:')) {
+    if (options.view && result.found && typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
       const graphData = pathResultToGraphData(payload);
       const positioned = await layoutGraph(graphData, { type: 'path' });
       payload._renderedSvg = renderSvg(positioned, { title: `${graphName} path` });

@@ -21,6 +21,10 @@ Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Den
 ### Fixed
 
 - **`materialize` CLI crash**: `WarpGraph.open()` calls in `openGraph()`, `materializeOneGraph()`, and the info handler's writer-patch lookup were missing the `crypto` option, causing `createCheckpoint()` to fail with "Invalid stateHash: expected string, got object". Now passes `NodeCryptoAdapter` in all three call sites.
+- **`--graph nonexistent` silently succeeds**: `openGraph()` now validates that the specified graph exists before opening it, returning a proper `E_NOT_FOUND` error.
+- **`--view html:FILE` not writing file**: The `html:FILE` view mode was accepted by the parser but never handled in `emit()`. Now wraps rendered SVG in an HTML document and writes it to the specified path (query and path commands).
+- **BATS test key mismatch**: Materialize tests referenced `data["results"]` but the CLI outputs `data["graphs"]`. Fixed in `cli-materialize.bats` and `cli-multiwriter.bats`.
+- **BATS path-not-found exit code**: `path not found` test expected exit 0, but the CLI intentionally returns exit 2 (`NOT_FOUND`). Fixed assertion in `cli-path.bats`.
 
 ### Changed
 

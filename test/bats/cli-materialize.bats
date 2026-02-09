@@ -18,7 +18,7 @@ teardown() {
   JSON="$output" python3 - <<'PY'
 import json, os
 data = json.loads(os.environ["JSON"])
-results = data["results"]
+results = data["graphs"]
 assert len(results) >= 1
 r = results[0]
 assert r["graph"] == "demo"
@@ -34,7 +34,7 @@ PY
   JSON="$output" python3 - <<'PY'
 import json, os, re
 data = json.loads(os.environ["JSON"])
-r = data["results"][0]
+r = data["graphs"][0]
 assert "checkpoint" in r
 assert isinstance(r["checkpoint"], str)
 assert re.match(r'^[0-9a-f]{40}$', r["checkpoint"])
@@ -54,7 +54,7 @@ PY
   JSON="$output" python3 - <<'PY'
 import json, os
 data = json.loads(os.environ["JSON"])
-assert len(data["results"]) == 1
-assert data["results"][0]["graph"] == "demo"
+assert len(data["graphs"]) == 1
+assert data["graphs"][0]["graph"] == "demo"
 PY
 }
