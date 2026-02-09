@@ -22,11 +22,8 @@ function buildSeekTimeline(currentTick, ticks) {
     return colors.muted('(no ticks)');
   }
 
-  // Include tick 0 (empty state) at the front
-  const allPoints = [0, ...ticks];
+  const allPoints = (ticks[0] === 0) ? [...ticks] : [0, ...ticks];
   const maxPoints = Math.min(allPoints.length, MAX_TIMELINE_WIDTH);
-
-  // Sample points if too many
   let displayPoints;
   if (allPoints.length <= maxPoints) {
     displayPoints = allPoints;
@@ -39,6 +36,7 @@ function buildSeekTimeline(currentTick, ticks) {
     displayPoints.push(allPoints[allPoints.length - 1]);
   }
 
+  const segLen = Math.max(1, Math.floor(MAX_TIMELINE_WIDTH / displayPoints.length));
   let timeline = '';
   let labels = '';
 
@@ -47,9 +45,7 @@ function buildSeekTimeline(currentTick, ticks) {
     const isActive = tick === currentTick;
 
     if (i > 0) {
-      const segLen = Math.max(1, Math.floor(MAX_TIMELINE_WIDTH / displayPoints.length));
       timeline += colors.muted(TIMELINE.line.repeat(segLen));
-      labels += ' '.repeat(segLen);
     }
 
     if (isActive) {
@@ -58,8 +54,11 @@ function buildSeekTimeline(currentTick, ticks) {
       timeline += colors.muted('\u25CB'); // ○ open circle
     }
 
+    // Pad labels so each tick label starts at the same column as its dot
     const tickLabel = String(tick);
-    labels += tickLabel;
+    const targetPos = i * (segLen + 1);
+    const padNeeded = Math.max(0, targetPos - labels.length);
+    labels += ' '.repeat(padNeeded) + tickLabel;
   }
 
   // Add pointer line

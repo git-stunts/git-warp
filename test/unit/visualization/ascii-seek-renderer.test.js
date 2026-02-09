@@ -149,4 +149,70 @@ describe('renderSeekView', () => {
     expect(output).toContain('alice');
     expect(output).toContain('3 nodes, 2 edges');
   });
+
+  it('does not duplicate tick 0 when ticks already contains 0', () => {
+    const payload = {
+      graph: 'zero',
+      tick: 0,
+      maxTick: 2,
+      ticks: [0, 1, 2],
+      nodes: 0,
+      edges: 0,
+      patchCount: 0,
+      perWriter: {},
+    };
+
+    const output = stripAnsi(renderSeekView(payload));
+
+    // The timeline should have exactly 3 dots (0, 1, 2) — not 4 (0, 0, 1, 2)
+    // Extract the timeline line (first line of the timeline block)
+    const lines = output.split('\n');
+    // Count circle/dot characters (● = \u25CF or similar, ○ = \u25CB)
+    const timelineLine = lines.find((l) => /[●○\u25CB\u25CF]/.test(l));
+    if (timelineLine) {
+      const dotCount = (timelineLine.match(/[●○\u25CB\u25CF]/g) || []).length;
+      expect(dotCount).toBe(3);
+    }
+  });
+
+  it('multi-digit tick labels stay aligned under their dots', () => {
+    const payload = {
+      graph: 'align',
+      tick: 10,
+      maxTick: 100,
+      ticks: [10, 50, 100],
+      nodes: 5,
+      edges: 3,
+      patchCount: 3,
+      perWriter: {
+        alice: { ticks: [10, 50, 100], tipSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      },
+    };
+
+    const output = stripAnsi(renderSeekView(payload));
+    const lines = output.split('\n');
+
+    // Find the timeline and labels lines
+    const timelineIdx = lines.findIndex((l) => /[●○\u25CB\u25CF]/.test(l));
+    if (timelineIdx >= 0) {
+      const tl = lines[timelineIdx];
+      const lb = lines[timelineIdx + 1];
+
+      // Each dot in the timeline should have its tick label starting
+      // at the same character position in the labels line.
+      // Find positions of dots in the timeline
+      const dotPositions = [];
+      for (let c = 0; c < tl.length; c++) {
+        if (/[●○\u25CB\u25CF]/.test(tl[c])) {
+          dotPositions.push(c);
+        }
+      }
+
+      // For each dot position, the label line should have the start of a number
+      for (const pos of dotPositions) {
+        const ch = lb[pos];
+        expect(ch).toMatch(/[0-9]/);
+      }
+    }
+  });
 });

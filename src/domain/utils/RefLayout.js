@@ -8,6 +8,8 @@
  * - refs/warp/<graph>/writers/<writer_id>
  * - refs/warp/<graph>/checkpoints/head
  * - refs/warp/<graph>/coverage/head
+ * - refs/warp/<graph>/cursor/active
+ * - refs/warp/<graph>/cursor/saved/<name>
  *
  * @module domain/utils/RefLayout
  */

@@ -332,5 +332,44 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       expect(spy).not.toHaveBeenCalled();
     });
+
+    it('cache hit with collectReceipts bypasses cache and returns real receipts', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'test',
+        writerId: 'w1',
+      });
+
+      setupMultiWriterPersistence(persistence, { alice: 3 });
+
+      // First call: populate the ceiling cache
+      await graph.materialize({ ceiling: 2 });
+      const callCountAfterFirst = persistence.getNodeInfo.mock.calls.length;
+
+      // Second call: same ceiling but with receipts — must NOT use cache
+      const result = await graph.materialize({ ceiling: 2, receipts: true });
+
+      expect(result.state).toBeDefined();
+      expect(Array.isArray(result.receipts)).toBe(true);
+      // Must have re-materialized (not returned empty receipts from cache)
+      const callCountAfterSecond = persistence.getNodeInfo.mock.calls.length;
+      expect(callCountAfterSecond).toBeGreaterThan(callCountAfterFirst);
+    });
+
+    it('explicit ceiling: null overrides _seekCeiling and materializes latest', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'test',
+        writerId: 'w1',
+      });
+
+      setupMultiWriterPersistence(persistence, { alice: 3 });
+
+      graph._seekCeiling = 1;
+      // Passing ceiling: null should clear the ceiling, giving us all 3 nodes
+      const state = await graph.materialize({ ceiling: null });
+
+      expect(state.nodeAlive.entries.size).toBe(3);
+    });
   });
 });

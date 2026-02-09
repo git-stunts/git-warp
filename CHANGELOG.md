@@ -37,11 +37,16 @@ Adds cursor-based time travel for exploring graph history. Navigate to any Lampo
 - **Cursor blob validation**: Added `parseCursorBlob()` utility that validates JSON structure and numeric tick before use. `readActiveCursor`, `readSavedCursor`, and `listSavedCursors` now throw descriptive errors on corrupted cursor data instead of crashing.
 - **GUIDE.md**: Added `--view seek` to the supported commands table.
 - **CHANGELOG**: Fixed `RefLayout` helper names to match exported API (`buildCursorActiveRef`, not `buildCursorRef`).
+- **`_materializeWithCeiling` cache**: Cache fast-path no longer returns empty `receipts: []` when `collectReceipts` is true; falls through to full materialization to produce real receipts.
+- **`_resolveCeiling` null override**: `materialize({ ceiling: null })` now correctly clears `_seekCeiling` and materializes latest state, instead of ignoring the explicit null.
+- **Seek timeline duplicate 0**: `buildSeekTimeline` no longer prepends tick 0 when `ticks` already contains it, preventing a duplicate dot in the timeline.
+- **Seek timeline label drift**: Tick labels now stay vertically aligned under their dots for multi-digit tick values by computing target column positions instead of using fixed-width padding.
+- **RefLayout docstring**: Added `cursor/active` and `cursor/saved/<name>` to the module-level ref layout listing.
 
 ### Tests
 
-- Suite total: 2934 tests across 147 vitest files + 66 BATS CLI tests (up from 2883/142 + 56).
-- New seek tests: 19 unit (12 domain + 7 renderer) + 10 BATS CLI = 29 total.
+- Suite total: 2938 tests across 147 vitest files + 66 BATS CLI tests (up from 2883/142 + 56).
+- New seek tests: 23 unit (14 domain + 9 renderer) + 10 BATS CLI = 33 total.
 - New parseCursorBlob unit tests: 11 tests covering valid parsing, corrupted JSON, missing/invalid tick.
 
 ## [10.2.1] — 2026-02-09 — Compact ASCII graphs & hero GIF

@@ -719,7 +719,7 @@ export default class WarpGraph {
    * @private
    */
   _resolveCeiling(options) {
-    if (options && options.ceiling !== undefined && options.ceiling !== null) {
+    if (options && 'ceiling' in options) {
       return options.ceiling;
     }
     return this._seekCeiling;
@@ -739,11 +739,9 @@ export default class WarpGraph {
    * @private
    */
   async _materializeWithCeiling(ceiling, collectReceipts, t0) {
-    // Cache hit: same ceiling as last time, state is clean
-    if (this._cachedState && !this._stateDirty && ceiling === this._cachedCeiling) {
-      if (collectReceipts) {
-        return { state: this._cachedState, receipts: [] };
-      }
+    // Cache hit: same ceiling as last time, state is clean.
+    // Bypass cache when collectReceipts is true — cached path has no receipts.
+    if (this._cachedState && !this._stateDirty && ceiling === this._cachedCeiling && !collectReceipts) {
       return this._cachedState;
     }
 
