@@ -3,7 +3,7 @@
 # CLI and unit tests are excluded — they depend on vitest / node: built-ins.
 # No native module compilation needed — roaring falls back to WASM.
 # Build context is the parent monorepo directory (context: ..).
-FROM denoland/deno:2.1
+FROM denoland/deno:2.1.9
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
