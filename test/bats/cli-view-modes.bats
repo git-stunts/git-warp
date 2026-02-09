@@ -12,31 +12,31 @@ teardown() {
 }
 
 @test "--view ascii info produces output" {
-  run git warp --repo "${TEST_REPO}" --view info
+  run git warp --repo "${TEST_REPO}" --view ascii info
   assert_success
   [ -n "$output" ]
 }
 
 @test "--view ascii query produces output" {
-  run git warp --repo "${TEST_REPO}" --graph demo --view query --match "user:*"
+  run git warp --repo "${TEST_REPO}" --graph demo --view ascii query --match "user:*"
   assert_success
   [ -n "$output" ]
 }
 
 @test "--view ascii check produces output" {
-  run git warp --repo "${TEST_REPO}" --graph demo --view check
+  run git warp --repo "${TEST_REPO}" --graph demo --view ascii check
   assert_success
   [ -n "$output" ]
 }
 
 @test "--view ascii history produces output" {
-  run git warp --repo "${TEST_REPO}" --graph demo --writer alice --view history
+  run git warp --repo "${TEST_REPO}" --graph demo --writer alice --view ascii history
   assert_success
   [ -n "$output" ]
 }
 
 @test "--view ascii materialize produces output" {
-  run git warp --repo "${TEST_REPO}" --view materialize
+  run git warp --repo "${TEST_REPO}" --view ascii materialize
   assert_success
   [ -n "$output" ]
 }

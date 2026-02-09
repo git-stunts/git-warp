@@ -62,7 +62,7 @@ PY
 }
 
 @test "check --view ascii produces output" {
-  run git warp --repo "${TEST_REPO}" --graph demo --view check
+  run git warp --repo "${TEST_REPO}" --graph demo --view ascii check
   assert_success
   [ -n "$output" ]
 }

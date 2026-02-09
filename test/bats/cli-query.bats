@@ -106,7 +106,7 @@ PY
 }
 
 @test "query --view ascii produces output" {
-  run git warp --repo "${TEST_REPO}" --graph demo --view query --match "user:*"
+  run git warp --repo "${TEST_REPO}" --graph demo --view ascii query --match "user:*"
   assert_success
   [ -n "$output" ]
 }

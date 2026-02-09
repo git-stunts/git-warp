@@ -52,7 +52,9 @@ PY
 @test "info on empty repo shows no graphs" {
   local empty_repo
   empty_repo="$(mktemp -d)"
-  cd "${empty_repo}"
+  # shellcheck disable=SC2064
+  trap "rm -rf '${empty_repo}'" RETURN
+  cd "${empty_repo}" || return 1
   git init >/dev/null
   git config user.email "test@test.com"
   git config user.name "Test"
@@ -65,6 +67,4 @@ import json, os
 data = json.loads(os.environ["JSON"])
 assert data["graphs"] == []
 PY
-
-  rm -rf "${empty_repo}"
 }

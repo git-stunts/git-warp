@@ -38,6 +38,10 @@ Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Den
 - **Remove redundant CI Node.js setup**: `test-node` job no longer installs Node/npm on the host — tests run entirely in Docker, saving ~30-60s per matrix entry.
 - **Fix `opts` spread order in test helpers**: Spread `...opts` before explicit params so callers cannot accidentally override `persistence`, `graphName`, `writerId`, or `crypto`.
 - **Guard `cd` commands in BATS setup**: Added `|| return 1` to all `cd` calls in `setup.bash` to fail fast per ShellCheck SC2164.
+- **Pin Bun base image**: `Dockerfile.bun` now uses `oven/bun:1.2-slim` instead of `latest` for reproducible builds.
+- **Explicit `--view ascii` in BATS tests**: All `--view` invocations now pass the `ascii` mode explicitly rather than relying on the implicit default when the next token is a known command. Applied across `cli-check.bats`, `cli-query.bats`, and `cli-view-modes.bats`.
+- **BATS multiwriter materialize**: Added missing `--graph demo` flag to the materialize test.
+- **BATS info temp dir cleanup**: Empty-repo test now uses `trap ... RETURN` to clean up temp directory on assertion failure.
 
 ### Tests
 

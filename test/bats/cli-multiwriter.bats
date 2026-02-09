@@ -81,7 +81,7 @@ PY
 }
 
 @test "materialize merges all writers" {
-  run git warp --repo "${TEST_REPO}" --json materialize
+  run git warp --repo "${TEST_REPO}" --graph demo --json materialize
   assert_success
 
   JSON="$output" python3 - <<'PY'
