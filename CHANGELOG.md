@@ -35,6 +35,9 @@ Adds a Dockerized multi-runtime test suite across Node 20, Node 22, Bun, and Den
 - **Pin Deno base image**: `Dockerfile.deno` now uses `denoland/deno:2.1` instead of `latest` for reproducible builds.
 - **Add `--build` to individual runtime scripts**: `test:node20`, `test:node22`, `test:bun`, `test:deno` now include `--build` so Dockerfile changes are always picked up.
 - **Extract shared BATS seed setup**: Duplicated boilerplate (project root resolution, dynamic imports, persistence creation) extracted to `test/bats/helpers/seed-setup.js`.
+- **Remove redundant CI Node.js setup**: `test-node` job no longer installs Node/npm on the host — tests run entirely in Docker, saving ~30-60s per matrix entry.
+- **Fix `opts` spread order in test helpers**: Spread `...opts` before explicit params so callers cannot accidentally override `persistence`, `graphName`, `writerId`, or `crypto`.
+- **Guard `cd` commands in BATS setup**: Added `|| return 1` to all `cd` calls in `setup.bash` to fail fast per ShellCheck SC2164.
 
 ### Tests
 

@@ -27,12 +27,6 @@ jobs:
         node: [20, 22]
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '${{ matrix.node }}'
-          cache: 'npm'
-      - run: npm install
       - name: Run unit + integration tests
         run: docker compose -f docker-compose.test.yml run --rm test-node${{ matrix.node }}
 

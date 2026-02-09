@@ -34,11 +34,11 @@ export async function createTestRepo(label = 'api-test') {
      */
     async function openGraph(graphName, writerId, opts = {}) {
       return WarpGraph.open({
+        ...opts,
         persistence,
         graphName,
         writerId,
         crypto,
-        ...opts,
       });
     }
 

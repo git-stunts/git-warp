@@ -8,7 +8,7 @@ setup_test_repo() {
   export PROJECT_ROOT
   export TEST_REPO
   TEST_REPO="$(mktemp -d)"
-  cd "${TEST_REPO}"
+  cd "${TEST_REPO}" || return 1
 
   git init >/dev/null
   git config user.email "test@test.com"
@@ -43,7 +43,7 @@ assert_failure() {
 # Args: $1 = seed script name (e.g., "seed-graph.js")
 seed_graph() {
   local script="${BATS_TEST_DIRNAME}/helpers/${1}"
-  cd "${PROJECT_ROOT}"
+  cd "${PROJECT_ROOT}" || return 1
   REPO_PATH="${TEST_REPO}" node "${script}"
-  cd "${TEST_REPO}"
+  cd "${TEST_REPO}" || return 1
 }

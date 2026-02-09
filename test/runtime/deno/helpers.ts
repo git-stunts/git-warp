@@ -17,7 +17,7 @@ let WarpGraph: any;
 let WebCryptoAdapter: any;
 
 export async function loadModules() {
-  const root = join(Deno.cwd());
+  const root = Deno.cwd();
   Plumbing = (await import(join(root, "node_modules/@git-stunts/plumbing/index.js"))).default;
   GitGraphAdapter = (await import(join(root, "src/infrastructure/adapters/GitGraphAdapter.js"))).default;
   WarpGraph = (await import(join(root, "src/domain/WarpGraph.js"))).default;
@@ -41,11 +41,11 @@ export async function createTestRepo(label = "deno-test") {
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {
     return WarpGraph.open({
+      ...opts,
       persistence,
       graphName,
       writerId,
       crypto,
-      ...opts,
     });
   }
 
