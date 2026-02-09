@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`index.d.ts` `computeStateHashV5` signature**: `options` and `crypto` are now optional, matching the implementation which defaults to `{}` and returns `null` when crypto is absent.
 - **`index.d.ts` `replayBTR` signature**: Added missing second `options?: { crypto?: CryptoPort; codec?: unknown }` parameter, matching the implementation.
 - **`BoundaryTransitionRecord` JSDoc types**: Updated 7 `@param`/`@returns`/`@property` annotations from `Buffer` to `Uint8Array` to accurately reflect cross-runtime support via `WebCryptoAdapter`.
+- **`index.d.ts` BTR type declarations**: `BTR.U_0`, `serializeBTR` return type, and `deserializeBTR` parameter type changed from `Buffer` to `Uint8Array`, matching the cross-runtime implementation.
 - **`DenoHttpAdapter.listenImpl()` simplified**: Removed unnecessary intermediate closure — logic is now inlined at the call site.
 - **`BunHttpAdapter` `ERROR_BODY_LENGTH`**: Now derived from `TextEncoder().encode().byteLength` instead of `String.length`, correctly measuring bytes rather than UTF-16 code units.
 

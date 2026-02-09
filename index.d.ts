@@ -2146,7 +2146,7 @@ export interface BTR {
   /** Hash of output state (hex SHA-256) */
   readonly h_out: string;
   /** Serialized initial state (CBOR) */
-  readonly U_0: Buffer;
+  readonly U_0: Uint8Array;
   /** Serialized provenance payload */
   readonly P: PatchEntry[];
   /** ISO 8601 timestamp */
@@ -2231,7 +2231,7 @@ export function replayBTR(btr: BTR, options?: { crypto?: CryptoPort; codec?: unk
  *
  * @param btr - The BTR to serialize
  */
-export function serializeBTR(btr: BTR): Buffer;
+export function serializeBTR(btr: BTR): Uint8Array;
 
 /**
  * Deserializes a BTR from CBOR bytes.
@@ -2239,7 +2239,7 @@ export function serializeBTR(btr: BTR): Buffer;
  * @param bytes - CBOR-encoded BTR
  * @throws {Error} If the bytes are not valid CBOR or missing required fields
  */
-export function deserializeBTR(bytes: Buffer): BTR;
+export function deserializeBTR(bytes: Uint8Array): BTR;
 
 // ============================================================================
 // Wormhole Compression (HOLOGRAM)
