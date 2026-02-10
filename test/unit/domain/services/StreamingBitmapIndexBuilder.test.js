@@ -6,6 +6,7 @@ import StreamingBitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/doma
  * Helper to create a valid shard envelope with checksum.
  * Uses SHA-256 to match production validation in StreamingBitmapIndexBuilder.
  */
+/** @param {any} data @returns {any} */
 function createMockEnvelope(data) {
   const checksum = createHash('sha256')
     .update(JSON.stringify(data))
@@ -18,7 +19,11 @@ function createMockEnvelope(data) {
 }
 
 describe('StreamingBitmapIndexBuilder', () => {
+  /** @type {any} */
+  /** @type {any} */
   let mockStorage;
+  /** @type {any} */
+  /** @type {any} */
   let writtenBlobs;
 
   beforeEach(() => {
@@ -33,7 +38,7 @@ describe('StreamingBitmapIndexBuilder', () => {
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
       readBlob: vi.fn().mockImplementation(async (oid) => {
-        const blob = writtenBlobs.find(b => b.oid === oid);
+        const blob = writtenBlobs.find((/** @type {any} */ b) => b.oid === oid);
         return Buffer.from(blob ? blob.content : '{}');
       }),
     };
@@ -41,40 +46,40 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('constructor', () => {
     it('requires storage adapter', () => {
-      expect(() => new StreamingBitmapIndexBuilder({})).toThrow('requires a storage adapter');
+      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({}))).toThrow('requires a storage adapter');
     });
 
     it('throws when maxMemoryBytes is zero', () => {
-      expect(() => new StreamingBitmapIndexBuilder({
+      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 0,
-      })).toThrow('maxMemoryBytes must be a positive number');
+      }))).toThrow('maxMemoryBytes must be a positive number');
     });
 
     it('throws when maxMemoryBytes is negative', () => {
-      expect(() => new StreamingBitmapIndexBuilder({
+      expect(() => new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: -100,
-      })).toThrow('maxMemoryBytes must be a positive number');
+      }))).toThrow('maxMemoryBytes must be a positive number');
     });
 
     it('accepts custom maxMemoryBytes', () => {
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 1024,
-      });
+      }));
       expect(builder.maxMemoryBytes).toBe(1024);
     });
 
     it('uses default maxMemoryBytes of 50MB', () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
       expect(builder.maxMemoryBytes).toBe(50 * 1024 * 1024);
     });
   });
 
   describe('registerNode', () => {
     it('assigns sequential IDs to nodes', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       const id1 = await builder.registerNode('abc123');
       const id2 = await builder.registerNode('def456');
@@ -88,7 +93,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('addEdge', () => {
     it('registers both nodes and creates bitmaps', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.addEdge('parent1', 'child1');
 
@@ -99,7 +104,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('flush', () => {
     it('writes bitmap shards to storage', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
@@ -111,10 +116,10 @@ describe('StreamingBitmapIndexBuilder', () => {
 
     it('invokes onFlush callback', async () => {
       const onFlush = vi.fn();
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         onFlush,
-      });
+      }));
 
       await builder.addEdge('aa1111', 'bb2222');
       await builder.flush();
@@ -127,7 +132,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('does nothing when bitmaps are empty', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.flush();
 
@@ -135,7 +140,7 @@ describe('StreamingBitmapIndexBuilder', () => {
     });
 
     it('preserves SHA→ID mappings after flush', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.addEdge('aa1111', 'bb2222');
       const idBefore = builder.shaToId.get('aa1111');
@@ -148,7 +153,7 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('finalize', () => {
     it('creates tree with all shards', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.addEdge('aa1111', 'bb2222');
       const treeOid = await builder.finalize();
@@ -157,18 +162,18 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(mockStorage.writeTree).toHaveBeenCalled();
 
       const treeEntries = mockStorage.writeTree.mock.calls[0][0];
-      expect(treeEntries.some(e => e.includes('meta_'))).toBe(true);
-      expect(treeEntries.some(e => e.includes('shards_fwd_'))).toBe(true);
-      expect(treeEntries.some(e => e.includes('shards_rev_'))).toBe(true);
+      expect(treeEntries.some((/** @type {any} */ e) => e.includes('meta_'))).toBe(true);
+      expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_fwd_'))).toBe(true);
+      expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_rev_'))).toBe(true);
     });
   });
 
   describe('getMemoryStats', () => {
     it('returns current memory statistics', async () => {
-      const builder = new StreamingBitmapIndexBuilder({ storage: mockStorage });
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({ storage: mockStorage }));
 
       await builder.addEdge('aa1111', 'bb2222');
-      const stats = builder.getMemoryStats();
+      const stats = /** @type {any} */ (builder.getMemoryStats());
 
       expect(stats.nodeCount).toBe(2);
       expect(stats.bitmapCount).toBe(2);
@@ -180,11 +185,11 @@ describe('StreamingBitmapIndexBuilder', () => {
   describe('automatic flush on memory threshold', () => {
     it('flushes when memory exceeds threshold', async () => {
       const onFlush = vi.fn();
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 200, // Very low threshold to trigger flush
         onFlush,
-      });
+      }));
 
       // Add enough edges to exceed threshold
       for (let i = 0; i < 10; i++) {
@@ -198,10 +203,10 @@ describe('StreamingBitmapIndexBuilder', () => {
 
   describe('chunk merging', () => {
     it('merges multiple chunks for same shard', async () => {
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 100, // Force multiple flushes
-      });
+      }));
 
       // First batch of edges
       await builder.addEdge('aa1111', 'aa2222');
@@ -221,10 +226,10 @@ describe('StreamingBitmapIndexBuilder', () => {
 
     it('correctly merges bitmap data from multiple chunks', async () => {
       // Create builder with very low threshold
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 1, // Force immediate flush after each edge
-      });
+      }));
 
       // Add edges that will be in same shard (same prefix)
       await builder.addEdge('aa0001', 'bb0001');
@@ -234,7 +239,7 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(treeOid).toBe('tree-oid');
 
       // Verify all nodes are in the meta shards
-      const metaBlobs = writtenBlobs.filter(b => b.oid.includes('blob-'));
+      const metaBlobs = writtenBlobs.filter((/** @type {any} */ b) => b.oid.includes('blob-'));
       expect(metaBlobs.length).toBeGreaterThan(0);
     });
   });
@@ -265,13 +270,13 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
       }),
     };
 
-    const builder = new StreamingBitmapIndexBuilder({
+    const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
       storage: mockStorage,
       maxMemoryBytes: memoryThreshold,
-      onFlush: ({ flushedBytes }) => {
+      onFlush: (/** @type {any} */ { flushedBytes }) => {
         memoryReadings.push({ event: 'flush', flushedBytes });
       },
-    });
+    }));
 
     // Simulate large input (500 nodes with edges)
     for (let i = 0; i < 500; i++) {
@@ -288,7 +293,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
 
       // Track memory after each node
       const stats = builder.getMemoryStats();
-      maxMemorySeen = Math.max(maxMemorySeen, stats.estimatedBitmapBytes);
+      maxMemorySeen = Math.max(maxMemorySeen, /** @type {any} */ (stats).estimatedBitmapBytes);
     }
 
     await builder.finalize();
@@ -321,10 +326,10 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
       }),
     };
 
-    const builder = new StreamingBitmapIndexBuilder({
+    const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
       storage: mockStorage,
       maxMemoryBytes: 500, // Force frequent flushes
-    });
+    }));
 
     // Build a small graph
     const nodes = ['aa0001', 'aa0002', 'aa0003', 'bb0001', 'bb0002'];
@@ -346,7 +351,7 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
 
     // Verify all nodes are in meta shards
     const treeEntries = mockStorage.writeTree.mock.calls[0][0];
-    const metaEntries = treeEntries.filter(e => e.includes('meta_'));
+    const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
     expect(metaEntries.length).toBeGreaterThan(0);
 
     // Verify all nodes got IDs
@@ -374,11 +379,11 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
         }),
       };
 
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 512, // Extremely small - forces flush on almost every edge
         onFlush: () => { flushCount++; },
-      });
+      }));
 
       // Create 1000 nodes with edges forming a chain
       const nodeCount = 1000;
@@ -409,12 +414,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       const treeEntries = mockStorage.writeTree.mock.calls[0][0];
 
       // Should have meta shards for SHA→ID mappings
-      const metaEntries = treeEntries.filter(e => e.includes('meta_'));
+      const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
       expect(metaEntries.length).toBeGreaterThan(0);
 
       // Should have both fwd and rev bitmap shards
-      const fwdEntries = treeEntries.filter(e => e.includes('shards_fwd_'));
-      const revEntries = treeEntries.filter(e => e.includes('shards_rev_'));
+      const fwdEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('shards_fwd_'));
+      const revEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('shards_rev_'));
       expect(fwdEntries.length).toBeGreaterThan(0);
       expect(revEntries.length).toBeGreaterThan(0);
     });
@@ -436,10 +441,10 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
         readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
       };
 
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 50000, // Large enough to not auto-flush during addEdge
-      });
+      }));
 
       // Add edges across multiple prefixes to ensure multiple writeBlob calls per flush
       await builder.addEdge('aa0001', 'bb0001');
@@ -453,7 +458,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       writeCallCount = 2; // Reset to trigger on next call
       try {
         await builder.flush();
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('Storage write failed');
       }
     });
@@ -472,10 +477,10 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
         readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
       };
 
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 50000, // Large enough to not auto-flush
-      });
+      }));
 
       // Add some edges
       await builder.addEdge('aa0001', 'bb0001');
@@ -519,10 +524,10 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
         }),
       };
 
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 1, // Force flush after every edge
-      });
+      }));
 
       // Create 10 edges from aa0001 to different targets, each in separate flush
       const sourceNode = 'aa0001';
@@ -541,7 +546,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       // The final tree should reference a merged shard
       expect(mockStorage.writeTree).toHaveBeenCalled();
       const treeEntries = mockStorage.writeTree.mock.calls[0][0];
-      const fwdAaShard = treeEntries.find(e => e.includes('shards_fwd_aa'));
+      const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
       expect(fwdAaShard).toBeDefined();
 
       // Find the merged content for aa prefix (now wrapped in envelope)
@@ -595,10 +600,10 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
         }),
       };
 
-      const builder = new StreamingBitmapIndexBuilder({
+      const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
         storage: mockStorage,
         maxMemoryBytes: 1, // Force flush after every edge
-      });
+      }));
 
       // Create a more complex scenario:
       // Multiple sources with 'aa' prefix, each with multiple targets
@@ -618,7 +623,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
 
       // Extract the merged 'aa' shard (now wrapped in envelope)
       const treeEntries = mockStorage.writeTree.mock.calls[0][0];
-      const fwdAaShard = treeEntries.find(e => e.includes('shards_fwd_aa'));
+      const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
       expect(fwdAaShard).toBeDefined();
 
       const oidMatch = fwdAaShard.match(/blob ([^\s]+)/);

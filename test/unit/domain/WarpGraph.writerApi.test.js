@@ -2,16 +2,18 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 
 describe('WarpGraph writer API', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({
@@ -30,7 +32,7 @@ describe('WarpGraph writer API', () => {
     const w1 = await graph.writer();
     // configSet should have been called to persist the generated ID
     const persistedId = mockPersistence.configSet.mock.calls.find(
-      ([key]) => key === 'warp.writerId.test',
+      (/** @type {any} */ [key]) => key === 'warp.writerId.test',
     )?.[1];
     expect(persistedId).toBeTruthy();
 
@@ -63,6 +65,7 @@ describe('WarpGraph writer API', () => {
   });
 
   it('createWriter() logs via logger when present', async () => {
+    /** @type {any} */
     const mockLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const graphWithLogger = await WarpGraph.open({
       persistence: mockPersistence,

@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
 
 describe('API: Traversal', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {

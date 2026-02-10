@@ -75,7 +75,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
 
       // Cascade delete node A
       await (await graph.createPatch()).removeNode('A').commit();
-      const state = await graph.materialize();
+      const state = /** @type {any} */ (await graph.materialize());
 
       // Node A should be gone
       expect(await graph.hasNode('A')).toBe(false);
@@ -117,7 +117,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
       const ops = builder.ops;
       expect(ops).toHaveLength(1);
       expect(ops[0].type).toBe('NodeRemove');
-      expect(ops[0].node).toBe('lonely');
+      expect(/** @type {any} */ (ops[0]).node).toBe('lonely');
     } finally {
       await repo.cleanup();
     }

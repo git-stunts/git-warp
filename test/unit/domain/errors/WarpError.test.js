@@ -64,7 +64,9 @@ describe('All domain errors extend WarpError', () => {
     { Class: SchemaUnsupportedError, args: ['schema fail'], expectedCode: 'E_SCHEMA_UNSUPPORTED', expectedName: 'SchemaUnsupportedError' },
   ];
 
-  for (const { Class, args, expectedCode, expectedName } of errorCases) {
+  for (const { Class: _Class, args, expectedCode, expectedName } of errorCases) {
+    /** @type {any} */
+    const Class = _Class;
     it(`${expectedName} instanceof WarpError`, () => {
       const err = new Class(...args);
       expect(err).toBeInstanceOf(WarpError);

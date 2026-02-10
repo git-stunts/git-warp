@@ -9,6 +9,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** @param {string} writer @param {number} lamport @param {string} nodeId */
 function createPatch(writer, lamport, nodeId) {
   return {
     schema: 2,
@@ -19,14 +20,17 @@ function createPatch(writer, lamport, nodeId) {
   };
 }
 
+/** @param {string} label */
 function fakeSha(label) {
   const hex = Buffer.from(String(label)).toString('hex');
   return hex.padEnd(40, 'a').slice(0, 40);
 }
 
+/** @param {any} persistence @param {any} writerSpecs @param {string} [graphName] */
 function setupPersistence(persistence, writerSpecs, graphName = 'test') {
   const nodeInfoMap = new Map();
   const blobMap = new Map();
+  /** @type {Record<string, string>} */
   const writerTips = {};
 
   for (const [writer, count] of Object.entries(writerSpecs)) {
@@ -57,7 +61,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     (w) => `refs/warp/${graphName}/writers/${w}`
   );
 
-  persistence.getNodeInfo.mockImplementation((sha) => {
+  persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
     const info = nodeInfoMap.get(sha);
     if (info) {
       return Promise.resolve(info);
@@ -65,7 +69,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     return Promise.resolve({ message: '', parents: [] });
   });
 
-  persistence.readBlob.mockImplementation((oid) => {
+  persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
     const buf = blobMap.get(oid);
     if (buf) {
       return Promise.resolve(buf);
@@ -73,7 +77,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     return Promise.resolve(Buffer.alloc(0));
   });
 
-  persistence.readRef.mockImplementation((ref) => {
+  persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
     if (ref === `refs/warp/${graphName}/checkpoints/head`) {
       return Promise.resolve(null);
     }
@@ -85,7 +89,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     return Promise.resolve(null);
   });
 
-  persistence.listRefs.mockImplementation((prefix) => {
+  persistence.listRefs.mockImplementation((/** @type {any} */ prefix) => {
     if (prefix.startsWith(`refs/warp/${graphName}/writers`)) {
       return Promise.resolve(writerRefs);
     }
@@ -159,7 +163,9 @@ describe('buildSeekCacheKey', () => {
 // ===========================================================================
 
 describe('WarpGraph seek cache integration', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let seekCache;
 
   beforeEach(() => {
@@ -315,7 +321,7 @@ describe('WarpGraph seek cache integration', () => {
     });
 
     // Should not throw — falls through to full materialize
-    const state = await graph.materialize({ ceiling: 2 });
+    const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
     expect(state).toBeDefined();
     expect(state.nodeAlive).toBeDefined();
   });
@@ -358,7 +364,7 @@ describe('WarpGraph seek cache integration', () => {
     });
 
     expect(graph.seekCache).toBe(seekCache);
-    graph.setSeekCache(null);
+    graph.setSeekCache(/** @type {any} */ (null));
     expect(graph.seekCache).toBeNull();
 
     // Materialize should still work without cache
@@ -391,7 +397,7 @@ describe('WarpGraph seek cache integration', () => {
     graph._cachedFrontier = null;
 
     // Second materialize should self-heal: delete bad entry and re-materialize
-    const state = await graph.materialize({ ceiling: 2 });
+    const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
     expect(state).toBeDefined();
     expect(state.nodeAlive).toBeDefined();
     expect(seekCache.delete).toHaveBeenCalledWith(cacheKey);

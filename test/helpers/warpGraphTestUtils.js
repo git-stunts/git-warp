@@ -9,6 +9,7 @@ import { vi } from 'vitest';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+// @ts-ignore - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
@@ -99,7 +100,7 @@ export function generateOidFromNumber(n) {
  * Creates a basic mock persistence adapter with all methods stubbed.
  * Use this when you need fine-grained control over mock behavior.
  *
- * @returns {Object} Mock persistence adapter with vi.fn() methods
+ * @returns {any} Mock persistence adapter with vi.fn() methods
  *
  * @example
  * const persistence = createMockPersistence();
@@ -130,9 +131,9 @@ export function createMockPersistence() {
  * Creates a mock persistence adapter pre-populated with commits.
  * Useful for WormholeService and other tests that need a commit chain.
  *
- * @param {Array<{index: number, patch: Object, parentIndex: number|null, writerId: string, lamport: number}>} commits - Commits to populate
+ * @param {Array<{index: number, patch: any, parentIndex: number|null, writerId: string, lamport: number}>} commits - Commits to populate
  * @param {string} [graphName='test-graph'] - The graph name for validation
- * @returns {{persistence: Object, getSha: (index: number) => string}} Mock persistence adapter and SHA lookup
+ * @returns {{persistence: any, getSha: (index: number) => string}} Mock persistence adapter and SHA lookup
  *
  * @example
  * const commits = [
@@ -205,7 +206,7 @@ export function createPopulatedMockPersistence(commits, graphName = 'test-graph'
     configSet: vi.fn().mockResolvedValue(undefined),
   };
 
-  const getSha = (index) => shaMap.get(index);
+  const getSha = (/** @type {any} */ index) => shaMap.get(index);
 
   return { persistence, getSha };
 }
@@ -223,12 +224,12 @@ export function createPopulatedMockPersistence(commits, graphName = 'test-graph'
  * @param {string} options.graphName - Graph name
  * @param {string} options.writerId - Writer ID
  * @param {number} options.lamport - Lamport timestamp
- * @param {Array} options.ops - Patch operations
- * @param {Array} [options.reads] - Read declarations
- * @param {Array} [options.writes] - Write declarations
+ * @param {any[]} options.ops - Patch operations
+ * @param {any[]} [options.reads] - Read declarations
+ * @param {any[]} [options.writes] - Write declarations
  * @param {string|null} [options.parentSha] - Parent commit SHA
  * @param {function} oidGenerator - OID generator function (e.g., from createOidGenerator().next)
- * @returns {Object} Mock patch with sha, patchOid, patchBuffer, message, patch, nodeInfo
+ * @returns {any} Mock patch with sha, patchOid, patchBuffer, message, patch, nodeInfo
  *
  * @example
  * const oidGen = createOidGenerator();
@@ -248,6 +249,7 @@ export function createMockPatchWithIO(
 ) {
   const patchOid = oidGenerator();
   const context = { [writerId]: lamport };
+  /** @type {any} */
   const patch = {
     schema: 2,
     writer: writerId,
@@ -296,9 +298,9 @@ export function createMockPatchWithIO(
  * @param {string} options.graphName - Graph name
  * @param {string} options.writerId - Writer ID
  * @param {number} options.lamport - Lamport timestamp
- * @param {Array} [options.ops=[]] - Patch operations
+ * @param {any[]} [options.ops=[]] - Patch operations
  * @param {string|null} [options.parentSha=null] - Parent commit SHA
- * @returns {Object} Mock patch with sha, patchOid, patchBuffer, message, patch, nodeInfo
+ * @returns {any} Mock patch with sha, patchOid, patchBuffer, message, patch, nodeInfo
  *
  * @example
  * const patch = createMockPatch({
@@ -359,8 +361,8 @@ export function createMockPatch({
  * Creates a NodeAdd operation for V2 patches.
  *
  * @param {string} node - Node ID
- * @param {Object} dot - Dot from createDot()
- * @returns {Object} NodeAdd operation
+ * @param {any} dot - Dot from createDot()
+ * @returns {any} NodeAdd operation
  *
  * @example
  * createNodeAddV2('user:alice', createDot('alice', 1))
@@ -372,8 +374,8 @@ export function createNodeAddV2(node, dot) {
 /**
  * Creates a NodeRemove operation for V2 patches.
  *
- * @param {Array} observedDots - Array of observed dots to remove
- * @returns {Object} NodeRemove operation
+ * @param {any[]} observedDots - Array of observed dots to remove
+ * @returns {any} NodeRemove operation
  *
  * @example
  * createNodeRemoveV2([createDot('alice', 1)])
@@ -386,8 +388,8 @@ export function createNodeRemoveV2(observedDots) {
  * Creates a NodeTombstone operation for V2 patches.
  *
  * @param {string} node - Node ID
- * @param {Array} observedDots - Array of observed dots
- * @returns {Object} NodeTombstone operation
+ * @param {any[]} observedDots - Array of observed dots
+ * @returns {any} NodeTombstone operation
  *
  * @example
  * createNodeTombstoneV2('user:alice', [createDot('alice', 1)])
@@ -402,8 +404,8 @@ export function createNodeTombstoneV2(node, observedDots) {
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
- * @param {Object} dot - Dot from createDot()
- * @returns {Object} EdgeAdd operation
+ * @param {any} dot - Dot from createDot()
+ * @returns {any} EdgeAdd operation
  *
  * @example
  * createEdgeAddV2('user:alice', 'user:bob', 'follows', createDot('alice', 1))
@@ -418,8 +420,8 @@ export function createEdgeAddV2(from, to, label, dot) {
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
- * @param {Array} observedDots - Array of observed dots
- * @returns {Object} EdgeTombstone operation
+ * @param {any[]} observedDots - Array of observed dots
+ * @returns {any} EdgeTombstone operation
  *
  * @example
  * createEdgeTombstoneV2('user:alice', 'user:bob', 'follows', [createDot('alice', 1)])
@@ -434,7 +436,7 @@ export function createEdgeTombstoneV2(from, to, label, observedDots) {
  * @param {string} node - Node ID
  * @param {string} key - Property key
  * @param {*} value - Property value (use createInlineValue for typed values)
- * @returns {Object} PropSet operation
+ * @returns {any} PropSet operation
  *
  * @example
  * createPropSetV2('user:alice', 'name', createInlineValue('Alice'))
@@ -453,9 +455,9 @@ export function createPropSetV2(node, key, value) {
  * @param {Object} options - Patch options
  * @param {string} options.writer - Writer ID
  * @param {number} options.lamport - Lamport timestamp
- * @param {Array} options.ops - Array of operations
+ * @param {any[]} options.ops - Array of operations
  * @param {Object} [options.context] - Version vector context (defaults to empty)
- * @returns {Object} Complete V2 patch object
+ * @returns {any} Complete V2 patch object
  *
  * @example
  * createPatchV2({
@@ -478,7 +480,7 @@ export function createPatchV2({ writer, lamport, ops, context }) {
  * Creates a standard set of sample patches for testing.
  * Includes three patches: patchA (node-a), patchB (node-b), patchC (edge + property).
  *
- * @returns {Object} Object with patchA, patchB, patchC properties
+ * @returns {any} Object with patchA, patchB, patchC properties
  *
  * @example
  * const { patchA, patchB, patchC } = createSamplePatches();
@@ -523,7 +525,7 @@ export function createSamplePatches() {
 /**
  * Creates a mock logger with all methods stubbed.
  *
- * @returns {Object} Mock logger with vi.fn() methods
+ * @returns {any} Mock logger with vi.fn() methods
  *
  * @example
  * const logger = createMockLogger();
@@ -548,7 +550,7 @@ export function createMockLogger() {
  * Each call to now() advances by `step` milliseconds.
  *
  * @param {number} [step=42] - Milliseconds to advance per now() call
- * @returns {Object} Mock clock with now() and timestamp() methods
+ * @returns {any} Mock clock with now() and timestamp() methods
  *
  * @example
  * const clock = createMockClock(10);
@@ -580,7 +582,7 @@ export function createMockClock(step = 42) {
  * Call cleanup() when done to remove the temp directory.
  *
  * @param {string} [label='test'] - Label for the temp directory prefix
- * @returns {Promise<{tempDir: string, plumbing: Object, persistence: Object, cleanup: () => Promise<void>}>}
+ * @returns {Promise<{tempDir: string, plumbing: any, persistence: any, cleanup: () => Promise<void>}>}
  *
  * @example
  * let repo;
@@ -617,7 +619,7 @@ export async function createGitRepo(label = 'test') {
 /**
  * Adds a node to a V5 state's alive set.
  *
- * @param {Object} state - WarpStateV5
+ * @param {any} state - WarpStateV5
  * @param {string} nodeId - Node ID
  * @param {number} counter - Dot counter
  * @param {string} [writerId='w1'] - Writer ID for the dot
@@ -629,7 +631,7 @@ export function addNodeToState(state, nodeId, counter, writerId = 'w1') {
 /**
  * Adds an edge to a V5 state's alive set.
  *
- * @param {Object} state - WarpStateV5
+ * @param {any} state - WarpStateV5
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -645,9 +647,9 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  * Seeds a graph instance with a fresh empty state and applies a seed function.
  * Patches the graph's internal state and materialize method for testing.
  *
- * @param {Object} graph - WarpGraph instance
+ * @param {any} graph - WarpGraph instance
  * @param {Function} seedFn - Function that receives the state and populates it
- * @returns {Object} The seeded WarpStateV5
+ * @returns {any} The seeded WarpStateV5
  *
  * @example
  * setupGraphState(graph, (state) => {

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
 
+/** @type {any} */
 let mockPlumbing;
+/** @type {any} */
 let adapter;
 
 beforeEach(() => {
@@ -54,7 +56,7 @@ describe('GitGraphAdapter coverage', () => {
       await adapter.logNodes({ ref: 'HEAD' });
 
       const args = mockPlumbing.execute.mock.calls[0][0].args;
-      const hasFormat = args.some(a => a.startsWith('--format='));
+      const hasFormat = /** @type {string[]} */ (args).some((a) => a.startsWith('--format='));
       expect(hasFormat).toBe(false);
     });
 
@@ -306,6 +308,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when not an ancestor (exit code 1)', async () => {
+      /** @type {any} */
       const err = new Error('not ancestor');
       err.details = { code: 1 };
       mockPlumbing.execute.mockRejectedValue(err);
@@ -319,6 +322,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via exitCode property', async () => {
+      /** @type {any} */
       const err = new Error('not ancestor');
       err.exitCode = 1;
       mockPlumbing.execute.mockRejectedValue(err);
@@ -332,6 +336,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via code property', async () => {
+      /** @type {any} */
       const err = new Error('not ancestor');
       err.code = 1;
       mockPlumbing.execute.mockRejectedValue(err);
@@ -345,6 +350,7 @@ describe('GitGraphAdapter coverage', () => {
     });
 
     it('re-throws unexpected errors (non exit-code-1)', async () => {
+      /** @type {any} */
       const err = new Error('repository corrupt');
       err.details = { code: 128 };
       mockPlumbing.execute.mockRejectedValue(err);

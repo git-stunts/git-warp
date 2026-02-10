@@ -9,13 +9,20 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { reduceV5, createEmptyStateV5 } from '../../src/domain/services/JoinReducer.js';
+import { reduceV5 as _reduceV5, createEmptyStateV5 } from '../../src/domain/services/JoinReducer.js';
 import {
-  createPatchV2,
-  createNodeAddV2,
-  createEdgeAddV2,
+  createPatchV2 as _createPatchV2,
+  createNodeAddV2 as _createNodeAddV2,
+  createEdgeAddV2 as _createEdgeAddV2,
   createPropSetV2,
 } from '../../src/domain/types/WarpTypesV2.js';
+
+/** @type {any} */ const createPatchV2 = _createPatchV2;
+/** @type {any} */ const createNodeAddV2 = _createNodeAddV2;
+/** @type {any} */ const createEdgeAddV2 = _createEdgeAddV2;
+
+/** @type {any} */
+const reduceV5 = _reduceV5;
 import { createInlineValue } from '../../src/domain/types/WarpTypes.js';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
 import { createVersionVector, vvIncrement } from '../../src/domain/crdt/VersionVector.js';
@@ -52,8 +59,8 @@ const SOFT_TARGETS = {
  * Uses multiple writers, proper dot tracking, and varied operations.
  *
  * @param {number} patchCount - Number of patches to generate
- * @param {Object} options - Generation options
- * @returns {Array<{patch: Object, sha: string}>}
+ * @param {any} [options] - Generation options
+ * @returns {any[]}
  */
 function generateV5Patches(patchCount, options = {}) {
   const {
@@ -188,6 +195,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
       const memBefore = process.memoryUsage().heapUsed;
 
       // Run benchmark (real clock for informational logging only)
+      /** @type {any} */
       let state;
       const stats = await runBenchmark(() => {
         state = reduceV5(patches);
@@ -225,23 +233,27 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
 
       // Test clock: advances by patch count so assertions are deterministic
       const clock = new TestClock();
+      /** @param {any} patches @param {any} [base] */
       function timedReduce(patches, base) {
         clock.advance(patches.length);
         return reduceV5(patches, base);
       }
 
       // Full reduce
+      /** @type {any} */
       let stateFull;
       const fullStats = await runBenchmark(() => {
         stateFull = timedReduce(allPatches);
       }, WARMUP_RUNS, MEASURED_RUNS, { clock });
 
       // Incremental: build checkpoint, then apply new patches
+      /** @type {any} */
       let checkpointState;
       await runBenchmark(() => {
         checkpointState = timedReduce(checkpointPatches);
       }, WARMUP_RUNS, MEASURED_RUNS, { clock });
 
+      /** @type {any} */
       let incrementalState;
       const incrementalStats = await runBenchmark(() => {
         incrementalState = timedReduce(newPatches, checkpointState);

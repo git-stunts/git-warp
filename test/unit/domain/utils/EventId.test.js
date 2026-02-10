@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createEventId, compareEventIds, isGreater } from '../../../../src/domain/utils/EventId.js';
+import { createEventId as _createEventId, compareEventIds, isGreater } from '../../../../src/domain/utils/EventId.js';
+
+/** @type {any} */
+const createEventId = _createEventId;
 
 describe('EventId', () => {
   describe('createEventId', () => {
@@ -299,6 +302,7 @@ describe('EventId', () => {
     });
 
     it('handles empty array', () => {
+      /** @type {any[]} */
       const events = [];
       const sorted = [...events].sort(compareEventIds);
 

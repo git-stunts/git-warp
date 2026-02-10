@@ -4,7 +4,9 @@ import { isEmptyDiff } from '../../../src/domain/services/StateDiff.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -88,7 +90,7 @@ describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
         to: 'user:bob',
         label: 'follows',
       });
-      expect(diff.props.set.some(p => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
+      expect(diff.props.set.some((/** @type {any} */ p) => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
     });
   });
 
@@ -256,6 +258,7 @@ describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
     });
 
     it('handles unsubscribe called during handler execution', async () => {
+      /** @type {any} */
       let sub;
       const onChange = vi.fn(() => {
         sub.unsubscribe();
@@ -275,7 +278,9 @@ describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
 });
 
 describe('WarpGraph.subscribe() with replay option (PL/SUB/2)', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -331,7 +336,7 @@ describe('WarpGraph.subscribe() with replay option (PL/SUB/2)', () => {
         to: 'user:bob',
         label: 'follows',
       });
-      expect(diff.props.set.some(p => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
+      expect(diff.props.set.some((/** @type {any} */ p) => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
     });
 
     it('does not fire if state is empty', async () => {

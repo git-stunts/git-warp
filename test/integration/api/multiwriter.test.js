@@ -3,6 +3,7 @@ import { createTestRepo } from './helpers/setup.js';
 import { computeStateHashV5 } from '../../../src/domain/services/StateSerializerV5.js';
 
 describe('API: Multi-Writer', () => {
+  /** @type {any} */
   let repo;
 
   beforeEach(async () => {

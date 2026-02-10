@@ -2,12 +2,19 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import {
   createEmptyStateV5,
-  joinStates,
+  joinStates as _joinStates,
   join,
-  reduceV5,
+  reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+/** @type {any} */
+const joinStates = _joinStates;
+/** @type {any} */
+const reduceV5 = _reduceV5;
+/** @type {any} */
+const computeStateHashV5 = _computeStateHashV5;
 
 const crypto = new NodeCryptoAdapter();
 import { createORSet, orsetAdd, orsetRemove, orsetSerialize } from '../../../../src/domain/crdt/ORSet.js';
@@ -74,6 +81,7 @@ const eventIdArb = fc.record({
 /**
  * Generates a random ORSet with elements and tombstones
  */
+/** @param {any} elements @param {any} dotArbitrary */
 function generateORSet(elements, dotArbitrary) {
   return fc.array(
     fc.record({
@@ -143,6 +151,7 @@ const stateArb = fc.record({
 /**
  * Checks if two states are structurally equal
  */
+/** @param {any} a @param {any} b */
 function statesEqual(a, b) {
   // Compare nodeAlive ORSets
   if (JSON.stringify(orsetSerialize(a.nodeAlive)) !== JSON.stringify(orsetSerialize(b.nodeAlive))) {

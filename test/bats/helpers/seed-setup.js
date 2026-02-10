@@ -6,6 +6,7 @@
  */
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+// @ts-ignore - no declaration file for @git-stunts/plumbing
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 const projectRoot = process.env.PROJECT_ROOT || resolve(import.meta.dirname, '../../..');

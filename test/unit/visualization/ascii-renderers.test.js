@@ -7,12 +7,18 @@
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import { renderInfoView } from '../../../src/visualization/renderers/ascii/info.js';
-import { renderCheckView } from '../../../src/visualization/renderers/ascii/check.js';
-import { renderMaterializeView } from '../../../src/visualization/renderers/ascii/materialize.js';
-import { renderHistoryView, summarizeOps } from '../../../src/visualization/renderers/ascii/history.js';
-import { renderPathView } from '../../../src/visualization/renderers/ascii/path.js';
+import { renderInfoView as _renderInfoView } from '../../../src/visualization/renderers/ascii/info.js';
+import { renderCheckView as _renderCheckView } from '../../../src/visualization/renderers/ascii/check.js';
+import { renderMaterializeView as _renderMaterializeView } from '../../../src/visualization/renderers/ascii/materialize.js';
+import { renderHistoryView as _renderHistoryView, summarizeOps } from '../../../src/visualization/renderers/ascii/history.js';
+import { renderPathView as _renderPathView } from '../../../src/visualization/renderers/ascii/path.js';
 import { stripAnsi } from '../../../src/visualization/utils/ansi.js';
+
+/** @type {any} */ const renderInfoView = _renderInfoView;
+/** @type {any} */ const renderCheckView = _renderCheckView;
+/** @type {any} */ const renderMaterializeView = _renderMaterializeView;
+/** @type {any} */ const renderHistoryView = _renderHistoryView;
+/** @type {any} */ const renderPathView = _renderPathView;
 
 // Mock Date.now for stable time-based output
 const FIXED_NOW = new Date('2025-01-15T12:00:00Z').getTime();

@@ -24,7 +24,7 @@ export class TestClock {
   now() {
     return this._time;
   }
-  advance(ms) {
+  advance(/** @type {number} */ ms) {
     this._time += ms;
   }
 }
@@ -99,7 +99,7 @@ export function randomHex(length = 8) {
  * @param {number} [measuredRuns=5] - Number of measured runs
  * @param {Object} [options]
  * @param {{now(): number}} [options.clock] - Injectable clock (defaults to performance)
- * @returns {{median: number, min: number, max: number, times: number[]}}
+ * @returns {Promise<{median: number, min: number, max: number, times: number[]}>}
  */
 export async function runBenchmark(fn, warmupRuns = 2, measuredRuns = 5, { clock } = {}) {
   const clk = clock || performance;

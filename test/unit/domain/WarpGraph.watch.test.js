@@ -3,7 +3,9 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph.watch() (PL/WATCH/1)', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -183,7 +185,7 @@ describe('WarpGraph.watch() (PL/WATCH/1)', () => {
 
       expect(onChange).toHaveBeenCalledTimes(1);
       const diff = onChange.mock.calls[0][0];
-      expect(diff.props.set.some(p => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
+      expect(diff.props.set.some((/** @type {any} */ p) => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
     });
 
     it('excludes props for non-matching nodes', async () => {
@@ -436,7 +438,9 @@ describe('WarpGraph.watch() (PL/WATCH/1)', () => {
 });
 
 describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeAll(() => {
@@ -512,7 +516,7 @@ describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
     it('calls materialize when frontier has changed', async () => {
       const onChange = vi.fn();
       const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(true);
-      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue();
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue(undefined);
 
       const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
 
@@ -529,7 +533,7 @@ describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
     it('does not call materialize when frontier has not changed', async () => {
       const onChange = vi.fn();
       const hasFrontierChangedSpy = vi.spyOn(graph, 'hasFrontierChanged').mockResolvedValue(false);
-      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue();
+      const materializeSpy = vi.spyOn(graph, 'materialize').mockResolvedValue(undefined);
 
       const { unsubscribe } = graph.watch('user:*', { onChange, poll: 1000 });
 

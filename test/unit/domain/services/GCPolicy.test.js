@@ -27,6 +27,7 @@ describe('GCPolicy', () => {
   });
 
   describe('shouldRunGC', () => {
+    /** @type {any} */
     const policy = {
       tombstoneRatioThreshold: 0.3,
       entryCountThreshold: 1000,

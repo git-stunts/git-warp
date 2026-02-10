@@ -81,6 +81,7 @@ describe('NoOpLogger', () => {
   describe('zero overhead', () => {
     it('handles large context objects without performance issues (sanity check)', () => {
       const logger = new NoOpLogger();
+      /** @type {Record<string, string>} */
       const largeContext = {};
       for (let i = 0; i < 1000; i++) {
         largeContext[`key${i}`] = `value${i}`;

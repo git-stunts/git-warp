@@ -1,19 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
-import CachedValue from '../../../../src/domain/utils/CachedValue.js';
+import CachedValue_ from '../../../../src/domain/utils/CachedValue.js';
+
+/** @type {any} */
+const CachedValue = CachedValue_;
 
 /**
  * Creates a mock clock for testing.
- * @returns {Object} Mock clock with controllable time
+ * @returns {any} Mock clock with controllable time
  */
 function createMockClock() {
   let currentTime = 0;
   return {
     now: () => currentTime,
     timestamp: () => new Date(currentTime).toISOString(),
-    advance: (ms) => {
+    advance: (/** @type {number} */ ms) => {
       currentTime += ms;
     },
-    setTime: (ms) => {
+    setTime: (/** @type {number} */ ms) => {
       currentTime = ms;
     },
   };

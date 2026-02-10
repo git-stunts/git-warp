@@ -48,7 +48,7 @@ const SOFT_TARGETS = {
  *
  * @param {number} entryCount - Number of elements to add
  * @param {number} tombstoneRatio - Ratio of entries to tombstone (0-1)
- * @returns {{set: ORSet, vv: VersionVector, tombstoneCount: number, liveCount: number}}
+ * @returns {{set: any, vv: any, tombstoneCount: number, liveCount: number}}
  */
 function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
   const set = createORSet();
@@ -99,6 +99,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
 /**
  * Deep clones an ORSet for isolated benchmarking
  */
+/** @param {any} set */
 function cloneORSet(set) {
   const clone = createORSet();
 
@@ -116,6 +117,7 @@ function cloneORSet(set) {
 /**
  * Calculates approximate memory size of an ORSet
  */
+/** @param {any} set */
 function estimateORSetMemory(set) {
   let size = 0;
 
@@ -157,6 +159,7 @@ describe('ORSet Compaction Benchmarks', () => {
       const memBefore = estimateORSetMemory(templateSet);
 
       // Run benchmark - clone set each time since compaction mutates
+      /** @type {any} */
       let compactedSet;
       const stats = await runBenchmark(() => {
         compactedSet = cloneORSet(templateSet);

@@ -10,10 +10,17 @@ import {
   buildCursorActiveRef,
   buildCursorSavedRef,
   buildCursorSavedPrefix,
-  parseWriterIdFromRef,
-  validateGraphName,
-  validateWriterId,
+  parseWriterIdFromRef as _parseWriterIdFromRef,
+  validateGraphName as _validateGraphName,
+  validateWriterId as _validateWriterId,
 } from '../../../../src/domain/utils/RefLayout.js';
+
+/** @type {any} */
+const parseWriterIdFromRef = _parseWriterIdFromRef;
+/** @type {any} */
+const validateGraphName = _validateGraphName;
+/** @type {any} */
+const validateWriterId = _validateWriterId;
 
 describe('RefLayout', () => {
   describe('constants', () => {

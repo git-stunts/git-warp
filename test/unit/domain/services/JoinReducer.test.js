@@ -8,9 +8,11 @@ import {
   applyOpV2,
   join,
   joinStates,
-  reduceV5,
+  reduceV5 as _reduceV5,
   cloneStateV5,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
@@ -19,26 +21,32 @@ import { createVersionVector, vvMerge } from '../../../../src/domain/crdt/Versio
 import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 
 // Helper functions to create V2 operations
+/** @param {string} node @param {any} dot */
 function createNodeAddV2(node, dot) {
   return { type: 'NodeAdd', node, dot };
 }
 
+/** @param {any} observedDots */
 function createNodeRemoveV2(observedDots) {
   return { type: 'NodeRemove', observedDots };
 }
 
+/** @param {string} from @param {string} to @param {string} label @param {any} dot */
 function createEdgeAddV2(from, to, label, dot) {
   return { type: 'EdgeAdd', from, to, label, dot };
 }
 
+/** @param {any} observedDots */
 function createEdgeRemoveV2(observedDots) {
   return { type: 'EdgeRemove', observedDots };
 }
 
+/** @param {string} node @param {string} key @param {any} value */
 function createPropSetV2(node, key, value) {
   return { type: 'PropSet', node, key, value };
 }
 
+/** @param {any} params */
 function createPatchV2({ writer, lamport, ops, context }) {
   return {
     schema: 2,
@@ -48,6 +56,7 @@ function createPatchV2({ writer, lamport, ops, context }) {
     context: context || createVersionVector(),
   };
 }
+
 
 describe('JoinReducer', () => {
   describe('createEmptyStateV5', () => {
@@ -70,7 +79,7 @@ describe('JoinReducer', () => {
       const state1 = createEmptyStateV5();
       const state2 = createEmptyStateV5();
 
-      state1.prop.set('key', { eventId: {}, value: 'test' });
+      state1.prop.set('key', { eventId: /** @type {any} */ ({}), value: 'test' });
 
       expect(state2.prop.size).toBe(0);
     });

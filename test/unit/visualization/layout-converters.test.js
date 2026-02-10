@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  queryResultToGraphData,
-  pathResultToGraphData,
+  queryResultToGraphData as _queryResultToGraphData,
+  pathResultToGraphData as _pathResultToGraphData,
   rawGraphToGraphData,
 } from '../../../src/visualization/layouts/converters.js';
+
+/** @type {any} */ const queryResultToGraphData = _queryResultToGraphData;
+/** @type {any} */ const pathResultToGraphData = _pathResultToGraphData;
 
 describe('layout converters', () => {
   describe('queryResultToGraphData', () => {
@@ -122,7 +125,7 @@ describe('layout converters', () => {
     });
 
     it('handles null inputs', () => {
-      const result = rawGraphToGraphData(null, null);
+      const result = rawGraphToGraphData(/** @type {any} */ (null), /** @type {any} */ (null));
       expect(result.nodes).toEqual([]);
       expect(result.edges).toEqual([]);
     });

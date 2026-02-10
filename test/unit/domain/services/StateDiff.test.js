@@ -14,6 +14,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 
 // Helper to create a node add operation
+/** @param {string} nodeId @param {string} writerId @param {number} counter */
 function createNodeAddOp(nodeId, writerId, counter) {
   return {
     type: 'NodeAdd',
@@ -23,6 +24,7 @@ function createNodeAddOp(nodeId, writerId, counter) {
 }
 
 // Helper to create an edge add operation
+/** @param {string} from @param {string} to @param {string} label @param {string} writerId @param {number} counter */
 function createEdgeAddOp(from, to, label, writerId, counter) {
   return {
     type: 'EdgeAdd',
@@ -34,6 +36,7 @@ function createEdgeAddOp(from, to, label, writerId, counter) {
 }
 
 // Helper to apply operations to state with auto-incrementing lamport
+/** @param {any} state @param {any[]} ops @param {string} writerId */
 function applyOps(state, ops, writerId) {
   let lamport = 1;
   for (const op of ops) {
@@ -43,6 +46,7 @@ function applyOps(state, ops, writerId) {
 }
 
 // Helper to create an EventId for property tests
+/** @param {number} lamport @param {string} [writerId] */
 function makeEventId(lamport, writerId = 'w1') {
   return createEventId(lamport, writerId, 'abcd1234', 0);
 }

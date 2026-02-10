@@ -33,6 +33,8 @@ function createMockPersistence() {
 
 /**
  * Helper: creates a mock patch commit for testing.
+ * @param {any} options
+ * @returns {any}
  */
 function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, parentSha = null, context = null }) {
   const patch = {
@@ -68,6 +70,7 @@ function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, par
 }
 
 describe('WarpGraph coverage gaps', () => {
+  /** @type {any} */
   let persistence;
 
   beforeEach(() => {
@@ -90,6 +93,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns the seek cache passed at construction', async () => {
+      /** @type {any} */
       const mockCache = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
       const graph = await WarpGraph.open({
         persistence,
@@ -117,6 +121,7 @@ describe('WarpGraph coverage gaps', () => {
 
       expect(graph.seekCache).toBeNull();
 
+      /** @type {any} */
       const mockCache = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
       graph.setSeekCache(mockCache);
 
@@ -124,7 +129,9 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('replaces an existing seek cache', async () => {
+      /** @type {any} */
       const cache1 = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
+      /** @type {any} */
       const cache2 = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
 
       const graph = await WarpGraph.open({
@@ -168,9 +175,9 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
-      expect(() => graph.join(null)).toThrow('Invalid state');
+      expect(() => graph.join(/** @type {any} */ (null))).toThrow('Invalid state');
     });
 
     it('throws when otherState is missing nodeAlive', async () => {
@@ -181,9 +188,9 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
-      expect(() => graph.join({ edgeAlive: createORSet() })).toThrow('Invalid state');
+      expect(() => graph.join(/** @type {any} */ ({ edgeAlive: createORSet() }))).toThrow('Invalid state');
     });
 
     it('throws when otherState is missing edgeAlive', async () => {
@@ -194,9 +201,9 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
-      expect(() => graph.join({ nodeAlive: createORSet() })).toThrow('Invalid state');
+      expect(() => graph.join(/** @type {any} */ ({ nodeAlive: createORSet() }))).toThrow('Invalid state');
     });
 
     it('merges two empty states and returns zero-change receipt', async () => {
@@ -207,7 +214,7 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
       const otherState = createEmptyStateV5();
 
       const { state, receipt } = graph.join(otherState);
@@ -229,7 +236,7 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
       const otherState = createEmptyStateV5();
       const dot = createDot('writer-2', 1);
@@ -268,7 +275,7 @@ describe('WarpGraph coverage gaps', () => {
       });
 
       // Set up a minimal cached state — empty state has no tombstones
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
       const result = graph.maybeRunGC();
 
@@ -295,11 +302,11 @@ describe('WarpGraph coverage gaps', () => {
       const state = createEmptyStateV5();
       const dot = createDot('writer-1', 1);
       orsetAdd(state.nodeAlive, 'user:alice', dot);
-      graph._cachedState = state;
+      /** @type {any} */ (graph)._cachedState = state;
 
       // Force high patchesSinceGC and time since GC to trigger thresholds
-      graph._patchesSinceGC = 10000;
-      graph._lastGCTime = 0;
+      /** @type {any} */ (graph)._patchesSinceGC = 10000;
+      /** @type {any} */ (graph)._lastGCTime = 0;
 
       const result = graph.maybeRunGC();
 
@@ -335,8 +342,9 @@ describe('WarpGraph coverage gaps', () => {
       const state = createEmptyStateV5();
       const dot = createDot('writer-1', 1);
       orsetAdd(state.nodeAlive, 'user:alice', dot);
-      graph._cachedState = state;
+      /** @type {any} */ (graph)._cachedState = state;
 
+      /** @type {any} */
       const metrics = graph.getGCMetrics();
 
       expect(metrics).not.toBeNull();
@@ -354,10 +362,11 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
-      graph._patchesSinceGC = 42;
-      graph._lastGCTime = 1234567890;
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._patchesSinceGC = 42;
+      /** @type {any} */ (graph)._lastGCTime = 1234567890;
 
+      /** @type {any} */
       const metrics = graph.getGCMetrics();
 
       expect(metrics.patchesSinceCompaction).toBe(42);
@@ -377,6 +386,7 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
+      /** @type {any} */
       const policy = graph.gcPolicy;
 
       expect(policy.enabled).toBe(false);
@@ -399,6 +409,7 @@ describe('WarpGraph coverage gaps', () => {
         },
       });
 
+      /** @type {any} */
       const policy = graph.gcPolicy;
 
       expect(policy.enabled).toBe(true);
@@ -415,10 +426,12 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
+      /** @type {any} */
       const policy1 = graph.gcPolicy;
       policy1.enabled = true;
       policy1.tombstoneRatioThreshold = 0.99;
 
+      /** @type {any} */
       const policy2 = graph.gcPolicy;
 
       expect(policy2.enabled).toBe(false);
@@ -529,7 +542,7 @@ describe('WarpGraph coverage gaps', () => {
         crypto,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
 
       const count = await graph.getPropertyCount();
 
@@ -545,10 +558,10 @@ describe('WarpGraph coverage gaps', () => {
       });
 
       const state = createEmptyStateV5();
-      state.prop.set('user:alice\0name', { value: 'Alice', eventId: 'writer-1:1' });
-      state.prop.set('user:alice\0age', { value: 30, eventId: 'writer-1:2' });
-      state.prop.set('user:bob\0name', { value: 'Bob', eventId: 'writer-1:3' });
-      graph._cachedState = state;
+      state.prop.set('user:alice\0name', { value: 'Alice', eventId: /** @type {any} */ ('writer-1:1') });
+      state.prop.set('user:alice\0age', { value: 30, eventId: /** @type {any} */ ('writer-1:2') });
+      state.prop.set('user:bob\0name', { value: 'Bob', eventId: /** @type {any} */ ('writer-1:3') });
+      /** @type {any} */ (graph)._cachedState = state;
 
       const count = await graph.getPropertyCount();
 
@@ -637,7 +650,7 @@ describe('WarpGraph coverage gaps', () => {
       persistence.getNodeInfo.mockResolvedValue(mockPatch.nodeInfo);
       persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
 
-      const patch = await graph.loadPatchBySha(sha);
+      const patch = /** @type {any} */ (await graph.loadPatchBySha(sha));
 
       expect(patch).toBeDefined();
       expect(patch.schema).toBe(2);

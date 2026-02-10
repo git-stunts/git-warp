@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+// @ts-ignore - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WarpGraph from '../../src/domain/WarpGraph.js';
@@ -10,8 +11,11 @@ import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 describe('WarpGraph Integration', () => {
+  /** @type {any} */
   let tempDir;
+  /** @type {any} */
   let plumbing;
+  /** @type {any} */
   let persistence;
 
   beforeEach(async () => {
@@ -51,6 +55,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       // Materialize and verify
+      /** @type {any} */
       const state = await graph.materialize();
 
       expect(nodeVisibleV5(state, 'user:alice')).toBe(true);
@@ -79,8 +84,9 @@ describe('WarpGraph Integration', () => {
         .removeNode('temp')
         .commit();
 
-      const state = await graph.materialize();
-      expect(nodeVisibleV5(state, 'temp')).toBe(false);
+      /** @type {any} */
+      const state2 = await graph.materialize();
+      expect(nodeVisibleV5(state2, 'temp')).toBe(false);
     });
   });
 
@@ -109,6 +115,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       // Either writer can materialize the combined state
+      /** @type {any} */
       const state = await alice.materialize();
 
       expect(nodeVisibleV5(state, 'node:a')).toBe(true);
@@ -156,6 +163,7 @@ describe('WarpGraph Integration', () => {
       await (await graph.createPatch()).addNode('n3').commit();
 
       // Materialize from checkpoint should include all nodes
+      /** @type {any} */
       const state = await graph.materializeAt(checkpointSha);
       expect(nodeVisibleV5(state, 'n1')).toBe(true);
       expect(nodeVisibleV5(state, 'n2')).toBe(true);
@@ -177,6 +185,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       const crypto = new NodeCryptoAdapter();
+      /** @type {any} */
       const state1 = await graph1.materialize();
       const hash1 = await computeStateHashV5(state1, { crypto });
 
@@ -192,6 +201,7 @@ describe('WarpGraph Integration', () => {
         .setProperty('x', 'v', 42)
         .commit();
 
+      /** @type {any} */
       const state2 = await graph2.materialize();
       const hash2 = await computeStateHashV5(state2, { crypto });
 

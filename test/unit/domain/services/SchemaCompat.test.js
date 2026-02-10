@@ -12,18 +12,22 @@ import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.js
 // Helpers — minimal op factories
 // ---------------------------------------------------------------------------
 
+/** @param {string} nodeId */
 function nodeAddOp(nodeId) {
   return { type: 'NodeAdd', node: nodeId, dot: { writer: 'w1', counter: 1 } };
 }
 
+/** @param {string} from @param {string} to @param {string} label */
 function edgeAddOp(from, to, label) {
   return { type: 'EdgeAdd', from, to, label, dot: { writer: 'w1', counter: 1 } };
 }
 
+/** @param {string} nodeId @param {string} key @param {any} value */
 function nodePropSetOp(nodeId, key, value) {
   return { type: 'PropSet', node: nodeId, key, value };
 }
 
+/** @param {string} from @param {string} to @param {string} label @param {string} key @param {any} value */
 function edgePropSetOp(from, to, label, key, value) {
   // Edge prop ops use the \x01 prefix namespace in the node field
   return { type: 'PropSet', node: `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`, key, value };
@@ -65,8 +69,8 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
       });
 
       it('accepts non-array ops (defensive)', () => {
-        expect(() => assertOpsCompatible(null, SCHEMA_V2)).not.toThrow();
-        expect(() => assertOpsCompatible(undefined, SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(/** @type {any} */ (null), SCHEMA_V2)).not.toThrow();
+        expect(() => assertOpsCompatible(/** @type {any} */ (undefined), SCHEMA_V2)).not.toThrow();
       });
 
       it('throws E_SCHEMA_UNSUPPORTED for edge property ops', () => {
@@ -84,7 +88,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, SCHEMA_V2);
           expect.unreachable('should have thrown');
-        } catch (err) {
+        } catch (/** @type {any} */ err) {
           expect(err.code).toBe('E_SCHEMA_UNSUPPORTED');
         }
       });
@@ -95,7 +99,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, SCHEMA_V2);
           expect.unreachable('should have thrown');
-        } catch (err) {
+        } catch (/** @type {any} */ err) {
           expect(err.message).toContain('>=7.3.0');
           expect(err.message).toContain('WEIGHTED');
           expect(err.message).toContain('edge properties');
@@ -108,7 +112,7 @@ describe('Schema Compatibility (WT/SCHEMA/2)', () => {
         try {
           assertOpsCompatible(ops, SCHEMA_V2);
           expect.unreachable('should have thrown');
-        } catch (err) {
+        } catch (/** @type {any} */ err) {
           expect(err.context.requiredSchema).toBe(SCHEMA_V3);
           expect(err.context.maxSupportedSchema).toBe(SCHEMA_V2);
         }

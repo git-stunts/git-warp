@@ -6,8 +6,14 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 const crypto = new NodeCryptoAdapter();
 
 describe('IndexRebuildService', () => {
+  /** @type {any} */
+  /** @type {any} */
   let service;
+  /** @type {any} */
+  /** @type {any} */
   let mockStorage;
+  /** @type {any} */
+  /** @type {any} */
   let mockGraphService;
 
   beforeEach(() => {
@@ -20,32 +26,32 @@ describe('IndexRebuildService', () => {
 
     // Mock iterateNodes as an async generator
     mockGraphService = {
-      async *iterateNodes({ ref: _ref, limit: _limit }) {
+      async *iterateNodes(/** @type {any} */ { ref: _ref, limit: _limit }) {
         yield new GraphNode({ sha: 'sha1', author: 'test', date: '2026-01-08', message: 'msg1', parents: [] });
         yield new GraphNode({ sha: 'sha2', author: 'test', date: '2026-01-08', message: 'msg2', parents: ['sha1'] });
       }
     };
 
-    service = new IndexRebuildService({
+    service = new IndexRebuildService(/** @type {any} */ ({
       storage: mockStorage,
       graphService: mockGraphService,
       crypto,
-    });
+    }));
   });
 
   describe('constructor validation', () => {
     it('throws when graphService is not provided', () => {
-      expect(() => new IndexRebuildService({ storage: mockStorage }))
+      expect(() => new IndexRebuildService(/** @type {any} */ ({ storage: mockStorage })))
         .toThrow('IndexRebuildService requires a graphService');
     });
 
     it('throws when storage is not provided', () => {
-      expect(() => new IndexRebuildService({ graphService: mockGraphService }))
+      expect(() => new IndexRebuildService(/** @type {any} */ ({ graphService: mockGraphService })))
         .toThrow('IndexRebuildService requires a storage adapter');
     });
 
     it('throws when called with empty options', () => {
-      expect(() => new IndexRebuildService({}))
+      expect(() => new IndexRebuildService(/** @type {any} */ ({})))
         .toThrow('IndexRebuildService requires a graphService');
     });
   });
@@ -89,7 +95,7 @@ describe('IndexRebuildService', () => {
     expect(mockStorage.writeTree).toHaveBeenCalledTimes(1);
     const treeEntries = mockStorage.writeTree.mock.calls[0][0];
     expect(treeEntries.length).toBeGreaterThanOrEqual(2);
-    expect(treeEntries.every(e => e.startsWith('100644 blob'))).toBe(true);
+    expect(treeEntries.every((/** @type {any} */ e) => e.startsWith('100644 blob'))).toBe(true);
 
     expect(treeOid).toBe('tree-oid');
   });

@@ -10,9 +10,11 @@ import {
 } from '../../../../src/domain/services/SyncProtocol.js';
 import {
   createEmptyStateV5,
-  reduceV5,
+  reduceV5 as _reduceV5,
   encodeEdgeKey,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
@@ -43,7 +45,8 @@ const OID_F = '6'.repeat(40);
 /**
  * Creates a test patch with the given operations.
  */
-function createTestPatch({ writer, lamport, ops, context }) {
+/** @returns {any} */
+function createTestPatch({ writer = /** @type {any} */ (undefined), lamport = /** @type {any} */ (undefined), ops = /** @type {any} */ (undefined), context = /** @type {any} */ (undefined) }) {
   return {
     schema: 2,
     writer,
@@ -56,6 +59,7 @@ function createTestPatch({ writer, lamport, ops, context }) {
 /**
  * Creates a NodeAdd operation.
  */
+/** @param {any} node @param {any} dot */
 function createNodeAddOp(node, dot) {
   return { type: 'NodeAdd', node, dot };
 }
@@ -63,7 +67,8 @@ function createNodeAddOp(node, dot) {
 /**
  * Creates a mock persistence layer for testing.
  */
-function createMockPersistence(commits = {}, blobs = {}) {
+/** @returns {any} */
+function createMockPersistence(commits = /** @type {any} */ ({}), blobs = /** @type {any} */ ({})) {
   return {
     showNode: vi.fn(async sha => {
       if (commits[sha]?.message) {
@@ -97,6 +102,7 @@ function createMockPersistence(commits = {}, blobs = {}) {
 /**
  * Creates a commit message and blob for a test patch.
  */
+/** @param {any} commits @param {any} blobs @param {any} sha @param {any} patch @param {any} patchOid @param {any[]} parents */
 function setupCommit(commits, blobs, sha, patch, patchOid, parents = []) {
   const message = encodePatchMessage({
     graph: 'events',
@@ -213,9 +219,9 @@ describe('SyncProtocol', () => {
 
       expect(patches).toHaveLength(2);
       expect(patches[0].sha).toBe(SHA_B);
-      expect(patches[0].patch.lamport).toBe(2);
+      expect(/** @type {any} */ (patches[0].patch).lamport).toBe(2);
       expect(patches[1].sha).toBe(SHA_C);
-      expect(patches[1].patch.lamport).toBe(3);
+      expect(/** @type {any} */ (patches[1].patch).lamport).toBe(3);
     });
 
     it('returns all patches when fromSha is null', async () => {
@@ -326,7 +332,7 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B]]);
 
-      const response = await processSyncRequest(request, localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
 
       expect(response.type).toBe('sync-response');
       expect(response.patches).toHaveLength(1);
@@ -354,7 +360,7 @@ describe('SyncProtocol', () => {
         ['w2', SHA_B],
       ]);
 
-      const response = await processSyncRequest(request, localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
 
       // Response should include complete local frontier
       expect(response.frontier).toEqual({
@@ -372,7 +378,7 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_A]]);
 
-      const response = await processSyncRequest(request, localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
 
       expect(response.patches).toHaveLength(0);
     });
@@ -395,7 +401,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'w1', sha: SHA_A, patch: patch1 }],
       };
 
-      const result = applySyncResponse(response, state, frontier);
+      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(1);
       expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
@@ -427,7 +433,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = applySyncResponse(response, state, frontier);
+      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(2);
       expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
@@ -451,7 +457,7 @@ describe('SyncProtocol', () => {
         patches: [{ writerId: 'w1', sha: SHA_A, patch }],
       };
 
-      applySyncResponse(response, state, frontier);
+      applySyncResponse(/** @type {any} */ (response), state, frontier);
 
       // Original state should be unchanged
       expect(orsetContains(state.nodeAlive, 'x')).toBe(false);
@@ -483,7 +489,7 @@ describe('SyncProtocol', () => {
         ],
       };
 
-      const result = applySyncResponse(response, state, frontier);
+      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(2);
       expect(orsetContains(result.state.nodeAlive, 'x')).toBe(true);
@@ -502,7 +508,7 @@ describe('SyncProtocol', () => {
         patches: [],
       };
 
-      const result = applySyncResponse(response, state, frontier);
+      const result = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response), state, frontier));
 
       expect(result.applied).toBe(0);
     });
@@ -606,7 +612,7 @@ describe('SyncProtocol', () => {
       const responseA = await processSyncRequest(requestB, frontierA, persistence, 'events');
 
       // B applies response from A
-      const resultB = applySyncResponse(responseA, stateB, frontierB);
+      const resultB = /** @type {any} */ (applySyncResponse(responseA, stateB, frontierB));
       stateB = resultB.state;
       frontierB = resultB.frontier;
 
@@ -615,7 +621,7 @@ describe('SyncProtocol', () => {
       const responseB = await processSyncRequest(requestA, frontierB, persistence, 'events');
 
       // A applies response from B
-      const resultA = applySyncResponse(responseB, stateA, frontierA);
+      const resultA = /** @type {any} */ (applySyncResponse(responseB, stateA, frontierA));
       stateA = resultA.state;
       frontierA = resultA.frontier;
 
@@ -661,7 +667,7 @@ describe('SyncProtocol', () => {
         persistence,
         'events'
       );
-      const result1 = applySyncResponse(response1, state, frontier);
+      const result1 = /** @type {any} */ (applySyncResponse(response1, state, frontier));
 
       // Second sync with same data
       const response2 = {
@@ -669,7 +675,7 @@ describe('SyncProtocol', () => {
         frontier: { w1: SHA_A },
         patches: [{ writerId: 'w1', sha: SHA_A, patch }],
       };
-      const result2 = applySyncResponse(response2, result1.state, result1.frontier);
+      const result2 = /** @type {any} */ (applySyncResponse(/** @type {any} */ (response2), result1.state, result1.frontier));
 
       // State should be the same (idempotent)
       // Note: Due to OR-Set semantics, applying the same add twice adds a new dot

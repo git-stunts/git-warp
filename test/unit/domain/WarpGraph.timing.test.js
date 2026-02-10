@@ -15,8 +15,11 @@ const crypto = new NodeCryptoAdapter();
  */
 
 describe('WarpGraph operation timing (LH/TIMING/1)', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let logger;
+  /** @type {any} */
   let clock;
 
   beforeEach(() => {
@@ -44,7 +47,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      const state = await graph.materialize();
+      const state = /** @type {any} */ (await graph.materialize());
 
       expect(state).toBeDefined();
       expect(logger.info).toHaveBeenCalledWith(
@@ -97,7 +100,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       });
 
       // Should not throw even without logger
-      const state = await graph.materialize();
+      const state = /** @type {any} */ (await graph.materialize());
       expect(state).toBeDefined();
     });
   });
@@ -245,14 +248,14 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       });
 
       // Pre-cache state so sync doesn't need to materialize
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
       graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 5 });
       graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      const result = await graph.syncWith(peer);
+      const result = await graph.syncWith(/** @type {any} */ (peer));
 
       expect(result.applied).toBe(5);
       expect(logger.info).toHaveBeenCalledWith(
@@ -269,14 +272,14 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
       graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
       graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
 
-      await graph.syncWith(peer);
+      await graph.syncWith(/** @type {any} */ (peer));
 
       expect(clock.now).toHaveBeenCalled();
       expect(clock.now.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -291,14 +294,14 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      graph._cachedState = createEmptyStateV5();
+      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
       graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const peer = {
         processSyncRequest: vi.fn().mockRejectedValue(new Error('peer unreachable')),
       };
 
-      await expect(graph.syncWith(peer)).rejects.toThrow();
+      await expect(graph.syncWith(/** @type {any} */ (peer))).rejects.toThrow();
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringMatching(/^\[warp\] syncWith failed in \d+ms$/),
@@ -350,7 +353,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
       // The elapsed time should be a multiple of the step (150ms per call)
       const infoCall = logger.info.mock.calls.find(
-        (args) => typeof args[0] === 'string' && args[0].includes('materialize completed'),
+        (/** @type {any} */ args) => typeof args[0] === 'string' && args[0].includes('materialize completed'),
       );
       expect(infoCall).toBeDefined();
       expect(infoCall[0]).toMatch(/completed in \d+ms/);

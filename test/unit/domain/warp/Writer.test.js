@@ -42,8 +42,11 @@ function createPatchMessage(lamport = 1) {
 }
 
 describe('Writer (WARP schema:2)', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let versionVector;
+  /** @type {any} */
   let getCurrentState;
 
   beforeEach(() => {
@@ -470,7 +473,7 @@ describe('Writer (WARP schema:2)', () => {
       try {
         await patch.commit();
         expect.fail('Should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain(oldHead);
         expect(err.message).toContain(movedHead);
         expect(err.message).toContain('beginPatch()');
@@ -549,8 +552,11 @@ describe('Writer (WARP schema:2)', () => {
 });
 
 describe('PatchSession operations', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let versionVector;
+  /** @type {any} */
   let getCurrentState;
 
   beforeEach(() => {
@@ -572,7 +578,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addNode('user:alice');
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('NodeAdd');
     expect(built.ops[0].node).toBe('user:alice');
@@ -590,7 +596,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeNode('user:alice');
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('NodeRemove');
     expect(built.ops[0].node).toBe('user:alice');
@@ -608,7 +614,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.addEdge('n1', 'n2', 'links');
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('EdgeAdd');
     expect(built.ops[0].from).toBe('n1');
@@ -628,7 +634,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.removeEdge('n1', 'n2', 'links');
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('EdgeRemove');
   });
@@ -645,7 +651,7 @@ describe('PatchSession operations', () => {
     const patch = await writer.beginPatch();
     patch.setProperty('user:alice', 'name', 'Alice');
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(1);
     expect(built.ops[0].type).toBe('PropSet');
     expect(built.ops[0].node).toBe('user:alice');
@@ -669,7 +675,7 @@ describe('PatchSession operations', () => {
     patch.setProperty('n', 'arr', [1, 2, 3]);
     patch.setProperty('n', 'obj', { x: 1 });
 
-    const built = patch.build();
+    const built = /** @type {any} */ (patch.build());
     expect(built.ops).toHaveLength(5);
     expect(built.ops[0].value).toBe('hello');
     expect(built.ops[1].value).toBe(42);

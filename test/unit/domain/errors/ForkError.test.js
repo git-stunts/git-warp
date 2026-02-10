@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import ForkError from '../../../../src/domain/errors/ForkError.js';
+import ForkError_ from '../../../../src/domain/errors/ForkError.js';
+
+/** @type {any} */
+const ForkError = ForkError_;
 
 describe('ForkError', () => {
   it('constructs with default options', () => {

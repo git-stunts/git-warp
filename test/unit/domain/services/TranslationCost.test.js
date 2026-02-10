@@ -5,6 +5,7 @@ import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { computeTranslationCost } from '../../../../src/domain/services/TranslationCost.js';
 
+/** @param {any} graph @param {(state: any) => void} seedFn */
 function setupGraphState(graph, seedFn) {
   const state = createEmptyStateV5();
   graph._cachedState = state;
@@ -13,31 +14,38 @@ function setupGraphState(graph, seedFn) {
   return state;
 }
 
+/** @param {any} state @param {any} nodeId @param {any} counter */
 function addNode(state, nodeId, counter) {
   orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
 }
 
+/** @param {any} state @param {any} from @param {any} to @param {any} label @param {any} counter */
 function addEdge(state, from, to, label, counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
 }
 
+/** @param {any} state @param {any} nodeId @param {any} key @param {any} value */
 function addProp(state, nodeId, key, value) {
   const propKey = encodePropKey(nodeId, key);
   state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
 }
 
 describe('TranslationCost', () => {
+  /** @type {any} */
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({

@@ -15,7 +15,9 @@ const POID2 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const POID3 = 'cccccccccccccccccccccccccccccccccccccccc';
 
 describe('WarpGraph.fork', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -29,25 +31,25 @@ describe('WarpGraph.fork', () => {
 
   describe('parameter validation', () => {
     it('throws E_FORK_INVALID_ARGS when from is missing', async () => {
-      const err = await graph.fork({ at: SHA1 }).catch(e => e);
+      const err = await graph.fork({ at: SHA1 }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
     it('throws E_FORK_INVALID_ARGS when from is not a string', async () => {
-      const err = await graph.fork({ from: 123, at: SHA1 }).catch(e => e);
+      const err = await graph.fork({ from: 123, at: SHA1 }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
     it('throws E_FORK_INVALID_ARGS when at is missing', async () => {
-      const err = await graph.fork({ from: 'alice' }).catch(e => e);
+      const err = await graph.fork({ from: 'alice' }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
 
     it('throws E_FORK_INVALID_ARGS when at is not a string', async () => {
-      const err = await graph.fork({ from: 'alice', at: 123 }).catch(e => e);
+      const err = await graph.fork({ from: 'alice', at: 123 }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_INVALID_ARGS');
     });
@@ -57,7 +59,7 @@ describe('WarpGraph.fork', () => {
     it('throws E_FORK_WRITER_NOT_FOUND when writer does not exist', async () => {
       persistence.listRefs.mockResolvedValue([]);
 
-      const err = await graph.fork({ from: 'nonexistent', at: SHA1 }).catch(e => e);
+      const err = await graph.fork({ from: 'nonexistent', at: SHA1 }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_WRITER_NOT_FOUND');
       expect(err.context).toMatchObject({
@@ -83,7 +85,7 @@ describe('WarpGraph.fork', () => {
       persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/alice']);
       persistence.nodeExists.mockResolvedValue(false);
 
-      const err = await graph.fork({ from: 'alice', at: '4444444444444444444444444444444444444444' }).catch(e => e);
+      const err = await graph.fork({ from: 'alice', at: '4444444444444444444444444444444444444444' }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_PATCH_NOT_FOUND');
       expect(err.context).toMatchObject({
@@ -97,14 +99,14 @@ describe('WarpGraph.fork', () => {
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/alice']);
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA2;
         }
         return null;
       });
       // Simulate that '5555555555555555555555555555555555555555' is not an ancestor of SHA2
-      persistence.getNodeInfo.mockImplementation(async (sha) => {
+      persistence.getNodeInfo.mockImplementation(async (/** @type {any} */ sha) => {
         if (sha === SHA2) {
           return patch2.nodeInfo;
         }
@@ -114,7 +116,7 @@ describe('WarpGraph.fork', () => {
         return { parents: [] };
       });
 
-      const err = await graph.fork({ from: 'alice', at: '5555555555555555555555555555555555555555' }).catch(e => e);
+      const err = await graph.fork({ from: 'alice', at: '5555555555555555555555555555555555555555' }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_PATCH_NOT_IN_CHAIN');
       expect(err.context).toMatchObject({
@@ -128,7 +130,7 @@ describe('WarpGraph.fork', () => {
     it('throws E_FORK_NAME_INVALID for invalid fork name', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix.includes('test-graph')) {
           return ['refs/warp/test-graph/writers/alice'];
         }
@@ -138,7 +140,7 @@ describe('WarpGraph.fork', () => {
       persistence.readRef.mockResolvedValue(SHA1);
       persistence.getNodeInfo.mockResolvedValue(patch.nodeInfo);
 
-      const err = await graph.fork({ from: 'alice', at: SHA1, forkName: '../invalid' }).catch(e => e);
+      const err = await graph.fork({ from: 'alice', at: SHA1, forkName: '../invalid' }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_NAME_INVALID');
     });
@@ -146,7 +148,7 @@ describe('WarpGraph.fork', () => {
     it('throws E_FORK_ALREADY_EXISTS when fork graph already has refs', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix.includes('test-graph/')) {
           return ['refs/warp/test-graph/writers/alice'];
         }
@@ -159,7 +161,7 @@ describe('WarpGraph.fork', () => {
       persistence.readRef.mockResolvedValue(SHA1);
       persistence.getNodeInfo.mockResolvedValue(patch.nodeInfo);
 
-      const err = await graph.fork({ from: 'alice', at: SHA1, forkName: 'existing-fork' }).catch(e => e);
+      const err = await graph.fork({ from: 'alice', at: SHA1, forkName: 'existing-fork' }).catch((/** @type {any} */ e) => e);
       expect(err).toBeInstanceOf(ForkError);
       expect(err.code).toBe('E_FORK_ALREADY_EXISTS');
       expect(err.context).toMatchObject({
@@ -172,14 +174,14 @@ describe('WarpGraph.fork', () => {
     it('creates a fork with auto-generated name and writer ID', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA1;
         }
@@ -203,14 +205,14 @@ describe('WarpGraph.fork', () => {
     it('creates a fork with custom name and writer ID', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA1;
         }
@@ -238,14 +240,14 @@ describe('WarpGraph.fork', () => {
     it('fork shares the same persistence adapter', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA1;
         }
@@ -264,14 +266,14 @@ describe('WarpGraph.fork', () => {
     it('fork gets independent graph name from original', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA1;
         }
@@ -294,14 +296,14 @@ describe('WarpGraph.fork', () => {
     it('validates fork writer ID if explicitly provided', async () => {
       const patch = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA1;
         }
@@ -326,20 +328,20 @@ describe('WarpGraph.fork', () => {
       const patch1 = createMockPatch({ graphName: 'test-graph', sha: SHA1, writerId: 'alice', lamport: 1, patchOid: POID1 });
       const patch2 = createMockPatch({ graphName: 'test-graph', sha: SHA2, writerId: 'alice', lamport: 2, patchOid: POID2, parentSha: SHA1 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA2; // tip
         }
         return null;
       });
-      persistence.getNodeInfo.mockImplementation(async (sha) => {
+      persistence.getNodeInfo.mockImplementation(async (/** @type {any} */ sha) => {
         if (sha === SHA2) return patch2.nodeInfo;
         if (sha === SHA1) return patch1.nodeInfo;
         return { parents: [] };
@@ -359,20 +361,20 @@ describe('WarpGraph.fork', () => {
       const patch2 = createMockPatch({ graphName: 'test-graph', sha: SHA2, writerId: 'alice', lamport: 2, patchOid: POID2, parentSha: SHA1 });
       const patch3 = createMockPatch({ graphName: 'test-graph', sha: SHA3, writerId: 'alice', lamport: 3, patchOid: POID3, parentSha: SHA2 });
 
-      persistence.listRefs.mockImplementation(async (prefix) => {
+      persistence.listRefs.mockImplementation(async (/** @type {any} */ prefix) => {
         if (prefix === 'refs/warp/test-graph/writers/') {
           return ['refs/warp/test-graph/writers/alice'];
         }
         return [];
       });
       persistence.nodeExists.mockResolvedValue(true);
-      persistence.readRef.mockImplementation(async (ref) => {
+      persistence.readRef.mockImplementation(async (/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test-graph/writers/alice') {
           return SHA3; // tip
         }
         return null;
       });
-      persistence.getNodeInfo.mockImplementation(async (sha) => {
+      persistence.getNodeInfo.mockImplementation(async (/** @type {any} */ sha) => {
         if (sha === SHA3) return patch3.nodeInfo;
         if (sha === SHA2) return patch2.nodeInfo;
         if (sha === SHA1) return patch1.nodeInfo;

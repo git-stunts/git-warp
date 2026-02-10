@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createDot,
+  createDot as _createDot,
   dotsEqual,
   encodeDot,
   decodeDot,
   compareDots,
 } from '../../../../src/domain/crdt/Dot.js';
+
+/** @type {any} */
+const createDot = _createDot;
 
 describe('Dot', () => {
   describe('createDot', () => {

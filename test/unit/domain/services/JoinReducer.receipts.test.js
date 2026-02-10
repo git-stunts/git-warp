@@ -4,8 +4,10 @@ import {
   encodeEdgeKey,
   encodePropKey,
   join,
-  reduceV5,
+  reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetAdd, orsetRemove, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
@@ -16,7 +18,7 @@ import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePatch({ writer = 'w1', lamport = 1, ops = [], context }) {
+function makePatch({ writer = 'w1', lamport = 1, ops = /** @type {any[]} */ ([]), context = /** @type {any} */ (undefined) }) {
   return {
     schema: 2,
     writer,
@@ -26,22 +28,27 @@ function makePatch({ writer = 'w1', lamport = 1, ops = [], context }) {
   };
 }
 
+/** @param {any} node @param {any} dot */
 function nodeAdd(node, dot) {
   return { type: 'NodeAdd', node, dot };
 }
 
+/** @param {any} node @param {any} observedDots */
 function nodeRemove(node, observedDots) {
   return { type: 'NodeRemove', node, observedDots };
 }
 
+/** @param {any} from @param {any} to @param {any} label @param {any} dot */
 function edgeAdd(from, to, label, dot) {
   return { type: 'EdgeAdd', from, to, label, dot };
 }
 
+/** @param {any} from @param {any} to @param {any} label @param {any} observedDots */
 function edgeRemove(from, to, label, observedDots) {
   return { type: 'EdgeRemove', from, to, label, observedDots };
 }
 
+/** @param {any} node @param {any} key @param {any} value */
 function propSet(node, key, value) {
   return { type: 'PropSet', node, key, value };
 }
@@ -61,7 +68,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
-      const result = join(state, patch, 'abcd1234');
+      const result = /** @type {any} */ (join(state, patch, 'abcd1234'));
       // Returns the state object directly (not wrapped)
       expect(result).toBe(state);
       expect(result.nodeAlive).toBeDefined();
@@ -70,7 +77,7 @@ describe('JoinReducer receipts', () => {
     it('returns state directly when collectReceipts is undefined', () => {
       const state = createEmptyStateV5();
       const patch = makePatch({ ops: [] });
-      const result = join(state, patch, 'abcd1234', undefined);
+      const result = /** @type {any} */ (join(state, patch, 'abcd1234', undefined));
       expect(result).toBe(state);
     });
   });
@@ -85,7 +92,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
-      const result = join(state, patch, 'abcd1234', true);
+      const result = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipt');
       expect(result.state).toBe(state);
@@ -98,7 +105,7 @@ describe('JoinReducer receipts', () => {
         lamport: 42,
         ops: [nodeAdd('n1', createDot('alice', 1))],
       });
-      const { receipt } = join(state, patch, 'deadbeef', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'deadbeef', true));
       expect(receipt.patchSha).toBe('deadbeef');
       expect(receipt.writer).toBe('alice');
       expect(receipt.lamport).toBe(42);
@@ -109,7 +116,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(Object.isFrozen(receipt)).toBe(true);
       expect(Object.isFrozen(receipt.ops)).toBe(true);
     });
@@ -117,7 +124,7 @@ describe('JoinReducer receipts', () => {
     it('empty patch yields receipt with empty ops', () => {
       const state = createEmptyStateV5();
       const patch = makePatch({ ops: [] });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops).toHaveLength(0);
     });
   });
@@ -132,7 +139,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeAdd('n1', createDot('w1', 1))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toEqual({
         op: 'NodeAdd',
         target: 'n1',
@@ -149,7 +156,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeAdd('n1', dot)],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
 
@@ -161,7 +168,7 @@ describe('JoinReducer receipts', () => {
         writer: 'w2',
         ops: [nodeAdd('n1', createDot('w2', 1))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('applied');
     });
   });
@@ -180,7 +187,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeRemove('n1', new Set([encoded]))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toMatchObject({
         op: 'NodeTombstone',
         result: 'applied',
@@ -198,7 +205,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeRemove('n1', new Set([encoded]))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
 
@@ -209,7 +216,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [nodeRemove('n1', new Set([encoded]))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
   });
@@ -224,7 +231,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [edgeAdd('a', 'b', 'rel', createDot('w1', 1))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toEqual({
         op: 'EdgeAdd',
         target: encodeEdgeKey('a', 'b', 'rel'),
@@ -241,7 +248,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [edgeAdd('a', 'b', 'rel', dot)],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
   });
@@ -261,7 +268,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [edgeRemove('a', 'b', 'rel', new Set([encoded]))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toMatchObject({
         op: 'EdgeTombstone',
         result: 'applied',
@@ -279,7 +286,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [edgeRemove('a', 'b', 'rel', new Set([encoded]))],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
   });
@@ -294,7 +301,7 @@ describe('JoinReducer receipts', () => {
       const patch = makePatch({
         ops: [propSet('n1', 'name', 'Alice')],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0]).toEqual({
         op: 'PropSet',
         target: encodePropKey('n1', 'name'),
@@ -314,7 +321,7 @@ describe('JoinReducer receipts', () => {
         lamport: 2,
         ops: [propSet('n1', 'name', 'NewName')],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('applied');
     });
 
@@ -330,7 +337,7 @@ describe('JoinReducer receipts', () => {
         lamport: 1, // Lower lamport
         ops: [propSet('n1', 'name', 'Loser')],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('superseded');
       expect(receipt.ops[0].reason).toContain('LWW');
       expect(receipt.ops[0].reason).toContain('w1');
@@ -349,7 +356,7 @@ describe('JoinReducer receipts', () => {
         lamport: 1,
         ops: [propSet('n1', 'name', 'Value')],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops[0].result).toBe('redundant');
     });
   });
@@ -480,7 +487,7 @@ describe('JoinReducer receipts', () => {
           propSet('n1', 'name', 'Alice'),
         ],
       });
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops).toHaveLength(3);
       expect(receipt.ops[0].op).toBe('NodeAdd');
       expect(receipt.ops[1].op).toBe('NodeAdd');
@@ -507,7 +514,7 @@ describe('JoinReducer receipts', () => {
       });
 
       // Must not throw despite the unknown op type
-      const { state: resultState, receipt } = join(state, patch, 'abcd1234', true);
+      const { state: resultState, receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
 
       // The unknown op is silently skipped in the receipt
       expect(receipt.ops).toHaveLength(2);
@@ -528,7 +535,7 @@ describe('JoinReducer receipts', () => {
         ],
       });
 
-      const { receipt } = join(state, patch, 'abcd1234', true);
+      const { receipt } = /** @type {any} */ (join(state, patch, 'abcd1234', true));
       expect(receipt.ops).toHaveLength(0);
     });
   });

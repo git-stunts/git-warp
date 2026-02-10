@@ -6,9 +6,9 @@ async function createGraph() {
   const mockPersistence = {
     readRef: vi.fn().mockResolvedValue(null),
     listRefs: vi.fn().mockResolvedValue([]),
-    updateRef: vi.fn().mockResolvedValue(),
+    updateRef: vi.fn().mockResolvedValue(undefined),
     configGet: vi.fn().mockResolvedValue(null),
-    configSet: vi.fn().mockResolvedValue(),
+    configSet: vi.fn().mockResolvedValue(undefined),
   };
 
   return WarpGraph.open({
@@ -19,11 +19,12 @@ async function createGraph() {
 }
 
 describe('WarpGraph syncWith', () => {
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     graph = await createGraph();
-    graph._cachedState = {};
+    /** @type {any} */ (graph)._cachedState = {};
     graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
     graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
   });
@@ -39,8 +40,8 @@ describe('WarpGraph syncWith', () => {
       });
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const port = server.address().port;
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', /** @type {any} */ (resolve)));
+    const port = /** @type {any} */ (server).address().port;
 
     try {
       const result = await graph.syncWith(`http://127.0.0.1:${port}`);
@@ -65,8 +66,8 @@ describe('WarpGraph syncWith', () => {
       res.end(JSON.stringify(responsePayload));
     });
 
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const port = server.address().port;
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', /** @type {any} */ (resolve)));
+    const port = /** @type {any} */ (server).address().port;
 
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
@@ -87,10 +88,11 @@ describe('WarpGraph syncWith', () => {
   it('syncs directly with a peer graph instance', async () => {
     const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
     const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
+    /** @type {any[]} */
     const events = [];
 
     await graph.syncWith(peer, {
-      onStatus: (evt) => events.push(evt.type),
+      onStatus: (/** @type {any} */ evt) => events.push(evt.type),
     });
 
     expect(peer.processSyncRequest).toHaveBeenCalled();

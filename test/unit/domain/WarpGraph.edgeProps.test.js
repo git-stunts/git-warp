@@ -4,39 +4,41 @@ import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../s
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 
-function setupGraphState(graph, seedFn) {
+function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyStateV5();
-  graph._cachedState = state;
+  /** @type {any} */ (graph)._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);
 }
 
-function addNode(state, nodeId, counter) {
+function addNode(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ counter) {
   orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
 }
 
-function addEdge(state, from, to, label, counter) {
+function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ label, /** @type {any} */ counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
   state.edgeBirthEvent.set(edgeKey, { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 });
 }
 
-function addEdgeProp(state, from, to, label, key, value) {
+function addEdgeProp(/** @type {any} */ state, /** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ label, /** @type {any} */ key, /** @type {any} */ value) {
   const propKey = encodeEdgePropKey(from, to, label, key);
   state.prop.set(propKey, { eventId: { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value });
 }
 
 describe('WarpGraph edge properties', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({
@@ -51,7 +53,7 @@ describe('WarpGraph edge properties', () => {
   // ============================================================================
 
   it('getEdges returns edge props in props field', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -65,7 +67,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdges returns empty props for edge with no properties', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -78,7 +80,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdges returns multiple props on a single edge', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -92,7 +94,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdges assigns props to correct edges when multiple edges exist', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'user:carol', 3);
@@ -103,8 +105,8 @@ describe('WarpGraph edge properties', () => {
     });
 
     const edges = await graph.getEdges();
-    const followsEdge = edges.find((e) => e.label === 'follows');
-    const managesEdge = edges.find((e) => e.label === 'manages');
+    const followsEdge = edges.find((/** @type {any} */ e) => e.label === 'follows');
+    const managesEdge = edges.find((/** @type {any} */ e) => e.label === 'manages');
 
     expect(followsEdge.props).toEqual({ weight: 0.9 });
     expect(managesEdge.props).toEqual({ since: '2024-06-15' });
@@ -115,7 +117,7 @@ describe('WarpGraph edge properties', () => {
   // ============================================================================
 
   it('getEdgeProps returns correct props for an edge', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -127,7 +129,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps returns empty object for edge with no props', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -138,7 +140,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps returns null for non-existent edge', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
     });
@@ -148,7 +150,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps returns multiple properties', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -162,7 +164,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps does not leak props from other edges', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addNode(state, 'user:carol', 3);
@@ -183,7 +185,7 @@ describe('WarpGraph edge properties', () => {
     try {
       await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
       expect.unreachable('should have thrown');
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       expect(err.code).toBe('E_NO_STATE');
     }
   });
@@ -193,7 +195,7 @@ describe('WarpGraph edge properties', () => {
   // ============================================================================
 
   it('edge props do not appear in getNodeProps results', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -212,7 +214,7 @@ describe('WarpGraph edge properties', () => {
   // ============================================================================
 
   it('query outgoing traversal works with edges that have props', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
@@ -224,7 +226,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('query incoming traversal works with edges that have props', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNode(state, 'user:alice', 1);
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);

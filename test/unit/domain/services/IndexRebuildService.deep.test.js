@@ -7,6 +7,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     const CHAIN_LENGTH = 10_000;
 
     // Generate a linear chain: node0 <- node1 <- node2 <- ... <- node9999
+    /** @type {GraphNode[]} */
     const chain = [];
     for (let i = 0; i < CHAIN_LENGTH; i++) {
       chain.push(new GraphNode({
@@ -19,7 +20,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     }
 
     const mockGraphService = {
-      async *iterateNodes({ ref: _ref, limit: _limit }) {
+      async *iterateNodes(/** @type {any} */ { ref: _ref, limit: _limit }) {
         for (const node of chain) {
           yield node;
         }
@@ -36,10 +37,10 @@ describe('IndexRebuildService Deep DAG Test', () => {
       writeTree: vi.fn().mockResolvedValue('tree-oid-deep')
     };
 
-    const service = new IndexRebuildService({
+    const service = new IndexRebuildService(/** @type {any} */ ({
       graphService: mockGraphService,
       storage: mockStorage
-    });
+    }));
 
     // This should complete without stack overflow
     const treeOid = await service.rebuild('HEAD');
@@ -56,7 +57,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     expect(treeEntries.length).toBeGreaterThan(0);
 
     // All entries should be valid tree format
-    treeEntries.forEach(entry => {
+    treeEntries.forEach(/** @param {any} entry */ entry => {
       expect(entry).toMatch(/^100644 blob blob\d+\t(meta|shards)_.+\.json$/);
     });
   }, 30000); // 30 second timeout for large test
@@ -65,6 +66,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     const PARENT_COUNT = 1000;
 
     // Create 1000 parent nodes and 1 child with all of them as parents
+    /** @type {GraphNode[]} */
     const nodes = [];
     const parentShas = [];
 
@@ -102,10 +104,10 @@ describe('IndexRebuildService Deep DAG Test', () => {
       writeTree: vi.fn().mockResolvedValue('tree-oid-wide')
     };
 
-    const service = new IndexRebuildService({
+    const service = new IndexRebuildService(/** @type {any} */ ({
       graphService: mockGraphService,
       storage: mockStorage
-    });
+    }));
 
     const treeOid = await service.rebuild('HEAD');
 

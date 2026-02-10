@@ -7,12 +7,12 @@ vi.mock('elkjs/lib/elk.bundled.js', () => {
     ...graph,
     width: 200,
     height: 100,
-    children: (graph.children ?? []).map((c, i) => ({
+    children: (graph.children ?? []).map((/** @type {any} */ c, /** @type {any} */ i) => ({
       ...c,
       x: i * 100,
       y: 20,
     })),
-    edges: (graph.edges ?? []).map((e) => ({
+    edges: (graph.edges ?? []).map((/** @type {any} */ e) => ({
       ...e,
       sections: [{
         startPoint: { x: 0, y: 0 },

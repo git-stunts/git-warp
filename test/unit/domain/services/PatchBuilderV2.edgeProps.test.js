@@ -10,13 +10,13 @@ import {
 /**
  * Helper — creates a minimal PatchBuilderV2 for unit tests (no persistence needed).
  */
-function makeBuilder(opts = {}) {
-  return new PatchBuilderV2({
+function makeBuilder(opts = /** @type {any} */ ({})) {
+  return new PatchBuilderV2(/** @type {any} */ ({
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? createVersionVector(),
     getCurrentState: opts.getCurrentState ?? (() => null),
-  });
+  }));
 }
 
 describe('PatchBuilderV2.setEdgeProperty', () => {
@@ -34,7 +34,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const patch = builder.build();
       expect(patch.ops).toHaveLength(2);
 
-      const propOp = patch.ops[1];
+      const propOp = /** @type {any} */ (patch.ops[1]);
       expect(propOp.type).toBe('PropSet');
       expect(propOp.key).toBe('since');
       expect(propOp.value).toBe('2025-01-01');
@@ -47,7 +47,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 42);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       const mapKey = encodePropKey(op.node, op.key);
       const expected = encodeEdgePropKey('a', 'b', 'rel', 'weight');
       expect(mapKey).toBe(expected);
@@ -66,7 +66,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
         .setProperty('a', 'weight', 10)
         .setEdgeProperty('a', 'b', 'rel', 'weight', 99);
 
-      const [, nodeOp, edgeOp] = builder.ops;
+      const [, nodeOp, edgeOp] = /** @type {any[]} */ (builder.ops);
 
       // Both are PropSet but with different node fields
       expect(nodeOp.type).toBe('PropSet');
@@ -96,7 +96,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const patch = builder.build();
       expect(patch.ops).toHaveLength(4);
       expect(patch.ops[3].type).toBe('PropSet');
-      expect(patch.ops[3].value).toBe('red');
+      expect(/** @type {any} */ (patch.ops[3]).value).toBe('red');
     });
   });
 
@@ -117,7 +117,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       // 1 EdgeAdd + 3 PropSet
       expect(patch.ops).toHaveLength(4);
 
-      const propOps = patch.ops.filter((o) => o.type === 'PropSet');
+      const propOps = /** @type {any[]} */ (patch.ops.filter((o) => o.type === 'PropSet'));
       expect(propOps).toHaveLength(3);
 
       // All share the same node field (edge identity)
@@ -142,7 +142,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'note', '');
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toBe('');
     });
 
@@ -150,7 +150,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'weight', 3.14);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toBe(3.14);
     });
 
@@ -159,7 +159,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const obj = { nested: true, count: 7 };
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'meta', obj);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toEqual({ nested: true, count: 7 });
     });
 
@@ -167,7 +167,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'deleted', null);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toBeNull();
     });
 
@@ -175,7 +175,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'active', false);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toBe(false);
     });
 
@@ -183,7 +183,7 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       const builder = makeBuilder();
       builder.addEdge('a', 'b', 'rel').setEdgeProperty('a', 'b', 'rel', 'tags', ['x', 'y']);
 
-      const op = builder.ops[1];
+      const op = /** @type {any} */ (builder.ops[1]);
       expect(op.value).toEqual(['x', 'y']);
     });
   });
@@ -238,14 +238,14 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
       expect(types).toEqual(['NodeAdd', 'EdgeAdd', 'PropSet', 'PropSet', 'PropSet']);
 
       // Verify which PropSet is which by checking the key
-      expect(builder.ops[2].key).toBe('name');
-      expect(builder.ops[3].key).toBe('weight');
-      expect(builder.ops[4].key).toBe('age');
+      expect(/** @type {any} */ (builder.ops[2]).key).toBe('name');
+      expect(/** @type {any} */ (builder.ops[3]).key).toBe('weight');
+      expect(/** @type {any} */ (builder.ops[4]).key).toBe('age');
 
       // Only the middle PropSet should have edge-prop-prefix node
-      expect(builder.ops[2].node).toBe('n1');
-      expect(builder.ops[3].node.startsWith(EDGE_PROP_PREFIX)).toBe(true);
-      expect(builder.ops[4].node).toBe('n1');
+      expect(/** @type {any} */ (builder.ops[2]).node).toBe('n1');
+      expect(/** @type {any} */ (builder.ops[3]).node.startsWith(EDGE_PROP_PREFIX)).toBe(true);
+      expect(/** @type {any} */ (builder.ops[4]).node).toBe('n1');
     });
   });
 });

@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.js';
 import {
-  reduceV5,
+  reduceV5 as _reduceV5,
   encodeEdgeKey as encodeEdgeKeyV5,
   encodePropKey as encodePropKeyV5,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { compareEventIds, createEventId } from '../../../../src/domain/utils/EventId.js';
 import { lwwSet as lwwSetImported, lwwMax as lwwMaxImported } from '../../../../src/domain/crdt/LWW.js';
 
@@ -19,7 +21,7 @@ const lwwMaxLocal = lwwMaxImported;
 /**
  * Creates an empty v4 state for migration testing.
  * NOTE: Test-only helper. Schema:1 is deprecated.
- * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ * @returns {{nodeAlive: Map<string, any>, edgeAlive: Map<string, any>, prop: Map<string, any>}}
  */
 function createEmptyState() {
   return {
@@ -55,8 +57,8 @@ function encodePropKey(nodeId, propKey) {
 /**
  * v4 reducer for migration testing.
  * NOTE: Test-only helper. Schema:1 is deprecated.
- * @param {Array<{patch: Object, sha: string}>} patches
- * @returns {{nodeAlive: Map, edgeAlive: Map, prop: Map}}
+ * @param {Array<{patch: any, sha: string}>} patches
+ * @returns {{nodeAlive: Map<string, any>, edgeAlive: Map<string, any>, prop: Map<string, any>}}
  */
 function reduce(patches) {
   const state = createEmptyState();
@@ -150,11 +152,12 @@ const crypto = new NodeCryptoAdapter();
  * @param {Object} options - Patch options
  * @param {string} options.writer - Writer ID
  * @param {number} options.lamport - Lamport timestamp
- * @param {Array} options.ops - Array of operations
+ * @param {any[]} options.ops - Array of operations
  * @param {string} [options.baseCheckpoint] - Optional base checkpoint OID
- * @returns {Object} PatchV1 object
+ * @returns {any} PatchV1 object
  */
 function createPatch({ writer, lamport, ops, baseCheckpoint }) {
+  /** @type {any} */
   const patch = {
     schema: 1,
     writer,
@@ -170,7 +173,7 @@ function createPatch({ writer, lamport, ops, baseCheckpoint }) {
 /**
  * Helper to create a v4 state with nodes, edges, and props directly
  */
-function createV4State({ nodes = [], edges = [], props = [] } = {}) {
+function createV4State({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]) } = {}) {
   const state = createEmptyState();
   let counter = 0;
 
@@ -680,7 +683,7 @@ describe('MigrationService', () => {
             patch: createPatchV2({
               writer: 'charlie',
               lamport: 10,
-              context: createVersionVector(),
+              context: /** @type {any} */ (createVersionVector()),
               ops: [
                 createNodeAddV2('user:charlie', createDot('charlie', 1)),
                 createPropSetV2('user:charlie', 'name', createInlineValue('Charlie')),
@@ -692,7 +695,7 @@ describe('MigrationService', () => {
             patch: createPatchV2({
               writer: 'charlie',
               lamport: 11,
-              context: createVersionVector(),
+              context: /** @type {any} */ (createVersionVector()),
               ops: [
                 createEdgeAddV2('user:charlie', 'user:alice', 'follows', createDot('charlie', 2)),
                 createEdgeAddV2('user:charlie', 'user:bob', 'follows', createDot('charlie', 3)),
@@ -747,7 +750,7 @@ describe('MigrationService', () => {
           patch: createPatchV2({
             writer: 'A',
             lamport: 10,
-            context: createVersionVector(),
+            context: /** @type {any} */ (createVersionVector()),
             ops: [createNodeAddV2('node-a', createDot('A', 1))],
           }),
           sha: 'aaaa2222',
@@ -757,7 +760,7 @@ describe('MigrationService', () => {
           patch: createPatchV2({
             writer: 'B',
             lamport: 11,
-            context: createVersionVector(),
+            context: /** @type {any} */ (createVersionVector()),
             ops: [createNodeAddV2('node-b', createDot('B', 1))],
           }),
           sha: 'bbbb3333',
@@ -767,7 +770,7 @@ describe('MigrationService', () => {
           patch: createPatchV2({
             writer: 'C',
             lamport: 12,
-            context: createVersionVector(),
+            context: /** @type {any} */ (createVersionVector()),
             ops: [createEdgeAddV2('node-a', 'node-b', 'link', createDot('C', 1))],
           }),
           sha: 'cccc4444',
@@ -827,7 +830,7 @@ describe('MigrationService', () => {
           patch: createPatchV2({
             writer: 'bob',
             lamport: 2,
-            context: createVersionVector(),
+            context: /** @type {any} */ (createVersionVector()),
             ops: [createNodeAddV2('node-from-v2', createDot('bob', 1))],
           }),
           sha: 'b2bb2222',
@@ -886,7 +889,7 @@ describe('MigrationService', () => {
             patch: createPatchV2({
               writer: 'V5-writer',
               lamport: 10,
-              context: createVersionVector(),
+              context: /** @type {any} */ (createVersionVector()),
               ops: [
                 createNodeAddV2('n3', createDot('V5-writer', 1)),
                 createEdgeAddV2('n1', 'n3', 'link', createDot('V5-writer', 2)),
@@ -933,7 +936,7 @@ describe('MigrationService', () => {
         const v2Patch = createPatchV2({
           writer: 'W',
           lamport: 1,
-          context: createVersionVector(),
+          context: /** @type {any} */ (createVersionVector()),
           ops: [createNodeAddV2('test-node', createDot('W', 1))],
         });
 
@@ -942,9 +945,9 @@ describe('MigrationService', () => {
         expect(v1Patch.ops[0].dot).toBeUndefined(); // v1 has no dot
 
         expect(v2Patch.ops[0].type).toBe('NodeAdd');
-        expect(v2Patch.ops[0].dot).toBeDefined(); // v2 has a dot
-        expect(v2Patch.ops[0].dot.writerId).toBe('W');
-        expect(v2Patch.ops[0].dot.counter).toBe(1);
+        expect(/** @type {any} */ (v2Patch.ops[0]).dot).toBeDefined(); // v2 has a dot
+        expect(/** @type {any} */ (v2Patch.ops[0]).dot.writerId).toBe('W');
+        expect(/** @type {any} */ (v2Patch.ops[0]).dot.counter).toBe(1);
       });
     });
   });

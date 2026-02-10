@@ -40,7 +40,7 @@ function mockDot(writerId = 'test', seq = 1) {
  * Helper to build a V5 state with specific nodes, edges, and props.
  * Uses ORSet for nodes and edges (V5 style).
  */
-function buildStateV5({ nodes = [], edges = [], props = [] }) {
+function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]) }) {
   const state = createEmptyStateV5();
   let dotSeq = 1;
 
@@ -51,7 +51,7 @@ function buildStateV5({ nodes = [], edges = [], props = [] }) {
     orsetAdd(state.nodeAlive, nodeId, nodeDot);
     if (!alive) {
       // Remove by adding observed dots to tombstones
-      orsetRemove(state.nodeAlive, state.nodeAlive.entries.get(nodeId));
+      orsetRemove(state.nodeAlive, /** @type {any} */ (state.nodeAlive.entries.get(nodeId)));
     }
   }
 
@@ -62,7 +62,7 @@ function buildStateV5({ nodes = [], edges = [], props = [] }) {
     const edgeDot = dot ?? mockDot('test', dotSeq++);
     orsetAdd(state.edgeAlive, key, edgeDot);
     if (!alive) {
-      orsetRemove(state.edgeAlive, state.edgeAlive.entries.get(key));
+      orsetRemove(state.edgeAlive, /** @type {any} */ (state.edgeAlive.entries.get(key)));
     }
   }
 
@@ -235,7 +235,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.nodes).toEqual(['a', 'c']);
     });
@@ -246,7 +246,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.nodes).toEqual(['apple', 'mango', 'zebra']);
     });
@@ -263,7 +263,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.edges).toEqual([
         { from: 'a', to: 'b', label: 'a' },
@@ -285,7 +285,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.props).toEqual([
         { node: 'a', key: 'age', value: createInlineValue(25) },
@@ -313,7 +313,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.nodes).toEqual(['a', 'c']);
       expect(result.edges).toEqual([{ from: 'a', to: 'c', label: 'knows' }]);
@@ -329,7 +329,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.edges).toEqual([]);
     });
@@ -338,7 +338,7 @@ describe('StateSerializerV5', () => {
       const state = createEmptyStateV5();
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result).toEqual({ nodes: [], edges: [], props: [] });
     });
@@ -404,7 +404,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.nodes).toEqual(['a', 'b']);
       expect(result.edges).toEqual([{ from: 'a', to: 'b', label: 'knows' }]);
@@ -421,7 +421,7 @@ describe('StateSerializerV5', () => {
       });
 
       const bytes = serializeStateV5(state);
-      const result = deserializeStateV5(bytes);
+      const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result.props[0].value).toEqual(complexValue);
     });

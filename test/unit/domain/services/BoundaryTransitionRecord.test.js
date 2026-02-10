@@ -13,10 +13,12 @@ import {
 import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
 import {
   createEmptyStateV5,
-  reduceV5,
+  reduceV5 as _reduceV5,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
@@ -119,9 +121,9 @@ describe('BoundaryTransitionRecord', () => {
     it('throws TypeError for non-ProvenancePayload', async () => {
       const initialState = createEmptyStateV5();
 
-      await expect(createBTR(initialState, [], { key: testKey, crypto })).rejects.toThrow(TypeError);
-      await expect(createBTR(initialState, {}, { key: testKey, crypto })).rejects.toThrow(TypeError);
-      await expect(createBTR(initialState, null, { key: testKey, crypto })).rejects.toThrow(TypeError);
+      await expect(createBTR(initialState, /** @type {any} */ ([]), { key: testKey, crypto })).rejects.toThrow(TypeError);
+      await expect(createBTR(initialState, /** @type {any} */ ({}), { key: testKey, crypto })).rejects.toThrow(TypeError);
+      await expect(createBTR(initialState, /** @type {any} */ (null), { key: testKey, crypto })).rejects.toThrow(TypeError);
     });
 
     it('produces different kappa for different keys', async () => {
@@ -238,14 +240,14 @@ describe('BoundaryTransitionRecord', () => {
     });
 
     it('rejects null BTR', async () => {
-      const result = await verifyBTR(null, testKey);
+      const result = await verifyBTR(/** @type {any} */ (null), testKey);
 
       expect(result.valid).toBe(false);
       expect(result.reason).toBe('BTR must be an object');
     });
 
     it('rejects BTR missing required fields', async () => {
-      const partialBTR = { version: 1, h_in: 'abc' };
+      const partialBTR = /** @type {any} */ ({ version: 1, h_in: 'abc' });
       const result = await verifyBTR(partialBTR, testKey);
 
       expect(result.valid).toBe(false);

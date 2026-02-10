@@ -2,11 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HealthCheckService, { HealthStatus } from '../../../../src/domain/services/HealthCheckService.js';
 
 describe('HealthCheckService', () => {
+  /** @type {any} */
+  /** @type {any} */
   let service;
+  /** @type {any} */
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
+  /** @type {any} */
   let mockClock;
+  /** @type {any} */
+  /** @type {any} */
   let mockIndexReader;
+  /** @type {any} */
+  /** @type {any} */
   let mockLogger;
+  /** @type {any} */
+  /** @type {any} */
   let currentTime;
 
   beforeEach(() => {
@@ -37,22 +49,22 @@ describe('HealthCheckService', () => {
       child: vi.fn().mockReturnThis(),
     };
 
-    service = new HealthCheckService({
+    service = new HealthCheckService(/** @type {any} */ ({
       persistence: mockPersistence,
       clock: mockClock,
       cacheTtlMs: 5000,
       logger: mockLogger,
-    });
+    }));
   });
 
   describe('constructor', () => {
     it('accepts persistence, clock, and optional parameters', () => {
-      const s = new HealthCheckService({ persistence: mockPersistence, clock: mockClock });
+      const s = new HealthCheckService(/** @type {any} */ ({ persistence: mockPersistence, clock: mockClock }));
       expect(s).toBeDefined();
     });
 
     it('uses default cache TTL of 5000ms', async () => {
-      const s = new HealthCheckService({ persistence: mockPersistence, clock: mockClock });
+      const s = new HealthCheckService(/** @type {any} */ ({ persistence: mockPersistence, clock: mockClock }));
       await s.getHealth();
 
       // Call again immediately - should be cached
@@ -67,11 +79,11 @@ describe('HealthCheckService', () => {
     });
 
     it('allows custom cache TTL', async () => {
-      const s = new HealthCheckService({
+      const s = new HealthCheckService(/** @type {any} */ ({
         persistence: mockPersistence,
         clock: mockClock,
         cacheTtlMs: 1000,
-      });
+      }));
       await s.getHealth();
 
       // Advance 1.5 seconds - should expire

@@ -6,11 +6,16 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  generateWriterId,
-  validateWriterIdCanonical,
+  generateWriterId as _generateWriterId,
+  validateWriterIdCanonical as _validateWriterIdCanonical,
   resolveWriterId,
   WriterIdError,
 } from '../../../../src/domain/utils/WriterId.js';
+
+/** @type {any} */
+const generateWriterId = _generateWriterId;
+/** @type {any} */
+const validateWriterIdCanonical = _validateWriterIdCanonical;
 import { validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
 
 /**
@@ -127,7 +132,7 @@ describe('WriterId SPEC', () => {
       try {
         validateWriterIdCanonical('bad-id');
         expect.fail('Should have thrown');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         expect(e.message).toContain('bad-id');
         expect(e.code).toBe('INVALID_CANONICAL');
       }
@@ -244,7 +249,7 @@ describe('WriterId SPEC', () => {
           configSet: async () => {},
         });
         expect.fail('Should have thrown');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         expect(e.cause).toBe(cause);
       }
     });
@@ -268,7 +273,7 @@ describe('WriterId SPEC', () => {
           configSet: async () => { throw cause; },
         });
         expect.fail('Should have thrown');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         expect(e.cause).toBe(cause);
       }
     });

@@ -17,9 +17,12 @@ import {
 } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
+  /** @type {any} */
   let persistence;
   // Parallel-safe generators: each test gets fresh instances via beforeEach
+  /** @type {any} */
   let oidGen;
+  /** @type {any} */
   let hashGen;
 
   beforeEach(() => {
@@ -66,7 +69,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha1;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
@@ -125,28 +128,28 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha3;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
       });
 
       // Walk chain: sha3 -> sha2 -> sha1 - need to handle by SHA
-      persistence.getNodeInfo.mockImplementation((sha) => {
+      persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha3) return patch3.nodeInfo;
         if (sha === sha2) return patch2.nodeInfo;
         if (sha === sha1) return patch1.nodeInfo;
         return null;
       });
 
-      persistence.showNode.mockImplementation((sha) => {
+      persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha3) return patch3.message;
         if (sha === sha2) return patch2.message;
         if (sha === sha1) return patch1.message;
         return '';
       });
 
-      persistence.readBlob.mockImplementation((oid) => {
+      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
         if (oid === patch3.patchOid) return patch3.patchBuffer;
         if (oid === patch2.patchOid) return patch2.patchBuffer;
         if (oid === patch1.patchOid) return patch1.patchBuffer;
@@ -197,7 +200,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha2;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
@@ -207,13 +210,13 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
         .mockResolvedValueOnce(patch2.nodeInfo)
         .mockResolvedValueOnce(patch1.nodeInfo);
 
-      persistence.showNode.mockImplementation((sha) => {
+      persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha2) return patch2.message;
         if (sha === sha1) return patch1.message;
         return '';
       });
 
-      persistence.readBlob.mockImplementation((oid) => {
+      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
         if (oid === patch2.patchOid) return patch2.patchBuffer;
         if (oid === patch1.patchOid) return patch1.patchBuffer;
         return null;
@@ -250,7 +253,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha1;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
@@ -309,28 +312,28 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha3;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
       });
 
       // Walk chain: sha3 -> sha2 -> sha1 - need to handle by SHA
-      persistence.getNodeInfo.mockImplementation((sha) => {
+      persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha3) return patch3.nodeInfo;
         if (sha === sha2) return patch2.nodeInfo;
         if (sha === sha1) return patch1.nodeInfo;
         return null;
       });
 
-      persistence.showNode.mockImplementation((sha) => {
+      persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha3) return patch3.message;
         if (sha === sha2) return patch2.message;
         if (sha === sha1) return patch1.message;
         return '';
       });
 
-      persistence.readBlob.mockImplementation((oid) => {
+      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
         if (oid === patch3.patchOid) return patch3.patchBuffer;
         if (oid === patch2.patchOid) return patch2.patchBuffer;
         if (oid === patch1.patchOid) return patch1.patchBuffer;
@@ -376,7 +379,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha1;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
@@ -394,7 +397,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       await graph.materialize();
 
       expect(graph.provenanceIndex).not.toBeNull();
-      expect(graph.provenanceIndex.size).toBeGreaterThan(0);
+      expect(/** @type {any} */ (graph.provenanceIndex).size).toBeGreaterThan(0);
     });
   });
 
@@ -426,26 +429,26 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
         'refs/warp/test/writers/alice',
         'refs/warp/test/writers/bob',
       ]);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha1;
         if (ref === 'refs/warp/test/writers/bob') return sha2;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;
       });
 
-      persistence.getNodeInfo.mockImplementation((sha) => {
+      persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha1) return patch1.nodeInfo;
         if (sha === sha2) return patch2.nodeInfo;
         return null;
       });
 
-      persistence.showNode.mockImplementation((sha) => {
+      persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
         if (sha === sha1) return patch1.message;
         if (sha === sha2) return patch2.message;
         return '';
       });
 
-      persistence.readBlob.mockImplementation((oid) => {
+      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
         if (oid === patch1.patchOid) return patch1.patchBuffer;
         if (oid === patch2.patchOid) return patch2.patchBuffer;
         return null;
@@ -495,7 +498,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       });
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/checkpoints/head') return checkpointSha;
         if (ref === 'refs/warp/test/writers/alice') return sha2;
         return null;
@@ -507,7 +510,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
         'appliedVV.cbor': 'applied-oid',
         'provenanceIndex.cbor': 'provenance-oid',
       });
-      persistence.readBlob.mockImplementation((oid) => {
+      persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
         if (oid === 'state-oid') return stateBuffer;
         if (oid === 'frontier-oid') return frontierBuffer;
         if (oid === 'applied-oid') return appliedVVBuffer;
@@ -559,7 +562,7 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
       }, oidGen.next);
 
       persistence.listRefs.mockResolvedValue(['refs/warp/test/writers/alice']);
-      persistence.readRef.mockImplementation((ref) => {
+      persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
         if (ref === 'refs/warp/test/writers/alice') return sha1;
         if (ref === 'refs/warp/test/checkpoints/head') return null;
         return null;

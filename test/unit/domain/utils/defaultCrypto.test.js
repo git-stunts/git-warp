@@ -35,14 +35,14 @@ describe('defaultCrypto', () => {
     });
 
     it('produces different results for different keys', async () => {
-      const a = await defaultCrypto.hmac('sha256', 'key-1', 'same-data');
-      const b = await defaultCrypto.hmac('sha256', 'key-2', 'same-data');
+      const a = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key-1', 'same-data'));
+      const b = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key-2', 'same-data'));
       expect(a.equals(b)).toBe(false);
     });
 
     it('produces consistent results', async () => {
-      const first = await defaultCrypto.hmac('sha256', 'key', 'data');
-      const second = await defaultCrypto.hmac('sha256', 'key', 'data');
+      const first = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key', 'data'));
+      const second = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key', 'data'));
       expect(first.equals(second)).toBe(true);
     });
   });

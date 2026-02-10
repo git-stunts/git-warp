@@ -11,7 +11,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: true,
     });
 
-    expect(graph._autoMaterialize).toBe(true);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
   });
 
   it('stores flag when opened with autoMaterialize: false', async () => {
@@ -22,7 +22,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: false,
     });
 
-    expect(graph._autoMaterialize).toBe(false);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
   });
 
   it('defaults to false when autoMaterialize is not provided', async () => {
@@ -32,7 +32,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
       writerId: 'writer-1',
     });
 
-    expect(graph._autoMaterialize).toBe(false);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
   });
 
   it('defaults to false when autoMaterialize is explicitly undefined', async () => {
@@ -43,7 +43,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: undefined,
     });
 
-    expect(graph._autoMaterialize).toBe(false);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
   });
 
   it('rejects autoMaterialize: "yes" (string)', async () => {
@@ -52,7 +52,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: 'yes',
+        autoMaterialize: /** @type {any} */ ('yes'),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });
@@ -63,7 +63,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: 1,
+        autoMaterialize: /** @type {any} */ (1),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });
@@ -74,7 +74,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        autoMaterialize: null,
+        autoMaterialize: /** @type {any} */ (null),
       }),
     ).rejects.toThrow('autoMaterialize must be a boolean');
   });

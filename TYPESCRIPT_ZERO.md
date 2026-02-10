@@ -3,8 +3,7 @@
 > Mantra: "Fast commits, strict pushes, ruthless CI, zero drift."
 
 Starting errors: **src: 1,513 | test: 7,123 | total: 7,461**
-Current src errors: **0** (1,513 fixed)
-Current test errors: **5,862** (1,261 cascade-fixed from src typing)
+Current errors: **src: 0 | test: 0 | total: 0**
 
 ## Stage A — Infrastructure
 
@@ -21,7 +20,7 @@ Current test errors: **5,862** (1,261 cascade-fixed from src typing)
 
 - [x] **A3. Error baseline + ratchet**
   - [x] `scripts/ts-ratchet.js` — parse `tsc --pretty false`, count errors by config
-  - [x] `ts-error-baseline.json` — `{ "src": 0, "test": 5862, "total": 5861 }`
+  - [x] `ts-error-baseline.json` — `{ "src": 0, "test": 0, "total": 0 }`
   - [x] CI step: fail if error count > baseline
 
 - [x] **A4. Git hooks**
@@ -59,23 +58,22 @@ Current test errors: **5,862** (1,261 cascade-fixed from src typing)
 
 ## Stage C — Test Cleanup (`test/`)
 
-- [ ] **C1. Test helper typing**
-  - [ ] Type `createMockPersistence()`, `createTestRepo()`, etc.
-  - [ ] Cascade-fix test errors from helper improvements
+- [x] **C1. Test helper typing**
+  - [x] Type annotations on mock factories and test helpers
 
-- [ ] **C2. Test files** (~146 files, 5,862 errors remaining)
-  - [ ] `test/unit/domain/services/` batch
-  - [ ] `test/unit/domain/crdt/` batch
-  - [ ] `test/unit/domain/` (root-level test files)
-  - [ ] `test/unit/infrastructure/` batch
-  - [ ] `test/unit/visualization/` batch
-  - [ ] `test/integration/` batch
-  - [ ] `test/benchmark/` batch
+- [x] **C2. Test files** (0 remaining)
+  - [x] `test/unit/domain/services/` batch (0 errors)
+  - [x] `test/unit/domain/crdt/` batch (0 errors)
+  - [x] `test/unit/domain/` (root-level test files) (0 errors)
+  - [x] `test/unit/infrastructure/` batch (0 errors)
+  - [x] `test/unit/visualization/` batch (0 errors)
+  - [x] `test/integration/` batch (0 errors)
+  - [x] `test/benchmark/` batch (0 errors)
 
 ## Stage D — Final Gate
 
-- [ ] `npm run typecheck` exits 0
-- [ ] `npm run lint` passes
+- [x] `npm run typecheck` exits 0
+- [x] `npm run lint` passes
 - [x] `npm run test:local` passes
 - [ ] Pre-push hook works
 - [ ] CI pipeline passes

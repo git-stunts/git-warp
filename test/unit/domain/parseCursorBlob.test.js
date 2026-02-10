@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.js';
 
 describe('parseCursorBlob', () => {
+  /** @param {string} str */
   function buf(str) {
     return Buffer.from(str, 'utf8');
   }

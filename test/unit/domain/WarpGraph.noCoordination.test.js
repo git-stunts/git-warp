@@ -4,7 +4,7 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-async function assertLinearWriterChain(persistence, graphName, writerId) {
+async function assertLinearWriterChain(/** @type {any} */ persistence, /** @type {any} */ graphName, /** @type {any} */ writerId) {
   const writerRef = buildWriterRef(graphName, writerId);
   let current = await persistence.readRef(writerRef);
 

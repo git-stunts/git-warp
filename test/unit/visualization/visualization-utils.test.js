@@ -8,9 +8,12 @@
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { truncate } from '../../../src/visualization/utils/truncate.js';
-import { timeAgo, formatDuration } from '../../../src/visualization/utils/time.js';
+import { timeAgo as _timeAgo, formatDuration as _formatDuration } from '../../../src/visualization/utils/time.js';
 import { padRight, padLeft, center } from '../../../src/visualization/utils/unicode.js';
 import { progressBar } from '../../../src/visualization/renderers/ascii/progress.js';
+
+/** @type {any} */ const timeAgo = _timeAgo;
+/** @type {any} */ const formatDuration = _formatDuration;
 import { stripAnsi } from '../../../src/visualization/utils/ansi.js';
 
 // Fixed "now" for deterministic timeAgo tests

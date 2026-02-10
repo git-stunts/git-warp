@@ -3,6 +3,7 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
+  /** @type {any} */
   let repo;
 
   afterEach(async () => {

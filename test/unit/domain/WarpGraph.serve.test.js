@@ -2,34 +2,36 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
-function canonicalizeJson(value) {
+/** @returns {any} */
+function canonicalizeJson(/** @type {any} */ value) {
   if (Array.isArray(value)) {
     return value.map(canonicalizeJson);
   }
   if (value && typeof value === 'object') {
     const sorted = {};
     for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalizeJson(value[key]);
+      /** @type {any} */ (sorted)[key] = canonicalizeJson(value[key]);
     }
     return sorted;
   }
   return value;
 }
 
-function canonicalStringify(value) {
+function canonicalStringify(/** @type {any} */ value) {
   return JSON.stringify(canonicalizeJson(value));
 }
 
 describe('WarpGraph serve', () => {
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     const mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({

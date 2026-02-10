@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { toElkGraph, getDefaultLayoutOptions } from '../../../src/visualization/layouts/elkAdapter.js';
+import { toElkGraph as _toElkGraph, getDefaultLayoutOptions as _getDefaultLayoutOptions } from '../../../src/visualization/layouts/elkAdapter.js';
+
+/** @type {any} */ const toElkGraph = _toElkGraph;
+/** @type {any} */ const getDefaultLayoutOptions = _getDefaultLayoutOptions;
 
 describe('elkAdapter', () => {
   describe('getDefaultLayoutOptions', () => {

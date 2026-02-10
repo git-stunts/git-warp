@@ -10,7 +10,7 @@ const crypto = new NodeCryptoAdapter();
 /**
  * Creates a v1 shard envelope using JSON.stringify for checksum (legacy format).
  */
-const createV1Shard = (data) => ({
+const createV1Shard = (/** @type {any} */ data) => ({
   version: 1,
   checksum: createHash('sha256').update(JSON.stringify(data)).digest('hex'),
   data,
@@ -20,6 +20,7 @@ const createV1Shard = (data) => ({
  * Produces a canonical JSON string with deterministic key ordering.
  * Mirrors the canonicalStringify function used in BitmapIndexBuilder.
  */
+/** @type {(obj: any) => string} */
 const canonicalStringify = (obj) => {
   if (obj === null || typeof obj !== 'object') {
     return JSON.stringify(obj);
@@ -34,26 +35,30 @@ const canonicalStringify = (obj) => {
 /**
  * Creates a v2 shard envelope using canonicalStringify for checksum (current format).
  */
-const createV2Shard = (data) => ({
+const createV2Shard = (/** @type {any} */ data) => ({
   version: 2,
   checksum: createHash('sha256').update(canonicalStringify(data)).digest('hex'),
   data,
 });
 
 describe('BitmapIndexReader', () => {
+  /** @type {any} */
+  /** @type {any} */
   let mockStorage;
+  /** @type {any} */
+  /** @type {any} */
   let reader;
 
   beforeEach(() => {
     mockStorage = {
       readBlob: vi.fn(),
     };
-    reader = new BitmapIndexReader({ storage: mockStorage });
+    reader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage }));
   });
 
   describe('constructor validation', () => {
     it('throws when storage is not provided', () => {
-      expect(() => new BitmapIndexReader({})).toThrow('BitmapIndexReader requires a storage adapter');
+      expect(() => new BitmapIndexReader(/** @type {any} */ ({}))).toThrow('BitmapIndexReader requires a storage adapter');
     });
 
     it('throws when called with no arguments', () => {
@@ -61,12 +66,12 @@ describe('BitmapIndexReader', () => {
     });
 
     it('uses default maxCachedShards of 100', () => {
-      const readerWithDefaults = new BitmapIndexReader({ storage: mockStorage });
+      const readerWithDefaults = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage }));
       expect(readerWithDefaults.maxCachedShards).toBe(100);
     });
 
     it('accepts custom maxCachedShards', () => {
-      const readerWithCustom = new BitmapIndexReader({ storage: mockStorage, maxCachedShards: 50 });
+      const readerWithCustom = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, maxCachedShards: 50 }));
       expect(readerWithCustom.maxCachedShards).toBe(50);
     });
   });
@@ -102,7 +107,7 @@ describe('BitmapIndexReader', () => {
       const tree = await builder.serialize();
 
       // Mock storage to return serialized data
-      mockStorage.readBlob.mockImplementation(async (oid) => {
+      mockStorage.readBlob.mockImplementation(async (/** @type {any} */ oid) => {
         if (oid === 'meta-oid') return tree['meta_aa.json'] || tree['meta_ee.json'];
         if (oid === 'rev-oid') return tree['shards_rev_ee.json'];
         return Buffer.from('{}');
@@ -170,7 +175,7 @@ describe('BitmapIndexReader', () => {
       const tree = await builder.serialize();
 
       let callCount = 0;
-      mockStorage.readBlob.mockImplementation(async (oid) => {
+      mockStorage.readBlob.mockImplementation(async (/** @type {any} */ oid) => {
         callCount++;
         // First call fails, subsequent calls succeed
         if (callCount === 1) {
@@ -198,7 +203,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardValidationError on version mismatch', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
         version: 999, // Wrong version
         checksum: 'abc',
@@ -213,7 +218,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardCorruptionError on invalid format', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
       mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid json {{{'));
 
       strictReader.setup({
@@ -224,7 +229,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('in strict mode throws ShardValidationError on checksum mismatch', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true, crypto });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true, crypto }));
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
         version: 1,
         checksum: 'wrong-checksum-value',
@@ -239,7 +244,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('error objects contain useful context for debugging', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
         version: 999,
         checksum: 'abc',
@@ -253,7 +258,7 @@ describe('BitmapIndexReader', () => {
       try {
         await strictReader.getChildren('cdcd1234');
         expect.fail('Should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(ShardValidationError);
         expect(err.code).toBe('SHARD_VALIDATION_ERROR');
         expect(err.field).toBe('version');
@@ -274,7 +279,7 @@ describe('BitmapIndexReader', () => {
       try {
         await reader.lookupId('efgh5678');
         expect.fail('Should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(ShardLoadError);
         expect(err.code).toBe('SHARD_LOAD_ERROR');
         expect(err.shardPath).toBe('meta_ef.json');
@@ -287,7 +292,7 @@ describe('BitmapIndexReader', () => {
       const corruptData = Buffer.from('{"not": "a valid shard format"}');
 
       // Non-strict reader (default)
-      const nonStrictReader = new BitmapIndexReader({ storage: mockStorage, strict: false });
+      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: false }));
       mockStorage.readBlob.mockResolvedValue(corruptData);
       nonStrictReader.setup({ 'shards_rev_ab.json': 'corrupt-oid' });
 
@@ -295,7 +300,7 @@ describe('BitmapIndexReader', () => {
       expect(nonStrictResult).toEqual([]); // Graceful degradation
 
       // Strict reader
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true }));
       strictReader.setup({ 'shards_rev_ab.json': 'corrupt-oid' });
 
       await expect(strictReader.getParents('abcd1234')).rejects.toThrow(ShardCorruptionError);
@@ -308,11 +313,11 @@ describe('BitmapIndexReader', () => {
         warn: vi.fn(),
         error: vi.fn(),
       };
-      const nonStrictReader = new BitmapIndexReader({
+      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      });
+      }));
 
       // Return data with wrong version (validation failure)
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
@@ -347,11 +352,11 @@ describe('BitmapIndexReader', () => {
         warn: vi.fn(),
         error: vi.fn(),
       };
-      const nonStrictReader = new BitmapIndexReader({
+      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
-      });
+      }));
 
       // Return invalid JSON (parse error)
       mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid json {{{'));
@@ -407,7 +412,7 @@ describe('BitmapIndexReader', () => {
     });
 
     it('v2 checksum mismatch throws ShardValidationError in strict mode', async () => {
-      const strictReader = new BitmapIndexReader({ storage: mockStorage, strict: true, crypto });
+      const strictReader = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, strict: true, crypto }));
 
       // Create v2 shard with intentionally wrong checksum
       const v2ShardWithBadChecksum = {
@@ -427,7 +432,7 @@ describe('BitmapIndexReader', () => {
       // Verify the error contains the expected context
       try {
         await strictReader.lookupId('abcd1234');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.field).toBe('checksum');
         expect(err.shardPath).toBe('meta_ab.json');
       }
@@ -440,12 +445,12 @@ describe('BitmapIndexReader', () => {
         warn: vi.fn(),
         error: vi.fn(),
       };
-      const nonStrictReader = new BitmapIndexReader({
+      const nonStrictReader = new BitmapIndexReader(/** @type {any} */ ({
         storage: mockStorage,
         strict: false,
         logger: mockLogger,
         crypto,
-      });
+      }));
 
       // Create v2 shard with intentionally wrong checksum
       const v2ShardWithBadChecksum = {
@@ -533,19 +538,19 @@ describe('BitmapIndexReader', () => {
   describe('LRU cache eviction', () => {
     it('evicts least recently used shards when exceeding maxCachedShards', async () => {
       // Create reader with small cache size
-      const smallCacheReader = new BitmapIndexReader({
+      const smallCacheReader = new BitmapIndexReader(/** @type {any} */ ({
         storage: mockStorage,
         maxCachedShards: 2
-      });
+      }));
 
       // Create valid shard data
-      const createValidShard = (id) => Buffer.from(JSON.stringify({
+      const createValidShard = (/** @type {any} */ id) => Buffer.from(JSON.stringify({
         version: 1,
         checksum: createHash('sha256').update(JSON.stringify({ id })).digest('hex'),
         data: { id }
       }));
 
-      mockStorage.readBlob.mockImplementation(async (oid) => {
+      mockStorage.readBlob.mockImplementation(async (/** @type {any} */ oid) => {
         return createValidShard(oid);
       });
 
@@ -575,18 +580,18 @@ describe('BitmapIndexReader', () => {
     });
 
     it('marks accessed shards as recently used', async () => {
-      const smallCacheReader = new BitmapIndexReader({
+      const smallCacheReader = new BitmapIndexReader(/** @type {any} */ ({
         storage: mockStorage,
         maxCachedShards: 2
-      });
+      }));
 
-      const createValidShard = (id) => Buffer.from(JSON.stringify({
+      const createValidShard = (/** @type {any} */ id) => Buffer.from(JSON.stringify({
         version: 1,
         checksum: createHash('sha256').update(JSON.stringify({ id })).digest('hex'),
         data: { id }
       }));
 
-      mockStorage.readBlob.mockImplementation(async (oid) => {
+      mockStorage.readBlob.mockImplementation(async (/** @type {any} */ oid) => {
         return createValidShard(oid);
       });
 

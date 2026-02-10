@@ -7,7 +7,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 /**
  * Creates a minimal schema:2 patch object.
  */
-function createPatch(writer, lamport, nodeId) {
+function createPatch(/** @type {any} */ writer, /** @type {any} */ lamport, /** @type {any} */ nodeId) {
   return {
     schema: 2,
     writer,
@@ -21,7 +21,7 @@ function createPatch(writer, lamport, nodeId) {
  * A fake 40-char hex SHA for use in tests.
  * Converts the input to a hex string padded/truncated to exactly 40 hex chars.
  */
-function fakeSha(label) {
+function fakeSha(/** @type {any} */ label) {
   const hex = Buffer.from(String(label)).toString('hex');
   return hex.padEnd(40, 'a').slice(0, 40);
 }
@@ -32,7 +32,8 @@ function fakeSha(label) {
  *
  * Returns the tip SHA so it can be wired to readRef.
  */
-function buildPatchChain(persistence, writer, count) {
+function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writer, /** @type {any} */ count) {
+  /** @type {any[]} */
   const shas = [];
   for (let i = 1; i <= count; i++) {
     shas.push(fakeSha(`${writer}${i}`));
@@ -56,7 +57,7 @@ function buildPatchChain(persistence, writer, count) {
     const parents = i < count - 1 ? [shas[i + 1]] : [];
 
     // getNodeInfo returns commit info (message + parents)
-    persistence.getNodeInfo.mockImplementation((querySha) => {
+    persistence.getNodeInfo.mockImplementation((/** @type {any} */ querySha) => {
       // Find the matching SHA among all configured commits
       for (let j = 0; j < count; j++) {
         if (querySha === shas[j]) {
@@ -78,7 +79,7 @@ function buildPatchChain(persistence, writer, count) {
     });
 
     // readBlob returns CBOR for the patch
-    persistence.readBlob.mockImplementation((oid) => {
+    persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
       for (let j = 0; j < count; j++) {
         const l = j + 1;
         const po = fakeSha(`blob-${writer}-${l}`);
@@ -96,7 +97,9 @@ function buildPatchChain(persistence, writer, count) {
 }
 
 describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -127,7 +130,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     const tipSha = buildPatchChain(persistence, 'w1', patchCount);
 
     // checkpoint ref returns null (no checkpoint)
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === 'refs/warp/test/checkpoints/head') {
         return Promise.resolve(null);
       }
@@ -203,7 +206,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
     const tipSha = buildPatchChain(persistence, 'w1', patchCount);
 
     // Phase 1: materialize with 3 patches (no checkpoint)
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === 'refs/warp/test/checkpoints/head') {
         return Promise.resolve(null);
       }

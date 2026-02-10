@@ -15,8 +15,8 @@ describe('WarpStateIndexBuilder', () => {
   describe('buildFromState()', () => {
     it('throws on invalid state', () => {
       const builder = new WarpStateIndexBuilder();
-      expect(() => builder.buildFromState(null)).toThrow('Invalid state');
-      expect(() => builder.buildFromState({})).toThrow('Invalid state');
+      expect(() => builder.buildFromState(/** @type {any} */ (null))).toThrow('Invalid state');
+      expect(() => builder.buildFromState(/** @type {any} */ ({}))).toThrow('Invalid state');
     });
 
     it('returns empty index for empty state', () => {

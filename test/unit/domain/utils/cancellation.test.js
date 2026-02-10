@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
-import { checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.js';
+import { checkAborted as _checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.js';
+
+/** @type {any} */
+const checkAborted = _checkAborted;
 
 describe('Cancellation', () => {
   describe('OperationAbortedError', () => {
@@ -82,7 +85,7 @@ describe('Cancellation', () => {
       try {
         checkAborted(controller.signal, 'rebuild');
         expect.fail('Should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.context.operation).toBe('rebuild');
       }
     });
@@ -109,7 +112,7 @@ describe('Cancellation', () => {
       try {
         checkAborted(controller.signal);
         expect.fail('Should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('Operation was aborted');
       }
     });
@@ -186,7 +189,7 @@ describe('Cancellation', () => {
       const controller = new AbortController();
 
       // Simulate an async generator that checks abort signal
-      async function* mockIterateNodes(options) {
+      async function* mockIterateNodes(/** @type {any} */ options) {
         const nodes = [
           { sha: 'sha1', parents: [] },
           { sha: 'sha2', parents: ['sha1'] },
@@ -221,7 +224,7 @@ describe('Cancellation', () => {
     it('iteration completes normally when signal is not aborted', async () => {
       const controller = new AbortController();
 
-      async function* mockIterateNodes(options) {
+      async function* mockIterateNodes(/** @type {any} */ options) {
         const nodes = [
           { sha: 'sha1', parents: [] },
           { sha: 'sha2', parents: ['sha1'] },
@@ -242,7 +245,7 @@ describe('Cancellation', () => {
     });
 
     it('iteration works without signal', async () => {
-      async function* mockIterateNodes(options) {
+      async function* mockIterateNodes(/** @type {any} */ options) {
         const nodes = [{ sha: 'sha1', parents: [] }];
 
         for (const node of nodes) {
@@ -266,7 +269,7 @@ describe('Cancellation', () => {
       let processedCount = 0;
 
       // Simulate rebuild loop that checks abort signal
-      async function mockRebuild(options) {
+      async function mockRebuild(/** @type {any} */ options) {
         const nodes = [
           { sha: 'sha1', parents: [] },
           { sha: 'sha2', parents: ['sha1'] },
@@ -290,7 +293,7 @@ describe('Cancellation', () => {
       try {
         await mockRebuild({ signal: controller.signal });
         // Might complete if abort happens after all nodes
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(OperationAbortedError);
         expect(err.message).toContain('rebuild');
         // Should have processed at least one node but not all
@@ -301,7 +304,7 @@ describe('Cancellation', () => {
     it('rebuild completes when signal is not aborted', async () => {
       const controller = new AbortController();
 
-      async function mockRebuild(options) {
+      async function mockRebuild(/** @type {any} */ options) {
         const nodes = [
           { sha: 'sha1', parents: [] },
           { sha: 'sha2', parents: ['sha1'] },
@@ -325,7 +328,7 @@ describe('Cancellation', () => {
       let processedCount = 0;
       let abortError = null;
 
-      async function mockLongRebuild(options) {
+      async function mockLongRebuild(/** @type {any} */ options) {
         const manyNodes = Array.from({ length: 100 }, (_, i) => ({
           sha: `sha${i}`,
           parents: i > 0 ? [`sha${i - 1}`] : [],

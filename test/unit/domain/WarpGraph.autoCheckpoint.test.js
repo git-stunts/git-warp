@@ -8,7 +8,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 /**
  * Creates a minimal schema:2 patch object.
  */
-function createPatch(writer, lamport, nodeId) {
+function createPatch(/** @type {any} */ writer, /** @type {any} */ lamport, /** @type {any} */ nodeId) {
   return {
     schema: 2,
     writer,
@@ -21,7 +21,7 @@ function createPatch(writer, lamport, nodeId) {
 /**
  * A fake 40-char hex SHA for use in tests.
  */
-function fakeSha(label) {
+function fakeSha(/** @type {any} */ label) {
   const hex = Buffer.from(String(label)).toString('hex');
   return hex.padEnd(40, 'a').slice(0, 40);
 }
@@ -32,14 +32,15 @@ function fakeSha(label) {
  *
  * Returns the tip SHA so it can be wired to readRef.
  */
-function buildPatchChain(persistence, writer, count) {
+function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writer, /** @type {any} */ count) {
+  /** @type {any[]} */
   const shas = [];
   for (let i = 1; i <= count; i++) {
     shas.push(fakeSha(`${writer}${i}`));
   }
 
   // getNodeInfo returns commit info (message + parents)
-  persistence.getNodeInfo.mockImplementation((querySha) => {
+  persistence.getNodeInfo.mockImplementation((/** @type {any} */ querySha) => {
     for (let j = 0; j < count; j++) {
       if (querySha === shas[j]) {
         const l = j + 1;
@@ -59,7 +60,7 @@ function buildPatchChain(persistence, writer, count) {
   });
 
   // readBlob returns CBOR for the patch
-  persistence.readBlob.mockImplementation((oid) => {
+  persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
     for (let j = 0; j < count; j++) {
       const l = j + 1;
       const po = fakeSha(`blob-${writer}-${l}`);
@@ -79,8 +80,8 @@ function buildPatchChain(persistence, writer, count) {
  * Helper: wire persistence mocks so materialize() discovers the given
  * writer and walks its chain. No checkpoint is present.
  */
-function wirePersistenceForWriter(persistence, writer, tipSha) {
-  persistence.readRef.mockImplementation((ref) => {
+function wirePersistenceForWriter(/** @type {any} */ persistence, /** @type {any} */ writer, /** @type {any} */ tipSha) {
+  persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
     if (ref === 'refs/warp/test/checkpoints/head') {
       return Promise.resolve(null);
     }
@@ -95,6 +96,7 @@ function wirePersistenceForWriter(persistence, writer, tipSha) {
 }
 
 describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
+  /** @type {any} */
   let persistence;
 
   beforeEach(() => {
@@ -186,7 +188,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('disk full')
     );
 
-    const state = await graph.materialize();
+    const state = /** @type {any} */ (await graph.materialize());
 
     // materialize returns a valid state despite checkpoint failure
     expect(state).toBeDefined();
@@ -208,7 +210,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       new Error('transient failure')
     );
 
-    const state = await graph.materialize();
+    const state = /** @type {any} */ (await graph.materialize());
 
     // All 3 nodes should be alive in the materialized state
     const nodeIds = [...state.nodeAlive.entries.keys()];
@@ -381,12 +383,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       });
     }
 
-    vi.spyOn(graph, '_loadLatestCheckpoint').mockResolvedValue({
+    vi.spyOn(graph, /** @type {any} */ ('_loadLatestCheckpoint')).mockResolvedValue({
       schema: 2,
       state: checkpointState,
       frontier: {},
     });
-    vi.spyOn(graph, '_loadPatchesSince').mockResolvedValue(patches);
+    vi.spyOn(graph, /** @type {any} */ ('_loadPatchesSince')).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -416,12 +418,12 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
       });
     }
 
-    vi.spyOn(graph, '_loadLatestCheckpoint').mockResolvedValue({
+    vi.spyOn(graph, /** @type {any} */ ('_loadLatestCheckpoint')).mockResolvedValue({
       schema: 2,
       state: checkpointState,
       frontier: {},
     });
-    vi.spyOn(graph, '_loadPatchesSince').mockResolvedValue(patches);
+    vi.spyOn(graph, /** @type {any} */ ('_loadPatchesSince')).mockResolvedValue(patches);
 
     const spy = vi
       .spyOn(graph, 'createCheckpoint')
@@ -449,7 +451,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
 
     vi.spyOn(graph, 'createCheckpoint').mockResolvedValue(fakeSha('ckpt'));
 
-    const state = await graph.materialize();
+    const state = /** @type {any} */ (await graph.materialize());
 
     // Should return a WarpStateV5, not a SHA string
     expect(typeof state).toBe('object');

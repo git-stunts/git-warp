@@ -64,9 +64,9 @@ describe('WarpMessageCodec schema v3', () => {
     });
 
     it('returns schema 2 for non-array input', () => {
-      expect(detectSchemaVersion(null)).toBe(2);
-      expect(detectSchemaVersion(undefined)).toBe(2);
-      expect(detectSchemaVersion('not-an-array')).toBe(2);
+      expect(detectSchemaVersion(/** @type {any} */ (null))).toBe(2);
+      expect(detectSchemaVersion(/** @type {any} */ (undefined))).toBe(2);
+      expect(detectSchemaVersion(/** @type {any} */ ('not-an-array'))).toBe(2);
     });
 
     it('returns schema 2 when no PropSet ops exist', () => {

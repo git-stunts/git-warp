@@ -6,7 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import * as viz from '../../../src/visualization/index.js';
+import * as _viz from '../../../src/visualization/index.js';
+
+/** @type {any} */
+const viz = _viz;
 
 describe('visualization subpath export contract', () => {
   const expectedFunctions = [

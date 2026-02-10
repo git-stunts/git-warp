@@ -3,7 +3,9 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { addNodeToState, addEdgeToState, setupGraphState, createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
 describe('WarpGraph logical traversal', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -17,7 +19,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('bfs visits neighbors in canonical order', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addNodeToState(state, 'node:c', 3);
@@ -30,7 +32,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('dfs follows canonical neighbor order', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addNodeToState(state, 'node:c', 3);
@@ -43,7 +45,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('shortestPath uses canonical tie-breaks', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addNodeToState(state, 'node:c', 3);
@@ -59,7 +61,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('labelFilter supports string and array (OR semantics)', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addNodeToState(state, 'node:c', 3);
@@ -75,7 +77,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('labelFilter empty array returns only the start node', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addEdgeToState(state, 'node:a', 'node:b', 'follows', 3);
@@ -86,7 +88,7 @@ describe('WarpGraph logical traversal', () => {
   });
 
   it('connectedComponent uses both directions', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);
       addNodeToState(state, 'node:b', 2);
       addNodeToState(state, 'node:c', 3);

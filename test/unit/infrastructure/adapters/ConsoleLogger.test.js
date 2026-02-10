@@ -3,8 +3,11 @@ import ConsoleLogger, { LogLevel } from '../../../../src/infrastructure/adapters
 import LoggerPort from '../../../../src/ports/LoggerPort.js';
 
 describe('ConsoleLogger', () => {
+  /** @type {any} */
   let consoleLogSpy;
+  /** @type {any} */
   let consoleWarnSpy;
+  /** @type {any} */
   let consoleErrorSpy;
 
   beforeEach(() => {
@@ -49,7 +52,7 @@ describe('ConsoleLogger', () => {
     });
 
     it('accepts string log level', () => {
-      const logger = new ConsoleLogger({ level: 'debug' });
+      const logger = new ConsoleLogger({ level: /** @type {any} */ ('debug') });
       logger.debug('test');
       expect(consoleLogSpy).toHaveBeenCalled();
     });

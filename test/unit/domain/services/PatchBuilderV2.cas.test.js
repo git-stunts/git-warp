@@ -9,6 +9,7 @@ import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.j
  * @param {Object} [overrides] - Method overrides
  * @returns {Object} Mock persistence adapter
  */
+/** @returns {any} */
 function createMockPersistence(overrides = {}) {
   return {
     readRef: vi.fn().mockResolvedValue(null),
@@ -87,7 +88,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
       try {
         await builder.commit();
         expect.unreachable('commit() should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
         expect(err.expectedSha).toBe(expectedParent);
         expect(err.actualSha).toBe(advancedSha);
@@ -141,7 +142,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
       try {
         await builder.commit();
         expect.unreachable('commit() should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
         expect(err.code).toBe('WRITER_CAS_CONFLICT');
         expect(err.expectedSha).toBeNull();
@@ -172,7 +173,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
       try {
         await builder.commit();
         expect.unreachable('commit() should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(WriterError);
         expect(err.code).toBe('WRITER_CAS_CONFLICT');
         expect(err.expectedSha).toBe(expectedParent);

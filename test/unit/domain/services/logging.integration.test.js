@@ -9,7 +9,9 @@ const crypto = new NodeCryptoAdapter();
 /**
  * Creates a mock logger that tracks all calls.
  */
+/** @returns {any} */
 function createMockLogger() {
+  /** @type {Record<string, any[]>} */
   const calls = {
     debug: [],
     info: [],
@@ -35,8 +37,14 @@ function createMockLogger() {
 
 describe('Service Logging Integration', () => {
   describe('IndexRebuildService', () => {
+    /** @type {any} */
+    /** @type {any} */
     let mockGraphService;
+    /** @type {any} */
+    /** @type {any} */
     let mockStorage;
+    /** @type {any} */
+    /** @type {any} */
     let mockLogger;
 
     beforeEach(() => {
@@ -56,11 +64,11 @@ describe('Service Logging Integration', () => {
 
     describe('rebuild', () => {
       it('logs info at start and completion', async () => {
-        const service = new IndexRebuildService({
+        const service = new IndexRebuildService(/** @type {any} */ ({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        });
+        }));
 
         await service.rebuild('HEAD');
 
@@ -84,11 +92,11 @@ describe('Service Logging Integration', () => {
           throw new Error('Graph error');
         });
 
-        const service = new IndexRebuildService({
+        const service = new IndexRebuildService(/** @type {any} */ ({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        });
+        }));
 
         await expect(service.rebuild('HEAD')).rejects.toThrow('Graph error');
 
@@ -99,11 +107,11 @@ describe('Service Logging Integration', () => {
       });
 
       it('indicates streaming mode in logs', async () => {
-        const service = new IndexRebuildService({
+        const service = new IndexRebuildService(/** @type {any} */ ({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        });
+        }));
 
         await service.rebuild('HEAD', { maxMemoryBytes: 1024 * 1024 });
 
@@ -115,11 +123,11 @@ describe('Service Logging Integration', () => {
 
     describe('load', () => {
       it('logs debug on load', async () => {
-        const service = new IndexRebuildService({
+        const service = new IndexRebuildService(/** @type {any} */ ({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        });
+        }));
 
         await service.load('tree-oid');
 
@@ -136,11 +144,11 @@ describe('Service Logging Integration', () => {
       });
 
       it('creates child logger for BitmapIndexReader', async () => {
-        const service = new IndexRebuildService({
+        const service = new IndexRebuildService(/** @type {any} */ ({
           graphService: mockGraphService,
           storage: mockStorage,
           logger: mockLogger
-        });
+        }));
 
         await service.load('tree-oid');
 
@@ -151,7 +159,11 @@ describe('Service Logging Integration', () => {
   });
 
   describe('BitmapIndexReader', () => {
+    /** @type {any} */
+    /** @type {any} */
     let mockStorage;
+    /** @type {any} */
+    /** @type {any} */
     let mockLogger;
 
     beforeEach(() => {
@@ -172,12 +184,12 @@ describe('Service Logging Integration', () => {
           }))
         );
 
-        const reader = new BitmapIndexReader({
+        const reader = new BitmapIndexReader(/** @type {any} */ ({
           storage: mockStorage,
           strict: false,
           logger: mockLogger,
           crypto,
-        });
+        }));
         reader.setup({ 'meta_sh.json': 'blob-oid' });
 
         const id = await reader.lookupId('sha123');

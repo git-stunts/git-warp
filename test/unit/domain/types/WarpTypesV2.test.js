@@ -1,12 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createNodeAddV2,
-  createNodeRemoveV2,
-  createEdgeAddV2,
-  createEdgeRemoveV2,
+  createNodeAddV2 as _createNodeAddV2,
+  createNodeRemoveV2 as _createNodeRemoveV2,
+  createEdgeAddV2 as _createEdgeAddV2,
+  createEdgeRemoveV2 as _createEdgeRemoveV2,
   createPropSetV2,
   createPatchV2,
 } from '../../../../src/domain/types/WarpTypesV2.js';
+
+/** @type {any} */
+const createNodeAddV2 = _createNodeAddV2;
+/** @type {any} */
+const createNodeRemoveV2 = _createNodeRemoveV2;
+/** @type {any} */
+const createEdgeAddV2 = _createEdgeAddV2;
+/** @type {any} */
+const createEdgeRemoveV2 = _createEdgeRemoveV2;
 
 describe('WarpTypesV2', () => {
   describe('Operation Factory Functions', () => {
@@ -374,7 +383,7 @@ describe('WarpTypesV2', () => {
         dot: { writer: 'app-server-1', seq: 1 },
       });
       expect(patch.ops[1].type).toBe('PropSet');
-      expect(patch.ops[1].value).toBe('alice@example.com');
+      expect(/** @type {any} */ (patch.ops[1]).value).toBe('alice@example.com');
     });
 
     it('creates a social graph patch', () => {
@@ -398,8 +407,8 @@ describe('WarpTypesV2', () => {
       const edges = patch.ops.filter((op) => op.type === 'EdgeAdd');
       expect(edges).toHaveLength(2);
       expect(edges[0].label).toBe('follows');
-      expect(edges[0].dot.seq).toBe(3);
-      expect(edges[1].dot.seq).toBe(4);
+      expect(/** @type {any} */ (edges[0]).dot.seq).toBe(3);
+      expect(/** @type {any} */ (edges[1]).dot.seq).toBe(4);
     });
 
     it('creates a deletion patch with observed dots', () => {
@@ -425,9 +434,9 @@ describe('WarpTypesV2', () => {
 
       expect(patch.ops).toHaveLength(2);
       expect(patch.ops[0].type).toBe('EdgeRemove');
-      expect(patch.ops[0].observedDots).toHaveLength(1);
+      expect(/** @type {any} */ (patch.ops[0]).observedDots).toHaveLength(1);
       expect(patch.ops[1].type).toBe('NodeRemove');
-      expect(patch.ops[1].observedDots).toHaveLength(2);
+      expect(/** @type {any} */ (patch.ops[1]).observedDots).toHaveLength(2);
     });
 
     it('creates a merge-scenario patch observing multiple writers', () => {

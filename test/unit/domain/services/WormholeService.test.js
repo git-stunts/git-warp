@@ -9,10 +9,12 @@ import {
 import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
 import WormholeError from '../../../../src/domain/errors/WormholeError.js';
 import {
-  reduceV5,
+  reduceV5 as _reduceV5,
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import {
@@ -212,7 +214,7 @@ describe('WormholeService', () => {
       await expect(createWormhole({
         persistence,
         graphName: 'test-graph',
-        fromSha: null,
+        fromSha: /** @type {any} */ (null),
         toSha: 'something',
       })).rejects.toThrow(WormholeError);
 
@@ -220,7 +222,7 @@ describe('WormholeService', () => {
         persistence,
         graphName: 'test-graph',
         fromSha: 'something',
-        toSha: undefined,
+        toSha: /** @type {any} */ (undefined),
       })).rejects.toThrow(WormholeError);
     });
   });
@@ -517,9 +519,9 @@ describe('WormholeService', () => {
     });
 
     it('throws on null/undefined input', () => {
-      expect(() => deserializeWormhole(null)).toThrow(WormholeError);
-      expect(() => deserializeWormhole(null)).toThrow('expected object');
-      expect(() => deserializeWormhole(undefined)).toThrow(WormholeError);
+      expect(() => deserializeWormhole(/** @type {any} */ (null))).toThrow(WormholeError);
+      expect(() => deserializeWormhole(/** @type {any} */ (null))).toThrow('expected object');
+      expect(() => deserializeWormhole(/** @type {any} */ (undefined))).toThrow(WormholeError);
     });
 
     it('throws on missing required fields', () => {
@@ -533,6 +535,7 @@ describe('WormholeService', () => {
 
       // Test each required field
       for (const field of ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload']) {
+        /** @type {any} */
         const incomplete = { ...validBase };
         delete incomplete[field];
         expect(() => deserializeWormhole(incomplete)).toThrow(`missing required field '${field}'`);

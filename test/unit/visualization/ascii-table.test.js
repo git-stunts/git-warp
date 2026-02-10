@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createTable } from '../../../src/visualization/renderers/ascii/table.js';
+import { createTable as _createTable } from '../../../src/visualization/renderers/ascii/table.js';
+
+/** @type {any} */
+const createTable = _createTable;
 
 describe('createTable', () => {
   it('returns an object with push and toString methods', () => {

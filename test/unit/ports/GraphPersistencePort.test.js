@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import GraphPersistencePort from '../../../src/ports/GraphPersistencePort.js';
-import IndexStoragePort from '../../../src/ports/IndexStoragePort.js';
+import GraphPersistencePort_ from '../../../src/ports/GraphPersistencePort.js';
+import IndexStoragePort_ from '../../../src/ports/IndexStoragePort.js';
+
+/** @type {any} */ const GraphPersistencePort = GraphPersistencePort_;
+/** @type {any} */ const IndexStoragePort = IndexStoragePort_;
 
 describe('GraphPersistencePort (composite mixin)', () => {
   const expectedMethods = [

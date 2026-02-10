@@ -11,7 +11,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
       checkpointPolicy: { every: 500 },
     });
 
-    expect(graph._checkpointPolicy).toEqual({ every: 500 });
+    expect(/** @type {any} */ (graph)._checkpointPolicy).toEqual({ every: 500 });
   });
 
   it('accepts minimum valid value { every: 1 }', async () => {
@@ -22,7 +22,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
       checkpointPolicy: { every: 1 },
     });
 
-    expect(graph._checkpointPolicy).toEqual({ every: 1 });
+    expect(/** @type {any} */ (graph)._checkpointPolicy).toEqual({ every: 1 });
   });
 
   it('defaults _checkpointPolicy to null when not provided', async () => {
@@ -32,7 +32,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
       writerId: 'writer-1',
     });
 
-    expect(graph._checkpointPolicy).toBeNull();
+    expect(/** @type {any} */ (graph)._checkpointPolicy).toBeNull();
   });
 
   it('rejects every: 0', async () => {
@@ -63,7 +63,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        checkpointPolicy: { every: 'foo' },
+        checkpointPolicy: { every: /** @type {any} */ ('foo') },
       })
     ).rejects.toThrow('checkpointPolicy.every must be a positive integer');
   });
@@ -85,19 +85,19 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
-        checkpointPolicy: 'auto',
+        checkpointPolicy: /** @type {any} */ ('auto'),
       })
     ).rejects.toThrow('checkpointPolicy must be an object with { every: number }');
   });
 
-  it('treats checkpointPolicy: null as no policy', async () => {
+  it('treats checkpointPolicy: /** @type {any} */ (null) as no policy', async () => {
     const graph = await WarpGraph.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
-      checkpointPolicy: null,
+      checkpointPolicy: /** @type {any} */ (null),
     });
 
-    expect(graph._checkpointPolicy).toBeNull();
+    expect(/** @type {any} */ (graph)._checkpointPolicy).toBeNull();
   });
 });

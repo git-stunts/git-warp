@@ -17,16 +17,18 @@ import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 
 describe('WarpGraph Query API', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({
@@ -46,7 +48,7 @@ describe('WarpGraph Query API', () => {
       await graph.materialize();
 
       // Manually add a node to cached state for testing
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
 
       expect(await graph.hasNode('user:alice')).toBe(true);
@@ -70,7 +72,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns empty map for node with no props', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
 
       const props = await graph.getNodeProps('user:alice');
@@ -80,7 +82,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns props for node with properties', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add node
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -106,7 +108,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns empty array for node with no edges', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
 
       expect(await graph.neighbors('user:alice')).toEqual([]);
@@ -114,7 +116,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns outgoing neighbors', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -135,7 +137,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns incoming neighbors', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -156,7 +158,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns both directions by default', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -170,13 +172,13 @@ describe('WarpGraph Query API', () => {
 
       const neighbors = await graph.neighbors('user:alice');
       expect(neighbors).toHaveLength(2);
-      expect(neighbors.find(n => n.nodeId === 'user:bob' && n.direction === 'outgoing')).toBeDefined();
-      expect(neighbors.find(n => n.nodeId === 'user:carol' && n.direction === 'incoming')).toBeDefined();
+      expect(neighbors.find((/** @type {any} */ n) => n.nodeId === 'user:bob' && n.direction === 'outgoing')).toBeDefined();
+      expect(neighbors.find((/** @type {any} */ n) => n.nodeId === 'user:carol' && n.direction === 'incoming')).toBeDefined();
     });
 
     it('filters by edge label', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -195,7 +197,7 @@ describe('WarpGraph Query API', () => {
 
     it('excludes edges with non-visible endpoints', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add only alice (bob is NOT added)
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
@@ -221,7 +223,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns all visible nodes', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       orsetAdd(state.nodeAlive, 'node-a', createDot('w1', 1));
       orsetAdd(state.nodeAlive, 'node-b', createDot('w1', 2));
@@ -247,7 +249,7 @@ describe('WarpGraph Query API', () => {
 
     it('returns all visible edges', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Add nodes
       orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
@@ -260,13 +262,13 @@ describe('WarpGraph Query API', () => {
 
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(2);
-      expect(edges.find(e => e.from === 'a' && e.to === 'b' && e.label === 'e1')).toBeDefined();
-      expect(edges.find(e => e.from === 'b' && e.to === 'c' && e.label === 'e2')).toBeDefined();
+      expect(edges.find((/** @type {any} */ e) => e.from === 'a' && e.to === 'b' && e.label === 'e1')).toBeDefined();
+      expect(edges.find((/** @type {any} */ e) => e.from === 'b' && e.to === 'c' && e.label === 'e2')).toBeDefined();
     });
 
     it('excludes edges with non-visible endpoints', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Only add 'a' node
       orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));

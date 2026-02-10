@@ -32,7 +32,7 @@ const FAKE_COMMIT_SHA = 'c'.repeat(40);
 /**
  * Configure mock persistence so a first-time writer commit succeeds.
  */
-function mockFirstCommit(persistence) {
+function mockFirstCommit(/** @type {any} */ persistence) {
   persistence.readRef.mockResolvedValue(null);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
@@ -46,7 +46,9 @@ function mockFirstCommit(persistence) {
 
 describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   describe('1. Fresh open with autoMaterialize: true -> query returns results', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -85,9 +87,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     });
 
     it('_cachedState is populated after first query triggers auto-materialize', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       await graph.getNodes();
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
   });
 
@@ -96,7 +98,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('2. Dirty state triggers auto-rematerialization on query', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -118,7 +122,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       await (await graph.createPatch()).addNode('test:node').commit();
 
       // State should still be fresh (eager re-materialize)
-      expect(graph._stateDirty).toBe(false);
+      expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
       expect(await graph.hasNode('test:node')).toBe(true);
     });
 
@@ -131,7 +135,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       await (await graph.createPatch()).addNode('test:node').commit();
 
       // Manually mark dirty to simulate external change
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       // Mock listRefs to return the writer ref for rematerialization
       const patchMessage = encodePatchMessage({
@@ -161,7 +165,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('auto-materialize is triggered when _stateDirty is true', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       const materializeSpy = vi.spyOn(graph, 'materialize');
 
@@ -181,8 +185,8 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('auto-materialize is NOT triggered when state is clean', async () => {
       await graph.materialize();
-      expect(graph._stateDirty).toBe(false);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
 
       const materializeSpy = vi.spyOn(graph, 'materialize');
 
@@ -197,7 +201,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('3. autoMaterialize: false -> null state -> throws', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -236,7 +242,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('4. autoMaterialize: false -> explicit materialize -> normal query behavior', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -281,7 +289,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
     it('querying state with data works after materialize + manual seed', async () => {
       await graph.materialize();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
       orsetAdd(state.nodeAlive, 'test:alice', createDot('w1', 1));
 
       expect(await graph.hasNode('test:alice')).toBe(true);
@@ -294,7 +302,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('5. All query methods respect autoMaterialize: true', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -308,44 +318,44 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     });
 
     it('hasNode auto-materializes and returns result', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.hasNode('test:x');
       expect(result).toBe(false);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
 
     it('getNodeProps auto-materializes and returns result', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.getNodeProps('test:x');
       expect(result).toBe(null);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
 
     it('neighbors auto-materializes and returns result', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.neighbors('test:x');
       expect(result).toEqual([]);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
 
     it('getNodes auto-materializes and returns result', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.getNodes();
       expect(result).toEqual([]);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
 
     it('getEdges auto-materializes and returns result', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.getEdges();
       expect(result).toEqual([]);
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
     });
 
     it('all methods return consistent data from auto-materialized state', async () => {
       // First call triggers materialize; seed state for subsequent calls
       await graph.getNodes();
-      const state = graph._cachedState;
+      const state = /** @type {any} */ (graph)._cachedState;
 
       // Seed data
       orsetAdd(state.nodeAlive, 'test:alice', createDot('w1', 1));
@@ -385,7 +395,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('6. query().run() works with autoMaterialize: true', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -419,7 +431,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       orsetAdd(state.nodeAlive, 'test:bob', createDot('w1', 2));
       orsetAdd(state.edgeAlive, encodeEdgeKey('test:alice', 'test:bob', 'follows'), createDot('w1', 3));
 
-      graph._cachedState = state;
+      /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);
 
       const result = await graph.query().match('test:alice').outgoing().run();
@@ -427,9 +439,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
     });
 
     it('query().run() auto-materializes when state is null', async () => {
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const result = await graph.query().match('*').run();
-      expect(graph._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
       expect(result.nodes).toEqual([]);
     });
   });
@@ -439,7 +451,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('7. Concurrent auto-materialize calls', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -484,7 +498,9 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('8. traverse methods work with autoMaterialize: true', () => {
+    /** @type {any} */
     let persistence;
+    /** @type {any} */
     let graph;
 
     beforeEach(async () => {
@@ -529,7 +545,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       orsetAdd(state.edgeAlive, encodeEdgeKey('test:a', 'test:b', 'x'), createDot('w1', 4));
       orsetAdd(state.edgeAlive, encodeEdgeKey('test:b', 'test:c', 'x'), createDot('w1', 5));
 
-      graph._cachedState = state;
+      /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);
 
       const result = await graph.traverse.bfs('test:a', { dir: 'out' });
@@ -542,7 +558,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       orsetAdd(state.nodeAlive, 'test:b', createDot('w1', 2));
       orsetAdd(state.edgeAlive, encodeEdgeKey('test:a', 'test:b', 'x'), createDot('w1', 3));
 
-      graph._cachedState = state;
+      /** @type {any} */ (graph)._cachedState = state;
       graph.materialize = vi.fn().mockResolvedValue(state);
 
       const result = await graph.traverse.shortestPath('test:a', 'test:b', { dir: 'out' });
@@ -555,7 +571,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       try {
         await graph.traverse.bfs('test:missing');
         expect.fail('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('Start node not found');
         expect(err.message).not.toContain('No cached state');
       }
@@ -589,8 +605,8 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
 
       // First call materializes
       await graph.getNodes();
-      expect(graph._cachedState).not.toBe(null);
-      expect(graph._stateDirty).toBe(false);
+      expect(/** @type {any} */ (graph)._cachedState).not.toBe(null);
+      expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
 
       // Spy on materialize for subsequent call
       const spy = vi.spyOn(graph, 'materialize');
@@ -610,7 +626,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       });
 
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       const spy = vi.spyOn(graph, 'materialize');
       await graph.getNodes();
@@ -627,7 +643,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
         autoMaterialize: true,
       });
 
-      expect(graph._cachedState).toBe(null);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(null);
       const spy = vi.spyOn(graph, 'materialize');
       await graph.hasNode('test:x');
 
@@ -644,7 +660,7 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
       });
 
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       await expect(graph.getNodes()).rejects.toThrow(QueryError);
     });

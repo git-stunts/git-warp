@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
 
 describe('API: QueryBuilder', () => {
+  /** @type {any} */
   let repo;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -39,7 +41,7 @@ describe('API: QueryBuilder', () => {
 
   it('match glob returns matching nodes', async () => {
     const result = await graph.query().match('user:*').select(['id']).run();
-    const ids = result.nodes.map((n) => n.id);
+    const ids = result.nodes.map((/** @type {any} */ n) => n.id);
     expect(ids).toContain('user:alice');
     expect(ids).toContain('user:bob');
     expect(ids).toContain('user:carol');
@@ -53,7 +55,7 @@ describe('API: QueryBuilder', () => {
       .where({ role: 'engineering' })
       .select(['id'])
       .run();
-    const ids = result.nodes.map((n) => n.id);
+    const ids = result.nodes.map((/** @type {any} */ n) => n.id);
     expect(ids).toContain('user:alice');
     expect(ids).toContain('user:bob');
     expect(ids).not.toContain('user:carol');
@@ -66,7 +68,7 @@ describe('API: QueryBuilder', () => {
       .outgoing('manages')
       .select(['id'])
       .run();
-    const ids = result.nodes.map((n) => n.id);
+    const ids = result.nodes.map((/** @type {any} */ n) => n.id);
     expect(ids).toEqual(['user:bob']);
   });
 
@@ -77,7 +79,7 @@ describe('API: QueryBuilder', () => {
       .incoming('manages')
       .select(['id'])
       .run();
-    const ids = result.nodes.map((n) => n.id);
+    const ids = result.nodes.map((/** @type {any} */ n) => n.id);
     expect(ids).toEqual(['user:alice']);
   });
 
@@ -89,7 +91,7 @@ describe('API: QueryBuilder', () => {
       .outgoing('knows')
       .select(['id'])
       .run();
-    const ids = result.nodes.map((n) => n.id);
+    const ids = result.nodes.map((/** @type {any} */ n) => n.id);
     expect(ids).toEqual(['user:carol']);
   });
 

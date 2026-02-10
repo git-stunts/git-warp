@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createTickReceipt,
+  createTickReceipt as _createTickReceipt,
   canonicalJson,
   OP_TYPES,
   RESULT_TYPES,
 } from '../../../../src/domain/types/TickReceipt.js';
+
+/** @type {any} */
+const createTickReceipt = _createTickReceipt;
 
 describe('TickReceipt', () => {
   // -----------------------------------------------------------------------

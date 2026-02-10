@@ -53,7 +53,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     ]);
 
     const tree = await builder.serialize({ frontier });
-    const envelope = cborDecode(tree['frontier.cbor']);
+    const envelope = /** @type {any} */ (cborDecode(tree['frontier.cbor']));
 
     expect(envelope.version).toBe(1);
     expect(envelope.writerCount).toBe(2);
@@ -97,7 +97,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     const frontier = new Map();
 
     const tree = await builder.serialize({ frontier });
-    const envelope = cborDecode(tree['frontier.cbor']);
+    const envelope = /** @type {any} */ (cborDecode(tree['frontier.cbor']));
 
     expect(envelope.version).toBe(1);
     expect(envelope.writerCount).toBe(0);

@@ -7,11 +7,11 @@ import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAd
 
 const crypto = new NodeCryptoAdapter();
 
-function addNode(state, nodeId, counter) {
+function addNode(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ counter) {
   orsetAdd(state.nodeAlive, nodeId, createDot('w1', counter));
 }
 
-function addEdge(state, from, to, label, counter) {
+function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ label, /** @type {any} */ counter) {
   const edgeKey = encodeEdgeKey(from, to, label);
   orsetAdd(state.edgeAlive, edgeKey, createDot('w1', counter));
 }
@@ -25,16 +25,18 @@ function createSeededState() {
 }
 
 describe('WarpGraph adjacency cache', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({
@@ -53,7 +55,7 @@ describe('WarpGraph adjacency cache', () => {
     await graph._materializeGraph();
 
     expect(buildSpy).toHaveBeenCalledTimes(1);
-    expect(graph._adjacencyCache.size).toBe(1);
+    expect(/** @type {any} */ (graph)._adjacencyCache.size).toBe(1);
   });
 
   it('evicts adjacency entries when over cache cap', async () => {
@@ -84,6 +86,6 @@ describe('WarpGraph adjacency cache', () => {
     await graph._materializeGraph();
 
     expect(buildSpy).toHaveBeenCalledTimes(3);
-    expect(graph._adjacencyCache.size).toBe(1);
+    expect(/** @type {any} */ (graph)._adjacencyCache.size).toBe(1);
   });
 });

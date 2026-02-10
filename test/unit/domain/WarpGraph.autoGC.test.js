@@ -23,7 +23,7 @@ function createHighTombstoneState() {
   // Add many nodes then tombstone them to create high tombstone ratio
   for (let i = 0; i < 100; i++) {
     const dot = `writer-1:${i + 1}`;
-    orsetAdd(state.nodeAlive, `node-${i}`, dot);
+    orsetAdd(state.nodeAlive, `node-${i}`, /** @type {any} */ (dot));
   }
   // Remove them all (add tombstones for each dot)
   for (let i = 0; i < 100; i++) {
@@ -36,6 +36,7 @@ function createHighTombstoneState() {
 }
 
 describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
+  /** @type {any} */
   let persistence;
 
   beforeEach(() => {
@@ -62,8 +63,8 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // Now inject a high-tombstone state and re-materialize
-    graph._cachedState = createHighTombstoneState();
-    graph._stateDirty = false;
+    /** @type {any} */ (graph)._cachedState = createHighTombstoneState();
+    /** @type {any} */ (graph)._stateDirty = false;
 
     // Clear logger.info after materialize (which now logs timing)
     logger.info.mockClear();
@@ -71,7 +72,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     // Call materialize — since no writers exist, it'll reduce to empty state
     // but _maybeRunGC runs on the fresh state. Let's trigger it directly.
     // Better approach: test _maybeRunGC directly with injected state
-    graph._maybeRunGC(createHighTombstoneState());
+    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
 
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('auto-GC is disabled'),
@@ -97,7 +98,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     });
 
     await graph.materialize();
-    graph._maybeRunGC(createHighTombstoneState());
+    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
 
     expect(logger.info).toHaveBeenCalledWith(
       'Auto-GC completed',
@@ -119,15 +120,15 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     });
 
     // Set recent GC time so time-since-compaction doesn't trigger
-    graph._lastGCTime = Date.now();
-    graph._patchesSinceGC = 0;
+    /** @type {any} */ (graph)._lastGCTime = Date.now();
+    /** @type {any} */ (graph)._patchesSinceGC = 0;
 
     await graph.materialize();
     logger.warn.mockClear();
     logger.info.mockClear();
 
     // Empty state → no tombstones → no GC needed
-    graph._maybeRunGC(createEmptyStateV5());
+    /** @type {any} */ (graph)._maybeRunGC(createEmptyStateV5());
 
     expect(logger.warn).not.toHaveBeenCalled();
     expect(logger.info).not.toHaveBeenCalled();
@@ -155,7 +156,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     const badState = { nodeAlive: null, edgeAlive: null };
 
     // Should not throw despite internal error
-    expect(() => graph._maybeRunGC(badState)).not.toThrow();
+    expect(() => /** @type {any} */ (graph)._maybeRunGC(badState)).not.toThrow();
   });
 
   it('_lastGCTime and _patchesSinceGC reset after GC', async () => {
@@ -173,14 +174,14 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
       },
     });
 
-    graph._patchesSinceGC = 999;
-    graph._lastGCTime = 0;
+    /** @type {any} */ (graph)._patchesSinceGC = 999;
+    /** @type {any} */ (graph)._lastGCTime = 0;
 
     await graph.materialize();
-    graph._maybeRunGC(createHighTombstoneState());
+    /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState());
 
-    expect(graph._patchesSinceGC).toBe(0);
-    expect(graph._lastGCTime).toBeGreaterThan(0);
+    expect(/** @type {any} */ (graph)._patchesSinceGC).toBe(0);
+    expect(/** @type {any} */ (graph)._lastGCTime).toBeGreaterThan(0);
   });
 
   it('no logger provided → no crash', async () => {
@@ -199,6 +200,6 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
     await graph.materialize();
 
     // No logger → should still work without crashing
-    expect(() => graph._maybeRunGC(createHighTombstoneState())).not.toThrow();
+    expect(() => /** @type {any} */ (graph)._maybeRunGC(createHighTombstoneState())).not.toThrow();
   });
 });

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
-import { reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
+import { reduceV5 as _reduceV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import {
@@ -33,9 +35,9 @@ describe('ProvenancePayload', () => {
     });
 
     it('throws TypeError for non-array input', () => {
-      expect(() => new ProvenancePayload('not-an-array')).toThrow(TypeError);
-      expect(() => new ProvenancePayload({})).toThrow(TypeError);
-      expect(() => new ProvenancePayload(42)).toThrow(TypeError);
+      expect(() => new ProvenancePayload(/** @type {any} */ ('not-an-array'))).toThrow(TypeError);
+      expect(() => new ProvenancePayload(/** @type {any} */ ({}))).toThrow(TypeError);
+      expect(() => new ProvenancePayload(/** @type {any} */ (42))).toThrow(TypeError);
     });
 
     it('is immutable (frozen)', () => {
@@ -46,7 +48,7 @@ describe('ProvenancePayload', () => {
 
       // Attempting to add properties should fail in strict mode
       expect(() => {
-        payload.newProp = 'value';
+        /** @type {any} */ (payload).newProp = 'value';
       }).toThrow();
     });
   });
@@ -80,9 +82,9 @@ describe('ProvenancePayload', () => {
   describe('concat', () => {
     it('throws TypeError for non-ProvenancePayload argument', () => {
       const payload = new ProvenancePayload();
-      expect(() => payload.concat([])).toThrow(TypeError);
-      expect(() => payload.concat({})).toThrow(TypeError);
-      expect(() => payload.concat(null)).toThrow(TypeError);
+      expect(() => payload.concat(/** @type {any} */ ([]))).toThrow(TypeError);
+      expect(() => payload.concat(/** @type {any} */ ({}))).toThrow(TypeError);
+      expect(() => payload.concat(/** @type {any} */ (null))).toThrow(TypeError);
     });
 
     it('concatenates two payloads', () => {
@@ -608,7 +610,7 @@ describe('ProvenancePayload', () => {
         expect(leftAssoc.length).toBe(patches.length);
 
         for (let i = 0; i < patches.length; i++) {
-          expect(leftAssoc.at(i).sha).toBe(rightAssoc.at(i).sha);
+          expect(/** @type {any} */ (leftAssoc.at(i)).sha).toBe(/** @type {any} */ (rightAssoc.at(i)).sha);
         }
       }
     });
@@ -755,7 +757,7 @@ describe('ProvenancePayload', () => {
           patch: createPatchV2({
             writer: 'W',
             lamport: 2,
-            ops: [createNodeRemoveV2(new Set(['W:1']))],
+            ops: [createNodeRemoveV2(/** @type {any} */ (new Set(['W:1'])))],
           }),
           sha: 'abcd0002',
         },

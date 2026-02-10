@@ -3,6 +3,7 @@ import NodeHttpAdapter from '../../../../src/infrastructure/adapters/NodeHttpAda
 import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
 
 describe('NodeHttpAdapter error paths', () => {
+  /** @type {any[]} */
   const servers = [];
 
   afterEach(async () => {
@@ -18,21 +19,25 @@ describe('NodeHttpAdapter error paths', () => {
   /**
    * Helper: starts a server with the given handler on a random port
    * and returns the base URL.
+   *
+   * @param {any} handler
+   * @param {any} [options]
+   * @returns {Promise<string>}
    */
   async function startServer(handler, options = {}) {
     const adapter = new NodeHttpAdapter(options);
     const server = adapter.createServer(handler);
     servers.push(server);
 
-    await new Promise((resolve, reject) => {
-      server.listen(0, '127.0.0.1', (err) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+      server.listen(0, '127.0.0.1', (/** @type {any} */ err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    });
+    }));
 
     const addr = server.address();
     return `http://127.0.0.1:${addr.port}`;
@@ -95,7 +100,7 @@ describe('NodeHttpAdapter error paths', () => {
       expect(res.status).toBe(413);
       const text = await res.text();
       expect(text).toBe('Payload Too Large');
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       // On some platforms / timing, the server resets the connection
       // before fetch can read the response.
       expect(err.cause?.code ?? err.code).toBe('ECONNRESET');
@@ -103,7 +108,7 @@ describe('NodeHttpAdapter error paths', () => {
   });
 
   it('handles successful request/response cycle', async () => {
-    const base = await startServer(async (req) => ({
+    const base = await startServer(async (/** @type {any} */ req) => ({
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ method: req.method, url: req.url }),
@@ -126,15 +131,15 @@ describe('NodeHttpAdapter error paths', () => {
     servers.push(server1);
 
     // Bind to a random port
-    await new Promise((resolve, reject) => {
-      server1.listen(0, '127.0.0.1', (err) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+      server1.listen(0, '127.0.0.1', (/** @type {any} */ err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    });
+    }));
 
     const port = server1.address().port;
 
@@ -147,13 +152,13 @@ describe('NodeHttpAdapter error paths', () => {
     servers.push(server2);
 
     const err = await new Promise((resolve) => {
-      server2.listen(port, '127.0.0.1', (listenErr) => {
+      server2.listen(port, '127.0.0.1', (/** @type {any} */ listenErr) => {
         resolve(listenErr);
       });
     });
 
     expect(err).toBeInstanceOf(Error);
-    expect(err.code).toBe('EADDRINUSE');
+    expect(/** @type {any} */ (err).code).toBe('EADDRINUSE');
   });
 
   it('listen accepts host as callback (2-arg form)', async () => {
@@ -165,15 +170,15 @@ describe('NodeHttpAdapter error paths', () => {
     servers.push(server);
 
     // listen(port, callback) — host argument is a function
-    await new Promise((resolve, reject) => {
-      server.listen(0, (err) => {
+    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+      server.listen(0, (/** @type {any} */ err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
       });
-    });
+    }));
 
     const addr = server.address();
     expect(addr.port).toBeGreaterThan(0);

@@ -14,6 +14,9 @@ import {
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 
+/** @param {Map<any, any>} map @param {any} key @returns {any} */
+const getEntry = (map, key) => map.get(key);
+
 describe('ORSet', () => {
   describe('createORSet', () => {
     it('creates empty ORSet', () => {
@@ -34,7 +37,7 @@ describe('ORSet', () => {
       orsetAdd(set, 'element1', dot);
 
       expect(set.entries.has('element1')).toBe(true);
-      expect(set.entries.get('element1').has(encodeDot(dot))).toBe(true);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot))).toBe(true);
     });
 
     it('adds multiple dots to same element', () => {
@@ -45,9 +48,9 @@ describe('ORSet', () => {
       orsetAdd(set, 'element1', dot1);
       orsetAdd(set, 'element1', dot2);
 
-      expect(set.entries.get('element1').size).toBe(2);
-      expect(set.entries.get('element1').has(encodeDot(dot1))).toBe(true);
-      expect(set.entries.get('element1').has(encodeDot(dot2))).toBe(true);
+      expect(getEntry(set.entries,'element1').size).toBe(2);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot1))).toBe(true);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot2))).toBe(true);
     });
 
     it('adds same dot twice (idempotent)', () => {
@@ -57,7 +60,7 @@ describe('ORSet', () => {
       orsetAdd(set, 'element1', dot);
       orsetAdd(set, 'element1', dot);
 
-      expect(set.entries.get('element1').size).toBe(1);
+      expect(getEntry(set.entries,'element1').size).toBe(1);
     });
 
     it('adds different elements', () => {
@@ -245,7 +248,7 @@ describe('ORSet', () => {
       expect(ab.entries.size).toBe(ba.entries.size);
       for (const [element, dots] of ab.entries) {
         expect(ba.entries.has(element)).toBe(true);
-        expect([...dots].sort()).toEqual([...ba.entries.get(element)].sort());
+        expect([...dots].sort()).toEqual([...getEntry(ba.entries, element)].sort());
       }
     });
 
@@ -275,7 +278,7 @@ describe('ORSet', () => {
       expect(left.entries.size).toBe(right.entries.size);
       for (const [element, dots] of left.entries) {
         expect(right.entries.has(element)).toBe(true);
-        expect([...dots].sort()).toEqual([...right.entries.get(element)].sort());
+        expect([...dots].sort()).toEqual([...getEntry(right.entries, element)].sort());
       }
     });
 
@@ -300,7 +303,7 @@ describe('ORSet', () => {
       expect(result.entries.size).toBe(a.entries.size);
       for (const [element, dots] of result.entries) {
         expect(a.entries.has(element)).toBe(true);
-        expect([...dots].sort()).toEqual([...a.entries.get(element)].sort());
+        expect([...dots].sort()).toEqual([...getEntry(a.entries, element)].sort());
       }
     });
   });
@@ -332,7 +335,7 @@ describe('ORSet', () => {
 
       const result = orsetJoin(a, b);
 
-      expect(result.entries.get('element1').size).toBe(2);
+      expect(getEntry(result.entries, 'element1').size).toBe(2);
     });
 
     it('unions tombstones', () => {
@@ -481,7 +484,7 @@ describe('ORSet', () => {
 
       // Dot should still be there (CRITICAL: never remove live dots)
       expect(set.entries.has('element1')).toBe(true);
-      expect(set.entries.get('element1').has(encodeDot(dot))).toBe(true);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot))).toBe(true);
     });
 
     it('does NOT remove tombstoned dots that are > includedVV', () => {
@@ -534,8 +537,8 @@ describe('ORSet', () => {
 
       // dot1 compacted, dot2 still there
       expect(set.entries.has('element1')).toBe(true);
-      expect(set.entries.get('element1').has(encodeDot(dot1))).toBe(false);
-      expect(set.entries.get('element1').has(encodeDot(dot2))).toBe(true);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot1))).toBe(false);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot2))).toBe(true);
       expect(set.tombstones.has(encodeDot(dot1))).toBe(false);
       expect(set.tombstones.has(encodeDot(dot2))).toBe(true);
     });

@@ -30,8 +30,9 @@ describe('syncWith({ materialize }) option', () => {
       expect(result.state).toBeDefined();
 
       // The materialized state should contain bob's node
-      expect(result.state.nodeAlive).toBeDefined();
-      const aliveNodes = [...result.state.nodeAlive.entries.keys()];
+      const state1 = /** @type {any} */ (result.state);
+      expect(state1.nodeAlive).toBeDefined();
+      const aliveNodes = [...state1.nodeAlive.entries.keys()];
       expect(aliveNodes).toContain('node:bob-1');
     } finally {
       await repoA.cleanup();
@@ -94,8 +95,9 @@ describe('syncWith({ materialize }) option', () => {
       expect(result.state).toBeDefined();
 
       // State should be a valid empty materialized state
-      expect(result.state.nodeAlive).toBeDefined();
-      expect([...result.state.nodeAlive.entries.keys()]).toHaveLength(0);
+      const state2 = /** @type {any} */ (result.state);
+      expect(state2.nodeAlive).toBeDefined();
+      expect([...state2.nodeAlive.entries.keys()]).toHaveLength(0);
     } finally {
       await repoA.cleanup();
       await repoB.cleanup();

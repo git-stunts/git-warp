@@ -19,9 +19,9 @@ const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
 const EMPTY_PATCH_CBOR = Buffer.from(cborEncode({ schema: 2, ops: [], context: {} }));
 
 /** Configure mocks for a single writer with one patch */
-function mockSingleWriter(persistence, { writerRef, commitSha, patchMessage }) {
+function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { writerRef, commitSha, patchMessage }) {
   persistence.listRefs.mockResolvedValue([writerRef]);
-  persistence.readRef.mockImplementation((ref) => {
+  persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
     if (ref === writerRef) return Promise.resolve(commitSha);
     return Promise.resolve(null);
   });
@@ -35,7 +35,9 @@ function mockSingleWriter(persistence, { writerRef, commitSha, patchMessage }) {
 }
 
 describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -81,7 +83,7 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
     await graph.materialize();
 
     // Writer tip advances
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
     });
@@ -102,7 +104,7 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
     // Second writer appears
     const writerRef2 = 'refs/warp/test/writers/writer-2';
     persistence.listRefs.mockResolvedValue([writerRef1, writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       if (ref === writerRef2) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
@@ -124,19 +126,19 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
     });
 
     persistence.listRefs.mockResolvedValue([writerRef1, writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       if (ref === writerRef2) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
     });
-    persistence.getNodeInfo.mockImplementation((sha) => {
+    persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA) {
         return Promise.resolve({ sha, message: patchMessage1, parents: [] });
       }
       return Promise.resolve({ sha, message: patchMessage2, parents: [] });
     });
     persistence.readBlob.mockResolvedValue(EMPTY_PATCH_CBOR);
-    persistence.showNode.mockImplementation((sha) => {
+    persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA) return Promise.resolve(patchMessage1);
       return Promise.resolve(patchMessage2);
     });
@@ -145,7 +147,7 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
 
     // Only writer-1 remains
     persistence.listRefs.mockResolvedValue([writerRef1]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -168,17 +170,17 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
       graph: 'test', writer: 'writer-1', lamport: 2,
       patchOid: FAKE_BLOB_OID, schema: 2,
     });
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
     });
-    persistence.getNodeInfo.mockImplementation((sha) => {
+    persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA_2) {
         return Promise.resolve({ sha, message: patchMessage2, parents: [FAKE_COMMIT_SHA] });
       }
       return Promise.resolve({ sha, message: patchMessage, parents: [] });
     });
-    persistence.showNode.mockImplementation((sha) => {
+    persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA_2) return Promise.resolve(patchMessage2);
       return Promise.resolve(patchMessage);
     });

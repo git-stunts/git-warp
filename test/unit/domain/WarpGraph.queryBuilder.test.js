@@ -4,22 +4,24 @@ import { encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
 
-function addProp(state, nodeId, key, value) {
+function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ key, /** @type {any} */ value) {
   const propKey = encodePropKey(nodeId, key);
   state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
 }
 
 describe('WarpGraph QueryBuilder', () => {
+  /** @type {any} */
   let mockPersistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
     mockPersistence = {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
-      updateRef: vi.fn().mockResolvedValue(),
+      updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
-      configSet: vi.fn().mockResolvedValue(),
+      configSet: vi.fn().mockResolvedValue(undefined),
     };
 
     graph = await WarpGraph.open({
@@ -33,13 +35,13 @@ describe('WarpGraph QueryBuilder', () => {
     expect(() => graph.query().match(['user:*'])).toThrow(QueryError);
     try {
       graph.query().match(['user:*']);
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       expect(err.code).toBe('E_QUERY_MATCH_TYPE');
     }
   });
 
   it('supports two-hop traversal with ordered results', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'user:carol', 3);
@@ -58,7 +60,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('supports glob match patterns', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'team:eng', 3);
@@ -72,7 +74,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('match(*) returns all nodes in canonical order', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'team:eng', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'user:alice', 3);
@@ -87,7 +89,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('produces deterministic JSON across runs', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'user:carol', 3);
@@ -102,7 +104,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('chaining order matters', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'user:carol', 3);
@@ -132,7 +134,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('where snapshots are read-only and mutation does not affect traversal', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addNodeToState(state, 'user:bob', 2);
       addNodeToState(state, 'user:carol', 3);
@@ -143,7 +145,7 @@ describe('WarpGraph QueryBuilder', () => {
     const result = await graph
       .query()
       .match('user:alice')
-      .where(({ edgesOut, props }) => {
+      .where((/** @type {any} */ { edgesOut, props }) => {
         try {
           edgesOut.push({ label: 'follows', to: 'user:carol' });
         } catch {
@@ -163,7 +165,7 @@ describe('WarpGraph QueryBuilder', () => {
   });
 
   it('selects fields and enforces allowed fields', async () => {
-    setupGraphState(graph, (state) => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'user:alice', 1);
       addProp(state, 'user:alice', 'role', 'admin');
     });
@@ -179,7 +181,7 @@ describe('WarpGraph QueryBuilder', () => {
 
     try {
       await graph.query().match('user:alice').select(['id', 'bogus']).run();
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       expect(err).toBeInstanceOf(QueryError);
       expect(err.code).toBe('E_QUERY_SELECT_FIELD');
     }

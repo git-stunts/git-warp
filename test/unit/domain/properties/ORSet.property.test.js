@@ -68,6 +68,7 @@ const orsetArb = fc.array(operationArb, { minLength: 0, maxLength: 10 }).map((op
 /**
  * Checks if two ORSets are structurally equal using serialization
  */
+/** @param {any} a @param {any} b */
 function orsetEqual(a, b) {
   return JSON.stringify(orsetSerialize(a)) === JSON.stringify(orsetSerialize(b));
 }
@@ -134,7 +135,7 @@ describe('ORSet property tests', () => {
               return false;
             }
             for (const dot of dots) {
-              if (!joined.entries.get(element).has(dot)) {
+              if (!(/** @type {any} */ (joined.entries.get(element))).has(dot)) {
                 return false;
               }
             }

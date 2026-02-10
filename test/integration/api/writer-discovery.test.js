@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
 
 describe('API: Writer Discovery', () => {
+  /** @type {any} */
   let repo;
 
   beforeEach(async () => {

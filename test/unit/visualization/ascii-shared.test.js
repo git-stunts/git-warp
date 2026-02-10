@@ -6,9 +6,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { formatAge, formatNumber, formatSha, formatWriterName } from '../../../src/visualization/renderers/ascii/formatters.js';
+import { formatAge as _formatAge, formatNumber as _formatNumber, formatSha as _formatSha, formatWriterName as _formatWriterName } from '../../../src/visualization/renderers/ascii/formatters.js';
 import { TIMELINE, ARROW, TREE } from '../../../src/visualization/renderers/ascii/symbols.js';
 import { stripAnsi } from '../../../src/visualization/utils/ansi.js';
+
+/** @type {any} */ const formatAge = _formatAge;
+/** @type {any} */ const formatNumber = _formatNumber;
+/** @type {any} */ const formatSha = _formatSha;
+/** @type {any} */ const formatWriterName = _formatWriterName;
 
 describe('formatters', () => {
   describe('formatNumber', () => {

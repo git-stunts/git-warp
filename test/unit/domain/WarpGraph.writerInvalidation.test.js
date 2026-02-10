@@ -27,7 +27,7 @@ const FAKE_COMMIT_SHA_2 = 'd'.repeat(40);
  *   3. PatchBuilderV2.commit() reads ref for its own CAS check
  * All return null for a first commit.
  */
-function mockWriterFirstCommit(persistence) {
+function mockWriterFirstCommit(/** @type {any} */ persistence) {
   persistence.readRef.mockResolvedValue(null);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
@@ -42,7 +42,7 @@ function mockWriterFirstCommit(persistence) {
  * readRef returns FAKE_COMMIT_SHA (3 times), and showNode returns a valid
  * patch message so lamport can be extracted.
  */
-function mockWriterSecondCommit(persistence) {
+function mockWriterSecondCommit(/** @type {any} */ persistence) {
   const patchMessage = encodePatchMessage({
     graph: 'test',
     writer: 'writer-1',
@@ -60,7 +60,9 @@ function mockWriterSecondCommit(persistence) {
 }
 
 describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -79,23 +81,23 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
 
     mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((p) => p.addNode('test:node'));
+    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 
     // Query reflects the commit immediately — no explicit materialize needed
     expect(await graph.hasNode('test:node')).toBe(true);
-    expect(graph._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
   });
 
   it('writer.commitPatch() keeps _stateDirty false when _cachedState exists', async () => {
     await graph.materialize();
-    expect(graph._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
 
     mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((p) => p.addNode('test:node'));
+    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 
     // Eager re-materialize applied the patch, so state is fresh
-    expect(graph._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
   });
 
   // ── writer.beginPatch() / patch.commit() two-step API ────────────
@@ -110,7 +112,7 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
     await patch.commit();
 
     expect(await graph.hasNode('test:node')).toBe(true);
-    expect(graph._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
   });
 
   it('beginPatch() + setProperty reflected in getNodeProps() after commit', async () => {
@@ -135,14 +137,14 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
 
     mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((p) => p.addNode('test:a'));
-    expect(graph._stateDirty).toBe(false);
+    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:a'));
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:a')).toBe(true);
 
     mockWriterSecondCommit(persistence);
     const writer2 = await graph.writer('writer-1');
-    await writer2.commitPatch((p) => p.addNode('test:b'));
-    expect(graph._stateDirty).toBe(false);
+    await writer2.commitPatch((/** @type {any} */ p) => p.addNode('test:b'));
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
     expect(await graph.hasNode('test:b')).toBe(true);
 
     // Both nodes should be present
@@ -155,10 +157,10 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
     // No materialize() call — _cachedState is null
     mockWriterFirstCommit(persistence);
     const writer = await graph.writer('writer-1');
-    await writer.commitPatch((p) => p.addNode('test:node'));
+    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 
     // No _cachedState, so can't eagerly apply — dirty
-    expect(graph._stateDirty).toBe(true);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(true);
   });
 
   // ── createWriter() path ──────────────────────────────────────────
@@ -169,32 +171,32 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
     mockWriterFirstCommit(persistence);
     const writer = await graph.createWriter();
 
-    await writer.commitPatch((p) => p.addNode('test:node'));
+    await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 
     expect(await graph.hasNode('test:node')).toBe(true);
-    expect(graph._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
   });
 
   // ── Failure cases ────────────────────────────────────────────────
 
   it('writer commit failure (writeBlob rejects) does not corrupt state', async () => {
     await graph.materialize();
-    const stateBeforeAttempt = graph._cachedState;
+    const stateBeforeAttempt = /** @type {any} */ (graph)._cachedState;
 
     persistence.readRef.mockResolvedValue(null);
     persistence.writeBlob.mockRejectedValue(new Error('disk full'));
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((p) => p.addNode('test:node'))).rejects.toThrow('disk full');
+    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('disk full');
 
     // State should be unchanged
-    expect(graph._stateDirty).toBe(false);
-    expect(graph._cachedState).toBe(stateBeforeAttempt);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._cachedState).toBe(stateBeforeAttempt);
   });
 
   it('writer commit failure (updateRef rejects) does not corrupt state', async () => {
     await graph.materialize();
-    const stateBeforeAttempt = graph._cachedState;
+    const stateBeforeAttempt = /** @type {any} */ (graph)._cachedState;
 
     persistence.readRef.mockResolvedValue(null);
     persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
@@ -203,15 +205,15 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
     persistence.updateRef.mockRejectedValue(new Error('ref lock failed'));
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((p) => p.addNode('test:node'))).rejects.toThrow('ref lock failed');
+    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow('ref lock failed');
 
-    expect(graph._stateDirty).toBe(false);
-    expect(graph._cachedState).toBe(stateBeforeAttempt);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._cachedState).toBe(stateBeforeAttempt);
   });
 
   it('writer commit failure (CAS race in PatchSession) does not corrupt state', async () => {
     await graph.materialize();
-    const stateBeforeAttempt = graph._cachedState;
+    const stateBeforeAttempt = /** @type {any} */ (graph)._cachedState;
 
     // beginPatch() sees null, but by the time PatchSession.commit() checks, ref has advanced
     persistence.readRef
@@ -219,9 +221,9 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
       .mockResolvedValueOnce(FAKE_COMMIT_SHA); // PatchSession.commit() — CAS pre-check
 
     const writer = await graph.writer('writer-1');
-    await expect(writer.commitPatch((p) => p.addNode('test:node'))).rejects.toThrow();
+    await expect(writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'))).rejects.toThrow();
 
-    expect(graph._stateDirty).toBe(false);
-    expect(graph._cachedState).toBe(stateBeforeAttempt);
+    expect(/** @type {any} */ (graph)._stateDirty).toBe(false);
+    expect(/** @type {any} */ (graph)._cachedState).toBe(stateBeforeAttempt);
   });
 });

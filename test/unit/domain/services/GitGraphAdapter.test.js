@@ -3,7 +3,9 @@ import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAda
 
 describe('GitGraphAdapter', () => {
   describe('getNodeInfo()', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
 
     beforeEach(() => {
@@ -103,8 +105,11 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('logNodesStream NUL byte stripping', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
+    /** @type {any} */
     let capturedArgs;
 
     beforeEach(() => {
@@ -128,7 +133,7 @@ describe('GitGraphAdapter', () => {
       await adapter.logNodesStream({ ref: 'HEAD', format: formatWithTrailingNul });
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBe('--format=%H%n%B');
       expect(formatArg).not.toContain('\x00');
     });
@@ -139,7 +144,7 @@ describe('GitGraphAdapter', () => {
       await adapter.logNodesStream({ ref: 'HEAD', format: formatWithEmbeddedNul });
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBe('--format=%H%n%B');
       expect(formatArg).not.toContain('\x00');
     });
@@ -150,7 +155,7 @@ describe('GitGraphAdapter', () => {
       await adapter.logNodesStream({ ref: 'HEAD', format: formatWithMultipleNuls });
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBe('--format=%H%n%B');
       expect(formatArg).not.toContain('\x00');
     });
@@ -161,7 +166,7 @@ describe('GitGraphAdapter', () => {
       await adapter.logNodesStream({ ref: 'HEAD', format: cleanFormat });
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBe('--format=%H%n%P%n%s%n%b');
     });
 
@@ -170,7 +175,7 @@ describe('GitGraphAdapter', () => {
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
       // Empty format should not add --format argument
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBeUndefined();
     });
 
@@ -182,7 +187,7 @@ describe('GitGraphAdapter', () => {
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
       // After stripping NULs, format becomes empty string but --format= is still added
       // since the original format was truthy. The key is no NUL bytes in args.
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBe('--format=');
       expect(formatArg).not.toContain('\x00');
     });
@@ -191,7 +196,7 @@ describe('GitGraphAdapter', () => {
       await adapter.logNodesStream({ ref: 'HEAD' });
 
       expect(mockPlumbing.executeStream).toHaveBeenCalledTimes(1);
-      const formatArg = capturedArgs.find(arg => arg.startsWith('--format='));
+      const formatArg = capturedArgs.find((/** @type {any} */ arg) => arg.startsWith('--format='));
       expect(formatArg).toBeUndefined();
       // Verify other args are correct
       expect(capturedArgs).toContain('log');
@@ -217,7 +222,9 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('nodeExists()', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
 
     beforeEach(() => {
@@ -241,7 +248,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns false when node does not exist', async () => {
-      const err = new Error('fatal: Not a valid object name');
+      const err = /** @type {any} */ (new Error('fatal: Not a valid object name'));
       err.details = { code: 1 };
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -301,7 +308,9 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('countNodes()', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
 
     beforeEach(() => {
@@ -386,7 +395,9 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('configGet()', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
 
     beforeEach(() => {
@@ -410,7 +421,7 @@ describe('GitGraphAdapter', () => {
     });
 
     it('returns null when config key not found', async () => {
-      const err = new Error('exit code 1');
+      const err = /** @type {any} */ (new Error('exit code 1'));
       err.exitCode = 1;
       mockPlumbing.execute.mockRejectedValue(err);
 
@@ -467,7 +478,9 @@ describe('GitGraphAdapter', () => {
   });
 
   describe('configSet()', () => {
+    /** @type {any} */
     let mockPlumbing;
+    /** @type {any} */
     let adapter;
 
     beforeEach(() => {
@@ -502,10 +515,10 @@ describe('GitGraphAdapter', () => {
     });
 
     it('rejects non-string value', async () => {
-      await expect(adapter.configSet('some.key', 123))
+      await expect(adapter.configSet('some.key', /** @type {any} */ (123)))
         .rejects.toThrow(/Config value must be a string/);
 
-      await expect(adapter.configSet('some.key', null))
+      await expect(adapter.configSet('some.key', /** @type {any} */ (null)))
         .rejects.toThrow(/Config value must be a string/);
     });
 

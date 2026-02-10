@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import LRUCache from '../../../../src/domain/utils/LRUCache.js';
+import LRUCache_ from '../../../../src/domain/utils/LRUCache.js';
+
+/** @type {any} */
+const LRUCache = LRUCache_;
 
 describe('LRUCache', () => {
   describe('constructor', () => {

@@ -28,7 +28,7 @@ function mockEventId(lamport = 1, writerId = 'test', patchSha = 'abcd1234', opIn
 /**
  * Helper to build a V5 state with specific nodes, edges, and props.
  */
-function buildStateV5({ nodes = [], edges = [], props = [], tombstoneDots = [] }) {
+function buildStateV5({ nodes = /** @type {any[]} */ ([]), edges = /** @type {any[]} */ ([]), props = /** @type {any[]} */ ([]), tombstoneDots = /** @type {any[]} */ ([]) }) {
   const state = createEmptyStateV5();
 
   // Add nodes with their dots
@@ -61,7 +61,7 @@ function buildStateV5({ nodes = [], edges = [], props = [], tombstoneDots = [] }
 describe('CheckpointSerializerV5', () => {
   describe('serializeFullStateV5 / deserializeFullStateV5', () => {
     it('returns empty state when buffer is null', () => {
-      const restored = deserializeFullStateV5(null);
+      const restored = deserializeFullStateV5(/** @type {any} */ (null));
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
@@ -71,7 +71,7 @@ describe('CheckpointSerializerV5', () => {
     });
 
     it('returns empty state when buffer is undefined', () => {
-      const restored = deserializeFullStateV5(undefined);
+      const restored = deserializeFullStateV5(/** @type {any} */ (undefined));
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
@@ -128,10 +128,10 @@ describe('CheckpointSerializerV5', () => {
       expect(restored.nodeAlive.entries.has('b')).toBe(true);
 
       // Check the dots are preserved
-      const aDots = restored.nodeAlive.entries.get('a');
+      const aDots = /** @type {any} */ (restored.nodeAlive.entries.get('a'));
       expect(aDots.has('alice:1')).toBe(true);
 
-      const bDots = restored.nodeAlive.entries.get('b');
+      const bDots = /** @type {any} */ (restored.nodeAlive.entries.get('b'));
       expect(bDots.has('bob:2')).toBe(true);
     });
 
@@ -152,7 +152,7 @@ describe('CheckpointSerializerV5', () => {
       const edgeKey = encodeEdgeKey('a', 'b', 'knows');
       expect(restored.edgeAlive.entries.has(edgeKey)).toBe(true);
 
-      const edgeDots = restored.edgeAlive.entries.get(edgeKey);
+      const edgeDots = /** @type {any} */ (restored.edgeAlive.entries.get(edgeKey));
       expect(edgeDots.has('alice:3')).toBe(true);
     });
 
@@ -170,7 +170,7 @@ describe('CheckpointSerializerV5', () => {
       const propKey = encodePropKey('a', 'name');
       expect(restored.prop.has(propKey)).toBe(true);
 
-      const register = restored.prop.get(propKey);
+      const register = /** @type {any} */ (restored.prop.get(propKey));
       expect(register.value).toBe('Alice');
       expect(register.eventId.lamport).toBe(5);
       expect(register.eventId.writerId).toBe('alice');
@@ -222,7 +222,7 @@ describe('CheckpointSerializerV5', () => {
       const restored = deserializeFullStateV5(buffer);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
-      const restoredEvent = restored.edgeBirthEvent.get(edgeKey);
+      const restoredEvent = /** @type {any} */ (restored.edgeBirthEvent.get(edgeKey));
       expect(restoredEvent.lamport).toBe(3);
       expect(restoredEvent.writerId).toBe('alice');
       expect(restoredEvent.patchSha).toBe('deadbeef');
@@ -244,7 +244,7 @@ describe('CheckpointSerializerV5', () => {
       const restored = deserializeFullStateV5(buffer);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
-      const event = restored.edgeBirthEvent.get(edgeKey);
+      const event = /** @type {any} */ (restored.edgeBirthEvent.get(edgeKey));
       expect(event.lamport).toBe(42);
       // Legacy sentinel values
       expect(event.writerId).toBe('');
@@ -277,17 +277,17 @@ describe('CheckpointSerializerV5', () => {
 
       // Verify nodes
       expect(restored.nodeAlive.entries.size).toBe(3);
-      expect(restored.nodeAlive.entries.get('n1').has('alice:1')).toBe(true);
-      expect(restored.nodeAlive.entries.get('n2').has('bob:1')).toBe(true);
-      expect(restored.nodeAlive.entries.get('n3').has('alice:2')).toBe(true);
+      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n1')).has('alice:1')).toBe(true);
+      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n2')).has('bob:1')).toBe(true);
+      expect(/** @type {any} */ (restored.nodeAlive.entries.get('n3')).has('alice:2')).toBe(true);
 
       // Verify edges
       expect(restored.edgeAlive.entries.size).toBe(2);
 
       // Verify props
       expect(restored.prop.size).toBe(2);
-      expect(restored.prop.get(encodePropKey('n1', 'name')).value).toBe('Node One');
-      expect(restored.prop.get(encodePropKey('n2', 'count')).value).toBe(42);
+      expect(/** @type {any} */ (restored.prop.get(encodePropKey('n1', 'name'))).value).toBe('Node One');
+      expect(/** @type {any} */ (restored.prop.get(encodePropKey('n2', 'count'))).value).toBe(42);
 
       // Verify tombstones
       expect(restored.nodeAlive.tombstones.size).toBe(2);
@@ -325,7 +325,7 @@ describe('CheckpointSerializerV5', () => {
       const buffer1 = serializeFullStateV5(state1);
       const buffer2 = serializeFullStateV5(state2);
 
-      expect(buffer1.equals(buffer2)).toBe(true);
+      expect(/** @type {Buffer} */ (buffer1).equals(/** @type {Buffer} */ (buffer2))).toBe(true);
     });
   });
 
@@ -458,7 +458,7 @@ describe('CheckpointSerializerV5', () => {
       const buffer1 = serializeAppliedVV(vv1);
       const buffer2 = serializeAppliedVV(vv2);
 
-      expect(buffer1.equals(buffer2)).toBe(true);
+      expect(/** @type {Buffer} */ (buffer1).equals(/** @type {Buffer} */ (buffer2))).toBe(true);
     });
   });
 

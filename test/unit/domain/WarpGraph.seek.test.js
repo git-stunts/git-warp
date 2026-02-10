@@ -7,7 +7,7 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 /**
  * Creates a minimal schema:2 patch object.
  */
-function createPatch(writer, lamport, nodeId) {
+function createPatch(/** @type {any} */ writer, /** @type {any} */ lamport, /** @type {any} */ nodeId) {
   return {
     schema: 2,
     writer,
@@ -20,7 +20,7 @@ function createPatch(writer, lamport, nodeId) {
 /**
  * A fake 40-char hex SHA for use in tests.
  */
-function fakeSha(label) {
+function fakeSha(/** @type {any} */ label) {
   const hex = Buffer.from(String(label)).toString('hex');
   return hex.padEnd(40, 'a').slice(0, 40);
 }
@@ -29,10 +29,10 @@ function fakeSha(label) {
  * Sets up persistence mocks for multiple writers at once.
  * Each writer gets `count` patches with lamport 1..count.
  *
- * @param {Object} persistence - Mock persistence
- * @param {Object} writerSpecs - { writerId: count, ... }
+ * @param {any} persistence - Mock persistence
+ * @param {any} writerSpecs - { writerId: count, ... }
  * @param {string} [graphName='test']
- * @returns {Object} writerTips - { writerId: tipSha, ... }
+ * @returns {any} writerTips - { writerId: tipSha, ... }
  */
 function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test') {
   const nodeInfoMap = new Map();
@@ -44,7 +44,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
     for (let i = 1; i <= count; i++) {
       shas.push(fakeSha(`${writer}${i}`));
     }
-    writerTips[writer] = shas[0];
+    /** @type {any} */ (writerTips)[writer] = shas[0];
 
     // shas[0] = tip (newest, highest lamport)
     // shas[count-1] = oldest (lamport=1)
@@ -70,7 +70,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
     (w) => `refs/warp/${graphName}/writers/${w}`
   );
 
-  persistence.getNodeInfo.mockImplementation((sha) => {
+  persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
     const info = nodeInfoMap.get(sha);
     if (info) {
       return Promise.resolve(info);
@@ -78,7 +78,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
     return Promise.resolve({ message: '', parents: [] });
   });
 
-  persistence.readBlob.mockImplementation((oid) => {
+  persistence.readBlob.mockImplementation((/** @type {any} */ oid) => {
     const buf = blobMap.get(oid);
     if (buf) {
       return Promise.resolve(buf);
@@ -86,7 +86,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
     return Promise.resolve(Buffer.alloc(0));
   });
 
-  persistence.readRef.mockImplementation((ref) => {
+  persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
     if (ref === `refs/warp/${graphName}/checkpoints/head`) {
       return Promise.resolve(null);
     }
@@ -98,7 +98,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
     return Promise.resolve(null);
   });
 
-  persistence.listRefs.mockImplementation((prefix) => {
+  persistence.listRefs.mockImplementation((/** @type {any} */ prefix) => {
     if (prefix.startsWith(`refs/warp/${graphName}/writers`)) {
       return Promise.resolve(writerRefs);
     }
@@ -109,6 +109,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
 }
 
 describe('WarpGraph.seek (time-travel)', () => {
+  /** @type {any} */
   let persistence;
 
   beforeEach(() => {
@@ -163,9 +164,9 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       const result = await graph.discoverTicks();
 
-      expect(result.perWriter.get('alice').ticks).toEqual([1, 2]);
-      expect(result.perWriter.get('bob').ticks).toEqual([1, 2, 3]);
-      expect(result.perWriter.get('alice').tipSha).toBe(tips.alice);
+      expect(/** @type {any} */ (result).perWriter.get('alice').ticks).toEqual([1, 2]);
+      expect(/** @type {any} */ (result).perWriter.get('bob').ticks).toEqual([1, 2, 3]);
+      expect(/** @type {any} */ (result).perWriter.get('alice').tipSha).toBe(tips.alice);
     });
   });
 
@@ -183,7 +184,7 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const state = await graph.materialize({ ceiling: 2 });
+      const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
 
       const nodeIds = [...state.nodeAlive.entries.keys()];
       expect(nodeIds).toHaveLength(2);
@@ -201,7 +202,7 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const state = await graph.materialize({ ceiling: 0 });
+      const state = /** @type {any} */ (await graph.materialize({ ceiling: 0 }));
 
       expect(state.nodeAlive.entries.size).toBe(0);
     });
@@ -215,13 +216,13 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const fullState = await graph.materialize();
+      const fullState = /** @type {any} */ (await graph.materialize());
       const fullNodes = [...fullState.nodeAlive.entries.keys()].sort();
 
       // Force cache invalidation for second call
-      graph._stateDirty = true;
-      graph._cachedCeiling = null;
-      const ceilingState = await graph.materialize({ ceiling: 999 });
+      /** @type {any} */ (graph)._stateDirty = true;
+      /** @type {any} */ (graph)._cachedCeiling = null;
+      const ceilingState = /** @type {any} */ (await graph.materialize({ ceiling: 999 }));
       const ceilingNodes = [...ceilingState.nodeAlive.entries.keys()].sort();
 
       expect(ceilingNodes).toEqual(fullNodes);
@@ -236,7 +237,7 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 2, bob: 3 });
 
-      const state = await graph.materialize({ ceiling: 2 });
+      const state = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
 
       const nodeIds = [...state.nodeAlive.entries.keys()].sort();
       // alice:1, alice:2, bob:1, bob:2 = 4 nodes
@@ -257,10 +258,10 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const stateA = await graph.materialize({ ceiling: 1 });
+      const stateA = /** @type {any} */ (await graph.materialize({ ceiling: 1 }));
       const nodesA = stateA.nodeAlive.entries.size;
 
-      const stateB = await graph.materialize({ ceiling: 3 });
+      const stateB = /** @type {any} */ (await graph.materialize({ ceiling: 3 }));
       const nodesB = stateB.nodeAlive.entries.size;
 
       expect(nodesA).toBe(1);
@@ -295,8 +296,8 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      graph._seekCeiling = 1;
-      const state = await graph.materialize();
+      /** @type {any} */ (graph)._seekCeiling = 1;
+      const state = /** @type {any} */ (await graph.materialize());
 
       expect(state.nodeAlive.entries.size).toBe(1);
     });
@@ -310,8 +311,8 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      graph._seekCeiling = 1;
-      const state = await graph.materialize({ ceiling: 3 });
+      /** @type {any} */ (graph)._seekCeiling = 1;
+      const state = /** @type {any} */ (await graph.materialize({ ceiling: 3 }));
 
       expect(state.nodeAlive.entries.size).toBe(3);
     });
@@ -347,7 +348,7 @@ describe('WarpGraph.seek (time-travel)', () => {
       const callCountAfterFirst = persistence.getNodeInfo.mock.calls.length;
 
       // Second call: same ceiling but with receipts — must NOT use cache
-      const result = await graph.materialize({ ceiling: 2, receipts: true });
+      const result = /** @type {any} */ (await graph.materialize({ ceiling: 2, receipts: true }));
 
       expect(result.state).toBeDefined();
       expect(Array.isArray(result.receipts)).toBe(true);
@@ -366,13 +367,13 @@ describe('WarpGraph.seek (time-travel)', () => {
       // Start with one writer
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      const stateA = await graph.materialize({ ceiling: 2 });
+      const stateA = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
       expect(stateA.nodeAlive.entries.size).toBe(2); // alice:1, alice:2
 
       // A new writer appears — frontier changes
       setupMultiWriterPersistence(persistence, { alice: 3, bob: 3 });
 
-      const stateB = await graph.materialize({ ceiling: 2 });
+      const stateB = /** @type {any} */ (await graph.materialize({ ceiling: 2 }));
       // Must see 4 nodes (alice:1, alice:2, bob:1, bob:2), not stale 2
       expect(stateB.nodeAlive.entries.size).toBe(4);
     });
@@ -386,9 +387,9 @@ describe('WarpGraph.seek (time-travel)', () => {
 
       setupMultiWriterPersistence(persistence, { alice: 3 });
 
-      graph._seekCeiling = 1;
+      /** @type {any} */ (graph)._seekCeiling = 1;
       // Passing ceiling: null should clear the ceiling, giving us all 3 nodes
-      const state = await graph.materialize({ ceiling: null });
+      const state = /** @type {any} */ (await graph.materialize({ ceiling: null }));
 
       expect(state.nodeAlive.entries.size).toBe(3);
     });

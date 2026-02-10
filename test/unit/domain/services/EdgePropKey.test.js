@@ -193,6 +193,7 @@ describe('EdgePropKey', () => {
   });
 
   describe('fuzz: 10,000 random tuples round-trip', () => {
+    /** @param {number} maxLen */
     function randomString(maxLen) {
       const len = Math.floor(Math.random() * maxLen) + 1;
       const chars = [];

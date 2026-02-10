@@ -24,7 +24,7 @@ import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
  * Creates a mock persistence layer with in-memory patch storage.
  * Patches are stored in `_patches` map and writer refs in `_refs`.
  */
-function hexSha(counter) {
+function hexSha(/** @type {any} */ counter) {
   return String(counter).padStart(40, '0');
 }
 
@@ -83,7 +83,7 @@ function createMockPersistence() {
  *
  * Returns the commit SHA.
  */
-async function simulatePatchCommit(persistence, {
+async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {any} */ {
   graphName,
   writerId,
   lamport,
@@ -127,7 +127,9 @@ async function simulatePatchCommit(persistence, {
 // ---------------------------------------------------------------------------
 
 describe('WarpGraph.materialize() with receipts', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
   const graphName = 'test';
   const writerId = 'writer-1';
@@ -147,7 +149,7 @@ describe('WarpGraph.materialize() with receipts', () => {
 
   describe('receipts disabled (default)', () => {
     it('materialize() returns state directly', async () => {
-      const state = await graph.materialize();
+      const state = /** @type {any} */ (await graph.materialize());
       expect(state).toBeDefined();
       expect(state.nodeAlive).toBeDefined();
       expect(state.edgeAlive).toBeDefined();
@@ -157,13 +159,13 @@ describe('WarpGraph.materialize() with receipts', () => {
     });
 
     it('materialize({}) returns state directly', async () => {
-      const state = await graph.materialize({});
+      const state = /** @type {any} */ (await graph.materialize({}));
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
 
     it('materialize({ receipts: false }) returns state directly', async () => {
-      const state = await graph.materialize({ receipts: false });
+      const state = /** @type {any} */ (await graph.materialize({ receipts: false }));
       expect(state.nodeAlive).toBeDefined();
       expect(state.receipts).toBeUndefined();
     });
@@ -175,7 +177,7 @@ describe('WarpGraph.materialize() with receipts', () => {
 
   describe('receipts enabled', () => {
     it('materialize({ receipts: true }) returns { state, receipts }', async () => {
-      const result = await graph.materialize({ receipts: true });
+      const result = /** @type {any} */ (await graph.materialize({ receipts: true }));
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
       expect(result.state.nodeAlive).toBeDefined();
@@ -490,14 +492,14 @@ describe('WarpGraph.materialize() with receipts', () => {
       expect(receipts).toHaveLength(2);
 
       // Alice's patch (lamport 5)
-      const aliceReceipt = receipts.find(r => r.writer === 'alice');
+      const aliceReceipt = receipts.find((/** @type {any} */ r) => r.writer === 'alice');
       expect(aliceReceipt.ops).toHaveLength(3);
       expect(aliceReceipt.ops[0]).toMatchObject({ op: 'NodeAdd', result: 'applied' });
       expect(aliceReceipt.ops[1]).toMatchObject({ op: 'PropSet', result: 'applied' });
       expect(aliceReceipt.ops[2]).toMatchObject({ op: 'EdgeAdd', result: 'applied' });
 
       // Bob's patch (lamport 2): node add is applied (different dot), but prop is superseded
-      const bobReceipt = receipts.find(r => r.writer === 'bob');
+      const bobReceipt = receipts.find((/** @type {any} */ r) => r.writer === 'bob');
       expect(bobReceipt.ops).toHaveLength(2);
       expect(bobReceipt.ops[0]).toMatchObject({ op: 'NodeAdd', result: 'applied' });
       expect(bobReceipt.ops[1]).toMatchObject({ op: 'PropSet', result: 'superseded' });
@@ -523,7 +525,7 @@ describe('WarpGraph.materialize() with receipts', () => {
       });
 
       const { state } = await graph.materialize({ receipts: true });
-      expect(graph._cachedState).toBe(state);
+      expect(/** @type {any} */ (graph)._cachedState).toBe(state);
       expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
     });
 

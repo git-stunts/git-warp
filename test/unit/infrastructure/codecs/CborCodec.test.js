@@ -13,7 +13,7 @@ describe('CborCodec', () => {
       const result = encode({ z: 1, a: 2 });
 
       // Decode to verify key order is preserved after encoding
-      const decoded = decode(result);
+      const decoded = /** @type {Record<string, unknown>} */ (decode(result));
       const keys = Object.keys(decoded);
 
       // Object.keys on decoded should show sorted order
@@ -77,7 +77,7 @@ describe('CborCodec', () => {
 
     it('preserves arrays of objects with correct key order', () => {
       const original = [{ z: 1, a: 2 }, { b: 3, c: 4 }];
-      const result = decode(encode(original));
+      const result = /** @type {any[]} */ (decode(encode(original)));
       expect(result).toEqual(original);
       expect(Object.keys(result[0])).toEqual(['a', 'z']);
     });
@@ -108,7 +108,7 @@ describe('CborCodec', () => {
         big: BigInt('9223372036854775807'),
         negative: BigInt('-9223372036854775808'),
       };
-      const result = decode(encode(original));
+      const result = /** @type {any} */ (decode(encode(original)));
       expect(result.big).toBe(original.big);
       expect(result.negative).toBe(original.negative);
     });
@@ -119,7 +119,7 @@ describe('CborCodec', () => {
         e: 2.71828182845,
         negative: -123.456,
       };
-      const result = decode(encode(original));
+      const result = /** @type {any} */ (decode(encode(original)));
       expect(result.pi).toBeCloseTo(original.pi, 10);
       expect(result.e).toBeCloseTo(original.e, 10);
       expect(result.negative).toBeCloseTo(original.negative, 10);
@@ -228,7 +228,7 @@ describe('CborCodec', () => {
         },
       };
 
-      const result = decode(encode(nested));
+      const result = /** @type {any} */ (decode(encode(nested)));
 
       // Verify top-level keys are sorted
       expect(Object.keys(result)).toEqual(['a', 'z']);
@@ -248,7 +248,7 @@ describe('CborCodec', () => {
         ],
       };
 
-      const result = decode(encode(mixed));
+      const result = /** @type {any} */ (decode(encode(mixed)));
 
       expect(Object.keys(result.items[0])).toEqual(['a', 'z']);
       expect(Object.keys(result.items[1])).toEqual(['b', 'c']);
@@ -273,7 +273,7 @@ describe('CborCodec', () => {
         },
       };
 
-      const result = decode(encode(deep));
+      const result = /** @type {any} */ (decode(encode(deep)));
       const deepKeys = Object.keys(result.l1.l2.l3.l4.l5);
       expect(deepKeys).toEqual(['a', 'value', 'z']);
     });
@@ -287,6 +287,7 @@ describe('CborCodec', () => {
     });
 
     it('handles empty arrays', () => {
+      /** @type {any[]} */
       const original = [];
       const result = decode(encode(original));
       expect(result).toEqual([]);
@@ -334,14 +335,14 @@ describe('CborCodec', () => {
 
     it('handles objects with unicode keys', () => {
       const obj = { alpha: 1, beta: 2, gamma: 3 };
-      const result = decode(encode(obj));
+      const result = /** @type {any} */ (decode(encode(obj)));
       expect(Object.keys(result)).toEqual(['alpha', 'beta', 'gamma']);
     });
 
     it('handles Buffer/Uint8Array values', () => {
       const buffer = Buffer.from([1, 2, 3, 4]);
       const obj = { data: buffer };
-      const result = decode(encode(obj));
+      const result = /** @type {any} */ (decode(encode(obj)));
 
       expect(result.data).toBeInstanceOf(Uint8Array);
       expect(Buffer.from(result.data).equals(buffer)).toBe(true);

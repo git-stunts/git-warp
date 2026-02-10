@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeOps, formatOpSummary, EMPTY_OP_SUMMARY } from '../../../src/visualization/renderers/ascii/opSummary.js';
+import { summarizeOps as _summarizeOps, formatOpSummary, EMPTY_OP_SUMMARY } from '../../../src/visualization/renderers/ascii/opSummary.js';
+
+/** @type {any} */
+const summarizeOps = _summarizeOps;
 import { stripAnsi } from '../../../src/visualization/utils/ansi.js';
 
 describe('opSummary utilities', () => {

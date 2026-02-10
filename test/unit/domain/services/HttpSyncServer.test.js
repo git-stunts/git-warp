@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/HttpSyncServer.js';
 
+/** @param {any} value @returns {any} */
 function canonicalizeJson(value) {
   if (Array.isArray(value)) {
     return value.map(canonicalizeJson);
   }
   if (value && typeof value === 'object') {
+    /** @type {Record<string, any>} */
     const sorted = {};
     for (const key of Object.keys(value).sort()) {
       sorted[key] = canonicalizeJson(value[key]);
@@ -15,6 +17,7 @@ function canonicalizeJson(value) {
   return value;
 }
 
+/** @param {any} value */
 function canonicalStringify(value) {
   return JSON.stringify(canonicalizeJson(value));
 }
@@ -23,7 +26,10 @@ function canonicalStringify(value) {
  * Creates a mock HttpServerPort that captures the request handler
  * and lets tests invoke it directly without network I/O.
  */
+/** @returns {any} */
 function createMockPort() {
+  /** @type {any} */
+  /** @type {any} */
   let handler;
   let listenCallback;
   let closeCallback;
@@ -31,17 +37,17 @@ function createMockPort() {
 
   return {
     port: {
-      createServer(requestHandler) {
+      createServer(/** @type {any} */ requestHandler) {
         handler = requestHandler;
         return {
-          listen(_port, _host, cb) {
+          listen(/** @type {any} */ _port, /** @type {any} */ _host, /** @type {any} */ cb) {
             if (typeof _host === 'function') {
               cb = _host;
             }
             listenCallback = cb;
             if (cb) cb(null);
           },
-          close(cb) {
+          close(/** @type {any} */ cb) {
             closeCallback = cb;
             if (cb) cb(null);
           },
@@ -54,14 +60,18 @@ function createMockPort() {
     getHandler() {
       return handler;
     },
-    setAddress(addr) {
+    setAddress(/** @type {any} */ addr) {
       addressValue.port = addr.port;
     },
   };
 }
 
 describe('HttpSyncServer', () => {
+  /** @type {any} */
+  /** @type {any} */
   let mockPort;
+  /** @type {any} */
+  /** @type {any} */
   let graph;
 
   beforeEach(() => {
@@ -76,20 +86,20 @@ describe('HttpSyncServer', () => {
   });
 
   it('throws if port is not a number', async () => {
-    const server = new HttpSyncServer({
+    const server = new HttpSyncServer(/** @type {any} */ ({
       httpPort: mockPort.port,
       graph,
-    });
-    await expect(server.listen('abc')).rejects.toThrow('listen() requires a numeric port');
+    }));
+    await expect(server.listen(/** @type {any} */ ('abc'))).rejects.toThrow('listen() requires a numeric port');
   });
 
   it('returns url and close handle on listen', async () => {
-    const server = new HttpSyncServer({
+    const server = new HttpSyncServer(/** @type {any} */ ({
       httpPort: mockPort.port,
       graph,
       host: '127.0.0.1',
       path: '/sync',
-    });
+    }));
 
     const handle = await server.listen(9999);
     expect(handle.url).toBe('http://127.0.0.1:9999/sync');
@@ -98,11 +108,11 @@ describe('HttpSyncServer', () => {
   });
 
   it('normalizes path without leading slash', async () => {
-    const server = new HttpSyncServer({
+    const server = new HttpSyncServer(/** @type {any} */ ({
       httpPort: mockPort.port,
       graph,
       path: 'custom',
-    });
+    }));
 
     const handle = await server.listen(9999);
     expect(handle.url).toBe('http://127.0.0.1:9999/custom');
@@ -110,15 +120,17 @@ describe('HttpSyncServer', () => {
   });
 
   describe('request handling', () => {
+    /** @type {any} */
+    /** @type {any} */
     let handler;
 
     beforeEach(async () => {
-      const server = new HttpSyncServer({
+      const server = new HttpSyncServer(/** @type {any} */ ({
         httpPort: mockPort.port,
         graph,
         host: '127.0.0.1',
         path: '/sync',
-      });
+      }));
       await server.listen(9999);
       handler = mockPort.getHandler();
     });
@@ -168,11 +180,11 @@ describe('HttpSyncServer', () => {
     });
 
     it('returns 413 for oversized request', async () => {
-      const server = new HttpSyncServer({
+      const server = new HttpSyncServer(/** @type {any} */ ({
         httpPort: mockPort.port,
         graph,
         maxRequestBytes: 10,
-      });
+      }));
       await server.listen(9999);
       const h = mockPort.getHandler();
 

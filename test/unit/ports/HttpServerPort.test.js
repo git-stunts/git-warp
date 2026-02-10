@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import HttpServerPort from '../../../src/ports/HttpServerPort.js';
+import HttpServerPort_ from '../../../src/ports/HttpServerPort.js';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
+
+/** @type {any} */
+const HttpServerPort = HttpServerPort_;
 
 describe('HttpServerPort', () => {
   it('throws on direct call to createServer()', () => {
@@ -11,6 +14,7 @@ describe('HttpServerPort', () => {
 
 describe('NodeHttpAdapter', () => {
   const adapter = new NodeHttpAdapter();
+  /** @type {any} */
   let server;
 
   afterEach(() => {
@@ -35,7 +39,7 @@ describe('NodeHttpAdapter', () => {
   });
 
   it('handles a basic request/response cycle', async () => {
-    server = adapter.createServer(async (req) => ({
+    server = adapter.createServer(async (/** @type {any} */ req) => ({
       status: 200,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ method: req.method, url: req.url }),

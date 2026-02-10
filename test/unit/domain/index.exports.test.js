@@ -50,9 +50,6 @@ import WarpGraphDefault, {
   checkAborted,
   createTimeoutSignal,
 
-  // Multi-writer graph support (WARP)
-  WarpGraph,
-
   // WARP type creators
   createNodeAdd,
   createNodeTombstone,
@@ -63,6 +60,10 @@ import WarpGraphDefault, {
   createBlobValue,
   createEventId,
 } from '../../../index.js';
+
+// WarpGraph is both default and named export; index.d.ts only declares
+// the default, so we pull the named export via dynamic import to avoid TS2614.
+const { WarpGraph } = /** @type {any} */ (await import('../../../index.js'));
 
 describe('index.js exports', () => {
   describe('default export', () => {

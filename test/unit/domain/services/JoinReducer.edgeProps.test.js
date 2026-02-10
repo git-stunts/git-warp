@@ -10,8 +10,10 @@ import {
   applyOpV2,
   join,
   joinStates,
-  reduceV5,
+  reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
+/** @type {(...args: any[]) => any} */
+const reduceV5 = _reduceV5;
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
@@ -23,14 +25,17 @@ import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 // Helpers — mirror the patterns in JoinReducer.test.js
 // ---------------------------------------------------------------------------
 
+/** @param {string} node @param {any} dot */
 function createNodeAddV2(node, dot) {
   return { type: 'NodeAdd', node, dot };
 }
 
+/** @param {string} from @param {string} to @param {string} label @param {any} dot */
 function createEdgeAddV2(from, to, label, dot) {
   return { type: 'EdgeAdd', from, to, label, dot };
 }
 
+/** @param {string} node @param {string} key @param {any} value */
 function createPropSetV2(node, key, value) {
   return { type: 'PropSet', node, key, value };
 }
@@ -40,11 +45,13 @@ function createPropSetV2(node, key, value) {
  * PatchBuilderV2.setEdgeProperty does: op.node = '\x01from\0to\0label',
  * op.key = propKey.
  */
+/** @param {string} from @param {string} to @param {string} label @param {string} propKey @param {any} value */
 function createEdgePropSetV2(from, to, label, propKey, value) {
   const edgeNode = `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}`;
   return createPropSetV2(edgeNode, propKey, value);
 }
 
+/** @param {any} params */
 function createPatchV2({ writer, lamport, ops, context }) {
   return {
     schema: 2,
@@ -60,6 +67,7 @@ function createPatchV2({ writer, lamport, ops, context }) {
  * encoding path: encodePropKey(op.node, op.key) which equals
  * encodeEdgePropKey(from, to, label, propKey).
  */
+/** @param {any} state @param {string} from @param {string} to @param {string} label @param {string} propKey */
 function getEdgeProp(state, from, to, label, propKey) {
   const key = encodeEdgePropKey(from, to, label, propKey);
   return lwwValue(state.prop.get(key));
@@ -68,6 +76,7 @@ function getEdgeProp(state, from, to, label, propKey) {
 /**
  * Reads a node property from materialized state.
  */
+/** @param {any} state @param {string} nodeId @param {string} propKey */
 function getNodeProp(state, nodeId, propKey) {
   const key = encodePropKey(nodeId, propKey);
   return lwwValue(state.prop.get(key));
@@ -326,6 +335,7 @@ describe('JoinReducer — edge property LWW', () => {
       const expected = createInlineValue(400);
 
       // Generate all 24 permutations of 4 elements
+      /** @param {any[]} arr @returns {any[][]} */
       function permutations(arr) {
         if (arr.length <= 1) return [arr];
         const result = [];
@@ -364,6 +374,7 @@ describe('JoinReducer — edge property LWW', () => {
       const expected = createInlineValue('foxtrot');
 
       // Fisher-Yates shuffle with a seeded PRNG (simple LCG)
+      /** @param {any[]} arr @param {number} seed */
       function shuffle(arr, seed) {
         const a = [...arr];
         let s = seed;

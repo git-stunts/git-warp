@@ -14,12 +14,12 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(cborBuffer) };
     const shardOids = { 'frontier.cbor': 'cbor-oid' };
 
-    const result = await loadIndexFrontier(shardOids, storage);
+    const result = await loadIndexFrontier(shardOids, /** @type {any} */ (storage));
 
     expect(result).toBeInstanceOf(Map);
-    expect(result.get('alice')).toBe('sha-a');
-    expect(result.get('bob')).toBe('sha-b');
-    expect(result.size).toBe(2);
+    expect(/** @type {any} */ (result).get('alice')).toBe('sha-a');
+    expect(/** @type {any} */ (result).get('bob')).toBe('sha-b');
+    expect(/** @type {any} */ (result).size).toBe(2);
   });
 
   it('with JSON fallback → correct Map', async () => {
@@ -28,15 +28,15 @@ describe('loadIndexFrontier', () => {
     const storage = { readBlob: vi.fn().mockResolvedValue(jsonBuffer) };
     const shardOids = { 'frontier.json': 'json-oid' };
 
-    const result = await loadIndexFrontier(shardOids, storage);
+    const result = await loadIndexFrontier(shardOids, /** @type {any} */ (storage));
 
     expect(result).toBeInstanceOf(Map);
-    expect(result.get('alice')).toBe('sha-a');
+    expect(/** @type {any} */ (result).get('alice')).toBe('sha-a');
   });
 
   it('with neither → null', async () => {
     const storage = { readBlob: vi.fn() };
-    const result = await loadIndexFrontier({}, storage);
+    const result = await loadIndexFrontier({}, /** @type {any} */ (storage));
     expect(result).toBeNull();
   });
 });
@@ -108,8 +108,14 @@ describe('checkStaleness', () => {
 });
 
 describe('IndexRebuildService.load() staleness integration', () => {
+  /** @type {any} */
+  /** @type {any} */
   let storage;
+  /** @type {any} */
+  /** @type {any} */
   let logger;
+  /** @type {any} */
+  /** @type {any} */
   let graphService;
 
   beforeEach(() => {
@@ -141,7 +147,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
-    const service = new IndexRebuildService({ graphService, storage, logger });
+    const service = new IndexRebuildService(/** @type {any} */ ({ graphService, storage, logger }));
     const currentFrontier = new Map([['alice', 'sha-new']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -162,7 +168,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
-    const service = new IndexRebuildService({ graphService, storage, logger });
+    const service = new IndexRebuildService(/** @type {any} */ ({ graphService, storage, logger }));
     const currentFrontier = new Map([['alice', 'sha-a']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -175,7 +181,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
       'meta_aa.json': 'meta-oid',
     });
 
-    const service = new IndexRebuildService({ graphService, storage, logger });
+    const service = new IndexRebuildService(/** @type {any} */ ({ graphService, storage, logger }));
     const currentFrontier = new Map([['alice', 'sha-a']]);
 
     await service.load('tree-oid', { currentFrontier });
@@ -209,7 +215,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
     // Mock graphService.iterateNodes to yield nothing (empty graph)
     graphService.iterateNodes = function* () { /* empty */ };
 
-    const service = new IndexRebuildService({ graphService, storage, logger });
+    const service = new IndexRebuildService(/** @type {any} */ ({ graphService, storage, logger }));
 
     const reader = await service.load('tree-oid', {
       currentFrontier,

@@ -6,11 +6,14 @@ import {
   vvDescends,
   vvContains,
   vvSerialize,
-  vvDeserialize,
+  vvDeserialize as _vvDeserialize,
   vvClone,
   vvEqual,
 } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
+
+/** @type {any} */
+const vvDeserialize = _vvDeserialize;
 
 describe('VersionVector', () => {
   describe('createVersionVector', () => {

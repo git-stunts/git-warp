@@ -19,9 +19,9 @@ const FAKE_COMMIT_SHA_3 = 'e'.repeat(40);
 const EMPTY_PATCH_CBOR = Buffer.from(cborEncode({ schema: 2, ops: [], context: {} }));
 
 /** Configure mocks for a single writer with one patch */
-function mockSingleWriter(persistence, { writerRef, commitSha, patchMessage }) {
+function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { writerRef, commitSha, patchMessage }) {
   persistence.listRefs.mockResolvedValue([writerRef]);
-  persistence.readRef.mockImplementation((ref) => {
+  persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
     if (ref === writerRef) return Promise.resolve(commitSha);
     return Promise.resolve(null);
   });
@@ -35,7 +35,9 @@ function mockSingleWriter(persistence, { writerRef, commitSha, patchMessage }) {
 }
 
 describe('WarpGraph.status() (LH/STATUS/1)', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -82,7 +84,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     await graph.materialize();
 
     // Manually mark state dirty (simulates a commit without eager re-materialize)
-    graph._stateDirty = true;
+    /** @type {any} */ (graph)._stateDirty = true;
 
     const status = await graph.status();
     expect(status.cachedState).toBe('stale');
@@ -99,7 +101,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     await graph.materialize();
 
     // Writer tip advances externally
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
     });
@@ -143,19 +145,19 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     });
 
     persistence.listRefs.mockResolvedValue([writerRef1, writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       if (ref === writerRef2) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
     });
-    persistence.getNodeInfo.mockImplementation((sha) => {
+    persistence.getNodeInfo.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA) {
         return Promise.resolve({ sha, message: patchMessage1, parents: [] });
       }
       return Promise.resolve({ sha, message: patchMessage2, parents: [] });
     });
     persistence.readBlob.mockResolvedValue(EMPTY_PATCH_CBOR);
-    persistence.showNode.mockImplementation((sha) => {
+    persistence.showNode.mockImplementation((/** @type {any} */ sha) => {
       if (sha === FAKE_COMMIT_SHA) return Promise.resolve(patchMessage1);
       return Promise.resolve(patchMessage2);
     });
@@ -211,7 +213,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
   it('reports writers = 1 for single-writer graph', async () => {
     const writerRef = 'refs/warp/test/writers/writer-1';
     persistence.listRefs.mockResolvedValue([writerRef]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -226,7 +228,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     const writerRef3 = 'refs/warp/test/writers/writer-3';
 
     persistence.listRefs.mockResolvedValue([writerRef1, writerRef2, writerRef3]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       if (ref === writerRef2) return Promise.resolve(FAKE_COMMIT_SHA_2);
       if (ref === writerRef3) return Promise.resolve(FAKE_COMMIT_SHA_3);
@@ -250,7 +252,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
   it('returns plain object frontier (not a Map)', async () => {
     const writerRef = 'refs/warp/test/writers/writer-1';
     persistence.listRefs.mockResolvedValue([writerRef]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -266,7 +268,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     const writerRef2 = 'refs/warp/test/writers/writer-2';
 
     persistence.listRefs.mockResolvedValue([writerRef1, writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef1) return Promise.resolve(FAKE_COMMIT_SHA);
       if (ref === writerRef2) return Promise.resolve(FAKE_COMMIT_SHA_2);
       return Promise.resolve(null);
@@ -286,7 +288,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
   it('does NOT trigger materialization', async () => {
     const writerRef = 'refs/warp/test/writers/writer-1';
     persistence.listRefs.mockResolvedValue([writerRef]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -299,7 +301,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     // getNodeInfo should not be called — that would mean materialization occurred
     expect(getNodeInfoSpy).not.toHaveBeenCalled();
     // The internal cached state should remain null
-    expect(graph._cachedState).toBeNull();
+    expect(/** @type {any} */ (graph)._cachedState).toBeNull();
   });
 
   it('does NOT trigger materialization even when autoMaterialize is true', async () => {
@@ -363,7 +365,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
 
     // 4. After commit, update listRefs/readRef to reflect the new ref
     persistence.listRefs.mockResolvedValue([writerRef]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -391,7 +393,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
 
     // 4. After commit, update listRefs/readRef to reflect the new ref
     persistence.listRefs.mockResolvedValue([writerRef]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef) return Promise.resolve(FAKE_COMMIT_SHA);
       return Promise.resolve(null);
     });
@@ -429,7 +431,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     // 4. After sync, listRefs/readRef reflect the remote writer
     const writerRef2 = 'refs/warp/test/writers/writer-2';
     persistence.listRefs.mockResolvedValue([writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef2) return Promise.resolve(remoteSha);
       return Promise.resolve(null);
     });
@@ -464,7 +466,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     // 4. After sync, readRef reflects the remote writer
     const writerRef2 = 'refs/warp/test/writers/writer-2';
     persistence.listRefs.mockResolvedValue([writerRef2]);
-    persistence.readRef.mockImplementation((ref) => {
+    persistence.readRef.mockImplementation((/** @type {any} */ ref) => {
       if (ref === writerRef2) return Promise.resolve(remoteSha);
       return Promise.resolve(null);
     });
@@ -501,7 +503,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
     expect(statusAfter.frontier).toEqual({ 'writer-1': FAKE_COMMIT_SHA });
 
     // After marking dirty
-    graph._stateDirty = true;
+    /** @type {any} */ (graph)._stateDirty = true;
     const statusDirty = await graph.status();
     expect(statusDirty.cachedState).toBe('stale');
     expect(statusDirty.patchesSinceCheckpoint).toBe(1);

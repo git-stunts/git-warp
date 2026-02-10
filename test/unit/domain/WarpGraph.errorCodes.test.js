@@ -22,7 +22,7 @@ const FAKE_COMMIT_SHA = 'c'.repeat(40);
 /**
  * Configure mock persistence so a first-time writer commit succeeds.
  */
-function mockFirstCommit(persistence) {
+function mockFirstCommit(/** @type {any} */ persistence) {
   persistence.readRef.mockResolvedValue(null);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
@@ -31,7 +31,9 @@ function mockFirstCommit(persistence) {
 }
 
 describe('HS/ERR/2: Error codes and recovery hints for state-related errors', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let graph;
 
   beforeEach(async () => {
@@ -50,7 +52,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_NO_STATE');
       }
@@ -60,7 +62,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.getNodes();
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_NO_STATE');
       }
@@ -70,7 +72,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.getEdges();
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_NO_STATE');
       }
@@ -80,7 +82,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.getNodeProps('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_NO_STATE');
       }
@@ -90,7 +92,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.neighbors('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_NO_STATE');
       }
@@ -100,7 +102,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('materialize()');
       }
     });
@@ -109,7 +111,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('autoMaterialize');
       }
     });
@@ -118,7 +120,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toBe(
           'No cached state. Call materialize() to load initial state, or pass autoMaterialize: true to WarpGraph.open().',
         );
@@ -140,12 +142,12 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       await (await graph.createPatch()).addNode('test:node').commit();
 
       // Force dirty to simulate the stale-after-write scenario
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:node');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_STALE_STATE');
       }
@@ -153,12 +155,12 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('throws QueryError with code E_STALE_STATE when _stateDirty is manually set', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.getNodes();
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err).toBeInstanceOf(QueryError);
         expect(err.code).toBe('E_STALE_STATE');
       }
@@ -166,36 +168,36 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('error message includes recovery hint mentioning materialize()', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('materialize()');
       }
     });
 
     it('error message includes recovery hint mentioning autoMaterialize', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toContain('autoMaterialize');
       }
     });
 
     it('error message matches expected recovery hint text', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.message).toBe(
           'Cached state is stale. Call materialize() to refresh, or enable autoMaterialize.',
         );
@@ -211,7 +213,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
       try {
         await graph.hasNode('test:x');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         if (e.code === 'E_NO_STATE') {
           matched = true;
         }
@@ -222,13 +224,13 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('catch (e) { if (e.code === "E_STALE_STATE") } works for stale-state errors', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       let matched = false;
 
       try {
         await graph.getNodes();
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         if (e.code === 'E_STALE_STATE') {
           matched = true;
         }
@@ -243,17 +245,17 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       // Trigger E_NO_STATE
       try {
         await graph.hasNode('test:x');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         codes.push(e.code);
       }
 
       // Trigger E_STALE_STATE
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         codes.push(e.code);
       }
 
@@ -264,7 +266,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (e) {
+      } catch (/** @type {any} */ e) {
         expect(typeof e.code).toBe('string');
         expect(e.code).toBeTruthy();
       }
@@ -274,6 +276,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
   // ── autoMaterialize prevents both errors ───────────────────────────────
 
   describe('autoMaterialize: true prevents both E_NO_STATE and E_STALE_STATE', () => {
+    /** @type {any} */
     let autoGraph;
 
     beforeEach(async () => {
@@ -333,7 +336,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.name).toBe('QueryError');
         expect(err.code).toBe('E_NO_STATE');
         expect(typeof err.message).toBe('string');
@@ -343,12 +346,12 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('E_STALE_STATE error has name, code, message, and context properties', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.name).toBe('QueryError');
         expect(err.code).toBe('E_STALE_STATE');
         expect(typeof err.message).toBe('string');
@@ -360,7 +363,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.stack).toBeDefined();
         expect(err.stack.length).toBeGreaterThan(0);
       }
@@ -368,12 +371,12 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
 
     it('E_STALE_STATE error has a stack trace', async () => {
       await graph.materialize();
-      graph._stateDirty = true;
+      /** @type {any} */ (graph)._stateDirty = true;
 
       try {
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         expect(err.stack).toBeDefined();
         expect(err.stack.length).toBeGreaterThan(0);
       }

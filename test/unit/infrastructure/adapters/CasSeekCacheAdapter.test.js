@@ -60,8 +60,11 @@ const SAMPLE_BUFFER = Buffer.from('serialized-state-data');
 // ---------------------------------------------------------------------------
 
 describe('CasSeekCacheAdapter', () => {
+  /** @type {any} */
   let persistence;
+  /** @type {any} */
   let plumbing;
+  /** @type {any} */
   let adapter;
 
   beforeEach(() => {
@@ -461,7 +464,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = smallAdapter._enforceMaxEntries(index);
+      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(2);
     });
 
@@ -483,7 +486,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = smallAdapter._enforceMaxEntries(index);
+      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       expect(remaining).toContain('v1:t3-newest');
@@ -511,7 +514,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = smallAdapter._enforceMaxEntries(index);
+      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(3);
     });
 
@@ -542,7 +545,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = smallAdapter._enforceMaxEntries(index);
+      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
       const remaining = Object.keys(result.entries);
       expect(remaining).toHaveLength(2);
       // The old-but-recently-used entry should survive (LRU)
@@ -567,7 +570,7 @@ describe('CasSeekCacheAdapter', () => {
         },
       };
 
-      const result = smallAdapter._enforceMaxEntries(index);
+      const result = /** @type {any} */ (smallAdapter)._enforceMaxEntries(index);
       expect(Object.keys(result.entries)).toHaveLength(1);
     });
 
@@ -616,7 +619,7 @@ describe('CasSeekCacheAdapter', () => {
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('oid');
 
-      await adapter._mutateIndex((idx) => idx);
+      await adapter._mutateIndex((/** @type {any} */ idx) => idx);
       expect(persistence.writeBlob).toHaveBeenCalledTimes(1);
     });
 
@@ -626,7 +629,7 @@ describe('CasSeekCacheAdapter', () => {
         .mockRejectedValueOnce(new Error('lock contention'))
         .mockResolvedValueOnce('oid-ok');
 
-      await adapter._mutateIndex((idx) => idx);
+      await adapter._mutateIndex((/** @type {any} */ idx) => idx);
       expect(persistence.writeBlob).toHaveBeenCalledTimes(2);
     });
 
@@ -634,7 +637,7 @@ describe('CasSeekCacheAdapter', () => {
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockRejectedValue(new Error('persistent failure'));
 
-      await expect(adapter._mutateIndex((idx) => idx)).rejects.toThrow(
+      await expect(adapter._mutateIndex((/** @type {any} */ idx) => idx)).rejects.toThrow(
         /index update failed after retries/
       );
       expect(persistence.writeBlob).toHaveBeenCalledTimes(3);
@@ -647,7 +650,7 @@ describe('CasSeekCacheAdapter', () => {
         .mockRejectedValueOnce(new Error('fail-2'))
         .mockResolvedValueOnce('oid');
 
-      await adapter._mutateIndex((idx) => idx);
+      await adapter._mutateIndex((/** @type {any} */ idx) => idx);
       // 3 attempts means 3 readRef calls (one per fresh read)
       expect(persistence.readRef).toHaveBeenCalledTimes(3);
     });
@@ -656,7 +659,7 @@ describe('CasSeekCacheAdapter', () => {
       persistence.readRef.mockResolvedValue(null);
       persistence.writeBlob.mockResolvedValue('oid');
 
-      const result = await adapter._mutateIndex((idx) => {
+      const result = await adapter._mutateIndex((/** @type {any} */ idx) => {
         idx.entries['test'] = { treeOid: 'x' };
         return idx;
       });
