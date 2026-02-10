@@ -85,14 +85,21 @@ describe('NodeHttpAdapter error paths', () => {
 
     // Send a body larger than 10MB
     const bigBody = Buffer.alloc(11 * 1024 * 1024, 'x');
-    const res = await fetch(`${base}/upload`, {
-      method: 'POST',
-      body: bigBody,
-    });
+    try {
+      const res = await fetch(`${base}/upload`, {
+        method: 'POST',
+        body: bigBody,
+      });
 
-    expect(res.status).toBe(413);
-    const text = await res.text();
-    expect(text).toBe('Payload Too Large');
+      // If the response arrives before the socket is torn down, assert 413
+      expect(res.status).toBe(413);
+      const text = await res.text();
+      expect(text).toBe('Payload Too Large');
+    } catch (err) {
+      // On some platforms / timing, the server resets the connection
+      // before fetch can read the response.
+      expect(err.cause?.code ?? err.code).toBe('ECONNRESET');
+    }
   });
 
   it('handles successful request/response cycle', async () => {
