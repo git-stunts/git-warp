@@ -33,7 +33,23 @@ import json, os
 data = json.loads(os.environ["JSON"])
 assert data["cursor"]["active"] is True, f"expected cursor.active=True, got {data['cursor']['active']}"
 assert data["cursor"]["tick"] == 1, f"expected tick=1, got {data['cursor']['tick']}"
-assert data["state"]["nodes"] == 3, f"expected 3 nodes at tick 1, got {data['state']['nodes']}"
+assert data["nodes"] == 3, f"expected 3 nodes at tick 1, got {data['nodes']}"
+assert data["edges"] == 0, f"expected 0 edges at tick 1, got {data['edges']}"
+assert data["patchCount"] == 1, f"expected 1 patch at tick 1, got {data['patchCount']}"
+assert data["diff"] is None, f"expected diff=null at first seek, got {data['diff']}"
+
+receipt = data.get("tickReceipt")
+assert isinstance(receipt, dict), f"expected tickReceipt object, got {receipt}"
+assert "alice" in receipt, f"expected tickReceipt to include alice, got keys={list(receipt.keys())}"
+
+entry = receipt["alice"]
+sha = entry.get("sha")
+assert isinstance(sha, str) and len(sha) == 40, f"expected 40-char sha, got {sha}"
+assert all(c in "0123456789abcdef" for c in sha), f"expected sha to be hex, got {sha}"
+
+summary = entry.get("opSummary") or {}
+assert summary.get("NodeAdd") == 3, f"expected NodeAdd=3, got {summary.get('NodeAdd')}"
+assert summary.get("PropSet") == 3, f"expected PropSet=3, got {summary.get('PropSet')}"
 PY
 }
 
@@ -48,6 +64,36 @@ PY
 import json, os
 data = json.loads(os.environ["JSON"])
 assert data["cursor"]["tick"] == 2, f"expected tick=2, got {data['cursor']['tick']}"
+PY
+}
+
+@test "seek --tick=+1 --json includes diff + tickReceipt with sha" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  assert_success
+
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick=+1
+  assert_success
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+assert data["tick"] == 2, f"expected tick=2, got {data['tick']}"
+assert data["nodes"] == 3, f"expected 3 nodes at tick 2, got {data['nodes']}"
+assert data["edges"] == 2, f"expected 2 edges at tick 2, got {data['edges']}"
+assert data["patchCount"] == 2, f"expected 2 patches at tick 2, got {data['patchCount']}"
+
+diff = data.get("diff")
+assert isinstance(diff, dict), f"expected diff object, got {diff}"
+assert diff.get("nodes") == 0, f"expected nodes diff=0, got {diff.get('nodes')}"
+assert diff.get("edges") == 2, f"expected edges diff=2, got {diff.get('edges')}"
+
+receipt = data.get("tickReceipt") or {}
+assert "alice" in receipt, f"expected tickReceipt to include alice, got keys={list(receipt.keys())}"
+entry = receipt["alice"]
+sha = entry.get("sha")
+assert isinstance(sha, str) and len(sha) == 40, f"expected 40-char sha, got {sha}"
+summary = entry.get("opSummary") or {}
+assert summary.get("EdgeAdd") == 2, f"expected EdgeAdd=2, got {summary.get('EdgeAdd')}"
 PY
 }
 
@@ -146,15 +192,17 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json query --match '*'
   assert_success
 
-  JSON="$output" python3 - <<'PY'
-import json, os
-data = json.loads(os.environ["JSON"])
-assert len(data["nodes"]) == 3, f"expected 3 nodes at tick 1, got {len(data['nodes'])}"
-PY
+  echo "$output" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+assert len(data['nodes']) == 3, f'expected 3 nodes at tick 1, got {len(data[\"nodes\"])}'
+"
 }
 
 @test "query returns full node set after --latest clears cursor" {
-  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  # Seek to tick 0 (empty state), then clear with --latest.
+  # Query must return the full 3-node graph, proving cursor was cleared.
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 0
   assert_success
 
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --latest
@@ -163,11 +211,11 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json query --match '*'
   assert_success
 
-  JSON="$output" python3 - <<'PY'
-import json, os
-data = json.loads(os.environ["JSON"])
-assert len(data["nodes"]) > 3, f"expected more than 3 nodes after latest, got {len(data['nodes'])}"
-PY
+  echo "$output" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+assert len(data['nodes']) == 3, f'expected 3 nodes after latest, got {len(data[\"nodes\"])}'
+"
 }
 
 @test "seek plain text output" {
@@ -175,4 +223,39 @@ PY
   assert_success
   echo "$output" | grep -q "demo"
   echo "$output" | grep -qiE "tick|cursor"
+}
+
+@test "seek plain text output includes receipt summary with sha" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  assert_success
+
+  short_sha="$(JSON="$output" python3 -c 'import json, os; j = json.loads(os.environ["JSON"]); print(j["tickReceipt"]["alice"]["sha"][:7])')"
+
+  run git warp --repo "${TEST_REPO}" --graph demo seek --tick 1
+  assert_success
+
+  echo "$output" | grep -q "Tick 1:"
+  echo "$output" | grep -q "alice"
+  echo "$output" | grep -q "${short_sha}"
+  echo "$output" | grep -q "\\+3node"
+  echo "$output" | grep -q "~3prop"
+}
+
+@test "seek --json suppresses diff when frontier changes" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
+  assert_success
+
+  # Change frontier by appending a new patch (lamport tick 3).
+  seed_graph "append-patch.js"
+
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick=+1
+  assert_success
+
+  JSON="$output" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ["JSON"])
+assert data["tick"] == 2, f"expected tick=2, got {data['tick']}"
+assert data["maxTick"] == 3, f"expected maxTick=3 after append, got {data['maxTick']}"
+assert data["diff"] is None, f"expected diff=null due to frontier change, got {data['diff']}"
+PY
 }

@@ -1860,8 +1860,8 @@ function resolveTickValue(tickValue, currentTick, ticks, maxTick) {
     const base = currentTick ?? 0;
 
     // Find the current position in sorted ticks, then step by delta
-    // Include tick 0 as a virtual "empty state" position
-    const allPoints = [0, ...ticks];
+    // Include tick 0 as a virtual "empty state" position (avoid duplicating if already present)
+    const allPoints = (ticks.length > 0 && ticks[0] === 0) ? [...ticks] : [0, ...ticks];
     const currentIdx = allPoints.indexOf(base);
     const startIdx = currentIdx === -1 ? 0 : currentIdx;
     const targetIdx = Math.max(0, Math.min(allPoints.length - 1, startIdx + delta));

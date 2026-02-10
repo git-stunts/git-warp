@@ -356,6 +356,27 @@ describe('WarpGraph.seek (time-travel)', () => {
       expect(callCountAfterSecond).toBeGreaterThan(callCountAfterFirst);
     });
 
+    it('cache is invalidated when frontier advances at the same ceiling', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'test',
+        writerId: 'w1',
+      });
+
+      // Start with one writer
+      setupMultiWriterPersistence(persistence, { alice: 3 });
+
+      const stateA = await graph.materialize({ ceiling: 2 });
+      expect(stateA.nodeAlive.entries.size).toBe(2); // alice:1, alice:2
+
+      // A new writer appears — frontier changes
+      setupMultiWriterPersistence(persistence, { alice: 3, bob: 3 });
+
+      const stateB = await graph.materialize({ ceiling: 2 });
+      // Must see 4 nodes (alice:1, alice:2, bob:1, bob:2), not stale 2
+      expect(stateB.nodeAlive.entries.size).toBe(4);
+    });
+
     it('explicit ceiling: null overrides _seekCeiling and materializes latest', async () => {
       const graph = await WarpGraph.open({
         persistence,

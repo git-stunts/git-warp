@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Seek ceiling via public API**: Replaced direct `graph._seekCeiling` mutation in `materializeOneGraph` and `handleSeek` with `graph.materialize({ ceiling })`, using the public option instead of poking at internals.
 - **Seek timeline missing currentTick**: When the active cursor referenced a tick absent from the discovered ticks array, the renderer fell back to index 0 and never showed the current tick marker. Now inserts the cursor tick at the correct sorted position so the window always centres on it.
 - **Docs `--tick` signed-value syntax**: Updated GUIDE.md, README.md, and CHANGELOG examples to use `--tick=+N`/`--tick=-N` (equals form) for signed relative values, matching BATS tests and avoiding CLI parser ambiguity.
+- **Ceiling cache stale on frontier advance**: `_materializeWithCeiling` cached state keyed only on ceiling + dirty flag, so it could return stale results when new writers appeared or tips advanced. Now snapshots the frontier (writer tip SHAs) alongside the ceiling and invalidates the cache when the frontier changes.
+- **`resolveTickValue` duplicate tick 0**: The relative-tick resolver blindly prepended 0 to the ticks array, duplicating it when ticks already contained 0. Now checks before prepending.
 
 ### Changed
 

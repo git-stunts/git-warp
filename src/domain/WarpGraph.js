@@ -184,6 +184,9 @@ export default class WarpGraph {
 
     /** @type {number|null} */
     this._cachedCeiling = null;
+
+    /** @type {Map<string, string>|null} */
+    this._cachedFrontier = null;
   }
 
   /**
@@ -677,6 +680,7 @@ export default class WarpGraph {
 
       await this._setMaterializedState(state);
       this._cachedCeiling = null;
+      this._cachedFrontier = null;
       this._lastFrontier = await this.getFrontier();
       this._patchesSinceCheckpoint = patchCount;
 
@@ -744,9 +748,10 @@ export default class WarpGraph {
    * filtering to only those with `lamport <= ceiling`. Skips auto-checkpoint
    * and GC since this is an exploratory read.
    *
-   * Uses a dedicated cache keyed on `ceiling`. Cache is bypassed when
-   * `collectReceipts` is `true` because the cached path does not retain
-   * receipt data.
+   * Uses a dedicated cache keyed on `ceiling` + frontier snapshot. Cache
+   * is bypassed when the writer frontier has advanced (new writers or
+   * updated tips) or when `collectReceipts` is `true` because the cached
+   * path does not retain receipt data.
    *
    * @param {number} ceiling - Maximum Lamport tick to include (patches with
    *   `lamport <= ceiling` are replayed; `ceiling <= 0` yields empty state)
@@ -761,19 +766,28 @@ export default class WarpGraph {
    * @private
    */
   async _materializeWithCeiling(ceiling, collectReceipts, t0) {
-    // Cache hit: same ceiling as last time, state is clean.
+    const frontier = await this.getFrontier();
+
+    // Cache hit: same ceiling, clean state, AND frontier unchanged.
     // Bypass cache when collectReceipts is true — cached path has no receipts.
-    if (this._cachedState && !this._stateDirty && ceiling === this._cachedCeiling && !collectReceipts) {
+    if (
+      this._cachedState && !this._stateDirty &&
+      ceiling === this._cachedCeiling && !collectReceipts &&
+      this._cachedFrontier !== null &&
+      this._cachedFrontier.size === frontier.size &&
+      [...frontier].every(([w, sha]) => this._cachedFrontier.get(w) === sha)
+    ) {
       return this._cachedState;
     }
 
-    const writerIds = await this.discoverWriters();
+    const writerIds = [...frontier.keys()];
 
     if (writerIds.length === 0 || ceiling <= 0) {
       const state = createEmptyStateV5();
       this._provenanceIndex = new ProvenanceIndex();
       await this._setMaterializedState(state);
       this._cachedCeiling = ceiling;
+      this._cachedFrontier = frontier;
       this._logTiming('materialize', t0, { metrics: '0 patches (ceiling)' });
       if (collectReceipts) {
         return { state, receipts: [] };
@@ -814,6 +828,7 @@ export default class WarpGraph {
 
     await this._setMaterializedState(state);
     this._cachedCeiling = ceiling;
+    this._cachedFrontier = frontier;
 
     // Skip auto-checkpoint and GC — this is an exploratory read
     this._logTiming('materialize', t0, { metrics: `${allPatches.length} patches (ceiling=${ceiling})` });
