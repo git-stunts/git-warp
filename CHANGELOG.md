@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BATS CI: missing `append-patch.js` helper**: `test/bats/helpers/append-patch.js` was untracked, so Docker builds (which copy from the git context) never included it — causing test 55 to fail with `MODULE_NOT_FOUND` on Node 20.
 - **`seek-demo.tape` not portable**: Replaced hardcoded `$HOME/git/git-stunts/git-warp` with `export PROJECT_ROOT=$(pwd)` captured before entering the temp sandbox.
 - **`emitCursorWarning` / `applyCursorCeiling` JSDoc**: Clarified that non-seek commands intentionally pass `null` for `maxTick` to skip the cost of `discoverTicks()`.
+- **`_resolveCeiling` treated `undefined` as valid**: The `'ceiling' in options` check returned `undefined` when options contained the key but no value. Switched to `options.ceiling !== undefined` so explicit `null` still overrides the instance ceiling but `undefined` correctly falls through.
 
 ## [10.3.1] — 2026-02-09 — Seek polish, arrowheads & demo GIF
 

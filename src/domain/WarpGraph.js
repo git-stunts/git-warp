@@ -735,7 +735,7 @@ export default class WarpGraph {
    * @private
    */
   _resolveCeiling(options) {
-    if (options && 'ceiling' in options) {
+    if (options && options.ceiling !== undefined) {
       return options.ceiling;
     }
     return this._seekCeiling;
