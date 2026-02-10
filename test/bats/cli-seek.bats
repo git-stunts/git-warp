@@ -189,12 +189,12 @@ PY
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1
   assert_success
 
-  run git warp --repo "${TEST_REPO}" --graph demo --json query --match '*'
-  assert_success
-
-  echo "$output" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
+  # Capture query output to a file to avoid BATS $output edge cases
+  local qfile="${TEST_REPO}/query_out.json"
+  git warp --repo "${TEST_REPO}" --graph demo --json query --match '*' > "${qfile}"
+  python3 -c "
+import json
+data = json.load(open('${qfile}'))
 assert len(data['nodes']) == 3, f'expected 3 nodes at tick 1, got {len(data[\"nodes\"])}'
 "
 }
