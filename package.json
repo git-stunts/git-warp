@@ -86,9 +86,11 @@
     "test:deno": "docker compose -f docker-compose.test.yml --profile deno run --build --rm test-deno",
     "test:matrix": "docker compose -f docker-compose.test.yml --profile full up --build --abort-on-container-exit"
   },
+  "optionalDependencies": {
+    "@git-stunts/git-cas": "^3.0.0"
+  },
   "dependencies": {
     "@git-stunts/alfred": "^0.4.0",
-    "@git-stunts/git-cas": "^3.0.0",
     "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "boxen": "^7.1.1",
