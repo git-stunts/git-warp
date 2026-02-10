@@ -834,14 +834,19 @@ export default class WarpGraph {
       try {
         const cached = await this._seekCache.get(cacheKey);
         if (cached) {
-          const state = deserializeFullStateV5(cached, { codec: this._codec });
-          this._provenanceIndex = new ProvenanceIndex();
-          this._provenanceDegraded = true;
-          await this._setMaterializedState(state);
-          this._cachedCeiling = ceiling;
-          this._cachedFrontier = frontier;
-          this._logTiming('materialize', t0, { metrics: `cache hit (ceiling=${ceiling})` });
-          return state;
+          try {
+            const state = deserializeFullStateV5(cached, { codec: this._codec });
+            this._provenanceIndex = new ProvenanceIndex();
+            this._provenanceDegraded = true;
+            await this._setMaterializedState(state);
+            this._cachedCeiling = ceiling;
+            this._cachedFrontier = frontier;
+            this._logTiming('materialize', t0, { metrics: `cache hit (ceiling=${ceiling})` });
+            return state;
+          } catch {
+            // Corrupted payload — self-heal by removing the bad entry
+            try { await this._seekCache.delete(cacheKey); } catch { /* best-effort */ }
+          }
         }
       } catch {
         // Cache read failed — fall through to full materialization
