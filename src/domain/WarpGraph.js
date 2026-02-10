@@ -23,7 +23,7 @@ import { createFrontier, updateFrontier } from './services/Frontier.js';
 import { createVersionVector, vvClone, vvIncrement } from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY, shouldRunGC, executeGC } from './services/GCPolicy.js';
 import { collectGCMetrics } from './services/GCMetrics.js';
-import { computeAppliedVV } from './services/CheckpointSerializerV5.js';
+import { computeAppliedVV, serializeFullStateV5, deserializeFullStateV5 } from './services/CheckpointSerializerV5.js';
 import { computeStateHashV5 } from './services/StateSerializerV5.js';
 import {
   createSyncRequest,
@@ -48,6 +48,7 @@ import OperationAbortedError from './errors/OperationAbortedError.js';
 import { compareEventIds } from './utils/EventId.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
 import HttpSyncServer from './services/HttpSyncServer.js';
+import { buildSeekCacheKey } from './utils/seekCacheKey.js';
 import defaultClock from './utils/defaultClock.js';
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
@@ -99,8 +100,9 @@ export default class WarpGraph {
    * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
+   * @param {import('../ports/SeekCachePort.js').default} [options.seekCache] - Persistent cache for seek materialization (optional)
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache }) {
     /** @type {import('../ports/GraphPersistencePort.js').default} */
     this._persistence = persistence;
 
@@ -187,6 +189,12 @@ export default class WarpGraph {
 
     /** @type {Map<string, string>|null} */
     this._cachedFrontier = null;
+
+    /** @type {import('../ports/SeekCachePort.js').default|null} */
+    this._seekCache = seekCache || null;
+
+    /** @type {boolean} */
+    this._provenanceDegraded = false;
   }
 
   /**
@@ -227,6 +235,7 @@ export default class WarpGraph {
    * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
+   * @param {import('../ports/SeekCachePort.js').default} [options.seekCache] - Persistent cache for seek materialization (optional)
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -237,7 +246,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -269,7 +278,7 @@ export default class WarpGraph {
       }
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -679,6 +688,7 @@ export default class WarpGraph {
       }
 
       await this._setMaterializedState(state);
+      this._provenanceDegraded = false;
       this._cachedCeiling = null;
       this._cachedFrontier = null;
       this._lastFrontier = await this.getFrontier();
@@ -785,6 +795,7 @@ export default class WarpGraph {
     if (writerIds.length === 0 || ceiling <= 0) {
       const state = createEmptyStateV5();
       this._provenanceIndex = new ProvenanceIndex();
+      this._provenanceDegraded = false;
       await this._setMaterializedState(state);
       this._cachedCeiling = ceiling;
       this._cachedFrontier = frontier;
@@ -793,6 +804,26 @@ export default class WarpGraph {
         return { state, receipts: [] };
       }
       return state;
+    }
+
+    // Persistent cache check — skip when collectReceipts is requested
+    if (this._seekCache && !collectReceipts) {
+      const cacheKey = buildSeekCacheKey(ceiling, frontier);
+      try {
+        const cached = await this._seekCache.get(cacheKey);
+        if (cached) {
+          const state = deserializeFullStateV5(cached, { codec: this._codec });
+          this._provenanceIndex = new ProvenanceIndex();
+          this._provenanceDegraded = true;
+          await this._setMaterializedState(state);
+          this._cachedCeiling = ceiling;
+          this._cachedFrontier = frontier;
+          this._logTiming('materialize', t0, { metrics: `cache hit (ceiling=${ceiling})` });
+          return state;
+        }
+      } catch {
+        // Cache read failed — fall through to full materialization
+      }
     }
 
     const allPatches = [];
@@ -825,10 +856,22 @@ export default class WarpGraph {
     for (const { patch, sha } of allPatches) {
       this._provenanceIndex.addPatch(sha, patch.reads, patch.writes);
     }
+    this._provenanceDegraded = false;
 
     await this._setMaterializedState(state);
     this._cachedCeiling = ceiling;
     this._cachedFrontier = frontier;
+
+    // Store to persistent cache (fire-and-forget for non-receipt paths)
+    if (this._seekCache && !collectReceipts && allPatches.length > 0) {
+      const cacheKey = buildSeekCacheKey(ceiling, frontier);
+      try {
+        const buf = serializeFullStateV5(state, { codec: this._codec });
+        await this._seekCache.set(cacheKey, buf);
+      } catch {
+        // Cache write failed — non-fatal, continue normally
+      }
+    }
 
     // Skip auto-checkpoint and GC — this is an exploratory read
     this._logTiming('materialize', t0, { metrics: `${allPatches.length} patches (ceiling=${ceiling})` });
@@ -3068,6 +3111,12 @@ export default class WarpGraph {
   async patchesFor(entityId) {
     await this._ensureFreshState();
 
+    if (this._provenanceDegraded) {
+      throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
+        code: 'E_PROVENANCE_DEGRADED',
+      });
+    }
+
     if (!this._provenanceIndex) {
       throw new QueryError('No provenance index. Call materialize() first.', {
         code: 'E_NO_STATE',
@@ -3128,6 +3177,12 @@ export default class WarpGraph {
     try {
       // Ensure fresh state before accessing provenance index
       await this._ensureFreshState();
+
+      if (this._provenanceDegraded) {
+        throw new QueryError('Provenance unavailable for cached seek. Re-seek with --no-persistent-cache or call materialize({ ceiling }) directly.', {
+          code: 'E_PROVENANCE_DEGRADED',
+        });
+      }
 
       if (!this._provenanceIndex) {
         throw new QueryError('No provenance index. Call materialize() first.', {

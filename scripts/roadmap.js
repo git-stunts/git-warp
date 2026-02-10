@@ -32,6 +32,7 @@ const MILESTONES = [
   { code: 'HG', name: 'HOLOGRAM', version: 'v8.0.0' },
   { code: 'EC', name: 'ECHO', version: 'v9.0.0' },
   { code: 'BK', name: 'BULKHEAD', version: 'v10.0.0' },
+  { code: 'RC', name: 'RECALL', version: 'v10.4.0' },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

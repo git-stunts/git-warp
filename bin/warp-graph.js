@@ -22,6 +22,7 @@ import {
   buildCursorSavedRef,
   buildCursorSavedPrefix,
 } from '../src/domain/utils/RefLayout.js';
+import CasSeekCacheAdapter from '../src/infrastructure/adapters/CasSeekCacheAdapter.js';
 import { HookInstaller, classifyExistingHook } from '../src/domain/services/HookInstaller.js';
 import { renderInfoView } from '../src/visualization/renderers/ascii/info.js';
 import { renderCheckView } from '../src/visualization/renderers/ascii/check.js';
@@ -1757,11 +1758,23 @@ async function listSavedCursors(persistence, graphName) {
  * @returns {{action: string, tickValue: string|null, name: string|null}} Parsed spec
  * @throws {CliError} If arguments are invalid or flags are combined
  */
+function handleSeekBooleanFlag(arg, spec) {
+  if (arg === '--clear-cache') {
+    if (spec.action !== 'status') {
+      throw usageError('--clear-cache cannot be combined with other seek flags');
+    }
+    spec.action = 'clear-cache';
+  } else if (arg === '--no-persistent-cache') {
+    spec.noPersistentCache = true;
+  }
+}
+
 function parseSeekArgs(args) {
   const spec = {
-    action: 'status', // status, tick, latest, save, load, list, drop
+    action: 'status', // status, tick, latest, save, load, list, drop, clear-cache
     tickValue: null,
     name: null,
+    noPersistentCache: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -1854,6 +1867,8 @@ function parseSeekArgs(args) {
       if (!spec.name) {
         throw usageError('Missing name for --drop');
       }
+    } else if (arg === '--clear-cache' || arg === '--no-persistent-cache') {
+      handleSeekBooleanFlag(arg, spec);
     } else if (arg.startsWith('-')) {
       throw usageError(`Unknown seek option: ${arg}`);
     }
@@ -1928,9 +1943,33 @@ function resolveTickValue(tickValue, currentTick, ticks, maxTick) {
  * @returns {Promise<{payload: Object, exitCode: number}>} Command result with payload and exit code
  * @throws {CliError} On invalid arguments or missing cursors
  */
+function wireSeekCache(graph, persistence, graphName, seekSpec) {
+  if (seekSpec.noPersistentCache) {
+    return;
+  }
+  graph._seekCache = new CasSeekCacheAdapter({
+    persistence,
+    plumbing: persistence.plumbing,
+    graphName,
+  });
+}
+
 async function handleSeek({ options, args }) {
   const seekSpec = parseSeekArgs(args);
   const { graph, graphName, persistence } = await openGraph(options);
+  void wireSeekCache(graph, persistence, graphName, seekSpec);
+
+  // Handle --clear-cache before discovering ticks (no materialization needed)
+  if (seekSpec.action === 'clear-cache') {
+    if (graph._seekCache) {
+      await graph._seekCache.clear();
+    }
+    return {
+      payload: { graph: graphName, action: 'clear-cache', message: 'Seek cache cleared.' },
+      exitCode: EXIT_CODES.OK,
+    };
+  }
+
   const activeCursor = await readActiveCursor(persistence, graphName);
   const { ticks, maxTick, perWriter } = await graph.discoverTicks();
   const frontierHash = computeFrontierHash(perWriter);
@@ -2321,6 +2360,10 @@ function renderSeek(payload) {
       patchesStr: `${payload.patchCount} ${patchLabel}`,
     };
   };
+
+  if (payload.action === 'clear-cache') {
+    return `${payload.message}\n`;
+  }
 
   if (payload.action === 'list') {
     if (payload.cursors.length === 0) {

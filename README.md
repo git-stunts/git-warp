@@ -414,6 +414,8 @@ git warp seek --tick=-1                 # step backward one tick
 git warp seek --save before-refactor    # bookmark current position
 git warp seek --load before-refactor    # restore bookmark
 git warp seek --latest                  # return to present
+git warp seek --clear-cache             # purge persistent seek cache
+git warp seek --no-persistent-cache --tick 5  # skip cache for one invocation
 
 # Visualize query results (ascii output by default)
 git warp query --match 'user:*' --outgoing manages --view
@@ -439,6 +441,7 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `CryptoPort` -- hash/HMAC operations
 - `LoggerPort` -- structured logging
 - `ClockPort` -- time measurement
+- `SeekCachePort` -- persistent seek materialization cache
 
 **Adapters** implement the ports:
 - `GitGraphAdapter` -- wraps `@git-stunts/plumbing` for Git operations
@@ -448,6 +451,7 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `NodeHttpAdapter` / `BunHttpAdapter` / `DenoHttpAdapter` -- HTTP server per runtime
 - `ConsoleLogger` / `NoOpLogger` -- logging implementations
 - `CborCodec` -- CBOR serialization for patches
+- `CasSeekCacheAdapter` -- persistent seek cache via `@git-stunts/git-cas`
 
 **Domain** contains the core logic:
 - `WarpGraph` -- public API facade

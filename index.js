@@ -32,6 +32,7 @@ import GraphPersistencePort from './src/ports/GraphPersistencePort.js';
 import IndexStoragePort from './src/ports/IndexStoragePort.js';
 import LoggerPort from './src/ports/LoggerPort.js';
 import ClockPort from './src/ports/ClockPort.js';
+import SeekCachePort from './src/ports/SeekCachePort.js';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
@@ -125,6 +126,9 @@ export {
 
   // Clock infrastructure
   ClockPort,
+
+  // Seek cache (RECALL)
+  SeekCachePort,
   ClockAdapter,
   PerformanceClockAdapter,
   GlobalClockAdapter,

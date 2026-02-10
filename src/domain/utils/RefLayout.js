@@ -291,6 +291,25 @@ export function buildCursorSavedPrefix(graphName) {
   return `${REF_PREFIX}/${graphName}/cursor/saved/`;
 }
 
+/**
+ * Builds the seek cache ref path for the given graph.
+ *
+ * The seek cache ref points to a blob containing a JSON index of
+ * cached materialization states, keyed by (ceiling, frontier) tuples.
+ *
+ * @param {string} graphName - The name of the graph
+ * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/seek-cache`
+ * @throws {Error} If graphName is invalid
+ *
+ * @example
+ * buildSeekCacheRef('events');
+ * // => 'refs/warp/events/seek-cache'
+ */
+export function buildSeekCacheRef(graphName) {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/seek-cache`;
+}
+
 // -----------------------------------------------------------------------------
 // Parsers
 // -----------------------------------------------------------------------------

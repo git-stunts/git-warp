@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.4.0] — 2026-02-09 — RECALL: Seek Materialization Cache
+
+Caches materialized `WarpStateV5` at each visited ceiling tick as content-addressed blobs via `@git-stunts/git-cas`, enabling near-instant restoration for previously-visited ticks during seek exploration. Blobs are loose Git objects that naturally GC unless pinned to a vault.
+
+### Added
+
+- **`SeekCachePort`** (`src/ports/SeekCachePort.js`): Abstract port for seek materialization cache with `get`, `set`, `has`, `keys`, `delete`, `clear` methods.
+- **`CasSeekCacheAdapter`** (`src/infrastructure/adapters/CasSeekCacheAdapter.js`): Git-CAS backed adapter with rich index metadata (treeOid, createdAt, ceiling, frontierHash, sizeBytes, codec, schemaVersion), LRU eviction (default max 200 entries), self-healing on read miss (removes dead entries when blobs are GC'd), and optimistic retry loop for concurrent index updates.
+- **`seekCacheKey`** (`src/domain/utils/seekCacheKey.js`): Deterministic cache key builder producing `v1:t<ceiling>-<sha256hex>` keys. Uses SHA-256 via `node:crypto` with no fallback.
+- **`buildSeekCacheRef`** in `RefLayout.js`: Builds `refs/warp/<graph>/seek-cache` ref path for the cache index.
+- **`WarpGraph.open({ seekCache })`**: Optional `SeekCachePort` for persistent seek cache injection. Cache is checked after in-memory miss and stored after full materialization in `_materializeWithCeiling`.
+- **`--clear-cache` flag** on `git warp seek`: Purges the persistent seek cache.
+- **`--no-persistent-cache` flag** on `git warp seek`: Bypasses persistent cache for a single invocation (useful for full provenance access or performance testing).
+- **Provenance degradation guardrails**: `_provenanceDegraded` flag on WarpGraph, set on persistent cache hit. `patchesFor()` and `materializeSlice()` throw `E_PROVENANCE_DEGRADED` with clear instructions to re-seek with `--no-persistent-cache`.
+- **`SeekCachePort` export** from main entry point (`index.js`) and TypeScript definitions (`index.d.ts`).
+- **Unit tests** (`test/unit/domain/seekCache.test.js`, 16 tests): Cache key determinism, WarpGraph integration with mock cache (hit/miss/error/degradation), provenance guardrails.
+- **ROADMAP milestone RECALL** (v10.4.0): 6 tasks, all closed.
+
 ## [10.3.2] — 2026-02-09 — Seek CLI fixes & demo portability
 
 ### Added

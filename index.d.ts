@@ -476,6 +476,30 @@ export class GlobalClockAdapter extends ClockPort {
 }
 
 /**
+ * Port interface for seek materialization cache operations.
+ *
+ * Implementations store serialized WarpStateV5 snapshots keyed by
+ * (ceiling, frontier) tuples for near-instant restoration of
+ * previously-visited ticks during seek exploration.
+ *
+ * @abstract
+ */
+export abstract class SeekCachePort {
+  /** Retrieves a cached state buffer by key, or null on miss. */
+  abstract get(key: string): Promise<Buffer | null>;
+  /** Stores a state buffer under the given key. */
+  abstract set(key: string, buffer: Buffer): Promise<void>;
+  /** Checks whether a key exists in the cache index. */
+  abstract has(key: string): Promise<boolean>;
+  /** Lists all keys currently in the cache index. */
+  abstract keys(): Promise<string[]>;
+  /** Removes a single entry from the cache. */
+  abstract delete(key: string): Promise<boolean>;
+  /** Removes all entries from the cache. */
+  abstract clear(): Promise<void>;
+}
+
+/**
  * Port interface for structured logging operations.
  * @abstract
  */
@@ -1450,6 +1474,7 @@ export default class WarpGraph {
     clock?: ClockPort;
     crypto?: CryptoPort;
     codec?: unknown;
+    seekCache?: SeekCachePort;
   }): Promise<WarpGraph>;
 
   /**

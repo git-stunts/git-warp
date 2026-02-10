@@ -200,6 +200,27 @@ Hardens the architecture against runtime coupling. Creates missing port interfac
 - `GraphPersistencePort` split into `CommitPort`, `BlobPort`, `TreePort`, `RefPort`, `ConfigPort` — existing `GitGraphAdapter` implements all (backward compatible composite).
 - No behavioral changes. All existing tests must continue to pass.
 
+### v10.4.0 — RECALL
+
+**Seek Materialization Cache**
+
+Caches `WarpStateV5` at each visited ceiling tick as content-addressed blobs via `@git-stunts/git-cas`, enabling near-instant restoration for previously-visited ticks during seek exploration. Blobs are loose Git objects that naturally GC unless pinned to a vault.
+
+**Features (recommended order):**
+- RC/PORT — SeekCachePort + seekCacheKey utility + RefLayout builder
+- RC/ADAPT — CasSeekCacheAdapter (git-cas storage, index ref, LRU eviction, self-healing)
+- RC/WIRE — WarpGraph integration (persistent cache check/store in `_materializeWithCeiling`)
+- RC/PROV — Provenance degradation guardrails (E_PROVENANCE_DEGRADED on cache hit)
+- RC/CLI — CLI wiring (`--clear-cache`, `--no-persistent-cache` flags on seek)
+- RC/TEST — Unit tests (mock cache integration, seekCacheKey, RefLayout)
+
+**User-Facing Changes:**
+- `git warp seek --tick N` automatically caches materialized state for revisited ticks.
+- `git warp seek --clear-cache` purges the persistent seek cache.
+- `git warp seek --no-persistent-cache --tick N` bypasses persistent cache for a single invocation.
+- Provenance queries (`patchesFor`, `materializeSlice`) throw `E_PROVENANCE_DEGRADED` when state was restored from cache; re-seek with `--no-persistent-cache` to get full provenance.
+- `WarpGraph.open()` accepts optional `seekCache` port for persistent seek cache injection.
+
 ---
 
 ## Milestone Summary
@@ -216,6 +237,7 @@ Hardens the architecture against runtime coupling. Creates missing port interfac
 | 8 | **HOLOGRAM** | v8.0.0 | Provenance & Holography | Complete |
 | 9 | **ECHO** | v9.0.0 | Observer Geometry | Complete |
 | 10 | **BULKHEAD** | v10.0.0 | Hexagonal Purity & Structural Integrity | Complete |
+| 11 | **RECALL** | v10.4.0 | Seek Materialization Cache | Complete |
 
 ---
 
@@ -233,6 +255,8 @@ COMPASS (independent)              │
 LIGHTHOUSE ────────────────→ HOLOGRAM ──→ ECHO
 
 BULKHEAD (independent)
+
+RECALL (independent — uses git-cas + BULKHEAD ports)
 ```
 
 - GROUNDSKEEPER depends on AUTOPILOT (auto-materialize foundation).
@@ -241,6 +265,7 @@ BULKHEAD (independent)
 - HOLOGRAM depends on LIGHTHOUSE (tick receipts as foundation).
 - ECHO depends on HOLOGRAM (provenance payloads).
 - WEIGHTED, COMPASS, HANDSHAKE can proceed independently.
+- RECALL can proceed independently (uses BULKHEAD ports but no hard dependency).
 
 ---
 
@@ -336,6 +361,14 @@ BULKHEAD         (v10.0.0)  █████████████████�
   ■ BK/WIRE/2           →  BK/SRP/4
   ■ BK/WIRE/3           →  BK/DRY/2, BK/SRP/4
   ■ BK/WIRE/4         
+
+RECALL           (v10.4.0)  ████████████████████  100%  (6/6)
+  ■ RC/ADAPT/1          →  RC/CLI/1
+  ■ RC/CLI/1          
+  ■ RC/PORT/1           →  RC/ADAPT/1, RC/WIRE/1
+  ■ RC/PROV/1           →  RC/TEST/1
+  ■ RC/TEST/1         
+  ■ RC/WIRE/1           →  RC/PROV/1, RC/TEST/1
 
 Cross-Milestone Dependencies:
   AP/CKPT/2           →  LH/STATUS/1 (LIGHTHOUSE)
@@ -2411,6 +2444,95 @@ The architecture claims hexagonal design but has significant boundary violations
   - Regression: existing Writer tests pass.
   - Backward compat: import from Writer.js still works.
 
+### RECALL — Task Details
+
+#### RC/PORT/1 — SeekCachePort + seekCacheKey utility + RefLayout builder
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want a port interface for seek caching so the domain layer doesn't depend on a specific storage backend.
+- **Requirements:**
+  - Create `src/ports/SeekCachePort.js` with abstract methods: `get(key)`, `set(key, buffer)`, `has(key)`, `keys()`, `delete(key)`, `clear()`.
+  - Create `src/domain/utils/seekCacheKey.js` with `buildSeekCacheKey(ceiling, frontier)` producing versioned, collision-resistant keys using SHA-256 (no fallback).
+  - Add `buildSeekCacheRef(graphName)` to `src/domain/utils/RefLayout.js`.
+- **Scope:** Port interface + utility function + ref builder.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~80 prod + ~40 test
+- **Blocked by:** None
+- **Blocking:** RC/ADAPT/1, RC/WIRE/1
+
+#### RC/ADAPT/1 — CasSeekCacheAdapter
+
+- **Status:** `CLOSED`
+- **User Story:** As a CLI user, I want materialized states cached persistently in Git so revisited ticks restore instantly.
+- **Requirements:**
+  - Create `src/infrastructure/adapters/CasSeekCacheAdapter.js` implementing SeekCachePort.
+  - Uses `@git-stunts/git-cas` for chunked blob storage.
+  - Index ref at `refs/warp/<graph>/seek-cache` with rich metadata (treeOid, createdAt, ceiling, frontierHash, sizeBytes, codec, schemaVersion).
+  - LRU eviction (default maxEntries=200).
+  - Self-healing: removes dead entries on read miss (GC'd blobs).
+  - Optimistic retry loop for index ref updates.
+- **Scope:** Adapter implementation.
+- **Estimated Hours:** 3
+- **Estimated LOC:** ~200 prod + ~60 test
+- **Blocked by:** RC/PORT/1
+- **Blocking:** RC/CLI/1
+
+#### RC/WIRE/1 — WarpGraph integration
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want the seek cache automatically consulted during ceiling materialization.
+- **Requirements:**
+  - Add `seekCache` param to `WarpGraph` constructor and `open()`.
+  - Hook into `_materializeWithCeiling`: persistent cache check after in-memory miss, store after full materialization.
+  - Cache skipped when `collectReceipts` is true.
+  - Graceful degradation: cache get/set failures are non-fatal.
+- **Scope:** WarpGraph modifications.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~40 prod + ~80 test
+- **Blocked by:** RC/PORT/1
+- **Blocking:** RC/PROV/1
+
+#### RC/PROV/1 — Provenance degradation guardrails
+
+- **Status:** `CLOSED`
+- **User Story:** As a user, I want clear error messages when provenance is unavailable due to cached seek state.
+- **Requirements:**
+  - Add `_provenanceDegraded` flag to WarpGraph.
+  - Set flag on persistent cache hit; clear on full materialize.
+  - Guard `patchesFor()` and `materializeSlice()` with `E_PROVENANCE_DEGRADED` error.
+- **Scope:** Error handling + flag management.
+- **Estimated Hours:** 1
+- **Estimated LOC:** ~20 prod + ~30 test
+- **Blocked by:** RC/WIRE/1
+- **Blocking:** None
+
+#### RC/CLI/1 — CLI wiring + flags
+
+- **Status:** `CLOSED`
+- **User Story:** As a CLI user, I want seek cache management flags.
+- **Requirements:**
+  - Wire `CasSeekCacheAdapter` in `handleSeek` for all seek commands.
+  - Add `--clear-cache` flag to purge the seek cache.
+  - Add `--no-persistent-cache` flag to bypass persistent cache for a single invocation.
+- **Scope:** CLI modifications.
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~40 prod
+- **Blocked by:** RC/ADAPT/1
+- **Blocking:** None
+
+#### RC/TEST/1 — Unit tests
+
+- **Status:** `CLOSED`
+- **User Story:** As a developer, I want comprehensive tests for the seek cache feature.
+- **Requirements:**
+  - `test/unit/domain/seekCache.test.js`: seekCacheKey determinism, WarpGraph integration with mock cache (hit/miss/error/degraded provenance).
+  - `test/unit/domain/utils/RefLayout.test.js`: buildSeekCacheRef tests.
+- **Scope:** Unit tests only (adapter integration tests deferred to Phase 2).
+- **Estimated Hours:** 2
+- **Estimated LOC:** ~250 test
+- **Blocked by:** RC/WIRE/1, RC/PROV/1
+- **Blocking:** None
+
 ---
 
 ## Non-Goals
@@ -2438,7 +2560,8 @@ Things this project should not try to become:
 | HOLOGRAM | 6 | 7 | 36 | ~1,780 |
 | ECHO | 3 | 3 | 17 | ~820 |
 | BULKHEAD | 5 | 15 | 49 | ~2,580 |
-| **Total** | **40** | **67** | **230** | **~11,510** |
+| RECALL | 6 | 6 | 12 | ~840 |
+| **Total** | **46** | **73** | **242** | **~12,350** |
 
 ---
 
@@ -2450,4 +2573,4 @@ parking lot so they aren't forgotten.
 | Idea | Description |
 |------|-------------|
 | **Structural seek diff** | Full `diffStates()` between arbitrary ticks returning added/removed nodes, edges, and properties — not just count deltas. Would power a `--diff` flag on `git warp seek` showing exactly what changed at each tick. |
-| **git-cas materialization cache** | Cache `WarpStateV5` at each visited ceiling tick as content-addressed blobs via `@git-stunts/git-cas`, enabling O(1) restoration for previously-visited ticks during seek exploration. Blobs naturally GC unless pinned to a vault. |
+| **git-cas materialization cache** | ~~Promoted to milestone RECALL (v10.4.0).~~ |
