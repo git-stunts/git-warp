@@ -2082,7 +2082,7 @@ function parseSeekArgs(args) {
   }
 
   // --diff is only meaningful for actions that navigate to a tick
-  const DIFF_ACTIONS = new Set(['status', 'tick', 'latest', 'load']);
+  const DIFF_ACTIONS = new Set(['tick', 'latest', 'load']);
   if (spec.diff && !DIFF_ACTIONS.has(spec.action)) {
     throw usageError(`--diff cannot be used with --${spec.action}`);
   }

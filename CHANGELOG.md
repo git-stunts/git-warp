@@ -24,7 +24,7 @@ Shows *which* nodes/edges were added/removed and *which* properties changed (wit
 
 ### Changed
 
-- **`parseSeekArgs()`**: Extracted `parseSeekNamedAction()` helper for `--save`/`--load`/`--drop` parsing, reducing cyclomatic complexity. Now rejects `--diff` on non-navigating actions (`--save`, `--drop`, `--list`, `--clear-cache`).
+- **`parseSeekArgs()`**: Extracted `parseSeekNamedAction()` helper for `--save`/`--load`/`--drop` parsing, reducing cyclomatic complexity. Now rejects `--diff` on non-navigating actions (`--save`, `--drop`, `--list`, `--clear-cache`, bare `status`).
 - **`handleSeek()`**: Extracted `handleSeekStatus()` to stay within ESLint `max-lines-per-function` limit. `--diff` skips redundant re-materialization when `computeStructuralDiff` already materialized the target tick.
 - **`computeStructuralDiff()`**: Short-circuits with an empty diff when `prevTick === currentTick`.
 - **`buildSeekBodyLines()`**: Extracted `buildFooterLines()` for state summary + receipt + structural diff rendering.

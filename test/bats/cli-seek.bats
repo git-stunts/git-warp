@@ -364,3 +364,9 @@ PY
   assert_failure
   echo "$output" | grep -qi "cannot be used"
 }
+
+@test "seek --diff on bare status is rejected" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --diff
+  assert_failure
+  echo "$output" | grep -qi "cannot be used"
+}
