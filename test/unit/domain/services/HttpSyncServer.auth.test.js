@@ -307,6 +307,44 @@ describe('HttpSyncServer auth integration', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // auth.mode validation
+  // ---------------------------------------------------------------------------
+  describe('auth.mode validation', () => {
+    it('defaults to enforce when mode is omitted', async () => {
+      const noModeMockPort = createMockPort();
+      const server = new HttpSyncServer(/** @type {any} */ ({
+        httpPort: noModeMockPort.port,
+        graph,
+        host: '127.0.0.1',
+        path: '/sync',
+        auth: { keys: KEYS, wallClockMs: () => Date.now() },
+      }));
+      await server.listen(9999);
+      const noModeHandler = noModeMockPort.getHandler();
+
+      // Unsigned request should be rejected (enforce mode)
+      const res = await noModeHandler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
+        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('throws on invalid auth.mode string', () => {
+      const badModeMockPort = createMockPort();
+      expect(() => new HttpSyncServer(/** @type {any} */ ({
+        httpPort: badModeMockPort.port,
+        graph,
+        host: '127.0.0.1',
+        path: '/sync',
+        auth: { keys: KEYS, mode: 'typo' },
+      }))).toThrow(/invalid auth\.mode/i);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // ordering: oversize body rejected before auth check (DoS guard)
   // ---------------------------------------------------------------------------
   describe('ordering', () => {

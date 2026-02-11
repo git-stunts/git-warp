@@ -646,6 +646,62 @@ describe('Constant-time compare guardrails', () => {
 });
 
 // ---------------------------------------------------------------------------
+// verify() nonce ordering
+// ---------------------------------------------------------------------------
+describe('verify() nonce ordering', () => {
+  it('does not consume nonce when signature is invalid', async () => {
+    const svc = makeService();
+
+    // Build a valid signed request, capture its nonce
+    const validReq = await buildSignedRequest();
+    const nonce = validReq.headers['x-warp-nonce'];
+
+    // Corrupt the signature — nonce should NOT be consumed
+    const badReq = {
+      ...validReq,
+      headers: { ...validReq.headers, 'x-warp-signature': 'a'.repeat(64) },
+    };
+    const r1 = await svc.verify(badReq);
+    expect(r1).toEqual({ ok: false, reason: 'INVALID_SIGNATURE', status: 401 });
+
+    // Now send the original valid request with the same nonce — should succeed
+    const r2 = await svc.verify(validReq);
+    expect(r2).toEqual({ ok: true });
+
+    // Confirm the nonce IS consumed after a valid request
+    const body = validReq.body;
+    const timestamp = String(FIXED_TIME);
+    const bodySha256 = await defaultCrypto.hash('sha256', body);
+    const canonical = buildCanonicalPayload({
+      keyId: KEY_ID,
+      method: 'POST',
+      path: '/sync',
+      timestamp,
+      nonce,
+      contentType: 'application/json',
+      bodySha256,
+    });
+    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
+    const signature = Buffer.from(hmacBuf).toString('hex');
+
+    const r3 = await svc.verify({
+      method: 'POST',
+      url: '/sync',
+      headers: {
+        'content-type': 'application/json',
+        'x-warp-sig-version': '1',
+        'x-warp-key-id': KEY_ID,
+        'x-warp-timestamp': timestamp,
+        'x-warp-nonce': nonce,
+        'x-warp-signature': signature,
+      },
+      body,
+    });
+    expect(r3).toEqual({ ok: false, reason: 'REPLAY', status: 403 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
 describe('Constructor', () => {

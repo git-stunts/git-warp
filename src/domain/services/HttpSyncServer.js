@@ -189,7 +189,12 @@ function parseBody(body) {
  */
 function initAuth(auth) {
   if (auth && auth.keys) {
-    return { auth: new SyncAuthService(auth), authMode: auth.mode || 'enforce' };
+    const VALID_MODES = new Set(['enforce', 'log-only']);
+    const mode = auth.mode || 'enforce';
+    if (!VALID_MODES.has(mode)) {
+      throw new Error(`Invalid auth.mode: '${mode}'. Must be 'enforce' or 'log-only'.`);
+    }
+    return { auth: new SyncAuthService(auth), authMode: mode };
   }
   return { auth: null, authMode: null };
 }

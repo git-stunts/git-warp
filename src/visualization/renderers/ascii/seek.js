@@ -359,14 +359,14 @@ function buildSeekBodyLines(payload) {
 function buildTruncationHint(opts) {
   const { totalEntries, shown, maxLines, truncated, totalChanges, shownChanges } = opts;
   if (totalEntries > maxLines && truncated) {
-    const omitted = (totalChanges || 0) - shown;
-    return `... and ${omitted} more changes (${totalChanges} total, use --diff-limit to increase)`;
+    const remaining = Math.max(0, (totalChanges || 0) - shown);
+    return `... and ${remaining} more changes (${totalChanges} total, use --diff-limit to increase)`;
   }
   if (totalEntries > maxLines) {
-    return `... and ${totalEntries - maxLines} more changes`;
+    return `... and ${Math.max(0, totalEntries - maxLines)} more changes`;
   }
   if (truncated) {
-    return `... and ${(totalChanges || 0) - (shownChanges || 0)} more changes (use --diff-limit to increase)`;
+    return `... and ${Math.max(0, (totalChanges || 0) - (shownChanges || 0))} more changes (use --diff-limit to increase)`;
   }
   return null;
 }

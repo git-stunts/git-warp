@@ -1981,8 +1981,8 @@ function handleDiffLimitFlag(arg, args, i, spec) {
       throw usageError('Missing value for --diff-limit');
     }
   }
-  const n = parseInt(raw, 10);
-  if (!Number.isInteger(n) || n < 1) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) {
     throw usageError(`Invalid --diff-limit value: ${raw}. Must be a positive integer.`);
   }
   spec.diffLimit = n;
@@ -2032,6 +2032,7 @@ function parseSeekArgs(args) {
     diff: false,
     diffLimit: 2000,
   };
+  let diffLimitProvided = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -2073,6 +2074,7 @@ function parseSeekArgs(args) {
       handleSeekBooleanFlag(arg, spec);
     } else if (arg === '--diff-limit' || arg.startsWith('--diff-limit=')) {
       handleDiffLimitFlag(arg, args, i, spec);
+      diffLimitProvided = true;
       if (arg === '--diff-limit') {
         i += 1;
       }
@@ -2085,6 +2087,9 @@ function parseSeekArgs(args) {
   const DIFF_ACTIONS = new Set(['tick', 'latest', 'load']);
   if (spec.diff && !DIFF_ACTIONS.has(spec.action)) {
     throw usageError(`--diff cannot be used with --${spec.action}`);
+  }
+  if (diffLimitProvided && !spec.diff) {
+    throw usageError('--diff-limit requires --diff');
   }
 
   return spec;
@@ -2578,7 +2583,7 @@ function applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit) {
     return { structuralDiff: diff, diffBaseline, baselineTick, truncated: false, totalChanges, shownChanges: totalChanges };
   }
 
-  // Truncate greedily in category order: nodes, edges, props
+  // Truncate sequentially (nodes → edges → props), keeping sort order within each category
   let remaining = diffLimit;
   const cap = (/** @type {any[]} */ arr) => {
     const take = Math.min(arr.length, remaining);

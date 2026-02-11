@@ -512,6 +512,35 @@ describe('structural diff edge cases', () => {
     expect(output).toContain('--diff-limit');
   });
 
+  it('never produces negative "more changes" count', () => {
+    // Edge case: entries in data are fewer than maxLines, but marked truncated
+    // with totalChanges smaller than shownChanges (pathological input)
+    const payload = {
+      graph: 'neg',
+      tick: 2,
+      maxTick: 2,
+      ticks: [1, 2],
+      nodes: 3,
+      edges: 0,
+      patchCount: 1,
+      perWriter: { alice: { ticks: [1, 2] } },
+      structuralDiff: {
+        nodes: { added: ['n1', 'n2', 'n3'], removed: [] },
+        edges: { added: [], removed: [] },
+        props: { set: [], removed: [] },
+      },
+      diffBaseline: 'tick',
+      baselineTick: 1,
+      truncated: true,
+      totalChanges: 2,  // less than actual entries (3) — pathological
+      shownChanges: 3,
+    };
+
+    const output = stripAnsi(renderSeekView(payload));
+    // Must not contain a negative number of remaining changes
+    expect(output).not.toMatch(/-\d+ more changes/);
+  });
+
   it('renders structural diff on latest action payload', () => {
     const payload = {
       graph: 'latest-test',

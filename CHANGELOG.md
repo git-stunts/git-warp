@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.6.1] — 2026-02-11 — Code Review Fixups
+
+Addresses code review feedback from PR #23 across SEEKDIFF and SHIELD features.
+
+### Fixed
+
+- **`SyncAuthService.verify()`**: Nonce is now reserved *after* signature verification, preventing valid nonces from being consumed by requests with invalid signatures.
+- **`HttpSyncServer.initAuth()`**: Validates `auth.mode` against allowed values (`'enforce'`, `'log-only'`), throwing on invalid strings instead of silently accepting them.
+- **`parseSeekArgs()`**: `--diff-limit` without `--diff` now throws a clear usage error instead of being silently ignored.
+- **`handleDiffLimitFlag()`**: Uses `Number()` instead of `parseInt()` to reject float values like `"1.5"` that were previously silently truncated to integers.
+- **`buildTruncationHint()`**: Clamps remaining-change counts to non-negative values, preventing display of negative counts with pathological inputs.
+- **`applyDiffLimit()`**: Comment corrected from "proportionally" to "sequentially" to match the actual greedy truncation behavior.
+
 ## [10.6.0] — 2026-02-11 — SHIELD: Hardened Sync Auth
 
 Adds HMAC-SHA256 request signing with replay protection to the HTTP sync protocol. Gated by an `auth` options object — when absent, behavior is unchanged (full backward compatibility).

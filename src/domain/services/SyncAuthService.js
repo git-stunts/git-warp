@@ -332,48 +332,50 @@ export default class SyncAuthService {
     const headerResult = this._validateHeaders(headers);
     if (!headerResult.ok) {
       this._metrics.malformedRejects += 1;
-      this._metrics.authFailCount += 1;
-      this._logger.warn('sync auth: header validation failed', { reason: headerResult.reason });
-      return headerResult;
+      return this._fail('header validation failed', { reason: headerResult.reason }, headerResult);
     }
 
     const { timestamp, nonce, keyId } = headerResult;
 
     const freshnessResult = this._validateFreshness(timestamp);
     if (!freshnessResult.ok) {
-      this._metrics.authFailCount += 1;
-      this._logger.warn('sync auth: clock skew rejected', { keyId, timestamp });
-      return freshnessResult;
-    }
-
-    const nonceResult = this._reserveNonce(nonce);
-    if (!nonceResult.ok) {
-      this._metrics.authFailCount += 1;
-      this._logger.warn('sync auth: replay detected', { keyId, nonce });
-      return nonceResult;
+      return this._fail('clock skew rejected', { keyId, timestamp }, freshnessResult);
     }
 
     const keyResult = this._resolveKey(keyId);
     if (!keyResult.ok) {
-      this._metrics.authFailCount += 1;
-      this._logger.warn('sync auth: unknown key-id', { keyId });
-      return keyResult;
+      return this._fail('unknown key-id', { keyId }, keyResult);
     }
 
     const sigResult = await this._verifySignature({
-      request,
-      secret: keyResult.secret,
-      keyId,
-      timestamp,
-      nonce,
+      request, secret: keyResult.secret, keyId, timestamp, nonce,
     });
     if (!sigResult.ok) {
-      this._metrics.authFailCount += 1;
-      this._logger.warn('sync auth: signature mismatch', { keyId });
-      return sigResult;
+      return this._fail('signature mismatch', { keyId }, sigResult);
+    }
+
+    // Reserve nonce only after signature verification succeeds to avoid
+    // consuming nonces for requests with invalid signatures.
+    const nonceResult = this._reserveNonce(nonce);
+    if (!nonceResult.ok) {
+      return this._fail('replay detected', { keyId, nonce }, nonceResult);
     }
 
     return { ok: true };
+  }
+
+  /**
+   * Records an auth failure and returns the result.
+   * @param {string} message
+   * @param {Record<string, *>} context
+   * @param {{ ok: false, reason: string, status: number }} result
+   * @returns {{ ok: false, reason: string, status: number }}
+   * @private
+   */
+  _fail(message, context, result) {
+    this._metrics.authFailCount += 1;
+    this._logger.warn(`sync auth: ${message}`, context);
+    return result;
   }
 
   /**

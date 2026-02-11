@@ -370,3 +370,15 @@ PY
   assert_failure
   echo "$output" | grep -qi "cannot be used"
 }
+
+@test "seek --diff-limit without --diff is rejected" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1 --diff-limit=10
+  assert_failure
+  echo "$output" | grep -qi "requires --diff"
+}
+
+@test "seek --diff-limit=1.5 is rejected as non-integer" {
+  run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1 --diff --diff-limit=1.5
+  assert_failure
+  echo "$output" | grep -qi "positive integer"
+}
