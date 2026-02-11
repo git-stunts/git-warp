@@ -3,7 +3,8 @@
   "include": [
     "src/**/*.js",
     "bin/warp-graph.js",
-    "scripts/**/*.js"
+    "scripts/**/*.js",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules"
