@@ -19,7 +19,7 @@ Adds `InMemoryGraphAdapter`, a zero-I/O implementation of `GraphPersistencePort`
 ### Fixed
 
 - **`InMemoryGraphAdapter.writeTree()`**: Rejects malformed mktree entries missing a tab separator instead of silently producing garbage.
-- **`InMemoryGraphAdapter._walkLog()`**: Replaced O(n) `queue.shift()` with index-pointer for O(1) dequeue.
+- **`InMemoryGraphAdapter._walkLog()`**: Replaced O(n) `queue.shift()` with index-pointer for O(1) dequeue; sort by date descending to match Git's reverse chronological ordering for merge DAGs.
 - **`adapterValidation.validateRef()`**: Removed redundant `startsWith('--')` check (already covered by `startsWith('-')`).
 
 ### Changed

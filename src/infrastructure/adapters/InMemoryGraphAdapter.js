@@ -438,7 +438,8 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
-   * Walks commit history from a ref, newest first, up to limit.
+   * Walks commit history from a ref, reverse chronological (newest first),
+   * up to limit. Matches `git log` default ordering for merge DAGs.
    * @param {string} ref
    * @param {number} limit
    * @returns {Array<{sha: string, message: string, author: string, date: string, parents: string[]}>}
@@ -449,12 +450,11 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       return [];
     }
     /** @type {Array<{sha: string, message: string, author: string, date: string, parents: string[]}>} */
-    const result = [];
+    const all = [];
     const visited = new Set();
-    // BFS with a queue (oldest commits first within each level, but tip is first overall)
     const queue = [tip];
     let head = 0;
-    while (head < queue.length && result.length < limit) {
+    while (head < queue.length) {
       const sha = /** @type {string} */ (queue[head++]);
       if (visited.has(sha)) {
         continue;
@@ -464,14 +464,16 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       if (!commit) {
         continue;
       }
-      result.push({ sha, ...commit });
+      all.push({ sha, ...commit });
       for (const p of commit.parents) {
         if (!visited.has(p)) {
           queue.push(p);
         }
       }
     }
-    return result;
+    // Sort by date descending (reverse chronological), matching git log
+    all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    return all.slice(0, limit);
   }
 
   /**

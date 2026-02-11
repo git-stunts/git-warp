@@ -84,6 +84,36 @@ describe('InMemoryGraphAdapter specifics', () => {
       .rejects.toThrow(/missing tab/i);
   });
 
+  it('_walkLog returns reverse chronological order for merge DAGs', async () => {
+    let t = 1000;
+    const clock = { now: () => t++ };
+    const adapter = new InMemoryGraphAdapter({ clock });
+
+    // Build a diamond DAG:  A -> B, A -> C, B+C -> D (merge)
+    const a = await adapter.commitNode({ message: 'a' }); // t=1000
+    const b = await adapter.commitNode({ message: 'b', parents: [a] }); // t=1001
+    const c = await adapter.commitNode({ message: 'c', parents: [a] }); // t=1002
+    const d = await adapter.commitNode({ message: 'd', parents: [b, c] }); // t=1003 (merge)
+    await adapter.updateRef('refs/warp/test/writers/merge', d);
+
+    const format = '%H%n%an <%ae>%n%aI%n%P%n%B';
+    const stream = await adapter.logNodesStream({
+      ref: 'refs/warp/test/writers/merge',
+      limit: 10,
+      format,
+    });
+
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const records = chunks.join('').split('\0').filter(Boolean);
+
+    // Should be reverse chronological: D (newest) first, A (oldest) last
+    const shas = records.map(r => r.split('\n')[0]);
+    expect(shas).toEqual([d, c, b, a]);
+  });
+
   it('listRefs returns sorted results', async () => {
     const adapter = new InMemoryGraphAdapter();
     const sha = await adapter.commitNode({ message: 'sort' });
