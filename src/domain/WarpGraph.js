@@ -2405,7 +2405,7 @@ export default class WarpGraph {
     }
 
     const authConfig = auth
-      ? { ...auth, crypto: this._crypto, logger: this._logger }
+      ? { ...auth, crypto: this._crypto, logger: this._logger || undefined }
       : undefined;
 
     const httpServer = new HttpSyncServer({

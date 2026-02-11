@@ -245,6 +245,7 @@ export default class HttpSyncServer {
     return null;
   }
 
+  /** @param {{ method: string, url: string, headers: { [x: string]: string }, body: Buffer|undefined }} request */
   async _handleRequest(request) {
     const contentTypeError = checkContentType(request.headers);
     if (contentTypeError) {

@@ -160,7 +160,7 @@ export default class SyncAuthService {
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger port
    * @param {() => number} [options.wallClockMs] - Wall clock function
    */
-  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs } = /** @type {*} */ ({})) {
+  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
