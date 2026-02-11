@@ -12,6 +12,7 @@ import { tmpdir } from 'os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
+import InMemoryGraphAdapter from '../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../src/domain/services/WarpMessageCodec.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
@@ -610,6 +611,25 @@ export async function createGitRepo(label = 'test') {
     await rm(tempDir, { recursive: true, force: true });
     throw err;
   }
+}
+
+/**
+ * Creates an in-memory persistence adapter (no Git subprocess, no filesystem).
+ * Drop-in replacement for createGitRepo() in tests that don't need real Git.
+ *
+ * @returns {{ persistence: InMemoryGraphAdapter, cleanup: () => Promise<void> }}
+ *
+ * @example
+ * let repo;
+ * beforeEach(() => { repo = createInMemoryRepo(); });
+ * // no cleanup needed, but cleanup() is provided for API compatibility
+ */
+export function createInMemoryRepo() {
+  const persistence = new InMemoryGraphAdapter();
+  return {
+    persistence,
+    async cleanup() { /* no-op */ },
+  };
 }
 
 // ============================================================================

@@ -152,7 +152,7 @@ All 12 milestones (77 tasks, ~255 human hours, ~13,100 LOC) have been implemente
 
 ### M2.T1.MEM-ADAPTER (A-Tier)
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **User Story:** As an architect, I need fast in-memory tests to validate risky logic quickly.
 
@@ -161,6 +161,8 @@ All 12 milestones (77 tasks, ~255 human hours, ~13,100 LOC) have been implemente
 - InMemoryGraphAdapter implementing GraphPersistencePort
 - parity behaviors with Git adapter (including integrity constraints where relevant)
 - shared tests run against both adapters
+
+**Delivered in v10.7.0.**
 
 **Acceptance Criteria:** domain suite passes on memory + git adapters
 

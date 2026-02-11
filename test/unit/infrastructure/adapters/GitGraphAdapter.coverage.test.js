@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
+import { describeAdapterConformance } from './AdapterConformance.js';
 
 /** @type {any} */
 let mockPlumbing;
@@ -397,4 +399,11 @@ describe('GitGraphAdapter coverage', () => {
         .rejects.toThrow(/non-empty string/);
     });
   });
+});
+
+// ── Conformance suite against a real Git repo ─────────────────────────────
+
+describeAdapterConformance('GitGraphAdapter', async () => {
+  const repo = await createGitRepo('conformance');
+  return { adapter: repo.persistence, cleanup: repo.cleanup };
 });

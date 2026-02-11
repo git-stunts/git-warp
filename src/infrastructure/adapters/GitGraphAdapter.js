@@ -45,6 +45,7 @@
 
 import { retry } from '@git-stunts/alfred';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
+import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
 
 /**
  * Transient Git errors that are safe to retry automatically.
@@ -374,30 +375,13 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   /**
    * Validates that a ref is safe to use in git commands.
-   * Prevents command injection via malicious ref names.
+   * Delegates to shared validation in adapterValidation.js.
    * @param {string} ref - The ref to validate
    * @throws {Error} If ref contains invalid characters, is too long, or starts with -/--
    * @private
    */
   _validateRef(ref) {
-    if (!ref || typeof ref !== 'string') {
-      throw new Error('Ref must be a non-empty string');
-    }
-    // Prevent buffer overflow attacks with extremely long refs
-    if (ref.length > 1024) {
-      throw new Error(`Ref too long: ${ref.length} chars. Maximum is 1024`);
-    }
-    // Prevent git option injection (must check before pattern matching)
-    if (ref.startsWith('-') || ref.startsWith('--')) {
-      throw new Error(`Invalid ref: ${ref}. Refs cannot start with - or --. See https://github.com/git-stunts/git-warp#security`);
-    }
-    // Allow alphanumeric, ., /, -, _ in names
-    // Allow ancestry operators: ^ or ~ optionally followed by digits
-    // Allow range operators: .. between names
-    const validRefPattern = /^[a-zA-Z0-9._/-]+((~\d*|\^\d*|\.\.[a-zA-Z0-9._/-]+)*)$/;
-    if (!validRefPattern.test(ref)) {
-      throw new Error(`Invalid ref format: ${ref}. Only alphanumeric characters, ., /, -, _, ^, ~, and range operators are allowed. See https://github.com/git-stunts/git-warp#ref-validation`);
-    }
+    validateRef(ref);
   }
 
   /**
@@ -546,42 +530,24 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   /**
    * Validates that an OID is safe to use in git commands.
+   * Delegates to shared validation in adapterValidation.js.
    * @param {string} oid - The OID to validate
    * @throws {Error} If OID is invalid
    * @private
    */
   _validateOid(oid) {
-    if (!oid || typeof oid !== 'string') {
-      throw new Error('OID must be a non-empty string');
-    }
-    if (oid.length > 64) {
-      throw new Error(`OID too long: ${oid.length} chars. Maximum is 64`);
-    }
-    const validOidPattern = /^[0-9a-fA-F]{4,64}$/;
-    if (!validOidPattern.test(oid)) {
-      throw new Error(`Invalid OID format: ${oid}`);
-    }
+    validateOid(oid);
   }
 
   /**
    * Validates that a limit is a safe positive integer.
+   * Delegates to shared validation in adapterValidation.js.
    * @param {number} limit - The limit to validate
    * @throws {Error} If limit is invalid
    * @private
    */
   _validateLimit(limit) {
-    if (typeof limit !== 'number' || !Number.isFinite(limit)) {
-      throw new Error('Limit must be a finite number');
-    }
-    if (!Number.isInteger(limit)) {
-      throw new Error('Limit must be an integer');
-    }
-    if (limit <= 0) {
-      throw new Error('Limit must be a positive integer');
-    }
-    if (limit > 10_000_000) {
-      throw new Error(`Limit too large: ${limit}. Maximum is 10,000,000`);
-    }
+    validateLimit(limit);
   }
 
   /**
@@ -721,26 +687,13 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
   /**
    * Validates that a config key is safe to use in git commands.
+   * Delegates to shared validation in adapterValidation.js.
    * @param {string} key - The config key to validate
    * @throws {Error} If key is invalid
    * @private
    */
   _validateConfigKey(key) {
-    if (!key || typeof key !== 'string') {
-      throw new Error('Config key must be a non-empty string');
-    }
-    if (key.length > 256) {
-      throw new Error(`Config key too long: ${key.length} chars. Maximum is 256`);
-    }
-    // Prevent git option injection
-    if (key.startsWith('-')) {
-      throw new Error(`Invalid config key: ${key}. Keys cannot start with -`);
-    }
-    // Allow section.subsection.key format
-    const validKeyPattern = /^[a-zA-Z][a-zA-Z0-9._-]*$/;
-    if (!validKeyPattern.test(key)) {
-      throw new Error(`Invalid config key format: ${key}`);
-    }
+    validateConfigKey(key);
   }
 
   /**
