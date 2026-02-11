@@ -89,7 +89,7 @@ export default class BitmapIndexReader {
    *   When exceeded, least recently used shards are evicted to free memory.
    * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort instance for checksum verification.
    */
-  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {*} */ ({})) {
+  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     if (!storage) {
       throw new Error('BitmapIndexReader requires a storage adapter');
     }
@@ -195,7 +195,7 @@ export default class BitmapIndexReader {
         shardPath,
         oid: this.shardOids.get(shardPath),
         reason: 'bitmap_deserialize_error',
-        context: { originalError: /** @type {any} */ (err).message },
+        context: { originalError: /** @type {any} */ (err).message }, // TODO(ts-cleanup): type error
       });
       this._handleShardError(corruptionError, {
         path: shardPath,
@@ -307,7 +307,7 @@ export default class BitmapIndexReader {
     if (this.strict) {
       throw err;
     }
-    /** @type {any} */
+    /** @type {any} */ // TODO(ts-cleanup): type lazy singleton
     const errAny = err;
     this.logger.warn('Shard validation warning', {
       operation: 'loadShard',
@@ -349,7 +349,7 @@ export default class BitmapIndexReader {
    */
   async _loadShardBuffer(path, oid) {
     try {
-      return await /** @type {any} */ (this.storage).readBlob(oid);
+      return await /** @type {any} */ (this.storage).readBlob(oid); // TODO(ts-cleanup): narrow port type
     } catch (cause) {
       throw new ShardLoadError('Failed to load shard from storage', {
         shardPath: path,

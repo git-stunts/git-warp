@@ -132,7 +132,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    * @returns {Promise<CacheIndex>} The mutated index
    */
   async _mutateIndex(mutate) {
-    /** @type {*} */
+    /** @type {*} */ // TODO(ts-cleanup): type CAS retry error
     let lastErr;
     for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
       const index = await this._readIndex();

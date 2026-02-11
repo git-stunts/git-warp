@@ -191,7 +191,7 @@ export default class HealthCheckService {
     } catch (err) {
       this._logger.warn('Repository ping failed', {
         operation: 'checkRepository',
-        error: /** @type {any} */ (err).message,
+        error: /** @type {any} */ (err).message, // TODO(ts-cleanup): type error
       });
       return {
         status: /** @type {'healthy'|'unhealthy'} */ (HealthStatus.UNHEALTHY),

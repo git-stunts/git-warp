@@ -20,14 +20,17 @@ else
   echo "  skipped (lychee not installed — brew install lychee)"
 fi
 
-# Run lint + typecheck in parallel (both are read-only)
-echo "Running pre-push lint + typecheck ratchet (parallel)..."
+# Run lint + typecheck + policy in parallel (all are read-only)
+echo "Running pre-push lint + typecheck + policy (parallel)..."
 npm run lint &
 LINT_PID=$!
-npm run typecheck:ratchet &
+npm run typecheck &
 TC_PID=$!
+npm run typecheck:policy &
+POLICY_PID=$!
 wait $LINT_PID || { echo "Lint failed"; exit 1; }
-wait $TC_PID || { echo "Typecheck ratchet failed"; exit 1; }
+wait $TC_PID || { echo "Typecheck failed"; exit 1; }
+wait $POLICY_PID || { echo "TS policy check failed"; exit 1; }
 
 # Build Docker image once, reuse for tests + benchmarks + BATS
 echo "Building Docker test image..."

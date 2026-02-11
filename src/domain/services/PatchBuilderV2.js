@@ -86,7 +86,7 @@ export class PatchBuilderV2 {
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger }) {
     /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} */
-    this._persistence = /** @type {*} */ (persistence);
+    this._persistence = /** @type {*} */ (persistence); // TODO(ts-cleanup): narrow port type
 
     /** @type {string} */
     this._graphName = graphName;
@@ -454,7 +454,7 @@ export class PatchBuilderV2 {
       schema,
       writer: this._writerId,
       lamport: this._lamport,
-      context: /** @type {*} */ (this._vv),
+      context: /** @type {*} */ (this._vv), // TODO(ts-cleanup): narrow port type
       ops: this._ops,
       reads: [...this._reads].sort(),
       writes: [...this._writes].sort(),

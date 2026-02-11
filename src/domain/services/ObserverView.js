@@ -102,7 +102,7 @@ export default class ObserverView {
     this._graph = graph;
 
     /** @type {LogicalTraversal} */
-    this.traverse = new LogicalTraversal(/** @type {*} */ (this));
+    this.traverse = new LogicalTraversal(/** @type {*} */ (this)); // TODO(ts-cleanup): type observer cast
   }
 
   /**
@@ -128,7 +128,7 @@ export default class ObserverView {
    * @private
    */
   async _materializeGraph() {
-    const materialized = await /** @type {*} */ (this._graph)._materializeGraph();
+    const materialized = await /** @type {*} */ (this._graph)._materializeGraph(); // TODO(ts-cleanup): narrow port type
     const { state, stateHash } = materialized;
 
     // Build filtered adjacency: only edges where both endpoints match
@@ -260,6 +260,6 @@ export default class ObserverView {
    * @returns {QueryBuilder} A query builder scoped to this observer
    */
   query() {
-    return new QueryBuilder(/** @type {*} */ (this));
+    return new QueryBuilder(/** @type {*} */ (this)); // TODO(ts-cleanup): type observer cast
   }
 }

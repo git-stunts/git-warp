@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
-// @ts-ignore — no type declarations for @git-stunts/plumbing
+// @ts-expect-error — no type declarations for @git-stunts/plumbing
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 import WarpGraph from '../src/domain/WarpGraph.js';
 import GitGraphAdapter from '../src/infrastructure/adapters/GitGraphAdapter.js';
@@ -489,7 +489,7 @@ async function openGraph(options) {
       throw notFoundError(`Graph not found: ${options.graph}`);
     }
   }
-  const graph = /** @type {WarpGraphInstance} */ (/** @type {*} */ (await WarpGraph.open({
+  const graph = /** @type {WarpGraphInstance} */ (/** @type {*} */ (await WarpGraph.open({ // TODO(ts-cleanup): narrow port type
     persistence,
     graphName,
     writerId: options.writer,
@@ -1199,7 +1199,7 @@ function applyQueryStep(builder, step) {
     return builder.incoming(step.label);
   }
   if (step.type === 'where-prop') {
-    return builder.where((/** @type {*} */ node) => matchesPropFilter(node, /** @type {string} */ (step.key), /** @type {string} */ (step.value)));
+    return builder.where((/** @type {*} */ node) => matchesPropFilter(node, /** @type {string} */ (step.key), /** @type {string} */ (step.value))); // TODO(ts-cleanup): type CLI payload
   }
   return builder;
 }
@@ -1278,7 +1278,7 @@ async function handlePath({ options, args }) {
       payload,
       exitCode: result.found ? EXIT_CODES.OK : EXIT_CODES.NOT_FOUND,
     };
-  } catch (/** @type {*} */ error) {
+  } catch (/** @type {*} */ error) { // TODO(ts-cleanup): type error
     if (error && error.code === 'NODE_NOT_FOUND') {
       throw notFoundError(error.message);
     }
@@ -1322,7 +1322,7 @@ async function handleCheck({ options }) {
 /** @param {Persistence} persistence */
 async function getHealth(persistence) {
   const clock = ClockAdapter.node();
-  const healthService = new HealthCheckService({ persistence: /** @type {*} */ (persistence), clock });
+  const healthService = new HealthCheckService({ persistence: /** @type {*} */ (persistence), clock }); // TODO(ts-cleanup): narrow port type
   return await healthService.getHealth();
 }
 
@@ -1462,15 +1462,15 @@ async function handleHistory({ options, args }) {
   const writerId = options.writer;
   let patches = await graph.getWriterPatches(writerId);
   if (cursorInfo.active) {
-    patches = patches.filter((/** @type {*} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick));
+    patches = patches.filter((/** @type {*} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick)); // TODO(ts-cleanup): type CLI payload
   }
   if (patches.length === 0) {
     throw notFoundError(`No patches found for writer: ${writerId}`);
   }
 
   const entries = patches
-    .filter((/** @type {*} */ { patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node))
-    .map((/** @type {*} */ { patch, sha }) => ({
+    .filter((/** @type {*} */ { patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node)) // TODO(ts-cleanup): type CLI payload
+    .map((/** @type {*} */ { patch, sha }) => ({ // TODO(ts-cleanup): type CLI payload
       sha,
       schema: patch.schema,
       lamport: patch.lamport,
@@ -1576,7 +1576,7 @@ async function handleMaterialize({ options }) {
     }
   }
 
-  const allFailed = results.every((r) => /** @type {*} */ (r).error);
+  const allFailed = results.every((r) => /** @type {*} */ (r).error); // TODO(ts-cleanup): type CLI payload
   return {
     payload: { graphs: results },
     exitCode: allFailed ? EXIT_CODES.INTERNAL : EXIT_CODES.OK,
@@ -1621,7 +1621,7 @@ function createHookInstaller() {
   const templateDir = path.resolve(__dirname, '..', 'hooks');
   const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'));
   return new HookInstaller({
-    fs: /** @type {*} */ (fs),
+    fs: /** @type {*} */ (fs), // TODO(ts-cleanup): narrow port type
     execGitConfig: execGitConfigValue,
     version,
     templateDir,
@@ -2455,7 +2455,7 @@ async function buildTickReceipt({ tick, perWriter, graph }) {
   const receipt = {};
 
   for (const [writerId, info] of perWriter) {
-    const sha = /** @type {*} */ (info?.tickShas)?.[tick];
+    const sha = /** @type {*} */ (info?.tickShas)?.[tick]; // TODO(ts-cleanup): type CLI payload
     if (!sha) {
       continue;
     }
@@ -2477,7 +2477,7 @@ async function buildTickReceipt({ tick, perWriter, graph }) {
  * @returns {string} Formatted output string (includes trailing newline)
  */
 function renderSeek(payload) {
-  const formatDelta = (/** @type {*} */ n) => {
+  const formatDelta = (/** @type {*} */ n) => { // TODO(ts-cleanup): type CLI payload
     if (typeof n !== 'number' || !Number.isFinite(n) || n === 0) {
       return '';
     }
@@ -2485,7 +2485,7 @@ function renderSeek(payload) {
     return ` (${sign}${n})`;
   };
 
-  const formatOpSummaryPlain = (/** @type {*} */ summary) => {
+  const formatOpSummaryPlain = (/** @type {*} */ summary) => { // TODO(ts-cleanup): type CLI payload
     const order = [
       ['NodeAdd', '+', 'node'],
       ['EdgeAdd', '+', 'edge'],
@@ -2652,14 +2652,14 @@ async function handleView({ options, args }) {
       : 'list';
 
   try {
-    // @ts-ignore — optional peer dependency, may not be installed
+    // @ts-expect-error — optional peer dependency, may not be installed
     const { startTui } = await import('@git-stunts/git-warp-tui');
     await startTui({
       repo: options.repo || '.',
       graph: options.graph || 'default',
       mode: viewMode,
     });
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
     if (err.code === 'ERR_MODULE_NOT_FOUND' || (err.message && err.message.includes('Cannot find module'))) {
       throw usageError(
         'Interactive TUI requires @git-stunts/git-warp-tui.\n' +

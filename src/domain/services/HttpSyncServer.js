@@ -177,7 +177,7 @@ export default class HttpSyncServer {
    * @param {string} [options.host='127.0.0.1'] - Host to bind
    * @param {number} [options.maxRequestBytes=4194304] - Maximum request body size in bytes
    */
-  constructor({ httpPort, graph, path = '/sync', host = '127.0.0.1', maxRequestBytes = DEFAULT_MAX_REQUEST_BYTES } = /** @type {*} */ ({})) {
+  constructor({ httpPort, graph, path = '/sync', host = '127.0.0.1', maxRequestBytes = DEFAULT_MAX_REQUEST_BYTES } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     this._httpPort = httpPort;
     this._graph = graph;
     this._path = path && path.startsWith('/') ? path : `/${path || 'sync'}`;
@@ -213,7 +213,7 @@ export default class HttpSyncServer {
       const response = await this._graph.processSyncRequest(parsed);
       return jsonResponse(response);
     } catch (err) {
-      return errorResponse(500, /** @type {any} */ (err)?.message || 'Sync failed');
+      return errorResponse(500, /** @type {any} */ (err)?.message || 'Sync failed'); // TODO(ts-cleanup): type error
     }
   }
 
@@ -229,11 +229,11 @@ export default class HttpSyncServer {
       throw new Error('listen() requires a numeric port');
     }
 
-    const server = this._httpPort.createServer((/** @type {*} */ request) => this._handleRequest(request));
+    const server = this._httpPort.createServer((/** @type {*} */ request) => this._handleRequest(request)); // TODO(ts-cleanup): type http callback
     this._server = server;
 
     await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server.listen(port, this._host, (/** @type {*} */ err) => {
+      server.listen(port, this._host, (/** @type {*} */ err) => { // TODO(ts-cleanup): type http callback
         if (err) {
           reject(err);
         } else {
@@ -250,7 +250,7 @@ export default class HttpSyncServer {
       url,
       close: () =>
         /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-          server.close((/** @type {*} */ err) => {
+          server.close((/** @type {*} */ err) => { // TODO(ts-cleanup): type http callback
             if (err) {
               reject(err);
             } else {

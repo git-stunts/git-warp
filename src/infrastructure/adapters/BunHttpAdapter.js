@@ -106,7 +106,7 @@ function createFetchHandler(requestHandler, logger) {
       const portReq = await toPortRequest(request);
       const portRes = await requestHandler(portReq);
       return toResponse(portRes);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
       if (err.status === 413) {
         return new Response(PAYLOAD_TOO_LARGE, {
           status: 413,
@@ -204,7 +204,7 @@ export default class BunHttpAdapter extends HttpServerPort {
       listen(port, host, callback) {
         const cb = typeof host === 'function' ? host : callback;
         const bindHost = typeof host === 'string' ? host : undefined;
-        /** @type {*} */
+        /** @type {*} */ // TODO(ts-cleanup): type Bun.serve options
         const serveOptions = { port, fetch: fetchHandler };
 
         if (bindHost !== undefined) {

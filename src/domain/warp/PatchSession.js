@@ -176,7 +176,7 @@ export class PatchSession {
       const sha = await this._builder.commit();
       this._committed = true;
       return sha;
-    } catch (/** @type {any} */ err) {
+    } catch (/** @type {any} */ err) { // TODO(ts-cleanup): type error
       // Check if it's a concurrent commit error from PatchBuilderV2
       if (err.message?.includes('Concurrent commit detected') ||
           err.message?.includes('has advanced')) {

@@ -50,7 +50,7 @@ export default class IndexRebuildService {
    * @throws {Error} If graphService is not provided
    * @throws {Error} If storage adapter is not provided
    */
-  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {*} */ ({})) {
+  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     if (!graphService) {
       throw new Error('IndexRebuildService requires a graphService');
     }
@@ -156,7 +156,7 @@ export default class IndexRebuildService {
         operation: 'rebuild',
         ref,
         mode,
-        error: /** @type {any} */ (err).message,
+        error: /** @type {any} */ (err).message, // TODO(ts-cleanup): type error
         durationMs,
       });
       throw err;
@@ -247,7 +247,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier }) {
-    const builder = new StreamingBitmapIndexBuilder(/** @type {*} */ ({
+    const builder = new StreamingBitmapIndexBuilder(/** @type {*} */ ({ // TODO(ts-cleanup): narrow port type
       storage: this.storage,
       maxMemoryBytes,
       onFlush,
@@ -266,7 +266,7 @@ export default class IndexRebuildService {
       if (processedNodes % 10000 === 0) {
         checkAborted(signal, 'rebuild');
         if (onProgress) {
-          const stats = /** @type {any} */ (builder).getMemoryStats();
+          const stats = /** @type {any} */ (builder).getMemoryStats(); // TODO(ts-cleanup): narrow port type
           onProgress({
             processedNodes,
             currentMemoryBytes: stats.estimatedBitmapBytes,
@@ -275,7 +275,7 @@ export default class IndexRebuildService {
       }
     }
 
-    return await /** @type {any} */ (builder).finalize({ signal, frontier });
+    return await /** @type {any} */ (builder).finalize({ signal, frontier }); // TODO(ts-cleanup): narrow port type
   }
 
   /**
@@ -389,7 +389,7 @@ export default class IndexRebuildService {
 
     // Staleness check
     if (currentFrontier) {
-      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {*} */ (this.storage), { codec: this._codec });
+      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {*} */ (this.storage), { codec: this._codec }); // TODO(ts-cleanup): narrow port type
       if (indexFrontier) {
         const result = checkStaleness(indexFrontier, currentFrontier);
         if (result.stale) {

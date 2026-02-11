@@ -139,8 +139,8 @@ export default class StreamingBitmapIndexBuilder {
     /** @type {number} Number of flush operations performed */
     this.flushCount = 0;
 
-    /** @type {any} Cached Roaring bitmap constructor */
-    this._RoaringBitmap32 = getRoaringBitmap32();
+    /** @type {any} Cached Roaring bitmap constructor */ // TODO(ts-cleanup): type lazy singleton
+    this._RoaringBitmap32 = getRoaringBitmap32(); // TODO(ts-cleanup): type lazy singleton
   }
 
   /**
@@ -238,7 +238,7 @@ export default class StreamingBitmapIndexBuilder {
               data: shardData,
             };
             const buffer = Buffer.from(JSON.stringify(envelope));
-            const oid = await /** @type {any} */ (this.storage).writeBlob(buffer);
+            const oid = await /** @type {any} */ (this.storage).writeBlob(buffer); // TODO(ts-cleanup): narrow port type
             if (!this.flushedChunks.has(path)) {
               this.flushedChunks.set(path, []);
             }
@@ -348,7 +348,7 @@ export default class StreamingBitmapIndexBuilder {
           data: map,
         };
         const buffer = Buffer.from(JSON.stringify(envelope));
-        const oid = await /** @type {any} */ (this.storage).writeBlob(buffer);
+        const oid = await /** @type {any} */ (this.storage).writeBlob(buffer); // TODO(ts-cleanup): narrow port type
         return `100644 blob ${oid}\t${path}`;
       })
     );
@@ -446,13 +446,13 @@ export default class StreamingBitmapIndexBuilder {
         sorted[key] = frontier.get(key);
       }
       const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
-      const cborOid = await /** @type {any} */ (this.storage).writeBlob(Buffer.from(/** @type {any} */ (this._codec).encode(envelope)));
+      const cborOid = await /** @type {any} */ (this.storage).writeBlob(Buffer.from(/** @type {any} */ (this._codec).encode(envelope))); // TODO(ts-cleanup): narrow port type
       flatEntries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
-      const jsonOid = await /** @type {any} */ (this.storage).writeBlob(Buffer.from(canonicalStringify(envelope)));
+      const jsonOid = await /** @type {any} */ (this.storage).writeBlob(Buffer.from(canonicalStringify(envelope))); // TODO(ts-cleanup): narrow port type
       flatEntries.push(`100644 blob ${jsonOid}\tfrontier.json`);
     }
 
-    const treeOid = await /** @type {any} */ (this.storage).writeTree(flatEntries);
+    const treeOid = await /** @type {any} */ (this.storage).writeTree(flatEntries); // TODO(ts-cleanup): narrow port type
 
     this.logger.debug('Index finalized', {
       operation: 'finalize',
@@ -569,7 +569,7 @@ export default class StreamingBitmapIndexBuilder {
    * @private
    */
   async _loadAndValidateChunk(oid) {
-    const buffer = await /** @type {any} */ (this.storage).readBlob(oid);
+    const buffer = await /** @type {any} */ (this.storage).readBlob(oid); // TODO(ts-cleanup): narrow port type
     let envelope;
     try {
       envelope = JSON.parse(buffer.toString('utf-8'));
@@ -577,7 +577,7 @@ export default class StreamingBitmapIndexBuilder {
       throw new ShardCorruptionError('Failed to parse shard JSON', {
         oid,
         reason: 'invalid_format',
-        context: { originalError: /** @type {any} */ (err).message },
+        context: { originalError: /** @type {any} */ (err).message }, // TODO(ts-cleanup): type error
       });
     }
 
@@ -631,7 +631,7 @@ export default class StreamingBitmapIndexBuilder {
       throw new ShardCorruptionError('Failed to deserialize bitmap', {
         oid,
         reason: 'invalid_bitmap',
-        context: { originalError: /** @type {any} */ (err).message },
+        context: { originalError: /** @type {any} */ (err).message }, // TODO(ts-cleanup): type error
       });
     }
 
@@ -707,9 +707,9 @@ export default class StreamingBitmapIndexBuilder {
     } catch (err) {
       throw new ShardCorruptionError('Failed to serialize merged shard', {
         reason: 'serialization_error',
-        context: { originalError: /** @type {any} */ (err).message },
+        context: { originalError: /** @type {any} */ (err).message }, // TODO(ts-cleanup): type error
       });
     }
-    return /** @type {any} */ (this.storage).writeBlob(serialized);
+    return /** @type {any} */ (this.storage).writeBlob(serialized); // TODO(ts-cleanup): narrow port type
   }
 }

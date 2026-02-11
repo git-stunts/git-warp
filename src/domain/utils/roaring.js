@@ -32,7 +32,7 @@ const NOT_CHECKED = Symbol('NOT_CHECKED');
 
 /**
  * Cached reference to the loaded roaring module.
- * @type {any}
+ * @type {any} // TODO(ts-cleanup): type lazy singleton
  * @private
  */
 let roaringModule = null;

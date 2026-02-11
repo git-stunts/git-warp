@@ -572,7 +572,7 @@ export default class WarpGraph {
     // Eager re-materialize: apply the just-committed patch to cached state
     // Only when the cache is clean — applying a patch to stale state would be incorrect
     if (this._cachedState && !this._stateDirty && patch && sha) {
-      joinPatch(this._cachedState, /** @type {any} */ (patch), sha);
+      joinPatch(this._cachedState, /** @type {any} */ (patch), sha); // TODO(ts-cleanup): type patch array
       await this._setMaterializedState(this._cachedState);
       // Update provenance index with new patch
       if (this._provenanceIndex) {
@@ -653,16 +653,16 @@ export default class WarpGraph {
       if (checkpoint?.schema === 2 || checkpoint?.schema === 3) {
         const patches = await this._loadPatchesSince(checkpoint);
         if (collectReceipts) {
-          const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (checkpoint.state), { receipts: true }));
+          const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (checkpoint.state), { receipts: true })); // TODO(ts-cleanup): type patch array
           state = result.state;
           receipts = result.receipts;
         } else {
-          state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (checkpoint.state)));
+          state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (checkpoint.state))); // TODO(ts-cleanup): type patch array
         }
         patchCount = patches.length;
 
         // Build provenance index: start from checkpoint index if present, then add new patches
-        const ckPI = /** @type {any} */ (checkpoint).provenanceIndex;
+        const ckPI = /** @type {any} */ (checkpoint).provenanceIndex; // TODO(ts-cleanup): type checkpoint cast
         this._provenanceIndex = ckPI
           ? ckPI.clone()
           : new ProvenanceIndex();
@@ -698,11 +698,11 @@ export default class WarpGraph {
           } else {
             // 5. Reduce all patches to state
             if (collectReceipts) {
-              const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true }));
+              const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true })); // TODO(ts-cleanup): type patch array
               state = result.state;
               receipts = result.receipts;
             } else {
-              state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches)));
+              state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches))); // TODO(ts-cleanup): type patch array
             }
             patchCount = allPatches.length;
 
@@ -882,11 +882,11 @@ export default class WarpGraph {
         receipts = [];
       }
     } else if (collectReceipts) {
-      const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true }));
+      const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true })); // TODO(ts-cleanup): type patch array
       state = result.state;
       receipts = result.receipts;
     } else {
-      state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches)));
+      state = /** @type {import('./services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches))); // TODO(ts-cleanup): type patch array
     }
 
     this._provenanceIndex = new ProvenanceIndex();
@@ -1086,7 +1086,7 @@ export default class WarpGraph {
 
     // 4. Call materializeIncremental with the checkpoint and target frontier
     const state = await materializeIncremental({
-      persistence: /** @type {any} */ (this._persistence),
+      persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
       graphName: this._graphName,
       checkpointSha,
       targetFrontier,
@@ -1142,7 +1142,7 @@ export default class WarpGraph {
 
       // 4. Call CheckpointService.create() with provenance index if available
       const checkpointSha = await createCheckpointCommit({
-        persistence: /** @type {any} */ (this._persistence),
+        persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
         graphName: this._graphName,
         state,
         frontier,
@@ -2077,7 +2077,7 @@ export default class WarpGraph {
     return await processSyncRequest(
       request,
       localFrontier,
-      /** @type {any} */ (this._persistence),
+      /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
       this._graphName,
       { codec: this._codec }
     );
@@ -2105,7 +2105,7 @@ export default class WarpGraph {
       });
     }
 
-    const currentFrontier = /** @type {any} */ (this._cachedState.observedFrontier);
+    const currentFrontier = /** @type {any} */ (this._cachedState.observedFrontier); // TODO(ts-cleanup): narrow port type
     const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} */ (applySyncResponse(response, this._cachedState, currentFrontier));
 
     // Update cached state
@@ -2204,11 +2204,11 @@ export default class WarpGraph {
     let attempt = 0;
     const emit = (/** @type {string} */ type, /** @type {Record<string, any>} */ payload = {}) => {
       if (typeof onStatus === 'function') {
-        onStatus(/** @type {any} */ ({ type, attempt, ...payload }));
+        onStatus(/** @type {any} */ ({ type, attempt, ...payload })); // TODO(ts-cleanup): type sync protocol
       }
     };
 
-    const shouldRetry = (/** @type {any} */ err) => {
+    const shouldRetry = (/** @type {any} */ err) => { // TODO(ts-cleanup): type error
       if (isDirectPeer) { return false; }
       if (err instanceof SyncError) {
         return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
@@ -2249,7 +2249,7 @@ export default class WarpGraph {
             });
           });
         } catch (err) {
-          if (/** @type {any} */ (err)?.name === 'AbortError') {
+          if (/** @type {any} */ (err)?.name === 'AbortError') { // TODO(ts-cleanup): type error
             throw new OperationAbortedError('syncWith', { reason: 'Signal received' });
           }
           if (err instanceof TimeoutError) {
@@ -2260,7 +2260,7 @@ export default class WarpGraph {
           }
           throw new SyncError('Network error', {
             code: 'E_SYNC_NETWORK',
-            context: { message: /** @type {any} */ (err)?.message },
+            context: { message: /** @type {any} */ (err)?.message }, // TODO(ts-cleanup): type error
           });
         }
 
@@ -2323,7 +2323,7 @@ export default class WarpGraph {
         shouldRetry,
         onRetry: (/** @type {Error} */ error, /** @type {number} */ attemptNumber, /** @type {number} */ delayMs) => {
           if (typeof onStatus === 'function') {
-            onStatus(/** @type {any} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error }));
+            onStatus(/** @type {any} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error })); // TODO(ts-cleanup): type sync protocol
           }
         },
       });
@@ -2337,7 +2337,7 @@ export default class WarpGraph {
       return syncResult;
     } catch (err) {
       this._logTiming('syncWith', t0, { error: /** @type {Error} */ (err) });
-      if (/** @type {any} */ (err)?.name === 'AbortError') {
+      if (/** @type {any} */ (err)?.name === 'AbortError') { // TODO(ts-cleanup): type error
         const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
         if (typeof onStatus === 'function') {
           onStatus({ type: 'failed', attempt, error: abortedError });
@@ -2371,7 +2371,7 @@ export default class WarpGraph {
    * @throws {Error} If port is not a number
    * @throws {Error} If httpPort adapter is not provided
    */
-  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort } = /** @type {any} */ ({})) {
+  async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort } = /** @type {any} */ ({})) { // TODO(ts-cleanup): needs options type
     if (typeof port !== 'number') {
       throw new Error('serve() requires a numeric port');
     }
@@ -2428,13 +2428,13 @@ export default class WarpGraph {
     });
 
     return new Writer({
-      persistence: /** @type {any} */ (this._persistence),
+      persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
       graphName: this._graphName,
       writerId: resolvedWriterId,
       versionVector: this._versionVector,
-      getCurrentState: () => /** @type {any} */ (this._cachedState),
+      getCurrentState: () => /** @type {any} */ (this._cachedState), // TODO(ts-cleanup): narrow port type
       onDeleteWithData: this._onDeleteWithData,
-      onCommitSuccess: (/** @type {any} */ opts) => this._onPatchCommitted(resolvedWriterId, opts),
+      onCommitSuccess: (/** @type {any} */ opts) => this._onPatchCommitted(resolvedWriterId, opts), // TODO(ts-cleanup): type sync protocol
       codec: this._codec,
     });
   }
@@ -2482,13 +2482,13 @@ export default class WarpGraph {
     }
 
     return new Writer({
-      persistence: /** @type {any} */ (this._persistence),
+      persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
       graphName: this._graphName,
       writerId: freshWriterId,
       versionVector: this._versionVector,
-      getCurrentState: () => /** @type {any} */ (this._cachedState),
+      getCurrentState: () => /** @type {any} */ (this._cachedState), // TODO(ts-cleanup): narrow port type
       onDeleteWithData: this._onDeleteWithData,
-      onCommitSuccess: (/** @type {any} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts),
+      onCommitSuccess: (/** @type {any} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts), // TODO(ts-cleanup): type sync protocol
       codec: this._codec,
     });
   }
@@ -3127,7 +3127,7 @@ export default class WarpGraph {
     const t0 = this._clock.now();
 
     try {
-      const wormhole = await createWormholeImpl(/** @type {any} */ ({
+      const wormhole = await createWormholeImpl(/** @type {any} */ ({ // TODO(ts-cleanup): needs options type
         persistence: this._persistence,
         graphName: this._graphName,
         fromSha,
@@ -3345,7 +3345,7 @@ export default class WarpGraph {
         cone.set(sha, patch);
 
         // Add read dependencies to the queue
-        const patchReads = /** @type {any} */ (patch)?.reads;
+        const patchReads = /** @type {any} */ (patch)?.reads; // TODO(ts-cleanup): type patch array
         if (patchReads) {
           for (const readEntity of patchReads) {
             if (!visited.has(readEntity)) {

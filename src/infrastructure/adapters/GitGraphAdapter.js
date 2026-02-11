@@ -124,7 +124,7 @@ async function refExists(execute, ref) {
   try {
     await execute({ args: ['show-ref', '--verify', '--quiet', ref] });
     return true;
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
     if (getExitCode(err) === 1) {
       return false;
     }
@@ -523,7 +523,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['rev-parse', ref]
       });
       return oid.trim();
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
       if (getExitCode(err) === 1) {
         return null;
       }
@@ -596,7 +596,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     try {
       await this._executeWithRetry({ args: ['cat-file', '-e', sha] });
       return true;
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
       if (getExitCode(err) === 1) {
         return false;
       }
@@ -672,7 +672,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['merge-base', '--is-ancestor', potentialAncestor, descendant]
       });
       return true;  // Exit code 0 means it IS an ancestor
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
       if (this._getExitCode(err) === 1) {
         return false; // Exit code 1 means it is NOT an ancestor
       }
@@ -694,7 +694,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       });
       // Preserve empty-string values; only drop trailing newline
       return value.replace(/\n$/, '');
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
       if (this._isConfigKeyNotFound(err)) {
         return null;
       }

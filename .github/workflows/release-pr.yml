@@ -26,8 +26,11 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      - name: TypeScript ratchet
-        run: npm run typecheck:ratchet
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: TS policy
+        run: npm run typecheck:policy
 
       - name: Test
         run: npm run test:local --if-present

@@ -675,7 +675,7 @@ export default class QueryBuilder {
    * @throws {QueryError} If an unknown select field is specified (code: E_QUERY_SELECT_FIELD)
    */
   async run() {
-    const materialized = await /** @type {any} */ (this._graph)._materializeGraph();
+    const materialized = await /** @type {any} */ (this._graph)._materializeGraph(); // TODO(ts-cleanup): narrow port type
     const { adjacency, stateHash } = materialized;
     const allNodes = sortIds(await this._graph.getNodes());
 
@@ -805,7 +805,7 @@ export default class QueryBuilder {
       for (const nodeId of workingSet) {
         const propsMap = (await this._graph.getNodeProps(nodeId)) || new Map();
         for (const { segments, values } of propsByAgg.values()) {
-          /** @type {*} */
+          /** @type {*} */ // TODO(ts-cleanup): type deep property traversal
           let value = propsMap.get(segments[0]);
           for (let i = 1; i < segments.length; i++) {
             if (value && typeof value === 'object') {

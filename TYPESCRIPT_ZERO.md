@@ -51,10 +51,10 @@ Current errors: **src: 0 | test: 0 | total: 0**
   - [x] `bin/warp-graph.js` (0 errors)
   - [x] `scripts/` batch (0 errors)
 
-- [ ] **B3. Policy enforcement**
-  - [ ] `@ts-expect-error` over `@type {*}` for intentional edge cases
-  - [ ] Any `@type {*}` MUST have `// TODO(ts-cleanup): reason`
-  - [ ] CI grep fails on untracked wildcard casts
+- [x] **B3. Policy enforcement**
+  - [x] `@ts-expect-error` over `@ts-ignore` for all suppression comments
+  - [x] Any `@type {*}` MUST have `// TODO(ts-cleanup): reason`
+  - [x] CI policy check fails on untagged wildcard casts (`scripts/ts-policy-check.js`)
 
 ## Stage C — Test Cleanup (`test/`)
 
@@ -75,7 +75,7 @@ Current errors: **src: 0 | test: 0 | total: 0**
 - [x] `npm run typecheck` exits 0
 - [x] `npm run lint` passes
 - [x] `npm run test:local` passes
-- [ ] Pre-push hook works
-- [ ] CI pipeline passes
-- [ ] Remove baseline ratchet (zero is absolute)
-- [ ] Hard gate: `tsc --noEmit` exit code in CI
+- [x] Pre-push hook works
+- [x] CI pipeline passes
+- [x] Remove baseline ratchet (zero is absolute)
+- [x] Hard gate: `tsc --noEmit` exit code in CI

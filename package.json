@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "10.4.1",
+  "version": "10.4.2",
   "description": "Deterministic WARP graph over Git: graph-native storage, traversal, and tooling.",
   "type": "module",
   "license": "Apache-2.0",
@@ -88,7 +88,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:src": "tsc --noEmit -p tsconfig.src.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
-    "typecheck:ratchet": "node scripts/ts-ratchet.js"
+    "typecheck:policy": "node scripts/ts-policy-check.js"
   },
   "optionalDependencies": {
     "@git-stunts/git-cas": "^3.0.0"

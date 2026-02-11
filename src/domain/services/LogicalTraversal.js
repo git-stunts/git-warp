@@ -152,7 +152,7 @@ export default class LogicalTraversal {
    * @throws {TraversalError} If the labelFilter is invalid (INVALID_LABEL_FILTER)
    */
   async _prepare(start, { dir, labelFilter, maxDepth }) {
-    const materialized = await /** @type {any} */ (this._graph)._materializeGraph();
+    const materialized = await /** @type {any} */ (this._graph)._materializeGraph(); // TODO(ts-cleanup): narrow port type
 
     if (!(await this._graph.hasNode(start))) {
       throw new TraversalError(`Start node not found: ${start}`, {

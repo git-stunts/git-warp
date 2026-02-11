@@ -37,7 +37,7 @@ export default class DagTopology {
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger instance
    * @param {import('./DagTraversal.js').default} [options.traversal] - Traversal service for ancestor enumeration
    */
-  constructor(/** @type {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default, traversal?: import('./DagTraversal.js').default }} */ { indexReader, logger = nullLogger, traversal } = /** @type {*} */ ({})) {
+  constructor(/** @type {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default, traversal?: import('./DagTraversal.js').default }} */ { indexReader, logger = nullLogger, traversal } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     if (!indexReader) {
       throw new Error('DagTopology requires an indexReader');
     }

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.4.2] — 2026-02-10 — TS policy enforcement (B3)
+
+### Added
+
+- **`scripts/ts-policy-check.js`**: Standalone policy checker that walks `src/`, `bin/`, `scripts/` and enforces two rules: (1) no `@ts-ignore` — use `@ts-expect-error` instead, (2) every inline `@type {*}` / `@type {any}` cast must carry a `// TODO(ts-cleanup): reason` tag.
+- **`typecheck:policy` npm script**: Runs the policy checker (`node scripts/ts-policy-check.js`).
+- **CI enforcement**: Policy check step added to both `ci.yml` (lint job) and `release-pr.yml` (preflight job), after the existing TypeScript step.
+- **Pre-push hook**: Policy check runs in parallel with lint and typecheck.
+
+### Changed
+
+- **`@ts-ignore` → `@ts-expect-error`** across 3 source files and 4 test files. `@ts-expect-error` is strictly better: it errors when the suppression becomes unnecessary.
+- **~108 wildcard casts tagged** with `// TODO(ts-cleanup): reason` across ~30 source files in `src/`, `bin/`, and `scripts/`. Categorized reasons: `needs options type`, `type error`, `narrow port type`, `type patch array`, `type CLI payload`, `type http callback`, `type sync protocol`, `type lazy singleton`, `type observer cast`, and others.
+- **`TYPESCRIPT_ZERO.md`**: B3 (Policy enforcement) marked complete.
+
 ## [10.4.1] — 2026-02-10 — Default crypto & join() fix
 
 ### Added
