@@ -455,11 +455,12 @@ describe('renderSeekView', () => {
 
 describe('formatStructuralDiff', () => {
   it('returns empty string when no structuralDiff', () => {
-    expect(formatStructuralDiff({})).toBe('');
-    expect(formatStructuralDiff({ structuralDiff: null })).toBe('');
+    expect(formatStructuralDiff(/** @type {*} */ ({}))).toBe('');
+    expect(formatStructuralDiff(/** @type {*} */ ({ structuralDiff: null }))).toBe('');
   });
 
   it('formats structural diff as plain text', () => {
+    /** @type {*} */
     const payload = {
       structuralDiff: {
         nodes: { added: ['n1'], removed: [] },

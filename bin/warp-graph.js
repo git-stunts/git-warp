@@ -64,7 +64,7 @@ import { layoutGraph, queryResultToGraphData, pathResultToGraphData } from '../s
  * @property {() => Promise<Map<string, any>>} getFrontier
  * @property {() => {totalTombstones: number, tombstoneRatio: number}} getGCMetrics
  * @property {() => Promise<number>} getPropertyCount
- * @property {() => Promise<import('./src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
+ * @property {() => Promise<import('../src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
  * @property {(sha: string) => Promise<{ops?: any[]}>} loadPatchBySha
  * @property {(cache: any) => void} setSeekCache
@@ -2553,7 +2553,7 @@ async function computeStructuralDiff({ graph, prevTick, currentTick, diffLimit }
   }
 
   await graph.materialize({ ceiling: currentTick });
-  const afterState = await graph.getStateSnapshot();
+  const afterState = /** @type {*} */ (await graph.getStateSnapshot()); // TODO(ts-cleanup): narrow WarpStateV5
   const diff = diffStates(beforeState, afterState);
 
   return applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit);

@@ -17,7 +17,7 @@ import { formatOpSummary } from './opSummary.js';
 
 /**
  * @typedef {{ ticks: number[], tipSha?: string, tickShas?: Record<number, string> }} WriterInfo
- * @typedef {{ graph: string, tick: number, maxTick: number, ticks: number[], nodes: number, edges: number, patchCount: number, perWriter: Map<string, WriterInfo> | Record<string, WriterInfo>, diff?: { nodes?: number, edges?: number }, tickReceipt?: Record<string, any> }} SeekPayload
+ * @typedef {{ graph: string, tick: number, maxTick: number, ticks: number[], nodes: number, edges: number, patchCount: number, perWriter: Map<string, WriterInfo> | Record<string, WriterInfo>, diff?: { nodes?: number, edges?: number }, tickReceipt?: Record<string, any>, structuralDiff?: import('../../../domain/services/StateDiff.js').StateDiffResult | null, diffBaseline?: string, baselineTick?: number | null, truncated?: boolean, totalChanges?: number, shownChanges?: number }} SeekPayload
  */
 
 /** Maximum number of tick columns shown in the windowed view. */
@@ -339,6 +339,31 @@ function buildSeekBodyLines(payload) {
  * @param {number} maxLines - Maximum number of change lines to show
  * @returns {string[]} Lines for the structural diff section
  */
+/**
+ * Builds a truncation hint line when entries exceed the display or data limit.
+ * @param {{totalEntries: number, shown: number, maxLines: number, truncated?: boolean, totalChanges?: number, shownChanges?: number}} opts
+ * @returns {string|null}
+ */
+function buildTruncationHint(opts) {
+  const { totalEntries, shown, maxLines, truncated, totalChanges, shownChanges } = opts;
+  if (totalEntries > maxLines && truncated) {
+    const omitted = (totalChanges || 0) - shown;
+    return `... and ${omitted} more changes (${totalChanges} total, use --diff-limit to increase)`;
+  }
+  if (totalEntries > maxLines) {
+    return `... and ${totalEntries - maxLines} more changes`;
+  }
+  if (truncated) {
+    return `... and ${(totalChanges || 0) - (shownChanges || 0)} more changes (use --diff-limit to increase)`;
+  }
+  return null;
+}
+
+/**
+ * @param {SeekPayload} payload
+ * @param {number} maxLines
+ * @returns {string[]}
+ */
 function buildStructuralDiffLines(payload, maxLines) {
   const { structuralDiff, diffBaseline, baselineTick, truncated, totalChanges, shownChanges } = payload;
   if (!structuralDiff) {
@@ -363,17 +388,9 @@ function buildStructuralDiffLines(payload, maxLines) {
     shown++;
   }
 
-  const totalEntries = entries.length;
-  if (totalEntries > maxLines && truncated) {
-    // Both display and data truncation active — show combined message
-    const omitted = totalChanges - shown;
-    lines.push(`    ${colors.muted(`... and ${omitted} more changes (${totalChanges} total, use --diff-limit to increase)`)}`);
-  } else if (totalEntries > maxLines) {
-    const remaining = totalEntries - maxLines;
-    lines.push(`    ${colors.muted(`... and ${remaining} more changes`)}`);
-  } else if (truncated) {
-    const remaining = totalChanges - shownChanges;
-    lines.push(`    ${colors.muted(`... and ${remaining} more changes (use --diff-limit to increase)`)}`);
+  const hint = buildTruncationHint({ totalEntries: entries.length, shown, maxLines, truncated, totalChanges, shownChanges });
+  if (hint) {
+    lines.push(`    ${colors.muted(hint)}`);
   }
 
   return lines;
