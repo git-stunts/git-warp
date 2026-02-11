@@ -16,6 +16,12 @@ Adds `InMemoryGraphAdapter`, a zero-I/O implementation of `GraphPersistencePort`
 - **Adapter conformance suite** (`test/unit/infrastructure/adapters/AdapterConformance.js`): ~25 shared behavioral tests that run against any `GraphPersistencePort` implementation, ensuring parity between Git and in-memory adapters.
 - **`createInMemoryRepo()`** (`test/helpers/warpGraphTestUtils.js`): Test factory for instant in-memory adapter setup — no temp dirs, no git subprocesses.
 
+### Fixed
+
+- **`InMemoryGraphAdapter.writeTree()`**: Rejects malformed mktree entries missing a tab separator instead of silently producing garbage.
+- **`InMemoryGraphAdapter._walkLog()`**: Replaced O(n) `queue.shift()` with index-pointer for O(1) dequeue.
+- **`adapterValidation.validateRef()`**: Removed redundant `startsWith('--')` check (already covered by `startsWith('-')`).
+
 ### Changed
 
 - **`GitGraphAdapter`**: Validation methods now delegate to shared `adapterValidation.js` functions. No behavioral change.

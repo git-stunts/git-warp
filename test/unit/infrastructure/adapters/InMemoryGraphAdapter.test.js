@@ -78,6 +78,12 @@ describe('InMemoryGraphAdapter specifics', () => {
       .rejects.toThrow(/Config value must be a string/);
   });
 
+  it('writeTree rejects malformed entry missing tab', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    await expect(adapter.writeTree(['100644 blob abcd0000000000000000000000000000000000 no-tab']))
+      .rejects.toThrow(/missing tab/i);
+  });
+
   it('listRefs returns sorted results', async () => {
     const adapter = new InMemoryGraphAdapter();
     const sha = await adapter.commitNode({ message: 'sort' });

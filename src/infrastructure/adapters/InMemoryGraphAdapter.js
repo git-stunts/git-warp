@@ -122,6 +122,9 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   async writeTree(entries) {
     const parsed = entries.map(line => {
       const tabIdx = line.indexOf('\t');
+      if (tabIdx === -1) {
+        throw new Error(`Invalid mktree entry (missing tab): ${line}`);
+      }
       const meta = line.slice(0, tabIdx);
       const path = line.slice(tabIdx + 1);
       const [mode, , oid] = meta.split(' ');
@@ -291,12 +294,13 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @param {{ ref: string, limit?: number, format?: string }} options
    * @returns {Promise<string>}
    */
-  async logNodes({ ref, limit = 50, format }) {
+  async logNodes({ ref, limit = 50, format: _format }) {
     validateRef(ref);
     validateLimit(limit);
     const records = this._walkLog(ref, limit);
-    // If no format given, return a simple repr. With format, return NUL-terminated records.
-    if (!format) {
+    // Format param is accepted for port compatibility but always uses
+    // the GitLogParser-compatible layout (SHA\nauthor\ndate\nparents\nmessage).
+    if (!_format) {
       return records.map(c => `commit ${c.sha}\nAuthor: ${c.author}\nDate:   ${c.date}\n\n    ${c.message}\n`).join('\n');
     }
     return records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
@@ -449,8 +453,9 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     const visited = new Set();
     // BFS with a queue (oldest commits first within each level, but tip is first overall)
     const queue = [tip];
-    while (queue.length > 0 && result.length < limit) {
-      const sha = /** @type {string} */ (queue.shift());
+    let head = 0;
+    while (head < queue.length && result.length < limit) {
+      const sha = /** @type {string} */ (queue[head++]);
       if (visited.has(sha)) {
         continue;
       }

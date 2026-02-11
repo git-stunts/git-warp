@@ -39,7 +39,7 @@ export function validateRef(ref) {
   if (ref.length > 1024) {
     throw new Error(`Ref too long: ${ref.length} chars. Maximum is 1024`);
   }
-  if (ref.startsWith('-') || ref.startsWith('--')) {
+  if (ref.startsWith('-')) {
     throw new Error(`Invalid ref: ${ref}. Refs cannot start with - or --. See https://github.com/git-stunts/git-warp#security`);
   }
   const validRefPattern = /^[a-zA-Z0-9._/-]+((~\d*|\^\d*|\.\.[a-zA-Z0-9._/-]+)*)$/;
