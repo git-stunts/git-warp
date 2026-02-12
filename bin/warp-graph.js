@@ -25,17 +25,15 @@ import {
 } from '../src/domain/utils/RefLayout.js';
 import CasSeekCacheAdapter from '../src/infrastructure/adapters/CasSeekCacheAdapter.js';
 import { HookInstaller, classifyExistingHook } from '../src/domain/services/HookInstaller.js';
-import { renderInfoView } from '../src/visualization/renderers/ascii/info.js';
-import { renderCheckView } from '../src/visualization/renderers/ascii/check.js';
-import { renderHistoryView, summarizeOps } from '../src/visualization/renderers/ascii/history.js';
-import { renderPathView } from '../src/visualization/renderers/ascii/path.js';
-import { renderMaterializeView } from '../src/visualization/renderers/ascii/materialize.js';
+import { summarizeOps } from '../src/visualization/renderers/ascii/history.js';
 import { parseCursorBlob } from '../src/domain/utils/parseCursorBlob.js';
 import { diffStates } from '../src/domain/services/StateDiff.js';
-import { renderSeekView, formatStructuralDiff } from '../src/visualization/renderers/ascii/seek.js';
 import { renderGraphView } from '../src/visualization/renderers/ascii/graph.js';
 import { renderSvg } from '../src/visualization/renderers/svg/index.js';
 import { layoutGraph, queryResultToGraphData, pathResultToGraphData } from '../src/visualization/layouts/index.js';
+import { present } from './presenters/index.js';
+import { stableStringify, compactStringify } from './presenters/json.js';
+import { renderError } from './presenters/text.js';
 
 /**
  * @typedef {Object} Persistence
@@ -142,7 +140,8 @@ Commands:
 
 Options:
   --repo <path>     Path to git repo (default: cwd)
-  --json            Emit JSON output
+  --json            Emit JSON output (pretty-printed, sorted keys)
+  --ndjson          Emit compact single-line JSON (for piping/scripting)
   --view [mode]     Visual output (ascii, browser, svg:FILE, html:FILE)
   --graph <name>    Graph name (required if repo has multiple graphs)
   --writer <id>     Writer id (default: cli)
@@ -208,27 +207,6 @@ function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-/** @param {*} value */
-function stableStringify(value) {
-  /** @param {*} input @returns {*} */
-  const normalize = (input) => {
-    if (Array.isArray(input)) {
-      return input.map(normalize);
-    }
-    if (input && typeof input === 'object') {
-      /** @type {Record<string, *>} */
-      const sorted = {};
-      for (const key of Object.keys(input).sort()) {
-        sorted[key] = normalize(input[key]);
-      }
-      return sorted;
-    }
-    return input;
-  };
-
-  return JSON.stringify(normalize(value), null, 2);
-}
-
 /** @param {string[]} argv */
 function parseArgs(argv) {
   const options = createDefaultOptions();
@@ -256,6 +234,7 @@ function createDefaultOptions() {
   return {
     repo: process.cwd(),
     json: false,
+    ndjson: false,
     view: null,
     graph: null,
     writer: 'cli',
@@ -281,6 +260,11 @@ function consumeBaseArg({ argv, index, options, optionDefs, positionals }) {
 
   if (arg === '--json') {
     options.json = true;
+    return { consumed: 0 };
+  }
+
+  if (arg === '--ndjson') {
+    options.ndjson = true;
     return { consumed: 0 };
   }
 
@@ -793,299 +777,6 @@ function patchTouchesNode(patch, nodeId) {
   return false;
 }
 
-/** @param {*} payload */
-function renderInfo(payload) {
-  const lines = [`Repo: ${payload.repo}`];
-  lines.push(`Graphs: ${payload.graphs.length}`);
-  for (const graph of payload.graphs) {
-    const writers = graph.writers ? ` writers=${graph.writers.count}` : '';
-    lines.push(`- ${graph.name}${writers}`);
-    if (graph.checkpoint?.sha) {
-      lines.push(`  checkpoint: ${graph.checkpoint.sha}`);
-    }
-    if (graph.coverage?.sha) {
-      lines.push(`  coverage: ${graph.coverage.sha}`);
-    }
-    if (graph.cursor?.active) {
-      lines.push(`  cursor: tick ${graph.cursor.tick} (${graph.cursor.mode})`);
-    }
-  }
-  return `${lines.join('\n')}\n`;
-}
-
-/** @param {*} payload */
-function renderQuery(payload) {
-  const lines = [
-    `Graph: ${payload.graph}`,
-    `State: ${payload.stateHash}`,
-    `Nodes: ${payload.nodes.length}`,
-  ];
-
-  for (const node of payload.nodes) {
-    const id = node.id ?? '(unknown)';
-    lines.push(`- ${id}`);
-    if (node.props && Object.keys(node.props).length > 0) {
-      lines.push(`  props: ${JSON.stringify(node.props)}`);
-    }
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-/** @param {*} payload */
-function renderPath(payload) {
-  const lines = [
-    `Graph: ${payload.graph}`,
-    `From: ${payload.from}`,
-    `To: ${payload.to}`,
-    `Found: ${payload.found ? 'yes' : 'no'}`,
-    `Length: ${payload.length}`,
-  ];
-
-  if (payload.path && payload.path.length > 0) {
-    lines.push(`Path: ${payload.path.join(' -> ')}`);
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-const ANSI_GREEN = '\x1b[32m';
-const ANSI_YELLOW = '\x1b[33m';
-const ANSI_RED = '\x1b[31m';
-const ANSI_DIM = '\x1b[2m';
-const ANSI_RESET = '\x1b[0m';
-
-/** @param {string} state */
-function colorCachedState(state) {
-  if (state === 'fresh') {
-    return `${ANSI_GREEN}${state}${ANSI_RESET}`;
-  }
-  if (state === 'stale') {
-    return `${ANSI_YELLOW}${state}${ANSI_RESET}`;
-  }
-  return `${ANSI_RED}${ANSI_DIM}${state}${ANSI_RESET}`;
-}
-
-/** @param {*} payload */
-function renderCheck(payload) {
-  const lines = [
-    `Graph: ${payload.graph}`,
-    `Health: ${payload.health.status}`,
-  ];
-
-  if (payload.status) {
-    lines.push(`Cached State: ${colorCachedState(payload.status.cachedState)}`);
-    lines.push(`Patches Since Checkpoint: ${payload.status.patchesSinceCheckpoint}`);
-    lines.push(`Tombstone Ratio: ${payload.status.tombstoneRatio.toFixed(2)}`);
-    lines.push(`Writers: ${payload.status.writers}`);
-  }
-
-  if (payload.checkpoint?.sha) {
-    lines.push(`Checkpoint: ${payload.checkpoint.sha}`);
-    if (payload.checkpoint.ageSeconds !== null) {
-      lines.push(`Checkpoint Age: ${payload.checkpoint.ageSeconds}s`);
-    }
-  } else {
-    lines.push('Checkpoint: none');
-  }
-
-  if (!payload.status) {
-    lines.push(`Writers: ${payload.writers.count}`);
-  }
-  for (const head of payload.writers.heads) {
-    lines.push(`- ${head.writerId}: ${head.sha}`);
-  }
-
-  if (payload.coverage?.sha) {
-    lines.push(`Coverage: ${payload.coverage.sha}`);
-    lines.push(`Coverage Missing: ${payload.coverage.missingWriters.length}`);
-  } else {
-    lines.push('Coverage: none');
-  }
-
-  if (payload.gc) {
-    lines.push(`Tombstones: ${payload.gc.totalTombstones}`);
-    if (!payload.status) {
-      lines.push(`Tombstone Ratio: ${payload.gc.tombstoneRatio}`);
-    }
-  }
-
-  if (payload.hook) {
-    lines.push(formatHookStatusLine(payload.hook));
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-/** @param {*} hook */
-function formatHookStatusLine(hook) {
-  if (!hook.installed && hook.foreign) {
-    return "Hook: foreign hook present — run 'git warp install-hooks'";
-  }
-  if (!hook.installed) {
-    return "Hook: not installed — run 'git warp install-hooks'";
-  }
-  if (hook.current) {
-    return `Hook: installed (v${hook.version}) — up to date`;
-  }
-  return `Hook: installed (v${hook.version}) — upgrade available, run 'git warp install-hooks'`;
-}
-
-/** @param {*} payload */
-function renderHistory(payload) {
-  const lines = [
-    `Graph: ${payload.graph}`,
-    `Writer: ${payload.writer}`,
-    `Entries: ${payload.entries.length}`,
-  ];
-
-  if (payload.nodeFilter) {
-    lines.push(`Node Filter: ${payload.nodeFilter}`);
-  }
-
-  for (const entry of payload.entries) {
-    lines.push(`- ${entry.sha} (lamport: ${entry.lamport}, ops: ${entry.opCount})`);
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-/** @param {*} payload */
-function renderError(payload) {
-  return `Error: ${payload.error.message}\n`;
-}
-
-/**
- * Wraps SVG content in a minimal HTML document and writes it to disk.
- * @param {string} filePath - Destination file path
- * @param {string} svgContent - SVG markup to embed
- */
-function writeHtmlExport(filePath, svgContent) {
-  const html = `<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>git-warp</title></head><body>\n${svgContent}\n</body></html>`;
-  fs.writeFileSync(filePath, html);
-}
-
-/**
- * Writes a command result to stdout/stderr in the appropriate format.
- * Dispatches to JSON, SVG file, HTML file, ASCII view, or plain text
- * based on the combination of flags.
- * @param {*} payload - Command result payload
- * @param {{json: boolean, command: string, view: string|null}} options
- */
-function emit(payload, { json, command, view }) {
-  if (json) {
-    process.stdout.write(`${stableStringify(payload)}\n`);
-    return;
-  }
-
-  if (command === 'info') {
-    if (view) {
-      process.stdout.write(renderInfoView(payload));
-    } else {
-      process.stdout.write(renderInfo(payload));
-    }
-    return;
-  }
-
-  if (command === 'query') {
-    if (view && typeof view === 'string' && view.startsWith('svg:')) {
-      const svgPath = view.slice(4);
-      if (!payload._renderedSvg) {
-        process.stderr.write('No graph data — skipping SVG export.\n');
-      } else {
-        fs.writeFileSync(svgPath, payload._renderedSvg);
-        process.stderr.write(`SVG written to ${svgPath}\n`);
-      }
-    } else if (view && typeof view === 'string' && view.startsWith('html:')) {
-      const htmlPath = view.slice(5);
-      if (!payload._renderedSvg) {
-        process.stderr.write('No graph data — skipping HTML export.\n');
-      } else {
-        writeHtmlExport(htmlPath, payload._renderedSvg);
-        process.stderr.write(`HTML written to ${htmlPath}\n`);
-      }
-    } else if (view) {
-      process.stdout.write(`${payload._renderedAscii}\n`);
-    } else {
-      process.stdout.write(renderQuery(payload));
-    }
-    return;
-  }
-
-  if (command === 'path') {
-    if (view && typeof view === 'string' && view.startsWith('svg:')) {
-      const svgPath = view.slice(4);
-      if (!payload._renderedSvg) {
-        process.stderr.write('No path found — skipping SVG export.\n');
-      } else {
-        fs.writeFileSync(svgPath, payload._renderedSvg);
-        process.stderr.write(`SVG written to ${svgPath}\n`);
-      }
-    } else if (view && typeof view === 'string' && view.startsWith('html:')) {
-      const htmlPath = view.slice(5);
-      if (!payload._renderedSvg) {
-        process.stderr.write('No path found — skipping HTML export.\n');
-      } else {
-        writeHtmlExport(htmlPath, payload._renderedSvg);
-        process.stderr.write(`HTML written to ${htmlPath}\n`);
-      }
-    } else if (view) {
-      process.stdout.write(renderPathView(payload));
-    } else {
-      process.stdout.write(renderPath(payload));
-    }
-    return;
-  }
-
-  if (command === 'check') {
-    if (view) {
-      process.stdout.write(renderCheckView(payload));
-    } else {
-      process.stdout.write(renderCheck(payload));
-    }
-    return;
-  }
-
-  if (command === 'history') {
-    if (view) {
-      process.stdout.write(renderHistoryView(payload));
-    } else {
-      process.stdout.write(renderHistory(payload));
-    }
-    return;
-  }
-
-  if (command === 'materialize') {
-    if (view) {
-      process.stdout.write(renderMaterializeView(payload));
-    } else {
-      process.stdout.write(renderMaterialize(payload));
-    }
-    return;
-  }
-
-  if (command === 'seek') {
-    if (view) {
-      process.stdout.write(renderSeekView(payload));
-    } else {
-      process.stdout.write(renderSeek(payload));
-    }
-    return;
-  }
-
-  if (command === 'install-hooks') {
-    process.stdout.write(renderInstallHooks(payload));
-    return;
-  }
-
-  if (payload?.error) {
-    process.stderr.write(renderError(payload));
-    return;
-  }
-
-  process.stdout.write(`${stableStringify(payload)}\n`);
-}
-
 /**
  * Handles the `info` command: summarizes graphs in the repository.
  * @param {{options: CliOptions}} params
@@ -1587,38 +1278,6 @@ async function handleMaterialize({ options }) {
     payload: { graphs: results },
     exitCode: allFailed ? EXIT_CODES.INTERNAL : EXIT_CODES.OK,
   };
-}
-
-/** @param {*} payload */
-function renderMaterialize(payload) {
-  if (payload.graphs.length === 0) {
-    return 'No graphs found in repo.\n';
-  }
-
-  const lines = [];
-  for (const entry of payload.graphs) {
-    if (entry.error) {
-      lines.push(`${entry.graph}: error — ${entry.error}`);
-    } else {
-      lines.push(`${entry.graph}: ${entry.nodes} nodes, ${entry.edges} edges, checkpoint ${entry.checkpoint}`);
-    }
-  }
-  return `${lines.join('\n')}\n`;
-}
-
-/** @param {*} payload */
-function renderInstallHooks(payload) {
-  if (payload.action === 'up-to-date') {
-    return `Hook: already up to date (v${payload.version}) at ${payload.hookPath}\n`;
-  }
-  if (payload.action === 'skipped') {
-    return 'Hook: installation skipped\n';
-  }
-  const lines = [`Hook: ${payload.action} (v${payload.version})`, `Path: ${payload.hookPath}`];
-  if (payload.backupPath) {
-    lines.push(`Backup: ${payload.backupPath}`);
-  }
-  return `${lines.join('\n')}\n`;
 }
 
 function createHookInstaller() {
@@ -2602,138 +2261,6 @@ function applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit) {
 }
 
 /**
- * Renders a seek command payload as a human-readable string for terminal output.
- *
- * Handles all seek actions: list, drop, save, latest, load, tick, and status.
- *
- * @param {*} payload - Seek result payload from handleSeek
- * @returns {string} Formatted output string (includes trailing newline)
- */
-function renderSeek(payload) {
-  const formatDelta = (/** @type {*} */ n) => { // TODO(ts-cleanup): type CLI payload
-    if (typeof n !== 'number' || !Number.isFinite(n) || n === 0) {
-      return '';
-    }
-    const sign = n > 0 ? '+' : '';
-    return ` (${sign}${n})`;
-  };
-
-  const formatOpSummaryPlain = (/** @type {*} */ summary) => { // TODO(ts-cleanup): type CLI payload
-    const order = [
-      ['NodeAdd', '+', 'node'],
-      ['EdgeAdd', '+', 'edge'],
-      ['PropSet', '~', 'prop'],
-      ['NodeTombstone', '-', 'node'],
-      ['EdgeTombstone', '-', 'edge'],
-      ['BlobValue', '+', 'blob'],
-    ];
-
-    const parts = [];
-    for (const [opType, symbol, label] of order) {
-      const n = summary?.[opType];
-      if (typeof n === 'number' && Number.isFinite(n) && n > 0) {
-        parts.push(`${symbol}${n}${label}`);
-      }
-    }
-    return parts.length > 0 ? parts.join(' ') : '(empty)';
-  };
-
-  const appendReceiptSummary = (/** @type {string} */ baseLine) => {
-    const tickReceipt = payload?.tickReceipt;
-    if (!tickReceipt || typeof tickReceipt !== 'object') {
-      return `${baseLine}\n`;
-    }
-
-    const entries = Object.entries(tickReceipt)
-      .filter(([writerId, entry]) => writerId && entry && typeof entry === 'object')
-      .sort(([a], [b]) => a.localeCompare(b));
-
-    if (entries.length === 0) {
-      return `${baseLine}\n`;
-    }
-
-    const maxWriterLen = Math.max(5, ...entries.map(([writerId]) => writerId.length));
-    const receiptLines = [`  Tick ${payload.tick}:`];
-    for (const [writerId, entry] of entries) {
-      const sha = typeof entry.sha === 'string' ? entry.sha.slice(0, 7) : '';
-      const opSummary = entry.opSummary && typeof entry.opSummary === 'object' ? entry.opSummary : entry;
-      receiptLines.push(`    ${writerId.padEnd(maxWriterLen)}  ${sha.padEnd(7)}  ${formatOpSummaryPlain(opSummary)}`);
-    }
-
-    return `${baseLine}\n${receiptLines.join('\n')}\n`;
-  };
-
-  const buildStateStrings = () => {
-    const nodeLabel = payload.nodes === 1 ? 'node' : 'nodes';
-    const edgeLabel = payload.edges === 1 ? 'edge' : 'edges';
-    const patchLabel = payload.patchCount === 1 ? 'patch' : 'patches';
-    return {
-      nodesStr: `${payload.nodes} ${nodeLabel}${formatDelta(payload.diff?.nodes)}`,
-      edgesStr: `${payload.edges} ${edgeLabel}${formatDelta(payload.diff?.edges)}`,
-      patchesStr: `${payload.patchCount} ${patchLabel}`,
-    };
-  };
-
-  if (payload.action === 'clear-cache') {
-    return `${payload.message}\n`;
-  }
-
-  if (payload.action === 'list') {
-    if (payload.cursors.length === 0) {
-      return 'No saved cursors.\n';
-    }
-    const lines = [];
-    for (const c of payload.cursors) {
-      const active = c.tick === payload.activeTick ? ' (active)' : '';
-      lines.push(`  ${c.name}: tick ${c.tick}${active}`);
-    }
-    return `${lines.join('\n')}\n`;
-  }
-
-  if (payload.action === 'drop') {
-    return `Dropped cursor "${payload.name}" (was at tick ${payload.tick}).\n`;
-  }
-
-  if (payload.action === 'save') {
-    return `Saved cursor "${payload.name}" at tick ${payload.tick}.\n`;
-  }
-
-  if (payload.action === 'latest') {
-    const { nodesStr, edgesStr } = buildStateStrings();
-    const base = appendReceiptSummary(
-      `${payload.graph}: returned to present (tick ${payload.maxTick}, ${nodesStr}, ${edgesStr})`,
-    );
-    return base + formatStructuralDiff(payload);
-  }
-
-  if (payload.action === 'load') {
-    const { nodesStr, edgesStr } = buildStateStrings();
-    const base = appendReceiptSummary(
-      `${payload.graph}: loaded cursor "${payload.name}" at tick ${payload.tick} of ${payload.maxTick} (${nodesStr}, ${edgesStr})`,
-    );
-    return base + formatStructuralDiff(payload);
-  }
-
-  if (payload.action === 'tick') {
-    const { nodesStr, edgesStr, patchesStr } = buildStateStrings();
-    const base = appendReceiptSummary(
-      `${payload.graph}: tick ${payload.tick} of ${payload.maxTick} (${nodesStr}, ${edgesStr}, ${patchesStr})`,
-    );
-    return base + formatStructuralDiff(payload);
-  }
-
-  // status (structuralDiff is never populated here; no formatStructuralDiff call)
-  if (payload.cursor && payload.cursor.active) {
-    const { nodesStr, edgesStr, patchesStr } = buildStateStrings();
-    return appendReceiptSummary(
-      `${payload.graph}: tick ${payload.tick} of ${payload.maxTick} (${nodesStr}, ${edgesStr}, ${patchesStr})`,
-    );
-  }
-
-  return `${payload.graph}: no cursor active, ${payload.ticks.length} ticks available\n`;
-}
-
-/**
  * Reads the active cursor and sets `_seekCeiling` on the graph instance
  * so that subsequent materialize calls respect the time-travel boundary.
  *
@@ -2837,6 +2364,12 @@ async function main() {
   if (options.json && options.view) {
     throw usageError('--json and --view are mutually exclusive');
   }
+  if (options.ndjson && options.view) {
+    throw usageError('--ndjson and --view are mutually exclusive');
+  }
+  if (options.json && options.ndjson) {
+    throw usageError('--json and --ndjson are mutually exclusive');
+  }
 
   const command = positionals[0];
   if (!command) {
@@ -2867,7 +2400,8 @@ async function main() {
     : { payload: result, exitCode: EXIT_CODES.OK };
 
   if (normalized.payload !== undefined) {
-    emit(normalized.payload, { json: options.json, command, view: options.view });
+    const format = options.ndjson ? 'ndjson' : options.json ? 'json' : 'text';
+    present(normalized.payload, { format, command, view: options.view });
   }
   // Use process.exit() to avoid waiting for fire-and-forget I/O (e.g. seek cache writes).
   process.exit(normalized.exitCode ?? EXIT_CODES.OK);
@@ -2884,8 +2418,9 @@ main().catch((error) => {
     payload.error.cause = error.cause instanceof Error ? error.cause.message : error.cause;
   }
 
-  if (process.argv.includes('--json')) {
-    process.stdout.write(`${stableStringify(payload)}\n`);
+  if (process.argv.includes('--json') || process.argv.includes('--ndjson')) {
+    const stringify = process.argv.includes('--ndjson') ? compactStringify : stableStringify;
+    process.stdout.write(`${stringify(payload)}\n`);
   } else {
     process.stderr.write(renderError(payload));
   }

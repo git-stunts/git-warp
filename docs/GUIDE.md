@@ -897,7 +897,7 @@ git warp seek --latest                                 # Return to present
 git warp install-hooks                                 # Install post-merge hook
 ```
 
-All commands accept `--repo <path>`, `--graph <name>`, `--json`.
+All commands accept `--repo <path>`, `--graph <name>`, `--json`, `--ndjson`.
 
 Visual ASCII output is available with `--view`:
 
@@ -907,7 +907,18 @@ git warp --view check    # Health status visualization
 git warp --view seek     # Seek dashboard with timeline
 ```
 
-`--view` is mutually exclusive with `--json`.
+#### Output formats
+
+| Flag | Description |
+|------|-------------|
+| *(none)* | Human-readable plain text (default) |
+| `--json` | Pretty-printed JSON with sorted keys (2-space indent) |
+| `--ndjson` | Compact single-line JSON (for piping/scripting) |
+| `--view` | ASCII visualization |
+
+`--json`, `--ndjson`, and `--view` are mutually exclusive.
+
+Plain-text output respects `NO_COLOR`, `FORCE_COLOR`, and `CI` environment variables. When stdout is not a TTY (e.g., piped), ANSI color codes are automatically stripped.
 
 ### Time Travel (`seek`)
 
@@ -1035,7 +1046,7 @@ The `--view` flag enables visual ASCII dashboards for supported commands. Add `-
 
 **Notes:**
 - `--view` must appear before the subcommand (e.g., `git warp --view info`, not `git warp info --view`)
-- `--view` and `--json` are mutually exclusive
+- `--view`, `--json`, and `--ndjson` are mutually exclusive
 - All visualizations are color-coded and terminal-width aware
 
 ---

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.0] — 2026-02-11 — PRESENTER: Output Contracts
+
+Extracts CLI rendering into `bin/presenters/`, adds NDJSON output and color control. Net reduction of ~460 LOC in `bin/warp-graph.js`.
+
+### Added
+
+- **`--ndjson` flag**: Compact single-line JSON output with sorted keys for piping and scripting. Full payload structure preserved, `_`-prefixed internal keys stripped. Mutually exclusive with `--json` and `--view`.
+- **`NO_COLOR` / `FORCE_COLOR` / `CI` support**: Plain-text output automatically strips ANSI escape codes when `NO_COLOR` is set, `FORCE_COLOR=0`, stdout is not a TTY, or `CI` is set. `FORCE_COLOR` (non-zero) forces color on.
+- **`bin/presenters/json.js`**: `stableStringify()` (pretty-printed sorted JSON), `compactStringify()` (single-line sorted JSON), `sanitizePayload()` (strips `_`-prefixed keys).
+- **`bin/presenters/text.js`**: All 9 plain-text renderers extracted from `warp-graph.js` — `renderInfo`, `renderQuery`, `renderPath`, `renderCheck`, `renderHistory`, `renderError`, `renderMaterialize`, `renderInstallHooks`, `renderSeek`.
+- **`bin/presenters/index.js`**: Unified `present()` dispatcher replacing the 112-line `emit()` function. Handles format dispatch (text/json/ndjson), view mode routing (ASCII/SVG/HTML), and color control.
+- **51 new unit tests** across `test/unit/presenters/` (json, text, present).
+- **6 BATS integration tests** in `test/bats/cli-ndjson.bats` for NDJSON output and mutual-exclusion enforcement.
+
+### Fixed
+
+- **`--json` output sanitized**: Internal `_renderedSvg` and `_renderedAscii` keys are now stripped from JSON output. Previously these rendering artifacts leaked into `--json` payloads.
+
+### Changed
+
+- **`bin/warp-graph.js`**: Reduced from 2893 to ~2430 LOC. Removed `stableStringify`, 9 `renderXxx` functions, `emit()`, `writeHtmlExport()`, ANSI constants. Replaced with 3-line `present()` call.
+- **`renderSeek`**: Decomposed into `renderSeekSimple()`, `renderSeekList()`, `renderSeekState()`, and `renderSeekWithDiff()` to stay within ESLint complexity limits.
+- **`renderCheck`**: Decomposed into `appendCheckpointAndWriters()` and `appendCoverageAndExtras()` helpers.
+- **M2.T2.PRESENTER** marked `DONE` in `ROADMAP.md`.
+
 ## [10.7.0] — 2026-02-11 — MEM-ADAPTER: In-Memory Persistence
 
 Adds `InMemoryGraphAdapter`, a zero-I/O implementation of `GraphPersistencePort` for fast tests.

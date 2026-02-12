@@ -172,7 +172,7 @@ All 12 milestones (77 tasks, ~255 human hours, ~13,100 LOC) have been implemente
 
 ### M2.T2.PRESENTER — Output Contracts (A-Tier)
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **User Story:** As a contributor, I need command logic separated from rendering for stable machine outputs.
 
