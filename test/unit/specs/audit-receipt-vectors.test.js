@@ -24,12 +24,17 @@ import {
 
 /**
  * Sorted-key replacer for JSON.stringify (spec Section 5.2).
+ * @param {string} _key
+ * @param {unknown} value
+ * @returns {unknown}
  */
 function sortedReplacer(_key, value) {
   if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    /** @type {Record<string, unknown>} */
     const sorted = {};
-    for (const k of Object.keys(value).sort()) {
-      sorted[k] = value[k];
+    const obj = /** @type {Record<string, unknown>} */ (value);
+    for (const k of Object.keys(obj).sort()) {
+      sorted[k] = obj[k];
     }
     return sorted;
   }
@@ -38,6 +43,8 @@ function sortedReplacer(_key, value) {
 
 /**
  * Canonical JSON of an ops array (spec Section 5.2).
+ * @param {ReadonlyArray<Record<string, unknown>>} ops
+ * @returns {string}
  */
 function canonicalOpsJson(ops) {
   return JSON.stringify(ops, sortedReplacer);
@@ -45,6 +52,8 @@ function canonicalOpsJson(ops) {
 
 /**
  * Domain-separated opsDigest (spec Section 5.3).
+ * @param {ReadonlyArray<Record<string, unknown>>} ops
+ * @returns {string}
  */
 function computeOpsDigest(ops) {
   const json = canonicalOpsJson(ops);
@@ -59,6 +68,8 @@ function computeOpsDigest(ops) {
 /**
  * Canonical CBOR of a receipt (spec Section 5.4).
  * Returns hex string.
+ * @param {Record<string, unknown>} receipt
+ * @returns {string}
  */
 function receiptCborHex(receipt) {
   return Buffer.from(cborEncode(receipt)).toString('hex');
@@ -66,6 +77,8 @@ function receiptCborHex(receipt) {
 
 /**
  * Build the canonical trailer block (spec Section 5.6).
+ * @param {Record<string, unknown>} receipt
+ * @returns {string}
  */
 function buildTrailerBlock(receipt) {
   return [
@@ -81,6 +94,8 @@ function buildTrailerBlock(receipt) {
 /**
  * Validate a receipt against v1 schema rules.
  * Returns an error message string, or null if valid.
+ * @param {Record<string, *>} receipt
+ * @returns {string|null}
  */
 function validateReceipt(receipt) {
   // version
@@ -165,6 +180,8 @@ function validateReceipt(receipt) {
 /**
  * Check for duplicate trailer keys.
  * Returns an error message string, or null if no duplicates.
+ * @param {string} trailerText
+ * @returns {string|null}
  */
 function checkDuplicateTrailers(trailerText) {
   const lines = trailerText.split('\n').filter((l) => l.includes(': '));
@@ -582,19 +599,19 @@ describe('Audit Receipt Spec — Negative Fixtures', () => {
 
   it('N3: rejects missing required field (graphName)', () => {
     const r = baseReceipt();
-    delete r.graphName;
+    delete (/** @type {any} */ (r)).graphName;
     expect(validateReceipt(r)).toBe('missing required field: graphName');
   });
 
   it('N3b: rejects missing required field (writerId)', () => {
     const r = baseReceipt();
-    delete r.writerId;
+    delete (/** @type {any} */ (r)).writerId;
     expect(validateReceipt(r)).toBe('missing required field: writerId');
   });
 
   it('N3c: rejects missing required field (timestamp)', () => {
     const r = baseReceipt();
-    delete r.timestamp;
+    delete (/** @type {any} */ (r)).timestamp;
     expect(validateReceipt(r)).toBe('missing required field: timestamp');
   });
 
@@ -749,7 +766,7 @@ describe('Audit Receipt Spec — CBOR Key Ordering', () => {
 
     // Encode and decode to verify key order
     const encoded = cborEncode(receipt);
-    const decoded = cborDecode(encoded);
+    const decoded = /** @type {Record<string, unknown>} */ (cborDecode(encoded));
     const keys = Object.keys(decoded);
 
     // Expected canonical order

@@ -103,7 +103,7 @@ describe('WarpGraph — audit mode', () => {
 
   it('dirty state → audit skipped, AUDIT_SKIPPED_DIRTY_STATE logged', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
+    const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
     const graph = await WarpGraph.open({
       persistence,
       graphName: 'events',
@@ -161,7 +161,8 @@ describe('WarpGraph — audit mode', () => {
     }
 
     const commit = persistence._commits.get(auditSha);
-    const tree = await persistence.readTree(commit.treeOid);
+    expect(commit).toBeTruthy();
+    const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');
 
     // Decode and verify

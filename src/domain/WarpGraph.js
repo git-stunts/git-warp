@@ -353,12 +353,12 @@ export default class WarpGraph {
     // Initialize audit service if enabled
     if (graph._audit) {
       graph._auditService = new AuditReceiptService({
-        persistence,
+        persistence: /** @type {any} */ (persistence), // TODO(ts-cleanup): persistence implements full port union
         graphName,
         writerId,
         codec: graph._codec,
         crypto: graph._crypto,
-        logger: graph._logger,
+        logger: graph._logger || undefined,
       });
       await graph._auditService.init();
     }
@@ -629,10 +629,13 @@ export default class WarpGraph {
     if (this._cachedState && !this._stateDirty && patch && sha) {
       let tickReceipt = null;
       if (this._auditService) {
-        const result = joinPatch(this._cachedState, /** @type {any} */ (patch), sha, true);
+        // TODO(ts-cleanup): narrow joinPatch return + patch type to PatchV2
+        const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipt: import('./types/TickReceipt.js').TickReceipt}} */ (
+          joinPatch(this._cachedState, /** @type {any} */ (patch), sha, true) // TODO(ts-cleanup): narrow patch type
+        );
         tickReceipt = result.receipt;
       } else {
-        joinPatch(this._cachedState, /** @type {any} */ (patch), sha);
+        joinPatch(this._cachedState, /** @type {any} */ (patch), sha); // TODO(ts-cleanup): narrow patch type to PatchV2
       }
       await this._setMaterializedState(this._cachedState);
       // Update provenance index with new patch

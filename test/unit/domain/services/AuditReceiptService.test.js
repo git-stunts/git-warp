@@ -25,6 +25,7 @@ import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 
 /** Sync-friendly crypto adapter matching CryptoPort */
 const testCrypto = {
+  /** @param {string} algorithm @param {string|Buffer|Uint8Array} data */
   async hash(algorithm, data) {
     return createHash(algorithm).update(data).digest('hex');
   },
@@ -64,10 +65,10 @@ describe('AuditReceiptService — Canonicalization', () => {
   });
 
   it('canonicalOpsJson matches spec Section 5.2', () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'NodeAdd', target: 'user:alice', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'applied' },
-    ];
+    ]);
     const json = canonicalOpsJson(ops);
     const hex = Buffer.from(json, 'utf8').toString('hex');
     expect(hex).toBe(
@@ -82,7 +83,7 @@ describe('AuditReceiptService — Canonicalization', () => {
 
 describe('AuditReceiptService — Domain Separator', () => {
   it('with vs without prefix produces different hashes', async () => {
-    const ops = [{ op: 'NodeAdd', target: 'test', result: 'applied' }];
+    const ops = /** @type {const} */ ([{ op: 'NodeAdd', target: 'test', result: 'applied' }]);
     const withPrefix = await computeOpsDigest(ops, testCrypto);
     const json = canonicalOpsJson(ops);
     const without = createHash('sha256').update(json).digest('hex');
@@ -101,36 +102,36 @@ describe('AuditReceiptService — Domain Separator', () => {
 
 describe('AuditReceiptService — Golden Vectors', () => {
   it('Vector 1: genesis receipt opsDigest', async () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'NodeAdd', target: 'user:alice', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'applied' },
-    ];
+    ]);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('63df7eaa05e5dc38b436ffd562dad96d2175c7fa089fec6df8bb78bdc389b8fe');
   });
 
   it('Vector 2: continuation receipt opsDigest', async () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'EdgeAdd', target: 'user:alice\0user:bob\0follows', result: 'applied' },
-    ];
+    ]);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('2d060db4f93b99b55c5effdf7f28042e09c1e93f1e0369a7e561bfc639f4e3d3');
   });
 
   it('Vector 3: mixed outcomes opsDigest', async () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'NodeAdd', target: 'user:charlie', result: 'applied' },
       { op: 'PropSet', target: 'user:alice\0name', result: 'superseded', reason: 'LWW: writer bob at lamport 5 wins' },
       { op: 'NodeAdd', target: 'user:alice', result: 'redundant' },
-    ];
+    ]);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('c8e06e3a8b8d920dd9b27ebb4d5944e91053314150cd3671d0557d3cff58d057');
   });
 
   it('Vector 4: SHA-256 OIDs opsDigest', async () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'NodeAdd', target: 'server:prod-1', result: 'applied' },
-    ];
+    ]);
     const digest = await computeOpsDigest(ops, testCrypto);
     expect(digest).toBe('03a8cb1f891ac5b92277271559bf4e2f235a4313a04ab947c1ec5a4f78185cb8');
   });
@@ -270,7 +271,7 @@ describe('AuditReceiptService — commit flow', () => {
       writer: 'alice',
       lamport,
       ops: Object.freeze([
-        Object.freeze({ op: 'NodeAdd', target: 'user:alice', result: 'applied' }),
+        Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'user:alice', result: 'applied' })),
       ]),
     });
   }
@@ -311,7 +312,8 @@ describe('AuditReceiptService — commit flow', () => {
   it('audit commit tree contains receipt.cbor blob', async () => {
     const sha = await service.commit(makeTickReceipt());
     const commit = persistence._commits.get(/** @type {string} */ (sha));
-    const tree = await persistence.readTree(commit.treeOid);
+    expect(commit).toBeTruthy();
+    const tree = await persistence.readTree(/** @type {{ treeOid: string }} */ (commit).treeOid);
     expect(tree).toHaveProperty('receipt.cbor');
     expect(Buffer.isBuffer(tree['receipt.cbor'])).toBe(true);
 
@@ -331,7 +333,7 @@ describe('AuditReceiptService — commit flow', () => {
 describe('AuditReceiptService — CAS conflict handling', () => {
   it('retries once on CAS mismatch with refreshed tip', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
     const service = new AuditReceiptService({
       persistence,
       graphName: 'events',
@@ -347,7 +349,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n1', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
     });
     await service.commit(receipt1);
 
@@ -360,7 +362,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'b'.repeat(40),
       writer: 'alice',
       lamport: 2,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n2', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n2', result: 'applied' }))]),
     });
     const sha2 = await service.commit(receipt2);
 
@@ -376,7 +378,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
 
   it('degrades after second CAS failure', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
 
     // Create a persistence that always fails CAS
     const failingPersistence = Object.create(persistence);
@@ -405,7 +407,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n1', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
     });
 
     // Should fail gracefully (commit() catches errors)
@@ -430,7 +432,7 @@ describe('AuditReceiptService — CAS conflict handling', () => {
 describe('AuditReceiptService — Error resilience', () => {
   it('writeBlob failure logs AUDIT_WRITE_BLOB_FAILED, does not throw', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
 
     const failingPersistence = Object.create(persistence);
     failingPersistence.writeBlob = async () => {
@@ -452,7 +454,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n1', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
     });
 
     const result = await service.commit(receipt);
@@ -466,7 +468,7 @@ describe('AuditReceiptService — Error resilience', () => {
 
   it('writeTree failure logs AUDIT_WRITE_TREE_FAILED, does not throw', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
 
     const failingPersistence = Object.create(persistence);
     failingPersistence.writeBlob = persistence.writeBlob.bind(persistence);
@@ -489,7 +491,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n1', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
     });
 
     const result = await service.commit(receipt);
@@ -503,7 +505,7 @@ describe('AuditReceiptService — Error resilience', () => {
 
   it('structured error codes present in all log calls', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
 
     const failingPersistence = Object.create(persistence);
     failingPersistence.writeBlob = async () => {
@@ -525,7 +527,7 @@ describe('AuditReceiptService — Error resilience', () => {
       patchSha: 'a'.repeat(40),
       writer: 'alice',
       lamport: 1,
-      ops: Object.freeze([Object.freeze({ op: 'NodeAdd', target: 'n1', result: 'applied' })]),
+      ops: Object.freeze([Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: 'n1', result: 'applied' }))]),
     });
 
     await service.commit(receipt);
@@ -544,18 +546,18 @@ describe('AuditReceiptService — Error resilience', () => {
 
 describe('AuditReceiptService — TickReceipt integration', () => {
   it('ops with reason field → correct canonical key order', () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'PropSet', target: 'a\0b', result: 'superseded', reason: 'LWW conflict' },
-    ];
+    ]);
     const json = canonicalOpsJson(ops);
     // "reason" sorts before "result"
     expect(json).toContain('"reason":"LWW conflict","result":"superseded"');
   });
 
   it('ops without reason → field absent, not null', () => {
-    const ops = [
+    const ops = /** @type {const} */ ([
       { op: 'NodeAdd', target: 'x', result: 'applied' },
-    ];
+    ]);
     const json = canonicalOpsJson(ops);
     expect(json).not.toContain('reason');
     expect(json).not.toContain('null');

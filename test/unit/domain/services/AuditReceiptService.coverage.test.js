@@ -12,6 +12,7 @@ import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemo
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 
 const testCrypto = {
+  /** @param {string} algorithm @param {string|Buffer|Uint8Array} data */
   async hash(algorithm, data) {
     return createHash(algorithm).update(data).digest('hex');
   },
@@ -19,13 +20,14 @@ const testCrypto = {
   timingSafeEqual() { return false; },
 };
 
+/** @param {number} lamport @param {string} sha */
 function makeReceipt(lamport, sha) {
   return Object.freeze({
     patchSha: sha,
     writer: 'alice',
     lamport,
     ops: Object.freeze([
-      Object.freeze({ op: 'NodeAdd', target: `n${lamport}`, result: 'applied' }),
+      Object.freeze(/** @type {const} */ ({ op: 'NodeAdd', target: `n${lamport}`, result: 'applied' })),
     ]),
   });
 }
@@ -63,7 +65,7 @@ describe('AuditReceiptService — Coverage Probe', () => {
     };
     failingPersistence.readRef = persistence.readRef.bind(persistence);
 
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
     const service = new AuditReceiptService({
       persistence: failingPersistence,
       graphName: 'events',
@@ -92,7 +94,7 @@ describe('AuditReceiptService — Coverage Probe', () => {
     failingPersistence.commitNodeWithTree = persistence.commitNodeWithTree.bind(persistence);
     failingPersistence.readRef = persistence.readRef.bind(persistence);
 
-    const logger = { warn: vi.fn() };
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(() => logger) };
     const service = new AuditReceiptService({
       persistence: failingPersistence,
       graphName: 'events',

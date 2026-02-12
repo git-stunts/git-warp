@@ -204,7 +204,7 @@ export function buildReceiptRecord(fields) {
 export class AuditReceiptService {
   /**
    * @param {Object} options
-   * @param {import('../../ports/GraphPersistencePort.js').default} options.persistence
+   * @param {import('../../ports/RefPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default} options.persistence
    * @param {string} options.graphName
    * @param {string} options.writerId
    * @param {import('../../ports/CodecPort.js').default} options.codec
@@ -285,7 +285,7 @@ export class AuditReceiptService {
 
     try {
       return await this._commitInner(tickReceipt);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       this._failed++;
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_COMMIT_FAILED',
@@ -351,7 +351,7 @@ export class AuditReceiptService {
     let blobOid;
     try {
       blobOid = await this._persistence.writeBlob(Buffer.from(cborBytes));
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_WRITE_BLOB_FAILED',
         writerId: this._writerId,
@@ -366,7 +366,7 @@ export class AuditReceiptService {
       treeOid = await this._persistence.writeTree([
         `100644 blob ${blobOid}\treceipt.cbor`,
       ]);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_WRITE_TREE_FAILED',
         writerId: this._writerId,

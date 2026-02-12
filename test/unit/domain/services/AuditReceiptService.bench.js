@@ -12,6 +12,7 @@ import {
 } from '../../../../src/domain/services/AuditReceiptService.js';
 
 const testCrypto = {
+  /** @param {string} algorithm @param {string|Buffer|Uint8Array} data */
   async hash(algorithm, data) {
     return createHash(algorithm).update(data).digest('hex');
   },
@@ -19,10 +20,10 @@ const testCrypto = {
   timingSafeEqual() { return false; },
 };
 
-const ops = [
+const ops = /** @type {const} */ ([
   { op: 'NodeAdd', target: 'user:alice', result: 'applied' },
   { op: 'PropSet', target: 'user:alice\0name', result: 'applied' },
-];
+]);
 
 const validFields = {
   version: 1,
