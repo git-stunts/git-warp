@@ -48,4 +48,21 @@ export default class RefPort {
   async listRefs(_prefix) {
     throw new Error('RefPort.listRefs() not implemented');
   }
+
+  /**
+   * Atomically updates a ref using compare-and-swap semantics.
+   *
+   * The ref is updated to `_newOid` only if it currently points to `_expectedOid`.
+   * If `_expectedOid` is `null`, the ref must not exist (genesis CAS).
+   *
+   * @param {string} _ref - The ref name
+   * @param {string} _newOid - The new OID to set
+   * @param {string|null} _expectedOid - The expected current OID, or null if the ref must not exist
+   * @returns {Promise<void>}
+   * @throws {Error} If the ref does not match the expected value (CAS mismatch)
+   * @throws {Error} If not implemented by a concrete adapter
+   */
+  async compareAndSwapRef(_ref, _newOid, _expectedOid) {
+    throw new Error('RefPort.compareAndSwapRef() not implemented');
+  }
 }

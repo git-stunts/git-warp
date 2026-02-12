@@ -116,7 +116,7 @@ export function assertOpsCompatible(ops, maxSchema) {
  * Detects the WARP message kind from a raw commit message.
  *
  * @param {string} message - The raw commit message
- * @returns {'patch'|'checkpoint'|'anchor'|null} The message kind, or null if not a WARP message
+ * @returns {'patch'|'checkpoint'|'anchor'|'audit'|null} The message kind, or null if not a WARP message
  *
  * @example
  * const kind = detectMessageKind(message);
@@ -134,7 +134,7 @@ export function detectMessageKind(message) {
     const decoded = codec.decode(message);
     const kind = decoded.trailers[TRAILER_KEYS.kind];
 
-    if (kind === 'patch' || kind === 'checkpoint' || kind === 'anchor') {
+    if (kind === 'patch' || kind === 'checkpoint' || kind === 'anchor' || kind === 'audit') {
       return kind;
     }
     return null;

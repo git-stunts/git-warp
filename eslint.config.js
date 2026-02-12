@@ -215,6 +215,8 @@ export default tseslint.config(
       "src/domain/services/DagTraversal.js",
       "src/domain/services/DagPathFinding.js",
       "src/domain/services/DagTopology.js",
+      "src/domain/services/AuditMessageCodec.js",
+      "src/domain/services/AuditReceiptService.js",
       "bin/warp-graph.js",
     ],
     rules: {

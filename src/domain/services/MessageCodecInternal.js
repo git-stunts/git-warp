@@ -27,6 +27,7 @@ export const MESSAGE_TITLES = {
   patch: 'warp:patch',
   checkpoint: 'warp:checkpoint',
   anchor: 'warp:anchor',
+  audit: 'warp:audit',
 };
 
 /**
@@ -44,6 +45,8 @@ export const TRAILER_KEYS = {
   indexOid: 'eg-index-oid',
   schema: 'eg-schema',
   checkpointVersion: 'eg-checkpoint',
+  dataCommit: 'eg-data-commit',
+  opsDigest: 'eg-ops-digest',
 };
 
 /**

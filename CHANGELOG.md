@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.9.0] — 2026-02-12 — SHADOW-LEDGER: Audit Receipts
+
+Implements tamper-evident, chained audit receipts per the spec in `docs/specs/AUDIT_RECEIPT.md`. When `audit: true` is passed to `WarpGraph.open()`, each data commit produces a corresponding audit commit recording per-operation outcomes. Audit commits form an independent chain per (graphName, writerId) pair, linked via `prevAuditCommit` and Git commit parents.
+
+### Added
+
+- **`audit: true` option** on `WarpGraph.open()` / constructor: Enables the audit receipt pipeline. Off by default — zero overhead when disabled.
+- **`AuditReceiptService`** (`src/domain/services/AuditReceiptService.js`): Core service implementing canonicalization (domain-separated SHA-256 `opsDigest`), receipt record construction, Git object creation (blob → tree → commit → CAS ref update), retry-once on CAS conflict, degraded-mode resilience, and structured error codes.
+- **`AuditMessageCodec`** (`src/domain/services/AuditMessageCodec.js`): Encode/decode audit commit messages with 6 trailers (`data-commit`, `graph`, `kind`, `ops-digest`, `schema`, `writer`) in lexicographic order.
+- **`compareAndSwapRef()`** on `RefPort` / `GraphPersistencePort`: Atomic ref update with expected-old-value guard. Implemented in both `GitGraphAdapter` (via `git update-ref`) and `InMemoryGraphAdapter`.
+- **`buildAuditRef()`** in `RefLayout`: Produces `refs/warp/<graphName>/audit/<writerId>` paths.
+- **Spec amendment**: `timestamp` field changed from ISO-8601 string to POSIX millisecond integer (`uint`) in `docs/specs/AUDIT_RECEIPT.md`. All golden vector CBOR hex values regenerated.
+- **34 unit tests** in `AuditReceiptService.test.js` — canonicalization, golden vectors, receipt construction, commit flow, CAS conflict/retry, error resilience, TickReceipt integration.
+- **3 coverage tests** in `AuditReceiptService.coverage.test.js` — stats tracking for committed/skipped/failed counts.
+- **5 codec tests** in `AuditMessageCodec.test.js` — round-trip, trailer order, missing/invalid trailers.
+- **3 ref layout tests** in `RefLayout.audit.test.js` — `buildAuditRef` path construction.
+- **4 CAS tests** in `RefPort.compareAndSwapRef.test.js` — genesis CAS, update CAS, mismatch rejection, pre-existing conflict.
+- **7 integration tests** in `WarpGraph.audit.test.js` — audit off/on, ref advancement, chain linking, dirty-state skip, CBOR content verification, state correctness.
+- **Benchmark stubs** in `AuditReceiptService.bench.js` for `computeOpsDigest` and `buildReceiptRecord`.
+
+### Changed
+
+- **`WarpGraph._onPatchCommitted()`**: When audit is enabled, invokes `joinPatch()` with receipt collection, then calls `AuditReceiptService.commit()` after state updates succeed. Logs `AUDIT_SKIPPED_DIRTY_STATE` when eager re-materialize is not possible.
+- **`MessageCodecInternal`**: Added `audit` title constant and `dataCommit`/`opsDigest` trailer keys.
+- **`MessageSchemaDetector`**: Recognizes `'audit'` message kind.
+- **`WarpMessageCodec`**: Re-exports `encodeAuditMessage` and `decodeAuditMessage`.
+- **`eslint.config.js`**: Added `AuditReceiptService.js` and `AuditMessageCodec.js` to relaxed complexity block.
+- **`GraphPersistencePort.test.js`**: Added `compareAndSwapRef` to expected method list.
+- **M3.T1.SHADOW-LEDGER** marked `DONE` in `ROADMAP.md`.
+
+### Fixed
+
+- **`WarpGraph.open()` audit validation**: Non-boolean truthy values (e.g. `'yes'`, `1`) now throw `'audit must be a boolean'`, matching existing `autoMaterialize` validation pattern.
+- **`AuditReceiptService._commitInner()` cross-writer guard**: Rejects `TickReceipt` where `writer` does not match the service's `writerId`, preventing cross-writer attribution in the audit chain.
+- **`GitGraphAdapter.compareAndSwapRef()`**: No longer retries on CAS mismatch — calls `plumbing.execute()` directly instead of `_executeWithRetry()`, since CAS failures are semantically expected.
+- **`decodeAuditMessage()` hardened validation**: Decoder now validates graph name, writer ID, dataCommit OID format, opsDigest SHA-256 format, and schema as strict integer (rejects `1.5`), matching encoder strictness.
+- **`AuditReceiptService.init()` cold-start logging**: Now logs `AUDIT_INIT_READ_FAILED` warning before falling back to genesis, giving operators visibility into unexpected cold starts.
+- **`AuditReceiptService` dead write removed**: Removed unused `_tickCounter` field that was written but never read.
+- **`WarpMessageCodec` JSDoc**: Updated from "three types" to "four types" and added `AuditMessageCodec` to the sub-module list.
+- **`RefLayout` JSDoc**: Added `refs/warp/<graph>/audit/<writer_id>` to the module-level ref layout documentation.
+- **`docs/GUIDE.md` trailer names**: Corrected trailer key names to include `eg-` prefix (e.g. `eg-data-commit` not `data-commit`).
+- **`computeOpsDigest()` TextEncoder**: Hoisted to module-level constant to avoid per-call allocation.
+
 ## [10.8.0] — 2026-02-11 — PRESENTER: Output Contracts
 
 Extracts CLI rendering into `bin/presenters/`, adds NDJSON output and color control. Net reduction of ~460 LOC in `bin/warp-graph.js`.

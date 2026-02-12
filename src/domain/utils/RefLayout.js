@@ -10,6 +10,7 @@
  * - refs/warp/<graph>/coverage/head
  * - refs/warp/<graph>/cursor/active
  * - refs/warp/<graph>/cursor/saved/<name>
+ * - refs/warp/<graph>/audit/<writer_id>
  *
  * @module domain/utils/RefLayout
  */
@@ -289,6 +290,27 @@ export function buildCursorSavedRef(graphName, name) {
 export function buildCursorSavedPrefix(graphName) {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/cursor/saved/`;
+}
+
+/**
+ * Builds the audit ref path for the given graph and writer ID.
+ *
+ * Audit refs track the latest audit commit for each writer, forming
+ * an independent chain of tamper-evident receipts per writer.
+ *
+ * @param {string} graphName - The name of the graph
+ * @param {string} writerId - The writer's unique identifier
+ * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/audit/<writerId>`
+ * @throws {Error} If graphName or writerId is invalid
+ *
+ * @example
+ * buildAuditRef('events', 'alice');
+ * // => 'refs/warp/events/audit/alice'
+ */
+export function buildAuditRef(graphName, writerId) {
+  validateGraphName(graphName);
+  validateWriterId(writerId);
+  return `${REF_PREFIX}/${graphName}/audit/${writerId}`;
 }
 
 /**

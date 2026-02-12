@@ -516,6 +516,32 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Atomically updates a ref using compare-and-swap semantics.
+   *
+   * Uses `git update-ref ref newOid expectedOid` which is atomic CAS.
+   * Fails if the ref does not currently point to expectedOid.
+   *
+   * @param {string} ref - The ref name
+   * @param {string} newOid - The new OID to set
+   * @param {string|null} expectedOid - The expected current OID, or null if the ref must not exist
+   * @returns {Promise<void>}
+   * @throws {Error} If the ref does not match the expected value (CAS mismatch)
+   */
+  async compareAndSwapRef(ref, newOid, expectedOid) {
+    this._validateRef(ref);
+    this._validateOid(newOid);
+    // null means "ref must not exist" → use zero OID
+    const oldArg = expectedOid || '0'.repeat(newOid.length);
+    if (expectedOid) {
+      this._validateOid(expectedOid);
+    }
+    // Direct call — CAS failures are semantically expected and must NOT be retried.
+    await this.plumbing.execute({
+      args: ['update-ref', ref, newOid, oldArg],
+    });
+  }
+
+  /**
    * Deletes a ref.
    * @param {string} ref - The ref name to delete
    * @returns {Promise<void>}

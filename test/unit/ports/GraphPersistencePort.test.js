@@ -29,12 +29,13 @@ describe('GraphPersistencePort (composite mixin)', () => {
     'readRef',
     'deleteRef',
     'listRefs',
+    'compareAndSwapRef',
     // ConfigPort
     'configGet',
     'configSet',
   ];
 
-  it('has all 21 members on its prototype', () => {
+  it('has all 22 members on its prototype', () => {
     const proto = GraphPersistencePort.prototype;
     const ownNames = Object.getOwnPropertyNames(proto).filter(
       (n) => n !== 'constructor',

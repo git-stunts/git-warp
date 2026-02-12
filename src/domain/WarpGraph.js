@@ -18,6 +18,7 @@ import { diffStates, isEmptyDiff } from './services/StateDiff.js';
 import { orsetContains, orsetElements } from './crdt/ORSet.js';
 import defaultCodec from './utils/defaultCodec.js';
 import defaultCrypto from './utils/defaultCrypto.js';
+import { AuditReceiptService } from './services/AuditReceiptService.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from './services/WarpMessageCodec.js';
 import { loadCheckpoint, materializeIncremental, create as createCheckpointCommit } from './services/CheckpointService.js';
 import { createFrontier, updateFrontier } from './services/Frontier.js';
@@ -136,8 +137,9 @@ export default class WarpGraph {
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
    * @param {import('../ports/SeekCachePort.js').default} [options.seekCache] - Persistent cache for seek materialization (optional)
+   * @param {boolean} [options.audit=false] - If true, creates audit receipts for each data commit
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache, audit = false }) {
     /** @type {FullPersistence} */
     this._persistence = /** @type {FullPersistence} */ (persistence);
 
@@ -230,6 +232,15 @@ export default class WarpGraph {
 
     /** @type {boolean} */
     this._provenanceDegraded = false;
+
+    /** @type {boolean} */
+    this._audit = !!audit;
+
+    /** @type {AuditReceiptService|null} */
+    this._auditService = null;
+
+    /** @type {number} */
+    this._auditSkipCount = 0;
   }
 
   /**
@@ -291,6 +302,7 @@ export default class WarpGraph {
    * @param {import('../ports/CryptoPort.js').default} [options.crypto] - Crypto adapter for hashing
    * @param {import('../ports/CodecPort.js').default} [options.codec] - Codec for CBOR serialization (defaults to domain-local codec)
    * @param {import('../ports/SeekCachePort.js').default} [options.seekCache] - Persistent cache for seek materialization (optional)
+   * @param {boolean} [options.audit=false] - If true, creates audit receipts for each data commit
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -301,7 +313,7 @@ export default class WarpGraph {
    *   writerId: 'node-1'
    * });
    */
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -325,6 +337,11 @@ export default class WarpGraph {
       throw new Error('autoMaterialize must be a boolean');
     }
 
+    // Validate audit
+    if (audit !== undefined && typeof audit !== 'boolean') {
+      throw new Error('audit must be a boolean');
+    }
+
     // Validate onDeleteWithData
     if (onDeleteWithData !== undefined) {
       const valid = ['reject', 'cascade', 'warn'];
@@ -333,10 +350,23 @@ export default class WarpGraph {
       }
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache });
+    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
+
+    // Initialize audit service if enabled
+    if (graph._audit) {
+      graph._auditService = new AuditReceiptService({
+        persistence: /** @type {any} */ (persistence), // TODO(ts-cleanup): persistence implements full port union
+        graphName,
+        writerId,
+        codec: graph._codec,
+        crypto: graph._crypto,
+        logger: graph._logger || undefined,
+      });
+      await graph._auditService.init();
+    }
 
     return graph;
   }
@@ -602,7 +632,16 @@ export default class WarpGraph {
     // Eager re-materialize: apply the just-committed patch to cached state
     // Only when the cache is clean — applying a patch to stale state would be incorrect
     if (this._cachedState && !this._stateDirty && patch && sha) {
-      joinPatch(this._cachedState, /** @type {any} */ (patch), sha); // TODO(ts-cleanup): type patch array
+      let tickReceipt = null;
+      if (this._auditService) {
+        // TODO(ts-cleanup): narrow joinPatch return + patch type to PatchV2
+        const result = /** @type {{state: import('./services/JoinReducer.js').WarpStateV5, receipt: import('./types/TickReceipt.js').TickReceipt}} */ (
+          joinPatch(this._cachedState, /** @type {any} */ (patch), sha, true) // TODO(ts-cleanup): narrow patch type
+        );
+        tickReceipt = result.receipt;
+      } else {
+        joinPatch(this._cachedState, /** @type {any} */ (patch), sha); // TODO(ts-cleanup): narrow patch type to PatchV2
+      }
       await this._setMaterializedState(this._cachedState);
       // Update provenance index with new patch
       if (this._provenanceIndex) {
@@ -612,8 +651,24 @@ export default class WarpGraph {
       if (this._lastFrontier) {
         this._lastFrontier.set(writerId, sha);
       }
+      // Audit receipt — AFTER all state updates succeed
+      if (this._auditService && tickReceipt) {
+        try {
+          await this._auditService.commit(tickReceipt);
+        } catch {
+          // Data commit already succeeded. Logged inside service.
+        }
+      }
     } else {
       this._stateDirty = true;
+      if (this._auditService) {
+        this._auditSkipCount++;
+        this._logger?.warn('[warp:audit]', {
+          code: 'AUDIT_SKIPPED_DIRTY_STATE',
+          sha,
+          skipCount: this._auditSkipCount,
+        });
+      }
     }
   }
 

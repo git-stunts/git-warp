@@ -357,6 +357,29 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Atomically updates a ref using compare-and-swap semantics.
+   * @param {string} ref - The ref name
+   * @param {string} newOid - The new OID to set
+   * @param {string|null} expectedOid - Expected current OID, or null if ref must not exist
+   * @returns {Promise<void>}
+   * @throws {Error} If the ref does not match the expected value (CAS mismatch)
+   */
+  async compareAndSwapRef(ref, newOid, expectedOid) {
+    validateRef(ref);
+    validateOid(newOid);
+    if (expectedOid) {
+      validateOid(expectedOid);
+    }
+    const current = this._refs.get(ref) || null;
+    if (current !== expectedOid) {
+      throw new Error(
+        `CAS mismatch on ${ref}: expected ${expectedOid || '(none)'}, got ${current || '(none)'}`,
+      );
+    }
+    this._refs.set(ref, newOid);
+  }
+
+  /**
    * @param {string} prefix
    * @returns {Promise<string[]>}
    */

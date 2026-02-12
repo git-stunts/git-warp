@@ -1652,6 +1652,69 @@ index-tree/
 
 Memory: initial load near-zero (lazy); single shard 0.5–2 MB; full index at 1M nodes ~150–200 MB.
 
+### Appendix I: Audit Receipts
+
+When `audit: true` is set on `WarpGraph.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
+
+#### Enabling Audit Mode
+
+```javascript
+const graph = await WarpGraph.open({
+  persistence,
+  graphName: 'my-graph',
+  writerId: 'local',
+  audit: true,
+});
+```
+
+When disabled (the default), the audit pipeline is completely inert — zero overhead, no extra objects, no extra refs.
+
+#### What Gets Recorded
+
+Each audit receipt captures:
+
+| Field | Description |
+|---|---|
+| `version` | Schema version (currently `1`) |
+| `graphName` | Graph this receipt belongs to |
+| `writerId` | Writer that produced the data commit |
+| `dataCommit` | SHA of the data commit being audited |
+| `tickStart` / `tickEnd` | Lamport tick range covered |
+| `opsDigest` | SHA-256 of the canonical JSON encoding of per-operation outcomes |
+| `prevAuditCommit` | SHA of the previous audit commit (zero-hash for genesis) |
+| `timestamp` | POSIX milliseconds (UTC) when the receipt was created |
+
+The `opsDigest` uses domain-separated hashing (`git-warp:opsDigest:v1\0` prefix) and canonical JSON (sorted keys at every nesting level) for deterministic, reproducible digests.
+
+#### Git Object Structure
+
+Each audit commit contains:
+
+```text
+refs/warp/<graphName>/audit/<writerId>   ← CAS-updated ref
+  └── audit commit (parent = prev audit commit)
+        └── tree
+              └── receipt.cbor   ← CBOR-encoded receipt record
+```
+
+The commit message uses the standard trailer format with 6 trailers: `eg-data-commit`, `eg-graph`, `eg-kind`, `eg-ops-digest`, `eg-schema`, `eg-writer` (all in lexicographic order).
+
+#### Chain Integrity
+
+Audit commits form a singly-linked chain per (graphName, writerId) pair. Each commit's parent is the previous audit commit, and the `prevAuditCommit` field in the receipt body mirrors this. The genesis receipt uses the zero-hash sentinel (`0000000000000000000000000000000000000000`).
+
+Because audit commits are content-addressed Git objects linked via parent pointers, any mutation to a receipt invalidates all successors — the chain is tamper-evident by construction.
+
+#### Resilience
+
+- **CAS conflict**: If another process advances the audit ref between receipt creation and ref update, the service retries once with the new tip.
+- **Degraded mode**: If the audit commit fails (e.g., disk full, Git error), the data commit is **not** rolled back. The failure is logged and the audit pipeline continues on the next commit.
+- **Dirty state skip**: When eager re-materialization is not possible (stale cached state), the audit receipt is skipped and a `AUDIT_SKIPPED_DIRTY_STATE` warning is logged.
+
+#### Spec Reference
+
+The full specification — including canonical serialization rules, field constraints, trust model, and normative test vectors — lives in [`docs/specs/AUDIT_RECEIPT.md`](specs/AUDIT_RECEIPT.md).
+
 ---
 
 ## Further Reading
