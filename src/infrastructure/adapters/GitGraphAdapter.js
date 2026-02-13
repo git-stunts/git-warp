@@ -326,6 +326,20 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Retrieves the tree OID for a given commit SHA.
+   * @param {string} sha - The commit SHA to query
+   * @returns {Promise<string>} The tree OID pointed to by the commit
+   * @throws {Error} If the SHA is invalid
+   */
+  async getCommitTree(sha) {
+    this._validateOid(sha);
+    const output = await this._executeWithRetry({
+      args: ['rev-parse', `${sha}^{tree}`]
+    });
+    return output.trim();
+  }
+
+  /**
    * Returns raw git log output for a ref.
    * @param {Object} options
    * @param {string} options.ref - The Git ref to log from

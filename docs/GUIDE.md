@@ -1711,6 +1711,34 @@ Because audit commits are content-addressed Git objects linked via parent pointe
 - **Degraded mode**: If the audit commit fails (e.g., disk full, Git error), the data commit is **not** rolled back. The failure is logged and the audit pipeline continues on the next commit.
 - **Dirty state skip**: When eager re-materialization is not possible (stale cached state), the audit receipt is skipped and a `AUDIT_SKIPPED_DIRTY_STATE` warning is logged.
 
+#### Verifying Audit Chains
+
+Use the `verify-audit` CLI command to validate chain integrity:
+
+```bash
+# Verify all writers
+git warp verify-audit
+
+# Verify a specific writer
+git warp verify-audit --writer alice
+
+# JSON output
+git warp --json verify-audit
+
+# Partial verification from tip to a specific commit
+git warp --json verify-audit --since abc123def456...
+```
+
+The verifier walks each chain backward from tip to genesis, checking:
+- Receipt schema and field types
+- Chain linking (`prevAuditCommit` ↔ Git parent consistency)
+- Tick monotonicity (strictly decreasing backward)
+- Trailer-CBOR consistency
+- OID format and length consistency
+- Tree structure (exactly one `receipt.cbor` entry)
+
+Exit code 0 means all chains are valid (or partial when `--since` is used). Exit code 3 indicates at least one chain has integrity failures.
+
 #### Spec Reference
 
 The full specification — including canonical serialization rules, field constraints, trust model, and normative test vectors — lives in [`docs/specs/AUDIT_RECEIPT.md`](specs/AUDIT_RECEIPT.md).

@@ -724,3 +724,61 @@ const receiptDigest = crypto.createHash('sha256').update(receiptBytes).digest('h
 ```
 
 The receipt digest is computed from the canonical CBOR bytes, not from the receipt fields directly. This ensures the digest matches regardless of implementation language or CBOR library, as long as canonical encoding is used.
+
+---
+
+## 13. Verification Output (M4.T1)
+
+### JSON Output Schema
+
+```json
+{
+  "graph": "string",
+  "verifiedAt": "ISO-8601 timestamp",
+  "summary": {
+    "total": "number",
+    "valid": "number",
+    "partial": "number",
+    "invalid": "number"
+  },
+  "chains": [
+    {
+      "writerId": "string",
+      "ref": "string",
+      "status": "VALID | PARTIAL | BROKEN_CHAIN | DATA_MISMATCH | ERROR",
+      "receiptsVerified": "number",
+      "receiptsScanned": "number",
+      "tipCommit": "string | null",
+      "tipAtStart": "string | null",
+      "genesisCommit": "string | null",
+      "stoppedAt": "string | null",
+      "since": "string | null",
+      "errors": [{ "code": "string", "message": "string", "commit": "string?" }],
+      "warnings": [{ "code": "string", "message": "string" }]
+    }
+  ],
+  "trustWarning": {
+    "code": "string",
+    "message": "string",
+    "sources": ["string"]
+  }
+}
+```
+
+### Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `VALID` | Full chain verified from tip to genesis, no errors |
+| `PARTIAL` | Chain verified from tip to `--since` boundary, no errors |
+| `BROKEN_CHAIN` | Structural integrity failure (parent mismatch, genesis/continuation) |
+| `DATA_MISMATCH` | Content integrity failure (trailer vs CBOR field mismatch) |
+| `ERROR` | Operational failure (missing blob, decode failure, since not found) |
+
+### `--since` Boundary Semantics
+
+- **Inclusive:** the `since` commit IS verified (it is the last commit checked)
+- **Walk:** backward from tip, stop AFTER verifying the `since` commit
+- **Chain link at boundary:** the link FROM `since` to its predecessor is NOT checked
+- **`since` not in chain:** `SINCE_NOT_FOUND` error, status = `ERROR`
+- **Result status:** `PARTIAL` when `--since` was used and verification succeeded

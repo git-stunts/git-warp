@@ -91,6 +91,16 @@ export default class CommitPort {
   }
 
   /**
+   * Retrieves the tree OID for a given commit SHA.
+   * @param {string} _sha - The commit SHA to query
+   * @returns {Promise<string>} The tree OID pointed to by the commit
+   * @throws {Error} If not implemented by a concrete adapter
+   */
+  async getCommitTree(_sha) {
+    throw new Error('CommitPort.getCommitTree() not implemented');
+  }
+
+  /**
    * Pings the repository to verify accessibility.
    * @returns {Promise<{ok: boolean, latencyMs: number}>} Health check result with latency
    * @throws {Error} If not implemented by a concrete adapter

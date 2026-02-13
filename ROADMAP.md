@@ -297,7 +297,7 @@ Create `docs/specs/AUDIT_RECEIPT.md` with:
 
 ### M4.T1.VERIFY-AUDIT (S-Tier)
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **User Story:** As an operator, I need a definitive verification command for audit integrity.
 
@@ -362,7 +362,7 @@ Create `docs/specs/AUDIT_RECEIPT.md` with:
 
 ### M5.T1.COMMANDS SPLIT
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **Requirements:**
 

@@ -559,6 +559,16 @@ export interface GitPlumbing {
 }
 
 /**
+ * In-memory persistence adapter for fast unit/integration tests.
+ *
+ * Implements the same GraphPersistencePort contract as GitGraphAdapter
+ * but stores all data in Maps — no real Git I/O required.
+ */
+export class InMemoryGraphAdapter extends GraphPersistencePort {
+  constructor();
+}
+
+/**
  * Implementation of GraphPersistencePort and IndexStoragePort using GitPlumbing.
  */
 export class GitGraphAdapter extends GraphPersistencePort implements IndexStoragePort {

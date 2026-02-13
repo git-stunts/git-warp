@@ -347,7 +347,7 @@ PY
 @test "seek --diff-limit without value is rejected" {
   run git warp --repo "${TEST_REPO}" --graph demo --json seek --tick 1 --diff --diff-limit
   assert_failure
-  echo "$output" | grep -qi "missing value"
+  echo "$output" | grep -qi "argument missing"
 }
 
 @test "seek --diff-limit=-1 is rejected" {

@@ -405,3 +405,45 @@ function renderSeekState(payload) {
 export function renderSeek(payload) {
   return renderSeekSimple(payload) ?? renderSeekState(payload);
 }
+
+// ── Verify-audit renderer ────────────────────────────────────────────────────
+
+/** @param {string} status */
+function colorStatus(status) {
+  if (status === 'VALID' || status === 'PARTIAL') {
+    return `${ANSI_GREEN}${status}${ANSI_RESET}`;
+  }
+  return `${ANSI_RED}${status}${ANSI_RESET}`;
+}
+
+/** @param {*} payload */
+export function renderVerifyAudit(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Verified: ${payload.verifiedAt}`,
+    `Chains: ${payload.summary.total} (${payload.summary.valid} valid, ${payload.summary.partial} partial, ${payload.summary.invalid} invalid)`,
+  ];
+
+  for (const chain of payload.chains) {
+    lines.push('');
+    lines.push(`  Writer: ${chain.writerId}`);
+    lines.push(`  Status: ${colorStatus(chain.status)}`);
+    lines.push(`  Receipts: ${chain.receiptsVerified} verified`);
+    if (chain.since) {
+      lines.push(`  Since: ${chain.since}`);
+    }
+    for (const err of chain.errors) {
+      lines.push(`  ${ANSI_RED}Error [${err.code}]: ${err.message}${ANSI_RESET}`);
+    }
+    for (const warn of chain.warnings) {
+      lines.push(`  ${ANSI_YELLOW}Warning [${warn.code}]: ${warn.message}${ANSI_RESET}`);
+    }
+  }
+
+  if (payload.trustWarning) {
+    lines.push('');
+    lines.push(`${ANSI_YELLOW}Trust: ${payload.trustWarning.message}${ANSI_RESET}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}

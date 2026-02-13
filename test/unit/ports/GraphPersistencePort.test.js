@@ -16,6 +16,7 @@ describe('GraphPersistencePort (composite mixin)', () => {
     'countNodes',
     'commitNodeWithTree',
     'nodeExists',
+    'getCommitTree',
     'ping',
     // BlobPort
     'writeBlob',
@@ -35,7 +36,7 @@ describe('GraphPersistencePort (composite mixin)', () => {
     'configSet',
   ];
 
-  it('has all 22 members on its prototype', () => {
+  it('has all 23 members on its prototype', () => {
     const proto = GraphPersistencePort.prototype;
     const ownNames = Object.getOwnPropertyNames(proto).filter(
       (n) => n !== 'constructor',

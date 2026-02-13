@@ -255,6 +255,19 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
 
   /**
    * @param {string} sha
+   * @returns {Promise<string>}
+   */
+  async getCommitTree(sha) {
+    validateOid(sha);
+    const commit = this._commits.get(sha);
+    if (!commit) {
+      throw new Error(`Commit not found: ${sha}`);
+    }
+    return commit.treeOid;
+  }
+
+  /**
+   * @param {string} sha
    * @returns {Promise<boolean>}
    */
   async nodeExists(sha) {

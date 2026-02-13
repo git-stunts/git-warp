@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.12.0] — 2026-02-13 — Multi-Runtime CLI + parseArgs Migration
+
+Makes the CLI (`bin/`) portable across Node 22+, Bun, and Deno by removing Node-only dependencies, and replaces hand-rolled arg parsing with `node:util.parseArgs` + Zod schemas.
+
+### Fixed
+
+- **verify-audit**: Reject empty-string `--since`/`--writer` values at schema level; use strict `!== undefined` check for `writerFilter`
+- **install-hooks**: `readHookContent` now only swallows ENOENT; permission errors propagate
+- **view**: Module-not-found catch narrowed to `git-warp-tui` specifier/package name only (ignores transitive dep failures)
+- **schemas**: `--max-depth` rejects negative values; `--diff` alone (without --tick/--latest/--load) now rejected; `--save`/`--load`/`--drop` reject empty-string cursor names; `--diff-limit` validates positive integer with user-friendly message; `--diff-limit` without `--diff` now rejected
+- **npm packaging**: Added `bin/cli` to the `files` array — the commands-split refactor broke the published package for CLI use.
+- **BATS audit seed**: Added `materialize()` call before first patch so `_cachedState` is initialized and audit receipts are created (all 5 verify-audit BATS tests were failing in CI).
+
+### Changed
+
+- **COMMANDS registry**: Extracted `COMMANDS` Map from `warp-graph.js` into `bin/cli/commands/registry.js` (side-effect-free); `KNOWN_COMMANDS` exported from `infrastructure.js`. Sync test asserts they match via direct import.
+- **Cross-runtime adapters**: `NodeCryptoAdapter` → `WebCryptoAdapter` (uses `globalThis.crypto.subtle`), `ClockAdapter.node()` → `ClockAdapter.global()` (uses `globalThis.performance`), removed `import crypto from 'node:crypto'` in seek.js (converted `computeFrontierHash` to async Web Crypto).
+- **Base arg parser** (`bin/cli/infrastructure.js`): Replaced 170 LOC hand-rolled parser with `node:util.parseArgs`. Two-pass approach: `extractBaseArgs` splits base flags from command args, `preprocessView` handles `--view`'s optional-value semantics. Returns `{options, command, commandArgs}` instead of `{options, positionals}`.
+- **Per-command parsers**: All 10 commands now use `parseCommandArgs()` (wraps `nodeParseArgs` + Zod `safeParse`) instead of hand-rolled loops. Query uses a hybrid approach: `extractTraversalSteps` for `--outgoing`/`--incoming` optional values, then standard parsing for the rest.
+- **Removed** `readOptionValue` and helper functions from infrastructure.js (no longer needed).
+
+### Added
+
+- **`bin/cli/schemas.js`**: Zod schemas for all commands — type coercion, enum validation, mutual-exclusion checks (seek's 10-flag parser).
+- **`parseCommandArgs()`** in infrastructure.js: Shared helper wrapping `nodeParseArgs` + Zod validation for command-level parsing.
+- **67 new CLI tests**: `parseArgs.test.js` (25 tests for base parsing), `schemas.test.js` (32 tests for Zod schema validation).
+- **Public export**: `InMemoryGraphAdapter` now exported from the package entry point (`index.js` + `index.d.ts`) so downstream modules can use it for tests without reaching into internal paths.
+
+## [10.11.0] — 2026-02-12 — COMMANDS SPLIT: CLI Decomposition
+
+Decomposes the 2491-line `bin/warp-graph.js` monolith into per-command modules (M5.T1). Pure refactor — no behavior changes.
+
+### Changed
+
+- **`bin/warp-graph.js`**: Reduced from 2491 LOC to 112 LOC. Now contains only imports, the COMMANDS map, VIEW_SUPPORTED_COMMANDS, `main()`, and the error handler.
+- **`bin/cli/infrastructure.js`**: EXIT_CODES, HELP_TEXT, CliError, parseArgs, and arg-parsing helpers.
+- **`bin/cli/shared.js`**: 12 helpers used by 2+ commands (createPersistence, openGraph, applyCursorCeiling, etc.).
+- **`bin/cli/types.js`**: JSDoc typedefs (Persistence, WarpGraphInstance, CliOptions, etc.).
+- **`bin/cli/commands/`**: 10 per-command modules (info, query, path, history, check, materialize, seek, verify-audit, view, install-hooks).
+- **ESLint config**: Added `bin/cli/commands/seek.js`, `bin/cli/commands/query.js`, and other `bin/cli/` modules to the relaxed-complexity block alongside `bin/warp-graph.js`.
+
+## [10.10.0] — 2026-02-12 — VERIFY-AUDIT: Chain Verification
+
+Implements cryptographic verification of audit receipt chains (M4.T1). Walks chains backward from tip to genesis, validating receipt schema, chain linking, Git parent consistency, tick monotonicity, trailer-CBOR consistency, OID format, and tree structure.
+
+### Added
+
+- **`AuditVerifierService`** (`src/domain/services/AuditVerifierService.js`): Domain service with `verifyChain()` and `verifyAll()` methods. Supports `--since` partial verification and ref-race detection.
+- **`getCommitTree(sha)`** on `CommitPort` / `GraphPersistencePort`: Returns the tree OID for a given commit. Implemented in `GitGraphAdapter` (via `git rev-parse`) and `InMemoryGraphAdapter`.
+- **`buildAuditPrefix()`** in `RefLayout`: Lists all audit writer refs under a graph.
+- **`verify-audit` CLI command**: `git warp verify-audit [--writer <id>] [--since <commit>]`. Supports `--json` and `--ndjson` output. Exit code 3 on invalid chains.
+- **Text presenter** for verify-audit: colored status, per-chain detail, trust warnings.
+- **31 unit tests** in `AuditVerifierService.test.js` — valid chains, partial verification, broken chain detection, data mismatch, OID format validation, schema validation, warnings, multi-writer aggregation.
+- **6 BATS CLI tests** in `cli-verify-audit.bats` — JSON/human output, writer filter, partial verify, tamper detection, no-audit-refs success.
+- **Benchmark** in `AuditVerifierService.bench.js` — 1000-receipt chain verification (<5s target).
+
 ## [10.9.0] — 2026-02-12 — SHADOW-LEDGER: Audit Receipts
 
 Implements tamper-evident, chained audit receipts per the spec in `docs/specs/AUDIT_RECEIPT.md`. When `audit: true` is passed to `WarpGraph.open()`, each data commit produces a corresponding audit commit recording per-operation outcomes. Audit commits form an independent chain per (graphName, writerId) pair, linked via `prevAuditCommit` and Git commit parents.

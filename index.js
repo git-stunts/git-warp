@@ -33,6 +33,7 @@ import IndexStoragePort from './src/ports/IndexStoragePort.js';
 import LoggerPort from './src/ports/LoggerPort.js';
 import ClockPort from './src/ports/ClockPort.js';
 import SeekCachePort from './src/ports/SeekCachePort.js';
+import InMemoryGraphAdapter from './src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
@@ -107,6 +108,7 @@ const TraversalService = CommitDagTraversalService;
 
 export {
   GitGraphAdapter,
+  InMemoryGraphAdapter,
   GraphNode,
   BitmapIndexBuilder,
   BitmapIndexReader,

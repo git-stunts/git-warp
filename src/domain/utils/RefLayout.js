@@ -314,6 +314,22 @@ export function buildAuditRef(graphName, writerId) {
 }
 
 /**
+ * Builds the audit ref prefix for listing all audit writers of a graph.
+ *
+ * @param {string} graphName - The name of the graph
+ * @returns {string} The ref prefix, e.g. `refs/warp/<graphName>/audit/`
+ * @throws {Error} If graphName is invalid
+ *
+ * @example
+ * buildAuditPrefix('events');
+ * // => 'refs/warp/events/audit/'
+ */
+export function buildAuditPrefix(graphName) {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/audit/`;
+}
+
+/**
  * Builds the seek cache ref path for the given graph.
  *
  * The seek cache ref points to a blob containing a JSON index of
