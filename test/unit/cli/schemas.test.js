@@ -210,4 +210,16 @@ describe('seekSchema', () => {
   it('rejects --diff alone (bare status)', () => {
     expect(() => seekSchema.parse({ diff: true })).toThrow(/--diff/);
   });
+
+  it('rejects empty-string --save', () => {
+    expect(() => seekSchema.parse({ save: '' })).toThrow(/missing value/i);
+  });
+
+  it('rejects empty-string --load', () => {
+    expect(() => seekSchema.parse({ load: '' })).toThrow(/missing value/i);
+  });
+
+  it('rejects empty-string --drop', () => {
+    expect(() => seekSchema.parse({ drop: '' })).toThrow(/missing value/i);
+  });
 });

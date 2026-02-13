@@ -73,10 +73,10 @@ export const viewSchema = z.object({
 export const seekSchema = z.object({
   tick: z.string().optional(),
   latest: z.boolean().default(false),
-  save: z.string().optional(),
-  load: z.string().optional(),
+  save: z.string().min(1, 'Missing value for --save').optional(),
+  load: z.string().min(1, 'Missing value for --load').optional(),
   list: z.boolean().default(false),
-  drop: z.string().optional(),
+  drop: z.string().min(1, 'Missing value for --drop').optional(),
   'clear-cache': z.boolean().default(false),
   'no-persistent-cache': z.boolean().default(false),
   diff: z.boolean().default(false),
