@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.12.0] — 2026-02-13 — Multi-Runtime CLI + parseArgs Migration
+
+Makes the CLI (`bin/`) portable across Node 22+, Bun, and Deno by removing Node-only dependencies, and replaces hand-rolled arg parsing with `node:util.parseArgs` + Zod schemas.
+
+### Fixed
+
+- **npm packaging**: Added `bin/cli` to the `files` array — the commands-split refactor broke the published package for CLI use.
+
+### Changed
+
+- **Cross-runtime adapters**: `NodeCryptoAdapter` → `WebCryptoAdapter` (uses `globalThis.crypto.subtle`), `ClockAdapter.node()` → `ClockAdapter.global()` (uses `globalThis.performance`), removed `import crypto from 'node:crypto'` in seek.js (converted `computeFrontierHash` to async Web Crypto).
+- **Base arg parser** (`bin/cli/infrastructure.js`): Replaced 170 LOC hand-rolled parser with `node:util.parseArgs`. Two-pass approach: `extractBaseArgs` splits base flags from command args, `preprocessView` handles `--view`'s optional-value semantics. Returns `{options, command, commandArgs}` instead of `{options, positionals}`.
+- **Per-command parsers**: All 10 commands now use `parseCommandArgs()` (wraps `nodeParseArgs` + Zod `safeParse`) instead of hand-rolled loops. Query uses a hybrid approach: `extractTraversalSteps` for `--outgoing`/`--incoming` optional values, then standard parsing for the rest.
+- **Removed** `readOptionValue` and helper functions from infrastructure.js (no longer needed).
+
+### Added
+
+- **`bin/cli/schemas.js`**: Zod schemas for all commands — type coercion, enum validation, mutual-exclusion checks (seek's 10-flag parser).
+- **`parseCommandArgs()`** in infrastructure.js: Shared helper wrapping `nodeParseArgs` + Zod validation for command-level parsing.
+- **67 new CLI tests**: `parseArgs.test.js` (25 tests for base parsing), `schemas.test.js` (32 tests for Zod schema validation).
+
 ## [10.11.0] — 2026-02-12 — COMMANDS SPLIT: CLI Decomposition
 
 Decomposes the 2491-line `bin/warp-graph.js` monolith into per-command modules (M5.T1). Pure refactor — no behavior changes.
