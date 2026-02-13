@@ -241,16 +241,16 @@ export function parseArgs(argv) {
   const { baseArgs, command, commandArgs } = extractBaseArgs(argv);
   const processed = preprocessView(baseArgs);
 
-  /** @type {*} */
+  /** @type {*} */ // TODO(ts-cleanup): type parseArgs return
   let parsed;
   try {
     parsed = nodeParseArgs({
       args: processed,
-      options: /** @type {*} */ (BASE_OPTIONS),
+      options: /** @type {*} */ (BASE_OPTIONS), // TODO(ts-cleanup): type parseArgs config
       strict: true,
       allowPositionals: false,
     });
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type parseArgs error
     throw usageError(err.message);
   }
 
@@ -281,22 +281,22 @@ export function parseArgs(argv) {
  * @returns {{values: *, positionals: string[]}}
  */
 export function parseCommandArgs(args, config, schema, { allowPositionals = false } = {}) {
-  /** @type {*} */
+  /** @type {*} */ // TODO(ts-cleanup): type parseArgs return
   let parsed;
   try {
     parsed = nodeParseArgs({
       args,
-      options: /** @type {*} */ (config),
+      options: /** @type {*} */ (config), // TODO(ts-cleanup): type parseArgs config
       strict: true,
       allowPositionals,
     });
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type parseArgs error
     throw usageError(err.message);
   }
 
   const result = schema.safeParse(parsed.values);
   if (!result.success) {
-    const msg = result.error.issues.map((/** @type {*} */ issue) => issue.message).join('; ');
+    const msg = result.error.issues.map((/** @type {*} */ issue) => issue.message).join('; '); // TODO(ts-cleanup): type Zod issue
     throw usageError(msg);
   }
 
