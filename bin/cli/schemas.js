@@ -80,7 +80,7 @@ export const seekSchema = z.object({
   'clear-cache': z.boolean().default(false),
   'no-persistent-cache': z.boolean().default(false),
   diff: z.boolean().default(false),
-  'diff-limit': z.coerce.number().int().positive().default(2000),
+  'diff-limit': z.coerce.number().int({ message: '--diff-limit must be a positive integer' }).positive({ message: '--diff-limit must be a positive integer' }).default(2000),
 }).strict().superRefine((val, ctx) => {
   // Count mutually exclusive action flags
   const actions = [
@@ -105,7 +105,15 @@ export const seekSchema = z.object({
   if (val.diff && !DIFF_ACTIONS) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '--diff can only be used with --tick, --latest, or --load',
+      message: '--diff cannot be used without --tick, --latest, or --load',
+    });
+  }
+
+  // --diff-limit requires --diff
+  if (val['diff-limit'] !== 2000 && !val.diff) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: '--diff-limit requires --diff',
     });
   }
 }).transform((val) => {

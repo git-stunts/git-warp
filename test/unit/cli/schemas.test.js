@@ -222,4 +222,28 @@ describe('seekSchema', () => {
   it('rejects empty-string --drop', () => {
     expect(() => seekSchema.parse({ drop: '' })).toThrow(/missing value/i);
   });
+
+  it('rejects --diff-limit=0', () => {
+    expect(() => seekSchema.parse({ tick: '1', diff: true, 'diff-limit': '0' })).toThrow(/positive integer/i);
+  });
+
+  it('rejects --diff-limit=-1', () => {
+    expect(() => seekSchema.parse({ tick: '1', diff: true, 'diff-limit': '-1' })).toThrow(/positive integer/i);
+  });
+
+  it('rejects --diff-limit=1.5', () => {
+    expect(() => seekSchema.parse({ tick: '1', diff: true, 'diff-limit': '1.5' })).toThrow(/positive integer/i);
+  });
+
+  it('rejects --diff with --save (cannot be used)', () => {
+    expect(() => seekSchema.parse({ save: 'snap1', diff: true })).toThrow(/cannot be used/i);
+  });
+
+  it('rejects --diff bare status (cannot be used)', () => {
+    expect(() => seekSchema.parse({ diff: true })).toThrow(/cannot be used/i);
+  });
+
+  it('rejects --diff-limit without --diff', () => {
+    expect(() => seekSchema.parse({ tick: '1', 'diff-limit': '10' })).toThrow(/requires --diff/i);
+  });
 });
