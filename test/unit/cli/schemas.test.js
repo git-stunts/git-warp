@@ -49,6 +49,14 @@ describe('verifyAuditSchema', () => {
     expect(result.since).toBe('abc');
     expect(result.writer).toBe('alice');
   });
+
+  it('rejects empty-string --since', () => {
+    expect(() => verifyAuditSchema.parse({ since: '' })).toThrow();
+  });
+
+  it('rejects empty-string --writer', () => {
+    expect(() => verifyAuditSchema.parse({ writer: '' })).toThrow();
+  });
 });
 
 describe('pathSchema', () => {
@@ -82,6 +90,10 @@ describe('pathSchema', () => {
   it('transforms multiple labels to array', () => {
     const result = pathSchema.parse({ from: 'a', to: 'b', label: ['manages', 'owns'] });
     expect(result.labels).toEqual(['manages', 'owns']);
+  });
+
+  it('rejects negative --max-depth', () => {
+    expect(() => pathSchema.parse({ from: 'a', to: 'b', 'max-depth': '-1' })).toThrow();
   });
 });
 
@@ -193,5 +205,9 @@ describe('seekSchema', () => {
 
   it('rejects --diff with incompatible action', () => {
     expect(() => seekSchema.parse({ list: true, diff: true })).toThrow(/--diff/);
+  });
+
+  it('rejects --diff alone (bare status)', () => {
+    expect(() => seekSchema.parse({ diff: true })).toThrow(/--diff/);
   });
 });

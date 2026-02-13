@@ -99,7 +99,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

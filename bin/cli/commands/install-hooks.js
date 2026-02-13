@@ -81,8 +81,11 @@ async function promptForForeignStrategy() {
 function readHookContent(hookPath) {
   try {
     return fs.readFileSync(hookPath, 'utf8');
-  } catch {
-    return null;
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type fs error
+    if (err.code === 'ENOENT') {
+      return null;
+    }
+    throw err;
   }
 }
 

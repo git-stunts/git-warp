@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs } from '../../../bin/cli/infrastructure.js';
+import { parseArgs, KNOWN_COMMANDS } from '../../../bin/cli/infrastructure.js';
 
 describe('parseArgs (base)', () => {
   it('parses command as first positional', () => {
@@ -133,6 +133,19 @@ describe('parseArgs (base)', () => {
       const { command, commandArgs } = parseArgs(['path', 'node:a', 'node:b']);
       expect(command).toBe('path');
       expect(commandArgs).toEqual(['node:a', 'node:b']);
+    });
+  });
+
+  describe('KNOWN_COMMANDS sync', () => {
+    // COMMANDS map in warp-graph.js cannot be imported without side-effects,
+    // so we hardcode the expected set here as a drift-detection test.
+    const EXPECTED_COMMANDS = [
+      'info', 'query', 'path', 'history', 'check',
+      'materialize', 'seek', 'verify-audit', 'view', 'install-hooks',
+    ];
+
+    it('KNOWN_COMMANDS matches the COMMANDS map in warp-graph.js', () => {
+      expect([...KNOWN_COMMANDS].sort()).toEqual([...EXPECTED_COMMANDS].sort());
     });
   });
 });

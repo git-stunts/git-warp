@@ -24,14 +24,12 @@ describe('parseVerifyAuditArgs', () => {
     expect(result.writerFilter).toBeUndefined();
   });
 
-  it('accepts empty-string value for --since', () => {
-    const result = parseVerifyAuditArgs(['--since', '']);
-    expect(result.since).toBe('');
+  it('rejects empty-string value for --since', () => {
+    expect(() => parseVerifyAuditArgs(['--since', ''])).toThrow(/missing value/i);
   });
 
-  it('accepts empty-string value for --writer', () => {
-    const result = parseVerifyAuditArgs(['--writer', '']);
-    expect(result.writerFilter).toBe('');
+  it('rejects empty-string value for --writer', () => {
+    expect(() => parseVerifyAuditArgs(['--writer', ''])).toThrow(/missing value/i);
   });
 
   it('throws on unknown flag', () => {

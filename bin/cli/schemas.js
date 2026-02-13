@@ -21,8 +21,8 @@ export const installHooksSchema = z.object({
 // ============================================================================
 
 export const verifyAuditSchema = z.object({
-  since: z.string().optional(),
-  writer: z.string().optional(),
+  since: z.string().min(1, 'Missing value for --since').optional(),
+  writer: z.string().min(1, 'Missing value for --writer').optional(),
 }).strict();
 
 // ============================================================================
@@ -34,7 +34,7 @@ export const pathSchema = z.object({
   to: z.string().optional(),
   dir: z.enum(['out', 'in', 'both']).optional(),
   label: z.union([z.string(), z.array(z.string())]).optional(),
-  'max-depth': z.coerce.number().int().optional(),
+  'max-depth': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val) => ({
   from: val.from ?? null,
   to: val.to ?? null,
@@ -102,7 +102,7 @@ export const seekSchema = z.object({
 
   // --diff only with tick/latest/load
   const DIFF_ACTIONS = val.tick !== undefined || val.latest || val.load !== undefined;
-  if (val.diff && !DIFF_ACTIONS && actions.length > 0) {
+  if (val.diff && !DIFF_ACTIONS) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: '--diff can only be used with --tick, --latest, or --load',
