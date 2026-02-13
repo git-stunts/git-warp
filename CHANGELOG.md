@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.11.0] — 2026-02-12 — COMMANDS SPLIT: CLI Decomposition
+
+Decomposes the 2491-line `bin/warp-graph.js` monolith into per-command modules (M5.T1). Pure refactor — no behavior changes.
+
+### Changed
+
+- **`bin/warp-graph.js`**: Reduced from 2491 LOC to 112 LOC. Now contains only imports, the COMMANDS map, VIEW_SUPPORTED_COMMANDS, `main()`, and the error handler.
+- **`bin/cli/infrastructure.js`**: EXIT_CODES, HELP_TEXT, CliError, parseArgs, and arg-parsing helpers.
+- **`bin/cli/shared.js`**: 12 helpers used by 2+ commands (createPersistence, openGraph, applyCursorCeiling, etc.).
+- **`bin/cli/types.js`**: JSDoc typedefs (Persistence, WarpGraphInstance, CliOptions, etc.).
+- **`bin/cli/commands/`**: 10 per-command modules (info, query, path, history, check, materialize, seek, verify-audit, view, install-hooks).
+- **ESLint config**: Replaced `bin/warp-graph.js` relaxed-complexity entry with `bin/cli/commands/seek.js` and `bin/cli/commands/query.js`.
+
 ## [10.10.0] — 2026-02-12 — VERIFY-AUDIT: Chain Verification
 
 Implements cryptographic verification of audit receipt chains (M4.T1). Walks chains backward from tip to genesis, validating receipt schema, chain linking, Git parent consistency, tick monotonicity, trailer-CBOR consistency, OID format, and tree structure.

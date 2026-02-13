@@ -362,7 +362,7 @@ Create `docs/specs/AUDIT_RECEIPT.md` with:
 
 ### M5.T1.COMMANDS SPLIT
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **Requirements:**
 
