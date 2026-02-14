@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.14.0] — 2026-02-14 — Patch Wrapper
+
+Adds `graph.patch(fn)` — a single-await convenience wrapper around `createPatch()` + `commit()`. No semantic or runtime behavior changes; purely ergonomic sugar.
+
+### Added
+
+- **`graph.patch(fn)`**: Creates a patch, runs the callback, and commits in one await. Callback may be sync or async. Errors propagate untouched — no wrapping or relabeling.
+- **`PatchSession.setEdgeProperty()`**: Delegate for setting properties on edges via `PatchSession` (previously only available on `PatchBuilderV2`).
+- **TypeScript**: `patch()` on `WarpGraph`, `setEdgeProperty()` on `PatchSession`, `createPatch()` return type narrowed from `Promise<unknown>` to `Promise<PatchSession>`.
+
+### Fixed
+
+- **`graph.patch()` reentrancy guard**: Nested `graph.patch()` calls inside a callback now throw a clear error instead of silently breaking CAS semantics. Use `createPatch()` directly for advanced multi-patch workflows.
+- **`examples/setup.js`**: Added missing `await` on `getNodes()`, `getEdges()`, and `getNodeProps()` calls (pre-existing bug).
+
 ## [10.13.0] — 2026-02-13 — Doctor Command
 
 Adds `git warp doctor`, a structural diagnostics command that probes for anomalies (broken refs, missing objects, clock drift, audit gaps) and prescribes fixes. Read-only, no materialization required.

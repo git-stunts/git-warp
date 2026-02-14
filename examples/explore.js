@@ -51,8 +51,8 @@ async function main() {
 
   const state = await graph.materialize();
   console.log('[2] Materialized state');
-  const nodes = graph.getNodes();
-  const edges = graph.getEdges();
+  const nodes = await graph.getNodes();
+  const edges = await graph.getEdges();
   console.log(`    Nodes: ${nodes.length}`);
   console.log(`    Edges: ${edges.length}`);
   console.log(`    Properties: ${state.prop.size}`);
@@ -65,7 +65,7 @@ async function main() {
   }
 
   for (const nodeId of sortedNodes) {
-    const props = graph.getNodeProps(nodeId);
+    const props = await graph.getNodeProps(nodeId);
     const printable = props ? mapToObject(props) : {};
     console.log(`  - ${nodeId}`);
     if (Object.keys(printable).length > 0) {

@@ -1311,6 +1311,8 @@ export class PatchSession {
   removeEdge(from: string, to: string, label: string): this;
   /** Sets a property on a node. */
   setProperty(nodeId: string, key: string, value: unknown): this;
+  /** Sets a property on an edge. */
+  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
   /** Builds the patch object without committing. */
   build(): unknown;
   /** Commits the patch with CAS protection. */
@@ -1522,7 +1524,19 @@ export default class WarpGraph {
   /**
    * Creates a new patch for adding operations.
    */
-  createPatch(): Promise<unknown>;
+  createPatch(): Promise<PatchSession>;
+
+  /**
+   * Convenience wrapper: creates a patch, runs the callback, and commits.
+   *
+   * The callback receives a patch builder and may be synchronous or
+   * asynchronous. The commit happens only after the callback resolves.
+   * If the callback throws or rejects, no commit is attempted.
+   *
+   * Not reentrant: calling `graph.patch()` inside a callback throws.
+   * Use `createPatch()` directly for nested or concurrent patches.
+   */
+  patch(build: (patch: PatchSession) => void | Promise<void>): Promise<string>;
 
   /**
    * Returns patches from a writer's ref chain.

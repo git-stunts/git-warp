@@ -231,6 +231,9 @@ export default class WarpGraph {
     this._seekCache = seekCache || null;
 
     /** @type {boolean} */
+    this._patchInProgress = false;
+
+    /** @type {boolean} */
     this._provenanceDegraded = false;
 
     /** @type {boolean} */
@@ -435,6 +438,42 @@ export default class WarpGraph {
       codec: this._codec,
       logger: this._logger || undefined,
     });
+  }
+
+  /**
+   * Convenience wrapper: creates a patch, runs the callback, and commits.
+   *
+   * The callback receives a `PatchBuilderV2` and may be synchronous or
+   * asynchronous. The commit happens only after the callback resolves
+   * successfully. If the callback throws or rejects, no commit is attempted
+   * and the error propagates untouched.
+   *
+   * Not reentrant: calling `graph.patch()` inside a callback throws.
+   * Use `createPatch()` directly for advanced multi-patch workflows.
+   *
+   * @param {(p: PatchBuilderV2) => void | Promise<void>} build - Callback that adds operations to the patch
+   * @returns {Promise<string>} The commit SHA of the new patch
+   *
+   * @example
+   * const sha = await graph.patch(p => {
+   *   p.addNode('user:alice');
+   *   p.setProperty('user:alice', 'name', 'Alice');
+   * });
+   */
+  async patch(build) {
+    if (this._patchInProgress) {
+      throw new Error(
+        'graph.patch() is not reentrant. Use createPatch() for nested or concurrent patches.',
+      );
+    }
+    this._patchInProgress = true;
+    try {
+      const p = await this.createPatch();
+      await build(p);
+      return await p.commit();
+    } finally {
+      this._patchInProgress = false;
+    }
   }
 
   /**
