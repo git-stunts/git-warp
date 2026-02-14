@@ -24,7 +24,7 @@ import { CODES } from './codes.js';
 
 /**
  * @param {string} id
- * @param {*} err
+ * @param {*} err TODO(ts-cleanup): narrow error type
  * @returns {DoctorFinding}
  */
 function internalError(id, err) {
@@ -43,7 +43,7 @@ function internalError(id, err) {
 export async function checkRepoAccessible(ctx) {
   try {
     const clock = ClockAdapter.global();
-    const svc = new HealthCheckService({ persistence: /** @type {*} */ (ctx.persistence), clock });
+    const svc = new HealthCheckService({ persistence: /** @type {*} TODO(ts-cleanup): narrow port type */ (ctx.persistence), clock });
     const health = await svc.getHealth();
     if (health.components.repository.status === 'unhealthy') {
       return {
@@ -56,7 +56,7 @@ export async function checkRepoAccessible(ctx) {
       id: 'repo-accessible', status: 'ok', code: CODES.REPO_OK,
       impact: 'operability', message: 'Repository is accessible',
     };
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return internalError('repo-accessible', err);
   }
 }
@@ -95,7 +95,7 @@ export async function checkRefsConsistent(ctx) {
       });
     }
     return findings;
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return [internalError('refs-consistent', err)];
   }
 }
@@ -138,7 +138,7 @@ export async function checkCoverageComplete(ctx) {
       id: 'coverage-complete', status: 'ok', code: CODES.COVERAGE_OK,
       impact: 'operability', message: 'Coverage anchor includes all writers',
     };
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return internalError('coverage-complete', err);
   }
 }
@@ -179,7 +179,7 @@ export async function checkCheckpointFresh(ctx) {
 
     const { date, ageHours } = await getCheckpointAge(ctx.persistence, sha);
     return buildCheckpointFinding({ sha, date, ageHours, maxAge: ctx.policy.checkpointMaxAgeHours });
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return internalError('checkpoint-fresh', err);
   }
 }
@@ -277,7 +277,7 @@ export async function checkAuditConsistent(ctx) {
       });
     }
     return findings;
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return [internalError('audit-consistent', err)];
   }
 }
@@ -334,7 +334,7 @@ export async function checkClockSkew(ctx) {
       message: `Clock skew is within threshold (${Math.round(spreadMs / 1000)}s)`,
       evidence: { spreadMs },
     };
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return internalError('clock-skew', err);
   }
 }
@@ -350,13 +350,13 @@ export function checkHooksInstalled(ctx) {
     const installer = createHookInstaller();
     const s = installer.getHookStatus(ctx.repoPath);
     return Promise.resolve(buildHookFinding(s));
-  } catch (/** @type {*} */ err) {
+  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
     return Promise.resolve(internalError('hooks-installed', err));
   }
 }
 
 /**
- * @param {*} s - hook status from HookInstaller
+ * @param {*} s TODO(ts-cleanup): narrow hook status type
  * @returns {DoctorFinding}
  */
 function buildHookFinding(s) {

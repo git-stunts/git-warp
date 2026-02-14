@@ -24,16 +24,18 @@ vi.mock('../../../src/infrastructure/adapters/ClockAdapter.js', () => ({
   default: { global: vi.fn().mockReturnValue({}) },
 }));
 
+/** @type {*} */ // TODO(ts-cleanup): narrow mock types
 const { createPersistence, resolveGraphName, createHookInstaller } = await import('../../../bin/cli/shared.js');
 
 /**
  * Builds a mock persistence object that simulates a healthy graph
  * with a single writer "alice".
+ * @returns {*} // TODO(ts-cleanup): narrow mock type
  */
 function buildMockPersistence() {
   return {
     ping: vi.fn().mockResolvedValue({ ok: true }),
-    readRef: vi.fn().mockImplementation((ref) => {
+    readRef: vi.fn().mockImplementation((/** @type {string} */ ref) => {
       if (ref.includes('writers/alice')) {
         return Promise.resolve('aaaa000000000000000000000000000000000000');
       }
@@ -45,7 +47,7 @@ function buildMockPersistence() {
       }
       return Promise.resolve(null);
     }),
-    listRefs: vi.fn().mockImplementation((prefix) => {
+    listRefs: vi.fn().mockImplementation((/** @type {string} */ prefix) => {
       if (prefix.includes('writers/')) {
         return Promise.resolve([`${prefix}alice`]);
       }
@@ -67,8 +69,21 @@ function buildMockPersistence() {
   };
 }
 
+/** @type {import('../../../bin/cli/commands/doctor/types.js').DoctorPayload} */
+const CLI_OPTIONS = /** @type {*} */ ({
+  repo: '/tmp/test',
+  graph: 'demo',
+  json: true,
+  ndjson: false,
+  view: null,
+  writer: 'cli',
+  help: false,
+});
+
 describe('doctor command', () => {
+  /** @type {Function} */
   let handleDoctor;
+  /** @type {*} */ // TODO(ts-cleanup): narrow mock type
   let mockPersistence;
 
   beforeEach(async () => {
@@ -92,20 +107,10 @@ describe('doctor command', () => {
   });
 
   it('produces valid payload for a healthy graph', async () => {
-    const result = await handleDoctor({
-      options: {
-        repo: '/tmp/test',
-        graph: 'demo',
-        json: true,
-        ndjson: false,
-        view: null,
-        writer: 'cli',
-        help: false,
-      },
-      args: [],
-    });
-
-    const { payload, exitCode } = result;
+    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
+    /** @type {import('../../../bin/cli/commands/doctor/types.js').DoctorPayload} */
+    const payload = result.payload;
+    const { exitCode } = result;
 
     // Exit code
     expect(exitCode).toBe(DOCTOR_EXIT_CODES.OK);
@@ -141,7 +146,7 @@ describe('doctor command', () => {
     }
 
     // Check that known codes are used
-    const codes = payload.findings.map((f) => f.code);
+    const codes = payload.findings.map((/** @type {*} */ f) => f.code);
     expect(codes).toContain(CODES.REPO_OK);
     expect(codes).toContain(CODES.REFS_OK);
     expect(codes).toContain(CODES.COVERAGE_OK);
@@ -151,7 +156,7 @@ describe('doctor command', () => {
 
   it('returns exit 3 when warnings are present', async () => {
     // Remove checkpoint to trigger warning
-    mockPersistence.readRef.mockImplementation((ref) => {
+    mockPersistence.readRef.mockImplementation((/** @type {string} */ ref) => {
       if (ref.includes('writers/alice')) {
         return Promise.resolve('aaaa000000000000000000000000000000000000');
       }
@@ -161,32 +166,21 @@ describe('doctor command', () => {
       return Promise.resolve(null);
     });
 
-    const result = await handleDoctor({
-      options: {
-        repo: '/tmp/test',
-        graph: 'demo',
-        json: true,
-        ndjson: false,
-        view: null,
-        writer: 'cli',
-        help: false,
-      },
-      args: [],
-    });
+    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
 
     expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.FINDINGS);
     expect(result.payload.health).toBe('degraded');
     expect(result.payload.summary.warn).toBeGreaterThan(0);
 
     const checkpointFinding = result.payload.findings.find(
-      (f) => f.code === CODES.CHECKPOINT_MISSING,
+      (/** @type {*} */ f) => f.code === CODES.CHECKPOINT_MISSING,
     );
     expect(checkpointFinding).toBeDefined();
     expect(checkpointFinding.status).toBe('warn');
   });
 
   it('returns exit 4 in strict mode with warnings', async () => {
-    mockPersistence.readRef.mockImplementation((ref) => {
+    mockPersistence.readRef.mockImplementation((/** @type {string} */ ref) => {
       if (ref.includes('writers/alice')) {
         return Promise.resolve('aaaa000000000000000000000000000000000000');
       }
@@ -196,19 +190,7 @@ describe('doctor command', () => {
       return Promise.resolve(null);
     });
 
-    const result = await handleDoctor({
-      options: {
-        repo: '/tmp/test',
-        graph: 'demo',
-        json: true,
-        ndjson: false,
-        view: null,
-        writer: 'cli',
-        help: false,
-      },
-      args: ['--strict'],
-    });
-
+    const result = await handleDoctor({ options: CLI_OPTIONS, args: ['--strict'] });
     expect(result.exitCode).toBe(DOCTOR_EXIT_CODES.STRICT_FINDINGS);
   });
 
@@ -216,20 +198,9 @@ describe('doctor command', () => {
     // Make refs-consistent fail by breaking nodeExists for writer ref
     mockPersistence.nodeExists.mockResolvedValue(false);
 
-    const result = await handleDoctor({
-      options: {
-        repo: '/tmp/test',
-        graph: 'demo',
-        json: true,
-        ndjson: false,
-        view: null,
-        writer: 'cli',
-        help: false,
-      },
-      args: [],
-    });
+    const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
 
-    const statuses = result.payload.findings.map((f) => f.status);
+    const statuses = result.payload.findings.map((/** @type {*} */ f) => f.status);
     // fail should come before warn, which comes before ok
     const firstOkIdx = statuses.indexOf('ok');
     const lastFailIdx = statuses.lastIndexOf('fail');
