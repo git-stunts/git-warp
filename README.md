@@ -8,9 +8,11 @@
   <img src="hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-A multi-writer graph database that uses Git commits as its storage substrate. Graph state is stored as commits pointing to the empty tree (`4b825dc...`), making the data invisible to normal Git workflows while inheriting Git's content-addressing, cryptographic integrity, and distributed replication.
+## The Core Idea
 
-Writers collaborate without coordination using CRDTs (OR-Set for nodes/edges, LWW registers for properties). Every writer maintains an independent patch chain; materialization deterministically merges all writers into a single consistent view.
+**git-warp** is a graph database that doesn't need a database server. It stores all its data inside a Git repository by abusing a clever trick: every piece of data is a Git commit that points to the **empty tree** — a special object that exists in every Git repo. Because the commits don't reference any actual files, they're completely invisible to normal Git operations like `git log`, `git diff`, or `git status`. Your codebase stays untouched, but there's a full graph database living alongside it.
+
+Writers collaborate without coordination using CRDTs (Conflict-free Replicated Data Types) that guarantee deterministic convergence regardless of what order the patches arrive in.
 
 ```bash
 npm install @git-stunts/git-warp @git-stunts/plumbing
@@ -54,15 +56,21 @@ const result = await graph.query()
 
 ## How It Works
 
-Each writer creates **patches**: atomic batches of graph operations (add/remove nodes, add/remove edges, set properties). Patches are serialized as CBOR-encoded Git commit messages pointing to the empty tree, forming a per-writer chain under `refs/warp/<graphName>/writers/<writerId>`.
+### The Multi-Writer Problem (and How It's Solved)
 
-**Materialization** replays all patches from all writers, applying CRDT merge semantics:
+Multiple people (or machines, or processes) can write to the same graph **simultaneously, without any coordination**. There's no central server, no locking, no "wait your turn."
 
-- **Nodes and edges** use an Observed-Remove Set (OR-Set). An add wins over a concurrent remove unless the remove has observed the specific add event.
-- **Properties** use Last-Write-Wins (LWW) registers, ordered by Lamport timestamp, then writer ID, then patch SHA.
-- **Version vectors** track causality across writers, ensuring deterministic convergence regardless of patch arrival order.
+Each writer maintains their own independent chain of **patches** — atomic batches of operations like "add this node, set this property, create this edge." These patches are stored as Git commits under refs like `refs/warp/<graphName>/writers/<writerId>`.
 
-**Checkpoints** snapshot materialized state into a single commit for fast incremental recovery. Subsequent materializations only need to replay patches created after the checkpoint.
+When you want to read the graph, you **materialize** — which means replaying all patches from all writers and merging them into a single consistent view. The specific CRDT rules are:
+
+- **Nodes and edges** use an OR-Set (Observed-Remove Set). If Alice adds a node and Bob concurrently deletes it, the add wins — unless Bob's delete specifically observed Alice's add. This is the "add wins over concurrent remove" principle.
+- **Properties** use LWW (Last-Writer-Wins) registers. If two writers set the same property at the same time, the one with the higher Lamport timestamp wins. Ties are broken by writer ID (lexicographic), then by patch SHA.
+- **Version vectors** track causality across writers so the system knows which operations are concurrent vs. causally ordered.
+
+Every operation gets a unique **EventId** — `(lamport, writerId, patchSha, opIndex)` — which creates a total ordering that makes merge results identical no matter which machine runs them.
+
+**Checkpoints** snapshot the materialized state into a single commit for fast incremental recovery. Subsequent materializations only need to replay patches created after the checkpoint.
 
 ## Multi-Writer Collaboration
 
@@ -492,9 +500,27 @@ npm run test:deno       # Deno: API integration tests
 npm run test:matrix     # All runtimes in parallel
 ```
 
+## When git-warp is Most Useful
+
+- **Distributed configuration management.** A fleet of servers each writing their own state into a shared graph without a central database.
+- **Offline-first field applications.** Collecting data in the field with no connectivity; merging cleanly when back online.
+- **Collaborative knowledge bases.** Researchers curating nodes and relationships independently.
+- **Git-native issue/project tracking.** Embedding a full project graph directly in the repo.
+- **Audit-critical systems.** Tamper-evident records with cryptographic proof (via Audit Receipts).
+- **IoT sensor networks.** Sensors logging readings and relationships, syncing when bandwidth allows.
+- **Game world state.** Modders independently adding content that composes without a central manager.
+
+## When NOT to Use It
+
+- **High-throughput transactional workloads.** If you need thousands of writes per second with immediate consistency, use Postgres or Redis.
+- **Large binary or blob storage.** Data lives in Git commit messages (default cap 1 MB). Use object storage for images or videos.
+- **Sub-millisecond read latency.** Materialization has overhead. Use an in-memory database for real-time gaming physics or HFT.
+- **Simple key-value storage.** If you don't have relationships or need traversals, a graph database is overkill.
+- **Non-Git environments.** The value proposition depends on Git infrastructure (push/pull, content-addressing).
+
 ## AIΩN Foundations Series
 
-This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers define WARP graphs as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip them with deterministic tick-based operational semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), develop computational holography, provenance payloads, and prefix forks ([Paper III](https://doi.org/10.5281/zenodo.17963669)), and introduce observer geometry with rulial distance and temporal logic ([Paper IV](https://doi.org/10.5281/zenodo.18038297)). This codebase implements the core data structures and multi-writer collaboration protocol described in those papers.
+This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers formalize the graph as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip it with deterministic tick-based semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), develop computational holography and provenance payloads ([Paper III](https://doi.org/10.5281/zenodo.17963669)), and introduce observer geometry with the translation cost metric ([Paper IV](https://doi.org/10.5281/zenodo.18038297)).
 
 ## License
 

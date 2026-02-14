@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  doctorSchema,
   historySchema,
   installHooksSchema,
   verifyAuditSchema,
@@ -8,6 +9,22 @@ import {
   viewSchema,
   seekSchema,
 } from '../../../bin/cli/schemas.js';
+
+describe('doctorSchema', () => {
+  it('defaults strict to false', () => {
+    const result = doctorSchema.parse({});
+    expect(result.strict).toBe(false);
+  });
+
+  it('accepts --strict', () => {
+    const result = doctorSchema.parse({ strict: true });
+    expect(result.strict).toBe(true);
+  });
+
+  it('rejects unknown keys', () => {
+    expect(() => doctorSchema.parse({ unknown: true })).toThrow();
+  });
+});
 
 describe('historySchema', () => {
   it('accepts empty input', () => {

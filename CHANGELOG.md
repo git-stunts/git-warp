@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.13.0] — 2026-02-13 — Doctor Command
+
+Adds `git warp doctor`, a structural diagnostics command that probes for anomalies (broken refs, missing objects, clock drift, audit gaps) and prescribes fixes. Read-only, no materialization required.
+
+### Added
+
+- **`git warp doctor`**: 7 diagnostic checks — repo-accessible, refs-consistent, coverage-complete, checkpoint-fresh, audit-consistent, clock-skew, hooks-installed
+- **`--strict` flag**: Treats warnings as failures (exit 4 instead of 3)
+- **Budget enforcement**: Global 10s deadline; skipped checks appear as findings, not silent omissions
+- **Error boundary**: Each check is wrapped in try/catch so a single failing check produces a `CHECK_INTERNAL_ERROR` finding instead of crashing the entire command
+- **Machine-readable output**: `--json` emits versioned `DoctorPayload` (v1) with policy echo, sorted findings, and priority actions
+- **Human-readable output**: Colored status icons, per-finding fix suggestions, priority action summary
+- **Code registry**: `bin/cli/commands/doctor/codes.js` — single source of truth for all finding codes
+- **Schema + unit tests**: `doctorSchema` tests in schemas.test.js, golden-JSON tests in doctor.test.js
+- **BATS E2E tests**: 5 scenarios in cli-doctor.bats (healthy JSON, human output, broken ref, missing checkpoint, strict mode)
+
+### Fixed
+
+- **coverage-complete**: Writer heads with null SHA are now reported as missing (not silently skipped)
+- **checkHooksInstalled**: Made `async` for consistency with other check functions; removed redundant `await Promise.resolve()` wrapping
+- **sort-order test**: Hardened to exercise all three status tiers (fail/warn/ok) with targeted mocks and assert the full three-key sort invariant (status > impact > id)
+- **refs-consistent**: OK message now counts only verified refs (excludes null-sha writer heads); null-sha heads reported as `REFS_DANGLING_OBJECT`
+- **collectWriterHeads**: Gracefully handles `readRef` failures (e.g. `git show-ref` exit 128 for dangling refs) instead of crashing the entire doctor command
+- **seed-doctor-graph.js**: Calls `createCheckpoint()` + `syncCoverage()` (materialize alone does not create these refs); removed stale "installs hooks" claim
+- **`_run_json` BATS helper**: Fixed status capture bug (`|| true` made `$?` always 0)
+
 ## [10.12.0] — 2026-02-13 — Multi-Runtime CLI + parseArgs Migration
 
 Makes the CLI (`bin/`) portable across Node 22+, Bun, and Deno by removing Node-only dependencies, and replaces hand-rolled arg parsing with `node:util.parseArgs` + Zod schemas.

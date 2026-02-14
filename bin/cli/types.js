@@ -7,6 +7,7 @@
  * @property {(oid: string) => Promise<Buffer>} readBlob
  * @property {(buf: Buffer) => Promise<string>} writeBlob
  * @property {(sha: string) => Promise<{date?: string|null}>} getNodeInfo
+ * @property {(sha: string) => Promise<boolean>} nodeExists
  * @property {(sha: string, coverageSha: string) => Promise<boolean>} isAncestor
  * @property {() => Promise<{ok: boolean}>} ping
  * @property {*} plumbing

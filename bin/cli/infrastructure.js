@@ -20,6 +20,7 @@ Commands:
   path             Find a logical path between two nodes
   history          Show writer history
   check            Report graph health/GC status
+  doctor           Diagnose structural issues and suggest fixes
   verify-audit     Verify audit receipt chain integrity
   materialize      Materialize and checkpoint all graphs
   seek             Time-travel: step through graph history by Lamport tick
@@ -54,6 +55,9 @@ Path options:
 
 History options:
   --node <id>           Filter patches touching node id
+
+Doctor options:
+  --strict              Treat warnings as failures (exit 4)
 
 Verify-audit options:
   --writer <id>         Verify a single writer's chain (default: all)
@@ -99,7 +103,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

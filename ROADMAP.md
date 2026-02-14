@@ -331,7 +331,7 @@ Create `docs/specs/AUDIT_RECEIPT.md` with:
 
 ### M4.T2.DOCTOR (B-Tier)
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **User Story:** As an operator, I need one command that identifies likely system breakage fast.
 
@@ -442,6 +442,9 @@ No v2.0 tag until all pass:
 | B4 | B | **WARP UI VISUALIZER** — local graph/audit explorer |
 | B5 | D | **EXPERIMENTAL SYNC-BUILDER** — only behind explicit flag; requires invariants doc + soak + rollback proof; not eligible for core release without separate RFC |
 | B6 | B/C | **RUST CORE / WASM** — pursue only when measured perf ceiling is proven in JS path |
+| B7 | C | **DOCTOR: `writerHeadsWithSha()` HELPER** — pre-filter null-sha heads once in orchestrator, eliminating defensive guards in every check function |
+| B8 | C | **DOCTOR: PROPERTY-BASED FUZZ TEST** — fuzz `writerHeads` with random null/empty shas and verify no check throws (all return findings) |
+| B9 | D | **DOCTOR: EXPORT `compareFinding`** — enable direct unit testing of sort logic independent of the full doctor pipeline |
 
 ---
 

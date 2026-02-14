@@ -406,6 +406,58 @@ export function renderSeek(payload) {
   return renderSeekSimple(payload) ?? renderSeekState(payload);
 }
 
+// ── Doctor renderer ──────────────────────────────────────────────────────────
+
+/** @param {'ok'|'warn'|'fail'} status */
+function findingIcon(status) {
+  if (status === 'ok') {
+    return `${ANSI_GREEN}\u2713${ANSI_RESET}`;
+  }
+  if (status === 'warn') {
+    return `${ANSI_YELLOW}\u26A0${ANSI_RESET}`;
+  }
+  return `${ANSI_RED}\u2717${ANSI_RESET}`;
+}
+
+/** @param {'ok'|'degraded'|'failed'} health */
+function colorHealth(health) {
+  if (health === 'ok') {
+    return `${ANSI_GREEN}${health}${ANSI_RESET}`;
+  }
+  if (health === 'degraded') {
+    return `${ANSI_YELLOW}${health}${ANSI_RESET}`;
+  }
+  return `${ANSI_RED}${health}${ANSI_RESET}`;
+}
+
+/** @param {*} payload */
+export function renderDoctor(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Health: ${colorHealth(payload.health)}`,
+    `Checked: ${payload.checkedAt}`,
+    `Summary: ${payload.summary.checksRun} checks, ${payload.summary.findingsTotal} findings (${payload.summary.ok} ok, ${payload.summary.warn} warn, ${payload.summary.fail} fail)`,
+    '',
+  ];
+
+  for (const f of payload.findings) {
+    lines.push(`${findingIcon(f.status)} ${f.id}: ${f.message}`);
+    if (f.fix) {
+      lines.push(`  fix: ${f.fix}`);
+    }
+  }
+
+  if (payload.summary.priorityActions.length > 0) {
+    lines.push('');
+    lines.push('Priority actions:');
+    for (const action of payload.summary.priorityActions) {
+      lines.push(`  - ${action}`);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
 // ── Verify-audit renderer ────────────────────────────────────────────────────
 
 /** @param {string} status */
