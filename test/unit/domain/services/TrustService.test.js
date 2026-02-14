@@ -6,8 +6,11 @@ import TrustError from '../../../../src/domain/errors/TrustError.js';
 // Helpers
 // ============================================================================
 
-function validConfig(overrides = {}) {
-  return {
+/**
+ * @returns {import('../../../../src/domain/services/TrustSchema.js').TrustConfig}
+ */
+function validConfig(/** @type {Record<string, unknown>} */ overrides = {}) {
+  return /** @type {*} */ ({
     version: 1,
     trustedWriters: ['alice', 'bob'],
     policy: 'any',
@@ -15,11 +18,7 @@ function validConfig(overrides = {}) {
     requiredSignatures: null,
     allowedSignersPath: null,
     ...overrides,
-  };
-}
-
-function validConfigJson(overrides = {}) {
-  return JSON.stringify(validConfig(overrides));
+  });
 }
 
 /** Creates a mock persistence adapter with trust blob pipeline support. */
@@ -43,14 +42,15 @@ function createMockPersistence() {
     blobs,
     trees,
     commits,
-    readRef: vi.fn(async (ref) => refs.get(ref) || null),
-    writeBlob: vi.fn(async (content) => {
+    readRef: vi.fn(async (/** @type {string} */ ref) => refs.get(ref) || null),
+    writeBlob: vi.fn(async (/** @type {Buffer|string} */ content) => {
       const oid = nextOid();
-      blobs.set(oid, Buffer.isBuffer(content) ? content : Buffer.from(content));
+      blobs.set(oid, Buffer.isBuffer(content) ? content : Buffer.from(String(content)));
       return oid;
     }),
-    writeTree: vi.fn(async (entries) => {
+    writeTree: vi.fn(async (/** @type {string[]} */ entries) => {
       const oid = nextOid();
+      /** @type {Record<string, string>} */
       const treeEntries = {};
       for (const entry of entries) {
         const match = entry.match(/^\d+ blob (\S+)\t(.+)$/);
@@ -61,40 +61,40 @@ function createMockPersistence() {
       trees.set(oid, treeEntries);
       return oid;
     }),
-    commitNodeWithTree: vi.fn(async ({ treeOid, parents, message }) => {
+    commitNodeWithTree: vi.fn(async (/** @type {{ treeOid: string, parents: string[], message: string }} */ opts) => {
       const oid = nextOid();
-      commits.set(oid, { treeOid, parents, message, date: '2025-01-01T00:00:00Z' });
+      commits.set(oid, { treeOid: opts.treeOid, parents: opts.parents, message: opts.message, date: '2025-01-01T00:00:00Z' });
       return oid;
     }),
-    compareAndSwapRef: vi.fn(async (ref, newOid, expectedOid) => {
+    compareAndSwapRef: vi.fn(async (/** @type {string} */ ref, /** @type {string} */ newOid, /** @type {string|null} */ expectedOid) => {
       const current = refs.get(ref) || null;
       if (current !== expectedOid) {
         throw new Error(`CAS mismatch: expected ${expectedOid}, got ${current}`);
       }
       refs.set(ref, newOid);
     }),
-    getCommitTree: vi.fn(async (sha) => {
+    getCommitTree: vi.fn(async (/** @type {string} */ sha) => {
       const commit = commits.get(sha);
       if (!commit) {
         throw new Error(`Commit not found: ${sha}`);
       }
       return commit.treeOid;
     }),
-    readTreeOids: vi.fn(async (treeOid) => {
+    readTreeOids: vi.fn(async (/** @type {string} */ treeOid) => {
       const tree = trees.get(treeOid);
       if (!tree) {
         throw new Error(`Tree not found: ${treeOid}`);
       }
       return tree;
     }),
-    readBlob: vi.fn(async (oid) => {
+    readBlob: vi.fn(async (/** @type {string} */ oid) => {
       const blob = blobs.get(oid);
       if (!blob) {
         throw new Error(`Blob not found: ${oid}`);
       }
       return blob;
     }),
-    getNodeInfo: vi.fn(async (sha) => {
+    getNodeInfo: vi.fn(async (/** @type {string} */ sha) => {
       const commit = commits.get(sha);
       if (!commit) {
         throw new Error(`Commit not found: ${sha}`);
@@ -127,10 +127,10 @@ describe('TrustService — readTrustConfig', () => {
 
     const result = await service.readTrustConfig();
     expect(result).not.toBeNull();
-    expect(result.config.version).toBe(1);
-    expect(result.config.trustedWriters).toEqual(['alice', 'bob']);
-    expect(result.config.policy).toBe('any');
-    expect(result.commitSha).toBeTruthy();
+    expect(result?.config.version).toBe(1);
+    expect(result?.config.trustedWriters).toEqual(['alice', 'bob']);
+    expect(result?.config.policy).toBe('any');
+    expect(result?.commitSha).toBeTruthy();
   });
 });
 
@@ -222,8 +222,8 @@ describe('TrustService — initFromWriters', () => {
     await service.initFromWriters(['charlie', 'alice', 'bob', 'alice']);
 
     const result = await service.readTrustConfig();
-    expect(result.config.trustedWriters).toEqual(['alice', 'bob', 'charlie']);
-    expect(result.config.policy).toBe('any');
+    expect(result?.config.trustedWriters).toEqual(['alice', 'bob', 'charlie']);
+    expect(result?.config.policy).toBe('any');
   });
 
   it('trims and filters empty IDs', async () => {
@@ -232,7 +232,7 @@ describe('TrustService — initFromWriters', () => {
     await service.initFromWriters(['  alice  ', '', '  ', 'bob']);
 
     const result = await service.readTrustConfig();
-    expect(result.config.trustedWriters).toEqual(['alice', 'bob']);
+    expect(result?.config.trustedWriters).toEqual(['alice', 'bob']);
   });
 });
 
@@ -241,7 +241,9 @@ describe('TrustService — initFromWriters', () => {
 // ============================================================================
 
 describe('TrustService — updateTrust', () => {
+  /** @type {ReturnType<typeof createMockPersistence>} */
   let persistence;
+  /** @type {TrustService} */
   let service;
 
   beforeEach(async () => {
@@ -251,6 +253,7 @@ describe('TrustService — updateTrust', () => {
   });
 
   it('updates config and returns attestation receipt', async () => {
+    /** @type {*} */
     const receipt = await service.updateTrust(
       validConfig({ trustedWriters: ['alice', 'bob', 'charlie'], epoch: '2025-06-01T00:00:00.000Z' }),
       'admin',
@@ -265,6 +268,7 @@ describe('TrustService — updateTrust', () => {
   });
 
   it('tracks removed writers in change summary', async () => {
+    /** @type {*} */
     const receipt = await service.updateTrust(
       validConfig({ trustedWriters: ['alice'], epoch: '2025-06-01T00:00:00.000Z' }),
       'admin',
@@ -312,6 +316,7 @@ describe('TrustService — updateTrust', () => {
 // ============================================================================
 
 describe('TrustService — evaluateWriters', () => {
+  /** @type {TrustService} */
   let service;
 
   beforeEach(() => {
@@ -348,8 +353,8 @@ describe('TrustService — evaluateWriters', () => {
 
     expect(result.evaluatedWriters).toEqual(['alice']);
     expect(result.untrustedWriters).toEqual(['unknown']);
-    expect(result.explanations.find((e) => e.writerId === 'unknown').reason)
-      .toContain('policy requires trust');
+    const unknownExpl = result.explanations.find((e) => e.writerId === 'unknown');
+    expect(unknownExpl?.reason).toContain('policy requires trust');
   });
 
   it('returns sorted evaluatedWriters and untrustedWriters', () => {
@@ -438,7 +443,7 @@ describe('TrustService — diagnose', () => {
     const findings = await service.diagnose();
     const empty = findings.find((f) => f.id === 'TRUST_WRITERS_EMPTY');
     expect(empty).toBeTruthy();
-    expect(empty.status).toBe('warn');
+    expect(empty?.status).toBe('warn');
   });
 
   it('reports all OK for healthy trust config', async () => {
@@ -459,7 +464,7 @@ describe('TrustService — diagnose', () => {
     const findings = await service.diagnose({ pinSha: commitSha });
     const pin = findings.find((f) => f.id === 'TRUST_PIN_VALID');
     expect(pin).toBeTruthy();
-    expect(pin.status).toBe('ok');
+    expect(pin?.status).toBe('ok');
   });
 
   it('reports TRUST_PIN_INVALID for bad pin', async () => {
@@ -470,7 +475,7 @@ describe('TrustService — diagnose', () => {
     const findings = await service.diagnose({ pinSha: '0'.repeat(40) });
     const pin = findings.find((f) => f.id === 'TRUST_PIN_INVALID');
     expect(pin).toBeTruthy();
-    expect(pin.status).toBe('fail');
+    expect(pin?.status).toBe('fail');
   });
 });
 

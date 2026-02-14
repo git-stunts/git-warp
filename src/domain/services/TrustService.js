@@ -89,7 +89,7 @@ export default class TrustService {
   async readTrustConfigAtCommit(sha) {
     try {
       return await this._readConfigFromCommit(sha);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       if (err instanceof TrustError && err.code === 'E_TRUST_PIN_INVALID') {
         throw err;
       }
@@ -136,7 +136,7 @@ export default class TrustService {
         commitSha,
         null, // ref must not exist
       );
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         'Trust ref already exists. Use updateTrust() to modify an existing config. Current tip: fetch with readTrustConfig().',
         { code: 'E_TRUST_REF_CONFLICT', context: { ref: this._trustRef, cause: err?.message } },
@@ -261,7 +261,7 @@ export default class TrustService {
         newSha,
         expectedTip,
       );
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         `Trust ref moved since read. Fetch latest tip with readTrustConfig() and retry. Current tip was: ${expectedTip}`,
         {
@@ -521,7 +521,7 @@ export default class TrustService {
     let treeOid;
     try {
       treeOid = await this._persistence.getCommitTree(sha);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         `Cannot read commit ${sha}: ${err?.message}`,
         { code: 'E_TRUST_PIN_INVALID', context: { sha } },
@@ -532,7 +532,7 @@ export default class TrustService {
     let entries;
     try {
       entries = await this._persistence.readTreeOids(treeOid);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         `Cannot read tree ${treeOid} for commit ${sha}: ${err?.message}`,
         { code: 'E_TRUST_PIN_INVALID', context: { sha, treeOid } },
@@ -561,7 +561,7 @@ export default class TrustService {
   async _readBlobContent(blobOid, sha) {
     try {
       return await this._persistence.readBlob(blobOid);
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         `Cannot read blob ${blobOid} for ${TRUST_BLOB_NAME}: ${err?.message}`,
         { code: 'E_TRUST_SCHEMA_INVALID', context: { sha, blobOid } },
@@ -580,7 +580,7 @@ export default class TrustService {
     let raw;
     try {
       raw = JSON.parse(blobContent.toString('utf8'));
-    } catch (/** @type {*} */ err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
       throw new TrustError(
         `Malformed JSON in ${TRUST_BLOB_NAME}: ${err?.message}`,
         { code: 'E_TRUST_SCHEMA_INVALID', context: { sha } },

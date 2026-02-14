@@ -28,7 +28,7 @@ export default async function handleTrust({ options, args }) {
   const crypto = new WebCryptoAdapter();
 
   const trustService = new TrustService({
-    persistence: /** @type {*} */ (persistence),
+    persistence: /** @type {*} */ (persistence), // TODO(ts-cleanup): narrow persistence type
     graphName,
     crypto,
   });

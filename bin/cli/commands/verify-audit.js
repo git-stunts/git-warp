@@ -37,18 +37,18 @@ export default async function handleVerifyAudit({ options, args }) {
 
   const crypto = new WebCryptoAdapter();
   const trustService = new TrustService({
-    persistence: /** @type {*} */ (persistence),
+    persistence: /** @type {*} */ (persistence), // TODO(ts-cleanup): narrow persistence type
     graphName,
     crypto,
   });
 
   const verifier = new AuditVerifierService({
-    persistence: /** @type {*} */ (persistence),
+    persistence: /** @type {*} */ (persistence), // TODO(ts-cleanup): narrow persistence type
     codec: defaultCodec,
     trustService,
   });
 
-  /** @type {*} */
+  /** @type {*} */ // TODO(ts-cleanup): type payload union
   let payload;
   if (writerFilter !== undefined) {
     const chain = await verifier.verifyChain(graphName, writerFilter, { since });

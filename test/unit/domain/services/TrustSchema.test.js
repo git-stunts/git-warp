@@ -11,7 +11,8 @@ import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCrypt
 // Valid config factory
 // ============================================================================
 
-function validConfig(overrides = {}) {
+/** @returns {Record<string, unknown>} */
+function validConfig(/** @type {Record<string, unknown>} */ overrides = {}) {
   return {
     version: 1,
     trustedWriters: ['alice', 'bob'],
