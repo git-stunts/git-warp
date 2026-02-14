@@ -36,16 +36,16 @@ const graph = await WarpGraph.open({
   autoMaterialize: true,  // auto-materialize on query
 });
 
-// Write data using the patch builder
-await (await graph.createPatch())
-  .addNode('user:alice')
-  .setProperty('user:alice', 'name', 'Alice')
-  .setProperty('user:alice', 'role', 'admin')
-  .addNode('user:bob')
-  .setProperty('user:bob', 'name', 'Bob')
-  .addEdge('user:alice', 'user:bob', 'manages')
-  .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024')
-  .commit();
+// Write data — single await with graph.patch()
+await graph.patch(p => {
+  p.addNode('user:alice')
+    .setProperty('user:alice', 'name', 'Alice')
+    .setProperty('user:alice', 'role', 'admin')
+    .addNode('user:bob')
+    .setProperty('user:bob', 'name', 'Bob')
+    .addEdge('user:alice', 'user:bob', 'manages')
+    .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024');
+});
 
 // Query the graph
 const result = await graph.query()
@@ -84,10 +84,9 @@ const graphA = await WarpGraph.open({
   writerId: 'alice',
 });
 
-await (await graphA.createPatch())
-  .addNode('doc:1')
-  .setProperty('doc:1', 'title', 'Draft')
-  .commit();
+await graphA.patch(p => {
+  p.addNode('doc:1').setProperty('doc:1', 'title', 'Draft');
+});
 
 // Writer B (on machine B)
 const graphB = await WarpGraph.open({
@@ -96,10 +95,9 @@ const graphB = await WarpGraph.open({
   writerId: 'bob',
 });
 
-await (await graphB.createPatch())
-  .addNode('doc:2')
-  .setProperty('doc:2', 'title', 'Notes')
-  .commit();
+await graphB.patch(p => {
+  p.addNode('doc:2').setProperty('doc:2', 'title', 'Notes');
+});
 
 // After git push/pull, materialize merges both writers
 const state = await graphA.materialize();

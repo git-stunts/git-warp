@@ -382,7 +382,7 @@ Create `docs/specs/AUDIT_RECEIPT.md` with:
 
 ### M6.T1.PATCH-WRAPPER — Single Await API
 
-- **Status:** `OPEN`
+- **Status:** `DONE`
 
 **User Story:** As a developer, I want one-await mutation ergonomics without changing concurrency semantics.
 
