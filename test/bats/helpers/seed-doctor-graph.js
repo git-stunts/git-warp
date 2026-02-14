@@ -1,7 +1,7 @@
 /**
  * Seeds a "healthy" demo graph for doctor BATS tests.
- * Creates patches, materializes (checkpoint + coverage), and installs hooks.
- * Expects REPO_PATH env var.
+ * Creates patches and materializes (checkpoint + coverage).
+ * Expects REPO_PATH env var (consumed by seed-setup.js).
  */
 import { WarpGraph, persistence, crypto } from './seed-setup.js';
 

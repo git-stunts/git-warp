@@ -118,6 +118,10 @@ export async function checkCoverageComplete(ctx) {
 
     const missing = [];
     for (const head of ctx.writerHeads) {
+      if (!head.sha) {
+        missing.push(head.writerId);
+        continue;
+      }
       const reachable = await ctx.persistence.isAncestor(head.sha, coverageSha);
       if (!reachable) {
         missing.push(head.writerId);
@@ -348,13 +352,13 @@ export async function checkClockSkew(ctx) {
  * @param {DoctorContext} ctx
  * @returns {Promise<DoctorFinding>}
  */
-export function checkHooksInstalled(ctx) {
+export async function checkHooksInstalled(ctx) {
   try {
     const installer = createHookInstaller();
     const s = installer.getHookStatus(ctx.repoPath);
-    return Promise.resolve(buildHookFinding(s));
+    return await Promise.resolve(buildHookFinding(s));
   } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow error type
-    return Promise.resolve(internalError('hooks-installed', err));
+    return await Promise.resolve(internalError('hooks-installed', err));
   }
 }
 
