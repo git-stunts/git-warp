@@ -442,9 +442,8 @@ No v2.0 tag until all pass:
 | B4 | B | **WARP UI VISUALIZER** — local graph/audit explorer |
 | B5 | D | **EXPERIMENTAL SYNC-BUILDER** — only behind explicit flag; requires invariants doc + soak + rollback proof; not eligible for core release without separate RFC |
 | B6 | B/C | **RUST CORE / WASM** — pursue only when measured perf ceiling is proven in JS path |
-| B7 | C | **DOCTOR: `writerHeadsWithSha()` HELPER** — pre-filter null-sha heads once in orchestrator, eliminating defensive guards in every check function |
-| B8 | C | **DOCTOR: PROPERTY-BASED FUZZ TEST** — fuzz `writerHeads` with random null/empty shas and verify no check throws (all return findings) |
-| B9 | D | **DOCTOR: EXPORT `compareFinding`** — enable direct unit testing of sort logic independent of the full doctor pipeline |
+| B7 | C | **DOCTOR: PROPERTY-BASED FUZZ TEST** — fuzz `writerHeads` with random null/empty shas and verify no check throws (all return findings) |
+| B8 | B | **`readRef` DANGLING-REF RESILIENCE** — `refExists` in `GitGraphAdapter` should catch `show-ref` exit 128 (dangling object) alongside exit 1 (missing ref), so `readRef` returns `null` instead of throwing; currently only doctor works around this, but any other caller hitting a dangling ref will crash |
 
 ---
 
