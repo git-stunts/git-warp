@@ -14,6 +14,7 @@ Adds `git warp doctor`, a structural diagnostics command that probes for anomali
 - **`git warp doctor`**: 7 diagnostic checks — repo-accessible, refs-consistent, coverage-complete, checkpoint-fresh, audit-consistent, clock-skew, hooks-installed
 - **`--strict` flag**: Treats warnings as failures (exit 4 instead of 3)
 - **Budget enforcement**: Global 10s deadline; skipped checks appear as findings, not silent omissions
+- **Error boundary**: Each check is wrapped in try/catch so a single failing check produces a `CHECK_INTERNAL_ERROR` finding instead of crashing the entire command
 - **Machine-readable output**: `--json` emits versioned `DoctorPayload` (v1) with policy echo, sorted findings, and priority actions
 - **Human-readable output**: Colored status icons, per-finding fix suggestions, priority action summary
 - **Code registry**: `bin/cli/commands/doctor/codes.js` — single source of truth for all finding codes
