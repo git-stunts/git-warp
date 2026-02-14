@@ -19,15 +19,22 @@ _run_json() {
 }
 
 @test "doctor --json healthy graph returns all ok" {
+  # Install hooks so the hooks-installed check passes
+  run git warp --repo "${TEST_REPO}" install-hooks
+  assert_success
+
   _run_json git warp --repo "${TEST_REPO}" --graph demo --json doctor
+  [ "$status" -eq 0 ]
 
   JSON="$output" python3 - <<'PY'
 import json, os
 data = json.loads(os.environ["JSON"])
 assert data["doctorVersion"] == 1
 assert data["graph"] == "demo"
+assert data["health"] == "ok"
 assert data["summary"]["checksRun"] == 7
 assert data["summary"]["fail"] == 0
+assert data["summary"]["ok"] >= 1
 assert isinstance(data["findings"], list)
 assert len(data["findings"]) >= 7
 assert isinstance(data["policy"], dict)
@@ -36,7 +43,12 @@ PY
 }
 
 @test "doctor human output includes check IDs" {
+  # Install hooks so the hooks-installed check passes
+  run git warp --repo "${TEST_REPO}" install-hooks
+  assert_success
+
   run git warp --repo "${TEST_REPO}" --graph demo doctor
+  assert_success
   echo "$output" | grep -q "repo-accessible"
   echo "$output" | grep -q "refs-consistent"
   echo "$output" | grep -q "checkpoint-fresh"
