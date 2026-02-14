@@ -444,6 +444,9 @@ No v2.0 tag until all pass:
 | B6 | B/C | **RUST CORE / WASM** — pursue only when measured perf ceiling is proven in JS path |
 | B7 | C | **DOCTOR: PROPERTY-BASED FUZZ TEST** — fuzz `writerHeads` with random null/empty shas and verify no check throws (all return findings) |
 | B8 | B | **`readRef` DANGLING-REF RESILIENCE** — `refExists` in `GitGraphAdapter` should catch `show-ref` exit 128 (dangling object) alongside exit 1 (missing ref), so `readRef` returns `null` instead of throwing; currently only doctor works around this, but any other caller hitting a dangling ref will crash |
+| B9 | B | **`graph.patch()` INTEGRATION TEST** — end-to-end test with real Git persistence to verify CAS behavior (reentrancy guard, ref advancement); mock-based unit tests masked the nested-patch CAS issue caught in PR #29 |
+| B10 | C | **`Writer.commitPatch()` REENTRANCY GUARD** — consider whether `Writer.commitPatch()` should also have a `_patchInProgress` guard for consistency with `graph.patch()` |
+| B11 | C | **`graph.patchMany(fns)` BATCH API** — sequence multiple patch callbacks atomically, each seeing the ref left by the previous; avoids reentrancy issue entirely and enables multi-patch workflows without dropping to `createPatch()` |
 
 ---
 
