@@ -131,6 +131,24 @@ export class PatchSession {
   }
 
   /**
+   * Sets a property on an edge.
+   *
+   * @param {string} from - Source node ID
+   * @param {string} to - Target node ID
+   * @param {string} label - Edge label/type
+   * @param {string} key - Property key
+   * @param {*} value - Property value (must be JSON-serializable)
+   * @returns {this} This session for chaining
+   * @throws {Error} If this session has already been committed
+   */
+  // eslint-disable-next-line max-params -- direct delegate matching PatchBuilderV2 signature
+  setEdgeProperty(from, to, label, key, value) {
+    this._ensureNotCommitted();
+    this._builder.setEdgeProperty(from, to, label, key, value);
+    return this;
+  }
+
+  /**
    * Builds the PatchV2 object without committing.
    *
    * @returns {import('../types/WarpTypesV2.js').PatchV2} The constructed patch

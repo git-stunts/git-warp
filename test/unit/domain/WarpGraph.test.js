@@ -1976,4 +1976,150 @@ eg-schema: 2`;
       });
     });
   });
+
+  // ===========================================================================
+  // patch() convenience wrapper
+  // ===========================================================================
+  describe('patch()', () => {
+    /**
+     * Helper: create a graph with commit-ready mocks.
+     * @returns {Promise<{graph: WarpGraph, persistence: any}>}
+     */
+    async function openGraphWithCommitMocks() {
+      const persistence = createMockPersistence();
+      persistence.readRef.mockResolvedValue(null);
+      persistence.writeBlob.mockResolvedValue('b'.repeat(40));
+      persistence.writeTree.mockResolvedValue('b'.repeat(40));
+      persistence.commitNodeWithTree.mockResolvedValue('c'.repeat(40));
+      persistence.updateRef.mockResolvedValue(undefined);
+
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'patch-test',
+        writerId: 'w1',
+      });
+      return { graph, persistence };
+    }
+
+    it('commits with a sync callback and returns SHA', async () => {
+      const { graph } = await openGraphWithCommitMocks();
+
+      const sha = await graph.patch(p => {
+        p.addNode('n:1');
+      });
+
+      expect(typeof sha).toBe('string');
+      expect(sha).toHaveLength(40);
+    });
+
+    it('commits with an async callback', async () => {
+      const { graph } = await openGraphWithCommitMocks();
+
+      const sha = await graph.patch(async p => {
+        await Promise.resolve();
+        p.addNode('n:2');
+      });
+
+      expect(typeof sha).toBe('string');
+      expect(sha).toHaveLength(40);
+    });
+
+    it('rejects with empty patch error when callback adds nothing', async () => {
+      const { graph } = await openGraphWithCommitMocks();
+
+      await expect(graph.patch(() => {})).rejects.toThrow(/empty/i);
+    });
+
+    it('propagates callback errors without committing', async () => {
+      const { graph, persistence } = await openGraphWithCommitMocks();
+      const boom = new Error('user error');
+
+      await expect(graph.patch(() => { throw boom; })).rejects.toThrow(boom);
+      expect(persistence.commitNodeWithTree).not.toHaveBeenCalled();
+    });
+
+    it('supports chained operations in a single patch', async () => {
+      const { graph, persistence } = await openGraphWithCommitMocks();
+
+      const sha = await graph.patch(p => {
+        p.addNode('user:alice')
+          .setProperty('user:alice', 'name', 'Alice')
+          .addNode('user:bob')
+          .addEdge('user:alice', 'user:bob', 'follows');
+      });
+
+      expect(sha).toHaveLength(40);
+      expect(persistence.commitNodeWithTree).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns a 40-hex-char commit SHA', async () => {
+      const { graph } = await openGraphWithCommitMocks();
+
+      const sha = await graph.patch(p => {
+        p.addNode('x');
+      });
+
+      expect(sha).toMatch(/^[0-9a-f]{40}$/);
+    });
+
+    it('commit occurs exactly once even when builder is captured externally', async () => {
+      const { graph, persistence } = await openGraphWithCommitMocks();
+      let captured;
+
+      await graph.patch(p => {
+        p.addNode('early');
+        captured = p;
+      });
+
+      // patch() already committed — verify exactly one commit happened
+      expect(persistence.commitNodeWithTree).toHaveBeenCalledTimes(1);
+      // The captured builder still exists but its commit already fired
+      expect(captured).toBeDefined();
+    });
+
+    it('supports nested patch calls with independent Lamport timestamps', async () => {
+      const persistence = createMockPersistence();
+      let commitCount = 0;
+      persistence.readRef.mockResolvedValue(null);
+      persistence.writeBlob.mockResolvedValue('b'.repeat(40));
+      persistence.writeTree.mockResolvedValue('b'.repeat(40));
+      persistence.commitNodeWithTree.mockImplementation(() => {
+        commitCount++;
+        return Promise.resolve(`${'d'.repeat(39)}${commitCount}`);
+      });
+      persistence.updateRef.mockResolvedValue(undefined);
+
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'nested-test',
+        writerId: 'w1',
+      });
+
+      const outerSha = await graph.patch(async p => {
+        p.addNode('outer');
+        // Nested patch — independent, higher Lamport
+        await graph.patch(inner => {
+          inner.addNode('inner');
+        });
+      });
+
+      expect(typeof outerSha).toBe('string');
+      // Both patches committed
+      expect(commitCount).toBe(2);
+    });
+
+    it('round-trips setEdgeProperty via createPatch', async () => {
+      const { graph, persistence } = await openGraphWithCommitMocks();
+
+      const sha = await graph.patch(p => {
+        p.addNode('a')
+          .addNode('b')
+          .addEdge('a', 'b', 'rel')
+          .setEdgeProperty('a', 'b', 'rel', 'weight', 42);
+      });
+
+      expect(sha).toHaveLength(40);
+      expect(persistence.commitNodeWithTree).toHaveBeenCalledTimes(1);
+    });
+  });
 });
