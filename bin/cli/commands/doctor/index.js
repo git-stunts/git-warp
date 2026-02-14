@@ -71,9 +71,14 @@ export default async function handleDoctor({ options, args }) {
  * @returns {DoctorPayload}
  */
 function assemblePayload({ repo, graph, policy, findings, checksRun, startMs }) {
-  const ok = findings.filter((f) => f.status === 'ok').length;
-  const warn = findings.filter((f) => f.status === 'warn').length;
-  const fail = findings.filter((f) => f.status === 'fail').length;
+  let ok = 0;
+  let warn = 0;
+  let fail = 0;
+  for (const f of findings) {
+    if (f.status === 'ok') { ok++; }
+    else if (f.status === 'warn') { warn++; }
+    else if (f.status === 'fail') { fail++; }
+  }
   const priorityActions = [
     ...new Set(
       findings.filter((f) => f.status !== 'ok' && f.fix).map((f) => /** @type {string} */ (f.fix)),
@@ -139,15 +144,29 @@ async function runChecks(ctx, startMs) {
       continue;
     }
 
-    const checkStart = Date.now();
-    const result = await check.fn(ctx);
-    const checkDuration = Date.now() - checkStart;
-    checksRun++;
+    let checkDuration;
+    try {
+      const checkStart = Date.now();
+      const result = await check.fn(ctx);
+      checkDuration = Date.now() - checkStart;
+      checksRun++;
 
-    const resultArray = normalizeResult(result);
-    for (const f of resultArray) {
-      f.durationMs = checkDuration;
-      findings.push(f);
+      const resultArray = normalizeResult(result);
+      for (const f of resultArray) {
+        f.durationMs = checkDuration;
+        findings.push(f);
+      }
+    } catch (/** @type {*} */ err) {
+      checkDuration = checkDuration ?? 0;
+      checksRun++;
+      findings.push({
+        id: check.id,
+        status: 'fail',
+        code: CODES.CHECK_INTERNAL_ERROR,
+        impact: 'data_integrity',
+        message: `Internal error in ${check.id}: ${err?.message || String(err)}`,
+        durationMs: checkDuration,
+      });
     }
   }
 

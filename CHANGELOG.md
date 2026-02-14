@@ -18,7 +18,7 @@ Adds `git warp doctor`, a structural diagnostics command that probes for anomali
 - **Human-readable output**: Colored status icons, per-finding fix suggestions, priority action summary
 - **Code registry**: `bin/cli/commands/doctor/codes.js` — single source of truth for all finding codes
 - **Schema + unit tests**: `doctorSchema` tests in schemas.test.js, golden-JSON tests in doctor.test.js
-- **BATS E2E tests**: 5 scenarios in cli-doctor.bats (healthy, broken ref, missing checkpoint, strict mode)
+- **BATS E2E tests**: 5 scenarios in cli-doctor.bats (healthy JSON, human output, broken ref, missing checkpoint, strict mode)
 
 ## [10.12.0] — 2026-02-13 — Multi-Runtime CLI + parseArgs Migration
 

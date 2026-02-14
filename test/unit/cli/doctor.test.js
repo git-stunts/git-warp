@@ -69,7 +69,7 @@ function buildMockPersistence() {
   };
 }
 
-/** @type {import('../../../bin/cli/commands/doctor/types.js').DoctorPayload} */
+/** @type {import('../../../bin/cli/types.js').CliOptions} */
 const CLI_OPTIONS = /** @type {*} */ ({
   repo: '/tmp/test',
   graph: 'demo',
@@ -101,7 +101,7 @@ describe('doctor command', () => {
       }),
     });
 
-    // Dynamic import to pick up mocks
+    // ESM caches the module after first import; vi.mock hoisting ensures mocks are in place
     const mod = await import('../../../bin/cli/commands/doctor/index.js');
     handleDoctor = mod.default;
   });
@@ -201,11 +201,12 @@ describe('doctor command', () => {
     const result = await handleDoctor({ options: CLI_OPTIONS, args: [] });
 
     const statuses = result.payload.findings.map((/** @type {*} */ f) => f.status);
-    // fail should come before warn, which comes before ok
+    // Precondition: the mock must produce both fail and ok findings
+    expect(statuses).toContain('fail');
+    expect(statuses).toContain('ok');
+
     const firstOkIdx = statuses.indexOf('ok');
     const lastFailIdx = statuses.lastIndexOf('fail');
-    if (lastFailIdx >= 0 && firstOkIdx >= 0) {
-      expect(lastFailIdx).toBeLessThan(firstOkIdx);
-    }
+    expect(lastFailIdx).toBeLessThan(firstOkIdx);
   });
 });

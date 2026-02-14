@@ -42,9 +42,7 @@ PY
 
 @test "doctor --json broken writer ref yields refs-consistent fail" {
   # Point writer ref to a non-existent object
-  cd "${PROJECT_ROOT}" || return 1
   git -C "${TEST_REPO}" update-ref refs/warp/demo/writers/ghost deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-  cd "${TEST_REPO}" || return 1
 
   run git warp --repo "${TEST_REPO}" --graph demo --json doctor
   # Should exit with code 3 (findings)
@@ -61,9 +59,7 @@ PY
 
 @test "doctor --json no checkpoint yields checkpoint-fresh warn" {
   # Remove the checkpoint ref if it exists
-  cd "${PROJECT_ROOT}" || return 1
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/checkpoints/head 2>/dev/null || true
-  cd "${TEST_REPO}" || return 1
 
   run git warp --repo "${TEST_REPO}" --graph demo --json doctor
   # exit 3 = findings present
@@ -79,9 +75,7 @@ PY
 
 @test "doctor --strict with warnings returns exit 4" {
   # Remove checkpoint to trigger a warning
-  cd "${PROJECT_ROOT}" || return 1
   git -C "${TEST_REPO}" update-ref -d refs/warp/demo/checkpoints/head 2>/dev/null || true
-  cd "${TEST_REPO}" || return 1
 
   run git warp --repo "${TEST_REPO}" --graph demo --json doctor --strict
   [ "$status" -eq 4 ]

@@ -240,10 +240,10 @@ async function probeAuditRefs(ctx, auditRefs, auditPrefix) {
   }
 
   const writerIds = new Set(ctx.writerHeads.map((h) => h.writerId));
-  const auditIds = auditRefs.map((r) => r.slice(auditPrefix.length)).filter((id) => id.length > 0);
-  const missing = [...writerIds].filter((id) => !auditIds.includes(id));
+  const auditIdSet = new Set(auditRefs.map((r) => r.slice(auditPrefix.length)).filter((id) => id.length > 0));
+  const missing = [...writerIds].filter((id) => !auditIdSet.has(id));
 
-  if (missing.length > 0 && auditIds.length > 0) {
+  if (missing.length > 0 && auditIdSet.size > 0) {
     findings.push({
       id: 'audit-consistent', status: 'warn', code: CODES.AUDIT_PARTIAL,
       impact: 'data_integrity',
@@ -291,6 +291,9 @@ export async function checkAuditConsistent(ctx) {
 async function collectWriterDates(ctx) {
   const dates = [];
   for (const head of ctx.writerHeads) {
+    if (!head.sha) {
+      continue;
+    }
     const info = await ctx.persistence.getNodeInfo(head.sha);
     const ms = info.date ? Date.parse(info.date) : NaN;
     if (!Number.isNaN(ms)) {
