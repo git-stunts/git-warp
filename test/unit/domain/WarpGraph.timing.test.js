@@ -224,11 +224,11 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       });
 
       // Do NOT materialize — runGC should throw E_NO_STATE
-      expect(() => graph.runGC()).toThrow('No cached state');
+      expect(() => graph.runGC()).toThrow('No materialized state');
 
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringMatching(/^\[warp\] runGC failed in \d+ms$/),
-        { error: 'No cached state. Call materialize() first.' },
+        { error: 'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization' },
       );
     });
   });

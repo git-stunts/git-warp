@@ -1333,7 +1333,10 @@ export class Writer {
   head(): Promise<string | null>;
   /** Begins a new patch session. */
   beginPatch(): Promise<PatchSession>;
-  /** Builds and commits a patch in one call. */
+  /**
+   * Builds and commits a patch in one call.
+   * @throws {WriterError} COMMIT_IN_PROGRESS if called while another commitPatch() is in progress (not reentrant)
+   */
   commitPatch(build: (p: PatchSession) => void | Promise<void>): Promise<string>;
 }
 
@@ -1431,6 +1434,7 @@ export interface ApplySyncResult {
 export interface SyncAuthServerOptions {
   keys: Record<string, string>;
   mode?: 'enforce' | 'log-only';
+  allowedWriters?: string[];
 }
 
 /**
@@ -1497,6 +1501,7 @@ export default class WarpGraph {
       compactOnCheckpoint?: boolean;
     };
     checkpointPolicy?: { every: number };
+    /** If true (default), query methods auto-materialize when no cached state exists. */
     autoMaterialize?: boolean;
     onDeleteWithData?: 'reject' | 'cascade' | 'warn';
     clock?: ClockPort;
@@ -1662,6 +1667,7 @@ export default class WarpGraph {
     maxRequestBytes?: number;
     httpPort: HttpServerPort;
     auth?: SyncAuthServerOptions;
+    allowedWriters?: string[];
   }): Promise<{ close(): Promise<void>; url: string }>;
 
   /**

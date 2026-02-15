@@ -71,6 +71,9 @@ export class Writer {
 
     /** @type {import('../../ports/CodecPort.js').default|undefined} */
     this._codec = codec || defaultCodec;
+
+    /** @type {boolean} */
+    this._commitInProgress = false;
   }
 
   /**
@@ -163,6 +166,7 @@ export class Writer {
    *
    * @param {(p: PatchSession) => void | Promise<void>} build - Function to build the patch
    * @returns {Promise<string>} The commit SHA of the new patch
+   * @throws {WriterError} COMMIT_IN_PROGRESS if called while another commitPatch() is in progress (not reentrant)
    * @throws {WriterError} EMPTY_PATCH if no operations were added
    * @throws {WriterError} WRITER_REF_ADVANCED if CAS fails (ref moved since beginPatch)
    * @throws {WriterError} PERSIST_WRITE_FAILED if git operations fail
@@ -174,8 +178,19 @@ export class Writer {
    * });
    */
   async commitPatch(build) {
-    const patch = await this.beginPatch();
-    await build(patch);
-    return await patch.commit();
+    if (this._commitInProgress) {
+      throw new WriterError(
+        'COMMIT_IN_PROGRESS',
+        'commitPatch() is not reentrant. Use beginPatch() for nested or concurrent patches.',
+      );
+    }
+    this._commitInProgress = true;
+    try {
+      const patch = await this.beginPatch();
+      await build(patch);
+      return await patch.commit();
+    } finally {
+      this._commitInProgress = false;
+    }
   }
 }

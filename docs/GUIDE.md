@@ -238,17 +238,18 @@ await graph.neighbors('user:alice', 'outgoing');
 
 ### Auto-Materialize
 
-By default, reading without materializing first throws an error. To have reads auto-materialize:
+By default, `autoMaterialize` is `true` — query methods transparently call `materialize()` when no cached state exists or when the state is stale. To opt out:
 
 ```javascript
 const graph = await WarpGraph.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
-  autoMaterialize: true,
+  autoMaterialize: false,  // throws E_NO_STATE / E_STALE_STATE instead
 });
 
-// No explicit materialize() needed
+// Must call materialize() explicitly before queries
+await graph.materialize();
 const nodes = await graph.getNodes();
 ```
 
@@ -1274,7 +1275,7 @@ Timed operations: `materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`
 1. Verify `commit()` was called on the patch
 2. Check the writer ref exists: `git show-ref | grep warp`
 3. Ensure you're materializing the same `graphName`
-4. If using `autoMaterialize: false` (the default), call `materialize()` after writing
+4. If using `autoMaterialize: false`, call `materialize()` after writing
 
 ### "State differs between machines"
 
@@ -1303,9 +1304,9 @@ This is correct OR-Set behavior — a remove only affects add events it has *obs
 
 ### "QueryError: E_NO_STATE"
 
-You're trying to read without materializing first. Either:
+You're trying to read without materializing first and `autoMaterialize` is disabled. Either:
 - Call `await graph.materialize()` before queries
-- Set `autoMaterialize: true` on `WarpGraph.open()`
+- Use the default `autoMaterialize: true` (remove any explicit `autoMaterialize: false`)
 
 ### "QueryError: E_STALE_STATE"
 
@@ -1742,6 +1743,34 @@ Exit code 0 means all chains are valid (or partial when `--since` is used). Exit
 #### Spec Reference
 
 The full specification — including canonical serialization rules, field constraints, trust model, and normative test vectors — lives in [`docs/specs/AUDIT_RECEIPT.md`](specs/AUDIT_RECEIPT.md).
+
+---
+
+### Migrating from autoMaterialize: false
+
+As of v11.0.0, `autoMaterialize` defaults to `true`. If you relied on the previous default of `false`, either:
+
+**Option A:** Accept the new default (recommended for most users):
+```js
+// Before: required explicit materialize()
+const graph = await WarpGraph.open({ persistence, graphName, writerId });
+await graph.materialize();
+const nodes = await graph.getNodes();
+
+// After: just works
+const graph = await WarpGraph.open({ persistence, graphName, writerId });
+const nodes = await graph.getNodes();
+```
+
+**Option B:** Opt out explicitly:
+```js
+const graph = await WarpGraph.open({
+  persistence, graphName, writerId,
+  autoMaterialize: false, // preserve pre-v11 behavior
+});
+```
+
+For very large graphs, consider warming `materialize()` on startup rather than taking the hit on first query.
 
 ---
 

@@ -164,7 +164,7 @@ describe('WarpGraph coverage gaps', () => {
 
       const otherState = createEmptyStateV5();
 
-      expect(() => graph.join(otherState)).toThrow('No cached state');
+      expect(() => graph.join(otherState)).toThrow('No materialized state');
     });
 
     it('throws when otherState is null', async () => {
@@ -529,9 +529,10 @@ describe('WarpGraph coverage gaps', () => {
         graphName: 'test-graph',
         writerId: 'writer-1',
         crypto,
+        autoMaterialize: false,
       });
 
-      await expect(graph.getPropertyCount()).rejects.toThrow('No cached state');
+      await expect(graph.getPropertyCount()).rejects.toThrow('No materialized state');
     });
 
     it('returns 0 for empty state', async () => {

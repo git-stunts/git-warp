@@ -539,4 +539,78 @@ describe('GitGraphAdapter', () => {
         .rejects.toThrow('permission denied');
     });
   });
+
+  describe('readRef() dangling-ref handling', () => {
+    /** @type {any} */
+    let mockPlumbing;
+    /** @type {any} */
+    let adapter;
+
+    beforeEach(() => {
+      mockPlumbing = {
+        emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+        execute: vi.fn(),
+        executeStream: vi.fn(),
+      };
+      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    });
+
+    it('readRef returns null for dangling ref (bad object)', async () => {
+      // First call: refExists (show-ref) throws exit 128
+      const err128 = /** @type {any} */ (new Error('fatal: bad object refs/warp/test/writers/alice'));
+      err128.details = { code: 128, stderr: 'fatal: bad object refs/warp/test/writers/alice' };
+      mockPlumbing.execute.mockRejectedValue(err128);
+
+      const result = await adapter.readRef('refs/warp/test/writers/alice');
+      expect(result).toBeNull();
+    });
+
+    it('readRef returns null for "not a valid object name" error', async () => {
+      const err128 = /** @type {any} */ (new Error('fatal: not a valid object name'));
+      err128.details = { code: 128, stderr: 'fatal: not a valid object name abc123' };
+      mockPlumbing.execute.mockRejectedValue(err128);
+
+      const result = await adapter.readRef('refs/warp/test/writers/bob');
+      expect(result).toBeNull();
+    });
+
+    it('readRef returns null for "does not point to a valid object"', async () => {
+      const err128 = /** @type {any} */ (new Error('show-ref failed'));
+      err128.details = { code: 128, stderr: 'error: refs/warp/x does not point to a valid object' };
+      mockPlumbing.execute.mockRejectedValue(err128);
+
+      const result = await adapter.readRef('refs/warp/test/writers/charlie');
+      expect(result).toBeNull();
+    });
+
+    it('readRef still throws on exit 128 with non-dangling stderr', async () => {
+      const err128 = /** @type {any} */ (new Error('fatal: not a git repository'));
+      err128.details = { code: 128, stderr: 'fatal: not a git repository' };
+      mockPlumbing.execute.mockRejectedValue(err128);
+
+      await expect(adapter.readRef('refs/warp/test/writers/dan'))
+        .rejects.toThrow('fatal: not a git repository');
+    });
+
+    it('readRef still throws on unexpected exit codes', async () => {
+      const err129 = /** @type {any} */ (new Error('fatal: unknown option'));
+      err129.details = { code: 129 };
+      mockPlumbing.execute.mockRejectedValue(err129);
+
+      await expect(adapter.readRef('refs/warp/test/writers/eve'))
+        .rejects.toThrow('fatal: unknown option');
+    });
+
+    it('readRef returns null when show-ref succeeds but rev-parse hits dangling object', async () => {
+      const err128 = /** @type {any} */ (new Error('fatal: bad object'));
+      err128.details = { code: 128, stderr: 'fatal: bad object abc123' };
+      // show-ref succeeds (ref exists), then rev-parse fails (dangling)
+      mockPlumbing.execute
+        .mockResolvedValueOnce('')
+        .mockRejectedValueOnce(err128);
+
+      const result = await adapter.readRef('refs/warp/test/writers/alice');
+      expect(result).toBeNull();
+    });
+  });
 });

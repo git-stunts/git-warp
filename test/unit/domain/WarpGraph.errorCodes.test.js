@@ -42,6 +42,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
+      autoMaterialize: false,
     });
   });
 
@@ -122,7 +123,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
         expect.unreachable('should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err.message).toBe(
-          'No cached state. Call materialize() to load initial state, or pass autoMaterialize: true to WarpGraph.open().',
+          'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization',
         );
       }
     });
@@ -178,7 +179,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
       }
     });
 
-    it('error message includes recovery hint mentioning autoMaterialize', async () => {
+    it('error message includes link to materialization docs', async () => {
       await graph.materialize();
       /** @type {any} */ (graph)._stateDirty = true;
 
@@ -186,7 +187,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
         await graph.hasNode('test:x');
         expect.unreachable('should have thrown');
       } catch (/** @type {any} */ err) {
-        expect(err.message).toContain('autoMaterialize');
+        expect(err.message).toContain('https://github.com/git-stunts/git-warp#materialization');
       }
     });
 
@@ -199,7 +200,7 @@ describe('HS/ERR/2: Error codes and recovery hints for state-related errors', ()
         expect.unreachable('should have thrown');
       } catch (/** @type {any} */ err) {
         expect(err.message).toBe(
-          'Cached state is stale. Call materialize() to refresh, or enable autoMaterialize.',
+          'State is stale (patches written since last materialize). Call materialize() to refresh. See https://github.com/git-stunts/git-warp#materialization',
         );
       }
     });

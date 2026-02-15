@@ -109,6 +109,8 @@ async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
 }
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
+const E_NO_STATE_MSG = 'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization';
+const E_STALE_STATE_MSG = 'State is stale (patches written since last materialize). Call materialize() to refresh. See https://github.com/git-stunts/git-warp#materialization';
 
 /**
  * @typedef {Object} MaterializedGraph
@@ -130,7 +132,7 @@ export default class WarpGraph {
    * @param {Object} [options.gcPolicy] - GC policy configuration (overrides defaults)
    * @param {number} [options.adjacencyCacheSize] - Max materialized adjacency cache entries
    * @param {{every: number}} [options.checkpointPolicy] - Auto-checkpoint policy; creates a checkpoint every N patches
-   * @param {boolean} [options.autoMaterialize=false] - If true, query methods auto-materialize instead of throwing
+   * @param {boolean} [options.autoMaterialize=true] - If true, query methods auto-materialize instead of throwing
    * @param {'reject'|'cascade'|'warn'} [options.onDeleteWithData='warn'] - Policy when deleting a node that still has edges or properties
    * @param {import('../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging
    * @param {import('../ports/ClockPort.js').default} [options.clock] - Clock for timing instrumentation (defaults to performance-based clock)
@@ -139,7 +141,7 @@ export default class WarpGraph {
    * @param {import('../ports/SeekCachePort.js').default} [options.seekCache] - Persistent cache for seek materialization (optional)
    * @param {boolean} [options.audit=false] - If true, creates audit receipts for each data commit
    */
-  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = false, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache, audit = false }) {
+  constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = true, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache, audit = false }) {
     /** @type {FullPersistence} */
     this._persistence = /** @type {FullPersistence} */ (persistence);
 
@@ -1075,7 +1077,7 @@ export default class WarpGraph {
    */
   join(otherState) {
     if (!this._cachedState) {
-      throw new QueryError('No cached state. Call materialize() first.', {
+      throw new QueryError(E_NO_STATE_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -1736,7 +1738,7 @@ export default class WarpGraph {
     const t0 = this._clock.now();
     try {
       if (!this._cachedState) {
-        throw new QueryError('No cached state. Call materialize() first.', {
+        throw new QueryError(E_NO_STATE_MSG, {
           code: 'E_NO_STATE',
         });
       }
@@ -2220,7 +2222,7 @@ export default class WarpGraph {
    */
   applySyncResponse(response) {
     if (!this._cachedState) {
-      throw new QueryError('No cached state. Call materialize() first.', {
+      throw new QueryError(E_NO_STATE_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -2637,13 +2639,13 @@ export default class WarpGraph {
     }
     if (!this._cachedState) {
       throw new QueryError(
-        'No cached state. Call materialize() to load initial state, or pass autoMaterialize: true to WarpGraph.open().',
+        E_NO_STATE_MSG,
         { code: 'E_NO_STATE' },
       );
     }
     if (this._stateDirty) {
       throw new QueryError(
-        'Cached state is stale. Call materialize() to refresh, or enable autoMaterialize.',
+        E_STALE_STATE_MSG,
         { code: 'E_STALE_STATE' },
       );
     }

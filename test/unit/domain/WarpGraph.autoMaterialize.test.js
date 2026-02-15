@@ -25,17 +25,17 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
     expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
   });
 
-  it('defaults to false when autoMaterialize is not provided', async () => {
+  it('defaults to true when autoMaterialize is not provided', async () => {
     const graph = await WarpGraph.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
     });
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
   });
 
-  it('defaults to false when autoMaterialize is explicitly undefined', async () => {
+  it('defaults to true when autoMaterialize is explicitly undefined', async () => {
     const graph = await WarpGraph.open({
       persistence: createMockPersistence(),
       graphName: 'test',
@@ -43,7 +43,7 @@ describe('WarpGraph autoMaterialize option (AP/LAZY/1)', () => {
       autoMaterialize: undefined,
     });
 
-    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(false);
+    expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
   });
 
   it('rejects autoMaterialize: "yes" (string)', async () => {

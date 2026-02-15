@@ -182,8 +182,14 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps throws E_NO_STATE when no cached state', async () => {
+    const noAutoGraph = await WarpGraph.open({
+      persistence: mockPersistence,
+      graphName: 'test',
+      writerId: 'writer-1',
+      autoMaterialize: false,
+    });
     try {
-      await graph.getEdgeProps('user:alice', 'user:bob', 'follows');
+      await noAutoGraph.getEdgeProps('user:alice', 'user:bob', 'follows');
       expect.unreachable('should have thrown');
     } catch (/** @type {any} */ err) {
       expect(err.code).toBe('E_NO_STATE');

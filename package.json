@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "10.14.0",
+  "version": "11.0.0",
   "description": "Deterministic WARP graph over Git: graph-native storage, traversal, and tooling.",
   "type": "module",
   "license": "Apache-2.0",

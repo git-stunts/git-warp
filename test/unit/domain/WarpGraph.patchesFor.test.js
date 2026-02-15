@@ -37,9 +37,10 @@ describe('WarpGraph.patchesFor() (HG/IO/2)', () => {
         persistence,
         graphName: 'test',
         writerId: 'alice',
+        autoMaterialize: false,
       });
 
-      await expect(graph.patchesFor('node:a')).rejects.toThrow('No cached state');
+      await expect(graph.patchesFor('node:a')).rejects.toThrow('No materialized state');
     });
 
     it('returns empty array for unknown entity after materialize', async () => {

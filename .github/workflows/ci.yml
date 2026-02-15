@@ -23,6 +23,9 @@ jobs:
         run: npm run typecheck
       - name: TS policy
         run: npm run typecheck:policy
+      - name: Security audit (runtime deps)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
 
   test-node:
     runs-on: ubuntu-latest

@@ -9,6 +9,7 @@ import WarpGraph from '../../src/domain/WarpGraph.js';
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/StateSerializerV5.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import { buildWriterRef } from '../../src/domain/utils/RefLayout.js';
 
 describe('WarpGraph Integration', () => {
   /** @type {any} */
@@ -232,6 +233,97 @@ describe('WarpGraph Integration', () => {
       const coverageRef = 'refs/warp/cov/coverage/head';
       const coverageSha = await persistence.readRef(coverageRef);
       expect(coverageSha).toBeTruthy();
+    });
+  });
+
+  describe('patch() CAS integration', () => {
+    it('basic patch advances writer ref and materializes', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'cas-test',
+        writerId: 'alice',
+      });
+
+      const refBefore = await persistence.readRef(buildWriterRef('cas-test', 'alice'));
+      expect(refBefore).toBeNull();
+
+      await graph.patch(p => { p.addNode('a'); });
+
+      const refAfter = await persistence.readRef(buildWriterRef('cas-test', 'alice'));
+      expect(refAfter).toBeTruthy();
+      expect(refAfter).not.toBe(refBefore);
+
+      const state = /** @type {*} */ (await graph.materialize());
+      expect(nodeVisibleV5(state, 'a')).toBe(true);
+    });
+
+    it('sequential patches advance ref each time', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'cas-seq',
+        writerId: 'alice',
+      });
+
+      await graph.patch(p => { p.addNode('a'); });
+      const sha1 = await persistence.readRef(buildWriterRef('cas-seq', 'alice'));
+
+      await graph.patch(p => { p.addNode('b'); });
+      const sha2 = await persistence.readRef(buildWriterRef('cas-seq', 'alice'));
+
+      expect(sha1).toBeTruthy();
+      expect(sha2).toBeTruthy();
+      expect(sha1).not.toBe(sha2);
+
+      const state = /** @type {*} */ (await graph.materialize());
+      expect(nodeVisibleV5(state, 'a')).toBe(true);
+      expect(nodeVisibleV5(state, 'b')).toBe(true);
+    });
+
+    it('reentrancy throws but outer patch still commits', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'cas-reentrant',
+        writerId: 'alice',
+      });
+
+      /** @type {Error|undefined} */
+      let innerError;
+      await graph.patch(async (p) => {
+        p.addNode('a');
+        try {
+          await graph.patch(p2 => { p2.addNode('b'); });
+        } catch (err) {
+          innerError = /** @type {Error} */ (err);
+        }
+      });
+
+      expect(innerError).toBeDefined();
+      expect(/** @type {Error} */ (innerError).message).toMatch(/not reentrant/i);
+
+      // Outer patch committed (ref advanced once)
+      const ref = await persistence.readRef(buildWriterRef('cas-reentrant', 'alice'));
+      expect(ref).toBeTruthy();
+
+      const state = /** @type {*} */ (await graph.materialize());
+      expect(nodeVisibleV5(state, 'a')).toBe(true);
+      expect(nodeVisibleV5(state, 'b')).toBe(false);
+    });
+
+    it('error in callback does not advance ref', async () => {
+      const graph = await WarpGraph.open({
+        persistence,
+        graphName: 'cas-err',
+        writerId: 'alice',
+      });
+
+      const refBefore = await persistence.readRef(buildWriterRef('cas-err', 'alice'));
+
+      await expect(
+        graph.patch(() => { throw new Error('oops'); })
+      ).rejects.toThrow('oops');
+
+      const refAfter = await persistence.readRef(buildWriterRef('cas-err', 'alice'));
+      expect(refAfter).toBe(refBefore); // unchanged (both null)
     });
   });
 });

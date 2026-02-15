@@ -11,8 +11,8 @@ import WarpError from './WarpError.js';
  *
  * | Code | Description |
  * |------|-------------|
- * | `E_NO_STATE` | No cached state available; call `materialize()` first |
- * | `E_STALE_STATE` | Cached state is outdated; call `materialize()` to refresh |
+ * | `E_NO_STATE` | No materialized state available; call `materialize()` or use `autoMaterialize: true` |
+ * | `E_STALE_STATE` | State is stale; call `materialize()` to refresh |
  * | `E_QUERY_MATCH_TYPE` | Invalid type passed to `match()` (expected string) |
  * | `E_QUERY_WHERE_TYPE` | Invalid type passed to `where()` (expected function or object) |
  * | `E_QUERY_WHERE_VALUE` | Non-primitive value in where() object shorthand |

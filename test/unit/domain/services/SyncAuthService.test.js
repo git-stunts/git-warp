@@ -723,3 +723,158 @@ describe('Constructor', () => {
     expect(svc.getMetrics().authFailCount).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// verifyWriters()
+// ---------------------------------------------------------------------------
+describe('verifyWriters()', () => {
+  it('allows all writers when allowedWriters is not set', async () => {
+    const auth = new SyncAuthService({
+      keys: { default: 'secret123' },
+    });
+    const result = auth.verifyWriters(['alice', 'bob', 'charlie']);
+    expect(result.ok).toBe(true);
+  });
+
+  it('allows listed writers', async () => {
+    const auth = new SyncAuthService({
+      keys: { default: 'secret123' },
+      allowedWriters: ['alice', 'bob'],
+    });
+    const result = auth.verifyWriters(['alice', 'bob']);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects unlisted writers with FORBIDDEN_WRITER 403', async () => {
+    const auth = new SyncAuthService({
+      keys: { default: 'secret123' },
+      allowedWriters: ['alice'],
+    });
+    const result = auth.verifyWriters(['alice', 'eve']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('FORBIDDEN_WRITER');
+      expect(result.status).toBe(403);
+    }
+  });
+
+  it('increments forbiddenWriterRejects metric', async () => {
+    const auth = new SyncAuthService({
+      keys: { default: 'secret123' },
+      allowedWriters: ['alice'],
+    });
+    auth.verifyWriters(['eve']);
+    expect(auth.getMetrics().forbiddenWriterRejects).toBe(1);
+  });
+
+  it('validates writer IDs at construction time', () => {
+    expect(() => new SyncAuthService({
+      keys: { default: 'secret123' },
+      allowedWriters: ['valid', 'a/b'],
+    })).toThrow('Invalid writer ID');
+  });
+
+  it('rejects empty allowedWriters array', () => {
+    expect(() => new SyncAuthService({
+      keys: { default: 'secret123' },
+      allowedWriters: [],
+    })).toThrow('allowedWriters must be a non-empty array');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mode-agnostic validation (documentation-by-test)
+// Both verify() and verifyWriters() are pure validators that always return
+// { ok: false } on failure, regardless of mode. Mode enforcement (enforce
+// vs log-only) is the caller's responsibility (see HttpSyncServer).
+// ---------------------------------------------------------------------------
+describe('mode-agnostic validation', () => {
+  it('verify() returns { ok: false } in log-only mode (caller decides enforcement)', async () => {
+    const svc = makeService({ mode: 'log-only' });
+    const req = await buildSignedRequest({ 'x-warp-signature': 'a'.repeat(64) });
+    const result = await svc.verify(req);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('INVALID_SIGNATURE');
+    }
+  });
+
+  it('verifyWriters() returns { ok: false } in log-only mode (caller decides enforcement)', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    const result = svc.verifyWriters(['eve']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('FORBIDDEN_WRITER');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforceWriters() — mode-aware convenience wrapper
+// ---------------------------------------------------------------------------
+describe('enforceWriters()', () => {
+  it('rejects forbidden writers in enforce mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+      allowedWriters: ['alice'],
+    });
+    const result = svc.enforceWriters(['eve']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('FORBIDDEN_WRITER');
+      expect(result.status).toBe(403);
+    }
+  });
+
+  it('allows forbidden writers through in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    const result = svc.enforceWriters(['eve']);
+    expect(result.ok).toBe(true);
+  });
+
+  it('increments logOnlyPassthroughs in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    svc.enforceWriters(['eve']);
+    expect(svc.getMetrics().logOnlyPassthroughs).toBe(1);
+  });
+
+  it('still increments forbiddenWriterRejects metric in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    svc.enforceWriters(['eve']);
+    expect(svc.getMetrics().forbiddenWriterRejects).toBe(1);
+  });
+
+  it('allows listed writers in any mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+      allowedWriters: ['alice', 'bob'],
+    });
+    expect(svc.enforceWriters(['alice', 'bob']).ok).toBe(true);
+  });
+
+  it('passes through when no allowedWriters configured', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+    });
+    expect(svc.enforceWriters(['anyone']).ok).toBe(true);
+  });
+});

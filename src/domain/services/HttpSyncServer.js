@@ -184,17 +184,18 @@ function parseBody(body) {
  * Initializes auth service from config if present.
  *
  * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: *, logger?: *, wallClockMs?: () => number }|undefined} auth
+ * @param {string[]} [allowedWriters]
  * @returns {{ auth: SyncAuthService|null, authMode: string|null }}
  * @private
  */
-function initAuth(auth) {
+function initAuth(auth, allowedWriters) {
   if (auth && auth.keys) {
     const VALID_MODES = new Set(['enforce', 'log-only']);
     const mode = auth.mode || 'enforce';
     if (!VALID_MODES.has(mode)) {
       throw new Error(`Invalid auth.mode: '${mode}'. Must be 'enforce' or 'log-only'.`);
     }
-    return { auth: new SyncAuthService(auth), authMode: mode };
+    return { auth: new SyncAuthService({ ...auth, allowedWriters }), authMode: mode };
   }
   return { auth: null, authMode: null };
 }
@@ -208,45 +209,58 @@ export default class HttpSyncServer {
    * @param {string} [options.host='127.0.0.1'] - Host to bind
    * @param {number} [options.maxRequestBytes=4194304] - Maximum request body size in bytes
    * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number }} [options.auth] - Auth configuration
+   * @param {string[]} [options.allowedWriters] - Optional whitelist of allowed writer IDs
    */
-  constructor({ httpPort, graph, path = '/sync', host = '127.0.0.1', maxRequestBytes = DEFAULT_MAX_REQUEST_BYTES, auth } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ httpPort, graph, path = '/sync', host = '127.0.0.1', maxRequestBytes = DEFAULT_MAX_REQUEST_BYTES, auth, allowedWriters } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     this._httpPort = httpPort;
     this._graph = graph;
     this._path = path && path.startsWith('/') ? path : `/${path || 'sync'}`;
     this._host = host;
     this._maxRequestBytes = maxRequestBytes;
     this._server = null;
-    const authInit = initAuth(auth);
+    const authInit = initAuth(auth, allowedWriters);
     this._auth = authInit.auth;
     this._authMode = authInit.authMode;
+    if (allowedWriters && !authInit.auth) {
+      throw new Error('allowedWriters requires auth.keys to be configured');
+    }
   }
 
   /**
-   * Handles an incoming HTTP request through the port abstraction.
+   * Runs auth verification and writer whitelist checks. Returns an error
+   * response when enforcement blocks the request, or null to proceed.
+   *
+   * In log-only mode both checks record metrics/logs but always return
+   * null so the request proceeds.
    *
    * @param {{ method: string, url: string, headers: { [x: string]: string }, body: Buffer|undefined }} request
-   * @returns {Promise<{ status: number, headers: Object, body: string }>}
-   * @private
-   */
-  /**
-   * Runs auth verification if configured. Returns an error response to
-   * send, or null if the request should proceed.
-   *
-   * @param {*} request
+   * @param {*} parsed - Parsed sync request body
    * @returns {Promise<{ status: number, headers: Object, body: string }|null>}
    * @private
    */
-  async _checkAuth(request) {
+  async _authorize(request, parsed) {
     if (!this._auth) {
       return null;
     }
-    const result = await this._auth.verify(request);
-    if (!result.ok) {
+
+    // Signature verification (uses raw request headers + body hash)
+    const authResult = await this._auth.verify(request);
+    if (!authResult.ok) {
       if (this._authMode === 'enforce') {
-        return errorResponse(result.status, result.reason);
+        return errorResponse(authResult.status, authResult.reason);
       }
       this._auth.recordLogOnlyPassthrough();
     }
+
+    // Writer whitelist (uses parsed body for writer IDs)
+    if (parsed.patches && typeof parsed.patches === 'object') {
+      const writerIds = Object.keys(parsed.patches);
+      const writerResult = this._auth.enforceWriters(writerIds);
+      if (!writerResult.ok) {
+        return errorResponse(writerResult.status, writerResult.reason);
+      }
+    }
+
     return null;
   }
 
@@ -267,14 +281,14 @@ export default class HttpSyncServer {
       return sizeError;
     }
 
-    const authError = await this._checkAuth(request);
-    if (authError) {
-      return authError;
-    }
-
     const { error, parsed } = parseBody(request.body);
     if (error) {
       return error;
+    }
+
+    const authError = await this._authorize(request, parsed);
+    if (authError) {
+      return authError;
     }
 
     try {

@@ -35,6 +35,7 @@ describe('WarpGraph Query API', () => {
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
+      autoMaterialize: false,
     });
   });
 

@@ -304,4 +304,23 @@ describe('HttpSyncServer', () => {
       expect(JSON.parse(res.body)).toEqual({ error: 'Invalid sync request' });
     });
   });
+
+  describe('allowedWriters configuration validation', () => {
+    it('throws when allowedWriters is set without auth.keys', () => {
+      expect(() => new HttpSyncServer({
+        httpPort: createMockPort(),
+        graph: { processSyncRequest: vi.fn() },
+        allowedWriters: ['alice'],
+      })).toThrow('allowedWriters requires auth.keys to be configured');
+    });
+
+    it('does not throw when allowedWriters is set with auth.keys', () => {
+      expect(() => new HttpSyncServer({
+        httpPort: createMockPort(),
+        graph: { processSyncRequest: vi.fn() },
+        auth: { keys: { default: 'secret' } },
+        allowedWriters: ['alice'],
+      })).not.toThrow();
+    });
+  });
 });

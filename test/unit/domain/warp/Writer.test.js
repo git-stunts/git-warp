@@ -529,6 +529,82 @@ describe('Writer (WARP schema:2)', () => {
     });
   });
 
+  describe('commitPatch() reentrancy guard', () => {
+    it('throws COMMIT_IN_PROGRESS when nested inside callback', async () => {
+      persistence.readRef.mockResolvedValue(null);
+      persistence.writeBlob.mockResolvedValue('c'.repeat(40));
+      persistence.writeTree.mockResolvedValue('d'.repeat(40));
+      persistence.commitNodeWithTree.mockResolvedValue('b'.repeat(40));
+      persistence.updateRef.mockResolvedValue(undefined);
+
+      const writer = new Writer({
+        persistence,
+        graphName: 'events',
+        writerId: 'alice',
+        versionVector,
+        getCurrentState,
+      });
+
+      await expect(
+        writer.commitPatch(async (p) => {
+          p.addNode('user:alice');
+          // Nested commitPatch should throw
+          await writer.commitPatch(p2 => { p2.addNode('user:bob'); });
+        })
+      ).rejects.toMatchObject({ code: 'COMMIT_IN_PROGRESS' });
+    });
+
+    it('resets guard after sync throw in callback', async () => {
+      persistence.readRef.mockResolvedValue(null);
+      persistence.writeBlob.mockResolvedValue('c'.repeat(40));
+      persistence.writeTree.mockResolvedValue('d'.repeat(40));
+      persistence.commitNodeWithTree.mockResolvedValue('b'.repeat(40));
+      persistence.updateRef.mockResolvedValue(undefined);
+
+      const writer = new Writer({
+        persistence,
+        graphName: 'events',
+        writerId: 'alice',
+        versionVector,
+        getCurrentState,
+      });
+
+      // First call: callback throws
+      await expect(
+        writer.commitPatch(() => { throw new Error('sync boom'); })
+      ).rejects.toThrow('sync boom');
+
+      // Second call should work (guard reset)
+      const sha = await writer.commitPatch(p => { p.addNode('x'); });
+      expect(sha).toBe('b'.repeat(40));
+    });
+
+    it('resets guard after async reject in callback', async () => {
+      persistence.readRef.mockResolvedValue(null);
+      persistence.writeBlob.mockResolvedValue('c'.repeat(40));
+      persistence.writeTree.mockResolvedValue('d'.repeat(40));
+      persistence.commitNodeWithTree.mockResolvedValue('b'.repeat(40));
+      persistence.updateRef.mockResolvedValue(undefined);
+
+      const writer = new Writer({
+        persistence,
+        graphName: 'events',
+        writerId: 'alice',
+        versionVector,
+        getCurrentState,
+      });
+
+      // First call: callback rejects
+      await expect(
+        writer.commitPatch(async () => { throw new Error('async boom'); })
+      ).rejects.toThrow('async boom');
+
+      // Second call should work (guard reset)
+      const sha = await writer.commitPatch(p => { p.addNode('y'); });
+      expect(sha).toBe('b'.repeat(40));
+    });
+  });
+
   describe('WriterError', () => {
     it('has correct name and code properties', () => {
       const err = new WriterError('TEST_CODE', 'test message');

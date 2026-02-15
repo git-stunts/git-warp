@@ -12,6 +12,7 @@
 import LRUCache from '../utils/LRUCache.js';
 import defaultCrypto from '../utils/defaultCrypto.js';
 import nullLogger from '../utils/nullLogger.js';
+import { validateWriterId } from '../utils/RefLayout.js';
 
 const SIG_VERSION = '1';
 const SIG_PREFIX = 'warp-v1';
@@ -103,7 +104,7 @@ function fail(reason, status) {
 }
 
 /**
- * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number }}
+ * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number, forbiddenWriterRejects: number }}
  */
 function _freshMetrics() {
   return {
@@ -113,6 +114,7 @@ function _freshMetrics() {
     clockSkewRejects: 0,
     malformedRejects: 0,
     logOnlyPassthroughs: 0,
+    forbiddenWriterRejects: 0,
   };
 }
 
@@ -149,6 +151,23 @@ function _validateKeys(keys) {
   }
 }
 
+/**
+ * @param {string[]|undefined} allowedWriters
+ * @returns {Set<string>|null}
+ */
+function _validateAllowedWriters(allowedWriters) {
+  if (!allowedWriters) {
+    return null;
+  }
+  if (allowedWriters.length === 0) {
+    throw new Error('allowedWriters must be a non-empty array when provided');
+  }
+  for (const w of allowedWriters) {
+    validateWriterId(w);
+  }
+  return new Set(allowedWriters);
+}
+
 export default class SyncAuthService {
   /**
    * @param {Object} options
@@ -159,8 +178,9 @@ export default class SyncAuthService {
    * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - Crypto port
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger port
    * @param {() => number} [options.wallClockMs] - Wall clock function
+   * @param {string[]} [options.allowedWriters] - Optional whitelist of allowed writer IDs. If set, sync requests with unlisted writers are rejected with 403.
    */
-  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;
@@ -170,6 +190,7 @@ export default class SyncAuthService {
     this._maxClockSkewMs = typeof maxClockSkewMs === 'number' ? maxClockSkewMs : MAX_CLOCK_SKEW_MS;
     this._nonceCache = new LRUCache(nonceCapacity || DEFAULT_NONCE_CAPACITY);
     this._metrics = _freshMetrics();
+    this._allowedWriters = _validateAllowedWriters(allowedWriters);
   }
 
   /** @returns {'enforce'|'log-only'} */
@@ -365,6 +386,51 @@ export default class SyncAuthService {
   }
 
   /**
+   * Validates that all writer IDs are in the allowed set.
+   * Call after verify() succeeds.
+   *
+   * This method is a pure validator — it always returns `{ ok: false }` for
+   * forbidden writers regardless of `this._mode`. Mode enforcement (enforce
+   * vs log-only) is the caller's responsibility, matching the same pattern
+   * used by `verify()` and `HttpSyncServer._checkAuth()`.
+   *
+   * @param {string[]} writerIds - Writer IDs from the sync request
+   * @returns {{ ok: true } | { ok: false, reason: string, status: number }}
+   */
+  verifyWriters(writerIds) {
+    if (!this._allowedWriters) {
+      return { ok: true };
+    }
+    const forbidden = writerIds.filter(id => !/** @type {Set<string>} */ (this._allowedWriters).has(id));
+    if (forbidden.length > 0) {
+      this._metrics.forbiddenWriterRejects += 1;
+      this._logger.warn('sync auth: forbidden writers rejected', { forbidden });
+      return fail('FORBIDDEN_WRITER', 403);
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Mode-aware convenience wrapper around `verifyWriters()`.
+   *
+   * In `enforce` mode, returns the failure result from `verifyWriters()`.
+   * In `log-only` mode, records a passthrough and returns `{ ok: true }`.
+   * Callers that want simple single-call authorization can use this instead
+   * of calling `verifyWriters()` + checking mode manually.
+   *
+   * @param {string[]} writerIds - Writer IDs from the sync request
+   * @returns {{ ok: true } | { ok: false, reason: string, status: number }}
+   */
+  enforceWriters(writerIds) {
+    const result = this.verifyWriters(writerIds);
+    if (!result.ok && this._mode !== 'enforce') {
+      this._metrics.logOnlyPassthroughs += 1;
+      return { ok: true };
+    }
+    return result;
+  }
+
+  /**
    * Records an auth failure and returns the result.
    * @param {string} message
    * @param {Record<string, *>} context
@@ -388,7 +454,7 @@ export default class SyncAuthService {
   /**
    * Returns a snapshot of auth metrics.
    *
-   * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number }}
+   * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number, forbiddenWriterRejects: number }}
    */
   getMetrics() {
     return { ...this._metrics };

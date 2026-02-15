@@ -27,10 +27,11 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         persistence,
         graphName: 'test',
         writerId: 'alice',
+        autoMaterialize: false,
       });
 
       // _ensureFreshState() is called first, which throws when no cached state exists
-      await expect(graph.materializeSlice('node:a')).rejects.toThrow('No cached state');
+      await expect(graph.materializeSlice('node:a')).rejects.toThrow('No materialized state');
     });
   });
 

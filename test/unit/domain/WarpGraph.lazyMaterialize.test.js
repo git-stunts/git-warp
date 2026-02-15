@@ -583,15 +583,16 @@ describe('AP/LAZY/2: auto-materialize guards on query methods', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('Edge cases', () => {
-    it('default autoMaterialize (undefined) behaves like false', async () => {
-      const persistence = createMockPersistence();
+    it('default autoMaterialize (undefined) behaves like true', async () => {
       const graph = await WarpGraph.open({
-        persistence,
+        persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
       });
 
-      await expect(graph.hasNode('test:x')).rejects.toThrow(QueryError);
+      // With default autoMaterialize=true, hasNode should auto-materialize and resolve
+      const result = await graph.hasNode('test:x');
+      expect(result).toBe(false);
     });
 
     it('_ensureFreshState does not materialize when autoMaterialize is true and state is clean', async () => {

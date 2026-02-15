@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.0.0] — 2026-02-14 — Hardening Sprint
+
+Completes M1.T2 (security hygiene), M2.T3 (signposts + defaults), and backlog items B1, B8–B10. Breaking change: `autoMaterialize` now defaults to `true`.
+
+### Breaking
+
+- **`autoMaterialize` defaults to `true`**: Query methods now transparently call `materialize()` when no cached state exists. To preserve old behavior, pass `autoMaterialize: false` explicitly. See [migration guide](docs/GUIDE.md#migrating-from-automaterialize-false).
+
+### Added
+
+- **Writer whitelist (B1)**: `HttpSyncServer` and `SyncAuthService` accept an `allowedWriters` array. Sync requests with unlisted writer IDs are rejected with HTTP 403 (`FORBIDDEN_WRITER`). Metrics tracked via `forbiddenWriterRejects`.
+- **`Writer.commitPatch()` reentrancy guard (B10)**: Throws `COMMIT_IN_PROGRESS` on nested calls, matching `graph.patch()` semantics.
+- **Dangling-ref resilience (B8)**: `refExists()` and `readRef()` in `GitGraphAdapter` now catch `git show-ref` exit 128 (dangling object) alongside exit 1 (missing ref), returning `null`/`false` instead of throwing.
+- **`graph.patch()` CAS integration tests (B9)**: End-to-end tests with real Git persistence verifying reentrancy guard, ref advancement, and sequential patch behavior.
+- **CI security audit**: `npm audit --omit=dev --audit-level=high` added to the lint job (non-blocking).
+- **SECURITY.md**: Dependency risk assessment, accepted risks table, threat model boundaries, and writer authorization documentation.
+
+### Changed
+
+- **Error messages**: `E_NO_STATE` and `E_STALE_STATE` messages now include actionable recovery hints and a docs URL; extracted to shared constants to prevent drift.
+- **`QueryError` docs**: Updated JSDoc table for `E_NO_STATE` / `E_STALE_STATE` codes.
+- **Config validation**: `HttpSyncServer` now throws at construction time if `allowedWriters` is provided without `auth.keys`.
+- **Forbidden-writer logging**: `SyncAuthService.verifyWriters()` logs rejected writer IDs at warn level.
+
 ## [10.14.0] — 2026-02-14 — Patch Wrapper
 
 Adds `graph.patch(fn)` — a single-await convenience wrapper around `createPatch()` + `commit()`. No semantic or runtime behavior changes; purely ergonomic sugar.

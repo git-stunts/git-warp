@@ -97,6 +97,7 @@ describe('WarpGraph.getStateSnapshot()', () => {
       persistence,
       graphName: 'test',
       writerId: 'w1',
+      autoMaterialize: false,
     });
 
     const snap = await graph.getStateSnapshot();
