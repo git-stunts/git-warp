@@ -771,3 +771,46 @@ describe('AuditVerifierService — OID length mismatch', () => {
     expect(result.errors.some((e) => e.code === 'OID_LENGTH_MISMATCH')).toBe(true);
   });
 });
+
+// ============================================================================
+// trustWarning — CLI-injected trust detection
+// ============================================================================
+
+describe('AuditVerifierService — trustWarning', () => {
+  /** @type {InMemoryGraphAdapter} */
+  let persistence;
+
+  beforeEach(() => {
+    persistence = new InMemoryGraphAdapter();
+  });
+
+  it('passes through CLI-injected trustWarning', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    await commitReceipt(service, 1);
+
+    const warning = {
+      code: 'TRUST_CONFIG_PRESENT_UNENFORCED',
+      message: 'Trust root configured but signature verification is not implemented in v1',
+      sources: ['env'],
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyAll('events', { trustWarning: warning });
+    expect(result.trustWarning).toEqual(warning);
+  });
+});
+
+// ============================================================================
+// Domain purity — no process.env in src/domain/
+// ============================================================================
+
+describe('Domain purity boundary', () => {
+  it('src/domain/ does not reference process.env', async () => {
+    const { execSync } = await import('node:child_process');
+    const result = execSync(
+      'grep -r "process\\.env" src/domain/ || true',
+      { encoding: 'utf8', cwd: new URL('../../../../', import.meta.url).pathname },
+    );
+    expect(result.trim()).toBe('');
+  });
+});
