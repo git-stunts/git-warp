@@ -1,7 +1,7 @@
 # hero.tape — git-warp hero GIF for README
 # Record: vhs hero.tape
 
-Output hero.gif
+Output docs/images/hero.gif
 
 Set Shell "bash"
 Set FontSize 16

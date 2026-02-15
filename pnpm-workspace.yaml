@@ -1,4 +1,0 @@
-onlyBuiltDependencies:
-  - cbor-extract
-  - esbuild
-  - roaring

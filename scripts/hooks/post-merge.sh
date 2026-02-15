@@ -2,12 +2,7 @@
 # --- @git-stunts/git-warp post-merge hook __WARP_HOOK_VERSION__ ---
 # warp-hook-version: __WARP_HOOK_VERSION__
 #
-# Post-merge hook: notify (or auto-materialize) when warp refs changed.
-#
-# Compares refs/warp/ before and after merge by maintaining
-# a snapshot file at .git/warp-ref-snapshot. If any warp writer refs
-# changed and warp.autoMaterialize is true, runs `git warp materialize`.
-# Otherwise prints an informational message advising re-materialization.
+# Post-merge hook: notify when warp refs changed during merge/pull.
 # Always exits 0 — never blocks a merge.
 
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0

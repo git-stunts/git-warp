@@ -5,7 +5,7 @@
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
 
 <p align="center">
-  <img src="hero.gif" alt="git-warp CLI demo" width="600">
+  <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
 ## The Core Idea

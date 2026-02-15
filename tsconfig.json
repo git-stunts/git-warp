@@ -4,8 +4,7 @@
     "src/**/*.js",
     "bin/warp-graph.js",
     "scripts/**/*.js",
-    "test/**/*.js",
-    "types/**/*.d.ts"
+    "test/**/*.js"
   ],
   "exclude": [
     "node_modules"
