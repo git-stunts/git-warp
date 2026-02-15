@@ -24,8 +24,10 @@ Completes M1.T2 (security hygiene), M2.T3 (signposts + defaults), and backlog it
 
 ### Changed
 
-- **Error messages**: `E_NO_STATE` and `E_STALE_STATE` messages now include actionable recovery hints and a docs URL.
+- **Error messages**: `E_NO_STATE` and `E_STALE_STATE` messages now include actionable recovery hints and a docs URL; extracted to shared constants to prevent drift.
 - **`QueryError` docs**: Updated JSDoc table for `E_NO_STATE` / `E_STALE_STATE` codes.
+- **Config validation**: `HttpSyncServer` now throws at construction time if `allowedWriters` is provided without `auth.keys`.
+- **Forbidden-writer logging**: `SyncAuthService.verifyWriters()` logs rejected writer IDs at warn level.
 
 ## [10.14.0] — 2026-02-14 — Patch Wrapper
 
