@@ -432,6 +432,113 @@ No v2.0 tag until all pass:
 
 ---
 
+## Milestone 7 — TRUST V1: CRYPTOGRAPHIC IDENTITY-BACKED TRUST
+
+**Theme:** Signed evidence, key bindings, monotonic revocation
+**Objective:** Writer trust derived from signed records + active key bindings + revocation state. No unsigned trust decisions.
+
+> **Do not merge until writer trust is derived from signed records + active key bindings + revocation state.**
+
+### Phase 0 — ADR + Schema Lock (1 day)
+
+- **Status:** `IN PROGRESS`
+
+**Deliverables:**
+
+- `docs/specs/TRUST_V1_CRYPTO.md` — full spec (record schema, reason codes, verdict mapping, canonical serialization, evaluation algorithm)
+- `src/domain/trust/reasonCodes.js` — frozen reason code registry
+- `src/domain/trust/schemas.js` — Zod schemas for record envelope, policy, assessment output
+- `src/domain/trust/canonical.js` — domain separation constants + unsigned record helpers
+- `src/domain/trust/verdict.js` — deterministic verdict derivation
+
+**Acceptance Criteria:** schemas + reason codes frozen before any implementation code.
+
+### Phase 1 — Crypto Plumbing (2 days)
+
+- **Status:** `TODO`
+
+**Deliverables:**
+
+- `src/domain/trust/TrustCrypto.js` — Ed25519 signature verify, key fingerprint computation
+- `src/domain/trust/TrustCanonical.js` — canonical bytes for recordId + signing
+- Extend `TrustError` codes for signature/record failures
+
+**Test classes:**
+
+- Known-good signature verify
+- Tamper detection (mutated payload/signature/issuerKeyId)
+- keyId fingerprint integrity (KEY_ADD keyId must match fingerprint of publicKey)
+- Unsupported algorithm rejection
+- Deterministic recordId computation
+
+### Phase 2 — Trust Record Store + Parser (2 days)
+
+- **Status:** `TODO`
+
+**Deliverables:**
+
+- `src/domain/trust/TrustRecordService.js` — appendRecord, readRecords, verifyRecordSignature
+- Trust record ref at `refs/warp/<graph>/trust/records`
+
+**Test classes:**
+
+- Genesis constraints (first record prev=null)
+- Prev-link consistency
+- Duplicate recordId detection
+- Pinned read strictness
+- Order determinism (different retrieval order → same evaluated state)
+
+### Phase 3 — State Builder + Evaluator (2 days)
+
+- **Status:** `TODO`
+
+**Deliverables:**
+
+- `src/domain/trust/TrustStateBuilder.js` — buildState(records) → { activeKeys, revokedKeys, writerBindings, revokedBindings, errors }
+- `src/domain/trust/TrustEvaluator.js` — evaluateWriters(writerIds, trustState, policy) → TrustAssessment
+
+**Test classes:**
+
+- Key lifecycle (KEY_ADD → active, KEY_REVOKE → inactive)
+- Binding lifecycle (WRITER_BIND_ADD → trusted, WRITER_BIND_REVOKE → untrusted)
+- Monotonic revocation (revoked key cannot validate future bindings)
+- Deterministic ordering (shuffled writer input → same sorted output)
+- Reason code completeness (every explanation has machine-readable reasonCode)
+- Policy strictness (unknown policy → fail)
+
+### Phase 4 — CLI + Verifier Integration (2 days)
+
+- **Status:** `TODO`
+
+**Deliverables:**
+
+- `bin/cli/commands/trust.js` — key add/revoke, bind add/revoke, show, doctor
+- `AuditVerifierService.evaluateTrust()` backed by signed evidence
+- `trustSchemaVersion` + `mode` in output contract
+- Pin resolution at CLI boundary (flag > env > ref)
+
+**Test classes:**
+
+- CLI pin precedence matrix (flag only, env only, both, neither)
+- Exit code matrix (integrity fail, trust fail in enforce mode, not_configured with --trust-required)
+- JSON contract lock (full schema validation on CLI JSON output)
+
+### Phase 5 — Hardening + Migration (1–2 days)
+
+- **Status:** `TODO`
+
+**Deliverables:**
+
+- Full JSON contract snapshot tests
+- Migration doc from allowlist model
+- Operator runbook
+- Threat model section
+- Explicit rollout modes: off / warn / enforce
+
+**Release gate:** all 10 test classes from spec section 18 passing, output schema locked, boundary purity checks green, no-coordination regression suite green.
+
+---
+
 ## Backlog (Post-v2.0)
 
 | ID | Tier | Idea |
