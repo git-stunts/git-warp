@@ -557,6 +557,14 @@ No v2.0 tag until all pass:
 | B12 | C | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep for version literals in .md files and examples, compare against `package.json`; prevents migration guides referencing wrong versions |
 | B13 | C | **ESLINT: NO-STRING-DUPLICATION** — custom rule or plugin to flag long error messages (>80 chars) appearing 3+ times; catches drift-prone copy-paste strings like `E_NO_STATE_MSG` before they're extracted |
 | B14 | B | **`HttpSyncServer` CONFIG VALIDATION LAYER** — Zod-style schema validation for constructor options; catch impossible/contradictory combos (e.g. `allowedWriters` without `auth`, `maxRequestBytes < 0`) at construction time instead of silently misbehaving at runtime |
+| B15 | B | **TRUST RECORD CHAIN INTEGRATION TEST** — end-to-end test for trust record storage under `refs/warp/<graph>/trust/records` (append, read-back, chain integrity) |
+| B16 | C | **`unsignedRecordForId` EDGE-CASE TESTS** — deeply nested subjects, empty objects, arrays, Unicode keys, null values |
+| B17 | C | **`TrustRecordSchema.strict()` VARIANT** — reject unknown keys in trust record envelope to catch schema drift early |
+| B18 | C | **ZOD CONVENTION: TRIM BEFORE MIN** — add note to CLAUDE.md: always call `.trim()` before `.min()` on Zod string validators |
+| B19 | C | **CANONICAL SERIALIZATION PROPERTY TESTS** — fuzz `canonicalStringify` with random nested objects; verify idempotency, determinism, and round-trip stability |
+| B20 | C | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST** — full cycle: parse → canonical → recordId → signaturePayload → verify; snapshot the intermediate outputs |
+| B21 | B | **TRUST SCHEMA DISCRIMINATED UNION** — migrate `TrustRecordSchema` from `superRefine` write-back to Zod discriminated union; eliminates mutation in refinement, gives type-safe per-recordType subject schemas natively |
+| B22 | C | **CANONICAL PARSE DETERMINISM TEST** — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated parse calls; guards against non-deterministic transform ordering |
 
 ---
 
