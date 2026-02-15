@@ -180,7 +180,7 @@ export async function readCheckpointDate(persistence, checkpointSha) {
 export function createHookInstaller() {
   const __filename = new URL(import.meta.url).pathname;
   const __dirname = path.dirname(__filename);
-  const templateDir = path.resolve(__dirname, '..', '..', 'src', 'hooks');
+  const templateDir = path.resolve(__dirname, '..', '..', 'scripts', 'hooks');
   const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8'));
   return new HookInstaller({
     fs: /** @type {*} */ (fs), // TODO(ts-cleanup): narrow port type

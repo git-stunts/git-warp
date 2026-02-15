@@ -318,7 +318,7 @@ describe('template integrity', () => {
     const { resolve, dirname } = await import('node:path');
     const { fileURLToPath } = await import('node:url');
     const dir = dirname(fileURLToPath(import.meta.url));
-    const templatePath = resolve(dir, '..', '..', '..', '..', 'src', 'hooks', 'post-merge.sh');
+    const templatePath = resolve(dir, '..', '..', '..', '..', 'scripts', 'hooks', 'post-merge.sh');
     templateContent = readFileSync(templatePath, 'utf8');
   });
 

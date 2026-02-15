@@ -1,4 +1,6 @@
 #!/bin/sh
+# --- @git-stunts/git-warp post-merge hook __WARP_HOOK_VERSION__ ---
+# warp-hook-version: __WARP_HOOK_VERSION__
 #
 # Post-merge hook: notify when warp refs changed during merge/pull.
 # Always exits 0 — never blocks a merge.
@@ -50,3 +52,4 @@ else
 fi
 
 exit 0
+# --- end @git-stunts/git-warp ---
