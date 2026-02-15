@@ -436,7 +436,7 @@ No v2.0 tag until all pass:
 
 | ID | Tier | Idea |
 |----|------|------|
-| B1 | A | **STRICT PROVENANCE** — authorized key whitelist; enforced signed commits for sync ingress |
+| B1 | A | **STRICT PROVENANCE** — ~~writer whitelist done (v11.0.0)~~; enforced signed commits for sync ingress still open |
 | B2 | A | **CAUSALITY BISECT** — binary search first bad tick/invariant failure |
 | B3 | B | **OBSERVER API** — public event contract after internal soak |
 | B4 | B | **WARP UI VISUALIZER** — local graph/audit explorer |

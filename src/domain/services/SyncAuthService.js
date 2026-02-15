@@ -389,6 +389,7 @@ export default class SyncAuthService {
     const forbidden = writerIds.filter(id => !/** @type {Set<string>} */ (this._allowedWriters).has(id));
     if (forbidden.length > 0) {
       this._metrics.forbiddenWriterRejects += 1;
+      this._logger.warn('sync auth: forbidden writers rejected', { forbidden });
       return fail('FORBIDDEN_WRITER', 403);
     }
     return { ok: true };

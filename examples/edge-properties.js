@@ -92,7 +92,6 @@ async function main() {
     persistence,
     graphName: 'edge-props-demo',
     writerId: 'writer-2',
-    autoMaterialize: true,
   });
 
   // writer-1 sets weight to 0.5

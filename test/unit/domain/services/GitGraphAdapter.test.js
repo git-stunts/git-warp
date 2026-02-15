@@ -540,7 +540,7 @@ describe('GitGraphAdapter', () => {
     });
   });
 
-  describe('refExists() dangling-ref handling', () => {
+  describe('readRef() dangling-ref handling', () => {
     /** @type {any} */
     let mockPlumbing;
     /** @type {any} */
@@ -599,6 +599,18 @@ describe('GitGraphAdapter', () => {
 
       await expect(adapter.readRef('refs/warp/test/writers/eve'))
         .rejects.toThrow('fatal: unknown option');
+    });
+
+    it('readRef returns null when show-ref succeeds but rev-parse hits dangling object', async () => {
+      const err128 = /** @type {any} */ (new Error('fatal: bad object'));
+      err128.details = { code: 128, stderr: 'fatal: bad object abc123' };
+      // show-ref succeeds (ref exists), then rev-parse fails (dangling)
+      mockPlumbing.execute
+        .mockResolvedValueOnce('')
+        .mockRejectedValueOnce(err128);
+
+      const result = await adapter.readRef('refs/warp/test/writers/alice');
+      expect(result).toBeNull();
     });
   });
 });

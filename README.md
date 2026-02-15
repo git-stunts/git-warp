@@ -33,7 +33,6 @@ const graph = await WarpGraph.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
-  autoMaterialize: true,  // auto-materialize on query
 });
 
 // Write data — single await with graph.patch()

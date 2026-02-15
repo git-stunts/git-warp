@@ -109,6 +109,8 @@ async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
 }
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
+const E_NO_STATE_MSG = 'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization';
+const E_STALE_STATE_MSG = 'State is stale (patches written since last materialize). Call materialize() to refresh. See https://github.com/git-stunts/git-warp#materialization';
 
 /**
  * @typedef {Object} MaterializedGraph
@@ -1075,7 +1077,7 @@ export default class WarpGraph {
    */
   join(otherState) {
     if (!this._cachedState) {
-      throw new QueryError('No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization', {
+      throw new QueryError(E_NO_STATE_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -2220,7 +2222,7 @@ export default class WarpGraph {
    */
   applySyncResponse(response) {
     if (!this._cachedState) {
-      throw new QueryError('No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization', {
+      throw new QueryError(E_NO_STATE_MSG, {
         code: 'E_NO_STATE',
       });
     }
@@ -2637,13 +2639,13 @@ export default class WarpGraph {
     }
     if (!this._cachedState) {
       throw new QueryError(
-        'No materialized state. Call materialize() before querying, or use autoMaterialize: true (the default). See https://github.com/git-stunts/git-warp#materialization',
+        E_NO_STATE_MSG,
         { code: 'E_NO_STATE' },
       );
     }
     if (this._stateDirty) {
       throw new QueryError(
-        'State is stale (patches written since last materialize). Call materialize() to refresh. See https://github.com/git-stunts/git-warp#materialization',
+        E_STALE_STATE_MSG,
         { code: 'E_STALE_STATE' },
       );
     }
