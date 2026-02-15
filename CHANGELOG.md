@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`AuditVerifierService`**: Extract `_listWriterIds()` private helper from `verifyAll()` for reuse; `verifyAll()` now only passes `{ since }` to `verifyChain()` (no options leak).
+- **Domain purity**: Move `detectTrustWarning()` from `src/domain/` to CLI boundary (`bin/cli/commands/verify-audit.js`). `verifyAll()` receives `trustWarning` via options; both `--writer` and full paths now include the warning.
+- **Tests**: Add domain purity boundary test (`process.env` grep guard) and trustWarning pass-through test.
+
 ## [11.0.0] — 2026-02-14 — Hardening Sprint
 
 Completes M1.T2 (security hygiene), M2.T3 (signposts + defaults), and backlog items B1, B8–B10. Breaking change: `autoMaterialize` now defaults to `true`.
