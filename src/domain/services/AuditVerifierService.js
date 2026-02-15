@@ -205,21 +205,31 @@ export class AuditVerifierService {
   }
 
   /**
+   * Lists writer IDs from audit refs for a graph.
+   * @param {string} graphName
+   * @returns {Promise<string[]>}
+   * @private
+   */
+  async _listWriterIds(graphName) {
+    const prefix = buildAuditPrefix(graphName);
+    const refs = await this._persistence.listRefs(prefix);
+    return refs
+      .map((/** @type {string} */ ref) => ref.slice(prefix.length))
+      .filter((/** @type {string} */ id) => id.length > 0);
+  }
+
+  /**
    * Verifies all audit chains for a graph.
    * @param {string} graphName
-   * @param {{ since?: string }} [options]
+   * @param {{ since?: string, trustWarning?: TrustWarning|null }} [options]
    * @returns {Promise<VerifyResult>}
    */
   async verifyAll(graphName, options = {}) {
-    const prefix = buildAuditPrefix(graphName);
-    const refs = await this._persistence.listRefs(prefix);
-    const writerIds = refs
-      .map((/** @type {string} */ ref) => ref.slice(prefix.length))
-      .filter((/** @type {string} */ id) => id.length > 0);
+    const writerIds = await this._listWriterIds(graphName);
 
     const chains = [];
     for (const writerId of writerIds.sort()) {
-      const result = await this.verifyChain(graphName, writerId, options);
+      const result = await this.verifyChain(graphName, writerId, { since: options.since });
       chains.push(result);
     }
 
@@ -232,7 +242,7 @@ export class AuditVerifierService {
       verifiedAt: new Date().toISOString(),
       summary: { total: chains.length, valid, partial, invalid },
       chains,
-      trustWarning: detectTrustWarning(),
+      trustWarning: options.trustWarning ?? null,
     };
   }
 
@@ -623,26 +633,3 @@ export class AuditVerifierService {
   }
 }
 
-// ============================================================================
-// Trust Root (v1 stub)
-// ============================================================================
-
-/**
- * Detects trust configuration and returns a structured warning if present.
- * Full GPG verification is deferred to v2.
- * @returns {TrustWarning|null}
- */
-function detectTrustWarning() {
-  const sources = [];
-  if (typeof process !== 'undefined' && process.env?.WARP_TRUSTED_ROOT) {
-    sources.push('env');
-  }
-  if (sources.length === 0) {
-    return null;
-  }
-  return {
-    code: 'TRUST_CONFIG_PRESENT_UNENFORCED',
-    message: 'Trust root configured but signature verification is not implemented in v1',
-    sources,
-  };
-}
