@@ -65,3 +65,47 @@ describe('TrustRecordSchema — issuedAt requires UTC', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('TrustRecordSchema — subject transforms propagate', () => {
+  const validKeyId = 'ed25519:' + 'a'.repeat(64);
+
+  it('trims writerId in WRITER_BIND_ADD subject through TrustRecordSchema', () => {
+    const record = {
+      schemaVersion: 1,
+      recordType: 'WRITER_BIND_ADD',
+      recordId: 'a'.repeat(64),
+      issuerKeyId: validKeyId,
+      issuedAt: '2025-01-01T00:00:00Z',
+      prev: null,
+      subject: { writerId: '  alice  ', keyId: validKeyId },
+      signature: { alg: 'ed25519', sig: 'somesig' },
+    };
+    const result = TrustRecordSchema.safeParse(record);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.subject.writerId).toBe('alice');
+    }
+  });
+
+  it('trims writerId in WRITER_BIND_REVOKE subject through TrustRecordSchema', () => {
+    const record = {
+      schemaVersion: 1,
+      recordType: 'WRITER_BIND_REVOKE',
+      recordId: 'b'.repeat(64),
+      issuerKeyId: validKeyId,
+      issuedAt: '2025-06-01T12:00:00Z',
+      prev: null,
+      subject: {
+        writerId: '  bob  ',
+        keyId: validKeyId,
+        reasonCode: 'ACCESS_REMOVED',
+      },
+      signature: { alg: 'ed25519', sig: 'somesig' },
+    };
+    const result = TrustRecordSchema.safeParse(record);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.subject.writerId).toBe('bob');
+    }
+  });
+});
