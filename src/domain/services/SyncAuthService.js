@@ -411,6 +411,26 @@ export default class SyncAuthService {
   }
 
   /**
+   * Mode-aware convenience wrapper around `verifyWriters()`.
+   *
+   * In `enforce` mode, returns the failure result from `verifyWriters()`.
+   * In `log-only` mode, records a passthrough and returns `{ ok: true }`.
+   * Callers that want simple single-call authorization can use this instead
+   * of calling `verifyWriters()` + checking mode manually.
+   *
+   * @param {string[]} writerIds - Writer IDs from the sync request
+   * @returns {{ ok: true } | { ok: false, reason: string, status: number }}
+   */
+  enforceWriters(writerIds) {
+    const result = this.verifyWriters(writerIds);
+    if (!result.ok && this._mode !== 'enforce') {
+      this._metrics.logOnlyPassthroughs += 1;
+      return { ok: true };
+    }
+    return result;
+  }
+
+  /**
    * Records an auth failure and returns the result.
    * @param {string} message
    * @param {Record<string, *>} context

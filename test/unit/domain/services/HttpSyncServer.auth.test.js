@@ -442,4 +442,48 @@ describe('HttpSyncServer auth integration', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // log-only end-to-end: auth failure + forbidden writer + sync proceeds
+  // ---------------------------------------------------------------------------
+  describe('log-only end-to-end', () => {
+    it('bad signature + forbidden writer both pass through, sync succeeds', async () => {
+      const mock = createMockPort();
+      const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
+      const server = new HttpSyncServer(/** @type {any} */ ({
+        httpPort: mock.port,
+        graph,
+        auth: { keys: KEYS, mode: 'log-only', crypto: defaultCrypto, logger, wallClockMs: () => Date.now() },
+        allowedWriters: ['alice'],
+      }));
+      await server.listen(9999);
+      const handler = mock.getHandler();
+
+      // Sign with WRONG secret (auth fails) and include a FORBIDDEN writer (eve)
+      const bodyObj = { type: 'sync-request', frontier: {}, patches: { eve: [] } };
+      const body = Buffer.from(JSON.stringify(bodyObj));
+      const headers = await signSyncRequest(
+        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: 'wrong-secret', keyId: KEY_ID },
+        { crypto: defaultCrypto },
+      );
+      const res = await handler({
+        method: 'POST',
+        url: '/sync',
+        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers },
+        body,
+      });
+
+      // Request proceeds despite both failures
+      expect(res.status).toBe(200);
+      const parsed = JSON.parse(res.body);
+      expect(parsed.type).toBe('sync-response');
+      expect(graph.processSyncRequest).toHaveBeenCalledOnce();
+
+      // Auth failure was logged
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('sync auth:'),
+        expect.any(Object),
+      );
+    });
+  });
 });

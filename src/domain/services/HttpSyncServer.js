@@ -227,53 +227,43 @@ export default class HttpSyncServer {
   }
 
   /**
-   * Handles an incoming HTTP request through the port abstraction.
+   * Runs auth verification and writer whitelist checks. Returns an error
+   * response when enforcement blocks the request, or null to proceed.
+   *
+   * In log-only mode both checks record metrics/logs but always return
+   * null so the request proceeds.
    *
    * @param {{ method: string, url: string, headers: { [x: string]: string }, body: Buffer|undefined }} request
-   * @returns {Promise<{ status: number, headers: Object, body: string }>}
-   * @private
-   */
-  /**
-   * Runs auth verification if configured. Returns an error response to
-   * send, or null if the request should proceed.
-   *
-   * @param {*} request
+   * @param {*} parsed - Parsed sync request body
    * @returns {Promise<{ status: number, headers: Object, body: string }|null>}
    * @private
    */
-  async _checkAuth(request) {
+  async _authorize(request, parsed) {
     if (!this._auth) {
       return null;
     }
-    const result = await this._auth.verify(request);
-    if (!result.ok) {
+
+    // Signature verification (uses raw request headers + body hash)
+    const authResult = await this._auth.verify(request);
+    if (!authResult.ok) {
       if (this._authMode === 'enforce') {
-        return errorResponse(result.status, result.reason);
+        return errorResponse(authResult.status, authResult.reason);
       }
       this._auth.recordLogOnlyPassthrough();
     }
-    return null;
-  }
 
-  /**
-   * Checks the writer whitelist if auth is configured. Returns an error
-   * response when enforcement blocks the request, or null to proceed.
-   *
-   * @param {*} parsed - Parsed sync request body
-   * @returns {{ status: number, headers: Object, body: string }|null}
-   * @private
-   */
-  _checkWriterWhitelist(parsed) {
-    if (this._auth && parsed.patches && typeof parsed.patches === 'object') {
+    // Writer whitelist (uses parsed body for writer IDs)
+    if (parsed.patches && typeof parsed.patches === 'object') {
       const writerIds = Object.keys(parsed.patches);
-      const result = this._auth.verifyWriters(writerIds);
-      if (!result.ok) {
+      const writerResult = this._auth.verifyWriters(writerIds);
+      if (!writerResult.ok) {
         if (this._authMode === 'enforce') {
-          return errorResponse(result.status, result.reason);
+          return errorResponse(writerResult.status, writerResult.reason);
         }
         this._auth.recordLogOnlyPassthrough();
       }
     }
+
     return null;
   }
 
@@ -294,19 +284,14 @@ export default class HttpSyncServer {
       return sizeError;
     }
 
-    const authError = await this._checkAuth(request);
-    if (authError) {
-      return authError;
-    }
-
     const { error, parsed } = parseBody(request.body);
     if (error) {
       return error;
     }
 
-    const writerError = this._checkWriterWhitelist(parsed);
-    if (writerError) {
-      return writerError;
+    const authError = await this._authorize(request, parsed);
+    if (authError) {
+      return authError;
     }
 
     try {

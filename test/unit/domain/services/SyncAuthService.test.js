@@ -812,3 +812,69 @@ describe('mode-agnostic validation', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// enforceWriters() — mode-aware convenience wrapper
+// ---------------------------------------------------------------------------
+describe('enforceWriters()', () => {
+  it('rejects forbidden writers in enforce mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+      allowedWriters: ['alice'],
+    });
+    const result = svc.enforceWriters(['eve']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('FORBIDDEN_WRITER');
+      expect(result.status).toBe(403);
+    }
+  });
+
+  it('allows forbidden writers through in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    const result = svc.enforceWriters(['eve']);
+    expect(result.ok).toBe(true);
+  });
+
+  it('increments logOnlyPassthroughs in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    svc.enforceWriters(['eve']);
+    expect(svc.getMetrics().logOnlyPassthroughs).toBe(1);
+  });
+
+  it('still increments forbiddenWriterRejects metric in log-only mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'log-only',
+      allowedWriters: ['alice'],
+    });
+    svc.enforceWriters(['eve']);
+    expect(svc.getMetrics().forbiddenWriterRejects).toBe(1);
+  });
+
+  it('allows listed writers in any mode', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+      allowedWriters: ['alice', 'bob'],
+    });
+    expect(svc.enforceWriters(['alice', 'bob']).ok).toBe(true);
+  });
+
+  it('passes through when no allowedWriters configured', () => {
+    const svc = new SyncAuthService({
+      keys: { default: 'secret123' },
+      mode: 'enforce',
+    });
+    expect(svc.enforceWriters(['anyone']).ok).toBe(true);
+  });
+});
