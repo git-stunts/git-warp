@@ -82,6 +82,8 @@ export const TrustRecordSchema = z.object({
       const r = KeyAddSubjectSchema.safeParse(record.subject);
       if (!r.success) {
         addIssue(`Invalid KEY_ADD subject: ${r.error.message}`);
+      } else {
+        record.subject = r.data;
       }
       break;
     }
@@ -89,6 +91,8 @@ export const TrustRecordSchema = z.object({
       const r = KeyRevokeSubjectSchema.safeParse(record.subject);
       if (!r.success) {
         addIssue(`Invalid KEY_REVOKE subject: ${r.error.message}`);
+      } else {
+        record.subject = r.data;
       }
       break;
     }
@@ -96,6 +100,8 @@ export const TrustRecordSchema = z.object({
       const r = WriterBindAddSubjectSchema.safeParse(record.subject);
       if (!r.success) {
         addIssue(`Invalid WRITER_BIND_ADD subject: ${r.error.message}`);
+      } else {
+        record.subject = r.data;
       }
       break;
     }
@@ -103,6 +109,8 @@ export const TrustRecordSchema = z.object({
       const r = WriterBindRevokeSubjectSchema.safeParse(record.subject);
       if (!r.success) {
         addIssue(`Invalid WRITER_BIND_REVOKE subject: ${r.error.message}`);
+      } else {
+        record.subject = r.data;
       }
       break;
     }
