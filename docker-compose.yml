@@ -2,14 +2,14 @@ services:
   test:
     build:
       context: ..
-      dockerfile: git-warp/Dockerfile
+      dockerfile: git-warp/docker/Dockerfile.node22-slim
     environment:
       - GIT_STUNTS_DOCKER=1
 
   benchmark:
     build:
       context: ..
-      dockerfile: git-warp/Dockerfile
+      dockerfile: git-warp/docker/Dockerfile.benchmark
     volumes:
       - ./benchmarks:/app/benchmarks
     environment:

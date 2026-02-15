@@ -174,7 +174,7 @@ See that tree hash? `4b825dc642cb6eb9a060e54bf8d69288fbee4904` is the **empty tr
 Still in the container, run:
 
 ```bash
-node /app/examples/explore.js
+node /app/examples/scripts/explore.js
 ```
 
 Or from your host machine:
@@ -413,7 +413,7 @@ This removes the container and volumes. Run `demo:setup` again anytime to start 
 - Read the [ARCHITECTURE.md](../ARCHITECTURE.md) for a technical deep-dive into index sharding and hexagonal design
 - Check out the [README.md](../README.md) for the full API reference
 - Look at the source in `src/domain/services/TraversalService.js` to see how algorithms are implemented
-- Explore [examples/explore.js](./explore.js) to understand the event projection pattern
+- Explore [examples/scripts/explore.js](./scripts/explore.js) to understand the event projection pattern
 - Try building your own event-sourced application!
 
 ---
@@ -456,11 +456,11 @@ npm run demo:setup
 
 For the curious, here's what happens behind the scenes:
 
-1. **`npm run demo:setup`** runs `docker compose up -d` in the `examples/` directory, then executes `setup.js` inside the container.
+1. **`npm run demo:setup`** runs `docker compose up -d` in the `examples/` directory, then executes `scripts/setup.js` inside the container.
 
-2. **`setup.js`** initializes a git repo at `/demo`, creates a chain of event commits using `graph.createNode()`, branches off at `OrderPlaced` to create an alternate timeline, and builds the bitmap index.
+2. **`scripts/setup.js`** initializes a git repo at `/demo`, creates a chain of event commits using `graph.createNode()`, branches off at `OrderPlaced` to create an alternate timeline, and builds the bitmap index.
 
-3. **`explore.js`** loads the index, then demonstrates:
+3. **`scripts/explore.js`** loads the index, then demonstrates:
    - `graph.traversal.ancestors()` for event replay
    - Event projection (reducer pattern)
    - `graph.traversal.descendants()` for branch comparison
