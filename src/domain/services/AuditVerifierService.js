@@ -40,6 +40,7 @@ const STATUS_DATA_MISMATCH = 'DATA_MISMATCH';
 const STATUS_ERROR = 'ERROR';
 
 /** @type {TrustAssessment} */
+/** @type {TrustAssessment} */
 const NOT_CONFIGURED_TRUST = Object.freeze({
   status: 'not_configured',
   source: 'none',
@@ -47,9 +48,9 @@ const NOT_CONFIGURED_TRUST = Object.freeze({
   ref: null,
   commit: null,
   policy: null,
-  evaluatedWriters: Object.freeze([]),
-  untrustedWriters: Object.freeze([]),
-  explanations: Object.freeze([]),
+  evaluatedWriters: /** @type {string[]} */ ([]),
+  untrustedWriters: /** @type {string[]} */ ([]),
+  explanations: /** @type {Array<{writerId: string, trusted: boolean, reason: string}>} */ ([]),
   snapshotDigest: null,
 });
 

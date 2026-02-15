@@ -301,7 +301,7 @@ describe('TrustService — updateTrust', () => {
       validConfig({ epoch: '2025-01-01T00:00:00.000Z' }),
       'admin',
     );
-    expect(result.newCommit).toBeDefined();
+    expect(/** @type {*} */ (result).newCommit).toBeDefined();
   });
 
   it('throws E_TRUST_REF_CONFLICT on CAS mismatch', async () => {
