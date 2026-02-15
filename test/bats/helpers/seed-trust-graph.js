@@ -11,6 +11,9 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 const projectRoot = process.env.PROJECT_ROOT || resolve(import.meta.dirname, '../../..');
 const repoPath = process.env.REPO_PATH;
+if (!repoPath) {
+  throw new Error('REPO_PATH environment variable is required');
+}
 
 const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpGraph.js')).href;
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;

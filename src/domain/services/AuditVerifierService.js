@@ -40,18 +40,18 @@ const STATUS_DATA_MISMATCH = 'DATA_MISMATCH';
 const STATUS_ERROR = 'ERROR';
 
 /** @type {TrustAssessment} */
-const NOT_CONFIGURED_TRUST = {
+const NOT_CONFIGURED_TRUST = Object.freeze({
   status: 'not_configured',
   source: 'none',
   sourceDetail: null,
   ref: null,
   commit: null,
   policy: null,
-  evaluatedWriters: [],
-  untrustedWriters: [],
-  explanations: [],
+  evaluatedWriters: Object.freeze([]),
+  untrustedWriters: Object.freeze([]),
+  explanations: Object.freeze([]),
   snapshotDigest: null,
-};
+});
 
 // ============================================================================
 // Helpers
@@ -713,8 +713,8 @@ export class AuditVerifierService {
     return {
       status: pin ? 'pinned' : 'configured',
       source,
-      sourceDetail: pin || this._trustService._trustRef,
-      ref: this._trustService._trustRef,
+      sourceDetail: pin || this._trustService.trustRef,
+      ref: this._trustService.trustRef,
       commit: commitSha,
       policy: config.policy,
       evaluatedWriters: eval_.evaluatedWriters,

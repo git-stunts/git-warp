@@ -81,7 +81,7 @@ async function initFromWriterRefs({ trustService, persistence, graphName }) {
   }
 
   const { commitSha, snapshotDigest } = await trustService.initFromWriters(writerIds);
-  const config = (await trustService.readTrustConfig())?.config;
+  const config = (await trustService.readTrustConfigAtCommit(commitSha))?.config;
   return {
     payload: {
       action: 'init',
@@ -109,7 +109,7 @@ async function initManual({ trustService, graphName, policy }) {
     allowedSignersPath: null,
   });
 
-  const config = (await trustService.readTrustConfig())?.config;
+  const config = (await trustService.readTrustConfigAtCommit(commitSha))?.config;
   return {
     payload: {
       action: 'init',
@@ -137,7 +137,7 @@ async function handleTrustShow(trustService) {
   return {
     payload: {
       action: 'show',
-      ref: trustService._trustRef,
+      ref: trustService.trustRef,
       commit: result.commitSha,
       config: result.config,
       snapshotDigest: result.snapshotDigest,

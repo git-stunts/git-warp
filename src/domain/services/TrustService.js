@@ -61,6 +61,11 @@ export default class TrustService {
     this._trustRef = buildTrustRef(graphName);
   }
 
+  /** @returns {string} The trust ref path */
+  get trustRef() {
+    return this._trustRef;
+  }
+
   // --------------------------------------------------------------------------
   // Read
   // --------------------------------------------------------------------------
@@ -118,17 +123,8 @@ export default class TrustService {
       ? await computeTrustDigest(canonical, this._crypto)
       : null;
 
-    const blobOid = await this._persistence.writeBlob(
-      Buffer.from(canonical, 'utf8'),
-    );
-    const treeOid = await this._persistence.writeTree([
-      `100644 blob ${blobOid}\t${TRUST_BLOB_NAME}`,
-    ]);
-    const commitSha = await this._persistence.commitNodeWithTree({
-      treeOid,
-      parents: [],
-      message: `trust: init (policy=${validated.policy}, writers=${validated.trustedWriters.length})`,
-    });
+    const commitSha = await this._writeConfigCommit(canonical, [],
+      `trust: init (policy=${validated.policy}, writers=${validated.trustedWriters.length})`);
 
     try {
       await this._persistence.compareAndSwapRef(
@@ -189,8 +185,10 @@ export default class TrustService {
 
     const validated = parseTrustConfig(newConfig);
 
-    // Epoch monotonicity check
-    if (validated.epoch < current.config.epoch) {
+    // Epoch monotonicity check (numeric comparison for robustness across ISO-8601 variants)
+    const newEpochTs = Date.parse(validated.epoch);
+    const currentEpochTs = Date.parse(current.config.epoch);
+    if (newEpochTs < currentEpochTs) {
       throw new TrustError(
         `Epoch regression: new epoch ${validated.epoch} predates current ${current.config.epoch}`,
         {
@@ -457,6 +455,12 @@ export default class TrustService {
         id: 'TRUST_POLICY_SUPPORTED',
         status: /** @type {const} */ ('ok'),
         message: `Policy "${config.policy}" is supported`,
+      });
+    } else {
+      findings.push({
+        id: 'TRUST_POLICY_UNSUPPORTED',
+        status: /** @type {const} */ ('warn'),
+        message: `Policy "${config.policy}" is not a recognized value`,
       });
     }
   }

@@ -10,11 +10,12 @@ teardown() {
   teardown_test_repo
 }
 
-# Helper: run a command and capture only stdout (BATS 1.8+ merges stderr into
-# $output, which breaks JSON parsing when git emits diagnostic messages).
+# Helper: run a command capturing both stdout and stderr for JSON parsing.
+# stderr is needed because present() routes error payloads there.
+# Git diagnostic noise is tolerable since we parse via python3 json.loads().
 _run_json() {
   local rc=0
-  output=$("$@" 2>/dev/null) || rc=$?
+  output=$("$@" 2>&1) || rc=$?
   status=$rc
 }
 

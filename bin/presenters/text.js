@@ -561,7 +561,7 @@ function appendTrustBlock(lines, payload) {
   if (t.commit) {
     lines.push(`  Commit: ${t.commit.slice(0, 12)}`);
   }
-  if (t.untrustedWriters.length > 0) {
+  if (t.untrustedWriters?.length > 0) {
     lines.push(`  ${ANSI_YELLOW}Untrusted: ${t.untrustedWriters.join(', ')}${ANSI_RESET}`);
   }
 }

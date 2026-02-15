@@ -52,7 +52,8 @@ export const trustConfigSchema = z.object({
       return [...new Set(filtered)].sort();
     }),
   policy: z.string(),
-  epoch: z.string().min(1, 'epoch must be a non-empty ISO-8601 string'),
+  epoch: z.string().min(1, 'epoch must be a non-empty ISO-8601 string')
+    .refine((s) => !Number.isNaN(Date.parse(s)), 'epoch must be a valid ISO-8601 date string'),
   requiredSignatures: z.number().int().nonnegative().nullable(),
   allowedSignersPath: z.string().nullable(),
 }).strict();

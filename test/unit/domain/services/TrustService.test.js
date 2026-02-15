@@ -296,6 +296,14 @@ describe('TrustService — updateTrust', () => {
     ).rejects.toMatchObject({ code: 'E_TRUST_EPOCH_REGRESSION' });
   });
 
+  it('allows equal epoch (no regression)', async () => {
+    const result = await service.updateTrust(
+      validConfig({ epoch: '2025-01-01T00:00:00.000Z' }),
+      'admin',
+    );
+    expect(result.newCommit).toBeDefined();
+  });
+
   it('throws E_TRUST_REF_CONFLICT on CAS mismatch', async () => {
     // Simulate concurrent update: make CAS fail by overriding compareAndSwapRef
     persistence.compareAndSwapRef.mockImplementationOnce(async () => {
@@ -484,10 +492,12 @@ describe('TrustService — diagnose', () => {
 // ============================================================================
 
 describe('TrustError', () => {
-  it('has correct name and code', () => {
-    const err = new TrustError('test', { code: 'E_TRUST_SCHEMA_INVALID' });
+  it('has correct name, code, message, and context', () => {
+    const err = new TrustError('test', { code: 'E_TRUST_SCHEMA_INVALID', context: { detail: 'x' } });
     expect(err.name).toBe('TrustError');
     expect(err.code).toBe('E_TRUST_SCHEMA_INVALID');
+    expect(err.message).toBe('test');
+    expect(err.context).toEqual({ detail: 'x' });
     expect(err instanceof Error).toBe(true);
   });
 });
