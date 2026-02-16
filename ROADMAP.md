@@ -455,7 +455,7 @@ No v2.0 tag until all pass:
 
 ### Phase 1 — Crypto Plumbing (2 days)
 
-- **Status:** `TODO`
+- **Status:** `DONE`
 
 **Deliverables:**
 
@@ -565,6 +565,11 @@ No v2.0 tag until all pass:
 | B20 | C | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST** — full cycle: parse → canonical → recordId → signaturePayload → verify; snapshot the intermediate outputs |
 | B21 | B | **TRUST SCHEMA DISCRIMINATED UNION** — migrate `TrustRecordSchema` from `superRefine` write-back to Zod discriminated union; eliminates mutation in refinement, gives type-safe per-recordType subject schemas natively |
 | B22 | C | **CANONICAL PARSE DETERMINISM TEST** — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated parse calls; guards against non-deterministic transform ordering |
+| B23 | B | **TRUST SIGN+VERIFY INTEGRATION TEST** — round-trip test: sign a record with `computeSignaturePayload()` + `node:crypto.sign()`, then verify through `TrustCrypto.verifySignature()`; validates the full canonical→hash→sign→verify pipeline end-to-end |
+| B24 | C | **AUDIT TRY/CATCH WITHOUT `expect.assertions`** — scan all test files for try/catch blocks that lack `expect.assertions()`; fix silent-pass risks where catch is the only assertion path |
+| B25 | C | **ESLINT: TEST CATCH-BLOCK ASSERTION GUARD** — custom ESLint rule or vitest plugin to flag try/catch blocks in test files that contain `expect()` calls only inside `catch` without a preceding `expect.assertions()` |
+| B26 | C | **DER SPKI PREFIX CONSTANT** — extract the Ed25519 DER SPKI prefix (`302a300506032b6570032100`) in `TrustCrypto.js` to a named constant with an RFC 8410 reference comment |
+| B27 | B | **`TrustKeyStore` PRE-VALIDATED KEY CACHE** — Phase 2+ module that validates and caches Ed25519 public keys at import time (base64 decode + length check + `createPublicKey`) so `verifySignature` skips per-call key parsing |
 
 ---
 

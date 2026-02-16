@@ -17,5 +17,6 @@ export { default as ShardValidationError } from './ShardValidationError.js';
 export { default as StorageError } from './StorageError.js';
 export { default as SchemaUnsupportedError } from './SchemaUnsupportedError.js';
 export { default as TraversalError } from './TraversalError.js';
+export { default as TrustError } from './TrustError.js';
 export { default as WriterError } from './WriterError.js';
 export { default as WormholeError } from './WormholeError.js';

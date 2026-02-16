@@ -13,6 +13,7 @@ import ShardLoadError from '../../../../src/domain/errors/ShardLoadError.js';
 import ShardValidationError from '../../../../src/domain/errors/ShardValidationError.js';
 import StorageError from '../../../../src/domain/errors/StorageError.js';
 import EmptyMessageError from '../../../../src/domain/errors/EmptyMessageError.js';
+import TrustError from '../../../../src/domain/errors/TrustError.js';
 import WriterError from '../../../../src/domain/errors/WriterError.js';
 
 describe('WarpError base class', () => {
@@ -62,6 +63,7 @@ describe('All domain errors extend WarpError', () => {
     { Class: ForkError, args: ['fork fail'], expectedCode: 'FORK_ERROR', expectedName: 'ForkError' },
     { Class: WormholeError, args: ['wormhole fail'], expectedCode: 'WORMHOLE_ERROR', expectedName: 'WormholeError' },
     { Class: SchemaUnsupportedError, args: ['schema fail'], expectedCode: 'E_SCHEMA_UNSUPPORTED', expectedName: 'SchemaUnsupportedError' },
+    { Class: TrustError, args: ['trust fail'], expectedCode: 'TRUST_ERROR', expectedName: 'TrustError' },
   ];
 
   for (const { Class: _Class, args, expectedCode, expectedName } of errorCases) {

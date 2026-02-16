@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0] — 2026-02-15 — Trust V1 Phase 1: Crypto Plumbing
+
+Adds the cryptographic primitives for Trust V1 (Milestone 7): Ed25519 signature verification, key fingerprint computation, and deterministic record ID hashing.
+
+### Added
+
+- **`TrustCrypto`** (`src/domain/trust/TrustCrypto.js`): Ed25519 `verifySignature()`, `computeKeyFingerprint()`, and `SUPPORTED_ALGORITHMS` using `node:crypto` directly.
+- **`TrustCanonical`** (`src/domain/trust/TrustCanonical.js`): SHA-256 hashing layer — `computeRecordId()`, `computeSignaturePayload()`, `verifyRecordId()` — built on the canonical serialization helpers from Phase 0.
+- **`TrustError`** (`src/domain/errors/TrustError.js`): Domain error class with codes `E_TRUST_UNSUPPORTED_ALGORITHM` and `E_TRUST_INVALID_KEY`.
+- **Tests**: 28 new tests across `TrustCrypto.test.js`, `TrustCanonical.test.js`, and `TrustError.test.js` covering signature verify, tamper detection, fingerprint integrity, unsupported algorithm rejection, and deterministic recordId computation.
+
 ### Changed
 
 - **`AuditVerifierService`**: Extract `_listWriterIds()` private helper from `verifyAll()` for reuse; `verifyAll()` now only passes `{ since }` to `verifyChain()` (no options leak).
