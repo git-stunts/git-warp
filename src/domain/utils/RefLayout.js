@@ -11,6 +11,7 @@
  * - refs/warp/<graph>/cursor/active
  * - refs/warp/<graph>/cursor/saved/<name>
  * - refs/warp/<graph>/audit/<writer_id>
+ * - refs/warp/<graph>/trust/records
  *
  * @module domain/utils/RefLayout
  */
@@ -346,6 +347,26 @@ export function buildAuditPrefix(graphName) {
 export function buildSeekCacheRef(graphName) {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/seek-cache`;
+}
+
+/**
+ * Builds the trust record chain ref path for the given graph.
+ *
+ * The trust record ref points to the tip commit of the trust record
+ * chain — an append-only sequence of signed trust records (key adds,
+ * key revokes, writer bindings).
+ *
+ * @param {string} graphName - The name of the graph
+ * @returns {string} The full ref path, e.g. `refs/warp/<graphName>/trust/records`
+ * @throws {Error} If graphName is invalid
+ *
+ * @example
+ * buildTrustRecordRef('events');
+ * // => 'refs/warp/events/trust/records'
+ */
+export function buildTrustRecordRef(graphName) {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/trust/records`;
 }
 
 // -----------------------------------------------------------------------------

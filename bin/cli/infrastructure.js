@@ -22,6 +22,7 @@ Commands:
   check            Report graph health/GC status
   doctor           Diagnose structural issues and suggest fixes
   verify-audit     Verify audit receipt chain integrity
+  trust            Evaluate writer trust from signed evidence
   materialize      Materialize and checkpoint all graphs
   seek             Time-travel: step through graph history by Lamport tick
   view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
@@ -62,6 +63,13 @@ Doctor options:
 Verify-audit options:
   --writer <id>         Verify a single writer's chain (default: all)
   --since <commit>      Verify from tip down to this commit (inclusive)
+  --trust-mode <mode>   Trust evaluation mode (warn, enforce)
+  --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
+
+Trust options:
+  --show                Show current trust state and writer assessments
+  --mode <warn|enforce> Override trust evaluation mode
+  --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
 
 Seek options:
   --tick <N|+N|-N>      Jump to tick N, or step forward/backward
@@ -103,7 +111,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'trust', 'install-hooks', 'view'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

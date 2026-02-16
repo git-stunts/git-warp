@@ -23,6 +23,8 @@ export const installHooksSchema = z.object({
 export const verifyAuditSchema = z.object({
   since: z.string().min(1, 'Missing value for --since').optional(),
   writer: z.string().min(1, 'Missing value for --writer').optional(),
+  'trust-mode': z.enum(['warn', 'enforce']).optional(),
+  'trust-pin': z.string().min(1, 'Missing value for --trust-pin').optional(),
 }).strict();
 
 // ============================================================================
@@ -67,8 +69,18 @@ export const viewSchema = z.object({
 }).strict();
 
 // ============================================================================
-// Seek
+// Trust
 // ============================================================================
+
+export const trustSchema = z.object({
+  show: z.boolean().default(false),
+  mode: z.enum(['warn', 'enforce']).optional(),
+  'trust-pin': z.string().min(1, 'Missing value for --trust-pin').optional(),
+}).strict().transform((val) => ({
+  show: val.show,
+  mode: val.mode ?? null,
+  trustPin: val['trust-pin'] ?? null,
+}));
 
 // ============================================================================
 // Doctor

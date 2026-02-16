@@ -29,12 +29,19 @@ function detectTrustWarning() {
 const VERIFY_AUDIT_OPTIONS = {
   since: { type: 'string' },
   writer: { type: 'string' },
+  'trust-mode': { type: 'string' },
+  'trust-pin': { type: 'string' },
 };
 
 /** @param {string[]} args */
 export function parseVerifyAuditArgs(args) {
   const { values } = parseCommandArgs(args, VERIFY_AUDIT_OPTIONS, verifyAuditSchema);
-  return { since: values.since, writerFilter: values.writer };
+  return {
+    since: values.since,
+    writerFilter: values.writer,
+    trustMode: values['trust-mode'],
+    trustPin: values['trust-pin'],
+  };
 }
 
 /**
@@ -42,7 +49,7 @@ export function parseVerifyAuditArgs(args) {
  * @returns {Promise<{payload: *, exitCode: number}>}
  */
 export default async function handleVerifyAudit({ options, args }) {
-  const { since, writerFilter } = parseVerifyAuditArgs(args);
+  const { since, writerFilter, trustMode, trustPin } = parseVerifyAuditArgs(args);
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   const verifier = new AuditVerifierService({
@@ -73,9 +80,17 @@ export default async function handleVerifyAudit({ options, args }) {
     payload = await verifier.verifyAll(graphName, { since, trustWarning });
   }
 
+  // Attach trust assessment if available
+  const trustAssessment = await verifier.evaluateTrust(graphName, {
+    pin: trustPin,
+    mode: trustMode,
+  });
+  payload.trustAssessment = trustAssessment;
+
   const hasInvalid = payload.summary.invalid > 0;
+  const trustFailed = trustMode === 'enforce' && trustAssessment.trustVerdict === 'fail';
   return {
     payload,
-    exitCode: hasInvalid ? EXIT_CODES.INTERNAL : EXIT_CODES.OK,
+    exitCode: hasInvalid || trustFailed ? EXIT_CODES.INTERNAL : EXIT_CODES.OK,
   };
 }
