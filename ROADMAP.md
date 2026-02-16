@@ -455,7 +455,7 @@ No v2.0 tag until all pass:
 
 ### Phase 1 — Crypto Plumbing (2 days)
 
-- **Status:** `TODO`
+- **Status:** `DONE`
 
 **Deliverables:**
 
