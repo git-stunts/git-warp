@@ -36,8 +36,14 @@ export class TrustRecordService {
    * Validates:
    * 1. Schema conformance
    * 2. RecordId integrity (content-addressed)
-   * 3. Signature validity (Ed25519)
+   * 3. Signature envelope completeness (alg + sig fields present)
    * 4. Prev-link consistency (must match current tip's last recordId)
+   *
+   * Note: Full cryptographic signature verification (Ed25519 verify against
+   * issuer public key) is NOT performed here — it requires the trust state
+   * to resolve the issuer's key, which is a chicken-and-egg problem for
+   * genesis records. Crypto verification happens during `buildState()` /
+   * evaluation when the full key set is available.
    *
    * @param {string} graphName
    * @param {Record<string, *>} record - Complete signed trust record
@@ -62,9 +68,9 @@ export class TrustRecordService {
       );
     }
 
-    // 3. Signature verification (unless explicitly skipped)
+    // 3. Signature envelope check (structural, not cryptographic)
     if (!options.skipSignatureVerify) {
-      this._verifyRecordSignature(record);
+      this._verifySignatureEnvelope(record);
     }
 
     // 4. Prev-link consistency
@@ -188,27 +194,17 @@ export class TrustRecordService {
   }
 
   /**
-   * Verifies a record's Ed25519 signature.
+   * Validates that a record's signature envelope is structurally complete.
+   *
+   * Checks for presence of `alg` and `sig` fields. Does NOT perform
+   * cryptographic verification — that requires the issuer's public key
+   * from the trust state, which is resolved during evaluation.
    *
    * @param {Record<string, *>} record
-   * @throws {TrustError} if signature is invalid
+   * @throws {TrustError} if signature envelope is missing or malformed
    * @private
    */
-  _verifyRecordSignature(record) {
-    // Need the public key to verify — look it up from the record chain
-    // For now, we rely on the caller providing valid records.
-    // Full key lookup will be implemented when TrustStateBuilder is wired.
-    const { computeSignaturePayload } = /** @type {*} */ (
-      // Dynamic import avoided — use direct import at top
-      {}
-    );
-    void computeSignaturePayload;
-
-    // Signature verification requires the issuer's public key.
-    // The KEY_ADD record is self-signed (issuerKeyId matches the key being added).
-    // Other records reference a previously added key.
-    // For the service layer, we validate that the signature field exists
-    // and is well-formed. Full verification happens during buildState().
+  _verifySignatureEnvelope(record) {
     if (!record.signature || !record.signature.sig || !record.signature.alg) {
       throw new TrustError(
         'Trust record missing or malformed signature',

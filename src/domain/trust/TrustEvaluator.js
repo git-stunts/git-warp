@@ -44,7 +44,7 @@ export function evaluateWriters(writerIds, trustState, policy) {
     .map((e) => e.writerId);
 
   const trust = {
-    status: 'configured',
+    status: /** @type {'configured'|'pinned'|'error'|'not_configured'} */ ('configured'),
     source: 'ref',
     sourceDetail: null,
     evaluatedWriters: sortedWriters,
@@ -135,7 +135,7 @@ function evaluateSingleWriter(writerId, trustState) {
 function buildErrorAssessment(writerIds, reasonCode) {
   const sortedWriters = [...writerIds].sort();
   const trust = {
-    status: 'error',
+    status: /** @type {'configured'|'pinned'|'error'|'not_configured'} */ ('error'),
     source: 'none',
     sourceDetail: null,
     evaluatedWriters: sortedWriters,
@@ -171,9 +171,7 @@ function buildErrorAssessment(writerIds, reasonCode) {
  */
 function buildEvidenceSummary(trustState) {
   return Object.freeze({
-    recordsScanned: trustState.activeKeys.size + trustState.revokedKeys.size +
-      trustState.writerBindings.size + trustState.revokedBindings.size +
-      trustState.errors.length,
+    recordsScanned: trustState.recordsProcessed,
     activeKeys: trustState.activeKeys.size,
     revokedKeys: trustState.revokedKeys.size,
     activeBindings: trustState.writerBindings.size,

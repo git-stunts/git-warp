@@ -18,14 +18,13 @@ import { evaluateWriters } from '../../../src/domain/trust/TrustEvaluator.js';
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 
 const TRUST_OPTIONS = {
-  show: { type: 'boolean', default: false },
   mode: { type: 'string' },
   'trust-pin': { type: 'string' },
 };
 
 /**
  * @param {string[]} args
- * @returns {{ show: boolean, mode: string|null, trustPin: string|null }}
+ * @returns {{ mode: string|null, trustPin: string|null }}
  */
 export function parseTrustArgs(args) {
   const { values } = parseCommandArgs(args, TRUST_OPTIONS, trustSchema);
@@ -35,17 +34,17 @@ export function parseTrustArgs(args) {
 /**
  * Resolves the trust pin from CLI flag → env → live ref.
  * @param {string|null} cliPin
- * @returns {{pin: string|null, source: string, sourceDetail: string|null}}
+ * @returns {{pin: string|null, source: string, sourceDetail: string|null, status: string}}
  */
 function resolveTrustPin(cliPin) {
   if (cliPin) {
-    return { pin: cliPin, source: 'cli_pin', sourceDetail: cliPin };
+    return { pin: cliPin, source: 'cli_pin', sourceDetail: cliPin, status: 'pinned' };
   }
   const envPin = typeof process !== 'undefined' ? process.env?.WARP_TRUST_PIN : undefined;
   if (envPin) {
-    return { pin: envPin, source: 'env_pin', sourceDetail: envPin };
+    return { pin: envPin, source: 'env_pin', sourceDetail: envPin, status: 'pinned' };
   }
-  return { pin: null, source: 'ref', sourceDetail: null };
+  return { pin: null, source: 'ref', sourceDetail: null, status: 'configured' };
 }
 
 /**
@@ -109,8 +108,8 @@ export default async function handleTrust({ options, args }) {
     codec: defaultCodec,
   });
 
-  // Resolve pin
-  const { pin, source, sourceDetail } = resolveTrustPin(trustPin);
+  // Resolve pin (determines source + status)
+  const { pin, source, sourceDetail, status } = resolveTrustPin(trustPin);
 
   // Read trust records
   const records = await recordService.readRecords(graphName, pin ? { tip: pin } : {});
@@ -135,19 +134,20 @@ export default async function handleTrust({ options, args }) {
   // Evaluate
   const assessment = evaluateWriters(writerIds, trustState, policy);
 
-  // Override source info from pin resolution
+  // Override source/status from pin resolution (evaluator sets defaults)
   const payload = {
     graph: graphName,
     ...assessment,
     trust: {
       ...assessment.trust,
+      status,
       source,
       sourceDetail,
     },
   };
 
   const exitCode = assessment.trustVerdict === 'fail' && (mode === 'enforce')
-    ? EXIT_CODES.INTERNAL
+    ? EXIT_CODES.TRUST_FAIL
     : EXIT_CODES.OK;
 
   return { payload, exitCode };

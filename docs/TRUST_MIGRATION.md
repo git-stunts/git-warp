@@ -42,7 +42,7 @@ Record types:
 
 ```bash
 # Check trust status (warn mode — default)
-git warp trust --show
+git warp trust
 
 # Check with enforce mode
 git warp trust --mode enforce
@@ -57,7 +57,7 @@ git warp verify-audit --trust-mode enforce
 ### Step 4: Rollout Strategy
 
 1. **Start in warn mode** — evaluates trust but does not block operations
-2. **Review output** — check `git warp trust --show` for any unexpected untrusted writers
+2. **Review output** — check `git warp trust` for any unexpected untrusted writers
 3. **Switch to enforce** — once confident, use `--mode enforce`
 
 ## Pre-v2 Repositories

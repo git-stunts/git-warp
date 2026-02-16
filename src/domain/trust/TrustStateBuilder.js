@@ -19,6 +19,7 @@ import { TrustRecordSchema } from './schemas.js';
  * @property {Map<string, {keyId: string, boundAt: string}>} writerBindings - "writerId\0keyId" → binding
  * @property {Map<string, {keyId: string, revokedAt: string, reasonCode: string}>} revokedBindings
  * @property {Array<{recordId: string, error: string}>} errors
+ * @property {number} recordsProcessed - Total number of records fed to the builder
  */
 
 /**
@@ -58,7 +59,7 @@ export function buildState(records) {
     processRecord(rec, activeKeys, revokedKeys, writerBindings, revokedBindings, errors);
   }
 
-  return Object.freeze({ activeKeys, revokedKeys, writerBindings, revokedBindings, errors });
+  return Object.freeze({ activeKeys, revokedKeys, writerBindings, revokedBindings, errors, recordsProcessed: records.length });
 }
 
 /**

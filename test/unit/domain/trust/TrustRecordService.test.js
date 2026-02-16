@@ -29,42 +29,51 @@ function createMockPersistence() {
 
   return {
     refs,
+    /** @param {*} ref */
     async readRef(ref) {
       return refs.get(ref) ?? null;
     },
+    /** @param {*} ref @param {*} sha */
     async updateRef(ref, sha) {
       refs.set(ref, sha);
     },
+    /** @param {*} data */
     async writeBlob(data) {
       const oid = `blob-${++blobCounter}`;
       blobs.set(oid, data);
       return oid;
     },
+    /** @param {*} oid */
     async readBlob(oid) {
       const data = blobs.get(oid);
       if (!data) throw new Error(`Blob not found: ${oid}`);
       return data;
     },
+    /** @param {*} entries */
     async writeTree(entries) {
       const oid = `tree-${++treeCounter}`;
       trees.set(oid, { ...entries });
       return oid;
     },
+    /** @param {*} oid */
     async readTreeOids(oid) {
       const tree = trees.get(oid);
       if (!tree) throw new Error(`Tree not found: ${oid}`);
       return tree;
     },
+    /** @param {*} sha */
     async getCommitTree(sha) {
       const commit = commits.get(sha);
       if (!commit) throw new Error(`Commit not found: ${sha}`);
       return commit.tree;
     },
+    /** @param {*} sha */
     async getNodeInfo(sha) {
       const commit = commits.get(sha);
       if (!commit) throw new Error(`Commit not found: ${sha}`);
       return { parents: commit.parents, message: commit.message, date: null };
     },
+    /** @param {{ tree: *, parents: *, message: * }} opts */
     async createCommit({ tree, parents, message }) {
       const oid = `commit-${++commitCounter}`;
       commits.set(oid, { tree, parents, message });
@@ -75,9 +84,11 @@ function createMockPersistence() {
 
 function createMockCodec() {
   return {
+    /** @param {*} value */
     encode(value) {
       return Buffer.from(JSON.stringify(value));
     },
+    /** @param {*} buf */
     decode(buf) {
       return JSON.parse(buf.toString());
     },
@@ -85,7 +96,9 @@ function createMockCodec() {
 }
 
 describe('TrustRecordService.appendRecord', () => {
+  /** @type {*} */
   let persistence;
+  /** @type {*} */
   let service;
 
   beforeEach(() => {
@@ -136,7 +149,9 @@ describe('TrustRecordService.appendRecord', () => {
 });
 
 describe('TrustRecordService.readRecords', () => {
+  /** @type {*} */
   let persistence;
+  /** @type {*} */
   let service;
 
   beforeEach(() => {
@@ -176,6 +191,7 @@ describe('TrustRecordService.readRecords', () => {
 });
 
 describe('TrustRecordService.verifyChain', () => {
+  /** @type {*} */
   let service;
 
   beforeEach(() => {
@@ -212,7 +228,7 @@ describe('TrustRecordService.verifyChain', () => {
     const dup = { ...KEY_ADD_2, recordId: KEY_ADD_1.recordId };
     const result = service.verifyChain([KEY_ADD_1, dup]);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.error.includes('Duplicate recordId'))).toBe(true);
+    expect(result.errors.some(/** @param {*} e */ (e) => e.error.includes('Duplicate recordId'))).toBe(true);
   });
 
   it('validates full golden chain (first 3)', () => {

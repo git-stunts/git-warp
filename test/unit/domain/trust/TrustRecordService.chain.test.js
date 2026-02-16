@@ -25,35 +25,44 @@ function createMockPersistence() {
   let counter = 0;
 
   return {
+    /** @param {*} ref */
     async readRef(ref) { return refs.get(ref) ?? null; },
+    /** @param {*} ref @param {*} sha */
     async updateRef(ref, sha) { refs.set(ref, sha); },
+    /** @param {*} data */
     async writeBlob(data) {
       const oid = `blob-${++counter}`;
       blobs.set(oid, data);
       return oid;
     },
+    /** @param {*} oid */
     async readBlob(oid) {
       if (!blobs.has(oid)) throw new Error(`Blob not found: ${oid}`);
       return blobs.get(oid);
     },
+    /** @param {*} entries */
     async writeTree(entries) {
       const oid = `tree-${++counter}`;
       trees.set(oid, { ...entries });
       return oid;
     },
+    /** @param {*} oid */
     async readTreeOids(oid) {
       if (!trees.has(oid)) throw new Error(`Tree not found: ${oid}`);
       return trees.get(oid);
     },
+    /** @param {*} sha */
     async getCommitTree(sha) {
       if (!commits.has(sha)) throw new Error(`Commit not found: ${sha}`);
       return commits.get(sha).tree;
     },
+    /** @param {*} sha */
     async getNodeInfo(sha) {
       if (!commits.has(sha)) throw new Error(`Commit not found: ${sha}`);
       const c = commits.get(sha);
       return { parents: c.parents, message: c.message, date: null };
     },
+    /** @param {{ tree: *, parents: *, message: * }} opts */
     async createCommit({ tree, parents, message }) {
       const oid = `commit-${++counter}`;
       commits.set(oid, { tree, parents, message });
@@ -64,12 +73,15 @@ function createMockPersistence() {
 
 function createMockCodec() {
   return {
+    /** @param {*} value */
     encode(value) { return Buffer.from(JSON.stringify(value)); },
+    /** @param {*} buf */
     decode(buf) { return JSON.parse(buf.toString()); },
   };
 }
 
 describe('Chain integration (B15)', () => {
+  /** @type {*} */
   let service;
 
   beforeEach(() => {
@@ -134,8 +146,8 @@ describe('Chain integration (B15)', () => {
     }
 
     const records = await service.readRecords('test-graph');
-    const goldenIds = GOLDEN_CHAIN.map((r) => r.recordId);
-    const readIds = records.map((r) => r.recordId);
+    const goldenIds = GOLDEN_CHAIN.map(/** @param {*} r */ (r) => r.recordId);
+    const readIds = records.map(/** @param {*} r */ (r) => r.recordId);
     expect(readIds).toEqual(goldenIds);
   });
 });

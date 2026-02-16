@@ -118,8 +118,8 @@ describe('evaluateWriters — deterministic ordering', () => {
     const a1 = evaluateWriters(['charlie', 'alice', 'bob'], state, VALID_POLICY);
     const a2 = evaluateWriters(['bob', 'charlie', 'alice'], state, VALID_POLICY);
     expect(a1.trust.evaluatedWriters).toEqual(a2.trust.evaluatedWriters);
-    expect(a1.trust.explanations.map(e => e.writerId)).toEqual(
-      a2.trust.explanations.map(e => e.writerId),
+    expect(a1.trust.explanations.map(/** @param {*} e */ (e) => e.writerId)).toEqual(
+      a2.trust.explanations.map(/** @param {*} e */ (e) => e.writerId),
     );
   });
 });
@@ -130,6 +130,7 @@ describe('evaluateWriters — evidence summary', () => {
     const assessment = evaluateWriters(['alice'], state, VALID_POLICY);
     const { evidenceSummary } = assessment.trust;
 
+    expect(evidenceSummary.recordsScanned).toBe(4);
     expect(evidenceSummary.activeKeys).toBe(1);
     expect(evidenceSummary.revokedKeys).toBe(1);
     expect(evidenceSummary.activeBindings).toBe(1);
@@ -167,8 +168,8 @@ describe('evaluateWriters — mixed trusted/untrusted', () => {
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.untrustedWriters).toEqual(['mallory']);
 
-    const aliceExpl = assessment.trust.explanations.find(e => e.writerId === 'alice');
-    const malloryExpl = assessment.trust.explanations.find(e => e.writerId === 'mallory');
+    const aliceExpl = assessment.trust.explanations.find(/** @param {*} e */ (e) => e.writerId === 'alice');
+    const malloryExpl = assessment.trust.explanations.find(/** @param {*} e */ (e) => e.writerId === 'mallory');
     expect(aliceExpl.trusted).toBe(true);
     expect(malloryExpl.trusted).toBe(false);
   });

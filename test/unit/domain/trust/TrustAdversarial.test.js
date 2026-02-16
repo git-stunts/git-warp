@@ -109,27 +109,33 @@ describe('Adversarial case 3: Revoked key signs new binding', () => {
   });
 });
 
-describe('Adversarial case 4: Out-of-order replay', () => {
-  it('buildState produces deterministic output regardless of record order', () => {
-    // Build state from two different orderings of the first 3 records
+describe('Adversarial case 4: Out-of-order record input', () => {
+  it('buildState requires chain order — out-of-order input produces errors, not silent corruption', () => {
+    // buildState expects records in chain order (oldest first).
+    // If records arrive out of order, the builder MUST detect the issue
+    // via dependency violations (e.g. binding references unknown key)
+    // and report errors — never silently accept invalid state.
     const records = [KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE];
     const shuffled = [WRITER_BIND_ADD_ALICE, KEY_ADD_2, KEY_ADD_1];
 
-    const state1 = buildState(records);
-    const state2 = buildState(shuffled);
+    const correctState = buildState(records);
+    const shuffledState = buildState(shuffled);
 
-    // state2 will have errors because keys aren't added before binding,
-    // but the function should not crash
-    expect(typeof state2.activeKeys.size).toBe('number');
-    expect(typeof state2.errors.length).toBe('number');
+    // Correct order: clean state
+    expect(correctState.errors).toHaveLength(0);
+    expect(correctState.activeKeys.size).toBe(2);
+    expect(correctState.writerBindings.size).toBe(1);
 
-    // The correct ordering produces clean state
-    expect(state1.errors).toHaveLength(0);
-    expect(state1.activeKeys.size).toBe(2);
-    expect(state1.writerBindings.size).toBe(1);
+    // Wrong order: errors detected (binding before key exists)
+    expect(shuffledState.errors.length).toBeGreaterThan(0);
+    expect(shuffledState.errors.some((e) =>
+      e.error.includes('Cannot bind writer to unknown key'),
+    )).toBe(true);
   });
 
-  it('evaluateWriters is deterministic for same state', () => {
+  it('evaluateWriters is deterministic for shuffled writer ID input', () => {
+    // The evaluator sorts writer IDs internally, so input order
+    // must not affect the output.
     const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const a1 = evaluateWriters(['bob', 'alice'], state, ENFORCE_POLICY);
     const a2 = evaluateWriters(['alice', 'bob'], state, ENFORCE_POLICY);
@@ -137,6 +143,9 @@ describe('Adversarial case 4: Out-of-order replay', () => {
     expect(a1.trustVerdict).toBe(a2.trustVerdict);
     expect(a1.trust.evaluatedWriters).toEqual(a2.trust.evaluatedWriters);
     expect(a1.trust.untrustedWriters).toEqual(a2.trust.untrustedWriters);
+    expect(a1.trust.explanations.map((/** @param {*} e */ e) => e.reasonCode)).toEqual(
+      a2.trust.explanations.map((/** @param {*} e */ e) => e.reasonCode),
+    );
   });
 });
 

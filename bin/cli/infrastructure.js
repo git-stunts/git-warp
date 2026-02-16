@@ -9,6 +9,8 @@ export const EXIT_CODES = {
   USAGE: 1,
   NOT_FOUND: 2,
   INTERNAL: 3,
+  /** Trust policy denial (enforce mode). Same code as INTERNAL for now. */
+  TRUST_FAIL: 3,
 };
 
 export const HELP_TEXT = `warp-graph <command> [options]
@@ -67,7 +69,6 @@ Verify-audit options:
   --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
 
 Trust options:
-  --show                Show current trust state and writer assessments
   --mode <warn|enforce> Override trust evaluation mode
   --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
 

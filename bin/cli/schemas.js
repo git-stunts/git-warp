@@ -73,11 +73,9 @@ export const viewSchema = z.object({
 // ============================================================================
 
 export const trustSchema = z.object({
-  show: z.boolean().default(false),
   mode: z.enum(['warn', 'enforce']).optional(),
   'trust-pin': z.string().min(1, 'Missing value for --trust-pin').optional(),
 }).strict().transform((val) => ({
-  show: val.show,
   mode: val.mode ?? null,
   trustPin: val['trust-pin'] ?? null,
 }));

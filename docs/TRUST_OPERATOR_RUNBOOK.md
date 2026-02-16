@@ -4,7 +4,7 @@
 
 | Operation | Command |
 |---|---|
-| Check trust status | `git warp trust --show` |
+| Check trust status | `git warp trust` |
 | Enforce trust | `git warp trust --mode enforce` |
 | Pin to commit | `git warp trust --trust-pin <sha>` |
 | Verify with trust | `git warp verify-audit --trust-mode enforce` |
@@ -36,11 +36,13 @@ The first trust record must be:
 
 Records form an append-only chain. Each record's `prev` field points to the previous record's `recordId`. Records are stored as Git commits under `refs/warp/<graph>/trust/records`.
 
+> **Note:** The append path validates record schema, recordId integrity, prev-link consistency, and signature envelope structure (presence of `alg` + `sig` fields). It does **not** perform cryptographic Ed25519 signature verification at append time — full crypto verification occurs during trust state evaluation (`buildState`).
+
 ## Verify: Check Trust State
 
 ```bash
 # Default: warn mode, live ref
-git warp trust --show
+git warp trust
 
 # Enforce mode
 git warp trust --mode enforce
@@ -95,7 +97,7 @@ For compromised keys:
 
 **Steps:**
 1. Switch to warn mode: `git warp trust --mode warn`
-2. Check explanations: `git warp trust --show --json | jq '.trust.explanations'`
+2. Check explanations: `git warp trust --json | jq '.trust.explanations'`
 3. Verify the writer has an active binding to an active key
 4. If binding is missing, create a `WRITER_BIND_ADD` record
 

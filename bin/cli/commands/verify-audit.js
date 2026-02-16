@@ -80,17 +80,22 @@ export default async function handleVerifyAudit({ options, args }) {
     payload = await verifier.verifyAll(graphName, { since, trustWarning });
   }
 
-  // Attach trust assessment if available
-  const trustAssessment = await verifier.evaluateTrust(graphName, {
-    pin: trustPin,
-    mode: trustMode,
-  });
-  payload.trustAssessment = trustAssessment;
+  // Attach trust assessment only when explicitly requested via --trust-mode
+  if (trustMode) {
+    const trustAssessment = await verifier.evaluateTrust(graphName, {
+      pin: trustPin,
+      mode: trustMode,
+    });
+    payload.trustAssessment = trustAssessment;
+  }
 
   const hasInvalid = payload.summary.invalid > 0;
-  const trustFailed = trustMode === 'enforce' && trustAssessment.trustVerdict === 'fail';
+  const trustFailed = trustMode === 'enforce' &&
+    payload.trustAssessment?.trustVerdict === 'fail';
   return {
     payload,
-    exitCode: hasInvalid || trustFailed ? EXIT_CODES.INTERNAL : EXIT_CODES.OK,
+    exitCode: trustFailed ? EXIT_CODES.TRUST_FAIL
+      : hasInvalid ? EXIT_CODES.INTERNAL
+        : EXIT_CODES.OK,
   };
 }

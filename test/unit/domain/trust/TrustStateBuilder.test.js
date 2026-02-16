@@ -25,7 +25,7 @@ describe('buildState — key lifecycle', () => {
     const state = buildState([KEY_ADD_1]);
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
-    expect(state.activeKeys.get(KEY_ID_1).publicKey).toBe(PUBLIC_KEY_1);
+    expect(/** @type {*} */ (state.activeKeys.get(KEY_ID_1)).publicKey).toBe(PUBLIC_KEY_1);
     expect(state.revokedKeys.size).toBe(0);
     expect(state.errors).toHaveLength(0);
   });
@@ -44,7 +44,7 @@ describe('buildState — key lifecycle', () => {
     expect(state.activeKeys.has(KEY_ID_2)).toBe(false);
     expect(state.revokedKeys.size).toBe(1);
     expect(state.revokedKeys.has(KEY_ID_2)).toBe(true);
-    expect(state.revokedKeys.get(KEY_ID_2).reasonCode).toBe('KEY_ROLLOVER');
+    expect(/** @type {*} */ (state.revokedKeys.get(KEY_ID_2)).reasonCode).toBe('KEY_ROLLOVER');
   });
 });
 
@@ -53,7 +53,7 @@ describe('buildState — binding lifecycle', () => {
     const state = buildState([KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE]);
     const bindingKey = `alice\0${KEY_ID_1}`;
     expect(state.writerBindings.has(bindingKey)).toBe(true);
-    expect(state.writerBindings.get(bindingKey).keyId).toBe(KEY_ID_1);
+    expect(/** @type {*} */ (state.writerBindings.get(bindingKey)).keyId).toBe(KEY_ID_1);
     expect(state.revokedBindings.size).toBe(0);
   });
 
@@ -74,7 +74,7 @@ describe('buildState — binding lifecycle', () => {
     const bindingKey = `bob\0${KEY_ID_2}`;
     expect(state.writerBindings.has(bindingKey)).toBe(false);
     expect(state.revokedBindings.has(bindingKey)).toBe(true);
-    expect(state.revokedBindings.get(bindingKey).reasonCode).toBe('KEY_REVOKED');
+    expect(/** @type {*} */ (state.revokedBindings.get(bindingKey)).reasonCode).toBe('KEY_REVOKED');
   });
 });
 
@@ -166,7 +166,7 @@ describe('buildState — binding validation', () => {
 
 describe('buildState — full golden chain', () => {
   it('processes full chain without errors', () => {
-    const state = buildState(GOLDEN_CHAIN);
+    const state = buildState(/** @type {*} */ (GOLDEN_CHAIN));
     // After full chain: key1 active, key2 revoked, alice bound to key1, bob's binding revoked
     expect(state.activeKeys.size).toBe(1);
     expect(state.activeKeys.has(KEY_ID_1)).toBe(true);
