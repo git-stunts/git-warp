@@ -620,7 +620,7 @@ git warp seek --repo ./team-repo --no-persistent-cache --tick 2
 
 When a seek cursor is active, every command prints a warning to stderr:
 
-```
+```text
 ⚠ seek active (tick 1 of 3) — run "git warp seek --latest" to return to present
 ```
 
