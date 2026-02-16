@@ -1,0 +1,469 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WarpGraph API surface > all prototype methods have correct property descriptors 1`] = `
+{
+  "_buildAdjacency": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_computeBackwardCone": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_ensureFreshState": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_frontierEquals": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_hasSchema1Patches": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_isAncestor": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_loadLatestCheckpoint": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_loadPatchBySha": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_loadPatchesBySha": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_loadPatchesSince": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_loadWriterPatches": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_logTiming": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_materializeGraph": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_materializeWithCeiling": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_maybeRunGC": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_nextLamport": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_notifySubscribers": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_onPatchCommitted": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_relationToCheckpointHead": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_resolveCeiling": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_setMaterializedState": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_sortPatchesCausally": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_validateMigrationBoundary": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_validatePatchAgainstCheckpoint": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "applySyncResponse": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createCheckpoint": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createPatch": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createSyncRequest": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createWormhole": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createWriter": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "discoverTicks": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "discoverWriters": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "fork": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "gcPolicy": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "getEdgeProps": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getEdges": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getFrontier": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getGCMetrics": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getNodeProps": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getNodes": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getPropertyCount": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getStateSnapshot": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getWriterPatches": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "graphName": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "hasFrontierChanged": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "hasNode": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "join": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "loadPatchBySha": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "materialize": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "materializeAt": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "materializeSlice": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "maybeRunGC": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "neighbors": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "observer": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "onDeleteWithData": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "patch": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "patchesFor": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "persistence": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "processSyncRequest": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "provenanceIndex": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "query": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "runGC": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "seekCache": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "serve": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "setSeekCache": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "status": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "subscribe": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "syncCoverage": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "syncNeeded": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "syncWith": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "temporal": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+  "translationCost": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "watch": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "writer": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "writerId": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "getter",
+  },
+}
+`;
+
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `75`;
+
+exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
+[
+  "_buildAdjacency",
+  "_computeBackwardCone",
+  "_ensureFreshState",
+  "_frontierEquals",
+  "_hasSchema1Patches",
+  "_isAncestor",
+  "_loadLatestCheckpoint",
+  "_loadPatchBySha",
+  "_loadPatchesBySha",
+  "_loadPatchesSince",
+  "_loadWriterPatches",
+  "_logTiming",
+  "_materializeGraph",
+  "_materializeWithCeiling",
+  "_maybeRunGC",
+  "_nextLamport",
+  "_notifySubscribers",
+  "_onPatchCommitted",
+  "_relationToCheckpointHead",
+  "_resolveCeiling",
+  "_setMaterializedState",
+  "_sortPatchesCausally",
+  "_validateMigrationBoundary",
+  "_validatePatchAgainstCheckpoint",
+  "applySyncResponse",
+  "createCheckpoint",
+  "createPatch",
+  "createSyncRequest",
+  "createWormhole",
+  "createWriter",
+  "discoverTicks",
+  "discoverWriters",
+  "fork",
+  "gcPolicy",
+  "getEdgeProps",
+  "getEdges",
+  "getFrontier",
+  "getGCMetrics",
+  "getNodeProps",
+  "getNodes",
+  "getPropertyCount",
+  "getStateSnapshot",
+  "getWriterPatches",
+  "graphName",
+  "hasFrontierChanged",
+  "hasNode",
+  "join",
+  "loadPatchBySha",
+  "materialize",
+  "materializeAt",
+  "materializeSlice",
+  "maybeRunGC",
+  "neighbors",
+  "observer",
+  "onDeleteWithData",
+  "patch",
+  "patchesFor",
+  "persistence",
+  "processSyncRequest",
+  "provenanceIndex",
+  "query",
+  "runGC",
+  "seekCache",
+  "serve",
+  "setSeekCache",
+  "status",
+  "subscribe",
+  "syncCoverage",
+  "syncNeeded",
+  "syncWith",
+  "temporal",
+  "translationCost",
+  "watch",
+  "writer",
+  "writerId",
+]
+`;
+
+exports[`WarpGraph API surface > static methods match snapshot 1`] = `
+[
+  "open",
+]
+`;
