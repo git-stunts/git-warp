@@ -17,7 +17,7 @@ RUN git init -q \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
 # Pre-cache npm dependencies via Deno's npm: specifier support.
-RUN deno cache --node-modules-dir test/runtime/deno/lifecycle.test.ts 2>/dev/null || true
+RUN deno cache --node-modules-dir test/runtime/deno/lifecycle.test.ts || true
 # Run tests as non-root to mirror CI and catch permission issues.
 # Also chown Deno's global cache so the deno user can fetch npm packages at runtime.
 RUN chown -R deno:deno /app /deno-dir

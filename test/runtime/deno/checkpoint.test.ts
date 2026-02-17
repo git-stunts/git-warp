@@ -1,4 +1,4 @@
-import { assert, assertMatch, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertMatch, assertEquals } from "jsr:@std/assert";
 import { createTestRepo } from "./helpers.ts";
 
 Deno.test("checkpoint: creates checkpoint with valid SHA", async () => {
