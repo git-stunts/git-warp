@@ -89,30 +89,36 @@ export async function _nextLamport() {
   const writerRef = buildWriterRef(this._graphName, this._writerId);
   const currentRefSha = await this._persistence.readRef(writerRef);
 
-  if (!currentRefSha) {
-    // First commit for this writer
-    return { lamport: 1, parentSha: null };
+  let ownTick = 0;
+
+  if (currentRefSha) {
+    // Read the current patch commit to get its lamport timestamp
+    const commitMessage = await this._persistence.showNode(currentRefSha);
+    const kind = detectMessageKind(commitMessage);
+
+    if (kind !== 'patch') {
+      // Writer ref doesn't point to a patch commit - treat as fresh start
+      return { lamport: Math.max(1, this._maxObservedLamport + 1), parentSha: currentRefSha };
+    }
+
+    try {
+      const patchInfo = decodePatchMessage(commitMessage);
+      ownTick = patchInfo.lamport;
+    } catch {
+      throw new Error(
+        `Failed to parse lamport from writer ref ${writerRef}: ` +
+        `commit ${currentRefSha} has invalid patch message format`
+      );
+    }
   }
 
-  // Read the current patch commit to get its lamport timestamp
-  const commitMessage = await this._persistence.showNode(currentRefSha);
-  const kind = detectMessageKind(commitMessage);
-
-  if (kind !== 'patch') {
-    // Writer ref doesn't point to a patch commit - treat as first commit
-    return { lamport: 1, parentSha: currentRefSha };
-  }
-
-  try {
-    const patchInfo = decodePatchMessage(commitMessage);
-    return { lamport: patchInfo.lamport + 1, parentSha: currentRefSha };
-  } catch {
-    // Malformed message - error with actionable message
-    throw new Error(
-      `Failed to parse lamport from writer ref ${writerRef}: ` +
-      `commit ${currentRefSha} has invalid patch message format`
-    );
-  }
+  // Standard Lamport clock rule: next tick = max(own chain, globally observed max) + 1.
+  // _maxObservedLamport is updated during materialize() and after each commit, so this
+  // is O(1) — no additional git reads required at commit time.
+  return {
+    lamport: Math.max(ownTick, this._maxObservedLamport) + 1,
+    parentSha: currentRefSha ?? null,
+  };
 }
 
 /**
@@ -193,6 +199,10 @@ export async function getWriterPatches(writerId, stopAtSha = null) {
  */
 export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}) {
   vvIncrement(this._versionVector, writerId);
+  // Keep _maxObservedLamport up to date so _nextLamport() issues globally-monotonic ticks.
+  if (committed?.lamport !== undefined && committed.lamport > this._maxObservedLamport) {
+    this._maxObservedLamport = committed.lamport;
+  }
   this._patchesSinceCheckpoint++;
   // Eager re-materialize: apply the just-committed patch to cached state
   // Only when the cache is clean — applying a patch to stale state would be incorrect

@@ -95,6 +95,9 @@ export default class WarpGraph {
     /** @type {number} */
     this._patchesSinceCheckpoint = 0;
 
+    /** @type {number} */
+    this._maxObservedLamport = 0;
+
     /** @type {{every: number}|null} */
     this._checkpointPolicy = checkpointPolicy || null;
 

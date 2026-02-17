@@ -524,19 +524,24 @@ export class PatchBuilderV2 {
       throw err;
     }
 
-    // 3. Calculate lamport and parent from current ref state
-    let lamport = 1;
+    // 3. Calculate lamport and parent from current ref state.
+    // Start from this._lamport (set by _nextLamport() in createPatch()), which already
+    // incorporates the globally-observed max Lamport tick via _maxObservedLamport.
+    // This ensures a first-time writer whose own chain is empty still commits at a tick
+    // above any previously-observed writer, winning LWW tiebreakers correctly.
+    let lamport = this._lamport;
     let parentCommit = null;
 
     if (currentRefSha) {
-      // Read the current patch commit to get its lamport timestamp
+      // Read the current patch commit to get its lamport timestamp and take the max,
+      // so the chain stays monotonic even if the ref advanced since createPatch().
       const commitMessage = await this._persistence.showNode(currentRefSha);
       const patchInfo = decodePatchMessage(commitMessage);
-      lamport = patchInfo.lamport + 1;
+      lamport = Math.max(this._lamport, patchInfo.lamport + 1);
       parentCommit = currentRefSha;
     }
 
-    // 3. Build PatchV2 structure with correct lamport
+    // 4. Build PatchV2 structure with correct lamport
     // Note: Dots were assigned using constructor lamport, but commit lamport may differ.
     // For now, we use the calculated lamport for the patch metadata.
     // The dots themselves are independent of patch lamport (they use VV counters).

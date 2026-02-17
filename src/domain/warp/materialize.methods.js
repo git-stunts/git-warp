@@ -9,6 +9,46 @@
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../services/JoinReducer.js';
 import { ProvenanceIndex } from '../services/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../services/StateDiff.js';
+import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
+
+/**
+ * Scans the checkpoint frontier's tip commits for the maximum observed Lamport tick.
+ * Updates `graph._maxObservedLamport` in-place; best-effort (skips unreadable commits).
+ *
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {Map<string, string>} frontier
+ * @returns {Promise<void>}
+ */
+async function scanFrontierForMaxLamport(graph, frontier) {
+  for (const tipSha of frontier.values()) {
+    try {
+      const msg = await graph._persistence.showNode(tipSha);
+      if (detectMessageKind(msg) === 'patch') {
+        const { lamport } = decodePatchMessage(msg);
+        if (lamport > graph._maxObservedLamport) {
+          graph._maxObservedLamport = lamport;
+        }
+      }
+    } catch {
+      // best-effort: skip unreadable frontier commits
+    }
+  }
+}
+
+/**
+ * Scans a list of patch entries for the maximum observed Lamport tick.
+ * Updates `graph._maxObservedLamport` in-place.
+ *
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {Array<{patch: {lamport?: number}}>} patches
+ */
+function scanPatchesForMaxLamport(graph, patches) {
+  for (const { patch } of patches) {
+    if ((patch.lamport ?? 0) > graph._maxObservedLamport) {
+      graph._maxObservedLamport = patch.lamport;
+    }
+  }
+}
 
 /**
  * Materializes the current graph state.
@@ -63,6 +103,13 @@ export async function materialize(options) {
     // If checkpoint exists, use incremental materialization
     if (checkpoint?.schema === 2 || checkpoint?.schema === 3) {
       const patches = await this._loadPatchesSince(checkpoint);
+      // Update max observed Lamport so _nextLamport() issues globally-monotonic ticks.
+      // Read the checkpoint frontier's tip commit messages to capture the pre-checkpoint max,
+      // then scan the incremental patches for anything newer.
+      if (checkpoint.frontier instanceof Map) {
+        await scanFrontierForMaxLamport(this, checkpoint.frontier);
+      }
+      scanPatchesForMaxLamport(this, patches);
       if (collectReceipts) {
         const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (checkpoint.state), { receipts: true })); // TODO(ts-cleanup): type patch array
         state = result.state;
@@ -109,6 +156,8 @@ export async function materialize(options) {
             receipts = [];
           }
         } else {
+          // Update max observed Lamport from all loaded patches.
+          scanPatchesForMaxLamport(this, allPatches);
           // 5. Reduce all patches to state
           if (collectReceipts) {
             const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true })); // TODO(ts-cleanup): type patch array
