@@ -10,7 +10,7 @@
  * @property {(sha: string) => Promise<boolean>} nodeExists
  * @property {(sha: string, coverageSha: string) => Promise<boolean>} isAncestor
  * @property {() => Promise<{ok: boolean}>} ping
- * @property {*} plumbing
+ * @property {unknown} plumbing
  */
 
 /**
@@ -19,18 +19,19 @@
  * @property {() => Promise<Array<{id: string}>>} getNodes
  * @property {() => Promise<Array<{from: string, to: string, label?: string}>>} getEdges
  * @property {() => Promise<string|null>} createCheckpoint
- * @property {() => *} query
+ * @property {() => QueryBuilderLike} query
  * @property {{ shortestPath: Function }} traverse
- * @property {(writerId: string) => Promise<Array<{patch: any, sha: string}>>} getWriterPatches
- * @property {() => Promise<{frontier: Record<string, any>}>} status
- * @property {() => Promise<Map<string, any>>} getFrontier
+ * @property {(writerId: string) => Promise<Array<{patch: {schema?: number, lamport: number, ops?: Array<{type: string, node?: string, from?: string, to?: string}>}, sha: string}>>} getWriterPatches
+ * @property {() => Promise<{frontier: Record<string, string>}>} status
+ * @property {() => Promise<string[]>} discoverWriters
+ * @property {() => Promise<Map<string, string>>} getFrontier
  * @property {() => {totalTombstones: number, tombstoneRatio: number}} getGCMetrics
  * @property {() => Promise<number>} getPropertyCount
  * @property {() => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
- * @property {(sha: string) => Promise<{ops?: any[]}>} loadPatchBySha
- * @property {(cache: any) => void} setSeekCache
- * @property {*} seekCache
+ * @property {(sha: string) => Promise<{ops?: Array<{type: string, node?: string, from?: string, to?: string}>}>} loadPatchBySha
+ * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache
+ * @property {{clear: () => Promise<void>} | null} seekCache
  * @property {number} [_seekCeiling]
  * @property {boolean} [_provenanceDegraded]
  */
@@ -80,6 +81,16 @@
  * @property {boolean} noPersistentCache
  * @property {boolean} diff
  * @property {number} diffLimit
+ */
+
+/**
+ * @typedef {Object} QueryBuilderLike
+ * @property {(label?: string) => QueryBuilderLike} outgoing
+ * @property {(label?: string) => QueryBuilderLike} incoming
+ * @property {(fn: Function) => QueryBuilderLike} where
+ * @property {(pattern: string) => QueryBuilderLike} match
+ * @property {(fields: string[]) => QueryBuilderLike} select
+ * @property {() => Promise<{nodes: Array<{id: string, props?: Record<string, unknown>}>, stateHash?: string}>} run
  */
 
 export {};

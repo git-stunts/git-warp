@@ -16,7 +16,7 @@ const FIXED_TIME = 1_700_000_000_000;
  * Builds a manually-signed request whose timestamp matches FIXED_TIME,
  * ensuring the service's wallClockMs never causes EXPIRED rejections.
  */
-/** @returns {Promise<any>} */ // TODO(ts-cleanup): type test request
+/** @returns {Promise<{method: string, url: string, headers: Record<string, string>, body: Buffer}>} */
 async function buildSignedRequest(overrides = {}) {
   const body = Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} }));
   const timestamp = String(FIXED_TIME);
@@ -710,11 +710,11 @@ describe('Constructor', () => {
   });
 
   it('rejects missing keys option', () => {
-    expect(() => new SyncAuthService(/** @type {any} */ ({}))).toThrow('non-empty keys map'); // TODO(ts-cleanup): type test cast
+    expect(() => new SyncAuthService({})).toThrow('non-empty keys map');
   });
 
   it('rejects undefined options', () => {
-    expect(() => new SyncAuthService(/** @type {any} */ (undefined))).toThrow('non-empty keys map'); // TODO(ts-cleanup): type test cast
+    expect(() => new SyncAuthService(undefined)).toThrow('non-empty keys map');
   });
 
   it('defaults optional params without throwing', () => {

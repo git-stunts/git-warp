@@ -25,13 +25,14 @@ vi.mock('../../../src/infrastructure/adapters/ClockAdapter.js', () => ({
   default: { global: vi.fn().mockReturnValue({}) },
 }));
 
-/** @type {*} */ // TODO(ts-cleanup): narrow mock types
-const { createPersistence, resolveGraphName, createHookInstaller } = await import('../../../bin/cli/shared.js');
+const _shared = await import('../../../bin/cli/shared.js');
+const createPersistence = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.createPersistence));
+const resolveGraphName = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.resolveGraphName));
+const createHookInstaller = /** @type {import('vitest').Mock} */ (/** @type {unknown} */ (_shared.createHookInstaller));
 
 /**
  * Builds a mock persistence object that simulates a healthy graph
  * with a single writer "alice".
- * @returns {*} // TODO(ts-cleanup): narrow mock type
  */
 function buildMockPersistence() {
   return {
@@ -84,7 +85,7 @@ const CLI_OPTIONS = /** @type {*} */ ({
 describe('doctor command', () => {
   /** @type {Function} */
   let handleDoctor;
-  /** @type {*} */ // TODO(ts-cleanup): narrow mock type
+  /** @type {ReturnType<typeof buildMockPersistence>} */
   let mockPersistence;
 
   beforeEach(async () => {

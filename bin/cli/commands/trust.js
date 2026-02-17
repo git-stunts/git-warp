@@ -104,7 +104,7 @@ export default async function handleTrust({ options, args }) {
   const graphName = await resolveGraphName(persistence, options.graph);
 
   const recordService = new TrustRecordService({
-    persistence: /** @type {*} TODO(ts-cleanup) */ (persistence),
+    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CheckpointPersistence} */ (/** @type {unknown} */ (persistence)),
     codec: defaultCodec,
   });
 

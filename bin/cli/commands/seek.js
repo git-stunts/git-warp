@@ -268,7 +268,8 @@ async function buildTickReceipt({ tick, perWriter, graph }) {
   const receipt = {};
 
   for (const [writerId, info] of perWriter) {
-    const sha = /** @type {*} */ (info?.tickShas)?.[tick]; // TODO(ts-cleanup): type CLI payload
+    const tickShas = /** @type {Record<number, string> | undefined} */ (info?.tickShas);
+    const sha = tickShas?.[tick];
     if (!sha) {
       continue;
     }
@@ -303,7 +304,11 @@ async function computeStructuralDiff({ graph, prevTick, currentTick, diffLimit }
   }
 
   await graph.materialize({ ceiling: currentTick });
-  const afterState = /** @type {*} */ (await graph.getStateSnapshot()); // TODO(ts-cleanup): narrow WarpStateV5
+  const afterState = await graph.getStateSnapshot();
+  if (!afterState) {
+    const empty = { nodes: { added: [], removed: [] }, edges: { added: [], removed: [] }, props: { set: [], removed: [] } };
+    return applyDiffLimit(empty, diffBaseline, baselineTick, diffLimit);
+  }
   const diff = diffStates(beforeState, afterState);
 
   return applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit);

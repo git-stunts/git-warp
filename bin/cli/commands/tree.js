@@ -22,7 +22,7 @@ const treeSchema = z.object({
 
 /**
  * Builds a parent-to-children adjacency map from edges.
- * @param {Array<{from: string, to: string, label: string}>} edges
+ * @param {Array<{from: string, to: string, label?: string}>} edges
  * @param {string|null} labelFilter
  * @returns {Map<string, Array<{id: string, label: string}>>}
  */
@@ -39,7 +39,10 @@ function buildChildMap(edges, labelFilter) {
     if (!children.has(edge.from)) {
       children.set(edge.from, []);
     }
-    /** @type {*} */ (children.get(edge.from)).push({ id: edge.to, label: edge.label }); // TODO(ts-cleanup): guarded by has()
+    const fromChildren = children.get(edge.from);
+    if (fromChildren) {
+      fromChildren.push({ id: edge.to, label: edge.label || '' });
+    }
     hasParent.add(edge.to);
   }
 
@@ -49,7 +52,7 @@ function buildChildMap(edges, labelFilter) {
 /**
  * Finds root nodes (nodes with outgoing edges but no incoming edges in the filtered set).
  * @param {string[]} nodeIds
- * @param {Array<{from: string, to: string, label: string}>} edges
+ * @param {Array<{from: string, to: string, label?: string}>} edges
  * @param {string|null} labelFilter
  * @returns {string[]}
  */
@@ -162,11 +165,11 @@ export default async function handleTree({ options, args }) {
   const edges = await graph.getEdges();
   const rootArg = positionals[0] || null;
 
-  const nodeIds = queryResult.nodes.map((/** @type {*} */ n) => n.id); // TODO(ts-cleanup): type CLI payload
-  const propsMap = new Map(queryResult.nodes.map((/** @type {*} */ n) => [n.id, n.props || {}])); // TODO(ts-cleanup): type CLI payload
-  const childMap = buildChildMap(/** @type {*} */ (edges), values.edgeLabel); // TODO(ts-cleanup): getEdges() label optionality
+  const nodeIds = queryResult.nodes.map((/** @type {{id: string}} */ n) => n.id);
+  const propsMap = new Map(queryResult.nodes.map((/** @type {{id: string, props?: Record<string, unknown>}} */ n) => [n.id, n.props || {}]));
+  const childMap = buildChildMap(edges, values.edgeLabel);
 
-  const roots = rootArg ? [rootArg] : findRoots(nodeIds, /** @type {*} */ (edges), values.edgeLabel); // TODO(ts-cleanup): getEdges() label optionality
+  const roots = rootArg ? [rootArg] : findRoots(nodeIds, edges, values.edgeLabel);
 
   if (rootArg && !nodeIds.includes(rootArg)) {
     throw usageError(`Node not found: ${rootArg}`);

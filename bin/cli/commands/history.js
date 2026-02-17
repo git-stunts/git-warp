@@ -4,6 +4,7 @@ import { historySchema } from '../schemas.js';
 import { openGraph, applyCursorCeiling, emitCursorWarning } from '../shared.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
+/** @typedef {{patch: {schema?: number, lamport: number, ops?: Array<{type: string, node?: string, from?: string, to?: string}>}, sha: string}} PatchEntry */
 
 const HISTORY_OPTIONS = {
   node: { type: 'string' },
@@ -16,7 +17,7 @@ function parseHistoryArgs(args) {
 }
 
 /**
- * @param {*} patch
+ * @param {{ops?: Array<{node?: string, from?: string, to?: string}>}} patch
  * @param {string} nodeId
  */
 function patchTouchesNode(patch, nodeId) {
@@ -46,10 +47,10 @@ export default async function handleHistory({ options, args }) {
   const writerId = options.writer;
   let patches = await graph.getWriterPatches(writerId);
   if (cursorInfo.active) {
-    patches = patches.filter((/** @type {*} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick)); // TODO(ts-cleanup): type CLI payload
+    patches = patches.filter((/** @type {PatchEntry} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick));
   }
   if (patches.length === 0) {
-    const knownWriters = await /** @type {*} */ (graph).discoverWriters(); // TODO(ts-cleanup): type graph facade
+    const knownWriters = await graph.discoverWriters();
     if (knownWriters.length > 0) {
       throw notFoundError(
         `No patches found for writer: ${writerId}\nKnown writers: ${knownWriters.join(', ')}\nUse: warp-graph history --writer <id>`
@@ -59,8 +60,8 @@ export default async function handleHistory({ options, args }) {
   }
 
   const entries = patches
-    .filter((/** @type {*} */ { patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node)) // TODO(ts-cleanup): type CLI payload
-    .map((/** @type {*} */ { patch, sha }) => ({ // TODO(ts-cleanup): type CLI payload
+    .filter((/** @type {PatchEntry} */ { patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node))
+    .map((/** @type {PatchEntry} */ { patch, sha }) => ({
       sha,
       schema: patch.schema,
       lamport: patch.lamport,

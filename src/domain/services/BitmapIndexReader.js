@@ -301,7 +301,7 @@ export default class BitmapIndexReader {
    * @param {string} context.path - Shard path
    * @param {string} context.oid - Object ID
    * @param {string} context.format - 'json' or 'bitmap'
-   * @returns {any} Empty shard (non-strict mode only)
+   * @returns {Object} Empty shard (non-strict mode only)
    * @throws {ShardCorruptionError|ShardValidationError} In strict mode
    * @private
    */
@@ -388,16 +388,16 @@ export default class BitmapIndexReader {
   /**
    * Attempts to handle a shard error based on its type.
    * Returns handled result for validation/corruption errors, null otherwise.
-   * @param {any} err - The error to handle
+   * @param {unknown} err - The error to handle
    * @param {Object} context - Error context
    * @param {string} context.path - Shard path
    * @param {string} context.oid - Object ID
    * @param {string} context.format - 'json' or 'bitmap'
-   * @returns {any} Handled result or null if error should be re-thrown
+   * @returns {Object | null} Handled result or null if error should be re-thrown
    * @private
    */
   _tryHandleShardError(err, context) {
-    const wrappedErr = this._wrapParseError(err, context.path, context.oid);
+    const wrappedErr = this._wrapParseError(/** @type {Error} */ (err), context.path, context.oid);
     const isHandleable = wrappedErr instanceof ShardCorruptionError ||
                          wrappedErr instanceof ShardValidationError;
     return isHandleable ? this._handleShardError(wrappedErr, context) : null;

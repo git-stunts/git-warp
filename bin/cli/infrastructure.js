@@ -286,17 +286,17 @@ export function parseArgs(argv) {
   const { baseArgs, command, commandArgs } = extractBaseArgs(argv);
   const processed = preprocessView(baseArgs);
 
-  /** @type {*} */ // TODO(ts-cleanup): type parseArgs return
+  /** @type {{ values: Record<string, string|boolean|string[]|boolean[]|undefined>, positionals: string[] }} */
   let parsed;
   try {
     parsed = nodeParseArgs({
       args: processed,
-      options: /** @type {*} */ (BASE_OPTIONS), // TODO(ts-cleanup): type parseArgs config
+      options: /** @type {import('node:util').ParseArgsConfig['options']} */ (BASE_OPTIONS),
       strict: true,
       allowPositionals: false,
     });
-  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type parseArgs error
-    throw usageError(err.message);
+  } catch (err) {
+    throw usageError(err instanceof Error ? err.message : String(err));
   }
 
   const { values } = parsed;
@@ -326,22 +326,22 @@ export function parseArgs(argv) {
  * @returns {{values: *, positionals: string[]}}
  */
 export function parseCommandArgs(args, config, schema, { allowPositionals = false } = {}) {
-  /** @type {*} */ // TODO(ts-cleanup): type parseArgs return
+  /** @type {{ values: Record<string, string|boolean|string[]|boolean[]|undefined>, positionals: string[] }} */
   let parsed;
   try {
     parsed = nodeParseArgs({
       args,
-      options: /** @type {*} */ (config), // TODO(ts-cleanup): type parseArgs config
+      options: /** @type {import('node:util').ParseArgsConfig['options']} */ (config),
       strict: true,
       allowPositionals,
     });
-  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type parseArgs error
-    throw usageError(err.message);
+  } catch (err) {
+    throw usageError(err instanceof Error ? err.message : String(err));
   }
 
   const result = schema.safeParse(parsed.values);
   if (!result.success) {
-    const msg = result.error.issues.map((/** @type {*} */ issue) => issue.message).join('; '); // TODO(ts-cleanup): type Zod issue
+    const msg = result.error.issues.map((/** @type {{message: string}} */ issue) => issue.message).join('; ');
     throw usageError(msg);
   }
 

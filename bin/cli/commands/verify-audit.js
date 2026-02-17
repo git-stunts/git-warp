@@ -53,13 +53,13 @@ export default async function handleVerifyAudit({ options, args }) {
   const { persistence } = await createPersistence(options.repo);
   const graphName = await resolveGraphName(persistence, options.graph);
   const verifier = new AuditVerifierService({
-    persistence: /** @type {*} */ (persistence), // TODO(ts-cleanup): narrow port type
+    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CheckpointPersistence} */ (/** @type {unknown} */ (persistence)),
     codec: defaultCodec,
   });
 
   const trustWarning = detectTrustWarning();
 
-  /** @type {*} */ // TODO(ts-cleanup): type verify-audit payload
+  /** @type {Record<string, unknown>} */
   let payload;
   if (writerFilter !== undefined) {
     const chain = await verifier.verifyChain(graphName, writerFilter, { since });
@@ -101,9 +101,10 @@ export default async function handleVerifyAudit({ options, args }) {
     }
   }
 
-  const hasInvalid = payload.summary.invalid > 0;
+  const { summary, trustAssessment } = /** @type {{summary: {invalid: number}, trustAssessment?: {trustVerdict?: string}}} */ (payload);
+  const hasInvalid = summary.invalid > 0;
   const trustFailed = trustMode === 'enforce' &&
-    payload.trustAssessment?.trustVerdict === 'fail';
+    trustAssessment?.trustVerdict === 'fail';
   return {
     payload,
     exitCode: trustFailed ? EXIT_CODES.TRUST_FAIL

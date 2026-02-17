@@ -92,7 +92,7 @@ export async function openGraph(options) {
       throw notFoundError(`Graph not found: ${options.graph}`);
     }
   }
-  const graph = /** @type {WarpGraphInstance} */ (/** @type {*} */ (await WarpGraph.open({ // TODO(ts-cleanup): narrow port type
+  const graph = /** @type {WarpGraphInstance} */ (/** @type {unknown} */ (await WarpGraph.open({
     persistence,
     graphName,
     writerId: options.writer,
@@ -183,7 +183,7 @@ export function createHookInstaller() {
   const templateDir = path.resolve(__dirname, '..', '..', 'scripts', 'hooks');
   const { version } = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8'));
   return new HookInstaller({
-    fs: /** @type {*} */ (fs), // TODO(ts-cleanup): narrow port type
+    fs: /** @type {import('../../src/domain/services/HookInstaller.js').FsAdapter} */ (/** @type {unknown} */ (fs)),
     execGitConfig: execGitConfigValue,
     version,
     templateDir,

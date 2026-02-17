@@ -3,20 +3,21 @@
  * Items with lowest priority are extracted first.
  *
  * @class MinHeap
+ * @template T
  */
 class MinHeap {
   /**
    * Creates an empty MinHeap.
    */
   constructor() {
-    /** @type {Array<{item: *, priority: number}>} */
+    /** @type {Array<{item: T, priority: number}>} */
     this.heap = [];
   }
 
   /**
    * Insert an item with given priority.
    *
-   * @param {*} item - The item to insert
+   * @param {T} item - The item to insert
    * @param {number} priority - Priority value (lower = higher priority)
    * @returns {void}
    */
@@ -28,14 +29,14 @@ class MinHeap {
   /**
    * Extract and return the item with minimum priority.
    *
-   * @returns {*} The item with lowest priority, or undefined if empty
+   * @returns {T | undefined} The item with lowest priority, or undefined if empty
    */
   extractMin() {
     if (this.heap.length === 0) { return undefined; }
-    if (this.heap.length === 1) { return /** @type {{item: *, priority: number}} */ (this.heap.pop()).item; }
+    if (this.heap.length === 1) { return /** @type {{item: T, priority: number}} */ (this.heap.pop()).item; }
 
     const min = this.heap[0];
-    this.heap[0] = /** @type {{item: *, priority: number}} */ (this.heap.pop());
+    this.heap[0] = /** @type {{item: T, priority: number}} */ (this.heap.pop());
     this._bubbleDown(0);
     return min.item;
   }

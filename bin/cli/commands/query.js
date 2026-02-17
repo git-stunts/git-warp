@@ -6,6 +6,7 @@ import { openGraph, applyCursorCeiling, emitCursorWarning } from '../shared.js';
 import { querySchema } from '../schemas.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
+/** @typedef {import('../types.js').QueryBuilderLike} QueryBuilderLike */
 
 const QUERY_OPTIONS = {
   match: { type: 'string' },
@@ -85,7 +86,7 @@ function parseQueryArgs(args) {
 }
 
 /**
- * @param {*} builder
+ * @param {QueryBuilderLike} builder
  * @param {Array<{type: string, label?: string, key?: string, value?: string}>} steps
  */
 function applyQuerySteps(builder, steps) {
@@ -97,7 +98,7 @@ function applyQuerySteps(builder, steps) {
 }
 
 /**
- * @param {*} builder
+ * @param {QueryBuilderLike} builder
  * @param {{type: string, label?: string, key?: string, value?: string}} step
  */
 function applyQueryStep(builder, step) {
@@ -108,13 +109,13 @@ function applyQueryStep(builder, step) {
     return builder.incoming(step.label);
   }
   if (step.type === 'where-prop') {
-    return builder.where((/** @type {*} */ node) => matchesPropFilter(node, /** @type {string} */ (step.key), /** @type {string} */ (step.value))); // TODO(ts-cleanup): type CLI payload
+    return builder.where((/** @type {{props?: Record<string, unknown>}} */ node) => matchesPropFilter(node, /** @type {string} */ (step.key), /** @type {string} */ (step.value)));
   }
   return builder;
 }
 
 /**
- * @param {*} node
+ * @param {{props?: Record<string, unknown>}} node
  * @param {string} key
  * @param {string} value
  */
@@ -128,7 +129,7 @@ function matchesPropFilter(node, key, value) {
 
 /**
  * Builds a map of nodeId -> {outgoing: [], incoming: []} from edges.
- * @param {Array<{from: string, to: string, label: string}>} edges
+ * @param {Array<{from: string, to: string, label?: string}>} edges
  * @returns {Map<string, {outgoing: Array<{label: string, to: string}>, incoming: Array<{label: string, from: string}>}>}
  */
 function buildEdgeMap(edges) {
@@ -141,24 +142,31 @@ function buildEdgeMap(edges) {
     if (!edgeMap.has(edge.to)) {
       edgeMap.set(edge.to, { outgoing: [], incoming: [] });
     }
-    /** @type {*} */ (edgeMap.get(edge.from)).outgoing.push({ label: edge.label, to: edge.to }); // TODO(ts-cleanup): guarded by has()
-    /** @type {*} */ (edgeMap.get(edge.to)).incoming.push({ label: edge.label, from: edge.from }); // TODO(ts-cleanup): guarded by has()
+    const fromEntry = edgeMap.get(edge.from);
+    const toEntry = edgeMap.get(edge.to);
+    if (fromEntry) {
+      fromEntry.outgoing.push({ label: edge.label || '', to: edge.to });
+    }
+    if (toEntry) {
+      toEntry.incoming.push({ label: edge.label || '', from: edge.from });
+    }
   }
   return edgeMap;
 }
 
 /**
  * @param {string} graphName
- * @param {*} result
- * @param {Array<{from: string, to: string, label: string}>} edges
- * @returns {{graph: string, stateHash: *, nodes: *, _renderedSvg?: string, _renderedAscii?: string}}
+ * @param {{nodes: Array<{id: string, props?: Record<string, unknown>}>, stateHash?: string}} result
+ * @param {Array<{from: string, to: string, label?: string}>} edges
+ * @returns {{graph: string, stateHash: string|undefined, nodes: Array<{id: string, props?: Record<string, unknown>} & Record<string, unknown>>, [k: string]: unknown}}
  */
 function buildQueryPayload(graphName, result, edges) {
   const edgeMap = buildEdgeMap(edges);
 
-  const nodes = result.nodes.map((/** @type {*} */ node) => { // TODO(ts-cleanup): type CLI payload
-    const nodeEdges = edgeMap.get(node.id);
+  const nodes = result.nodes.map((/** @type {{id: string, props?: Record<string, unknown>}} */ node) => {
+    /** @type {{id: string, props?: Record<string, unknown>} & Record<string, unknown>} */
     const entry = { ...node };
+    const nodeEdges = edgeMap.get(node.id);
     if (nodeEdges) {
       entry.edges = nodeEdges;
     }
@@ -172,9 +180,9 @@ function buildQueryPayload(graphName, result, edges) {
   };
 }
 
-/** @param {*} error */
+/** @param {unknown} error */
 function mapQueryError(error) {
-  if (error && error.code && String(error.code).startsWith('E_QUERY')) {
+  if (error instanceof Error && /** @type {{code?: string}} */ (error).code?.startsWith('E_QUERY')) {
     throw usageError(error.message);
   }
   throw error;
@@ -205,7 +213,7 @@ export default async function handleQuery({ options, args }) {
   try {
     const result = await builder.run();
     const edges = await graph.getEdges();
-    const payload = buildQueryPayload(graphName, result, /** @type {*} */ (edges)); // TODO(ts-cleanup): getEdges() label optionality
+    const payload = buildQueryPayload(graphName, result, edges);
 
     if (options.view) {
       const graphData = queryResultToGraphData(payload, edges);

@@ -36,13 +36,16 @@ import { orsetContains } from '../crdt/ORSet.js';
  * InlineValue objects `{ type: 'inline', value: ... }` are unwrapped
  * to their inner value. All other values pass through unchanged.
  *
- * @param {*} value - Property value (potentially InlineValue-wrapped)
- * @returns {*} The unwrapped value
+ * @param {unknown} value - Property value (potentially InlineValue-wrapped)
+ * @returns {unknown} The unwrapped value
  * @private
  */
 function unwrapValue(value) {
-  if (value && typeof value === 'object' && value.type === 'inline') {
-    return value.value;
+  if (value && typeof value === 'object' && 'type' in value) {
+    const rec = /** @type {Record<string, unknown>} */ (value);
+    if (rec.type === 'inline') {
+      return rec.value;
+    }
   }
   return value;
 }
@@ -60,11 +63,11 @@ function unwrapValue(value) {
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - Current state
  * @param {string} nodeId - Node ID to extract
- * @returns {{ id: string, exists: boolean, props: Record<string, *> }}
+ * @returns {{ id: string, exists: boolean, props: Record<string, unknown> }}
  */
 function extractNodeSnapshot(state, nodeId) {
   const exists = orsetContains(state.nodeAlive, nodeId);
-  /** @type {Record<string, *>} */
+  /** @type {Record<string, unknown>} */
   const props = {};
 
   if (exists) {

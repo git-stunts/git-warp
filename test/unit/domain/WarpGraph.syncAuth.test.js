@@ -13,14 +13,16 @@ async function createGraph(writerId = 'writer-1') {
   return WarpGraph.open({ persistence: mockPersistence, graphName: 'test', writerId });
 }
 
-function mockClientGraph(/** @type {any} */ graph) { // TODO(ts-cleanup): type test helper
-  /** @type {any} */ (graph)._cachedState = {};
-  graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
-  graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+function mockClientGraph(/** @type {WarpGraph} */ graph) {
+  const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
+  g._cachedState = {};
+  g.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
+  g.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 }
 
-function mockServerGraph(/** @type {any} */ graph) { // TODO(ts-cleanup): type test helper
-  graph.processSyncRequest = vi.fn().mockResolvedValue({
+function mockServerGraph(/** @type {WarpGraph} */ graph) {
+  const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
+  g.processSyncRequest = vi.fn().mockResolvedValue({
     type: 'sync-response',
     frontier: {},
     patches: [],

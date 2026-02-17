@@ -56,8 +56,8 @@ const optionsSchema = z.object({
 /**
  * Recursively sorts object keys for deterministic JSON output.
  *
- * @param {*} value - Any JSON-serializable value
- * @returns {*} The canonicalized value with sorted object keys
+ * @param {unknown} value - Any JSON-serializable value
+ * @returns {unknown} The canonicalized value with sorted object keys
  * @private
  */
 function canonicalizeJson(value) {
@@ -65,10 +65,10 @@ function canonicalizeJson(value) {
     return value.map(canonicalizeJson);
   }
   if (value && typeof value === 'object') {
-    /** @type {{ [x: string]: * }} */
+    /** @type {{ [x: string]: unknown }} */
     const sorted = {};
     for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalizeJson(/** @type {{ [x: string]: * }} */ (value)[key]);
+      sorted[key] = canonicalizeJson(/** @type {{ [x: string]: unknown }} */ (value)[key]);
     }
     return sorted;
   }
@@ -78,7 +78,7 @@ function canonicalizeJson(value) {
 /**
  * Produces a canonical JSON string with sorted keys.
  *
- * @param {*} value - Any JSON-serializable value
+ * @param {unknown} value - Any JSON-serializable value
  * @returns {string} Canonical JSON string
  * @private
  */

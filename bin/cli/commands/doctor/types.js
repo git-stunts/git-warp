@@ -6,7 +6,7 @@
 
 // ── JSON-safe recursive value type ──────────────────────────────────────────
 
-/** @typedef {null | boolean | number | string | Array<*> | {[k:string]: *}} JsonValue */ // TODO(ts-cleanup): recursive type
+/** @typedef {null | boolean | number | string | Array<unknown> | {[k:string]: unknown}} JsonValue */
 
 /** @typedef {{[k:string]: JsonValue}} FindingEvidence */
 
