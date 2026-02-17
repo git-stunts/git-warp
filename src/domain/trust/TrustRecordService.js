@@ -75,7 +75,7 @@ export class TrustRecordService {
 
     // 4. Prev-link consistency
     const ref = buildTrustRecordRef(graphName);
-    const currentTip = await this._readTipRecordId(ref);
+    const { tipSha, recordId: currentTip } = await this._readTip(ref);
 
     if (record.prev !== currentTip) {
       throw new TrustError(
@@ -84,8 +84,8 @@ export class TrustRecordService {
       );
     }
 
-    // 5. Persist as Git commit
-    const commitSha = await this._persistRecord(ref, record);
+    // 5. Persist as Git commit (passes tipSha to avoid re-reading ref)
+    const commitSha = await this._persistRecord(ref, record, tipSha);
     return { commitSha, ref };
   }
 
@@ -214,55 +214,48 @@ export class TrustRecordService {
   }
 
   /**
-   * Reads the recordId of the current chain tip.
+   * Reads the tip commit SHA and its recordId.
    * @param {string} ref
-   * @returns {Promise<string|null>}
+   * @returns {Promise<{tipSha: string|null, recordId: string|null}>}
    * @private
    */
-  async _readTipRecordId(ref) {
+  async _readTip(ref) {
     let tipSha;
     try {
       tipSha = await this._persistence.readRef(ref);
     } catch {
-      return null;
+      return { tipSha: null, recordId: null };
     }
     if (!tipSha) {
-      return null;
+      return { tipSha: null, recordId: null };
     }
 
     const treeOid = await this._persistence.getCommitTree(tipSha);
     const entries = await this._persistence.readTreeOids(treeOid);
     const blobOid = entries['record.cbor'];
     if (!blobOid) {
-      return null;
+      return { tipSha, recordId: null };
     }
 
     const record = this._codec.decode(await this._persistence.readBlob(blobOid));
-    return record.recordId ?? null;
+    return { tipSha, recordId: record.recordId ?? null };
   }
 
   /**
    * Persists a trust record as a Git commit.
    * @param {string} ref
    * @param {Record<string, *>} record
+   * @param {string|null} parentSha - Resolved tip SHA (null for genesis)
    * @returns {Promise<string>} commit SHA
    * @private
    */
-  async _persistRecord(ref, record) {
+  async _persistRecord(ref, record, parentSha) {
     // Encode record as CBOR blob
     const encoded = this._codec.encode(record);
     const blobOid = await this._persistence.writeBlob(encoded);
 
     // Create tree with single entry
     const treeOid = await this._persistence.writeTree({ 'record.cbor': blobOid });
-
-    // Determine parent commit
-    let parentSha = null;
-    try {
-      parentSha = await this._persistence.readRef(ref);
-    } catch {
-      // No existing chain — genesis commit
-    }
 
     const parents = parentSha ? [parentSha] : [];
     const message = `trust: ${record.recordType} ${record.recordId.slice(0, 12)}`;
@@ -273,8 +266,8 @@ export class TrustRecordService {
       message,
     });
 
-    // CAS update ref
-    await this._persistence.updateRef(ref, commitSha);
+    // CAS update ref — fails atomically if a concurrent append changed the tip
+    await this._persistence.compareAndSwapRef(ref, commitSha, parentSha);
 
     return commitSha;
   }

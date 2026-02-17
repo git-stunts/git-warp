@@ -27,8 +27,14 @@ function createMockPersistence() {
   return {
     /** @param {*} ref */
     async readRef(ref) { return refs.get(ref) ?? null; },
-    /** @param {*} ref @param {*} sha */
-    async updateRef(ref, sha) { refs.set(ref, sha); },
+    /** @param {*} ref @param {*} newOid @param {*} expectedOid */
+    async compareAndSwapRef(ref, newOid, expectedOid) {
+      const current = refs.get(ref) ?? null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS failure: expected ${expectedOid}, found ${current}`);
+      }
+      refs.set(ref, newOid);
+    },
     /** @param {*} data */
     async writeBlob(data) {
       const oid = `blob-${++counter}`;

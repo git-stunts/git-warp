@@ -33,9 +33,13 @@ function createMockPersistence() {
     async readRef(ref) {
       return refs.get(ref) ?? null;
     },
-    /** @param {*} ref @param {*} sha */
-    async updateRef(ref, sha) {
-      refs.set(ref, sha);
+    /** @param {*} ref @param {*} newOid @param {*} expectedOid */
+    async compareAndSwapRef(ref, newOid, expectedOid) {
+      const current = refs.get(ref) ?? null;
+      if (current !== expectedOid) {
+        throw new Error(`CAS failure: expected ${expectedOid}, found ${current}`);
+      }
+      refs.set(ref, newOid);
     },
     /** @param {*} data */
     async writeBlob(data) {
@@ -145,6 +149,28 @@ describe('TrustRecordService.appendRecord', () => {
     await expect(
       service.appendRecord('test-graph', WRITER_BIND_ADD_ALICE, { skipSignatureVerify: true }),
     ).rejects.toThrow('Prev-link mismatch');
+  });
+
+  it('detects concurrent append via CAS failure', async () => {
+    await service.appendRecord('test-graph', KEY_ADD_1, { skipSignatureVerify: true });
+
+    // Simulate a concurrent append by mutating the ref after _readTip
+    // but before _persistRecord's compareAndSwapRef
+    const origReadRef = persistence.readRef.bind(persistence);
+    let callCount = 0;
+    persistence.readRef = async (ref) => {
+      const result = await origReadRef(ref);
+      callCount++;
+      // After the first readRef in _readTip, sneak in a ref change
+      if (callCount === 1) {
+        persistence.refs.set(ref, 'concurrent-commit-sha');
+      }
+      return result;
+    };
+
+    await expect(
+      service.appendRecord('test-graph', KEY_ADD_2, { skipSignatureVerify: true }),
+    ).rejects.toThrow('CAS failure');
   });
 });
 
