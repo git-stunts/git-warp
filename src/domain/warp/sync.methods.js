@@ -158,7 +158,7 @@ export async function status() {
     cachedState = 'none';
   } else if (this._stateDirty || !this._lastFrontier ||
     frontier.size !== this._lastFrontier.size ||
-    ![...frontier].every(([w, sha]) => this._lastFrontier.get(w) === sha)) {
+    ![...frontier].every(([w, sha]) => /** @type {Map<string, string>} */ (this._lastFrontier).get(w) === sha)) {
     cachedState = 'stale';
   } else {
     cachedState = 'fresh';

@@ -37,7 +37,7 @@ import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCo
  */
 export function _resolveCeiling(options) {
   if (options && 'ceiling' in options) {
-    return options.ceiling;
+    return options.ceiling ?? null;
   }
   return this._seekCeiling;
 }
