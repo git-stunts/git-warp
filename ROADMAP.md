@@ -616,6 +616,11 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 | B38 | C | **DENO AMBIENT TYPE DECLARATION** — add `globals.d.ts` declaring `Deno` as an ambient type; eliminates scattered `@ts-expect-error` annotations in `infrastructure.js`, `DenoHttpAdapter.js`, etc. |
 | B39 | B | **TRUST RECORD CAS RETRY** — add retry-once semantics for `compareAndSwapRef` failures in `TrustRecordService._persistRecord`; re-read tip, re-validate prev-link, retry commit; mirrors the pattern in `AuditReceiptService` |
 | B40 | B | **BATS E2E: `git warp trust` OUTPUT SHAPES** — add BATS integration tests for `git warp trust` covering JSON output schema, exit codes (0 for warn, 4 for enforce-fail), and `not_configured` default behaviour |
+| B41 | B | **AUTO-GENERATE `.d.ts` FROM JSDOC** — generate `_wiredMethods.d.ts` from JSDoc annotations automatically (e.g. via `tsc --declaration --emitDeclarationOnly` or a custom script); prevents declaration drift from implementations |
+| B42 | B | **CI `.d.ts` SIGNATURE VALIDATION** — add a pre-commit hook or CI step that validates `.d.ts` signatures match runtime exports; catches type declaration drift before merge |
+| B43 | C | **VITEST EXPLICIT RUNTIME EXCLUDES** — replace glob-based vitest test inclusion with explicit excludes for `test/runtime/deno/` and `test/runtime/bun/`; prevents accidental local runs of Docker-only test suites |
+| B44 | C | **SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E** — add end-to-end test for the subscriber `unsubscribe()` called inside an `onChange` callback scenario; validates the `[...this._subscribers]` snapshot fix |
+| B45 | C | **TYPE-LEVEL `.d.ts` CONFORMANCE TEST** — create a TypeScript test file that asserts `.d.ts` method signatures match runtime values using `satisfies` / `Parameters<>` / `ReturnType<>` type-level checks; fails at `tsc` time if declarations drift |
 
 ---
 
