@@ -22,7 +22,9 @@ export function getEnvVar(name) {
   if (typeof process !== 'undefined' && process.env) {
     return process.env[name];
   }
+  // @ts-ignore — Deno global is only present in Deno runtime
   if (typeof Deno !== 'undefined') {
+    // @ts-ignore — Deno global is only present in Deno runtime
     // eslint-disable-next-line no-undef
     try { return Deno.env.get(name); } catch { return undefined; }
   }

@@ -158,7 +158,7 @@ describe('TrustRecordService.appendRecord', () => {
     // but before _persistRecord's compareAndSwapRef
     const origReadRef = persistence.readRef.bind(persistence);
     let callCount = 0;
-    persistence.readRef = async (ref) => {
+    persistence.readRef = async (/** @type {*} */ ref) => {
       const result = await origReadRef(ref);
       callCount++;
       // After the first readRef in _readTip, sneak in a ref change

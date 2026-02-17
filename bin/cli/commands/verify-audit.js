@@ -88,7 +88,7 @@ export default async function handleVerifyAudit({ options, args }) {
         mode: trustMode,
       });
       payload.trustAssessment = trustAssessment;
-    } catch (err) {
+    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type catch
       if (trustMode === 'enforce') {
         throw err;
       }
