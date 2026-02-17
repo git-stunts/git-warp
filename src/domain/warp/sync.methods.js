@@ -367,7 +367,7 @@ export async function syncWith(remote, options = {}) {
   const executeAttempt = async () => {
     checkAborted(signal, 'syncWith');
     attempt += 1;
-    const attemptStart = Date.now();
+    const attemptStart = this._clock.now();
     emit('connecting');
     const request = await this.createSyncRequest();
     emit('requestBuilt');
@@ -458,7 +458,7 @@ export async function syncWith(remote, options = {}) {
     const result = this.applySyncResponse(response);
     emit('applied', { applied: result.applied });
 
-    const durationMs = Date.now() - attemptStart;
+    const durationMs = this._clock.now() - attemptStart;
     emit('complete', { durationMs, applied: result.applied });
     return { applied: result.applied, attempts: attempt };
   };
