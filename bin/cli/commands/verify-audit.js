@@ -1,6 +1,6 @@
 import { AuditVerifierService } from '../../../src/domain/services/AuditVerifierService.js';
 import defaultCodec from '../../../src/domain/utils/defaultCodec.js';
-import { EXIT_CODES, parseCommandArgs } from '../infrastructure.js';
+import { EXIT_CODES, parseCommandArgs, getEnvVar } from '../infrastructure.js';
 import { verifyAuditSchema } from '../schemas.js';
 import { createPersistence, resolveGraphName } from '../shared.js';
 
@@ -13,7 +13,7 @@ import { createPersistence, resolveGraphName } from '../shared.js';
  */
 function detectTrustWarning() {
   const sources = [];
-  if (typeof process !== 'undefined' && process.env?.WARP_TRUSTED_ROOT) {
+  if (getEnvVar('WARP_TRUSTED_ROOT')) {
     sources.push('env');
   }
   if (sources.length === 0) {
@@ -82,11 +82,23 @@ export default async function handleVerifyAudit({ options, args }) {
 
   // Attach trust assessment only when explicitly requested via --trust-mode
   if (trustMode) {
-    const trustAssessment = await verifier.evaluateTrust(graphName, {
-      pin: trustPin,
-      mode: trustMode,
-    });
-    payload.trustAssessment = trustAssessment;
+    try {
+      const trustAssessment = await verifier.evaluateTrust(graphName, {
+        pin: trustPin,
+        mode: trustMode,
+      });
+      payload.trustAssessment = trustAssessment;
+    } catch (err) {
+      if (trustMode === 'enforce') {
+        throw err;
+      }
+      payload.trustAssessment = {
+        trustSchemaVersion: 1,
+        mode: 'signed_evidence_v1',
+        trustVerdict: 'error',
+        error: err?.message ?? 'Trust evaluation failed',
+      };
+    }
   }
 
   const hasInvalid = payload.summary.invalid > 0;
