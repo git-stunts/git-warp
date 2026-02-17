@@ -9,8 +9,8 @@ export const EXIT_CODES = {
   USAGE: 1,
   NOT_FOUND: 2,
   INTERNAL: 3,
-  /** Trust policy denial (enforce mode). Same code as INTERNAL for now. */
-  TRUST_FAIL: 3,
+  /** Trust policy denial (enforce mode). */
+  TRUST_FAIL: 4,
 };
 
 export const HELP_TEXT = `warp-graph <command> [options]
