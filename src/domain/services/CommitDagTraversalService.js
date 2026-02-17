@@ -35,11 +35,11 @@ export default class CommitDagTraversalService {
   /**
    * Creates a new CommitDagTraversalService.
    *
-   * @param {Object} options
-   * @param {import('./BitmapIndexReader.js').default} options.indexReader - Index reader for O(1) lookups
+   * @param {Object} [options]
+   * @param {import('./BitmapIndexReader.js').default} [options.indexReader] - Index reader for O(1) lookups
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger instance
    */
-  constructor({ indexReader, logger = nullLogger } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ indexReader, logger = nullLogger } = {}) {
     if (!indexReader) {
       throw new Error('CommitDagTraversalService requires an indexReader');
     }

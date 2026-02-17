@@ -106,8 +106,8 @@ function createFetchHandler(requestHandler, logger) {
       const portReq = await toPortRequest(request);
       const portRes = await requestHandler(portReq);
       return toResponse(portRes);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (err.status === 413) {
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && /** @type {{status?: number}} */ (err).status === 413) {
         return new Response(PAYLOAD_TOO_LARGE, {
           status: 413,
           headers: { 'Content-Type': 'text/plain', 'Content-Length': PAYLOAD_TOO_LARGE_LENGTH },
@@ -137,7 +137,6 @@ function createFetchHandler(requestHandler, logger) {
  * @returns {*} The Bun server instance
  */
 function startServer(serveOptions, cb) {
-  // @ts-expect-error — Bun global is only available in Bun runtime
   const server = globalThis.Bun.serve(serveOptions);
   if (cb) {
     cb(null);
@@ -204,7 +203,7 @@ export default class BunHttpAdapter extends HttpServerPort {
       listen(port, host, callback) {
         const cb = typeof host === 'function' ? host : callback;
         const bindHost = typeof host === 'string' ? host : undefined;
-        /** @type {*} */ // TODO(ts-cleanup): type Bun.serve options
+        /** @type {BunServeOptions} */
         const serveOptions = { port, fetch: fetchHandler };
 
         if (bindHost !== undefined) {

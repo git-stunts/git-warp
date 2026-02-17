@@ -132,7 +132,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    * @returns {Promise<CacheIndex>} The mutated index
    */
   async _mutateIndex(mutate) {
-    /** @type {*} */ // TODO(ts-cleanup): type CAS retry error
+    /** @type {unknown} */
     let lastErr;
     for (let attempt = 0; attempt < MAX_CAS_RETRIES; attempt++) {
       const index = await this._readIndex();
@@ -144,7 +144,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
         lastErr = err;
         // Transient write failure — retry with fresh read
         if (attempt === MAX_CAS_RETRIES - 1) {
-          throw new Error(`CasSeekCacheAdapter: index update failed after retries: ${lastErr.message}`);
+          throw new Error(`CasSeekCacheAdapter: index update failed after retries: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`);
         }
       }
     }

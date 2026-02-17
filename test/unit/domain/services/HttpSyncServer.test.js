@@ -107,16 +107,12 @@ describe('HttpSyncServer', () => {
     await handle.close();
   });
 
-  it('normalizes path without leading slash', async () => {
-    const server = new HttpSyncServer(/** @type {any} */ ({
+  it('rejects path without leading slash', () => {
+    expect(() => new HttpSyncServer(/** @type {any} */ ({
       httpPort: mockPort.port,
       graph,
       path: 'custom',
-    }));
-
-    const handle = await server.listen(9999);
-    expect(handle.url).toBe('http://127.0.0.1:9999/custom');
-    await handle.close();
+    }))).toThrow(/HttpSyncServer config/);
   });
 
   describe('request handling', () => {
@@ -311,7 +307,7 @@ describe('HttpSyncServer', () => {
         httpPort: createMockPort(),
         graph: { processSyncRequest: vi.fn() },
         allowedWriters: ['alice'],
-      })).toThrow('allowedWriters requires auth.keys to be configured');
+      })).toThrow(/allowedWriters requires auth\.keys to be configured/);
     });
 
     it('does not throw when allowedWriters is set with auth.keys', () => {
@@ -321,6 +317,47 @@ describe('HttpSyncServer', () => {
         auth: { keys: { default: 'secret' } },
         allowedWriters: ['alice'],
       })).not.toThrow();
+    });
+  });
+
+  describe('Zod schema validation', () => {
+    it('throws on empty options (missing required fields)', () => {
+      expect(() => new HttpSyncServer(/** @type {any} */ ({}))).toThrow(/HttpSyncServer config/);
+    });
+
+    it('throws on negative maxRequestBytes', () => {
+      expect(() => new HttpSyncServer(/** @type {any} */ ({
+        httpPort: mockPort.port,
+        graph,
+        maxRequestBytes: -1,
+      }))).toThrow(/HttpSyncServer config/);
+    });
+
+    it('throws on empty auth.keys', () => {
+      expect(() => new HttpSyncServer(/** @type {any} */ ({
+        httpPort: mockPort.port,
+        graph,
+        auth: { keys: {} },
+      }))).toThrow(/auth\.keys must not be empty/);
+    });
+
+    it('throws on unknown top-level key (strict mode)', () => {
+      expect(() => new HttpSyncServer(/** @type {any} */ ({
+        httpPort: mockPort.port,
+        graph,
+        unknownKey: 42,
+      }))).toThrow(/HttpSyncServer config/);
+    });
+
+    it('succeeds with valid defaults and applies them correctly', () => {
+      const server = new HttpSyncServer(/** @type {any} */ ({
+        httpPort: mockPort.port,
+        graph,
+      }));
+      // Default path and host are applied via Zod schema
+      expect(server._path).toBe('/sync');
+      expect(server._host).toBe('127.0.0.1');
+      expect(server._maxRequestBytes).toBe(4194304);
     });
   });
 });

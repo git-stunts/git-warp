@@ -201,13 +201,13 @@ export async function createWormhole(fromSha, toSha) {
   const t0 = this._clock.now();
 
   try {
-    const wormhole = await createWormholeImpl(/** @type {any} */ ({ // TODO(ts-cleanup): needs options type
+    const wormhole = await createWormholeImpl({
       persistence: this._persistence,
       graphName: this._graphName,
       fromSha,
       toSha,
       codec: this._codec,
-    }));
+    });
 
     this._logTiming('createWormhole', t0, {
       metrics: `${wormhole.patchCount} patches from=${fromSha.slice(0, 7)} to=${toSha.slice(0, 7)}`,

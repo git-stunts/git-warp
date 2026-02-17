@@ -184,7 +184,7 @@ export async function _computeBackwardCone(nodeId) {
       cone.set(sha, patch);
 
       // Add read dependencies to the queue
-      const patchReads = /** @type {any} */ (patch)?.reads; // TODO(ts-cleanup): type patch array
+      const patchReads = /** @type {{reads?: string[]}} */ (patch).reads;
       if (patchReads) {
         for (const readEntity of patchReads) {
           if (!visited.has(readEntity)) {

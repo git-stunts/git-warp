@@ -6,6 +6,7 @@ import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
+/** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
 /** @typedef {import('../../ports/LoggerPort.js').default} LoggerPort */
 /** @typedef {import('../../ports/CryptoPort.js').default} CryptoPort */
 
@@ -89,11 +90,12 @@ export default class BitmapIndexReader {
    *   When exceeded, least recently used shards are evicted to free memory.
    * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort instance for checksum verification.
    */
-  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {{ storage: IndexStoragePort, strict?: boolean, logger?: LoggerPort, maxCachedShards?: number, crypto?: CryptoPort }} */ ({})) {
     if (!storage) {
       throw new Error('BitmapIndexReader requires a storage adapter');
     }
-    this.storage = storage;
+    /** @type {IndexStorage} */
+    this.storage = /** @type {IndexStorage} */ (storage);
     this.strict = strict;
     this.logger = logger;
     this.maxCachedShards = maxCachedShards;
@@ -195,7 +197,7 @@ export default class BitmapIndexReader {
         shardPath,
         oid: this.shardOids.get(shardPath),
         reason: 'bitmap_deserialize_error',
-        context: { originalError: /** @type {any} */ (err).message }, // TODO(ts-cleanup): type error
+        context: { originalError: err instanceof Error ? err.message : String(err) },
       });
       this._handleShardError(corruptionError, {
         path: shardPath,
@@ -307,17 +309,21 @@ export default class BitmapIndexReader {
     if (this.strict) {
       throw err;
     }
-    /** @type {any} */ // TODO(ts-cleanup): type lazy singleton
-    const errAny = err;
+    /** @type {string|undefined} */
+    const field = err instanceof ShardValidationError ? err.field : undefined;
+    /** @type {unknown} */
+    const expected = err instanceof ShardValidationError ? err.expected : undefined;
+    /** @type {unknown} */
+    const actual = err instanceof ShardValidationError ? err.actual : undefined;
     this.logger.warn('Shard validation warning', {
       operation: 'loadShard',
       shardPath: path,
       oid,
       error: err.message,
       code: err.code,
-      field: errAny.field,
-      expected: errAny.expected,
-      actual: errAny.actual,
+      field,
+      expected,
+      actual,
     });
     const emptyShard = format === 'json' ? {} : new (getRoaringBitmap32())();
     this.loadedShards.set(path, emptyShard);
@@ -349,7 +355,7 @@ export default class BitmapIndexReader {
    */
   async _loadShardBuffer(path, oid) {
     try {
-      return await /** @type {any} */ (this.storage).readBlob(oid); // TODO(ts-cleanup): narrow port type
+      return await this.storage.readBlob(oid);
     } catch (cause) {
       throw new ShardLoadError('Failed to load shard from storage', {
         shardPath: path,

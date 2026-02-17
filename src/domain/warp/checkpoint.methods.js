@@ -16,6 +16,8 @@ import { shouldRunGC, executeGC } from '../services/GCPolicy.js';
 import { collectGCMetrics } from '../services/GCMetrics.js';
 import { computeAppliedVV } from '../services/CheckpointSerializerV5.js';
 
+/** @typedef {import('../types/WarpPersistence.js').CheckpointPersistence} CheckpointPersistence */
+
 /**
  * Creates a checkpoint of the current graph state.
  *
@@ -59,8 +61,10 @@ export async function createCheckpoint() {
     }
 
     // 4. Call CheckpointService.create() with provenance index if available
+    /** @type {CheckpointPersistence} */
+    const persistence = this._persistence;
     const checkpointSha = await createCheckpointCommit({
-      persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
+      persistence,
       graphName: this._graphName,
       state,
       frontier,

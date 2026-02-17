@@ -100,8 +100,8 @@ function createHandler(requestHandler, logger) {
       const plain = await toPlainRequest(request);
       const response = await requestHandler(plain);
       return toDenoResponse(response);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (err.status === 413) {
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && /** @type {{status?: number}} */ (err).status === 413) {
         const msg = new TextEncoder().encode('Payload Too Large');
         return new Response(msg, {
           status: 413,
@@ -140,7 +140,7 @@ function closeImpl(state, callback) {
         callback();
       }
     },
-    /** @param {*} err */ (err) => {
+    /** @param {unknown} err */ (err) => {
       state.server = null;
       if (callback) {
         callback(err);
@@ -210,7 +210,7 @@ export default class DenoHttpAdapter extends HttpServerPort {
         const hostname = typeof host === 'string' ? host : undefined;
 
         try {
-          /** @type {*} */ // TODO(ts-cleanup): type Deno.serve options
+          /** @type {DenoServeOptions} */
           const serveOptions = {
             port,
             onListen() {
@@ -223,9 +223,8 @@ export default class DenoHttpAdapter extends HttpServerPort {
             serveOptions.hostname = hostname;
           }
 
-          // @ts-expect-error — Deno global is only available in Deno runtime
           state.server = globalThis.Deno.serve(serveOptions, handler);
-        } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
+        } catch (err) {
           if (cb) {
             cb(err);
           } else {

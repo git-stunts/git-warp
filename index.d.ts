@@ -566,6 +566,15 @@ export interface GitPlumbing {
  */
 export class InMemoryGraphAdapter extends GraphPersistencePort {
   constructor();
+
+  get emptyTree(): string;
+  commitNode(options: CreateNodeOptions): Promise<string>;
+  showNode(sha: string): Promise<string>;
+  getNodeInfo(sha: string): Promise<NodeInfo>;
+  logNodesStream(options: ListNodesOptions & { format: string }): Promise<AsyncIterable<Uint8Array | string>>;
+  logNodes(options: ListNodesOptions & { format: string }): Promise<string>;
+  ping(): Promise<PingResult>;
+  countNodes(ref: string): Promise<number>;
 }
 
 /**
@@ -1032,7 +1041,7 @@ export class SyncError extends Error {
  * Base error class for bitmap index operations.
  */
 export class IndexError extends Error {
-  readonly name: 'IndexError';
+  readonly name: string;
   readonly code: string;
   readonly context: Record<string, unknown>;
 
@@ -1294,11 +1303,64 @@ export interface TemporalQuery {
 }
 
 // ============================================================================
+// PatchV2 & PatchBuilderV2
+// ============================================================================
+
+/**
+ * WARP V5 patch object (schema 2 or 3).
+ */
+export interface PatchV2 {
+  /** Schema version (2 for node/edge ops, 3 if edge properties present) */
+  schema: 2 | 3;
+  /** Writer ID */
+  writer: string;
+  /** Lamport timestamp for ordering */
+  lamport: number;
+  /** Writer's observed frontier (version vector) */
+  context: Record<string, number>;
+  /** Ordered array of operations */
+  ops: unknown[];
+  /** Node/edge IDs read by this patch (provenance tracking) */
+  reads?: string[];
+  /** Node/edge IDs written by this patch (provenance tracking) */
+  writes?: string[];
+}
+
+/**
+ * Fluent builder for creating WARP v5 patches with OR-Set semantics.
+ *
+ * Returned by WarpGraph.createPatch(). Chain mutation methods then call
+ * commit() to persist the patch atomically.
+ */
+export class PatchBuilderV2 {
+  /** Adds a node to the graph. */
+  addNode(nodeId: string): PatchBuilderV2;
+  /** Removes a node from the graph. */
+  removeNode(nodeId: string): PatchBuilderV2;
+  /** Adds an edge between two nodes. */
+  addEdge(from: string, to: string, label: string): PatchBuilderV2;
+  /** Removes an edge between two nodes. */
+  removeEdge(from: string, to: string, label: string): PatchBuilderV2;
+  /** Sets a property on a node. */
+  setProperty(nodeId: string, key: string, value: unknown): PatchBuilderV2;
+  /** Sets a property on an edge. */
+  setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
+  /** Builds the PatchV2 object without committing. */
+  build(): PatchV2;
+  /** Commits the patch to the graph and returns the commit SHA. */
+  commit(): Promise<string>;
+  /** Number of operations in this patch. */
+  readonly opCount: number;
+}
+
+// ============================================================================
 // Writer & PatchSession
 // ============================================================================
 
 /**
  * Fluent patch session for building and committing graph mutations.
+ *
+ * Created by Writer.beginPatch(). Wraps a PatchBuilderV2 with CAS protection.
  */
 export class PatchSession {
   /** Adds a node to the graph. */
@@ -1313,8 +1375,8 @@ export class PatchSession {
   setProperty(nodeId: string, key: string, value: unknown): this;
   /** Sets a property on an edge. */
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
-  /** Builds the patch object without committing. */
-  build(): unknown;
+  /** Builds the PatchV2 object without committing. */
+  build(): PatchV2;
   /** Commits the patch with CAS protection. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
@@ -1527,21 +1589,21 @@ export default class WarpGraph {
   setSeekCache(cache: SeekCachePort | null): void;
 
   /**
-   * Creates a new patch for adding operations.
+   * Creates a new PatchBuilderV2 for adding operations.
    */
-  createPatch(): Promise<PatchSession>;
+  createPatch(): Promise<PatchBuilderV2>;
 
   /**
    * Convenience wrapper: creates a patch, runs the callback, and commits.
    *
-   * The callback receives a patch builder and may be synchronous or
+   * The callback receives a PatchBuilderV2 and may be synchronous or
    * asynchronous. The commit happens only after the callback resolves.
    * If the callback throws or rejects, no commit is attempted.
    *
    * Not reentrant: calling `graph.patch()` inside a callback throws.
    * Use `createPatch()` directly for nested or concurrent patches.
    */
-  patch(build: (patch: PatchSession) => void | Promise<void>): Promise<string>;
+  patch(build: (patch: PatchBuilderV2) => void | Promise<void>): Promise<string>;
 
   /**
    * Returns patches from a writer's ref chain.
@@ -1549,7 +1611,7 @@ export default class WarpGraph {
   getWriterPatches(
     writerId: string,
     stopAtSha?: string | null
-  ): Promise<Array<{ patch: unknown; sha: string }>>;
+  ): Promise<Array<{ patch: PatchV2; sha: string }>>;
 
   /**
    * Gets all visible nodes in the materialized state.
@@ -1621,7 +1683,7 @@ export default class WarpGraph {
   /**
    * Materializes graph state from a checkpoint, applying incremental patches.
    */
-  materializeAt(checkpointSha: string): Promise<unknown>;
+  materializeAt(checkpointSha: string): Promise<WarpStateV5>;
 
   /**
    * Logical graph traversal helpers.
@@ -1654,8 +1716,12 @@ export default class WarpGraph {
 
   /**
    * Materializes the current graph state from all patches.
+   *
+   * When `options.receipts` is true, returns `{ state, receipts }`.
+   * Otherwise returns the WarpStateV5 directly.
    */
-  materialize(): Promise<unknown>;
+  materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
 
   /**
    * Starts a built-in sync server for this graph.
@@ -1672,6 +1738,8 @@ export default class WarpGraph {
 
   /**
    * Syncs with a remote peer (HTTP URL or another WarpGraph instance).
+   *
+   * When `options.materialize` is true, the returned object also contains a `state` property.
    */
   syncWith(remote: string | WarpGraph, options?: {
     path?: string;
@@ -1688,7 +1756,9 @@ export default class WarpGraph {
       error?: Error;
     }) => void;
     auth?: SyncAuthClientOptions;
-  }): Promise<{ applied: number; attempts: number }>;
+    /** Auto-materialize after sync; when true, result includes `state` */
+    materialize?: boolean;
+  }): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
 
   /**
    * Creates a fork of this graph at a specific point in a writer's history.
@@ -2113,17 +2183,7 @@ export function migrateV4toV5(v4State: {
  */
 export interface PatchEntry {
   /** The decoded patch object */
-  patch: {
-    schema: 2 | 3;
-    writer: string;
-    lamport: number;
-    context: Record<string, number> | Map<string, number>;
-    ops: unknown[];
-    /** Node/edge IDs read by this patch (V2 provenance) */
-    reads?: string[];
-    /** Node/edge IDs written by this patch (V2 provenance) */
-    writes?: string[];
-  };
+  patch: PatchV2;
   /** The Git SHA of the patch commit */
   sha: string;
 }

@@ -38,8 +38,8 @@ function toWebCryptoAlgo(algorithm) {
 function toUint8Array(data) {
   if (data instanceof Uint8Array) { return data; }
   if (typeof data === 'string') { return new TextEncoder().encode(data); }
-  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(/** @type {*} */ (data))) { // TODO(ts-cleanup): narrow port type
-    const buf = /** @type {Buffer} */ (/** @type {*} */ (data)); // TODO(ts-cleanup): narrow port type
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+    const buf = /** @type {Buffer} */ (data);
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
   throw new Error('WebCryptoAdapter: data must be string, Buffer, or Uint8Array');

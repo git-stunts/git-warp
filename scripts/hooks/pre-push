@@ -15,17 +15,20 @@ else
   echo "  skipped (lychee not installed — brew install lychee)"
 fi
 
-# Run lint + typecheck + policy in parallel (all are read-only)
-echo "Running pre-push lint + typecheck + policy (parallel)..."
+# Run lint + typecheck + policy + consumer type test in parallel (all are read-only)
+echo "Running pre-push lint + typecheck + policy + consumer type test (parallel)..."
 npm run lint &
 LINT_PID=$!
 npm run typecheck &
 TC_PID=$!
 npm run typecheck:policy &
 POLICY_PID=$!
+npm run typecheck:consumer &
+CONSUMER_PID=$!
 wait $LINT_PID || { echo "Lint failed"; exit 1; }
 wait $TC_PID || { echo "Typecheck failed"; exit 1; }
 wait $POLICY_PID || { echo "TS policy check failed"; exit 1; }
+wait $CONSUMER_PID || { echo "Consumer type test failed"; exit 1; }
 
 echo "Running pre-push unit tests..."
 npm run test:local

@@ -340,7 +340,7 @@ describe('HttpSyncServer auth integration', () => {
         host: '127.0.0.1',
         path: '/sync',
         auth: { keys: KEYS, mode: 'typo' },
-      }))).toThrow(/invalid auth\.mode/i);
+      }))).toThrow(/HttpSyncServer config/);
     });
   });
 

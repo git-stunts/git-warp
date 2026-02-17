@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **M8 IRONCLAD Wave 3: cast elimination** — Removed ~107 wildcard casts (`@type {*}` / `@type {any}`) across ~40 files in `src/domain/warp/`, `src/domain/services/`, and `src/infrastructure/adapters/`. All casts replaced with role-specific persistence types (`PersistenceReader`, `PersistenceWriter`, `CheckpointPersistence`, `IndexStorage`), error narrowing helpers (`isError`, `hasErrorCode`, `hasMessage`), and properly typed aliases. Zero `TODO(ts-cleanup)` tags remain in Wave 3 scope.
+- **HttpSyncServer Zod validation** — Constructor now uses Zod schema validation; removed manual mode validation and wildcard casts. `initAuth` typed via schema inference. `z.function()` replaced with `z.custom()` for correct `wallClockMs` TypeScript inference.
+- **HookInstaller** — Constructor deps parameter changed from optional to required (all callers already provided all fields).
+- **SyncAuthService** — `_validateKeys` now typed as assertion function for proper post-validation narrowing.
+- **WarpErrors** — `hasErrorCode`/`hasMessage` helpers upgraded from wildcard casts to `Record<string, unknown>` narrowing.
+- **WarpPersistence types** — Added `IndexStorage` typedef (`BlobPort & TreePort & RefPort`).
+
 ## [11.3.0] — 2026-02-17 — DX-HAMMER: Read-Path CLI Improvements
 
 New CLI commands and improved output for graph inspection and debugging.

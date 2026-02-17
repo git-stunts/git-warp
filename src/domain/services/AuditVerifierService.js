@@ -322,8 +322,8 @@ export class AuditVerifierService {
       let commitInfo;
       try {
         commitInfo = await this._persistence.getNodeInfo(current);
-      } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
-        this._addError(result, 'MISSING_RECEIPT_BLOB', `Cannot read commit ${current}: ${err?.message}`, current);
+      } catch (err) {
+        this._addError(result, 'MISSING_RECEIPT_BLOB', `Cannot read commit ${current}: ${err instanceof Error ? err.message : String(err)}`, current);
         return;
       }
 
@@ -464,9 +464,9 @@ export class AuditVerifierService {
     let treeOid;
     try {
       treeOid = await this._persistence.getCommitTree(commitSha);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._addError(result, 'MISSING_RECEIPT_BLOB',
-        `Cannot read tree for ${commitSha}: ${err?.message}`, commitSha);
+        `Cannot read tree for ${commitSha}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
       return null;
     }
 
@@ -474,9 +474,9 @@ export class AuditVerifierService {
     let treeEntries;
     try {
       treeEntries = await this._persistence.readTreeOids(treeOid);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._addError(result, 'RECEIPT_TREE_INVALID',
-        `Cannot read tree ${treeOid}: ${err?.message}`, commitSha);
+        `Cannot read tree ${treeOid}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
       return null;
     }
 
@@ -493,9 +493,9 @@ export class AuditVerifierService {
     let blobContent;
     try {
       blobContent = await this._persistence.readBlob(blobOid);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._addError(result, 'MISSING_RECEIPT_BLOB',
-        `Cannot read receipt blob ${blobOid}: ${err?.message}`, commitSha);
+        `Cannot read receipt blob ${blobOid}: ${err instanceof Error ? err.message : String(err)}`, commitSha);
       return null;
     }
 
@@ -503,9 +503,9 @@ export class AuditVerifierService {
     let receipt;
     try {
       receipt = this._codec.decode(blobContent);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._addError(result, 'CBOR_DECODE_FAILED',
-        `CBOR decode failed: ${err?.message}`, commitSha);
+        `CBOR decode failed: ${err instanceof Error ? err.message : String(err)}`, commitSha);
       result.status = STATUS_ERROR;
       return null;
     }
@@ -514,9 +514,9 @@ export class AuditVerifierService {
     let decodedTrailers;
     try {
       decodedTrailers = decodeAuditMessage(commitInfo.message);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._addError(result, 'TRAILER_MISMATCH',
-        `Trailer decode failed: ${err?.message}`, commitSha);
+        `Trailer decode failed: ${err instanceof Error ? err.message : String(err)}`, commitSha);
       result.status = STATUS_DATA_MISMATCH;
       return null;
     }

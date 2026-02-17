@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "M8 IRONCLAD type surface manifest — source of truth for T3 (index.d.ts) and T9 (consumer test)",
+  "version": 1,
+  "exports": {
+    "WarpGraph": {
+      "kind": "class",
+      "default": true,
+      "static": {
+        "open": {
+          "async": true,
+          "params": [
+            {
+              "name": "options",
+              "type": "{ persistence: GraphPersistencePort; graphName: string; writerId: string; logger?: LoggerPort; adjacencyCacheSize?: number; gcPolicy?: GCPolicyConfig; checkpointPolicy?: { every: number }; autoMaterialize?: boolean; onDeleteWithData?: 'reject' | 'cascade' | 'warn'; clock?: ClockPort; crypto?: CryptoPort; codec?: unknown; seekCache?: SeekCachePort }"
+            }
+          ],
+          "returns": "Promise<WarpGraph>"
+        }
+      },
+      "instance": {
+        "createPatch": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<PatchBuilderV2>"
+        },
+        "patch": {
+          "async": true,
+          "params": [
+            { "name": "build", "type": "(patch: PatchBuilderV2) => void | Promise<void>" }
+          ],
+          "returns": "Promise<string>"
+        },
+        "materialize": {
+          "async": true,
+          "params": [
+            { "name": "options", "type": "{ receipts?: boolean; ceiling?: number }", "optional": true }
+          ],
+          "returns": "Promise<WarpStateV5>",
+          "overloads": [
+            {
+              "params": [{ "name": "options", "type": "{ receipts: true; ceiling?: number }" }],
+              "returns": "Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>"
+            },
+            {
+              "params": [{ "name": "options", "type": "{ receipts?: false; ceiling?: number }", "optional": true }],
+              "returns": "Promise<WarpStateV5>"
+            }
+          ]
+        },
+        "materializeAt": {
+          "async": true,
+          "params": [{ "name": "checkpointSha", "type": "string" }],
+          "returns": "Promise<WarpStateV5>"
+        },
+        "hasNode": {
+          "async": true,
+          "params": [{ "name": "nodeId", "type": "string" }],
+          "returns": "Promise<boolean>"
+        },
+        "getNodeProps": {
+          "async": true,
+          "params": [{ "name": "nodeId", "type": "string" }],
+          "returns": "Promise<Map<string, unknown> | null>"
+        },
+        "getEdgeProps": {
+          "async": true,
+          "params": [
+            { "name": "from", "type": "string" },
+            { "name": "to", "type": "string" },
+            { "name": "label", "type": "string" }
+          ],
+          "returns": "Promise<Record<string, unknown> | null>"
+        },
+        "neighbors": {
+          "async": true,
+          "params": [
+            { "name": "nodeId", "type": "string" },
+            { "name": "direction", "type": "'outgoing' | 'incoming' | 'both'", "optional": true },
+            { "name": "edgeLabel", "type": "string", "optional": true }
+          ],
+          "returns": "Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>"
+        },
+        "getNodes": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string[]>"
+        },
+        "getEdges": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>"
+        },
+        "getPropertyCount": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<number>"
+        },
+        "getStateSnapshot": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<WarpStateV5 | null>"
+        },
+        "discoverWriters": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string[]>"
+        },
+        "getFrontier": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<Map<string, string>>"
+        },
+        "hasFrontierChanged": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<boolean>"
+        },
+        "createCheckpoint": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string>"
+        },
+        "query": {
+          "async": false,
+          "params": [],
+          "returns": "QueryBuilder"
+        },
+        "observer": {
+          "async": true,
+          "params": [
+            { "name": "name", "type": "string" },
+            { "name": "config", "type": "ObserverConfig" }
+          ],
+          "returns": "Promise<ObserverView>"
+        },
+        "translationCost": {
+          "async": true,
+          "params": [
+            { "name": "configA", "type": "ObserverConfig" },
+            { "name": "configB", "type": "ObserverConfig" }
+          ],
+          "returns": "Promise<TranslationCostResult>"
+        },
+        "serve": {
+          "async": true,
+          "params": [
+            {
+              "name": "options",
+              "type": "{ port: number; host?: string; path?: string; maxRequestBytes?: number; httpPort: HttpServerPort; auth?: SyncAuthServerOptions; allowedWriters?: string[] }"
+            }
+          ],
+          "returns": "Promise<{ close(): Promise<void>; url: string }>"
+        },
+        "syncWith": {
+          "async": true,
+          "params": [
+            { "name": "remote", "type": "string | WarpGraph" },
+            { "name": "options", "type": "SyncWithOptions", "optional": true }
+          ],
+          "returns": "Promise<{ applied: number; attempts: number }>"
+        },
+        "fork": {
+          "async": true,
+          "params": [
+            {
+              "name": "options",
+              "type": "{ from: string; at: string; forkName?: string; forkWriterId?: string }"
+            }
+          ],
+          "returns": "Promise<WarpGraph>"
+        },
+        "createWormhole": {
+          "async": true,
+          "params": [
+            { "name": "fromSha", "type": "string" },
+            { "name": "toSha", "type": "string" }
+          ],
+          "returns": "Promise<WormholeEdge>"
+        },
+        "patchesFor": {
+          "async": true,
+          "params": [{ "name": "entityId", "type": "string" }],
+          "returns": "Promise<string[]>"
+        },
+        "materializeSlice": {
+          "async": true,
+          "params": [
+            { "name": "nodeId", "type": "string" },
+            { "name": "options", "type": "{ receipts?: boolean }", "optional": true }
+          ],
+          "returns": "Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>"
+        },
+        "getWriterPatches": {
+          "async": true,
+          "params": [
+            { "name": "writerId", "type": "string" },
+            { "name": "stopAtSha", "type": "string | null", "optional": true }
+          ],
+          "returns": "Promise<Array<{ patch: PatchV2; sha: string }>>"
+        },
+        "join": {
+          "async": false,
+          "params": [{ "name": "otherState", "type": "WarpStateV5" }],
+          "returns": "{ state: WarpStateV5; receipt: JoinReceipt }"
+        },
+        "subscribe": {
+          "async": false,
+          "params": [
+            {
+              "name": "options",
+              "type": "{ onChange: (diff: StateDiffResult) => void; onError?: (error: Error) => void; replay?: boolean }"
+            }
+          ],
+          "returns": "{ unsubscribe: () => void }"
+        },
+        "watch": {
+          "async": false,
+          "params": [
+            { "name": "pattern", "type": "string" },
+            {
+              "name": "options",
+              "type": "{ onChange: (diff: StateDiffResult) => void; onError?: (error: Error) => void; poll?: number }"
+            }
+          ],
+          "returns": "{ unsubscribe: () => void }"
+        },
+        "createSyncRequest": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<SyncRequest>"
+        },
+        "processSyncRequest": {
+          "async": true,
+          "params": [{ "name": "request", "type": "SyncRequest" }],
+          "returns": "Promise<SyncResponse>"
+        },
+        "applySyncResponse": {
+          "async": false,
+          "params": [{ "name": "response", "type": "SyncResponse" }],
+          "returns": "ApplySyncResult"
+        },
+        "syncNeeded": {
+          "async": true,
+          "params": [{ "name": "remoteFrontier", "type": "Map<string, string>" }],
+          "returns": "Promise<boolean>"
+        },
+        "writer": {
+          "async": true,
+          "params": [{ "name": "writerId", "type": "string", "optional": true }],
+          "returns": "Promise<Writer>"
+        },
+        "createWriter": {
+          "async": true,
+          "deprecated": true,
+          "params": [
+            { "name": "opts", "type": "{ persist?: 'config' | 'none'; alias?: string }", "optional": true }
+          ],
+          "returns": "Promise<Writer>"
+        },
+        "syncCoverage": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<void>"
+        },
+        "status": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<WarpGraphStatus>"
+        },
+        "maybeRunGC": {
+          "async": false,
+          "params": [],
+          "returns": "MaybeGCResult"
+        },
+        "runGC": {
+          "async": false,
+          "params": [],
+          "returns": "GCExecuteResult"
+        },
+        "getGCMetrics": {
+          "async": false,
+          "params": [],
+          "returns": "GCMetrics | null"
+        }
+      },
+      "properties": {
+        "graphName": { "type": "string", "readonly": true },
+        "writerId": { "type": "string", "readonly": true },
+        "seekCache": { "type": "SeekCachePort | null", "readonly": true },
+        "provenanceIndex": { "type": "ProvenanceIndex | null", "readonly": true },
+        "persistence": { "type": "GraphPersistencePort", "readonly": true, "getter": true },
+        "onDeleteWithData": { "type": "'reject' | 'cascade' | 'warn'", "readonly": true, "getter": true },
+        "gcPolicy": { "type": "GCPolicyConfig", "readonly": true, "getter": true },
+        "temporal": { "type": "TemporalQuery", "readonly": true, "getter": true },
+        "traverse": { "type": "LogicalTraversal" }
+      }
+    },
+    "PatchBuilderV2": {
+      "kind": "class",
+      "note": "Not directly exported from index.js but referenced as return type of createPatch()",
+      "instance": {
+        "addNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "PatchBuilderV2" },
+        "removeNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "PatchBuilderV2" },
+        "addEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "PatchBuilderV2" },
+        "removeEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "PatchBuilderV2" },
+        "setProperty": { "params": [{ "name": "nodeId", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "PatchBuilderV2" },
+        "setEdgeProperty": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "PatchBuilderV2" },
+        "build": { "params": [], "returns": "PatchV2" },
+        "commit": { "async": true, "params": [], "returns": "Promise<string>" }
+      },
+      "properties": {
+        "opCount": { "type": "number", "readonly": true }
+      }
+    },
+    "PatchSession": {
+      "kind": "class",
+      "instance": {
+        "addNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "this" },
+        "removeNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "this" },
+        "addEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "this" },
+        "removeEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "this" },
+        "setProperty": { "params": [{ "name": "nodeId", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "this" },
+        "setEdgeProperty": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "this" },
+        "build": { "params": [], "returns": "PatchV2" },
+        "commit": { "async": true, "params": [], "returns": "Promise<string>" }
+      },
+      "properties": {
+        "opCount": { "type": "number", "readonly": true }
+      }
+    },
+    "Writer": {
+      "kind": "class",
+      "instance": {
+        "head": { "async": true, "params": [], "returns": "Promise<string | null>" },
+        "beginPatch": { "async": true, "params": [], "returns": "Promise<PatchSession>" },
+        "commitPatch": { "async": true, "params": [{ "name": "build", "type": "(p: PatchSession) => void | Promise<void>" }], "returns": "Promise<string>" }
+      },
+      "properties": {
+        "writerId": { "type": "string", "readonly": true },
+        "graphName": { "type": "string", "readonly": true }
+      }
+    },
+    "QueryBuilder": {
+      "kind": "class",
+      "instance": {
+        "match": { "params": [{ "name": "pattern", "type": "string" }], "returns": "QueryBuilder" },
+        "where": { "params": [{ "name": "fn", "type": "((node: QueryNodeSnapshot) => boolean) | Record<string, unknown>" }], "returns": "QueryBuilder" },
+        "outgoing": { "params": [{ "name": "label", "type": "string", "optional": true }, { "name": "options", "type": "HopOptions", "optional": true }], "returns": "QueryBuilder" },
+        "incoming": { "params": [{ "name": "label", "type": "string", "optional": true }, { "name": "options", "type": "HopOptions", "optional": true }], "returns": "QueryBuilder" },
+        "select": { "params": [{ "name": "fields", "type": "Array<'id' | 'props'>", "optional": true }], "returns": "QueryBuilder" },
+        "aggregate": { "params": [{ "name": "spec", "type": "AggregateSpec" }], "returns": "QueryBuilder" },
+        "run": { "async": true, "params": [], "returns": "Promise<QueryResultV1 | AggregateResult>" }
+      }
+    },
+    "ObserverView": {
+      "kind": "class",
+      "instance": {
+        "hasNode": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<boolean>" },
+        "getNodes": { "async": true, "params": [], "returns": "Promise<string[]>" },
+        "getNodeProps": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<Map<string, unknown> | null>" },
+        "getEdges": { "async": true, "params": [], "returns": "Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>" },
+        "query": { "params": [], "returns": "QueryBuilder" }
+      },
+      "properties": {
+        "name": { "type": "string", "readonly": true },
+        "traverse": { "type": "LogicalTraversal" }
+      }
+    },
+    "ProvenancePayload": { "kind": "class" },
+    "ProvenanceIndex": { "kind": "class" },
+    "GitGraphAdapter": { "kind": "class" },
+    "InMemoryGraphAdapter": { "kind": "class" },
+    "GraphNode": { "kind": "class" },
+    "BitmapIndexBuilder": { "kind": "class" },
+    "BitmapIndexReader": { "kind": "class" },
+    "IndexRebuildService": { "kind": "class" },
+    "HealthCheckService": { "kind": "class" },
+    "CommitDagTraversalService": { "kind": "class" },
+    "GraphPersistencePort": { "kind": "abstract-class" },
+    "IndexStoragePort": { "kind": "abstract-class" },
+    "LoggerPort": { "kind": "abstract-class" },
+    "ClockPort": { "kind": "abstract-class" },
+    "SeekCachePort": { "kind": "abstract-class" },
+    "NoOpLogger": { "kind": "class" },
+    "ConsoleLogger": { "kind": "class" },
+    "ClockAdapter": { "kind": "class" },
+    "PerformanceClockAdapter": { "kind": "class", "deprecated": true },
+    "GlobalClockAdapter": { "kind": "class", "deprecated": true },
+    "HealthStatus": { "kind": "const" },
+    "LogLevel": { "kind": "const" },
+    "TraversalService": { "kind": "class", "deprecated": true, "alias": "CommitDagTraversalService" },
+
+    "ForkError": { "kind": "class" },
+    "IndexError": { "kind": "class" },
+    "QueryError": { "kind": "class" },
+    "SchemaUnsupportedError": { "kind": "class" },
+    "ShardLoadError": { "kind": "class" },
+    "ShardCorruptionError": { "kind": "class" },
+    "ShardValidationError": { "kind": "class" },
+    "StorageError": { "kind": "class" },
+    "TraversalError": { "kind": "class" },
+    "OperationAbortedError": { "kind": "class" },
+    "SyncError": { "kind": "class" },
+    "WormholeError": { "kind": "class" },
+
+    "checkAborted": { "kind": "function", "params": [{ "name": "signal", "type": "AbortSignal", "optional": true }, { "name": "operation", "type": "string", "optional": true }], "returns": "void" },
+    "createTimeoutSignal": { "kind": "function", "params": [{ "name": "ms", "type": "number" }], "returns": "AbortSignal" },
+    "encodeEdgePropKey": { "kind": "function", "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "propKey", "type": "string" }], "returns": "string" },
+    "decodeEdgePropKey": { "kind": "function", "params": [{ "name": "encoded", "type": "string" }], "returns": "{ from: string; to: string; label: string; propKey: string }" },
+    "isEdgePropKey": { "kind": "function", "params": [{ "name": "key", "type": "string" }], "returns": "boolean" },
+    "computeTranslationCost": { "kind": "function" },
+    "migrateV4toV5": { "kind": "function" },
+
+    "createNodeAdd": { "kind": "function" },
+    "createNodeTombstone": { "kind": "function" },
+    "createEdgeAdd": { "kind": "function" },
+    "createEdgeTombstone": { "kind": "function" },
+    "createPropSet": { "kind": "function" },
+    "createInlineValue": { "kind": "function" },
+    "createBlobValue": { "kind": "function" },
+    "createEventId": { "kind": "function" },
+
+    "createTickReceipt": { "kind": "function" },
+    "tickReceiptCanonicalJson": { "kind": "function" },
+    "TICK_RECEIPT_OP_TYPES": { "kind": "const" },
+    "TICK_RECEIPT_RESULT_TYPES": { "kind": "const" },
+
+    "createBTR": { "kind": "function", "async": true },
+    "verifyBTR": { "kind": "function", "async": true },
+    "replayBTR": { "kind": "function", "async": true },
+    "serializeBTR": { "kind": "function" },
+    "deserializeBTR": { "kind": "function" },
+
+    "createWormhole": { "kind": "function", "async": true },
+    "composeWormholes": { "kind": "function", "async": true },
+    "replayWormhole": { "kind": "function" },
+    "serializeWormhole": { "kind": "function" },
+    "deserializeWormhole": { "kind": "function" }
+  }
+}

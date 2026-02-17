@@ -39,9 +39,9 @@ export default class IndexRebuildService {
   /**
    * Creates an IndexRebuildService instance.
    *
-   * @param {Object} options - Configuration options
-   * @param {{ iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }} options.graphService - Graph service providing node iteration.
-   * @param {import('../../ports/IndexStoragePort.js').default} options.storage - Storage adapter
+   * @param {Object} [options] - Configuration options
+   * @param {{ iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }} [options.graphService] - Graph service providing node iteration.
+   * @param {import('../../ports/IndexStoragePort.js').default} [options.storage] - Storage adapter
    *   for persisting index blobs and trees. Typically GitGraphAdapter.
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for
    *   structured logging. Defaults to null logger (no logging).
@@ -50,7 +50,7 @@ export default class IndexRebuildService {
    * @throws {Error} If graphService is not provided
    * @throws {Error} If storage adapter is not provided
    */
-  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ graphService, storage, logger = nullLogger, codec, crypto } = {}) {
     if (!graphService) {
       throw new Error('IndexRebuildService requires a graphService');
     }
@@ -156,7 +156,7 @@ export default class IndexRebuildService {
         operation: 'rebuild',
         ref,
         mode,
-        error: /** @type {any} */ (err).message, // TODO(ts-cleanup): type error
+        error: err instanceof Error ? err.message : String(err),
         durationMs,
       });
       throw err;
@@ -247,12 +247,12 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier }) {
-    const builder = new StreamingBitmapIndexBuilder(/** @type {*} */ ({ // TODO(ts-cleanup): narrow port type
+    const builder = new StreamingBitmapIndexBuilder({
       storage: this.storage,
       maxMemoryBytes,
       onFlush,
       crypto: this._crypto,
-    }));
+    });
 
     let processedNodes = 0;
 
@@ -266,7 +266,7 @@ export default class IndexRebuildService {
       if (processedNodes % 10000 === 0) {
         checkAborted(signal, 'rebuild');
         if (onProgress) {
-          const stats = /** @type {any} */ (builder).getMemoryStats(); // TODO(ts-cleanup): narrow port type
+          const stats = /** @type {{ estimatedBitmapBytes: number }} */ (builder.getMemoryStats());
           onProgress({
             processedNodes,
             currentMemoryBytes: stats.estimatedBitmapBytes,
@@ -275,7 +275,7 @@ export default class IndexRebuildService {
       }
     }
 
-    return await /** @type {any} */ (builder).finalize({ signal, frontier }); // TODO(ts-cleanup): narrow port type
+    return await builder.finalize({ signal, frontier: /** @type {Map<string, number>|undefined} */ (/** @type {unknown} */ (frontier)) });
   }
 
   /**
@@ -389,7 +389,7 @@ export default class IndexRebuildService {
 
     // Staleness check
     if (currentFrontier) {
-      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {*} */ (this.storage), { codec: this._codec }); // TODO(ts-cleanup): narrow port type
+      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {import('../../ports/IndexStoragePort.js').default & import('../../ports/BlobPort.js').default} */ (this.storage), { codec: this._codec });
       if (indexFrontier) {
         const result = checkStaleness(indexFrontier, currentFrontier);
         if (result.stale) {

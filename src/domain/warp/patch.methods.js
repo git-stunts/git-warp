@@ -18,6 +18,8 @@ import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCo
 import { Writer } from './Writer.js';
 import { generateWriterId, resolveWriterId } from '../utils/WriterId.js';
 
+/** @typedef {import('../types/WarpPersistence.js').PersistenceWriter} PersistenceWriter */
+
 /**
  * Creates a new PatchBuilderV2 for this graph.
  *
@@ -199,13 +201,12 @@ export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}
   if (this._cachedState && !this._stateDirty && committed && sha) {
     let tickReceipt = null;
     if (this._auditService) {
-      // TODO(ts-cleanup): narrow joinPatch return + patch type to PatchV2
       const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}} */ (
-        joinPatch(this._cachedState, /** @type {any} */ (committed), sha, true) // TODO(ts-cleanup): narrow patch type
+        joinPatch(this._cachedState, /** @type {Parameters<typeof joinPatch>[1]} */ (committed), sha, true)
       );
       tickReceipt = result.receipt;
     } else {
-      joinPatch(this._cachedState, /** @type {any} */ (committed), sha); // TODO(ts-cleanup): narrow patch type to PatchV2
+      joinPatch(this._cachedState, /** @type {Parameters<typeof joinPatch>[1]} */ (committed), sha);
     }
     await this._setMaterializedState(this._cachedState);
     // Update provenance index with new patch
@@ -257,14 +258,16 @@ export async function writer(writerId) {
     configSet,
   });
 
+  /** @type {PersistenceWriter} */
+  const persistence = this._persistence;
   return new Writer({
-    persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
+    persistence,
     graphName: this._graphName,
     writerId: resolvedWriterId,
     versionVector: this._versionVector,
-    getCurrentState: () => /** @type {any} */ (this._cachedState), // TODO(ts-cleanup): narrow port type
+    getCurrentState: /** @type {() => Promise<import('../services/JoinReducer.js').WarpStateV5>} */ (/** @type {unknown} */ (() => this._cachedState)),
     onDeleteWithData: this._onDeleteWithData,
-    onCommitSuccess: (/** @type {any} */ opts) => this._onPatchCommitted(resolvedWriterId, opts), // TODO(ts-cleanup): type sync protocol
+    onCommitSuccess: /** @type {(result: {patch: Object, sha: string}) => void} */ (/** @type {unknown} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(resolvedWriterId, opts))),
     codec: this._codec,
   });
 }
@@ -313,14 +316,16 @@ export async function createWriter(opts = {}) {
     await this._persistence.configSet(configKey, freshWriterId);
   }
 
+  /** @type {PersistenceWriter} */
+  const writerPersistence = this._persistence;
   return new Writer({
-    persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
+    persistence: writerPersistence,
     graphName: this._graphName,
     writerId: freshWriterId,
     versionVector: this._versionVector,
-    getCurrentState: () => /** @type {any} */ (this._cachedState), // TODO(ts-cleanup): narrow port type
+    getCurrentState: /** @type {() => Promise<import('../services/JoinReducer.js').WarpStateV5>} */ (/** @type {unknown} */ (() => this._cachedState)),
     onDeleteWithData: this._onDeleteWithData,
-    onCommitSuccess: (/** @type {any} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts), // TODO(ts-cleanup): type sync protocol
+    onCommitSuccess: /** @type {(result: {patch: Object, sha: string}) => void} */ (/** @type {unknown} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts))),
     codec: this._codec,
   });
 }

@@ -41,7 +41,7 @@ export default class DagPathFinding {
    * @param {import('./BitmapIndexReader.js').default} options.indexReader - Index reader for O(1) lookups
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger instance
    */
-  constructor(/** @type {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor(/** @type {{ indexReader?: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger } = {}) {
     if (!indexReader) {
       throw new Error('DagPathFinding requires an indexReader');
     }

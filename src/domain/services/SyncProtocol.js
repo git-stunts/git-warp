@@ -99,7 +99,7 @@ function normalizePatch(patch) {
  * @throws {Error} If the patch blob cannot be CBOR-decoded (corrupted data)
  * @private
  */
-async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @type {{ codec?: import('../../ports/CodecPort.js').default }} */ ({})) {
   const codec = codecOpt || defaultCodec;
   // Read commit message to extract patch OID
   const message = await persistence.showNode(sha);
@@ -152,7 +152,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @
  * // Load ALL patches for a new writer
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
-export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec } = /** @type {{ codec?: import('../../ports/CodecPort.js').default }} */ ({})) {
   const patches = [];
   let cur = toSha;
 
@@ -374,7 +374,7 @@ export function createSyncRequest(frontier) {
  *   res.json(response);
  * });
  */
-export async function processSyncRequest(request, localFrontier, persistence, graphName, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function processSyncRequest(request, localFrontier, persistence, graphName, { codec } = /** @type {{ codec?: import('../../ports/CodecPort.js').default }} */ ({})) {
   // Convert incoming frontier from object to Map
   const remoteFrontier = new Map(Object.entries(request.frontier));
 
@@ -401,7 +401,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
     } catch (err) {
       // If we detect divergence, skip this writer
       // The requester may need to handle this separately
-      if (/** @type {any} */ (err).code === 'E_SYNC_DIVERGENCE' || /** @type {any} */ (err).message?.includes('Divergence detected')) { // TODO(ts-cleanup): type error
+      if ((err instanceof Error && 'code' in err && /** @type {{ code: string }} */ (err).code === 'E_SYNC_DIVERGENCE') || (err instanceof Error && err.message?.includes('Divergence detected'))) {
         continue;
       }
       throw err;
@@ -491,7 +491,7 @@ export function applySyncResponse(response, state, frontier) {
       // will prevent silent data loss until the reader is upgraded.
       assertOpsCompatible(normalizedPatch.ops, SCHEMA_V3);
       // Apply patch to state
-      join(newState, /** @type {*} */ (normalizedPatch), sha); // TODO(ts-cleanup): type patch array
+      join(newState, /** @type {Parameters<typeof join>[1]} */ (normalizedPatch), sha);
       applied++;
     }
 

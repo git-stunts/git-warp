@@ -196,7 +196,7 @@ export async function createV5({
  * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
-export async function loadCheckpoint(persistence, checkpointSha, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function loadCheckpoint(persistence, checkpointSha, { codec } = {}) {
   // 1. Read commit message and decode
   const message = await persistence.showNode(checkpointSha);
   const decoded = /** @type {{ schema: number, stateHash: string, indexOid: string }} */ (decodeCheckpointMessage(message));

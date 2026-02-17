@@ -8,9 +8,50 @@
  * @module domain/services/HttpSyncServer
  */
 
+import { z } from 'zod';
 import SyncAuthService from './SyncAuthService.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+const MAX_REQUEST_BYTES_CEILING = 128 * 1024 * 1024; // 134217728
+
+/**
+ * Zod schema for HttpSyncServer constructor options.
+ * @private
+ */
+const authSchema = z.object({
+  mode: z.enum(['enforce', 'log-only']).default('enforce'),
+  keys: z.record(z.string()).refine(
+    (obj) => Object.keys(obj).length > 0,
+    'auth.keys must not be empty',
+  ),
+  crypto: z.any().optional(),
+  logger: z.any().optional(),
+  wallClockMs: /** @type {z.ZodType<() => number>} */ (z.custom((v) => v === undefined || typeof v === 'function')).optional(),
+}).strict();
+
+const optionsSchema = z.object({
+  httpPort: z.any().refine(
+    (v) => v !== null && v !== undefined && typeof v === 'object',
+    'httpPort is required',
+  ),
+  graph: z.any().refine(
+    (v) => v !== null && v !== undefined && typeof v === 'object',
+    'graph is required',
+  ),
+  maxRequestBytes: z.number().int().positive().max(MAX_REQUEST_BYTES_CEILING).default(DEFAULT_MAX_REQUEST_BYTES),
+  path: z.string().startsWith('/').default('/sync'),
+  host: z.string().min(1).default('127.0.0.1'),
+  auth: authSchema.optional(),
+  allowedWriters: z.array(z.string()).optional(),
+}).strict().superRefine((data, ctx) => {
+  if (data.allowedWriters && !data.auth) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'allowedWriters requires auth.keys to be configured',
+      path: ['allowedWriters'],
+    });
+  }
+});
 
 /**
  * Recursively sorts object keys for deterministic JSON output.
@@ -183,19 +224,18 @@ function parseBody(body) {
 /**
  * Initializes auth service from config if present.
  *
- * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: *, logger?: *, wallClockMs?: () => number }|undefined} auth
+ * @param {{ keys: Record<string, string>, mode: 'enforce'|'log-only', crypto?: *, logger?: *, wallClockMs?: () => number }|undefined} auth
  * @param {string[]} [allowedWriters]
  * @returns {{ auth: SyncAuthService|null, authMode: string|null }}
  * @private
  */
+/**
+ * @param {z.infer<typeof authSchema>} [auth]
+ * @param {string[]} [allowedWriters]
+ */
 function initAuth(auth, allowedWriters) {
-  if (auth && auth.keys) {
-    const VALID_MODES = new Set(['enforce', 'log-only']);
-    const mode = auth.mode || 'enforce';
-    if (!VALID_MODES.has(mode)) {
-      throw new Error(`Invalid auth.mode: '${mode}'. Must be 'enforce' or 'log-only'.`);
-    }
-    return { auth: new SyncAuthService({ ...auth, allowedWriters }), authMode: mode };
+  if (auth) {
+    return { auth: new SyncAuthService({ ...auth, allowedWriters }), authMode: auth.mode };
   }
   return { auth: null, authMode: null };
 }
@@ -211,19 +251,28 @@ export default class HttpSyncServer {
    * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number }} [options.auth] - Auth configuration
    * @param {string[]} [options.allowedWriters] - Optional whitelist of allowed writer IDs
    */
-  constructor({ httpPort, graph, path = '/sync', host = '127.0.0.1', maxRequestBytes = DEFAULT_MAX_REQUEST_BYTES, auth, allowedWriters } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
-    this._httpPort = httpPort;
-    this._graph = graph;
-    this._path = path && path.startsWith('/') ? path : `/${path || 'sync'}`;
-    this._host = host;
-    this._maxRequestBytes = maxRequestBytes;
+  constructor(options) {
+    /** @type {z.infer<typeof optionsSchema>} */
+    let parsed;
+    try {
+      parsed = optionsSchema.parse(options);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const messages = err.issues.map((i) => i.message).join('; ');
+        throw new Error(`HttpSyncServer config: ${messages}`);
+      }
+      throw err;
+    }
+
+    this._httpPort = parsed.httpPort;
+    this._graph = parsed.graph;
+    this._path = parsed.path;
+    this._host = parsed.host;
+    this._maxRequestBytes = parsed.maxRequestBytes;
     this._server = null;
-    const authInit = initAuth(auth, allowedWriters);
+    const authInit = initAuth(parsed.auth, parsed.allowedWriters);
     this._auth = authInit.auth;
     this._authMode = authInit.authMode;
-    if (allowedWriters && !authInit.auth) {
-      throw new Error('allowedWriters requires auth.keys to be configured');
-    }
   }
 
   /**
@@ -294,8 +343,8 @@ export default class HttpSyncServer {
     try {
       const response = await this._graph.processSyncRequest(parsed);
       return jsonResponse(response);
-    } catch (err) {
-      return errorResponse(500, /** @type {any} */ (err)?.message || 'Sync failed'); // TODO(ts-cleanup): type error
+    } catch (/** @type {unknown} */ err) {
+      return errorResponse(500, err instanceof Error ? err.message : 'Sync failed');
     }
   }
 
@@ -311,11 +360,14 @@ export default class HttpSyncServer {
       throw new Error('listen() requires a numeric port');
     }
 
-    const server = this._httpPort.createServer((/** @type {*} */ request) => this._handleRequest(request)); // TODO(ts-cleanup): type http callback
+    /** @type {{ listen: Function, close: Function, address: Function }} */
+    const server = this._httpPort.createServer(
+      (/** @type {{ method: string, url: string, headers: Record<string, string>, body: Buffer|undefined }} */ request) => this._handleRequest(request),
+    );
     this._server = server;
 
     await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server.listen(port, this._host, (/** @type {*} */ err) => { // TODO(ts-cleanup): type http callback
+      server.listen(port, this._host, (/** @type {Error|null} */ err) => {
         if (err) {
           reject(err);
         } else {
@@ -332,7 +384,7 @@ export default class HttpSyncServer {
       url,
       close: () =>
         /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-          server.close((/** @type {*} */ err) => { // TODO(ts-cleanup): type http callback
+          server.close((/** @type {Error|null} */ err) => {
             if (err) {
               reject(err);
             } else {

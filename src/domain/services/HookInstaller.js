@@ -80,7 +80,7 @@ export class HookInstaller {
    * @param {string} deps.templateDir - Directory containing hook templates
    * @param {PathUtils} deps.path - Path utilities (join and resolve)
    */
-  constructor({ fs, execGitConfig, version, templateDir, path } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ fs, execGitConfig, version, templateDir, path }) {
     /** @type {FsAdapter} */
     this._fs = fs;
     /** @type {(repoPath: string, key: string) => string|null} */

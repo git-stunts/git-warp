@@ -25,7 +25,7 @@ function validateEnvelope(envelope, label) {
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {Promise<Map<string, string>|null>} Frontier map, or null if not present (legacy index)
  */
-export async function loadIndexFrontier(shardOids, storage, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function loadIndexFrontier(shardOids, storage, { codec } = {}) {
   const c = codec || defaultCodec;
   const cborOid = shardOids['frontier.cbor'];
   if (cborOid) {

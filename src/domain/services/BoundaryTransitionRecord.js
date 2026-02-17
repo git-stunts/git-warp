@@ -250,7 +250,7 @@ async function verifyHmac(btr, key, { crypto, codec }) {
  * @returns {Promise<string|null>} Error message if replay mismatch, null if valid
  * @private
  */
-async function verifyReplayHash(btr, { crypto, codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+async function verifyReplayHash(btr, { crypto, codec } = {}) {
   try {
     const result = await replayBTR(btr, { crypto, codec });
     if (result.h_out !== btr.h_out) {
@@ -258,7 +258,7 @@ async function verifyReplayHash(btr, { crypto, codec } = /** @type {*} */ ({})) 
     }
     return null;
   } catch (err) {
-    return `Replay failed: ${/** @type {any} */ (err).message}`; // TODO(ts-cleanup): type error
+    return `Replay failed: ${err instanceof Error ? err.message : String(err)}`;
   }
 }
 
@@ -280,7 +280,7 @@ async function verifyReplayHash(btr, { crypto, codec } = /** @type {*} */ ({})) 
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Promise<VerificationResult>} Verification result with valid flag and optional reason
  */
-export async function verifyBTR(btr, key, options = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function verifyBTR(btr, key, options = {}) {
   const { crypto, codec } = options;
 
   const structureError = validateBTRStructure(btr);
@@ -323,7 +323,7 @@ export async function verifyBTR(btr, key, options = /** @type {*} */ ({})) { // 
  *   The final state and its hash
  * @throws {Error} If replay fails
  */
-export async function replayBTR(btr, { crypto, codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function replayBTR(btr, { crypto, codec } = {}) {
   // Deserialize initial state from U_0
   // Note: U_0 is the full serialized state (via serializeFullStateV5)
   const initialState = deserializeInitialState(btr.U_0, { codec });
@@ -355,7 +355,7 @@ export async function replayBTR(btr, { crypto, codec } = /** @type {*} */ ({})) 
  * @returns {import('./JoinReducer.js').WarpStateV5} The deserialized state
  * @private
  */
-function deserializeInitialState(U_0, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+function deserializeInitialState(U_0, { codec } = {}) {
   return deserializeFullStateV5(U_0, { codec });
 }
 
@@ -370,7 +370,7 @@ function deserializeInitialState(U_0, { codec } = /** @type {*} */ ({})) { // TO
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Uint8Array} CBOR-encoded BTR
  */
-export function serializeBTR(btr, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function serializeBTR(btr, { codec } = {}) {
   const c = codec || defaultCodec;
   return c.encode({
     version: btr.version,
@@ -392,7 +392,7 @@ export function serializeBTR(btr, { codec } = /** @type {*} */ ({})) { // TODO(t
  * @returns {BTR} The deserialized BTR
  * @throws {Error} If the bytes are not valid CBOR or missing required fields
  */
-export function deserializeBTR(bytes, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function deserializeBTR(bytes, { codec } = {}) {
   const c = codec || defaultCodec;
   const obj = /** @type {Record<string, *>} */ (c.decode(bytes));
 

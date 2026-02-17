@@ -13,7 +13,7 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import nullLogger from '../utils/nullLogger.js';
-import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
+import { vvIncrement, vvClone } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
@@ -86,7 +86,7 @@ export class PatchBuilderV2 {
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger }) {
     /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} */
-    this._persistence = /** @type {*} */ (persistence); // TODO(ts-cleanup): narrow port type
+    this._persistence = /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} */ (persistence);
 
     /** @type {string} */
     this._graphName = graphName;
@@ -454,7 +454,7 @@ export class PatchBuilderV2 {
       schema,
       writer: this._writerId,
       lamport: this._lamport,
-      context: /** @type {*} */ (this._vv), // TODO(ts-cleanup): narrow port type
+      context: /** @type {import('../types/WarpTypesV2.js').VersionVector} */ (/** @type {unknown} */ (this._vv)),
       ops: this._ops,
       reads: [...this._reads].sort(),
       writes: [...this._writes].sort(),
@@ -546,7 +546,7 @@ export class PatchBuilderV2 {
       schema,
       writer: this._writerId,
       lamport,
-      context: vvSerialize(this._vv),
+      context: /** @type {import('../types/WarpTypesV2.js').VersionVector} */ (/** @type {unknown} */ (this._vv)),
       ops: this._ops,
       reads: [...this._reads].sort(),
       writes: [...this._writes].sort(),

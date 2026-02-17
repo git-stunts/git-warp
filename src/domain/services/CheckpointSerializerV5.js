@@ -39,7 +39,7 @@ import { createEmptyStateV5 } from './JoinReducer.js';
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Buffer|Uint8Array} CBOR-encoded full state
  */
-export function serializeFullStateV5(state, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function serializeFullStateV5(state, { codec } = {}) {
   const c = codec || defaultCodec;
   // Serialize ORSets using existing serialization
   const nodeAliveObj = orsetSerialize(state.nodeAlive);
@@ -90,7 +90,7 @@ export function serializeFullStateV5(state, { codec } = /** @type {*} */ ({})) {
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
 // eslint-disable-next-line complexity
-export function deserializeFullStateV5(buffer, { codec: codecOpt } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   const codec = codecOpt || defaultCodec;
   // Handle null/undefined buffer before attempting decode
   if (buffer === null || buffer === undefined) {
@@ -172,7 +172,7 @@ export function computeAppliedVV(state) {
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for serialization
  * @returns {Buffer|Uint8Array} CBOR-encoded version vector
  */
-export function serializeAppliedVV(vv, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function serializeAppliedVV(vv, { codec } = {}) {
   const c = codec || defaultCodec;
   const obj = vvSerialize(vv);
   return c.encode(obj);
@@ -186,7 +186,7 @@ export function serializeAppliedVV(vv, { codec } = /** @type {*} */ ({})) { // T
  * @param {import('../../ports/CodecPort.js').default} [options.codec] - Codec for deserialization
  * @returns {Map<string, number>} Version vector
  */
-export function deserializeAppliedVV(buffer, { codec } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+export function deserializeAppliedVV(buffer, { codec } = {}) {
   const c = codec || defaultCodec;
   const obj = /** @type {{ [x: string]: number }} */ (c.decode(buffer));
   return vvDeserialize(obj);

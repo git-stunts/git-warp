@@ -144,6 +144,7 @@ function _checkHeaderFormats(timestamp, nonce, signature) {
 
 /**
  * @param {Record<string, string>|undefined} keys
+ * @returns {asserts keys is Record<string, string>}
  */
 function _validateKeys(keys) {
   if (!keys || typeof keys !== 'object' || Object.keys(keys).length === 0) {
@@ -170,8 +171,8 @@ function _validateAllowedWriters(allowedWriters) {
 
 export default class SyncAuthService {
   /**
-   * @param {Object} options
-   * @param {Record<string, string>} options.keys - Key-id to secret mapping
+   * @param {Object} [options]
+   * @param {Record<string, string>} [options.keys] - Key-id to secret mapping
    * @param {'enforce'|'log-only'} [options.mode='enforce'] - Auth enforcement mode
    * @param {number} [options.nonceCapacity] - Nonce LRU capacity
    * @param {number} [options.maxClockSkewMs] - Max clock skew tolerance
@@ -180,7 +181,7 @@ export default class SyncAuthService {
    * @param {() => number} [options.wallClockMs] - Wall clock function
    * @param {string[]} [options.allowedWriters] - Optional whitelist of allowed writer IDs. If set, sync requests with unlisted writers are rejected with 403.
    */
-  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = /** @type {*} */ ({})) { // TODO(ts-cleanup): needs options type
+  constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = {}) {
     _validateKeys(keys);
     this._keys = keys;
     this._mode = mode;

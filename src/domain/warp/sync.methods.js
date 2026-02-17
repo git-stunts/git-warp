@@ -31,6 +31,9 @@ import { buildWriterRef } from '../utils/RefLayout.js';
 import { collectGCMetrics } from '../services/GCMetrics.js';
 import HttpSyncServer from '../services/HttpSyncServer.js';
 import { signSyncRequest, canonicalizePath } from '../services/SyncAuthService.js';
+import { isError } from '../types/WarpErrors.js';
+
+/** @typedef {import('../types/WarpPersistence.js').PersistenceReader} PersistenceReader */
 
 // ── Private helpers ─────────────────────────────────────────────────────────
 
@@ -221,10 +224,12 @@ export async function createSyncRequest() {
  */
 export async function processSyncRequest(request) {
   const localFrontier = await this.getFrontier();
+  /** @type {PersistenceReader} */
+  const persistence = this._persistence;
   return await processSyncRequestImpl(
     request,
     localFrontier,
-    /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
+    persistence,
     this._graphName,
     { codec: this._codec }
   );
@@ -253,7 +258,7 @@ export function applySyncResponse(response) {
     });
   }
 
-  const currentFrontier = /** @type {any} */ (this._cachedState.observedFrontier); // TODO(ts-cleanup): narrow port type
+  const currentFrontier = /** @type {Map<string, string>} */ (/** @type {unknown} */ (this._cachedState.observedFrontier));
   const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} */ (applySyncResponseImpl(response, this._cachedState, currentFrontier));
 
   // Update cached state
@@ -352,12 +357,12 @@ export async function syncWith(remote, options = {}) {
     targetUrl.hash = '';
   }
   let attempt = 0;
-  const emit = (/** @type {string} */ type, /** @type {Record<string, any>} */ payload = {}) => {
+  const emit = (/** @type {string} */ type, /** @type {Record<string, unknown>} */ payload = {}) => {
     if (typeof onStatus === 'function') {
-      onStatus(/** @type {any} */ ({ type, attempt, ...payload })); // TODO(ts-cleanup): type sync protocol
+      onStatus(/** @type {{type: string, attempt: number}} */ ({ type, attempt, ...payload }));
     }
   };
-  const shouldRetry = (/** @type {any} */ err) => { // TODO(ts-cleanup): type error
+  const shouldRetry = (/** @type {unknown} */ err) => {
     if (isDirectPeer) { return false; }
     if (err instanceof SyncError) {
       return ['E_SYNC_REMOTE', 'E_SYNC_TIMEOUT', 'E_SYNC_NETWORK'].includes(err.code);
@@ -400,7 +405,7 @@ export async function syncWith(remote, options = {}) {
           });
         });
       } catch (err) {
-        if (/** @type {any} */ (err)?.name === 'AbortError') { // TODO(ts-cleanup): type error
+        if (isError(err) && err.name === 'AbortError') {
           throw new OperationAbortedError('syncWith', { reason: 'Signal received' });
         }
         if (err instanceof TimeoutError) {
@@ -411,7 +416,7 @@ export async function syncWith(remote, options = {}) {
         }
         throw new SyncError('Network error', {
           code: 'E_SYNC_NETWORK',
-          context: { message: /** @type {any} */ (err)?.message }, // TODO(ts-cleanup): type error
+          context: { message: isError(err) ? err.message : String(err) },
         });
       }
 
@@ -474,7 +479,7 @@ export async function syncWith(remote, options = {}) {
       shouldRetry,
       onRetry: (/** @type {Error} */ error, /** @type {number} */ attemptNumber, /** @type {number} */ delayMs) => {
         if (typeof onStatus === 'function') {
-          onStatus(/** @type {any} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error })); // TODO(ts-cleanup): type sync protocol
+          onStatus(/** @type {{type: string, attempt: number, delayMs: number, error: Error}} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error }));
         }
       },
     });
@@ -488,7 +493,7 @@ export async function syncWith(remote, options = {}) {
     return syncResult;
   } catch (err) {
     this._logTiming('syncWith', t0, { error: /** @type {Error} */ (err) });
-    if (/** @type {any} */ (err)?.name === 'AbortError') { // TODO(ts-cleanup): type error
+    if (isError(err) && err.name === 'AbortError') {
       const abortedError = new OperationAbortedError('syncWith', { reason: 'Signal received' });
       if (typeof onStatus === 'function') {
         onStatus({ type: 'failed', attempt, error: abortedError });
@@ -513,18 +518,18 @@ export async function syncWith(remote, options = {}) {
  * Starts a built-in sync server for this graph.
  *
  * @this {import('../WarpGraph.js').default}
- * @param {Object} options
- * @param {number} options.port - Port to listen on
+ * @param {Object} [options]
+ * @param {number} [options.port] - Port to listen on
  * @param {string} [options.host='127.0.0.1'] - Host to bind
  * @param {string} [options.path='/sync'] - Path to handle sync requests
  * @param {number} [options.maxRequestBytes=4194304] - Max request size in bytes
- * @param {import('../../ports/HttpServerPort.js').default} options.httpPort - HTTP server adapter (required)
+ * @param {import('../../ports/HttpServerPort.js').default} [options.httpPort] - HTTP server adapter (required)
  * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only' }} [options.auth] - Auth configuration
  * @returns {Promise<{close: () => Promise<void>, url: string}>} Server handle
  * @throws {Error} If port is not a number
  * @throws {Error} If httpPort adapter is not provided
  */
-export async function serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort, auth } = /** @type {any} */ ({})) { // TODO(ts-cleanup): needs options type
+export async function serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort, auth } = {}) {
   if (typeof port !== 'number') {
     throw new Error('serve() requires a numeric port');
   }

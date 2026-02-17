@@ -66,7 +66,7 @@ const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 // -----------------------------------------------------------------------------
 
 // Lazy singleton codec instance
-/** @type {*} */ // TODO(ts-cleanup): type lazy singleton
+/** @type {TrailerCodec|null} */
 let _codec = null;
 
 /**

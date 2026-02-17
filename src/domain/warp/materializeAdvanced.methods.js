@@ -18,6 +18,8 @@ import { serializeFullStateV5, deserializeFullStateV5 } from '../services/Checkp
 import { buildSeekCacheKey } from '../utils/seekCacheKey.js';
 import { materializeIncremental } from '../services/CheckpointService.js';
 import { createFrontier, updateFrontier } from '../services/Frontier.js';
+
+/** @typedef {import('../types/WarpPersistence.js').PersistenceReader} PersistenceReader */
 import { buildWriterRef } from '../utils/RefLayout.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 
@@ -226,11 +228,11 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
       receipts = [];
     }
   } else if (collectReceipts) {
-    const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true })); // TODO(ts-cleanup): type patch array
+    const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
     state = result.state;
     receipts = result.receipts;
   } else {
-    state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches))); // TODO(ts-cleanup): type patch array
+    state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches)));
   }
 
   this._provenanceIndex = new ProvenanceIndex();
@@ -326,8 +328,10 @@ export async function materializeAt(checkpointSha) {
   };
 
   // 4. Call materializeIncremental with the checkpoint and target frontier
+  /** @type {PersistenceReader} */
+  const persistence = this._persistence;
   const state = await materializeIncremental({
-    persistence: /** @type {any} */ (this._persistence), // TODO(ts-cleanup): narrow port type
+    persistence,
     graphName: this._graphName,
     checkpointSha,
     targetFrontier,

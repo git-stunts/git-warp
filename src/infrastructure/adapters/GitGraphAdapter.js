@@ -145,11 +145,12 @@ async function refExists(execute, ref) {
   try {
     await execute({ args: ['show-ref', '--verify', '--quiet', ref] });
     return true;
-  } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-    if (getExitCode(err) === 1) {
+  } catch (err) {
+    const gitErr = /** @type {GitError} */ (err);
+    if (getExitCode(gitErr) === 1) {
       return false;
     }
-    if (isDanglingObjectError(err)) {
+    if (isDanglingObjectError(gitErr)) {
       return false;
     }
     throw err;
@@ -544,11 +545,12 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['rev-parse', ref]
       });
       return oid.trim();
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (getExitCode(err) === 1) {
+    } catch (err) {
+      const gitErr = /** @type {GitError} */ (err);
+      if (getExitCode(gitErr) === 1) {
         return null;
       }
-      if (isDanglingObjectError(err)) {
+      if (isDanglingObjectError(gitErr)) {
         return null;
       }
       throw err;
@@ -628,8 +630,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     try {
       await this._executeWithRetry({ args: ['cat-file', '-e', sha] });
       return true;
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (getExitCode(err) === 1) {
+    } catch (err) {
+      if (getExitCode(/** @type {GitError} */ (err)) === 1) {
         return false;
       }
       throw err;
@@ -704,8 +706,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['merge-base', '--is-ancestor', potentialAncestor, descendant]
       });
       return true;  // Exit code 0 means it IS an ancestor
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (this._getExitCode(err) === 1) {
+    } catch (err) {
+      if (this._getExitCode(/** @type {GitError} */ (err)) === 1) {
         return false; // Exit code 1 means it is NOT an ancestor
       }
       throw err; // Re-throw unexpected errors
@@ -726,8 +728,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       });
       // Preserve empty-string values; only drop trailing newline
       return value.replace(/\n$/, '');
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): type error
-      if (this._isConfigKeyNotFound(err)) {
+    } catch (err) {
+      if (this._isConfigKeyNotFound(/** @type {GitError} */ (err))) {
         return null;
       }
       throw err;

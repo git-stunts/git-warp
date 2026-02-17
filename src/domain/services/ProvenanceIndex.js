@@ -277,7 +277,7 @@ class ProvenanceIndex {
   static deserialize(buffer, { codec } = {}) {
     const c = codec || defaultCodec;
     /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */
-    const obj = /** @type {any} */ (c.decode(buffer)); // TODO(ts-cleanup): narrow port type
+    const obj = /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */ (c.decode(buffer));
 
     if (obj.version !== 1) {
       throw new Error(`Unsupported ProvenanceIndex version: ${obj.version}`);

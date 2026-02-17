@@ -172,7 +172,7 @@ class ProvenancePayload {
     // Use JoinReducer's reduceV5 for deterministic materialization.
     // Note: reduceV5 returns { state, receipts } when options.receipts is truthy,
     // but returns bare WarpStateV5 when no options passed (as here).
-    return /** @type {import('./JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {*} */ (this.#patches), initialState)); // TODO(ts-cleanup): type patch array
+    return /** @type {import('./JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ ([...this.#patches]), initialState));
   }
 
   /**

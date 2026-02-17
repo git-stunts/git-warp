@@ -64,16 +64,16 @@ export async function materialize(options) {
     if (checkpoint?.schema === 2 || checkpoint?.schema === 3) {
       const patches = await this._loadPatchesSince(checkpoint);
       if (collectReceipts) {
-        const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (checkpoint.state), { receipts: true })); // TODO(ts-cleanup): type patch array
+        const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state, { receipts: true }));
         state = result.state;
         receipts = result.receipts;
       } else {
-        state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (patches), /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (checkpoint.state))); // TODO(ts-cleanup): type patch array
+        state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state));
       }
       patchCount = patches.length;
 
       // Build provenance index: start from checkpoint index if present, then add new patches
-      const ckPI = /** @type {any} */ (checkpoint).provenanceIndex; // TODO(ts-cleanup): type checkpoint cast
+      const ckPI = /** @type {{provenanceIndex?: import('../services/ProvenanceIndex.js').ProvenanceIndex}} */ (checkpoint).provenanceIndex;
       this._provenanceIndex = ckPI
         ? ckPI.clone()
         : new ProvenanceIndex();
@@ -111,11 +111,11 @@ export async function materialize(options) {
         } else {
           // 5. Reduce all patches to state
           if (collectReceipts) {
-            const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {any} */ (allPatches), undefined, { receipts: true })); // TODO(ts-cleanup): type patch array
+            const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
             state = result.state;
             receipts = result.receipts;
           } else {
-            state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {any} */ (allPatches))); // TODO(ts-cleanup): type patch array
+            state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches)));
           }
           patchCount = allPatches.length;
 

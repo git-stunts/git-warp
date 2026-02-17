@@ -102,7 +102,7 @@ export default class ObserverView {
     this._graph = graph;
 
     /** @type {LogicalTraversal} */
-    this.traverse = new LogicalTraversal(/** @type {*} */ (this)); // TODO(ts-cleanup): type observer cast
+    this.traverse = new LogicalTraversal(/** @type {import('../WarpGraph.js').default} */ (/** @type {unknown} */ (this)));
   }
 
   /**
@@ -128,7 +128,7 @@ export default class ObserverView {
    * @private
    */
   async _materializeGraph() {
-    const materialized = await /** @type {*} */ (this._graph)._materializeGraph(); // TODO(ts-cleanup): narrow port type
+    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, stateHash: string, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
     const { state, stateHash } = materialized;
 
     // Build filtered adjacency: only edges where both endpoints match
@@ -260,6 +260,6 @@ export default class ObserverView {
    * @returns {QueryBuilder} A query builder scoped to this observer
    */
   query() {
-    return new QueryBuilder(/** @type {*} */ (this)); // TODO(ts-cleanup): type observer cast
+    return new QueryBuilder(/** @type {import('../WarpGraph.js').default} */ (/** @type {unknown} */ (this)));
   }
 }

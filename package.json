@@ -89,6 +89,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:src": "tsc --noEmit -p tsconfig.src.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck:consumer": "tsc --noEmit -p test/type-check/tsconfig.json",
     "typecheck:policy": "node scripts/ts-policy-check.js"
   },
   "dependencies": {

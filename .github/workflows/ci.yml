@@ -23,6 +23,8 @@ jobs:
         run: npm run typecheck
       - name: TS policy
         run: npm run typecheck:policy
+      - name: Consumer type test
+        run: npm run typecheck:consumer
       - name: Security audit (runtime deps)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high

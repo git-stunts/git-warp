@@ -290,12 +290,12 @@ export class AuditReceiptService {
 
     try {
       return await this._commitInner(tickReceipt);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._failed++;
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_COMMIT_FAILED',
         writerId: this._writerId,
-        error: err?.message,
+        error: err instanceof Error ? err.message : String(err),
       });
       return null;
     }
@@ -366,11 +366,11 @@ export class AuditReceiptService {
     let blobOid;
     try {
       blobOid = await this._persistence.writeBlob(Buffer.from(cborBytes));
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_WRITE_BLOB_FAILED',
         writerId: this._writerId,
-        error: err?.message,
+        error: err instanceof Error ? err.message : String(err),
       });
       throw err;
     }
@@ -381,11 +381,11 @@ export class AuditReceiptService {
       treeOid = await this._persistence.writeTree([
         `100644 blob ${blobOid}\treceipt.cbor`,
       ]);
-    } catch (/** @type {*} */ err) { // TODO(ts-cleanup): narrow catch type
+    } catch (err) {
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_WRITE_TREE_FAILED',
         writerId: this._writerId,
-        error: err?.message,
+        error: err instanceof Error ? err.message : String(err),
       });
       throw err;
     }

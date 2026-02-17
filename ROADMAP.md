@@ -572,82 +572,255 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ---
 
-## Backlog (Post-v2.0)
+## Milestone 8 — IRONCLAD
 
-| ID | Tier | Idea |
-|----|------|------|
-| B1 | A | **STRICT PROVENANCE** — ~~writer whitelist done (v11.0.0)~~; enforced signed commits for sync ingress still open |
-| B2 | A | **CAUSALITY BISECT** — binary search first bad tick/invariant failure |
-| B3 | B | **OBSERVER API** — public event contract after internal soak |
-| B4 | B | **WARP UI VISUALIZER** — local graph/audit explorer |
-| B5 | D | **EXPERIMENTAL SYNC-BUILDER** — only behind explicit flag; requires invariants doc + soak + rollback proof; not eligible for core release without separate RFC |
-| B6 | B/C | **RUST CORE / WASM** — pursue only when measured perf ceiling is proven in JS path |
-| B7 | C | **DOCTOR: PROPERTY-BASED FUZZ TEST** — fuzz `writerHeads` with random null/empty shas and verify no check throws (all return findings) |
-| B8 | B | ~~DONE~~ **`readRef` DANGLING-REF RESILIENCE** — `refExists` and `readRef` in `GitGraphAdapter` now catch exit 128 (dangling object) alongside exit 1 (missing ref), returning `null`/`false` instead of throwing |
-| B9 | B | ~~DONE~~ **`graph.patch()` INTEGRATION TEST** — end-to-end tests with real Git persistence verifying CAS behavior (reentrancy guard, ref advancement, sequential patches) |
-| B10 | C | ~~DONE~~ **`Writer.commitPatch()` REENTRANCY GUARD** — `commitPatch()` now has a `_commitInProgress` guard matching `graph.patch()` semantics |
-| B11 | C | **`graph.patchMany(fns)` BATCH API** — sequence multiple patch callbacks atomically, each seeing the ref left by the previous; avoids reentrancy issue entirely and enables multi-patch workflows without dropping to `createPatch()` |
-| B12 | C | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep for version literals in .md files and examples, compare against `package.json`; prevents migration guides referencing wrong versions |
-| B13 | C | **ESLINT: NO-STRING-DUPLICATION** — custom rule or plugin to flag long error messages (>80 chars) appearing 3+ times; catches drift-prone copy-paste strings like `E_NO_STATE_MSG` before they're extracted |
-| B14 | B | **`HttpSyncServer` CONFIG VALIDATION LAYER** — Zod-style schema validation for constructor options; catch impossible/contradictory combos (e.g. `allowedWriters` without `auth`, `maxRequestBytes < 0`) at construction time instead of silently misbehaving at runtime |
-| B15 | ~~B~~ | ~~PROMOTED TO M7 PHASE 2~~ **TRUST RECORD CHAIN INTEGRATION TEST** |
-| B16 | C | **`unsignedRecordForId` EDGE-CASE TESTS** — deeply nested subjects, empty objects, arrays, Unicode keys, null values |
-| B17 | C | **`TrustRecordSchema.strict()` VARIANT** — reject unknown keys in trust record envelope to catch schema drift early |
-| B18 | C | **ZOD CONVENTION: TRIM BEFORE MIN** — add note to CLAUDE.md: always call `.trim()` before `.min()` on Zod string validators |
-| B19 | C | **CANONICAL SERIALIZATION PROPERTY TESTS** — fuzz `canonicalStringify` with random nested objects; verify idempotency, determinism, and round-trip stability |
-| B20 | C | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST** — full cycle: parse → canonical → recordId → signaturePayload → verify; snapshot the intermediate outputs |
-| B21 | B | **TRUST SCHEMA DISCRIMINATED UNION** — migrate `TrustRecordSchema` from `superRefine` write-back to Zod discriminated union; eliminates mutation in refinement, gives type-safe per-recordType subject schemas natively |
-| B22 | C | **CANONICAL PARSE DETERMINISM TEST** — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated parse calls; guards against non-deterministic transform ordering |
-| B23 | ~~B~~ | ~~PROMOTED TO M7 PHASE 2~~ **TRUST SIGN+VERIFY INTEGRATION TEST** |
-| B24 | C | ~~DONE (daf4adb)~~ **AUDIT TRY/CATCH WITHOUT `expect.assertions`** |
-| B25 | C | **ESLINT: TEST CATCH-BLOCK ASSERTION GUARD** — custom ESLint rule or vitest plugin to flag try/catch blocks in test files that contain `expect()` calls only inside `catch` without a preceding `expect.assertions()` |
-| B26 | C | **DER SPKI PREFIX CONSTANT** — extract the Ed25519 DER SPKI prefix (`302a300506032b6570032100`) in `TrustCrypto.js` to a named constant with an RFC 8410 reference comment |
-| B27 | B | **`TrustKeyStore` PRE-VALIDATED KEY CACHE** — Phase 2+ module that validates and caches Ed25519 public keys at import time (base64 decode + length check + `createPublicKey`) so `verifySignature` skips per-call key parsing |
-| B28 | B | **PURE TYPESCRIPT EXAMPLE APP** — standalone TypeScript project consuming `@git-stunts/git-warp` as a dependency; exercises the CLI docs end-to-end with strict `tsconfig`; doubles as a smoke test for `index.d.ts` correctness (blocks on #35) |
-| B29 | A | **`index.d.ts` TYPE FIXES (#35)** — `createPatch()` returns `Promise<PatchSession>` not `Promise<unknown>`; `logNodes` format optional; `materialize()`/`syncCoverage()`/`materializeAt()` return proper types; unblocks all downstream TS consumers |
-| B30 | A | **`any` CAST CLEANUP + `WarpPersistence` TYPE** — define `WarpPersistence` union type covering all 5 persistence ports; systematically replace 161+ `any` casts in `src/` with validated types; acceptance: `grep "type {any}" src/` returns zero |
-| B31 | B | **BITMAP INDEX OID VALIDATION** — add strict OID validation pass in `BitmapIndexReader.setup()` verifying all shard OIDs exist in object database before first query; prevents unhandled crash from corrupted index |
-| B32 | B | **JOINREDUCER DUAL-PATH REFACTOR** — split `join()` into `applyFast(state, patch)` and `applyWithReceipt(state, patch)` strategy pair; eliminates DRY violation where new op types added to fast path can be missed in receipt path |
-| B33 | B | **WARPGRAPH SYNCCONTROLLER EXTRACTION** — move `syncWith`, `serve`, `processSyncRequest` from `WarpGraph.js` into `SyncController.js`; reduces god class by ~800 LOC; isolates network concerns from graph concerns |
-| B34 | B | **DOCS: SECURITY_SYNC.md** — extract threat model for sync auth from `SyncAuthService.js` JSDoc into standalone operator doc; covers nonce replay, clock skew, HMAC limitations, log-only vs enforce rollout |
-| B35 | C | **DOCS: README INSTALL SECTION** — add "Quick Install" with two paths: Docker sandbox and local native; local path ends with a verification command (not tourism); standardize on `git warp` as primary command name |
-| B36 | C | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper in `test/helpers/`; replaces manual `WarpStateV5` object literals with `builder.addNode('A').addProp('k','v').build()`; immunizes tests against state-schema changes |
-| B37 | C | **SHARED MOCK PERSISTENCE FIXTURE** — extract `createMockPersistence()` from `TrustRecordService.test.js` and `TrustRecordService.chain.test.js` into `test/helpers/mockPersistence.js`; both trust test files currently duplicate the same in-memory persistence mock |
-| B38 | C | **DENO AMBIENT TYPE DECLARATION** — add `globals.d.ts` declaring `Deno` as an ambient type; eliminates scattered `@ts-expect-error` annotations in `infrastructure.js`, `DenoHttpAdapter.js`, etc. |
-| B39 | B | **TRUST RECORD CAS RETRY** — add retry-once semantics for `compareAndSwapRef` failures in `TrustRecordService._persistRecord`; re-read tip, re-validate prev-link, retry commit; mirrors the pattern in `AuditReceiptService` |
-| B40 | B | **BATS E2E: `git warp trust` OUTPUT SHAPES** — add BATS integration tests for `git warp trust` covering JSON output schema, exit codes (0 for warn, 4 for enforce-fail), and `not_configured` default behaviour |
-| B41 | B | **AUTO-GENERATE `.d.ts` FROM JSDOC** — generate `_wiredMethods.d.ts` from JSDoc annotations automatically (e.g. via `tsc --declaration --emitDeclarationOnly` or a custom script); prevents declaration drift from implementations |
-| B42 | B | **CI `.d.ts` SIGNATURE VALIDATION** — add a pre-commit hook or CI step that validates `.d.ts` signatures match runtime exports; catches type declaration drift before merge |
-| B43 | C | **VITEST EXPLICIT RUNTIME EXCLUDES** — replace glob-based vitest test inclusion with explicit excludes for `test/runtime/deno/` and `test/runtime/bun/`; prevents accidental local runs of Docker-only test suites |
-| B44 | C | **SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E** — add end-to-end test for the subscriber `unsubscribe()` called inside an `onChange` callback scenario; validates the `[...this._subscribers]` snapshot fix |
-| B45 | C | **TYPE-LEVEL `.d.ts` CONFORMANCE TEST** — create a TypeScript test file that asserts `.d.ts` method signatures match runtime values using `satisfies` / `Parameters<>` / `ReturnType<>` type-level checks; fails at `tsc` time if declarations drift |
-| B46 | B | **ESLINT BAN `Date.now()` IN DOMAIN** — add `no-restricted-syntax` rule targeting `Date.now()` in `src/domain/**` files; domain code must use `this._clock.now()` for testability and clock-injection consistency |
-| B47 | C | **`orsetAdd` DOT ARGUMENT VALIDATION** — throw `TypeError` in `orsetAdd` when `dot` is not a plain object with `writerId`/`counter` properties; prevents silent storage of `"undefined:undefined"` entries when callers accidentally pass strings |
+**Theme:** Type safety
+**Objective:** Stabilize the declaration surface, eliminate untyped casts, lock it with CI.
+**Triage date:** 2026-02-17
+
+### M8 Phase 1 — Declaration Fix + Boundary Validation
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B29** (`index.d.ts` TYPE FIXES) — `createPatch()` returns `Promise<PatchSession>` not `Promise<unknown>`; `logNodes` format optional; `materialize()`/`syncCoverage()`/`materializeAt()` return proper types. Unblocks all downstream TS consumers (#35).
+- **B38** (DENO AMBIENT TYPE DECLARATION) — add `globals.d.ts` declaring `Deno` as an ambient type; eliminates scattered `@ts-expect-error` annotations.
+- **B14** (`HttpSyncServer` CONFIG VALIDATION LAYER) — Zod schema for constructor options; catch impossible/contradictory combos at construction time. Pulled forward from M10: validates the boundary *before* M9 refactors move code behind it.
+
+### M8 Phase 2 — Cast Elimination
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B30** (`any` CAST CLEANUP + `WarpPersistence` TYPE) — define `WarpPersistence` union type covering all 5 persistence ports; replace 161+ `any` casts in `src/` with validated types.
+
+**Acceptance:** `grep "type {any}" src/` returns zero.
+
+### M8 Phase 3 — Declaration Automation
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B41** (AUTO-GENERATE `.d.ts` FROM JSDOC) — generate declarations from JSDoc automatically (e.g. `tsc --declaration --emitDeclarationOnly`); prevents declaration drift.
+- **B42** (CI `.d.ts` SIGNATURE VALIDATION) — CI step validating `.d.ts` signatures match runtime exports. **Must include semantic shape validation** (parameter types + return types), not just export name matching. This is what makes B45 (rejected) truly redundant.
+
+**M8 Gate:** `.d.ts` CI green; zero `any` casts; B28 compile-only stub passes (`tsc --noEmit` on minimal TS consumer).
 
 ---
 
-## Execution Order (Optimized)
+## Milestone 9 — PARTITION
 
-1. M1.T1
-2. M2.T1 + M2.T2
-3. M3.T0
-4. M3.T1
-5. M4.T1
-6. M5.T1
-7. M4.T2
-8. M6.T1
-9. M2.T3 + doc polish if capacity remains
-10. M1.T2 triage refinements in parallel where possible
+**Theme:** Architectural decomposition
+**Objective:** Break apart the god class and eliminate structural DRY violations before adding feature mass.
+**Triage date:** 2026-02-17
+
+### M9.T1 — SyncController Extraction
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B33** (WARPGRAPH SYNCCONTROLLER EXTRACTION) — move `syncWith`, `serve`, `processSyncRequest` from `WarpGraph.js` into `SyncController.js`; reduces god class by ~800 LOC; isolates network concerns from graph concerns.
+
+### M9.T2 — JoinReducer Dual-Path Refactor
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B32** (JOINREDUCER DUAL-PATH REFACTOR) — split `join()` into `applyFast(state, patch)` and `applyWithReceipt(state, patch)` strategy pair; eliminates DRY violation where new op types in fast path can be missed in receipt path.
+
+### M9.T3 — Bitmap OID Validation (Opportunistic)
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B31** (BITMAP INDEX OID VALIDATION) — add strict OID validation pass in `BitmapIndexReader.setup()`. Bundle if touching bitmap internals during decomposition.
+
+**M9 Gate:** WarpGraph LOC < 500; no-coordination regression suite green; LOC/complexity delta documented; behavior parity tests for extracted modules.
+
+---
+
+## Milestone 10 — SENTINEL
+
+**Theme:** Trust hardening + sync safety
+**Objective:** Complete the signed trust boundary. Design the causality bisect spec.
+**Triage date:** 2026-02-17
+
+### M10.T1 — Signed Sync Ingress
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B1** (STRICT PROVENANCE) — enforced signed commits for sync ingress. Writer whitelist done (v11.0.0); this completes the remaining trust boundary.
+
+### M10.T2 — Trust Reliability
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B39** (TRUST RECORD CAS RETRY) — retry-once semantics for `compareAndSwapRef` failures in `TrustRecordService._persistRecord`; mirrors the `AuditReceiptService` pattern.
+- **B40** (BATS E2E: `git warp trust` OUTPUT SHAPES) — integration tests for JSON output schema, exit codes, and `not_configured` default behaviour.
+
+### M10.T3 — Causality Bisect Spec
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B2 (spec only)** (CAUSALITY BISECT) — design the bisect CLI contract + data model. Commit spec with test vectors. Full implementation deferred to M11 — but the spec lands here so bisect is available as a debugging tool during M10 trust hardening.
+
+**M10 Gate:** Signed ingress enforced end-to-end; trust E2E receipts green; B2 spec committed with test vectors.
+
+---
+
+## Milestone 11 — COMPASS II
+
+**Theme:** Developer experience
+**Objective:** Ship bisect, public observer API, and batch patch ergonomics.
+**Triage date:** 2026-02-17
+
+### M11.T1 — Causality Bisect (Implementation)
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B2 (implementation)** (CAUSALITY BISECT) — full implementation building on M10 spec. Binary search for first bad tick/invariant failure. `git bisect` for WARP.
+
+### M11.T2 — Observer API
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B3** (OBSERVER API) — public event contract. Internal soak period over (shipped in PULSE, used internally since). Stabilize the public surface.
+
+### M11.T3 — Batch Patch API
+
+- **Status:** `PENDING`
+
+**Items:**
+
+- **B11** (`graph.patchMany(fns)` BATCH API) — sequence multiple patch callbacks atomically, each seeing the ref left by the previous. Natural complement to `graph.patch()`.
+
+**M11 Gate:** Bisect correctness verified on seeded regressions; observer contract snapshot-tested; patchMany passes no-coordination suite.
+
+---
+
+## Standalone Lane (Ongoing)
+
+Items that can be picked up opportunistically without blocking anything. No milestone assignment.
+
+### Immediate (tiny changes)
+
+| ID | Item |
+|----|------|
+| B46 | **ESLINT BAN `Date.now()` IN DOMAIN** — one-line `no-restricted-syntax` config change |
+| B47 | **`orsetAdd` DOT ARGUMENT VALIDATION** — domain boundary validation, prevents silent corruption |
+| B26 | **DER SPKI PREFIX CONSTANT** — named constant with RFC 8410 reference |
+
+### Near-Term
+
+| ID | Item |
+|----|------|
+| B44 | **SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E** — event system edge case; known bug class that bites silently |
+| B34 | **DOCS: SECURITY_SYNC.md** — extract threat model from JSDoc into operator doc |
+| B35 | **DOCS: README INSTALL SECTION** — Quick Install with Docker + native paths |
+| B36 | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper replacing manual `WarpStateV5` literals |
+| B37 | **SHARED MOCK PERSISTENCE FIXTURE** — dedup `createMockPersistence()` across trust test files |
+| B43 | **VITEST EXPLICIT RUNTIME EXCLUDES** — prevent accidental local runs of Docker-only suites |
+| B12 | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep version literals in .md files against `package.json` |
+
+### Conformance Property Pack (B19 + B22)
+
+Single lightweight property suite — not a milestone anchor:
+
+- **B19** (CANONICAL SERIALIZATION PROPERTY TESTS) — fuzz `canonicalStringify`; verify idempotency, determinism, round-trip stability.
+- **B22** (CANONICAL PARSE DETERMINISM TEST) — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated calls.
+
+**Rationale:** Golden fixtures test known paths; property tests test unknown edge combinations. For a deterministic engine, this is not optional forever. Trimmed to a single file covering canonical serialize idempotence + order-invariance.
+
+### Post-M8 Stub
+
+- **B28** (PURE TYPESCRIPT EXAMPLE APP) — 1-hour CI compile-only stub (`tsc --noEmit` on minimal TS consumer). Ships the day M8 Phase 1 merges. Full app deferred until M8 complete.
+
+---
+
+## Deferred (With Triggers)
+
+Items parked with explicit conditions for promotion.
+
+| ID | Item | Trigger |
+|----|------|---------|
+| B4 | **WARP UI VISUALIZER** | Promote when RFC filed with scoped UX goals |
+| B7 | **DOCTOR: PROPERTY-BASED FUZZ TEST** | Promote when doctor check count exceeds 8 |
+| B16 | **`unsignedRecordForId` EDGE-CASE TESTS** | Promote if canonical format changes |
+| B20 | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST** | Promote if trust record schema changes |
+| B21 | **TRUST SCHEMA DISCRIMINATED UNION** | Promote if superRefine causes a bug or blocks a feature |
+| B27 | **`TrustKeyStore` PRE-VALIDATED KEY CACHE** | Promote when `verifySignature` appears in any p95 flame graph above 5% of call time |
+
+---
+
+## Rejected (see GRAVEYARD.md)
+
+B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `GRAVEYARD.md`.
+
+---
+
+## Completed Backlog Items
+
+| ID | Status |
+|----|--------|
+| B8 | ~~DONE~~ `readRef` dangling-ref resilience |
+| B9 | ~~DONE~~ `graph.patch()` integration test |
+| B10 | ~~DONE~~ `Writer.commitPatch()` reentrancy guard |
+| B15 | ~~PROMOTED TO M7 PHASE 2~~ trust record chain integration test |
+| B23 | ~~PROMOTED TO M7 PHASE 2~~ trust sign+verify integration test |
+| B24 | ~~DONE (daf4adb)~~ audit try/catch without `expect.assertions` |
+
+---
+
+## Execution Order
+
+### v2.0 milestones (M1–M7): COMPLETE
+
+1. M1.T1 → M2.T1 + M2.T2 → M3.T0 → M3.T1 → M4.T1 → M5.T1 → M4.T2 → M6.T1 → M2.T3 → M1.T2 → M7
+
+### Post-v2.0 milestones (M8–M11): LOCKED
+
+1. **M8 IRONCLAD** — Type safety (B29, B38, B14 → B30 → B41, B42)
+2. **M9 PARTITION** — Decomposition (B33, B32, B31)
+3. **M10 SENTINEL** — Trust + sync safety (B1, B39, B40, B2 spec)
+4. **M11 COMPASS II** — Developer experience (B2 impl, B3, B11)
+
+### Critical Path
+
+```
+B29 ──→ B30 ──→ B41/B42 ──→ [M8 GATE] ──→ B33 ──→ [M9 GATE]
+ │                                          B32 ──┘      │
+ B38                                        B31(opt)      │
+ B14                                                      ▼
+                                            B1 ──→ [M10 GATE] ──→ B2(impl)
+                                            B39 ──┘    │           B3
+                                            B40 ──┘    │           B11
+                                            B2(spec)───┘           ▼
+                                                            [M11 GATE]
+```
 
 ---
 
 ## Final Command
 
-This cut gives you a v2.0 that is:
+v2.0 shipped defensible, verifiable, and maintainable.
 
-- defensible,
-- verifiable,
-- maintainable,
-- and not booby-trapped by unnecessary concurrency heroics.
+Post-v2.0 locks in type safety first, then decomposes, then hardens trust, then ships DX.
+Every milestone has a hard gate. No milestone blurs into the next.
 
-If dissenters insist on shoving risky sync-builder into v2.0 anyway: they can file an RFC and wait in line.
+Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
