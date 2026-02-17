@@ -49,7 +49,7 @@ export default async function handleHistory({ options, args }) {
     patches = patches.filter((/** @type {*} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick)); // TODO(ts-cleanup): type CLI payload
   }
   if (patches.length === 0) {
-    const knownWriters = await graph.discoverWriters();
+    const knownWriters = await /** @type {*} */ (graph).discoverWriters(); // TODO(ts-cleanup): type graph facade
     if (knownWriters.length > 0) {
       throw notFoundError(
         `No patches found for writer: ${writerId}\nKnown writers: ${knownWriters.join(', ')}\nUse: warp-graph history --writer <id>`

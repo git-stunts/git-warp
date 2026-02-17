@@ -39,7 +39,7 @@ function buildChildMap(edges, labelFilter) {
     if (!children.has(edge.from)) {
       children.set(edge.from, []);
     }
-    children.get(edge.from).push({ id: edge.to, label: edge.label });
+    /** @type {*} */ (children.get(edge.from)).push({ id: edge.to, label: edge.label }); // TODO(ts-cleanup): guarded by has()
     hasParent.add(edge.to);
   }
 
@@ -162,16 +162,17 @@ export default async function handleTree({ options, args }) {
   const edges = await graph.getEdges();
   const rootArg = positionals[0] || null;
 
-  const nodeIds = queryResult.nodes.map((/** @type {*} */ n) => n.id);
-  const propsMap = new Map(queryResult.nodes.map((/** @type {*} */ n) => [n.id, n.props || {}]));
-  const childMap = buildChildMap(edges, values.edgeLabel);
+  const nodeIds = queryResult.nodes.map((/** @type {*} */ n) => n.id); // TODO(ts-cleanup): type CLI payload
+  const propsMap = new Map(queryResult.nodes.map((/** @type {*} */ n) => [n.id, n.props || {}])); // TODO(ts-cleanup): type CLI payload
+  const childMap = buildChildMap(/** @type {*} */ (edges), values.edgeLabel); // TODO(ts-cleanup): getEdges() label optionality
 
-  const roots = rootArg ? [rootArg] : findRoots(nodeIds, edges, values.edgeLabel);
+  const roots = rootArg ? [rootArg] : findRoots(nodeIds, /** @type {*} */ (edges), values.edgeLabel); // TODO(ts-cleanup): getEdges() label optionality
 
   if (rootArg && !nodeIds.includes(rootArg)) {
     throw usageError(`Node not found: ${rootArg}`);
   }
 
+  /** @type {string[]} */
   const lines = [];
   for (const root of roots) {
     renderTreeNode({
@@ -191,7 +192,7 @@ export default async function handleTree({ options, args }) {
   // Collect orphans (nodes not reachable from any root)
   const reachable = new Set();
   collectReachable(roots, childMap, reachable);
-  const orphans = nodeIds.filter((id) => !reachable.has(id));
+  const orphans = nodeIds.filter((/** @type {string} */ id) => !reachable.has(id));
 
   const payload = {
     graph: graphName,

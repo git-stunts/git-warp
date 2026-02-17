@@ -141,8 +141,8 @@ function buildEdgeMap(edges) {
     if (!edgeMap.has(edge.to)) {
       edgeMap.set(edge.to, { outgoing: [], incoming: [] });
     }
-    edgeMap.get(edge.from).outgoing.push({ label: edge.label, to: edge.to });
-    edgeMap.get(edge.to).incoming.push({ label: edge.label, from: edge.from });
+    /** @type {*} */ (edgeMap.get(edge.from)).outgoing.push({ label: edge.label, to: edge.to }); // TODO(ts-cleanup): guarded by has()
+    /** @type {*} */ (edgeMap.get(edge.to)).incoming.push({ label: edge.label, from: edge.from }); // TODO(ts-cleanup): guarded by has()
   }
   return edgeMap;
 }
@@ -156,7 +156,7 @@ function buildEdgeMap(edges) {
 function buildQueryPayload(graphName, result, edges) {
   const edgeMap = buildEdgeMap(edges);
 
-  const nodes = result.nodes.map((/** @type {*} */ node) => {
+  const nodes = result.nodes.map((/** @type {*} */ node) => { // TODO(ts-cleanup): type CLI payload
     const nodeEdges = edgeMap.get(node.id);
     const entry = { ...node };
     if (nodeEdges) {
@@ -205,7 +205,7 @@ export default async function handleQuery({ options, args }) {
   try {
     const result = await builder.run();
     const edges = await graph.getEdges();
-    const payload = buildQueryPayload(graphName, result, edges);
+    const payload = buildQueryPayload(graphName, result, /** @type {*} */ (edges)); // TODO(ts-cleanup): getEdges() label optionality
 
     if (options.view) {
       const graphData = queryResultToGraphData(payload, edges);
