@@ -10,6 +10,8 @@ import handleVerifyAudit from './verify-audit.js';
 import handleView from './view.js';
 import handleInstallHooks from './install-hooks.js';
 import handleTrust from './trust.js';
+import handlePatch from './patch.js';
+import handleTree from './tree.js';
 
 /** @type {Map<string, Function>} */
 export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
@@ -23,6 +25,8 @@ export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
   ['seek', handleSeek],
   ['verify-audit', handleVerifyAudit],
   ['trust', handleTrust],
+  ['patch', handlePatch],
+  ['tree', handleTree],
   ['view', handleView],
   ['install-hooks', handleInstallHooks],
 ]));

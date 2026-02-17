@@ -77,7 +77,7 @@ export default async function handlePath({ options, args }) {
 
     return {
       payload,
-      exitCode: result.found ? EXIT_CODES.OK : EXIT_CODES.NOT_FOUND,
+      exitCode: result.found ? EXIT_CODES.OK : EXIT_CODES.NO_MATCH,
     };
   } catch (/** @type {*} */ error) { // TODO(ts-cleanup): type error
     if (error && error.code === 'NODE_NOT_FOUND') {

@@ -11,6 +11,8 @@ export const EXIT_CODES = {
   INTERNAL: 3,
   /** Trust policy denial (enforce mode). */
   TRUST_FAIL: 4,
+  /** Valid result but negative (e.g. no path found). Follows grep convention. */
+  NO_MATCH: 1,
 };
 
 /**
@@ -45,6 +47,8 @@ Commands:
   trust            Evaluate writer trust from signed evidence
   materialize      Materialize and checkpoint all graphs
   seek             Time-travel: step through graph history by Lamport tick
+  patch            Decode and inspect raw patches
+  tree             ASCII tree traversal from root nodes
   view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
   install-hooks    Install post-merge git hook
 
@@ -99,6 +103,18 @@ Seek options:
   --drop <name>         Delete a saved cursor
   --diff                Show structural diff (added/removed nodes, edges, props)
   --diff-limit <N>      Max diff entries (default 2000)
+
+Patch options:
+  show <sha>            Decode and display a single patch as JSON
+  list                  List all patches sorted by Lamport clock
+  --writer <id>         Filter by writer (list only)
+  --limit <n>           Max entries to show (list only)
+
+Tree options:
+  [rootNode]            Root node id (auto-detected if omitted)
+  --edge <label>        Follow only this edge label
+  --prop <key>          Annotate nodes with this property (repeatable)
+  --max-depth <n>       Maximum traversal depth
 `;
 
 /**
@@ -130,7 +146,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'trust', 'install-hooks', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'trust', 'patch', 'tree', 'install-hooks', 'view'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

@@ -240,6 +240,9 @@ export default tseslint.config(
       "bin/cli/commands/trust.js",
       "bin/cli/commands/view.js",
       "bin/cli/commands/seek.js",
+      "bin/cli/commands/patch.js",
+      "bin/cli/commands/tree.js",
+      "bin/presenters/text.js",
     ],
     rules: {
       "complexity": ["error", 35],

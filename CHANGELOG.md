@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.3.0] — 2026-02-17 — DX-HAMMER: Read-Path CLI Improvements
+
+New CLI commands and improved output for graph inspection and debugging.
+
+### Added
+
+- **`git warp patch` command**: Decode and inspect raw patches.
+  - `patch show <sha>` — display a single patch with decoded operations (`+`/`-`/`~` sigils).
+  - `patch list` — list all patches sorted by Lamport clock, with `--writer` filter and `--limit`.
+- **`git warp tree` command**: ASCII tree traversal with box-drawing characters.
+  - Auto-detects root nodes, or accepts an explicit root positional arg.
+  - `--edge <label>` — follow only edges with a given label.
+  - `--prop <key>` — annotate nodes with property values (repeatable).
+  - `--max-depth <n>` — limit traversal depth.
+  - Cycle detection, orphan reporting.
+- **Edges in query output**: `query` now fetches and displays outgoing/incoming edges per node in both text and JSON formats.
+
+### Fixed
+
+- **History error UX**: `history --writer <unknown>` now lists known writers in the error message.
+- **Path exit code**: "no path found" returns exit code 1 (grep convention) instead of 2.
+
 ## [11.2.1] — 2026-02-17 — Decompose WarpGraph Monolith
 
 Decomposes `WarpGraph.js` from 3260 lines to 416 lines (-87%) by extracting methods into 9 focused modules in `src/domain/warp/`, with no changes to the public API surface.

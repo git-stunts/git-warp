@@ -62,6 +62,24 @@ export function renderInfo(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Appends edge lines for a single node to the output array.
+ * @param {string[]} lines
+ * @param {*} edges
+ */
+function appendNodeEdges(lines, edges) {
+  if (edges.outgoing && edges.outgoing.length > 0) {
+    for (const e of edges.outgoing) {
+      lines.push(`  -> ${e.label} -> ${e.to}`);
+    }
+  }
+  if (edges.incoming && edges.incoming.length > 0) {
+    for (const e of edges.incoming) {
+      lines.push(`  <- ${e.label} <- ${e.from}`);
+    }
+  }
+}
+
 /** @param {*} payload */
 export function renderQuery(payload) {
   const lines = [
@@ -76,6 +94,9 @@ export function renderQuery(payload) {
     if (node.props && Object.keys(node.props).length > 0) {
       lines.push(`  props: ${JSON.stringify(node.props)}`);
     }
+    if (node.edges) {
+      appendNodeEdges(lines, node.edges);
+    }
   }
 
   return `${lines.join('\n')}\n`;
@@ -88,8 +109,11 @@ export function renderPath(payload) {
     `From: ${payload.from}`,
     `To: ${payload.to}`,
     `Found: ${payload.found ? 'yes' : 'no'}`,
-    `Length: ${payload.length}`,
   ];
+
+  if (payload.found) {
+    lines.push(`Length: ${payload.length}`);
+  }
 
   if (payload.path && payload.path.length > 0) {
     lines.push(`Path: ${payload.path.join(' -> ')}`);
@@ -537,6 +561,78 @@ export function renderTrust(payload) {
   if (payload.trust.untrustedWriters.length > 0) {
     lines.push('');
     lines.push(`${ANSI_RED}Untrusted: ${payload.trust.untrustedWriters.join(', ')}${ANSI_RESET}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+// ── Patch renderers ──────────────────────────────────────────────────────────
+
+/**
+ * Formats a single operation line for patch show output.
+ * @param {*} op
+ * @returns {string|null}
+ */
+function formatPatchOp(op) {
+  if (op.type === 'NodeAdd') {
+    return `  + node ${op.node}`;
+  }
+  if (op.type === 'NodeTombstone') {
+    return `  - node ${op.node}`;
+  }
+  if (op.type === 'EdgeAdd') {
+    return `  + edge ${op.from} -[${op.label}]-> ${op.to}`;
+  }
+  if (op.type === 'EdgeTombstone') {
+    return `  - edge ${op.from} -[${op.label}]-> ${op.to}`;
+  }
+  if (op.type === 'PropSet') {
+    return `  ~ ${op.node}.${op.key} = ${JSON.stringify(op.value)}`;
+  }
+  if (op.type === 'BlobValue') {
+    return `  + blob ${op.node}`;
+  }
+  return null;
+}
+
+/** @param {*} payload */
+export function renderPatchShow(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `SHA: ${payload.sha}`,
+    `Writer: ${payload.writer}`,
+    `Lamport: ${payload.lamport}`,
+    `Schema: ${payload.schema}`,
+    `Operations: ${payload.ops.length}`,
+    '',
+  ];
+
+  for (const op of payload.ops) {
+    const line = formatPatchOp(op);
+    if (line) {
+      lines.push(line);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+/** @param {*} payload */
+export function renderPatchList(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Patches: ${payload.showing}/${payload.total}`,
+  ];
+
+  if (payload.writerFilter) {
+    lines.push(`Writer: ${payload.writerFilter}`);
+  }
+
+  lines.push('');
+
+  for (const entry of payload.entries) {
+    const nodes = entry.nodeIds.length > 0 ? ` [${entry.nodeIds.join(', ')}]` : '';
+    lines.push(`  ${entry.sha}  L${String(entry.lamport).padStart(3)}  ${entry.writer.padEnd(20)}  ${entry.opCount} ops${nodes}`);
   }
 
   return `${lines.join('\n')}\n`;

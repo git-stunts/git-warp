@@ -127,15 +127,48 @@ function matchesPropFilter(node, key, value) {
 }
 
 /**
+ * Builds a map of nodeId -> {outgoing: [], incoming: []} from edges.
+ * @param {Array<{from: string, to: string, label: string}>} edges
+ * @returns {Map<string, {outgoing: Array<{label: string, to: string}>, incoming: Array<{label: string, from: string}>}>}
+ */
+function buildEdgeMap(edges) {
+  /** @type {Map<string, {outgoing: Array<{label: string, to: string}>, incoming: Array<{label: string, from: string}>}>} */
+  const edgeMap = new Map();
+  for (const edge of edges) {
+    if (!edgeMap.has(edge.from)) {
+      edgeMap.set(edge.from, { outgoing: [], incoming: [] });
+    }
+    if (!edgeMap.has(edge.to)) {
+      edgeMap.set(edge.to, { outgoing: [], incoming: [] });
+    }
+    edgeMap.get(edge.from).outgoing.push({ label: edge.label, to: edge.to });
+    edgeMap.get(edge.to).incoming.push({ label: edge.label, from: edge.from });
+  }
+  return edgeMap;
+}
+
+/**
  * @param {string} graphName
  * @param {*} result
+ * @param {Array<{from: string, to: string, label: string}>} edges
  * @returns {{graph: string, stateHash: *, nodes: *, _renderedSvg?: string, _renderedAscii?: string}}
  */
-function buildQueryPayload(graphName, result) {
+function buildQueryPayload(graphName, result, edges) {
+  const edgeMap = buildEdgeMap(edges);
+
+  const nodes = result.nodes.map((/** @type {*} */ node) => {
+    const nodeEdges = edgeMap.get(node.id);
+    const entry = { ...node };
+    if (nodeEdges) {
+      entry.edges = nodeEdges;
+    }
+    return entry;
+  });
+
   return {
     graph: graphName,
     stateHash: result.stateHash,
-    nodes: result.nodes,
+    nodes,
   };
 }
 
@@ -171,10 +204,10 @@ export default async function handleQuery({ options, args }) {
 
   try {
     const result = await builder.run();
-    const payload = buildQueryPayload(graphName, result);
+    const edges = await graph.getEdges();
+    const payload = buildQueryPayload(graphName, result, edges);
 
     if (options.view) {
-      const edges = await graph.getEdges();
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
       if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {

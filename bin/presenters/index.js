@@ -30,6 +30,8 @@ import {
   renderSeek,
   renderVerifyAudit,
   renderTrust,
+  renderPatchShow,
+  renderPatchList,
 } from './text.js';
 
 // ── Color control ────────────────────────────────────────────────────────────
@@ -61,6 +63,27 @@ export function shouldStripColor() {
 
 // ── Text renderer map ────────────────────────────────────────────────────────
 
+/** @param {*} payload */
+function renderPatch(payload) {
+  if (payload.ops) {
+    return renderPatchShow(payload);
+  }
+  return renderPatchList(payload);
+}
+
+/** @param {*} payload */
+function renderTree(payload) {
+  const lines = [`Graph: ${payload.graph}`];
+  if (payload.tree) {
+    lines.push(payload.tree);
+  }
+  if (payload.orphanCount > 0) {
+    lines.push('');
+    lines.push(`Orphans (${payload.orphanCount}): ${payload.orphans.join(', ')}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 /** @type {Map<string, function(*): string>} */
 const TEXT_RENDERERS = new Map(/** @type {[string, function(*): string][]} */ ([
   ['info', renderInfo],
@@ -73,6 +96,8 @@ const TEXT_RENDERERS = new Map(/** @type {[string, function(*): string][]} */ ([
   ['seek', renderSeek],
   ['verify-audit', renderVerifyAudit],
   ['trust', renderTrust],
+  ['patch', renderPatch],
+  ['tree', renderTree],
   ['install-hooks', renderInstallHooks],
 ]));
 
