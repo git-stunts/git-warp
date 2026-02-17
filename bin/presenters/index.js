@@ -29,6 +29,7 @@ import {
   renderInstallHooks,
   renderSeek,
   renderVerifyAudit,
+  renderTrust,
 } from './text.js';
 
 // ── Color control ────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ const TEXT_RENDERERS = new Map(/** @type {[string, function(*): string][]} */ ([
   ['materialize', renderMaterialize],
   ['seek', renderSeek],
   ['verify-audit', renderVerifyAudit],
+  ['trust', renderTrust],
   ['install-hooks', renderInstallHooks],
 ]));
 

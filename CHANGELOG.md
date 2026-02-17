@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.2.0] — 2026-02-16 — Trust V1 Phases 2–5: Record Store, Evaluation, CLI, Hardening
+
+Implements Milestone 7 (Trust V1). Writer trust is now derived from signed Ed25519 records with monotonic key/binding revocation, evaluated deterministically, and surfaced through a new `git warp trust` CLI command. Release gates (RG-T1 through RG-T8) require verification before v2.0 tag.
+
+### Added
+
+- **`TrustStateBuilder`** (`src/domain/trust/TrustStateBuilder.js`): Pure function `buildState(records)` that walks an ordered trust record chain and accumulates active/revoked keys and writer bindings. Enforces monotonic revocation — revoked keys cannot be re-added.
+- **`TrustEvaluator`** (`src/domain/trust/TrustEvaluator.js`): Pure function `evaluateWriters(writerIds, trustState, policy)` producing a frozen `TrustAssessment` with per-writer explanations, reason codes, and evidence summary. Deterministic: sorted writers, sorted explanations.
+- **`TrustRecordService`** (`src/domain/trust/TrustRecordService.js`): Manages the append-only trust record chain under `refs/warp/<graph>/trust/records`. Methods: `appendRecord()` (schema + recordId + prev-link + signature-envelope validation), `readRecords()` (chain walk, oldest-first), `verifyChain()` (structural integrity). Note: `appendRecord` validates signature envelope structure (presence of `alg` + `sig` fields) but does not perform cryptographic Ed25519 verification — full crypto verification happens during `buildState()` evaluation.
+- **`buildTrustRecordRef()`** in `RefLayout.js`: Returns `refs/warp/<graph>/trust/records`.
+- **`AuditVerifierService.evaluateTrust()`**: Reads trust records, builds state, discovers writers, and returns a `TrustAssessment`. Integrates with existing audit verification.
+- **`git warp trust`** CLI command: Evaluates writer trust from signed evidence. Options: `--mode <warn|enforce>`, `--trust-pin <sha>`. Pin resolution precedence: CLI flag > env (`WARP_TRUST_PIN`) > live ref.
+- **`git warp verify-audit`** trust options: `--trust-mode <warn|enforce>`, `--trust-pin <sha>`. Trust assessment attached to verification output; enforce mode failures produce exit code 3.
+- **Trust text presenter** (`renderTrust`): Color-coded verdict, per-writer trust status with icons, evidence summary.
+- **Golden canonical fixtures** (`test/unit/domain/trust/fixtures/goldenRecords.js`): 5 frozen records (all 4 types) with real Ed25519 signatures and pinned SHA-256 digests.
+- **143 new trust tests** across 14 test files:
+  - Sign+verify round-trip (B23): 12 tests through canonical → sign → verify pipeline
+  - Chain integration (B15): 5 tests for append → read-back → verify cycle
+  - Adversarial suite: 8 tests covering tampered records, stale keys, revoked key bindings, out-of-order replay, forged issuerKeyId
+  - Hash freeze: 8 pinned digest tests (schema lock for v2.0)
+  - Cross-mode determinism: 5 tests confirming warn/enforce produce identical verdicts
+  - TrustAssessment schema conformance: 9 snapshot tests
+  - Domain purity: 37 grep-based checks (no `process.env` or infrastructure imports in trust domain)
+  - CLI pin precedence + exit code matrix: 10 tests
+- **Migration doc** (`docs/TRUST_MIGRATION.md`): Migration path from env-var allowlist to signed evidence.
+- **Operator runbook** (`docs/TRUST_OPERATOR_RUNBOOK.md`): Bootstrap, verify, rotate, revoke, and incident response procedures.
+
+### Changed
+
+- **`AuditVerifierService`**: Imports `TrustRecordService`, `buildState`, `evaluateWriters` for the new `evaluateTrust()` method.
+- **`verify-audit` CLI**: Updated schema and handler to accept `--trust-mode` and `--trust-pin`.
+- **`ROADMAP.md`**: M7 Phases 0–5 all marked `DONE`.
+- **`eslint.config.js`**: Trust domain files and `trust.js` CLI command added to relaxed complexity block.
+- **`HELP_TEXT`** and **`KNOWN_COMMANDS`**: Updated with `trust` command and trust-related options.
+- **`--show` flag removed from `trust` command**: The command always displays full trust state; `--show` was parsed but never acted on. If a quiet-check mode is needed, add `--quiet` in a future release.
+
 ## [11.1.0] — 2026-02-15 — Trust V1 Phase 1: Crypto Plumbing
 
 Adds the cryptographic primitives for Trust V1 (Milestone 7): Ed25519 signature verification, key fingerprint computation, and deterministic record ID hashing.

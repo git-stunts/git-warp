@@ -9,6 +9,7 @@ import handleSeek from './seek.js';
 import handleVerifyAudit from './verify-audit.js';
 import handleView from './view.js';
 import handleInstallHooks from './install-hooks.js';
+import handleTrust from './trust.js';
 
 /** @type {Map<string, Function>} */
 export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
@@ -21,6 +22,7 @@ export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
   ['materialize', handleMaterialize],
   ['seek', handleSeek],
   ['verify-audit', handleVerifyAudit],
+  ['trust', handleTrust],
   ['view', handleView],
   ['install-hooks', handleInstallHooks],
 ]));

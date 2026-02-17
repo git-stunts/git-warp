@@ -18,6 +18,9 @@
 
 import { buildAuditPrefix, buildAuditRef } from '../utils/RefLayout.js';
 import { decodeAuditMessage } from './AuditMessageCodec.js';
+import { TrustRecordService } from '../trust/TrustRecordService.js';
+import { buildState } from '../trust/TrustStateBuilder.js';
+import { evaluateWriters } from '../trust/TrustEvaluator.js';
 
 // ============================================================================
 // Constants
@@ -630,6 +633,61 @@ export class AuditVerifierService {
     if (result.status === STATUS_VALID || result.status === STATUS_PARTIAL) {
       result.status = STATUS_ERROR;
     }
+  }
+
+  /**
+   * Evaluates trust for all writers of a graph using signed evidence.
+   *
+   * Reads the trust record chain, builds state, discovers writers,
+   * and returns a TrustAssessment.
+   *
+   * @param {string} graphName
+   * @param {Object} [options]
+   * @param {string} [options.pin] - Pinned trust chain commit SHA
+   * @param {string} [options.mode] - Policy mode ('warn' or 'enforce')
+   * @returns {Promise<Record<string, *>>}
+   */
+  async evaluateTrust(graphName, options = {}) {
+    const recordService = new TrustRecordService({
+      persistence: this._persistence,
+      codec: this._codec,
+    });
+
+    const records = await recordService.readRecords(graphName, options.pin ? { tip: options.pin } : {});
+
+    if (records.length === 0) {
+      return {
+        trustSchemaVersion: 1,
+        mode: 'signed_evidence_v1',
+        trustVerdict: 'not_configured',
+        trust: {
+          status: 'not_configured',
+          source: 'none',
+          sourceDetail: null,
+          evaluatedWriters: [],
+          untrustedWriters: [],
+          explanations: [],
+          evidenceSummary: {
+            recordsScanned: 0,
+            activeKeys: 0,
+            revokedKeys: 0,
+            activeBindings: 0,
+            revokedBindings: 0,
+          },
+        },
+      };
+    }
+
+    const trustState = buildState(records);
+    const writerIds = await this._listWriterIds(graphName);
+
+    const policy = {
+      schemaVersion: 1,
+      mode: options.mode ?? 'warn',
+      writerPolicy: 'all_writers_must_be_trusted',
+    };
+
+    return evaluateWriters(writerIds, trustState, policy);
   }
 }
 

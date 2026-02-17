@@ -499,3 +499,45 @@ export function renderVerifyAudit(payload) {
 
   return `${lines.join('\n')}\n`;
 }
+
+// ── Trust renderer ────────────────────────────────────────────────────────
+
+/** @param {string} verdict */
+function colorVerdict(verdict) {
+  if (verdict === 'pass') {
+    return `${ANSI_GREEN}${verdict}${ANSI_RESET}`;
+  }
+  if (verdict === 'not_configured') {
+    return `${ANSI_YELLOW}${verdict}${ANSI_RESET}`;
+  }
+  return `${ANSI_RED}${verdict}${ANSI_RESET}`;
+}
+
+/** @param {*} payload */
+export function renderTrust(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Verdict: ${colorVerdict(payload.trustVerdict)}`,
+    `Mode: ${payload.mode}`,
+    `Source: ${payload.trust.source}`,
+  ];
+
+  const { evidenceSummary } = payload.trust;
+  lines.push(`Evidence: ${evidenceSummary.activeKeys} active keys, ${evidenceSummary.revokedKeys} revoked keys, ${evidenceSummary.activeBindings} active bindings`);
+
+  if (payload.trust.explanations.length > 0) {
+    lines.push('');
+    for (const expl of payload.trust.explanations) {
+      const icon = expl.trusted ? `${ANSI_GREEN}\u2713${ANSI_RESET}` : `${ANSI_RED}\u2717${ANSI_RESET}`;
+      lines.push(`  ${icon} ${expl.writerId}: ${expl.reasonCode}`);
+      lines.push(`    ${ANSI_DIM}${expl.reason}${ANSI_RESET}`);
+    }
+  }
+
+  if (payload.trust.untrustedWriters.length > 0) {
+    lines.push('');
+    lines.push(`${ANSI_RED}Untrusted: ${payload.trust.untrustedWriters.join(', ')}${ANSI_RESET}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}

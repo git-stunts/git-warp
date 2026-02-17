@@ -9,7 +9,27 @@ export const EXIT_CODES = {
   USAGE: 1,
   NOT_FOUND: 2,
   INTERNAL: 3,
+  /** Trust policy denial (enforce mode). */
+  TRUST_FAIL: 4,
 };
+
+/**
+ * Reads an environment variable across Node, Bun, and Deno runtimes.
+ * @param {string} name
+ * @returns {string|undefined}
+ */
+export function getEnvVar(name) {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[name];
+  }
+  // @ts-expect-error — Deno global is only present in Deno runtime
+  if (typeof Deno !== 'undefined') {
+    // @ts-expect-error — Deno global is only present in Deno runtime
+    // eslint-disable-next-line no-undef
+    try { return Deno.env.get(name); } catch { return undefined; }
+  }
+  return undefined;
+}
 
 export const HELP_TEXT = `warp-graph <command> [options]
 (or: git warp <command> [options])
@@ -22,6 +42,7 @@ Commands:
   check            Report graph health/GC status
   doctor           Diagnose structural issues and suggest fixes
   verify-audit     Verify audit receipt chain integrity
+  trust            Evaluate writer trust from signed evidence
   materialize      Materialize and checkpoint all graphs
   seek             Time-travel: step through graph history by Lamport tick
   view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
@@ -62,6 +83,12 @@ Doctor options:
 Verify-audit options:
   --writer <id>         Verify a single writer's chain (default: all)
   --since <commit>      Verify from tip down to this commit (inclusive)
+  --trust-mode <mode>   Trust evaluation mode (warn, enforce)
+  --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
+
+Trust options:
+  --mode <warn|enforce> Override trust evaluation mode
+  --trust-pin <sha>     Pin trust evaluation to a specific record chain commit
 
 Seek options:
   --tick <N|+N|-N>      Jump to tick N, or step forward/backward
@@ -103,7 +130,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'install-hooks', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'trust', 'install-hooks', 'view'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },
