@@ -295,9 +295,10 @@ export async function writer(writerId) {
 export async function createWriter(opts = {}) {
   if (this._logger) {
     this._logger.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
   }
-  // eslint-disable-next-line no-console
-  console.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
 
   const { persist = 'none', alias } = opts;
 
@@ -386,7 +387,7 @@ export async function discoverWriters() {
  * @returns {Promise<{
  *   ticks: number[],
  *   maxTick: number,
- *   perWriter: Map<string, {ticks: number[], tipSha: string|null}>
+ *   perWriter: Map<string, {ticks: number[], tipSha: string|null, tickShas: Record<number, string>}>
  * }>} `ticks` is the sorted (ascending) deduplicated union of all
  *   Lamport values; `maxTick` is the largest value (0 if none);
  *   `perWriter` maps each writer ID to its ticks in ascending order

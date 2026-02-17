@@ -243,7 +243,7 @@ export function watch(pattern, { onChange, onError, poll }) {
  * @private
  */
 export function _notifySubscribers(diff, currentState) {
-  for (const subscriber of this._subscribers) {
+  for (const subscriber of [...this._subscribers]) {
     try {
       // Handle deferred replay: on first notification, send full state diff instead
       if (subscriber.pendingReplay) {

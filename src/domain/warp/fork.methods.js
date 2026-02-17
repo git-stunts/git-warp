@@ -243,7 +243,12 @@ export async function _isAncestor(ancestorSha, descendantSha) {
   }
 
   let cur = descendantSha;
+  const MAX_WALK = 100_000;
+  let steps = 0;
   while (cur) {
+    if (++steps > MAX_WALK) {
+      throw new Error(`_isAncestor: exceeded ${MAX_WALK} steps — possible cycle`);
+    }
     const nodeInfo = await this._persistence.getNodeInfo(cur);
     const parent = nodeInfo.parents?.[0] ?? null;
     if (parent === ancestorSha) {

@@ -256,7 +256,7 @@ export function _maybeRunGC(state) {
     const inputMetrics = {
       ...metrics,
       patchesSinceCompaction: this._patchesSinceGC,
-      timeSinceCompaction: Date.now() - this._lastGCTime,
+      timeSinceCompaction: this._clock.now() - this._lastGCTime,
     };
     const { shouldRun, reasons } = shouldRunGC(inputMetrics, /** @type {import('../services/GCPolicy.js').GCPolicy} */ (this._gcPolicy));
 
@@ -267,7 +267,7 @@ export function _maybeRunGC(state) {
     if (/** @type {import('../services/GCPolicy.js').GCPolicy} */ (this._gcPolicy).enabled) {
       const appliedVV = computeAppliedVV(state);
       const result = executeGC(state, appliedVV);
-      this._lastGCTime = Date.now();
+      this._lastGCTime = this._clock.now();
       this._patchesSinceGC = 0;
       if (this._logger) {
         this._logger.info('Auto-GC completed', { ...result, reasons });
@@ -309,7 +309,7 @@ export function maybeRunGC() {
   const metrics = {
     ...rawMetrics,
     patchesSinceCompaction: this._patchesSinceGC,
-    timeSinceCompaction: this._lastGCTime > 0 ? Date.now() - this._lastGCTime : 0,
+    timeSinceCompaction: this._lastGCTime > 0 ? this._clock.now() - this._lastGCTime : 0,
   };
 
   const { shouldRun, reasons } = shouldRunGC(metrics, /** @type {import('../services/GCPolicy.js').GCPolicy} */ (this._gcPolicy));
@@ -353,7 +353,7 @@ export function runGC() {
     const result = executeGC(this._cachedState, appliedVV);
 
     // Update GC tracking
-    this._lastGCTime = Date.now();
+    this._lastGCTime = this._clock.now();
     this._patchesSinceGC = 0;
 
     this._logTiming('runGC', t0, { metrics: `${result.tombstonesRemoved} tombstones removed` });
@@ -385,10 +385,10 @@ export function getGCMetrics() {
 
   const rawMetrics = collectGCMetrics(this._cachedState);
   return {
-    ...rawMetrics,
     nodeCount: rawMetrics.nodeLiveDots,
     edgeCount: rawMetrics.edgeLiveDots,
     tombstoneCount: rawMetrics.totalTombstones,
+    tombstoneRatio: rawMetrics.tombstoneRatio,
     patchesSinceCompaction: this._patchesSinceGC,
     lastCompactionTime: this._lastGCTime,
   };

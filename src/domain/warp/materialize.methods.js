@@ -45,12 +45,12 @@ export async function materialize(options) {
   // Resolve ceiling: explicit option > instance-level seek ceiling > null (latest)
   const ceiling = this._resolveCeiling(options);
 
-  // When ceiling is active, delegate to ceiling-aware path (with its own cache)
-  if (ceiling !== null) {
-    return await this._materializeWithCeiling(ceiling, !!collectReceipts, t0);
-  }
-
   try {
+    // When ceiling is active, delegate to ceiling-aware path (with its own cache)
+    if (ceiling !== null) {
+      return await this._materializeWithCeiling(ceiling, !!collectReceipts, t0);
+    }
+
     // Check for checkpoint
     const checkpoint = await this._loadLatestCheckpoint();
 
@@ -96,7 +96,9 @@ export async function materialize(options) {
         const allPatches = [];
         for (const writerId of writerIds) {
           const writerPatches = await this._loadWriterPatches(writerId);
-          allPatches.push(...writerPatches);
+          for (const p of writerPatches) {
+            allPatches.push(p);
+          }
         }
 
         // 4. If no patches, return empty state

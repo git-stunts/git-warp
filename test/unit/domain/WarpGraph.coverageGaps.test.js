@@ -348,9 +348,9 @@ describe('WarpGraph coverage gaps', () => {
       const metrics = graph.getGCMetrics();
 
       expect(metrics).not.toBeNull();
-      expect(metrics.nodeEntries).toBe(1);
-      expect(metrics.edgeEntries).toBe(0);
-      expect(metrics.totalEntries).toBe(1);
+      expect(metrics.nodeCount).toBe(1);
+      expect(metrics.edgeCount).toBe(0);
+      expect(metrics.tombstoneCount).toBe(0);
       expect(metrics.tombstoneRatio).toBe(0);
     });
 

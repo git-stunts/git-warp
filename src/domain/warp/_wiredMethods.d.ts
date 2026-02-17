@@ -18,14 +18,14 @@ declare module '../WarpGraph.js' {
     hasNode(nodeId: string): Promise<boolean>;
     getNodeProps(nodeId: string): Promise<Map<string, any> | null>;
     getEdgeProps(from: string, to: string, label: string): Promise<Record<string, any> | null>;
-    neighbors(nodeId: string, direction?: string, edgeLabel?: string): Promise<Array<{ neighborId: string; label: string }>>;
+    neighbors(nodeId: string, direction?: 'outgoing' | 'incoming' | 'both', edgeLabel?: string): Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>;
     getStateSnapshot(): Promise<any>;
     getNodes(): Promise<string[]>;
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, any> }>>;
     getPropertyCount(): Promise<number>;
     query(): any;
     observer(name: string, config: any): Promise<any>;
-    translationCost(configA: any, configB: any): Promise<number>;
+    translationCost(configA: any, configB: any): Promise<{ cost: number; breakdown: { nodeLoss: number; edgeLoss: number; propLoss: number } }>;
 
     // ── subscribe.methods.js ──────────────────────────────────────────────
     subscribe(options: { onChange: Function; onError?: Function; replay?: boolean }): { unsubscribe: () => void };
@@ -38,12 +38,12 @@ declare module '../WarpGraph.js' {
     _computeBackwardCone(nodeId: string): Promise<Map<string, any>>;
     loadPatchBySha(sha: string): Promise<any>;
     _loadPatchBySha(sha: string): Promise<any>;
-    _loadPatchesBySha(shas: string[]): Promise<Map<string, any>>;
+    _loadPatchesBySha(shas: string[]): Promise<Array<{ patch: any; sha: string }>>;
     _sortPatchesCausally(patches: any[]): any[];
 
     // ── fork.methods.js ───────────────────────────────────────────────────
     fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpGraph>;
-    createWormhole(fromSha: string, toSha: string): Promise<{ patchCount: number; sha: string }>;
+    createWormhole(fromSha: string, toSha: string): Promise<{ fromSha: string; toSha: string; writerId: string; payload: any; patchCount: number }>;
     _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;
     _relationToCheckpointHead(ckHead: string, incomingSha: string): Promise<string>;
     _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: any): Promise<void>;
@@ -73,7 +73,7 @@ declare module '../WarpGraph.js' {
 
     // ── patch.methods.js ──────────────────────────────────────────────────
     createPatch(): Promise<PatchBuilderV2>;
-    patch(build: (p: PatchBuilderV2) => void): Promise<string>;
+    patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
     _nextLamport(): Promise<{ lamport: number; parentSha: string | null }>;
     _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2; sha: string }>>;
     getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2; sha: string }>>;
@@ -82,7 +82,7 @@ declare module '../WarpGraph.js' {
     createWriter(opts?: any): Promise<Writer>;
     _ensureFreshState(): Promise<void>;
     discoverWriters(): Promise<string[]>;
-    discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, number> }>;
+    discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, { ticks: number[]; tipSha: string | null; tickShas: Record<number, string> }> }>;
     join(otherState: any): any;
     _frontierEquals(a: any, b: any): boolean;
 
@@ -93,7 +93,7 @@ declare module '../WarpGraph.js' {
     // ── materializeAdvanced.methods.js ────────────────────────────────────
     _resolveCeiling(options: any): any;
     _buildAdjacency(state: any): any;
-    _setMaterializedState(state: any): Promise<void>;
+    _setMaterializedState(state: any): Promise<{ state: any; stateHash: string; adjacency: any }>;
     _materializeWithCeiling(ceiling: any, collectReceipts: boolean, t0: number): Promise<any>;
     materializeAt(checkpointSha: string): Promise<any>;
   }

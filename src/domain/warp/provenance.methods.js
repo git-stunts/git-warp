@@ -8,7 +8,7 @@
  * @module domain/warp/provenance.methods
  */
 
-import QueryError from '../errors/QueryError.js';
+import { QueryError } from './_internal.js';
 import { createEmptyStateV5, reduceV5 } from '../services/JoinReducer.js';
 import { ProvenancePayload } from '../services/ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
@@ -153,6 +153,11 @@ export async function materializeSlice(nodeId, options) {
  * @returns {Promise<Map<string, Object>>} Map of patch SHA to loaded patch object
  */
 export async function _computeBackwardCone(nodeId) {
+  if (!this._provenanceIndex) {
+    throw new QueryError('No provenance index. Call materialize() first.', {
+      code: 'E_NO_STATE',
+    });
+  }
   const cone = new Map(); // sha -> patch (cache loaded patches)
   const visited = new Set(); // Visited entities
   const queue = [nodeId]; // BFS queue of entities to process

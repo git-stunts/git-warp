@@ -148,12 +148,17 @@ export async function hasFrontierChanged() {
  * @throws {Error} If listing refs fails
  */
 export async function status() {
+  // Fetch frontier once, reuse for both staleness check and return value
+  const frontier = await this.getFrontier();
+
   // Determine cachedState
   /** @type {'fresh' | 'stale' | 'none'} */
   let cachedState;
   if (this._cachedState === null) {
     cachedState = 'none';
-  } else if (this._stateDirty || await this.hasFrontierChanged()) {
+  } else if (this._stateDirty || !this._lastFrontier ||
+    frontier.size !== this._lastFrontier.size ||
+    ![...frontier].every(([w, sha]) => this._lastFrontier.get(w) === sha)) {
     cachedState = 'stale';
   } else {
     cachedState = 'fresh';
@@ -169,8 +174,7 @@ export async function status() {
     tombstoneRatio = metrics.tombstoneRatio;
   }
 
-  // writers and frontier
-  const frontier = await this.getFrontier();
+  // writers
   const writers = frontier.size;
 
   // Convert frontier Map to plain object
