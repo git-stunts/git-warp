@@ -621,6 +621,8 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 | B43 | C | **VITEST EXPLICIT RUNTIME EXCLUDES** — replace glob-based vitest test inclusion with explicit excludes for `test/runtime/deno/` and `test/runtime/bun/`; prevents accidental local runs of Docker-only test suites |
 | B44 | C | **SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E** — add end-to-end test for the subscriber `unsubscribe()` called inside an `onChange` callback scenario; validates the `[...this._subscribers]` snapshot fix |
 | B45 | C | **TYPE-LEVEL `.d.ts` CONFORMANCE TEST** — create a TypeScript test file that asserts `.d.ts` method signatures match runtime values using `satisfies` / `Parameters<>` / `ReturnType<>` type-level checks; fails at `tsc` time if declarations drift |
+| B46 | B | **ESLINT BAN `Date.now()` IN DOMAIN** — add `no-restricted-syntax` rule targeting `Date.now()` in `src/domain/**` files; domain code must use `this._clock.now()` for testability and clock-injection consistency |
+| B47 | C | **`orsetAdd` DOT ARGUMENT VALIDATION** — throw `TypeError` in `orsetAdd` when `dot` is not a plain object with `writerId`/`counter` properties; prevents silent storage of `"undefined:undefined"` entries when callers accidentally pass strings |
 
 ---
 
