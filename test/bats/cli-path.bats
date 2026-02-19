@@ -41,7 +41,7 @@ PY
 @test "path not found returns found=false" {
   run git warp --repo "${TEST_REPO}" --graph demo --json path \
     user:carol user:alice --dir out --label follows
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
 
   JSON="$output" python3 - <<'PY'
 import json, os

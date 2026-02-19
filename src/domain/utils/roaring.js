@@ -32,10 +32,13 @@ const NOT_CHECKED = Symbol('NOT_CHECKED');
 
 /**
  * Shape of the lazily-loaded roaring module after ESM/CJS unwrapping.
- * `isNativelyInstalled` exists at runtime but is absent from type stubs.
+ * Uses Function instead of typeof import('roaring').RoaringBitmap32 to avoid
+ * duplicate import() references that crash Deno's JSR rewriter (deno_ast
+ * overlapping TextChange bug). The single import() reference lives on
+ * getRoaringBitmap32()'s @returns tag.
  * @typedef {Object} RoaringModule
- * @property {typeof import('roaring').RoaringBitmap32 & { isNativelyInstalled?: () => boolean }} RoaringBitmap32
- * @property {{ RoaringBitmap32: typeof import('roaring').RoaringBitmap32 }} [default]
+ * @property {Function & { isNativelyInstalled?: () => boolean }} RoaringBitmap32
+ * @property {{ RoaringBitmap32: Function }} [default]
  * @property {boolean} [isNativelyInstalled]
  */
 
@@ -139,7 +142,7 @@ try {
  * const intersection = RoaringBitmap32.and(a, b); // [2, 3]
  */
 export function getRoaringBitmap32() {
-  return loadRoaring().RoaringBitmap32;
+  return /** @type {typeof import('roaring').RoaringBitmap32} */ (loadRoaring().RoaringBitmap32);
 }
 
 /**

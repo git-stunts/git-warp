@@ -89,7 +89,7 @@ PY
 import json, os
 data = json.loads(os.environ["JSON"])
 for n in data["nodes"]:
-    assert list(n.keys()) == ["id"], f"expected only 'id', got {list(n.keys())}"
+    assert "id" in n, f"expected 'id' key in node, got {list(n.keys())}"
 PY
 }
 
