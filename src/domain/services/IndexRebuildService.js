@@ -275,7 +275,7 @@ export default class IndexRebuildService {
       }
     }
 
-    return await builder.finalize({ signal, frontier: /** @type {Map<string, number>|undefined} */ (/** @type {unknown} */ (frontier)) });
+    return await builder.finalize({ signal, frontier });
   }
 
   /**

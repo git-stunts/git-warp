@@ -332,6 +332,15 @@ export function deserializeWormhole(json) {
     }
   }
 
+  for (const field of ['fromSha', 'toSha', 'writerId']) {
+    if (typeof typedJson[field] !== 'string') {
+      throw new WormholeError(`Invalid wormhole JSON: '${field}' must be a string`, {
+        code: 'E_INVALID_WORMHOLE_JSON',
+        context: { [field]: typedJson[field] },
+      });
+    }
+  }
+
   if (typeof typedJson.patchCount !== 'number' || typedJson.patchCount < 0) {
     throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
       code: 'E_INVALID_WORMHOLE_JSON',

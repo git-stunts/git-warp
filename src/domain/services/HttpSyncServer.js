@@ -30,21 +30,21 @@ const authSchema = z.object({
 }).strict();
 
 const optionsSchema = z.object({
-  httpPort: z.custom(
+  httpPort: /** @type {z.ZodType<import('../../ports/HttpServerPort.js').default>} */ (z.custom(
     (v) => v !== null && v !== undefined && typeof v === 'object',
-    'httpPort is required',
-  ),
-  graph: z.custom(
+    'httpPort must be a non-null object',
+  )),
+  graph: /** @type {z.ZodType<import('../WarpGraph.js').default>} */ (z.custom(
     (v) => v !== null && v !== undefined && typeof v === 'object',
-    'graph is required',
-  ),
+    'graph must be a non-null object',
+  )),
   maxRequestBytes: z.number().int().positive().max(MAX_REQUEST_BYTES_CEILING).default(DEFAULT_MAX_REQUEST_BYTES),
   path: z.string().startsWith('/').default('/sync'),
   host: z.string().min(1).default('127.0.0.1'),
   auth: authSchema.optional(),
   allowedWriters: z.array(z.string()).optional(),
 }).strict().superRefine((data, ctx) => {
-  if (data.allowedWriters && !data.auth) {
+  if (data.allowedWriters && data.allowedWriters.length > 0 && !data.auth) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'allowedWriters requires auth.keys to be configured',
@@ -225,14 +225,10 @@ function parseBody(body) {
 /**
  * Initializes auth service from config if present.
  *
- * @param {{ keys: Record<string, string>, mode: 'enforce'|'log-only', crypto?: *, logger?: *, wallClockMs?: () => number }|undefined} auth
+ * @param {z.infer<typeof authSchema>} [auth]
  * @param {string[]} [allowedWriters]
  * @returns {{ auth: SyncAuthService|null, authMode: string|null }}
  * @private
- */
-/**
- * @param {z.infer<typeof authSchema>} [auth]
- * @param {string[]} [allowedWriters]
  */
 function initAuth(auth, allowedWriters) {
   if (auth) {

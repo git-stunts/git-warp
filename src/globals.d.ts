@@ -48,7 +48,7 @@ declare namespace Deno {
 /* ------------------------------------------------------------------ */
 
 interface BunServer {
-  stop(): void;
+  stop(closeActiveConnections?: boolean): Promise<void>;
   hostname: string;
   port: number;
 }

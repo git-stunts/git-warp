@@ -596,7 +596,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 - **B30** (`any` CAST CLEANUP + `WarpPersistence` TYPE) — define `WarpPersistence` union type covering all 5 persistence ports; replace 161+ `any` casts in `src/` with validated types.
 
-**Acceptance:** `grep "type {any}" src/` returns zero.
+**Acceptance:** `grep -rE '@type \{(\*|any)\}' src/` returns zero.
 
 ### M8 Phase 3 — Declaration Automation
 
@@ -808,7 +808,7 @@ B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `
 
 ### Critical Path
 
-```
+```text
 B29 ──→ B30 ──→ B41/B42 ──→ [M8 GATE] ──→ B33 ──→ [M9 GATE]
  │                                          B32 ──┘      │
  B38                                        B31(opt)      │

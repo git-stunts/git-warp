@@ -412,8 +412,8 @@ export default class StreamingBitmapIndexBuilder {
    * @param {Object} [options] - Finalization options
    * @param {AbortSignal} [options.signal] - Optional AbortSignal for cancellation.
    *   If aborted, throws an error with code 'ABORT_ERR'.
-   * @param {Map<string, number>} [options.frontier] - Optional version vector frontier
-   *   (writerId → clock) for staleness detection. If provided, frontier.cbor and
+   * @param {Map<string, string>} [options.frontier] - Optional writer frontier
+   *   (writerId → tip SHA) for staleness detection. If provided, frontier.cbor and
    *   frontier.json files are included in the tree.
    * @returns {Promise<string>} OID of the created Git tree containing the complete index
    * @throws {Error} If the operation is aborted via signal
@@ -442,7 +442,7 @@ export default class StreamingBitmapIndexBuilder {
 
     // Store frontier metadata for staleness detection
     if (frontier) {
-      /** @type {Record<string, number|undefined>} */
+      /** @type {Record<string, string|undefined>} */
       const sorted = {};
       for (const key of Array.from(frontier.keys()).sort()) {
         sorted[key] = frontier.get(key);

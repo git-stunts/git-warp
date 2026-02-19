@@ -126,7 +126,7 @@ function createFetchHandler(requestHandler, logger) {
 }
 
 /**
- * @typedef {{ hostname: string, port: number, stop: () => void }} BunServer
+ * @typedef {{ hostname: string, port: number, stop: (closeActiveConnections?: boolean) => Promise<void> }} BunServer
  */
 
 /**
@@ -157,7 +157,9 @@ function startServer(serveOptions, cb) {
 function stopServer(state, callback) {
   try {
     if (state.server) {
-      state.server.stop();
+      // stop() synchronously halts the listener; the returned Promise
+      // represents draining of active connections — safe to ignore here.
+      void state.server.stop();
       state.server = null;
     }
     if (callback) {

@@ -263,7 +263,9 @@ export class TrustRecordService {
     const treeOid = await this._persistence.writeTree([`100644 blob ${blobOid}\trecord.cbor`]);
 
     const parents = parentSha ? [parentSha] : [];
-    const message = `trust: ${/** @type {string} */ (record.recordType)} ${/** @type {string} */ (record.recordId).slice(0, 12)}`;
+    const rType = typeof record.recordType === 'string' ? record.recordType : '';
+    const rId = typeof record.recordId === 'string' ? record.recordId.slice(0, 12) : '';
+    const message = `trust: ${rType} ${rId}`;
 
     const commitSha = await this._persistence.commitNodeWithTree({
       treeOid,

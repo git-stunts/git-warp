@@ -42,6 +42,18 @@ failed at runtime against a real GitGraphAdapter.
 - **JSR publish dry-run panic** — Added `imports` map for `roaring` in `jsr.json` so Deno's rewriter doesn't generate overlapping TextChange entries on duplicate `import('roaring')` references in JSDoc. Also synced `jsr.json` version to 11.3.2.
 - **BATS query test flake** — Fixed order-sensitive assertion in test #93 "query returns nodes using builder" — sorted node IDs before comparison.
 
+### Review Fixes (CodeRabbit round 3)
+
+- **type-surface manifest** — Added missing `setSeekCache` method; `syncWith` return type now includes optional `state` property matching `index.d.ts`.
+- **HttpSyncServer z.custom types** — Added `z.ZodType<>` annotations to `httpPort` and `graph` in `optionsSchema` so `z.infer` preserves port types. Improved error messages.
+- **HttpSyncServer allowedWriters** — Empty array `[]` no longer triggers the "requires auth" validation error (truthy check → length check).
+- **HttpSyncServer initAuth JSDoc** — Merged duplicate JSDoc blocks; removed stale `crypto?: *` and `logger?: *` wildcards.
+- **WormholeService typeof guards** — Added `typeof` string guards for `fromSha`, `toSha`, `writerId` before JSDoc casts, matching the existing `patchCount` guard pattern.
+- **TrustRecordService _persistRecord** — `record.recordId` and `record.recordType` now use `typeof` guards instead of bare JSDoc casts, preventing `TypeError` on `undefined`.
+- **StreamingBitmapIndexBuilder frontier type** — `finalize()` JSDoc changed from `Map<string, number>` to `Map<string, string>` (writerId → tip SHA), matching all callers. Removed double cast in `IndexRebuildService.rebuild()`.
+- **BunHttpAdapter stop() typedef** — `BunServer.stop()` return type corrected from `void` to `Promise<void>` in both JSDoc typedef and `globals.d.ts`.
+- **ROADMAP.md** — Added `text` language specifier to fenced code block (MD040). Fixed grep acceptance criterion (`-rE` flag + wildcard pattern).
+
 ## [11.3.1] — 2026-02-18 — M8 IRONCLAD: Embedded Wildcard Elimination
 
 Completes M8 IRONCLAD by eliminating all remaining embedded wildcards, fixing

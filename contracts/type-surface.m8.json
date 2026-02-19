@@ -158,7 +158,7 @@
             { "name": "remote", "type": "string | WarpGraph" },
             { "name": "options", "type": "SyncWithOptions", "optional": true }
           ],
-          "returns": "Promise<{ applied: number; attempts: number }>"
+          "returns": "Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>"
         },
         "fork": {
           "async": true,
@@ -293,7 +293,11 @@
         "onDeleteWithData": { "type": "'reject' | 'cascade' | 'warn'", "readonly": true, "getter": true },
         "gcPolicy": { "type": "GCPolicyConfig", "readonly": true, "getter": true },
         "temporal": { "type": "TemporalQuery", "readonly": true, "getter": true },
-        "traverse": { "type": "LogicalTraversal" }
+        "traverse": { "type": "LogicalTraversal" },
+        "setSeekCache": {
+          "params": [{ "name": "cache", "type": "SeekCachePort | null" }],
+          "returns": "void"
+        }
       }
     },
     "PatchBuilderV2": {
