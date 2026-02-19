@@ -1,6 +1,9 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "11.3.0",
+  "version": "11.3.2",
+  "imports": {
+    "roaring": "npm:roaring@^2.7.0"
+  },
   "exports": {
     ".": "./index.js",
     "./node": "./src/domain/entities/GraphNode.js",

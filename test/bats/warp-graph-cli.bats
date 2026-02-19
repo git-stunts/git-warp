@@ -93,7 +93,8 @@ PY
   JSON="$output" python3 - <<'PY'
 import json, os, sys
 data = json.loads(os.environ["JSON"])
-assert data["nodes"] == [{"id": "user:bob"}, {"id": "user:carol"}]
+ids = sorted(n["id"] for n in data["nodes"])
+assert ids == ["user:bob", "user:carol"], f"Expected [user:bob, user:carol] but got {ids}"
 PY
 }
 

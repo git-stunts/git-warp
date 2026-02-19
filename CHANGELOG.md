@@ -39,6 +39,8 @@ failed at runtime against a real GitGraphAdapter.
 - **CommitDagTraversalService constructor** — Removed `= {}` default so TypeScript enforces the required `indexReader` at compile time.
 - **PatchCommitEvent.sha** — Made `sha` property required (was optional but always provided at emission).
 - **prepack gate** — Wired `typecheck:consumer` into `prepack` script.
+- **JSR publish dry-run panic** — Added `imports` map for `roaring` in `jsr.json` so Deno's rewriter doesn't generate overlapping TextChange entries on duplicate `import('roaring')` references in JSDoc. Also synced `jsr.json` version to 11.3.2.
+- **BATS query test flake** — Fixed order-sensitive assertion in test #93 "query returns nodes using builder" — sorted node IDs before comparison.
 
 ## [11.3.1] — 2026-02-18 — M8 IRONCLAD: Embedded Wildcard Elimination
 
