@@ -1,7 +1,7 @@
 {
   "$comment": "IRONCLAD M9 ratchet — this number can ONLY decrease, NEVER increase.",
   "wildcardCount": 0,
-  "lastUpdated": "2026-02-18",
+  "lastUpdated": "2026-02-19",
   "rules": [
     "any in JSDoc type expressions (Record<string, any>, etc.)",
     "bare {*} in JSDoc @param/@property/@returns",

@@ -215,12 +215,12 @@ describe('WarpStateIndexBuilder', () => {
       // Forward edge: parent -> child
       const fwdBitmap = builder.builder.bitmaps.get('fwd_parent');
       expect(fwdBitmap).toBeDefined();
-      expect(/** @type {import('../../../../src/domain/utils/roaring.js').RoaringBitmapSubset} */ (fwdBitmap).has(/** @type {number} */ (childId))).toBe(true);
+      expect(/** @type {*} */ (fwdBitmap).has(/** @type {number} */ (childId))).toBe(true);
 
       // Reverse edge: child -> parent
       const revBitmap = builder.builder.bitmaps.get('rev_child');
       expect(revBitmap).toBeDefined();
-      expect(/** @type {import('../../../../src/domain/utils/roaring.js').RoaringBitmapSubset} */ (revBitmap).has(/** @type {number} */ (parentId))).toBe(true);
+      expect(/** @type {*} */ (revBitmap).has(/** @type {number} */ (parentId))).toBe(true);
     });
   });
 

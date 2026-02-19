@@ -253,6 +253,7 @@ export class TrustRecordService {
   async _persistRecord(ref, record, parentSha) {
     // Encode record as CBOR blob
     const encoded = this._codec.encode(record);
+    // Buffer.from() ensures Uint8Array from codec is accepted by writeBlob
     const blobOid = await this._persistence.writeBlob(Buffer.from(encoded));
 
     // Create tree with single entry (mktree format)

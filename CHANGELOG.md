@@ -24,6 +24,13 @@ failed at runtime against a real GitGraphAdapter.
 - **TrustRecordService constructor** — `{*}` params replaced with `CommitPort & BlobPort & TreePort & RefPort` and `CodecPort`.
 - **any-fence.json** — Wildcard count ratcheted from 9 → 0.
 
+### Review Fixes (post-review cleanup)
+
+- **Stray transcript file** — Removed `2026-02-17-131249-…w.txt` accidentally committed with M9.
+- **BitmapIndexReader return types** — `_handleShardError`, `_tryHandleShardError`, and `_getOrLoadShard` return types now include `RoaringBitmapSubset` for the bitmap-format branch.
+- **`_tryHandleShardError` guard** — Added `instanceof Error` guard, removing bare `/** @type {Error} */` cast on `unknown` catch variable.
+- **Test cast simplification** — Replaced verbose 100+ char `RoaringBitmapSubset` import casts with `/** @type {*} */` in `WarpStateIndexBuilder.test.js` (test files are outside the wildcard fence).
+
 ## [11.3.1] — 2026-02-18 — M8 IRONCLAD: Embedded Wildcard Elimination
 
 Completes M8 IRONCLAD by eliminating all remaining embedded wildcards, fixing

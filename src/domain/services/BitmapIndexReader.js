@@ -304,7 +304,7 @@ export default class BitmapIndexReader {
    * @param {string} context.path - Shard path
    * @param {string} context.oid - Object ID
    * @param {string} context.format - 'json' or 'bitmap'
-   * @returns {Record<string, string | number>} Empty shard (non-strict mode only)
+   * @returns {Record<string, string | number> | import('../utils/roaring.js').RoaringBitmapSubset} Empty shard (non-strict mode only)
    * @throws {ShardCorruptionError|ShardValidationError} In strict mode
    * @private
    */
@@ -396,11 +396,12 @@ export default class BitmapIndexReader {
    * @param {string} context.path - Shard path
    * @param {string} context.oid - Object ID
    * @param {string} context.format - 'json' or 'bitmap'
-   * @returns {Record<string, string | number> | null} Handled result or null if error should be re-thrown
+   * @returns {Record<string, string | number> | import('../utils/roaring.js').RoaringBitmapSubset | null} Handled result or null if error should be re-thrown
    * @private
    */
   _tryHandleShardError(err, context) {
-    const wrappedErr = this._wrapParseError(/** @type {Error} */ (err), context.path, context.oid);
+    if (!(err instanceof Error)) { return null; }
+    const wrappedErr = this._wrapParseError(err, context.path, context.oid);
     const isHandleable = wrappedErr instanceof ShardCorruptionError ||
                          wrappedErr instanceof ShardValidationError;
     return isHandleable ? this._handleShardError(wrappedErr, context) : null;
@@ -415,7 +416,7 @@ export default class BitmapIndexReader {
    *
    * @param {string} path - Shard path
    * @param {string} format - 'json' or 'bitmap'
-   * @returns {Promise<Record<string, string | number>>}
+   * @returns {Promise<Record<string, string | number> | import('../utils/roaring.js').RoaringBitmapSubset>}
    * @throws {ShardLoadError} When storage.readBlob fails
    * @throws {ShardCorruptionError} When shard format is invalid (strict mode only)
    * @throws {ShardValidationError} When version or checksum validation fails (strict mode only)
