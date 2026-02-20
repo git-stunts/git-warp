@@ -56,7 +56,7 @@
 
 ### Dependency Graph
 
-```
+```text
 Depth 0 (no deps):
   B29, B38, B14, B46, B47, B26, B53, B50
 
