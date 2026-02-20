@@ -473,7 +473,7 @@ export class PatchBuilderV2 {
    * 6. Creates a Git tree containing the patch blob
    * 7. Creates a commit with proper trailers linking to the parent
    * 8. Updates the writer ref to point to the new commit
-   * 8. Invokes the success callback if provided (for eager re-materialization)
+   * 9. Invokes the success callback if provided (for eager re-materialization)
    *
    * The commit is written to the writer's patch chain at:
    * `refs/warp/<graphName>/writers/<writerId>`

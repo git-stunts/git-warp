@@ -113,10 +113,11 @@ export async function _nextLamport() {
       try {
         const patchInfo = decodePatchMessage(commitMessage);
         ownTick = patchInfo.lamport;
-      } catch {
+      } catch (err) {
         throw new Error(
           `Failed to parse lamport from writer ref ${writerRef}: ` +
-          `commit ${currentRefSha} has invalid patch message format`
+          `commit ${currentRefSha} has invalid patch message format`,
+          { cause: err }
         );
       }
     }
