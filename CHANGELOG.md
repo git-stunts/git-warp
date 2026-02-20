@@ -20,7 +20,7 @@ Extracts scan helpers and satisfies TypeScript strict narrowing.
 
 ### Changed
 
-- **WarpGraph** — Exposed `_maxObservedLamport` getter for test observability.
+- **WarpGraph** — Added `_maxObservedLamport` private field (initialized to `0`); `_nextLamport()` now returns `Math.max(ownTick, _maxObservedLamport) + 1` for globally-monotonic ticks; `_onPatchCommitted()` updates `_maxObservedLamport` after each successful commit. Exposed `_maxObservedLamport` getter for test observability.
 - **PatchBuilderV2** — `commit()` / `build()` now read `graph._maxObservedLamport` to seed the Lamport clock, ensuring monotonicity across materialize→write cycles.
 - **No-coordination test suite** — Added Lamport monotonicity regression tests in `WarpGraph.noCoordination.test.js`.
 
