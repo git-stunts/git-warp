@@ -1,25 +1,20 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    tags: [ "v*.*.*", "v*.*.*-*" ]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.workflow_run.head_branch }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   verify:
     name: Verify metadata and publishability
     runs-on: ubuntu-latest
-    # Only proceed if CI passed on a version tag
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       tag_version: ${{ steps.meta.outputs.tag_version }}
@@ -28,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ github.ref_name }}
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -44,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ github.event.workflow_run.head_branch }}"
+          TAG="${{ github.ref_name }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # Validate tag format (same regex as tag-guard.yml)
