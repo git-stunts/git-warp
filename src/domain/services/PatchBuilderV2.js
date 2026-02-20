@@ -541,7 +541,16 @@ export class PatchBuilderV2 {
       const kind = detectMessageKind(commitMessage);
 
       if (kind === 'patch') {
-        const patchInfo = decodePatchMessage(commitMessage);
+        let patchInfo;
+        try {
+          patchInfo = decodePatchMessage(commitMessage);
+        } catch (err) {
+          throw new Error(
+            `Failed to parse lamport from writer ref ${writerRef}: ` +
+            `commit ${currentRefSha} has invalid patch message format`,
+            { cause: err }
+          );
+        }
         lamport = Math.max(this._lamport, patchInfo.lamport + 1);
       }
       // Non-patch ref (checkpoint, etc.): keep lamport from this._lamport
@@ -564,18 +573,16 @@ export class PatchBuilderV2 {
       writes: [...this._writes].sort(),
     });
 
-    // 5. Encode patch as CBOR
+    // 5. Encode patch as CBOR and write as a Git blob
     const patchCbor = this._codec.encode(patch);
-
-    // 6. Write patch.cbor blob
     const patchBlobOid = await this._persistence.writeBlob(/** @type {Buffer} */ (patchCbor));
 
-    // 7. Create tree with the blob
+    // 6. Create tree with the blob
     // Format for mktree: "mode type oid\tpath"
     const treeEntry = `100644 blob ${patchBlobOid}\tpatch.cbor`;
     const treeOid = await this._persistence.writeTree([treeEntry]);
 
-    // 8. Create patch commit message with trailers (schema:2)
+    // 7. Create commit with proper trailers linking to the parent
     const commitMessage = encodePatchMessage({
       graph: this._graphName,
       writer: this._writerId,
@@ -583,8 +590,6 @@ export class PatchBuilderV2 {
       patchOid: patchBlobOid,
       schema,
     });
-
-    // 9. Create commit with tree, linking to previous patch as parent if exists
     const parents = parentCommit ? [parentCommit] : [];
     const newCommitSha = await this._persistence.commitNodeWithTree({
       treeOid,
@@ -592,10 +597,10 @@ export class PatchBuilderV2 {
       message: commitMessage,
     });
 
-    // 10. Update writer ref to point to new commit
+    // 8. Update writer ref to point to new commit
     await this._persistence.updateRef(writerRef, newCommitSha);
 
-    // 11. Notify success callback (updates graph's version vector + eager re-materialize)
+    // 9. Notify success callback (updates graph's version vector + eager re-materialize)
     if (this._onCommitSuccess) {
       try {
         await this._onCommitSuccess({ patch, sha: newCommitSha });
@@ -605,7 +610,6 @@ export class PatchBuilderV2 {
       }
     }
 
-    // 12. Return the new commit SHA
     return newCommitSha;
   }
 
