@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.3] — 2026-02-20 — Fix: Lamport Clock Global Max
+
+Fixes a Lamport clock monotonicity bug where `_maxObservedLamport` was not
+updated from the frontier during materialization, only from individual patches.
+Extracts scan helpers and satisfies TypeScript strict narrowing.
+
+### Fixed
+
+- **Lamport frontier scan** — `scanFrontierForMaxLamport` extracted as a module-private helper in `materialize.methods.js`. Previously the frontier's Lamport values were not scanned when computing the global max, which could cause clock drift in multi-writer scenarios.
+- **Lamport patch scan** — `scanPatchesForMaxLamport` extracted alongside the frontier scan, replacing inline loops that pushed `materialize()` past lint complexity (38 vs max 35) and nesting depth (7 vs max 6).
+- **TS narrowing for `patch.lamport`** — `patch.lamport` (`number | undefined`) is now extracted to a local `const tick = patch.lamport ?? 0` so TypeScript can narrow the type at the assignment site.
+
+### Changed
+
+- **WarpGraph** — Exposed `_maxObservedLamport` getter for test observability.
+- **PatchBuilderV2** — `commit()` / `build()` now read `graph._maxObservedLamport` to seed the Lamport clock, ensuring monotonicity across materialize→write cycles.
+- **No-coordination test suite** — Added Lamport monotonicity regression tests in `WarpGraph.noCoordination.test.js`.
+
 ## [11.3.2] — 2026-02-19 — M9 IRONCLAD: Zero Wildcards
 
 Eliminates all 9 remaining wildcards (7 in bitmap index code, 2 in TrustRecordService)
