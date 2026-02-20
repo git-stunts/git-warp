@@ -16,6 +16,7 @@ Extracts scan helpers and satisfies TypeScript strict narrowing.
 - **Lamport frontier scan** — `scanFrontierForMaxLamport` extracted as a module-private helper in `materialize.methods.js`. Previously the frontier's Lamport values were not scanned when computing the global max, which could cause clock drift in multi-writer scenarios.
 - **Lamport patch scan** — `scanPatchesForMaxLamport` extracted alongside the frontier scan, replacing inline loops that pushed `materialize()` past lint complexity (38 vs max 35) and nesting depth (7 vs max 6).
 - **TS narrowing for `patch.lamport`** — `patch.lamport` (`number | undefined`) is now extracted to a local `const tick = patch.lamport ?? 0` so TypeScript can narrow the type at the assignment site.
+- **PatchBuilderV2 `commit()` non-patch ref crash** — `commit()` unconditionally called `decodePatchMessage()` on the current writer ref, which throws if the ref points to a non-patch commit (e.g. checkpoint). Now calls `detectMessageKind()` first and only decodes when the kind is `'patch'`, matching the existing guard in `_nextLamport()`.
 
 ### Changed
 

@@ -24,7 +24,7 @@ import {
   createPatchV2,
 } from '../types/WarpTypesV2.js';
 import { encodeEdgeKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
-import { encodePatchMessage, decodePatchMessage } from './WarpMessageCodec.js';
+import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 import WriterError from '../errors/WriterError.js';
 
@@ -533,12 +533,18 @@ export class PatchBuilderV2 {
     let parentCommit = null;
 
     if (currentRefSha) {
+      parentCommit = currentRefSha;
       // Read the current patch commit to get its lamport timestamp and take the max,
       // so the chain stays monotonic even if the ref advanced since createPatch().
       const commitMessage = await this._persistence.showNode(currentRefSha);
-      const patchInfo = decodePatchMessage(commitMessage);
-      lamport = Math.max(this._lamport, patchInfo.lamport + 1);
-      parentCommit = currentRefSha;
+      const kind = detectMessageKind(commitMessage);
+
+      if (kind === 'patch') {
+        const patchInfo = decodePatchMessage(commitMessage);
+        lamport = Math.max(this._lamport, patchInfo.lamport + 1);
+      }
+      // Non-patch ref (checkpoint, etc.): keep lamport from this._lamport
+      // (already incorporates _maxObservedLamport), matching _nextLamport() behavior.
     }
 
     // 4. Build PatchV2 structure with correct lamport
