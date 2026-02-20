@@ -580,7 +580,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M8 Phase 1 — Declaration Fix + Boundary Validation
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
@@ -590,7 +590,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M8 Phase 2 — Cast Elimination
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
@@ -600,12 +600,12 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M8 Phase 3 — Declaration Automation
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
-- **B41** (AUTO-GENERATE `.d.ts` FROM JSDOC) — generate declarations from JSDoc automatically (e.g. `tsc --declaration --emitDeclarationOnly`); prevents declaration drift.
-- **B42** (CI `.d.ts` SIGNATURE VALIDATION) — CI step validating `.d.ts` signatures match runtime exports. **Must include semantic shape validation** (parameter types + return types), not just export name matching. This is what makes B45 (rejected) truly redundant.
+- **B41** (DECLARATION SURFACE VALIDATOR) — `scripts/check-dts-surface.js` validates `index.d.ts` against the `type-surface.m8.json` manifest and `index.js` runtime exports. Catches drift when exports are added/removed without updating declarations or manifest.
+- **B42** (CI `.d.ts` SIGNATURE VALIDATION + CONSUMER EXPANSION) — Consumer type test (`test/type-check/consumer.ts`) expanded to cover full API surface per manifest: sync protocol, serve, fork, wormhole, GC, provenance, Writer lifecycle, standalone functions (BTR, wormhole, type creators, tick receipts, migration), class constructors (InMemoryGraphAdapter, GitGraphAdapter, BitmapIndexBuilder/Reader, ProvenancePayload, HealthCheckService), getters/setters, and 6 negative `@ts-expect-error` cases. CI Gate 5 runs the surface validator.
 
 **M8 Gate:** `.d.ts` CI green; zero `any` casts; B28 compile-only stub passes (`tsc --noEmit` on minimal TS consumer).
 

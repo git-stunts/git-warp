@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.0] — 2026-02-20 — M8 IRONCLAD Phase 3: Declaration Surface Automation
+
+Completes M8 IRONCLAD with automated declaration surface validation and expanded
+consumer type tests. All three M8 phases are now DONE.
+
+### Added
+
+- **Declaration surface validator** (`scripts/check-dts-surface.js`) — Cross-checks `contracts/type-surface.m8.json` manifest against `index.js` runtime exports and `index.d.ts` declarations. Catches drift when exports are added or removed without updating the other surfaces. Exits non-zero on any missing declaration.
+- **CI Gate 5** — Declaration surface validator wired into the `type-firewall` job in `.github/workflows/ci.yml`. Runs after Gate 4 (ESLint).
+- **`typecheck:surface` npm script** — Runs `node scripts/check-dts-surface.js`.
+
+### Changed
+
+- **Consumer type test expansion** (`test/type-check/consumer.ts`) — Coverage expanded from ~60% to full API surface per manifest. Now tests: sync protocol (`syncWith`, `serve`, `createSyncRequest`, `processSyncRequest`, `applySyncResponse`, `syncCoverage`, `syncNeeded`), checkpoint (`createCheckpoint`), writer discovery (`discoverWriters`, `getWriterPatches`), provenance (`patchesFor`, `materializeSlice`), fork/wormhole (`fork`, `createWormhole`), watch, `translationCost`, GC (`runGC`, `getGCMetrics`), `createWriter` (deprecated), `setSeekCache`, getters (`temporal`, `traverse`, `persistence`, `onDeleteWithData`, `gcPolicy`, `provenanceIndex`). All standalone functions covered: type creators, BTR, wormhole, tick receipts, migration. Class constructors: `InMemoryGraphAdapter`, `GitGraphAdapter`, `BitmapIndexBuilder`/`Reader`, `ProvenancePayload`, `HealthCheckService`. Negative `@ts-expect-error` cases increased from 4 to 6.
+- **ROADMAP.md** — M8 Phase 1, Phase 2, and Phase 3 statuses updated to `DONE`.
+
 ## [11.3.3] — 2026-02-20 — Fix: Lamport Clock Global Max
 
 Fixes a Lamport clock monotonicity bug where `_maxObservedLamport` was not

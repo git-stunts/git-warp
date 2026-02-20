@@ -30,6 +30,8 @@ jobs:
         run: npm run typecheck:consumer
       - name: "Gate 4: ESLint (typed rules + no-explicit-any + no-unsafe-*)"
         run: npm run lint
+      - name: "Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)"
+        run: npm run typecheck:surface
 
   lint:
     runs-on: ubuntu-latest
