@@ -187,10 +187,6 @@ const _attachResult: PatchBuilderV2 = await pb.attachContent('n1', 'hello');
 const _attachEdgeResult: PatchBuilderV2 = await pb.attachEdgeContent('n1', 'n2', 'knows', Buffer.from('data'));
 const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
 
-// ---- PatchSession content attachment ----
-const psAttach: PatchSession = await ps.attachContent('x', 'content');
-const psAttachEdge: PatchSession = await ps.attachEdgeContent('a', 'b', 'c', 'content');
-
 // ---- query builder ----
 const qb: QueryBuilder = graph.query();
 
@@ -227,6 +223,8 @@ const ps3: PatchSession = ps.setProperty('x', 'k', 'v').setEdgeProperty('a', 'b'
 const psPatch: PatchV2 = ps.build();
 const psSha: string = await ps.commit();
 const psOpCount: number = ps.opCount;
+const psAttach: PatchSession = await ps.attachContent('x', 'content');
+const psAttachEdge: PatchSession = await ps.attachEdgeContent('a', 'b', 'c', 'content');
 
 // ---- sync protocol ----
 const syncReq: SyncRequest = await graph.createSyncRequest();
