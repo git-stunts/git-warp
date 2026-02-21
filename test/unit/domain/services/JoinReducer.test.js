@@ -732,9 +732,11 @@ describe('JoinReducer', () => {
 
       const result = join(state, patch, 'aaaa1234', true);
 
-      expect(result.state.observedFrontier.get('A')).toBe(5);
-      expect(result.state.observedFrontier.get('C')).toBe(1);
-      expect(result.receipt).toBeDefined();
+      expect('state' in result).toBe(true);
+      const { state: s, receipt } = /** @type {{state: import('../../../../src/domain/services/JoinReducer.js').WarpStateV5, receipt: *}} */ (result);
+      expect(s.observedFrontier.get('A')).toBe(5);
+      expect(s.observedFrontier.get('C')).toBe(1);
+      expect(receipt).toBeDefined();
     });
   });
 });
