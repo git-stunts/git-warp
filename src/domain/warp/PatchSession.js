@@ -149,6 +149,37 @@ export class PatchSession {
   }
 
   /**
+   * Attaches content to a node.
+   *
+   * @param {string} nodeId - The node ID to attach content to
+   * @param {Buffer|string} content - The content to attach
+   * @returns {Promise<this>} This session for chaining
+   * @throws {Error} If this session has already been committed
+   */
+  async attachContent(nodeId, content) {
+    this._ensureNotCommitted();
+    await this._builder.attachContent(nodeId, content);
+    return this;
+  }
+
+  /**
+   * Attaches content to an edge.
+   *
+   * @param {string} from - Source node ID
+   * @param {string} to - Target node ID
+   * @param {string} label - Edge label/type
+   * @param {Buffer|string} content - The content to attach
+   * @returns {Promise<this>} This session for chaining
+   * @throws {Error} If this session has already been committed
+   */
+  // eslint-disable-next-line max-params -- direct delegate matching PatchBuilderV2 signature
+  async attachEdgeContent(from, to, label, content) {
+    this._ensureNotCommitted();
+    await this._builder.attachEdgeContent(from, to, label, content);
+    return this;
+  }
+
+  /**
    * Builds the PatchV2 object without committing.
    *
    * @returns {import('../types/WarpTypesV2.js').PatchV2} The constructed patch

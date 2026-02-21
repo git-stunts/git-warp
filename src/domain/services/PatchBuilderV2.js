@@ -465,7 +465,6 @@ export class PatchBuilderV2 {
    * @param {Buffer|string} content - The content to attach
    * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
    */
-  // eslint-disable-next-line max-params -- direct delegate matching setEdgeProperty signature
   async attachEdgeContent(from, to, label, content) {
     const oid = await this._persistence.writeBlob(content);
     this._contentBlobs.push(oid);
