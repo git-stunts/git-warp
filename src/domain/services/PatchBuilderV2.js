@@ -623,7 +623,7 @@ export class PatchBuilderV2 {
     // Format for mktree: "mode type oid\tpath"
     const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
     for (let i = 0; i < this._contentBlobs.length; i++) {
-      treeEntries.push(`100644 blob ${this._contentBlobs[i]}\t_blob_${i}`);
+      treeEntries.push(`100644 blob ${this._contentBlobs[i]}\t_content_${this._contentBlobs[i]}`);
     }
     const treeOid = await this._persistence.writeTree(treeEntries);
 

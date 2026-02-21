@@ -170,9 +170,8 @@ Content blobs created by `git hash-object -w` are loose objects. Without anchori
 **Solution:** `PatchBuilderV2.commit()` embeds content blob OIDs in the patch commit tree alongside the CBOR patch blob:
 
 ```
-patch.cbor      → CBOR-encoded patch blob
-_blob_0         → first content blob
-_blob_1         → second content blob (if multiple in same patch)
+patch.cbor          → CBOR-encoded patch blob
+_content_<oid>      → content blob, keyed by its hex OID (self-documenting, unique by construction)
 ```
 
 This makes content blobs reachable via the writer ref chain (`refs/warp/<graph>/writers/<id>` → commit → tree → blob). GC protection is automatic. Sync replicates content along with patches. Zero new refs, zero new Git commands.

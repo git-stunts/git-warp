@@ -204,7 +204,7 @@ describe('PatchBuilderV2 content attachment', () => {
   });
 
   describe('commit() with content blobs', () => {
-    it('includes _blob_* entries in tree when content blobs exist', async () => {
+    it('includes _content_<oid> entries in tree when content blobs exist', async () => {
       const contentOid = 'a'.repeat(40);
       const patchBlobOid = 'b'.repeat(40);
       const persistence = createMockPersistence({
@@ -227,11 +227,11 @@ describe('PatchBuilderV2 content attachment', () => {
       await builder.attachContent('n1', 'hello');
       await builder.commit();
 
-      // writeTree should be called with both patch.cbor and _blob_0
+      // writeTree should be called with both patch.cbor and _content_<oid>
       const treeEntries = persistence.writeTree.mock.calls[0][0];
       expect(treeEntries).toHaveLength(2);
       expect(treeEntries[0]).toBe(`100644 blob ${patchBlobOid}\tpatch.cbor`);
-      expect(treeEntries[1]).toBe(`100644 blob ${contentOid}\t_blob_0`);
+      expect(treeEntries[1]).toBe(`100644 blob ${contentOid}\t_content_${contentOid}`);
     });
 
     it('creates single-entry tree when no content blobs', async () => {
@@ -254,7 +254,7 @@ describe('PatchBuilderV2 content attachment', () => {
       expect(treeEntries[0]).toContain('patch.cbor');
     });
 
-    it('includes multiple _blob_* entries for multiple attachments', async () => {
+    it('includes multiple _content_<oid> entries for multiple attachments', async () => {
       let blobIdx = 0;
       const contentA = '1'.repeat(40);
       const contentB = '2'.repeat(40);
@@ -283,8 +283,8 @@ describe('PatchBuilderV2 content attachment', () => {
       const treeEntries = persistence.writeTree.mock.calls[0][0];
       expect(treeEntries).toHaveLength(3);
       expect(treeEntries[0]).toContain('patch.cbor');
-      expect(treeEntries[1]).toBe(`100644 blob ${contentA}\t_blob_0`);
-      expect(treeEntries[2]).toBe(`100644 blob ${contentB}\t_blob_1`);
+      expect(treeEntries[1]).toBe(`100644 blob ${contentA}\t_content_${contentA}`);
+      expect(treeEntries[2]).toBe(`100644 blob ${contentB}\t_content_${contentB}`);
     });
   });
 });

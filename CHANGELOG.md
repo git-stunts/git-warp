@@ -21,7 +21,7 @@ scoping for free — zero changes to JoinReducer, serialization, or the CRDT lay
 - **`WarpGraph.getContent(nodeId)`** — returns `Buffer | null` from the content blob.
 - **`WarpGraph.getContentOid(nodeId)`** — returns hex OID or null.
 - **`WarpGraph.getEdgeContent(from, to, label)`** / **`getEdgeContentOid()`** — edge variants.
-- **Blob anchoring** — content blob OIDs embedded in patch commit tree as `_blob_0`, `_blob_1`, etc. Survives `git gc --prune=now`.
+- **Blob anchoring** — content blob OIDs embedded in patch commit tree as `_content_<oid>` entries (self-documenting, unique by construction). Survives `git gc --prune=now`.
 - **Type declarations** — all new methods in `index.d.ts`, `type-surface.m8.json`, `consumer.ts`.
 - **Integration tests** — 11 tests covering single-writer, LWW, time-travel, deletion, Writer API, GC durability, binary round-trip.
 - **Unit tests** — 23 tests for PatchBuilderV2 content ops and WarpGraph query methods.
@@ -29,7 +29,7 @@ scoping for free — zero changes to JoinReducer, serialization, or the CRDT lay
 
 ### Fixed
 
-- **Checkpoint content anchoring** — `CheckpointService.createV5()` now scans `state.prop` for `_content` values and embeds the referenced blob OIDs in the checkpoint tree as `_blob_*` entries. This ensures content survives `git gc` even if patch commits are ever pruned.
+- **Checkpoint content anchoring** — `CheckpointService.createV5()` now scans `state.prop` for `_content` values and embeds the referenced blob OIDs in the checkpoint tree as `_content_<oid>` entries. This ensures content survives `git gc` even if patch commits are ever pruned.
 - **`GitGraphAdapter.readBlob()`** — Now always returns a real Node `Buffer` (wraps `Uint8Array` from plumbing with `Buffer.from()`). Consumers can call `.toString('utf8')` directly.
 
 ## [11.4.0] — 2026-02-20 — M8 IRONCLAD Phase 3: Declaration Surface Automation

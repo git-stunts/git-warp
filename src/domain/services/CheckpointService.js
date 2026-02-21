@@ -160,9 +160,8 @@ export async function createV5({
   }
 
   // Add content blob anchors
-  let blobIdx = 0;
   for (const oid of contentOids) {
-    treeEntries.push(`100644 blob ${oid}\t_blob_${blobIdx++}`);
+    treeEntries.push(`100644 blob ${oid}\t_content_${oid}`);
   }
 
   // Sort entries by filename for deterministic tree (git requires sorted entries by path)
