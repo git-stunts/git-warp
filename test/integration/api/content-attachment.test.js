@@ -25,7 +25,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getContent('doc:1');
     expect(content).not.toBeNull();
-    expect(Buffer.from(content).toString('utf8')).toBe('# Hello World\n\nThis is content.');
+    expect(content.toString('utf8')).toBe('# Hello World\n\nThis is content.');
   });
 
   it('getContentOid returns hex OID', async () => {
@@ -75,7 +75,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getEdgeContent('a', 'b', 'rel');
     expect(content).not.toBeNull();
-    expect(Buffer.from(content).toString('utf8')).toBe('edge payload');
+    expect(content.toString('utf8')).toBe('edge payload');
 
     const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
     expect(oid).toMatch(/^[0-9a-f]+$/);
@@ -103,7 +103,7 @@ describe('API: Content Attachment', () => {
     expect(content).not.toBeNull();
 
     // Bob's content should win (higher Lamport tick)
-    expect(Buffer.from(content).toString('utf8')).toBe('bob version');
+    expect(content.toString('utf8')).toBe('bob version');
   });
 
   it('time-travel: materialize with ceiling returns historical content', async () => {
@@ -124,12 +124,12 @@ describe('API: Content Attachment', () => {
     // Latest should be v2
     await graph.materialize();
     const latest = await graph.getContent('doc:1');
-    expect(Buffer.from(latest).toString('utf8')).toBe('version 2');
+    expect(latest.toString('utf8')).toBe('version 2');
 
     // Ceiling=1 should be v1
     await graph.materialize({ ceiling: 1 });
     const historical = await graph.getContent('doc:1');
-    expect(Buffer.from(historical).toString('utf8')).toBe('version 1');
+    expect(historical.toString('utf8')).toBe('version 1');
   });
 
   it('node deletion removes content reference', async () => {
@@ -163,7 +163,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     const content = await graph.getContent('doc:1');
-    expect(Buffer.from(content).toString('utf8')).toBe('via writer API');
+    expect(content.toString('utf8')).toBe('via writer API');
   });
 
   it('GC durability: content survives git gc --prune=now', async () => {
@@ -181,7 +181,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getContent('doc:1');
     expect(content).not.toBeNull();
-    expect(Buffer.from(content).toString('utf8')).toBe('must survive gc');
+    expect(content.toString('utf8')).toBe('must survive gc');
   });
 
   it('binary content round-trips correctly', async () => {

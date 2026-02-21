@@ -510,7 +510,9 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     const stream = await this.plumbing.executeStream({
       args: ['cat-file', 'blob', oid]
     });
-    return await stream.collect({ asString: false });
+    const raw = await stream.collect({ asString: false });
+    // Ensure a real Node Buffer (plumbing may return Uint8Array)
+    return Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
   }
 
   /**
