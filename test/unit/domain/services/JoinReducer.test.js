@@ -673,5 +673,68 @@ describe('JoinReducer', () => {
       expect(state.observedFrontier.get('B')).toBe(8); // took higher
       expect(state.observedFrontier.get('C')).toBe(3); // added new
     });
+
+    it('incorporates the patch own dot into observedFrontier', () => {
+      const state = createEmptyStateV5();
+
+      const context = createVersionVector();
+      context.set('A', 5);
+      context.set('B', 3);
+
+      const patch = createPatchV2({
+        writer: 'C',
+        lamport: 1,
+        ops: [createNodeAddV2('x', createDot('C', 1))],
+        context,
+      });
+
+      join(state, patch, 'aaaa1234');
+
+      expect(state.observedFrontier.get('A')).toBe(5);
+      expect(state.observedFrontier.get('B')).toBe(3);
+      expect(state.observedFrontier.get('C')).toBe(1);
+    });
+
+    it('observedFrontier advances with each patch from the same writer', () => {
+      const state = createEmptyStateV5();
+
+      join(state, createPatchV2({
+        writer: 'A', lamport: 1,
+        ops: [createNodeAddV2('n1', createDot('A', 1))],
+        context: createVersionVector(),
+      }), 'aaaa0001');
+
+      expect(state.observedFrontier.get('A')).toBe(1);
+
+      const ctx2 = createVersionVector();
+      ctx2.set('A', 1);
+      join(state, createPatchV2({
+        writer: 'A', lamport: 2,
+        ops: [createNodeAddV2('n2', createDot('A', 2))],
+        context: ctx2,
+      }), 'aaaa0002');
+
+      expect(state.observedFrontier.get('A')).toBe(2);
+    });
+
+    it('incorporates patch own dot on receipt path', () => {
+      const state = createEmptyStateV5();
+
+      const context = createVersionVector();
+      context.set('A', 5);
+
+      const patch = createPatchV2({
+        writer: 'C',
+        lamport: 1,
+        ops: [createNodeAddV2('x', createDot('C', 1))],
+        context,
+      });
+
+      const result = join(state, patch, 'aaaa1234', true);
+
+      expect(result.state.observedFrontier.get('A')).toBe(5);
+      expect(result.state.observedFrontier.get('C')).toBe(1);
+      expect(result.receipt).toBeDefined();
+    });
   });
 });

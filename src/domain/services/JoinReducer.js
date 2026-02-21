@@ -366,6 +366,10 @@ export function join(state, patch, patchSha, collectReceipts) {
       ? patch.context
       : vvDeserialize(patch.context);
     state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+    const current = state.observedFrontier.get(patch.writer) || 0;
+    if (patch.lamport > current) {
+      state.observedFrontier.set(patch.writer, patch.lamport);
+    }
     return state;
   }
 
@@ -423,6 +427,10 @@ export function join(state, patch, patchSha, collectReceipts) {
     ? patch.context
     : vvDeserialize(patch.context);
   state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+  const current = state.observedFrontier.get(patch.writer) || 0;
+  if (patch.lamport > current) {
+    state.observedFrontier.set(patch.writer, patch.lamport);
+  }
 
   const receipt = createTickReceipt({
     patchSha,

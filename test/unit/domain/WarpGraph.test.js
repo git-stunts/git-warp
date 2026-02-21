@@ -1652,8 +1652,10 @@ eg-schema: 2`;
         builder.addNode('user:alice');
         await builder.commit();
 
-        // After commit: writer-1 should be 1, writer-other should still be 5
-        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBe(1);
+        // After commit: writer-1 has lamport 6 (max(0, maxObserved=5) + 1),
+        // and observedFrontier (→ _versionVector) reflects the actual tick.
+        // writer-other should still be 5.
+        expect(/** @type {any} */ (graph)._versionVector.get('writer-1')).toBe(6);
         expect(/** @type {any} */ (graph)._versionVector.get('writer-other')).toBe(5);
       });
     });
