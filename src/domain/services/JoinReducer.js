@@ -329,6 +329,19 @@ function propSetOutcome(propMap, op, eventId) {
 }
 
 /**
+ * Folds a patch's own dot into the observed frontier.
+ * @param {Map<string, number>} frontier
+ * @param {string} writer
+ * @param {number} lamport
+ */
+function foldPatchDot(frontier, writer, lamport) {
+  const current = frontier.get(writer) || 0;
+  if (lamport > current) {
+    frontier.set(writer, lamport);
+  }
+}
+
+/**
  * Joins a patch into state, applying all operations in order.
  *
  * This is the primary function for incorporating a single patch into WARP state.
@@ -355,19 +368,6 @@ function propSetOutcome(propMap, op, eventId) {
  *          Returns mutated state directly when collectReceipts is false;
  *          returns {state, receipt} object when collectReceipts is true
  */
-/**
- * Folds a patch's own dot into the observed frontier.
- * @param {Map<string, number>} frontier
- * @param {string} writer
- * @param {number} lamport
- */
-function foldPatchDot(frontier, writer, lamport) {
-  const current = frontier.get(writer) || 0;
-  if (lamport > current) {
-    frontier.set(writer, lamport);
-  }
-}
-
 export function join(state, patch, patchSha, collectReceipts) {
   // ZERO-COST: when collectReceipts is falsy, skip all receipt logic
   if (!collectReceipts) {
