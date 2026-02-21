@@ -116,6 +116,10 @@ function extractDtsExports(src) {
   for (const m of src.matchAll(/export\s+(?:declare\s+)?default\s+class\s+(\w+)/g)) {
     names.add(m[1]);
   }
+  // export default Foo  (standalone identifier — class declared separately)
+  for (const m of src.matchAll(/export\s+(?:declare\s+)?default\s+(?!class\b)(\w+)/g)) {
+    names.add(m[1]);
+  }
   // export { A as B } — exported name is B
   for (const m of src.matchAll(/export\s*\{([^}]+)\}/g)) {
     for (const item of m[1].split(',')) {
