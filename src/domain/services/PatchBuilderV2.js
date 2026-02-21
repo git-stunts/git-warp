@@ -23,7 +23,7 @@ import {
   createPropSetV2,
   createPatchV2,
 } from '../types/WarpTypesV2.js';
-import { encodeEdgeKey, EDGE_PROP_PREFIX } from './KeyCodec.js';
+import { encodeEdgeKey, EDGE_PROP_PREFIX, CONTENT_PROPERTY_KEY } from './KeyCodec.js';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 import WriterError from '../errors/WriterError.js';
@@ -123,6 +123,13 @@ export class PatchBuilderV2 {
 
     /** @type {{ warn: Function }} */
     this._logger = logger || nullLogger;
+
+    /**
+     * Content blob OIDs written during this patch via attachContent/attachEdgeContent.
+     * These are embedded in the commit tree for GC protection.
+     * @type {string[]}
+     */
+    this._contentBlobs = [];
 
     /**
      * Nodes/edges read by this patch (for provenance tracking).
@@ -431,6 +438,42 @@ export class PatchBuilderV2 {
   }
 
   /**
+   * Attaches content to a node by writing the blob to the Git object store
+   * and storing the blob OID as the `_content` property.
+   *
+   * The blob OID is also tracked for embedding in the commit tree, which
+   * ensures content blobs survive `git gc` (GC protection via reachability).
+   *
+   * @param {string} nodeId - The node ID to attach content to
+   * @param {Buffer|string} content - The content to attach
+   * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
+   */
+  async attachContent(nodeId, content) {
+    const oid = await this._persistence.writeBlob(content);
+    this._contentBlobs.push(oid);
+    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, oid);
+    return this;
+  }
+
+  /**
+   * Attaches content to an edge by writing the blob to the Git object store
+   * and storing the blob OID as the `_content` edge property.
+   *
+   * @param {string} from - Source node ID
+   * @param {string} to - Target node ID
+   * @param {string} label - Edge label
+   * @param {Buffer|string} content - The content to attach
+   * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
+   */
+  // eslint-disable-next-line max-params -- direct delegate matching setEdgeProperty signature
+  async attachEdgeContent(from, to, label, content) {
+    const oid = await this._persistence.writeBlob(content);
+    this._contentBlobs.push(oid);
+    this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, oid);
+    return this;
+  }
+
+  /**
    * Builds the PatchV2 object without committing.
    *
    * This method constructs the patch structure from all queued operations.
@@ -577,10 +620,13 @@ export class PatchBuilderV2 {
     const patchCbor = this._codec.encode(patch);
     const patchBlobOid = await this._persistence.writeBlob(/** @type {Buffer} */ (patchCbor));
 
-    // 6. Create tree with the blob
+    // 6. Create tree with the patch blob + any content blobs
     // Format for mktree: "mode type oid\tpath"
-    const treeEntry = `100644 blob ${patchBlobOid}\tpatch.cbor`;
-    const treeOid = await this._persistence.writeTree([treeEntry]);
+    const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
+    for (let i = 0; i < this._contentBlobs.length; i++) {
+      treeEntries.push(`100644 blob ${this._contentBlobs[i]}\t_blob/${i}`);
+    }
+    const treeOid = await this._persistence.writeTree(treeEntries);
 
     // 7. Create commit with proper trailers linking to the parent
     const commitMessage = encodePatchMessage({

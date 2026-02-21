@@ -19,6 +19,13 @@ export const FIELD_SEPARATOR = '\0';
 export const EDGE_PROP_PREFIX = '\x01';
 
 /**
+ * Well-known property key for content attachment.
+ * Stores a content-addressed blob OID as the property value.
+ * @const {string}
+ */
+export const CONTENT_PROPERTY_KEY = '_content';
+
+/**
  * Encodes an edge key to a string for Map storage.
  *
  * @param {string} from - Source node ID
