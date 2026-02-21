@@ -50,6 +50,8 @@ jobs:
         run: npm run typecheck:policy
       - name: Consumer type test
         run: npm run typecheck:consumer
+      - name: Declaration surface
+        run: npm run typecheck:surface
       - name: Security audit (runtime deps)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high

@@ -18,7 +18,8 @@ consumer type tests. All three M8 phases are now DONE.
 
 ### Changed
 
-- **Consumer type test expansion** (`test/type-check/consumer.ts`) — Coverage expanded from ~60% to full API surface per manifest. Now tests: sync protocol (`syncWith`, `serve`, `createSyncRequest`, `processSyncRequest`, `applySyncResponse`, `syncCoverage`, `syncNeeded`), checkpoint (`createCheckpoint`), writer discovery (`discoverWriters`, `getWriterPatches`), provenance (`patchesFor`, `materializeSlice`), fork/wormhole (`fork`, `createWormhole`), watch, `translationCost`, GC (`runGC`, `getGCMetrics`), `createWriter` (deprecated), `setSeekCache`, getters (`temporal`, `traverse`, `persistence`, `onDeleteWithData`, `gcPolicy`, `provenanceIndex`). All standalone functions covered: type creators, BTR, wormhole, tick receipts, migration. Class constructors: `InMemoryGraphAdapter`, `GitGraphAdapter`, `BitmapIndexBuilder`/`Reader`, `ProvenancePayload`, `HealthCheckService`. Negative `@ts-expect-error` cases increased from 4 to 6.
+- **Consumer type test expansion** (`test/type-check/consumer.ts`) — Coverage expanded from ~60% to full API surface per manifest. All WarpGraph instance methods, standalone functions, class constructors, getters/setters, and 6 negative `@ts-expect-error` cases now covered. See `contracts/type-surface.m8.json` for the complete surface.
+- **Release workflow** (`release.yml`) — Trigger changed from `workflow_run` to direct tag push for simpler, more reliable releases.
 - **ROADMAP.md** — M8 Phase 1, Phase 2, and Phase 3 statuses updated to `DONE`.
 
 ## [11.3.3] — 2026-02-20 — Fix: Lamport Clock Global Max

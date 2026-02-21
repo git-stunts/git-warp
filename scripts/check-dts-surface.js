@@ -17,17 +17,33 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
+function readRequired(filePath) {
+  try {
+    return readFileSync(filePath, 'utf8');
+  } catch (err) {
+    if (err instanceof Error && /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
+      process.stderr.write(`ERROR: Cannot find ${filePath}\nEnsure you are running from the repository root.\n`);
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 1. Load the manifest
 // ---------------------------------------------------------------------------
 const manifestPath = resolve(root, 'contracts/type-surface.m8.json');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+const manifest = JSON.parse(readRequired(manifestPath));
 const manifestNames = new Set(Object.keys(manifest.exports));
 
 // ---------------------------------------------------------------------------
 // 2. Parse index.js — extract named exports from the `export { ... }` block
 // ---------------------------------------------------------------------------
-const indexJs = readFileSync(resolve(root, 'index.js'), 'utf8');
+const indexJs = readRequired(resolve(root, 'index.js'));
 
 /**
  * Extract names from `export { A, B, C };` blocks.
@@ -47,8 +63,10 @@ function extractJsExports(src) {
       if (!trimmed) {
         continue;
       }
+      // Handle `export { type Foo }` — strip leading `type` keyword
+      const withoutTypeKeyword = trimmed.replace(/^type\s+/, '');
       // Handle `Foo as Bar` — the exported name is Bar
-      const asParts = trimmed.split(/\s+as\s+/);
+      const asParts = withoutTypeKeyword.split(/\s+as\s+/);
       const exportedName = (asParts.length > 1 ? asParts[1] : asParts[0]).trim();
       if (exportedName) {
         names.add(exportedName);
@@ -69,7 +87,7 @@ const jsExports = extractJsExports(indexJs);
 // ---------------------------------------------------------------------------
 // 3. Parse index.d.ts — extract all exported declarations
 // ---------------------------------------------------------------------------
-const indexDts = readFileSync(resolve(root, 'index.d.ts'), 'utf8');
+const indexDts = readRequired(resolve(root, 'index.d.ts'));
 
 /**
  * @param {string} src
@@ -79,7 +97,7 @@ function extractDtsExports(src) {
   const names = new Set();
 
   // export class Foo / export abstract class Foo
-  for (const m of src.matchAll(/export\s+(?:abstract\s+)?class\s+(\w+)/g)) {
+  for (const m of src.matchAll(/export\s+(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)/g)) {
     names.add(m[1]);
   }
   // export interface Foo
@@ -91,11 +109,15 @@ function extractDtsExports(src) {
     names.add(m[1]);
   }
   // export const Foo / export function Foo
-  for (const m of src.matchAll(/export\s+(?:const|function)\s+(\w+)/g)) {
+  for (const m of src.matchAll(/export\s+(?:declare\s+)?(?:const|function)\s+(\w+)/g)) {
     names.add(m[1]);
   }
   // export default class Foo
-  for (const m of src.matchAll(/export\s+default\s+class\s+(\w+)/g)) {
+  for (const m of src.matchAll(/export\s+(?:declare\s+)?default\s+class\s+(\w+)/g)) {
+    names.add(m[1]);
+  }
+  // export default Foo  (standalone identifier — class declared separately)
+  for (const m of src.matchAll(/export\s+(?:declare\s+)?default\s+(?!class\b)(\w+)/g)) {
     names.add(m[1]);
   }
   // export { A as B } — exported name is B
@@ -105,7 +127,8 @@ function extractDtsExports(src) {
       if (!trimmed) {
         continue;
       }
-      const asParts = trimmed.split(/\s+as\s+/);
+      const withoutTypeKeyword = trimmed.replace(/^type\s+/, '');
+      const asParts = withoutTypeKeyword.split(/\s+as\s+/);
       const exportedName = (asParts.length > 1 ? asParts[1] : asParts[0]).trim();
       if (exportedName) {
         names.add(exportedName);

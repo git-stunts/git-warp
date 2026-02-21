@@ -111,10 +111,13 @@ import type {
   EventId,
   CreateWormholeOptions,
   ComposeWormholesOptions,
+  TickReceiptOpType,
+  TickReceiptResult,
 } from '../../index.js';
 
 // ---------------------------------------------------------------------------
 // Positive tests -- must compile
+// Top-level groups: ═══ banner ═══  |  Subsections: ---- label ----
 // ---------------------------------------------------------------------------
 
 declare const persistence: GraphPersistencePort;
@@ -122,6 +125,14 @@ declare const logger: LoggerPort;
 declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
+
+// Verify imported classes/ports are usable as types
+declare const _idxStorage: IndexStoragePort;
+declare const _schemaErr: SchemaUnsupportedError;
+declare const _shardLoadErr: ShardLoadError;
+declare const _shardCorruptErr: ShardCorruptionError;
+declare const _shardValErr: ShardValidationError;
+declare const _storageErr: StorageError;
 
 // WarpGraph.open() — full options
 const graph: WarpGraph = await WarpGraph.open({
@@ -302,8 +313,8 @@ const receipt = createTickReceipt({
   ops: [{ op: 'NodeAdd', target: 'n1', result: 'applied' }],
 });
 const receiptJson: string = tickReceiptCanonicalJson(receipt);
-const _opTypes: readonly string[] = TICK_RECEIPT_OP_TYPES;
-const _resultTypes: readonly string[] = TICK_RECEIPT_RESULT_TYPES;
+const _opTypes: readonly TickReceiptOpType[] = TICK_RECEIPT_OP_TYPES;
+const _resultTypes: readonly TickReceiptResult[] = TICK_RECEIPT_RESULT_TYPES;
 
 // ---------------------------------------------------------------------------
 // Standalone functions — BTR
