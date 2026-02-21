@@ -140,6 +140,33 @@ Syntax-check JS/TS code blocks embedded in markdown files (specs, guides, etc.) 
 
 **Files:** new script or CI step, `docs/**/*.md`
 
+### B-DOC-3: API examples review checklist
+
+README and doc examples shipped with a committed-patch-builder reuse bug (calling `attachEdgeContent()` on an already-committed `PatchBuilderV2`). Add a lightweight checklist for API examples in docs:
+- Each `createPatch()` / `commit()` pair must use its own builder instance
+- Async methods (`attachContent`, `attachEdgeContent`, `commit`) must be `await`ed
+- Examples should be copy-pasteable (no implicit prior state)
+
+Could be a simple markdown checklist in `CONTRIBUTING.md` or a pre-merge doc review template.
+
+**Files:** `CONTRIBUTING.md` or `.github/PULL_REQUEST_TEMPLATE.md`
+
+---
+
+## Code Quality
+
+### B-CODE-1: Add `PatchBuilder.assertNotCommitted()` guard
+
+`PatchBuilderV2` silently allows method calls after `commit()` — the builder's internal state is stale but nothing throws. A `_committed` flag + `assertNotCommitted()` check at the top of mutating methods (`addNode`, `removeNode`, `attachContent`, `setProperty`, etc.) would fail-fast with a clear error instead of producing corrupt patches or silent no-ops.
+
+**Files:** `src/domain/services/PatchBuilderV2.js`, new tests in `test/unit/domain/services/PatchBuilderV2.test.js`
+
+### B-CODE-2: `attachContent` writes blob even if `setProperty` would be a no-op
+
+`attachContent()` unconditionally calls `writeBlob()` before `setProperty()`. If the node doesn't exist or the builder is in a bad state, the blob is written to the Git object store but never referenced — an orphan until `git gc` cleans it. For `attachEdgeContent` this was fixed (validate-before-push), but `attachContent` on nodes has no pre-validation since `setProperty` doesn't check node existence. Consider a symmetric guard or accept the orphan as harmless.
+
+**Files:** `src/domain/services/PatchBuilderV2.js`
+
 ---
 
 ## Developer Experience
@@ -149,5 +176,11 @@ Syntax-check JS/TS code blocks embedded in markdown files (specs, guides, etc.) 
 The pre-push hook runs lint + all 5 type gates + all 3803 unit tests (~24s). For rapid iteration, a `--quick` pre-push mode that skips unit tests (type gates only, ~5s) would improve DX. The full suite would still run in CI.
 
 **File:** `scripts/pre-push-hook.sh` or equivalent
+
+### B-DX-2: Batch review fix commits before re-requesting CodeRabbit
+
+PR #42 had 6 incremental fix commits for review feedback, which triggered 3 CodeRabbit rounds with duplicate findings (the rabbit kept flagging issues that were already fixed in later commits it hadn't seen yet). Workflow improvement: batch all review fixes into one commit, push, then re-request review. Saves review cycles and reduces noise.
+
+**Files:** process change, no code
 
 ---
