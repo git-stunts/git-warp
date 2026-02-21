@@ -355,6 +355,19 @@ function propSetOutcome(propMap, op, eventId) {
  *          Returns mutated state directly when collectReceipts is false;
  *          returns {state, receipt} object when collectReceipts is true
  */
+/**
+ * Folds a patch's own dot into the observed frontier.
+ * @param {Map<string, number>} frontier
+ * @param {string} writer
+ * @param {number} lamport
+ */
+function foldPatchDot(frontier, writer, lamport) {
+  const current = frontier.get(writer) || 0;
+  if (lamport > current) {
+    frontier.set(writer, lamport);
+  }
+}
+
 export function join(state, patch, patchSha, collectReceipts) {
   // ZERO-COST: when collectReceipts is falsy, skip all receipt logic
   if (!collectReceipts) {
@@ -366,10 +379,7 @@ export function join(state, patch, patchSha, collectReceipts) {
       ? patch.context
       : vvDeserialize(patch.context);
     state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
-    const current = state.observedFrontier.get(patch.writer) || 0;
-    if (patch.lamport > current) {
-      state.observedFrontier.set(patch.writer, patch.lamport);
-    }
+    foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
     return state;
   }
 
@@ -427,10 +437,7 @@ export function join(state, patch, patchSha, collectReceipts) {
     ? patch.context
     : vvDeserialize(patch.context);
   state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
-  const current = state.observedFrontier.get(patch.writer) || 0;
-  if (patch.lamport > current) {
-    state.observedFrontier.set(patch.writer, patch.lamport);
-  }
+  foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
 
   const receipt = createTickReceipt({
     patchSha,

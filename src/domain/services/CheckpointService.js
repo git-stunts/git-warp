@@ -138,10 +138,10 @@ export async function createV5({
   // whose only anchor was the (now-pruned) patch commit tree.
   const contentOids = new Set();
   for (const [propKey, register] of checkpointState.prop) {
-    const { propKey: key } = isEdgePropKey(propKey)
+    const { propKey: decodedKey } = isEdgePropKey(propKey)
       ? decodeEdgePropKey(propKey)
       : decodePropKey(propKey);
-    if (key === CONTENT_PROPERTY_KEY && typeof register.value === 'string') {
+    if (decodedKey === CONTENT_PROPERTY_KEY && typeof register.value === 'string') {
       contentOids.add(register.value);
     }
   }

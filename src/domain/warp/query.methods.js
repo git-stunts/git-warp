@@ -285,6 +285,7 @@ export async function translationCost(configA, configB) {
  * @this {import('../WarpGraph.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<string|null>} Hex blob OID or null
+ * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  */
 export async function getContentOid(nodeId) {
   const props = await getNodeProps.call(this, nodeId);
@@ -325,6 +326,7 @@ export async function getContent(nodeId) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<string|null>} Hex blob OID or null
+ * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  */
 export async function getEdgeContentOid(from, to, label) {
   const props = await getEdgeProps.call(this, from, to, label);

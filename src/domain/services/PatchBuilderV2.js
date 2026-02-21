@@ -454,8 +454,8 @@ export class PatchBuilderV2 {
    */
   async attachContent(nodeId, content) {
     const oid = await this._persistence.writeBlob(content);
-    this._contentBlobs.push(oid);
     this.setProperty(nodeId, CONTENT_PROPERTY_KEY, oid);
+    this._contentBlobs.push(oid);
     return this;
   }
 

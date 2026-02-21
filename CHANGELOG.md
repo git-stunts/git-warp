@@ -31,6 +31,7 @@ scoping for free — zero changes to JoinReducer, serialization, or the CRDT lay
 
 - **Checkpoint content anchoring** — `CheckpointService.createV5()` now scans `state.prop` for `_content` values and embeds the referenced blob OIDs in the checkpoint tree as `_content_<oid>` entries. This ensures content survives `git gc` even if patch commits are ever pruned.
 - **`GitGraphAdapter.readBlob()`** — Now always returns a real Node `Buffer` (wraps `Uint8Array` from plumbing with `Buffer.from()`). Consumers can call `.toString('utf8')` directly.
+- **`observedFrontier` staleness (#43)** — `JoinReducer.join()` now folds the patch's own dot (`{writer, lamport}`) into `observedFrontier`. Previously the frontier only reflected patch context VVs (pre-creation state), lagging by one tick per writer. The graph's `_versionVector` — cloned from `observedFrontier` after materialization — now reflects actual Lamport ticks.
 
 ## [11.4.0] — 2026-02-20 — M8 IRONCLAD Phase 3: Declaration Surface Automation
 
