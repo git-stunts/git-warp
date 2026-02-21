@@ -305,6 +305,9 @@ export async function getContentOid(nodeId) {
  * @this {import('../WarpGraph.js').default}
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<Buffer|null>} Content buffer or null
+ * @throws {Error} If the referenced blob OID is not in the object store
+ *   (e.g., garbage-collected despite anchoring). Callers should handle this
+ *   if operating on repos with aggressive GC or partial clones.
  */
 export async function getContent(nodeId) {
   const oid = await getContentOid.call(this, nodeId);

@@ -343,7 +343,9 @@ const buffer = await graph.getContent('adr:0007');   // Buffer | null
 const oid    = await graph.getContentOid('adr:0007'); // hex SHA or null
 
 // Edge content works the same way (assumes nodes and edge already exist)
-await patch.attachEdgeContent('a', 'b', 'rel', 'edge payload');
+const patch2 = await graph.createPatch();
+await patch2.attachEdgeContent('a', 'b', 'rel', 'edge payload');
+await patch2.commit();
 const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 ```
 

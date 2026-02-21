@@ -20,7 +20,7 @@ scoping for free — zero changes to JoinReducer, serialization, or the CRDT lay
 - **`PatchSession.attachContent()`** / **`attachEdgeContent()`** — async pass-through delegates.
 - **`WarpGraph.getContent(nodeId)`** — returns `Buffer | null` from the content blob.
 - **`WarpGraph.getContentOid(nodeId)`** — returns hex OID or null.
-- **`WarpGraph.getEdgeContent(from, to, label)`** / **`getEdgeContentOid()`** — edge variants.
+- **`WarpGraph.getEdgeContent(from, to, label)`** / **`getEdgeContentOid(from, to, label)`** — edge variants.
 - **Blob anchoring** — content blob OIDs embedded in patch commit tree as `_content_<oid>` entries (self-documenting, unique by construction). Survives `git gc --prune=now`.
 - **Type declarations** — all new methods in `index.d.ts`, `type-surface.m8.json`, `consumer.ts`.
 - **Integration tests** — 11 tests covering single-writer, LWW, time-travel, deletion, Writer API, GC durability, binary round-trip.

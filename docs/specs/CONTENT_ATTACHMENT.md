@@ -168,7 +168,7 @@ Content blobs created by `git hash-object -w` are loose objects. Without anchori
 
 **Solution:** `PatchBuilderV2.commit()` embeds content blob OIDs in the patch commit tree alongside the CBOR patch blob:
 
-```
+```text
 patch.cbor          → CBOR-encoded patch blob
 _content_<oid>      → content blob, keyed by its hex OID (self-documenting, unique by construction)
 ```

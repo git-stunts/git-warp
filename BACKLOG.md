@@ -136,7 +136,7 @@ Add a markdownlint check to the CI pipeline to catch MD040 (missing code fence l
 
 ### B-DOC-2: Add a code sample linter for markdown files
 
-Syntax-check JS/TS code blocks embedded in markdown files (specs, guides, etc.) to catch issues like duplicate `const` declarations, TDZ errors, and other syntax errors before they reach review. Could use `eslint --stdin` on extracted code blocks or a dedicated tool like `remark-lint-fenced-code-flag`.
+Syntax-check JS/TS code blocks embedded in markdown files (specs, guides, etc.) to catch issues like duplicate `const` declarations, TDZ errors, and other syntax errors before they reach review. Could use `eslint-plugin-markdown` (runs ESLint natively on fenced blocks) or a custom script that extracts code blocks and pipes them through `eslint --stdin`.
 
 **Files:** new script or CI step, `docs/**/*.md`
 
