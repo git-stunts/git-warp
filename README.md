@@ -334,15 +334,15 @@ Attach content-addressed blobs to nodes and edges as first-class payloads (Paper
 
 ```javascript
 const patch = await graph.createPatch();
-patch.addNode('adr:0007');
-await patch.attachContent('adr:0007', '# ADR 0007\n\nDecision text...');
+patch.addNode('adr:0007');                                    // sync — queues a NodeAdd op
+await patch.attachContent('adr:0007', '# ADR 0007\n\nDecision text...'); // async — writes blob
 await patch.commit();
 
 // Read content back
 const buffer = await graph.getContent('adr:0007');   // Buffer | null
 const oid    = await graph.getContentOid('adr:0007'); // hex SHA or null
 
-// Edge content works the same way
+// Edge content works the same way (assumes nodes and edge already exist)
 await patch.attachEdgeContent('a', 'b', 'rel', 'edge payload');
 const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 ```

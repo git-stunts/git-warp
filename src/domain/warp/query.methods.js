@@ -291,6 +291,7 @@ export async function getContentOid(nodeId) {
   if (!props) {
     return null;
   }
+  // getNodeProps returns a Map — use .get() for property access
   const oid = props.get(CONTENT_PROPERTY_KEY);
   return (typeof oid === 'string') ? oid : null;
 }
@@ -327,6 +328,7 @@ export async function getEdgeContentOid(from, to, label) {
   if (!props) {
     return null;
   }
+  // getEdgeProps returns a plain object — use bracket access
   const oid = props[CONTENT_PROPERTY_KEY];
   return (typeof oid === 'string') ? oid : null;
 }

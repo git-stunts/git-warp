@@ -54,7 +54,6 @@ This proposal implements the depth-0 case of attachments: nodes carry `Atom(p)` 
 - CLI commands for content manipulation (consumer concerns)
 - Editor integration, conflict resolution UX (consumer concerns)
 - Nested WARP attachments (future work)
-- Edge attachments (deferred to v2 unless trivially included)
 
 ---
 

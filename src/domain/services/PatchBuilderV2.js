@@ -444,6 +444,10 @@ export class PatchBuilderV2 {
    * The blob OID is also tracked for embedding in the commit tree, which
    * ensures content blobs survive `git gc` (GC protection via reachability).
    *
+   * Note: The node must exist in the materialized state (or be added in
+   * this patch) for `getContent()` to find it later. `attachContent()`
+   * only sets the `_content` property — it does not create the node.
+   *
    * @param {string} nodeId - The node ID to attach content to
    * @param {Buffer|string} content - The content to attach
    * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
