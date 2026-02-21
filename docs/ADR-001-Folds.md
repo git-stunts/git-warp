@@ -36,7 +36,7 @@ This ADR is strictly about **Folds**.
 
 ## Decision
 
-### ✅ For now (Immediate): Keep It Silly Simple
+### For now (Immediate): Keep It Silly Simple
 
 We will ship v1 content attachment using an Atom/CAS technique:
 
@@ -47,7 +47,7 @@ We will ship v1 content attachment using an Atom/CAS technique:
 
 This is `Atom(p)` where `p` is a Git object ID — faithful to the Paper I base case.
 
-### 🔥 Proposed (Deferred): Add **Folds** for Structural Recursion
+### Proposed (Deferred): Add **Folds** for Structural Recursion
 
 If/when we pursue true recursive WARP attachments, we will implement **Fold boundaries** as a structural convention:
 
@@ -103,106 +103,103 @@ type FoldPolicy = {
   maxDepth?: number;          // default: 0 for collapsed, 1 for shallow, Infinity for recursive
   include?: (foldRootId: string) => boolean; // optional filter
 };
+```
 
 Default behavior for existing APIs:
-	•	collapsed (fold interiors are ignored unless explicitly requested)
+- collapsed (fold interiors are ignored unless explicitly requested)
 
 Rationale:
-	•	prevents accidental “graph explosion”
-	•	preserves current mental model for consumers
-	•	makes Fold an opt-in “zoom lens”
+- prevents accidental "graph explosion"
+- preserves current mental model for consumers
+- makes Fold an opt-in "zoom lens"
 
-3) API Surface (Proposed)
+### 3) API Surface (Proposed)
 
 Folds should be exposed as explicit view operations, not implicit traversal surprises.
 
-3.1 View API
+#### 3.1 View API
 
+```javascript
 const view = graph.view({ fold: { mode: "shallow", maxDepth: 1 } });
 
 await view.traverse(startNodeId);
 await view.query(...);
 await view.renderAscii(...);
+```
 
-graph.view() returns a wrapper that:
-	•	shares the same underlying state
-	•	applies FoldPolicy to traversal and query expansions
-	•	never changes commit/sync behavior
+`graph.view()` returns a wrapper that:
+- shares the same underlying state
+- applies FoldPolicy to traversal and query expansions
+- never changes commit/sync behavior
 
-3.2 Attachment Graph Accessors
+#### 3.2 Attachment Graph Accessors
 
+```javascript
 // returns fold root id (even if fold is empty)
 graph.getFoldRootForNode(nodeId) -> string
 
-// returns a “scoped view” whose traversals are rooted inside the fold
+// returns a "scoped view" whose traversals are rooted inside the fold
 graph.getFoldViewForNode(nodeId, foldPolicy?) -> GraphView
+```
 
-4) Invariants
+### 4) Invariants
 
 Folds must uphold:
-	1.	Determinism: same graph state + same FoldPolicy => same view results
-	2.	Non-causality: Fold does not affect sync, receipts, frontiers, or writer ordering
-	3.	Safety by default: existing calls do not suddenly traverse recursive interiors
-	4.	Codec safety: fold ids are canonical and cannot collide with consumer ids
-	5.	Separation of concerns: “wormholes” remain causal; “folds” remain structural
+1. Determinism: same graph state + same FoldPolicy => same view results
+2. Non-causality: Fold does not affect sync, receipts, frontiers, or writer ordering
+3. Safety by default: existing calls do not suddenly traverse recursive interiors
+4. Codec safety: fold ids are canonical and cannot collide with consumer ids
+5. Separation of concerns: "wormholes" remain causal; "folds" remain structural
 
-Consequences
+## Consequences
 
-Benefits
-	•	Enables a faithful “recursive WARP” structure without new op types.
-	•	Adds “zoom levels” to tame fractal graphs for humans and tooling.
-	•	Creates a path from blob attachments → structured, mergeable attachment graphs.
-	•	Avoids conflating structural recursion with causal sync (wormhole drift).
+### Benefits
+- Enables a faithful "recursive WARP" structure without new op types.
+- Adds "zoom levels" to tame fractal graphs for humans and tooling.
+- Creates a path from blob attachments to structured, mergeable attachment graphs.
+- Avoids conflating structural recursion with causal sync (wormhole drift).
 
-Costs / Risks
-	•	Introduces a long-lived convention (fold namespace + portal semantics).
-	•	Requires traversal/render/query APIs to accept FoldPolicy (complexity tax).
-	•	Needs careful boundary handling to prevent accidental mutation of fold internals.
-	•	Indexing may need fold-aware modes (exclude folds by default).
+### Costs / Risks
+- Introduces a long-lived convention (fold namespace + portal semantics).
+- Requires traversal/render/query APIs to accept FoldPolicy (complexity tax).
+- Needs careful boundary handling to prevent accidental mutation of fold internals.
+- Indexing may need fold-aware modes (exclude folds by default).
 
-Alternatives Considered
-	1.	Pointer recursion only (Echo style: node stores ref to another graph)
-	•	Pros: simple, decoupled, aligns with existing multi-graph workflows
-	•	Cons: attachments not mergeable structurally within the same causal universe; harder partial replication
-	2.	Nested op logs per node/edge
-	•	Pros: “true recursion” in a formal sense
-	•	Cons: extremely complex reducer/interpreter; heavy migration risk
-	3.	Store nested graphs as CAS blobs
-	•	Pros: cheap
-	•	Cons: not structural recursion; merges become coarse (LWW)
+## Alternatives Considered
 
-Folds (namespaced subgraphs) are the “sane structural recursion” option.
+1. **Pointer recursion only** (Echo style: node stores ref to another graph)
+   - Pros: simple, decoupled, aligns with existing multi-graph workflows
+   - Cons: attachments not mergeable structurally within the same causal universe; harder partial replication
+2. **Nested op logs per node/edge**
+   - Pros: "true recursion" in a formal sense
+   - Cons: extremely complex reducer/interpreter; heavy migration risk
+3. **Store nested graphs as CAS blobs**
+   - Pros: cheap
+   - Cons: not structural recursion; merges become coarse (LWW)
 
-Rollout Plan
+Folds (namespaced subgraphs) are the "sane structural recursion" option.
 
-Phase 0 (Now): Ship Atom/CAS attachment (v1)
-	•	_content property storing OID
-	•	helper methods for attach/read
-	•	tests + type surface
-	•	docs/spec for content attachment
+## Rollout Plan
 
-Phase 1 (Later): Fold MVP as view-only
-	•	define fold id codec + reserved portal edge label
-	•	implement graph.view({ fold }) traversal expansion
-	•	update renderers to show fold markers (collapsed vs expanded)
-	•	no changes to sync / receipts / writers / JoinReducer
+**Phase 0 (Now):** Ship Atom/CAS attachment (v1)
+- `_content` property storing OID
+- helper methods for attach/read
+- tests + type surface
+- docs/spec for content attachment
 
-Phase 2 (Later): Structural attachment graphs
-	•	standardize attachment schema conventions within fold subgraphs
-	•	(optional) edge folds
-	•	(optional) “attachment-aware” indexing/query helpers
+**Phase 1 (Later):** Fold MVP as view-only
+- define fold id codec + reserved portal edge label
+- implement `graph.view({ fold })` traversal expansion
+- update renderers to show fold markers (collapsed vs expanded)
+- no changes to sync / receipts / writers / JoinReducer
 
-Decision Summary
+**Phase 2 (Later):** Structural attachment graphs
+- standardize attachment schema conventions within fold subgraphs
+- (optional) edge folds
+- (optional) "attachment-aware" indexing/query helpers
 
-We will proceed immediately with the minimal Atom/CAS _content technique to unblock consumers.
+## Decision Summary
+
+We will proceed immediately with the minimal Atom/CAS `_content` technique to unblock consumers.
 
 Folds are approved as a future direction for structural recursion and zoomable fractal graphs, but are explicitly deferred until a concrete consumer need demands it.
-
-Translation: ship WAP now, keep WARP’s final form on the altar for when we actually need to summon it.
-
----
-
-If you want this even *hotter*, I can also generate:
-- `ADR-00XX` filename + numbering suggestion that matches your existing ADR conventions
-- a companion `docs/specs/FOLDS.md` that’s more technical + testable than ADR prose
-- a “FoldPolicy acceptance tests” list so the behavior can’t drift into wormhole-land again
