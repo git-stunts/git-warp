@@ -176,6 +176,24 @@ describe('PatchBuilderV2 content attachment', () => {
       const result = await builder.attachEdgeContent('a', 'b', 'rel', 'x');
       expect(result).toBe(builder);
     });
+
+    it('does not pollute _contentBlobs when edge does not exist', async () => {
+      const persistence = createMockPersistence({
+        writeBlob: vi.fn().mockResolvedValue('def456'),
+      });
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => createMockState(),
+      }));
+
+      await expect(
+        builder.attachEdgeContent('no', 'such', 'edge', 'content')
+      ).rejects.toThrow();
+      expect(builder._contentBlobs).toEqual([]);
+    });
   });
 
   describe('multiple attachments in one patch', () => {
@@ -285,6 +303,37 @@ describe('PatchBuilderV2 content attachment', () => {
       expect(treeEntries[0]).toContain('patch.cbor');
       expect(treeEntries[1]).toBe(`100644 blob ${contentA}\t_content_${contentA}`);
       expect(treeEntries[2]).toBe(`100644 blob ${contentB}\t_content_${contentB}`);
+    });
+
+    it('deduplicates tree entries when same content is attached to multiple nodes', async () => {
+      const sharedOid = 'a'.repeat(40);
+      const patchBlob = 'b'.repeat(40);
+      let callCount = 0;
+      const blobOids = [sharedOid, sharedOid, patchBlob];
+      const persistence = createMockPersistence({
+        writeBlob: vi.fn().mockImplementation(() =>
+          Promise.resolve(blobOids[callCount++])),
+        writeTree: vi.fn().mockResolvedValue('c'.repeat(40)),
+      });
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+        expectedParentSha: null,
+      }));
+
+      builder.addNode('n1').addNode('n2');
+      await builder.attachContent('n1', 'same-data');
+      await builder.attachContent('n2', 'same-data');
+      await builder.commit();
+
+      const treeEntries = persistence.writeTree.mock.calls[0][0];
+      expect(treeEntries).toHaveLength(2);
+      expect(treeEntries[0]).toContain('patch.cbor');
+      expect(treeEntries[1]).toBe(`100644 blob ${sharedOid}\t_content_${sharedOid}`);
     });
   });
 });

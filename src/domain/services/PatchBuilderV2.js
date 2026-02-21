@@ -471,8 +471,8 @@ export class PatchBuilderV2 {
    */
   async attachEdgeContent(from, to, label, content) {
     const oid = await this._persistence.writeBlob(content);
-    this._contentBlobs.push(oid);
     this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, oid);
+    this._contentBlobs.push(oid);
     return this;
   }
 
@@ -623,11 +623,12 @@ export class PatchBuilderV2 {
     const patchCbor = this._codec.encode(patch);
     const patchBlobOid = await this._persistence.writeBlob(/** @type {Buffer} */ (patchCbor));
 
-    // 6. Create tree with the patch blob + any content blobs
+    // 6. Create tree with the patch blob + any content blobs (deduplicated)
     // Format for mktree: "mode type oid\tpath"
     const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
-    for (let i = 0; i < this._contentBlobs.length; i++) {
-      treeEntries.push(`100644 blob ${this._contentBlobs[i]}\t_content_${this._contentBlobs[i]}`);
+    const uniqueBlobs = [...new Set(this._contentBlobs)];
+    for (const blobOid of uniqueBlobs) {
+      treeEntries.push(`100644 blob ${blobOid}\t_content_${blobOid}`);
     }
     const treeOid = await this._persistence.writeTree(treeEntries);
 
