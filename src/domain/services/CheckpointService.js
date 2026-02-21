@@ -25,7 +25,7 @@ import { createORSet, orsetAdd, orsetCompact } from '../crdt/ORSet.js';
 import { createDot } from '../crdt/Dot.js';
 import { createVersionVector } from '../crdt/VersionVector.js';
 import { cloneStateV5, reduceV5 } from './JoinReducer.js';
-import { encodeEdgeKey, encodePropKey } from './KeyCodec.js';
+import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from './KeyCodec.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 
 // ============================================================================
@@ -132,6 +132,20 @@ export async function createV5({
     provenanceIndexBlobOid = await persistence.writeBlob(/** @type {Buffer} */ (provenanceIndexBuffer));
   }
 
+  // 6c. Collect content blob OIDs from state properties for GC anchoring.
+  // If patch commits are ever pruned, content blobs remain reachable via
+  // the checkpoint tree. Without this, git gc would nuke content blobs
+  // whose only anchor was the (now-pruned) patch commit tree.
+  const contentOids = new Set();
+  for (const [propKey, register] of checkpointState.prop) {
+    const { propKey: key } = isEdgePropKey(propKey)
+      ? decodeEdgePropKey(propKey)
+      : decodePropKey(propKey);
+    if (key === CONTENT_PROPERTY_KEY && typeof register.value === 'string') {
+      contentOids.add(register.value);
+    }
+  }
+
   // 7. Create tree with sorted entries
   const treeEntries = [
     `100644 blob ${appliedVVBlobOid}\tappliedVV.cbor`,
@@ -143,6 +157,12 @@ export async function createV5({
   // Add provenance index if present
   if (provenanceIndexBlobOid) {
     treeEntries.push(`100644 blob ${provenanceIndexBlobOid}\tprovenanceIndex.cbor`);
+  }
+
+  // Add content blob anchors
+  let blobIdx = 0;
+  for (const oid of contentOids) {
+    treeEntries.push(`100644 blob ${oid}\t_blob_${blobIdx++}`);
   }
 
   // Sort entries by filename for deterministic tree (git requires sorted entries by path)
