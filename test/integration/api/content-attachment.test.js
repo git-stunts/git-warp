@@ -184,6 +184,30 @@ describe('API: Content Attachment', () => {
     expect(content.toString('utf8')).toBe('must survive gc');
   });
 
+  it('checkpoint anchoring: content survives GC after checkpoint', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+
+    // Attach content and commit
+    const p1 = await graph.createPatch();
+    p1.addNode('doc:1');
+    await p1.attachContent('doc:1', 'checkpointed content');
+    await p1.commit();
+
+    // Materialize + create checkpoint (anchors content blob in checkpoint tree)
+    await graph.materialize();
+    await graph.createCheckpoint();
+
+    // Aggressive GC — would nuke loose blobs not reachable from any ref
+    execSync('git gc --prune=now', { cwd: repo.tempDir, stdio: 'pipe' });
+
+    // Re-open graph (fresh instance, no cached state)
+    const graph2 = await repo.openGraph('test', 'alice');
+    await graph2.materialize();
+    const content = await graph2.getContent('doc:1');
+    expect(content).not.toBeNull();
+    expect(content.toString('utf8')).toBe('checkpointed content');
+  });
+
   it('binary content round-trips correctly', async () => {
     const graph = await repo.openGraph('test', 'alice');
     const binary = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
