@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Publication-quality SVG diagrams** — 8 Graphviz diagrams in `docs/diagrams/` covering the empty tree trick, two-plane state model, ref layout, patch anatomy, multi-writer convergence, materialization pipeline, checkpoint tree, and hexagonal architecture. Grayscale, transparent-background, serif-font styling matching the AION paper aesthetic.
+- **`scripts/build-diagrams.sh`** — compiles all `.dot` files to SVG with transparent-background post-processing.
+
 ## [11.5.0] — 2026-02-20 — Content Attachment (Paper I `Atom(p)`)
 
 Implements content attachment — the ability to attach content-addressed blobs

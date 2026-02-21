@@ -1,0 +1,89 @@
+// Fig 5. Multi-Writer Convergence
+// Style: Hybrid — Git chains + WARP state output
+// Shows: Independent writer patch chains converging via JoinReducer
+
+digraph multi_writer {
+  bgcolor=transparent
+  rankdir=LR
+  fontname="Times-Roman"
+  fontsize=11
+  label=<<I>Fig. 5.  Multi-Writer Convergence — independent chains, deterministic merge</I>>
+  labelloc=b
+  labeljust=c
+  nodesep=0.4
+  ranksep=0.7
+
+  node [fontname="Times-Roman", fontsize=10, penwidth=0.8]
+  edge [fontname="Times-Roman", fontsize=8, penwidth=0.8]
+
+  // === Alice's patch chain ===
+  subgraph cluster_alice {
+    label=<<B>Alice</B>>
+    labelloc=t
+    style=rounded
+    color="#606060"
+    penwidth=0.8
+    fontname="Times-Roman"
+    fontsize=9
+
+    Pa1 [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+         label=<P<SUB>a1</SUB><BR/><FONT FACE="Courier" POINT-SIZE="7">L=1</FONT>>]
+    Pa2 [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+         label=<P<SUB>a2</SUB><BR/><FONT FACE="Courier" POINT-SIZE="7">L=2</FONT>>]
+    Pa3 [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+         label=<P<SUB>a3</SUB><BR/><FONT FACE="Courier" POINT-SIZE="7">L=4</FONT>>]
+
+    Pa1 -> Pa2 -> Pa3
+  }
+
+  // === Bob's patch chain ===
+  subgraph cluster_bob {
+    label=<<B>Bob</B>>
+    labelloc=t
+    style=rounded
+    color="#606060"
+    penwidth=0.8
+    fontname="Times-Roman"
+    fontsize=9
+
+    Pb1 [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+         label=<P<SUB>b1</SUB><BR/><FONT FACE="Courier" POINT-SIZE="7">L=1</FONT>>]
+    Pb2 [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+         label=<P<SUB>b2</SUB><BR/><FONT FACE="Courier" POINT-SIZE="7">L=3</FONT>>]
+
+    Pb1 -> Pb2
+  }
+
+  // === JoinReducer ===
+  reducer [shape=box, style="rounded,filled", fillcolor="#d0d0d0", penwidth=1.2,
+           label=<{<B>JoinReducer</B>|{
+             OR-Set merge<BR/>(skeleton) |
+             LWW merge<BR/>(attachments)
+           }}>]
+
+  // === Materialized State ===
+  state [shape=box, style="rounded,filled", fillcolor="#f0f0f0", penwidth=1.0,
+         label=<{<B>WarpStateV5</B>|{
+           <FONT FACE="Courier" POINT-SIZE="8">nodeAlive: ORSet</FONT> |
+           <FONT FACE="Courier" POINT-SIZE="8">edgeAlive: ORSet</FONT> |
+           <FONT FACE="Courier" POINT-SIZE="8">prop: Map&lt;LWW&gt;</FONT> |
+           <FONT FACE="Courier" POINT-SIZE="8">observedFrontier: VV</FONT>
+         }}>]
+
+  // === Sort step ===
+  sort [shape=box, style="rounded,filled", fillcolor=white,
+        label=<Sort by<BR/>Lamport>]
+
+  // Convergence arrows
+  Pa3 -> sort [penwidth=1.2]
+  Pb2 -> sort [penwidth=1.2]
+  sort -> reducer [penwidth=1.2]
+  reducer -> state [penwidth=1.2]
+
+  // No-coordination annotation
+  no_coord [shape=plaintext, fontsize=8, fontname="Times-Roman",
+            label=<no coordination<BR/>required between writers>]
+
+  {rank=same; Pa1; Pb1}
+  {rank=same; Pa3; Pb2}
+}

@@ -1,0 +1,66 @@
+// Fig 4. Patch Commit Anatomy
+// Style: Git object vocabulary (i)
+// Shows: Internal structure of a single WARP patch commit
+
+digraph patch_anatomy {
+  bgcolor=transparent
+  rankdir=TB
+  fontname="Times-Roman"
+  fontsize=11
+  label=<<I>Fig. 4.  Patch Commit Anatomy — a single WARP patch commit</I>>
+  labelloc=b
+  labeljust=c
+  nodesep=0.5
+  ranksep=0.6
+
+  node [fontname="Times-Roman", fontsize=10, penwidth=0.8]
+  edge [fontname="Times-Roman", fontsize=8, penwidth=0.8]
+
+  // The patch commit (record shape)
+  commit [shape=record, style="rounded,filled", fillcolor="#e8e8e8",
+          label=<{<B>Patch Commit</B><BR/><FONT FACE="Courier" POINT-SIZE="8">f1a2b3c4d5e6f7a</FONT>|{
+            tree: <FONT FACE="Courier" POINT-SIZE="8">a9b8c7d...</FONT> |
+            parent: <FONT FACE="Courier" POINT-SIZE="8">d4e5f6a...</FONT>
+          }|{<FONT POINT-SIZE="9"><B>Trailers:</B><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-kind: patch</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-graph: myGraph</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-writer: alice</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-lamport: 42</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-schema: 2</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-patch-oid: b3c4d5e...</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-state-hash: e6f7a8b...</FONT><BR ALIGN="LEFT"/>
+            <FONT FACE="Courier">eg-frontier-oid: c7d8e9f...</FONT><BR ALIGN="LEFT"/>
+          </FONT>}}>]
+
+  // Parent commit
+  parent [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
+          label=<Parent Commit<BR/><FONT FACE="Courier" POINT-SIZE="8">d4e5f6a...</FONT>>]
+
+  // Tree
+  tree [shape=folder, style=filled, fillcolor="#f0f0f0",
+        label=<tree<BR/><FONT FACE="Courier" POINT-SIZE="7">a9b8c7d...</FONT>>]
+
+  // Blobs
+  patch_cbor [shape=ellipse, style=filled, fillcolor=white,
+              label=<patch.cbor<BR/><FONT POINT-SIZE="8">CBOR-encoded ops</FONT>>]
+  content_1 [shape=ellipse, style=filled, fillcolor=white,
+             label=<_content_abc...<BR/><FONT POINT-SIZE="8">blob value</FONT>>]
+
+  // Ops detail
+  ops [shape=box, style="dashed,filled", fillcolor="#f0f0f0",
+       label=<{<B>Patch Operations</B> (schema:2)|{
+         <FONT FACE="Courier" POINT-SIZE="8">NodeAdd(id, dot)</FONT> |
+         <FONT FACE="Courier" POINT-SIZE="8">NodeTombstone(id, dots)</FONT> |
+         <FONT FACE="Courier" POINT-SIZE="8">EdgeAdd(from, to, label, dot)</FONT> |
+         <FONT FACE="Courier" POINT-SIZE="8">EdgeTombstone(key, dots)</FONT> |
+         <FONT FACE="Courier" POINT-SIZE="8">PropSet(key, val, eventId)</FONT> |
+         <FONT FACE="Courier" POINT-SIZE="8">BlobValue(oid, data)</FONT>
+       }}>]
+
+  // Connections
+  commit -> parent [label="parent"]
+  commit -> tree [label="tree"]
+  tree -> patch_cbor [penwidth=0.5, label=<entry>]
+  tree -> content_1 [penwidth=0.5, label=<entry>]
+  patch_cbor -> ops [style=dashed, penwidth=0.5, label="decodes to"]
+}
