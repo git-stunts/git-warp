@@ -55,9 +55,27 @@ const result = await graph.query()
 
 ## How It Works
 
-<p align="center">
-  <img src="docs/diagrams/fig-data-storage.svg" alt="WARP data storage — invisible to normal Git workflows" width="700">
-</p>
+```mermaid
+flowchart TB
+    subgraph normal["Normal Git Objects"]
+        h["HEAD"] -.-> m["refs/heads/main"]
+        m -.-> c3["C3 · a1b2c3d"]
+        c3 -->|parent| c2["C2 · e4f5a6b"]
+        c2 -->|parent| c1["C1 · 7c8d9e0"]
+        c3 -->|tree| t3["tree"]
+        t3 --> src["src/index.js"]
+        t3 --> pkg["package.json"]
+    end
+
+    subgraph warp["WARP Patch Objects"]
+        wr["refs/warp/myGraph/<br/>writers/alice"] -.-> p3["P3 lamport=3<br/>f1a2b3c"]
+        p3 -->|parent| p2["P2 lamport=2<br/>d4e5f6a"]
+        p2 -->|parent| p1["P1 lamport=1<br/>b7c8d9e"]
+        p3 -->|tree| wt["empty tree"]
+        wt --> pc["patch.cbor"]
+        wt --> cc["_content_*"]
+    end
+```
 
 ### The Multi-Writer Problem (and How It's Solved)
 
@@ -77,9 +95,20 @@ Every operation gets a unique **EventId** — `(lamport, writerId, patchSha, opI
 
 ## Multi-Writer Collaboration
 
-<p align="center">
-  <img src="docs/diagrams/fig-multi-writer.svg" alt="Multi-writer convergence — independent chains, deterministic merge" width="700">
-</p>
+```mermaid
+flowchart TB
+    subgraph alice["Alice"]
+        pa1["Pa1 · L=1"] --> pa2["Pa2 · L=2"] --> pa3["Pa3 · L=4"]
+    end
+
+    subgraph bob["Bob"]
+        pb1["Pb1 · L=1"] --> pb2["Pb2 · L=3"]
+    end
+
+    pa3 & pb2 --> sort["Sort by Lamport"]
+    sort --> reducer["JoinReducer<br/>OR-Set merge · LWW merge"]
+    reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
+```
 
 Writers operate independently on the same Git repository. Sync happens through standard Git transport (push/pull) or the built-in HTTP sync protocol.
 
@@ -465,9 +494,47 @@ When a seek cursor is active, `query`, `info`, `materialize`, and `history` auto
 
 ## Architecture
 
-<p align="center">
-  <img src="docs/diagrams/fig-architecture.svg" alt="Hexagonal architecture — dependency rule: arrows point inward only" width="700">
-</p>
+```mermaid
+flowchart TB
+    subgraph adapters["Adapters — infrastructure implementations"]
+        git["GitGraphAdapter"]
+        cbor["CborCodec"]
+        webcrypto["WebCryptoAdapter"]
+        clocka["ClockAdapter"]
+        consolel["ConsoleLogger"]
+        cascache["CasSeekCacheAdapter"]
+
+        subgraph ports["Ports — abstract interfaces"]
+            pp["GraphPersistencePort"]
+            cp["CodecPort"]
+            crp["CryptoPort"]
+            clp["ClockPort"]
+            lp["LoggerPort"]
+            ip["IndexStoragePort"]
+            sp["SeekCachePort"]
+
+            subgraph domain["Domain Core"]
+                wg["WarpGraph — main API facade"]
+                jr["JoinReducer"]
+                pb["PatchBuilderV2"]
+                cs["CheckpointService"]
+                qb["QueryBuilder"]
+                lt["LogicalTraversal"]
+                crdts["CRDTs: VersionVector · ORSet · LWW"]
+            end
+        end
+    end
+
+    pp -.->|implements| git
+    cp -.->|implements| cbor
+    crp -.->|implements| webcrypto
+    clp -.->|implements| clocka
+    lp -.->|implements| consolel
+    sp -.->|implements| cascache
+    ip -.->|via| git
+
+    wg --> pp & cp & crp & clp & lp & ip & sp
+```
 
 The codebase follows hexagonal architecture with ports and adapters:
 

@@ -87,9 +87,47 @@ const exists = await graph.hasNode('todo:1');
 
 That's it. Your graph data is stored as Git commits — invisible to normal Git workflows but inheriting all of Git's properties.
 
-<p align="center">
-  <img src="diagrams/fig-architecture.svg" alt="Hexagonal architecture overview" width="700">
-</p>
+```mermaid
+flowchart TB
+    subgraph adapters["Adapters — infrastructure implementations"]
+        git["GitGraphAdapter"]
+        cbor["CborCodec"]
+        webcrypto["WebCryptoAdapter"]
+        clocka["ClockAdapter"]
+        consolel["ConsoleLogger"]
+        cascache["CasSeekCacheAdapter"]
+
+        subgraph ports["Ports — abstract interfaces"]
+            pp["GraphPersistencePort"]
+            cp["CodecPort"]
+            crp["CryptoPort"]
+            clp["ClockPort"]
+            lp["LoggerPort"]
+            ip["IndexStoragePort"]
+            sp["SeekCachePort"]
+
+            subgraph domain["Domain Core"]
+                wg["WarpGraph — main API facade"]
+                jr["JoinReducer"]
+                pb["PatchBuilderV2"]
+                cs["CheckpointService"]
+                qb["QueryBuilder"]
+                lt["LogicalTraversal"]
+                crdts["CRDTs: VersionVector · ORSet · LWW"]
+            end
+        end
+    end
+
+    pp -.->|implements| git
+    cp -.->|implements| cbor
+    crp -.->|implements| webcrypto
+    clp -.->|implements| clocka
+    lp -.->|implements| consolel
+    sp -.->|implements| cascache
+    ip -.->|via| git
+
+    wg --> pp & cp & crp & clp & lp & ip & sp
+```
 
 ---
 
@@ -211,9 +249,16 @@ Before reading, you need to **materialize** — this replays all patches from al
 
 ### Materialization
 
-<p align="center">
-  <img src="diagrams/fig-materialize-pipeline.svg" alt="Materialization pipeline — from refs to consistent state" width="700">
-</p>
+```mermaid
+flowchart TB
+    refs["Writer Refs"] --> walk["Walk Commit DAGs"]
+    walk --> decode["Decode CBOR"]
+    decode --> sort["Sort by Lamport"]
+    sort --> reducer["JoinReducer<br/>OR-Set merge (nodes, edges) · LWW merge (properties)"]
+    reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
+
+    refs -.->|"shortcut (if checkpoint exists)"| reducer
+```
 
 ```javascript
 const state = await graph.materialize();
@@ -472,9 +517,20 @@ WarpGraph's core strength is coordination-free multi-writer collaboration. Each 
 
 ### How It Works
 
-<p align="center">
-  <img src="diagrams/fig-multi-writer.svg" alt="Multi-writer convergence" width="700">
-</p>
+```mermaid
+flowchart TB
+    subgraph alice["Alice"]
+        pa1["Pa1 · L=1"] --> pa2["Pa2 · L=2"] --> pa3["Pa3 · L=4"]
+    end
+
+    subgraph bob["Bob"]
+        pb1["Pb1 · L=1"] --> pb2["Pb2 · L=3"]
+    end
+
+    pa3 & pb2 --> sort["Sort by Lamport"]
+    sort --> reducer["JoinReducer<br/>OR-Set merge · LWW merge"]
+    reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
+```
 
 ```javascript
 // === Machine A ===
@@ -509,9 +565,26 @@ const stateB = await graphB.materialize();
 
 ### Conflict Resolution
 
-<p align="center">
-  <img src="diagrams/fig-two-plane.svg" alt="Two-plane state model — skeleton topology + attachment fibres" width="600">
-</p>
+```mermaid
+flowchart TB
+    subgraph skeleton["Skeleton plane G — OR-Set: add wins over concurrent remove"]
+        v1((v1)) -->|e12| v2((v2))
+        v2 -->|e23| v3((v3))
+        v3 -->|e31| v1
+    end
+
+    subgraph attach["Attachment fibres α, β — LWW registers keyed by EventId"]
+        av1["α(v1)<br/>name = alice · role = admin"]
+        av2["α(v2)<br/>name = bob"]
+        av3["α(v3)<br/>name = carol"]
+        be12["β(e12)<br/>weight = 1.0"]
+    end
+
+    v1 -.->|α| av1
+    v2 -.->|α| av2
+    v3 -.->|α| av3
+    v1 -.->|"β(e12)"| be12
+```
 
 When two writers modify the same property concurrently, the conflict is resolved deterministically using **Last-Writer-Wins (LWW)** semantics. The winner is the operation with the higher priority, compared in this order:
 
@@ -588,9 +661,17 @@ if (changed) {
 
 ### Checkpoints
 
-<p align="center">
-  <img src="diagrams/fig-checkpoint-tree.svg" alt="Checkpoint tree — snapshot for fast recovery" width="500">
-</p>
+```mermaid
+flowchart TB
+    ref["refs/warp/‹graph›/<br/>checkpoints/head"] -.-> commit["Checkpoint Commit<br/>eg-kind: checkpoint"]
+    commit -->|tree| tree["tree"]
+    tree --> sc["state.cbor — authoritative"]
+    tree --> vc["visible.cbor — cache"]
+    tree --> fc["frontier.cbor"]
+    tree --> av["appliedVV.cbor"]
+    tree -.-> pi["provenanceIndex.cbor — optional"]
+    tree --> gc["_content_* — GC anchors"]
+```
 
 A **checkpoint** is a snapshot of materialized state at a known point in history. Without checkpoints, materialization replays every patch from every writer. With a checkpoint, it loads the snapshot and only replays patches since then.
 
@@ -1368,9 +1449,41 @@ Each patch carries its version vector as causal context. This allows the reducer
 
 ### Appendix B: Git Ref Layout
 
-<p align="center">
-  <img src="diagrams/fig-ref-layout.svg" alt="Ref layout — the refs/warp/ namespace" width="600">
-</p>
+```mermaid
+flowchart TB
+    refs["refs/"] --> w["warp/"]
+    w --> gd["‹graphName›/"]
+    gd --> writers["writers/"]
+    gd --> ckpts["checkpoints/"]
+    gd --> cov["coverage/"]
+    gd --> cur["cursor/"]
+    gd --> aud["audit/"]
+    gd --> tr["trust/"]
+    gd --> sc["seek-cache"]
+
+    writers --> alice["alice"]
+    writers --> bob["bob"]
+    alice -.-> ca["patch commit a1b2c3d"]
+    bob -.-> cb["patch commit d4e5f6a"]
+
+    ckpts --> ckh["head"]
+    ckh -.-> cck["checkpoint 7c8d9e0"]
+
+    cov --> cvh["head"]
+    cvh -.-> ccov["octopus merge f1a2b3c"]
+
+    cur --> active["active"]
+    cur --> saved["saved/"]
+    saved --> bm["bookmark"]
+
+    aud --> auda["alice"]
+    aud --> audb["bob"]
+
+    tr --> rec["records"]
+
+    ccov -.->|parent| ca
+    ccov -.->|parent| cb
+```
 
 ```text
 refs/warp/<graphName>/
@@ -1388,9 +1501,28 @@ Each writer's ref points to the tip of their patch chain. Patches are Git commit
 
 ### Appendix C: Patch Format
 
-<p align="center">
-  <img src="diagrams/fig-patch-anatomy.svg" alt="Patch commit anatomy" width="500">
-</p>
+```mermaid
+flowchart TB
+    commit["Patch Commit f1a2b3c"] -->|parent| parent["Previous Patch d4e5f6a..."]
+    commit -->|tree| tree["tree a9b8c7d..."]
+    tree -->|entry| pcbor["patch.cbor · CBOR-encoded ops"]
+    tree -->|entry| blob["_content_abc... · blob value"]
+    pcbor -.->|"decodes to"| ops
+
+    subgraph ops["Patch Operations — schema:2"]
+        na["NodeAdd · NodeTombstone"]
+        ea["EdgeAdd · EdgeTombstone"]
+        ps["PropSet · BlobValue"]
+    end
+
+    commit --- trailers
+
+    subgraph trailers["Trailers"]
+        t1["eg-kind: patch · eg-graph: myGraph"]
+        t2["eg-writer: alice · eg-lamport: 42"]
+        t3["eg-schema: 2 · eg-patch-oid: b3c4d5e..."]
+    end
+```
 
 Each patch is a Git commit containing:
 
