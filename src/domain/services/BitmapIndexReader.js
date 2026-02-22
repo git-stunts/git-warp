@@ -51,7 +51,7 @@ const computeChecksum = async (data, version, crypto) => {
  * - {@link ShardCorruptionError} for invalid shard format
  * - {@link ShardValidationError} for version or checksum mismatches
  *
- * In non-strict mode (default), validation failures are logged as warnings
+ * In non-strict mode (strict: false), validation failures are logged as warnings
  * and an empty shard is returned for graceful degradation.
  *
  * **Note**: Storage errors (e.g., `storage.readBlob` failures) always throw
@@ -66,9 +66,9 @@ const computeChecksum = async (data, version, crypto) => {
  * @example
  * // Non-strict mode - graceful degradation on validation errors
  * const lenientReader = new BitmapIndexReader({ storage, strict: false });
- * strictReader.setup(shardOids);
+ * lenientReader.setup(shardOids);
  * try {
- *   const parents = await strictReader.getParents('abc123...');
+ *   const parents = await lenientReader.getParents('abc123...');
  * } catch (err) {
  *   if (err instanceof ShardValidationError) {
  *     console.error('Shard validation failed:', err.field, err.expected, err.actual);

@@ -39,4 +39,20 @@ describe('isValidOid', () => {
     expect(isValidOid(/** @type {any} */ (null))).toBe(false);
     expect(isValidOid(/** @type {any} */ (undefined))).toBe(false);
   });
+
+  it('accepts mixed-case hex', () => {
+    expect(isValidOid('aAbBcCdD')).toBe(true);
+  });
+
+  it('rejects dash in OID', () => {
+    expect(isValidOid('a1b2-c3d4')).toBe(false);
+  });
+
+  it('rejects dot in OID', () => {
+    expect(isValidOid('a1b2.c3d4')).toBe(false);
+  });
+
+  it('rejects space in OID', () => {
+    expect(isValidOid('a1b2 c3d4')).toBe(false);
+  });
 });

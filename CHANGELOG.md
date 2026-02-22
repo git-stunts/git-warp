@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Publication-quality SVG diagrams** — 8 Graphviz diagrams in `docs/diagrams/` covering the empty tree trick, two-plane state model, ref layout, patch anatomy, multi-writer convergence, materialization pipeline, checkpoint tree, and hexagonal architecture. Grayscale, transparent-background, serif-font styling matching the AION paper aesthetic.
+- **Publication-quality SVG diagrams** — 8 Graphviz diagrams in `docs/diagrams/` covering data storage, two-plane state model, ref layout, patch anatomy, multi-writer convergence, materialization pipeline, checkpoint tree, and hexagonal architecture. Grayscale, transparent-background, serif-font styling matching the AION paper aesthetic.
 - **`scripts/build-diagrams.sh`** — compiles all `.dot` files to SVG with transparent-background post-processing.
 
 ## [11.5.1] — 2026-02-22 — M9 PARTITION: Architectural Decomposition
@@ -25,7 +25,7 @@ from the WarpGraph god class, without changing any public API surface.
 
 ### Changed
 
-- **`sync.methods.js`** — reduced from 555 LOC to ~120 LOC; each method is a thin one-liner delegation to `this._syncController`.
+- **`sync.methods.js`** — deleted entirely; sync methods now wired via `defineProperty` delegation to `_syncController`.
 - **`WarpGraph.js`** — added `_syncController` field instantiation in constructor (+4 LOC, now 422 LOC total — well under the 500 LOC M9 gate).
 - **`JoinReducer.join()`** — refactored from inline dual-path to dispatcher over `applyFast` / `applyWithReceipt`. Shared frontier update logic extracted into `updateFrontierFromPatch()` helper.
 

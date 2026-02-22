@@ -1,5 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SyncController from '../../../../src/domain/services/SyncController.js';
+
+vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal) => {
+  const original = /** @type {Record<string, unknown>} */ (await importOriginal());
+  return {
+    ...original,
+    applySyncResponse: vi.fn(),
+    syncNeeded: vi.fn(),
+    processSyncRequest: vi.fn(),
+  };
+});
+
+// Import after mock setup so we get the mocked versions
+const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
+  /** @type {Record<string, import('vitest').Mock>} */ (await import('../../../../src/domain/services/SyncProtocol.js'));
 
 /**
  * Creates a mock WarpGraph host for SyncController tests.
@@ -31,6 +45,10 @@ function createMockHost(overrides = {}) {
 }
 
 describe('SyncController', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('constructor', () => {
     it('stores host reference', () => {
       const host = createMockHost();
@@ -220,10 +238,136 @@ describe('SyncController', () => {
         .toThrow(/No materialized state/);
     });
 
-    it('updates host._cachedState and host._patchesSinceGC', async () => {
-      const { applySyncResponse: applySyncResponseImpl } = await import('../../../../src/domain/services/SyncProtocol.js');
-      // We use a mock to avoid needing the full SyncProtocol dependency graph.
-      // Instead, verify that the controller correctly mutates host state.
+    it('updates host state from applySyncResponseImpl result', () => {
+      const fakeState = {
+        observedFrontier: new Map(),
+        nodeAlive: { dots: new Map() },
+        edgeAlive: { dots: new Map() },
+      };
+      const newState = { observedFrontier: new Map(), nodeAlive: { dots: new Map() }, edgeAlive: { dots: new Map() } };
+      const newFrontier = new Map([['alice', 'sha-2']]);
+      applySyncResponseMock.mockReturnValue({ state: newState, frontier: newFrontier, applied: 3 });
+
+      const host = createMockHost({
+        _cachedState: fakeState,
+        _lastFrontier: new Map([['alice', 'sha-1']]),
+        _patchesSinceGC: 2,
+      });
+      const ctrl = new SyncController(/** @type {*} */ (host));
+      const response = { type: 'sync-response', frontier: {}, patches: [] };
+
+      const result = ctrl.applySyncResponse(response);
+
+      expect(result.applied).toBe(3);
+      expect(host._cachedState).toBe(newState);
+      expect(host._lastFrontier).toBe(newFrontier);
+      expect(host._patchesSinceGC).toBe(5);
+      expect(host._stateDirty).toBe(false);
+      expect(applySyncResponseMock).toHaveBeenCalledWith(
+        response,
+        fakeState,
+        expect.any(Map),
+      );
+    });
+
+    it('uses empty frontier when _lastFrontier is null', () => {
+      const fakeState = {
+        observedFrontier: new Map(),
+        nodeAlive: { dots: new Map() },
+        edgeAlive: { dots: new Map() },
+      };
+      const newFrontier = new Map([['bob', 'sha-b']]);
+      applySyncResponseMock.mockReturnValue({ state: fakeState, frontier: newFrontier, applied: 1 });
+
+      const host = createMockHost({
+        _cachedState: fakeState,
+        _lastFrontier: null,
+        _patchesSinceGC: 0,
+      });
+      const ctrl = new SyncController(/** @type {*} */ (host));
+
+      ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
+
+      // Should have passed an empty Map (from createFrontier()) as the frontier arg
+      const calledFrontier = applySyncResponseMock.mock.calls[0][2];
+      expect(calledFrontier).toBeInstanceOf(Map);
+      expect(calledFrontier.size).toBe(0);
+      expect(host._lastFrontier).toBe(newFrontier);
+    });
+  });
+
+  describe('syncNeeded', () => {
+    it('delegates to SyncProtocol.syncNeeded with local and remote frontiers', async () => {
+      syncNeededMock.mockReturnValue(true);
+      const host = createMockHost({
+        discoverWriters: vi.fn().mockResolvedValue(['alice']),
+        _persistence: {
+          readRef: vi.fn().mockResolvedValue('sha-alice'),
+          listRefs: vi.fn().mockResolvedValue([]),
+        },
+      });
+      const ctrl = new SyncController(/** @type {*} */ (host));
+      const remoteFrontier = new Map([['bob', 'sha-bob']]);
+
+      const result = await ctrl.syncNeeded(remoteFrontier);
+
+      expect(result).toBe(true);
+      expect(syncNeededMock).toHaveBeenCalledWith(
+        expect.any(Map),
+        remoteFrontier,
+      );
+      // Verify local frontier was built correctly
+      const calledLocalFrontier = syncNeededMock.mock.calls[0][0];
+      expect(calledLocalFrontier.get('alice')).toBe('sha-alice');
+    });
+  });
+
+  describe('processSyncRequest', () => {
+    it('delegates to SyncProtocol.processSyncRequest with correct args', async () => {
+      const mockResponse = { type: 'sync-response', frontier: {}, patches: [] };
+      processSyncRequestMock.mockResolvedValue(mockResponse);
+      const host = createMockHost({
+        discoverWriters: vi.fn().mockResolvedValue(['alice']),
+        _persistence: {
+          readRef: vi.fn().mockResolvedValue('sha-alice'),
+          listRefs: vi.fn().mockResolvedValue([]),
+        },
+      });
+      const ctrl = new SyncController(/** @type {*} */ (host));
+      const request = { type: 'sync-request', frontier: {} };
+
+      const result = await ctrl.processSyncRequest(/** @type {*} */ (request));
+
+      expect(result).toBe(mockResponse);
+      expect(processSyncRequestMock).toHaveBeenCalledWith(
+        request,
+        expect.any(Map),
+        host._persistence,
+        'test-graph',
+        { codec: host._codec },
+      );
+    });
+  });
+
+  describe('syncWith', () => {
+    it('syncs with a direct peer using direct method calls', async () => {
+      const newState = { observedFrontier: new Map(), nodeAlive: { dots: new Map() }, edgeAlive: { dots: new Map() } };
+      const newFrontier = new Map([['alice', 'sha-a2'], ['bob', 'sha-b1']]);
+      applySyncResponseMock.mockReturnValue({ state: newState, frontier: newFrontier, applied: 2 });
+
+      const peerResponse = {
+        type: 'sync-response',
+        frontier: { bob: 'sha-b1' },
+        patches: [
+          { writerId: 'bob', sha: 'sha-b1', patch: { ops: [] } },
+        ],
+      };
+
+      const remotePeer = {
+        processSyncRequest: vi.fn().mockResolvedValue(peerResponse),
+        getFrontier: vi.fn().mockResolvedValue(new Map([['bob', 'sha-b1']])),
+      };
+
       const fakeState = {
         observedFrontier: new Map(),
         nodeAlive: { dots: new Map() },
@@ -231,18 +375,21 @@ describe('SyncController', () => {
       };
       const host = createMockHost({
         _cachedState: fakeState,
-        _lastFrontier: new Map([['alice', 'sha-1']]),
-        _patchesSinceGC: 2,
+        _lastFrontier: new Map([['alice', 'sha-a1']]),
+        discoverWriters: vi.fn().mockResolvedValue(['alice']),
+        _persistence: {
+          readRef: vi.fn().mockResolvedValue('sha-a1'),
+          listRefs: vi.fn().mockResolvedValue([]),
+        },
       });
       const ctrl = new SyncController(/** @type {*} */ (host));
 
-      // Mock the SyncProtocol.applySyncResponse at module level is tricky,
-      // so we test the state mutation path directly by verifying the throw
-      // path and the guard checks.
-      // The non-throwing path requires a valid SyncProtocol response shape.
-      // We test the guard (no-state) path above and host field access below.
-      expect(host._patchesSinceGC).toBe(2);
-      expect(host._cachedState).toBe(fakeState);
+      const result = await ctrl.syncWith(/** @type {*} */ (remotePeer));
+
+      expect(result.applied).toBe(2);
+      expect(result.attempts).toBe(1);
+      expect(remotePeer.processSyncRequest).toHaveBeenCalledOnce();
+      expect(host._cachedState).toBe(newState);
     });
   });
 

@@ -16,8 +16,9 @@ async function createGraph(writerId = 'writer-1') {
 function mockClientGraph(/** @type {WarpGraph} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
   g._cachedState = {};
-  g.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
-  g.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+  const sc = /** @type {Record<string, unknown>} */ (g._syncController);
+  sc.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
+  sc.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 }
 
 function mockServerGraph(/** @type {WarpGraph} */ graph) {
@@ -51,7 +52,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       });
 
       expect(result.applied).toBe(0);
-      expect(clientGraph.applySyncResponse).toHaveBeenCalled();
+      expect(/** @type {any} */ (clientGraph)._syncController.applySyncResponse).toHaveBeenCalled();
       expect(serverGraph.processSyncRequest).toHaveBeenCalled();
     } finally {
       await handle.close();

@@ -274,21 +274,14 @@ export default class SyncController {
       });
     }
 
-    const currentFrontier = /** @type {Map<string, string>} */ (/** @type {unknown} */ (this._host._cachedState.observedFrontier));
+    const currentFrontier = this._host._lastFrontier || createFrontier();
     const result = /** @type {{state: import('./JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} */ (applySyncResponseImpl(response, this._host._cachedState, currentFrontier));
 
     // Update cached state
     this._host._cachedState = result.state;
 
     // Keep _lastFrontier in sync so hasFrontierChanged() won't misreport stale.
-    // Merge the response's per-writer tips into the stored frontier snapshot.
-    if (this._host._lastFrontier && Array.isArray(response.patches)) {
-      for (const { writerId, sha } of response.patches) {
-        if (writerId && sha) {
-          this._host._lastFrontier.set(writerId, sha);
-        }
-      }
-    }
+    this._host._lastFrontier = result.frontier;
 
     // Track patches for GC
     this._host._patchesSinceGC += result.applied;
@@ -388,7 +381,7 @@ export default class SyncController {
       attempt += 1;
       const attemptStart = this._host._clock.now();
       emit('connecting');
-      const request = await this._host.createSyncRequest();
+      const request = await this.createSyncRequest();
       emit('requestBuilt');
       let response;
       if (isDirectPeer) {
@@ -474,7 +467,7 @@ export default class SyncController {
         });
       }
 
-      const result = this._host.applySyncResponse(response);
+      const result = this.applySyncResponse(response);
       emit('applied', { applied: result.applied });
 
       const durationMs = this._host._clock.now() - attemptStart;
