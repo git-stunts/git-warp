@@ -4,7 +4,7 @@ import nullLogger from '../utils/nullLogger.js';
 import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
-import { isValidOid } from '../utils/validateShardOid.js';
+import { isValidShardOid } from '../utils/validateShardOid.js';
 
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
@@ -137,7 +137,7 @@ export default class BitmapIndexReader {
     /** @type {[string, string][]} */
     const validEntries = [];
     for (const [path, oid] of entries) {
-      if (isValidOid(oid)) {
+      if (isValidShardOid(oid)) {
         validEntries.push([path, oid]);
       } else if (this.strict) {
         throw new ShardCorruptionError('Invalid shard OID', {
