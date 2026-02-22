@@ -342,48 +342,55 @@ function foldPatchDot(frontier, writer, lamport) {
 }
 
 /**
- * Joins a patch into state, applying all operations in order.
- *
- * This is the primary function for incorporating a single patch into WARP state.
- * It iterates through all operations in the patch, creates EventIds for causality
- * tracking, and applies each operation using `applyOpV2`.
- *
- * **Receipt Collection Mode**:
- * When `collectReceipts` is true, this function also computes the outcome of each
- * operation (applied, redundant, or superseded) and returns a TickReceipt for
- * provenance tracking. This has a small performance cost, so it's disabled by default.
- *
- * **Warning**: This function mutates `state` in place. For immutable operations,
- * clone the state first using `cloneStateV5()`.
- *
- * @param {WarpStateV5} state - The state to mutate. Modified in place.
- * @param {Object} patch - The patch to apply
- * @param {string} patch.writer - Writer ID who created this patch
- * @param {number} patch.lamport - Lamport timestamp of this patch
- * @param {Array<{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}>} patch.ops - Array of operations to apply
- * @param {Map<string, number>|{[x: string]: number}} patch.context - Version vector context (Map or serialized form)
- * @param {string} patchSha - The Git SHA of the patch commit (used for EventId creation)
- * @param {boolean} [collectReceipts=false] - When true, computes and returns receipt data
- * @returns {WarpStateV5|{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
- *          Returns mutated state directly when collectReceipts is false;
- *          returns {state, receipt} object when collectReceipts is true
+ * Merges a patch's context into state and folds the patch dot.
+ * @param {WarpStateV5} state
+ * @param {Object} patch
+ * @param {string} patch.writer
+ * @param {number} patch.lamport
+ * @param {Map<string, number>|{[x: string]: number}} patch.context
  */
-export function join(state, patch, patchSha, collectReceipts) {
-  // ZERO-COST: when collectReceipts is falsy, skip all receipt logic
-  if (!collectReceipts) {
-    for (let i = 0; i < patch.ops.length; i++) {
-      const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-      applyOpV2(state, patch.ops[i], eventId);
-    }
-    const contextVV = patch.context instanceof Map
-      ? patch.context
-      : vvDeserialize(patch.context);
-    state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
-    foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
-    return state;
-  }
+function updateFrontierFromPatch(state, patch) {
+  const contextVV = patch.context instanceof Map
+    ? patch.context
+    : vvDeserialize(patch.context);
+  state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+  foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
+}
 
-  // Receipt-enabled path
+/**
+ * Applies a patch to state without receipt collection (zero overhead).
+ *
+ * @param {WarpStateV5} state - The state to mutate in place
+ * @param {Object} patch - The patch to apply
+ * @param {string} patch.writer
+ * @param {number} patch.lamport
+ * @param {Array<Object>} patch.ops
+ * @param {Map<string, number>|{[x: string]: number}} patch.context
+ * @param {string} patchSha - Git SHA of the patch commit
+ * @returns {WarpStateV5} The mutated state
+ */
+export function applyFast(state, patch, patchSha) {
+  for (let i = 0; i < patch.ops.length; i++) {
+    const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
+    applyOpV2(state, patch.ops[i], eventId);
+  }
+  updateFrontierFromPatch(state, patch);
+  return state;
+}
+
+/**
+ * Applies a patch to state with receipt collection for provenance tracking.
+ *
+ * @param {WarpStateV5} state - The state to mutate in place
+ * @param {Object} patch - The patch to apply
+ * @param {string} patch.writer
+ * @param {number} patch.lamport
+ * @param {Array<Object>} patch.ops
+ * @param {Map<string, number>|{[x: string]: number}} patch.context
+ * @param {string} patchSha - Git SHA of the patch commit
+ * @returns {{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
+ */
+export function applyWithReceipt(state, patch, patchSha) {
   /** @type {import('../types/TickReceipt.js').OpOutcome[]} */
   const opResults = [];
   for (let i = 0; i < patch.ops.length; i++) {
@@ -433,11 +440,7 @@ export function join(state, patch, patchSha, collectReceipts) {
     opResults.push(entry);
   }
 
-  const contextVV = patch.context instanceof Map
-    ? patch.context
-    : vvDeserialize(patch.context);
-  state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
-  foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
+  updateFrontierFromPatch(state, patch);
 
   const receipt = createTickReceipt({
     patchSha,
@@ -447,6 +450,39 @@ export function join(state, patch, patchSha, collectReceipts) {
   });
 
   return { state, receipt };
+}
+
+/**
+ * Joins a patch into state, applying all operations in order.
+ *
+ * This is the primary function for incorporating a single patch into WARP state.
+ * It iterates through all operations in the patch, creates EventIds for causality
+ * tracking, and applies each operation using `applyOpV2`.
+ *
+ * **Receipt Collection Mode**:
+ * When `collectReceipts` is true, this function also computes the outcome of each
+ * operation (applied, redundant, or superseded) and returns a TickReceipt for
+ * provenance tracking. This has a small performance cost, so it's disabled by default.
+ *
+ * **Warning**: This function mutates `state` in place. For immutable operations,
+ * clone the state first using `cloneStateV5()`.
+ *
+ * @param {WarpStateV5} state - The state to mutate. Modified in place.
+ * @param {Object} patch - The patch to apply
+ * @param {string} patch.writer - Writer ID who created this patch
+ * @param {number} patch.lamport - Lamport timestamp of this patch
+ * @param {Array<{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}>} patch.ops - Array of operations to apply
+ * @param {Map<string, number>|{[x: string]: number}} patch.context - Version vector context (Map or serialized form)
+ * @param {string} patchSha - The Git SHA of the patch commit (used for EventId creation)
+ * @param {boolean} [collectReceipts=false] - When true, computes and returns receipt data
+ * @returns {WarpStateV5|{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
+ *          Returns mutated state directly when collectReceipts is false;
+ *          returns {state, receipt} object when collectReceipts is true
+ */
+export function join(state, patch, patchSha, collectReceipts) {
+  return collectReceipts
+    ? applyWithReceipt(state, patch, patchSha)
+    : applyFast(state, patch, patchSha);
 }
 
 /**
@@ -560,14 +596,14 @@ export function reduceV5(patches, initialState, options) {
   if (options && options.receipts) {
     const receipts = [];
     for (const { patch, sha } of patches) {
-      const result = /** @type {{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}} */ (join(state, patch, sha, true));
+      const result = applyWithReceipt(state, patch, sha);
       receipts.push(result.receipt);
     }
     return { state, receipts };
   }
 
   for (const { patch, sha } of patches) {
-    join(state, patch, sha);
+    applyFast(state, patch, sha);
   }
   return state;
 }

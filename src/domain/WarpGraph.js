@@ -18,6 +18,7 @@ import defaultCrypto from './utils/defaultCrypto.js';
 import defaultClock from './utils/defaultClock.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
+import SyncController from './services/SyncController.js';
 import { wireWarpMethods } from './warp/_wire.js';
 import * as queryMethods from './warp/query.methods.js';
 import * as subscribeMethods from './warp/subscribe.methods.js';
@@ -172,6 +173,9 @@ export default class WarpGraph {
 
     /** @type {number} */
     this._auditSkipCount = 0;
+
+    /** @type {SyncController} */
+    this._syncController = new SyncController(this);
   }
 
   /**

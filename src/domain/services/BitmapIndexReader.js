@@ -4,6 +4,7 @@ import nullLogger from '../utils/nullLogger.js';
 import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { isValidOid } from '../utils/validateShardOid.js';
 
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
@@ -132,8 +133,28 @@ export default class BitmapIndexReader {
    * const parents = await reader.getParents('abcd1234...'); // loads meta_ab, shards_rev_ab
    */
   setup(shardOids) {
-    this.shardOids = new Map(Object.entries(shardOids));
-    this._idToShaCache = null; // Clear cache when shards change
+    const entries = Object.entries(shardOids);
+    const validEntries = [];
+    for (const [path, oid] of entries) {
+      if (isValidOid(oid)) {
+        validEntries.push([path, oid]);
+      } else if (this.strict) {
+        throw new ShardCorruptionError('Invalid shard OID', {
+          shardPath: path,
+          oid,
+          reason: 'invalid_oid',
+        });
+      } else {
+        this.logger.warn('Skipping shard with invalid OID', {
+          operation: 'setup',
+          shardPath: path,
+          oid,
+          reason: 'invalid_oid',
+        });
+      }
+    }
+    this.shardOids = new Map(validEntries);
+    this._idToShaCache = null;
     this.loadedShards.clear();
   }
 

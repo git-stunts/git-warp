@@ -131,7 +131,7 @@ describe('IndexRebuildService', () => {
     it('strict mode throws ShardValidationError on checksum mismatch', async () => {
       // Mock storage to return shard with wrong checksum
       mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'bad-checksum-oid'
+        'meta_ab.json': 'badcbadcbadcbadcbadcbadcbadcbadcbadcbadc'
       });
       mockStorage.readBlob.mockResolvedValue(Buffer.from(JSON.stringify({
         version: 1,
@@ -149,7 +149,7 @@ describe('IndexRebuildService', () => {
 
     it('strict mode throws ShardCorruptionError on invalid format', async () => {
       mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'corrupt-oid'
+        'meta_ab.json': 'c0aac0aac0aac0aac0aac0aac0aac0aac0aac0aa'
       });
       mockStorage.readBlob.mockResolvedValue(Buffer.from('not valid json'));
 
@@ -162,7 +162,7 @@ describe('IndexRebuildService', () => {
 
     it('non-strict mode returns empty on integrity failure instead of throwing', async () => {
       mockStorage.readTreeOids.mockResolvedValue({
-        'meta_ab.json': 'bad-oid'
+        'meta_ab.json': 'bad0bad0bad0bad0bad0bad0bad0bad0bad0bad0'
       });
       mockStorage.readBlob.mockResolvedValue(Buffer.from('invalid'));
 

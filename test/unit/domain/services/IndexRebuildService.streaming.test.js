@@ -22,7 +22,7 @@ describe('IndexRebuildService streaming mode', () => {
 
     mockStorage = {
       writeBlob: vi.fn().mockImplementation(async (buffer) => {
-        const oid = `blob-${blobCounter++}`;
+        const oid = `b10b${String(blobCounter++).padStart(36, '0')}`;
         writtenBlobs.set(oid, buffer);
         return oid;
       }),

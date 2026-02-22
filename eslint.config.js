@@ -216,6 +216,7 @@ export default tseslint.config(
       "src/domain/services/CheckpointMessageCodec.js",
       "src/domain/services/AnchorMessageCodec.js",
       "src/domain/services/MessageSchemaDetector.js",
+      "src/domain/services/SyncController.js",
       "src/domain/services/SyncProtocol.js",
       "src/domain/services/LogicalTraversal.js",
       "src/domain/services/StateSerializerV5.js",

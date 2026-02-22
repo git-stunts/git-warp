@@ -7,6 +7,8 @@ import {
   decodePropKey,
   applyOpV2,
   join,
+  applyFast,
+  applyWithReceipt,
   joinStates,
   reduceV5 as _reduceV5,
   cloneStateV5,
@@ -737,6 +739,73 @@ describe('JoinReducer', () => {
       expect(s.observedFrontier.get('A')).toBe(5);
       expect(s.observedFrontier.get('C')).toBe(1);
       expect(receipt).toBeDefined();
+    });
+  });
+
+  describe('applyFast / applyWithReceipt', () => {
+    it('applyFast applies ops and updates frontier', () => {
+      const state = createEmptyStateV5();
+      const dot = createDot('w1', 1, 0);
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [createNodeAddV2('n1', dot)],
+        context: createVersionVector(),
+      });
+      const result = applyFast(state, patch, 'fa51aa00ee11');
+      expect(result).toBe(state); // mutates in place
+      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.observedFrontier.get('w1')).toBe(1);
+    });
+
+    it('applyWithReceipt returns state and receipt', () => {
+      const state = createEmptyStateV5();
+      const dot = createDot('w1', 1, 0);
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [createNodeAddV2('n1', dot)],
+        context: createVersionVector(),
+      });
+      const result = applyWithReceipt(state, patch, 'bece1111ee22');
+      expect(result.state).toBe(state);
+      expect(result.receipt).toBeDefined();
+      expect(result.receipt.patchSha).toBe('bece1111ee22');
+      expect(result.receipt.ops).toHaveLength(1);
+      expect(result.receipt.ops[0].op).toBe('NodeAdd');
+      expect(result.receipt.ops[0].result).toBe('applied');
+      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+      expect(state.observedFrontier.get('w1')).toBe(1);
+    });
+
+    it('join dispatches to applyFast when collectReceipts is false', () => {
+      const state = createEmptyStateV5();
+      const dot = createDot('w1', 1, 0);
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [createNodeAddV2('n1', dot)],
+        context: createVersionVector(),
+      });
+      const result = join(state, patch, 'd15a07c0');
+      // applyFast returns state directly
+      expect(result).toBe(state);
+      expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
+    });
+
+    it('join dispatches to applyWithReceipt when collectReceipts is true', () => {
+      const state = createEmptyStateV5();
+      const dot = createDot('w1', 1, 0);
+      const patch = createPatchV2({
+        writer: 'w1',
+        lamport: 1,
+        ops: [createNodeAddV2('n1', dot)],
+        context: createVersionVector(),
+      });
+      const result = join(state, patch, 'd15a07c1', true);
+      expect(result.state).toBe(state);
+      expect(result.receipt).toBeDefined();
+      expect(result.receipt.patchSha).toBe('d15a07c1');
     });
   });
 });

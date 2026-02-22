@@ -142,8 +142,8 @@ describe('IndexRebuildService.load() staleness integration', () => {
     const cborBuffer = Buffer.from(cborEncode(envelope));
 
     storage.readTreeOids.mockResolvedValue({
-      'meta_aa.json': 'meta-oid',
-      'frontier.cbor': 'frontier-oid',
+      'meta_aa.json': 'aaa1aaa2aaa3aaa4aaa5aaa6aaa7aaa8aaa9aaa0',
+      'frontier.cbor': 'bbb1bbb2bbb3bbb4bbb5bbb6bbb7bbb8bbb9bbb0',
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
@@ -163,8 +163,8 @@ describe('IndexRebuildService.load() staleness integration', () => {
     const cborBuffer = Buffer.from(cborEncode(envelope));
 
     storage.readTreeOids.mockResolvedValue({
-      'meta_aa.json': 'meta-oid',
-      'frontier.cbor': 'frontier-oid',
+      'meta_aa.json': 'aaa1aaa2aaa3aaa4aaa5aaa6aaa7aaa8aaa9aaa0',
+      'frontier.cbor': 'bbb1bbb2bbb3bbb4bbb5bbb6bbb7bbb8bbb9bbb0',
     });
     storage.readBlob.mockResolvedValue(cborBuffer);
 
@@ -178,7 +178,7 @@ describe('IndexRebuildService.load() staleness integration', () => {
 
   it('no frontier (legacy) → debug log, no warning', async () => {
     storage.readTreeOids.mockResolvedValue({
-      'meta_aa.json': 'meta-oid',
+      'meta_aa.json': 'aaa1aaa2aaa3aaa4aaa5aaa6aaa7aaa8aaa9aaa0',
     });
 
     const service = new IndexRebuildService(/** @type {any} */ ({ graphService, storage, logger }));
@@ -199,15 +199,15 @@ describe('IndexRebuildService.load() staleness integration', () => {
 
     // First call: stale index
     storage.readTreeOids.mockResolvedValueOnce({
-      'meta_aa.json': 'meta-oid',
-      'frontier.cbor': 'frontier-oid',
+      'meta_aa.json': 'aaa1aaa2aaa3aaa4aaa5aaa6aaa7aaa8aaa9aaa0',
+      'frontier.cbor': 'bbb1bbb2bbb3bbb4bbb5bbb6bbb7bbb8bbb9bbb0',
     });
     storage.readBlob.mockResolvedValueOnce(cborBuffer);
 
     // rebuild() returns new tree OID
     // Second call: rebuilt index (no frontier = no staleness check)
     storage.readTreeOids.mockResolvedValueOnce({
-      'meta_aa.json': 'new-meta-oid',
+      'meta_aa.json': 'ccc1ccc2ccc3ccc4ccc5ccc6ccc7ccc8ccc9ccc0',
     });
 
     const currentFrontier = new Map([['alice', 'sha-new']]);

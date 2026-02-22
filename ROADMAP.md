@@ -619,7 +619,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M9.T1 — SyncController Extraction
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
@@ -627,7 +627,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M9.T2 — JoinReducer Dual-Path Refactor
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
@@ -635,7 +635,7 @@ No v2.0 tag until **every** gate passes. If any RG fails: no tag. Period.
 
 ### M9.T3 — Bitmap OID Validation (Opportunistic)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
