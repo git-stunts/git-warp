@@ -134,6 +134,7 @@ export default class BitmapIndexReader {
    */
   setup(shardOids) {
     const entries = Object.entries(shardOids);
+    /** @type {[string, string][]} */
     const validEntries = [];
     for (const [path, oid] of entries) {
       if (isValidOid(oid)) {

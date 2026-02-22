@@ -13,7 +13,7 @@ vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  /** @type {Record<string, import('vitest').Mock>} */ (await import('../../../../src/domain/services/SyncProtocol.js'));
+  /** @type {Record<string, import('vitest').Mock>} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
 
 /**
  * Creates a mock WarpGraph host for SyncController tests.
@@ -87,7 +87,7 @@ describe('SyncController', () => {
       expect(frontier.size).toBe(2);
       expect(frontier.get('alice')).toBe('sha-alice');
       expect(frontier.get('bob')).toBe('sha-bob');
-      expect(host._persistence.readRef).toHaveBeenCalledTimes(2);
+      expect(/** @type {*} */ (host._persistence).readRef).toHaveBeenCalledTimes(2);
     });
 
     it('skips writers with null tip SHA', async () => {
@@ -254,6 +254,7 @@ describe('SyncController', () => {
         _patchesSinceGC: 2,
       });
       const ctrl = new SyncController(/** @type {*} */ (host));
+      /** @type {{type: 'sync-response', frontier: Record<string, string>, patches: *[]}} */
       const response = { type: 'sync-response', frontier: {}, patches: [] };
 
       const result = ctrl.applySyncResponse(response);

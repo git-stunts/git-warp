@@ -123,10 +123,11 @@ describe('BitmapIndexReader', () => {
         strictReader.setup({ 'meta_ab.json': 'bad!' });
         expect.fail('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(ShardCorruptionError);
-        expect(err.shardPath).toBe('meta_ab.json');
-        expect(err.oid).toBe('bad!');
-        expect(err.reason).toBe('invalid_oid');
+        const e = /** @type {import('../../../../src/domain/errors/ShardCorruptionError.js').default} */ (err);
+        expect(e).toBeInstanceOf(ShardCorruptionError);
+        expect(e.shardPath).toBe('meta_ab.json');
+        expect(e.oid).toBe('bad!');
+        expect(e.reason).toBe('invalid_oid');
       }
     });
   });

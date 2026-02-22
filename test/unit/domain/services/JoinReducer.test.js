@@ -745,7 +745,7 @@ describe('JoinReducer', () => {
   describe('applyFast / applyWithReceipt', () => {
     it('applyFast applies ops and updates frontier', () => {
       const state = createEmptyStateV5();
-      const dot = createDot('w1', 1, 0);
+      const dot = createDot('w1', 1);
       const patch = createPatchV2({
         writer: 'w1',
         lamport: 1,
@@ -760,7 +760,7 @@ describe('JoinReducer', () => {
 
     it('applyWithReceipt returns state and receipt', () => {
       const state = createEmptyStateV5();
-      const dot = createDot('w1', 1, 0);
+      const dot = createDot('w1', 1);
       const patch = createPatchV2({
         writer: 'w1',
         lamport: 1,
@@ -780,7 +780,7 @@ describe('JoinReducer', () => {
 
     it('join dispatches to applyFast when collectReceipts is false', () => {
       const state = createEmptyStateV5();
-      const dot = createDot('w1', 1, 0);
+      const dot = createDot('w1', 1);
       const patch = createPatchV2({
         writer: 'w1',
         lamport: 1,
@@ -795,14 +795,14 @@ describe('JoinReducer', () => {
 
     it('join dispatches to applyWithReceipt when collectReceipts is true', () => {
       const state = createEmptyStateV5();
-      const dot = createDot('w1', 1, 0);
+      const dot = createDot('w1', 1);
       const patch = createPatchV2({
         writer: 'w1',
         lamport: 1,
         ops: [createNodeAddV2('n1', dot)],
         context: createVersionVector(),
       });
-      const result = join(state, patch, 'd15a07c1', true);
+      const result = /** @type {{state: *, receipt: *}} */ (join(state, patch, 'd15a07c1', true));
       expect(result.state).toBe(state);
       expect(result.receipt).toBeDefined();
       expect(result.receipt.patchSha).toBe('d15a07c1');

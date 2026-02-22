@@ -428,7 +428,7 @@ const syncDelegates = /** @type {const} */ ([
 for (const method of syncDelegates) {
   Object.defineProperty(WarpGraph.prototype, method, {
     // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
-    value: /** @this {WarpGraph} */ function (...args) {
+    value: /** @this {WarpGraph} @param {*[]} args */ function (...args) {
       return this._syncController[method](...args);
     },
     writable: true,

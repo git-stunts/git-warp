@@ -48,7 +48,7 @@ import { isError } from '../types/WarpErrors.js';
  * @property {import('../../ports/LoggerPort.js').default|null} _logger
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
- * @property {() => Promise<void>} materialize
+ * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize
  * @property {() => Promise<string[]>} discoverWriters
  */
 
@@ -549,7 +549,7 @@ export default class SyncController {
 
     const httpServer = new HttpSyncServer({
       httpPort,
-      graph: this._host,
+      graph: /** @type {{ processSyncRequest: Function }} */ (/** @type {unknown} */ (this._host)),
       path,
       host,
       maxRequestBytes,

@@ -364,7 +364,7 @@ function updateFrontierFromPatch(state, patch) {
  * @param {Object} patch - The patch to apply
  * @param {string} patch.writer
  * @param {number} patch.lamport
- * @param {Array<Object>} patch.ops
+ * @param {Array<{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}>} patch.ops
  * @param {Map<string, number>|{[x: string]: number}} patch.context
  * @param {string} patchSha - Git SHA of the patch commit
  * @returns {WarpStateV5} The mutated state
@@ -385,7 +385,7 @@ export function applyFast(state, patch, patchSha) {
  * @param {Object} patch - The patch to apply
  * @param {string} patch.writer
  * @param {number} patch.lamport
- * @param {Array<Object>} patch.ops
+ * @param {Array<{type: string, node?: string, dot?: import('../crdt/Dot.js').Dot, observedDots?: string[], from?: string, to?: string, label?: string, key?: string, value?: unknown, oid?: string}>} patch.ops
  * @param {Map<string, number>|{[x: string]: number}} patch.context
  * @param {string} patchSha - Git SHA of the patch commit
  * @returns {{state: WarpStateV5, receipt: import('../types/TickReceipt.js').TickReceipt}}
