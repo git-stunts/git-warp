@@ -25,8 +25,8 @@ describe('WarpGraph syncWith', () => {
   beforeEach(async () => {
     graph = await createGraph();
     /** @type {any} */ (graph)._cachedState = {};
-    graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
-    graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+    vi.spyOn(/** @type {any} */ (graph)._syncController, 'applySyncResponse').mockReturnValue({ applied: 0 });
+    vi.spyOn(/** @type {any} */ (graph)._syncController, 'createSyncRequest').mockResolvedValue({ type: 'sync-request', frontier: {} });
   });
 
   it('syncs over HTTP with default /sync path', async () => {
@@ -46,7 +46,7 @@ describe('WarpGraph syncWith', () => {
     try {
       const result = await graph.syncWith(`http://127.0.0.1:${port}`);
       expect(result.applied).toBe(0);
-      expect(graph.applySyncResponse).toHaveBeenCalledWith(responsePayload);
+      expect(/** @type {any} */ (graph)._syncController.applySyncResponse).toHaveBeenCalledWith(responsePayload);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }

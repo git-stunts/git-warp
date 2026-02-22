@@ -7,10 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`applySyncResponse` frontier source** — now uses `_lastFrontier` (SHA map) instead of `observedFrontier` (VersionVector) as the 3rd arg to `applySyncResponseImpl`, eliminating a double-cast bug (B56).
+- **`syncWith` infinite delegation guard** — `syncWith` now calls `this.createSyncRequest()` / `this.applySyncResponse()` directly instead of `this._host.*`, preventing infinite delegation when the host delegates back to the controller.
+- **`BitmapIndexReader` strict default** — changed from `false` to `true`; shard OID validation errors now throw `ShardCorruptionError` by default instead of silently skipping. All existing callers already pass `strict: true` explicitly.
+- **`mockServerGraph` asymmetry** — `syncAuth` test helper now mocks on `_syncController.processSyncRequest` (matching `mockClientGraph` pattern) instead of shadowing the prototype with an own-property mock.
+- **Stale comment** — `BitmapIndexReader.test.js` comment corrected from "default" to "explicit override" for `strict: false` reader.
+- **OID length standardization** — all 25 short 8-char OIDs in `BitmapIndexReader.test.js` extended to 40-char zero-padded hex, matching real Git SHA-1 length and eliminating non-hex characters (`eeffgghh` → `eeff00dd…`).
+
 ### Added
 
-- **Publication-quality SVG diagrams** — 8 Graphviz diagrams in `docs/diagrams/` covering the empty tree trick, two-plane state model, ref layout, patch anatomy, multi-writer convergence, materialization pipeline, checkpoint tree, and hexagonal architecture. Grayscale, transparent-background, serif-font styling matching the AION paper aesthetic.
+- **Frontier fix verification test** (`SyncController.test.js`) — confirms `applySyncResponse` passes `_lastFrontier` (SHA map), not `observedFrontier` (VersionVector), as 3rd arg.
+- **Null-context guard tests** (`JoinReducer.test.js`) — 2 tests verifying `applyFast` handles `undefined` and `null` context gracefully via the `|| {}` fallback.
+- **Auto-materialize path tests** (`SyncController.test.js`) — 2 tests for `syncWith`: calls `materialize()` when `_cachedState` is null; returns `state` when `materialize: true`.
+- **HTTP sync path tests** (`SyncController.test.js`) — 9 tests covering success, 5xx/4xx status codes, invalid JSON, AbortError, TimeoutError, network error, `shouldRetry` predicate, and auth header forwarding.
+- **`serve()` deeper tests** (`SyncController.test.js`) — 3 tests verifying `HttpSyncServer` constructor args, auth config enhancement (crypto + logger injection), and graph host passthrough.
+
+## [11.5.1] — 2026-02-22 — M9 PARTITION: Architectural Decomposition
+
+Breaks apart structural DRY violations and extracts encapsulated services
+from the WarpGraph god class, without changing any public API surface.
+
+### Added
+
+- **Publication-quality SVG diagrams** — 8 Graphviz diagrams in `docs/diagrams/` covering data storage, two-plane state model, ref layout, patch anatomy, multi-writer convergence, materialization pipeline, checkpoint tree, and hexagonal architecture. Grayscale, transparent-background, serif-font styling matching the AION paper aesthetic.
 - **`scripts/build-diagrams.sh`** — compiles all `.dot` files to SVG with transparent-background post-processing.
+
+- **`SyncController`** (`src/domain/services/SyncController.js`) — new class encapsulating all 9 sync methods (`getFrontier`, `hasFrontierChanged`, `status`, `createSyncRequest`, `processSyncRequest`, `applySyncResponse`, `syncNeeded`, `syncWith`, `serve`) and 2 private helpers. Independently unit-testable with a mock host object. 16 new tests.
+- **`applyFast()` / `applyWithReceipt()`** — named exported functions in `JoinReducer.js` replacing the duplicated fast/receipt code paths. `join()` is now a 3-line dispatcher. `reduceV5()` calls named functions directly. 4 new tests.
+- **`isValidOid()`** (`src/domain/utils/validateShardOid.js`) — domain-local hex OID validator (4–64 chars). `BitmapIndexReader.setup()` validates each shard OID: strict mode throws `ShardCorruptionError`, non-strict skips with warning. 13 new tests.
+
+### Changed
+
+- **`sync.methods.js`** — deleted entirely; sync methods now wired via `defineProperty` delegation to `_syncController`.
+- **`WarpGraph.js`** — added `_syncController` field instantiation in constructor (+4 LOC, now 422 LOC total — well under the 500 LOC M9 gate).
+- **`JoinReducer.join()`** — refactored from inline dual-path to dispatcher over `applyFast` / `applyWithReceipt`. Shared frontier update logic extracted into `updateFrontierFromPatch()` helper.
 
 ## [11.5.0] — 2026-02-20 — Content Attachment (Paper I `Atom(p)`)
 
@@ -152,8 +184,6 @@ to prevent regressions.
 - **SyncAuthService** — `_validateKeys` now typed as assertion function for proper post-validation narrowing.
 - **WarpPersistence types** — Added `IndexStorage` typedef (`BlobPort & TreePort & RefPort`).
 - **Policy checker upgrade** — `ts-policy-check.js` now enforces 4 rules: (1) ban `@ts-ignore`, (2) ban `@type {*}`/`@type {any}`, (3) ban embedded wildcards in JSDoc generics, (4) ban `z.any()`.
-
-## [Unreleased]
 
 ## [11.3.0] — 2026-02-17 — DX-HAMMER: Read-Path CLI Improvements
 

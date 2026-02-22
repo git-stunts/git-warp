@@ -20,9 +20,7 @@ function createMockEnvelope(data) {
 
 describe('StreamingBitmapIndexBuilder', () => {
   /** @type {any} */
-  /** @type {any} */
   let mockStorage;
-  /** @type {any} */
   /** @type {any} */
   let writtenBlobs;
 

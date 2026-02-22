@@ -18,12 +18,12 @@ import defaultCrypto from './utils/defaultCrypto.js';
 import defaultClock from './utils/defaultClock.js';
 import LogicalTraversal from './services/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
+import SyncController from './services/SyncController.js';
 import { wireWarpMethods } from './warp/_wire.js';
 import * as queryMethods from './warp/query.methods.js';
 import * as subscribeMethods from './warp/subscribe.methods.js';
 import * as provenanceMethods from './warp/provenance.methods.js';
 import * as forkMethods from './warp/fork.methods.js';
-import * as syncMethods from './warp/sync.methods.js';
 import * as checkpointMethods from './warp/checkpoint.methods.js';
 import * as patchMethods from './warp/patch.methods.js';
 import * as materializeMethods from './warp/materialize.methods.js';
@@ -172,6 +172,9 @@ export default class WarpGraph {
 
     /** @type {number} */
     this._auditSkipCount = 0;
+
+    /** @type {SyncController} */
+    this._syncController = new SyncController(this);
   }
 
   /**
@@ -410,9 +413,26 @@ wireWarpMethods(WarpGraph, [
   subscribeMethods,
   provenanceMethods,
   forkMethods,
-  syncMethods,
   checkpointMethods,
   patchMethods,
   materializeMethods,
   materializeAdvancedMethods,
 ]);
+
+// ── Sync methods: direct delegation to SyncController (no stub file) ────────
+const syncDelegates = /** @type {const} */ ([
+  'getFrontier', 'hasFrontierChanged', 'status',
+  'createSyncRequest', 'processSyncRequest', 'applySyncResponse',
+  'syncNeeded', 'syncWith', 'serve',
+]);
+for (const method of syncDelegates) {
+  Object.defineProperty(WarpGraph.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** @this {WarpGraph} @param {*[]} args */ function (...args) {
+      return this._syncController[method](...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}

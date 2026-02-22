@@ -12,28 +12,27 @@
 <!-- ckpt_ref -->
 <g id="node1" class="node">
 <title>ckpt_ref</title>
-<polygon fill="none" stroke="black" stroke-width="0.8" stroke-dasharray="5,2" points="442.12,-371.02 347.38,-371.02 347.38,-335.02 442.12,-335.02 442.12,-371.02"/>
+<polygon fill="white" stroke="black" stroke-width="0.8" stroke-dasharray="5,2" points="442.12,-371.02 347.38,-371.02 347.38,-335.02 442.12,-335.02 442.12,-371.02"/>
 <text xml:space="preserve" text-anchor="start" x="355.38" y="-354.77" font-family="Times,serif" font-size="10.00">refs/warp/&lt;graph&gt;/</text>
 <text xml:space="preserve" text-anchor="start" x="358.75" y="-343.52" font-family="Times,serif" font-size="10.00">checkpoints/head</text>
 </g>
 <!-- commit -->
 <g id="node2" class="node">
 <title>commit</title>
-<path fill="#e8e8e8" stroke="black" stroke-width="0.8" d="M472.88,-298.02C472.88,-298.02 316.62,-298.02 316.62,-298.02 310.62,-298.02 304.62,-292.02 304.62,-286.02 304.62,-286.02 304.62,-262.02 304.62,-262.02 304.62,-256.02 310.62,-250.02 316.62,-250.02 316.62,-250.02 472.88,-250.02 472.88,-250.02 478.88,-250.02 484.88,-256.02 484.88,-262.02 484.88,-262.02 484.88,-286.02 484.88,-286.02 484.88,-292.02 478.88,-298.02 472.88,-298.02"/>
-<text xml:space="preserve" text-anchor="start" x="349.38" y="-285.52" font-family="Times,serif" font-size="10.00">{</text>
-<text xml:space="preserve" text-anchor="start" x="353.88" y="-285.52" font-family="Times,serif" font-weight="bold" font-size="10.00">Checkpoint Commit</text>
-<text xml:space="preserve" text-anchor="start" x="312.62" y="-275.52" font-family="Courier,monospace" font-size="8.00">7c8d9e0...</text>
-<text xml:space="preserve" text-anchor="start" x="357.62" y="-275.52" font-family="Times,serif" font-size="10.00">|{ &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text>
-<text xml:space="preserve" text-anchor="start" x="391.38" y="-275.52" font-family="Courier,monospace" font-size="8.00">eg&#45;kind: checkpoint</text>
-<text xml:space="preserve" text-anchor="start" x="312.62" y="-265.52" font-family="Times,serif" font-size="10.00"> &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text>
-<text xml:space="preserve" text-anchor="start" x="339.62" y="-265.52" font-family="Courier,monospace" font-size="8.00">eg&#45;checkpoint: 1</text>
-<text xml:space="preserve" text-anchor="start" x="379" y="-255.52" font-family="Times,serif" font-size="10.00"> &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;}}</text>
+<polygon fill="#e8e8e8" stroke="none" points="340,-250.02 340,-298.02 449.5,-298.02 449.5,-250.02 340,-250.02"/>
+<polygon fill="none" stroke="black" points="340,-274.02 340,-298.02 449.5,-298.02 449.5,-274.02 340,-274.02"/>
+<text xml:space="preserve" text-anchor="start" x="351.62" y="-286.52" font-family="Times,serif" font-weight="bold" font-size="10.00">Checkpoint Commit</text>
+<text xml:space="preserve" text-anchor="start" x="372.25" y="-278.42" font-family="Courier,monospace" font-size="8.00">7c8d9e0...</text>
+<polygon fill="none" stroke="black" points="340,-250.02 340,-274.02 449.5,-274.02 449.5,-250.02 340,-250.02"/>
+<text xml:space="preserve" text-anchor="start" x="343" y="-264.42" font-family="Courier,monospace" font-size="8.00">eg&#45;kind: checkpoint</text>
+<text xml:space="preserve" text-anchor="start" x="343" y="-254.52" font-family="Times,serif" font-size="10.00"> &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text>
+<text xml:space="preserve" text-anchor="start" x="374.5" y="-254.52" font-family="Courier,monospace" font-size="8.00">eg&#45;checkpoint: 1</text>
 </g>
 <!-- ckpt_ref&#45;&gt;commit -->
 <g id="edge1" class="edge">
 <title>ckpt_ref&#45;&gt;commit</title>
-<path fill="none" stroke="black" stroke-width="0.5" stroke-dasharray="5,2" d="M394.75,-334.93C394.75,-327.24 394.75,-317.89 394.75,-308.88"/>
-<polygon fill="black" stroke="black" stroke-width="0.5" points="398.25,-308.95 394.75,-298.95 391.25,-308.95 398.25,-308.95"/>
+<path fill="none" stroke="black" stroke-width="0.5" stroke-dasharray="5,2" d="M394.75,-334.93C394.75,-327.18 394.75,-317.74 394.75,-308.66"/>
+<polygon fill="black" stroke="black" stroke-width="0.5" points="398.25,-308.66 394.75,-298.66 391.25,-308.66 398.25,-308.66"/>
 </g>
 <!-- tree -->
 <g id="node3" class="node">
@@ -65,7 +64,7 @@
 <!-- visible_cbor -->
 <g id="node5" class="node">
 <title>visible_cbor</title>
-<ellipse fill="none" stroke="black" stroke-width="0.8" cx="223.75" cy="-112.88" rx="45.25" ry="18.38"/>
+<ellipse fill="white" stroke="black" stroke-width="0.8" cx="223.75" cy="-112.88" rx="45.25" ry="18.38"/>
 <text xml:space="preserve" text-anchor="start" x="199.75" y="-113.38" font-family="Times,serif" font-size="10.00">visible.cbor</text>
 <text xml:space="preserve" text-anchor="start" x="206.5" y="-105.28" font-family="Times,serif" font-style="italic" font-size="8.00">cache only</text>
 </g>
@@ -78,7 +77,7 @@
 <!-- frontier_cbor -->
 <g id="node6" class="node">
 <title>frontier_cbor</title>
-<ellipse fill="none" stroke="black" stroke-width="0.8" cx="336.75" cy="-112.88" rx="39.2" ry="18"/>
+<ellipse fill="white" stroke="black" stroke-width="0.8" cx="336.75" cy="-112.88" rx="39.2" ry="18"/>
 <text xml:space="preserve" text-anchor="start" x="311.62" y="-109.01" font-family="Times,serif" font-size="10.00">frontier.cbor</text>
 </g>
 <!-- tree&#45;&gt;frontier_cbor -->
@@ -90,7 +89,7 @@
 <!-- applied_vv -->
 <g id="node7" class="node">
 <title>applied_vv</title>
-<ellipse fill="none" stroke="black" stroke-width="0.8" cx="452.75" cy="-112.88" rx="47.63" ry="18"/>
+<ellipse fill="white" stroke="black" stroke-width="0.8" cx="452.75" cy="-112.88" rx="47.63" ry="18"/>
 <text xml:space="preserve" text-anchor="start" x="420.5" y="-109.01" font-family="Times,serif" font-size="10.00">appliedVV.cbor</text>
 </g>
 <!-- tree&#45;&gt;applied_vv -->
@@ -102,7 +101,7 @@
 <!-- provenance -->
 <g id="node8" class="node">
 <title>provenance</title>
-<ellipse fill="none" stroke="black" stroke-width="0.8" cx="604.75" cy="-112.88" rx="75.48" ry="18.38"/>
+<ellipse fill="white" stroke="black" stroke-width="0.8" cx="604.75" cy="-112.88" rx="75.48" ry="18.38"/>
 <text xml:space="preserve" text-anchor="start" x="559.38" y="-113.38" font-family="Times,serif" font-size="10.00">provenanceIndex.cbor</text>
 <text xml:space="preserve" text-anchor="start" x="592" y="-105.28" font-family="Times,serif" font-style="italic" font-size="8.00">optional</text>
 </g>

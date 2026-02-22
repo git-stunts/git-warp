@@ -71,6 +71,8 @@ digraph two_plane {
   v1 -> a_v1 [style=dashed, penwidth=0.5, color="#606060", label="&#945;", fontsize=8]
   v2 -> a_v2 [style=dashed, penwidth=0.5, color="#606060", label="&#945;", fontsize=8]
   v3 -> a_v3 [style=dashed, penwidth=0.5, color="#606060", label="&#945;", fontsize=8]
-  v1 -> b_e12 [style=dashed, penwidth=0.5, color="#606060", label="&#946;", fontsize=8,
+  // Graphviz cannot source edges from edges; label clarifies the semantic
+  v1 -> b_e12 [style=dashed, penwidth=0.5, color="#606060",
+               label=<&#946;(e<SUB>12</SUB>)>, fontsize=8,
                ltail=cluster_skeleton]
 }

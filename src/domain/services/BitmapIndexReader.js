@@ -4,6 +4,7 @@ import nullLogger from '../utils/nullLogger.js';
 import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
+import { isValidShardOid } from '../utils/validateShardOid.js';
 
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
@@ -50,24 +51,24 @@ const computeChecksum = async (data, version, crypto) => {
  * - {@link ShardCorruptionError} for invalid shard format
  * - {@link ShardValidationError} for version or checksum mismatches
  *
- * In non-strict mode (default), validation failures are logged as warnings
+ * In non-strict mode (strict: false), validation failures are logged as warnings
  * and an empty shard is returned for graceful degradation.
  *
  * **Note**: Storage errors (e.g., `storage.readBlob` failures) always throw
  * {@link ShardLoadError} regardless of strict mode.
  *
  * @example
- * // Non-strict mode (default) - graceful degradation on validation errors
+ * // Strict mode (default) - throws on any validation failure
  * const reader = new BitmapIndexReader({ storage });
  * reader.setup(shardOids);
  * const parents = await reader.getParents('abc123...');
  *
  * @example
- * // Strict mode - throws on any validation failure
- * const strictReader = new BitmapIndexReader({ storage, strict: true });
- * strictReader.setup(shardOids);
+ * // Non-strict mode - graceful degradation on validation errors
+ * const lenientReader = new BitmapIndexReader({ storage, strict: false });
+ * lenientReader.setup(shardOids);
  * try {
- *   const parents = await strictReader.getParents('abc123...');
+ *   const parents = await lenientReader.getParents('abc123...');
  * } catch (err) {
  *   if (err instanceof ShardValidationError) {
  *     console.error('Shard validation failed:', err.field, err.expected, err.actual);
@@ -83,14 +84,14 @@ export default class BitmapIndexReader {
    * Creates a BitmapIndexReader instance.
    * @param {Object} options
    * @param {IndexStoragePort} options.storage - Storage adapter for reading index data
-   * @param {boolean} [options.strict=false] - If true, throw errors on validation failures; if false, log warnings and return empty shards
+   * @param {boolean} [options.strict=true] - If true, throw errors on validation failures; if false, log warnings and return empty shards
    * @param {import('../../ports/LoggerPort.js').default} [options.logger] - Logger for structured logging.
    *   Defaults to NoOpLogger (no logging).
    * @param {number} [options.maxCachedShards=100] - Maximum number of shards to keep in the LRU cache.
    *   When exceeded, least recently used shards are evicted to free memory.
    * @param {import('../../ports/CryptoPort.js').default} [options.crypto] - CryptoPort instance for checksum verification.
    */
-  constructor({ storage, strict = false, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {{ storage: IndexStoragePort, strict?: boolean, logger?: LoggerPort, maxCachedShards?: number, crypto?: CryptoPort }} */ ({})) {
+  constructor({ storage, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto } = /** @type {{ storage: IndexStoragePort, strict?: boolean, logger?: LoggerPort, maxCachedShards?: number, crypto?: CryptoPort }} */ ({})) {
     if (!storage) {
       throw new Error('BitmapIndexReader requires a storage adapter');
     }
@@ -132,8 +133,29 @@ export default class BitmapIndexReader {
    * const parents = await reader.getParents('abcd1234...'); // loads meta_ab, shards_rev_ab
    */
   setup(shardOids) {
-    this.shardOids = new Map(Object.entries(shardOids));
-    this._idToShaCache = null; // Clear cache when shards change
+    const entries = Object.entries(shardOids);
+    /** @type {[string, string][]} */
+    const validEntries = [];
+    for (const [path, oid] of entries) {
+      if (isValidShardOid(oid)) {
+        validEntries.push([path, oid]);
+      } else if (this.strict) {
+        throw new ShardCorruptionError('Invalid shard OID', {
+          shardPath: path,
+          oid,
+          reason: 'invalid_oid',
+        });
+      } else {
+        this.logger.warn('Skipping shard with invalid OID', {
+          operation: 'setup',
+          shardPath: path,
+          oid,
+          reason: 'invalid_oid',
+        });
+      }
+    }
+    this.shardOids = new Map(validEntries);
+    this._idToShaCache = null;
     this.loadedShards.clear();
   }
 

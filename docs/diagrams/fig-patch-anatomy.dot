@@ -16,21 +16,23 @@ digraph patch_anatomy {
   node [fontname="Times-Roman", fontsize=10, penwidth=0.8]
   edge [fontname="Times-Roman", fontsize=8, penwidth=0.8]
 
-  // The patch commit (record shape)
-  commit [shape=record, style="rounded,filled", fillcolor="#e8e8e8",
-          label=<{<B>Patch Commit</B><BR/><FONT FACE="Courier" POINT-SIZE="8">f1a2b3c4d5e6f7a</FONT>|{
-            tree: <FONT FACE="Courier" POINT-SIZE="8">a9b8c7d...</FONT> |
-            parent: <FONT FACE="Courier" POINT-SIZE="8">d4e5f6a...</FONT>
-          }|{<FONT POINT-SIZE="9"><B>Trailers:</B><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-kind: patch</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-graph: myGraph</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-writer: alice</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-lamport: 42</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-schema: 2</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-patch-oid: b3c4d5e...</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-state-hash: e6f7a8b...</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier">eg-frontier-oid: c7d8e9f...</FONT><BR ALIGN="LEFT"/>
-          </FONT>}}>]
+  // The patch commit (TABLE layout)
+  commit [shape=none, margin=0,
+          label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD COLSPAN="2"><B>Patch Commit</B><BR/><FONT FACE="Courier" POINT-SIZE="8">f1a2b3c</FONT></TD></TR>
+            <TR><TD>tree: <FONT FACE="Courier" POINT-SIZE="8">a9b8c7d...</FONT></TD>
+                <TD>parent: <FONT FACE="Courier" POINT-SIZE="8">d4e5f6a...</FONT></TD></TR>
+            <TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9"><B>Trailers:</B><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-kind: patch</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-graph: myGraph</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-writer: alice</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-lamport: 42</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-schema: 2</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-patch-oid: b3c4d5e...</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-state-hash: e6f7a8b...</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier">eg-frontier-oid: c7d8e9f...</FONT><BR ALIGN="LEFT"/>
+            </FONT></TD></TR>
+          </TABLE>>]
 
   // Parent commit
   parent [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
@@ -47,15 +49,16 @@ digraph patch_anatomy {
              label=<_content_abc...<BR/><FONT POINT-SIZE="8">blob value</FONT>>]
 
   // Ops detail
-  ops [shape=box, style="dashed,filled", fillcolor="#f0f0f0",
-       label=<{<B>Patch Operations</B> (schema:2)|{
-         <FONT FACE="Courier" POINT-SIZE="8">NodeAdd(id, dot)</FONT> |
-         <FONT FACE="Courier" POINT-SIZE="8">NodeTombstone(id, dots)</FONT> |
-         <FONT FACE="Courier" POINT-SIZE="8">EdgeAdd(from, to, label, dot)</FONT> |
-         <FONT FACE="Courier" POINT-SIZE="8">EdgeTombstone(key, dots)</FONT> |
-         <FONT FACE="Courier" POINT-SIZE="8">PropSet(key, val, eventId)</FONT> |
-         <FONT FACE="Courier" POINT-SIZE="8">BlobValue(oid, data)</FONT>
-       }}>]
+  ops [shape=none, margin=0,
+       label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="#f0f0f0" STYLE="dashed">
+         <TR><TD COLSPAN="2"><B>Patch Operations</B> (schema:2)</TD></TR>
+         <TR><TD><FONT FACE="Courier" POINT-SIZE="8">NodeAdd(id, dot)</FONT></TD>
+             <TD><FONT FACE="Courier" POINT-SIZE="8">NodeTombstone(id, dots)</FONT></TD></TR>
+         <TR><TD><FONT FACE="Courier" POINT-SIZE="8">EdgeAdd(from, to, label, dot)</FONT></TD>
+             <TD><FONT FACE="Courier" POINT-SIZE="8">EdgeTombstone(key, dots)</FONT></TD></TR>
+         <TR><TD><FONT FACE="Courier" POINT-SIZE="8">PropSet(key, val, eventId)</FONT></TD>
+             <TD><FONT FACE="Courier" POINT-SIZE="8">BlobValue(oid, data)</FONT></TD></TR>
+       </TABLE>>]
 
   // Connections
   commit -> parent [label="parent"]

@@ -24,11 +24,11 @@ for dotfile in "$DIAGRAM_DIR"/fig-*.dot; do
 
   printf "  %-35s → " "$name"
 
-  if dot -Tsvg "$dotfile" -o "$svgfile" 2>/dev/null; then
-    # Post-process: strip white background fills for true transparency
-    # Targets the top-level polygon that Graphviz adds as a page background
-    sed -i '' 's/fill="white"/fill="none"/g' "$svgfile"
-
+  warnings=$(dot -Tsvg "$dotfile" -o "$svgfile" 2>&1) && rc=0 || rc=$?
+  if [ -n "$warnings" ]; then
+    echo "  WARN ($name): $warnings" >&2
+  fi
+  if [ "$rc" -eq 0 ]; then
     size=$(wc -c < "$svgfile" | tr -d ' ')
     size_kb=$((size / 1024))
     printf "%s (%d KB)\n" "$(basename "$svgfile")" "$size_kb"

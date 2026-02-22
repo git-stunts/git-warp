@@ -1,14 +1,14 @@
-// Fig 1. The Empty Tree Trick
+// Fig 1. WARP Data Storage
 // Style: Git object vocabulary (i)
-// Shows: Normal Git commits vs WARP patch commits, both referencing the empty tree
+// Shows: Normal Git commits vs WARP patch commits — invisible to normal Git workflows
 
-digraph empty_tree {
+digraph data_storage {
   bgcolor=transparent
   rankdir=TB
   newrank=true
   fontname="Times-Roman"
   fontsize=11
-  label=<<I>Fig. 1.  The Empty Tree Trick — WARP patches live alongside normal Git objects</I>>
+  label=<<I>Fig. 1.  WARP Data Storage — invisible to normal Git workflows</I>>
   labelloc=b
   labeljust=c
 
@@ -23,7 +23,7 @@ digraph empty_tree {
     color="#606060"
     penwidth=0.8
     fontname="Times-Roman"
-    fontsize=10
+    fontsize=9
 
     HEAD [shape=box, style="dashed,filled", fillcolor=white, label="HEAD"]
     main_ref [shape=box, style="dashed,filled", fillcolor=white, label="refs/heads/main"]
@@ -57,7 +57,7 @@ digraph empty_tree {
     color="#606060"
     penwidth=0.8
     fontname="Times-Roman"
-    fontsize=10
+    fontsize=9
 
     warp_ref [shape=box, style="dashed,filled", fillcolor=white,
               label=<refs/warp/myGraph/<BR/>writers/alice>]
@@ -84,20 +84,19 @@ digraph empty_tree {
     WT3 -> content_blob [penwidth=0.5]
   }
 
-  // --- Empty tree ---
-  empty_tree [shape=folder, style="filled,bold", fillcolor="#d0d0d0", penwidth=1.2,
-              label=<Empty Tree<BR/><FONT FACE="Courier" POINT-SIZE="7">4b825dc...</FONT>>]
-
-  P1 -> empty_tree [label="tree", penwidth=0.5, style=dashed, color="#606060"]
-
   // --- Invisible-to-git-log annotation ---
-  invisible_note [shape=plaintext, fontsize=9, fontname="Times-Roman",
-                  label=<⬆ visible to <FONT FACE="Courier">git log</FONT><BR/>⬇ invisible to <FONT FACE="Courier">git log</FONT>>]
+  // WARP data lives under refs/warp/ — invisible to git log, git diff, git status
+  invisible_note [shape=none, margin=0, fontsize=9, fontname="Times-Roman",
+                  label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0">
+                    <TR><TD>visible to <FONT FACE="Courier">git log</FONT></TD></TR>
+                    <HR/>
+                    <TR><TD>invisible to <FONT FACE="Courier">git log</FONT><BR/>
+                    (lives under <FONT FACE="Courier">refs/warp/</FONT>)</TD></TR>
+                  </TABLE>>]
 
   // Ranking
   {rank=same; HEAD; warp_ref}
   {rank=same; C3; P3}
   {rank=same; C1; P1}
   {rank=same; T3; WT3}
-  {rank=same; empty_tree; invisible_note}
 }

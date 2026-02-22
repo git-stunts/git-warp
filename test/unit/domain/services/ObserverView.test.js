@@ -31,9 +31,7 @@ function addProp(state, nodeId, key, value) {
 
 describe('ObserverView', () => {
   /** @type {any} */
-  /** @type {any} */
   let mockPersistence;
-  /** @type {any} */
   /** @type {any} */
   let graph;
 

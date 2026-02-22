@@ -93,14 +93,16 @@ digraph architecture {
     }
   }
 
-  // === Inward-pointing arrows (dependency rule) ===
-  // Adapters implement Ports
-  git_adapter -> persistence_port [dir=back, style=dashed, penwidth=0.5]
-  cbor_codec -> codec_port [dir=back, style=dashed, penwidth=0.5]
-  web_crypto -> crypto_port [dir=back, style=dashed, penwidth=0.5]
-  clock_adapter -> clock_port [dir=back, style=dashed, penwidth=0.5]
-  console_log -> logger_port [dir=back, style=dashed, penwidth=0.5]
-  cas_cache -> cache_port [dir=back, style=dashed, penwidth=0.5]
+  // === Outward-pointing arrows (adapter implements port) ===
+  persistence_port -> git_adapter [style=dashed, penwidth=0.5, label=<implements>]
+  codec_port -> cbor_codec [style=dashed, penwidth=0.5, label=<implements>]
+  crypto_port -> web_crypto [style=dashed, penwidth=0.5, label=<implements>]
+  clock_port -> clock_adapter [style=dashed, penwidth=0.5, label=<implements>]
+  logger_port -> console_log [style=dashed, penwidth=0.5, label=<implements>]
+  cache_port -> cas_cache [style=dashed, penwidth=0.5, label=<implements>]
+
+  // IndexStoragePort is implemented via GitGraphAdapter (shared adapter)
+  index_port -> git_adapter [style=dashed, penwidth=0.5, label=<via>]
 
   // Domain uses Ports
   warp_graph -> persistence_port [penwidth=0.5]
@@ -108,6 +110,8 @@ digraph architecture {
   warp_graph -> crypto_port [penwidth=0.5]
   warp_graph -> clock_port [penwidth=0.5]
   warp_graph -> logger_port [penwidth=0.5]
+  warp_graph -> index_port [penwidth=0.5]
+  warp_graph -> cache_port [penwidth=0.5]
 
   // Internal domain relationships
   warp_graph -> reducer [penwidth=0.5, style=invis]

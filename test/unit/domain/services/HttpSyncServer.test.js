@@ -29,7 +29,6 @@ function canonicalStringify(value) {
 /** @returns {any} */
 function createMockPort() {
   /** @type {any} */
-  /** @type {any} */
   let handler;
   let listenCallback;
   let closeCallback;
@@ -68,9 +67,7 @@ function createMockPort() {
 
 describe('HttpSyncServer', () => {
   /** @type {any} */
-  /** @type {any} */
   let mockPort;
-  /** @type {any} */
   /** @type {any} */
   let graph;
 
@@ -116,7 +113,6 @@ describe('HttpSyncServer', () => {
   });
 
   describe('request handling', () => {
-    /** @type {any} */
     /** @type {any} */
     let handler;
 

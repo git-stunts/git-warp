@@ -74,7 +74,9 @@
 <title>v1&#45;&gt;b_e12</title>
 <path fill="none" stroke="#606060" stroke-width="0.5" stroke-dasharray="5,2" d="M289,-360.4C307.65,-352.22 332.51,-339.92 352,-325.25 451.56,-250.34 545.52,-133.82 584.75,-82.39"/>
 <polygon fill="#606060" stroke="#606060" stroke-width="0.5" points="587.51,-84.54 590.76,-74.45 581.93,-80.31 587.51,-84.54"/>
-<text xml:space="preserve" text-anchor="middle" x="476.5" y="-213.9" font-family="Times,serif" font-size="8.00">β</text>
+<text xml:space="preserve" text-anchor="start" x="474.62" y="-214.9" font-family="Times,serif" font-size="8.00">β(e</text>
+<text xml:space="preserve" text-anchor="start" x="485.12" y="-214.9" font-family="Times,serif" baseline-shift="sub" font-size="8.00">12</text>
+<text xml:space="preserve" text-anchor="start" x="491.12" y="-214.9" font-family="Times,serif" font-size="8.00">)</text>
 </g>
 <!-- v3 -->
 <g id="node3" class="node">

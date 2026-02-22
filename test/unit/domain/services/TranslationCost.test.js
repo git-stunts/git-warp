@@ -33,9 +33,7 @@ function addProp(state, nodeId, key, value) {
 
 describe('TranslationCost', () => {
   /** @type {any} */
-  /** @type {any} */
   let mockPersistence;
-  /** @type {any} */
   /** @type {any} */
   let graph;
 

@@ -3,21 +3,15 @@ import HealthCheckService, { HealthStatus } from '../../../../src/domain/service
 
 describe('HealthCheckService', () => {
   /** @type {any} */
-  /** @type {any} */
   let service;
-  /** @type {any} */
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
-  /** @type {any} */
   let mockClock;
-  /** @type {any} */
   /** @type {any} */
   let mockIndexReader;
   /** @type {any} */
-  /** @type {any} */
   let mockLogger;
-  /** @type {any} */
   /** @type {any} */
   let currentTime;
 

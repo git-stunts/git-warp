@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "11.5.0",
+  "version": "11.5.1",
   "imports": {
     "roaring": "npm:roaring@^2.7.0"
   },

@@ -193,7 +193,7 @@ declare module '../WarpGraph.js' {
     _relationToCheckpointHead(ckHead: string, incomingSha: string): Promise<string>;
     _validatePatchAgainstCheckpoint(writerId: string, incomingSha: string, checkpoint: unknown): Promise<void>;
 
-    // ── sync.methods.js ───────────────────────────────────────────────────
+    // ── SyncController (direct delegation) ─────────────────────────────────
     getFrontier(): Promise<Map<string, string>>;
     hasFrontierChanged(): Promise<boolean>;
     status(): Promise<WarpGraphStatus>;

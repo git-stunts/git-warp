@@ -73,6 +73,21 @@ digraph ref_layout {
   audit -> audit_bob
   trust -> trust_rec
 
+  // Elision nodes (leaf refs without explicit commit targets)
+  elision_cur [shape=plaintext, fontsize=9, label="..."]
+  elision_bookmark [shape=plaintext, fontsize=9, label="..."]
+  elision_audit_a [shape=plaintext, fontsize=9, label="..."]
+  elision_audit_b [shape=plaintext, fontsize=9, label="..."]
+  elision_trust [shape=plaintext, fontsize=9, label="..."]
+  elision_cache [shape=plaintext, fontsize=9, label="..."]
+
+  cur_active -> elision_cur [style=dashed, penwidth=0.5]
+  bookmark -> elision_bookmark [style=dashed, penwidth=0.5]
+  audit_alice -> elision_audit_a [style=dashed, penwidth=0.5]
+  audit_bob -> elision_audit_b [style=dashed, penwidth=0.5]
+  trust_rec -> elision_trust [style=dashed, penwidth=0.5]
+  seek_cache -> elision_cache [style=dashed, penwidth=0.5]
+
   // Ref-to-commit arrows (dashed)
   alice_ref -> c_alice [style=dashed, penwidth=0.5]
   bob_ref -> c_bob [style=dashed, penwidth=0.5]

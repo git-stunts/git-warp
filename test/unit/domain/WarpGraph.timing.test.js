@@ -249,8 +249,8 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
       // Pre-cache state so sync doesn't need to materialize
       /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
-      graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 5 });
-      graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockReturnValue({ applied: 5 });
+      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
@@ -273,8 +273,8 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       });
 
       /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
-      graph.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
-      graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
+      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
       const peer = { processSyncRequest: vi.fn().mockResolvedValue(responsePayload) };
@@ -295,7 +295,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       });
 
       /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
-      graph.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+      /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const peer = {
         processSyncRequest: vi.fn().mockRejectedValue(new Error('peer unreachable')),

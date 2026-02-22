@@ -87,6 +87,10 @@ const exists = await graph.hasNode('todo:1');
 
 That's it. Your graph data is stored as Git commits — invisible to normal Git workflows but inheriting all of Git's properties.
 
+<p align="center">
+  <img src="diagrams/fig-architecture.svg" alt="Hexagonal architecture overview" width="700">
+</p>
+
 ---
 
 ## Writing Data
@@ -206,6 +210,10 @@ const writer = await graph.writer('machine-a');
 Before reading, you need to **materialize** — this replays all patches from all writers to compute the current state.
 
 ### Materialization
+
+<p align="center">
+  <img src="diagrams/fig-materialize-pipeline.svg" alt="Materialization pipeline — from refs to consistent state" width="700">
+</p>
 
 ```javascript
 const state = await graph.materialize();
@@ -464,6 +472,10 @@ WarpGraph's core strength is coordination-free multi-writer collaboration. Each 
 
 ### How It Works
 
+<p align="center">
+  <img src="diagrams/fig-multi-writer.svg" alt="Multi-writer convergence" width="700">
+</p>
+
 ```javascript
 // === Machine A ===
 const graphA = await WarpGraph.open({
@@ -496,6 +508,10 @@ const stateB = await graphB.materialize();
 ```
 
 ### Conflict Resolution
+
+<p align="center">
+  <img src="diagrams/fig-two-plane.svg" alt="Two-plane state model — skeleton topology + attachment fibres" width="600">
+</p>
 
 When two writers modify the same property concurrently, the conflict is resolved deterministically using **Last-Writer-Wins (LWW)** semantics. The winner is the operation with the higher priority, compared in this order:
 
@@ -571,6 +587,10 @@ if (changed) {
 ## Checkpoints & Performance
 
 ### Checkpoints
+
+<p align="center">
+  <img src="diagrams/fig-checkpoint-tree.svg" alt="Checkpoint tree — snapshot for fast recovery" width="500">
+</p>
 
 A **checkpoint** is a snapshot of materialized state at a known point in history. Without checkpoints, materialization replays every patch from every writer. With a checkpoint, it loads the snapshot and only replays patches since then.
 
@@ -1348,6 +1368,10 @@ Each patch carries its version vector as causal context. This allows the reducer
 
 ### Appendix B: Git Ref Layout
 
+<p align="center">
+  <img src="diagrams/fig-ref-layout.svg" alt="Ref layout — the refs/warp/ namespace" width="600">
+</p>
+
 ```text
 refs/warp/<graphName>/
 ├── writers/
@@ -1363,6 +1387,10 @@ refs/warp/<graphName>/
 Each writer's ref points to the tip of their patch chain. Patches are Git commits whose parents point to the previous patch from the same writer. All commits point to Git's well-known empty tree (`4b825dc642cb6eb9a060e54bf8d69288fbee4904`), making data invisible to normal Git workflows.
 
 ### Appendix C: Patch Format
+
+<p align="center">
+  <img src="diagrams/fig-patch-anatomy.svg" alt="Patch commit anatomy" width="500">
+</p>
 
 Each patch is a Git commit containing:
 

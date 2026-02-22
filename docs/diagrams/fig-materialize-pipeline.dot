@@ -1,10 +1,10 @@
 // Fig 6. Materialization Pipeline
 // Style: Flow diagram (architectural)
-// Shows: Left-to-right pipeline from writer refs to materialized state
+// Shows: Top-to-bottom pipeline from writer refs to materialized state
 
 digraph materialize_pipeline {
   bgcolor=transparent
-  rankdir=LR
+  rankdir=TB
   fontname="Times-Roman"
   fontsize=11
   label=<<I>Fig. 6.  Materialization Pipeline — from refs to consistent state</I>>
@@ -24,18 +24,22 @@ digraph materialize_pipeline {
   sort [label=<Sort by<BR/>Lamport>]
 
   // JoinReducer (larger, emphasized)
-  reducer [label=<{<B>JoinReducer</B>|{
-    OR-Set merge<BR/><FONT POINT-SIZE="8">(nodes, edges)</FONT> |
-    LWW merge<BR/><FONT POINT-SIZE="8">(properties)</FONT>
-  }}>, fillcolor="#d0d0d0", penwidth=1.2]
+  reducer [shape=none, margin=0,
+           label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="#d0d0d0">
+             <TR><TD COLSPAN="2"><B>JoinReducer</B></TD></TR>
+             <TR><TD>OR-Set merge<BR/><FONT POINT-SIZE="8">(nodes, edges)</FONT></TD>
+                 <TD>LWW merge<BR/><FONT POINT-SIZE="8">(properties)</FONT></TD></TR>
+           </TABLE>>, penwidth=1.2]
 
   // Output
-  state [label=<{<B>WarpStateV5</B>|{
-    <FONT FACE="Courier" POINT-SIZE="8">nodeAlive</FONT> |
-    <FONT FACE="Courier" POINT-SIZE="8">edgeAlive</FONT> |
-    <FONT FACE="Courier" POINT-SIZE="8">prop</FONT> |
-    <FONT FACE="Courier" POINT-SIZE="8">frontier</FONT>
-  }}>, fillcolor="#e8e8e8", penwidth=1.0]
+  state [shape=none, margin=0,
+         label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="#e8e8e8">
+           <TR><TD COLSPAN="2"><B>WarpStateV5</B></TD></TR>
+           <TR><TD><FONT FACE="Courier" POINT-SIZE="8">nodeAlive</FONT></TD>
+               <TD><FONT FACE="Courier" POINT-SIZE="8">edgeAlive</FONT></TD></TR>
+           <TR><TD><FONT FACE="Courier" POINT-SIZE="8">prop</FONT></TD>
+               <TD><FONT FACE="Courier" POINT-SIZE="8">frontier</FONT></TD></TR>
+         </TABLE>>, penwidth=1.0]
 
   // Main pipeline flow
   refs -> walk -> decode -> sort -> reducer -> state

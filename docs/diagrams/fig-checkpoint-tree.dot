@@ -21,11 +21,12 @@ digraph checkpoint_tree {
             label=<refs/warp/&lt;graph&gt;/<BR/>checkpoints/head>]
 
   // Checkpoint commit
-  commit [shape=box, style="rounded,filled", fillcolor="#e8e8e8",
-          label=<{<B>Checkpoint Commit</B><BR/><FONT FACE="Courier" POINT-SIZE="8">7c8d9e0...</FONT>|{
-            <FONT FACE="Courier" POINT-SIZE="8">eg-kind: checkpoint</FONT><BR ALIGN="LEFT"/>
-            <FONT FACE="Courier" POINT-SIZE="8">eg-checkpoint: 1</FONT><BR ALIGN="LEFT"/>
-          }}>]
+  commit [shape=none, margin=0,
+          label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>Checkpoint Commit</B><BR/><FONT FACE="Courier" POINT-SIZE="8">7c8d9e0...</FONT></TD></TR>
+            <TR><TD ALIGN="LEFT"><FONT FACE="Courier" POINT-SIZE="8">eg-kind: checkpoint</FONT><BR ALIGN="LEFT"/>
+              <FONT FACE="Courier" POINT-SIZE="8">eg-checkpoint: 1</FONT><BR ALIGN="LEFT"/></TD></TR>
+          </TABLE>>]
 
   ckpt_ref -> commit [style=dashed, penwidth=0.5]
 

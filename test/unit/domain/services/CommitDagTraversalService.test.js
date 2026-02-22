@@ -18,7 +18,6 @@ import TraversalError from '../../../../src/domain/errors/TraversalError.js';
  */
 function createMockIndexReader() {
   /** @type {Record<string, string[]>} */
-  /** @type {Record<string, string[]>} */
   const forwardEdges = {
     A: ['B', 'C'],
     B: ['D'],
@@ -27,7 +26,6 @@ function createMockIndexReader() {
     E: [],
   };
 
-  /** @type {Record<string, string[]>} */
   /** @type {Record<string, string[]>} */
   const reverseEdges = {
     A: [],
@@ -304,12 +302,10 @@ describe('CommitDagTraversalService', () => {
       const cyclicReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = { B: ['A'], C: ['B'], A: ['C'] };
           return edges[sha] || [];
@@ -327,7 +323,6 @@ describe('CommitDagTraversalService', () => {
     it('logs warning when cycle is detected', async () => {
       const cyclicReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
@@ -361,7 +356,6 @@ describe('CommitDagTraversalService', () => {
     it('throws TraversalError when throwOnCycle is true and cycle detected', async () => {
       const cyclicReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = { A: ['B'], B: ['C'], C: ['A'] };
           return edges[sha] || [];
@@ -399,12 +393,10 @@ describe('CommitDagTraversalService', () => {
       const selfLoopReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = { A: ['A'] }; // A is its own child
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = { A: ['A'] }; // A is its own parent
           return edges[sha] || [];
@@ -435,7 +427,6 @@ describe('CommitDagTraversalService', () => {
       const selfLoopReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = { A: ['A'] };
           return edges[sha] || [];
         }),
@@ -457,7 +448,6 @@ describe('CommitDagTraversalService', () => {
     it('logs warning for self-loop cycle', async () => {
       const selfLoopReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = { A: ['A'] };
           return edges[sha] || [];
@@ -494,7 +484,6 @@ describe('CommitDagTraversalService', () => {
       const disconnectedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B'],
             B: ['C'],
@@ -506,7 +495,6 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: [],
@@ -571,7 +559,6 @@ describe('CommitDagTraversalService', () => {
       const weightedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C'],
             B: ['D'],
@@ -581,7 +568,6 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: [],
@@ -669,7 +655,6 @@ describe('CommitDagTraversalService', () => {
       const disconnectedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B'],
             B: [],
@@ -679,7 +664,6 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: [],
@@ -733,7 +717,6 @@ describe('CommitDagTraversalService', () => {
       const complexReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C', 'D'],
             B: ['E'],
@@ -772,7 +755,6 @@ describe('CommitDagTraversalService', () => {
     it('handles zero-weight edges', async () => {
       const zeroWeightReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C'],
@@ -872,7 +854,6 @@ describe('CommitDagTraversalService', () => {
       const gridReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'D'],
             B: ['C'],
@@ -925,7 +906,6 @@ describe('CommitDagTraversalService', () => {
       // With heuristic pointing toward C->G->J path, fewer nodes explored.
       const wideReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C', 'D'],
@@ -1045,7 +1025,6 @@ describe('CommitDagTraversalService', () => {
       const weightedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C'],
             B: ['D'],
@@ -1108,7 +1087,6 @@ describe('CommitDagTraversalService', () => {
       // because it has made more "actual progress" (g=2 > g=1)
       const tieBreakReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             START: ['A', 'B'],
@@ -1227,7 +1205,6 @@ describe('CommitDagTraversalService', () => {
       const weightedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C'],
             B: ['D'],
@@ -1238,7 +1215,6 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: [],
@@ -1375,7 +1351,6 @@ describe('CommitDagTraversalService', () => {
       const weightedReader = {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           /** @type {Record<string, string[]>} */
-          /** @type {Record<string, string[]>} */
           const edges = {
             A: ['B', 'C'],
             B: ['D'],
@@ -1385,7 +1360,6 @@ describe('CommitDagTraversalService', () => {
           return edges[sha] || [];
         }),
         getParents: vi.fn(async (/** @type {string} */ sha) => {
-          /** @type {Record<string, string[]>} */
           /** @type {Record<string, string[]>} */
           const edges = {
             A: [],

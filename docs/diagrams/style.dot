@@ -2,8 +2,7 @@
 // style.dot — Shared style reference for AION diagram suite
 // =============================================================
 // Not directly #included by Graphviz. Each .dot file copies the
-// relevant defaults from this reference. The build script
-// (scripts/build-diagrams.sh) may also inject these via cat.
+// relevant defaults from this reference.
 //
 // Two visual vocabularies:
 //   (i)  Git object diagrams  — commits, trees, blobs, refs

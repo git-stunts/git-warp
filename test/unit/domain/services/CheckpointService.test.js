@@ -25,7 +25,6 @@ const makeOid = (/** @type {string} */ prefix) => {
 
 describe('CheckpointService', () => {
   /** @type {any} */
-  /** @type {any} */
   let mockPersistence;
 
   beforeEach(() => {
@@ -544,8 +543,6 @@ describe('CheckpointService', () => {
 
   describe('V5 checkpoint with full ORSet state', () => {
     /** @type {any} */
-    /** @type {any} */
-    /** @type {any} */
     let mockPersistence;
 
     beforeEach(() => {
@@ -622,7 +619,6 @@ describe('CheckpointService', () => {
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
         /** @type {any} */
-        /** @type {any} */
         let capturedStateBuffer;
         mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
           if (!capturedStateBuffer) {
@@ -658,7 +654,6 @@ describe('CheckpointService', () => {
         const frontier = createFrontier();
         updateFrontier(frontier, 'alice', makeOid('sha1'));
 
-        /** @type {any} */
         /** @type {any} */
         let capturedStateBuffer;
         mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
@@ -943,7 +938,6 @@ describe('CheckpointService', () => {
         const hashBeforeCompact = await computeStateHashV5(state, { crypto });
 
         // Create checkpoint with compaction
-        /** @type {any} */
         /** @type {any} */
         let writtenVisibleBlob;
         let blobIndex = 0;

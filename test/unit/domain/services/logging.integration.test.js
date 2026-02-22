@@ -38,12 +38,9 @@ function createMockLogger() {
 describe('Service Logging Integration', () => {
   describe('IndexRebuildService', () => {
     /** @type {any} */
-    /** @type {any} */
     let mockGraphService;
     /** @type {any} */
-    /** @type {any} */
     let mockStorage;
-    /** @type {any} */
     /** @type {any} */
     let mockLogger;
 
@@ -57,7 +54,7 @@ describe('Service Logging Integration', () => {
       mockStorage = {
         writeBlob: vi.fn().mockResolvedValue('blob-oid'),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readTreeOids: vi.fn().mockResolvedValue({ 'meta_ab.json': 'meta-oid' }),
+        readTreeOids: vi.fn().mockResolvedValue({ 'meta_ab.json': 'aaa1bbb2ccc3ddd4eee5fff6aaa1bbb2ccc3ddd4' }),
       };
       mockLogger = createMockLogger();
     });
@@ -160,9 +157,7 @@ describe('Service Logging Integration', () => {
 
   describe('BitmapIndexReader', () => {
     /** @type {any} */
-    /** @type {any} */
     let mockStorage;
-    /** @type {any} */
     /** @type {any} */
     let mockLogger;
 
@@ -190,7 +185,7 @@ describe('Service Logging Integration', () => {
           logger: mockLogger,
           crypto,
         }));
-        reader.setup({ 'meta_sh.json': 'blob-oid' });
+        reader.setup({ 'meta_sh.json': 'aaa1bbb2ccc3ddd4eee5fff6aaa7bbb8ccc9ddd0' });
 
         const id = await reader.lookupId('sha123');
 

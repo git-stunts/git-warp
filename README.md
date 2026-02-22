@@ -55,6 +55,10 @@ const result = await graph.query()
 
 ## How It Works
 
+<p align="center">
+  <img src="docs/diagrams/fig-data-storage.svg" alt="WARP data storage — invisible to normal Git workflows" width="700">
+</p>
+
 ### The Multi-Writer Problem (and How It's Solved)
 
 Multiple people (or machines, or processes) can write to the same graph **simultaneously, without any coordination**. There's no central server, no locking, no "wait your turn."
@@ -72,6 +76,10 @@ Every operation gets a unique **EventId** — `(lamport, writerId, patchSha, opI
 **Checkpoints** snapshot the materialized state into a single commit for fast incremental recovery. Subsequent materializations only need to replay patches created after the checkpoint.
 
 ## Multi-Writer Collaboration
+
+<p align="center">
+  <img src="docs/diagrams/fig-multi-writer.svg" alt="Multi-writer convergence — independent chains, deterministic merge" width="700">
+</p>
 
 Writers operate independently on the same Git repository. Sync happens through standard Git transport (push/pull) or the built-in HTTP sync protocol.
 
@@ -456,6 +464,10 @@ When a seek cursor is active, `query`, `info`, `materialize`, and `history` auto
 </p>
 
 ## Architecture
+
+<p align="center">
+  <img src="docs/diagrams/fig-architecture.svg" alt="Hexagonal architecture — dependency rule: arrows point inward only" width="700">
+</p>
 
 The codebase follows hexagonal architecture with ports and adapters:
 

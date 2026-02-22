@@ -4,7 +4,6 @@ import GraphNode from '../../../../src/domain/entities/GraphNode.js';
 
 describe('GitLogParser', () => {
   /** @type {any} */
-  /** @type {any} */
   let parser;
 
   beforeEach(() => {

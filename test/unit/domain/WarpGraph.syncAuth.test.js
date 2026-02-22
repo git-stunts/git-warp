@@ -13,16 +13,26 @@ async function createGraph(writerId = 'writer-1') {
   return WarpGraph.open({ persistence: mockPersistence, graphName: 'test', writerId });
 }
 
+/**
+ * Mocks on _syncController — syncWith calls createSyncRequest/applySyncResponse
+ * as this.method() inside SyncController, so instance-level mocks won't intercept.
+ */
 function mockClientGraph(/** @type {WarpGraph} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
   g._cachedState = {};
-  g.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
-  g.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+  const sc = /** @type {Record<string, unknown>} */ (g._syncController);
+  sc.applySyncResponse = vi.fn().mockReturnValue({ applied: 0 });
+  sc.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 }
 
+/**
+ * Mocks on _syncController — processSyncRequest is called by HttpSyncServer
+ * via the host reference, which delegates to the controller.
+ */
 function mockServerGraph(/** @type {WarpGraph} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
-  g.processSyncRequest = vi.fn().mockResolvedValue({
+  const sc = /** @type {Record<string, unknown>} */ (g._syncController);
+  sc.processSyncRequest = vi.fn().mockResolvedValue({
     type: 'sync-response',
     frontier: {},
     patches: [],
@@ -51,8 +61,8 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       });
 
       expect(result.applied).toBe(0);
-      expect(clientGraph.applySyncResponse).toHaveBeenCalled();
-      expect(serverGraph.processSyncRequest).toHaveBeenCalled();
+      expect(/** @type {any} */ (clientGraph)._syncController.applySyncResponse).toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -76,7 +86,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
         clientGraph.syncWith(handle.url, { timeoutMs: 5000 }),
       ).rejects.toMatchObject({ code: 'E_SYNC_PROTOCOL' });
 
-      expect(serverGraph.processSyncRequest).not.toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).not.toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -103,7 +113,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
         }),
       ).rejects.toMatchObject({ code: 'E_SYNC_PROTOCOL' });
 
-      expect(serverGraph.processSyncRequest).not.toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).not.toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -130,7 +140,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
         }),
       ).rejects.toMatchObject({ code: 'E_SYNC_PROTOCOL' });
 
-      expect(serverGraph.processSyncRequest).not.toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).not.toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -153,7 +163,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       const result = await clientGraph.syncWith(handle.url, { timeoutMs: 5000 });
 
       expect(result.applied).toBe(0);
-      expect(serverGraph.processSyncRequest).toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -178,7 +188,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       });
 
       expect(result.applied).toBe(0);
-      expect(serverGraph.processSyncRequest).toHaveBeenCalled();
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).toHaveBeenCalled();
     } finally {
       await handle.close();
     }
@@ -211,7 +221,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       });
       expect(result2.applied).toBe(0);
 
-      expect(serverGraph.processSyncRequest).toHaveBeenCalledTimes(2);
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).toHaveBeenCalledTimes(2);
     } finally {
       await handle.close();
     }
@@ -249,7 +259,7 @@ describe('WarpGraph syncAuth (real HTTP)', () => {
       });
       expect(resultB.applied).toBe(0);
 
-      expect(serverGraph.processSyncRequest).toHaveBeenCalledTimes(2);
+      expect(/** @type {*} */ (serverGraph)._syncController.processSyncRequest).toHaveBeenCalledTimes(2);
     } finally {
       await handle.close();
     }
