@@ -63,6 +63,22 @@ const DEFAULT_SYNC_WITH_TIMEOUT_MS = 10_000;
 // ── Private helpers ─────────────────────────────────────────────────────────
 
 /**
+ * Compares two string→string Maps for value equality without allocating.
+ *
+ * @param {Map<string, string>} a
+ * @param {Map<string, string>} b
+ * @returns {boolean} True if every key in `a` has the same value in `b`
+ */
+function mapsEqual(a, b) {
+  for (const [k, v] of a) {
+    if (b.get(k) !== v) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Normalizes a sync endpoint path to ensure it starts with '/'.
  * Returns '/sync' if no path is provided.
  *
@@ -193,7 +209,7 @@ export default class SyncController {
       cachedState = 'none';
     } else if (this._host._stateDirty || !this._host._lastFrontier ||
       frontier.size !== this._host._lastFrontier.size ||
-      ![...frontier].every(([w, sha]) => /** @type {Map<string, string>} */ (this._host._lastFrontier).get(w) === sha)) {
+      !mapsEqual(frontier, this._host._lastFrontier)) {
       cachedState = 'stale';
     } else {
       cachedState = 'fresh';
@@ -263,7 +279,7 @@ export default class SyncController {
    * **Requires a cached state.**
    *
    * @param {import('./SyncProtocol.js').SyncResponse} response - The sync response
-   * @returns {{state: import('./JoinReducer.js').WarpStateV5, applied: number}} Result with updated state
+   * @returns {{state: import('./JoinReducer.js').WarpStateV5, frontier: Map<string, string>, applied: number}} Result with updated state and frontier
    * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
    */
   applySyncResponse(response) {
@@ -452,11 +468,6 @@ export default class SyncController {
         }
       }
 
-      if (!this._host._cachedState) {
-        await this._host.materialize();
-        emit('materialized');
-      }
-
       if (!response || typeof response !== 'object' ||
         response.type !== 'sync-response' ||
         !response.frontier || typeof response.frontier !== 'object' || Array.isArray(response.frontier) ||
@@ -464,6 +475,11 @@ export default class SyncController {
         throw new SyncError('Invalid sync response', {
           code: 'E_SYNC_PROTOCOL',
         });
+      }
+
+      if (!this._host._cachedState) {
+        await this._host.materialize();
+        emit('materialized');
       }
 
       const result = this.applySyncResponse(response);
