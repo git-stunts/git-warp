@@ -75,6 +75,11 @@ flowchart TB
         wt --> pc["patch.cbor"]
         wt --> cc["_content_*"]
     end
+
+    vis1["✔ visible to git log"]
+    vis2["✘ invisible to git log<br/>(lives under refs/warp/)"]
+    vis1 ~~~ normal
+    vis2 ~~~ warp
 ```
 
 ### The Multi-Writer Problem (and How It's Solved)

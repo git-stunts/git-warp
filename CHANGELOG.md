@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.5.3] — 2026-02-22 — Mermaid Diagram Fixes
+
+### Fixed
+
+- **Mermaid diagrams** — restored information lost during Graphviz-to-Mermaid migration: patch anatomy trailers (`eg-state-hash`, `eg-frontier-oid`) and operation signatures, materialization O(P) complexity annotation, data-storage visibility annotations, and ref-layout elision nodes.
+- **CHANGELOG** — corrected 11.5.2 scope wording to accurately reflect 8 replaced + 3 deleted diagrams.
+
 ## [11.5.2] — 2026-02-22 — Mermaid Diagram Migration
 
 ### Changed
 
-- **Mermaid diagrams** — replaced all 11 Graphviz SVG diagrams with inline Mermaid code blocks in README.md and GUIDE.md. Mermaid renders natively on GitHub with zero build step, eliminating transparency/font/scaling issues with the old SVGs. Deleted `docs/diagrams/` (8 `.dot` + 8 `.svg` + `style.dot`), `docs/images/{git-perspective,emptygraph-perspective,bitmap-index}.{dot,svg}`, and `scripts/build-diagrams.sh`.
+- **Mermaid diagrams** — replaced 8 Graphviz SVG diagrams with inline Mermaid code blocks in README.md and GUIDE.md; deleted 3 unreferenced diagram pairs from `docs/images/`. Mermaid renders natively on GitHub with zero build step, eliminating transparency/font/scaling issues with the old SVGs. Deleted `docs/diagrams/` (8 `.dot` + 8 `.svg` + `style.dot`), `docs/images/{git-perspective,emptygraph-perspective,bitmap-index}.{dot,svg}`, and `scripts/build-diagrams.sh`.
 
 ## [11.5.1] — 2026-02-22 — M9 PARTITION: Architectural Decomposition
 

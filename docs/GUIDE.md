@@ -258,6 +258,8 @@ flowchart TB
     reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
 
     refs -.->|"shortcut (if checkpoint exists)"| reducer
+
+    complexity["O(P) — P = total patches across all writers"] ~~~ state
 ```
 
 ```javascript
@@ -1473,13 +1475,20 @@ flowchart TB
     cvh -.-> ccov["octopus merge f1a2b3c"]
 
     cur --> active["active"]
+    active -.-> ela["..."]
     cur --> saved["saved/"]
     saved --> bm["bookmark"]
+    bm -.-> elb["..."]
 
     aud --> auda["alice"]
+    auda -.-> elc["..."]
     aud --> audb["bob"]
+    audb -.-> eld["..."]
 
     tr --> rec["records"]
+    rec -.-> ele["..."]
+
+    sc -.-> elf["..."]
 
     ccov -.->|parent| ca
     ccov -.->|parent| cb
@@ -1510,9 +1519,9 @@ flowchart TB
     pcbor -.->|"decodes to"| ops
 
     subgraph ops["Patch Operations — schema:2"]
-        na["NodeAdd · NodeTombstone"]
-        ea["EdgeAdd · EdgeTombstone"]
-        ps["PropSet · BlobValue"]
+        na["NodeAdd(id, dot) · NodeTombstone(id, dots)"]
+        ea["EdgeAdd(from, to, label, dot) · EdgeTombstone(key, dots)"]
+        ps["PropSet(key, val, eventId) · BlobValue(oid, data)"]
     end
 
     commit --- trailers
@@ -1521,6 +1530,7 @@ flowchart TB
         t1["eg-kind: patch · eg-graph: myGraph"]
         t2["eg-writer: alice · eg-lamport: 42"]
         t3["eg-schema: 2 · eg-patch-oid: b3c4d5e..."]
+        t4["eg-state-hash: e6f7a8b... · eg-frontier-oid: c7d8e9f..."]
     end
 ```
 
