@@ -443,15 +443,8 @@ describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
   /** @type {any} */
   let graph;
 
-  beforeAll(() => {
-    vi.useFakeTimers();
-  });
-
-  afterAll(() => {
-    vi.useRealTimers();
-  });
-
   beforeEach(async () => {
+    vi.useFakeTimers();
     repo = await createGitRepo('watch');
     graph = await WarpGraph.open({
       persistence: repo.persistence,
@@ -462,6 +455,7 @@ describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
 
   afterEach(async () => {
     vi.clearAllTimers();
+    vi.useRealTimers();
     await repo.cleanup();
   });
 

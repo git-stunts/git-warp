@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { createRng } from '../../../helpers/seededRng.js';
 import {
   createEmptyStateV5,
   joinStates as _joinStates,
@@ -195,7 +196,7 @@ describe('JoinReducer property tests', () => {
           const ba = joinStates(b, a);
           return statesEqual(ab, ba);
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
 
@@ -206,7 +207,7 @@ describe('JoinReducer property tests', () => {
           const a_bc = joinStates(a, joinStates(b, c));
           return statesEqual(ab_c, a_bc);
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
 
@@ -216,7 +217,7 @@ describe('JoinReducer property tests', () => {
           const result = joinStates(a, a);
           return statesEqual(result, a);
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
 
@@ -227,7 +228,7 @@ describe('JoinReducer property tests', () => {
           const result = joinStates(a, empty);
           return statesEqual(result, a);
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
   });
@@ -240,7 +241,7 @@ describe('JoinReducer property tests', () => {
           const hash2 = await computeStateHashV5(state, { crypto });
           return hash1 === hash2;
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
 
@@ -253,7 +254,7 @@ describe('JoinReducer property tests', () => {
           const hashBA = await computeStateHashV5(ba, { crypto });
           return hashAB === hashBA;
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
   });
@@ -304,10 +305,11 @@ describe('JoinReducer property tests', () => {
             const state1 = reduceV5(patches);
             const hash1 = await computeStateHashV5(state1, { crypto });
 
-            // Shuffle patches using Fisher-Yates
+            // Shuffle patches using seeded Fisher-Yates
+            const shuffleRng = createRng(42);
             const shuffled = [...patches];
             for (let i = shuffled.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
+              const j = Math.floor(shuffleRng.next() * (i + 1));
               [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
 
@@ -318,7 +320,7 @@ describe('JoinReducer property tests', () => {
             return hash1 === hash2;
           }
         ),
-        { numRuns: 50 }
+        { numRuns: 50, seed: 42 }
       );
     });
 
@@ -340,7 +342,7 @@ describe('JoinReducer property tests', () => {
             return (await computeStateHashV5(allAtOnce, { crypto })) === (await computeStateHashV5(joined, { crypto }));
           }
         ),
-        { numRuns: 50 }
+        { numRuns: 50, seed: 42 }
       );
     });
   });
@@ -389,7 +391,7 @@ describe('JoinReducer property tests', () => {
 
           return true;
         }),
-        { numRuns: 100 }
+        { numRuns: 100, seed: 42 }
       );
     });
   });

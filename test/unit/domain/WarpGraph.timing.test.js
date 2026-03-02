@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
-import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { createMockPersistence, createMockLogger, createMockClock } from '../../helpers/warpGraphTestUtils.js';
 
@@ -247,8 +246,8 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      // Pre-cache state so sync doesn't need to materialize
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      // Materialize so sync doesn't need to lazily materialize
+      await graph.materialize();
       /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 5 });
       /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
@@ -272,7 +271,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      await graph.materialize();
       /** @type {any} */ (graph)._syncController.applySyncResponse = vi.fn().mockResolvedValue({ applied: 0 });
       /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
@@ -294,7 +293,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
         clock,
       });
 
-      /** @type {any} */ (graph)._cachedState = createEmptyStateV5();
+      await graph.materialize();
       /** @type {any} */ (graph)._syncController.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 
       const peer = {
