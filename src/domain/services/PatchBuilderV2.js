@@ -99,11 +99,11 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/GraphPersistencePort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger }) {
-    /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} */
-    this._persistence = /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} */ (persistence);
+    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
+    this._persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (persistence);
 
     /** @type {string} */
     this._graphName = graphName;

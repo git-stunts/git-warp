@@ -12,7 +12,7 @@ async function createGraph() {
   };
 
   return WarpGraph.open({
-    persistence: mockPersistence,
+    persistence: /** @type {any} */ (mockPersistence),
     graphName: 'test',
     writerId: 'writer-1',
   });

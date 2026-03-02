@@ -35,7 +35,7 @@ describe('WarpGraph serve', () => {
     };
 
     graph = await WarpGraph.open({
-      persistence: mockPersistence,
+      persistence: /** @type {any} */ (mockPersistence),
       graphName: 'test',
       writerId: 'writer-1',
     });

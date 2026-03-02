@@ -36,12 +36,12 @@ export class Writer {
   /**
    * Creates a new Writer instance.
    *
-   * @param {{ persistence: import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger }) {
     validateWriterId(writerId);
 
-    /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default & import('../../ports/CommitPort.js').default} */
+    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} Wider than Writer's own calls; satisfies PatchBuilderV2 constructor. */
     this._persistence = persistence;
 
     /** @type {string} */

@@ -14,12 +14,7 @@
  */
 
 /**
- * Full persistence port — commit + blob + tree + ref + config.
- * @typedef {import('../../ports/GraphPersistencePort.js').default} WarpPersistence
- */
-
-/**
- * Commit + blob + tree + ref (no config).
+ * Standard four-port persistence intersection — commit + blob + tree + ref.
  * Used by sync readers, checkpoint creators, patch writers, and
  * materialize paths. Identical to CheckpointPersistence by design
  * (see module-level note).

@@ -10,7 +10,7 @@ async function createGraph(writerId = 'writer-1') {
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
   };
-  return WarpGraph.open({ persistence: mockPersistence, graphName: 'test', writerId });
+  return WarpGraph.open({ persistence: /** @type {any} */ (mockPersistence), graphName: 'test', writerId });
 }
 
 /**

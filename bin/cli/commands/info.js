@@ -70,7 +70,7 @@ async function getGraphInfo(persistence, graphName, {
 
   if (includeWriterPatches && writerIds.length > 0) {
     const graph = await WarpGraph.open({
-      persistence,
+      persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
       graphName,
       writerId: 'cli',
       crypto: new WebCryptoAdapter(),

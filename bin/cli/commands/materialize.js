@@ -12,7 +12,12 @@ import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning 
  * @returns {Promise<{graph: string, nodes: number, edges: number, properties: number, checkpoint: string|null, writers: Record<string, number>, patchCount: number}>}
  */
 async function materializeOneGraph({ persistence, graphName, writerId, ceiling }) {
-  const graph = await WarpGraph.open({ persistence, graphName, writerId, crypto: new WebCryptoAdapter() });
+  const graph = await WarpGraph.open({
+    persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
+    graphName,
+    writerId,
+    crypto: new WebCryptoAdapter(),
+  });
   await graph.materialize(ceiling !== undefined ? { ceiling } : undefined);
   const nodes = await graph.getNodes();
   const edges = await graph.getEdges();

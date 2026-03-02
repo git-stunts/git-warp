@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **GraphPersistencePort narrowing (B145)** — domain services now declare focused port intersections (`CommitPort & BlobPort`, etc.) in JSDoc instead of the 23-method composite `GraphPersistencePort`. Removed `ConfigPort` from the composite (23 → 21 methods); adapters still implement `configGet`/`configSet` on their prototypes. Zero behavioral change.
+
 ## [12.4.1] — 2026-02-28
 
 ### Fixed
