@@ -89,7 +89,7 @@ describe('BitmapNeighborProvider', () => {
 
   it('throws on getNeighbors when neither source is configured (B141)', async () => {
     const empty = new BitmapNeighborProvider({});
-    await expect(empty.getNeighbors('node:a', 'outgoing')).rejects.toThrow(
+    await expect(empty.getNeighbors('node:a', 'out')).rejects.toThrow(
       'BitmapNeighborProvider requires either indexReader or logicalIndex',
     );
   });
