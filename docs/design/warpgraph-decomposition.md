@@ -9,11 +9,11 @@
 
 ## Problem
 
-`WarpGraph` has **37 instance fields** (constructor lines 56–187) and **8 method-
+`WarpGraph` has **42 instance fields** (constructor lines 56–187) and **8 method-
 file groups** wired onto its prototype via `_wire.js`. The total surface is
 ~3600 LOC across the method files plus ~450 LOC in the class body.
 
-Any new feature requires understanding all 37 fields to reason about
+Any new feature requires understanding all 42 fields to reason about
 state invariants. Side effects cascade unpredictably — `_setMaterializedState()`
 alone touches subscribers, provenance, adjacency, views, and caching.
 
@@ -65,7 +65,7 @@ alone touches subscribers, provenance, adjacency, views, and caching.
 | 42 | `_indexDegraded` | Cache | materializeAdvanced |
 | — | `traverse` | Public | public API (LogicalTraversal) |
 
-(Note: 37 private fields + `traverse` public instance = 38 total instance
+(Note: 42 private fields + `traverse` public instance = 43 total instance
 slots, but `_syncController` and `_viewService` are already delegated objects.)
 
 ### Existing Extraction: SyncController

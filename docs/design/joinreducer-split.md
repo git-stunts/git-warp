@@ -278,7 +278,7 @@ For each extraction:
 2. Move functions from JoinReducer.js into the new file
 3. Add imports in JoinReducer.js from the new file
 4. Add `export { ... } from './{NewModule}.js'` in JoinReducer.js
-5. Run `npm run test:local` — all 4217+ tests must pass
+5. Run `npm run test:local` — full suite must pass
 6. Run `npm run lint` — clean
 7. Commit
 
@@ -288,7 +288,7 @@ For each extraction:
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Circular dependency between new modules | Low | Dependency graph is acyclic by design. DiffCalculator → ReceiptBuilder is one-way. |
+| Circular dependency between new modules | Low | Dependency graph is acyclic by design. ReceiptBuilder → DiffCalculator is one-way. |
 | Re-export misses a symbol | Medium | Grep for all imports from JoinReducer.js across src/ and test/. The matrix above lists every external consumer. |
 | Performance regression from module boundary overhead | Negligible | V8 inlines across module boundaries. The functions are called O(ops) times, not in tight inner loops. |
 | `buildDotToElement` shared between ReceiptBuilder and DiffCalculator | Low | Place in DiffCalculator (primary user). ReceiptBuilder imports it. Clean one-way dep. |
