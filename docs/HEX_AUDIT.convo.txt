@@ -1,0 +1,279 @@
+
+ ▐▛███▜▌   Claude Code v2.1.56
+▝▜█████▛▘  Opus 4.6 · Claude Max
+  ▘▘ ▝▝    ~/git/git-stunts/git-warp
+
+❯ /clear 
+  ⎿  (no content)
+
+❯ AUDIT TIME: Inspect the git repo for HEXAGONAL ARCHITECTURE violations,   
+  SOLID violations DRY violations. Inspect the tests for BRITTLE,           
+  randomness, timing, or non-determinism. Check                             
+      that tests are verifying behavior and not implementation details.     
+
+⏺ I'll run parallel audits across the codebase for each concern area.
+
+⏺ Explore(Audit hexagonal architecture violations)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+⏺ Explore(Audit SOLID and DRY violations)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+⏺ Explore(Audit tests for brittleness)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+⏺ Explore(Audit port/adapter contracts)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+⏺ Launched 4 parallel audit agents:
+
+  1. Hexagonal architecture violations — scanning domain layer for illegal
+  imports from infrastructure/CLI
+  2. SOLID + DRY violations — checking SRP, OCP, LSP, ISP, DIP across services;
+  hunting duplicated logic
+  3. Brittle tests — searching for timing deps, non-determinism, order coupling,
+   implementation-detail testing
+  4. Port/adapter contract integrity — verifying all ports are fully implemented
+   and no adapter-specific leakage
+
+  I'll compile the findings once all agents report back.
+
+⏺ Explore(Resume hex arch audit agent) resuming abfe2e199ac2ce8ce
+  ⎿  Initializing…
+  ⎿  Error: Cannot resume agent abfe2e199ac2ce8ce: it is still running. Use 
+     TaskStop to stop it first, or wait for it to complete.
+
+⏺ Task Output abfe2e199ac2ce8ce
+  ⎿  Read output (ctrl+o to expand)
+
+⏺ Task Output aa223f3cf24f9ba27
+  ⎿  Read output (ctrl+o to expand)
+
+⏺ Task Output a962efd5dc91225e4
+  ⎿  Read output (ctrl+o to expand)
+
+⏺ Task Output a0105d3a43995c9e1
+  ⎿  Read output (ctrl+o to expand)
+
+⏺ Agent "Audit hexagonal architecture violations" completed
+
+⏺ Agent "Audit SOLID and DRY violations" completed
+
+⏺ Agent "Audit tests for brittleness" completed
+
+⏺ Agent "Audit port/adapter contracts" completed
+
+⏺ All four audits complete. Here's the consolidated report:
+
+  ---
+  Codebase Audit Report
+
+  1. Hexagonal Architecture — CLEAN
+
+  No violations found across 136+ domain files, 15 infrastructure files, and 14
+  port files. The dependency rules are strictly enforced:
+
+  - Domain never imports infrastructure or CLI
+  - Infrastructure never imports CLI
+  - All I/O dependencies are injected via ports
+
+  4 documented node:crypto usages in domain are justified and explicitly
+  annotated (trust crypto, seek cache keys, default crypto port fallback).
+
+  2. Port/Adapter Contracts — CLEAN
+
+  All 14 ports are fully implemented by their adapters. No stubs, no "not
+  implemented" throws, no contract violations. One intentional adapter-specific
+  method (isAncestor() on GitGraphAdapter) is guarded by a runtime typeof check
+  in SyncProtocol.
+
+  2 deprecated adapter re-exports remain: PerformanceClockAdapter and
+  GlobalClockAdapter (both alias ClockAdapter).
+
+  ---
+  3. SOLID Violations
+
+  SRP — 7 files with mixed concerns
+
+  ┌────────────────────┬──────┬──────────────────────────────────────────────┐
+  │        File        │ LOC  │                    Issue                     │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │                    │      │ God object: 37+ fields spanning caching, GC, │
+  │ WarpGraph.js       │ ~800 │  checkpoints, provenance, audit,             │
+  │                    │      │ subscriptions, indexes, sync                 │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │                    │      │ CRDT merge + validation + state cloning +    │
+  │ JoinReducer.js     │ 1095 │ encoding + receipt generation + diff         │
+  │                    │      │ tracking                                     │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │ GitGraphAdapter.js │ 979  │ Git plumbing + validation + retry logic +    │
+  │                    │      │ error classification                         │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │ PatchBuilderV2.js  │ 829  │ Fluent API + validation + persistence + LWW  │
+  │                    │      │ tracking                                     │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │ GraphTraversal.js  │ 1100 │ 11 graph algorithms in one file              │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │ SyncProtocol.js    │ 663  │ Patch loading + frontier conversion + delta  │
+  │                    │      │ computation                                  │
+  ├────────────────────┼──────┼──────────────────────────────────────────────┤
+  │ SyncController.js  │ 600  │ Orchestration + request handling + state     │
+  │                    │      │ management                                   │
+  └────────────────────┴──────┴──────────────────────────────────────────────┘
+
+  OCP — 3 patterns
+
+  - 4 message codecs repeat identical trailer extraction + validation switch
+  logic (~200 lines total)
+  - JoinReducer.validateOp() — switch on op.type requires modification for new
+  op types
+  - GitGraphAdapter — no extensibility hook for new Git commands
+
+  LSP — 1 minor
+
+  - BitmapNeighborProvider constructor throws if missing deps, rather than
+  failing lazily at method invocation
+
+  ISP — 1 notable
+
+  - GraphPersistencePort is a 23-method composite of 5 focused ports. Services
+  needing only blob I/O must accept the full interface. (Mitigated by focused
+  ports existing separately.)
+
+  DIP — 1 pattern
+
+  - WarpGraph directly instantiates SyncController, MaterializedViewService,
+  TemporalQuery instead of accepting them via injection
+
+  ---
+  4. DRY Violations — 10 patterns (~300-400 duplicated lines)
+
+  ┌────────────────────────────┬────────────────────────────────────┬───────┐
+  │          Pattern           │               Files                │ Lines │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ computeChecksum()          │ BitmapIndexBuilder,                │ ~8    │
+  │ identical impl             │ StreamingBitmapIndexBuilder        │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Stream body reading (chunk │ NodeHttpAdapter, BunHttpAdapter,   │ ~90   │
+  │  loop + size check)        │ DenoHttpAdapter                    │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Message codec trailer      │ 4 codec files                      │ ~200  │
+  │ validation                 │                                    │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ MAX_BODY_BYTES constant    │ 3 HTTP adapters                    │ 3     │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Positive integer           │ WarpGraph, adapterValidation,      │ ~30   │
+  │ validation                 │ MessageCodecInternal               │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ HTTP error response        │ 3 HTTP adapters                    │ ~30   │
+  │ construction               │                                    │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ _validateRef wrapper       │ GitGraphAdapter →                  │ ~5    │
+  │ delegation                 │ adapterValidation                  │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Frontier serialization     │ BitmapIndexBuilder, Frontier       │ ~20   │
+  │ logic                      │                                    │       │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Lamport clock increment    │ patch.methods, WarpGraph           │ ~6    │
+  ├────────────────────────────┼────────────────────────────────────┼───────┤
+  │ Options validation blocks  │ WarpGraph.open()                   │ ~25   │
+  └────────────────────────────┴────────────────────────────────────┴───────┘
+
+  Highest-impact extraction targets: message codec template (~200 lines) and
+  HTTP stream reading (~90 lines).
+
+  ---
+  5. Test Quality Issues
+
+  CRITICAL — Implementation-detail testing (4 instances)
+
+  ┌────────────────────────────────────┬─────────────────────────────────────┐
+  │                File                │                Issue                │
+  ├────────────────────────────────────┼─────────────────────────────────────┤
+  │ BitmapIndexReader.test.js:143      │ Directly sets/reads                 │
+  │                                    │ reader._idToShaCache private field  │
+  ├────────────────────────────────────┼─────────────────────────────────────┤
+  │ WarpGraph.timing.test.js:251       │ Sets _cachedState and mocks         │
+  │                                    │ _syncController private methods     │
+  ├────────────────────────────────────┼─────────────────────────────────────┤
+  │ PatchBuilderV2.snapshot.test.js:61 │ Accesses _snapshotState private     │
+  │                                    │ field                               │
+  ├────────────────────────────────────┼─────────────────────────────────────┤
+  │                                    │ Verifies hasFrontierChangedSpy      │
+  │ WarpGraph.watch.test.js:505        │ exact call counts instead of        │
+  │                                    │ behavior                            │
+  └────────────────────────────────────┴─────────────────────────────────────┘
+
+  HIGH — Timing/fake-timer coupling (2 instances)
+
+  ┌─────────────────────────────┬────────────────────────────────────────────┐
+  │            File             │                   Issue                    │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │                             │ vi.useFakeTimers() at beforeAll (should be │
+  │ WarpGraph.watch.test.js:447 │  beforeEach); verifies spy call counts     │
+  │                             │ after advancing timers                     │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ WarpGraph.timing.test.js:71 │ Asserts clock.now.mock.calls.length >= 2 — │
+  │                             │  implementation detail                     │
+  └─────────────────────────────┴────────────────────────────────────────────┘
+
+  MEDIUM — Non-determinism (4 instances)
+
+  ┌───────────────────────────────────┬──────────────────────────────────────┐
+  │               File                │                Issue                 │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ ReducerV5.benchmark.js:81         │ Unseeded Math.random() for op        │
+  │                                   │ generation                           │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ Join.property.test.js:191         │ fast-check without explicit seed —   │
+  │                                   │ failures not reproducible            │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ GitGraphAdapter.stress.test.js:15 │ Random sleep durations via           │
+  │                                   │ Math.random() * 10                   │
+  ├───────────────────────────────────┼──────────────────────────────────────┤
+  │ SyncAuthService.test.js:23        │ crypto.randomUUID() (benign unless   │
+  │                                   │ tests later assert on values)        │
+  └───────────────────────────────────┴──────────────────────────────────────┘
+
+  MEDIUM — Global state pollution (2 instances)
+
+  ┌─────────────────────────────┬────────────────────────────────────────────┐
+  │            File             │                   Issue                    │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ noBufferGlobal.test.js:44   │ Modifies globalThis.Buffer in try/finally  │
+  ├─────────────────────────────┼────────────────────────────────────────────┤
+  │ WarpGraph.watch.test.js:446 │ vi.useFakeTimers() at beforeAll scope —    │
+  │                             │ leaks on throw                             │
+  └─────────────────────────────┴────────────────────────────────────────────┘
+
+  LOW-MEDIUM — Error message string matching
+
+  Multiple tests use exact .toThrow('message text') instead of error type or
+  regex patterns. Minor message rewording breaks them.
+
+  Positive: Golden vector hashes
+
+  AuditReceiptService.test.js:104 hardcodes expected SHA-256 digests. While
+  technically brittle to algorithm changes, these are correct for a 
+  cryptographic system — they catch accidental canonicalization regressions.
+  Keep these.
+
+  ---
+  Priority Recommendations
+
+  1. Test refactoring (highest ROI): Replace private-field access with behavior
+  assertions. Move fake timers to beforeEach/afterEach. Add seeds to property
+  tests.
+  2. Extract message codec template: ~200 lines of identical trailer validation
+  across 4 files.
+  3. Extract readBoundedStream(): ~90 lines duplicated across 3 HTTP adapters +
+  shared MAX_BODY_BYTES.
+  4. WarpGraph decomposition: Extract SubscriptionManager, CacheCoordinator,
+  ProvenanceManager to reduce the god object.
+  5. JoinReducer split: Move validateOp + state factory + diff helpers to
+  separate modules.
+
+✻ Cooked for 3m 40s
+
+❯ /export 
+  ⎿  Conversation copied to clipboard
