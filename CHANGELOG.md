@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING: `PerformanceClockAdapter` and `GlobalClockAdapter` exports (B140)** — both were deprecated re-exports of `ClockAdapter`. Deleted shim files, removed from `index.js`, `index.d.ts`, and `type-surface.m8.json`. Use `ClockAdapter` directly.
+
 ### Changed
 
 - **GraphPersistencePort narrowing (B145)** — domain services now declare focused port intersections (`CommitPort & BlobPort`, etc.) in JSDoc instead of the 23-method composite `GraphPersistencePort`. Removed `ConfigPort` from the composite (23 → 21 methods); adapters still implement `configGet`/`configSet` on their prototypes. Zero behavioral change.
+
+### Refactored
+
+- **Codec trailer validation extraction (B134, B138)** — created `TrailerValidation.js` with `requireTrailer()`, `parsePositiveIntTrailer()`, `validateKindDiscriminator()`. All 4 message codec decoders use shared helpers.
+- **HTTP adapter shared utilities (B135)** — created `httpAdapterUtils.js` with `MAX_BODY_BYTES`, `readStreamBody()`, `noopLogger`. Eliminates duplication across Node/Bun/Deno HTTP adapters.
+- **Bitmap checksum extraction (B136)** — moved duplicated `computeChecksum()` from both bitmap builders to `checksumUtils.js`.
+- **BitmapNeighborProvider lazy validation (B141)** — constructor no longer throws when neither `indexReader` nor `logicalIndex` is provided. Validation moved to `getNeighbors()`/`hasNode()` method entry.
+
+### Fixed
+
+- **Test hardening (B130)** — replaced private field access (`_idToShaCache`, `_snapshotState`, `_cachedState`) with behavioral assertions in `BitmapIndexReader.test.js`, `PatchBuilderV2.snapshot.test.js`, and `WarpGraph.timing.test.js`.
+- **Fake timer lifecycle (B131)** — moved `vi.useFakeTimers()` from `beforeAll` to `beforeEach` and `vi.useRealTimers()` into `afterEach` in `WarpGraph.watch.test.js`.
+- **Test determinism (B132)** — seeded `Math.random()` in benchmarks with Mulberry32 RNG (`0xDEADBEEF`), added `seed: 42` to all fast-check property tests, replaced random delays in stress test with deterministic values.
+- **Global mutation documentation (B133)** — documented intentional `globalThis.Buffer` mutation in `noBufferGlobal.test.js` and `crypto.randomUUID()` usage in `SyncAuthService.test.js`.
 
 ## [12.4.1] — 2026-02-28
 

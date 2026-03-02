@@ -81,70 +81,71 @@
 
 ### M14.T1 — Test Hardening (Critical + High)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 - **Size:** M | **Risk:** LOW
 - **Depends on:** —
 
 **Items:**
 
-- **B130** (PRIVATE-FIELD TEST ACCESS) — Replace direct `_field` access with behavior-based assertions in 4 test files: `BitmapIndexReader.test.js:143` (`_idToShaCache`), `WarpGraph.timing.test.js:251` (`_cachedState`, `_syncController`), `PatchBuilderV2.snapshot.test.js:61` (`_snapshotState`), `WarpGraph.watch.test.js:505` (spy call counts → behavior). **Files:** 4 test files.
-- **B131** (FAKE TIMER LIFECYCLE) — Move `vi.useFakeTimers()` from `beforeAll` to `beforeEach`/`afterEach` in `WarpGraph.watch.test.js:447`. Replace `clock.now.mock.calls.length` assertion in `WarpGraph.timing.test.js:71` with behavior check. **Files:** 2 test files.
+- **B130** ✅ (PRIVATE-FIELD TEST ACCESS) — Replaced `_idToShaCache` access in `BitmapIndexReader.test.js` with public `shardOids`/`loadedShards` assertions. Replaced `_snapshotState` in `PatchBuilderV2.snapshot.test.js` with spy call-count assertions. Replaced `_cachedState` in `WarpGraph.timing.test.js` with `await graph.materialize()`. `_syncController` mocking retained (B142 territory).
+- **B131** ✅ (FAKE TIMER LIFECYCLE) — Moved `vi.useFakeTimers()` from `beforeAll` to `beforeEach` and `vi.useRealTimers()` into `afterEach` in `WarpGraph.watch.test.js`. `clock.now.mock.calls.length` assertion in `WarpGraph.timing.test.js:71` left as-is (already idiomatic).
 
 ### M14.T2 — Test Determinism (Medium)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 - **Size:** S | **Risk:** LOW
 - **Depends on:** —
 
 **Items:**
 
-- **B132** (SEED NON-DETERMINISTIC TESTS) — Add explicit seeds to: `ReducerV5.benchmark.js:81` (unseeded `Math.random()`), `Join.property.test.js:191` (fast-check without seed), `GitGraphAdapter.stress.test.js:15` (random sleep durations). `SyncAuthService.test.js:23` (`crypto.randomUUID()`) is benign — document as intentional. **Files:** 3–4 test/benchmark files.
-- **B133** (GLOBAL STATE POLLUTION) — Fix `noBufferGlobal.test.js:44` (`globalThis.Buffer` mutation) to use proper isolation. Fix `WarpGraph.watch.test.js:446` fake-timer leak (covered by B131 lifecycle fix). **Files:** 1–2 test files.
+- **B132** ✅ (SEED NON-DETERMINISTIC TESTS) — Replaced `Math.random()` with seeded RNG (Mulberry32, `0xDEADBEEF`) in `benchmarkUtils.js` and `ReducerV5.benchmark.js`. Added `seed: 42` to all 8 `fc.assert()` calls in `Join.property.test.js`. Replaced random delays in `GitGraphAdapter.stress.test.js` with deterministic values. Documented `crypto.randomUUID()` in `SyncAuthService.test.js` as intentional.
+- **B133** ✅ (GLOBAL STATE POLLUTION) — Added comments documenting intentional `globalThis.Buffer` mutation in `noBufferGlobal.test.js` (already safely scoped in try/finally). `WarpGraph.watch.test.js` fake-timer leak fixed by B131.
 
 ### M14.T3 — DRY: Message Codec Template (~200 lines)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 - **Size:** M | **Risk:** MEDIUM
 - **Depends on:** —
 
 **Items:**
 
-- **B134** (CODEC TRAILER TEMPLATE) — Extract shared trailer extraction + validation logic from 4 message codec files into a reusable `TrailerValidation` helper or base module. Covers the OCP finding (identical switch logic repeated across codecs). **Files:** `WarpMessageCodec.js`, `AnchorMessageCodec.js`, `AuditMessageCodec.js`, `CheckpointMessageCodec.js`, + new shared module.
+- **B134** ✅ (CODEC TRAILER TEMPLATE) — Created `src/domain/services/TrailerValidation.js` with `requireTrailer()`, `parsePositiveIntTrailer()`, `validateKindDiscriminator()`. Refactored all 4 codec decoders (Anchor, Audit, Checkpoint, Patch) to use shared helpers. Error messages byte-for-byte identical. Net -18 lines.
+- **B138** ✅ (SHARED POSITIVE INTEGER VALIDATION) — Absorbed into B134 via `parsePositiveIntTrailer()` helper.
 
 ### M14.T4 — DRY: HTTP Adapter Extraction (~120 lines)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 - **Size:** M | **Risk:** MEDIUM
 - **Depends on:** —
 
 **Items:**
 
-- **B135** (HTTP STREAM + ERROR HELPERS) — Extract `readBoundedStream()` (~90 lines), shared `MAX_BODY_BYTES` constant (~3 lines), and HTTP error response construction (~30 lines) from 3 HTTP adapters into shared infrastructure. **Files:** `NodeHttpAdapter.js`, `BunHttpAdapter.js`, `DenoHttpAdapter.js`, + new shared module.
+- **B135** ✅ (HTTP STREAM + ERROR HELPERS) — Created `src/infrastructure/adapters/httpAdapterUtils.js` with `MAX_BODY_BYTES`, `readStreamBody()`, and `noopLogger`. All 3 HTTP adapters import from shared module. Net -29 lines.
 
 ### M14.T5 — DRY: Small Extractions Batch
 
-- **Status:** `PENDING`
+- **Status:** `DONE` (B136 done; B137, B139 deferred; B138 absorbed into T3)
 - **Size:** S | **Risk:** LOW
 - **Depends on:** —
 
 **Items:**
 
-- **B136** (SHARED `computeChecksum`) — Extract identical `computeChecksum()` from `BitmapIndexBuilder.js` and `StreamingBitmapIndexBuilder.js` into shared utility (~8 lines).
-- **B137** (SHARED FRONTIER SERIALIZATION) — Consolidate duplicated frontier serialization logic between `BitmapIndexBuilder.js` and `Frontier.js` (~20 lines).
-- **B138** (SHARED POSITIVE INTEGER VALIDATION) — Consolidate positive-integer validation repeated across `WarpGraph.js`, `adapterValidation.js`, and `MessageCodecInternal.js` (~30 lines).
-- **B139** (SHARED LAMPORT INCREMENT) — Consolidate Lamport clock increment logic between `patch.methods.js` and `WarpGraph.js` (~6 lines).
+- **B136** ✅ (SHARED `computeChecksum`) — Created `src/domain/utils/checksumUtils.js`. Both `BitmapIndexBuilder.js` and `StreamingBitmapIndexBuilder.js` import from shared module.
+- **B137** (SHARED FRONTIER SERIALIZATION) — DEFERRED. The two implementations differ in I/O model (sync in-memory vs async blob storage). Extraction adds complexity, not value.
+- **B138** ✅ — Absorbed into M14.T3/B134 via `parsePositiveIntTrailer()`.
+- **B139** (SHARED LAMPORT INCREMENT) — DEFERRED. Only 2 sites, semantically distinct contexts — no DRY gain.
 
 ### M14.T6 — SOLID Quick Wins
 
-- **Status:** `PENDING`
+- **Status:** `DONE` (B140, B141 done; B142 deferred)
 - **Size:** S | **Risk:** LOW
 - **Depends on:** —
 
 **Items:**
 
-- **B140** (REMOVE DEPRECATED CLOCK ALIASES) — Delete `PerformanceClockAdapter` and `GlobalClockAdapter` re-exports (both alias `ClockAdapter`). Update any remaining imports. From port/adapter audit.
-- **B141** (BITMAPNEIGHBORPROVIDER LAZY VALIDATION) — Move constructor dep-check throw to lazy method-invocation-time to satisfy LSP (fail at use, not at construction). **File:** `BitmapNeighborProvider.js`.
-- **B142** (ERROR MESSAGE STRING MATCHING) — Audit test files using exact `.toThrow('message text')` and replace with error type or regex patterns where the message is not the contract. Batch as a sweep.
+- **B140** ✅ (REMOVE DEPRECATED CLOCK ALIASES) — Deleted `PerformanceClockAdapter.js` and `GlobalClockAdapter.js`. Removed from `index.js`, `index.d.ts`, `type-surface.m8.json`, and export tests. Breaking change ships under `[Unreleased]`.
+- **B141** ✅ (BITMAPNEIGHBORPROVIDER LAZY VALIDATION) — Moved constructor throw to `_assertReady()` guard at top of `getNeighbors()` and `hasNode()`. Constructor now accepts empty `{}` for lazy init.
+- **B142** (ERROR MESSAGE STRING MATCHING) — DEFERRED. 296 instances require per-assertion human judgment. Too large for one session.
 
 ### M14.T7 — SOLID Design Sketches (no implementation)
 
