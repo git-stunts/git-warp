@@ -109,7 +109,7 @@ function partitionTreeOids(rawOids) {
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../ports/GraphPersistencePort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default, graphName: string, state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../ports/CodecPort.js').default, crypto?: import('../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array> }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default, graphName: string, state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../ports/CodecPort.js').default, crypto?: import('../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array> }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto, indexTree }) {
@@ -128,7 +128,7 @@ export async function create({ persistence, graphName, state, frontier, parents 
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../ports/GraphPersistencePort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default, graphName: string, state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../ports/CodecPort.js').default, crypto?: import('../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array> }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default, graphName: string, state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../ports/CodecPort.js').default, crypto?: import('../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array> }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function createV5({
@@ -271,7 +271,7 @@ export async function createV5({
  * Schema:1 checkpoints are not supported and will throw an error.
  * Use MigrationService to upgrade schema:1 checkpoints first.
  *
- * @param {import('../../ports/GraphPersistencePort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default} persistence - Git persistence adapter
+ * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options] - Load options
  * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
@@ -354,7 +354,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
  * Only supports schema:2 checkpoints. Schema:1 checkpoints will cause
  * loadCheckpoint to throw an error.
  *
- * @param {{ persistence: import('../../ports/GraphPersistencePort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default, graphName: string, checkpointSha: string, targetFrontier: import('./Frontier.js').Frontier, patchLoader: (writerId: string, fromSha: string|null, toSha: string) => Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>, codec?: import('../../ports/CodecPort.js').default }} options - Materialization options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default, graphName: string, checkpointSha: string, targetFrontier: import('./Frontier.js').Frontier, patchLoader: (writerId: string, fromSha: string|null, toSha: string) => Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>, codec?: import('../../ports/CodecPort.js').default }} options - Materialization options
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5>} The materialized V5 state at targetFrontier
  * @throws {Error} If checkpoint is schema:1 (migration required)
  * @throws {Error} If checkpoint is missing required blobs (state.cbor, frontier.cbor)

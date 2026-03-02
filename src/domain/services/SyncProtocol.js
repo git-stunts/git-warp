@@ -122,7 +122,7 @@ function objectToFrontier(obj) {
  * **Commit message format**: The message is encoded using WarpMessageCodec
  * and contains metadata (schema version, writer info) plus the patch OID.
  *
- * @param {import('../../ports/GraphPersistencePort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
+ * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
  *   (uses CommitPort.showNode() + BlobPort.readBlob() methods)
  * @param {string} sha - The 40-character commit SHA to load the patch from
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
@@ -165,7 +165,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @
  * **Performance**: O(N) where N is the number of commits between fromSha and toSha.
  * Each commit requires two reads: commit info (for parent) and patch blob.
  *
- * @param {import('../../ports/GraphPersistencePort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
+ * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
  *   (uses CommitPort.getNodeInfo()/showNode() + BlobPort.readBlob() methods)
  * @param {string} graphName - Graph name (used in error messages, not for lookups)
  * @param {string} writerId - Writer ID (used in error messages, not for lookups)
@@ -391,7 +391,7 @@ export function createSyncRequest(frontier) {
  *
  * @param {SyncRequest} request - Incoming sync request containing the requester's frontier
  * @param {Map<string, string>} localFrontier - Local frontier (what this node has)
- * @param {import('../../ports/GraphPersistencePort.js').default & import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence
+ * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence
  *   layer for loading patches (uses CommitPort + BlobPort methods)
  * @param {string} graphName - Graph name for error messages and logging
  * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]

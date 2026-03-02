@@ -269,8 +269,10 @@ export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}
  */
 export async function writer(writerId) {
   // Build config adapters for resolveWriterId
-  const configGet = async (/** @type {string} */ key) => await this._persistence.configGet(key);
-  const configSet = async (/** @type {string} */ key, /** @type {string} */ value) => await this._persistence.configSet(key, value);
+  /** @type {import('../../ports/ConfigPort.js').default} */
+  const config = /** @type {import('../../ports/ConfigPort.js').default} */ (this._persistence);
+  const configGet = async (/** @type {string} */ key) => await config.configGet(key);
+  const configSet = async (/** @type {string} */ key, /** @type {string} */ value) => await config.configSet(key, value);
 
   // Resolve the writer ID
   const resolvedWriterId = await resolveWriterId({
@@ -334,7 +336,7 @@ export async function createWriter(opts = {}) {
     const configKey = alias
       ? `warp.writerId.${alias}`
       : `warp.writerId.${this._graphName}`;
-    await this._persistence.configSet(configKey, freshWriterId);
+    await /** @type {import('../../ports/ConfigPort.js').default} */ (this._persistence).configSet(configKey, freshWriterId);
   }
 
   /** @type {CorePersistence} */

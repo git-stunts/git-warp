@@ -14,8 +14,8 @@
  */
 
 /**
- * Full persistence port — commit + blob + tree + ref + config.
- * @typedef {import('../../ports/GraphPersistencePort.js').default} WarpPersistence
+ * Full persistence port — commit + blob + tree + ref.
+ * @typedef {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} WarpPersistence
  */
 
 /**

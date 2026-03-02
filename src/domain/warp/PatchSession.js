@@ -19,13 +19,13 @@ export class PatchSession {
   /**
    * Creates a new PatchSession.
    *
-   * @param {{ builder: import('../services/PatchBuilderV2.js').PatchBuilderV2, persistence: import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, expectedOldHead: string|null }} options
+   * @param {{ builder: import('../services/PatchBuilderV2.js').PatchBuilderV2, persistence: import('../../ports/RefPort.js').default, graphName: string, writerId: string, expectedOldHead: string|null }} options
    */
   constructor({ builder, persistence, graphName, writerId, expectedOldHead }) {
     /** @type {import('../services/PatchBuilderV2.js').PatchBuilderV2} */
     this._builder = builder;
 
-    /** @type {import('../../ports/GraphPersistencePort.js').default & import('../../ports/RefPort.js').default} */
+    /** @type {import('../../ports/RefPort.js').default} */
     this._persistence = persistence;
 
     /** @type {string} */

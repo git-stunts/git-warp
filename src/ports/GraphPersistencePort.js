@@ -2,7 +2,6 @@ import CommitPort from './CommitPort.js';
 import BlobPort from './BlobPort.js';
 import TreePort from './TreePort.js';
 import RefPort from './RefPort.js';
-import ConfigPort from './ConfigPort.js';
 
 /**
  * Abstract port for graph persistence operations.
@@ -11,13 +10,12 @@ import ConfigPort from './ConfigPort.js';
  * storage layer. Concrete adapters (e.g., GitGraphAdapter) implement this
  * interface to provide actual Git operations.
  *
- * This is a **composite port** that implements the union of five focused ports:
+ * This is a **composite port** that implements the union of four focused ports:
  *
  * - {@link CommitPort} — commit creation, reading, logging, counting, ping
  * - {@link BlobPort} — blob read/write
  * - {@link TreePort} — tree read/write, emptyTree getter
  * - {@link RefPort} — ref update/read/delete
- * - {@link ConfigPort} — git config get/set
  *
  * Domain services should document which focused port(s) they actually depend on
  * via JSDoc, even though they accept the full GraphPersistencePort at runtime.
@@ -29,8 +27,8 @@ import ConfigPort from './ConfigPort.js';
  */
 class GraphPersistencePort {}
 
-/** @type {Array<typeof CommitPort | typeof BlobPort | typeof TreePort | typeof RefPort | typeof ConfigPort>} */
-const focusedPorts = [CommitPort, BlobPort, TreePort, RefPort, ConfigPort];
+/** @type {Array<typeof CommitPort | typeof BlobPort | typeof TreePort | typeof RefPort>} */
+const focusedPorts = [CommitPort, BlobPort, TreePort, RefPort];
 const seen = new Map();
 
 for (const Port of focusedPorts) {
