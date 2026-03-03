@@ -8,12 +8,14 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v12.4.1
+## What's New in v13.0.0
 
-- **JSDoc total coverage** — eliminated all unsafe `{Object}`, `{Function}`, `{*}` type patterns across 135 files (190+ sites), replacing them with precise inline typed shapes.
-- **Zero tsc errors** — fixed tsconfig split-config includes and type divergences; 0 errors across all three tsconfig targets.
-- **JSR dry-run fix** — worked around a deno_ast 0.52.0 panic caused by overlapping text-change entries for duplicate import specifiers.
-- **`check-dts-surface.js` regex fix** — default-export parsing now correctly captures identifiers instead of keywords for `export default class/function` patterns.
+- **BREAKING: `getNodeProps()` returns `Record<string, unknown>`** — aligns with `getEdgeProps()`. Replace `.get('key')` with `.key`, `.has('key')` with `'key' in props`, `.size` with `Object.keys(props).length`.
+- **BREAKING: Removed `PerformanceClockAdapter` and `GlobalClockAdapter`** — use `ClockAdapter` directly.
+- **`graph.patchMany()`** — batch multiple patches sequentially; each callback sees prior state.
+- **`git warp bisect`** — binary search over writer patch history to find the first bad commit. O(log N) materializations.
+- **Observer API stable** — `subscribe()` and `watch()` promoted to stable with `@since 13.0.0`.
+- **`BisectService`** — domain service exported for programmatic use.
 
 See the [full changelog](CHANGELOG.md) for details.
 

@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current version:** v12.4.1
-> **Last reconciled:** 2026-03-02 (M14 HYGIENE added from HEX_AUDIT; completed items archived to COMPLETED.md; BACKLOG.md retired)
+> **Current version:** v13.0.0
+> **Last reconciled:** 2026-03-03 (v13.0.0 release: M11 COMPASS II complete, B100/B140 breaking, B44/B124/B125/B146 done)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -25,11 +25,11 @@
 
 ### M10.T4 — Causality Bisect Spec
 
-- **Status:** `PENDING`
+- **Status:** `DONE` (spec existed; implementation completed in M11)
 
 **Items:**
 
-- **B2 (spec only)** (CAUSALITY BISECT) — design the bisect CLI contract + data model. Commit spec with test vectors. Full implementation deferred to M11 — but the spec lands here so bisect is available as a debugging tool during M10 trust hardening.
+- **B2 (spec only)** ✅ (CAUSALITY BISECT) — Spec committed at `docs/specs/BISECT_V1.md`. Full implementation shipped in M11/v13.0.0.
 
 **M10 Gate:** Signed ingress enforced end-to-end; trust E2E receipts green; B63 GC isolation verified under concurrent writes; B64 sync payload validation green; B65 divergence logging verified; B2 spec committed with test vectors.
 
@@ -165,37 +165,38 @@ Design-only items. RFCs filed — implementation deferred to future milestones.
 
 ---
 
-## Milestone 11 — COMPASS II
+## Milestone 11 — COMPASS II ✅ COMPLETE (v13.0.0)
 
 **Theme:** Developer experience
 **Objective:** Ship bisect, public observer API, and batch patch ergonomics.
 **Triage date:** 2026-02-17
+**Completed:** 2026-03-03
 
 ### M11.T1 — Causality Bisect (Implementation)
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
-- **B2 (implementation)** (CAUSALITY BISECT) — full implementation building on M10 spec. Binary search for first bad tick/invariant failure. `git bisect` for WARP.
+- **B2** ✅ (CAUSALITY BISECT) — `BisectService` + `git warp bisect` CLI. Binary search over writer patch chain. O(log N) materializations. 6 test vectors.
 
 ### M11.T2 — Observer API
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
-- **B3** (OBSERVER API) — public event contract. Internal soak period over (shipped in PULSE, used internally since). Stabilize the public surface.
+- **B3** ✅ (OBSERVER API) — `subscribe()` and `watch()` promoted to `@stability stable` with `@since 13.0.0`. Fixed `onError` type to `unknown`. `watch()` pattern type corrected to `string | string[]`.
 
 ### M11.T3 — Batch Patch API
 
-- **Status:** `PENDING`
+- **Status:** `DONE`
 
 **Items:**
 
-- **B11** (`graph.patchMany(fns)` BATCH API) — sequence multiple patch callbacks atomically, each seeing the ref left by the previous. Natural complement to `graph.patch()`.
+- **B11** ✅ (`graph.patchMany()` BATCH API) — sequential batch helper. Each callback sees state from prior commit. Returns array of SHAs. Inherits reentrancy guard.
 
-**M11 Gate:** Bisect correctness verified on seeded regressions; observer contract snapshot-tested; patchMany passes no-coordination suite.
+**M11 Gate:** ✅ All gates met. Bisect correctness verified with 6 test vectors. Observer API stable with JSDoc annotations. patchMany tested with 6 scenarios including reentrancy guard.
 
 ---
 
@@ -209,10 +210,10 @@ Items picked up opportunistically without blocking milestones. No milestone assi
 
 | ID | Item |
 |----|------|
-| B124 | **TRUST PAYLOAD PARITY TESTS** — assert CLI `trust` and `AuditVerifierService.evaluateTrust()` emit shape-compatible error payloads. From BACKLOG 2026-02-27. |
-| B125 | **`CachedValue` NULL-PAYLOAD SEMANTIC TESTS** — document and test whether `null` is a valid cached value. From BACKLOG 2026-02-27. |
+| ~~B124~~ | ✅ ~~**TRUST PAYLOAD PARITY TESTS**~~ — 22 tests verifying CLI vs service shape parity. Done in v13.0.0. |
+| ~~B125~~ | ✅ ~~**`CachedValue` NULL-PAYLOAD SEMANTIC TESTS**~~ — 3 tests documenting null = "no value" sentinel. Done in v13.0.0. |
 | B127 | **DENO SMOKE TEST** — `npm run test:deno:smoke` for fast local pre-push confidence without full Docker matrix. From BACKLOG 2026-02-25. |
-| B44 | **SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E** — event system edge case; known bug class that bites silently |
+| ~~B44~~ | ✅ ~~**SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E**~~ — 3 edge-case tests (cross-unsubscribe, subscribe-during-callback, unsubscribe-in-onError). Done in v13.0.0. |
 | B34 | **DOCS: SECURITY_SYNC.md** — extract threat model from JSDoc into operator doc |
 | B35 | **DOCS: README INSTALL SECTION** — Quick Install with Docker + native paths |
 | B36 | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper replacing manual `WarpStateV5` literals |
@@ -229,7 +230,7 @@ Items picked up opportunistically without blocking milestones. No milestone assi
 | B79 | **WARPGRAPH CONSTRUCTOR LIFECYCLE DOCS** — document cache invalidation strategy for 25 instance variables: which operations dirty which caches, which flush them. From B-AUDIT-16 (TSK TSK). **File:** `src/domain/WarpGraph.js:69-198` |
 | B80 | **CHECKPOINTSERVICE CONTENT BLOB UNBOUNDED MEMORY** — iterates all properties into single `Set` before tree serialization. Stream content OIDs in batches. From B-AUDIT-10 (JANK). **File:** `src/domain/services/CheckpointService.js:224-226` |
 | B81 | **`attachContent` ORPHAN BLOB GUARD** — `attachContent()` unconditionally writes blob before `setProperty()`. Validate before push to prevent orphan blobs. From B-CODE-2. **File:** `src/domain/services/PatchBuilderV2.js` |
-| B146 | **UNIFY `CorePersistence` / `FullPersistence` TYPEDEFS** — `CorePersistence` (`WarpPersistence.js`) and `FullPersistence` (`WarpGraph.js`) are identical `CommitPort & BlobPort & TreePort & RefPort` intersections. Consolidate into one canonical typedef and update all import sites. From B145 PR review. |
+| ~~B146~~ | ✅ ~~**UNIFY `CorePersistence` / `FullPersistence` TYPEDEFS**~~ — replaced `FullPersistence` with imported `CorePersistence`. Done in v13.0.0. |
 | B147 | **RFC FIELD COUNT DRIFT DETECTOR** — script that counts WarpGraph instance fields (grep `this._` in constructor) and warns if design RFC field counts diverge. Prevents stale numbers in `warpgraph-decomposition.md`. From B145 PR review. |
 
 ### CI & Tooling Pack
@@ -299,7 +300,7 @@ Items parked with explicit conditions for promotion.
 | B20 | **TRUST RECORD ROUND-TRIP SNAPSHOT TEST** | Promote if trust record schema changes |
 | B21 | **TRUST SCHEMA DISCRIMINATED UNION** | Promote if superRefine causes a bug or blocks a feature |
 | B27 | **`TrustKeyStore` PRE-VALIDATED KEY CACHE** | Promote when `verifySignature` appears in any p95 flame graph above 5% of call time |
-| B100 | **MAP vs RECORD ASYMMETRY** — `getNodeProps()` returns Map, `getEdgeProps()` returns Record. Breaking change either way. From B-FEAT-3. | Promote with next major version RFC |
+| ~~B100~~ | ✅ ~~**MAP vs RECORD ASYMMETRY**~~ — `getNodeProps()` now returns `Record<string, unknown>`. Done in v13.0.0. | ~~Promote with next major version RFC~~ |
 | B101 | **MERMAID `~~~` INVISIBLE-LINK FRAGILITY** — undocumented Mermaid feature for positioning. From B-DIAG-3. | Promote if Mermaid renderer update breaks `~~~` positioning |
 
 ---
