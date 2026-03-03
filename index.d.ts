@@ -983,6 +983,38 @@ export class CommitDagTraversalService {
 export { CommitDagTraversalService as TraversalService };
 
 /**
+ * Binary search over WARP graph history.
+ * Finds the first bad patch between a known-good and known-bad commit.
+ * @since 13.0.0
+ */
+export class BisectService {
+  constructor(options: { graph: WarpGraph });
+
+  /**
+   * Runs bisect on a single writer's patch chain.
+   */
+  run(options: {
+    good: string;
+    bad: string;
+    writerId: string;
+    testFn: (state: WarpStateV5, sha: string) => Promise<boolean>;
+  }): Promise<BisectResult>;
+}
+
+/**
+ * Result of a bisect operation.
+ */
+export interface BisectResult {
+  result: 'found' | 'range-error';
+  firstBadPatch?: string;
+  writerId?: string;
+  lamport?: number;
+  steps?: number;
+  totalCandidates?: number;
+  message?: string;
+}
+
+/**
  * Error class for graph traversal operations.
  */
 export class TraversalError extends Error {

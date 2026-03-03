@@ -49,6 +49,7 @@ Commands:
   seek             Time-travel: step through graph history by Lamport tick
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes
+  bisect           Binary search for first bad patch in writer history
   view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
   install-hooks    Install post-merge git hook
 
@@ -119,6 +120,12 @@ Tree options:
   --edge <label>        Follow only this edge label
   --prop <key>          Annotate nodes with this property (repeatable)
   --max-depth <n>       Maximum traversal depth
+
+Bisect options:
+  --good <sha>          Known-good commit SHA (invariant holds)
+  --bad <sha>           Known-bad commit SHA (invariant violated)
+  --test <command>      Shell command (exit 0=good, non-zero=bad)
+  --writer <id>         Writer chain to bisect (required)
 `;
 
 /**

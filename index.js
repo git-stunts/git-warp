@@ -103,6 +103,8 @@ import {
   deserializeWormhole,
 } from './src/domain/services/WormholeService.js';
 
+import BisectService from './src/domain/services/BisectService.js';
+
 const TraversalService = CommitDagTraversalService;
 
 export {
@@ -116,6 +118,7 @@ export {
   HealthStatus,
   CommitDagTraversalService,
   TraversalService,
+  BisectService,
   GraphPersistencePort,
   IndexStoragePort,
 

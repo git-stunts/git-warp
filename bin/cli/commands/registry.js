@@ -14,6 +14,7 @@ import handleInstallHooks from './install-hooks.js';
 import handleTrust from './trust.js';
 import handlePatch from './patch.js';
 import handleTree from './tree.js';
+import handleBisect from './bisect.js';
 
 /** @type {Map<string, Function>} */
 export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
@@ -31,6 +32,7 @@ export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
   ['trust', handleTrust],
   ['patch', handlePatch],
   ['tree', handleTree],
+  ['bisect', handleBisect],
   ['view', handleView],
   ['install-hooks', handleInstallHooks],
 ]));

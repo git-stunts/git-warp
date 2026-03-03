@@ -177,6 +177,16 @@ export const seekSchema = z.object({
 });
 
 // ============================================================================
+// Bisect
+// ============================================================================
+
+export const bisectSchema = z.object({
+  good: z.string().min(1, 'Missing value for --good'),
+  bad: z.string().min(1, 'Missing value for --bad'),
+  test: z.string().min(1, 'Missing value for --test'),
+}).strict();
+
+// ============================================================================
 // Verify-index
 // ============================================================================
 
