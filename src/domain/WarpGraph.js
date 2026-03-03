@@ -30,9 +30,7 @@ import * as patchMethods from './warp/patch.methods.js';
 import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
 
-/**
- * @typedef {import('../ports/CommitPort.js').default & import('../ports/BlobPort.js').default & import('../ports/TreePort.js').default & import('../ports/RefPort.js').default} FullPersistence
- */
+/** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 
@@ -50,11 +48,11 @@ const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 export default class WarpGraph {
   /**
    * @private
-   * @param {{ persistence: FullPersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean }} options
    */
   constructor({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize = DEFAULT_ADJACENCY_CACHE_SIZE, checkpointPolicy, autoMaterialize = true, onDeleteWithData = 'warn', logger, clock, crypto, codec, seekCache, audit = false }) {
-    /** @type {FullPersistence} */
-    this._persistence = /** @type {FullPersistence} */ (persistence);
+    /** @type {CorePersistence} */
+    this._persistence = /** @type {CorePersistence} */ (persistence);
 
     /** @type {string} */
     this._graphName = graphName;
@@ -243,7 +241,7 @@ export default class WarpGraph {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: FullPersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean }} options
    * @returns {Promise<WarpGraph>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -299,7 +297,7 @@ export default class WarpGraph {
     // Initialize audit service if enabled
     if (graph._audit) {
       graph._auditService = new AuditReceiptService({
-        persistence: /** @type {import('./types/WarpPersistence.js').CorePersistence} */ (persistence),
+        persistence: /** @type {CorePersistence} */ (persistence),
         graphName,
         writerId,
         codec: graph._codec,
@@ -330,7 +328,7 @@ export default class WarpGraph {
 
   /**
    * Gets the persistence adapter.
-   * @returns {FullPersistence} The persistence adapter
+   * @returns {CorePersistence} The persistence adapter
    */
   get persistence() {
     return this._persistence;
