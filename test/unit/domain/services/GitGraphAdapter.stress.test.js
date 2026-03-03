@@ -12,7 +12,7 @@ describe('GitGraphAdapter Concurrency Stress Test', () => {
       execute: vi.fn().mockImplementation(async ({ args }) => {
         const id = ++callCounter;
         callLog.push({ id, start: Date.now(), args: args[0] });
-        // Simulate variable latency (0-10ms)
+        // Simulate deterministic latency: 0, 2, or 4ms based on call id
         await new Promise(r => setTimeout(r, (id % 3) * 2));
         callLog.push({ id, end: Date.now() });
         // Return unique SHA for each call (valid hex format)
