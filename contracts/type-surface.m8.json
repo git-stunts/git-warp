@@ -61,7 +61,7 @@
         "getNodeProps": {
           "async": true,
           "params": [{ "name": "nodeId", "type": "string" }],
-          "returns": "Promise<Map<string, unknown> | null>"
+          "returns": "Promise<Record<string, unknown> | null>"
         },
         "getEdgeProps": {
           "async": true,
@@ -394,7 +394,7 @@
       "instance": {
         "hasNode": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<boolean>" },
         "getNodes": { "async": true, "params": [], "returns": "Promise<string[]>" },
-        "getNodeProps": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<Map<string, unknown> | null>" },
+        "getNodeProps": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<Record<string, unknown> | null>" },
         "getEdges": { "async": true, "params": [], "returns": "Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>" },
         "query": { "params": [], "returns": "QueryBuilder" }
       },

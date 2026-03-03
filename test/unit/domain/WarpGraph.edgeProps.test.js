@@ -210,9 +210,9 @@ describe('WarpGraph edge properties', () => {
     });
 
     const nodeProps = await graph.getNodeProps('user:alice');
-    expect(nodeProps.get('name')).toBe('Alice');
-    expect(nodeProps.has('weight')).toBe(false);
-    expect(nodeProps.size).toBe(1);
+    expect(nodeProps.name).toBe('Alice');
+    expect('weight' in nodeProps).toBe(false);
+    expect(Object.keys(nodeProps).length).toBe(1);
   });
 
   // ============================================================================

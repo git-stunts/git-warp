@@ -16,23 +16,24 @@ import { decodeEdgeKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.js';
 
 /**
- * Filters a properties Map based on expose and redact lists.
+ * Filters a properties Record based on expose and redact lists.
  *
  * - If `redact` contains a key, it is excluded (highest priority).
  * - If `expose` is provided and non-empty, only keys in `expose` are included.
  * - If `expose` is absent/empty, all non-redacted keys are included.
  *
- * @param {Map<string, unknown>} propsMap - The full properties Map
+ * @param {Record<string, unknown>} propsRecord - The full properties object
  * @param {string[]|undefined} expose - Whitelist of property keys to include
  * @param {string[]|undefined} redact - Blacklist of property keys to exclude
- * @returns {Map<string, unknown>} Filtered properties Map
+ * @returns {Record<string, unknown>} Filtered properties object
  */
-function filterProps(propsMap, expose, redact) {
+function filterProps(propsRecord, expose, redact) {
   const redactSet = redact && redact.length > 0 ? new Set(redact) : null;
   const exposeSet = expose && expose.length > 0 ? new Set(expose) : null;
 
-  const filtered = new Map();
-  for (const [key, value] of propsMap) {
+  /** @type {Record<string, unknown>} */
+  const filtered = {};
+  for (const [key, value] of Object.entries(propsRecord)) {
     // Redact takes precedence
     if (redactSet && redactSet.has(key)) {
       continue;
@@ -41,7 +42,7 @@ function filterProps(propsMap, expose, redact) {
     if (exposeSet && !exposeSet.has(key)) {
       continue;
     }
-    filtered.set(key, value);
+    filtered[key] = value;
   }
   return filtered;
 }
@@ -260,17 +261,17 @@ export default class ObserverView {
    * the observer pattern.
    *
    * @param {string} nodeId - The node ID to get properties for
-   * @returns {Promise<Map<string, unknown>|null>} Filtered properties Map, or null
+   * @returns {Promise<Record<string, unknown>|null>} Filtered properties object, or null
    */
   async getNodeProps(nodeId) {
     if (!matchGlob(this._matchPattern, nodeId)) {
       return null;
     }
-    const propsMap = await this._graph.getNodeProps(nodeId);
-    if (!propsMap) {
+    const propsRecord = await this._graph.getNodeProps(nodeId);
+    if (!propsRecord) {
       return null;
     }
-    return filterProps(propsMap, this._expose, this._redact);
+    return filterProps(propsRecord, this._expose, this._redact);
   }
 
   // ===========================================================================
@@ -291,10 +292,8 @@ export default class ObserverView {
         (e) => matchGlob(this._matchPattern, e.from) && matchGlob(this._matchPattern, e.to)
       )
       .map((e) => {
-        const propsMap = new Map(Object.entries(e.props));
-        const filtered = filterProps(propsMap, this._expose, this._redact);
-        const filteredObj = Object.fromEntries(filtered);
-        return { ...e, props: filteredObj };
+        const filtered = filterProps(e.props, this._expose, this._redact);
+        return { ...e, props: filtered };
       });
   }
 
@@ -312,7 +311,7 @@ export default class ObserverView {
      * Cast safety: QueryBuilder requires the following methods from the
      * graph-like object it wraps:
      *   - getNodes(): Promise<string[]>                  (line ~680 in QueryBuilder)
-     *   - getNodeProps(nodeId): Promise<Map|null>         (lines ~691, ~757, ~806 in QueryBuilder)
+     *   - getNodeProps(nodeId): Promise<Record|null>       (lines ~691, ~757, ~806 in QueryBuilder)
      *   - _materializeGraph(): Promise<{adjacency, stateHash}>  (line ~678 in QueryBuilder)
      * ObserverView implements all three: getNodes() at line ~254, getNodeProps() at line ~268,
      * _materializeGraph() at line ~214.

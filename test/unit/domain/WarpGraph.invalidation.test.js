@@ -111,7 +111,7 @@ describe('WarpGraph dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)'
 
     const props = await graph.getNodeProps('test:node');
     expect(props).not.toBeNull();
-    expect(props.get('name')).toBe('Alice');
+    expect(props.name).toBe('Alice');
   });
 
   it('multiple sequential commits with _cachedState keep state fresh', async () => {

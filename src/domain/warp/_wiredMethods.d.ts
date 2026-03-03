@@ -160,7 +160,7 @@ declare module '../WarpGraph.js' {
   export default interface WarpGraph {
     // ── query.methods.js ──────────────────────────────────────────────────
     hasNode(nodeId: string): Promise<boolean>;
-    getNodeProps(nodeId: string): Promise<Map<string, unknown> | null>;
+    getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
     getEdgeProps(from: string, to: string, label: string): Promise<Record<string, unknown> | null>;
     neighbors(nodeId: string, direction?: 'outgoing' | 'incoming' | 'both', edgeLabel?: string): Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>;
     getStateSnapshot(): Promise<WarpStateV5 | null>;

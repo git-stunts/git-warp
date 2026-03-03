@@ -63,7 +63,7 @@ describe('API: Edge Cases', () => {
     expect(nodes).toContain('user:日本語');
 
     const props = await graph.getNodeProps('user:café');
-    expect(props.get('city')).toBe('Paris');
+    expect(props.city).toBe('Paris');
   });
 
   it('large property values are stored and retrieved', async () => {
@@ -77,7 +77,7 @@ describe('API: Edge Cases', () => {
 
     await graph.materialize();
     const props = await graph.getNodeProps('big');
-    expect(props.get('data')).toBe(bigValue);
+    expect(props.data).toBe(bigValue);
   });
 
   it('numeric and boolean property values', async () => {
@@ -92,8 +92,8 @@ describe('API: Edge Cases', () => {
 
     await graph.materialize();
     const props = await graph.getNodeProps('n');
-    expect(props.get('count')).toBe(42);
-    expect(props.get('pi')).toBeCloseTo(3.14);
-    expect(props.get('active')).toBe(true);
+    expect(props.count).toBe(42);
+    expect(props.pi).toBeCloseTo(3.14);
+    expect(props.active).toBe(true);
   });
 });

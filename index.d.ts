@@ -1223,7 +1223,7 @@ export class ObserverView {
   getNodes(): Promise<string[]>;
 
   /** Gets filtered properties for a visible node (null if hidden or missing) */
-  getNodeProps(nodeId: string): Promise<Map<string, unknown> | null>;
+  getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
   /** Gets all visible edges (both endpoints must match the observer pattern) */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
@@ -1677,7 +1677,7 @@ export default class WarpGraph {
   /**
    * Gets all properties for a node from the materialized state.
    */
-  getNodeProps(nodeId: string): Promise<Map<string, unknown> | null>;
+  getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
   /**
    * Returns the number of property entries in the materialized state.

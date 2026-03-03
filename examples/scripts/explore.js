@@ -66,7 +66,7 @@ async function main() {
 
   for (const nodeId of sortedNodes) {
     const props = await graph.getNodeProps(nodeId);
-    const printable = props ? mapToObject(props) : {};
+    const printable = props || {};
     console.log(`  - ${nodeId}`);
     if (Object.keys(printable).length > 0) {
       console.log(`      props: ${JSON.stringify(printable)}`);

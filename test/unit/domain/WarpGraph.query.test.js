@@ -71,14 +71,13 @@ describe('WarpGraph Query API', () => {
       expect(await graph.getNodeProps('user:nonexistent')).toBe(null);
     });
 
-    it('returns empty map for node with no props', async () => {
+    it('returns empty record for node with no props', async () => {
       await graph.materialize();
       const state = /** @type {any} */ (graph)._cachedState;
       orsetAdd(state.nodeAlive, 'user:alice', createDot('w1', 1));
 
       const props = await graph.getNodeProps('user:alice');
-      expect(props).toBeInstanceOf(Map);
-      expect(props.size).toBe(0);
+      expect(Object.keys(props).length).toBe(0);
     });
 
     it('returns props for node with properties', async () => {
@@ -97,8 +96,8 @@ describe('WarpGraph Query API', () => {
       state.prop.set(propKey2, { value: 30, lamport: 1, writerId: 'w1' });
 
       const props = await graph.getNodeProps('user:alice');
-      expect(props.get('name')).toBe('Alice');
-      expect(props.get('age')).toBe(30);
+      expect(props.name).toBe('Alice');
+      expect(props.age).toBe(30);
     });
 
     it('falls back to linear scan when indexed property read throws', async () => {
@@ -117,8 +116,7 @@ describe('WarpGraph Query API', () => {
       };
 
       const props = await graph.getNodeProps('user:alice');
-      expect(props).toBeInstanceOf(Map);
-      expect(props.get('name')).toBe('Alice');
+      expect(props.name).toBe('Alice');
     });
   });
 

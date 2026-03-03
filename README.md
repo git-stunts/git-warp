@@ -183,7 +183,7 @@ Query methods auto-materialize by default. Just open a graph and start querying:
 ```javascript
 await graph.getNodes();                              // ['user:alice', 'user:bob']
 await graph.hasNode('user:alice');                   // true
-await graph.getNodeProps('user:alice');              // Map { 'name' => 'Alice', 'role' => 'admin' }
+await graph.getNodeProps('user:alice');              // { name: 'Alice', role: 'admin' }
 await graph.neighbors('user:alice', 'outgoing');    // [{ nodeId: 'user:bob', label: 'manages', direction: 'outgoing' }]
 await graph.getEdges();                              // [{ from: 'user:alice', to: 'user:bob', label: 'manages', props: {} }]
 await graph.getEdgeProps('user:alice', 'user:bob', 'manages');  // { weight: 0.9 } or null
@@ -371,7 +371,7 @@ const view = await graph.observer('publicApi', {
 });
 
 const users = await view.getNodes();                // only user:* nodes
-const props = await view.getNodeProps('user:alice'); // Map without ssn/password
+const props = await view.getNodeProps('user:alice'); // { name: 'Alice', ... } without ssn/password
 const result = await view.query().match('user:*').where({ role: 'admin' }).run();
 
 // Measure information loss between two observer perspectives

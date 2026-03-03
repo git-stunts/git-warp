@@ -127,7 +127,7 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
 
     const props = await graph.getNodeProps('test:node');
     expect(props).not.toBeNull();
-    expect(props.get('name')).toBe('Alice');
+    expect(props.name).toBe('Alice');
   });
 
   // ── Multiple sequential writer commits ───────────────────────────

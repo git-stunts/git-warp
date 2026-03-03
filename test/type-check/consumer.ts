@@ -171,7 +171,7 @@ const atState: WarpStateV5 = await graph.materializeAt('abc123');
 // ---- query methods ----
 const nodes: string[] = await graph.getNodes();
 const hasIt: boolean = await graph.hasNode('n1');
-const props: Map<string, unknown> | null = await graph.getNodeProps('n1');
+const props: Record<string, unknown> | null = await graph.getNodeProps('n1');
 const edgeProps: Record<string, unknown> | null = await graph.getEdgeProps('n1', 'n2', 'knows');
 const neighbors: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }> = await graph.neighbors('n1');
 const propCount: number = await graph.getPropertyCount();
@@ -194,7 +194,7 @@ const qb: QueryBuilder = graph.query();
 const obs: ObserverView = await graph.observer('obs1', { match: '*' });
 const obsNodes: string[] = await obs.getNodes();
 const obsHas: boolean = await obs.hasNode('n1');
-const obsProps: Map<string, unknown> | null = await obs.getNodeProps('n1');
+const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');
 const obsEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = await obs.getEdges();
 const obsQb: QueryBuilder = obs.query();
 const obsTraverse: LogicalTraversal = obs.traverse;

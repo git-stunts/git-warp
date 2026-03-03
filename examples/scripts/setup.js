@@ -113,9 +113,9 @@ async function main() {
   // Access node properties
   const aliceProps = await graph.getNodeProps('user:alice');
   const postProps = await graph.getNodeProps('post:1');
-  const aliceName = aliceProps?.get('name');
-  const aliceEmail = aliceProps?.get('email');
-  const postTitle = postProps?.get('title');
+  const aliceName = aliceProps?.name;
+  const aliceEmail = aliceProps?.email;
+  const postTitle = postProps?.title;
 
   console.log(`\n    Alice: name="${aliceName}", email="${aliceEmail}"`);
   console.log(`    Post 1: title="${postTitle}"`);

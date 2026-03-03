@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING: `PerformanceClockAdapter` and `GlobalClockAdapter` exports (B140)** — both were deprecated re-exports of `ClockAdapter`. Deleted shim files, removed from `index.js`, `index.d.ts`, and `type-surface.m8.json`. Use `ClockAdapter` directly.
 
+### Breaking
+
+- **BREAKING: `getNodeProps()` returns `Record<string, unknown>` instead of `Map<string, unknown>` (B100)** — aligns with `getEdgeProps()` which already returns a plain object. Callers must replace `.get('key')` with `.key` or `['key']`, `.has('key')` with `'key' in props`, and `.size` with `Object.keys(props).length`. `ObserverView.getNodeProps()` follows the same change.
+
 ### Fixed
 
 - **Test hardening (B130)** — replaced private field access (`_idToShaCache`, `_snapshotState`, `_cachedState`) with behavioral assertions in `BitmapIndexReader.test.js`, `PatchBuilderV2.snapshot.test.js`, and `WarpGraph.timing.test.js`.

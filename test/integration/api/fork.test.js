@@ -84,6 +84,6 @@ describe('API: Fork', () => {
     expect(nodes).toContain('new-node');
 
     const props = await forked.getNodeProps('new-node');
-    expect(props.get('added-by')).toBe('fork-return');
+    expect(props['added-by']).toBe('fork-return');
   });
 });

@@ -175,7 +175,7 @@ describe('No-coordination regression suite', () => {
 
         // B's own state should reflect its own mutation
         const propsB = await graphB.getNodeProps('node:shared');
-        expect(propsB?.get('value')).toBe('from-B');
+        expect(propsB?.value).toBe('from-B');
 
         // A fresh reader that sees both writers must also resolve to B's value
         const graphReader = await WarpGraph.open({
@@ -187,7 +187,7 @@ describe('No-coordination regression suite', () => {
         await graphReader.syncCoverage();
         await graphReader.materialize();
         const propsReader = await graphReader.getNodeProps('node:shared');
-        expect(propsReader?.get('value')).toBe('from-B');
+        expect(propsReader?.value).toBe('from-B');
       } finally {
         await repo.cleanup();
       }
@@ -268,7 +268,7 @@ describe('No-coordination regression suite', () => {
 
         // B should see its own mutation
         const propsB = await graphB.getNodeProps('node:1');
-        expect(propsB?.get('type')).toBe('campaign');
+        expect(propsB?.type).toBe('campaign');
 
         // A fresh reader materializing both chains must resolve to B's value
         const reader = await WarpGraph.open({
@@ -280,7 +280,7 @@ describe('No-coordination regression suite', () => {
         await reader.syncCoverage();
         await reader.materialize();
         const propsReader = await reader.getNodeProps('node:1');
-        expect(propsReader?.get('type')).toBe('campaign');
+        expect(propsReader?.type).toBe('campaign');
       } finally {
         await repo.cleanup();
       }

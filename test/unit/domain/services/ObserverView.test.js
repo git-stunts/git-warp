@@ -217,9 +217,9 @@ describe('ObserverView', () => {
       });
 
       const props = await view.getNodeProps('user:alice');
-      expect(props.get('name')).toBe('Alice');
-      expect(props.get('email')).toBe('alice@example.com');
-      expect(props.has('ssn')).toBe(false);
+      expect(props.name).toBe('Alice');
+      expect(props.email).toBe('alice@example.com');
+      expect('ssn' in props).toBe(false);
     });
 
     it('expose limits to specified properties', async () => {
@@ -236,9 +236,9 @@ describe('ObserverView', () => {
       });
 
       const props = await view.getNodeProps('user:alice');
-      expect(props.get('name')).toBe('Alice');
-      expect(props.get('email')).toBe('alice@example.com');
-      expect(props.has('ssn')).toBe(false);
+      expect(props.name).toBe('Alice');
+      expect(props.email).toBe('alice@example.com');
+      expect('ssn' in props).toBe(false);
     });
 
     it('redact takes precedence over expose', async () => {
@@ -256,9 +256,9 @@ describe('ObserverView', () => {
       });
 
       const props = await view.getNodeProps('user:alice');
-      expect(props.get('name')).toBe('Alice');
-      expect(props.get('email')).toBe('alice@example.com');
-      expect(props.has('ssn')).toBe(false);
+      expect(props.name).toBe('Alice');
+      expect(props.email).toBe('alice@example.com');
+      expect('ssn' in props).toBe(false);
     });
 
     it('returns null for non-matching node', async () => {
@@ -283,8 +283,8 @@ describe('ObserverView', () => {
       const view = await graph.observer('openView', { match: 'user:*' });
       const props = await view.getNodeProps('user:alice');
 
-      expect(props.get('name')).toBe('Alice');
-      expect(props.get('ssn')).toBe('123-45-6789');
+      expect(props.name).toBe('Alice');
+      expect(props.ssn).toBe('123-45-6789');
     });
   });
 

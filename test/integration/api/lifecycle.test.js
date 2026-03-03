@@ -59,8 +59,8 @@ describe('API: Lifecycle', () => {
 
     await graph.materialize();
     const props = await graph.getNodeProps('user:alice');
-    expect(props.get('name')).toBe('Alice');
-    expect(props.get('role')).toBe('engineer');
+    expect(props.name).toBe('Alice');
+    expect(props.role).toBe('engineer');
   });
 
   it('builds state across multiple patches', async () => {

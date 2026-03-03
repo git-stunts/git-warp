@@ -46,7 +46,7 @@ Deno.test("lifecycle: node properties via Map", async () => {
 
     await graph.materialize();
     const props = await graph.getNodeProps("n");
-    assertEquals(props.get("k"), "v");
+    assertEquals(props?.k, "v");
   } finally {
     await repo.cleanup();
   }

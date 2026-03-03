@@ -276,7 +276,7 @@ await graph.hasNode('user:alice');           // true
 await graph.getNodes();                      // ['user:alice', 'user:bob']
 
 // Get node properties
-await graph.getNodeProps('user:alice');       // Map { 'name' => 'Alice' }
+await graph.getNodeProps('user:alice');       // { name: 'Alice' }
 
 // Get all edges (with their properties)
 await graph.getEdges();
@@ -923,7 +923,7 @@ The returned `ObserverView` is read-only and supports the same query/traverse AP
 
 ```javascript
 const nodes = await view.getNodes();
-const props = await view.getNodeProps('user:alice');  // Map without 'ssn' or 'password'
+const props = await view.getNodeProps('user:alice');  // { name: 'Alice', ... } without 'ssn' or 'password'
 const admins = await view.query().match('user:*').where({ role: 'admin' }).run();
 const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: 'out' });
 ```
