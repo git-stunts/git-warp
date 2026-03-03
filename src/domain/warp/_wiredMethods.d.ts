@@ -226,6 +226,7 @@ declare module '../WarpGraph.js' {
     // ── patch.methods.js ──────────────────────────────────────────────────
     createPatch(): Promise<PatchBuilderV2>;
     patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+    patchMany(...builds: Array<(p: PatchBuilderV2) => void | Promise<void>>): Promise<string[]>;
     _nextLamport(): Promise<{ lamport: number; parentSha: string | null }>;
     _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
     getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;

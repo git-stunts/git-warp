@@ -1657,6 +1657,15 @@ export default class WarpGraph {
   patch(build: (patch: PatchBuilderV2) => void | Promise<void>): Promise<string>;
 
   /**
+   * Applies multiple patches sequentially. Each callback sees the state
+   * produced by the previous commit.
+   * @since 13.0.0
+   */
+  patchMany(
+    ...builds: Array<(patch: PatchBuilderV2) => void | Promise<void>>
+  ): Promise<string[]>;
+
+  /**
    * Returns patches from a writer's ref chain.
    */
   getWriterPatches(

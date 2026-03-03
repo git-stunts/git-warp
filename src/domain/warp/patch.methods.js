@@ -92,6 +92,38 @@ export async function patch(build) {
 }
 
 /**
+ * Applies multiple patches sequentially.
+ *
+ * Each callback sees the state produced by the previous commit, so later
+ * patches can depend on earlier ones. Uses `graph.patch()` internally,
+ * inheriting CAS, eager re-materialize, and reentrancy-guard semantics.
+ *
+ * Returns an empty array (not an error) when called with no arguments.
+ *
+ * @public
+ * @since 13.0.0
+ * @this {import('../WarpGraph.js').default}
+ * @param {...((p: PatchBuilderV2) => void | Promise<void>)} builds - Patch callbacks
+ * @returns {Promise<string[]>} Commit SHAs in order of application
+ *
+ * @example
+ * const shas = await graph.patchMany(
+ *   p => p.addNode('user:alice').setProperty('user:alice', 'name', 'Alice'),
+ *   p => p.addNode('user:bob').setProperty('user:bob', 'name', 'Bob'),
+ * );
+ */
+export async function patchMany(...builds) {
+  if (builds.length === 0) {
+    return [];
+  }
+  const shas = [];
+  for (const build of builds) {
+    shas.push(await this.patch(build));
+  }
+  return shas;
+}
+
+/**
  * Gets the next lamport timestamp and current parent SHA for this writer.
  * Reads from the current ref chain to determine values.
  *
