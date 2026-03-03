@@ -9,7 +9,8 @@ import { performance } from 'perf_hooks';
 import os from 'os';
 import { createRng } from '../helpers/seededRng.js';
 
-const rng = createRng(0xDEADBEEF);
+const BENCHMARK_RNG_SEED = 0xDEADBEEF;
+const rng = createRng(BENCHMARK_RNG_SEED);
 
 // ============================================================================
 // Test Clock
@@ -81,11 +82,11 @@ export function forceGC() {
  * @param {number} length
  * @returns {string}
  */
-export function randomHex(length = 8) {
+export function randomHex(length = 8, random = rng) {
   let result = '';
   const chars = '0123456789abcdef';
   for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(rng.next() * 16)];
+    result += chars[Math.floor(random.next() * 16)];
   }
   return result;
 }

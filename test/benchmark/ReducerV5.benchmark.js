@@ -36,7 +36,7 @@ import {
 } from './benchmarkUtils.js';
 import { createRng } from '../helpers/seededRng.js';
 
-const rng = createRng(0xDEADBEEF);
+const BENCHMARK_SEED = 0xDEADBEEF;
 
 // ============================================================================
 // Configuration
@@ -70,7 +70,9 @@ function generateV5Patches(patchCount, options = {}) {
     writerCount = 5,
     opsPerPatch = 3,
     includeRemoves = true,
+    seed = BENCHMARK_SEED,
   } = options;
+  const rng = createRng(seed);
 
   const patches = [];
   const writers = Array.from({ length: writerCount }, (_, i) => `writer-${i}`);
@@ -81,7 +83,7 @@ function generateV5Patches(patchCount, options = {}) {
     const writerIdx = i % writerCount;
     const writer = writers[writerIdx];
     const lamport = Math.floor(i / writerCount) + 1;
-    const sha = randomHex(16);
+    const sha = randomHex(16, rng);
 
     // Track writer's dot counter
     const currentCounter = writerCounters.get(writer) || 0;
@@ -319,7 +321,7 @@ describe('WARP V5 Reducer Performance Benchmarks', () => {
   describe('Determinism at Scale', () => {
     it('shuffled 1K V5 patches produce identical state', () => {
       const patches = generateV5Patches(1000);
-      const shuffled = rng.shuffle(patches);
+      const shuffled = createRng(BENCHMARK_SEED).shuffle(patches);
 
       const state1 = reduceV5(patches);
       const state2 = reduceV5(shuffled);
