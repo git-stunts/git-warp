@@ -97,9 +97,13 @@ export function decodeCheckpointMessage(message) {
 
   validateKindDiscriminator(trailers, 'checkpoint');
   const graph = requireTrailer(trailers, 'graph', 'checkpoint');
+  validateGraphName(graph);
   const stateHash = requireTrailer(trailers, 'stateHash', 'checkpoint');
+  validateSha256(stateHash, 'stateHash');
   const frontierOid = requireTrailer(trailers, 'frontierOid', 'checkpoint');
+  validateOid(frontierOid, 'frontierOid');
   const indexOid = requireTrailer(trailers, 'indexOid', 'checkpoint');
+  validateOid(indexOid, 'indexOid');
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'checkpoint');
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)

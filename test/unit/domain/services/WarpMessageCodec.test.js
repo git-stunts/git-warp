@@ -359,6 +359,45 @@ eg-patch-oid: ${VALID_OID_SHA1}`;
 
       expect(() => decodePatchMessage(message)).toThrow('missing required trailer eg-schema');
     });
+
+    it('throws when eg-graph contains invalid characters', () => {
+      const message = `warp:patch
+
+eg-kind: patch
+eg-graph: inv alid/name
+eg-writer: node-1
+eg-lamport: 1
+eg-patch-oid: ${VALID_OID_SHA1}
+eg-schema: 1`;
+
+      expect(() => decodePatchMessage(message)).toThrow('Invalid graph name');
+    });
+
+    it('throws when eg-writer contains invalid characters', () => {
+      const message = `warp:patch
+
+eg-kind: patch
+eg-graph: events
+eg-writer: bad writer!
+eg-lamport: 1
+eg-patch-oid: ${VALID_OID_SHA1}
+eg-schema: 1`;
+
+      expect(() => decodePatchMessage(message)).toThrow('Invalid writer ID');
+    });
+
+    it('throws when eg-patch-oid is not a valid hex OID', () => {
+      const message = `warp:patch
+
+eg-kind: patch
+eg-graph: events
+eg-writer: node-1
+eg-lamport: 1
+eg-patch-oid: not-a-valid-oid
+eg-schema: 1`;
+
+      expect(() => decodePatchMessage(message)).toThrow('Invalid patchOid');
+    });
   });
 
   describe('decodeCheckpointMessage', () => {
@@ -460,6 +499,58 @@ eg-index-oid: ${VALID_OID_SHA1}`;
       expect(() => decodeCheckpointMessage(message)).toThrow(
         'missing required trailer eg-schema'
       );
+    });
+
+    it('throws when eg-graph contains invalid characters', () => {
+      const message = `warp:checkpoint
+
+eg-kind: checkpoint
+eg-graph: inv alid/name
+eg-state-hash: ${VALID_STATE_HASH}
+eg-frontier-oid: ${VALID_OID_SHA1}
+eg-index-oid: ${VALID_OID_SHA1}
+eg-schema: 1`;
+
+      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid graph name');
+    });
+
+    it('throws when eg-state-hash is not a valid SHA-256', () => {
+      const message = `warp:checkpoint
+
+eg-kind: checkpoint
+eg-graph: events
+eg-state-hash: not-a-sha256
+eg-frontier-oid: ${VALID_OID_SHA1}
+eg-index-oid: ${VALID_OID_SHA1}
+eg-schema: 1`;
+
+      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid stateHash');
+    });
+
+    it('throws when eg-frontier-oid is not a valid hex OID', () => {
+      const message = `warp:checkpoint
+
+eg-kind: checkpoint
+eg-graph: events
+eg-state-hash: ${VALID_STATE_HASH}
+eg-frontier-oid: not-a-valid-oid
+eg-index-oid: ${VALID_OID_SHA1}
+eg-schema: 1`;
+
+      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid frontierOid');
+    });
+
+    it('throws when eg-index-oid is not a valid hex OID', () => {
+      const message = `warp:checkpoint
+
+eg-kind: checkpoint
+eg-graph: events
+eg-state-hash: ${VALID_STATE_HASH}
+eg-frontier-oid: ${VALID_OID_SHA1}
+eg-index-oid: not-a-valid-oid
+eg-schema: 1`;
+
+      expect(() => decodeCheckpointMessage(message)).toThrow('Invalid indexOid');
     });
   });
 

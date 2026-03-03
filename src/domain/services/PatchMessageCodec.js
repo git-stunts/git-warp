@@ -85,9 +85,12 @@ export function decodePatchMessage(message) {
 
   validateKindDiscriminator(trailers, 'patch');
   const graph = requireTrailer(trailers, 'graph', 'patch');
+  validateGraphName(graph);
   const writer = requireTrailer(trailers, 'writer', 'patch');
+  validateWriterId(writer);
   const lamport = parsePositiveIntTrailer(trailers, 'lamport', 'patch');
   const patchOid = requireTrailer(trailers, 'patchOid', 'patch');
+  validateOid(patchOid, 'patchOid');
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'patch');
 
   return {
