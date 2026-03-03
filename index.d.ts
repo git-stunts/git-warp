@@ -496,7 +496,6 @@ export class ClockAdapter extends ClockPort {
   timestamp(): string;
 }
 
-
 /**
  * Port interface for seek materialization cache operations.
  *

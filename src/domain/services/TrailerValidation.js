@@ -39,7 +39,10 @@ export function requireTrailer(trailers, key, kind) {
  */
 export function parsePositiveIntTrailer(trailers, key, kind) {
   const str = requireTrailer(trailers, key, kind);
-  const num = parseInt(str, 10);
+  if (!/^\d+$/.test(str)) {
+    throw new Error(`Invalid ${kind} message: ${TRAILER_KEYS[key]} must be a positive integer, got '${str}'`);
+  }
+  const num = Number(str);
   if (!Number.isInteger(num) || num < 1) {
     throw new Error(`Invalid ${kind} message: ${TRAILER_KEYS[key]} must be a positive integer, got '${str}'`);
   }

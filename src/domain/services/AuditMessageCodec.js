@@ -17,6 +17,7 @@ import {
   validateSha256,
 } from './MessageCodecInternal.js';
 import {
+  parsePositiveIntTrailer,
   requireTrailer,
   validateKindDiscriminator,
 } from './TrailerValidation.js';
@@ -93,16 +94,7 @@ export function decodeAuditMessage(message) {
   const opsDigest = requireTrailer(trailers, 'opsDigest', 'audit');
   validateSha256(opsDigest, 'opsDigest');
 
-  const schemaStr = requireTrailer(trailers, 'schema', 'audit');
-  if (!/^\d+$/.test(schemaStr)) {
-    throw new Error(
-      `Invalid audit message: eg-schema must be a positive integer, got '${schemaStr}'`,
-    );
-  }
-  const schema = Number(schemaStr);
-  if (!Number.isInteger(schema) || schema < 1) {
-    throw new Error(`Invalid audit message: eg-schema must be a positive integer, got '${schemaStr}'`);
-  }
+  const schema = parsePositiveIntTrailer(trailers, 'schema', 'audit');
   if (schema > 1) {
     throw new Error(`Unsupported audit schema version: ${schema}`);
   }

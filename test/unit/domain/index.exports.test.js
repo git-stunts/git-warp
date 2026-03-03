@@ -32,7 +32,6 @@ import WarpGraphDefault, {
   ClockPort,
   ClockAdapter,
 
-
   // Error types
   ForkError,
   WormholeError,
