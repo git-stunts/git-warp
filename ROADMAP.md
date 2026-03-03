@@ -321,11 +321,11 @@ Pick opportunistically between milestones. Recommended order within tiers:
 | **Milestone (M12)** | 18 | B66, B67, B70, B73, B75, B105–B115, B117, B118 |
 | **Milestone (M13)** | 1 | B116 (internal: DONE; wire-format: DEFERRED) |
 | **Milestone (M14)** | 16 | B130–B145 |
-| **Standalone** | 39 | B12, B19, B22, B28, B34–B37, B43, B44, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123–B125, B127–B129, B146, B147 |
-| **Standalone (done)** | 24 | B26, B46, B47, B50–B52, B55, B71, B72, B77, B78, B82, B84, B89–B94, B120–B122, B126, B148 |
-| **Deferred** | 8 | B4, B7, B16, B20, B21, B27, B100, B101 |
+| **Standalone** | 35 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147 |
+| **Standalone (done)** | 29 | B26, B44, B46, B47, B50–B52, B55, B71, B72, B77, B78, B82, B84, B89–B94, B100, B120–B122, B124, B125, B126, B146, B148 |
+| **Deferred** | 7 | B4, B7, B16, B20, B21, B27, B101 |
 | **Rejected** | 7 | B5, B6, B13, B17, B18, B25, B45 |
-| **Total tracked** | **123** (24 done) | |
+| **Total tracked** | **123** (29 done) | |
 
 ### STANK.md Cross-Reference
 

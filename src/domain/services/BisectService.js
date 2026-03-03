@@ -55,6 +55,7 @@ function resolveCandidates(patches, good, bad) {
     return { error: 'good is not an ancestor of bad' };
   }
 
+  // goodIdx < badIdx guarantees at least one candidate in the slice.
   const candidates = patches.slice(goodIdx + 1, badIdx + 1);
   return { candidates };
 }

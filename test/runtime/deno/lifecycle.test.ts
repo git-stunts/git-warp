@@ -36,7 +36,7 @@ Deno.test("lifecycle: creates edges and retrieves them", async () => {
   }
 });
 
-Deno.test("lifecycle: node properties via Map", async () => {
+Deno.test("lifecycle: node properties", async () => {
   const repo = await createTestRepo("lifecycle-props");
   try {
     const graph = await repo.openGraph("test", "alice");
