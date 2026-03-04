@@ -47,7 +47,10 @@ export async function getNodeProps(nodeId) {
   if (this._propertyReader && this._logicalIndex?.isAlive(nodeId)) {
     try {
       const record = await this._propertyReader.getNodeProps(nodeId);
-      return record || {};
+      if (record !== null) {
+        return record;
+      }
+      // null → index has no data for this node; fall through to linear scan
     } catch {
       // Fall through to linear scan on index read failures.
     }
@@ -61,7 +64,7 @@ export async function getNodeProps(nodeId) {
   }
 
   /** @type {Record<string, unknown>} */
-  const props = {};
+  const props = Object.create(null);
   for (const [propKey, register] of s.prop) {
     const decoded = decodePropKey(propKey);
     if (decoded.nodeId === nodeId) {
@@ -99,7 +102,7 @@ export async function getEdgeProps(from, to, label) {
   const birthEvent = s.edgeBirthEvent?.get(edgeKey);
 
   /** @type {Record<string, unknown>} */
-  const props = {};
+  const props = Object.create(null);
   for (const [propKey, register] of s.prop) {
     if (!isEdgePropKey(propKey)) {
       continue;
@@ -266,7 +269,7 @@ export async function getEdges() {
 
     let bag = edgePropsByKey.get(ek);
     if (!bag) {
-      bag = {};
+      bag = Object.create(null);
       edgePropsByKey.set(ek, bag);
     }
     bag[decoded.propKey] = register.value;
@@ -277,7 +280,7 @@ export async function getEdges() {
     const { from, to, label } = decodeEdgeKey(edgeKey);
     if (orsetContains(s.nodeAlive, from) &&
         orsetContains(s.nodeAlive, to)) {
-      const props = edgePropsByKey.get(edgeKey) || {};
+      const props = edgePropsByKey.get(edgeKey) || Object.create(null);
       edges.push({ from, to, label, props });
     }
   }

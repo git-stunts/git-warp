@@ -266,7 +266,7 @@ function cloneValue(value) {
  */
 function buildPropsSnapshot(propsRecord) {
   /** @type {Record<string, unknown>} */
-  const props = {};
+  const props = Object.create(null);
   const keys = Object.keys(propsRecord).sort();
   for (const key of keys) {
     props[key] = cloneValue(propsRecord[key]);
@@ -307,12 +307,12 @@ function buildEdgesSnapshot(edges, directionKey) {
  * The snapshot includes the node's ID, properties, outgoing edges, and incoming edges.
  * All data is deeply frozen to prevent mutation.
  *
- * @param {{ id: string, propsMap: Record<string, unknown>, edgesOut: Array<{label: string, neighborId: string}>, edgesIn: Array<{label: string, neighborId: string}> }} params - Node data
+ * @param {{ id: string, propsRecord: Record<string, unknown>, edgesOut: Array<{label: string, neighborId: string}>, edgesIn: Array<{label: string, neighborId: string}> }} params - Node data
  * @returns {Readonly<QueryNodeSnapshot>} Frozen node snapshot
  * @private
  */
-function createNodeSnapshot({ id, propsMap, edgesOut, edgesIn }) {
-  const props = buildPropsSnapshot(propsMap);
+function createNodeSnapshot({ id, propsRecord, edgesOut, edgesIn }) {
+  const props = buildPropsSnapshot(propsRecord);
   const edgesOutSnapshot = buildEdgesSnapshot(edgesOut, 'to');
   const edgesInSnapshot = buildEdgesSnapshot(edgesIn, 'from');
 
@@ -683,12 +683,12 @@ export default class QueryBuilder {
     for (const op of this._operations) {
       if (op.type === 'where') {
         const snapshots = await batchMap(workingSet, async (nodeId) => {
-          const propsMap = await getProps(nodeId);
+          const propsRecord = await getProps(nodeId);
           const edgesOut = adjacency.outgoing.get(nodeId) || [];
           const edgesIn = adjacency.incoming.get(nodeId) || [];
           return {
             nodeId,
-            snapshot: createNodeSnapshot({ id: nodeId, propsMap, edgesOut, edgesIn }),
+            snapshot: createNodeSnapshot({ id: nodeId, propsRecord, edgesOut, edgesIn }),
           };
         });
         const predicate = /** @type {(node: QueryNodeSnapshot) => boolean} */ (op.fn);
@@ -747,8 +747,8 @@ export default class QueryBuilder {
         entry.id = nodeId;
       }
       if (includeProps) {
-        const propsMap = await getProps(nodeId);
-        const props = buildPropsSnapshot(propsMap);
+        const propsRecord = await getProps(nodeId);
+        const props = buildPropsSnapshot(propsRecord);
         if (selectFields || Object.keys(props).length > 0) {
           entry.props = props;
         }

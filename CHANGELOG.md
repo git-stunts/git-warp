@@ -32,7 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fake timer lifecycle (B131)** — moved `vi.useFakeTimers()` from `beforeAll` to `beforeEach` and `vi.useRealTimers()` into `afterEach` in `WarpGraph.watch.test.js`.
 - **Test determinism (B132)** — seeded `Math.random()` in benchmarks with Mulberry32 RNG (`0xDEADBEEF`), added `seed: 42` to all fast-check property tests, replaced random delays in stress test with deterministic values.
 - **Global mutation documentation (B133)** — documented intentional `globalThis.Buffer` mutation in `noBufferGlobal.test.js` and `crypto.randomUUID()` usage in `SyncAuthService.test.js`.
-- **Code review fixes (B148)** — removed dead code from BisectService, added `--writer` validation to bisect CLI, fixed exit code constant. Follow-up: reconciled ROADMAP inventory counts (24→29 done), fixed M11 placement in COMPLETED.md, corrected stale Deno test name, added invariant comment in BisectService. Round 2: moved B100 from `### Breaking` to `### Changed` in CHANGELOG, removed done items from ROADMAP priority tiers, fixed stale test vector counts (6→9), replaced `BisectResult` interface with discriminated union type, added SHA format validation to bisect CLI schema.
+- **Code review fixes (B148):**
+  - **CLI hardening** — added `--writer` validation to bisect, SHA format regex on `--good`/`--bad`, rethrow ENOENT/EACCES from test command runner instead of swallowing.
+  - **BisectService cleanup** — removed dead code, added invariant comment, replaced `BisectResult` interface with discriminated union type, fixed exit code constant.
+  - **Prototype-pollution hardening** — `Object.create(null)` for property bags in `getNodeProps`, `getEdgeProps`, `getEdges`, `buildPropsSnapshot`; fixed indexed-path null masking in `getNodeProps`.
+  - **Docs housekeeping** — reconciled ROADMAP inventory counts (24→29 done), fixed M11 sequencing, removed done items from priority tiers, fixed stale test vector counts (6→9), corrected Deno test name, moved B100 to `### Changed`.
 
 ## [12.4.1] — 2026-02-28
 

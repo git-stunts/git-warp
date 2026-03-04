@@ -284,13 +284,13 @@ B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `
 
 ## Execution Order
 
-### Milestones: M10 → M12 → M13 → M14 → M11
+### Milestones: M10 → M12 → M13 → M11 → M14
 
 1. **M10 SENTINEL** — Trust + sync safety + correctness — DONE except B2 spec
 2. **M12 SCALPEL** — STANK audit cleanup (minus edge prop encoding) — **DONE** (all tasks complete, gate verified)
 3. **M13 SCALPEL II** — Edge property canonicalization — **DONE** (internal model complete; wire-format cutover deferred by ADR 3)
 4. **M14 HYGIENE** — Test quality, DRY extraction, SOLID quick-wins — **NEXT** (from HEX_AUDIT)
-5. **M11 COMPASS II** — Developer experience (B2 impl, B3, B11) — after M14
+5. **M11 COMPASS II** — Developer experience (B2 impl, B3, B11) — ✅ **DONE** (v13.0.0), archived
 
 ### Standalone Priority Sequence
 
@@ -427,11 +427,11 @@ Pick opportunistically between milestones. Recommended order within tiers:
 ## Final Command
 
 Every milestone has a hard gate. No milestone blurs into the next.
-Execution: M10 SENTINEL → **M12 SCALPEL** → **M13 SCALPEL II** → **M14 HYGIENE** → M11 COMPASS II. Standalone items fill the gaps.
+Execution: M10 SENTINEL → **M12 SCALPEL** → **M13 SCALPEL II** → **M11 COMPASS II** → **M14 HYGIENE**. M11 is complete and archived. Standalone items fill the gaps.
 
 M12 is complete (including T8/T9). M13 internal canonicalization (ADR 1) is complete — canonical `NodePropSet`/`EdgePropSet` semantics, wire gate split, reserved-byte validation, version namespace separation. The persisted wire-format half of B116 is deferred by ADR 2 and governed by ADR 3 readiness gates.
 
-M14 HYGIENE is the current priority — test hardening, DRY extraction, and SOLID quick-wins from the HEX_AUDIT. M11 follows after M14.
+M14 HYGIENE is the current priority — test hardening, DRY extraction, and SOLID quick-wins from the HEX_AUDIT. M11 is complete and archived in COMPLETED.md.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

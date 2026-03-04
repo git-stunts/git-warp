@@ -37,8 +37,14 @@ function runTestCommand(testCmd, sha, graphName) {
       },
     });
     return true;
-  } catch {
-    return false;
+  } catch (/** @type {unknown} */ err) {
+    // Non-zero exit (err.status is a number) → test says "bad"
+    const asRecord = /** @type {Record<string, unknown>} */ (err);
+    if (err && typeof asRecord.status === 'number') {
+      return false;
+    }
+    // Spawn failure (ENOENT, EACCES, etc.) → rethrow so the user sees the real error
+    throw err;
   }
 }
 
