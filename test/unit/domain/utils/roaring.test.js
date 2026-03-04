@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+/** @type {typeof import('../../../../src/domain/utils/roaring.js')} */
 let roaringMod;
 
 beforeEach(async () => {
@@ -63,10 +64,12 @@ describe('initRoaring', () => {
     const innerBitmap = Object.assign(function WrappedBitmap() {}, {
       isNativelyInstalled: () => false,
     });
-    const wrappedMod = {
-      default: { RoaringBitmap32: innerBitmap },
-      RoaringBitmap32: undefined,
-    };
+    const wrappedMod = /** @type {import('../../../../src/domain/utils/roaring.js').RoaringModule} */ (
+      /** @type {unknown} */ ({
+        default: { RoaringBitmap32: innerBitmap },
+        RoaringBitmap32: undefined,
+      })
+    );
     await initRoaring(wrappedMod);
 
     // Should have unwrapped to the inner module
