@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`roaring-wasm` WASM fallback for Bun/Deno bitmap indexes** — `initRoaring()` now has a three-tier fallback chain: (1) ESM `import('roaring')`, (2) CJS `createRequire('roaring')`, (3) `import('roaring-wasm')` with WASM initialization. The WASM tier activates automatically when native V8 bindings are unavailable (Bun's JSC, Deno). Bitmap index tests (`materializedView`, `materialize.checkpointIndex.notStale`) are no longer excluded from the Bun test suite. Serialization formats are wire-compatible — portable bitmaps produced by native and WASM are byte-identical.
+
 ### Fixed
 
-- **Roaring native module loading under Bun** — `initRoaring()` now catches dynamic `import('roaring')` failures and falls back to `createRequire()` for direct `.node` binary loading. Bitmap index tests (`materializedView`, `materialize.checkpointIndex.notStale`) excluded from Bun test suite: the `roaring` package uses V8 C++ API (not Node-API/NAPI), making it fundamentally incompatible with Bun's JavaScriptCore runtime. Bitmap indexes gracefully degrade to linear scan when roaring is unavailable.
+- **Roaring native module loading under Bun** — `initRoaring()` now catches dynamic `import('roaring')` failures and falls back to `createRequire()` for direct `.node` binary loading.
 
 ### Changed
 

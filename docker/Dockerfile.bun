@@ -22,10 +22,7 @@ RUN git init -q \
 RUN useradd -m warp && chown -R warp:warp /app
 USER warp
 ENV GIT_STUNTS_DOCKER=1
-# Bitmap index tests (materializedView, checkpointIndex.notStale) are excluded:
-# the roaring package uses V8 C++ API (not Node-API/NAPI), which is incompatible
-# with Bun's JavaScriptCore runtime. Bitmap indexes gracefully degrade to linear
-# scan when roaring is unavailable — see _buildView() catch block.
-CMD ["bunx", "vitest", "run", "test/integration/api/", \
-     "--exclude", "**/materializedView.test.js", \
-     "--exclude", "**/materialize.checkpointIndex.notStale.test.js"]
+# Bitmap index tests now pass under Bun via the roaring-wasm WASM fallback.
+# The native roaring package (V8 C++ API) is incompatible with Bun's JSC runtime,
+# but initRoaring() falls through to roaring-wasm automatically.
+CMD ["bunx", "vitest", "run", "test/integration/api/"]

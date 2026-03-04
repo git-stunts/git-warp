@@ -4,7 +4,7 @@ export default defineConfig({
   // Externalize the roaring native module from Vite's transform pipeline.
   // roaring contains a .node C++ addon that Vite cannot bundle/transform.
   ssr: {
-    external: ['roaring'],
+    external: ['roaring', 'roaring-wasm'],
   },
   test: {
     include: [

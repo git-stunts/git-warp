@@ -98,9 +98,90 @@ function loadRoaring() {
 }
 
 /**
+ * Adapts the `roaring-wasm` module to match the `roaring` native API surface.
+ *
+ * The WASM module is already largely compatible (serialize/deserialize accept
+ * booleans), but it lacks `isNativelyInstalled` which `getNativeRoaringAvailable()`
+ * probes. This shim adds it so downstream code works without branching.
+ *
+ * @param {Record<string, unknown>} wasmMod - The loaded `roaring-wasm` module
+ * @returns {RoaringModule} Adapted module matching native `roaring` shape
+ * @private
+ */
+function adaptWasmApi(wasmMod) {
+  wasmMod.RoaringBitmap32.isNativelyInstalled = () => false;
+  return /** @type {RoaringModule} */ (wasmMod);
+}
+
+/**
+ * Tier 1: ESM dynamic import of native roaring.
+ * @returns {Promise<RoaringModule | null>}
+ * @private
+ */
+async function tryNativeImport() {
+  try {
+    return /** @type {RoaringModule} */ (await import('roaring'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tier 2: CJS require() — works when Vite intercepts import() but can't
+ * transform native C++ addons.
+ * @returns {Promise<RoaringModule | null>}
+ * @private
+ */
+async function tryCjsRequire() {
+  try {
+    const { createRequire } = await import('node:module');
+    const req = createRequire(import.meta.url);
+    return /** @type {RoaringModule} */ (req('roaring'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tier 3: WASM fallback — works on Bun (JSC) and Deno without native bindings.
+ * @returns {Promise<RoaringModule | null>}
+ * @private
+ */
+async function tryWasmFallback() {
+  try {
+    const wasmMod = await import('roaring-wasm');
+    if (typeof wasmMod.roaringLibraryInitialize === 'function') {
+      await wasmMod.roaringLibraryInitialize();
+    }
+    return adaptWasmApi(wasmMod);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Unwraps ESM default-export wrappers on a loaded roaring module.
+ * Handles both ESM `{ default: { RoaringBitmap32 } }` and CJS `module.exports`.
+ * @param {RoaringModule} mod
+ * @returns {RoaringModule}
+ * @private
+ */
+function unwrapDefault(mod) {
+  if (mod.default && mod.default.RoaringBitmap32) {
+    return /** @type {RoaringModule} */ (mod.default);
+  }
+  return mod;
+}
+
+/**
  * Initializes the roaring module. Must be called before getRoaringBitmap32().
  * This is called automatically via top-level await when the module is imported,
  * but can also be called manually with a pre-loaded module for testing.
+ *
+ * Fallback chain:
+ *   Tier 1: await import('roaring')       — ESM native V8 bindings
+ *   Tier 2: createRequire('roaring')      — CJS native (Vite workaround)
+ *   Tier 3: await import('roaring-wasm')  — WASM portable fallback
  *
  * @param {RoaringModule} [mod] - Pre-loaded roaring module (for testing/DI)
  * @returns {Promise<void>}
@@ -111,29 +192,19 @@ export async function initRoaring(mod) {
     initError = null;
     return;
   }
-  if (!roaringModule) {
-    try {
-      roaringModule = /** @type {RoaringModule} */ (await import('roaring'));
-    } catch (importErr) {
-      // Dynamic import() can fail when a module runner (e.g. Vite 7)
-      // intercepts the call and cannot transform native C++ addons.
-      // Fall back to CJS require() which loads .node binaries directly.
-      try {
-        const { createRequire } = await import('node:module');
-        const req = createRequire(import.meta.url);
-        roaringModule = /** @type {RoaringModule} */ (req('roaring'));
-      } catch (requireErr) {
-        throw new AggregateError(
-          [importErr, requireErr],
-          'Failed to load roaring via both import() and require()',
-        );
-      }
-    }
-    // Handle both ESM default export and CJS module.exports
-    if (roaringModule.default && roaringModule.default.RoaringBitmap32) {
-      roaringModule = roaringModule.default;
-    }
+  if (roaringModule) {
+    return;
   }
+  roaringModule =
+    (await tryNativeImport()) ??
+    (await tryCjsRequire()) ??
+    (await tryWasmFallback());
+  if (!roaringModule) {
+    throw new Error(
+      'Failed to load roaring via import(), require(), and roaring-wasm',
+    );
+  }
+  roaringModule = unwrapDefault(roaringModule);
 }
 
 // Auto-initialize on module load (top-level await)
