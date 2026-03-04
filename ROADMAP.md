@@ -206,6 +206,11 @@ Items picked up opportunistically without blocking milestones. No milestone assi
 | B149 | **LARGE-GRAPH `levels()` — TWO-PASS STREAMING** — `levels()` currently holds O(V+E) via `topologicalSort({ _returnAdjList: true })`. Refactor to two-pass: (1) topo sort discards edge cache, (2) DP pass re-fetches neighbors from provider. Reduces steady-state memory from O(V+E) to O(V). Trade-off: one extra I/O pass over edges. **File:** `src/domain/services/GraphTraversal.js` |
 | B150 | **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — `transitiveReduction()` holds full adjacency list from topo sort AND builds a second `Map<string, string[]>` for per-node BFS. Refactor BFS phase to call `getNeighbors()` on demand instead of caching. Reduces memory from O(V+E) to O(V) working set per BFS sweep. Trade-off: redundant provider calls (up to V BFS sweeps re-fetching same neighbors). Consider provider-level LRU to amortize. **File:** `src/domain/services/GraphTraversal.js` |
 | B151 | **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosure()` collects all O(V²) reachability edges in an array before returning. For large graphs this can exhaust memory even with `maxEdges`. Refactor to async iterator/generator that yields `{from, to}` pairs as they're discovered. Per-node BFS working memory is already O(V); the bottleneck is the output array. **File:** `src/domain/services/GraphTraversal.js` |
+| B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of all GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Enables early break, backpressure, and pipeline composition. Array-returning methods become sugar over `collect()`. Generalizes B151 to the full traversal surface. Stats delivery via hooks or generator return value. B151 is the proof-of-concept; this is the full rollout. **File:** `src/domain/services/GraphTraversal.js` |
+| B153 | **`topologicalSort` LIGHTWEIGHT MODE** — discovery phase unconditionally builds `adjList` + `neighborEdgeMap` (O(V+E)) even when `_returnAdjList` is false. Add a `_lightweight` mode that only tracks in-degree counts during discovery and re-fetches neighbors from provider during Kahn processing. Reduces topo sort memory from O(V+E) to O(V). Root cause behind B149/B150 — both inherit full-graph materialization from their topo sort call. **File:** `src/domain/services/GraphTraversal.js` |
+| B154 | **`transitiveReduction` REDUNDANT ADJLIST COPY** — after receiving `_neighborEdgeMap` from topo sort, builds a second `adjList: Map<string, string[]>` by extracting neighborIds. Two representations of the same edge set in memory simultaneously. Should use `_neighborEdgeMap` directly, accessing `.neighborId` inline during BFS. **File:** `src/domain/services/GraphTraversal.js` |
+| B155 | **`levels()` AS LIGHTWEIGHT `--view` LAYOUT** — `levels()` is exactly the Y-axis assignment a layered DAG layout needs. For simple DAGs, `levels()` + left-to-right X sweep could produce clean layouts without the 2.5MB ELK import. Offer `--view --layout=levels` as an instant rendering mode, reserving ELK for complex graphs. **Files:** `src/visualization/layouts/`, `bin/cli/commands/view.js` |
+| B156 | **STRUCTURAL DIFF VIA TRANSITIVE REDUCTION** — compute `transitiveReduction(stateA)` vs `transitiveReduction(stateB)` to produce a compact structural diff that strips implied edges and shows only "load-bearing" changes. Natural fit for H1 (Time-Travel Delta Engine) as `warp diff --mode=structural`. |
 
 ### CI & Tooling Pack
 
@@ -324,11 +329,11 @@ Pick opportunistically between milestones. Recommended order within tiers:
 | **Milestone (M12)** | 18 | B66, B67, B70, B73, B75, B105–B115, B117, B118 |
 | **Milestone (M13)** | 1 | B116 (internal: DONE; wire-format: DEFERRED) |
 | **Milestone (M14)** | 16 | B130–B145 |
-| **Standalone** | 38 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147, B149–B151 |
+| **Standalone** | 43 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147, B149–B156 |
 | **Standalone (done)** | 29 | B26, B44, B46, B47, B50–B52, B55, B71, B72, B77, B78, B82, B84, B89–B94, B100, B120–B122, B124, B125, B126, B146, B148 |
 | **Deferred** | 7 | B4, B7, B16, B20, B21, B27, B101 |
 | **Rejected** | 7 | B5, B6, B13, B17, B18, B25, B45 |
-| **Total tracked** | **126** total; 29 standalone done | |
+| **Total tracked** | **131** total; 29 standalone done | |
 
 ### STANK.md Cross-Reference
 
