@@ -115,13 +115,15 @@ function adaptWasmApi(wasmMod) {
 
 /**
  * Tier 1: ESM dynamic import of native roaring.
+ * @param {Error[]} errors - Collects per-tier failures for diagnostics
  * @returns {Promise<RoaringModule | null>}
  * @private
  */
-async function tryNativeImport() {
+async function tryNativeImport(errors) {
   try {
     return /** @type {RoaringModule} */ (await import('roaring'));
-  } catch {
+  } catch (err) {
+    errors.push(err instanceof Error ? err : new Error(String(err)));
     return null;
   }
 }
@@ -129,32 +131,36 @@ async function tryNativeImport() {
 /**
  * Tier 2: CJS require() — works when Vite intercepts import() but can't
  * transform native C++ addons.
+ * @param {Error[]} errors - Collects per-tier failures for diagnostics
  * @returns {Promise<RoaringModule | null>}
  * @private
  */
-async function tryCjsRequire() {
+async function tryCjsRequire(errors) {
   try {
     const { createRequire } = await import('node:module');
     const req = createRequire(import.meta.url);
     return /** @type {RoaringModule} */ (req('roaring'));
-  } catch {
+  } catch (err) {
+    errors.push(err instanceof Error ? err : new Error(String(err)));
     return null;
   }
 }
 
 /**
  * Tier 3: WASM fallback — works on Bun (JSC) and Deno without native bindings.
+ * @param {Error[]} errors - Collects per-tier failures for diagnostics
  * @returns {Promise<RoaringModule | null>}
  * @private
  */
-async function tryWasmFallback() {
+async function tryWasmFallback(errors) {
   try {
     const wasmMod = await import('roaring-wasm');
     if (typeof wasmMod.roaringLibraryInitialize === 'function') {
       await wasmMod.roaringLibraryInitialize();
     }
     return adaptWasmApi(/** @type {RoaringModule} */ (wasmMod));
-  } catch {
+  } catch (err) {
+    errors.push(err instanceof Error ? err : new Error(String(err)));
     return null;
   }
 }
@@ -188,23 +194,29 @@ function unwrapDefault(mod) {
  */
 export async function initRoaring(mod) {
   if (mod) {
-    roaringModule = mod;
+    roaringModule = unwrapDefault(mod);
+    nativeAvailability = NOT_CHECKED;
     initError = null;
     return;
   }
   if (roaringModule) {
     return;
   }
+  /** @type {Error[]} */
+  const loadErrors = [];
   roaringModule =
-    (await tryNativeImport()) ??
-    (await tryCjsRequire()) ??
-    (await tryWasmFallback());
+    (await tryNativeImport(loadErrors)) ??
+    (await tryCjsRequire(loadErrors)) ??
+    (await tryWasmFallback(loadErrors));
   if (!roaringModule) {
-    throw new Error(
+    throw new AggregateError(
+      loadErrors,
       'Failed to load roaring via import(), require(), and roaring-wasm',
     );
   }
   roaringModule = unwrapDefault(roaringModule);
+  nativeAvailability = NOT_CHECKED;
+  initError = null;
 }
 
 // Auto-initialize on module load (top-level await)
