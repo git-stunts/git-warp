@@ -104,13 +104,13 @@ function loadRoaring() {
  * booleans), but it lacks `isNativelyInstalled` which `getNativeRoaringAvailable()`
  * probes. This shim adds it so downstream code works without branching.
  *
- * @param {Record<string, unknown>} wasmMod - The loaded `roaring-wasm` module
- * @returns {RoaringModule} Adapted module matching native `roaring` shape
+ * @param {RoaringModule} wasmMod - The loaded `roaring-wasm` module
+ * @returns {RoaringModule} Adapted module with `isNativelyInstalled` shim
  * @private
  */
 function adaptWasmApi(wasmMod) {
   wasmMod.RoaringBitmap32.isNativelyInstalled = () => false;
-  return /** @type {RoaringModule} */ (wasmMod);
+  return wasmMod;
 }
 
 /**
@@ -153,7 +153,7 @@ async function tryWasmFallback() {
     if (typeof wasmMod.roaringLibraryInitialize === 'function') {
       await wasmMod.roaringLibraryInitialize();
     }
-    return adaptWasmApi(wasmMod);
+    return adaptWasmApi(/** @type {RoaringModule} */ (wasmMod));
   } catch {
     return null;
   }
