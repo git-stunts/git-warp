@@ -1,9 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // Externalize native C++ addons from Vite's SSR transform pipeline.
-  // Without this, Vite 7 (vitest 4) intercepts dynamic import('roaring')
-  // and fails to load the .node binary, breaking Bun integration tests.
+  // Externalize the roaring native module from Vite's transform pipeline.
+  // roaring contains a .node C++ addon that Vite cannot bundle/transform.
   ssr: {
     external: ['roaring'],
   },

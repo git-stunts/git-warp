@@ -114,13 +114,20 @@ export async function initRoaring(mod) {
   if (!roaringModule) {
     try {
       roaringModule = /** @type {RoaringModule} */ (await import('roaring'));
-    } catch {
+    } catch (importErr) {
       // Dynamic import() can fail when a module runner (e.g. Vite 7)
       // intercepts the call and cannot transform native C++ addons.
       // Fall back to CJS require() which loads .node binaries directly.
-      const { createRequire } = await import('node:module');
-      const req = createRequire(import.meta.url);
-      roaringModule = /** @type {RoaringModule} */ (req('roaring'));
+      try {
+        const { createRequire } = await import('node:module');
+        const req = createRequire(import.meta.url);
+        roaringModule = /** @type {RoaringModule} */ (req('roaring'));
+      } catch (requireErr) {
+        throw new AggregateError(
+          [importErr, requireErr],
+          'Failed to load roaring via both import() and require()',
+        );
+      }
     }
     // Handle both ESM default export and CJS module.exports
     if (roaringModule.default && roaringModule.default.RoaringBitmap32) {
