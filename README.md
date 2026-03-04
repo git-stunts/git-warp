@@ -8,7 +8,7 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v13.0.1
+## What's New (Unreleased)
 
 - **5 new graph algorithms** — `levels()`, `transitiveReduction()`, `transitiveClosure()`, `rootAncestors()` in `GraphTraversal`, plus BFS reverse reachability verification. All use `NeighborProviderPort` and support cancellation.
 - **`roaring-wasm` WASM fallback for Bun/Deno bitmap indexes** — bitmap indexes now work on Bun (JSC) and Deno via a three-tier fallback: native V8 bindings → CJS require → WASM. Wire-compatible, byte-identical serialization.
