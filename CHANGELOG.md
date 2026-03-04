@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fake timer lifecycle (B131)** — moved `vi.useFakeTimers()` from `beforeAll` to `beforeEach` and `vi.useRealTimers()` into `afterEach` in `WarpGraph.watch.test.js`.
 - **Test determinism (B132)** — seeded `Math.random()` in benchmarks with Mulberry32 RNG (`0xDEADBEEF`), added `seed: 42` to all fast-check property tests, replaced random delays in stress test with deterministic values.
 - **Global mutation documentation (B133)** — documented intentional `globalThis.Buffer` mutation in `noBufferGlobal.test.js` and `crypto.randomUUID()` usage in `SyncAuthService.test.js`.
-- **Code review fixes (B148)** — removed dead code from BisectService, added `--writer` validation to bisect CLI, fixed exit code constant.
+- **Code review fixes (B148)** — removed dead code from BisectService, added `--writer` validation to bisect CLI, fixed exit code constant. Follow-up: reconciled ROADMAP inventory counts (24→29 done), fixed M11 placement in COMPLETED.md, corrected stale Deno test name, added invariant comment in BisectService.
 
 ## [12.4.1] — 2026-02-28
 
