@@ -10,6 +10,7 @@
 
 ## What's New in v13.0.1
 
+- **`roaring-wasm` WASM fallback for Bun/Deno bitmap indexes** — bitmap indexes now work on Bun (JSC) and Deno via a three-tier fallback: native V8 bindings → CJS require → WASM. Wire-compatible, byte-identical serialization.
 - **Dev dependency security updates** — resolved 4 high-severity advisories (`tar`, `rollup`, `minimatch`, `@isaacs/brace-expansion`). No runtime dependencies affected.
 
 See the [full changelog](CHANGELOG.md) for details.
@@ -642,6 +643,7 @@ The codebase follows hexagonal architecture with ports and adapters:
 | `@git-stunts/trailer-codec` | Git trailer encoding |
 | `cbor-x` | CBOR binary serialization |
 | `roaring` | Roaring bitmap indexes (native C++ bindings) |
+| `roaring-wasm` | Roaring bitmap WASM fallback (Bun/Deno) |
 | `zod` | Schema validation |
 
 ## Testing
