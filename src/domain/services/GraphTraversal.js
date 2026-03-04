@@ -955,6 +955,347 @@ export default class GraphTraversal {
     return { path, totalCost: /** @type {number} */ (dist.get(goal)), stats: this._stats(sorted.length, rs) };
   }
 
+  // ==== Section 5: Graph Analysis (levels, rootAncestors, transitiveReduction, transitiveClosure) ====
+
+  /**
+   * Longest-path level assignment (DAGs only).
+   *
+   * Each node's level is its longest-path distance from any root.
+   * Roots (in-degree 0 within the reachable subgraph) get level 0.
+   *
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, signal?: AbortSignal }} params
+   * @returns {Promise<{levels: Map<string, number>, maxLevel: number, stats: TraversalStats}>}
+   * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   */
+  async levels({
+    start, direction = 'out', options,
+    maxNodes = DEFAULT_MAX_NODES,
+    signal,
+  }) {
+    // Topo sort with cycle detection + neighbor edge map reuse
+    const { sorted, _neighborEdgeMap } = await this.topologicalSort({
+      start,
+      direction,
+      options,
+      maxNodes,
+      throwOnCycle: true,
+      signal,
+      _returnAdjList: true,
+    });
+
+    const rs = this._newRunStats();
+
+    // DP forward: level[v] = max(level[v], level[u] + 1)
+    /** @type {Map<string, number>} */
+    const levelMap = new Map();
+    for (const nodeId of sorted) {
+      if (!levelMap.has(nodeId)) {
+        levelMap.set(nodeId, 0);
+      }
+    }
+
+    let maxLevel = 0;
+    for (const nodeId of sorted) {
+      checkAborted(signal, 'levels');
+      const currentLevel = /** @type {number} */ (levelMap.get(nodeId));
+      const neighbors = _neighborEdgeMap
+        ? (_neighborEdgeMap.get(nodeId) || [])
+        : await this._getNeighbors(nodeId, direction, rs, options);
+      rs.edgesTraversed += neighbors.length;
+
+      for (const { neighborId } of neighbors) {
+        const neighborLevel = levelMap.get(neighborId) ?? 0;
+        const candidate = currentLevel + 1;
+        if (candidate > neighborLevel) {
+          levelMap.set(neighborId, candidate);
+          if (candidate > maxLevel) {
+            maxLevel = candidate;
+          }
+        }
+      }
+    }
+
+    return { levels: levelMap, maxLevel, stats: this._stats(sorted.length, rs) };
+  }
+
+  /**
+   * Find all root ancestors (in-degree-0 nodes) reachable backward from start.
+   *
+   * Works on cyclic graphs — uses BFS reachability.
+   *
+   * @param {{ start: string, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal }} params
+   * @returns {Promise<{roots: string[], stats: TraversalStats}>}
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   */
+  async rootAncestors({
+    start, options,
+    maxNodes = DEFAULT_MAX_NODES,
+    maxDepth = DEFAULT_MAX_DEPTH,
+    signal,
+  }) {
+    // BFS backward from start
+    const { nodes: visited, stats: bfsStats } = await this.bfs({
+      start,
+      direction: 'in',
+      options,
+      maxNodes,
+      maxDepth,
+      signal,
+    });
+
+    const rs = this._newRunStats();
+
+    // Check each visited node: if it has no incoming neighbors, it's a root
+    /** @type {string[]} */
+    const roots = [];
+    for (const nodeId of visited) {
+      checkAborted(signal, 'rootAncestors');
+      const inNeighbors = await this._getNeighbors(nodeId, 'in', rs, options);
+      rs.edgesTraversed += inNeighbors.length;
+      if (inNeighbors.length === 0) {
+        roots.push(nodeId);
+      }
+    }
+
+    // Sort lexicographically for determinism
+    roots.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+    return {
+      roots,
+      stats: {
+        nodesVisited: bfsStats.nodesVisited,
+        edgesTraversed: bfsStats.edgesTraversed + rs.edgesTraversed,
+        cacheHits: bfsStats.cacheHits + rs.cacheHits,
+        cacheMisses: bfsStats.cacheMisses + rs.cacheMisses,
+      },
+    };
+  }
+
+  /**
+   * Transitive reduction — minimal edge set preserving reachability (DAGs only).
+   *
+   * For each node u with direct successors, BFS from u's grandchildren
+   * to find which direct successors are also reachable via longer paths.
+   * Those direct edges are redundant and removed.
+   *
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, signal?: AbortSignal }} params
+   * @returns {Promise<{edges: Array<{from: string, to: string, label: string}>, removed: number, stats: TraversalStats}>}
+   * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   */
+  async transitiveReduction({
+    start, direction = 'out', options,
+    maxNodes = DEFAULT_MAX_NODES,
+    signal,
+  }) {
+    // Topo sort with cycle detection + neighbor edge map reuse
+    const { sorted, _neighborEdgeMap } = await this.topologicalSort({
+      start,
+      direction,
+      options,
+      maxNodes,
+      throwOnCycle: true,
+      signal,
+      _returnAdjList: true,
+    });
+
+    const rs = this._newRunStats();
+    /** @type {Map<string, string[]>} */
+    const adjList = new Map();
+
+    // Build adjacency list from topo sort data
+    for (const nodeId of sorted) {
+      const neighbors = _neighborEdgeMap
+        ? (_neighborEdgeMap.get(nodeId) || [])
+        : await this._getNeighbors(nodeId, direction, rs, options);
+      adjList.set(nodeId, neighbors.map((n) => n.neighborId));
+    }
+
+    // For each node, find redundant edges via DFS/BFS from grandchildren
+    /** @type {Set<string>} — keys are "from\0to" */
+    const redundant = new Set();
+
+    for (const u of sorted) {
+      checkAborted(signal, 'transitiveReduction');
+      const directSuccessors = adjList.get(u) || [];
+      if (directSuccessors.length <= 1) {
+        continue; // Cannot have redundant edges with 0 or 1 successor
+      }
+
+      const directSet = new Set(directSuccessors);
+
+      // BFS from all grandchildren (successors-of-successors)
+      // Any direct successor reachable from a grandchild is redundant
+      /** @type {Set<string>} */
+      const visited = new Set();
+      /** @type {string[]} */
+      let frontier = [];
+
+      for (const s of directSuccessors) {
+        const sSuccessors = adjList.get(s) || [];
+        for (const gc of sSuccessors) {
+          if (!visited.has(gc)) {
+            visited.add(gc);
+            frontier.push(gc);
+          }
+        }
+      }
+
+      // BFS forward from grandchildren
+      while (frontier.length > 0) {
+        /** @type {string[]} */
+        const nextFrontier = [];
+        for (const nodeId of frontier) {
+          if (directSet.has(nodeId)) {
+            redundant.add(`${u}\0${nodeId}`);
+          }
+          const successors = adjList.get(nodeId) || [];
+          for (const s of successors) {
+            if (!visited.has(s)) {
+              visited.add(s);
+              nextFrontier.push(s);
+            }
+          }
+        }
+        frontier = nextFrontier;
+      }
+    }
+
+    // Collect non-redundant edges with labels from the original neighbor data
+    /** @type {Array<{from: string, to: string, label: string}>} */
+    const edges = [];
+    let removed = 0;
+
+    for (const nodeId of sorted) {
+      const neighbors = _neighborEdgeMap
+        ? (_neighborEdgeMap.get(nodeId) || [])
+        : [];
+      for (const { neighborId, label } of neighbors) {
+        if (redundant.has(`${nodeId}\0${neighborId}`)) {
+          removed++;
+        } else {
+          edges.push({ from: nodeId, to: neighborId, label });
+        }
+      }
+    }
+
+    // Sort edges for determinism
+    edges.sort((a, b) => {
+      if (a.from < b.from) { return -1; }
+      if (a.from > b.from) { return 1; }
+      if (a.to < b.to) { return -1; }
+      if (a.to > b.to) { return 1; }
+      if (a.label < b.label) { return -1; }
+      if (a.label > b.label) { return 1; }
+      return 0;
+    });
+
+    return { edges, removed, stats: this._stats(sorted.length, rs) };
+  }
+
+  /**
+   * Transitive closure — all implied reachability edges.
+   *
+   * For each node, BFS to find all reachable nodes and emit an edge
+   * for each pair. Works on cyclic graphs.
+   *
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
+   * @returns {Promise<{edges: Array<{from: string, to: string}>, stats: TraversalStats}>}
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   */
+  async transitiveClosure({
+    start, direction = 'out', options,
+    maxNodes = DEFAULT_MAX_NODES,
+    maxEdges = 1000000,
+    signal,
+  }) {
+    const rs = this._newRunStats();
+    const starts = [...new Set(Array.isArray(start) ? start : [start])];
+    for (const s of starts) {
+      await this._validateStart(s);
+    }
+
+    // Phase 1: Discover all reachable nodes via BFS from all starts
+    const allVisited = new Set();
+    /** @type {string[]} */
+    const queue = [...starts];
+    let qHead = 0;
+    for (const s of starts) {
+      allVisited.add(s);
+    }
+
+    while (qHead < queue.length) {
+      if (allVisited.size % 1000 === 0) {
+        checkAborted(signal, 'transitiveClosure');
+      }
+      if (allVisited.size >= maxNodes) {
+        break;
+      }
+      const nodeId = /** @type {string} */ (queue[qHead++]);
+      const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
+      rs.edgesTraversed += neighbors.length;
+      for (const { neighborId } of neighbors) {
+        if (!allVisited.has(neighborId)) {
+          allVisited.add(neighborId);
+          queue.push(neighborId);
+        }
+      }
+    }
+
+    // Phase 2: For each node, BFS to collect all reachable nodes
+    /** @type {Array<{from: string, to: string}>} */
+    const edges = [];
+    let edgeCount = 0;
+
+    const nodeList = [...allVisited].sort();
+
+    for (const fromNode of nodeList) {
+      checkAborted(signal, 'transitiveClosure');
+
+      // BFS from fromNode
+      const visited = new Set([fromNode]);
+      /** @type {string[]} */
+      let frontier = [fromNode];
+
+      while (frontier.length > 0) {
+        /** @type {string[]} */
+        const nextFrontier = [];
+        for (const nodeId of frontier) {
+          const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
+          rs.edgesTraversed += neighbors.length;
+          for (const { neighborId } of neighbors) {
+            if (!visited.has(neighborId)) {
+              visited.add(neighborId);
+              nextFrontier.push(neighborId);
+              edgeCount++;
+              if (edgeCount > maxEdges) {
+                throw new TraversalError(
+                  `Transitive closure exceeds maxEdges limit (${maxEdges})`,
+                  { code: 'E_MAX_EDGES_EXCEEDED', context: { maxEdges, edgesSoFar: edgeCount } },
+                );
+              }
+              edges.push({ from: fromNode, to: neighborId });
+            }
+          }
+        }
+        frontier = nextFrontier;
+      }
+    }
+
+    // Sort edges for determinism
+    edges.sort((a, b) => {
+      if (a.from < b.from) { return -1; }
+      if (a.from > b.from) { return 1; }
+      if (a.to < b.to) { return -1; }
+      if (a.to > b.to) { return 1; }
+      return 0;
+    });
+
+    return { edges, stats: this._stats(allVisited.size, rs) };
+  }
+
   // ==== Private Helpers ====
 
   /**

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
+describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000 }, () => {
   /** @type {any} */
   let repo;
 
@@ -40,7 +40,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n1')).toThrow(
         /Cannot delete node 'n1': node has attached data.*propert/
       );
-    }, { timeout: 15000 });
+    });
 
     it('throws when deleting a node that has edges', async () => {
       repo = await createGitRepo('delguard');
@@ -65,7 +65,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n1')).toThrow(
         /Cannot delete node 'n1': node has attached data.*edge/
       );
-    }, { timeout: 15000 });
+    });
 
     it('throws when deleting a node that is an edge target', async () => {
       repo = await createGitRepo('delguard');
@@ -90,7 +90,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n2')).toThrow(
         /Cannot delete node 'n2': node has attached data.*edge/
       );
-    }, { timeout: 15000 });
+    });
 
     it('succeeds when deleting a node with no attached data', async () => {
       repo = await createGitRepo('delguard');
@@ -115,7 +115,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
       expect(typeof sha).toBe('string');
       expect(sha.length).toBe(40);
-    }, { timeout: 15000 });
+    });
 
     it('mentions both edges and properties in error when both exist', async () => {
       repo = await createGitRepo('delguard');
@@ -140,7 +140,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n1')).toThrow(
         /1 edge\(s\) and 1 propert/
       );
-    }, { timeout: 15000 });
+    });
 
     it('error message suggests cascade mode', async () => {
       repo = await createGitRepo('delguard');
@@ -162,7 +162,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n1')).toThrow(
         /set onDeleteWithData to 'cascade'/
       );
-    }, { timeout: 15000 });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(warnSpy).toHaveBeenCalledOnce();
       expect(warnSpy.mock.calls[0][0]).toMatch(/Deleting node 'n1'/);
       expect(warnSpy.mock.calls[0][0]).toMatch(/propert/);
-    }, { timeout: 15000 });
+    });
 
     it('logs warning via logger when deleting node with edges', async () => {
       repo = await createGitRepo('delguard');
@@ -234,7 +234,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(typeof sha).toBe('string');
       expect(warnSpy).toHaveBeenCalled();
       expect(warnSpy.mock.calls[0][0]).toMatch(/edge/);
-    }, { timeout: 15000 });
+    });
 
     it('does not warn when deleting node with no attached data', async () => {
       repo = await createGitRepo('delguard');
@@ -260,7 +260,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
       expect(typeof sha).toBe('string');
       expect(warnSpy).not.toHaveBeenCalled();
-    }, { timeout: 15000 });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -291,7 +291,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(() => patch.removeNode('n1')).toThrow(
         /Cannot delete node 'n1'/
       );
-    }, { timeout: 15000 });
+    });
 
     it('warn mode works through writer().commitPatch()', async () => {
       repo = await createGitRepo('delguard');
@@ -319,7 +319,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       expect(typeof sha).toBe('string');
       expect(warnSpy).toHaveBeenCalledOnce();
       expect(warnSpy.mock.calls[0][0]).toMatch(/propert/);
-    }, { timeout: 15000 });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
 
       expect(typeof sha).toBe('string');
       expect(warnSpy).not.toHaveBeenCalled();
-    }, { timeout: 15000 });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -375,6 +375,6 @@ describe('WarpGraph deleteGuard enforcement (HS/DELGUARD/2)', () => {
       // removeNode should not throw because there's no state to check against
       const patch = await graph.createPatch();
       expect(() => patch.removeNode('n1')).not.toThrow();
-    }, { timeout: 15000 });
+    });
   });
 });

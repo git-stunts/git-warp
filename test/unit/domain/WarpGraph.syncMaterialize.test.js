@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('syncWith({ materialize }) option', () => {
+describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
   it('syncWith(peer, { materialize: true }) returns fresh state in result', async () => {
     const repoA = await createGitRepo('syncmat');
     const repoB = await createGitRepo('syncmat');
@@ -38,7 +38,7 @@ describe('syncWith({ materialize }) option', () => {
       await repoA.cleanup();
       await repoB.cleanup();
     }
-  }, { timeout: 20000 });
+  });
 
   it('syncWith(peer) (default) does NOT auto-materialize — result has no state field', async () => {
     const repoA = await createGitRepo('syncmat');
@@ -69,7 +69,7 @@ describe('syncWith({ materialize }) option', () => {
       await repoA.cleanup();
       await repoB.cleanup();
     }
-  }, { timeout: 20000 });
+  });
 
   it('sync applies 0 patches + materialize:true — materialize still runs', async () => {
     const repoA = await createGitRepo('syncmat');
@@ -102,5 +102,5 @@ describe('syncWith({ materialize }) option', () => {
       await repoA.cleanup();
       await repoB.cleanup();
     }
-  }, { timeout: 20000 });
+  });
 });

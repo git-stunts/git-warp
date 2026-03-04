@@ -12,12 +12,14 @@ vi.mock('../../../bin/cli/shared.js', () => ({
 
 // Mock HealthCheckService
 vi.mock('../../../src/domain/services/HealthCheckService.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    getHealth: vi.fn().mockResolvedValue({
-      status: 'healthy',
-      components: { repository: { status: 'healthy', latencyMs: 1 } },
-    }),
-  })),
+  default: vi.fn().mockImplementation(function () {
+    return {
+      getHealth: vi.fn().mockResolvedValue({
+        status: 'healthy',
+        components: { repository: { status: 'healthy', latencyMs: 1 } },
+      }),
+    };
+  }),
 }));
 
 // Mock ClockAdapter

@@ -9,9 +9,11 @@ const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
     return await fn(ac.signal);
   });
   const retryMock = vi.fn(async (/** @type {Function} */ fn) => await fn());
-  const httpSyncServerMock = vi.fn().mockImplementation(() => ({
-    listen: vi.fn().mockResolvedValue({ close: vi.fn(), url: 'http://127.0.0.1:3000/sync' }),
-  }));
+  const httpSyncServerMock = vi.fn().mockImplementation(function () {
+    return {
+      listen: vi.fn().mockResolvedValue({ close: vi.fn(), url: 'http://127.0.0.1:3000/sync' }),
+    };
+  });
   return { timeoutMock, retryMock, httpSyncServerMock };
 });
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph.patchMany()', () => {
+describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('returns empty array when called with no arguments', async () => {
     const repo = await createGitRepo('patchMany-empty');
     try {
@@ -147,4 +147,4 @@ describe('WarpGraph.patchMany()', () => {
       await repo.cleanup();
     }
   });
-}, { timeout: 30000 });
+});

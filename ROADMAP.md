@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v13.0.0
-> **Last reconciled:** 2026-03-03 (v13.0.0 release: M11 COMPASS II complete, B100/B140 breaking, B44/B124/B125/B146 done)
+> **Last reconciled:** 2026-03-04 (priority triage: 45 standalone items sorted into P0–P6 tiers, wave-based execution order, dependency chains mapped)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -173,89 +173,106 @@ Archived to [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-11--compass-ii).
 
 ## Standalone Lane (Ongoing)
 
-Items picked up opportunistically without blocking milestones. No milestone assignment.
+45 active items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
 > Completed standalone items archived in [COMPLETED.md](docs/ROADMAP/COMPLETED.md#standalone-lane--completed-items).
 
-### Near-Term
+### P0 — Quick Wins (unblock other work, trivial effort)
 
-| ID | Item |
-|----|------|
-| ~~B124~~ | ✅ ~~**TRUST PAYLOAD PARITY TESTS**~~ — 22 tests verifying CLI vs service shape parity. Done in v13.0.0. |
-| ~~B125~~ | ✅ ~~**`CachedValue` NULL-PAYLOAD SEMANTIC TESTS**~~ — 3 tests documenting null = "no value" sentinel. Done in v13.0.0. |
-| B127 | **DENO SMOKE TEST** — `npm run test:deno:smoke` for fast local pre-push confidence without full Docker matrix. From BACKLOG 2026-02-25. |
-| ~~B44~~ | ✅ ~~**SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E**~~ — 3 edge-case tests (cross-unsubscribe, subscribe-during-callback, unsubscribe-in-onError). Done in v13.0.0. |
-| B34 | **DOCS: SECURITY_SYNC.md** — extract threat model from JSDoc into operator doc |
-| B35 | **DOCS: README INSTALL SECTION** — Quick Install with Docker + native paths |
-| B36 | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper replacing manual `WarpStateV5` literals |
-| B37 | **SHARED MOCK PERSISTENCE FIXTURE** — dedup `createMockPersistence()` across trust test files |
-| B43 | **VITEST EXPLICIT RUNTIME EXCLUDES** — prevent accidental local runs of Docker-only suites |
-| B12 | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep version literals in .md files against `package.json` |
-| B48 | **ESLINT BAN `= {}` CONSTRUCTOR DEFAULTS WITH REQUIRED PARAMS** — catches the pattern where `= {}` silently makes required options optional at the type level (found in CommitDagTraversalService, DagTraversal, DagPathFinding, DagTopology, BitmapIndexReader) |
-| B49 | **TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING** — strip trailing `//` and `/* */` comments before checking for `any` in `ts-policy-check.js`; low priority but closes theoretical false-positive gap |
-| B53 | **FIX JSR PUBLISH DRY-RUN DENO PANIC** — Deno 2.6.7 `deno_ast` panics on overlapping text changes from duplicate `roaring` import rewrites; either pin Deno version, vendor the import, or file upstream issue and add workaround |
-| B54 | **`typedCustom()` ZOD HELPER** — `z.custom()` without a generic yields `unknown` in JS; a JSDoc-friendly wrapper (or `@typedef`-based pattern) would eliminate verbose `/** @type {z.ZodType<T>} */ (z.custom(...))` casts across HttpSyncServer and future Zod schemas |
-| B57 | **CI: AUTO-VALIDATE `type-surface.m8.json` AGAINST `index.d.ts`** — add a CI gate or pre-push check that parses the manifest and confirms every declared method/property/return type matches the corresponding signature in `index.d.ts`; prevents drift like the missing `setSeekCache` and `syncWith.state` return found in review |
-| B28 | **PURE TYPESCRIPT EXAMPLE APP** — CI compile-only stub (`tsc --noEmit` on minimal TS consumer). |
-| B76 | **WARPGRAPH INVISIBLE API SURFACE DOCS** — add `// API Surface` block listing all 40+ dynamically wired methods with source module. Consider generating as build step. From B-AUDIT-4 (STANK). **File:** `src/domain/WarpGraph.js:451-478` |
-| B79 | **WARPGRAPH CONSTRUCTOR LIFECYCLE DOCS** — document cache invalidation strategy for 25 instance variables: which operations dirty which caches, which flush them. From B-AUDIT-16 (TSK TSK). **File:** `src/domain/WarpGraph.js:69-198` |
-| B80 | **CHECKPOINTSERVICE CONTENT BLOB UNBOUNDED MEMORY** — iterates all properties into single `Set` before tree serialization. Stream content OIDs in batches. From B-AUDIT-10 (JANK). **File:** `src/domain/services/CheckpointService.js:224-226` |
-| B81 | **`attachContent` ORPHAN BLOB GUARD** — `attachContent()` unconditionally writes blob before `setProperty()`. Validate before push to prevent orphan blobs. From B-CODE-2. **File:** `src/domain/services/PatchBuilderV2.js` |
-| ~~B146~~ | ✅ ~~**UNIFY `CorePersistence` / `FullPersistence` TYPEDEFS**~~ — replaced `FullPersistence` with imported `CorePersistence`. Done in v13.0.0. |
-| B147 | **RFC FIELD COUNT DRIFT DETECTOR** — script that counts WarpGraph instance fields (grep `this._` in constructor) and warns if design RFC field counts diverge. Prevents stale numbers in `warpgraph-decomposition.md`. From B145 PR review. |
+No dependencies. Do these first.
 
-### CI & Tooling Pack
+| ID | Item | Effort |
+|----|------|--------|
+| B154 | **`transitiveReduction` REDUNDANT ADJLIST COPY** — after receiving `_neighborEdgeMap` from topo sort, builds a second `adjList: Map<string, string[]>` by extracting neighborIds. Two representations of the same edge set in memory simultaneously. Should use `_neighborEdgeMap` directly, accessing `.neighborId` inline during BFS. **File:** `src/domain/services/GraphTraversal.js`. **Unblocks:** B150 (P4) | XS |
+| B97 | **AUDIT MANIFEST vs `index.js` DRIFT** — manifest has 70 entries, `index.js` has 66 exports. 4 stale or type-only entries need reconciliation. From B-TYPE-2. **Files:** `contracts/type-surface.m8.json`, `index.js`. **Unblocks:** B85 → B57 (P2 chain) | S |
+| B81 | **`attachContent` ORPHAN BLOB GUARD** — `attachContent()` unconditionally writes blob before `setProperty()`. Validate before push to prevent orphan blobs. From B-CODE-2. **File:** `src/domain/services/PatchBuilderV2.js` | S |
 
-| ID | Item |
-|----|------|
-| B83 | **DEDUP CI `type-firewall` AND `lint` JOBS** — merge into one job (add `npm audit` to `type-firewall`, drop `lint`) or chain with `needs:`. From B-CI-1. **File:** GitHub workflow file `.github/workflows/ci.yml` |
-| B85 | **TYPE-ONLY EXPORT MANIFEST SECTION** — `typeExports` section in `type-surface.m8.json` to catch accidental type removal from `index.d.ts`. From B-CI-3. **Files:** `contracts/type-surface.m8.json`, `scripts/check-dts-surface.js` |
-| B86 | **MARKDOWNLINT CI GATE** — catch MD040 (missing code fence language) etc. From B-DOC-1. **File:** GitHub workflow file `.github/workflows/ci.yml` |
-| B87 | **CODE SAMPLE LINTER** — syntax-check JS/TS code blocks in markdown files via `eslint-plugin-markdown` or custom extractor. From B-DOC-2. **Files:** new script, `docs/**/*.md` |
-| B88 | **MERMAID RENDERING SMOKE TEST** — parse all ` ```mermaid ` blocks with `@mermaid-js/mermaid-cli` in CI. From B-DIAG-2. **File:** GitHub workflow file `.github/workflows/ci.yml` or `scripts/` |
-| B119 | **`scripts/pr-ready` MERGE-READINESS CLI** — single tool aggregating unresolved review threads, pending/failed checks, CodeRabbit status/cooldown, and human-review count into one deterministic verdict. Dedupes ~20 BACKLOG items from 6 PR feedback sessions. From BACKLOG 2026-02-27/28. |
-| B123 | **BENCHMARK BUDGETS + CI REGRESSION GATE** — define perf thresholds for eager post-commit and materialize hash cost; fail CI on agreed regression. From BACKLOG 2026-02-27. |
-| B128 | **DOCS CONSISTENCY PREFLIGHT** — automated pass in `release:preflight` verifying changelog/readme/guide updates for behavior changes in hot paths (materialize, checkpoint, sync). From BACKLOG 2026-02-28. |
+### P1 — Correctness & Test Infrastructure
 
-### Surface Validator Pack
+B36 and B37 improve velocity for all future test work — do them early. B19 + B22 batch as one PR (Conformance Property Pack).
 
-All items target `scripts/check-dts-surface.js`:
+| ID | Item | Effort |
+|----|------|--------|
+| B36 | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper replacing manual `WarpStateV5` literals | M |
+| B37 | **SHARED MOCK PERSISTENCE FIXTURE** — dedup `createMockPersistence()` across trust test files | S |
+| B48 | **ESLINT BAN `= {}` CONSTRUCTOR DEFAULTS WITH REQUIRED PARAMS** — catches the pattern where `= {}` silently makes required options optional at the type level (found in CommitDagTraversalService, DagTraversal, DagPathFinding, DagTopology, BitmapIndexReader) | S |
+| B80 | **CHECKPOINTSERVICE CONTENT BLOB UNBOUNDED MEMORY** — iterates all properties into single `Set` before tree serialization. Stream content OIDs in batches. From B-AUDIT-10 (JANK). **File:** `src/domain/services/CheckpointService.js:224-226` | M |
+| B99 | **DETERMINISM FUZZER FOR TREE CONSTRUCTION** — property-based test randomizing content blob insertion order in `PatchBuilderV2` and content OID iteration order in `CheckpointService.createV5()`, verifying identical tree OID. From B-FEAT-2. **File:** new test in `test/unit/domain/services/` | M |
+| B19 | **CANONICAL SERIALIZATION PROPERTY TESTS** — fuzz `canonicalStringify`; verify idempotency, determinism, round-trip stability. Golden fixtures test known paths; property tests test unknown edge combinations. | S |
+| B22 | **CANONICAL PARSE DETERMINISM TEST** — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated calls. Batch with B19 as one PR. | S |
 
-| ID | Item |
-|----|------|
-| B95 | **NAMESPACE EXPORT SUPPORT** — handle `export declare namespace Foo`. From B-SURF-5. |
+### P2 — CI & Tooling (one batch PR)
 
-### Type Surface Pack
+**Internal chain:** B97 (P0) → B85 → B57 — must complete P0 first. B123 is the largest item — may need to split out if the PR gets too big.
 
-| ID | Item |
-|----|------|
-| B96 | **CONSUMER TEST TYPE-ONLY IMPORT COVERAGE** — exercise all exported types beyond just declaring variables. Types like `OpOutcome`, `TraversalDirection`, `LogLevelValue` aren't tested at all. From B-TYPE-1. **File:** `test/type-check/consumer.ts` |
-| B97 | **AUDIT MANIFEST vs `index.js` DRIFT** — manifest has 70 entries, `index.js` has 66 exports. 4 stale or type-only entries need reconciliation. From B-TYPE-2. **Files:** `contracts/type-surface.m8.json`, `index.js` |
-| B98 | **TEST-FILE WILDCARD RATCHET** — `ts-policy-check.js` excludes test files entirely. Add separate ratchet with higher threshold or document exclusion as intentional. From B-TYPE-3. **File:** `scripts/ts-policy-check.js` |
+| ID | Item | Depends on | Effort |
+|----|------|------------|--------|
+| B83 | **DEDUP CI `type-firewall` AND `lint` JOBS** — merge into one job (add `npm audit` to `type-firewall`, drop `lint`) or chain with `needs:`. From B-CI-1. **File:** `.github/workflows/ci.yml` | — | S |
+| B85 | **TYPE-ONLY EXPORT MANIFEST SECTION** — `typeExports` section in `type-surface.m8.json` to catch accidental type removal from `index.d.ts`. From B-CI-3. **Files:** `contracts/type-surface.m8.json`, `scripts/check-dts-surface.js` | B97 (P0) | S |
+| B57 | **CI: AUTO-VALIDATE `type-surface.m8.json` AGAINST `index.d.ts`** — add a CI gate or pre-push check that parses the manifest and confirms every declared method/property/return type matches the corresponding signature in `index.d.ts`; prevents drift like the missing `setSeekCache` and `syncWith.state` return found in review | B97, B85 | M |
+| B86 | **MARKDOWNLINT CI GATE** — catch MD040 (missing code fence language) etc. From B-DOC-1. **File:** `.github/workflows/ci.yml` | — | S |
+| B87 | **CODE SAMPLE LINTER** — syntax-check JS/TS code blocks in markdown files via `eslint-plugin-markdown` or custom extractor. From B-DOC-2. **Files:** new script, `docs/**/*.md` | — | M |
+| B88 | **MERMAID RENDERING SMOKE TEST** — parse all ` ```mermaid ` blocks with `@mermaid-js/mermaid-cli` in CI. From B-DIAG-2. **File:** `.github/workflows/ci.yml` or `scripts/` | — | S |
+| B119 | **`scripts/pr-ready` MERGE-READINESS CLI** — single tool aggregating unresolved review threads, pending/failed checks, CodeRabbit status/cooldown, and human-review count into one deterministic verdict. From BACKLOG 2026-02-27/28. | — | M |
+| B123 | **BENCHMARK BUDGETS + CI REGRESSION GATE** — define perf thresholds for eager post-commit and materialize hash cost; fail CI on agreed regression. From BACKLOG 2026-02-27. | — | L |
+| B128 | **DOCS CONSISTENCY PREFLIGHT** — automated pass in `release:preflight` verifying changelog/readme/guide updates for behavior changes in hot paths (materialize, checkpoint, sync). From BACKLOG 2026-02-28. | — | S |
+| B12 | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep version literals in .md files against `package.json` | — | S |
+| B43 | **VITEST EXPLICIT RUNTIME EXCLUDES** — prevent accidental local runs of Docker-only suites | — | S |
 
-### Content Attachment
+### P3 — Type Safety & Surface
 
-| ID | Item |
-|----|------|
-| B99 | **DETERMINISM FUZZER FOR TREE CONSTRUCTION** — property-based test randomizing content blob insertion order in `PatchBuilderV2` and content OID iteration order in `CheckpointService.createV5()`, verifying identical tree OID. From B-FEAT-2. **File:** new test in `test/unit/domain/services/` |
+No hard dependencies. Pick up opportunistically after P2.
 
-### Conformance Property Pack (B19 + B22)
+| ID | Item | Effort |
+|----|------|--------|
+| B95 | **NAMESPACE EXPORT SUPPORT** — handle `export declare namespace Foo` in surface validator. From B-SURF-5. **File:** `scripts/check-dts-surface.js` | S |
+| B96 | **CONSUMER TEST TYPE-ONLY IMPORT COVERAGE** — exercise all exported types beyond just declaring variables. Types like `OpOutcome`, `TraversalDirection`, `LogLevelValue` aren't tested at all. From B-TYPE-1. **File:** `test/type-check/consumer.ts` | M |
+| B98 | **TEST-FILE WILDCARD RATCHET** — `ts-policy-check.js` excludes test files entirely. Add separate ratchet with higher threshold or document exclusion as intentional. From B-TYPE-3. **File:** `scripts/ts-policy-check.js` | S |
+| B54 | **`typedCustom()` ZOD HELPER** — `z.custom()` without a generic yields `unknown` in JS; a JSDoc-friendly wrapper (or `@typedef`-based pattern) would eliminate verbose `/** @type {z.ZodType<T>} */ (z.custom(...))` casts across HttpSyncServer and future Zod schemas | S |
+| B49 | **TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING** — strip trailing `//` and `/* */` comments before checking for `any` in `ts-policy-check.js`; low priority but closes theoretical false-positive gap | XS |
+| B28 | **PURE TYPESCRIPT EXAMPLE APP** — CI compile-only stub (`tsc --noEmit` on minimal TS consumer). | M |
 
-Single lightweight property suite — not a milestone anchor:
+### P4 — Large-Graph Performance (forward-looking)
 
-- **B19** (CANONICAL SERIALIZATION PROPERTY TESTS) — fuzz `canonicalStringify`; verify idempotency, determinism, round-trip stability.
-- **B22** (CANONICAL PARSE DETERMINISM TEST) — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated calls.
+**Execution order:** B154 (P0) → B153 → B149 + B150 (parallel) → B151 → B152. B153 is the keystone — fixes topo sort memory, which cascades to B149 and B150.
 
-**Rationale:** Golden fixtures test known paths; property tests test unknown edge combinations. For a deterministic engine, this is not optional forever. Trimmed to a single file covering canonical serialize idempotence + order-invariance.
+| ID | Item | Depends on | Effort |
+|----|------|------------|--------|
+| B153 | **`topologicalSort` LIGHTWEIGHT MODE** — discovery phase unconditionally builds `adjList` + `neighborEdgeMap` (O(V+E)) even when `_returnAdjList` is false. Add a `_lightweight` mode that only tracks in-degree counts during discovery and re-fetches neighbors from provider during Kahn processing. Reduces topo sort memory from O(V+E) to O(V). Root cause behind B149/B150 — both inherit full-graph materialization from their topo sort call. **File:** `src/domain/services/GraphTraversal.js` | — | M |
+| B149 | **LARGE-GRAPH `levels()` — TWO-PASS STREAMING** — `levels()` currently holds O(V+E) via `topologicalSort({ _returnAdjList: true })`. Refactor to two-pass: (1) topo sort discards edge cache, (2) DP pass re-fetches neighbors from provider. Reduces steady-state memory from O(V+E) to O(V). Trade-off: one extra I/O pass over edges. **File:** `src/domain/services/GraphTraversal.js` | B153 | M |
+| B150 | **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — `transitiveReduction()` holds full adjacency list from topo sort AND builds a second `Map<string, string[]>` for per-node BFS. Refactor BFS phase to call `getNeighbors()` on demand instead of caching. Reduces memory from O(V+E) to O(V) working set per BFS sweep. Trade-off: redundant provider calls. Consider provider-level LRU to amortize. **File:** `src/domain/services/GraphTraversal.js` | B153, B154 (P0) | M |
+| B151 | **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosure()` collects all O(V²) reachability edges in an array before returning. For large graphs this can exhaust memory even with `maxEdges`. Refactor to async iterator/generator that yields `{from, to}` pairs as they're discovered. Per-node BFS working memory is already O(V); the bottleneck is the output array. **File:** `src/domain/services/GraphTraversal.js` | — | M |
+| B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of all GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Enables early break, backpressure, and pipeline composition. Array-returning methods become sugar over `collect()`. Generalizes B151 to the full traversal surface. **File:** `src/domain/services/GraphTraversal.js` | B151 | L |
 
-### Process (no code)
+### P5 — Features & Visualization
 
-| ID | Item |
-|----|------|
-| B102 | **API EXAMPLES REVIEW CHECKLIST** — add to `CONTRIBUTING.md`: each `createPatch()`/`commit()` uses own builder, async methods `await`ed, examples copy-pasteable. From B-DOC-3. |
-| B103 | **BATCH REVIEW FIX COMMITS** — batch all review fixes into one commit before re-requesting CodeRabbit. Reduces duplicate findings across incremental pushes. From B-DX-2. |
-| B104 | **MERMAID DIAGRAM CONTENT CHECKLIST** — for diagram migrations: count annotations in source/target, verify edge labels survive, check complexity annotations preserved. From B-DIAG-1. |
-| B129 | **CONTRIBUTOR REVIEW-LOOP HYGIENE GUIDE** — add section to `CONTRIBUTING.md` covering commit sizing, CodeRabbit cooldown strategy, and when to request bot review. From BACKLOG 2026-02-27. |
+| ID | Item | Effort |
+|----|------|--------|
+| B155 | **`levels()` AS LIGHTWEIGHT `--view` LAYOUT** — `levels()` is exactly the Y-axis assignment a layered DAG layout needs. For simple DAGs, `levels()` + left-to-right X sweep could produce clean layouts without the 2.5MB ELK import. Offer `--view --layout=levels` as an instant rendering mode, reserving ELK for complex graphs. **Files:** `src/visualization/layouts/`, `bin/cli/commands/view.js` | M |
+| B156 | **STRUCTURAL DIFF VIA TRANSITIVE REDUCTION** — compute `transitiveReduction(stateA)` vs `transitiveReduction(stateB)` to produce a compact structural diff that strips implied edges and shows only "load-bearing" changes. Natural fit for H1 (Time-Travel Delta Engine) as `warp diff --mode=structural`. | L |
+
+### P6 — Documentation & Process
+
+Low urgency. Fold into PRs that already touch related files.
+
+| ID | Item | Effort |
+|----|------|--------|
+| B34 | **DOCS: SECURITY_SYNC.md** — extract threat model from JSDoc into operator doc | M |
+| B35 | **DOCS: README INSTALL SECTION** — Quick Install with Docker + native paths | S |
+| B76 | **WARPGRAPH INVISIBLE API SURFACE DOCS** — add `// API Surface` block listing all 40+ dynamically wired methods with source module. Consider generating as build step. From B-AUDIT-4 (STANK). **File:** `src/domain/WarpGraph.js:451-478` | M |
+| B79 | **WARPGRAPH CONSTRUCTOR LIFECYCLE DOCS** — document cache invalidation strategy for 25 instance variables: which operations dirty which caches, which flush them. From B-AUDIT-16 (TSK TSK). **File:** `src/domain/WarpGraph.js:69-198`. **Depends on:** B143 RFC (exists) | M |
+| B102 | **API EXAMPLES REVIEW CHECKLIST** — add to `CONTRIBUTING.md`: each `createPatch()`/`commit()` uses own builder, async methods `await`ed, examples copy-pasteable. From B-DOC-3. | S |
+| B103 | **BATCH REVIEW FIX COMMITS** — batch all review fixes into one commit before re-requesting CodeRabbit. Reduces duplicate findings across incremental pushes. From B-DX-2. | XS |
+| B104 | **MERMAID DIAGRAM CONTENT CHECKLIST** — for diagram migrations: count annotations in source/target, verify edge labels survive, check complexity annotations preserved. From B-DIAG-1. | XS |
+| B129 | **CONTRIBUTOR REVIEW-LOOP HYGIENE GUIDE** — add section to `CONTRIBUTING.md` covering commit sizing, CodeRabbit cooldown strategy, and when to request bot review. From BACKLOG 2026-02-27. | S |
+| B147 | **RFC FIELD COUNT DRIFT DETECTOR** — script that counts WarpGraph instance fields (grep `this._` in constructor) and warns if design RFC field counts diverge. Prevents stale numbers in `warpgraph-decomposition.md`. From B145 PR review. **Depends on:** B143 RFC (exists) | S |
+
+### Uncategorized / Platform
+
+| ID | Item | Effort |
+|----|------|--------|
+| B53 | **FIX JSR PUBLISH DRY-RUN DENO PANIC** — Deno 2.6.7 `deno_ast` panics on overlapping text changes from duplicate `roaring` import rewrites; either pin Deno version, vendor the import, or file upstream issue and add workaround. Promote if JSR publish becomes imminent. | M |
+| B127 | **DENO SMOKE TEST** — `npm run test:deno:smoke` for fast local pre-push confidence without full Docker matrix. From BACKLOG 2026-02-25. | S |
 
 ---
 
@@ -284,29 +301,72 @@ B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `
 
 ## Execution Order
 
-### Milestones: M10 → M12 → M13 → M11 → M14
+### Milestones (all complete)
 
 1. **M10 SENTINEL** — Trust + sync safety + correctness — **DONE**
-2. **M12 SCALPEL** — STANK audit cleanup (minus edge prop encoding) — **DONE** (all tasks complete, gate verified)
-3. **M13 SCALPEL II** — Edge property canonicalization — **DONE** (internal model complete; wire-format cutover deferred by ADR 3)
-4. **M11 COMPASS II** — Developer experience (B2 impl, B3, B11) — ✅ **DONE** (v13.0.0), archived
-5. **M14 HYGIENE** — Test quality, DRY extraction, SOLID quick-wins — **NEXT** (from HEX_AUDIT)
+2. **M12 SCALPEL** — STANK audit cleanup (minus edge prop encoding) — **DONE**
+3. **M13 SCALPEL II** — Edge property canonicalization — **DONE** (internal; wire-format deferred by ADR 3)
+4. **M11 COMPASS II** — Developer experience — ✅ **DONE** (v13.0.0), archived
+5. **M14 HYGIENE** — Test quality, DRY extraction, SOLID quick-wins — **DONE**
 
-### Standalone Priority Sequence
+### Standalone Execution Waves
 
-Pick opportunistically between milestones. Recommended order within tiers:
+Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
-1. ~~**Immediate** (B46, B47, B26, B71, B126)~~ — **ALL DONE.**
-2. **Near-term correctness** (B76, B80, B81) — prioritize items touching core services
-3. **Near-term DX** (B36, B37, B43, B127) — test ergonomics and developer velocity
-4. **Near-term docs/types** (B34, B35) — alignment and documentation
-5. **Near-term tooling** (B12, B48, B49, B53, B54, B57, B28) — remaining type safety items
-6. **CI & Tooling Pack** (B83, B85–B88, B119, B123, B128) — batch as one PR
-7. **Surface Validator Pack** (B95) — only namespace export support remains
-8. **Type Surface Pack** (B96–B98) — batch as one PR
-9. **Content Attachment** (B99) — standalone property test
-10. **Conformance Property Pack** (B19, B22) — standalone property suite
-11. **Process** (B102–B104, B129) — fold into CONTRIBUTING.md when touching that file
+#### Wave 1: Foundation (P0 + P1 start)
+
+1. **B154** — transitiveReduction adjList dedup (XS)
+2. **B97** — Manifest audit (S, unblocks P2 chain)
+3. **B81** — Orphan blob guard (S, correctness)
+4. **B36** — Fluent StateBuilder (M, test DX)
+5. **B37** — Shared mock persistence (S, test DRY)
+
+#### Wave 2: Correctness (P1 finish)
+
+6. **B48** — ESLint `= {}` defaults rule (S)
+7. **B80** — CheckpointService memory streaming (M)
+8. **B19 + B22** — Conformance property pack (S, one PR)
+9. **B99** — Determinism fuzzer (M)
+
+#### Wave 3: CI & Tooling (P2, one batch PR)
+
+10. **B83, B85, B57, B86, B87, B88, B119, B123, B128, B12, B43**
+
+Internal chain: B97 (P0, Wave 1) → B85 → B57. B123 is the largest — may split out.
+
+#### Wave 4: Type Surface (P3)
+
+11. **B95, B96, B98, B54, B49** — batch or cherry-pick
+12. **B28** — TypeScript example app
+
+#### Wave 5: Large-Graph (P4)
+
+13. **B153** — topologicalSort lightweight mode (keystone)
+14. **B149 + B150** — levels + transitiveReduction streaming (parallel after B153)
+15. **B151** — transitiveClosure streaming output
+16. **B152** — full async generator API
+
+#### Wave 6: Features + Docs (P5 + P6)
+
+17. **B155** — levels() as --view layout
+18. **B156** — structural diff (if H1 is in play)
+19. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147) folded into related PRs
+
+### Dependency Chains
+
+```text
+B97 (P0) ──→ B85 (P2) ──→ B57 (P2)
+              manifest      auto-validate
+
+B153 (P4) ──→ B149 (P4)   levels() streaming
+          └──→ B150 (P4)   transitiveReduction() streaming
+                ↑
+B154 (P0) ─────┘           adjList dedup (quick fix)
+
+B151 (P4) ──→ B152 (P4)   closure streaming → full async generator API
+
+B36 (P1) ──→ (improves velocity for B99, B19, B22, future tests)
+```
 
 ---
 
@@ -321,11 +381,11 @@ Pick opportunistically between milestones. Recommended order within tiers:
 | **Milestone (M12)** | 18 | B66, B67, B70, B73, B75, B105–B115, B117, B118 |
 | **Milestone (M13)** | 1 | B116 (internal: DONE; wire-format: DEFERRED) |
 | **Milestone (M14)** | 16 | B130–B145 |
-| **Standalone** | 35 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147 |
+| **Standalone** | 45 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147, B149–B156 |
 | **Standalone (done)** | 29 | B26, B44, B46, B47, B50–B52, B55, B71, B72, B77, B78, B82, B84, B89–B94, B100, B120–B122, B124, B125, B126, B146, B148 |
 | **Deferred** | 7 | B4, B7, B16, B20, B21, B27, B101 |
 | **Rejected** | 7 | B5, B6, B13, B17, B18, B25, B45 |
-| **Total tracked** | **123** total; 29 standalone done | |
+| **Total tracked** | **133** total; 29 standalone done | |
 
 ### STANK.md Cross-Reference
 
@@ -427,11 +487,9 @@ Pick opportunistically between milestones. Recommended order within tiers:
 ## Final Command
 
 Every milestone has a hard gate. No milestone blurs into the next.
-Execution: M10 SENTINEL → **M12 SCALPEL** → **M13 SCALPEL II** → **M11 COMPASS II** → **M14 HYGIENE**. M11 is complete and archived. Standalone items fill the gaps.
+All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-M12 is complete (including T8/T9). M13 internal canonicalization (ADR 1) is complete — canonical `NodePropSet`/`EdgePropSet` semantics, wire gate split, reserved-byte validation, version namespace separation. The persisted wire-format half of B116 is deferred by ADR 2 and governed by ADR 3 readiness gates.
-
-M14 HYGIENE is the current priority — test hardening, DRY extraction, and SOLID quick-wins from the HEX_AUDIT. M11 is complete and archived in COMPLETED.md.
+The active backlog is **45 standalone items** sorted into **6 priority tiers** (P0–P6) with **6 execution waves**. Wave 1 (foundation) targets quick wins and test infrastructure. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

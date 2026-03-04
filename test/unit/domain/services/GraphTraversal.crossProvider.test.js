@@ -19,6 +19,10 @@ import {
   F5_WEIGHTS,
   F8_TOPO_CYCLE_3,
   F9_UNICODE_CODEPOINT_ORDER,
+  F15_WIDE_DAG_FOR_LEVELS,
+  F16_TRANSITIVE_REDUCTION,
+  F17_MULTI_ROOT_DAG,
+  F18_TRANSITIVE_CLOSURE_CHAIN,
   makeWeightFn,
 } from '../../../helpers/fixtureDsl.js';
 
@@ -110,6 +114,50 @@ describe('Cross-provider equivalence', () => {
     forEachProvider(F3_DIAMOND_EQUAL_PATHS, async (/** @type {*} */ engine) => {
       const { nodes } = await engine.bfs({ start: 'D', direction: 'in' });
       expect(nodes).toEqual(['D', 'B', 'C', 'A']);
+    });
+  });
+
+  describe('levels: F15 wide DAG', () => {
+    forEachProvider(F15_WIDE_DAG_FOR_LEVELS, async (/** @type {*} */ engine) => {
+      const { levels, maxLevel } = await engine.levels({ start: 'A' });
+      expect(levels.get('A')).toBe(0);
+      expect(levels.get('B')).toBe(1);
+      expect(levels.get('C')).toBe(1);
+      expect(levels.get('D')).toBe(2);
+      expect(levels.get('E')).toBe(3);
+      expect(maxLevel).toBe(3);
+    });
+  });
+
+  describe('transitiveReduction: F16', () => {
+    forEachProvider(F16_TRANSITIVE_REDUCTION, async (/** @type {*} */ engine) => {
+      const { edges, removed } = await engine.transitiveReduction({ start: 'A' });
+      expect(removed).toBe(1);
+      expect(edges).toEqual([
+        { from: 'A', to: 'B', label: '' },
+        { from: 'B', to: 'C', label: '' },
+      ]);
+    });
+  });
+
+  describe('transitiveClosure: F18 chain', () => {
+    forEachProvider(F18_TRANSITIVE_CLOSURE_CHAIN, async (/** @type {*} */ engine) => {
+      const { edges } = await engine.transitiveClosure({ start: 'A' });
+      expect(edges).toEqual([
+        { from: 'A', to: 'B' },
+        { from: 'A', to: 'C' },
+        { from: 'A', to: 'D' },
+        { from: 'B', to: 'C' },
+        { from: 'B', to: 'D' },
+        { from: 'C', to: 'D' },
+      ]);
+    });
+  });
+
+  describe('rootAncestors: F17 multi-root', () => {
+    forEachProvider(F17_MULTI_ROOT_DAG, async (/** @type {*} */ engine) => {
+      const { roots } = await engine.rootAncestors({ start: 'D' });
+      expect(roots).toEqual(['R1', 'R2']);
     });
   });
 });

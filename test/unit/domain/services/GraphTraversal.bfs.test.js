@@ -10,6 +10,7 @@ import {
   F3_DIAMOND_EQUAL_PATHS,
   F9_UNICODE_CODEPOINT_ORDER,
   F13_BFS_MULTI_PARENT_DEDUP,
+  F17_MULTI_ROOT_DAG,
 } from '../../../helpers/fixtureDsl.js';
 
 describe('GraphTraversal.bfs', () => {
@@ -132,6 +133,35 @@ describe('GraphTraversal.bfs', () => {
       const { stats } = await engine.bfs({ start: 'A' });
       expect(stats.nodesVisited).toBe(4);
       expect(stats.edgesTraversed).toBeGreaterThan(0);
+    });
+  });
+
+  // Reverse reachability — BFS with direction: 'in'
+  describe('reverse reachability (direction: "in")', () => {
+    it('F17 — BFS backward from D reaches all ancestors', async () => {
+      const provider = makeAdjacencyProvider(F17_MULTI_ROOT_DAG);
+      const engine = new GraphTraversal({ provider });
+      const { nodes } = await engine.bfs({ start: 'D', direction: 'in' });
+
+      // D has incoming from A, B, C; A has incoming from R1; B,C from R2
+      expect(nodes.sort()).toEqual(['A', 'B', 'C', 'D', 'R1', 'R2']);
+    });
+
+    it('F3 — BFS backward from D finds complete reverse graph', async () => {
+      const provider = makeAdjacencyProvider(F3_DIAMOND_EQUAL_PATHS);
+      const engine = new GraphTraversal({ provider });
+      const { nodes } = await engine.bfs({ start: 'D', direction: 'in' });
+
+      // D←B←A, D←C←A
+      expect(nodes).toEqual(['D', 'B', 'C', 'A']);
+    });
+
+    it('BFS backward from root node returns only itself', async () => {
+      const provider = makeAdjacencyProvider(F17_MULTI_ROOT_DAG);
+      const engine = new GraphTraversal({ provider });
+      const { nodes } = await engine.bfs({ start: 'R1', direction: 'in' });
+
+      expect(nodes).toEqual(['R1']);
     });
   });
 

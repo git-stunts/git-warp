@@ -16,7 +16,7 @@ async function assertLinearWriterChain(/** @type {any} */ persistence, /** @type
 }
 
 describe('No-coordination regression suite', () => {
-  it('keeps writer refs linear after sync cycles', async () => {
+  it('keeps writer refs linear after sync cycles', { timeout: 20000 }, async () => {
     const repoA = await createGitRepo('nocoord');
     const repoB = await createGitRepo('nocoord');
 
@@ -67,7 +67,7 @@ describe('No-coordination regression suite', () => {
       await repoA.cleanup();
       await repoB.cleanup();
     }
-  }, { timeout: 20000 });
+  });
 
   it('does not enumerate other writer heads during commit', async () => {
     const repo = await createGitRepo('nocoord');
@@ -89,7 +89,7 @@ describe('No-coordination regression suite', () => {
     }
   });
 
-  it('survives random sync/commit interleavings without merge commits', async () => {
+  it('survives random sync/commit interleavings without merge commits', { timeout: 30000 }, async () => {
     const opArb = fc.array(
       fc.constantFrom('commitA', 'commitB', 'syncAB', 'syncBA'),
       { minLength: 1, maxLength: 6 }
@@ -138,10 +138,10 @@ describe('No-coordination regression suite', () => {
       }),
       { seed: 4242, numRuns: 8 }
     );
-  }, { timeout: 30000 });
+  });
 
   describe('Lamport clock global-max monotonicity', () => {
-    it('first-time writer beats existing writer when it materializes first', async () => {
+    it('first-time writer beats existing writer when it materializes first', { timeout: 20000 }, async () => {
       // Regression: when writer B makes its very first commit to a repo where writer A
       // has already committed at tick N, B must commit at tick > N so its operations
       // win the LWW CRDT tiebreaker — not lose to A's tick-1 commit.
@@ -191,9 +191,9 @@ describe('No-coordination regression suite', () => {
       } finally {
         await repo.cleanup();
       }
-    }, { timeout: 20000 });
+    });
 
-    it('_maxObservedLamport is updated after each commit on the same instance', async () => {
+    it('_maxObservedLamport is updated after each commit on the same instance', { timeout: 10000 }, async () => {
       const repo = await createGitRepo('lamport-mono');
       try {
         const graph = await WarpGraph.open({
@@ -219,9 +219,9 @@ describe('No-coordination regression suite', () => {
       } finally {
         await repo.cleanup();
       }
-    }, { timeout: 10000 });
+    });
 
-    it('cross-writer PropSet LWW: later writer override is not silently discarded', async () => {
+    it('cross-writer PropSet LWW: later writer override is not silently discarded', { timeout: 20000 }, async () => {
       // Regression for: "Lamport clock doesn't advance past cross-writer ticks
       // during materialize()" — Writer A commits setProperty at tick N, Writer B
       // materializes (observes A), then commits setProperty for the same key.
@@ -284,9 +284,9 @@ describe('No-coordination regression suite', () => {
       } finally {
         await repo.cleanup();
       }
-    }, { timeout: 20000 });
+    });
 
-    it('materialize updates _maxObservedLamport from observed patches', async () => {
+    it('materialize updates _maxObservedLamport from observed patches', { timeout: 10000 }, async () => {
       const repo = await createGitRepo('lamport-mono');
       try {
         // Seed with writer-z at tick 1
@@ -317,7 +317,7 @@ describe('No-coordination regression suite', () => {
       } finally {
         await repo.cleanup();
       }
-    }, { timeout: 10000 });
+    });
   });
 
 });

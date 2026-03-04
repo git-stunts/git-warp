@@ -3,7 +3,7 @@ import IndexRebuildService from '../../../../src/domain/services/IndexRebuildSer
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
 
 describe('IndexRebuildService Deep DAG Test', () => {
-  it('handles 10,000 node chain without stack overflow', async () => {
+  it('handles 10,000 node chain without stack overflow', { timeout: 30000 }, async () => {
     const CHAIN_LENGTH = 10_000;
 
     // Generate a linear chain: node0 <- node1 <- node2 <- ... <- node9999
@@ -60,7 +60,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     treeEntries.forEach(/** @param {any} entry */ entry => {
       expect(entry).toMatch(/^100644 blob blob\d+\t(meta|shards)_.+\.json$/);
     });
-  }, 30000); // 30 second timeout for large test
+  });
 
   it('handles wide DAG (node with 1000 parents) without issues', async () => {
     const PARENT_COUNT = 1000;

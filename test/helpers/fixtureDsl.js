@@ -458,6 +458,90 @@ export const F14_NODE_WEIGHTS = new Map([
   ['END', 0],
 ]);
 
+/**
+ * F15 — WIDE_DAG_FOR_LEVELS
+ *
+ * Tests longest-path level assignment.
+ * A→B, A→C, B→D, D→E, C→E.
+ * Longest path to each: A=0, B=1, C=1, D=2, E=3 (via A→B→D→E, not A→C→E).
+ *
+ *       A
+ *      / \
+ *     B   C
+ *     |    \
+ *     D     |
+ *      \   /
+ *       E
+ */
+export const F15_WIDE_DAG_FOR_LEVELS = makeFixture({
+  nodes: ['A', 'B', 'C', 'D', 'E'],
+  edges: [
+    { from: 'A', to: 'B' },
+    { from: 'A', to: 'C' },
+    { from: 'B', to: 'D' },
+    { from: 'D', to: 'E' },
+    { from: 'C', to: 'E' },
+  ],
+});
+
+/**
+ * F16 — TRANSITIVE_REDUCTION
+ *
+ * A→B, A→C (redundant), B→C.
+ * Transitive reduction removes A→C because A→B→C already reaches C.
+ *
+ *   A ──→ B
+ *    \    ↓
+ *     └→ C
+ */
+export const F16_TRANSITIVE_REDUCTION = makeFixture({
+  nodes: ['A', 'B', 'C'],
+  edges: [
+    { from: 'A', to: 'B' },
+    { from: 'A', to: 'C' },
+    { from: 'B', to: 'C' },
+  ],
+});
+
+/**
+ * F17 — MULTI_ROOT_DAG
+ *
+ * Two root nodes (in-degree 0) converge on D.
+ * R1→A→D, R2→B→D, R2→C→D.
+ * rootAncestors(D) should return [R1, R2].
+ *
+ *   R1 → A ──┐
+ *             ↓
+ *   R2 → B → D
+ *    └→ C ──┘
+ */
+export const F17_MULTI_ROOT_DAG = makeFixture({
+  nodes: ['R1', 'R2', 'A', 'B', 'C', 'D'],
+  edges: [
+    { from: 'R1', to: 'A' },
+    { from: 'A', to: 'D' },
+    { from: 'R2', to: 'B' },
+    { from: 'R2', to: 'C' },
+    { from: 'B', to: 'D' },
+    { from: 'C', to: 'D' },
+  ],
+});
+
+/**
+ * F18 — TRANSITIVE_CLOSURE_CHAIN
+ *
+ * A→B→C→D. Linear chain.
+ * Transitive closure adds: A→C, A→D, B→D = 3 new edges + 3 existing = 6 total.
+ */
+export const F18_TRANSITIVE_CLOSURE_CHAIN = makeFixture({
+  nodes: ['A', 'B', 'C', 'D'],
+  edges: [
+    { from: 'A', to: 'B' },
+    { from: 'B', to: 'C' },
+    { from: 'C', to: 'D' },
+  ],
+});
+
 // ── Utility: weight function from a Map ─────────────────────────────────────
 
 /**

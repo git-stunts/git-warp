@@ -3,12 +3,8 @@
 # CLI tests are excluded — the CLI uses node: built-ins.
 # Build context is the parent monorepo directory (context: ..).
 FROM oven/bun:1.2-slim
-# make/g++: native module compilation (roaring bitmaps).
-# No bats/python3 — BATS CLI tests are Node-only.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    make \
-    g++ \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY git-warp/package*.json ./
@@ -26,4 +22,7 @@ RUN git init -q \
 RUN useradd -m warp && chown -R warp:warp /app
 USER warp
 ENV GIT_STUNTS_DOCKER=1
+# Bitmap index tests now pass under Bun via the roaring-wasm WASM fallback.
+# The native roaring package (V8 C++ API) is incompatible with Bun's JSC runtime,
+# but initRoaring() falls through to roaring-wasm automatically.
 CMD ["bunx", "vitest", "run", "test/integration/api/"]

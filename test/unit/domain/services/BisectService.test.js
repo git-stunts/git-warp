@@ -4,7 +4,7 @@ import BisectService from '../../../../src/domain/services/BisectService.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.js';
 
-describe('BisectService', () => {
+describe('BisectService', { timeout: 30000 }, () => {
   it('vector 1: linear chain — finds first bad patch', async () => {
     const repo = await createGitRepo('bisect-linear');
     try {
@@ -42,7 +42,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 2: same good and bad — range-error', async () => {
     const repo = await createGitRepo('bisect-same');
@@ -69,7 +69,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 3: single step — A→B, good=A bad=B → result=B, 0 steps', async () => {
     const repo = await createGitRepo('bisect-single');
@@ -102,7 +102,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 4: good is not ancestor of bad — range-error', async () => {
     const repo = await createGitRepo('bisect-reversed');
@@ -131,7 +131,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 5: SHA not found in chain — range-error', async () => {
     const repo = await createGitRepo('bisect-notfound');
@@ -159,7 +159,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 6: testFn receives candidate SHA', async () => {
     const repo = await createGitRepo('bisect-sha-arg');
@@ -199,7 +199,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 7: all-bad — first candidate after good is the first bad patch', async () => {
     const repo = await createGitRepo('bisect-all-bad');
@@ -230,7 +230,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 8: testFn throws — promise rejects with same error', async () => {
     const repo = await createGitRepo('bisect-throws');
@@ -259,7 +259,7 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 
   it('vector 9: empty writer chain — range-error', async () => {
     const repo = await createGitRepo('bisect-empty-writer');
@@ -289,5 +289,5 @@ describe('BisectService', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 30000 });
+  });
 });

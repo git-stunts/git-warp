@@ -417,4 +417,122 @@ export default class LogicalTraversal {
     });
     return { path, totalCost };
   }
+
+  /**
+   * Longest-path level assignment (DAGs only).
+   *
+   * @param {string|string[]} start - One or more start nodes
+   * @param {{ dir?: 'out'|'in'|'both', labelFilter?: string|string[], signal?: AbortSignal }} [options] - Traversal options
+   * @returns {Promise<{levels: Map<string, number>, maxLevel: number}>}
+   * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
+   * @throws {TraversalError} code 'NODE_NOT_FOUND' if a start node does not exist
+   */
+  async levels(start, options = {}) {
+    const { engine, direction, options: opts } = await this._prepareEngine(options);
+
+    const starts = Array.isArray(start) ? start : [start];
+    for (const s of starts) {
+      if (!(await this._graph.hasNode(s))) {
+        throw new TraversalError(`Start node not found: ${s}`, {
+          code: 'NODE_NOT_FOUND',
+          context: { start: s },
+        });
+      }
+    }
+
+    const { levels, maxLevel } = await engine.levels({
+      start,
+      direction,
+      options: opts,
+      maxNodes: Infinity,
+      signal: options.signal,
+    });
+    return { levels, maxLevel };
+  }
+
+  /**
+   * Transitive reduction — minimal edge set preserving reachability (DAGs only).
+   *
+   * @param {string|string[]} start - One or more start nodes
+   * @param {{ dir?: 'out'|'in'|'both', labelFilter?: string|string[], signal?: AbortSignal }} [options] - Traversal options
+   * @returns {Promise<{edges: Array<{from: string, to: string, label: string}>, removed: number}>}
+   * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
+   * @throws {TraversalError} code 'NODE_NOT_FOUND' if a start node does not exist
+   */
+  async transitiveReduction(start, options = {}) {
+    const { engine, direction, options: opts } = await this._prepareEngine(options);
+
+    const starts = Array.isArray(start) ? start : [start];
+    for (const s of starts) {
+      if (!(await this._graph.hasNode(s))) {
+        throw new TraversalError(`Start node not found: ${s}`, {
+          code: 'NODE_NOT_FOUND',
+          context: { start: s },
+        });
+      }
+    }
+
+    const { edges, removed } = await engine.transitiveReduction({
+      start,
+      direction,
+      options: opts,
+      maxNodes: Infinity,
+      signal: options.signal,
+    });
+    return { edges, removed };
+  }
+
+  /**
+   * Transitive closure — all implied reachability edges.
+   *
+   * @param {string|string[]} start - One or more start nodes
+   * @param {{ dir?: 'out'|'in'|'both', labelFilter?: string|string[], maxEdges?: number, signal?: AbortSignal }} [options] - Traversal options
+   * @returns {Promise<{edges: Array<{from: string, to: string}>}>}
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   * @throws {TraversalError} code 'NODE_NOT_FOUND' if a start node does not exist
+   */
+  async transitiveClosure(start, options = {}) {
+    const { engine, direction, options: opts } = await this._prepareEngine(options);
+
+    const starts = Array.isArray(start) ? start : [start];
+    for (const s of starts) {
+      if (!(await this._graph.hasNode(s))) {
+        throw new TraversalError(`Start node not found: ${s}`, {
+          code: 'NODE_NOT_FOUND',
+          context: { start: s },
+        });
+      }
+    }
+
+    const { edges } = await engine.transitiveClosure({
+      start,
+      direction,
+      options: opts,
+      maxNodes: Infinity,
+      maxEdges: options.maxEdges,
+      signal: options.signal,
+    });
+    return { edges };
+  }
+
+  /**
+   * Find all root ancestors (in-degree-0 nodes) reachable backward from start.
+   *
+   * @param {string} start - Starting node ID
+   * @param {{ labelFilter?: string|string[], maxDepth?: number, signal?: AbortSignal }} [options] - Traversal options
+   * @returns {Promise<{roots: string[]}>}
+   * @throws {TraversalError} code 'NODE_NOT_FOUND' if start node does not exist
+   */
+  async rootAncestors(start, options = {}) {
+    const { engine, options: opts, depthLimit } = await this._prepare(start, options);
+
+    const { roots } = await engine.rootAncestors({
+      start,
+      options: opts,
+      maxNodes: Infinity,
+      maxDepth: options.maxDepth ?? depthLimit,
+      signal: options.signal,
+    });
+    return { roots };
+  }
 }

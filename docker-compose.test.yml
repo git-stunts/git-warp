@@ -32,14 +32,16 @@ services:
     command: ["sh", "-c", "npx vitest run test/unit test/integration && bats test/bats/"]
     profiles: [node22, full]
 
-  # Bun: API integration tests only (CLI is Node-only)
+  # Bun: API integration tests only (CLI is Node-only).
+  # Bitmap index tests pass via roaring-wasm WASM fallback (native roaring uses
+  # V8 C++ API, incompatible with Bun's JSC runtime).
   test-bun:
     build:
       context: ..
       dockerfile: git-warp/docker/Dockerfile.bun
     environment:
       - GIT_STUNTS_DOCKER=1
-    command: ["bunx", "vitest", "run", "test/integration/api/"]
+    command: bunx vitest run test/integration/api/
     profiles: [bun, full]
 
   # Deno: API integration tests via Deno.test() wrappers

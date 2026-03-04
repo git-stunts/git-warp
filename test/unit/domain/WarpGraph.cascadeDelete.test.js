@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('Cascade delete mode (HS/DELGUARD/3)', () => {
+describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
   it('cascade delete generates EdgeRemove ops for 3 connected edges + NodeRemove', async () => {
     const repo = await createGitRepo('cascade');
     try {
@@ -49,7 +49,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('materialized state has no dangling edges after cascade delete', async () => {
     const repo = await createGitRepo('cascade');
@@ -90,7 +90,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('cascade delete on node with no edges produces only NodeRemove', async () => {
     const repo = await createGitRepo('cascade');
@@ -121,7 +121,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('cascade delete handles both incoming and outgoing edges', async () => {
     const repo = await createGitRepo('cascade');
@@ -174,7 +174,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('cascade delete handles self-loop edge correctly', async () => {
     const repo = await createGitRepo('cascade');
@@ -220,7 +220,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('generated EdgeRemove ops appear in committed patch (auditable)', async () => {
     const repo = await createGitRepo('cascade');
@@ -264,7 +264,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('cascade mode preserves unrelated edges', async () => {
     const repo = await createGitRepo('cascade');
@@ -306,7 +306,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 
   it('without cascade mode, removeNode does not generate EdgeRemove ops', async () => {
     const repo = await createGitRepo('cascade');
@@ -338,5 +338,5 @@ describe('Cascade delete mode (HS/DELGUARD/3)', () => {
     } finally {
       await repo.cleanup();
     }
-  }, { timeout: 15000 });
+  });
 });

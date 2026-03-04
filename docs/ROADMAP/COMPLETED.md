@@ -368,3 +368,13 @@ Investigation revealed the correct approach is a two-phase split:
 | B92 | ~~**SURFACE VALIDATOR UNIT TESTS**~~ — **DONE.** 34 tests for `parseExportBlock`, `extractJsExports`, `extractDtsExports`. |
 | B93 | ~~**DEDUP EXPORT PARSING LOGIC**~~ — **DONE.** `parseExportBlock()` extracted as shared helper; `collectExportBlocks()` internal. |
 | B94 | ~~**STANDALONE EXPORT DECLARATIONS**~~ — **DONE.** `extractJsExports` now handles `export const/function/class`. |
+
+### v13.0.0 Standalone Items (completed)
+
+| ID | Item |
+|----|------|
+| B44 | ~~**SUBSCRIBER UNSUBSCRIBE-DURING-CALLBACK E2E**~~ — **DONE (v13.0.0).** 3 edge-case tests (cross-unsubscribe, subscribe-during-callback, unsubscribe-in-onError). |
+| B124 | ~~**TRUST PAYLOAD PARITY TESTS**~~ — **DONE (v13.0.0).** 22 tests verifying CLI vs service shape parity. |
+| B125 | ~~**`CachedValue` NULL-PAYLOAD SEMANTIC TESTS**~~ — **DONE (v13.0.0).** 3 tests documenting null = "no value" sentinel. |
+| B146 | ~~**UNIFY `CorePersistence` / `FullPersistence` TYPEDEFS**~~ — **DONE (v13.0.0).** Replaced `FullPersistence` with imported `CorePersistence`. |
+| B148 | ~~**REVIEW NITS + INVENTORY RECONCILIATION**~~ — **DONE (v13.0.0).** Fix inventory counts, COMPLETED.md ordering, stale Deno test name, BisectService invariant comment. |

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **5 new graph algorithms in `GraphTraversal`** — `levels()` (longest-path level assignment for DAGs), `transitiveReduction()` (minimal edge set preserving reachability), `transitiveClosure()` (all implied reachability edges with `maxEdges` safety), `rootAncestors()` (find all in-degree-0 ancestors via backward BFS). All methods respect `NeighborProviderPort` abstraction, support `AbortSignal` cancellation, and produce deterministic output. Corresponding `LogicalTraversal` facade methods added. New error code: `E_MAX_EDGES_EXCEEDED`.
+- **4 new test fixtures** — `F15_WIDE_DAG_FOR_LEVELS`, `F16_TRANSITIVE_REDUCTION`, `F17_MULTI_ROOT_DAG`, `F18_TRANSITIVE_CLOSURE_CHAIN` in the canonical fixture DSL.
+- **BFS reverse reachability verification tests** — confirms `bfs(node, { direction: 'in' })` correctly discovers all backward-reachable ancestors.
+- **`roaring-wasm` WASM fallback for Bun/Deno bitmap indexes** — `initRoaring()` now has a three-tier fallback chain: (1) ESM `import('roaring')`, (2) CJS `createRequire('roaring')`, (3) `import('roaring-wasm')` with WASM initialization. The WASM tier activates automatically when native V8 bindings are unavailable (Bun's JSC, Deno). Bitmap index tests (`materializedView`, `materialize.checkpointIndex.notStale`) are no longer excluded from the Bun test suite. Serialization formats are wire-compatible — portable bitmaps produced by native and WASM are byte-identical.
+
+### Fixed
+
+- **Roaring native module loading under Bun** — `initRoaring()` now catches dynamic `import('roaring')` failures and falls back to `createRequire()` for direct `.node` binary loading.
+- **Stale `nativeAvailability` cache on `initRoaring()` reinit** — `getNativeRoaringAvailable()` now returns the correct value after swapping roaring implementations via `initRoaring(mod)`. Previously, the cached availability from the old module was returned.
+- **Lost root causes on roaring load failure** — when all three tiers (native ESM, CJS require, WASM) fail, `initRoaring()` now throws `AggregateError` with per-tier errors instead of a plain `Error`, preserving diagnostic detail.
+
+### Changed
+
+- **ROADMAP priority triage** — 45 standalone items sorted into 6 priority tiers (P0–P6) with wave-based execution order and dependency chain mapping. Replaced flat Near-Term table with priority-grouped sub-tables. All milestones (M10–M14) marked complete. Inventory corrected to 133 total tracked items.
+- **Vitest 2.1.9 → 4.0.18** — major test framework upgrade. Migrated deprecated `test(name, fn, { timeout })` signatures to `test(name, { timeout }, fn)` across 7 test files (40 call sites). Fixed `vi.fn().mockImplementation()` constructor mocks to use `function` expressions per Vitest 4 requirements. Resolves 5 remaining moderate-severity npm audit advisories (`esbuild` [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99), `vite`, `@vitest/mocker`, `vite-node`, `vitest`). **`npm audit` now reports 0 vulnerabilities.**
+
 ## [13.0.1] — 2026-03-03
 
 ### Fixed

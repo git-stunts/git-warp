@@ -295,6 +295,27 @@ export interface LogicalTraversal {
     labelFilter?: string | string[];
     signal?: AbortSignal;
   }): Promise<{ path: string[]; totalCost: number }>;
+  levels(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ levels: Map<string, number>; maxLevel: number }>;
+  transitiveReduction(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ edges: Array<{ from: string; to: string; label: string }>; removed: number }>;
+  transitiveClosure(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    maxEdges?: number;
+    signal?: AbortSignal;
+  }): Promise<{ edges: Array<{ from: string; to: string }> }>;
+  rootAncestors(start: string, options?: {
+    labelFilter?: string | string[];
+    maxDepth?: number;
+    signal?: AbortSignal;
+  }): Promise<{ roots: string[] }>;
 }
 
 /**
