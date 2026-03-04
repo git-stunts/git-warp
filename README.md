@@ -8,14 +8,9 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v13.0.0
+## What's New in v13.0.1
 
-- **BREAKING: `getNodeProps()` returns `Record<string, unknown>`** — aligns with `getEdgeProps()`. Replace `.get('key')` with `.key`, `.has('key')` with `'key' in props`, `.size` with `Object.keys(props).length`.
-- **BREAKING: Removed `PerformanceClockAdapter` and `GlobalClockAdapter`** — use `ClockAdapter` directly.
-- **`graph.patchMany()`** — batch multiple patches sequentially; each callback sees prior state.
-- **`git warp bisect`** — binary search over writer patch history to find the first bad commit. O(log N) materializations.
-- **Observer API stable** — `subscribe()` and `watch()` promoted to stable with `@since 13.0.0`.
-- **`BisectService`** — domain service exported for programmatic use.
+- **Dev dependency security updates** — resolved 4 high-severity advisories (`tar`, `rollup`, `minimatch`, `@isaacs/brace-expansion`). No runtime dependencies affected.
 
 See the [full changelog](CHANGELOG.md) for details.
 
