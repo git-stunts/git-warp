@@ -68,11 +68,10 @@ const result = await graph.query()
 
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
-*   **[User Manual](docs/GUIDE.md)**: Comprehensive guide to queries, traversals, and multi-writer sync.
-*   **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
-*   **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
-*   **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
-*   **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
+- **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
+- **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
+- **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
 
 ## How It Works
 
@@ -550,6 +549,7 @@ git warp history --writer alice
 
 # Check graph health, status, and GC metrics
 git warp check
+```
 
 ### Time-Travel (Seek)
 
@@ -570,9 +570,11 @@ git warp seek --load before-refactor
 # Return to the present and clear the cursor
 git warp seek --latest
 
-# Cache management
-git warp seek --clear-cache             # purge persistent seek cache
-git warp seek --no-persistent-cache --tick 5  # skip cache for one invocation
+# Purge the persistent seek cache
+git warp seek --clear-cache
+
+# Skip cache for a single invocation
+git warp seek --no-persistent-cache --tick 5
 ```
 
 When a seek cursor is active, `query`, `info`, `materialize`, and `history` automatically show state at the selected tick.
@@ -730,9 +732,9 @@ This package is the reference implementation of WARP (Worldline Algebra for Recu
 
 Architected with **Hexagonal Ports and Adapters**, git-warp is runtime-agnostic and tested across the following environments:
 
-*   **Node.js**: v22.0.0+ (Native Roaring Bitmaps & NodeCrypto)
-*   **Bun**: v1.1+ (WASM Roaring fallback & WebCrypto)
-*   **Deno**: v2.0+ (WASM Roaring fallback & WebCrypto)
+- **Node.js**: v22.0.0+ (Native Roaring Bitmaps & WebCrypto)
+- **Bun**: v1.1+ (WASM Roaring fallback & WebCrypto)
+- **Deno**: v2.0+ (WASM Roaring fallback & WebCrypto)
 
 Bitmap indexes are wire-compatible across all runtimes; a graph created in Node.js can be materialized and queried in Deno without modification.
 
