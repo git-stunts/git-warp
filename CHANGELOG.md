@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation enhancements in README.md** — Added a high-level Documentation Map, a detailed Graph Traversal Directory (listing 11+ algorithms), an expanded Time-Travel (Seek) guide, and updated Runtime Compatibility information (Node.js, Bun, Deno).
 - **Local-First Applications use-case** — Added git-warp as a backend for LoFi software.
 
+### Fixed
+
+- **Broken code fence in CLI section** — The `bash` fence before the Time-Travel (Seek) heading was never closed, causing the entire Seek section and visualize example to render as literal monospace text.
+- **Incorrect crypto adapter claim** — Runtime Compatibility section incorrectly stated Node.js uses "NodeCrypto"; all runtimes use WebCrypto (`globalThis.crypto.subtle`).
+- **Duplicate documentation link** — "User Manual" and "Guide" in the Documentation Map both pointed to `docs/GUIDE.md`; removed the redundant entry.
+- **Inconsistent list markers** — Normalized `*   ` markers to `- ` to match the rest of the README.
+
 ## [13.1.0] - 2026-03-04
 
 ### Added
