@@ -28,6 +28,91 @@ const VIEWPORT_LABELS = ['Alpha', 'Beta', 'Gamma', 'Delta'];
  * @property {import('@git-stunts/git-warp/browser').WarpGraph|null} graph
  */
 
+/**
+ * @typedef {Object} Scenario
+ * @property {string} name
+ * @property {string} description
+ * @property {Array<{action: string, args: unknown[], delay?: number}>} steps
+ */
+
+/** @type {Scenario[]} */
+const SCENARIOS = [
+  {
+    name: 'Two Writers, One Graph',
+    description: 'Alpha and Beta each add nodes, then sync to see each other\'s work.',
+    steps: [
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v1'], delay: 400 },
+      { action: 'addNode', args: ['v1'], delay: 400 },
+      { action: 'syncAll', args: [], delay: 600 },
+    ],
+  },
+  {
+    name: 'Offline Divergence',
+    description: 'All writers go offline, each adds nodes, then come online and sync — CRDT merge!',
+    steps: [
+      { action: 'toggleOnline', args: ['v0'], delay: 200 },
+      { action: 'toggleOnline', args: ['v1'], delay: 200 },
+      { action: 'toggleOnline', args: ['v2'], delay: 200 },
+      { action: 'toggleOnline', args: ['v3'], delay: 200 },
+      { action: 'addNode', args: ['v0'], delay: 300 },
+      { action: 'addNode', args: ['v0'], delay: 300 },
+      { action: 'addNode', args: ['v1'], delay: 300 },
+      { action: 'addNode', args: ['v1'], delay: 300 },
+      { action: 'addNode', args: ['v2'], delay: 300 },
+      { action: 'addNode', args: ['v3'], delay: 300 },
+      { action: 'addNode', args: ['v3'], delay: 300 },
+      { action: 'toggleOnline', args: ['v0'], delay: 400 },
+      { action: 'toggleOnline', args: ['v1'], delay: 400 },
+      { action: 'toggleOnline', args: ['v2'], delay: 400 },
+      { action: 'toggleOnline', args: ['v3'], delay: 400 },
+      { action: 'syncAll', args: [], delay: 600 },
+    ],
+  },
+  {
+    name: 'Add & Remove',
+    description: 'Alpha adds three nodes, removes the middle one, syncs to Beta.',
+    steps: [
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'removeLatestNode', args: ['v0', 1], delay: 600 },
+      { action: 'syncPair', args: ['v0', 'v1'], delay: 600 },
+    ],
+  },
+  {
+    name: 'Edge Network',
+    description: 'Build a small connected graph across two writers.',
+    steps: [
+      { action: 'addNode', args: ['v0'], delay: 300 },
+      { action: 'addNode', args: ['v0'], delay: 300 },
+      { action: 'addNode', args: ['v1'], delay: 300 },
+      { action: 'syncAll', args: [], delay: 400 },
+      { action: 'addEdgeBetweenLatest', args: ['v0', 0, 1], delay: 400 },
+      { action: 'addEdgeBetweenLatest', args: ['v1', 1, 2], delay: 400 },
+      { action: 'syncAll', args: [], delay: 600 },
+    ],
+  },
+  {
+    name: 'Time Travel',
+    description: 'Add nodes over time, then scrub the timeline to watch the graph grow.',
+    steps: [
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'addNode', args: ['v0'], delay: 400 },
+      { action: 'setCeiling', args: ['v0', 1], delay: 600 },
+      { action: 'setCeiling', args: ['v0', 2], delay: 600 },
+      { action: 'setCeiling', args: ['v0', 3], delay: 600 },
+      { action: 'setCeiling', args: ['v0', 4], delay: 600 },
+      { action: 'setCeiling', args: ['v0', 5], delay: 600 },
+      { action: 'setCeiling', args: ['v0', Infinity], delay: 400 },
+    ],
+  },
+];
+
 export const useGraphStore = defineStore('graph', () => {
   const viewportIds = ref(['v0', 'v1', 'v2', 'v3']);
 
@@ -150,9 +235,17 @@ export const useGraphStore = defineStore('graph', () => {
     const opts = vp.ceiling === Infinity ? {} : { ceiling: vp.ceiling };
     const state = await vp.graph.materialize(opts);
 
-    // Extract alive nodes
+    // Extract alive nodes — must check tombstones, not just entries.
+    // ORSet.entries contains ALL elements (including tombstoned ones);
+    // an element is alive only if it has at least one non-tombstoned dot.
     const nodes = [];
-    for (const nodeId of state.nodeAlive.entries.keys()) {
+    for (const [nodeId, dots] of state.nodeAlive.entries) {
+      let alive = false;
+      for (const dot of dots) {
+        if (!state.nodeAlive.tombstones.has(dot)) { alive = true; break; }
+      }
+      if (!alive) { continue; }
+
       const propKey = `${nodeId}\0color`;
       const colorReg = state.prop.get(propKey);
       const color = colorReg?.value || '#8b949e';
@@ -170,9 +263,15 @@ export const useGraphStore = defineStore('graph', () => {
       });
     }
 
-    // Extract alive edges
+    // Extract alive edges — same tombstone check as nodes.
     const edges = [];
-    for (const edgeKey of state.edgeAlive.entries.keys()) {
+    for (const [edgeKey, dots] of state.edgeAlive.entries) {
+      let alive = false;
+      for (const dot of dots) {
+        if (!state.edgeAlive.tombstones.has(dot)) { alive = true; break; }
+      }
+      if (!alive) { continue; }
+
       const parts = edgeKey.split('\0');
       if (parts.length >= 3) {
         edges.push({ source: parts[0], target: parts[1], label: parts[2] });
@@ -244,6 +343,115 @@ export const useGraphStore = defineStore('graph', () => {
     if (vp) { vp.selectedNode = nodeId; }
   }
 
+  // ── Scenario runner ─────────────────────────────────────────────────
+
+  const scenarios = ref(SCENARIOS);
+  const scenarioRunning = ref(false);
+  const scenarioStep = ref(-1);
+  /** @type {import('vue').Ref<string|null>} */
+  const scenarioName = ref(null);
+  let _scenarioAbort = new AbortController();
+
+  /** Ordered list of node IDs added during a scenario (for referencing by index). */
+  let _scenarioNodes = [];
+
+  /**
+   * Remove the nth node added during this scenario from a viewport.
+   * @param {string} viewportId
+   * @param {number} index
+   */
+  async function removeLatestNode(viewportId, index) {
+    const nodeId = _scenarioNodes[index];
+    if (nodeId) {
+      await removeNode(viewportId, nodeId);
+    }
+  }
+
+  /**
+   * Add an edge between scenario nodes by index.
+   * @param {string} viewportId
+   * @param {number} fromIdx
+   * @param {number} toIdx
+   */
+  async function addEdgeBetweenLatest(viewportId, fromIdx, toIdx) {
+    const from = _scenarioNodes[fromIdx];
+    const to = _scenarioNodes[toIdx];
+    if (from && to) {
+      await addEdge(viewportId, from, to);
+    }
+  }
+
+  /** @type {Record<string, Function>} */
+  const scenarioActions = {
+    addNode: async (/** @type {string} */ vpId, /** @type {string|undefined} */ color) => {
+      await addNode(vpId, color);
+      // Track the node we just added
+      const vp = viewports[vpId];
+      if (vp?.nodes.length > 0) {
+        const newest = vp.nodes[vp.nodes.length - 1];
+        if (!_scenarioNodes.includes(newest.id)) {
+          _scenarioNodes.push(newest.id);
+        }
+      }
+    },
+    addEdge,
+    removeNode,
+    removeLatestNode,
+    addEdgeBetweenLatest,
+    syncPair,
+    syncAll,
+    toggleOnline,
+    setCeiling,
+    selectNode,
+    materializeViewport,
+  };
+
+  /**
+   * Run a scenario by index.
+   * @param {number} index
+   */
+  async function runScenario(index) {
+    if (scenarioRunning.value) { stopScenario(); }
+    const scenario = SCENARIOS[index];
+    if (!scenario) { return; }
+
+    _scenarioAbort = new AbortController();
+    scenarioRunning.value = true;
+    scenarioName.value = scenario.name;
+    scenarioStep.value = 0;
+    _scenarioNodes = [];
+
+    for (let i = 0; i < scenario.steps.length; i++) {
+      if (_scenarioAbort.signal.aborted) { break; }
+      scenarioStep.value = i;
+      const step = scenario.steps[i];
+      const fn = scenarioActions[step.action];
+      if (fn) {
+        await fn(...step.args);
+      }
+      if (_scenarioAbort.signal.aborted) { break; }
+      const delay = step.delay || 300;
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, delay);
+        _scenarioAbort.signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          resolve(undefined);
+        }, { once: true });
+      });
+    }
+
+    scenarioRunning.value = false;
+    scenarioStep.value = -1;
+    scenarioName.value = null;
+  }
+
+  function stopScenario() {
+    _scenarioAbort.abort();
+    scenarioRunning.value = false;
+    scenarioStep.value = -1;
+    scenarioName.value = null;
+  }
+
   return {
     viewportIds,
     viewports,
@@ -257,5 +465,12 @@ export const useGraphStore = defineStore('graph', () => {
     syncPair,
     syncAll,
     selectNode,
+    // Scenarios
+    scenarios,
+    scenarioRunning,
+    scenarioStep,
+    scenarioName,
+    runScenario,
+    stopScenario,
   };
 });

@@ -211,7 +211,7 @@ function handleClick(nodeId) {
 }
 
 function handleBgClick() {
-  if (!isPanning) { emit('select', null); }
+  emit('select', null);
 }
 
 function onWheel(e) {
@@ -228,18 +228,37 @@ function onWheel(e) {
   zoom.value = newZoom;
 }
 
+const PAN_THRESHOLD = 4; // px movement before it counts as a pan
+let didPan = false;
+let activePointerId = -1;
+
 function onPointerDown(e) {
   if (e.button !== 0) { return; }
   isPanning = true;
+  didPan = false;
+  activePointerId = e.pointerId;
   panStartX = e.clientX;
   panStartY = e.clientY;
   camStartX = camX.value;
   camStartY = camY.value;
-  svgRef.value?.setPointerCapture(e.pointerId);
+  // Do NOT setPointerCapture here — it steals click events from child nodes.
+  // Capture is deferred until the pan threshold is exceeded.
 }
 
 function onPointerMove(e) {
-  if (!isPanning) { return; }
+  if (!isPanning || e.pointerId !== activePointerId) { return; }
+  const rawDx = e.clientX - panStartX;
+  const rawDy = e.clientY - panStartY;
+  // Only start panning after exceeding the threshold (allows click-through)
+  if (!didPan && (rawDx * rawDx + rawDy * rawDy) < PAN_THRESHOLD * PAN_THRESHOLD) {
+    return;
+  }
+  if (!didPan) {
+    didPan = true;
+    // Now that we know it's a real drag, capture the pointer so the pan
+    // continues even if the cursor leaves the SVG.
+    svgRef.value?.setPointerCapture(e.pointerId);
+  }
   const dx = (e.clientX - panStartX) / zoom.value;
   const dy = (e.clientY - panStartY) / zoom.value;
   camX.value = camStartX - dx;
@@ -247,9 +266,21 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
-  if (!isPanning) { return; }
+  if (!isPanning || e.pointerId !== activePointerId) { return; }
+  const wasPan = didPan;
   isPanning = false;
-  svgRef.value?.releasePointerCapture(e.pointerId);
+  didPan = false;
+  activePointerId = -1;
+  if (wasPan) {
+    svgRef.value?.releasePointerCapture(e.pointerId);
+    // Suppress the synthesized click that follows a pointer-captured drag
+    svgRef.value?.addEventListener('click', suppressClick, { once: true, capture: true });
+  }
+}
+
+function suppressClick(e) {
+  e.stopPropagation();
+  e.preventDefault();
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────

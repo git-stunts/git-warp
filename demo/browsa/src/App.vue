@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useGraphStore } from './stores/graphStore.js';
 import GraphViewport from './components/GraphViewport.vue';
+import ScenarioPanel from './components/ScenarioPanel.vue';
 
 const store = useGraphStore();
 onMounted(() => store.init());
@@ -10,8 +11,11 @@ onMounted(() => store.init());
 <template>
   <div class="app-layout">
     <header class="app-header">
-      <h1>Browsa</h1>
-      <span class="subtitle">git-warp in the Browser</span>
+      <div class="header-left">
+        <h1>Browsa</h1>
+        <span class="subtitle">git-warp in the Browser</span>
+      </div>
+      <ScenarioPanel />
       <button class="sync-all-btn" @click="store.syncAll()">Sync All</button>
     </header>
     <div class="viewport-grid">
@@ -37,6 +41,12 @@ onMounted(() => store.init());
   padding: 8px 16px;
   background: #161b22;
   border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
 }
 .app-header h1 {

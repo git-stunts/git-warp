@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Browsa: node/edge deletion now works** — `materializeViewport()` was iterating raw `ORSet.entries` (which includes tombstoned elements) instead of checking for live dots. Removed nodes and edges would reappear after re-materialization because their tombstoned entries were still enumerated. Now checks each element's dots against the tombstone set before rendering.
+
 ### Added
 
+- **Browsa: scenario runner** — Pre-built scenarios ("Two Writers, One Graph", "Offline Divergence", "Add & Remove", "Edge Network", "Time Travel") can be played from the header bar. Each scenario executes a scripted sequence of graph operations with animated delays, demonstrating multi-writer CRDT behavior without manual interaction.
 - **Browser-compatible `InMemoryGraphAdapter`** — Replaced hard `node:crypto` and `node:stream` imports with lazy-loaded fallbacks. A new `hash` constructor option lets callers inject a synchronous SHA-1 function for environments where `node:crypto` is unavailable (e.g. browsers). `node:stream` is now dynamically imported only in `logNodesStream()`.
 - **Browser-safe `defaultCrypto`** — The domain-level crypto default now lazy-loads `node:crypto` via top-level `await import()` with a try/catch, so importing `WarpGraph` in a browser no longer crashes at module evaluation time. Callers must inject crypto via `WarpGraph.open({ crypto })` when `node:crypto` is unavailable.
 - **`sha1sync` utility** (`@git-stunts/git-warp/sha1sync`) — Minimal synchronous SHA-1 implementation (~110 LOC) for browser content addressing with `InMemoryGraphAdapter`. Not for security — only for Git object ID computation.
