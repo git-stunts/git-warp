@@ -21,7 +21,7 @@ export default class TreePort {
   /**
    * Reads a tree and returns a map of path to content.
    * @param {string} _treeOid - The tree OID to read
-   * @returns {Promise<Record<string, Buffer>>} Map of file path to blob content
+   * @returns {Promise<Record<string, Uint8Array>>} Map of file path to blob content
    * @throws {Error} If not implemented by a concrete adapter
    */
   async readTree(_treeOid) {

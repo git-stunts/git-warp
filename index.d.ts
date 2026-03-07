@@ -633,7 +633,7 @@ export class GitGraphAdapter extends GraphPersistencePort implements IndexStorag
   logNodes(options: ListNodesOptions & { format: string }): Promise<string>;
   writeBlob(content: Buffer | string): Promise<string>;
   writeTree(entries: string[]): Promise<string>;
-  readTree(treeOid: string): Promise<Record<string, Buffer>>;
+  readTree(treeOid: string): Promise<Record<string, Uint8Array>>;
   readTreeOids(treeOid: string): Promise<Record<string, string>>;
   readBlob(oid: string): Promise<Buffer>;
   updateRef(ref: string, oid: string): Promise<void>;
