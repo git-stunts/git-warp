@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { toElkGraph } from '../../../../src/visualization/layouts/elkAdapter.js';
 import { runLayout } from '../../../../src/visualization/layouts/elkLayout.js';
 
@@ -11,13 +11,84 @@ const props = defineProps({
 
 const emit = defineEmits(['select']);
 
-// PositionedGraph from ELK
-const posNodes = ref([]);
-const posEdges = ref([]);
-const graphWidth = ref(300);
-const graphHeight = ref(200);
+// ── Full ELK layout (all nodes) ────────────────────────────────────
+const allNodes = ref([]);
+const allEdges = ref([]);
+const fullWidth = ref(300);
+const fullHeight = ref(200);
 const PADDING = 20;
 
+// ── Camera ─────────────────────────────────────────────────────────
+const svgRef = ref(null);
+const containerW = ref(300);
+const containerH = ref(200);
+const camX = ref(0);
+const camY = ref(0);
+const zoom = ref(1);
+
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+// Inflate the cull rect by this margin so edge stubs and labels don't
+// pop in right at the boundary.
+const CULL_MARGIN = 60;
+
+let resizeObs = null;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let camStartX = 0;
+let camStartY = 0;
+
+// ── Visible rect in graph-space ────────────────────────────────────
+const viewBox = computed(() => {
+  const vw = containerW.value / zoom.value;
+  const vh = containerH.value / zoom.value;
+  return { x: camX.value, y: camY.value, w: vw, h: vh };
+});
+
+function rectIntersects(ax, ay, aw, ah) {
+  const vb = viewBox.value;
+  const mx = CULL_MARGIN / zoom.value;
+  return (
+    ax + aw >= vb.x - mx &&
+    ay + ah >= vb.y - mx &&
+    ax <= vb.x + vb.w + mx &&
+    ay <= vb.y + vb.h + mx
+  );
+}
+
+// ── Culled sets ────────────────────────────────────────────────────
+const visibleNodes = computed(() =>
+  allNodes.value.filter((n) =>
+    rectIntersects(n.x + PADDING, n.y + PADDING, n.width, n.height),
+  ),
+);
+
+const visibleNodeIds = computed(() => new Set(visibleNodes.value.map((n) => n.originalId)));
+
+const visibleEdges = computed(() =>
+  allEdges.value.filter((e) => {
+    // Show edge if either endpoint is visible
+    if (visibleNodeIds.value.has(e.source) || visibleNodeIds.value.has(e.target)) {
+      return true;
+    }
+    // Also show if any point on the edge path is inside the viewport
+    for (const s of e.sections || []) {
+      for (const pt of [s.startPoint, s.endPoint, ...(s.bendPoints || [])]) {
+        if (pt && rectIntersects(pt.x + PADDING, pt.y + PADDING, 0, 0)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }),
+);
+
+const cullStats = computed(() =>
+  `${visibleNodes.value.length}/${allNodes.value.length}`,
+);
+
+// ── ELK layout ─────────────────────────────────────────────────────
 const ELK_OPTIONS = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN',
@@ -28,12 +99,13 @@ const ELK_OPTIONS = {
 
 async function layout() {
   if (props.nodes.length === 0) {
-    posNodes.value = [];
-    posEdges.value = [];
+    allNodes.value = [];
+    allEdges.value = [];
+    fullWidth.value = 100;
+    fullHeight.value = 80;
     return;
   }
 
-  // Convert to ELK adapter format
   const graphData = {
     nodes: props.nodes.map((n) => ({
       id: n.id,
@@ -50,19 +122,32 @@ async function layout() {
   const elkGraph = toElkGraph(graphData, { layoutOptions: ELK_OPTIONS });
   const positioned = await runLayout(elkGraph);
 
-  posNodes.value = positioned.nodes.map((pn) => {
+  allNodes.value = positioned.nodes.map((pn) => {
     const original = props.nodes.find((n) => n.id === pn.id);
-    return {
-      ...pn,
-      color: original?.color || '#8b949e',
-      originalId: pn.id,
-    };
+    return { ...pn, color: original?.color || '#8b949e', originalId: pn.id };
   });
-  posEdges.value = positioned.edges;
-  graphWidth.value = Math.max(positioned.width + PADDING * 2, 100);
-  graphHeight.value = Math.max(positioned.height + PADDING * 2, 80);
+  allEdges.value = positioned.edges;
+  fullWidth.value = Math.max(positioned.width + PADDING * 2, 100);
+  fullHeight.value = Math.max(positioned.height + PADDING * 2, 80);
+
+  // Auto-fit: center the graph in the viewport on first layout
+  fitToView();
 }
 
+function fitToView() {
+  const fw = fullWidth.value;
+  const fh = fullHeight.value;
+  const cw = containerW.value || 300;
+  const ch = containerH.value || 200;
+  zoom.value = Math.min(cw / fw, ch / fh, MAX_ZOOM);
+  zoom.value = Math.max(zoom.value, MIN_ZOOM);
+  const vw = cw / zoom.value;
+  const vh = ch / zoom.value;
+  camX.value = (fw - vw) / 2;
+  camY.value = (fh - vh) / 2;
+}
+
+// ── Edge rendering ─────────────────────────────────────────────────
 function sectionToPoints(section) {
   const pts = [];
   if (section.startPoint) { pts.push(section.startPoint); }
@@ -79,28 +164,94 @@ function edgePointsStr(edge) {
   return allPts.map((p) => `${p.x + PADDING},${p.y + PADDING}`).join(' ');
 }
 
+// ── Interaction ────────────────────────────────────────────────────
 function handleClick(nodeId) {
   emit('select', props.selectedNode === nodeId ? null : nodeId);
 }
 
 function handleBgClick() {
-  emit('select', null);
+  if (!isPanning) { emit('select', null); }
 }
 
+function onWheel(e) {
+  e.preventDefault();
+  const rect = svgRef.value.getBoundingClientRect();
+  // Mouse position in graph-space before zoom
+  const mx = camX.value + ((e.clientX - rect.left) / zoom.value);
+  const my = camY.value + ((e.clientY - rect.top) / zoom.value);
+
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom.value * factor));
+
+  // Adjust camera so the point under the cursor stays fixed
+  camX.value = mx - (e.clientX - rect.left) / newZoom;
+  camY.value = my - (e.clientY - rect.top) / newZoom;
+  zoom.value = newZoom;
+}
+
+function onPointerDown(e) {
+  if (e.button !== 0) { return; }
+  isPanning = true;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  camStartX = camX.value;
+  camStartY = camY.value;
+  svgRef.value?.setPointerCapture(e.pointerId);
+}
+
+function onPointerMove(e) {
+  if (!isPanning) { return; }
+  const dx = (e.clientX - panStartX) / zoom.value;
+  const dy = (e.clientY - panStartY) / zoom.value;
+  camX.value = camStartX - dx;
+  camY.value = camStartY - dy;
+}
+
+function onPointerUp(e) {
+  if (!isPanning) { return; }
+  isPanning = false;
+  svgRef.value?.releasePointerCapture(e.pointerId);
+}
+
+// ── Lifecycle ──────────────────────────────────────────────────────
 watch(
   () => [props.nodes, props.edges],
   () => layout(),
   { deep: true },
 );
 
-onMounted(() => layout());
+onMounted(() => {
+  if (svgRef.value) {
+    const rect = svgRef.value.getBoundingClientRect();
+    containerW.value = rect.width;
+    containerH.value = rect.height;
+
+    resizeObs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        containerW.value = entry.contentRect.width;
+        containerH.value = entry.contentRect.height;
+      }
+    });
+    resizeObs.observe(svgRef.value);
+  }
+  layout();
+});
+
+onUnmounted(() => {
+  resizeObs?.disconnect();
+});
 </script>
 
 <template>
   <svg
-    :viewBox="`0 0 ${graphWidth} ${graphHeight}`"
+    ref="svgRef"
+    :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`"
     class="graph-svg"
     @click.self="handleBgClick"
+    @wheel="onWheel"
+    @pointerdown="onPointerDown"
+    @pointermove="onPointerMove"
+    @pointerup="onPointerUp"
   >
     <defs>
       <marker
@@ -122,23 +273,21 @@ onMounted(() => layout());
       </filter>
     </defs>
 
-    <!-- Edges -->
-    <g :transform="`translate(0, 0)`">
-      <template v-for="edge in posEdges" :key="edge.id">
-        <polyline
-          v-if="edgePointsStr(edge)"
-          :points="edgePointsStr(edge)"
-          fill="none"
-          stroke="#30363d"
-          stroke-width="1.5"
-          marker-end="url(#arrowhead)"
-        />
-      </template>
-    </g>
+    <!-- Culled edges (only those touching visible nodes or crossing viewport) -->
+    <template v-for="edge in visibleEdges" :key="edge.id">
+      <polyline
+        v-if="edgePointsStr(edge)"
+        :points="edgePointsStr(edge)"
+        fill="none"
+        stroke="#30363d"
+        stroke-width="1.5"
+        marker-end="url(#arrowhead)"
+      />
+    </template>
 
-    <!-- Nodes -->
+    <!-- Culled nodes (only those inside viewport + margin) -->
     <g
-      v-for="node in posNodes"
+      v-for="node in visibleNodes"
       :key="node.originalId"
       class="node-group"
       :class="{ selected: node.originalId === selectedNode }"
@@ -155,12 +304,7 @@ onMounted(() => layout());
         :filter="node.originalId === selectedNode ? 'url(#glow)' : undefined"
         class="node-rect"
       />
-      <circle
-        :cx="12"
-        :cy="node.height / 2"
-        r="5"
-        :fill="node.color"
-      />
+      <circle :cx="12" :cy="node.height / 2" r="5" :fill="node.color" />
       <text
         :x="node.width / 2 + 6"
         :y="node.height / 2"
@@ -176,9 +320,9 @@ onMounted(() => layout());
 
     <!-- Empty state -->
     <text
-      v-if="posNodes.length === 0"
-      :x="graphWidth / 2"
-      :y="graphHeight / 2"
+      v-if="allNodes.length === 0"
+      :x="viewBox.x + viewBox.w / 2"
+      :y="viewBox.y + viewBox.h / 2"
       text-anchor="middle"
       dominant-baseline="central"
       fill="#484f58"
@@ -186,6 +330,19 @@ onMounted(() => layout());
       font-size="12"
     >
       + Node to start
+    </text>
+
+    <!-- HUD: visible/total count -->
+    <text
+      v-if="allNodes.length > 0"
+      :x="viewBox.x + viewBox.w - 4"
+      :y="viewBox.y + 12 / zoom"
+      text-anchor="end"
+      fill="#484f58"
+      font-family="monospace"
+      :font-size="10 / zoom"
+    >
+      {{ cullStats }}
     </text>
   </svg>
 </template>
@@ -195,7 +352,11 @@ onMounted(() => layout());
   width: 100%;
   height: 100%;
   background: #0d1117;
-  cursor: default;
+  cursor: grab;
+  touch-action: none;
+}
+.graph-svg:active {
+  cursor: grabbing;
 }
 .node-group {
   cursor: pointer;
