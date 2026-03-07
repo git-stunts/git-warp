@@ -64,6 +64,15 @@ const result = await graph.query()
   .run();
 ```
 
+## Documentation Map
+
+If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
+
+- **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
+- **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
+- **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
+
 ## How It Works
 
 ```mermaid
@@ -320,6 +329,21 @@ const canReach = await graph.traverse.isReachable('user:alice', 'user:bob', {
 // canReach = true | false
 ```
 
+### Graph Traversal Directory
+
+git-warp includes a high-performance traversal engine with 15 deterministic algorithms:
+
+| Category | Algorithms |
+| :--- | :--- |
+| **Search** | BFS, DFS, Shortest Path (Unweighted), Reachability |
+| **Weighted** | Dijkstra (Weighted Shortest Path), A*, Bidirectional A* |
+| **Analytical** | Topological Sort (Kahn's), Connected Components, Levels (DAG) |
+| **Ancestry** | Common Ancestors, Root Ancestors |
+| **Reduction** | **Transitive Reduction** (v13.1), **Transitive Closure** (v13.1) |
+| **Critical Path** | Weighted Longest Path (DAG) |
+
+All algorithms support `maxDepth`, `maxNodes`, and `AbortSignal` cancellation.
+
 ## Subscriptions & Reactivity
 
 React to graph changes without polling. Handlers are called after `materialize()` when state has changed.
@@ -526,24 +550,42 @@ git warp history --writer alice
 
 # Check graph health, status, and GC metrics
 git warp check
+```
 
-# Time-travel: step through graph history
-git warp seek --tick 3                  # jump to Lamport tick 3
-git warp seek --tick=+1                 # step forward one tick
-git warp seek --tick=-1                 # step backward one tick
-git warp seek --save before-refactor    # bookmark current position
-git warp seek --load before-refactor    # restore bookmark
-git warp seek --latest                  # return to present
-git warp seek --clear-cache             # purge persistent seek cache
-git warp seek --no-persistent-cache --tick 5  # skip cache for one invocation
+### Time-Travel (Seek)
 
+One of git-warp's most powerful features is the ability to query the graph at any point in its history without modifying your Git HEAD.
+
+```bash
+# Jump to absolute Lamport tick 3
+git warp seek --tick 3
+
+# Step forward or backward relative to your current cursor
+git warp seek --tick=+1
+git warp seek --tick=-1
+
+# Bookmark and restore positions
+git warp seek --save before-refactor
+git warp seek --load before-refactor
+
+# Return to the present and clear the cursor
+git warp seek --latest
+
+# Purge the persistent seek cache
+git warp seek --clear-cache
+
+# Skip cache for a single invocation
+git warp seek --no-persistent-cache --tick 5
+```
+
+When a seek cursor is active, `query`, `info`, `materialize`, and `history` automatically show state at the selected tick.
+
+```bash
 # Visualize query results (ascii output by default)
 git warp query --match 'user:*' --outgoing manages --view
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or browser, svg:FILE, html:FILE).
-
-When a seek cursor is active, `query`, `info`, `materialize`, and `history` automatically show state at the selected tick.
 
 <p align="center">
   <img src="docs/seek-demo.gif" alt="git warp seek time-travel demo" width="600">
@@ -673,6 +715,7 @@ npm run test:matrix     # All runtimes in parallel
 - **Audit-critical systems.** Tamper-evident records with cryptographic proof (via Audit Receipts).
 - **IoT sensor networks.** Sensors logging readings and relationships, syncing when bandwidth allows.
 - **Game world state.** Modders independently adding content that composes without a central manager.
+- **Local-First Applications.** A backend for LoFi software that needs Git's robust sync and versioning capabilities without the overhead of a standard Git worktree or a heavy database server.
 
 ## When NOT to Use It
 
@@ -685,6 +728,16 @@ npm run test:matrix     # All runtimes in parallel
 ## AIΩN Foundations Series
 
 This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers formalize the graph as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip it with deterministic tick-based semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), develop computational holography and provenance payloads ([Paper III](https://doi.org/10.5281/zenodo.17963669)), and introduce observer geometry with the translation cost metric ([Paper IV](https://doi.org/10.5281/zenodo.18038297)).
+
+## Runtime Compatibility
+
+Architected with **Hexagonal Ports and Adapters**, git-warp is runtime-agnostic and tested across the following environments:
+
+- **Node.js**: v22.0.0+ (Native Roaring Bitmaps & WebCrypto)
+- **Bun**: v1.1+ (WASM Roaring fallback & WebCrypto)
+- **Deno**: v2.0+ (WASM Roaring fallback & WebCrypto)
+
+Bitmap indexes are wire-compatible across all runtimes; a graph created in Node.js can be materialized and queried in Deno without modification.
 
 ## License
 
