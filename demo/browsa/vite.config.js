@@ -31,4 +31,10 @@ export default defineConfig({
     include: ['cbor-x'],
     exclude: ['roaring', 'roaring-wasm'],
   },
+  // elkjs resolves from the parent git-warp node_modules
+  server: {
+    fs: {
+      allow: [resolve(__dirname, '../..')],
+    },
+  },
 });

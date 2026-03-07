@@ -1,5 +1,7 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { toElkGraph } from '../../../../src/visualization/layouts/elkAdapter.js';
+import { runLayout } from '../../../../src/visualization/layouts/elkLayout.js';
 
 const props = defineProps({
   nodes: { type: Array, default: () => [] },
@@ -9,216 +11,199 @@ const props = defineProps({
 
 const emit = defineEmits(['select']);
 
-const canvasRef = ref(null);
-let animFrameId = null;
-let simNodes = [];
+// PositionedGraph from ELK
+const posNodes = ref([]);
+const posEdges = ref([]);
+const graphWidth = ref(300);
+const graphHeight = ref(200);
+const PADDING = 20;
 
-// Simple force-directed layout state
-let simRunning = false;
+const ELK_OPTIONS = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'DOWN',
+  'elk.spacing.nodeNode': '20',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '30',
+  'elk.edgeRouting': 'ORTHOGONAL',
+};
 
-function layoutNodes(nodes, edges) {
-  // Assign initial positions in a circle if nodes are new
-  const existing = new Map(simNodes.map((n) => [n.id, n]));
-  const result = nodes.map((n, i) => {
-    const prev = existing.get(n.id);
-    if (prev) {
-      return { ...n, x: prev.x, y: prev.y, vx: prev.vx || 0, vy: prev.vy || 0 };
-    }
-    const angle = (2 * Math.PI * i) / Math.max(nodes.length, 1);
-    const r = 80;
-    return { ...n, x: 150 + r * Math.cos(angle), y: 120 + r * Math.sin(angle), vx: 0, vy: 0 };
+async function layout() {
+  if (props.nodes.length === 0) {
+    posNodes.value = [];
+    posEdges.value = [];
+    return;
+  }
+
+  // Convert to ELK adapter format
+  const graphData = {
+    nodes: props.nodes.map((n) => ({
+      id: n.id,
+      label: n.label || n.id.split(':')[1]?.slice(0, 8) || n.id,
+      props: { color: n.color },
+    })),
+    edges: props.edges.map((e) => ({
+      from: e.source,
+      to: e.target,
+      label: e.label,
+    })),
+  };
+
+  const elkGraph = toElkGraph(graphData, { layoutOptions: ELK_OPTIONS });
+  const positioned = await runLayout(elkGraph);
+
+  posNodes.value = positioned.nodes.map((pn) => {
+    const original = props.nodes.find((n) => n.id === pn.id);
+    return {
+      ...pn,
+      color: original?.color || '#8b949e',
+      originalId: pn.id,
+    };
   });
-
-  simNodes = result;
-  if (!simRunning) {
-    simRunning = true;
-    runSimulation(edges);
-  }
+  posEdges.value = positioned.edges;
+  graphWidth.value = Math.max(positioned.width + PADDING * 2, 100);
+  graphHeight.value = Math.max(positioned.height + PADDING * 2, 80);
 }
 
-function runSimulation(edges) {
-  let iterations = 0;
-  const maxIter = 100;
-  const cx = 150;
-  const cy = 120;
-
-  function step() {
-    if (iterations >= maxIter || simNodes.length === 0) {
-      simRunning = false;
-      draw();
-      return;
-    }
-    iterations++;
-
-    // Repulsion between all pairs
-    for (let i = 0; i < simNodes.length; i++) {
-      for (let j = i + 1; j < simNodes.length; j++) {
-        const a = simNodes[i];
-        const b = simNodes[j];
-        let dx = a.x - b.x;
-        let dy = a.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = 800 / (dist * dist);
-        dx = (dx / dist) * force;
-        dy = (dy / dist) * force;
-        a.vx += dx;
-        a.vy += dy;
-        b.vx -= dx;
-        b.vy -= dy;
-      }
-    }
-
-    // Attraction along edges
-    const nodeMap = new Map(simNodes.map((n) => [n.id, n]));
-    for (const e of edges) {
-      const a = nodeMap.get(e.source);
-      const b = nodeMap.get(e.target);
-      if (!a || !b) { continue; }
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = (dist - 60) * 0.05;
-      const fx = (dx / dist) * force;
-      const fy = (dy / dist) * force;
-      a.vx += fx;
-      a.vy += fy;
-      b.vx -= fx;
-      b.vy -= fy;
-    }
-
-    // Center gravity
-    for (const n of simNodes) {
-      n.vx += (cx - n.x) * 0.01;
-      n.vy += (cy - n.y) * 0.01;
-      // Damping
-      n.vx *= 0.85;
-      n.vy *= 0.85;
-      n.x += n.vx;
-      n.y += n.vy;
-      // Bounds
-      n.x = Math.max(20, Math.min(280, n.x));
-      n.y = Math.max(20, Math.min(220, n.y));
-    }
-
-    draw();
-    animFrameId = requestAnimationFrame(() => step());
-  }
-
-  step();
+function sectionToPoints(section) {
+  const pts = [];
+  if (section.startPoint) { pts.push(section.startPoint); }
+  if (section.bendPoints) { pts.push(...section.bendPoints); }
+  if (section.endPoint) { pts.push(section.endPoint); }
+  return pts;
 }
 
-function draw() {
-  const canvas = canvasRef.value;
-  if (!canvas) { return; }
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const nodeMap = new Map(simNodes.map((n) => [n.id, n]));
-
-  // Draw edges
-  ctx.strokeStyle = '#30363d';
-  ctx.lineWidth = 1.5;
-  for (const e of props.edges) {
-    const a = nodeMap.get(e.source);
-    const b = nodeMap.get(e.target);
-    if (!a || !b) { continue; }
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-
-    // Arrow head
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    const arrowLen = 8;
-    const ax = b.x - 14 * Math.cos(angle);
-    const ay = b.y - 14 * Math.sin(angle);
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - arrowLen * Math.cos(angle - 0.4), ay - arrowLen * Math.sin(angle - 0.4));
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - arrowLen * Math.cos(angle + 0.4), ay - arrowLen * Math.sin(angle + 0.4));
-    ctx.stroke();
+function edgePointsStr(edge) {
+  const allPts = [];
+  for (const s of (edge.sections || [])) {
+    allPts.push(...sectionToPoints(s));
   }
-
-  // Draw nodes
-  const radius = 12;
-  for (const n of simNodes) {
-    const isSelected = n.id === props.selectedNode;
-
-    // Glow for selected
-    if (isSelected) {
-      ctx.shadowColor = n.color;
-      ctx.shadowBlur = 12;
-    }
-
-    ctx.beginPath();
-    ctx.arc(n.x, n.y, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = n.color;
-    ctx.fill();
-
-    if (isSelected) {
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-
-    // Label
-    ctx.fillStyle = '#fff';
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(n.label || '', n.x, n.y + radius + 12);
-  }
+  return allPts.map((p) => `${p.x + PADDING},${p.y + PADDING}`).join(' ');
 }
 
-function handleClick(event) {
-  const canvas = canvasRef.value;
-  if (!canvas) { return; }
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+function handleClick(nodeId) {
+  emit('select', props.selectedNode === nodeId ? null : nodeId);
+}
 
-  const radius = 14;
-  let clicked = null;
-  for (const n of simNodes) {
-    const dx = n.x - x;
-    const dy = n.y - y;
-    if (dx * dx + dy * dy < radius * radius) {
-      clicked = n.id;
-      break;
-    }
-  }
-
-  emit('select', clicked);
+function handleBgClick() {
+  emit('select', null);
 }
 
 watch(
   () => [props.nodes, props.edges],
-  ([newNodes, newEdges]) => {
-    layoutNodes(newNodes, newEdges);
-  },
+  () => layout(),
   { deep: true },
 );
 
-onMounted(() => {
-  if (props.nodes.length > 0) {
-    layoutNodes(props.nodes, props.edges);
-  }
-});
-
-onUnmounted(() => {
-  if (animFrameId) { cancelAnimationFrame(animFrameId); }
-});
+onMounted(() => layout());
 </script>
 
 <template>
-  <canvas
-    ref="canvasRef"
-    width="300"
-    height="240"
-    style="width: 100%; height: 100%; cursor: pointer"
-    @click="handleClick"
-  />
+  <svg
+    :viewBox="`0 0 ${graphWidth} ${graphHeight}`"
+    class="graph-svg"
+    @click.self="handleBgClick"
+  >
+    <defs>
+      <marker
+        id="arrowhead"
+        markerWidth="8"
+        markerHeight="6"
+        refX="8"
+        refY="3"
+        orient="auto"
+      >
+        <polygon points="0 0, 8 3, 0 6" fill="#484f58" />
+      </marker>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+
+    <!-- Edges -->
+    <g :transform="`translate(0, 0)`">
+      <template v-for="edge in posEdges" :key="edge.id">
+        <polyline
+          v-if="edgePointsStr(edge)"
+          :points="edgePointsStr(edge)"
+          fill="none"
+          stroke="#30363d"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+        />
+      </template>
+    </g>
+
+    <!-- Nodes -->
+    <g
+      v-for="node in posNodes"
+      :key="node.originalId"
+      class="node-group"
+      :class="{ selected: node.originalId === selectedNode }"
+      :transform="`translate(${node.x + PADDING}, ${node.y + PADDING})`"
+      @click.stop="handleClick(node.originalId)"
+    >
+      <rect
+        :width="node.width"
+        :height="node.height"
+        rx="6"
+        :fill="node.originalId === selectedNode ? '#21262d' : '#161b22'"
+        :stroke="node.color"
+        stroke-width="2"
+        :filter="node.originalId === selectedNode ? 'url(#glow)' : undefined"
+        class="node-rect"
+      />
+      <circle
+        :cx="12"
+        :cy="node.height / 2"
+        r="5"
+        :fill="node.color"
+      />
+      <text
+        :x="node.width / 2 + 6"
+        :y="node.height / 2"
+        text-anchor="middle"
+        dominant-baseline="central"
+        fill="#c9d1d9"
+        font-family="monospace"
+        font-size="11"
+      >
+        {{ node.label }}
+      </text>
+    </g>
+
+    <!-- Empty state -->
+    <text
+      v-if="posNodes.length === 0"
+      :x="graphWidth / 2"
+      :y="graphHeight / 2"
+      text-anchor="middle"
+      dominant-baseline="central"
+      fill="#484f58"
+      font-family="monospace"
+      font-size="12"
+    >
+      + Node to start
+    </text>
+  </svg>
 </template>
+
+<style scoped>
+.graph-svg {
+  width: 100%;
+  height: 100%;
+  background: #0d1117;
+  cursor: default;
+}
+.node-group {
+  cursor: pointer;
+}
+.node-group:hover .node-rect {
+  stroke-width: 3;
+}
+.node-group.selected .node-rect {
+  stroke-width: 3;
+}
+</style>
