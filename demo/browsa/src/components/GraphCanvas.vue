@@ -11,7 +11,7 @@ const props = defineProps({
 
 const emit = defineEmits(['select']);
 
-// ── Full ELK layout (all nodes) ────────────────────────────────────
+// ── Full ELK layout (all nodes, computed once) ─────────────────────
 const allNodes = ref([]);
 const allEdges = ref([]);
 const fullWidth = ref(300);
@@ -28,8 +28,6 @@ const zoom = ref(1);
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 3;
-// Inflate the cull rect by this margin so edge stubs and labels don't
-// pop in right at the boundary.
 const CULL_MARGIN = 60;
 
 let resizeObs = null;
@@ -39,7 +37,7 @@ let panStartY = 0;
 let camStartX = 0;
 let camStartY = 0;
 
-// ── Visible rect in graph-space ────────────────────────────────────
+// ── Viewport rect in graph-space ───────────────────────────────────
 const viewBox = computed(() => {
   const vw = containerW.value / zoom.value;
   const vh = containerH.value / zoom.value;
@@ -57,22 +55,22 @@ function rectIntersects(ax, ay, aw, ah) {
   );
 }
 
-// ── Culled sets ────────────────────────────────────────────────────
+// ── Visibility pass ────────────────────────────────────────────────
 const visibleNodes = computed(() =>
   allNodes.value.filter((n) =>
     rectIntersects(n.x + PADDING, n.y + PADDING, n.width, n.height),
   ),
 );
 
-const visibleNodeIds = computed(() => new Set(visibleNodes.value.map((n) => n.originalId)));
+const visibleNodeIds = computed(() =>
+  new Set(visibleNodes.value.map((n) => n.originalId)),
+);
 
 const visibleEdges = computed(() =>
   allEdges.value.filter((e) => {
-    // Show edge if either endpoint is visible
     if (visibleNodeIds.value.has(e.source) || visibleNodeIds.value.has(e.target)) {
       return true;
     }
-    // Also show if any point on the edge path is inside the viewport
     for (const s of e.sections || []) {
       for (const pt of [s.startPoint, s.endPoint, ...(s.bendPoints || [])]) {
         if (pt && rectIntersects(pt.x + PADDING, pt.y + PADDING, 0, 0)) {
@@ -83,6 +81,50 @@ const visibleEdges = computed(() =>
     return false;
   }),
 );
+
+// ── Object pools (never shrink, only grow) ─────────────────────────
+// Pool high-water marks: once allocated, slots persist for the life
+// of the component. Vue keys by slot index, so DOM elements are
+// reused — never created or destroyed during pan/zoom.
+let nodePoolHWM = 0;
+let edgePoolHWM = 0;
+
+const EMPTY_NODE = Object.freeze({
+  active: false, originalId: '', x: -9999, y: -9999,
+  width: 0, height: 0, color: 'transparent', label: '',
+});
+const EMPTY_EDGE = Object.freeze({
+  active: false, id: '', points: '',
+});
+
+const nodePool = computed(() => {
+  const vis = visibleNodes.value;
+  // Grow pool if needed (never shrink)
+  nodePoolHWM = Math.max(nodePoolHWM, vis.length);
+  const slots = new Array(nodePoolHWM);
+  for (let i = 0; i < nodePoolHWM; i++) {
+    if (i < vis.length) {
+      slots[i] = { ...vis[i], active: true };
+    } else {
+      slots[i] = EMPTY_NODE;
+    }
+  }
+  return slots;
+});
+
+const edgePool = computed(() => {
+  const vis = visibleEdges.value;
+  edgePoolHWM = Math.max(edgePoolHWM, vis.length);
+  const slots = new Array(edgePoolHWM);
+  for (let i = 0; i < edgePoolHWM; i++) {
+    if (i < vis.length) {
+      slots[i] = { active: true, id: vis[i].id, points: edgePointsStr(vis[i]) };
+    } else {
+      slots[i] = EMPTY_EDGE;
+    }
+  }
+  return slots;
+});
 
 const cullStats = computed(() =>
   `${visibleNodes.value.length}/${allNodes.value.length}`,
@@ -130,7 +172,6 @@ async function layout() {
   fullWidth.value = Math.max(positioned.width + PADDING * 2, 100);
   fullHeight.value = Math.max(positioned.height + PADDING * 2, 80);
 
-  // Auto-fit: center the graph in the viewport on first layout
   fitToView();
 }
 
@@ -176,14 +217,12 @@ function handleBgClick() {
 function onWheel(e) {
   e.preventDefault();
   const rect = svgRef.value.getBoundingClientRect();
-  // Mouse position in graph-space before zoom
   const mx = camX.value + ((e.clientX - rect.left) / zoom.value);
   const my = camY.value + ((e.clientY - rect.top) / zoom.value);
 
   const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
   const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom.value * factor));
 
-  // Adjust camera so the point under the cursor stays fixed
   camX.value = mx - (e.clientX - rect.left) / newZoom;
   camY.value = my - (e.clientY - rect.top) / newZoom;
   zoom.value = newZoom;
@@ -273,48 +312,49 @@ onUnmounted(() => {
       </filter>
     </defs>
 
-    <!-- Culled edges (only those touching visible nodes or crossing viewport) -->
-    <template v-for="edge in visibleEdges" :key="edge.id">
-      <polyline
-        v-if="edgePointsStr(edge)"
-        :points="edgePointsStr(edge)"
-        fill="none"
-        stroke="#30363d"
-        stroke-width="1.5"
-        marker-end="url(#arrowhead)"
-      />
-    </template>
+    <!-- Edge pool: fixed slot count, keyed by index -->
+    <polyline
+      v-for="(slot, idx) in edgePool"
+      :key="`e${idx}`"
+      v-show="slot.active"
+      :points="slot.points"
+      fill="none"
+      stroke="#30363d"
+      stroke-width="1.5"
+      marker-end="url(#arrowhead)"
+    />
 
-    <!-- Culled nodes (only those inside viewport + margin) -->
+    <!-- Node pool: fixed slot count, keyed by index -->
     <g
-      v-for="node in visibleNodes"
-      :key="node.originalId"
+      v-for="(slot, idx) in nodePool"
+      :key="`n${idx}`"
+      v-show="slot.active"
       class="node-group"
-      :class="{ selected: node.originalId === selectedNode }"
-      :transform="`translate(${node.x + PADDING}, ${node.y + PADDING})`"
-      @click.stop="handleClick(node.originalId)"
+      :class="{ selected: slot.active && slot.originalId === selectedNode }"
+      :transform="`translate(${slot.x + PADDING}, ${slot.y + PADDING})`"
+      @click.stop="slot.active && handleClick(slot.originalId)"
     >
       <rect
-        :width="node.width"
-        :height="node.height"
+        :width="slot.width"
+        :height="slot.height"
         rx="6"
-        :fill="node.originalId === selectedNode ? '#21262d' : '#161b22'"
-        :stroke="node.color"
+        :fill="slot.originalId === selectedNode ? '#21262d' : '#161b22'"
+        :stroke="slot.color"
         stroke-width="2"
-        :filter="node.originalId === selectedNode ? 'url(#glow)' : undefined"
+        :filter="slot.originalId === selectedNode ? 'url(#glow)' : undefined"
         class="node-rect"
       />
-      <circle :cx="12" :cy="node.height / 2" r="5" :fill="node.color" />
+      <circle :cx="12" :cy="slot.height / 2" r="5" :fill="slot.color" />
       <text
-        :x="node.width / 2 + 6"
-        :y="node.height / 2"
+        :x="slot.width / 2 + 6"
+        :y="slot.height / 2"
         text-anchor="middle"
         dominant-baseline="central"
         fill="#c9d1d9"
         font-family="monospace"
         font-size="11"
       >
-        {{ node.label }}
+        {{ slot.label }}
       </text>
     </g>
 
@@ -332,7 +372,7 @@ onUnmounted(() => {
       + Node to start
     </text>
 
-    <!-- HUD: visible/total count -->
+    <!-- HUD -->
     <text
       v-if="allNodes.length > 0"
       :x="viewBox.x + viewBox.w - 4"
