@@ -389,6 +389,8 @@ onUnmounted(() => {
 
 <style scoped>
 .graph-svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   background: #0d1117;

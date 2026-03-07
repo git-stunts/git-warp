@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, reactive } from 'vue';
+import { ref, reactive, markRaw } from 'vue';
 import {
   WarpGraph,
   InMemoryGraphAdapter,
@@ -7,6 +7,7 @@ import {
   generateWriterId,
 } from '@git-stunts/git-warp/browser';
 import { sha1sync } from '@git-stunts/git-warp/sha1sync';
+import InsecureCryptoAdapter from '../sync/InsecureCryptoAdapter.js';
 import InProcessSyncBus from '../sync/InProcessSyncBus.js';
 
 const VIEWPORT_COLORS = ['#ff7b72', '#79c0ff', '#7ee787', '#d2a8ff'];
@@ -36,7 +37,11 @@ export const useGraphStore = defineStore('graph', () => {
 
   // All viewports share one persistence layer (simulating a shared Git repo)
   const sharedPersistence = new InMemoryGraphAdapter({ hash: sha1sync });
-  const sharedCrypto = new WebCryptoAdapter();
+  // Use WebCryptoAdapter when crypto.subtle is available (HTTPS/localhost),
+  // fall back to InsecureCryptoAdapter for plain HTTP (e.g. Docker access).
+  const sharedCrypto = globalThis.crypto?.subtle
+    ? new WebCryptoAdapter()
+    : new InsecureCryptoAdapter();
 
   let _initialized = false;
 
@@ -47,12 +52,16 @@ export const useGraphStore = defineStore('graph', () => {
     for (let i = 0; i < 4; i++) {
       const id = `v${i}`;
       const writerId = generateWriterId();
-      const graph = await WarpGraph.open({
+      // markRaw prevents Vue from wrapping the graph in a reactive
+      // Proxy. WarpGraph uses ES private fields (#index in ProvenanceIndex,
+      // etc.) which break under Proxy — private field access requires
+      // `this` to be the real instance, not a Proxy wrapper.
+      const graph = markRaw(await WarpGraph.open({
         persistence: sharedPersistence,
         graphName: 'browsa',
         writerId,
         crypto: sharedCrypto,
-      });
+      }));
 
       viewports[id] = {
         id,

@@ -2,8 +2,40 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { resolve } from 'node:path';
 
+/**
+ * Vite plugin that replaces `Buffer.byteLength(...)` with a
+ * TextEncoder-based equivalent in @git-stunts/trailer-codec.
+ *
+ * The trailer-codec MessageNormalizer uses Buffer.byteLength() to
+ * guard message size. Buffer doesn't exist in browsers, but a
+ * global Buffer polyfill would break cbor-x which detects Buffer
+ * and then expects Buffer.prototype.utf8Write (a V8-only method).
+ *
+ * This targeted replacement avoids both problems.
+ */
+function trailerCodecBufferShim() {
+  return {
+    name: 'trailer-codec-buffer-shim',
+    transform(code, id) {
+      if (!id.includes('trailer-codec')) {
+        return null;
+      }
+      if (!code.includes('Buffer.byteLength')) {
+        return null;
+      }
+      return {
+        code: code.replace(
+          /Buffer\.byteLength\(([^,)]+)(?:,\s*['"]utf8['"])?\)/g,
+          'new TextEncoder().encode(String($1 ?? "")).byteLength',
+        ),
+        map: null,
+      };
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), trailerCodecBufferShim()],
   build: {
     // Top-level await (used by InMemoryGraphAdapter and defaultCrypto lazy-loading)
     // requires modern browser targets.
@@ -33,6 +65,7 @@ export default defineConfig({
   },
   // elkjs resolves from the parent git-warp node_modules
   server: {
+    allowedHosts: true,
     fs: {
       allow: [resolve(__dirname, '../..')],
     },

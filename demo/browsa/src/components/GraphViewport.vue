@@ -101,6 +101,8 @@ const vp = computed(() => store.viewports[props.viewportId]);
 .viewport-body {
   flex: 1;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 .viewport-footer {
   padding: 6px 10px;
