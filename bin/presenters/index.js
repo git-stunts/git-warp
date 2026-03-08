@@ -106,7 +106,7 @@ const VIEW_RENDERERS = new Map(/** @type {[string, function(unknown): string][]}
   ['info', renderInfoView],
   ['check', renderCheckView],
   ['history', renderHistoryView],
-  ['path', renderPathView],
+  ['path', (payload) => renderPathView(payload, { terminalWidth: process.stdout.columns })],
   ['materialize', renderMaterializeView],
   ['seek', renderSeekView],
 ]));

@@ -203,7 +203,7 @@ export function renderPathView(payload, options = {}) {
   }
 
   const { from, to, found, path, length } = payload;
-  const terminalWidth = options.terminalWidth || process.stdout.columns || DEFAULT_TERMINAL_WIDTH;
+  const terminalWidth = options.terminalWidth || DEFAULT_TERMINAL_WIDTH;
 
   // Handle "no path found" case
   if (!found) {
