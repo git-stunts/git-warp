@@ -34,12 +34,23 @@ async function createWsAdapter(staticDir) {
   return new NodeWsAdapter(opts);
 }
 
+/**
+ * Returns true when the host string resolves to the loopback interface.
+ *
+ * @param {string} h
+ * @returns {boolean}
+ */
+function isLoopback(h) {
+  return h === '127.0.0.1' || h === '::1' || h === 'localhost';
+}
+
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 
 const SERVE_OPTIONS = {
   port: { type: 'string', default: '3000' },
   host: { type: 'string', default: '127.0.0.1' },
   static: { type: 'string' },
+  expose: { type: 'boolean', default: false },
 };
 
 /**
@@ -65,6 +76,69 @@ async function openGraphs(persistence, graphNames, writerId) {
 }
 
 /**
+ * Resolve and validate the `--static` directory, if provided.
+ *
+ * @param {string|undefined} raw
+ * @returns {Promise<string|null>}
+ */
+async function resolveStaticDir(raw) {
+  if (!raw) {
+    return null;
+  }
+  const dir = resolve(raw);
+  const st = await stat(dir).catch(() => null);
+  if (!st || !st.isDirectory()) {
+    throw usageError(`--static path is not a directory: ${raw}`);
+  }
+  return dir;
+}
+
+/**
+ * Determine which graphs to serve and validate the selection.
+ *
+ * @param {import('../types.js').Persistence} persistence
+ * @param {string|undefined} graphOption
+ * @returns {Promise<{ persistence: import('../types.js').Persistence, targetGraphs: string[] }>}
+ */
+async function resolveTargetGraphs(persistence, graphOption) {
+  const graphNames = await listGraphNames(persistence);
+  if (graphNames.length === 0) {
+    throw usageError('No WARP graphs found in this repository');
+  }
+  if (graphOption && !graphNames.includes(graphOption)) {
+    throw notFoundError(`Graph not found: ${graphOption}`);
+  }
+  const targetGraphs = graphOption ? [graphOption] : graphNames;
+  return { persistence, targetGraphs };
+}
+
+/**
+ * Build a unique writerId from the host and requested port.
+ * When port is 0 the OS assigns an ephemeral port, so a timestamp
+ * component prevents collisions across successive invocations.
+ *
+ * @param {string} host
+ * @param {number} port
+ * @returns {string}
+ */
+function deriveWriterId(host, port) {
+  const portLabel = port === 0
+    ? `ephemeral-${Date.now().toString(36)}`
+    : String(port);
+  return `serve-${host}-${portLabel}`.replace(/[^A-Za-z0-9._-]/g, '-');
+}
+
+/**
+ * Bracket an IPv6 host for use in URLs.
+ *
+ * @param {string} h
+ * @returns {string}
+ */
+function bracketHost(h) {
+  return h.includes(':') ? `[${h}]` : h;
+}
+
+/**
  * Handles the `serve` command: starts a WebSocket server exposing
  * graph(s) in the repository for browser-based viewing and mutation.
  *
@@ -73,42 +147,32 @@ async function openGraphs(persistence, graphNames, writerId) {
  */
 export default async function handleServe({ options, args }) {
   const { values } = parseCommandArgs(args, SERVE_OPTIONS, serveSchema, { allowPositionals: false });
-  const { port, host } = values;
+  const { port, host, expose } = values;
 
-  /** @type {string|null} */
-  let staticDir = null;
-  if (values.static) {
-    staticDir = resolve(values.static);
-    const st = await stat(staticDir).catch(() => null);
-    if (!st || !st.isDirectory()) {
-      throw usageError(`--static path is not a directory: ${values.static}`);
-    }
+  if (!isLoopback(host) && !expose) {
+    throw usageError(
+      `Binding to non-loopback address '${host}' exposes the server to the network. ` +
+      'Pass --expose to confirm this is intentional.',
+    );
   }
 
+  const staticDir = await resolveStaticDir(values.static);
   const { persistence } = await createPersistence(options.repo);
-  const graphNames = await listGraphNames(persistence);
+  const { targetGraphs } = await resolveTargetGraphs(persistence, options.graph);
 
-  if (graphNames.length === 0) {
-    throw usageError('No WARP graphs found in this repository');
-  }
-  if (options.graph && !graphNames.includes(options.graph)) {
-    throw notFoundError(`Graph not found: ${options.graph}`);
-  }
-
-  const targetGraphs = options.graph ? [options.graph] : graphNames;
-  const writerId = `serve-${host}-${port}`.replace(/[^A-Za-z0-9._-]/g, '-');
+  const writerId = deriveWriterId(host, port);
   const graphs = await openGraphs(persistence, targetGraphs, writerId);
-
   const wsPort = await createWsAdapter(staticDir);
   const service = new WarpServeService({ wsPort, graphs });
   const addr = await service.listen(port, host);
 
-  const url = `ws://${addr.host}:${addr.port}`;
+  const urlHost = bracketHost(addr.host);
+  const url = `ws://${urlHost}:${addr.port}`;
   process.stderr.write(`Listening on ${url}\n`);
   process.stderr.write(`Serving graph(s): ${targetGraphs.join(', ')}\n`);
   if (staticDir) {
     process.stderr.write(`Serving static files from ${staticDir}\n`);
-    process.stderr.write(`Open http://${addr.host}:${addr.port} in your browser\n`);
+    process.stderr.write(`Open http://${urlHost}:${addr.port} in your browser\n`);
   }
 
   return {

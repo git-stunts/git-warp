@@ -74,6 +74,9 @@ export default class BunWsAdapter extends WebSocketServerPort {
 
     return {
       listen: (/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') => {
+        if (server) {
+          throw new Error('Server already listening. Call close() before listening again.');
+        }
         const bindHost = host || '127.0.0.1';
         server = globalThis.Bun.serve({
           port,

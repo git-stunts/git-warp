@@ -39,7 +39,18 @@ function safePath(root, urlPath) {
     return null;
   }
 
-  const decoded = decodeURIComponent(urlPath);
+  /** @type {string} */
+  let decoded;
+  try {
+    decoded = decodeURIComponent(urlPath);
+  } catch {
+    return null;
+  }
+
+  if (decoded.includes('\0')) {
+    return null;
+  }
+
   const resolved = resolve(root, `.${normalize(`/${decoded}`)}`);
 
   if (!resolved.startsWith(`${root}${sep}`) && resolved !== root) {

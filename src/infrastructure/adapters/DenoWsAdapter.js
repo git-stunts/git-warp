@@ -19,7 +19,10 @@ function wrapDenoWs(socket) {
 
   socket.onmessage = (e) => {
     if (messageHandler) {
-      messageHandler(String(e.data));
+      const text = typeof e.data === 'string'
+        ? e.data
+        : new TextDecoder().decode(e.data);
+      messageHandler(text);
     }
   };
 

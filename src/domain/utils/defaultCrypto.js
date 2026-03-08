@@ -34,21 +34,21 @@ const defaultCrypto = {
   // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hash(algorithm, data) {
     if (!_createHash) {
-      throw new Error('No crypto available. Pass { crypto } to WarpGraph.open().');
+      throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
     return _createHash(algorithm).update(data).digest('hex');
   },
   // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
   async hmac(algorithm, key, data) {
     if (!_createHmac) {
-      throw new Error('No crypto available. Pass { crypto } to WarpGraph.open().');
+      throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
     const result = _createHmac(algorithm, key).update(data).digest();
     return new Uint8Array(result.buffer, result.byteOffset, result.byteLength);
   },
   timingSafeEqual(a, b) {
     if (!_timingSafeEqual) {
-      throw new Error('No crypto available. Pass { crypto } to WarpGraph.open().');
+      throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
     return _timingSafeEqual(a, b);
   },

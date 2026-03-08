@@ -98,6 +98,16 @@ describe('handleStaticRequest', () => {
     expect(result.status).toBe(403);
   });
 
+  it('blocks encoded null bytes in path', async () => {
+    const result = await handleStaticRequest(root, '/index.html%00.js');
+    expect(result.status).toBe(403);
+  });
+
+  it('returns 403 for malformed percent-encoding', async () => {
+    const result = await handleStaticRequest(root, '/bad%ZZpath');
+    expect(result.status).toBe(403);
+  });
+
   it('contains encoded traversal inside root', async () => {
     const result = await handleStaticRequest(root, '/%2e%2e/%2e%2e/etc/passwd.js');
     expect(result.status).toBe(404);

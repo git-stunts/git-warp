@@ -92,6 +92,7 @@ function listenWithHttp(staticDir, opts) {
     state.httpServer.listen(port, bindHost, () => {
       // Remove startup error listener — the promise is resolved.
       state.httpServer?.removeListener('error', onError);
+      state.httpServer?.on('error', () => { /* runtime errors handled by ws layer */ });
       const addr = state.httpServer?.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
       resolve({ port: actualPort, host: bindHost });
@@ -113,6 +114,7 @@ function listenWsOnly(opts) {
     state.wss.on('listening', () => {
       // Remove startup error listener — the promise is resolved.
       state.wss?.removeListener('error', onError);
+      state.wss?.on('error', () => { /* runtime errors logged by ws internally */ });
       const addr = state.wss?.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
       resolve({ port: actualPort, host: bindHost });

@@ -123,7 +123,12 @@ export default class CasBlobAdapter extends BlobStoragePort {
       // Only fall through for "not a manifest" errors (missing tree, bad format).
       // Rethrow corruption, decryption, and I/O errors.
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('decrypt') || msg.includes('integrity') || msg.includes('EACCES')) {
+      const isNotManifest = msg.includes('not a tree')
+        || msg.includes('bad object')
+        || msg.includes('unknown object')
+        || msg.includes('could not find')
+        || msg.includes('does not exist');
+      if (!isNotManifest) {
         throw err;
       }
       return await this._persistence.readBlob(oid);

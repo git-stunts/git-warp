@@ -48,36 +48,76 @@ export function hexDecode(hex) {
   return bytes;
 }
 
+const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+const B64_LOOKUP = new Uint8Array(128);
+for (let i = 0; i < B64_CHARS.length; i++) {
+  B64_LOOKUP[B64_CHARS.charCodeAt(i)] = i;
+}
+
 /**
  * Encodes a Uint8Array to a base64 string.
  *
- * Uses btoa() which is available in Node 16+, Bun, Deno, and browsers.
+ * Uses a direct table-based implementation that avoids intermediate binary
+ * strings, preventing memory spikes on large buffers.
  *
  * @param {Uint8Array} bytes
  * @returns {string} Base64-encoded string
  */
 export function base64Encode(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  let result = '';
+  const len = bytes.length;
+  const remainder = len % 3;
+  const mainLen = len - remainder;
+
+  for (let i = 0; i < mainLen; i += 3) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    result += B64_CHARS[(n >>> 18) & 0x3f]
+            + B64_CHARS[(n >>> 12) & 0x3f]
+            + B64_CHARS[(n >>> 6) & 0x3f]
+            + B64_CHARS[n & 0x3f];
   }
-  return btoa(binary);
+
+  if (remainder === 1) {
+    const n = bytes[mainLen];
+    result += `${B64_CHARS[(n >>> 2) & 0x3f]}${B64_CHARS[(n << 4) & 0x3f]}==`;
+  } else if (remainder === 2) {
+    const n = (bytes[mainLen] << 8) | bytes[mainLen + 1];
+    result += `${B64_CHARS[(n >>> 10) & 0x3f]}${B64_CHARS[(n >>> 4) & 0x3f]}${B64_CHARS[(n << 2) & 0x3f]}=`;
+  }
+
+  return result;
 }
 
 /**
  * Decodes a base64 string to a Uint8Array.
  *
- * Uses atob() which is available in Node 16+, Bun, Deno, and browsers.
+ * Uses a direct table-based implementation that avoids intermediate binary
+ * strings, preventing memory spikes on large buffers.
  *
  * @param {string} b64 - Base64-encoded string
  * @returns {Uint8Array}
  */
 export function base64Decode(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  let len = b64.length;
+  if (b64[len - 1] === '=') { len--; }
+  if (b64[len - 1] === '=') { len--; }
+
+  const outLen = (len * 3) >>> 2;
+  const bytes = new Uint8Array(outLen);
+  let j = 0;
+
+  for (let i = 0; i < len; i += 4) {
+    const a = B64_LOOKUP[b64.charCodeAt(i)];
+    const b = B64_LOOKUP[b64.charCodeAt(i + 1)];
+    const c = i + 2 < len ? B64_LOOKUP[b64.charCodeAt(i + 2)] : 0;
+    const d = i + 3 < len ? B64_LOOKUP[b64.charCodeAt(i + 3)] : 0;
+
+    bytes[j++] = (a << 2) | (b >>> 4);
+    if (j < outLen) { bytes[j++] = ((b << 4) | (c >>> 2)) & 0xff; }
+    if (j < outLen) { bytes[j++] = ((c << 6) | d) & 0xff; }
   }
+
   return bytes;
 }
 

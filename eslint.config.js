@@ -280,6 +280,18 @@ export default tseslint.config(
       "no-restricted-globals": ["error",
         { "name": "Buffer", "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters." },
       ],
+      "no-restricted-imports": ["error", {
+        "paths": [
+          {
+            "name": "node:buffer",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+          },
+          {
+            "name": "buffer",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+          },
+        ],
+      }],
     },
   },
 

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`base64Encode` / `base64Decode` memory overhead** — Replaced intermediate binary string approach (`String.fromCharCode` / `charCodeAt` via `btoa`/`atob`) with direct table-based base64 encoding/decoding, eliminating memory spikes on large buffers (e.g., StreamingBitmapIndexBuilder shards).
+- **Static file handler null-byte bypass** — `safePath()` now re-checks for `\0` after `decodeURIComponent()` (prevents `%00` bypass) and catches malformed percent-encoding (e.g., `%ZZ`) instead of throwing.
 - **`git warp serve` writerId validation** — The auto-generated writerId (`serve:host:port`) contained colons, which are not allowed by `validateWriterId`. Now sanitizes to `serve-host-port` by replacing invalid characters with dashes.
 - **Inspector WebSocket default URL** — Hardcoded `ws://localhost:3000` replaced with `window.location`-derived URL, so `--static` serving on any port connects correctly without needing `?server=` param.
 - **JSDoc type annotations** — Resolved 39 pre-existing `tsc --noEmit` strict-mode errors across 17 source files. Added missing `encrypted`, `blobStorage`, and `patchBlobStorage` fields to JSDoc `@param`/`@typedef` types; created `WarpGraphWithMixins` typedef for mixin methods calling `_readPatchBlob`; installed `@types/ws` for Node WebSocket adapter; fixed `Uint8Array<ArrayBufferLike>` assignability issues; narrowed `chunking.strategy` literal types for CAS adapters; added type annotations to callback parameters in WS adapters.
