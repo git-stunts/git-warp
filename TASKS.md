@@ -147,9 +147,10 @@ git warp serve [--port <number>] [--graph <name>] [--host <addr>] [--open]
 
 ---
 
-### T4 — Browser Client: WarpSocket
+### T4 — Browser Client: WarpSocket ✅ DONE
 
-**Status:** PENDING
+**Commit:** `d684bda`
+**Status:** DONE
 
 **Goal:** Create a WebSocket client class for the browser that connects to `git warp serve` and handles the protocol.
 
