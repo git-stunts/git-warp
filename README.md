@@ -596,19 +596,9 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Git WARP Inspector
 
-The Git WARP Inspector is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes. The serve command auto-detects Node, Bun, or Deno and uses the appropriate native WebSocket adapter.
+The [Git WARP Inspector](https://github.com/git-stunts/git-warp-web-inspector) is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes.
 
-```bash
-# Option 1: single command with pre-built SPA
-cd demo/browsa && npm run build
-cd your-repo && git warp serve --port 3000 --static path/to/demo/browsa/dist
-
-# Option 2: two terminals (Vite HMR for development)
-cd your-repo && git warp serve --port 3000           # Terminal 1
-cd demo/browsa && npm install && npm run dev          # Terminal 2
-```
-
-Option 1 opens `http://localhost:3000` directly. Option 2 opens `http://localhost:5173?server=ws://localhost:3000`.
+See the [git-warp-web-inspector](https://github.com/git-stunts/git-warp-web-inspector) repository for setup and development instructions.
 
 ## Architecture
 

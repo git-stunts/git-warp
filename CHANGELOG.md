@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Inspector extracted to standalone repo** — The Git WARP Inspector (formerly `demo/browsa/`) has been extracted to [git-stunts/git-warp-web-inspector](https://github.com/git-stunts/git-warp-web-inspector). The `demo/` directory, `test/unit/browsa/`, and `TASKS.md` have been removed from this repository.
+
 ### Fixed
 
 - **`git warp serve` writerId validation** — The auto-generated writerId (`serve:host:port`) contained colons, which are not allowed by `validateWriterId`. Now sanitizes to `serve-host-port` by replacing invalid characters with dashes.
