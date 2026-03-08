@@ -6,11 +6,11 @@ const mockRestore = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
 
-/** Captures constructor args for assertion. */
+/** Captures constructor args for assertion. @type {any} */
 let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
-  constructor(opts) {
+  constructor(/** @type {any} */ opts) {
     lastConstructorArgs = opts;
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
@@ -55,6 +55,7 @@ function makeLogger() {
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
+    child: vi.fn(),
   };
 }
 

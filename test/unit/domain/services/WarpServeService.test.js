@@ -5,7 +5,7 @@ import WarpServeService from '../../../../src/domain/services/WarpServeService.j
  * Creates a mock WebSocketServerPort that captures the onConnection
  * handler and lets tests simulate client connections without real I/O.
  *
- * @returns {{ port: import('../../../../src/ports/WebSocketServerPort.js').default, getOnConnection: () => Function, simulateConnection: () => MockConnection }}
+ * @returns {{ port: import('../../../../src/ports/WebSocketServerPort.js').default, getOnConnection: () => Function|null, simulateConnection: Function }}
  */
 function createMockWsPort() {
   /** @type {Function|null} */
@@ -109,7 +109,7 @@ describe('WarpServeService', () => {
 
   describe('construction', () => {
     it('requires a WebSocketServerPort', () => {
-      expect(() => new WarpServeService({ wsPort: null, graphs: [] }))
+      expect(() => new WarpServeService({ wsPort: /** @type {any} */ (null), graphs: [] }))
         .toThrow();
     });
 
@@ -529,7 +529,7 @@ describe('WarpServeService', () => {
       };
 
       expect(capturedOnChange).not.toBeNull();
-      capturedOnChange(fakeDiff);
+      /** @type {any} */ (capturedOnChange)(fakeDiff);
 
       await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
 
@@ -578,7 +578,7 @@ describe('WarpServeService', () => {
       };
 
       expect(capturedOnChange).not.toBeNull();
-      capturedOnChange(fakeDiff);
+      /** @type {any} */ (capturedOnChange)(fakeDiff);
 
       await vi.waitFor(() => expect(client1.sent.length).toBeGreaterThan(0));
       await vi.waitFor(() => expect(client2.sent.length).toBeGreaterThan(0));
@@ -618,7 +618,7 @@ describe('WarpServeService', () => {
 
       // Alpha changes — client should NOT get it
       if (g1OnChange) {
-        g1OnChange({
+        /** @type {any} */ (g1OnChange)({
           nodes: { added: ['node:x'], removed: [] },
           edges: { added: [], removed: [] },
           props: { set: [], removed: [] },

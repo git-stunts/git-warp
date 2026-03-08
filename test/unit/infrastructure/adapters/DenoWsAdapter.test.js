@@ -13,7 +13,8 @@ function createDenoMock() {
   /** @type {{ shutdown: ReturnType<typeof vi.fn> }|null} */
   let mockServer = null;
 
-  globalThis.Deno = {
+  /** @type {any} */
+  const denoShim = {
     env: { get: vi.fn() },
     serve: vi.fn().mockImplementation((opts, requestHandler) => {
       handler = requestHandler;
@@ -28,6 +29,7 @@ function createDenoMock() {
     }),
     upgradeWebSocket: vi.fn(),
   };
+  globalThis.Deno = denoShim;
 
   return {
     get mockServer() { return mockServer; },
@@ -37,7 +39,7 @@ function createDenoMock() {
      * Returns the mock socket for driving events.
      */
     simulateUpgrade() {
-      /** @type {Record<string, Function|null>} */
+      /** @type {any} */
       const socket = {
         onopen: null,
         onmessage: null,
@@ -52,7 +54,7 @@ function createDenoMock() {
       // Deno returns a 101 Switching Protocols response, but Node's Response
       // rejects status < 200. Use a plain object mock instead.
       const response = { status: 101 };
-      globalThis.Deno.upgradeWebSocket.mockReturnValue({ socket, response });
+      /** @type {any} */ (globalThis.Deno.upgradeWebSocket).mockReturnValue({ socket, response });
 
       // Simulate the fetch arriving
       const req = new Request('http://localhost/', {
@@ -95,7 +97,7 @@ describe('DenoWsAdapter', () => {
       await server.close();
       server = null;
     }
-    delete globalThis.Deno;
+    Reflect.deleteProperty(globalThis, 'Deno');
   });
 
   it('is an instance of WebSocketServerPort', () => {
@@ -171,13 +173,13 @@ describe('DenoWsAdapter', () => {
 
   it('conn.send() calls socket.send()', async () => {
     const adapter = new DenoWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const socket = mock.simulateUpgrade();
+    const socket = /** @type {any} */ (mock.simulateUpgrade());
     captured?.send('outbound');
 
     expect(socket.send).toHaveBeenCalledWith('outbound');
@@ -185,13 +187,13 @@ describe('DenoWsAdapter', () => {
 
   it('conn.send() is a no-op when readyState is not OPEN', async () => {
     const adapter = new DenoWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const socket = mock.simulateUpgrade();
+    const socket = /** @type {any} */ (mock.simulateUpgrade());
     Object.defineProperty(socket, 'readyState', { value: 3 }); // CLOSED
     captured?.send('should not send');
 
@@ -200,13 +202,13 @@ describe('DenoWsAdapter', () => {
 
   it('conn.close() calls socket.close()', async () => {
     const adapter = new DenoWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const socket = mock.simulateUpgrade();
+    const socket = /** @type {any} */ (mock.simulateUpgrade());
     captured?.close();
 
     expect(socket.close).toHaveBeenCalled();
@@ -218,7 +220,7 @@ describe('DenoWsAdapter', () => {
     await server.listen(0);
 
     await server.close();
-    expect(mock.mockServer.shutdown).toHaveBeenCalled();
+    expect(/** @type {any} */ (mock.mockServer).shutdown).toHaveBeenCalled();
     server = null;
   });
 

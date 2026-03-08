@@ -104,6 +104,7 @@ export default class GitLogParser {
    * }
    */
   async *parse(stream, { signal } = {}) {
+    /** @type {Uint8Array} */
     let buffer = new Uint8Array(0); // Binary buffer accumulator
 
     for await (const chunk of stream) {

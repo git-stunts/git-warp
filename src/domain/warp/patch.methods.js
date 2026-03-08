@@ -174,7 +174,7 @@ export async function _nextLamport() {
  * Walks commits from the tip SHA back to the first patch commit,
  * collecting all patches along the way.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @param {string} writerId - The writer ID to load patches for
  * @param {string|null} [stopAtSha=null] - Stop walking when reaching this SHA (exclusive)
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>} Array of patches

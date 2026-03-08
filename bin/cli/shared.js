@@ -28,7 +28,7 @@ import { usageError, notFoundError } from './infrastructure.js';
 export async function createPersistence(repoPath) {
   const runner = ShellRunnerFactory.create();
   const plumbing = new GitPlumbing({ cwd: repoPath, runner });
-  const persistence = new GitGraphAdapter({ plumbing });
+  const persistence = /** @type {Persistence} */ (/** @type {unknown} */ (new GitGraphAdapter({ plumbing })));
   const ping = await persistence.ping();
   if (!ping.ok) {
     throw usageError(`Repository not accessible: ${repoPath}`);

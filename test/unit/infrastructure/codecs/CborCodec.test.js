@@ -139,7 +139,7 @@ describe('CborCodec', () => {
       const result1 = encode(obj);
       const result2 = encode(obj);
 
-      expect(result1.equals(result2)).toBe(true);
+      expect(result1).toEqual(result2);
     });
 
     it('different key insertion order produces identical bytes', () => {
@@ -152,8 +152,8 @@ describe('CborCodec', () => {
       const result2 = encode(obj2);
       const result3 = encode(obj3);
 
-      expect(result1.equals(result2)).toBe(true);
-      expect(result2.equals(result3)).toBe(true);
+      expect(result1).toEqual(result2);
+      expect(result2).toEqual(result3);
     });
 
     it('produces identical bytes for complex nested structures', () => {
@@ -172,7 +172,7 @@ describe('CborCodec', () => {
       const result1 = encode(obj1);
       const result2 = encode(obj2);
 
-      expect(result1.equals(result2)).toBe(true);
+      expect(result1).toEqual(result2);
     });
 
     it('multiple encodes of deep nested structure are identical', () => {
@@ -200,7 +200,7 @@ describe('CborCodec', () => {
 
       // All results should be identical
       for (let i = 1; i < results.length; i++) {
-        expect(results[0].equals(results[i])).toBe(true);
+        expect(results[0]).toEqual(results[i]);
       }
     });
 
@@ -211,7 +211,7 @@ describe('CborCodec', () => {
       const result1 = encode(obj1);
       const result2 = encode(obj2);
 
-      expect(result1.equals(result2)).toBe(false);
+      expect(result1).not.toEqual(result2);
     });
   });
 
@@ -319,8 +319,8 @@ describe('CborCodec', () => {
       const enc3 = encode(obj3);
 
       // All encodings should be identical (deterministic)
-      expect(enc1.equals(enc2)).toBe(true);
-      expect(enc2.equals(enc3)).toBe(true);
+      expect(enc1).toEqual(enc2);
+      expect(enc2).toEqual(enc3);
 
       // Decoding should preserve the data
       const result = decode(enc1);
@@ -345,7 +345,7 @@ describe('CborCodec', () => {
       const result = /** @type {any} */ (decode(encode(obj)));
 
       expect(result.data).toBeInstanceOf(Uint8Array);
-      expect(Buffer.from(result.data).equals(buffer)).toBe(true);
+      expect(Buffer.from(result.data)).toEqual(buffer);
     });
   });
 

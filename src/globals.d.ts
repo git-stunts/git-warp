@@ -77,7 +77,7 @@ interface BunServer {
 interface BunServeOptions {
   port?: number;
   hostname?: string;
-  fetch: (request: Request, server: BunServer) => Promise<Response> | Response | undefined;
+  fetch: (request: Request, server: BunServer) => Promise<Response | undefined> | Response | undefined;
   websocket?: BunWebSocketHandlers<BunWsData>;
 }
 

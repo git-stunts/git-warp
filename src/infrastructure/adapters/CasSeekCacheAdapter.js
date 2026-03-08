@@ -91,7 +91,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     const { default: ContentAddressableStore, CborCodec } = await import(
       /* webpackIgnore: true */ '@git-stunts/git-cas'
     );
-    /** @type {{ plumbing: *, codec: *, chunking: { strategy: string }, observability?: * }} */
+    /** @type {{ plumbing: *, codec: *, chunking: { strategy: 'cdc' }, observability?: * }} */
     const opts = {
       plumbing: this._plumbing,
       codec: new CborCodec(),

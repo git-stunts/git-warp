@@ -22,7 +22,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
     this._counter = 0;
   }
 
-  async store(content) {
+  async store(/** @type {string|Uint8Array} */ content) {
     this._counter++;
     // Generate a fake OID (40-char hex)
     const oid = this._counter.toString(16).padStart(40, '0');
@@ -33,7 +33,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
     return oid;
   }
 
-  async retrieve(oid) {
+  async retrieve(/** @type {string} */ oid) {
     const buf = this._blobs.get(oid);
     if (!buf) {
       throw new Error(`InMemoryBlobStorage: OID not found: ${oid}`);
@@ -81,7 +81,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
     // Query to verify data integrity
     expect(await graph.hasNode('user:alice')).toBe(true);
-    const props = await graph.getNodeProps('user:alice');
+    const props = /** @type {any} */ (await graph.getNodeProps('user:alice'));
     expect(props.name).toBe('Alice');
   });
 
@@ -108,7 +108,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     await graph2.materialize();
 
     expect(await graph2.hasNode('user:bob')).toBe(true);
-    const props = await graph2.getNodeProps('user:bob');
+    const props = /** @type {any} */ (await graph2.getNodeProps('user:bob'));
     expect(props.role).toBe('admin');
   });
 
@@ -175,9 +175,9 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
     expect(await graph3.hasNode('user:plain')).toBe(true);
     expect(await graph3.hasNode('user:secret')).toBe(true);
-    const plainProps = await graph3.getNodeProps('user:plain');
+    const plainProps = /** @type {any} */ (await graph3.getNodeProps('user:plain'));
     expect(plainProps.mode).toBe('clear');
-    const secretProps = await graph3.getNodeProps('user:secret');
+    const secretProps = /** @type {any} */ (await graph3.getNodeProps('user:secret'));
     expect(secretProps.mode).toBe('encrypted');
   });
 
@@ -200,7 +200,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     expect(state).toBeTruthy();
 
     expect(await graph.hasNode('user:normal')).toBe(true);
-    const props = await graph.getNodeProps('user:normal');
+    const props = /** @type {any} */ (await graph.getNodeProps('user:normal'));
     expect(props.status).toBe('active');
   });
 
@@ -232,7 +232,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
     const nodes = await graph.getNodes();
     expect(nodes.sort()).toEqual(['a', 'b']);
-    const aProps = await graph.getNodeProps('a');
+    const aProps = /** @type {any} */ (await graph.getNodeProps('a'));
     expect(aProps.v).toBe(2); // LWW: latest wins
   });
 

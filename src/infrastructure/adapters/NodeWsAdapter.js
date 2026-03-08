@@ -15,13 +15,21 @@ function wrapConnection(ws) {
   /** @type {((code?: number, reason?: string) => void)|null} */
   let closeHandler = null;
 
-  ws.on('message', (data) => {
+  ws.on('message', (/** @type {import('ws').RawData} */ data) => {
     if (messageHandler) {
-      messageHandler(String(data));
+      /** @type {string} */
+      const text = typeof data === 'string'
+        ? data
+        : ArrayBuffer.isView(data)
+          ? Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('utf8')
+          : data instanceof ArrayBuffer
+            ? Buffer.from(data).toString('utf8')
+            : Buffer.concat(/** @type {Buffer[]} */ (data)).toString('utf8');
+      messageHandler(text);
     }
   });
 
-  ws.on('close', (code, reason) => {
+  ws.on('close', (/** @type {number} */ code, /** @type {Buffer} */ reason) => {
     if (closeHandler) {
       closeHandler(code, reason?.toString());
     }
@@ -78,7 +86,7 @@ function listenWithHttp(staticDir, opts) {
   return new Promise((resolve, reject) => {
     state.httpServer = createHttpServer(createStaticHandler(staticDir));
     state.wss = new WebSocketServer({ server: state.httpServer });
-    state.wss.on('connection', (ws) => onConnection(wrapConnection(ws)));
+    state.wss.on('connection', (/** @type {import('ws').WebSocket} */ ws) => onConnection(wrapConnection(ws)));
     const onError = (/** @type {Error} */ err) => reject(err);
     state.httpServer.on('error', onError);
     state.httpServer.listen(port, bindHost, () => {
@@ -110,7 +118,7 @@ function listenWsOnly(opts) {
       resolve({ port: actualPort, host: bindHost });
     });
     state.wss.on('error', onError);
-    state.wss.on('connection', (ws) => onConnection(wrapConnection(ws)));
+    state.wss.on('connection', (/** @type {import('ws').WebSocket} */ ws) => onConnection(wrapConnection(ws)));
   });
 }
 
@@ -145,7 +153,7 @@ export default class NodeWsAdapter extends WebSocketServerPort {
     const staticDir = this._staticDir;
 
     return {
-      listen(/** @type {number} */ port, /** @type {string} [host] */ host) {
+      listen(/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') {
         const bindHost = host || '127.0.0.1';
         const opts = { onConnection, port, bindHost, state };
         if (staticDir) {
@@ -163,7 +171,7 @@ export default class NodeWsAdapter extends WebSocketServerPort {
           for (const client of state.wss.clients) {
             client.close();
           }
-          state.wss.close((wssErr) => {
+          state.wss.close((/** @type {Error|undefined} */ wssErr) => {
             if (state.httpServer) {
               state.httpServer.close((httpErr) => {
                 const err = wssErr || httpErr;

@@ -430,7 +430,7 @@ export async function _restoreIndexFromCache(indexTreeOid) {
  * builds the target frontier from current writer tips, and applies
  * incremental patches since the checkpoint.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @param {string} checkpointSha - The checkpoint commit SHA
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5>} The materialized graph state at the checkpoint
  * @throws {Error} If checkpoint SHA is invalid or not found

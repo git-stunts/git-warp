@@ -258,7 +258,7 @@ export async function _validateMigrationBoundary() {
  * typically writes a new tip, so a schema:2+ tip implies the writer has
  * been migrated.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @returns {Promise<boolean>} True if any writer tip is schema:1 (or omits `schema`, treated as legacy v1)
  * @private
  */

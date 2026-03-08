@@ -38,7 +38,7 @@ function createFetchHandler(staticDir) {
       const { handleStaticRequest } = await import('./staticFileHandler.js');
       const url = new URL(req.url);
       const result = await handleStaticRequest(staticDir, url.pathname);
-      return new Response(result.body, { status: result.status, headers: result.headers });
+      return new Response(/** @type {BodyInit|null} */ (result.body), { status: result.status, headers: result.headers });
     }
     return new Response('Not Found', { status: 404 });
   };
@@ -73,7 +73,7 @@ export default class BunWsAdapter extends WebSocketServerPort {
     let server = null;
 
     return {
-      listen: (/** @type {number} */ port, /** @type {string} [host] */ host) => {
+      listen: (/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') => {
         const bindHost = host || '127.0.0.1';
         server = globalThis.Bun.serve({
           port,

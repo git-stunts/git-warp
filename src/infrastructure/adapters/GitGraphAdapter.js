@@ -652,7 +652,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       });
       const raw = await stream.collect({ asString: false });
       // Return as-is — plumbing returns Buffer (which IS-A Uint8Array)
-      return raw;
+      return /** @type {Uint8Array} */ (raw);
     } catch (err) {
       throw wrapGitError(/** @type {GitError} */ (err), { oid });
     }

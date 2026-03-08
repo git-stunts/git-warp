@@ -80,7 +80,7 @@ describe('BunWsAdapter', () => {
       await server.close();
       server = null;
     }
-    delete globalThis.Bun;
+    Reflect.deleteProperty(globalThis, 'Bun');
   });
 
   it('is an instance of WebSocketServerPort', () => {
@@ -151,13 +151,13 @@ describe('BunWsAdapter', () => {
 
   it('conn.send() calls ws.send()', async () => {
     const adapter = new BunWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const ws = mock.simulateConnection();
+    const ws = /** @type {any} */ (mock.simulateConnection());
     captured?.send('outbound');
 
     expect(ws.send).toHaveBeenCalledWith('outbound');
@@ -165,13 +165,13 @@ describe('BunWsAdapter', () => {
 
   it('conn.send() is a no-op when readyState is not OPEN', async () => {
     const adapter = new BunWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const ws = mock.simulateConnection();
+    const ws = /** @type {any} */ (mock.simulateConnection());
     ws.readyState = 3; // CLOSED
     captured?.send('should not send');
 
@@ -180,13 +180,13 @@ describe('BunWsAdapter', () => {
 
   it('conn.close() calls ws.close()', async () => {
     const adapter = new BunWsAdapter();
-    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    /** @type {any} */
     let captured = null;
 
     server = adapter.createServer((conn) => { captured = conn; });
     await server.listen(0);
 
-    const ws = mock.simulateConnection();
+    const ws = /** @type {any} */ (mock.simulateConnection());
     captured?.close();
 
     expect(ws.close).toHaveBeenCalled();

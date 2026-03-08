@@ -173,7 +173,7 @@ function errorEnvelope(code, message, id) {
  *
  * @param {ClientSession} session
  * @param {Envelope} msg
- * @param {{ graphs: Map<string, unknown>, requireOpen?: boolean }} opts
+ * @param {{ graphs: Map<string, { materialize: Function, subscribe: Function, getNodeProps: Function, createPatch: Function, query: Function }>, requireOpen?: boolean }} opts
  * @returns {{ graphName: string, graph: { materialize: Function, subscribe: Function, getNodeProps: Function, createPatch: Function, query: Function } }|null}
  */
 function resolveGraph(session, msg, { graphs, requireOpen = true }) {

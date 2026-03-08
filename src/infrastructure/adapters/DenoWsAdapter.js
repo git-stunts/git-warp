@@ -72,7 +72,7 @@ export default class DenoWsAdapter extends WebSocketServerPort {
     const staticDir = this._staticDir;
 
     return {
-      listen(/** @type {number} */ port, /** @type {string} [host] */ host) {
+      listen(/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') {
         const bindHost = host || '127.0.0.1';
         return new Promise((resolve) => {
           server = globalThis.Deno.serve(
@@ -94,7 +94,7 @@ export default class DenoWsAdapter extends WebSocketServerPort {
                 const { handleStaticRequest } = await import('./staticFileHandler.js');
                 const url = new URL(req.url);
                 const result = await handleStaticRequest(staticDir, url.pathname);
-                return new Response(result.body, { status: result.status, headers: result.headers });
+                return new Response(/** @type {BodyInit|null} */ (result.body), { status: result.status, headers: result.headers });
               }
               return new Response('Not Found', { status: 404 });
             },

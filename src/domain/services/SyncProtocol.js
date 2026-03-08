@@ -185,7 +185,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt, patchBlo
  * @param {string|null} fromSha - Start SHA (exclusive). Pass null to load ALL patches
  *   for this writer from the beginning of their chain.
  * @param {string} toSha - End SHA (inclusive). This is typically the writer's current tip.
- * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} [options]
  * @returns {Promise<Array<{patch: DecodedPatch, sha: string}>>} Array of patch objects in
  *   chronological order (oldest first). Each entry contains:
  *   - `patch`: The decoded patch object
@@ -407,7 +407,7 @@ export function createSyncRequest(frontier) {
  * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence
  *   layer for loading patches (uses CommitPort + BlobPort methods)
  * @param {string} graphName - Graph name for error messages and logging
- * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
+ * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} [options]
  * @returns {Promise<SyncResponse>} Response containing local frontier and patches.
  *   Patches are ordered chronologically within each writer.
  * @throws {Error} If patch loading fails for reasons other than divergence

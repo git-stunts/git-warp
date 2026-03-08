@@ -146,25 +146,25 @@ describe('WarpMessageCodec', () => {
     });
 
     it('includes eg-encrypted trailer when encrypted=true', () => {
-      const message = encodePatchMessage({
+      const message = encodePatchMessage(/** @type {any} */ ({
         graph: 'events',
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
         encrypted: true,
-      });
+      }));
 
       expect(message).toContain('eg-encrypted: true');
     });
 
     it('omits eg-encrypted trailer when encrypted=false', () => {
-      const message = encodePatchMessage({
+      const message = encodePatchMessage(/** @type {any} */ ({
         graph: 'events',
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
         encrypted: false,
-      });
+      }));
 
       expect(message).not.toContain('eg-encrypted');
     });
@@ -435,13 +435,13 @@ eg-schema: 1`;
     });
 
     it('decodes encrypted=true from eg-encrypted trailer', () => {
-      const encoded = encodePatchMessage({
+      const encoded = encodePatchMessage(/** @type {any} */ ({
         graph: 'events',
         writer: 'node-1',
         lamport: 1,
         patchOid: VALID_OID_SHA1,
         encrypted: true,
-      });
+      }));
       const decoded = decodePatchMessage(encoded);
       expect(decoded.encrypted).toBe(true);
     });
@@ -459,13 +459,13 @@ eg-schema: 1`;
 
     it('roundtrips encrypted flag correctly', () => {
       for (const encrypted of [true, false]) {
-        const encoded = encodePatchMessage({
+        const encoded = encodePatchMessage(/** @type {any} */ ({
           graph: 'events',
           writer: 'w1',
           lamport: 5,
           patchOid: VALID_OID_SHA1,
           encrypted,
-        });
+        }));
         const decoded = decodePatchMessage(encoded);
         expect(decoded.encrypted).toBe(encrypted);
       }

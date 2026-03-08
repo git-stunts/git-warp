@@ -10,11 +10,11 @@ const mockCreateTree = vi.fn();
 /** When true, the mock CAS exposes restoreStream. */
 let exposeRestoreStream = false;
 
-/** Captures constructor args for assertion. */
+/** Captures constructor args for assertion. @type {any} */
 let lastConstructorArgs = {};
 
 class MockContentAddressableStore {
-  constructor(opts) {
+  constructor(/** @type {any} */ opts) {
     lastConstructorArgs = opts;
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
@@ -180,6 +180,7 @@ describe('CasSeekCacheAdapter', () => {
       const { default: CASModule } = await import('@git-stunts/git-cas');
 
       // Create a fresh adapter whose _initCas will throw
+      /** @type {any} */
       const badAdapter = new CasSeekCacheAdapter({
         persistence,
         plumbing,

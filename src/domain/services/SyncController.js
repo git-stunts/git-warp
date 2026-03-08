@@ -48,6 +48,7 @@ import SyncTrustGate from './SyncTrustGate.js';
  * @property {import('../../ports/CodecPort.js').default} _codec
  * @property {import('../../ports/CryptoPort.js').default} _crypto
  * @property {import('../../ports/LoggerPort.js').default|null} _logger
+ * @property {import('../../ports/BlobStoragePort.js').default|null} [_patchBlobStorage]
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
  * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize

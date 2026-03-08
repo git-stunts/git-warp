@@ -371,8 +371,8 @@ describe('WarpSocket', () => {
       }));
 
       expect(received).toHaveLength(1);
-      expect(received[0].graph).toBe('test');
-      expect(received[0].diff.nodes.added).toEqual(['n1']);
+      expect(/** @type {any} */ (received[0]).graph).toBe('test');
+      expect(/** @type {any} */ (received[0]).diff.nodes.added).toEqual(['n1']);
     });
 
     it('fires callback for diff messages even if they carry an id', async () => {

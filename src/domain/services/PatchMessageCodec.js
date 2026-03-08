@@ -30,7 +30,7 @@ import {
 /**
  * Encodes a patch commit message.
  *
- * @param {{ graph: string, writer: string, lamport: number, patchOid: string, schema?: number }} options - The patch message options
+ * @param {{ graph: string, writer: string, lamport: number, patchOid: string, schema?: number, encrypted?: boolean }} options - The patch message options
  * @returns {string} The encoded commit message
  * @throws {Error} If any validation fails
  *

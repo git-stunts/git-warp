@@ -27,7 +27,7 @@ describe('handleStaticRequest', () => {
     const result = await handleStaticRequest(root, '/');
     expect(result.status).toBe(200);
     expect(result.headers['content-type']).toContain('text/html');
-    expect(new TextDecoder().decode(result.body)).toContain('Hello');
+    expect(new TextDecoder().decode(/** @type {Uint8Array} */ (result.body))).toContain('Hello');
   });
 
   it('serves index.html for trailing slash', async () => {
@@ -40,7 +40,7 @@ describe('handleStaticRequest', () => {
     const result = await handleStaticRequest(root, '/assets/app.js');
     expect(result.status).toBe(200);
     expect(result.headers['content-type']).toContain('text/javascript');
-    expect(new TextDecoder().decode(result.body)).toBe('console.log("hi")');
+    expect(new TextDecoder().decode(/** @type {Uint8Array} */ (result.body))).toBe('console.log("hi")');
   });
 
   it('serves CSS files with correct MIME type', async () => {
@@ -76,7 +76,7 @@ describe('handleStaticRequest', () => {
     const result = await handleStaticRequest(root, '/some/deep/route');
     expect(result.status).toBe(200);
     expect(result.headers['content-type']).toContain('text/html');
-    expect(new TextDecoder().decode(result.body)).toContain('Hello');
+    expect(new TextDecoder().decode(/** @type {Uint8Array} */ (result.body))).toContain('Hello');
   });
 
   it('returns content-length header', async () => {

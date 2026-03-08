@@ -98,7 +98,7 @@ describe('handleServe', () => {
     );
 
     const result = await handleServe({
-      options: { repo: '.', graph: undefined, writer: 'cli' },
+      options: /** @type {any} */ ({ repo: '.', graph: undefined, writer: 'cli' }),
       args: [],
     });
 
@@ -110,7 +110,7 @@ describe('handleServe', () => {
     /** @type {any} */ (listGraphNames).mockResolvedValue(['alpha', 'beta']);
 
     const result = await handleServe({
-      options: { repo: '.', graph: 'alpha', writer: 'cli' },
+      options: /** @type {any} */ ({ repo: '.', graph: 'alpha', writer: 'cli' }),
       args: [],
     });
 
@@ -125,7 +125,7 @@ describe('handleServe', () => {
 
     await expect(
       handleServe({
-        options: { repo: '.', graph: 'nonexistent', writer: 'cli' },
+        options: /** @type {any} */ ({ repo: '.', graph: 'nonexistent', writer: 'cli' }),
         args: [],
       }),
     ).rejects.toThrow(/not found/i);
@@ -136,7 +136,7 @@ describe('handleServe', () => {
 
     await expect(
       handleServe({
-        options: { repo: '.', writer: 'cli' },
+        options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
         args: [],
       }),
     ).rejects.toThrow(/no.*graph/i);
@@ -144,7 +144,7 @@ describe('handleServe', () => {
 
   it('returns server address in the payload', async () => {
     const result = await handleServe({
-      options: { repo: '.', writer: 'cli' },
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
       args: [],
     });
 
@@ -155,7 +155,7 @@ describe('handleServe', () => {
 
   it('uses custom port from args', async () => {
     const result = await handleServe({
-      options: { repo: '.', writer: 'cli' },
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
       args: ['--port', '4567'],
     });
 
@@ -164,7 +164,7 @@ describe('handleServe', () => {
 
   it('returns a close function for clean shutdown', async () => {
     const result = await handleServe({
-      options: { repo: '.', writer: 'cli' },
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
       args: [],
     });
 
