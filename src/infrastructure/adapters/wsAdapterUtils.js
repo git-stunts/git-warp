@@ -35,6 +35,8 @@ export function assertNotListening(server) {
   }
 }
 
+const _textDecoder = new TextDecoder();
+
 /**
  * Converts a WebSocket message payload to a UTF-8 string.
  * Handles both string data and binary data (ArrayBuffer, Uint8Array).
@@ -47,10 +49,10 @@ export function messageToString(data) {
     return data;
   }
   if (ArrayBuffer.isView(data)) {
-    return new TextDecoder().decode(data);
+    return _textDecoder.decode(data);
   }
   if (data instanceof ArrayBuffer) {
-    return new TextDecoder().decode(data);
+    return _textDecoder.decode(data);
   }
   // Node `ws` can send Buffer[] for fragmented messages
   if (Array.isArray(data)) {
@@ -64,7 +66,7 @@ export function messageToString(data) {
       merged.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    return new TextDecoder().decode(merged);
+    return _textDecoder.decode(merged);
   }
   return String(data);
 }

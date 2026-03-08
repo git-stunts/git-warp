@@ -23,8 +23,8 @@ const MIME_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-const FORBIDDEN = { status: 403, headers: { 'content-type': 'text/plain' }, body: new TextEncoder().encode('Forbidden') };
-const NOT_FOUND = { status: 404, headers: { 'content-type': 'text/plain' }, body: new TextEncoder().encode('Not Found') };
+const FORBIDDEN = Object.freeze({ status: 403, headers: Object.freeze({ 'content-type': 'text/plain' }), body: new TextEncoder().encode('Forbidden') });
+const NOT_FOUND = Object.freeze({ status: 404, headers: Object.freeze({ 'content-type': 'text/plain' }), body: new TextEncoder().encode('Not Found') });
 
 /**
  * Resolves and validates a URL path against a static directory root.

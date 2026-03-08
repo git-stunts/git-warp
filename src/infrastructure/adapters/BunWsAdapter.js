@@ -17,7 +17,16 @@ function wrapBunWs(ws) {
         ws.send(message);
       }
     },
-    onMessage(handler) { ws.data.messageHandler = handler; },
+    onMessage(handler) {
+      // Flush any messages that arrived before the handler was set
+      if (ws.data.messageBuffer.length > 0) {
+        for (const buffered of ws.data.messageBuffer) {
+          handler(buffered);
+        }
+        ws.data.messageBuffer.length = 0;
+      }
+      ws.data.messageHandler = handler;
+    },
     onClose(handler) { ws.data.closeHandler = handler; },
     close() { ws.close(); },
   };
@@ -32,7 +41,7 @@ function wrapBunWs(ws) {
  */
 function createFetchHandler(staticDir) {
   return async (req, srv) => {
-    if (srv.upgrade(req, { data: { messageHandler: null, closeHandler: null } })) {
+    if (srv.upgrade(req, { data: { messageHandler: null, closeHandler: null, messageBuffer: [] } })) {
       return undefined;
     }
     if (staticDir) {
@@ -84,8 +93,11 @@ export default class BunWsAdapter extends WebSocketServerPort {
           websocket: {
             open(ws) { onConnection(wrapBunWs(ws)); },
             message(ws, msg) {
+              const text = messageToString(msg);
               if (ws.data.messageHandler) {
-                ws.data.messageHandler(messageToString(msg));
+                ws.data.messageHandler(text);
+              } else {
+                ws.data.messageBuffer.push(text);
               }
             },
             close(ws, code, reason) {
@@ -104,7 +116,14 @@ export default class BunWsAdapter extends WebSocketServerPort {
         }
         const s = server;
         server = null;
-        return s.stop();
+        try {
+          return Promise.resolve(s.stop()).catch(() => {
+            // Best-effort — stop() may reject on some versions
+          });
+        } catch {
+          // Best-effort — stop() may throw synchronously
+          return Promise.resolve();
+        }
       },
     };
   }

@@ -17,10 +17,15 @@ function wrapDenoWs(socket) {
   let messageHandler = null;
   /** @type {((code?: number, reason?: string) => void)|null} */
   let closeHandler = null;
+  /** @type {string[]} */
+  const messageBuffer = [];
 
   socket.onmessage = (e) => {
+    const text = messageToString(e.data);
     if (messageHandler) {
-      messageHandler(messageToString(e.data));
+      messageHandler(text);
+    } else {
+      messageBuffer.push(text);
     }
   };
 
@@ -36,9 +41,42 @@ function wrapDenoWs(socket) {
         socket.send(message);
       }
     },
-    onMessage(handler) { messageHandler = handler; },
+    onMessage(handler) {
+      // Flush any messages that arrived before the handler was set
+      for (const buffered of messageBuffer) {
+        handler(buffered);
+      }
+      messageBuffer.length = 0;
+      messageHandler = handler;
+    },
     onClose(handler) { closeHandler = handler; },
     close() { socket.close(); },
+  };
+}
+
+/**
+ * Builds the Deno.serve request handler that upgrades WS connections
+ * and optionally serves static files.
+ *
+ * @param {(connection: import('../../ports/WebSocketServerPort.js').WsConnection) => void} onConnection
+ * @param {string|null} staticDir
+ * @returns {(req: Request) => Response|Promise<Response>}
+ */
+function createDenoHandler(onConnection, staticDir) {
+  return async (req) => {
+    const upgrade = req.headers.get('upgrade');
+    if (upgrade && upgrade.toLowerCase() === 'websocket') {
+      const { socket, response } = globalThis.Deno.upgradeWebSocket(req);
+      socket.onopen = () => { onConnection(wrapDenoWs(socket)); };
+      return response;
+    }
+    if (staticDir) {
+      const { handleStaticRequest } = await import('./staticFileHandler.js');
+      const url = new URL(req.url);
+      const result = await handleStaticRequest(staticDir, url.pathname);
+      return new Response(/** @type {BodyInit|null} */ (result.body), { status: result.status, headers: result.headers });
+    }
+    return new Response('Not Found', { status: 404 });
   };
 }
 
@@ -70,39 +108,27 @@ export default class DenoWsAdapter extends WebSocketServerPort {
   createServer(onConnection) {
     /** @type {DenoServer|null} */
     let server = null;
-    const staticDir = this._staticDir;
+    const handler = createDenoHandler(onConnection, this._staticDir);
 
     return {
       listen(/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') {
         assertNotListening(server);
         const bindHost = normalizeHost(host);
-        return new Promise((resolve) => {
-          server = globalThis.Deno.serve(
-            {
-              port,
-              hostname: bindHost,
-              onListen() {
-                // server is assigned synchronously by Deno.serve() before
-                // onListen fires, so it is always non-null here.
-                resolve({ port: /** @type {DenoServer} */ (server).addr.port, host: bindHost });
+        return new Promise((resolve, reject) => {
+          try {
+            server = globalThis.Deno.serve(
+              {
+                port,
+                hostname: bindHost,
+                onListen() {
+                  resolve({ port: /** @type {DenoServer} */ (server).addr.port, host: bindHost });
+                },
               },
-            },
-            async (req) => {
-              const upgrade = req.headers.get('upgrade');
-              if (upgrade && upgrade.toLowerCase() === 'websocket') {
-                const { socket, response } = globalThis.Deno.upgradeWebSocket(req);
-                socket.onopen = () => { onConnection(wrapDenoWs(socket)); };
-                return response;
-              }
-              if (staticDir) {
-                const { handleStaticRequest } = await import('./staticFileHandler.js');
-                const url = new URL(req.url);
-                const result = await handleStaticRequest(staticDir, url.pathname);
-                return new Response(/** @type {BodyInit|null} */ (result.body), { status: result.status, headers: result.headers });
-              }
-              return new Response('Not Found', { status: 404 });
-            },
-          );
+              handler,
+            );
+          } catch (err) {
+            reject(err);
+          }
         });
       },
 

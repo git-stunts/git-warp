@@ -59,6 +59,7 @@ interface BunServerWebSocket<T = unknown> {
 interface BunWsData {
   messageHandler: ((message: string) => void) | null;
   closeHandler: ((code?: number, reason?: string) => void) | null;
+  messageBuffer: string[];
 }
 
 interface BunWebSocketHandlers<T = unknown> {

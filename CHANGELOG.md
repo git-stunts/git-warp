@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`jsr.json` missing `browser.js` in publish.include** — JSR consumers importing `@git-stunts/git-warp/browser` now receive the file.
 - **`git warp serve` help text missing `--port`, `--host`, `--expose` flags** — All serve-specific options now appear in `--help` output.
 
+- **WS adapter pre-handler message buffering** — Messages arriving before `onMessage(handler)` is called are now buffered and flushed when the handler is set. Prevents message loss in Bun and Deno adapters when connection setup is asynchronous.
+- **NodeWsAdapter `onError` callback** — Constructor now accepts an optional `onError` callback that surfaces runtime server errors instead of silently swallowing them.
+- **`wsAdapterUtils.messageToString()` TextDecoder reuse** — Hoisted `TextDecoder` to module level, avoiding per-call allocation.
+- **Static file handler response objects frozen** — `FORBIDDEN` and `NOT_FOUND` response constants are now `Object.freeze()`d to prevent accidental mutation.
+- **`sha1sync` comment clarification** — Updated misleading comment about the `>= 0x20000000` guard to explain it ensures `msg.length * 8` fits in uint32.
 - **`_broadcastDiff` Set mutation during iteration** — Deleting dead clients from `this._clients` mid-`for...of` could skip the next entry. Dead connections are now collected and evicted after the loop completes.
 - **Double-SIGINT re-entrancy in `serve` shutdown** — Rapid Ctrl+C fired `shutdown()` concurrently twice, racing `close()` and `process.exit()`. Added a `closing` guard.
 - **Catch-all error envelope missing correlation ID** — The last-resort `.catch()` on `_onMessage` now best-effort extracts the request `id` from the raw JSON for client-side correlation.

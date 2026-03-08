@@ -43,9 +43,10 @@ function wrapConnection(ws) {
  * Creates an HTTP request handler that serves static files.
  *
  * @param {string} staticDir
+ * @param {((err: Error) => void)|undefined} [onError]
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void}
  */
-function createStaticHandler(staticDir) {
+function createStaticHandler(staticDir, onError) {
   /** @type {typeof import('./staticFileHandler.js').handleStaticRequest|null} */
   let handler = null;
   return (req, res) => {
@@ -56,7 +57,8 @@ function createStaticHandler(staticDir) {
     ).then((h) => h(staticDir, urlPath)).then((result) => {
       res.writeHead(result.status, result.headers);
       res.end(result.body);
-    }).catch(() => {
+    }).catch((/** @type {Error} */ err) => {
+      if (onError) { onError(err); }
       res.writeHead(500, { 'content-type': 'text/plain' });
       res.end('Internal Server Error');
     });
@@ -69,6 +71,7 @@ function createStaticHandler(staticDir) {
  * @property {number} port
  * @property {string} bindHost
  * @property {{ wss: WebSocketServer|null, httpServer: import('node:http').Server|null }} state
+ * @property {((err: Error) => void)|undefined} [onError]
  */
 
 /**
@@ -79,21 +82,21 @@ function createStaticHandler(staticDir) {
  * @returns {Promise<{ port: number, host: string }>}
  */
 function listenWithHttp(staticDir, opts) {
-  const { onConnection, port, bindHost, state } = opts;
+  const { onConnection, port, bindHost, state, onError } = opts;
   return new Promise((resolve, reject) => {
-    state.httpServer = createHttpServer(createStaticHandler(staticDir));
+    state.httpServer = createHttpServer(createStaticHandler(staticDir, onError));
     state.wss = new WebSocketServer({ server: state.httpServer });
     state.wss.on('connection', (/** @type {import('ws').WebSocket} */ ws) => onConnection(wrapConnection(ws)));
-    const onError = (/** @type {Error} */ err) => {
+    const onStartupError = (/** @type {Error} */ err) => {
       state.wss = null;
       state.httpServer = null;
       reject(err);
     };
-    state.httpServer.on('error', onError);
+    state.httpServer.on('error', onStartupError);
     state.httpServer.listen(port, bindHost, () => {
       // Remove startup error listener — the promise is resolved.
-      state.httpServer?.removeListener('error', onError);
-      state.httpServer?.on('error', () => { /* runtime errors handled by ws layer */ });
+      state.httpServer?.removeListener('error', onStartupError);
+      state.httpServer?.on('error', (/** @type {Error} */ err) => { if (onError) { onError(err); } });
       const addr = state.httpServer?.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
       resolve({ port: actualPort, host: bindHost });
@@ -108,23 +111,23 @@ function listenWithHttp(staticDir, opts) {
  * @returns {Promise<{ port: number, host: string }>}
  */
 function listenWsOnly(opts) {
-  const { onConnection, port, bindHost, state } = opts;
+  const { onConnection, port, bindHost, state, onError } = opts;
   return new Promise((resolve, reject) => {
     state.wss = new WebSocketServer({ port, host: bindHost });
-    const onError = (/** @type {Error} */ err) => {
+    const onStartupError = (/** @type {Error} */ err) => {
       state.wss = null;
       state.httpServer = null;
       reject(err);
     };
     state.wss.on('listening', () => {
       // Remove startup error listener — the promise is resolved.
-      state.wss?.removeListener('error', onError);
-      state.wss?.on('error', () => { /* runtime errors logged by ws internally */ });
+      state.wss?.removeListener('error', onStartupError);
+      state.wss?.on('error', (/** @type {Error} */ err) => { if (onError) { onError(err); } });
       const addr = state.wss?.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
       resolve({ port: actualPort, host: bindHost });
     });
-    state.wss.on('error', onError);
+    state.wss.on('error', onStartupError);
     state.wss.on('connection', (/** @type {import('ws').WebSocket} */ ws) => onConnection(wrapConnection(ws)));
   });
 }
@@ -142,12 +145,14 @@ function listenWsOnly(opts) {
  */
 export default class NodeWsAdapter extends WebSocketServerPort {
   /**
-   * @param {{ staticDir?: string|null }} [options]
+   * @param {{ staticDir?: string|null, onError?: (err: Error) => void }} [options]
    */
-  constructor({ staticDir } = {}) {
+  constructor({ staticDir, onError } = {}) {
     super();
     /** @type {string|null} */
     this._staticDir = staticDir || null;
+    /** @type {((err: Error) => void)|undefined} */
+    this._onError = onError;
   }
 
   /**
@@ -158,12 +163,13 @@ export default class NodeWsAdapter extends WebSocketServerPort {
     /** @type {{ wss: WebSocketServer|null, httpServer: import('node:http').Server|null }} */
     const state = { wss: null, httpServer: null };
     const staticDir = this._staticDir;
+    const onError = this._onError;
 
     return {
       listen(/** @type {number} */ port, /** @type {string} [host] */ host = '127.0.0.1') {
         assertNotListening(state.wss);
         const bindHost = normalizeHost(host);
-        const opts = { onConnection, port, bindHost, state };
+        const opts = { onConnection, port, bindHost, state, onError };
         if (staticDir) {
           return listenWithHttp(staticDir, opts);
         }

@@ -274,4 +274,40 @@ describe('DenoWsAdapter', () => {
 
     expect(allMessages).toEqual(['from-1', 'from-2']);
   });
+
+  it('buffers messages arriving before onMessage handler is set', async () => {
+    const adapter = new DenoWsAdapter();
+    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    let savedConn = null;
+    /** @type {string[]} */
+    const received = [];
+
+    server = adapter.createServer((conn) => {
+      // Save conn but DON'T call onMessage yet
+      savedConn = conn;
+    });
+    await server.listen(0);
+
+    const socket = mock.simulateUpgrade();
+    // Messages arrive before onMessage handler is registered
+    if (socket.onmessage) {
+      socket.onmessage({ data: 'early-1' });
+      socket.onmessage({ data: 'early-2' });
+    }
+
+    // No handler yet — messages should be buffered
+    expect(received).toHaveLength(0);
+
+    // Now set the handler — should flush buffered messages
+    expect(savedConn).not.toBeNull();
+    const conn = /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection} */ (/** @type {unknown} */ (savedConn));
+    conn.onMessage((/** @type {string} */ msg) => { received.push(msg); });
+    expect(received).toEqual(['early-1', 'early-2']);
+
+    // Subsequent messages go directly to handler
+    if (socket.onmessage) {
+      socket.onmessage({ data: 'late-1' });
+    }
+    expect(received).toEqual(['early-1', 'early-2', 'late-1']);
+  });
 });

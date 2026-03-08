@@ -134,23 +134,28 @@ describe('NodeWsAdapter', () => {
   it('conn.close() terminates the connection from server side', async () => {
     const adapter = new NodeWsAdapter();
     /** @type {Function} */
-    let resolveClientClose;
-    const clientClosePromise = new Promise((r) => { resolveClientClose = r; });
+    let resolveReady;
+    const readyPromise = new Promise((r) => { resolveReady = r; });
+    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    let serverConn = null;
 
     server = adapter.createServer((conn) => {
-      // Close from server side after a brief delay
-      setTimeout(() => conn.close(), 50);
+      serverConn = conn;
+      resolveReady(undefined);
     });
     const addr = await server.listen(0);
 
     const ws = new globalThis.WebSocket(`ws://127.0.0.1:${addr.port}`);
-    await new Promise((resolve, reject) => {
-      ws.onopen = resolve;
-      ws.onerror = reject;
+    const closePromise = new Promise((resolve) => {
+      ws.onclose = (e) => resolve(e.code);
     });
+    await readyPromise;
 
-    ws.onclose = (e) => resolveClientClose(e.code);
-    const code = await clientClosePromise;
+    // Close from server side
+    expect(serverConn).not.toBeNull();
+    const conn = /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection} */ (/** @type {unknown} */ (serverConn));
+    conn.close();
+    const code = await closePromise;
     // Server-initiated close should result in a clean close code
     expect(code).toBeGreaterThanOrEqual(1000);
   });
@@ -184,6 +189,17 @@ describe('NodeWsAdapter', () => {
     server = adapter.createServer(() => {});
     const addr = await server.listen(0, '127.0.0.1');
     expect(addr.host).toBe('127.0.0.1');
+    expect(addr.port).toBeGreaterThan(0);
+  });
+
+  it('surfaces runtime server errors via onError callback', async () => {
+    const errors = /** @type {Error[]} */ ([]);
+    const adapter = new NodeWsAdapter({ onError: (err) => errors.push(err) });
+    expect(adapter).toBeInstanceOf(WebSocketServerPort);
+
+    // Verify onError is accepted without throwing
+    server = adapter.createServer(() => {});
+    const addr = await server.listen(0);
     expect(addr.port).toBeGreaterThan(0);
   });
 

@@ -31,7 +31,7 @@ function createBunMock() {
     mockServer,
     /** Simulate an incoming WebSocket connection */
     simulateConnection() {
-      const data = { messageHandler: null, closeHandler: null };
+      const data = { messageHandler: null, closeHandler: null, messageBuffer: [] };
       const ws = {
         readyState: 1,
         data,
@@ -210,21 +210,28 @@ describe('BunWsAdapter', () => {
   });
 
   it('close() awaits server.stop()', async () => {
-    const adapter = new BunWsAdapter();
-    server = adapter.createServer(() => {});
-    await server.listen(0);
+    vi.useFakeTimers();
+    try {
+      const adapter = new BunWsAdapter();
+      server = adapter.createServer(() => {});
+      await server.listen(0);
 
-    // Make stop() return a delayed promise to verify it's awaited
-    let stopResolved = false;
-    mock.mockServer.stop.mockImplementation(() =>
-      new Promise((resolve) => {
-        setTimeout(() => { stopResolved = true; resolve(undefined); }, 10);
-      }),
-    );
+      // Make stop() return a delayed promise to verify it's awaited
+      let stopResolved = false;
+      mock.mockServer.stop.mockImplementation(() =>
+        new Promise((resolve) => {
+          setTimeout(() => { stopResolved = true; resolve(undefined); }, 10);
+        }),
+      );
 
-    await server.close();
-    expect(stopResolved).toBe(true);
-    server = null; // already closed
+      const closePromise = server.close();
+      await vi.advanceTimersByTimeAsync(10);
+      await closePromise;
+      expect(stopResolved).toBe(true);
+      server = null; // already closed
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('close() is safe when server was never started', async () => {
@@ -243,6 +250,35 @@ describe('BunWsAdapter', () => {
     const resp = await mock.simulateFetch(new Request('http://localhost/'));
 
     expect(resp.status).toBe(404);
+  });
+
+  it('buffers messages arriving before onMessage handler is set', async () => {
+    const adapter = new BunWsAdapter();
+    /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection|null} */
+    let savedConn = null;
+    /** @type {string[]} */
+    const received = [];
+
+    server = adapter.createServer((conn) => {
+      // Save conn but DON'T call onMessage yet — simulates delayed setup
+      savedConn = conn;
+    });
+    await server.listen(0);
+
+    const ws = mock.simulateConnection();
+    // Messages arrive before onMessage handler is registered
+    mock.simulateMessage(ws, 'early-1');
+    mock.simulateMessage(ws, 'early-2');
+
+    // Now set the handler — should flush buffered messages
+    expect(savedConn).not.toBeNull();
+    const conn = /** @type {import('../../../../src/ports/WebSocketServerPort.js').WsConnection} */ (/** @type {unknown} */ (savedConn));
+    conn.onMessage((/** @type {string} */ msg) => { received.push(msg); });
+    expect(received).toEqual(['early-1', 'early-2']);
+
+    // Subsequent messages go directly to handler
+    mock.simulateMessage(ws, 'late-1');
+    expect(received).toEqual(['early-1', 'early-2', 'late-1']);
   });
 
   it('handles multiple connections independently', async () => {
