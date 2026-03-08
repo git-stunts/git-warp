@@ -32,10 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test `Buffer` usage cleanup** — Replaced `Buffer.from()` in type-check consumer test and `Buffer.from(result.buffer)` in CasSeekCacheAdapter test with `TextEncoder`/`TextDecoder`.
 - **Duplicate `open()` in encryption test** — Consolidated redundant second `WarpGraph.open()` call in `WarpGraph.encryption.test.js` into a second assertion on the same promise.
 
-### Added
-
-- **`--writer-id` flag for `git warp serve`** — Allows setting an explicit, stable writer identity instead of the auto-derived `serve-<host>-<port>` value. Useful for reproducible testing and multi-instance orchestration where deterministic writer identities are needed.
-
 ### Changed
 
 - **BREAKING: Uint8Array migration** — All domain-layer and port contract types narrowed from `Buffer|Uint8Array` to `Uint8Array`. Return types of `readBlob()`, `hmac()`, `serialize()`, `getContent()`, `getEdgeContent()`, and all bitmap index methods now return `Uint8Array` instead of `Buffer`. Downstream TypeScript consumers using Buffer-specific APIs (`.toString('hex')`, `.equals()`) on return values must migrate to `hexEncode()`/`textDecode()` from `domain/utils/bytes.js` and standard comparison operators. Buffer is now confined to infrastructure adapters only.
@@ -49,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--writer-id` flag for `git warp serve`** — Allows setting an explicit, stable writer identity instead of the auto-derived `serve-<host>-<port>` value. Useful for reproducible testing and multi-instance orchestration where deterministic writer identities are needed.
 - **`src/domain/utils/bytes.js`** — Portable byte-manipulation utilities replacing Node.js Buffer methods: `hexEncode`, `hexDecode`, `base64Encode`, `base64Decode`, `concatBytes`, `textEncode`, `textDecode`. Works identically on Node, Bun, Deno, and browsers.
 - **ESLint `no-restricted-globals` for Buffer** — `Buffer` is now banned in `src/domain/**/*.js` via ESLint. Future regressions are caught at lint time.
 - **`git warp serve --expose` flag** — Binding to a non-loopback address now requires `--expose` to prevent accidental network exposure. Without the flag, the command exits with a usage error.
@@ -57,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bun + Deno WebSocket adapters** — `git warp serve` now auto-detects the runtime and uses native WebSocket APIs on all three platforms. `BunWsAdapter` uses `Bun.serve()` with the `websocket` handler option; `DenoWsAdapter` uses `Deno.serve()` + `Deno.upgradeWebSocket()`. The `serve` CLI command dynamically imports only the relevant adapter via `createWsAdapter()`, so the `ws` npm package is never loaded on Bun/Deno.
 - **Static file serving** — `git warp serve --static <dir>` serves a built SPA (or any static directory) over HTTP on the same port as the WebSocket server. Supports SPA client-side routing fallback, correct MIME types for common web assets, and path traversal protection.
 - **Browser-compatible `InMemoryGraphAdapter`** — Replaced hard `node:crypto` and `node:stream` imports with lazy-loaded fallbacks. A new `hash` constructor option lets callers inject a synchronous SHA-1 function for environments where `node:crypto` is unavailable (e.g. browsers). `node:stream` is now dynamically imported only in `logNodesStream()`.
-- **Browser-safe `defaultCrypto`** — The domain-level crypto default now lazy-loads `node:crypto` via top-level `await import()` with a try/catch, so importing `WarpGraph` in a browser no longer crashes at module evaluation time. Callers must inject crypto via `WarpGraph.open({ crypto })` when `node:crypto` is unavailable.
+- **Browser-safe `defaultCrypto`** — The domain-level crypto default now lazy-loads `node:crypto` via top-level `await import()` with a try/catch, so importing `WarpGraph` in a browser no longer crashes at module evaluation time. Callers must inject a CryptoPort explicitly when `node:crypto` is unavailable.
 - **`sha1sync` utility** (`@git-stunts/git-warp/sha1sync`) — Minimal synchronous SHA-1 implementation (~110 LOC) for browser content addressing with `InMemoryGraphAdapter`. Not for security — only for Git object ID computation.
 - **`browser.js` entry point** (`@git-stunts/git-warp/browser`) — Curated re-export of browser-safe code: `WarpGraph`, `InMemoryGraphAdapter`, `WebCryptoAdapter`, CRDT primitives, errors, and `generateWriterId`. No `node:` imports in the critical path.
 - **Documentation enhancements in README.md** — Added a high-level Documentation Map, a detailed Graph Traversal Directory, an expanded Time-Travel (Seek) guide, and updated Runtime Compatibility information (Node.js, Bun, Deno).

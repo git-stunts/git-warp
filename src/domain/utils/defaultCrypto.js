@@ -7,8 +7,8 @@
  * defaultCodec.js and defaultClock.js.
  *
  * In Node/Bun/Deno, node:crypto loads normally. In browsers,
- * the import fails silently and callers must inject crypto via
- * WarpGraph.open({ crypto }).
+ * the import fails silently and callers must inject a CryptoPort
+ * explicitly.
  *
  * @module domain/utils/defaultCrypto
  */
@@ -26,7 +26,7 @@ try {
   _createHmac = nodeCrypto.createHmac;
   _timingSafeEqual = nodeCrypto.timingSafeEqual;
 } catch {
-  // Browser — caller must inject crypto via WarpGraph.open({ crypto })
+  // Browser — caller must inject a CryptoPort explicitly
 }
 
 /** @type {import('../../ports/CryptoPort.js').default} */
