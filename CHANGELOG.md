@@ -24,7 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING: Uint8Array migration** — All domain-layer and port contract types narrowed from `Buffer|Uint8Array` to `Uint8Array`. Return types of `readBlob()`, `hmac()`, `serialize()`, `getContent()`, `getEdgeContent()`, and all bitmap index methods now return `Uint8Array` instead of `Buffer`. Downstream TypeScript consumers using Buffer-specific APIs (`.toString('hex')`, `.equals()`) on return values must migrate to `hexEncode()`/`textDecode()` from `domain/utils/bytes.js` and standard comparison operators. Buffer is now confined to infrastructure adapters only.
-- **`TrustCrypto` moved to infrastructure** — `src/domain/trust/TrustCrypto.js` is now a re-export shim; the implementation lives in `src/infrastructure/adapters/TrustCryptoAdapter.js` since it uses `node:crypto` directly. Existing import paths continue to work.
+- **`TrustCrypto` re-export shim deleted** — `src/domain/trust/TrustCrypto.js` (which re-exported from infrastructure) has been removed. Import directly from `src/infrastructure/adapters/TrustCryptoAdapter.js`. The domain layer no longer contains any infrastructure imports.
+- **`buildSeekCacheKey` is now async** — Replaced direct `node:crypto` import with domain-local `defaultCrypto.hash()`, eliminating a hexagonal boundary violation. Both call sites were already async.
+- **`process.stdout.columns` removed from visualization layer** — Terminal width is now injected from the CLI presenter (composition root). The visualization layer no longer references Node-only globals.
+- **HTTP adapter DRY cleanup** — Shared `toPortRequest()`, error body constants, and pre-encoded byte arrays extracted into `httpAdapterUtils.js`. BunHttpAdapter and DenoHttpAdapter now import from the shared module.
+- **Lazy CAS init extracted** — The duplicated lazy-promise-with-error-reset pattern in `CasBlobAdapter._getCas()` and `CasSeekCacheAdapter._getCas()` replaced with shared `createLazyCas()` factory in `lazyCasInit.js`.
 - **`computeRecordId()` and `verifyRecordId()` are now async** — These functions in `TrustCanonical.js` now use the injected `CryptoPort` instead of importing `node:crypto` directly. Callers must `await` the result.
 - **`hmac()` returns `Uint8Array`** — `NodeCryptoAdapter.hmac()`, `WebCryptoAdapter.hmac()`, and `defaultCrypto.hmac()` now return `Uint8Array` instead of `Buffer`. The raw HMAC digest bytes are identical; only the wrapper type changed.
 
