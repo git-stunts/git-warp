@@ -122,7 +122,7 @@ describe('handleStaticRequest', () => {
 
     const result = await handleStaticRequest(root, '/escape.txt');
     // The symlink target is outside root — must not serve it
-    expect(result.status).not.toBe(200);
+    expect(result.status).toBe(404);
 
     await rm(join(root, 'escape.txt'));
     await rm(outsideDir, { recursive: true, force: true });

@@ -68,6 +68,14 @@ function toBytes(data) {
 
 // ── Lazy node:crypto for default hash ────────────────────────────────
 
+/**
+ * Module-level crypto probe state — intentionally shared across all
+ * InMemoryGraphAdapter instances.  The probe runs at most once per
+ * process; subsequent instances reuse the cached result.  This avoids
+ * repeated dynamic `import('node:crypto')` calls which are both slow
+ * and unnecessary (the availability of node:crypto doesn't change
+ * within a single process lifetime).
+ */
 /** @type {Function|null} */
 let _nodeCreateHash = null;
 /** @type {boolean} */

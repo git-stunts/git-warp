@@ -84,6 +84,18 @@ describe('bytes utilities', () => {
       const result = base64Decode('SGVsbG8=');
       expect(new TextDecoder().decode(result)).toBe('Hello');
     });
+
+    it('rejects base64 with length % 4 === 1', () => {
+      expect(() => base64Decode('AAAAA')).toThrow(RangeError);
+      expect(() => base64Decode('A')).toThrow(RangeError);
+    });
+
+    it('decodes valid unpadded base64', () => {
+      // "AA" is 2 chars (length % 4 === 2) — valid, decodes to 1 byte
+      expect(base64Decode('AA')).toEqual(new Uint8Array([0]));
+      // "AAA" is 3 chars (length % 4 === 3) — valid, decodes to 2 bytes
+      expect(base64Decode('AAA')).toEqual(new Uint8Array([0, 0]));
+    });
   });
 
   describe('concatBytes', () => {

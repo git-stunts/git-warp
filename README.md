@@ -552,7 +552,7 @@ git warp history --writer alice
 git warp check
 
 # Start WebSocket server for browser viewer
-git warp serve [--port 3000] [--host 127.0.0.1] [--static <dir>]
+git warp serve [--port 3000] [--host 127.0.0.1] [--static <dir>] [--expose] [--writer-id <id>]
 ```
 
 ### Time-Travel (Seek)

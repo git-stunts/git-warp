@@ -37,28 +37,22 @@ vi.mock('../../../../src/infrastructure/adapters/DenoWsAdapter.js', () => ({
   default: MockWsAdapter,
 }));
 
-vi.mock('../../../../src/domain/services/WarpServeService.js', () => {
-  /** @type {any} */
-  let instance = null;
-  return {
-    default: class MockWarpServeService {
-      constructor(/** @type {any} */ opts) {
-        this.opts = opts;
-        this.listenCalled = false;
-        this.closeCalled = false;
-        instance = this;
-      }
-      async listen(/** @type {number} */ port, /** @type {string} */ host) {
-        this.listenCalled = true;
-        this.listenPort = port;
-        this.listenHost = host;
-        return { port, host };
-      }
-      async close() { this.closeCalled = true; }
-      static getInstance() { return instance; }
-    },
-  };
-});
+vi.mock('../../../../src/domain/services/WarpServeService.js', () => ({
+  default: class MockWarpServeService {
+    constructor(/** @type {any} */ opts) {
+      this.opts = opts;
+      this.listenCalled = false;
+      this.closeCalled = false;
+    }
+    async listen(/** @type {number} */ port, /** @type {string} */ host) {
+      this.listenCalled = true;
+      this.listenPort = port;
+      this.listenHost = host;
+      return { port, host };
+    }
+    async close() { this.closeCalled = true; }
+  },
+}));
 
 // Must import AFTER mocks are set up
 const { createPersistence, listGraphNames } = await import('../../../../bin/cli/shared.js');

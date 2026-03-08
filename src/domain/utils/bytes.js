@@ -111,6 +111,24 @@ export function base64Encode(bytes) {
 }
 
 /**
+ * Validates a base64 string's character set and length.
+ *
+ * @param {string} b64 - Base64-encoded string to validate
+ * @throws {RangeError} If the string contains invalid characters or has an
+ *   impossible length (length % 4 === 1 can never represent whole bytes).
+ */
+function validateBase64(b64) {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
+    throw new RangeError(`Invalid base64 string: ${b64.length > 20 ? `${b64.slice(0, 20)}…` : b64}`);
+  }
+  // Length % 4 === 1 is always invalid (a single base64 char encodes only 6 bits,
+  // which cannot form a complete byte). Accept 0, 2, 3 (unpadded) and 0 (padded).
+  if (b64.length % 4 === 1) {
+    throw new RangeError(`Invalid base64 string (bad length ${b64.length}): ${b64.length > 20 ? `${b64.slice(0, 20)}…` : b64}`);
+  }
+}
+
+/**
  * Decodes a base64 string to a Uint8Array.
  *
  * Uses a direct table-based implementation that avoids intermediate binary
@@ -120,9 +138,7 @@ export function base64Encode(bytes) {
  * @returns {Uint8Array}
  */
 export function base64Decode(b64) {
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
-    throw new RangeError(`Invalid base64 string: ${b64.length > 20 ? `${b64.slice(0, 20)}…` : b64}`);
-  }
+  validateBase64(b64);
   let len = b64.length;
   if (b64[len - 1] === '=') { len--; }
   if (b64[len - 1] === '=') { len--; }
