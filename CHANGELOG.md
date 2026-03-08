@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING: Uint8Array migration** — All domain-layer and port contract types narrowed from `Buffer|Uint8Array` to `Uint8Array`. Return types of `readBlob()`, `hmac()`, `serialize()`, `getContent()`, `getEdgeContent()`, and all bitmap index methods now return `Uint8Array` instead of `Buffer`. Downstream TypeScript consumers using Buffer-specific APIs (`.toString('hex')`, `.equals()`) on return values must migrate to `hexEncode()`/`textDecode()` from `domain/utils/bytes.js` and standard comparison operators. Buffer is now confined to infrastructure adapters only.
+- **`TrustCrypto` moved to infrastructure** — `src/domain/trust/TrustCrypto.js` is now a re-export shim; the implementation lives in `src/infrastructure/adapters/TrustCryptoAdapter.js` since it uses `node:crypto` directly. Existing import paths continue to work.
+- **`computeRecordId()` and `verifyRecordId()` are now async** — These functions in `TrustCanonical.js` now use the injected `CryptoPort` instead of importing `node:crypto` directly. Callers must `await` the result.
+- **`hmac()` returns `Uint8Array`** — `NodeCryptoAdapter.hmac()`, `WebCryptoAdapter.hmac()`, and `defaultCrypto.hmac()` now return `Uint8Array` instead of `Buffer`. The raw HMAC digest bytes are identical; only the wrapper type changed.
+
+### Added
+
+- **`src/domain/utils/bytes.js`** — Portable byte-manipulation utilities replacing Node.js Buffer methods: `hexEncode`, `hexDecode`, `base64Encode`, `base64Decode`, `concatBytes`, `textEncode`, `textDecode`. Works identically on Node, Bun, Deno, and browsers.
+- **ESLint `no-restricted-globals` for Buffer** — `Buffer` is now banned in `src/domain/**/*.js` via ESLint. Future regressions are caught at lint time.
+
 - **Browsa: architecture pivot to WebSocket** — Rewired the Vue app from in-memory `WarpGraph` instances to a live WebSocket connection via `WarpSocket`. The browser now connects to `git warp serve` and views/edits a real Git-backed graph. Replaced the 4-viewport multi-writer demo with a single-viewport, single-connection model. All mutations go through `socket.mutate()` and state updates arrive via server-pushed diffs.
 
 ### Removed

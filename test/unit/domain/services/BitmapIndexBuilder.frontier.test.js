@@ -41,8 +41,8 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
 
     const tree = await builder.serialize({ frontier });
 
-    expect(tree['frontier.cbor']).toBeInstanceOf(Buffer);
-    expect(tree['frontier.json']).toBeInstanceOf(Buffer);
+    expect(tree['frontier.cbor']).toBeInstanceOf(Uint8Array);
+    expect(tree['frontier.json']).toBeInstanceOf(Uint8Array);
   });
 
   it('CBOR roundtrip: decode → verify envelope structure', async () => {
@@ -72,7 +72,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
 
     const tree = await builder.serialize({ frontier });
     const cborEnvelope = cborDecode(tree['frontier.cbor']);
-    const jsonEnvelope = JSON.parse(tree['frontier.json'].toString('utf-8'));
+    const jsonEnvelope = JSON.parse(new TextDecoder().decode(tree['frontier.json']));
 
     expect(jsonEnvelope).toEqual(cborEnvelope);
   });
@@ -86,7 +86,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     ]);
 
     const tree = await builder.serialize({ frontier });
-    const envelope = JSON.parse(tree['frontier.json'].toString('utf-8'));
+    const envelope = JSON.parse(new TextDecoder().decode(tree['frontier.json']));
     const keys = Object.keys(envelope.frontier);
 
     expect(keys).toEqual(['alpha', 'mike', 'zulu']);
@@ -117,7 +117,7 @@ describe('BitmapIndexBuilder frontier metadata (GK/IDX/1)', () => {
     // All non-frontier entries should be identical
     for (const key of Object.keys(treeWithout)) {
       expect(treeWith[key]).toBeDefined();
-      expect(treeWith[key].equals(treeWithout[key])).toBe(true);
+      expect(treeWith[key]).toEqual(treeWithout[key]);
     }
 
     // Frontier files are extra

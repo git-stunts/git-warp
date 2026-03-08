@@ -31,7 +31,7 @@ function toWebCryptoAlgo(algorithm) {
 
 /**
  * Converts input data to a Uint8Array for Web Crypto API consumption.
- * @param {string|Buffer|Uint8Array} data - Input data
+ * @param {string|Uint8Array} data - Input data
  * @returns {Uint8Array} Data as Uint8Array
  * @throws {Error} If data type is not supported
  */
@@ -79,7 +79,7 @@ export default class WebCryptoAdapter extends CryptoPort {
 
   /**
    * @param {string} algorithm
-   * @param {string|Buffer|Uint8Array} data
+   * @param {string|Uint8Array} data
    * @returns {Promise<string>}
    */
   async hash(algorithm, data) {
@@ -92,8 +92,8 @@ export default class WebCryptoAdapter extends CryptoPort {
 
   /**
    * @param {string} algorithm
-   * @param {string|Buffer|Uint8Array} key
-   * @param {string|Buffer|Uint8Array} data
+   * @param {string|Uint8Array} key
+   * @param {string|Uint8Array} data
    * @returns {Promise<Uint8Array>}
    */
   async hmac(algorithm, key, data) {
@@ -115,9 +115,9 @@ export default class WebCryptoAdapter extends CryptoPort {
    * Uses XOR accumulation with no early exit to prevent timing attacks.
    * This is the standard approach when crypto.timingSafeEqual is unavailable.
    *
-   * @param {Buffer|Uint8Array} a - First buffer
-   * @param {Buffer|Uint8Array} b - Second buffer
-   * @returns {boolean} True if buffers are equal
+   * @param {Uint8Array} a - First byte array
+   * @param {Uint8Array} b - Second byte array
+   * @returns {boolean} True if byte arrays are equal
    */
   timingSafeEqual(a, b) {
     if (a.length !== b.length) { return false; }

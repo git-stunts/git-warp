@@ -13,9 +13,13 @@ import path from 'node:path';
 
 const TRUST_DIR = path.resolve('src/domain/trust');
 
+// TrustCrypto.js is an intentional re-export shim — the implementation
+// lives in infrastructure because it uses node:crypto + Buffer directly.
+const RE_EXPORT_SHIMS = new Set(['TrustCrypto.js']);
+
 function getTrustFiles() {
   return fs.readdirSync(TRUST_DIR)
-    .filter((f) => f.endsWith('.js'))
+    .filter((f) => f.endsWith('.js') && !RE_EXPORT_SHIMS.has(f))
     .map((f) => ({
       name: f,
       content: fs.readFileSync(path.join(TRUST_DIR, f), 'utf8'),

@@ -75,7 +75,7 @@ describe('BitmapIndexBuilder', () => {
       builder.addEdge('aabbcc', 'aaddee');
 
       const tree = await builder.serialize();
-      const envelope = JSON.parse(tree['shards_fwd_aa.json'].toString());
+      const envelope = JSON.parse(new TextDecoder().decode(tree['shards_fwd_aa.json']));
 
       // Shard is wrapped in version/checksum envelope
       expect(envelope.version).toBeDefined();
@@ -90,15 +90,15 @@ describe('BitmapIndexBuilder', () => {
       const tree = await builder.serialize();
 
       // Check meta shard
-      const metaEnvelope = JSON.parse(tree['meta_aa.json'].toString());
+      const metaEnvelope = JSON.parse(new TextDecoder().decode(tree['meta_aa.json']));
       expect(metaEnvelope.version).toBe(2);
 
       // Check forward shard
-      const fwdEnvelope = JSON.parse(tree['shards_fwd_aa.json'].toString());
+      const fwdEnvelope = JSON.parse(new TextDecoder().decode(tree['shards_fwd_aa.json']));
       expect(fwdEnvelope.version).toBe(2);
 
       // Check reverse shard
-      const revEnvelope = JSON.parse(tree['shards_rev_dd.json'].toString());
+      const revEnvelope = JSON.parse(new TextDecoder().decode(tree['shards_rev_dd.json']));
       expect(revEnvelope.version).toBe(2);
     });
 
@@ -107,7 +107,7 @@ describe('BitmapIndexBuilder', () => {
       builder.registerNode('testsha1');
 
       const tree = await builder.serialize();
-      const envelope = JSON.parse(tree['meta_te.json'].toString());
+      const envelope = JSON.parse(new TextDecoder().decode(tree['meta_te.json']));
 
       expect(envelope.version).toBe(SHARD_VERSION);
     });
