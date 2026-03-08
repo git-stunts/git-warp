@@ -29,7 +29,7 @@ interface DenoServer {
 interface DenoServeOptions {
   port?: number;
   hostname?: string;
-  onListen?: () => void;
+  onListen?: (addr?: { port: number; hostname: string }) => void;
 }
 
 interface DenoEnv {

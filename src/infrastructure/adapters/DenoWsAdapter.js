@@ -82,7 +82,7 @@ export default class DenoWsAdapter extends WebSocketServerPort {
               port,
               hostname: bindHost,
               onListen() {
-                resolve({ port, host: bindHost });
+                resolve({ port: server.addr.port, host: bindHost });
               },
             },
             async (req) => {

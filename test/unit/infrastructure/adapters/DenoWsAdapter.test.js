@@ -18,8 +18,14 @@ function createDenoMock() {
     env: { get: vi.fn() },
     serve: vi.fn().mockImplementation((opts, requestHandler) => {
       handler = requestHandler;
+      const assignedPort = opts.port || 49152;
       mockServer = {
         shutdown: vi.fn().mockResolvedValue(undefined),
+        addr: {
+          transport: 'tcp',
+          hostname: opts.hostname || '127.0.0.1',
+          port: assignedPort,
+        },
       };
       // Fire onListen asynchronously, matching Deno's behavior
       if (opts.onListen) {
@@ -112,6 +118,16 @@ describe('DenoWsAdapter', () => {
     expect(globalThis.Deno.serve).toHaveBeenCalledTimes(1);
     expect(addr.port).toBe(4000);
     expect(addr.host).toBe('0.0.0.0');
+  });
+
+  it('resolves actual port when port 0 is requested', async () => {
+    const adapter = new DenoWsAdapter();
+    server = adapter.createServer(() => {});
+    const addr = await server.listen(0);
+
+    // Port 0 means OS-assigned — the mock assigns 49152
+    expect(addr.port).not.toBe(0);
+    expect(addr.port).toBe(49152);
   });
 
   it('uses 127.0.0.1 as default host', async () => {
