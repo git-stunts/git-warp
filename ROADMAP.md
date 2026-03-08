@@ -273,11 +273,11 @@ Low urgency. Fold into PRs that already touch related files.
 
 ### P7 — git-cas Modernization
 
-Upgrade from `@git-stunts/git-cas` v3.0.0 to v5.2.4 and leverage new capabilities. Currently git-warp only uses git-cas for the seek cache (`CasSeekCacheAdapter`). The v4.x/v5.x releases add ObservabilityPort, streaming restore, CDC chunking (98.4% chunk reuse on edits), envelope encryption (DEK/KEK), and key rotation.
+Upgrade from `@git-stunts/git-cas` v3.0.0 to v5.3.0 and leverage new capabilities. Currently git-warp uses git-cas for the seek cache (`CasSeekCacheAdapter`) and blob attachments (`CasBlobAdapter`). The v4.x/v5.x releases add ObservabilityPort, streaming restore, CDC chunking (98.4% chunk reuse on edits), envelope encryption (DEK/KEK), key rotation, memory restore guards, and constructor validation.
 
 | ID | Item | Effort |
 |----|------|--------|
-| B158 | ✅ **UPGRADE `@git-stunts/git-cas` TO v5** — bumped `^3.0.0` → `^5.2.4`. 4872 tests pass, zero regressions. | S |
+| B158 | ✅ **UPGRADE `@git-stunts/git-cas` TO v5** — bumped `^3.0.0` → `^5.3.0`. 4928 tests pass, zero regressions. | S |
 | B159 | ✅ **CDC CHUNKING FOR SEEK CACHE** — `CasSeekCacheAdapter._initCas()` now constructs CAS with `chunking: { strategy: 'cdc' }`. ~98% chunk reuse on incremental snapshots. | S |
 | B160 | ✅ **BLOB ATTACHMENTS VIA CAS** — New `BlobStoragePort` + `CasBlobAdapter` provide a hexagonal abstraction for content blob storage. `PatchBuilderV2.attachContent()`/`attachEdgeContent()` use CAS (chunked, CDC-deduped, optionally encrypted) when `blobStorage` is injected; fall back to raw `persistence.writeBlob()` without it. `getContent()`/`getEdgeContent()` retrieve via `blobStorage.retrieve()` with automatic fallback to raw Git blobs for pre-CAS content. Wired through `WarpGraph`, `Writer`, and all patch creation paths. 16 new tests (4909 total). | M |
 | B161 | ✅ **ENCRYPTED SEEK CACHE** — `CasSeekCacheAdapter` now accepts optional `encryptionKey` constructor param. When set, all `store()` and `restore()` calls pass the key to git-cas for AES-256-GCM encryption/decryption. 6 new tests (52 total). | S |

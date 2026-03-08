@@ -109,7 +109,7 @@
   },
   "dependencies": {
     "@git-stunts/alfred": "^0.4.0",
-    "@git-stunts/git-cas": "^5.2.4",
+    "@git-stunts/git-cas": "^5.3.0",
     "@git-stunts/plumbing": "^2.8.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "boxen": "^7.1.1",
