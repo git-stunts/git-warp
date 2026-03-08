@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`git warp serve` writerId validation** — The auto-generated writerId (`serve:host:port`) contained colons, which are not allowed by `validateWriterId`. Now sanitizes to `serve-host-port` by replacing invalid characters with dashes.
-- **Browsa WebSocket default URL** — Hardcoded `ws://localhost:3000` replaced with `window.location`-derived URL, so `--static` serving on any port connects correctly without needing `?server=` param.
+- **Inspector WebSocket default URL** — Hardcoded `ws://localhost:3000` replaced with `window.location`-derived URL, so `--static` serving on any port connects correctly without needing `?server=` param.
 - **JSDoc type annotations** — Resolved 39 pre-existing `tsc --noEmit` strict-mode errors across 17 source files. Added missing `encrypted`, `blobStorage`, and `patchBlobStorage` fields to JSDoc `@param`/`@typedef` types; created `WarpGraphWithMixins` typedef for mixin methods calling `_readPatchBlob`; installed `@types/ws` for Node WebSocket adapter; fixed `Uint8Array<ArrayBufferLike>` assignability issues; narrowed `chunking.strategy` literal types for CAS adapters; added type annotations to callback parameters in WS adapters.
 
 ### Changed
@@ -25,14 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`src/domain/utils/bytes.js`** — Portable byte-manipulation utilities replacing Node.js Buffer methods: `hexEncode`, `hexDecode`, `base64Encode`, `base64Decode`, `concatBytes`, `textEncode`, `textDecode`. Works identically on Node, Bun, Deno, and browsers.
 - **ESLint `no-restricted-globals` for Buffer** — `Buffer` is now banned in `src/domain/**/*.js` via ESLint. Future regressions are caught at lint time.
 
-- **Browsa: architecture pivot to WebSocket** — Rewired the Vue app from in-memory `WarpGraph` instances to a live WebSocket connection via `WarpSocket`. The browser now connects to `git warp serve` and views/edits a real Git-backed graph. Replaced the 4-viewport multi-writer demo with a single-viewport, single-connection model. All mutations go through `socket.mutate()` and state updates arrive via server-pushed diffs.
+- **Inspector: architecture pivot to WebSocket** — Rewired the Vue app from in-memory `WarpGraph` instances to a live WebSocket connection via `WarpSocket`. The browser now connects to `git warp serve` and views/edits a real Git-backed graph. Replaced the 4-viewport multi-writer demo with a single-viewport, single-connection model. All mutations go through `socket.mutate()` and state updates arrive via server-pushed diffs.
 
 ### Removed
 
-- **Browsa: scenario runner** — Removed `ScenarioPanel.vue` and all scenario infrastructure. Multi-writer scenarios don't apply to the single-connection WebSocket model.
-- **Browsa: in-memory sync** — Removed `InProcessSyncBus.js` and `InsecureCryptoAdapter.js`. No in-memory sync or browser-side crypto needed with the server-backed architecture.
-- **Browsa: multi-viewport grid** — Removed 4-viewport layout, sync buttons, and online/offline toggles. Multiple browser windows serve the multi-writer use case instead.
-- **Browsa: Vite stubs** — Removed `src/stubs/` directory (empty.js, node-crypto.js, node-stream.js, node-module.js), `trailerCodecBufferShim()` plugin, and all resolve aliases. The browser no longer imports git-warp — it communicates via WebSocket only.
+- **Inspector: scenario runner** — Removed `ScenarioPanel.vue` and all scenario infrastructure. Multi-writer scenarios don't apply to the single-connection WebSocket model.
+- **Inspector: in-memory sync** — Removed `InProcessSyncBus.js` and `InsecureCryptoAdapter.js`. No in-memory sync or browser-side crypto needed with the server-backed architecture.
+- **Inspector: multi-viewport grid** — Removed 4-viewport layout, sync buttons, and online/offline toggles. Multiple browser windows serve the multi-writer use case instead.
+- **Inspector: Vite stubs** — Removed `src/stubs/` directory (empty.js, node-crypto.js, node-stream.js, node-module.js), `trailerCodecBufferShim()` plugin, and all resolve aliases. The browser no longer imports git-warp — it communicates via WebSocket only.
 
 ### Upgraded
 
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Bun + Deno WebSocket adapters** — `git warp serve` now auto-detects the runtime and uses native WebSocket APIs on all three platforms. `BunWsAdapter` uses `Bun.serve()` with the `websocket` handler option; `DenoWsAdapter` uses `Deno.serve()` + `Deno.upgradeWebSocket()`. The `serve` CLI command dynamically imports only the relevant adapter via `createWsAdapter()`, so the `ws` npm package is never loaded on Bun/Deno.
-- **Static file serving** — `git warp serve --static <dir>` serves a built SPA (or any static directory) over HTTP on the same port as the WebSocket server. Supports SPA client-side routing fallback, correct MIME types for common web assets, and path traversal protection. With a pre-built browsa directory, `git warp serve --static demo/browsa/dist` is a single command — no separate Vite dev server needed.
+- **Static file serving** — `git warp serve --static <dir>` serves a built SPA (or any static directory) over HTTP on the same port as the WebSocket server. Supports SPA client-side routing fallback, correct MIME types for common web assets, and path traversal protection. With a pre-built inspector, `git warp serve --static demo/browsa/dist` is a single command — no separate Vite dev server needed.
 - **Browser-compatible `InMemoryGraphAdapter`** — Replaced hard `node:crypto` and `node:stream` imports with lazy-loaded fallbacks. A new `hash` constructor option lets callers inject a synchronous SHA-1 function for environments where `node:crypto` is unavailable (e.g. browsers). `node:stream` is now dynamically imported only in `logNodesStream()`.
 - **Browser-safe `defaultCrypto`** — The domain-level crypto default now lazy-loads `node:crypto` via top-level `await import()` with a try/catch, so importing `WarpGraph` in a browser no longer crashes at module evaluation time. Callers must inject crypto via `WarpGraph.open({ crypto })` when `node:crypto` is unavailable.
 - **`sha1sync` utility** (`@git-stunts/git-warp/sha1sync`) — Minimal synchronous SHA-1 implementation (~110 LOC) for browser content addressing with `InMemoryGraphAdapter`. Not for security — only for Git object ID computation.
@@ -61,12 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Protocol payload validation** — All `WarpServeService` message handlers (`open`, `mutate`, `inspect`, `seek`) now validate incoming payloads for required fields and correct types before processing. Invalid payloads receive `E_INVALID_PAYLOAD` error envelopes.
 - **`hexDecode` input validation** — `hexDecode()` now throws `RangeError` on odd-length or non-hex input instead of silently coercing invalid characters to `0x00`.
 - **WarpSocket request timeout** — `WarpSocket._request()` now enforces a configurable timeout (default 30s). Pending requests that receive no server response reject with a timeout error instead of leaking forever.
-- **Vite `allowedHosts` scoped** — Browsa dev server no longer sets `allowedHosts: true`. Restricted to `localhost` and `127.0.0.1` to prevent DNS rebinding.
+- **Vite `allowedHosts` scoped** — Inspector dev server no longer sets `allowedHosts: true`. Restricted to `localhost` and `127.0.0.1` to prevent DNS rebinding.
 
 ### Fixed
 
-- **Browsa: "Go live" after time-travel** — `setCeiling(Infinity)` now calls `socket.open()` to re-materialize at head instead of sending `seek` with no ceiling (which the server rejected as invalid). Time-travel back to live state works correctly now.
-- **Browsa: localStorage persistence timing** — Server URL is now persisted to `localStorage` only after a successful connection, preventing a bad URL from locking users into a reconnect loop on reload.
+- **Inspector: "Go live" after time-travel** — `setCeiling(Infinity)` now calls `socket.open()` to re-materialize at head instead of sending `seek` with no ceiling (which the server rejected as invalid). Time-travel back to live state works correctly now.
+- **Inspector: localStorage persistence timing** — Server URL is now persisted to `localStorage` only after a successful connection, preventing a bad URL from locking users into a reconnect loop on reload.
 - **CasBlobAdapter error propagation** — `retrieve()` no longer silently falls back to raw Git blob reads on decryption, integrity, or permission errors. Only "not a CAS manifest" errors trigger the backward-compatibility fallback.
 - **Dead `writerIds` code removed** — `WarpServeService` no longer stores per-session `writerIds` from `open` messages. The field was populated but never consumed — all mutations use the server's writer identity.
 

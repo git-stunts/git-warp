@@ -594,9 +594,9 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
   <img src="docs/seek-demo.gif" alt="git warp seek time-travel demo" width="600">
 </p>
 
-### Browser Demo (Browsa)
+### Git WARP Inspector
 
-Browsa is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes. The serve command auto-detects Node, Bun, or Deno and uses the appropriate native WebSocket adapter.
+The Git WARP Inspector is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes. The serve command auto-detects Node, Bun, or Deno and uses the appropriate native WebSocket adapter.
 
 ```bash
 # Option 1: single command with pre-built SPA

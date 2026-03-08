@@ -1,10 +1,10 @@
-# Browsa Architecture Pivot — Task Plan
+# Git WARP Inspector — Architecture Pivot Task Plan
 
 Branch: `feat/browsa-serve`
 
 ## Goal
 
-Transform browsa from a self-contained in-memory demo into a real developer tool.
+Transform the browser demo from a self-contained in-memory demo into a real developer tool.
 The browser connects to a local `git warp serve` process over WebSocket, viewing
 and mutating live graph data from a real Git repository.
 
@@ -283,7 +283,7 @@ const props = await ws.inspect({ graph: 'default', nodeId: 'user:alice' });
 
 **Items:**
 - `--open` flag on `git warp serve`: auto-launch browser to the Vite dev server URL (or a built `index.html` served by the WS server itself)
-- Update `CHANGELOG.md` with the browsa pivot
+- Update `CHANGELOG.md` with the architecture pivot
 - Update `README.md` — add `git warp serve` to the CLI section
 - Update `ROADMAP.md` — mark B157 phases as complete, add new items if needed
 - Update `HELP_TEXT` in `infrastructure.js`

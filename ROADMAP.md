@@ -250,7 +250,7 @@ No hard dependencies. Pick up opportunistically after P2.
 |----|------|--------|
 | B155 | **`levels()` AS LIGHTWEIGHT `--view` LAYOUT** — `levels()` is exactly the Y-axis assignment a layered DAG layout needs. For simple DAGs, `levels()` + left-to-right X sweep could produce clean layouts without the 2.5MB ELK import. Offer `--view --layout=levels` as an instant rendering mode, reserving ELK for complex graphs. **Files:** `src/visualization/layouts/`, `bin/cli/commands/view.js` | M |
 | B156 | **STRUCTURAL DIFF VIA TRANSITIVE REDUCTION** — compute `transitiveReduction(stateA)` vs `transitiveReduction(stateB)` to produce a compact structural diff that strips implied edges and shows only "load-bearing" changes. Natural fit for H1 (Time-Travel Delta Engine) as `warp diff --mode=structural`. | L |
-| B157 | ✅ **BROWSER COMPATIBILITY (Operation Browsa, Phase 1-3)** — Make `InMemoryGraphAdapter` and `defaultCrypto` browser-safe by lazy-loading `node:crypto`/`node:stream`. New `sha1sync` utility for browser content addressing. New `browser.js` entry point and `./browser`+`./sha1sync` package exports. | M |
+| B157 | ✅ **BROWSER COMPATIBILITY (Phase 1-3)** — Make `InMemoryGraphAdapter` and `defaultCrypto` browser-safe by lazy-loading `node:crypto`/`node:stream`. New `sha1sync` utility for browser content addressing. New `browser.js` entry point and `./browser`+`./sha1sync` package exports. | M |
 
 ### P6 — Documentation & Process
 

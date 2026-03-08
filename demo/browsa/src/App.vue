@@ -15,8 +15,8 @@ function onGraphChange(event) {
   <div class="app-layout">
     <header class="app-header">
       <div class="header-left">
-        <h1>Browsa</h1>
-        <span class="subtitle">git-warp in the Browser</span>
+        <h1>Git WARP</h1>
+        <span class="subtitle">Inspector</span>
       </div>
       <div class="connection-bar">
         <span
