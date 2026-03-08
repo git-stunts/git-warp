@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`browser.d.ts` missing exports** — Added `WarpError`, `createVersionVector`, and `generateWriterId` type declarations to match `browser.js` runtime exports. Fixed `WarpGraph` re-export from default to named.
+- **`package.json` files array missing type declarations** — Added `browser.d.ts` and `sha1sync.d.ts` to the `files` array so npm consumers receive browser/sha1sync type definitions.
 - **`isLoopback()` wildcard address documentation** — Added JSDoc and test coverage to explicitly document that wildcard bind addresses (`0.0.0.0`, `::`, `0:0:0:0:0:0:0:0`) are not treated as loopback and require `--expose`.
 - **Browser and sha1sync subpath exports missing `types` field** — `package.json` `"./browser"` and `"./sha1sync"` exports now include `"types"` entries pointing to `browser.d.ts` and `sha1sync.d.ts`, enabling TypeScript resolution for subpath consumers.
 - **`jsr.json` missing `browser.js` in publish.include** — JSR consumers importing `@git-stunts/git-warp/browser` now receive the file.
