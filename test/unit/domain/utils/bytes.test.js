@@ -45,6 +45,18 @@ describe('bytes utilities', () => {
     it('handles uppercase input', () => {
       expect(hexDecode('FF')).toEqual(new Uint8Array([0xff]));
     });
+
+    it('throws RangeError for odd-length input', () => {
+      expect(() => hexDecode('abc')).toThrow(RangeError);
+    });
+
+    it('throws RangeError for non-hex characters', () => {
+      expect(() => hexDecode('zzzz')).toThrow(RangeError);
+    });
+
+    it('throws RangeError for mixed valid/invalid characters', () => {
+      expect(() => hexDecode('abgh')).toThrow(RangeError);
+    });
   });
 
   describe('base64Encode', () => {

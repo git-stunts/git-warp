@@ -291,7 +291,13 @@ export default class SyncAuthService {
     const expectedBuf = await this._crypto.hmac(HMAC_ALGO, secret, canonical);
     const receivedHex = request.headers['x-warp-signature'];
 
-    const receivedBuf = hexDecode(receivedHex);
+    /** @type {Uint8Array} */
+    let receivedBuf;
+    try {
+      receivedBuf = hexDecode(receivedHex);
+    } catch {
+      return fail('INVALID_SIGNATURE', 401);
+    }
 
     if (receivedBuf.length !== expectedBuf.length) {
       return fail('INVALID_SIGNATURE', 401);

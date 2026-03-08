@@ -35,7 +35,7 @@ describe('WarpGraph content attachment (query methods)', () => {
       updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
-      readBlob: vi.fn().mockResolvedValue(Buffer.from('hello world')),
+      readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('hello world')),
     };
 
     graph = await WarpGraph.open({
@@ -87,7 +87,7 @@ describe('WarpGraph content attachment (query methods)', () => {
 
   describe('getContent()', () => {
     it('reads and returns the blob buffer', async () => {
-      const buf = Buffer.from('# ADR 001\n\nSome content');
+      const buf = new TextEncoder().encode('# ADR 001\n\nSome content');
       mockPersistence.readBlob.mockResolvedValue(buf);
 
       setupGraphState(graph, (/** @type {any} */ state) => {
@@ -121,7 +121,7 @@ describe('WarpGraph content attachment (query methods)', () => {
 
   describe('getContent() with blobStorage', () => {
     it('uses blobStorage.retrieve() when blobStorage is provided', async () => {
-      const casBuf = Buffer.from('cas-stored content');
+      const casBuf = new TextEncoder().encode('cas-stored content');
       const blobStorage = {
         store: vi.fn(),
         retrieve: vi.fn().mockResolvedValue(casBuf),
@@ -142,7 +142,7 @@ describe('WarpGraph content attachment (query methods)', () => {
     });
 
     it('falls back to persistence.readBlob() when blobStorage is not provided', async () => {
-      const rawBuf = Buffer.from('raw blob');
+      const rawBuf = new TextEncoder().encode('raw blob');
       mockPersistence.readBlob.mockResolvedValue(rawBuf);
 
       setupGraphState(graph, (/** @type {any} */ state) => {
@@ -160,7 +160,7 @@ describe('WarpGraph content attachment (query methods)', () => {
 
   describe('getEdgeContent() with blobStorage', () => {
     it('uses blobStorage.retrieve() when blobStorage is provided', async () => {
-      const casBuf = Buffer.from('cas-edge content');
+      const casBuf = new TextEncoder().encode('cas-edge content');
       const blobStorage = {
         store: vi.fn(),
         retrieve: vi.fn().mockResolvedValue(casBuf),
@@ -218,7 +218,7 @@ describe('WarpGraph content attachment (query methods)', () => {
 
   describe('getEdgeContent()', () => {
     it('reads and returns the blob buffer', async () => {
-      const buf = Buffer.from('edge content');
+      const buf = new TextEncoder().encode('edge content');
       mockPersistence.readBlob.mockResolvedValue(buf);
 
       setupGraphState(graph, (/** @type {any} */ state) => {

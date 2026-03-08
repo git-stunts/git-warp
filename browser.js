@@ -42,6 +42,7 @@ export { createVersionVector } from './src/domain/crdt/VersionVector.js';
 // Errors
 export { default as WarpError } from './src/domain/errors/WarpError.js';
 export {
+  EncryptionError,
   ForkError,
   QueryError,
   StorageError,

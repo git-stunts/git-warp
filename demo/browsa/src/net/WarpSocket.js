@@ -107,7 +107,7 @@ export default class WarpSocket {
   /**
    * Subscribe to a graph and receive its current state.
    *
-   * @param {{ graph: string, writerId: string }} payload
+   * @param {{ graph: string, writerId?: string }} payload
    * @returns {Promise<StatePayload>}
    */
   open(payload) {

@@ -315,6 +315,83 @@ describe('WarpServeService', () => {
       expect(msg.payload.code).toBe('E_INVALID_OP');
     });
 
+    it('rejects mutate with wrong arg count', async () => {
+      const client = ws.simulateConnection();
+      // Open first
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-argc',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'addNode', args: [] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('mut-argc');
+      expect(msg.payload.code).toBe('E_INVALID_ARGS');
+    });
+
+    it('rejects mutate with wrong arg type', async () => {
+      const client = ws.simulateConnection();
+      // Open first
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-argt',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'addNode', args: [42] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('mut-argt');
+      expect(msg.payload.code).toBe('E_INVALID_ARGS');
+    });
+
+    it('allows wildcard arg types for setProperty value', async () => {
+      const client = ws.simulateConnection();
+      // Open first
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-wild',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'setProperty', args: ['node:1', 'color', 42] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('ack');
+      expect(msg.id).toBe('mut-wild');
+    });
+
     it('rejects mutate before open', async () => {
       const client = ws.simulateConnection();
       client.sent.length = 0;

@@ -30,6 +30,9 @@ function preprocess(msg) {
   padded.set(msg);
   padded[msg.length] = 0x80;
   const dv = new DataView(padded.buffer);
+  // SHA-1 spec requires 64-bit big-endian message length. High 32 bits at
+  // offset -8 are zero-initialized, so this is correct for messages < 512 MB.
+  // Messages >= 2^32 bits (~512 MB) would need the high word set explicitly.
   dv.setUint32(totalBytes - 4, bitLen, false);
 
   const blocks = [];

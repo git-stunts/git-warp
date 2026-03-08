@@ -37,6 +37,9 @@ export function hexEncode(bytes) {
  * @returns {Uint8Array}
  */
 export function hexDecode(hex) {
+  if (hex.length % 2 !== 0 || !/^[\da-fA-F]*$/.test(hex)) {
+    throw new RangeError(`Invalid hex string: ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`);
+  }
   const len = hex.length >>> 1;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {

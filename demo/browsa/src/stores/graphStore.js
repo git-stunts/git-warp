@@ -55,10 +55,12 @@ export const useGraphStore = defineStore('graph', () => {
       globalThis.localStorage?.setItem(STORAGE_KEY_WRITER, writerId.value);
     }
 
-    // Persist server URL
-    globalThis.localStorage?.setItem(STORAGE_KEY_SERVER, serverUrl.value);
-
     await connect();
+
+    // Persist server URL only after successful connection
+    if (connectionStatus.value === 'connected') {
+      globalThis.localStorage?.setItem(STORAGE_KEY_SERVER, serverUrl.value);
+    }
   }
 
   // ── connect() ─────────────────────────────────────────────────────
@@ -217,11 +219,13 @@ export const useGraphStore = defineStore('graph', () => {
     ceiling.value = value;
 
     try {
-      const opts = { graph: activeGraph.value };
-      if (value !== Infinity) {
-        opts.ceiling = value;
+      let state;
+      if (value === Infinity) {
+        // "Go live" — re-open the graph to get current head state
+        state = await socket.open({ graph: activeGraph.value, writerId: writerId.value });
+      } else {
+        state = await socket.seek({ graph: activeGraph.value, ceiling: value });
       }
-      const state = await socket.seek(opts);
       applyFullState(state);
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Seek failed';

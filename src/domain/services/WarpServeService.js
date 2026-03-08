@@ -35,6 +35,48 @@ const ALLOWED_MUTATE_OPS = new Set([
 ]);
 
 /**
+ * Expected argument signatures for each mutation op.
+ * Each entry specifies the count and types of required arguments.
+ * @type {Record<string, string[]>}
+ */
+const MUTATE_OP_SIGNATURES = {
+  addNode: ['string'],
+  removeNode: ['string'],
+  addEdge: ['string', 'string', 'string'],
+  removeEdge: ['string', 'string', 'string'],
+  setProperty: ['string', 'string', '*'],
+  setEdgeProperty: ['string', 'string', 'string', 'string', '*'],
+  attachContent: ['string', '*'],
+  attachEdgeContent: ['string', 'string', 'string', '*'],
+};
+
+/**
+ * Validates that args match the expected signature for an op.
+ *
+ * @param {string} op
+ * @param {unknown[]} args
+ * @returns {string|null} Error message if invalid, null if valid
+ */
+function validateMutateArgs(op, args) {
+  const sig = MUTATE_OP_SIGNATURES[op];
+  if (!sig) {
+    return `Unknown op: ${op}`;
+  }
+  if (!Array.isArray(args)) {
+    return `${op}: args must be an array`;
+  }
+  if (args.length !== sig.length) {
+    return `${op}: expected ${sig.length} args, got ${args.length}`;
+  }
+  for (let i = 0; i < sig.length; i++) {
+    if (sig[i] !== '*' && typeof args[i] !== sig[i]) {
+      return `${op}: arg[${i}] must be ${sig[i]}, got ${typeof args[i]}`;
+    }
+  }
+  return null;
+}
+
+/**
  * @typedef {import('../../ports/WebSocketServerPort.js').WsConnection} WsConnection
  * @typedef {import('../../ports/WebSocketServerPort.js').WsServerHandle} WsServerHandle
  */
@@ -62,18 +104,23 @@ const ALLOWED_MUTATE_OPS = new Set([
  * @returns {{ graph: string, nodes: Array<{ id: string, props: Record<string, unknown> }>, edges: Array<{ from: string, to: string, label: string }>, frontier: Record<string, number> }}
  */
 function serializeState(graphName, state) {
+  // Build node-to-props index to avoid O(nodes × props) scan
+  /** @type {Map<string, Record<string, unknown>>} */
+  const nodePropsMap = new Map();
+  for (const [key, reg] of state.prop) {
+    if (isEdgePropKey(key)) { continue; }
+    const decoded = decodePropKey(key);
+    let props = nodePropsMap.get(decoded.nodeId);
+    if (!props) {
+      props = {};
+      nodePropsMap.set(decoded.nodeId, props);
+    }
+    props[decoded.propKey] = lwwValue(reg);
+  }
+
   const nodes = [];
   for (const nodeId of orsetElements(state.nodeAlive)) {
-    /** @type {Record<string, unknown>} */
-    const props = {};
-    for (const [key, reg] of state.prop) {
-      if (isEdgePropKey(key)) { continue; }
-      const decoded = decodePropKey(key);
-      if (decoded.nodeId === nodeId) {
-        props[decoded.propKey] = lwwValue(reg);
-      }
-    }
-    nodes.push({ id: nodeId, props });
+    nodes.push({ id: nodeId, props: nodePropsMap.get(nodeId) || {} });
   }
 
   const edges = [];
@@ -240,9 +287,13 @@ export default class WarpServeService {
     }));
 
     conn.onMessage((msg) => {
-      this._onMessage(session, msg).catch(() => {
+      this._onMessage(session, msg).catch((err) => {
         // Errors are caught and sent as error envelopes inside _onMessage handlers.
         // This catch prevents unhandled rejection for truly unexpected failures.
+        session.conn.send(errorEnvelope(
+          'E_INTERNAL',
+          err instanceof Error ? err.message : 'Internal error',
+        ));
       });
     });
     conn.onClose(() => this._clients.delete(session));
@@ -368,9 +419,12 @@ export default class WarpServeService {
           session.conn.send(errorEnvelope('E_INVALID_OP', `Unknown mutation op: ${op}`, msg.id));
           return;
         }
-        if (typeof patch[op] === 'function') {
-          patch[op](...args);
+        const argError = validateMutateArgs(op, args);
+        if (argError) {
+          session.conn.send(errorEnvelope('E_INVALID_ARGS', argError, msg.id));
+          return;
         }
+        patch[op](...args);
       }
       const sha = await patch.commit();
       session.conn.send(envelope('ack', { sha }, msg.id));
