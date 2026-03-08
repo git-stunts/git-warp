@@ -121,8 +121,8 @@ describe('CasSeekCacheAdapter', () => {
       expect(adapter._ref).toBe(EXPECTED_REF);
     });
 
-    it('initialises _casPromise to null', () => {
-      expect(adapter._casPromise).toBeNull();
+    it('exposes _getCas as a function', () => {
+      expect(typeof adapter._getCas).toBe('function');
     });
 
     it('stores encryptionKey when provided', () => {
@@ -198,9 +198,8 @@ describe('CasSeekCacheAdapter', () => {
       };
 
       await expect(badAdapter._getCas()).rejects.toThrow('init failure');
-      expect(badAdapter._casPromise).toBeNull();
 
-      // Second call should retry and succeed
+      // Second call should retry and succeed (promise was reset on failure)
       await expect(badAdapter._getCas()).resolves.toBeDefined();
     });
   });

@@ -23,6 +23,7 @@
 
 import SeekCachePort from '../../ports/SeekCachePort.js';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.js';
+import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.js';
 import { Readable } from 'node:stream';
@@ -61,26 +62,11 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     this._graphName = graphName;
     this._maxEntries = maxEntries ?? DEFAULT_MAX_ENTRIES;
     this._ref = buildSeekCacheRef(graphName);
-    this._casPromise = null;
     /** @type {Uint8Array|undefined} */
     this._encryptionKey = encryptionKey;
     /** @type {import('../../ports/LoggerPort.js').default|undefined} */
     this._logger = logger;
-  }
-
-  /**
-   * Lazily initializes the ContentAddressableStore.
-   * @private
-   * @returns {Promise<CasStore>}
-   */
-  async _getCas() {
-    if (!this._casPromise) {
-      this._casPromise = this._initCas().catch((err) => {
-        this._casPromise = null;
-        throw err;
-      });
-    }
-    return await this._casPromise;
+    this._getCas = createLazyCas(() => this._initCas());
   }
 
   /**

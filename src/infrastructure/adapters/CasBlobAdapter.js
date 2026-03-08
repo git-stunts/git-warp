@@ -13,6 +13,7 @@
  */
 
 import BlobStoragePort from '../../ports/BlobStoragePort.js';
+import { createLazyCas } from './lazyCasInit.js';
 import { Readable } from 'node:stream';
 
 /** @typedef {{ readManifest: Function, restore: Function, store: Function, createTree: Function }} CasStore */
@@ -65,23 +66,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
     this._persistence = persistence;
     this._encryptionKey = encryptionKey;
     this._logger = logger;
-    this._casPromise = null;
-  }
-
-  /**
-   * Lazily initializes the CAS instance.
-   *
-   * @private
-   * @returns {Promise<CasStore>}
-   */
-  async _getCas() {
-    if (!this._casPromise) {
-      this._casPromise = this._initCas().catch((err) => {
-        this._casPromise = null;
-        throw err;
-      });
-    }
-    return await this._casPromise;
+    this._getCas = createLazyCas(() => this._initCas());
   }
 
   /**
