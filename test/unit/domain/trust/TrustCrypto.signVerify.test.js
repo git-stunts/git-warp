@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { createPrivateKey, sign } from 'node:crypto';
 import { computeSignaturePayload } from '../../../../src/domain/trust/TrustCanonical.js';
-import { verifySignature, computeKeyFingerprint } from '../../../../src/domain/trust/TrustCrypto.js';
+import { verifySignature, computeKeyFingerprint } from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
 import {
   KEY_ADD_1,
   KEY_ADD_2,

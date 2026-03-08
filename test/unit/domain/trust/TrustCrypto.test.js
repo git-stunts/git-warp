@@ -4,7 +4,7 @@ import {
   verifySignature,
   computeKeyFingerprint,
   SUPPORTED_ALGORITHMS,
-} from '../../../../src/domain/trust/TrustCrypto.js';
+} from '../../../../src/infrastructure/adapters/TrustCryptoAdapter.js';
 import TrustError from '../../../../src/domain/errors/TrustError.js';
 
 /** @type {string} */
