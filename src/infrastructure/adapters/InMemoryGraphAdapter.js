@@ -70,15 +70,34 @@ function toBytes(data) {
 
 /** @type {Function|null} */
 let _nodeCreateHash = null;
-try {
-  const nodeCrypto = await import('node:crypto');
-  _nodeCreateHash = nodeCrypto.createHash;
-} catch {
-  // Browser or non-Node runtime — hash must be injected via constructor
+/** @type {boolean} */
+let _cryptoProbed = false;
+
+/**
+ * Lazily probes for node:crypto on first call. Avoids top-level await
+ * which forces the module into async evaluation — problematic for
+ * bundlers and non-Node runtimes where the import always fails.
+ *
+ * @returns {Promise<Function|null>} createHash or null
+ */
+async function probeNodeCrypto() {
+  if (_cryptoProbed) {
+    return _nodeCreateHash;
+  }
+  _cryptoProbed = true;
+  try {
+    const nodeCrypto = await import('node:crypto');
+    _nodeCreateHash = nodeCrypto.createHash;
+  } catch {
+    // Browser or non-Node runtime — hash must be injected via constructor
+  }
+  return _nodeCreateHash;
 }
 
 /**
  * Default hash function using node:crypto SHA-1.
+ * Synchronous after the first call resolves the lazy probe.
+ *
  * @param {Uint8Array} data
  * @returns {string} 40-hex SHA
  */
@@ -171,6 +190,13 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     this._author = author || 'InMemory <inmemory@test>';
     this._clock = clock || { now: () => Date.now() };
     this._hash = hash || defaultHash;
+    // Eagerly kick off the async probe so node:crypto is resolved by the
+    // time the first hash call arrives. The probe is a no-op on repeat calls.
+    if (!hash) {
+      this._cryptoReady = probeNodeCrypto();
+    } else {
+      this._cryptoReady = Promise.resolve(null);
+    }
 
     /** @type {Map<string, {treeOid: string, parents: string[], message: string, author: string, date: string}>} */
     this._commits = new Map();
@@ -197,6 +223,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @returns {Promise<string>}
    */
   async writeTree(entries) {
+    await this._cryptoReady;
     const parsed = entries.map(line => {
       const tabIdx = line.indexOf('\t');
       if (tabIdx === -1) {
@@ -254,6 +281,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @returns {Promise<string>}
    */
   async writeBlob(content) {
+    await this._cryptoReady;
     const bytes = toBytes(content);
     const oid = hashBlob(this._hash, bytes);
     this._blobs.set(oid, bytes);
@@ -283,7 +311,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     for (const p of parents) {
       validateOid(p);
     }
-    return this._createCommit(EMPTY_TREE_OID, parents, message);
+    return await this._createCommit(EMPTY_TREE_OID, parents, message);
   }
 
   /**
@@ -295,7 +323,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     for (const p of parents) {
       validateOid(p);
     }
-    return this._createCommit(treeOid, parents, message);
+    return await this._createCommit(treeOid, parents, message);
   }
 
   /**
@@ -522,9 +550,10 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @param {string} treeOid
    * @param {string[]} parents
    * @param {string} message
-   * @returns {string}
+   * @returns {Promise<string>}
    */
-  _createCommit(treeOid, parents, message) {
+  async _createCommit(treeOid, parents, message) {
+    await this._cryptoReady;
     const date = new Date(this._clock.now()).toISOString();
     const sha = hashCommit(this._hash, {
       treeOid,
