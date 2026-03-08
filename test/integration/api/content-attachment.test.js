@@ -75,7 +75,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getEdgeContent('a', 'b', 'rel');
     expect(content).not.toBeNull();
-    expect(content.toString('utf8')).toBe('edge payload');
+    expect(new TextDecoder().decode(content)).toBe('edge payload');
 
     const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
     expect(oid).toMatch(/^[0-9a-f]+$/);
