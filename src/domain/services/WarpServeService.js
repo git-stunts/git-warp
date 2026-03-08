@@ -108,6 +108,10 @@ function serializeState(graphName, state) {
   /** @type {Map<string, Record<string, unknown>>} */
   const nodePropsMap = new Map();
   for (const [key, reg] of state.prop) {
+    // Edge properties are intentionally omitted in the MVP wire format.
+    // Edges are serialized as {from, to, label} only. A future protocol
+    // version should include edge props alongside node props.
+    // TODO: serialize edge properties when protocol supports them
     if (isEdgePropKey(key)) { continue; }
     const decoded = decodePropKey(key);
     let props = nodePropsMap.get(decoded.nodeId);
