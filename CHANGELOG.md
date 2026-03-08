@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`git warp serve` silent blob data loss** — Mutation ops like `attachContent` and `attachEdgeContent` are async (they write blobs), but `_applyMutateOps` was not awaiting them. `patch.commit()` could fire before the blob write completed. Now all ops are awaited.
+- **DenoWsAdapter port-0 resolution** — When binding to port 0 (OS-assigned), `onListen` resolved with the requested port (0) instead of the actual assigned port. Now reads `server.addr.port`, matching Node and Bun adapter behavior.
+- **Static file handler symlink traversal** — A symlink inside `staticDir` pointing outside the root could bypass `safePath()` and serve arbitrary files. `tryReadFile` now resolves symlinks with `realpath()` and re-checks the prefix before reading.
 - **`base64Encode` / `base64Decode` memory overhead** — Replaced intermediate binary string approach (`String.fromCharCode` / `charCodeAt` via `btoa`/`atob`) with direct table-based base64 encoding/decoding, eliminating memory spikes on large buffers (e.g., StreamingBitmapIndexBuilder shards).
 - **Static file handler null-byte bypass** — `safePath()` now re-checks for `\0` after `decodeURIComponent()` (prevents `%00` bypass) and catches malformed percent-encoding (e.g., `%ZZ`) instead of throwing.
 - **`git warp serve` writerId validation** — The auto-generated writerId (`serve:host:port`) contained colons, which are not allowed by `validateWriterId`. Now sanitizes to `serve-host-port` by replacing invalid characters with dashes.
