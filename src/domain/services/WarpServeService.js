@@ -385,6 +385,9 @@ export default class WarpServeService {
    * @private
    */
   async _onMessage(session, raw) {
+    // Approximate check: String.length counts UTF-16 code units, not bytes.
+    // For ASCII-heavy JSON this is close enough; multi-byte characters could
+    // make the actual byte count higher than the code-unit count.
     if (raw.length > 1_048_576) {
       session.conn.send(errorEnvelope('E_MESSAGE_TOO_LARGE', 'Message exceeds 1 MiB limit'));
       return;
