@@ -29,6 +29,7 @@ describe('createLazyCas', () => {
   });
 
   it('returns the same promise for concurrent callers', async () => {
+    /** @type {((value: string) => void) | undefined} */
     let resolveInit;
     const factory = vi.fn().mockImplementation(
       () => new Promise((resolve) => { resolveInit = resolve; }),
@@ -39,6 +40,7 @@ describe('createLazyCas', () => {
     const p2 = getCas();
     expect(p1).toBe(p2);
 
+    if (!resolveInit) { throw new Error('resolveInit not assigned'); }
     resolveInit('shared');
     expect(await p1).toBe('shared');
     expect(await p2).toBe('shared');

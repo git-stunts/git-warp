@@ -15,7 +15,7 @@ import {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 /** Build a ReadableStream from an array of Uint8Array chunks. */
-function streamFrom(chunks) {
+function streamFrom(/** @type {Uint8Array[]} */ chunks) {
   return new ReadableStream({
     start(controller) {
       for (const chunk of chunks) {
@@ -126,6 +126,6 @@ describe('shared constants', () => {
   });
 
   it('noopLogger.error is a no-op', () => {
-    expect(() => noopLogger.error('test')).not.toThrow();
+    expect(() => { noopLogger.error(); }).not.toThrow();
   });
 });
