@@ -42,6 +42,7 @@ import {
   ForkError,
   IndexError,
   QueryError,
+  PatchError,
   SchemaUnsupportedError,
   ShardLoadError,
   ShardCorruptionError,
@@ -52,7 +53,14 @@ import {
   SyncError,
   WormholeError,
 } from './src/domain/errors/index.js';
+import WriterError from './src/domain/errors/WriterError.js';
 import BlobStoragePort from './src/ports/BlobStoragePort.js';
+import CryptoPort from './src/ports/CryptoPort.js';
+import HttpServerPort from './src/ports/HttpServerPort.js';
+import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
+import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.js';
+import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.js';
+import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
 // Multi-writer graph support (WARP)
@@ -106,6 +114,12 @@ import {
 } from './src/domain/services/WormholeService.js';
 
 import BisectService from './src/domain/services/BisectService.js';
+import { PatchBuilderV2 } from './src/domain/services/PatchBuilderV2.js';
+import { PatchSession } from './src/domain/warp/PatchSession.js';
+import { Writer } from './src/domain/warp/Writer.js';
+import { ProvenanceIndex } from './src/domain/services/ProvenanceIndex.js';
+import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/WarpStateIndexBuilder.js';
+import { computeStateHashV5 } from './src/domain/services/StateSerializerV5.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -137,11 +151,22 @@ export {
   SeekCachePort,
   ClockAdapter,
 
-  // Blob storage port (CAS integration)
+  // Port contracts
   BlobStoragePort,
+  CryptoPort,
+  HttpServerPort,
+
+  // Crypto adapters
+  NodeCryptoAdapter,
+  WebCryptoAdapter,
+
+  // HTTP adapters
+  BunHttpAdapter,
+  DenoHttpAdapter,
 
   // Error types for integrity failure handling
   EncryptionError,
+  PatchError,
   ForkError,
   IndexError,
   QueryError,
@@ -154,6 +179,7 @@ export {
   OperationAbortedError,
   SyncError,
   WormholeError,
+  WriterError,
 
   // Cancellation utilities
   checkAborted,
@@ -163,6 +189,10 @@ export {
   WarpGraph,
   QueryBuilder,
   ObserverView,
+  PatchBuilderV2,
+  PatchSession,
+  Writer,
+  ProvenanceIndex,
   computeTranslationCost,
 
   // WARP type creators
@@ -180,6 +210,11 @@ export {
   decodeEdgePropKey,
   isEdgePropKey,
   CONTENT_PROPERTY_KEY,
+
+  // State indexing & hashing
+  WarpStateIndexBuilder,
+  buildWarpStateIndex,
+  computeStateHashV5,
 
   // WARP migration
   migrateV4toV5,
