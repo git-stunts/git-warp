@@ -240,7 +240,7 @@ function resolveGraph(session, msg, { graphs, requireOpen = true }) {
 
 export default class WarpServeService {
   /**
-   * @param {{ wsPort: import('../../ports/WebSocketServerPort.js').default, graphs: Array<{ graphName: string, materialize: Function, subscribe: Function, getNodeProps: Function, createPatch: Function, query: Function }> }} options
+   * @param {{ wsPort: import('../../ports/WebSocketServerPort.js').default, graphs: GraphHandle[] }} options
    */
   constructor({ wsPort, graphs }) {
     if (!wsPort || typeof wsPort.createServer !== 'function') {
@@ -253,7 +253,7 @@ export default class WarpServeService {
     /** @type {import('../../ports/WebSocketServerPort.js').default} */
     this._wsPort = wsPort;
 
-    /** @type {Map<string, { graphName: string, materialize: Function, subscribe: Function, getNodeProps: Function, createPatch: Function, query: Function }>} */
+    /** @type {Map<string, GraphHandle>} */
     this._graphs = new Map();
     for (const g of graphs) {
       this._graphs.set(g.graphName, g);
@@ -496,7 +496,7 @@ export default class WarpServeService {
    *
    * @param {ClientSession} session
    * @param {Envelope} msg
-   * @param {{ graph: { createPatch: Function }, ops: Array<{ op: string, args: unknown[] }> }} ctx
+   * @param {{ graph: GraphHandle, ops: Array<{ op: string, args: unknown[] }> }} ctx
    * @private
    */
   async _applyMutateOps(session, msg, { graph, ops }) {
