@@ -46,8 +46,8 @@ const MUTATE_OP_SIGNATURES = {
   removeEdge: ['string', 'string', 'string'],
   setProperty: ['string', 'string', '*'],
   setEdgeProperty: ['string', 'string', 'string', 'string', '*'],
-  attachContent: ['string', '*'],
-  attachEdgeContent: ['string', 'string', 'string', '*'],
+  attachContent: ['string', 'string'],
+  attachEdgeContent: ['string', 'string', 'string', 'string'],
 };
 
 /**
@@ -518,7 +518,11 @@ export default class WarpServeService {
     const msg = envelope('diff', { graph: graphName, diff });
     for (const client of this._clients) {
       if (client.openGraphs.has(graphName)) {
-        client.conn.send(msg);
+        try {
+          client.conn.send(msg);
+        } catch {
+          this._clients.delete(client);
+        }
       }
     }
   }

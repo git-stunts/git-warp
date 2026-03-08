@@ -103,7 +103,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
   async store(content, options) {
     const cas = await this._getCas();
     const buf = typeof content === 'string'
-      ? Buffer.from(content, 'utf8')
+      ? new TextEncoder().encode(content)
       : content;
     const source = Readable.from([buf]);
 

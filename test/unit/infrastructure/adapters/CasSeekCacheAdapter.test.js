@@ -391,7 +391,7 @@ describe('CasSeekCacheAdapter', () => {
       const result = await streamAdapter.get(SAMPLE_KEY);
 
       expect(result).not.toBeNull();
-      expect(Buffer.from(/** @type {any} */ (result).buffer).toString()).toBe('hello-world');
+      expect(new TextDecoder().decode(/** @type {any} */ (result).buffer)).toBe('hello-world');
       expect(mockRestoreStream).toHaveBeenCalledWith({ manifest });
       // Should NOT fall back to cas.restore()
       expect(mockRestore).not.toHaveBeenCalled();

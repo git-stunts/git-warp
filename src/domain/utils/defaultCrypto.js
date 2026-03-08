@@ -44,7 +44,7 @@ const defaultCrypto = {
       throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
     const result = _createHmac(algorithm, key).update(data).digest();
-    return new Uint8Array(result.buffer, result.byteOffset, result.byteLength);
+    return new Uint8Array(result);
   },
   timingSafeEqual(a, b) {
     if (!_timingSafeEqual) {

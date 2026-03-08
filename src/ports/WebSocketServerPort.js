@@ -23,7 +23,9 @@ export default class WebSocketServerPort {
   /**
    * Creates a WebSocket server.
    *
-   * @param {(connection: WsConnection) => void} _onConnection - Called for each new client connection
+   * @param {(connection: WsConnection) => void} _onConnection - Called for each new client connection.
+   *   The callback MUST register `onMessage` and `onClose` handlers synchronously.
+   *   Deferred registration risks dropping messages that arrive before handlers are set.
    * @returns {WsServerHandle} Server handle with listen() and close()
    */
   createServer(_onConnection) {

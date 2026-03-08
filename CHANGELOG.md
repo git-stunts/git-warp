@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Inspector: localStorage persistence timing** — Server URL is now persisted to `localStorage` only after a successful connection, preventing a bad URL from locking users into a reconnect loop on reload.
 - **CasBlobAdapter error propagation** — `retrieve()` now uses `CasError.code` (`MANIFEST_NOT_FOUND`, `GIT_ERROR`) from `@git-stunts/git-cas` to identify legacy blob fallback cases, with message-based matching as a fallback for non-CasError exceptions. Previously used brittle string matching on all error messages.
 - **Dead `writerIds` code removed** — `WarpServeService` no longer stores per-session `writerIds` from `open` messages. The field was populated but never consumed — all mutations use the server's writer identity.
+- **`_broadcastDiff` dead-client resilience** — A single dead WebSocket connection in `_broadcastDiff` could abort the loop, preventing remaining subscribed clients from receiving the diff. Each `send()` is now wrapped in try/catch; dead connections are evicted.
+- **`attachContent`/`attachEdgeContent` wire validation** — Mutation arg validation now requires string content for `attachContent` and `attachEdgeContent` over WebSocket JSON. Previously accepted any type via wildcard (`*`), but `Uint8Array` cannot survive JSON serialization.
+- **BunWsAdapter `close()` fire-and-forget** — `BunWsAdapter.close()` used `void server.stop()` and returned immediately. Now awaits the `stop()` promise, ensuring graceful shutdown.
+- **EncryptionError unused `code` option** — Removed `code` from the constructor options typedef. The error code is always `E_ENCRYPTED_PATCH`; the option was dead.
+- **CasBlobAdapter `Buffer.from` → `TextEncoder`** — Replaced `Buffer.from(content, 'utf8')` with `new TextEncoder().encode(content)` for consistency with the Uint8Array domain boundary.
+- **`defaultCrypto` hmac wrapping** — Replaced `new Uint8Array(result.buffer, result.byteOffset, result.byteLength)` with `new Uint8Array(result)` for clarity and safety against shared ArrayBuffer pools.
+- **Test `Buffer` usage cleanup** — Replaced `Buffer.from()` in type-check consumer test and `Buffer.from(result.buffer)` in CasSeekCacheAdapter test with `TextEncoder`/`TextDecoder`.
 
 ### Changed
 

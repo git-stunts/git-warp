@@ -392,6 +392,56 @@ describe('WarpServeService', () => {
       expect(msg.id).toBe('mut-wild');
     });
 
+    it('rejects attachContent with non-string content', async () => {
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-bad-content',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'attachContent', args: ['node:1', 42] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('mut-bad-content');
+      expect(msg.payload.code).toBe('E_INVALID_ARGS');
+    });
+
+    it('rejects attachEdgeContent with non-string content', async () => {
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-bad-edge-content',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'attachEdgeContent', args: ['n1', 'n2', 'knows', { binary: true }] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('mut-bad-edge-content');
+      expect(msg.payload.code).toBe('E_INVALID_ARGS');
+    });
+
     it('awaits async ops like attachContent before commit', async () => {
       const client = ws.simulateConnection();
       // Open first
@@ -665,6 +715,56 @@ describe('WarpServeService', () => {
       expect(msg1.payload.diff.nodes.added).toEqual(['node:broadcast']);
       expect(msg2.type).toBe('diff');
       expect(msg2.payload.diff.nodes.added).toEqual(['node:broadcast']);
+    });
+
+    it('survives a dead client and still delivers to healthy clients', async () => {
+      const ws = createMockWsPort();
+      const graph = createMockGraph();
+
+      /** @type {Function|null} */
+      let capturedOnChange = null;
+      graph.subscribe.mockImplementation((/** @type {any} */ opts) => {
+        capturedOnChange = opts.onChange;
+        return { unsubscribe: vi.fn() };
+      });
+
+      const service = new WarpServeService({ wsPort: ws.port, graphs: [graph] });
+      await service.listen(0);
+
+      // Client 1: will throw on send (dead connection)
+      const client1 = ws.simulateConnection();
+      client1.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client1.sent.length >= 2);
+
+      // Client 2: healthy
+      const client2 = ws.simulateConnection();
+      client2.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o2',
+        payload: { graph: 'test-graph', writerId: 'w2' },
+      }));
+      await vi.waitFor(() => client2.sent.length >= 2);
+      client2.sent.length = 0;
+
+      // Make client1's send throw (simulating a dead WebSocket)
+      client1.conn.send = () => { throw new Error('Connection reset'); };
+
+      const fakeDiff = {
+        nodes: { added: ['node:survive'], removed: [] },
+        edges: { added: [], removed: [] },
+        props: { set: [], removed: [] },
+      };
+
+      expect(capturedOnChange).not.toBeNull();
+      /** @type {any} */ (capturedOnChange)(fakeDiff);
+
+      // Client 2 should still receive the diff
+      expect(client2.sent.length).toBe(1);
+      const msg = JSON.parse(client2.sent[0]);
+      expect(msg.type).toBe('diff');
+      expect(msg.payload.diff.nodes.added).toEqual(['node:survive']);
     });
 
     it('does not push diffs to clients that have not opened that graph', async () => {

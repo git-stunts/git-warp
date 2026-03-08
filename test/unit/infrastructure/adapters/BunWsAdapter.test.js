@@ -202,6 +202,24 @@ describe('BunWsAdapter', () => {
     server = null; // already closed
   });
 
+  it('close() awaits server.stop()', async () => {
+    const adapter = new BunWsAdapter();
+    server = adapter.createServer(() => {});
+    await server.listen(0);
+
+    // Make stop() return a delayed promise to verify it's awaited
+    let stopResolved = false;
+    mock.mockServer.stop.mockImplementation(() =>
+      new Promise((resolve) => {
+        setTimeout(() => { stopResolved = true; resolve(undefined); }, 10);
+      }),
+    );
+
+    await server.close();
+    expect(stopResolved).toBe(true);
+    server = null; // already closed
+  });
+
   it('close() is safe when server was never started', async () => {
     const adapter = new BunWsAdapter();
     server = adapter.createServer(() => {});

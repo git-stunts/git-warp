@@ -195,6 +195,10 @@ export default async function handleServe({ options, args }) {
 
   return {
     payload: { url, host: addr.host, port: addr.port, graphs: targetGraphs },
+    // WarpServeService.close() unsubscribes all graph subscriptions and
+    // shuts down the WebSocket server. WarpGraph/GitGraphAdapter hold no
+    // long-lived resources beyond in-memory state, so process exit is
+    // sufficient for their cleanup.
     close: () => service.close(),
   };
 }

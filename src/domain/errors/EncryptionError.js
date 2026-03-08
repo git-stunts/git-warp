@@ -16,7 +16,7 @@ import WarpError from './WarpError.js';
 export default class EncryptionError extends WarpError {
   /**
    * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
+   * @param {{ context?: Record<string, unknown> }} [options={}]
    */
   constructor(message, options = {}) {
     super(message, 'E_ENCRYPTED_PATCH', options);

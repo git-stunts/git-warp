@@ -102,9 +102,9 @@ export default class BunWsAdapter extends WebSocketServerPort {
         if (!server) {
           return Promise.resolve();
         }
-        void server.stop();
+        const s = server;
         server = null;
-        return Promise.resolve();
+        return s.stop();
       },
     };
   }

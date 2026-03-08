@@ -184,7 +184,7 @@ const contentBuf: Uint8Array | null = await graph.getContent('n1');
 const edgeContentOid: string | null = await graph.getEdgeContentOid('n1', 'n2', 'knows');
 const edgeContentBuf: Uint8Array | null = await graph.getEdgeContent('n1', 'n2', 'knows');
 const _attachResult: PatchBuilderV2 = await pb.attachContent('n1', 'hello');
-const _attachEdgeResult: PatchBuilderV2 = await pb.attachEdgeContent('n1', 'n2', 'knows', Buffer.from('data'));
+const _attachEdgeResult: PatchBuilderV2 = await pb.attachEdgeContent('n1', 'n2', 'knows', new TextEncoder().encode('data'));
 const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
 
 // ---- query builder ----
