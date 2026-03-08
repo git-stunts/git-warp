@@ -472,7 +472,7 @@ export async function materializeAt(checkpointSha) {
       }
 
       const patchMeta = decodePatchMessage(message);
-      const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+      const patchBuffer = await this._readPatchBlob(patchMeta);
       const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
 
       patches.push({ patch, sha: currentSha });

@@ -233,7 +233,7 @@ export async function _loadPatchBySha(sha) {
   }
 
   const patchMeta = decodePatchMessage(nodeInfo.message);
-  const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+  const patchBuffer = await this._readPatchBlob(patchMeta);
   return /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
 }
 

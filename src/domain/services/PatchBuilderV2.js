@@ -101,7 +101,7 @@ export class PatchBuilderV2 {
    *
    * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
     this._persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (persistence);
 
@@ -159,6 +159,9 @@ export class PatchBuilderV2 {
 
     /** @type {import('../../ports/BlobStoragePort.js').default|null} */
     this._blobStorage = blobStorage || null;
+
+    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
+    this._patchBlobStorage = patchBlobStorage || null;
 
     /**
      * Observed operands — entities whose current state was consulted to build
@@ -725,9 +728,11 @@ export class PatchBuilderV2 {
         writes: [...this._writes].sort(),
       });
 
-      // 6. Encode patch as CBOR and write as a Git blob
+      // 6. Encode patch as CBOR and write as a Git blob (or encrypted CAS asset)
       const patchCbor = this._codec.encode(patch);
-      const patchBlobOid = await this._persistence.writeBlob(patchCbor);
+      const patchBlobOid = this._patchBlobStorage
+        ? await this._patchBlobStorage.store(patchCbor, { slug: `${this._graphName}/${this._writerId}/patch` })
+        : await this._persistence.writeBlob(patchCbor);
 
       // 7. Create tree with the patch blob + any content blobs (deduplicated)
       // Format for mktree: "mode type oid\tpath"
@@ -745,6 +750,7 @@ export class PatchBuilderV2 {
         lamport,
         patchOid: patchBlobOid,
         schema,
+        encrypted: !!this._patchBlobStorage,
       });
       const parents = parentCommit ? [parentCommit] : [];
       const newCommitSha = await this._persistence.commitNodeWithTree({

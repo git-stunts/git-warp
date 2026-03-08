@@ -107,6 +107,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "_readPatchBlob": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_relationToCheckpointHead": {
     "configurable": true,
     "enumerable": false,
@@ -435,7 +440,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `86`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `87`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -460,6 +465,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "_notifySubscribers",
   "_onPatchCommitted",
   "_persistSeekCacheEntry",
+  "_readPatchBlob",
   "_relationToCheckpointHead",
   "_resolveCeiling",
   "_restoreIndexFromCache",

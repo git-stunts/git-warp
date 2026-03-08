@@ -41,6 +41,7 @@ import nullLogger from '../utils/nullLogger.js';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from './WarpMessageCodec.js';
 import { join, cloneStateV5, isKnownRawOp } from './JoinReducer.js';
 import SchemaUnsupportedError from '../errors/SchemaUnsupportedError.js';
+import EncryptionError from '../errors/EncryptionError.js';
 import { cloneFrontier, updateFrontier } from './Frontier.js';
 import { vvDeserialize } from '../crdt/VersionVector.js';
 
@@ -125,7 +126,7 @@ function objectToFrontier(obj) {
  * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
  *   (uses CommitPort.showNode() + BlobPort.readBlob() methods)
  * @param {string} sha - The 40-character commit SHA to load the patch from
- * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} [options]
  * @returns {Promise<DecodedPatch>} The decoded and normalized patch object containing:
  *   - `ops`: Array of patch operations
  *   - `context`: VersionVector (Map) of causal dependencies
@@ -135,16 +136,28 @@ function objectToFrontier(obj) {
  * @throws {Error} If the commit message cannot be decoded (malformed, wrong schema)
  * @throws {Error} If the patch blob cannot be read (blob not found, I/O error)
  * @throws {Error} If the patch blob cannot be CBOR-decoded (corrupted data)
+ * @throws {EncryptionError} If the patch is encrypted but no patchBlobStorage is provided
  * @private
  */
-async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @type {{ codec?: import('../../ports/CodecPort.js').default }} */ ({})) {
+async function loadPatchFromCommit(persistence, sha, { codec: codecOpt, patchBlobStorage } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} */ ({})) {
   const codec = codecOpt || defaultCodec;
   // Read commit message to extract patch OID
   const message = await persistence.showNode(sha);
   const decoded = decodePatchMessage(message);
 
-  // Read and decode the patch blob
-  const patchBuffer = await persistence.readBlob(decoded.patchOid);
+  // Read the patch blob (encrypted or plain)
+  /** @type {Uint8Array|Buffer} */
+  let patchBuffer;
+  if (decoded.encrypted) {
+    if (!patchBlobStorage) {
+      throw new EncryptionError(
+        'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
+      );
+    }
+    patchBuffer = await patchBlobStorage.retrieve(decoded.patchOid);
+  } else {
+    patchBuffer = await persistence.readBlob(decoded.patchOid);
+  }
   const patch = /** @type {DecodedPatch} */ (codec.decode(patchBuffer));
 
   // Normalize the patch (convert context from object to Map)
@@ -191,7 +204,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt } = /** @
  * // Load ALL patches for a new writer
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
-export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec } = /** @type {{ codec?: import('../../ports/CodecPort.js').default }} */ ({})) {
+export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec, patchBlobStorage } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} */ ({})) {
   const patches = [];
   let cur = toSha;
 
@@ -200,7 +213,7 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
     const commitInfo = await persistence.getNodeInfo(cur);
 
     // Load patch from commit
-    const patch = await loadPatchFromCommit(persistence, cur, { codec });
+    const patch = await loadPatchFromCommit(persistence, cur, { codec, patchBlobStorage });
     patches.unshift({ patch, sha: cur }); // Prepend for chronological order
 
     // Move to parent (first parent in linear chain)
@@ -408,7 +421,7 @@ export function createSyncRequest(frontier) {
  *   res.json(response);
  * });
  */
-export async function processSyncRequest(request, localFrontier, persistence, graphName, { codec, logger } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} */ ({})) {
+export async function processSyncRequest(request, localFrontier, persistence, graphName, { codec, logger, patchBlobStorage } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} */ ({})) {
   const log = logger || nullLogger;
 
   const remoteFrontier = objectToFrontier(request.frontier);
@@ -452,7 +465,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
         writerId,
         range.from,
         range.to,
-        { codec }
+        { codec, patchBlobStorage }
       );
 
       for (const { patch, sha } of writerPatches) {

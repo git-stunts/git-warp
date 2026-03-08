@@ -42,7 +42,7 @@ import {
  *   patchOid: 'abc123...' // 40-char hex
  * });
  */
-export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 2 }) {
+export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 2, encrypted = false }) {
   // Validate inputs
   validateGraphName(graph);
   validateWriterId(writer);
@@ -51,16 +51,21 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
   validateSchema(schema);
 
   const codec = getCodec();
+  /** @type {Record<string, string>} */
+  const trailers = {
+    [TRAILER_KEYS.kind]: 'patch',
+    [TRAILER_KEYS.graph]: graph,
+    [TRAILER_KEYS.writer]: writer,
+    [TRAILER_KEYS.lamport]: String(lamport),
+    [TRAILER_KEYS.patchOid]: patchOid,
+    [TRAILER_KEYS.schema]: String(schema),
+  };
+  if (encrypted) {
+    trailers[TRAILER_KEYS.encrypted] = 'true';
+  }
   return codec.encode({
     title: MESSAGE_TITLES.patch,
-    trailers: {
-      [TRAILER_KEYS.kind]: 'patch',
-      [TRAILER_KEYS.graph]: graph,
-      [TRAILER_KEYS.writer]: writer,
-      [TRAILER_KEYS.lamport]: String(lamport),
-      [TRAILER_KEYS.patchOid]: patchOid,
-      [TRAILER_KEYS.schema]: String(schema),
-    },
+    trailers,
   });
 }
 
@@ -72,7 +77,7 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
  * Decodes a patch commit message.
  *
  * @param {string} message - The raw commit message
- * @returns {{ kind: 'patch', graph: string, writer: string, lamport: number, patchOid: string, schema: number }} The decoded patch message
+ * @returns {{ kind: 'patch', graph: string, writer: string, lamport: number, patchOid: string, schema: number, encrypted: boolean }} The decoded patch message
  * @throws {Error} If the message is not a valid patch message
  *
  * @example
@@ -93,6 +98,8 @@ export function decodePatchMessage(message) {
   validateOid(patchOid, 'patchOid');
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'patch');
 
+  const encrypted = trailers[TRAILER_KEYS.encrypted] === 'true';
+
   return {
     kind: 'patch',
     graph,
@@ -100,5 +107,6 @@ export function decodePatchMessage(message) {
     lamport,
     patchOid,
     schema,
+    encrypted,
   };
 }

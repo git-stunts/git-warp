@@ -270,7 +270,7 @@ export default class SyncController {
       localFrontier,
       persistence,
       this._host._graphName,
-      { codec: this._host._codec, logger: this._host._logger || undefined }
+      { codec: this._host._codec, logger: this._host._logger || undefined, patchBlobStorage: this._host._patchBlobStorage || undefined }
     );
   }
 
