@@ -17,6 +17,25 @@ import { Readable } from 'node:stream';
 
 /** @typedef {{ readManifest: Function, restore: Function, store: Function, createTree: Function }} CasStore */
 
+/**
+ * Returns true when the error indicates the OID is not a CAS manifest
+ * (i.e. it's a legacy raw Git blob). All other errors are considered
+ * real failures and should be rethrown.
+ *
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function isLegacyBlobError(err) {
+  const msg = err instanceof Error ? err.message : '';
+  return msg.includes('not a tree')
+    || msg.includes('not a CAS')
+    || msg.includes('bad object')
+    || msg.includes('unknown object')
+    || msg.includes('could not find')
+    || msg.includes('does not exist')
+    || msg.includes('corrupt manifest');
+}
+
 export default class CasBlobAdapter extends BlobStoragePort {
   /**
    * @param {{ plumbing: *, persistence: *, encryptionKey?: Buffer|Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
@@ -122,13 +141,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
       // Fallback: OID may be a raw Git blob (pre-CAS content).
       // Only fall through for "not a manifest" errors (missing tree, bad format).
       // Rethrow corruption, decryption, and I/O errors.
-      const msg = err instanceof Error ? err.message : '';
-      const isNotManifest = msg.includes('not a tree')
-        || msg.includes('bad object')
-        || msg.includes('unknown object')
-        || msg.includes('could not find')
-        || msg.includes('does not exist');
-      if (!isNotManifest) {
+      if (!isLegacyBlobError(err)) {
         throw err;
       }
       return await this._persistence.readBlob(oid);
