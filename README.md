@@ -550,6 +550,9 @@ git warp history --writer alice
 
 # Check graph health, status, and GC metrics
 git warp check
+
+# Start WebSocket server for browser viewer
+git warp serve [--port 3000] [--host 127.0.0.1] [--static <dir>]
 ```
 
 ### Time-Travel (Seek)
@@ -590,6 +593,12 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 <p align="center">
   <img src="docs/seek-demo.gif" alt="git warp seek time-travel demo" width="600">
 </p>
+
+### Git WARP Inspector
+
+The [Git WARP Inspector](https://github.com/git-stunts/git-warp-web-inspector) is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes.
+
+See the [git-warp-web-inspector](https://github.com/git-stunts/git-warp-web-inspector) repository for setup and development instructions.
 
 ## Architecture
 

@@ -221,6 +221,81 @@ describe('PatchBuilderV2 content attachment', () => {
     });
   });
 
+  describe('attachContent() with blobStorage', () => {
+    it('uses blobStorage.store() when blobStorage is provided', async () => {
+      const blobStorage = {
+        store: vi.fn().mockResolvedValue('cas-tree-oid'),
+        retrieve: vi.fn(),
+      };
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+        blobStorage,
+      }));
+
+      await builder.attachContent('node:1', 'hello world');
+
+      expect(blobStorage.store).toHaveBeenCalledWith('hello world', { slug: 'g/node:1' });
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      const patch = builder.build();
+      expect(patch.ops[0]).toMatchObject({
+        type: 'PropSet',
+        node: 'node:1',
+        key: '_content',
+        value: 'cas-tree-oid',
+      });
+    });
+
+    it('falls back to persistence.writeBlob() when blobStorage is not provided', async () => {
+      const persistence = createMockPersistence({
+        writeBlob: vi.fn().mockResolvedValue('raw-blob-oid'),
+      });
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => null,
+      }));
+
+      await builder.attachContent('node:1', 'hello');
+
+      expect(persistence.writeBlob).toHaveBeenCalledWith('hello');
+    });
+  });
+
+  describe('attachEdgeContent() with blobStorage', () => {
+    it('uses blobStorage.store() when blobStorage is provided', async () => {
+      const state = createMockState();
+      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+
+      const blobStorage = {
+        store: vi.fn().mockResolvedValue('cas-edge-tree-oid'),
+        retrieve: vi.fn(),
+      };
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+        blobStorage,
+      }));
+
+      await builder.attachEdgeContent('a', 'b', 'rel', 'edge-data');
+
+      expect(blobStorage.store).toHaveBeenCalledWith('edge-data', { slug: 'g/a/b/rel' });
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+    });
+  });
+
   describe('commit() with content blobs', () => {
     it('includes _content_<oid> entries in tree when content blobs exist', async () => {
       const contentOid = 'a'.repeat(40);

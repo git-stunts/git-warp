@@ -1,46 +1,12 @@
 import HttpServerPort from '../../ports/HttpServerPort.js';
-import { MAX_BODY_BYTES, readStreamBody, noopLogger } from './httpAdapterUtils.js';
-
-const ERROR_BODY = 'Internal Server Error';
-const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
-const ERROR_BODY_LENGTH = String(ERROR_BODY_BYTES.byteLength);
-
-const PAYLOAD_TOO_LARGE = 'Payload Too Large';
-const PAYLOAD_TOO_LARGE_LENGTH = String(new TextEncoder().encode(PAYLOAD_TOO_LARGE).byteLength);
-
-/**
- * Converts a Bun Request into the plain-object format expected by
- * HttpServerPort request handlers.
- *
- * @param {Request} request - Bun fetch Request
- * @returns {Promise<{ method: string, url: string, headers: Record<string, string>, body: Uint8Array|undefined }>}
- */
-async function toPortRequest(request) {
-  /** @type {Record<string, string>} */
-  const headers = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-
-  let body;
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    const cl = headers['content-length'];
-    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
-      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
-    }
-    if (request.body) {
-      body = await readStreamBody(request.body);
-    }
-  }
-
-  const parsedUrl = new URL(request.url);
-  return {
-    method: request.method,
-    url: parsedUrl.pathname + parsedUrl.search,
-    headers,
-    body,
-  };
-}
+import {
+  noopLogger,
+  toPortRequest,
+  ERROR_BODY,
+  ERROR_BODY_LENGTH,
+  PAYLOAD_TOO_LARGE_BODY,
+  PAYLOAD_TOO_LARGE_LENGTH,
+} from './httpAdapterUtils.js';
 
 /**
  * Converts a plain-object port response into a Bun Response.
@@ -71,7 +37,7 @@ function createFetchHandler(requestHandler, logger) {
       return toResponse(portRes);
     } catch (err) {
       if (typeof err === 'object' && err !== null && /** @type {{status?: number}} */ (err).status === 413) {
-        return new Response(PAYLOAD_TOO_LARGE, {
+        return new Response(PAYLOAD_TOO_LARGE_BODY, {
           status: 413,
           headers: { 'Content-Type': 'text/plain', 'Content-Length': PAYLOAD_TOO_LARGE_LENGTH },
         });

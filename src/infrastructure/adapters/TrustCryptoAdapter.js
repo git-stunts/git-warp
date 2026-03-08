@@ -4,12 +4,16 @@
  * Uses `node:crypto` directly — Ed25519 is trust-specific and does not
  * belong on the general CryptoPort hash/hmac interface.
  *
- * @module domain/trust/TrustCrypto
+ * This module lives in infrastructure because it depends on `node:crypto`
+ * and `Buffer`. Import directly from this file. The former domain re-export
+ * (`src/domain/trust/TrustCrypto.js`) was removed in v14.
+ *
+ * @module infrastructure/adapters/TrustCryptoAdapter
  * @see docs/specs/TRUST_V1_CRYPTO.md
  */
 
 import { createHash, createPublicKey, verify } from 'node:crypto';
-import TrustError from '../errors/TrustError.js';
+import TrustError from '../../domain/errors/TrustError.js';
 
 /** Algorithms supported by this module. */
 export const SUPPORTED_ALGORITHMS = new Set(['ed25519']);
@@ -63,7 +67,7 @@ function decodePublicKey(base64) {
 /**
  * Verifies an Ed25519 signature against a payload.
  *
- * @param {{ algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Buffer }} params
+ * @param {{ algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }} params
  * @returns {boolean} true if signature is valid
  * @throws {TrustError} E_TRUST_UNSUPPORTED_ALGORITHM for non-ed25519
  * @throws {TrustError} E_TRUST_INVALID_KEY for malformed public key

@@ -130,7 +130,7 @@ describe('WarpStateIndexBuilder', () => {
 
       // Same content
       for (const key of Object.keys(tree1)) {
-        expect(tree1[key].equals(tree2[key])).toBe(true);
+        expect(tree1[key]).toEqual(tree2[key]);
       }
     });
 

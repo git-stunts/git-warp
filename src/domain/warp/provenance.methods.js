@@ -219,7 +219,7 @@ export async function loadPatchBySha(sha) {
 /**
  * Loads a single patch by its SHA.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @param {string} sha - The patch commit SHA
  * @returns {Promise<import('../types/WarpTypesV2.js').PatchV2>} The decoded patch object
  * @throws {Error} If the commit is not a patch or loading fails
@@ -233,7 +233,7 @@ export async function _loadPatchBySha(sha) {
   }
 
   const patchMeta = decodePatchMessage(nodeInfo.message);
-  const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+  const patchBuffer = await this._readPatchBlob(patchMeta);
   return /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
 }
 

@@ -88,7 +88,7 @@ export default class WarpStateIndexBuilder {
   /**
    * Serializes the index to a tree structure of buffers.
    *
-   * @returns {Promise<Record<string, Buffer>>} Map of path → serialized content
+   * @returns {Promise<Record<string, Uint8Array>>} Map of path → serialized content
    */
   async serialize() {
     return await this._builder.serialize();
@@ -109,7 +109,7 @@ export default class WarpStateIndexBuilder {
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - The materialized state
  * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [options] - Configuration
- * @returns {Promise<{tree: Record<string, Buffer>, stats: {nodes: number, edges: number}}>} Serialized index and stats
+ * @returns {Promise<{tree: Record<string, Uint8Array>, stats: {nodes: number, edges: number}}>} Serialized index and stats
  *
  * @example
  * import { buildWarpStateIndex } from './WarpStateIndexBuilder.js';

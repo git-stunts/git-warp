@@ -4,8 +4,8 @@
  * @property {(ref: string) => Promise<string|null>} readRef
  * @property {(ref: string, oid: string) => Promise<void>} updateRef
  * @property {(ref: string) => Promise<void>} deleteRef
- * @property {(oid: string) => Promise<Buffer>} readBlob
- * @property {(buf: Buffer) => Promise<string>} writeBlob
+ * @property {(oid: string) => Promise<Uint8Array>} readBlob
+ * @property {(buf: Uint8Array) => Promise<string>} writeBlob
  * @property {(sha: string) => Promise<{date?: string|null}>} getNodeInfo
  * @property {(sha: string) => Promise<boolean>} nodeExists
  * @property {(sha: string, coverageSha: string) => Promise<boolean>} isAncestor

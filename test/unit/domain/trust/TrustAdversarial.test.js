@@ -34,15 +34,15 @@ const ENFORCE_POLICY = {
 };
 
 describe('Adversarial case 1: Tampered record mid-chain', () => {
-  it('verifyRecordId returns false for altered subject', () => {
+  it('verifyRecordId returns false for altered subject', async () => {
     const tampered = {
       ...KEY_ADD_2,
       subject: { ...KEY_ADD_2.subject, publicKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
     };
-    expect(verifyRecordId(tampered)).toBe(false);
+    expect(await verifyRecordId(tampered)).toBe(false);
   });
 
-  it('verifyChain detects recordId mismatch', () => {
+  it('verifyChain detects recordId mismatch', async () => {
     const service = new TrustRecordService({
       persistence: /** @type {*} */ ({}),
       codec: /** @type {*} */ ({ encode: () => {}, decode: () => {} }),
@@ -53,7 +53,7 @@ describe('Adversarial case 1: Tampered record mid-chain', () => {
       subject: { ...KEY_ADD_2.subject, publicKey: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' },
     };
 
-    const result = service.verifyChain([KEY_ADD_1, tampered]);
+    const result = await service.verifyChain([KEY_ADD_1, tampered]);
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.error.includes('RecordId does not match'))).toBe(true);
   });
@@ -150,7 +150,7 @@ describe('Adversarial case 4: Out-of-order record input', () => {
 });
 
 describe('Adversarial case 5: Forged issuerKeyId', () => {
-  it('fingerprint mismatch detected by consumers of TrustCanonical', () => {
+  it('fingerprint mismatch detected by consumers of TrustCanonical', async () => {
     // An attacker creates a KEY_ADD where the issuerKeyId does NOT match
     // the SHA-256 fingerprint of the supplied publicKey. The recordId
     // computed from this forged record will differ from any legitimate record.
@@ -168,17 +168,17 @@ describe('Adversarial case 5: Forged issuerKeyId', () => {
     };
 
     // The recordId will NOT match because the content has changed
-    expect(verifyRecordId(forged)).toBe(false);
+    expect(await verifyRecordId(forged)).toBe(false);
   });
 
-  it('forged issuerKeyId changes the canonical hash', () => {
+  it('forged issuerKeyId changes the canonical hash', async () => {
     // Same record content but different issuerKeyId produces different recordId
     const legit = { ...KEY_ADD_1 };
     const forged = { ...KEY_ADD_1, issuerKeyId: 'ed25519:' + '0'.repeat(64) };
 
     // They should compute to different record IDs
     // (the original passes, the forged fails)
-    expect(verifyRecordId(legit)).toBe(true);
-    expect(verifyRecordId(forged)).toBe(false);
+    expect(await verifyRecordId(legit)).toBe(true);
+    expect(await verifyRecordId(forged)).toBe(false);
   });
 });

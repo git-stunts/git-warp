@@ -247,14 +247,14 @@ function sortKeys(value) {
  * | undefined       | 7               | Simple value (undefined=23)     |
  * | Array           | 4               | Array of data items             |
  * | Object          | 5               | Map of pairs (keys sorted)      |
- * | Buffer          | 2               | Byte string                     |
+ * | Uint8Array      | 2               | Byte string                     |
  * | BigInt          | 0, 1, or 6      | Integer or tagged bignum        |
  *
  * @param {unknown} data - The data to encode. Can be any JSON-serializable value,
  *   plus Buffer, BigInt, and other types supported by cbor-x. Objects have their
  *   keys sorted before encoding.
- * @returns {Buffer} CBOR-encoded bytes. The buffer is a Node.js Buffer instance
- *   that can be written directly to files, network sockets, or Git objects.
+ * @returns {Uint8Array} CBOR-encoded bytes that can be written directly to
+ *   files, network sockets, or Git objects.
  *
  * @example
  * // Encode a simple patch operation
@@ -298,7 +298,7 @@ export function encode(data) {
  * |-----------------|-----------------|----------------------------------|
  * | 0 (pos int)     | number          | Up to Number.MAX_SAFE_INTEGER   |
  * | 1 (neg int)     | number          | Down to Number.MIN_SAFE_INTEGER |
- * | 2 (byte string) | Buffer          | Node.js Buffer                  |
+ * | 2 (byte string) | Uint8Array      | Binary data                     |
  * | 3 (text string) | string          | UTF-8 decoded                   |
  * | 4 (array)       | Array           | Recursive decode                |
  * | 5 (map)         | Object          | Due to mapsAsObjects: true      |
@@ -325,8 +325,7 @@ export function encode(data) {
  * bytes.equals(reEncoded); // true - canonical encoding is idempotent
  * ```
  *
- * @param {Buffer|Uint8Array} buffer - CBOR-encoded bytes to decode. Accepts
- *   Node.js Buffer, Uint8Array, or any ArrayBufferView.
+ * @param {Uint8Array} buffer - CBOR-encoded bytes to decode.
  * @returns {unknown} The decoded JavaScript value. Type depends on the encoded
  *   CBOR data - could be a primitive, array, or plain object.
  * @throws {Error} If the buffer contains invalid CBOR data or is truncated.
@@ -376,14 +375,14 @@ export function decode(buffer) {
 export class CborCodec extends CodecPort {
   /**
    * @param {unknown} data
-   * @returns {Buffer|Uint8Array}
+   * @returns {Uint8Array}
    */
   encode(data) {
     return encode(data);
   }
 
   /**
-   * @param {Buffer|Uint8Array} buffer
+   * @param {Uint8Array} buffer
    * @returns {unknown}
    */
   decode(buffer) {

@@ -321,7 +321,7 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
       const rebuilt = { ...record };
       delete rebuilt.recordId;
       delete rebuilt.signature;
-      const newRecordId = computeRecordId(rebuilt);
+      const newRecordId = await computeRecordId(rebuilt);
       return {
         ...rebuilt,
         recordId: newRecordId,

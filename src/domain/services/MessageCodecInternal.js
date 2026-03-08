@@ -47,6 +47,7 @@ export const TRAILER_KEYS = {
   checkpointVersion: 'eg-checkpoint',
   dataCommit: 'eg-data-commit',
   opsDigest: 'eg-ops-digest',
+  encrypted: 'eg-encrypted',
 };
 
 /**

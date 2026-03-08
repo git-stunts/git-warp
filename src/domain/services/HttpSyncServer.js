@@ -168,7 +168,7 @@ function validateRoute(request, expectedPath, defaultHost) {
 /**
  * Checks if the request body exceeds the maximum allowed size.
  *
- * @param {Buffer | Uint8Array | undefined} body
+ * @param {Uint8Array | undefined} body
  * @param {number} maxBytes
  * @returns {{ status: number, headers: Record<string, string>, body: string }|null} Error response or null if within limits
  * @private
@@ -184,7 +184,7 @@ function checkBodySize(body, maxBytes) {
  * Parses and validates the request body as a sync request.
  * Uses Zod-based SyncPayloadSchema for shape + resource limit validation.
  *
- * @param {Buffer | Uint8Array | undefined} body
+ * @param {Uint8Array | undefined} body
  * @returns {{ error: { status: number, headers: Record<string, string>, body: string }, parsed: null } | { error: null, parsed: import('./SyncProtocol.js').SyncRequest }}
  * @private
  */
@@ -256,7 +256,7 @@ export default class HttpSyncServer {
    * In log-only mode both checks record metrics/logs but always return
    * null so the request proceeds.
    *
-   * @param {{ method: string, url: string, headers: Record<string, string>, body: Buffer | Uint8Array | undefined }} request
+   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} request
    * @param {Record<string, unknown>} parsed - Parsed sync request body
    * @returns {Promise<{ status: number, headers: Record<string, string>, body: string }|null>}
    * @private
@@ -300,7 +300,7 @@ export default class HttpSyncServer {
    * @private
    */
   async _handleRequest(request) {
-    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Buffer | Uint8Array | undefined }} */
+    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} */
     const req = { ...request, headers: /** @type {Record<string, string>} */ (request.headers) };
     const contentTypeError = checkContentType(req.headers);
     if (contentTypeError) {

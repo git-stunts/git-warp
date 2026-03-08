@@ -17,6 +17,7 @@ import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../uti
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 import { Writer } from './Writer.js';
 import { generateWriterId, resolveWriterId } from '../utils/WriterId.js';
+import EncryptionError from '../errors/EncryptionError.js';
 
 /** @typedef {import('../types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -48,6 +49,8 @@ export async function createPatch() {
     onCommitSuccess: (/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(this._writerId, opts),
     codec: this._codec,
     logger: this._logger || undefined,
+    blobStorage: this._blobStorage || undefined,
+    patchBlobStorage: this._patchBlobStorage || undefined,
   });
 }
 
@@ -171,7 +174,7 @@ export async function _nextLamport() {
  * Walks commits from the tip SHA back to the first patch commit,
  * collecting all patches along the way.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @param {string} writerId - The writer ID to load patches for
  * @param {string|null} [stopAtSha=null] - Stop walking when reaching this SHA (exclusive)
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>} Array of patches
@@ -202,8 +205,8 @@ export async function _loadWriterPatches(writerId, stopAtSha = null) {
     // Decode the patch message to get patchOid
     const patchMeta = decodePatchMessage(message);
 
-    // Read the patch blob
-    const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+    // Read the patch blob (encrypted or plain)
+    const patchBuffer = await this._readPatchBlob(patchMeta);
     const decoded = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
 
     patches.push({ patch: decoded, sha: currentSha });
@@ -326,6 +329,8 @@ export async function writer(writerId) {
     onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(resolvedWriterId, opts)),
     codec: this._codec,
     logger: this._logger || undefined,
+    blobStorage: this._blobStorage || undefined,
+    patchBlobStorage: this._patchBlobStorage || undefined,
   });
 }
 
@@ -383,6 +388,8 @@ export async function createWriter(opts = {}) {
     onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts)),
     codec: this._codec,
     logger: this._logger || undefined,
+    blobStorage: this._blobStorage || undefined,
+    patchBlobStorage: this._patchBlobStorage || undefined,
   });
 }
 
@@ -412,6 +419,26 @@ export async function _ensureFreshState() {
       { code: 'E_STALE_STATE' },
     );
   }
+}
+
+/**
+ * Reads a patch blob, using patchBlobStorage for encrypted patches
+ * and falling back to persistence.readBlob() for plain patches.
+ *
+ * @this {import('../WarpGraph.js').default}
+ * @param {{ patchOid: string, encrypted: boolean }} patchMeta
+ * @returns {Promise<Uint8Array>}
+ */
+export async function _readPatchBlob(patchMeta) {
+  if (patchMeta.encrypted) {
+    if (!this._patchBlobStorage) {
+      throw new EncryptionError(
+        'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
+      );
+    }
+    return await this._patchBlobStorage.retrieve(patchMeta.patchOid);
+  }
+  return await this._persistence.readBlob(patchMeta.patchOid);
 }
 
 /**

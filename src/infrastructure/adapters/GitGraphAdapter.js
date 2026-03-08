@@ -43,7 +43,6 @@
  * @see {@link https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain} for Git plumbing concepts
  */
 
-import { Buffer } from 'node:buffer';
 import { retry } from '@git-stunts/alfred';
 import PersistenceError from '../../domain/errors/PersistenceError.js';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
@@ -580,11 +579,11 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    * Reads a tree and returns a map of path to content.
    * Reads blobs in batches of 16 to balance concurrency against fd/process limits.
    * @param {string} treeOid - The tree OID to read
-   * @returns {Promise<Record<string, Buffer>>} Map of file path to blob content
+   * @returns {Promise<Record<string, Uint8Array>>} Map of file path to blob content
    */
   async readTree(treeOid) {
     const oids = await this.readTreeOids(treeOid);
-    /** @type {Record<string, Buffer>} */
+    /** @type {Record<string, Uint8Array>} */
     const files = {};
     const entries = Object.entries(oids);
     const BATCH_SIZE = 16;
@@ -642,7 +641,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   /**
    * Reads the content of a Git blob.
    * @param {string} oid - The blob OID to read
-   * @returns {Promise<Buffer>} The blob content
+   * @returns {Promise<Uint8Array>} The blob content
    * @throws {Error} If the OID is invalid
    */
   async readBlob(oid) {
@@ -652,8 +651,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['cat-file', 'blob', oid]
       });
       const raw = await stream.collect({ asString: false });
-      // Ensure a real Node Buffer (plumbing may return Uint8Array)
-      return Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      // Return as-is — plumbing returns Buffer (which IS-A Uint8Array)
+      return /** @type {Uint8Array} */ (raw);
     } catch (err) {
       throw wrapGitError(/** @type {GitError} */ (err), { oid });
     }

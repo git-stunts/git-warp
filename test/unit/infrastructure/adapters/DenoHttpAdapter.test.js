@@ -1,4 +1,3 @@
-/* global Request, Response, ReadableStream, Headers */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import HttpServerPort from '../../../../src/ports/HttpServerPort.js';
 

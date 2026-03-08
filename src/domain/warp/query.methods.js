@@ -377,6 +377,9 @@ export async function getContent(nodeId) {
   if (!oid) {
     return null;
   }
+  if (this._blobStorage) {
+    return await this._blobStorage.retrieve(oid);
+  }
   return await this._persistence.readBlob(oid);
 }
 
@@ -419,6 +422,9 @@ export async function getEdgeContent(from, to, label) {
   const oid = await getEdgeContentOid.call(this, from, to, label);
   if (!oid) {
     return null;
+  }
+  if (this._blobStorage) {
+    return await this._blobStorage.retrieve(oid);
   }
   return await this._persistence.readBlob(oid);
 }

@@ -8,35 +8,39 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md
  */
 
-import { createHash } from 'node:crypto';
 import { recordIdPayload, signaturePayload } from './canonical.js';
+import defaultCrypto from '../utils/defaultCrypto.js';
+import { textEncode } from '../utils/bytes.js';
 
 /**
  * Computes the record ID (SHA-256 hex digest) for a trust record.
  *
  * @param {Record<string, unknown>} record - Full trust record
- * @returns {string} 64-character lowercase hex string
+ * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [deps] - Optional dependency injection
+ * @returns {Promise<string>} 64-character lowercase hex string
  */
-export function computeRecordId(record) {
-  return createHash('sha256').update(recordIdPayload(record)).digest('hex');
+export async function computeRecordId(record, { crypto } = {}) {
+  const c = crypto || defaultCrypto;
+  return await c.hash('sha256', recordIdPayload(record));
 }
 
 /**
- * Computes the signature payload as a Buffer (UTF-8 bytes).
+ * Computes the signature payload as UTF-8 bytes.
  *
  * @param {Record<string, unknown>} record - Full trust record (signature will be stripped)
- * @returns {Buffer} UTF-8 encoded bytes of the domain-separated canonical string
+ * @returns {Uint8Array} UTF-8 encoded bytes of the domain-separated canonical string
  */
 export function computeSignaturePayload(record) {
-  return Buffer.from(signaturePayload(record), 'utf8');
+  return textEncode(signaturePayload(record));
 }
 
 /**
  * Verifies that a record's recordId matches its content.
  *
  * @param {Record<string, unknown>} record - Trust record with `recordId` field
- * @returns {boolean} true if recordId matches computed value
+ * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [deps] - Optional dependency injection
+ * @returns {Promise<boolean>} true if recordId matches computed value
  */
-export function verifyRecordId(record) {
-  return record.recordId === computeRecordId(record);
+export async function verifyRecordId(record, { crypto } = {}) {
+  return record.recordId === await computeRecordId(record, { crypto });
 }

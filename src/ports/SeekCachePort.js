@@ -14,7 +14,7 @@ export default class SeekCachePort {
   /**
    * Retrieves a cached state buffer by key.
    * @param {string} _key - Cache key (e.g., 'v1:t42-<frontierHash>')
-   * @returns {Promise<{ buffer: Buffer|Uint8Array, indexTreeOid?: string } | null>} The cached entry, or null on miss
+   * @returns {Promise<{ buffer: Uint8Array, indexTreeOid?: string } | null>} The cached entry, or null on miss
    * @throws {Error} If not implemented by a concrete adapter
    */
   async get(_key) {
@@ -24,7 +24,7 @@ export default class SeekCachePort {
   /**
    * Stores a state buffer under the given key.
    * @param {string} _key - Cache key
-   * @param {Buffer|Uint8Array} _buffer - Serialized state to cache
+   * @param {Uint8Array} _buffer - Serialized state to cache
    * @param {{ indexTreeOid?: string }} [_options] - Optional metadata
    * @returns {Promise<void>}
    * @throws {Error} If not implemented by a concrete adapter

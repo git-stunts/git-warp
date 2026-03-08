@@ -5,6 +5,7 @@
  */
 
 export { default as EmptyMessageError } from './EmptyMessageError.js';
+export { default as EncryptionError } from './EncryptionError.js';
 export { default as PersistenceError } from './PersistenceError.js';
 export { default as WarpError } from './WarpError.js';
 export { default as ForkError } from './ForkError.js';

@@ -281,7 +281,7 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
   // Persistent cache check — skip when collectReceipts is requested
   let cacheKey;
   if (this._seekCache && !collectReceipts) {
-    cacheKey = buildSeekCacheKey(ceiling, frontier);
+    cacheKey = await buildSeekCacheKey(ceiling, frontier);
     try {
       const cached = await this._seekCache.get(cacheKey);
       if (cached) {
@@ -348,7 +348,7 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
   // Store to persistent cache (fire-and-forget — failure is non-fatal)
   if (this._seekCache && !collectReceipts && allPatches.length > 0) {
     if (!cacheKey) {
-      cacheKey = buildSeekCacheKey(ceiling, frontier);
+      cacheKey = await buildSeekCacheKey(ceiling, frontier);
     }
     const buf = serializeFullStateV5(state, { codec: this._codec });
     this._persistSeekCacheEntry(cacheKey, buf, state)
@@ -430,7 +430,7 @@ export async function _restoreIndexFromCache(indexTreeOid) {
  * builds the target frontier from current writer tips, and applies
  * incremental patches since the checkpoint.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('./_internal.js').WarpGraphWithMixins}
  * @param {string} checkpointSha - The checkpoint commit SHA
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5>} The materialized graph state at the checkpoint
  * @throws {Error} If checkpoint SHA is invalid or not found
@@ -472,7 +472,7 @@ export async function materializeAt(checkpointSha) {
       }
 
       const patchMeta = decodePatchMessage(message);
-      const patchBuffer = await this._persistence.readBlob(patchMeta.patchOid);
+      const patchBuffer = await this._readPatchBlob(patchMeta);
       const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
 
       patches.push({ patch, sha: currentSha });

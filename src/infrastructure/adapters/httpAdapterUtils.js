@@ -51,3 +51,51 @@ export async function readStreamBody(bodyStream) {
 
 /** No-op logger matching the `{ error(...) }` interface. */
 export const noopLogger = { error() {} };
+
+// ── Shared error response bodies ────────────────────────────────────────────
+
+export const ERROR_BODY = 'Internal Server Error';
+export const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
+export const ERROR_BODY_LENGTH = String(ERROR_BODY_BYTES.byteLength);
+
+export const PAYLOAD_TOO_LARGE_BODY = 'Payload Too Large';
+export const PAYLOAD_TOO_LARGE_BYTES = new TextEncoder().encode(PAYLOAD_TOO_LARGE_BODY);
+export const PAYLOAD_TOO_LARGE_LENGTH = String(PAYLOAD_TOO_LARGE_BYTES.byteLength);
+
+// ── Shared request conversion ───────────────────────────────────────────────
+
+/**
+ * Converts a Web API Request into the plain-object format expected by
+ * HttpServerPort request handlers.
+ *
+ * Used by both BunHttpAdapter and DenoHttpAdapter.
+ *
+ * @param {Request} request - Web API Request
+ * @returns {Promise<{ method: string, url: string, headers: Record<string, string>, body: Uint8Array|undefined }>}
+ */
+export async function toPortRequest(request) {
+  /** @type {Record<string, string>} */
+  const headers = {};
+  request.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+
+  let body;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    const cl = headers['content-length'];
+    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
+      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+    }
+    if (request.body) {
+      body = await readStreamBody(request.body);
+    }
+  }
+
+  const parsedUrl = new URL(request.url);
+  return {
+    method: request.method,
+    url: parsedUrl.pathname + parsedUrl.search,
+    headers,
+    body,
+  };
+}

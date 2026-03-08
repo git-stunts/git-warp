@@ -136,7 +136,7 @@ describe('Chain integration (B15)', () => {
     }
     const records = readResult.records;
     for (const record of records) {
-      expect(verifyRecordId(record)).toBe(true);
+      expect(await verifyRecordId(record)).toBe(true);
     }
   });
 
@@ -151,7 +151,7 @@ describe('Chain integration (B15)', () => {
       throw readResult.error;
     }
     const records = readResult.records;
-    const result = service.verifyChain(records);
+    const result = await service.verifyChain(records);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });

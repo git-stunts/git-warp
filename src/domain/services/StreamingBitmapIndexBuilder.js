@@ -8,6 +8,7 @@ import { checkAborted } from '../utils/cancellation.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { SHARD_VERSION } from '../utils/shardVersion.js';
+import { textEncode, base64Encode, base64Decode } from '../utils/bytes.js';
 
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
 
@@ -185,7 +186,7 @@ export default class StreamingBitmapIndexBuilder {
       if (!bitmapShards[type][prefix]) {
         bitmapShards[type][prefix] = {};
       }
-      bitmapShards[type][prefix][sha] = Buffer.from(bitmap.serialize(true)).toString('base64');
+      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
     return bitmapShards;
   }
@@ -216,7 +217,7 @@ export default class StreamingBitmapIndexBuilder {
               checksum,
               data: shardData,
             };
-            const buffer = Buffer.from(JSON.stringify(envelope));
+            const buffer = textEncode(JSON.stringify(envelope));
             const oid = await this.storage.writeBlob(buffer);
             if (!this.flushedChunks.has(path)) {
               this.flushedChunks.set(path, []);
@@ -326,7 +327,7 @@ export default class StreamingBitmapIndexBuilder {
           checksum: await computeChecksum(map, this._crypto),
           data: map,
         };
-        const buffer = Buffer.from(JSON.stringify(envelope));
+        const buffer = textEncode(JSON.stringify(envelope));
         const oid = await this.storage.writeBlob(buffer);
         return `100644 blob ${oid}\t${path}`;
       })
@@ -418,9 +419,9 @@ export default class StreamingBitmapIndexBuilder {
         sorted[key] = frontier.get(key);
       }
       const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
-      const cborOid = await this.storage.writeBlob(Buffer.from(this._codec.encode(envelope)));
+      const cborOid = await this.storage.writeBlob(this._codec.encode(envelope));
       flatEntries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
-      const jsonOid = await this.storage.writeBlob(Buffer.from(canonicalStringify(envelope)));
+      const jsonOid = await this.storage.writeBlob(textEncode(canonicalStringify(envelope)));
       flatEntries.push(`100644 blob ${jsonOid}\tfrontier.json`);
     }
 
@@ -589,7 +590,7 @@ export default class StreamingBitmapIndexBuilder {
   _mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid }) {
     let bitmap;
     try {
-      bitmap = this._RoaringBitmap32.deserialize(Buffer.from(base64Bitmap, 'base64'), true);
+      bitmap = this._RoaringBitmap32.deserialize(base64Decode(base64Bitmap), true);
     } catch (err) {
       throw new ShardCorruptionError('Failed to deserialize bitmap', {
         oid,
@@ -652,7 +653,7 @@ export default class StreamingBitmapIndexBuilder {
     /** @type {Record<string, string>} */
     const result = {};
     for (const [sha, bitmap] of Object.entries(merged)) {
-      result[sha] = Buffer.from(bitmap.serialize(true)).toString('base64');
+      result[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
 
     // Wrap merged result in envelope with version and checksum
@@ -664,7 +665,7 @@ export default class StreamingBitmapIndexBuilder {
 
     let serialized;
     try {
-      serialized = Buffer.from(JSON.stringify(mergedEnvelope));
+      serialized = textEncode(JSON.stringify(mergedEnvelope));
     } catch (err) {
       throw new ShardCorruptionError('Failed to serialize merged shard', {
         reason: 'serialization_error',

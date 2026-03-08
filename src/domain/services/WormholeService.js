@@ -23,6 +23,7 @@
 import defaultCodec from '../utils/defaultCodec.js';
 import ProvenancePayload from './ProvenancePayload.js';
 import WormholeError from '../errors/WormholeError.js';
+import EncryptionError from '../errors/EncryptionError.js';
 import { detectMessageKind, decodePatchMessage } from './WarpMessageCodec.js';
 
 /**
@@ -61,12 +62,13 @@ async function verifyShaExists(persistence, sha, paramName) {
 
 /**
  * Processes a single commit in the wormhole chain.
- * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, sha: string, graphName: string, expectedWriter: string|null, codec?: import('../../ports/CodecPort.js').default }} opts - Options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, sha: string, graphName: string, expectedWriter: string|null, codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} opts - Options
  * @returns {Promise<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string, writerId: string, parentSha: string|null}>}
  * @throws {WormholeError} On validation errors
+ * @throws {EncryptionError} If the patch is encrypted but no patchBlobStorage is provided
  * @private
  */
-async function processCommit({ persistence, sha, graphName, expectedWriter, codec: codecOpt }) {
+async function processCommit({ persistence, sha, graphName, expectedWriter, codec: codecOpt, patchBlobStorage }) {
   const codec = codecOpt || defaultCodec;
   const nodeInfo = await persistence.getNodeInfo(sha);
   const { message, parents } = nodeInfo;
@@ -95,7 +97,18 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     });
   }
 
-  const patchBuffer = await persistence.readBlob(patchMeta.patchOid);
+  /** @type {Uint8Array} */
+  let patchBuffer;
+  if (patchMeta.encrypted) {
+    if (!patchBlobStorage) {
+      throw new EncryptionError(
+        'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
+      );
+    }
+    patchBuffer = await patchBlobStorage.retrieve(patchMeta.patchOid);
+  } else {
+    patchBuffer = await persistence.readBlob(patchMeta.patchOid);
+  }
   const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (codec.decode(patchBuffer));
 
   return {
@@ -130,20 +143,21 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
  * must be an ancestor of `toSha` in the writer's patch chain. Both endpoints
  * are inclusive in the wormhole.
  *
- * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.js').default }} options - Wormhole creation options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options - Wormhole creation options
  * @returns {Promise<WormholeEdge>} The created wormhole
  * @throws {WormholeError} If fromSha or toSha doesn't exist (E_WORMHOLE_SHA_NOT_FOUND)
  * @throws {WormholeError} If fromSha is not an ancestor of toSha (E_WORMHOLE_INVALID_RANGE)
  * @throws {WormholeError} If commits span multiple writers (E_WORMHOLE_MULTI_WRITER)
  * @throws {WormholeError} If a commit is not a patch commit (E_WORMHOLE_NOT_PATCH)
+ * @throws {EncryptionError} If patches are encrypted but no patchBlobStorage is provided
  */
-export async function createWormhole({ persistence, graphName, fromSha, toSha, codec }) {
+export async function createWormhole({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage }) {
   validateSha(fromSha, 'fromSha');
   validateSha(toSha, 'toSha');
   await verifyShaExists(persistence, fromSha, 'fromSha');
   await verifyShaExists(persistence, toSha, 'toSha');
 
-  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, codec });
+  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage });
 
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
@@ -161,18 +175,18 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
  * Walks the parent chain from toSha towards fromSha, collecting and
  * validating each commit along the way.
  *
- * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.js').default }} options
+ * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default, graphName: string, fromSha: string, toSha: string, codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string, writerId: string}>>} Patches in newest-first order
  * @throws {WormholeError} If fromSha is not an ancestor of toSha or range is empty
  * @private
  */
-async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec }) {
+async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage }) {
   const patches = [];
   let currentSha = toSha;
   let writerId = null;
 
   while (currentSha) {
-    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec });
+    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec, patchBlobStorage });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 

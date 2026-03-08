@@ -3,19 +3,34 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
+const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
-const mockCreateCbor = vi.fn(() => ({
-  readManifest: mockReadManifest,
-  restore: mockRestore,
-  store: mockStore,
-  createTree: mockCreateTree,
-}));
+
+/** When true, the mock CAS exposes restoreStream. */
+let exposeRestoreStream = false;
+
+/** Captures constructor args for assertion. @type {any} */
+let lastConstructorArgs = {};
+
+class MockContentAddressableStore {
+  constructor(/** @type {any} */ opts) {
+    lastConstructorArgs = opts;
+    this.readManifest = mockReadManifest;
+    this.restore = mockRestore;
+    this.store = mockStore;
+    this.createTree = mockCreateTree;
+    if (exposeRestoreStream) {
+      this.restoreStream = mockRestoreStream;
+    }
+  }
+}
+
+class MockCborCodec {}
 
 vi.mock('@git-stunts/git-cas', () => ({
-  default: {
-    createCbor: mockCreateCbor,
-  },
+  default: MockContentAddressableStore,
+  CborCodec: MockCborCodec,
 }));
 
 // Import after mock setup
@@ -69,6 +84,7 @@ describe('CasSeekCacheAdapter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    exposeRestoreStream = false;
     persistence = makePersistence();
     plumbing = makePlumbing();
     adapter = new CasSeekCacheAdapter({
@@ -105,8 +121,38 @@ describe('CasSeekCacheAdapter', () => {
       expect(adapter._ref).toBe(EXPECTED_REF);
     });
 
-    it('initialises _casPromise to null', () => {
-      expect(adapter._casPromise).toBeNull();
+    it('exposes _getCas as a function', () => {
+      expect(typeof adapter._getCas).toBe('function');
+    });
+
+    it('stores encryptionKey when provided', () => {
+      const key = Buffer.alloc(32, 0xab);
+      const encrypted = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: key,
+      });
+      expect(encrypted._encryptionKey).toBe(key);
+    });
+
+    it('defaults encryptionKey to undefined', () => {
+      expect(adapter._encryptionKey).toBeUndefined();
+    });
+
+    it('stores logger when provided', () => {
+      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() };
+      const withLogger = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        logger,
+      });
+      expect(withLogger._logger).toBe(logger);
+    });
+
+    it('defaults logger to undefined', () => {
+      expect(adapter._logger).toBeUndefined();
     });
   });
 
@@ -115,33 +161,46 @@ describe('CasSeekCacheAdapter', () => {
   // -------------------------------------------------------------------------
 
   describe('_getCas()', () => {
-    it('creates CAS instance on first call', async () => {
+    it('creates CAS instance with CDC chunking on first call', async () => {
       await adapter._getCas();
-      expect(mockCreateCbor).toHaveBeenCalledWith({ plumbing });
+      expect(lastConstructorArgs.plumbing).toBe(plumbing);
+      expect(lastConstructorArgs.codec).toBeInstanceOf(MockCborCodec);
+      expect(lastConstructorArgs.chunking).toEqual({ strategy: 'cdc' });
     });
 
     it('caches the CAS promise across multiple calls', async () => {
-      await adapter._getCas();
-      await adapter._getCas();
-      expect(mockCreateCbor).toHaveBeenCalledTimes(1);
+      const first = await adapter._getCas();
+      const second = await adapter._getCas();
+      expect(first).toBe(second);
     });
 
     it('resets cached promise on init error so next call retries', async () => {
-      mockCreateCbor.mockImplementationOnce(() => {
-        throw new Error('init failure');
-      });
+      // Temporarily break the mock module to force an init failure
+      const origDefault = (await import('@git-stunts/git-cas')).default;
+      const { default: CASModule } = await import('@git-stunts/git-cas');
 
-      await expect(adapter._getCas()).rejects.toThrow('init failure');
-      expect(adapter._casPromise).toBeNull();
-
-      // Second call should retry and succeed
-      mockCreateCbor.mockReturnValueOnce({
-        readManifest: mockReadManifest,
-        restore: mockRestore,
-        store: mockStore,
-        createTree: mockCreateTree,
+      // Create a fresh adapter whose _initCas will throw
+      /** @type {any} */
+      const badAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
       });
-      await expect(adapter._getCas()).resolves.toBeDefined();
+      // Override _initCas to throw once
+      let throwOnce = true;
+      const origInit = badAdapter._initCas.bind(badAdapter);
+      badAdapter._initCas = async () => {
+        if (throwOnce) {
+          throwOnce = false;
+          throw new Error('init failure');
+        }
+        return origInit();
+      };
+
+      await expect(badAdapter._getCas()).rejects.toThrow('init failure');
+
+      // Second call should retry and succeed (promise was reset on failure)
+      await expect(badAdapter._getCas()).resolves.toBeDefined();
     });
   });
 
@@ -222,7 +281,7 @@ describe('CasSeekCacheAdapter', () => {
       // Verify index was written back with lastAccessedAt
       expect(persistence.writeBlob).toHaveBeenCalled();
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       expect(writtenJson.entries[SAMPLE_KEY].lastAccessedAt).toBeDefined();
       expect(writtenJson.entries[SAMPLE_KEY].createdAt).toBe('2025-01-01T00:00:00Z');
@@ -260,6 +319,110 @@ describe('CasSeekCacheAdapter', () => {
       const result = await adapter.get(SAMPLE_KEY);
       expect(result).toBeNull();
     });
+
+    it('passes encryptionKey to cas.restore when configured', async () => {
+      const encKey = Buffer.alloc(32, 0xab);
+      const encAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: encKey,
+      });
+      const treeOid = 'tree-oid-enc';
+      const manifest = { chunks: ['c1'] };
+      const stateBuffer = Buffer.from('encrypted-state');
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockResolvedValue({ buffer: stateBuffer });
+
+      await encAdapter.get(SAMPLE_KEY);
+
+      expect(mockRestore).toHaveBeenCalledWith({
+        manifest,
+        encryptionKey: encKey,
+      });
+    });
+
+    it('does not pass encryptionKey to cas.restore when not configured', async () => {
+      const treeOid = 'tree-oid-plain';
+      const manifest = { chunks: ['c1'] };
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockResolvedValue({ buffer: Buffer.from('plain') });
+
+      await adapter.get(SAMPLE_KEY);
+
+      expect(mockRestore).toHaveBeenCalledWith({ manifest });
+    });
+
+    it('uses restoreStream() when available, concatenating chunks', async () => {
+      // Create adapter from CAS that exposes restoreStream
+      exposeRestoreStream = true;
+      const streamAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+      });
+
+      const treeOid = 'tree-stream';
+      const manifest = { chunks: ['c1', 'c2'] };
+      const chunk1 = Buffer.from('hello-');
+      const chunk2 = Buffer.from('world');
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      // restoreStream returns an async iterable of chunks
+      mockRestoreStream.mockReturnValue((async function* () {
+        yield chunk1;
+        yield chunk2;
+      })());
+
+      const result = await streamAdapter.get(SAMPLE_KEY);
+
+      expect(result).not.toBeNull();
+      expect(new TextDecoder().decode(/** @type {any} */ (result).buffer)).toBe('hello-world');
+      expect(mockRestoreStream).toHaveBeenCalledWith({ manifest });
+      // Should NOT fall back to cas.restore()
+      expect(mockRestore).not.toHaveBeenCalled();
+    });
+
+    it('falls back to cas.restore() when restoreStream is not available', async () => {
+      // Create adapter from a CAS without restoreStream
+      exposeRestoreStream = false;
+      const fallbackAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+      });
+
+      const treeOid = 'tree-fallback';
+      const manifest = { chunks: ['c1'] };
+      const stateBuffer = Buffer.from('fallback-state');
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockResolvedValue({ buffer: stateBuffer });
+
+      const result = await fallbackAdapter.get(SAMPLE_KEY);
+
+      expect(result).toEqual({ buffer: stateBuffer });
+      expect(mockRestore).toHaveBeenCalledWith({ manifest });
+      expect(mockRestoreStream).not.toHaveBeenCalled();
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -286,7 +449,7 @@ describe('CasSeekCacheAdapter', () => {
       // Index updated
       expect(persistence.writeBlob).toHaveBeenCalled();
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       const entry = writtenJson.entries[SAMPLE_KEY];
       expect(entry.treeOid).toBe(treeOid);
@@ -320,10 +483,41 @@ describe('CasSeekCacheAdapter', () => {
       await adapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
 
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       expect(writtenJson.entries[existingKey]).toEqual(existingEntry);
       expect(writtenJson.entries[SAMPLE_KEY]).toBeDefined();
+    });
+
+    it('passes encryptionKey to cas.store when configured', async () => {
+      const encKey = Buffer.alloc(32, 0xab);
+      const encAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: encKey,
+      });
+
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue('enc-tree');
+      persistence.readRef.mockResolvedValue(null);
+
+      await encAdapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
+
+      expect(mockStore).toHaveBeenCalledWith(
+        expect.objectContaining({ encryptionKey: encKey })
+      );
+    });
+
+    it('does not pass encryptionKey to cas.store when not configured', async () => {
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue('plain-tree');
+      persistence.readRef.mockResolvedValue(null);
+
+      await adapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
+
+      const storeArg = mockStore.mock.calls[0][0];
+      expect(storeArg.encryptionKey).toBeUndefined();
     });
   });
 
@@ -395,7 +589,7 @@ describe('CasSeekCacheAdapter', () => {
 
       // Verify the written index no longer contains the key
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       expect(writtenJson.entries[SAMPLE_KEY]).toBeUndefined();
     });
@@ -420,7 +614,7 @@ describe('CasSeekCacheAdapter', () => {
       await adapter.delete(SAMPLE_KEY);
 
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       expect(writtenJson.entries[otherKey]).toBeDefined();
       expect(writtenJson.entries[SAMPLE_KEY]).toBeUndefined();
@@ -602,7 +796,7 @@ describe('CasSeekCacheAdapter', () => {
       await tinyAdapter.set('v1:t99-newhash', Buffer.from('new'));
 
       const writtenJson = JSON.parse(
-        persistence.writeBlob.mock.calls[0][0].toString('utf8')
+        new TextDecoder().decode(persistence.writeBlob.mock.calls[0][0])
       );
       expect(Object.keys(writtenJson.entries)).toHaveLength(1);
       expect(writtenJson.entries['v1:t99-newhash']).toBeDefined();
@@ -725,7 +919,7 @@ describe('CasSeekCacheAdapter', () => {
 
       expect(persistence.writeBlob).toHaveBeenCalledTimes(1);
       const buf = persistence.writeBlob.mock.calls[0][0];
-      expect(JSON.parse(buf.toString('utf8'))).toEqual(index);
+      expect(JSON.parse(new TextDecoder().decode(buf))).toEqual(index);
       expect(persistence.updateRef).toHaveBeenCalledWith(EXPECTED_REF, 'written-oid');
     });
   });

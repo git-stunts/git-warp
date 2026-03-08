@@ -13,6 +13,7 @@ import LRUCache from '../utils/LRUCache.js';
 import defaultCrypto from '../utils/defaultCrypto.js';
 import nullLogger from '../utils/nullLogger.js';
 import { validateWriterId } from '../utils/RefLayout.js';
+import { hexEncode, hexDecode } from '../utils/bytes.js';
 
 const SIG_VERSION = '1';
 const SIG_PREFIX = 'warp-v1';
@@ -48,7 +49,7 @@ export function buildCanonicalPayload({ keyId, method, path, timestamp, nonce, c
 /**
  * Signs an outgoing sync request.
  *
- * @param {{ method: string, path: string, contentType: string, body: Buffer|Uint8Array, secret: string, keyId: string }} params
+ * @param {{ method: string, path: string, contentType: string, body: Uint8Array, secret: string, keyId: string }} params
  * @param {{ crypto?: import('../../ports/CryptoPort.js').default }} [deps]
  * @returns {Promise<Record<string, string>>} Auth headers
  */
@@ -71,7 +72,7 @@ export async function signSyncRequest({ method, path, contentType, body, secret,
   });
 
   const hmacBuf = await c.hmac(HMAC_ALGO, secret, canonical);
-  const signature = Buffer.from(hmacBuf).toString('hex');
+  const signature = hexEncode(hmacBuf);
 
   return {
     'x-warp-sig-version': SIG_VERSION,
@@ -267,7 +268,7 @@ export default class SyncAuthService {
   /**
    * Verifies the HMAC signature against the canonical payload.
    *
-   * @param {{ request: { method: string, url: string, headers: Record<string, string>, body?: Buffer|Uint8Array }, secret: string, keyId: string, timestamp: string, nonce: string }} params
+   * @param {{ request: { method: string, url: string, headers: Record<string, string>, body?: Uint8Array }, secret: string, keyId: string, timestamp: string, nonce: string }} params
    * @returns {Promise<{ ok: false, reason: string, status: number } | { ok: true }>}
    * @private
    */
@@ -290,9 +291,10 @@ export default class SyncAuthService {
     const expectedBuf = await this._crypto.hmac(HMAC_ALGO, secret, canonical);
     const receivedHex = request.headers['x-warp-signature'];
 
+    /** @type {Uint8Array} */
     let receivedBuf;
     try {
-      receivedBuf = Buffer.from(receivedHex, 'hex');
+      receivedBuf = hexDecode(receivedHex);
     } catch {
       return fail('INVALID_SIGNATURE', 401);
     }
@@ -304,7 +306,7 @@ export default class SyncAuthService {
     let equal;
     try {
       equal = this._crypto.timingSafeEqual(
-        Buffer.from(expectedBuf),
+        expectedBuf,
         receivedBuf,
       );
     } catch {
@@ -321,7 +323,7 @@ export default class SyncAuthService {
   /**
    * Verifies an incoming sync request.
    *
-   * @param {{ method: string, url: string, headers: Record<string, string>, body?: Buffer|Uint8Array }} request
+   * @param {{ method: string, url: string, headers: Record<string, string>, body?: Uint8Array }} request
    * @returns {Promise<{ ok: true } | { ok: false, reason: string, status: number }>}
    */
   async verify(request) {

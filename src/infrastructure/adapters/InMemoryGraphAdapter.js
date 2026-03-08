@@ -9,13 +9,106 @@
  * SHA computation follows Git's object format so debugging is straightforward,
  * but cross-adapter SHA matching is NOT guaranteed.
  *
+ * Browser-compatible: the only Node-specific dependency (node:crypto) is
+ * lazy-loaded and can be replaced via the `hash` constructor option.
+ *
  * @module infrastructure/adapters/InMemoryGraphAdapter
  */
 
-import { createHash } from 'node:crypto';
-import { Readable } from 'node:stream';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
+
+// ── Browser-safe byte helpers ────────────────────────────────────────
+
+const _encoder = new TextEncoder();
+
+/**
+ * Concatenates an array of Uint8Array instances into one.
+ * @param {Uint8Array[]} arrays
+ * @returns {Uint8Array}
+ */
+function concatBytes(arrays) {
+  const len = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Uint8Array(len);
+  let offset = 0;
+  for (const a of arrays) {
+    result.set(a, offset);
+    offset += a.length;
+  }
+  return result;
+}
+
+/**
+ * Converts a hex string to a Uint8Array.
+ * @param {string} hex
+ * @returns {Uint8Array}
+ */
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+/**
+ * Converts a string or Uint8Array to bytes.
+ * @param {string|Uint8Array} data
+ * @returns {Uint8Array}
+ */
+function toBytes(data) {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  if (typeof data === 'string') {
+    return _encoder.encode(data);
+  }
+  throw new Error('Expected string or Uint8Array');
+}
+
+// ── Lazy node:crypto for default hash ────────────────────────────────
+
+/** @type {Function|null} */
+let _nodeCreateHash = null;
+/** @type {boolean} */
+let _cryptoProbed = false;
+
+/**
+ * Lazily probes for node:crypto on first call. Avoids top-level await
+ * which forces the module into async evaluation — problematic for
+ * bundlers and non-Node runtimes where the import always fails.
+ *
+ * @returns {Promise<Function|null>} createHash or null
+ */
+async function probeNodeCrypto() {
+  if (_cryptoProbed) {
+    return _nodeCreateHash;
+  }
+  _cryptoProbed = true;
+  try {
+    const nodeCrypto = await import('node:crypto');
+    _nodeCreateHash = nodeCrypto.createHash;
+  } catch {
+    // Browser or non-Node runtime — hash must be injected via constructor
+  }
+  return _nodeCreateHash;
+}
+
+/**
+ * Default hash function using node:crypto SHA-1.
+ * Synchronous after the first call resolves the lazy probe.
+ *
+ * @param {Uint8Array} data
+ * @returns {string} 40-hex SHA
+ */
+function defaultHash(data) {
+  if (!_nodeCreateHash) {
+    throw new Error(
+      'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
+    );
+  }
+  return _nodeCreateHash('sha1').update(data).digest('hex');
+}
 
 /** Well-known SHA for Git's empty tree. */
 const EMPTY_TREE_OID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
@@ -24,12 +117,13 @@ const EMPTY_TREE_OID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 /**
  * Computes a Git blob SHA-1: `SHA1("blob " + len + "\0" + content)`.
- * @param {Buffer} content
+ * @param {(data: Uint8Array) => string} hash
+ * @param {Uint8Array} content
  * @returns {string} 40-hex SHA
  */
-function hashBlob(content) {
-  const header = Buffer.from(`blob ${content.length}\0`);
-  return createHash('sha1').update(header).update(content).digest('hex');
+function hashBlob(hash, content) {
+  const header = _encoder.encode(`blob ${content.length}\0`);
+  return hash(concatBytes([header, content]));
 }
 
 /**
@@ -38,27 +132,28 @@ function hashBlob(content) {
  * Each entry is: `<mode> <path>\0<20-byte binary OID>`
  * Entries are sorted by path (byte order), matching Git's canonical sort.
  *
+ * @param {(data: Uint8Array) => string} hash
  * @param {Array<{mode: string, path: string, oid: string}>} entries
  * @returns {string} 40-hex SHA
  */
-function hashTree(entries) {
+function hashTree(hash, entries) {
   const sorted = [...entries].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const parts = sorted.map(e => {
-    const prefix = Buffer.from(`${e.mode} ${e.path}\0`);
-    const oidBin = Buffer.from(e.oid, 'hex');
-    return Buffer.concat([prefix, oidBin]);
+    const prefix = _encoder.encode(`${e.mode} ${e.path}\0`);
+    return concatBytes([prefix, hexToBytes(e.oid)]);
   });
-  const body = Buffer.concat(parts);
-  const header = Buffer.from(`tree ${body.length}\0`);
-  return createHash('sha1').update(header).update(body).digest('hex');
+  const body = concatBytes(parts);
+  const header = _encoder.encode(`tree ${body.length}\0`);
+  return hash(concatBytes([header, body]));
 }
 
 /**
  * Builds a Git-style commit string and hashes it.
+ * @param {(data: Uint8Array) => string} hash
  * @param {{treeOid: string, parents: string[], message: string, author: string, date: string}} opts
  * @returns {string} 40-hex SHA
  */
-function hashCommit({ treeOid, parents, message, author, date }) {
+function hashCommit(hash, { treeOid, parents, message, author, date }) {
   const lines = [`tree ${treeOid}`];
   for (const p of parents) {
     lines.push(`parent ${p}`);
@@ -67,9 +162,9 @@ function hashCommit({ treeOid, parents, message, author, date }) {
   lines.push(`committer ${author} ${date}`);
   lines.push('');
   lines.push(message);
-  const body = lines.join('\n');
-  const header = `commit ${Buffer.byteLength(body)}\0`;
-  return createHash('sha1').update(header).update(body).digest('hex');
+  const bodyBytes = _encoder.encode(lines.join('\n'));
+  const header = _encoder.encode(`commit ${bodyBytes.length}\0`);
+  return hash(concatBytes([header, bodyBytes]));
 }
 
 // ── Adapter ─────────────────────────────────────────────────────────────
@@ -79,7 +174,7 @@ function hashCommit({ treeOid, parents, message, author, date }) {
  *
  * Data structures:
  * - `_commits` — Map<sha, {treeOid, parents[], message, author, date}>
- * - `_blobs`   — Map<oid, Buffer>
+ * - `_blobs`   — Map<oid, Uint8Array>
  * - `_trees`   — Map<oid, Array<{mode, path, oid}>>
  * - `_refs`    — Map<refName, sha>
  * - `_config`  — Map<key, value>
@@ -88,16 +183,24 @@ function hashCommit({ treeOid, parents, message, author, date }) {
  */
 export default class InMemoryGraphAdapter extends GraphPersistencePort {
   /**
-   * @param {{ author?: string, clock?: { now: () => number } }} [options]
+   * @param {{ author?: string, clock?: { now: () => number }, hash?: (data: Uint8Array) => string }} [options]
    */
-  constructor({ author, clock } = {}) {
+  constructor({ author, clock, hash } = {}) {
     super();
     this._author = author || 'InMemory <inmemory@test>';
     this._clock = clock || { now: () => Date.now() };
+    this._hash = hash || defaultHash;
+    // Eagerly kick off the async probe so node:crypto is resolved by the
+    // time the first hash call arrives. The probe is a no-op on repeat calls.
+    if (!hash) {
+      this._cryptoReady = probeNodeCrypto();
+    } else {
+      this._cryptoReady = Promise.resolve(null);
+    }
 
     /** @type {Map<string, {treeOid: string, parents: string[], message: string, author: string, date: string}>} */
     this._commits = new Map();
-    /** @type {Map<string, Buffer>} */
+    /** @type {Map<string, Uint8Array>} */
     this._blobs = new Map();
     /** @type {Map<string, Array<{mode: string, path: string, oid: string}>>} */
     this._trees = new Map();
@@ -120,6 +223,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @returns {Promise<string>}
    */
   async writeTree(entries) {
+    await this._cryptoReady;
     const parsed = entries.map(line => {
       const tabIdx = line.indexOf('\t');
       if (tabIdx === -1) {
@@ -130,7 +234,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       const [mode, , oid] = meta.split(' ');
       return { mode, path, oid };
     });
-    const oid = hashTree(parsed);
+    const oid = hashTree(this._hash, parsed);
     this._trees.set(oid, parsed);
     return oid;
   }
@@ -158,11 +262,11 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
 
   /**
    * @param {string} treeOid
-   * @returns {Promise<Record<string, Buffer>>}
+   * @returns {Promise<Record<string, Uint8Array>>}
    */
   async readTree(treeOid) {
     const oids = await this.readTreeOids(treeOid);
-    /** @type {Record<string, Buffer>} */
+    /** @type {Record<string, Uint8Array>} */
     const files = {};
     for (const [path, oid] of Object.entries(oids)) {
       files[path] = await this.readBlob(oid);
@@ -173,19 +277,20 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // ── BlobPort ────────────────────────────────────────────────────────
 
   /**
-   * @param {Buffer|string} content
+   * @param {Uint8Array|string} content
    * @returns {Promise<string>}
    */
   async writeBlob(content) {
-    const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
-    const oid = hashBlob(buf);
-    this._blobs.set(oid, buf);
+    await this._cryptoReady;
+    const bytes = toBytes(content);
+    const oid = hashBlob(this._hash, bytes);
+    this._blobs.set(oid, bytes);
     return oid;
   }
 
   /**
    * @param {string} oid
-   * @returns {Promise<Buffer>}
+   * @returns {Promise<Uint8Array>}
    */
   async readBlob(oid) {
     validateOid(oid);
@@ -206,7 +311,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     for (const p of parents) {
       validateOid(p);
     }
-    return this._createCommit(EMPTY_TREE_OID, parents, message);
+    return await this._createCommit(EMPTY_TREE_OID, parents, message);
   }
 
   /**
@@ -218,7 +323,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     for (const p of parents) {
       validateOid(p);
     }
-    return this._createCommit(treeOid, parents, message);
+    return await this._createCommit(treeOid, parents, message);
   }
 
   /**
@@ -321,13 +426,14 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
 
   /**
    * @param {{ ref: string, limit?: number, format?: string }} options
-   * @returns {Promise<Readable>}
+   * @returns {Promise<import('node:stream').Readable>}
    */
   async logNodesStream({ ref, limit = 1000000, format: _format }) {
     validateRef(ref);
     validateLimit(limit);
     const records = this._walkLog(ref, limit);
     const formatted = records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
+    const { Readable } = await import('node:stream');
     return Readable.from([formatted]);
   }
 
@@ -444,11 +550,12 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    * @param {string} treeOid
    * @param {string[]} parents
    * @param {string} message
-   * @returns {string}
+   * @returns {Promise<string>}
    */
-  _createCommit(treeOid, parents, message) {
+  async _createCommit(treeOid, parents, message) {
+    await this._cryptoReady;
     const date = new Date(this._clock.now()).toISOString();
-    const sha = hashCommit({
+    const sha = hashCommit(this._hash, {
       treeOid,
       parents,
       message,

@@ -25,7 +25,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getContent('doc:1');
     expect(content).not.toBeNull();
-    expect(content.toString('utf8')).toBe('# Hello World\n\nThis is content.');
+    expect(new TextDecoder().decode(content)).toBe('# Hello World\n\nThis is content.');
   });
 
   it('getContentOid returns hex OID', async () => {
@@ -75,7 +75,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getEdgeContent('a', 'b', 'rel');
     expect(content).not.toBeNull();
-    expect(content.toString('utf8')).toBe('edge payload');
+    expect(new TextDecoder().decode(content)).toBe('edge payload');
 
     const oid = await graph.getEdgeContentOid('a', 'b', 'rel');
     expect(oid).toMatch(/^[0-9a-f]+$/);
@@ -103,7 +103,7 @@ describe('API: Content Attachment', () => {
     expect(content).not.toBeNull();
 
     // Bob's content should win (higher Lamport tick)
-    expect(content.toString('utf8')).toBe('bob version');
+    expect(new TextDecoder().decode(content)).toBe('bob version');
   });
 
   it('time-travel: materialize with ceiling returns historical content', async () => {
@@ -124,12 +124,12 @@ describe('API: Content Attachment', () => {
     // Latest should be v2
     await graph.materialize();
     const latest = await graph.getContent('doc:1');
-    expect(latest.toString('utf8')).toBe('version 2');
+    expect(new TextDecoder().decode(latest)).toBe('version 2');
 
     // Ceiling=1 should be v1
     await graph.materialize({ ceiling: 1 });
     const historical = await graph.getContent('doc:1');
-    expect(historical.toString('utf8')).toBe('version 1');
+    expect(new TextDecoder().decode(historical)).toBe('version 1');
   });
 
   it('node deletion removes content reference', async () => {
@@ -163,7 +163,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     const content = await graph.getContent('doc:1');
-    expect(content.toString('utf8')).toBe('via writer API');
+    expect(new TextDecoder().decode(content)).toBe('via writer API');
   });
 
   it('GC durability: content survives git gc --prune=now', async () => {
@@ -181,7 +181,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getContent('doc:1');
     expect(content).not.toBeNull();
-    expect(content.toString('utf8')).toBe('must survive gc');
+    expect(new TextDecoder().decode(content)).toBe('must survive gc');
   });
 
   it('checkpoint anchoring: content survives GC after checkpoint', async () => {
@@ -205,12 +205,12 @@ describe('API: Content Attachment', () => {
     await graph2.materialize();
     const content = await graph2.getContent('doc:1');
     expect(content).not.toBeNull();
-    expect(content.toString('utf8')).toBe('checkpointed content');
+    expect(new TextDecoder().decode(content)).toBe('checkpointed content');
   });
 
   it('binary content round-trips correctly', async () => {
     const graph = await repo.openGraph('test', 'alice');
-    const binary = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
+    const binary = new Uint8Array([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
 
     const patch = await graph.createPatch();
     patch.addNode('bin:1');
@@ -220,6 +220,7 @@ describe('API: Content Attachment', () => {
     await graph.materialize();
     const content = await graph.getContent('bin:1');
     expect(content).not.toBeNull();
-    expect(Buffer.compare(content, binary)).toBe(0);
+    expect(content).toBeInstanceOf(Uint8Array);
+    expect(content).toEqual(binary);
   });
 });

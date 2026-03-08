@@ -5,6 +5,7 @@ import LRUCache from '../utils/LRUCache.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { isValidShardOid } from '../utils/validateShardOid.js';
+import { base64Decode } from '../utils/bytes.js';
 
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
@@ -202,7 +203,7 @@ export default class BitmapIndexReader {
     }
 
     // Decode base64 bitmap and extract IDs
-    const buffer = Buffer.from(encoded, 'base64');
+    const buffer = base64Decode(encoded);
     let ids;
     try {
       const RoaringBitmap32 = getRoaringBitmap32();

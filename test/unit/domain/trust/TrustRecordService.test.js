@@ -274,43 +274,43 @@ describe('TrustRecordService.verifyChain', () => {
     });
   });
 
-  it('validates a correct chain', () => {
+  it('validates a correct chain', async () => {
     const records = [KEY_ADD_1, KEY_ADD_2, WRITER_BIND_ADD_ALICE];
-    const result = service.verifyChain(records);
+    const result = await service.verifyChain(records);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('detects genesis with non-null prev (caught by recordId integrity)', () => {
+  it('detects genesis with non-null prev (caught by recordId integrity)', async () => {
     // Changing prev changes content → recordId mismatch fires first
     const bad = { ...KEY_ADD_1, prev: 'a'.repeat(64) };
-    const result = service.verifyChain([bad]);
+    const result = await service.verifyChain([bad]);
     expect(result.valid).toBe(false);
     expect(result.errors[0].error).toContain('RecordId does not match');
   });
 
-  it('detects broken prev-link (caught by recordId integrity)', () => {
+  it('detects broken prev-link (caught by recordId integrity)', async () => {
     // Changing prev changes content → recordId mismatch fires first
     const broken = { ...KEY_ADD_2, prev: '0'.repeat(64) };
-    const result = service.verifyChain([KEY_ADD_1, broken]);
+    const result = await service.verifyChain([KEY_ADD_1, broken]);
     expect(result.valid).toBe(false);
     expect(result.errors[0].error).toContain('RecordId does not match');
   });
 
-  it('detects duplicate recordIds', () => {
+  it('detects duplicate recordIds', async () => {
     const dup = { ...KEY_ADD_2, recordId: KEY_ADD_1.recordId };
-    const result = service.verifyChain([KEY_ADD_1, dup]);
+    const result = await service.verifyChain([KEY_ADD_1, dup]);
     expect(result.valid).toBe(false);
     expect(result.errors.some(/** @param {*} e */ (e) => e.error.includes('Duplicate recordId'))).toBe(true);
   });
 
-  it('validates full golden chain (first 3)', () => {
-    const result = service.verifyChain(GOLDEN_CHAIN.slice(0, 3));
+  it('validates full golden chain (first 3)', async () => {
+    const result = await service.verifyChain(GOLDEN_CHAIN.slice(0, 3));
     expect(result.valid).toBe(true);
   });
 
-  it('validates full golden chain', () => {
-    const result = service.verifyChain(GOLDEN_CHAIN);
+  it('validates full golden chain', async () => {
+    const result = await service.verifyChain(GOLDEN_CHAIN);
     expect(result.valid).toBe(true);
   });
 });

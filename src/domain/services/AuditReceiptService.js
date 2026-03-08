@@ -351,7 +351,7 @@ export class AuditReceiptService {
     // Write blob
     let blobOid;
     try {
-      blobOid = await this._persistence.writeBlob(Buffer.from(cborBytes));
+      blobOid = await this._persistence.writeBlob(cborBytes);
     } catch (err) {
       this._logger?.warn('[warp:audit]', {
         code: 'AUDIT_WRITE_BLOB_FAILED',

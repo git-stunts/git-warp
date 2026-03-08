@@ -9,7 +9,7 @@
 
 /**
  * @typedef {Object} FsAdapter
- * @property {(path: string, content: string | Buffer, options?: Object) => void} writeFileSync
+ * @property {(path: string, content: string | Uint8Array, options?: Object) => void} writeFileSync
  * @property {(path: string, mode: number) => void} chmodSync
  * @property {(path: string, encoding?: string) => string} readFileSync
  * @property {(path: string) => boolean} existsSync

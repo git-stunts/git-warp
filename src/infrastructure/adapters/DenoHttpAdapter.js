@@ -1,40 +1,11 @@
 import HttpServerPort from '../../ports/HttpServerPort.js';
-import { MAX_BODY_BYTES, readStreamBody, noopLogger } from './httpAdapterUtils.js';
-
-const ERROR_BODY = 'Internal Server Error';
-const ERROR_BODY_BYTES = new TextEncoder().encode(ERROR_BODY);
-
-/**
- * Converts a Deno Request into the plain-object format expected by
- * HttpServerPort request handlers.
- *
- * @param {Request} request - Deno Request object
- * @returns {Promise<{ method: string, url: string, headers: Record<string, string>, body: Uint8Array|undefined }>}
- */
-async function toPlainRequest(request) {
-  /** @type {Record<string, string>} */
-  const headers = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-
-  let body;
-  if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
-    const cl = headers['content-length'];
-    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
-      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
-    }
-    body = await readStreamBody(request.body);
-  }
-
-  const url = new URL(request.url);
-  return {
-    method: request.method,
-    url: url.pathname + url.search,
-    headers,
-    body,
-  };
-}
+import {
+  noopLogger,
+  toPortRequest,
+  ERROR_BODY_BYTES,
+  PAYLOAD_TOO_LARGE_BYTES,
+  PAYLOAD_TOO_LARGE_LENGTH,
+} from './httpAdapterUtils.js';
 
 /**
  * Converts a plain-object response from the handler into a Deno Response.
@@ -60,15 +31,14 @@ function toDenoResponse(plain) {
 function createHandler(requestHandler, logger) {
   return async (request) => {
     try {
-      const plain = await toPlainRequest(request);
-      const response = await requestHandler(plain);
+      const portReq = await toPortRequest(request);
+      const response = await requestHandler(portReq);
       return toDenoResponse(response);
     } catch (err) {
       if (typeof err === 'object' && err !== null && /** @type {{status?: number}} */ (err).status === 413) {
-        const msg = new TextEncoder().encode('Payload Too Large');
-        return new Response(msg, {
+        return new Response(PAYLOAD_TOO_LARGE_BYTES, {
           status: 413,
-          headers: { 'Content-Type': 'text/plain', 'Content-Length': String(msg.byteLength) },
+          headers: { 'Content-Type': 'text/plain', 'Content-Length': PAYLOAD_TOO_LARGE_LENGTH },
         });
       }
       logger.error('DenoHttpAdapter dispatch error', err);

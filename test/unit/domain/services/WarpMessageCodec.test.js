@@ -144,6 +144,41 @@ describe('WarpMessageCodec', () => {
         })
       ).toThrow('40 or 64 character hex string');
     });
+
+    it('includes eg-encrypted trailer when encrypted=true', () => {
+      const message = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+        encrypted: true,
+      });
+
+      expect(message).toContain('eg-encrypted: true');
+    });
+
+    it('omits eg-encrypted trailer when encrypted=false', () => {
+      const message = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+        encrypted: false,
+      });
+
+      expect(message).not.toContain('eg-encrypted');
+    });
+
+    it('omits eg-encrypted trailer by default', () => {
+      const message = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+      });
+
+      expect(message).not.toContain('eg-encrypted');
+    });
   });
 
   describe('encodeCheckpointMessage', () => {
@@ -397,6 +432,43 @@ eg-patch-oid: not-a-valid-oid
 eg-schema: 1`;
 
       expect(() => decodePatchMessage(message)).toThrow('Invalid patchOid');
+    });
+
+    it('decodes encrypted=true from eg-encrypted trailer', () => {
+      const encoded = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+        encrypted: true,
+      });
+      const decoded = decodePatchMessage(encoded);
+      expect(decoded.encrypted).toBe(true);
+    });
+
+    it('decodes encrypted=false when eg-encrypted trailer is absent', () => {
+      const encoded = encodePatchMessage({
+        graph: 'events',
+        writer: 'node-1',
+        lamport: 1,
+        patchOid: VALID_OID_SHA1,
+      });
+      const decoded = decodePatchMessage(encoded);
+      expect(decoded.encrypted).toBe(false);
+    });
+
+    it('roundtrips encrypted flag correctly', () => {
+      for (const encrypted of [true, false]) {
+        const encoded = encodePatchMessage({
+          graph: 'events',
+          writer: 'w1',
+          lamport: 5,
+          patchOid: VALID_OID_SHA1,
+          encrypted,
+        });
+        const decoded = decodePatchMessage(encoded);
+        expect(decoded.encrypted).toBe(encrypted);
+      }
     });
   });
 

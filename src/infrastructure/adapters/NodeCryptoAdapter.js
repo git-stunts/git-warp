@@ -15,7 +15,7 @@ import {
 export default class NodeCryptoAdapter extends CryptoPort {
   /**
    * @param {string} algorithm
-   * @param {string|Buffer|Uint8Array} data
+   * @param {string|Uint8Array} data
    * @returns {Promise<string>}
    */
   // eslint-disable-next-line @typescript-eslint/require-await -- async ensures sync throws become rejected promises
@@ -25,18 +25,19 @@ export default class NodeCryptoAdapter extends CryptoPort {
 
   /**
    * @param {string} algorithm
-   * @param {string|Buffer|Uint8Array} key
-   * @param {string|Buffer|Uint8Array} data
-   * @returns {Promise<Buffer>}
+   * @param {string|Uint8Array} key
+   * @param {string|Uint8Array} data
+   * @returns {Promise<Uint8Array>}
    */
   // eslint-disable-next-line @typescript-eslint/require-await -- async ensures sync throws become rejected promises
   async hmac(algorithm, key, data) {
-    return createHmac(algorithm, key).update(data).digest();
+    const result = createHmac(algorithm, key).update(data).digest();
+    return new Uint8Array(result);
   }
 
   /**
-   * @param {Buffer|Uint8Array} a
-   * @param {Buffer|Uint8Array} b
+   * @param {Uint8Array} a
+   * @param {Uint8Array} b
    * @returns {boolean}
    */
   timingSafeEqual(a, b) {

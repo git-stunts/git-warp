@@ -131,41 +131,41 @@ function createMockSeekCache() {
 // ===========================================================================
 
 describe('buildSeekCacheKey', () => {
-  it('produces deterministic keys for identical inputs', () => {
+  it('produces deterministic keys for identical inputs', async () => {
     const frontier = new Map([['alice', 'aaa'], ['bob', 'bbb']]);
-    const k1 = buildSeekCacheKey(5, frontier);
-    const k2 = buildSeekCacheKey(5, frontier);
+    const k1 = await buildSeekCacheKey(5, frontier);
+    const k2 = await buildSeekCacheKey(5, frontier);
     expect(k1).toBe(k2);
   });
 
-  it('starts with version prefix', () => {
-    const key = buildSeekCacheKey(10, new Map([['w1', 'sha1']]));
+  it('starts with version prefix', async () => {
+    const key = await buildSeekCacheKey(10, new Map([['w1', 'sha1']]));
     expect(key).toMatch(/^v1:t10-/);
   });
 
-  it('uses full 64-char SHA-256 hex digest', () => {
-    const key = buildSeekCacheKey(1, new Map([['w', 's']]));
+  it('uses full 64-char SHA-256 hex digest', async () => {
+    const key = await buildSeekCacheKey(1, new Map([['w', 's']]));
     // v1:t1-<64 hex chars>
     const hash = key.split('-').slice(1).join('-');
     expect(hash).toHaveLength(64);
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('differs when ceiling changes', () => {
+  it('differs when ceiling changes', async () => {
     const f = new Map([['w', 'sha']]);
-    expect(buildSeekCacheKey(1, f)).not.toBe(buildSeekCacheKey(2, f));
+    expect(await buildSeekCacheKey(1, f)).not.toBe(await buildSeekCacheKey(2, f));
   });
 
-  it('differs when frontier changes', () => {
+  it('differs when frontier changes', async () => {
     const f1 = new Map([['w', 'sha1']]);
     const f2 = new Map([['w', 'sha2']]);
-    expect(buildSeekCacheKey(1, f1)).not.toBe(buildSeekCacheKey(1, f2));
+    expect(await buildSeekCacheKey(1, f1)).not.toBe(await buildSeekCacheKey(1, f2));
   });
 
-  it('is order-independent for frontier entries', () => {
+  it('is order-independent for frontier entries', async () => {
     const f1 = new Map([['alice', 'a'], ['bob', 'b']]);
     const f2 = new Map([['bob', 'b'], ['alice', 'a']]);
-    expect(buildSeekCacheKey(1, f1)).toBe(buildSeekCacheKey(1, f2));
+    expect(await buildSeekCacheKey(1, f1)).toBe(await buildSeekCacheKey(1, f2));
   });
 });
 

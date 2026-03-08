@@ -70,6 +70,23 @@ async function main() {
     const format = options.ndjson ? 'ndjson' : options.json ? 'json' : 'text';
     present(/** @type {Record<string, unknown>} */ (normalized.payload), { format, command, view: /** @type {string | null | boolean} */ (options.view ?? null) });
   }
+
+  // Long-running commands (e.g. serve) return a `close` function.
+  // Wait for SIGINT/SIGTERM instead of exiting immediately.
+  const close = result && typeof result === 'object' && 'close' in /** @type {Record<string, unknown>} */ (result)
+    ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result).close)
+    : null;
+
+  if (close) {
+    const shutdown = async () => {
+      await close();
+      process.exit(EXIT_CODES.OK);
+    };
+    process.on('SIGINT', () => { shutdown().catch(() => process.exit(1)); });
+    process.on('SIGTERM', () => { shutdown().catch(() => process.exit(1)); });
+    return; // Keep the process alive
+  }
+
   // Use process.exit() to avoid waiting for fire-and-forget I/O (e.g. seek cache writes).
   process.exit(normalized.exitCode ?? EXIT_CODES.OK);
 }

@@ -38,6 +38,7 @@ import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
 import {
+  EncryptionError,
   ForkError,
   IndexError,
   QueryError,
@@ -51,6 +52,7 @@ import {
   SyncError,
   WormholeError,
 } from './src/domain/errors/index.js';
+import BlobStoragePort from './src/ports/BlobStoragePort.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
 // Multi-writer graph support (WARP)
@@ -135,7 +137,11 @@ export {
   SeekCachePort,
   ClockAdapter,
 
+  // Blob storage port (CAS integration)
+  BlobStoragePort,
+
   // Error types for integrity failure handling
+  EncryptionError,
   ForkError,
   IndexError,
   QueryError,

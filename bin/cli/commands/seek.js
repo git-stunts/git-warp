@@ -1,5 +1,6 @@
 import { summarizeOps } from '../../../src/visualization/renderers/ascii/history.js';
 import { diffStates } from '../../../src/domain/services/StateDiff.js';
+import { textEncode } from '../../../src/domain/utils/bytes.js';
 import {
   buildCursorActiveRef,
   buildCursorSavedRef,
@@ -68,7 +69,7 @@ async function readSavedCursor(persistence, graphName, name) {
 async function writeSavedCursor(persistence, graphName, name, cursor) {
   const ref = buildCursorSavedRef(graphName, name);
   const json = JSON.stringify(cursor);
-  const oid = await persistence.writeBlob(Buffer.from(json, 'utf8'));
+  const oid = await persistence.writeBlob(textEncode(json));
   await persistence.updateRef(ref, oid);
 }
 

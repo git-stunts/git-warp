@@ -31,13 +31,13 @@ describe('StreamingBitmapIndexBuilder', () => {
     mockStorage = {
       writeBlob: vi.fn().mockImplementation(async (buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.push({ oid, content: buffer.toString('utf-8') });
+        writtenBlobs.push({ oid, content: new TextDecoder().decode(buffer) });
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
       readBlob: vi.fn().mockImplementation(async (oid) => {
         const blob = writtenBlobs.find((/** @type {any} */ b) => b.oid === oid);
-        return Buffer.from(blob ? blob.content : '{}');
+        return new TextEncoder().encode(blob ? blob.content : '{}');
       }),
     };
   });
@@ -254,17 +254,17 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     const mockStorage = {
       writeBlob: vi.fn().mockImplementation(async (buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.set(oid, buffer.toString('utf-8'));
+        writtenBlobs.set(oid, new TextDecoder().decode(buffer));
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
       readBlob: vi.fn().mockImplementation(async (oid) => {
         const content = writtenBlobs.get(oid);
         if (content) {
-          return Buffer.from(content);
+          return new TextEncoder().encode(content);
         }
         // Return valid empty envelope for any untracked blobs
-        return Buffer.from(JSON.stringify(createMockEnvelope({})));
+        return new TextEncoder().encode(JSON.stringify(createMockEnvelope({})));
       }),
     };
 
@@ -315,12 +315,12 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
     const mockStorage = {
       writeBlob: vi.fn().mockImplementation(async (buffer) => {
         const oid = `blob-${blobCounter++}`;
-        writtenBlobs.set(oid, buffer.toString('utf-8'));
+        writtenBlobs.set(oid, new TextDecoder().decode(buffer));
         return oid;
       }),
       writeTree: vi.fn().mockResolvedValue('tree-oid'),
       readBlob: vi.fn().mockImplementation(async (oid) => {
-        return Buffer.from(writtenBlobs.get(oid) || '{}');
+        return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
       }),
     };
 
@@ -368,12 +368,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       const mockStorage = {
         writeBlob: vi.fn().mockImplementation(async (buffer) => {
           const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, buffer.toString('utf-8'));
+          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
           return oid;
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
         readBlob: vi.fn().mockImplementation(async (oid) => {
-          return Buffer.from(writtenBlobs.get(oid) || '{}');
+          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
         }),
       };
 
@@ -436,7 +436,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
           return `blob-${writeCallCount}`;
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
+        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('{}')),
       };
 
       const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
@@ -472,7 +472,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
           return 'blob-oid';
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
-        readBlob: vi.fn().mockResolvedValue(Buffer.from('{}')),
+        readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('{}')),
       };
 
       const builder = new StreamingBitmapIndexBuilder(/** @type {any} */ ({
@@ -513,12 +513,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       const mockStorage = {
         writeBlob: vi.fn().mockImplementation(async (buffer) => {
           const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, buffer.toString('utf-8'));
+          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
           return oid;
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
         readBlob: vi.fn().mockImplementation(async (oid) => {
-          return Buffer.from(writtenBlobs.get(oid) || '{}');
+          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
         }),
       };
 
@@ -589,12 +589,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       const mockStorage = {
         writeBlob: vi.fn().mockImplementation(async (buffer) => {
           const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, buffer.toString('utf-8'));
+          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
           return oid;
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
         readBlob: vi.fn().mockImplementation(async (oid) => {
-          return Buffer.from(writtenBlobs.get(oid) || '{}');
+          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
         }),
       };
 

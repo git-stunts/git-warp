@@ -36,9 +36,9 @@ export class Writer {
   /**
    * Creates a new Writer instance.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
-  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger }) {
+  constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     validateWriterId(writerId);
 
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} Wider than Writer's own calls; satisfies PatchBuilderV2 constructor. */
@@ -67,6 +67,12 @@ export class Writer {
 
     /** @type {import('../../ports/LoggerPort.js').default} */
     this._logger = logger || nullLogger;
+
+    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
+    this._blobStorage = blobStorage || null;
+
+    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
+    this._patchBlobStorage = patchBlobStorage || null;
 
     /** @type {boolean} */
     this._commitInProgress = false;
@@ -148,6 +154,8 @@ export class Writer {
       onDeleteWithData: this._onDeleteWithData,
       codec: this._codec,
       logger: this._logger,
+      blobStorage: this._blobStorage || undefined,
+      patchBlobStorage: this._patchBlobStorage || undefined,
     });
 
     // Return PatchSession wrapping the builder

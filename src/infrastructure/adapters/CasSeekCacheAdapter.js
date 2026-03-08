@@ -18,11 +18,14 @@
 
 /**
  * Minimal interface for the ContentAddressableStore from @git-stunts/git-cas.
- * @typedef {{ readManifest: Function, restore: Function, store: Function, createTree: Function }} CasStore
+ * @typedef {{ readManifest: Function, restore: Function, restoreStream?: Function, store: Function, createTree: Function }} CasStore
  */
 
 import SeekCachePort from '../../ports/SeekCachePort.js';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.js';
+import { createLazyCas } from './lazyCasInit.js';
+import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
+import { textEncode, textDecode, concatBytes } from '../../domain/utils/bytes.js';
 import { Readable } from 'node:stream';
 
 const DEFAULT_MAX_ENTRIES = 200;
@@ -50,31 +53,20 @@ const MAX_CAS_RETRIES = 3;
 
 export default class CasSeekCacheAdapter extends SeekCachePort {
   /**
-   * @param {{ persistence: *, plumbing: *, graphName: string, maxEntries?: number }} options
+   * @param {{ persistence: *, plumbing: *, graphName: string, maxEntries?: number, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
    */
-  constructor({ persistence, plumbing, graphName, maxEntries }) {
+  constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, logger }) {
     super();
     this._persistence = persistence;
     this._plumbing = plumbing;
     this._graphName = graphName;
     this._maxEntries = maxEntries ?? DEFAULT_MAX_ENTRIES;
     this._ref = buildSeekCacheRef(graphName);
-    this._casPromise = null;
-  }
-
-  /**
-   * Lazily initializes the ContentAddressableStore.
-   * @private
-   * @returns {Promise<CasStore>}
-   */
-  async _getCas() {
-    if (!this._casPromise) {
-      this._casPromise = this._initCas().catch((err) => {
-        this._casPromise = null;
-        throw err;
-      });
-    }
-    return await this._casPromise;
+    /** @type {Uint8Array|undefined} */
+    this._encryptionKey = encryptionKey;
+    /** @type {import('../../ports/LoggerPort.js').default|undefined} */
+    this._logger = logger;
+    this._getCas = createLazyCas(() => this._initCas());
   }
 
   /**
@@ -82,10 +74,19 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    * @returns {Promise<CasStore>}
    */
   async _initCas() {
-    const { default: ContentAddressableStore } = await import(
+    const { default: ContentAddressableStore, CborCodec } = await import(
       /* webpackIgnore: true */ '@git-stunts/git-cas'
     );
-    return ContentAddressableStore.createCbor({ plumbing: this._plumbing });
+    /** @type {{ plumbing: *, codec: *, chunking: { strategy: 'cdc' }, observability?: * }} */
+    const opts = {
+      plumbing: this._plumbing,
+      codec: new CborCodec(),
+      chunking: { strategy: 'cdc' },
+    };
+    if (this._logger) {
+      opts.observability = new LoggerObservabilityBridge(this._logger);
+    }
+    return new ContentAddressableStore(opts);
   }
 
   // ---------------------------------------------------------------------------
@@ -104,7 +105,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     }
     try {
       const buf = await this._persistence.readBlob(oid);
-      const parsed = JSON.parse(buf.toString('utf8'));
+      const parsed = JSON.parse(textDecode(buf));
       if (parsed.schemaVersion !== INDEX_SCHEMA_VERSION) {
         return { schemaVersion: INDEX_SCHEMA_VERSION, entries: {} };
       }
@@ -122,7 +123,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    */
   async _writeIndex(index) {
     const json = JSON.stringify(index);
-    const oid = await this._persistence.writeBlob(Buffer.from(json, 'utf8'));
+    const oid = await this._persistence.writeBlob(textEncode(json));
     await this._persistence.updateRef(this._ref, oid);
   }
 
@@ -200,6 +201,39 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   }
 
   // ---------------------------------------------------------------------------
+  // Restore helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Restores a CAS asset into a single buffer.
+   *
+   * Prefers `cas.restoreStream()` (git-cas v4+) for I/O pipelining —
+   * chunk reads overlap with buffer accumulation. Falls back to
+   * `cas.restore()` for older git-cas versions or when streaming is
+   * unavailable (e.g. encrypted assets that require full buffering).
+   *
+   * @private
+   * @param {CasStore} cas - ContentAddressableStore instance
+   * @param {{ manifest: *, encryptionKey?: Uint8Array }} restoreOpts
+   * @returns {Promise<Uint8Array>}
+   */
+  async _restoreBuffer(cas, restoreOpts) {
+    if (typeof cas.restoreStream === 'function') {
+      const stream = cas.restoreStream(restoreOpts);
+      const chunks = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      if (chunks.length === 1) {
+        return chunks[0];
+      }
+      return concatBytes(...chunks);
+    }
+    const { buffer } = await cas.restore(restoreOpts);
+    return buffer;
+  }
+
+  // ---------------------------------------------------------------------------
   // SeekCachePort implementation
   // ---------------------------------------------------------------------------
 
@@ -215,7 +249,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
    *
    * @override
    * @param {string} key
-   * @returns {Promise<{ buffer: Buffer|Uint8Array, indexTreeOid?: string } | null>}
+   * @returns {Promise<{ buffer: Uint8Array, indexTreeOid?: string } | null>}
    */
   async get(key) {
     const cas = await this._getCas();
@@ -227,7 +261,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
     try {
       const manifest = await cas.readManifest({ treeOid: entry.treeOid });
-      const { buffer } = await cas.restore({ manifest });
+      /** @type {{ manifest: *, encryptionKey?: Uint8Array }} */
+      const restoreOpts = { manifest };
+      if (this._encryptionKey) {
+        restoreOpts.encryptionKey = this._encryptionKey;
+      }
+      const buffer = await this._restoreBuffer(cas, restoreOpts);
       // Update lastAccessedAt for LRU eviction ordering
       await this._mutateIndex((idx) => {
         if (idx.entries[key]) {
@@ -235,7 +274,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
         }
         return idx;
       });
-      /** @type {{ buffer: Buffer|Uint8Array, indexTreeOid?: string }} */
+      /** @type {{ buffer: Uint8Array, indexTreeOid?: string }} */
       const result = { buffer };
       if (entry.indexTreeOid) {
         result.indexTreeOid = entry.indexTreeOid;
@@ -254,7 +293,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
   /**
    * @override
    * @param {string} key
-   * @param {Buffer|Uint8Array} buffer
+   * @param {Uint8Array} buffer
    * @param {{ indexTreeOid?: string }} [options]
    * @returns {Promise<void>}
    */
@@ -264,11 +303,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
     // Store buffer as CAS asset
     const source = Readable.from([buffer]);
-    const manifest = await cas.store({
-      source,
-      slug: key,
-      filename: 'state.cbor',
-    });
+    /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Uint8Array }} */
+    const storeOpts = { source, slug: key, filename: 'state.cbor' };
+    if (this._encryptionKey) {
+      storeOpts.encryptionKey = this._encryptionKey;
+    }
+    const manifest = await cas.store(storeOpts);
     const treeOid = await cas.createTree({ manifest });
 
     // Update index with rich metadata

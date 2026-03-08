@@ -29,21 +29,21 @@ describe('defaultCrypto', () => {
   });
 
   describe('hmac', () => {
-    it('returns a Buffer', async () => {
+    it('returns a Uint8Array', async () => {
       const result = await defaultCrypto.hmac('sha256', 'secret-key', 'data');
-      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result).toBeInstanceOf(Uint8Array);
     });
 
     it('produces different results for different keys', async () => {
-      const a = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key-1', 'same-data'));
-      const b = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key-2', 'same-data'));
-      expect(a.equals(b)).toBe(false);
+      const a = await defaultCrypto.hmac('sha256', 'key-1', 'same-data');
+      const b = await defaultCrypto.hmac('sha256', 'key-2', 'same-data');
+      expect(a).not.toEqual(b);
     });
 
     it('produces consistent results', async () => {
-      const first = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key', 'data'));
-      const second = /** @type {any} */ (await defaultCrypto.hmac('sha256', 'key', 'data'));
-      expect(first.equals(second)).toBe(true);
+      const first = await defaultCrypto.hmac('sha256', 'key', 'data');
+      const second = await defaultCrypto.hmac('sha256', 'key', 'data');
+      expect(first).toEqual(second);
     });
   });
 

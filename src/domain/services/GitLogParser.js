@@ -1,5 +1,6 @@
 import GraphNode from '../entities/GraphNode.js';
 import { checkAborted } from '../utils/cancellation.js';
+import { concatBytes, textEncode, textDecode } from '../utils/bytes.js';
 
 /**
  * NUL byte (0x00) - Delimits commit records in git log output.
@@ -35,10 +36,8 @@ export const RECORD_SEPARATOR = '\x00';
  * testing and alternative implementations.
  *
  * **Binary-First Processing**: The parser works directly with binary data for
- * performance. Buffer.indexOf(0) is faster than string indexOf('\0') because:
- * - No UTF-8 decoding overhead during scanning
- * - Native C++ implementation in Node.js Buffer
- * - Byte-level comparison vs character-level
+ * performance. Uint8Array.indexOf(0) scans bytes without UTF-8 decoding
+ * overhead, and byte-level comparison is faster than character-level.
  *
  * UTF-8 decoding only happens once per complete record, not during scanning.
  * This is especially beneficial for large commit histories where most of the
@@ -74,9 +73,8 @@ export default class GitLogParser {
    * Parses a stream of git log output and yields GraphNode instances.
    *
    * **Binary-first processing for performance**:
-   * - Accepts Buffer, Uint8Array, or string chunks
-   * - Finds NUL bytes (0x00) directly in binary using Buffer.indexOf(0)
-   * - Buffer.indexOf(0) is faster than string indexOf('\0') - native C++ vs JS
+   * - Accepts Uint8Array or string chunks
+   * - Finds NUL bytes (0x00) directly in binary using Uint8Array.indexOf(0)
    * - UTF-8 decoding only happens for complete records, not during scanning
    *
    * Handles:
@@ -86,8 +84,8 @@ export default class GitLogParser {
    * - Backwards compatibility with string chunks
    * - Cancellation via AbortSignal
    *
-   * @param {AsyncIterable<Buffer|Uint8Array|string>} stream - The git log output stream.
-   *   May yield Buffer, Uint8Array, or string chunks.
+   * @param {AsyncIterable<Uint8Array|string>} stream - The git log output stream.
+   *   May yield Uint8Array or string chunks.
    * @param {{ signal?: AbortSignal }} [options] - Parse options
    * @yields {GraphNode} Parsed graph nodes. Invalid records are silently skipped.
    * @throws {OperationAbortedError} If signal is aborted during parsing
@@ -106,23 +104,24 @@ export default class GitLogParser {
    * }
    */
   async *parse(stream, { signal } = {}) {
-    let buffer = Buffer.alloc(0); // Binary buffer accumulator
+    /** @type {Uint8Array} */
+    let buffer = new Uint8Array(0); // Binary buffer accumulator
 
     for await (const chunk of stream) {
       checkAborted(signal, 'GitLogParser.parse');
 
-      // Convert string chunks to Buffer, keep Buffer chunks as-is
-      const chunkBuffer =
+      // Convert string chunks to Uint8Array, keep Uint8Array chunks as-is
+      const chunkBytes =
         typeof chunk === 'string'
-          ? Buffer.from(chunk, 'utf-8')
-          : Buffer.isBuffer(chunk)
+          ? textEncode(chunk)
+          : chunk instanceof Uint8Array
             ? chunk
-            : Buffer.from(chunk); // Uint8Array
+            : Uint8Array.from(chunk);
 
       // Append to accumulator
-      buffer = Buffer.concat([buffer, chunkBuffer]);
+      buffer = concatBytes(buffer, chunkBytes);
 
-      // Find NUL bytes (0x00) in binary - faster than string indexOf
+      // Find NUL bytes (0x00) in binary
       let nullIndex;
       while ((nullIndex = buffer.indexOf(0)) !== -1) {
         checkAborted(signal, 'GitLogParser.parse');
@@ -132,7 +131,7 @@ export default class GitLogParser {
         buffer = buffer.subarray(nullIndex + 1);
 
         // Only decode UTF-8 for complete records
-        const block = recordBytes.toString('utf-8');
+        const block = textDecode(recordBytes);
         const node = this.parseNode(block);
         if (node) {
           yield node;
@@ -142,7 +141,7 @@ export default class GitLogParser {
 
     // Process any remaining data (final record without trailing NUL)
     if (buffer.length > 0) {
-      const block = buffer.toString('utf-8');
+      const block = textDecode(buffer);
       if (block) {
         const node = this.parseNode(block);
         if (node) {

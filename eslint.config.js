@@ -270,6 +270,28 @@ export default tseslint.config(
     },
   },
 
+  // ── Domain purity: ban Buffer — use Uint8Array + helpers from domain/utils/bytes.js ──
+  {
+    files: ["src/domain/**/*.js"],
+    rules: {
+      "no-restricted-globals": ["error",
+        { "name": "Buffer", "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters." },
+      ],
+      "no-restricted-imports": ["error", {
+        "paths": [
+          {
+            "name": "node:buffer",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+          },
+          {
+            "name": "buffer",
+            "message": "Use Uint8Array + helpers from domain/utils/bytes.js. Buffer is confined to infrastructure adapters.",
+          },
+        ],
+      }],
+    },
+  },
+
   // ── Domain purity: ban Date.now(), new Date(), and Date() — use ClockPort ──
   {
     files: ["src/domain/**/*.js"],
@@ -323,6 +345,12 @@ export default tseslint.config(
         TextEncoder: "readonly",
         performance: "readonly",
         global: "readonly",
+        Headers: "readonly",
+        ReadableStream: "readonly",
+        Request: "readonly",
+        Response: "readonly",
+        WebSocket: "readonly",
+        queueMicrotask: "readonly",
         describe: "readonly",
         it: "readonly",
         expect: "readonly",

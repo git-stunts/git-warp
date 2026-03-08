@@ -3,14 +3,14 @@
  * @property {string} method - HTTP method (GET, POST, etc.)
  * @property {string} url - Request URL path + query string
  * @property {Record<string, string>} headers - Lowercased header map
- * @property {Buffer | Uint8Array | undefined} body - Raw body bytes (undefined for bodiless requests)
+ * @property {Uint8Array | undefined} body - Raw body bytes (undefined for bodiless requests)
  */
 
 /**
  * @typedef {Object} HttpResponse
  * @property {number} [status] - HTTP status code (defaults to 200)
  * @property {Record<string, string>} [headers] - Response headers
- * @property {string | Buffer | Uint8Array | null} [body] - Response body
+ * @property {string | Uint8Array | null} [body] - Response body
  */
 
 /**
