@@ -1,46 +1,39 @@
 <script setup>
-import { computed } from 'vue';
 import { useGraphStore } from '../stores/graphStore.js';
 import GraphCanvas from './GraphCanvas.vue';
 import Controls from './Controls.vue';
 import TimeSlider from './TimeSlider.vue';
 import Inspector from './Inspector.vue';
 
-const props = defineProps({ viewportId: String });
 const store = useGraphStore();
-const vp = computed(() => store.viewports[props.viewportId]);
 </script>
 
 <template>
-  <div class="viewport" :class="{ offline: vp && !vp.online }">
-    <div class="viewport-header" v-if="vp">
+  <div class="viewport">
+    <div class="viewport-header">
       <div class="viewport-title">
-        <span class="writer-badge" :style="{ background: vp.color }"></span>
-        <span class="viewport-label">{{ vp.label }}</span>
-        <span class="writer-id">{{ vp.writerId.slice(0, 12) }}...</span>
+        <span class="viewport-label">{{ store.activeGraph }}</span>
       </div>
-      <span class="node-count">{{ vp.nodes.length }} nodes</span>
-      <span v-if="!vp.online" class="offline-badge">OFFLINE</span>
+      <span class="node-count">{{ store.nodes.length }} nodes</span>
     </div>
 
-    <div class="viewport-body" v-if="vp">
+    <div class="viewport-body">
       <GraphCanvas
-        :nodes="vp.nodes"
-        :edges="vp.edges"
-        :selected-node="vp.selectedNode"
-        @select="(nodeId) => store.selectNode(props.viewportId, nodeId)"
+        :nodes="store.nodes"
+        :edges="store.edges"
+        :selected-node="store.selectedNode"
+        @select="(nodeId) => store.selectNode(nodeId)"
       />
     </div>
 
-    <div class="viewport-footer" v-if="vp">
-      <Controls :viewport-id="props.viewportId" />
-      <TimeSlider :viewport-id="props.viewportId" />
+    <div class="viewport-footer">
+      <Controls />
+      <TimeSlider />
     </div>
 
     <Inspector
-      v-if="vp && vp.selectedNode"
-      :viewport-id="props.viewportId"
-      :node-id="vp.selectedNode"
+      v-if="store.selectedNode"
+      :node-id="store.selectedNode"
     />
   </div>
 </template>
@@ -52,9 +45,7 @@ const vp = computed(() => store.viewports[props.viewportId]);
   background: #0d1117;
   position: relative;
   overflow: hidden;
-}
-.viewport.offline {
-  opacity: 0.7;
+  height: 100%;
 }
 .viewport-header {
   display: flex;
@@ -71,32 +62,13 @@ const vp = computed(() => store.viewports[props.viewportId]);
   align-items: center;
   gap: 6px;
 }
-.writer-badge {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
 .viewport-label {
   font-weight: 600;
   color: #e6edf3;
 }
-.writer-id {
-  color: #484f58;
-  font-family: monospace;
-  font-size: 11px;
-}
 .node-count {
   margin-left: auto;
   color: #8b949e;
-}
-.offline-badge {
-  background: #da3633;
-  color: #fff;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-weight: 700;
 }
 .viewport-body {
   flex: 1;

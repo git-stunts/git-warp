@@ -1,16 +1,14 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useGraphStore } from '../stores/graphStore.js';
 
-const props = defineProps({ viewportId: String });
 const store = useGraphStore();
-const vp = computed(() => store.viewports[props.viewportId]);
 
 const sliderValue = ref(0);
 const isLive = ref(true);
 
 watch(
-  () => vp.value?.maxCeiling,
+  () => store.maxCeiling,
   (newMax) => {
     if (isLive.value && newMax !== undefined) {
       sliderValue.value = newMax;
@@ -21,28 +19,25 @@ watch(
 function onSliderInput(event) {
   const val = parseInt(event.target.value, 10);
   sliderValue.value = val;
-  isLive.value = val >= (vp.value?.maxCeiling || 0);
-  store.setCeiling(
-    props.viewportId,
-    isLive.value ? Infinity : val,
-  );
+  isLive.value = val >= store.maxCeiling;
+  store.setCeiling(isLive.value ? Infinity : val);
 }
 
 function goLive() {
   isLive.value = true;
-  sliderValue.value = vp.value?.maxCeiling || 0;
-  store.setCeiling(props.viewportId, Infinity);
+  sliderValue.value = store.maxCeiling;
+  store.setCeiling(Infinity);
 }
 </script>
 
 <template>
-  <div class="time-slider" v-if="vp">
+  <div class="time-slider">
     <label class="slider-label">
       <span class="slider-icon">T</span>
       <input
         type="range"
         :min="0"
-        :max="Math.max(vp.maxCeiling, 1)"
+        :max="Math.max(store.maxCeiling, 1)"
         :value="sliderValue"
         class="slider"
         @input="onSliderInput"

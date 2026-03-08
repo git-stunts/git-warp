@@ -194,56 +194,34 @@ const props = await ws.inspect({ graph: 'default', nodeId: 'user:alice' });
 
 ---
 
-### T5 — Rewire graphStore.js
+### T5 — Rewire graphStore.js + Components ✅ DONE
 
-**Status:** PENDING
+**Status:** DONE
 
-**Goal:** Replace the in-memory `WarpGraph` usage in `graphStore.js` with `WarpSocket` calls.
+**Goal:** Replace the in-memory `WarpGraph` usage in `graphStore.js` with `WarpSocket` calls. Rewire all components for single-viewport, WebSocket-backed operation.
 
-**Files to modify:**
-- `demo/browsa/src/stores/graphStore.js` — complete rewrite
-- `demo/browsa/src/App.vue` — minor: remove hardcoded 4-viewport grid, add connection UI
-- `demo/browsa/src/main.js` — pass server URL from query param or config
+**What was done:**
+- `graphStore.js` — Complete rewrite. Removed all in-memory WarpGraph, CRDT, sync, and scenario infrastructure. New state: connection status, server URL, available graphs, single active graph, nodes/edges/inspectedProps. Uses `WarpSocket` for all communication. Reads server URL from `?server=` param / localStorage. Generates/persists writerId via `crypto.randomUUID()` + localStorage. Incremental diff application via `handleDiff()`. Time-travel via `socket.seek()`. Node inspection via `socket.inspect()`.
+- `App.vue` — Replaced 4-viewport grid with single full-height `GraphViewport`. Added connection bar (status dot, server URL, graph dropdown, writerId badge). Removed `ScenarioPanel` and "Sync All" button. Shows reconnect prompt when disconnected.
+- `Controls.vue` — Removed `viewportId` prop, sync buttons, online/offline toggle. Operates directly on store.
+- `GraphViewport.vue` — Removed `viewportId` prop and viewport lookup. Reads directly from store.
+- `Inspector.vue` — Removed viewport-based prop extraction. Displays `store.inspectedProps` (real server data). Removed `viewportId` prop.
+- `TimeSlider.vue` — Removed `viewportId` prop. Reads `store.maxCeiling` and calls `store.setCeiling()` directly.
+- Deleted `ScenarioPanel.vue`, `InProcessSyncBus.js`, `InsecureCryptoAdapter.js`.
 
-**What changes:**
-- Remove: `InMemoryGraphAdapter`, `WebCryptoAdapter`, `generateWriterId`, `sha1sync`, `InsecureCryptoAdapter`, `InProcessSyncBus` imports
-- Remove: `sharedPersistence`, `sharedCrypto`, `syncBus`, all direct `WarpGraph.open()` calls
-- Add: `WarpSocket` import, connection lifecycle, reconnect handling
-- `init()`: connect to `ws://localhost:PORT`, wait for `hello`, populate graph list
-- `openGraph(name)`: send `open` message, receive state, populate viewport
-- `addNode/removeNode/addEdge`: send `mutate` message, wait for `ack`
-- `setCeiling`: send `seek` message, receive state
-- `selectNode → inspect`: send `inspect` message, receive props
-- `onDiff` callback: update viewport state incrementally
-- Sync buttons: remove entirely (sync is automatic via the shared repo — other writers' patches are picked up by `graph.watch()` on the server)
-- Online/offline toggle: remove (doesn't make sense when connected to a real repo)
-
-**Single viewport:**
-- Default to one viewport showing the selected graph
-- Multiple browser windows = multiple writers (each gets its own `writerId`)
-- Graph selector dropdown: populated from `hello.graphs`
-
-**Dependency:** T4 (needs `WarpSocket`)
+**Dependency:** T4 (WarpSocket)
 
 ---
 
-### T6 — Rewire Inspector
+### T6 — Rewire Inspector ✅ DONE (absorbed into T5)
 
-**Status:** PENDING (component renamed from DaCone in `ec3cf04`)
+**Status:** DONE — Inspector rewire was included in the T5 component rewrite.
 
-**Goal:** Inspector shows real materialized properties and provenance from the server, not hardcoded viewport state.
-
-**Files to modify:**
-- `demo/browsa/src/components/Inspector.vue`
-
-**What changes:**
-- On node selection, send `inspect` message via `WarpSocket`
-- Display all returned properties (not just id/color/label)
-- Show system properties (prefixed with `_`) in a separate section
-- Show edge connections (from state, not inspect — already available from `state`/`diff` messages)
-- Future: show provenance (writer ID, Lamport timestamp, version vector position) — may need a `provenance` protocol message (defer to T9 or later)
-
-**Dependency:** T5 (needs rewired graphStore)
+**What was done:**
+- `Inspector.vue` now uses `store.inspectedProps` (populated by `socket.inspect()`) to display all server-reported properties, not just hardcoded id/color/label.
+- `selectNode()` in graphStore sends an `inspect` request and stores the result.
+- Edge connections still derived from `store.edges` (already available from `state`/`diff` messages).
+- Provenance display deferred to T9 or later.
 
 ---
 

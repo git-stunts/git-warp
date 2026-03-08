@@ -2,39 +2,26 @@
 import { computed } from 'vue';
 import { useGraphStore } from '../stores/graphStore.js';
 
-const props = defineProps({
-  viewportId: String,
-  nodeId: String,
-});
+defineProps({ nodeId: String });
 
 const store = useGraphStore();
-const vp = computed(() => store.viewports[props.viewportId]);
 
 const nodeProps = computed(() => {
-  if (!vp.value?.graph) { return []; }
-  // Extract all properties for this node from materialized state
-  const state = vp.value;
-  const result = [];
-  for (const node of state.nodes) {
-    if (node.id === props.nodeId) {
-      result.push({ key: 'id', value: node.id });
-      result.push({ key: 'color', value: node.color });
-      result.push({ key: 'label', value: node.label });
-      break;
-    }
-  }
-  return result;
+  if (!store.inspectedProps) { return []; }
+  return Object.entries(store.inspectedProps).map(([key, value]) => ({
+    key,
+    value,
+  }));
 });
 
 const connectedEdges = computed(() => {
-  if (!vp.value) { return []; }
-  return vp.value.edges.filter(
-    (e) => e.source === props.nodeId || e.target === props.nodeId,
+  return store.edges.filter(
+    (e) => e.source === store.selectedNode || e.target === store.selectedNode,
   );
 });
 
 function close() {
-  store.selectNode(props.viewportId, null);
+  store.selectNode(null);
 }
 </script>
 

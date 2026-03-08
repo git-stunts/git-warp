@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- **Browsa: node/edge deletion now works** — `materializeViewport()` was iterating raw `ORSet.entries` (which includes tombstoned elements) instead of checking for live dots. Removed nodes and edges would reappear after re-materialization because their tombstoned entries were still enumerated. Now checks each element's dots against the tombstone set before rendering.
+- **Browsa: architecture pivot to WebSocket** — Rewired the Vue app from in-memory `WarpGraph` instances to a live WebSocket connection via `WarpSocket`. The browser now connects to `git warp serve` and views/edits a real Git-backed graph. Replaced the 4-viewport multi-writer demo with a single-viewport, single-connection model. All mutations go through `socket.mutate()` and state updates arrive via server-pushed diffs.
+
+### Removed
+
+- **Browsa: scenario runner** — Removed `ScenarioPanel.vue` and all scenario infrastructure. Multi-writer scenarios don't apply to the single-connection WebSocket model.
+- **Browsa: in-memory sync** — Removed `InProcessSyncBus.js` and `InsecureCryptoAdapter.js`. No in-memory sync or browser-side crypto needed with the server-backed architecture.
+- **Browsa: multi-viewport grid** — Removed 4-viewport layout, sync buttons, and online/offline toggles. Multiple browser windows serve the multi-writer use case instead.
 
 ### Added
-
-- **Browsa: scenario runner** — Pre-built scenarios ("Two Writers, One Graph", "Offline Divergence", "Add & Remove", "Edge Network", "Time Travel") can be played from the header bar. Each scenario executes a scripted sequence of graph operations with animated delays, demonstrating multi-writer CRDT behavior without manual interaction.
 - **Browser-compatible `InMemoryGraphAdapter`** — Replaced hard `node:crypto` and `node:stream` imports with lazy-loaded fallbacks. A new `hash` constructor option lets callers inject a synchronous SHA-1 function for environments where `node:crypto` is unavailable (e.g. browsers). `node:stream` is now dynamically imported only in `logNodesStream()`.
 - **Browser-safe `defaultCrypto`** — The domain-level crypto default now lazy-loads `node:crypto` via top-level `await import()` with a try/catch, so importing `WarpGraph` in a browser no longer crashes at module evaluation time. Callers must inject crypto via `WarpGraph.open({ crypto })` when `node:crypto` is unavailable.
 - **`sha1sync` utility** (`@git-stunts/git-warp/sha1sync`) — Minimal synchronous SHA-1 implementation (~110 LOC) for browser content addressing with `InMemoryGraphAdapter`. Not for security — only for Git object ID computation.
