@@ -1,8 +1,781 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "M8 IRONCLAD type surface manifest — source of truth for T3 (index.d.ts) and T9 (consumer test)",
+  "$comment": "M8 IRONCLAD type surface manifest \u2014 source of truth for T3 (index.d.ts) and T9 (consumer test)",
   "version": 1,
   "exports": {
+    "AggregateResult": {
+      "kind": "interface"
+    },
+    "AggregateSpec": {
+      "kind": "interface"
+    },
+    "AncestorOptions": {
+      "kind": "interface"
+    },
+    "ApplySyncResult": {
+      "kind": "interface"
+    },
+    "BTR": {
+      "kind": "interface"
+    },
+    "BTRVerificationResult": {
+      "kind": "interface"
+    },
+    "BisectResult": {
+      "kind": "type"
+    },
+    "BisectService": {
+      "kind": "class"
+    },
+    "BitmapIndexBuilder": {
+      "kind": "class"
+    },
+    "BitmapIndexReader": {
+      "kind": "class"
+    },
+    "BlobStoragePort": {
+      "kind": "class"
+    },
+    "BulkNodeSpec": {
+      "kind": "interface"
+    },
+    "BunHttpAdapter": {
+      "kind": "class"
+    },
+    "CONTENT_PROPERTY_KEY": {
+      "kind": "const"
+    },
+    "ClockAdapter": {
+      "kind": "class"
+    },
+    "ClockPort": {
+      "kind": "abstract-class"
+    },
+    "CommitDagTraversalService": {
+      "kind": "class"
+    },
+    "CommonAncestorsOptions": {
+      "kind": "interface"
+    },
+    "ComposeWormholesOptions": {
+      "kind": "interface"
+    },
+    "ConsoleLogger": {
+      "kind": "class"
+    },
+    "CreateBTROptions": {
+      "kind": "interface"
+    },
+    "CreateNodeOptions": {
+      "kind": "interface"
+    },
+    "CreateWormholeOptions": {
+      "kind": "interface"
+    },
+    "CryptoPort": {
+      "kind": "abstract-class"
+    },
+    "DenoHttpAdapter": {
+      "kind": "class"
+    },
+    "EdgeChange": {
+      "kind": "interface"
+    },
+    "EdgeWeightFn": {
+      "kind": "type"
+    },
+    "EncryptionError": {
+      "kind": "class"
+    },
+    "EventId": {
+      "kind": "interface"
+    },
+    "ForkError": {
+      "kind": "class"
+    },
+    "GCExecuteResult": {
+      "kind": "interface"
+    },
+    "GCMetrics": {
+      "kind": "interface"
+    },
+    "GCPolicyConfig": {
+      "kind": "interface"
+    },
+    "GitGraphAdapter": {
+      "kind": "class"
+    },
+    "GitPlumbing": {
+      "kind": "interface"
+    },
+    "GraphNode": {
+      "kind": "class"
+    },
+    "GraphPersistencePort": {
+      "kind": "abstract-class"
+    },
+    "HealthCheckService": {
+      "kind": "class"
+    },
+    "HealthResult": {
+      "kind": "interface"
+    },
+    "HealthStatus": {
+      "kind": "const"
+    },
+    "HopOptions": {
+      "kind": "interface"
+    },
+    "HttpServerPort": {
+      "kind": "abstract-class"
+    },
+    "InMemoryGraphAdapter": {
+      "kind": "class"
+    },
+    "IndexError": {
+      "kind": "class"
+    },
+    "IndexHealth": {
+      "kind": "interface"
+    },
+    "IndexRebuildService": {
+      "kind": "class"
+    },
+    "IndexStoragePort": {
+      "kind": "abstract-class"
+    },
+    "IterateNodesOptions": {
+      "kind": "interface"
+    },
+    "JoinReceipt": {
+      "kind": "interface"
+    },
+    "ListNodesOptions": {
+      "kind": "interface"
+    },
+    "LoadOptions": {
+      "kind": "interface"
+    },
+    "LogLevel": {
+      "kind": "const"
+    },
+    "LogLevelValue": {
+      "kind": "type"
+    },
+    "LoggerPort": {
+      "kind": "abstract-class"
+    },
+    "LogicalTraversal": {
+      "kind": "interface"
+    },
+    "MaybeGCResult": {
+      "kind": "interface"
+    },
+    "NoOpLogger": {
+      "kind": "class"
+    },
+    "NodeCryptoAdapter": {
+      "kind": "class"
+    },
+    "NodeInfo": {
+      "kind": "interface"
+    },
+    "NodeWeightFn": {
+      "kind": "type"
+    },
+    "ObserverConfig": {
+      "kind": "interface"
+    },
+    "ObserverView": {
+      "kind": "class",
+      "instance": {
+        "hasNode": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "Promise<boolean>"
+        },
+        "getNodes": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string[]>"
+        },
+        "getNodeProps": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "Promise<Record<string, unknown> | null>"
+        },
+        "getEdges": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>"
+        },
+        "query": {
+          "params": [],
+          "returns": "QueryBuilder"
+        }
+      },
+      "properties": {
+        "name": {
+          "type": "string",
+          "readonly": true
+        },
+        "traverse": {
+          "type": "LogicalTraversal"
+        }
+      }
+    },
+    "OpEdgeAdd": {
+      "kind": "interface"
+    },
+    "OpEdgeTombstone": {
+      "kind": "interface"
+    },
+    "OpNodeAdd": {
+      "kind": "interface"
+    },
+    "OpNodeTombstone": {
+      "kind": "interface"
+    },
+    "OpOutcome": {
+      "kind": "interface"
+    },
+    "OpPropSet": {
+      "kind": "interface"
+    },
+    "OperationAbortedError": {
+      "kind": "class"
+    },
+    "PatchBuilderV2": {
+      "kind": "class",
+      "note": "Not directly exported from index.js but referenced as return type of createPatch()",
+      "instance": {
+        "addNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "removeNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "addEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "removeEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "setProperty": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "setEdgeProperty": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
+        "attachContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            }
+          ],
+          "returns": "Promise<PatchBuilderV2>"
+        },
+        "attachEdgeContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            }
+          ],
+          "returns": "Promise<PatchBuilderV2>"
+        },
+        "build": {
+          "params": [],
+          "returns": "PatchV2"
+        },
+        "commit": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string>"
+        }
+      },
+      "properties": {
+        "opCount": {
+          "type": "number",
+          "readonly": true
+        }
+      }
+    },
+    "PatchEntry": {
+      "kind": "interface"
+    },
+    "PatchError": {
+      "kind": "class"
+    },
+    "PatchSession": {
+      "kind": "class",
+      "instance": {
+        "addNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
+        "removeNode": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
+        "addEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
+        "removeEdge": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
+        "setProperty": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "this"
+        },
+        "setEdgeProperty": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "key",
+              "type": "string"
+            },
+            {
+              "name": "value",
+              "type": "unknown"
+            }
+          ],
+          "returns": "this"
+        },
+        "attachContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            }
+          ],
+          "returns": "Promise<this>"
+        },
+        "attachEdgeContent": {
+          "async": true,
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "Buffer | string"
+            }
+          ],
+          "returns": "Promise<this>"
+        },
+        "build": {
+          "params": [],
+          "returns": "PatchV2"
+        },
+        "commit": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string>"
+        }
+      },
+      "properties": {
+        "opCount": {
+          "type": "number",
+          "readonly": true
+        }
+      }
+    },
+    "PatchV2": {
+      "kind": "interface"
+    },
+    "PathOptions": {
+      "kind": "interface"
+    },
+    "PathResult": {
+      "kind": "interface"
+    },
+    "PingResult": {
+      "kind": "interface"
+    },
+    "PropRemoved": {
+      "kind": "interface"
+    },
+    "PropSet": {
+      "kind": "interface"
+    },
+    "ProvenanceIndex": {
+      "kind": "class"
+    },
+    "ProvenancePayload": {
+      "kind": "class"
+    },
+    "QueryBuilder": {
+      "kind": "class",
+      "instance": {
+        "match": {
+          "params": [
+            {
+              "name": "pattern",
+              "type": "string"
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "where": {
+          "params": [
+            {
+              "name": "fn",
+              "type": "((node: QueryNodeSnapshot) => boolean) | Record<string, unknown>"
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "outgoing": {
+          "params": [
+            {
+              "name": "label",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "options",
+              "type": "HopOptions",
+              "optional": true
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "incoming": {
+          "params": [
+            {
+              "name": "label",
+              "type": "string",
+              "optional": true
+            },
+            {
+              "name": "options",
+              "type": "HopOptions",
+              "optional": true
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "select": {
+          "params": [
+            {
+              "name": "fields",
+              "type": "Array<'id' | 'props'>",
+              "optional": true
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "aggregate": {
+          "params": [
+            {
+              "name": "spec",
+              "type": "AggregateSpec"
+            }
+          ],
+          "returns": "QueryBuilder"
+        },
+        "run": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<QueryResultV1 | AggregateResult>"
+        }
+      }
+    },
+    "QueryError": {
+      "kind": "class"
+    },
+    "QueryNodeSnapshot": {
+      "kind": "interface"
+    },
+    "QueryResultV1": {
+      "kind": "interface"
+    },
+    "RebuildOptions": {
+      "kind": "interface"
+    },
+    "RepositoryHealth": {
+      "kind": "interface"
+    },
+    "SchemaUnsupportedError": {
+      "kind": "class"
+    },
+    "SeekCachePort": {
+      "kind": "abstract-class"
+    },
+    "ShardCorruptionError": {
+      "kind": "class"
+    },
+    "ShardLoadError": {
+      "kind": "class"
+    },
+    "ShardValidationError": {
+      "kind": "class"
+    },
+    "StateDiffResult": {
+      "kind": "interface"
+    },
+    "StorageError": {
+      "kind": "class"
+    },
+    "SyncAuthClientOptions": {
+      "kind": "interface"
+    },
+    "SyncAuthServerOptions": {
+      "kind": "interface"
+    },
+    "SyncError": {
+      "kind": "class"
+    },
+    "SyncRequest": {
+      "kind": "interface"
+    },
+    "SyncResponse": {
+      "kind": "interface"
+    },
+    "TICK_RECEIPT_OP_TYPES": {
+      "kind": "const"
+    },
+    "TICK_RECEIPT_RESULT_TYPES": {
+      "kind": "const"
+    },
+    "TemporalNodeSnapshot": {
+      "kind": "interface"
+    },
+    "TemporalQuery": {
+      "kind": "interface"
+    },
+    "TickReceipt": {
+      "kind": "interface"
+    },
+    "TickReceiptOpType": {
+      "kind": "type"
+    },
+    "TickReceiptResult": {
+      "kind": "type"
+    },
+    "TopologicalSortOptions": {
+      "kind": "interface"
+    },
+    "TranslationCostBreakdown": {
+      "kind": "interface"
+    },
+    "TranslationCostResult": {
+      "kind": "interface"
+    },
+    "TraversalDirection": {
+      "kind": "type"
+    },
+    "TraversalError": {
+      "kind": "class"
+    },
+    "TraversalNode": {
+      "kind": "interface"
+    },
+    "TraversalOptions": {
+      "kind": "interface"
+    },
+    "TraversalService": {
+      "kind": "class",
+      "deprecated": true,
+      "alias": "CommitDagTraversalService"
+    },
+    "TraverseFacadeOptions": {
+      "kind": "interface"
+    },
+    "ValueRef": {
+      "kind": "type"
+    },
+    "ValueRefBlob": {
+      "kind": "interface"
+    },
+    "ValueRefInline": {
+      "kind": "interface"
+    },
+    "VerifyBTROptions": {
+      "kind": "interface"
+    },
     "WarpGraph": {
       "kind": "class",
       "default": true,
@@ -27,85 +800,166 @@
         "patch": {
           "async": true,
           "params": [
-            { "name": "build", "type": "(patch: PatchBuilderV2) => void | Promise<void>" }
+            {
+              "name": "build",
+              "type": "(patch: PatchBuilderV2) => void | Promise<void>"
+            }
           ],
           "returns": "Promise<string>"
         },
         "materialize": {
           "async": true,
           "params": [
-            { "name": "options", "type": "{ receipts?: boolean; ceiling?: number }", "optional": true }
+            {
+              "name": "options",
+              "type": "{ receipts?: boolean; ceiling?: number }",
+              "optional": true
+            }
           ],
           "returns": "Promise<WarpStateV5>",
           "overloads": [
             {
-              "params": [{ "name": "options", "type": "{ receipts: true; ceiling?: number }" }],
+              "params": [
+                {
+                  "name": "options",
+                  "type": "{ receipts: true; ceiling?: number }"
+                }
+              ],
               "returns": "Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>"
             },
             {
-              "params": [{ "name": "options", "type": "{ receipts?: false; ceiling?: number }", "optional": true }],
+              "params": [
+                {
+                  "name": "options",
+                  "type": "{ receipts?: false; ceiling?: number }",
+                  "optional": true
+                }
+              ],
               "returns": "Promise<WarpStateV5>"
             }
           ]
         },
         "materializeAt": {
           "async": true,
-          "params": [{ "name": "checkpointSha", "type": "string" }],
+          "params": [
+            {
+              "name": "checkpointSha",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<WarpStateV5>"
         },
         "hasNode": {
           "async": true,
-          "params": [{ "name": "nodeId", "type": "string" }],
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<boolean>"
         },
         "getNodeProps": {
           "async": true,
-          "params": [{ "name": "nodeId", "type": "string" }],
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<Record<string, unknown> | null>"
         },
         "getEdgeProps": {
           "async": true,
           "params": [
-            { "name": "from", "type": "string" },
-            { "name": "to", "type": "string" },
-            { "name": "label", "type": "string" }
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
           ],
           "returns": "Promise<Record<string, unknown> | null>"
         },
         "getContentOid": {
           "async": true,
-          "params": [{ "name": "nodeId", "type": "string" }],
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<string | null>"
         },
         "getContent": {
           "async": true,
-          "params": [{ "name": "nodeId", "type": "string" }],
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<Buffer | null>"
         },
         "getEdgeContentOid": {
           "async": true,
           "params": [
-            { "name": "from", "type": "string" },
-            { "name": "to", "type": "string" },
-            { "name": "label", "type": "string" }
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
           ],
           "returns": "Promise<string | null>"
         },
         "getEdgeContent": {
           "async": true,
           "params": [
-            { "name": "from", "type": "string" },
-            { "name": "to", "type": "string" },
-            { "name": "label", "type": "string" }
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
           ],
           "returns": "Promise<Buffer | null>"
         },
         "neighbors": {
           "async": true,
           "params": [
-            { "name": "nodeId", "type": "string" },
-            { "name": "direction", "type": "'outgoing' | 'incoming' | 'both'", "optional": true },
-            { "name": "edgeLabel", "type": "string", "optional": true }
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "direction",
+              "type": "'outgoing' | 'incoming' | 'both'",
+              "optional": true
+            },
+            {
+              "name": "edgeLabel",
+              "type": "string",
+              "optional": true
+            }
           ],
           "returns": "Promise<Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>>"
         },
@@ -157,16 +1011,28 @@
         "observer": {
           "async": true,
           "params": [
-            { "name": "name", "type": "string" },
-            { "name": "config", "type": "ObserverConfig" }
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "config",
+              "type": "ObserverConfig"
+            }
           ],
           "returns": "Promise<ObserverView>"
         },
         "translationCost": {
           "async": true,
           "params": [
-            { "name": "configA", "type": "ObserverConfig" },
-            { "name": "configB", "type": "ObserverConfig" }
+            {
+              "name": "configA",
+              "type": "ObserverConfig"
+            },
+            {
+              "name": "configB",
+              "type": "ObserverConfig"
+            }
           ],
           "returns": "Promise<TranslationCostResult>"
         },
@@ -183,8 +1049,15 @@
         "syncWith": {
           "async": true,
           "params": [
-            { "name": "remote", "type": "string | WarpGraph" },
-            { "name": "options", "type": "SyncWithOptions", "optional": true }
+            {
+              "name": "remote",
+              "type": "string | WarpGraph"
+            },
+            {
+              "name": "options",
+              "type": "SyncWithOptions",
+              "optional": true
+            }
           ],
           "returns": "Promise<{ applied: number; attempts: number; skippedWriters: Array<{ writerId: string; reason: string; localSha: string; remoteSha: string | null }>; state?: WarpStateV5 }>"
         },
@@ -201,35 +1074,65 @@
         "createWormhole": {
           "async": true,
           "params": [
-            { "name": "fromSha", "type": "string" },
-            { "name": "toSha", "type": "string" }
+            {
+              "name": "fromSha",
+              "type": "string"
+            },
+            {
+              "name": "toSha",
+              "type": "string"
+            }
           ],
           "returns": "Promise<WormholeEdge>"
         },
         "patchesFor": {
           "async": true,
-          "params": [{ "name": "entityId", "type": "string" }],
+          "params": [
+            {
+              "name": "entityId",
+              "type": "string"
+            }
+          ],
           "returns": "Promise<string[]>"
         },
         "materializeSlice": {
           "async": true,
           "params": [
-            { "name": "nodeId", "type": "string" },
-            { "name": "options", "type": "{ receipts?: boolean }", "optional": true }
+            {
+              "name": "nodeId",
+              "type": "string"
+            },
+            {
+              "name": "options",
+              "type": "{ receipts?: boolean }",
+              "optional": true
+            }
           ],
           "returns": "Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>"
         },
         "getWriterPatches": {
           "async": true,
           "params": [
-            { "name": "writerId", "type": "string" },
-            { "name": "stopAtSha", "type": "string | null", "optional": true }
+            {
+              "name": "writerId",
+              "type": "string"
+            },
+            {
+              "name": "stopAtSha",
+              "type": "string | null",
+              "optional": true
+            }
           ],
           "returns": "Promise<Array<{ patch: PatchV2; sha: string }>>"
         },
         "join": {
           "async": false,
-          "params": [{ "name": "otherState", "type": "WarpStateV5" }],
+          "params": [
+            {
+              "name": "otherState",
+              "type": "WarpStateV5"
+            }
+          ],
           "returns": "{ state: WarpStateV5; receipt: JoinReceipt }"
         },
         "subscribe": {
@@ -245,7 +1148,10 @@
         "watch": {
           "async": false,
           "params": [
-            { "name": "pattern", "type": "string" },
+            {
+              "name": "pattern",
+              "type": "string"
+            },
             {
               "name": "options",
               "type": "{ onChange: (diff: StateDiffResult) => void; onError?: (error: Error) => void; poll?: number }"
@@ -260,29 +1166,54 @@
         },
         "processSyncRequest": {
           "async": true,
-          "params": [{ "name": "request", "type": "SyncRequest" }],
+          "params": [
+            {
+              "name": "request",
+              "type": "SyncRequest"
+            }
+          ],
           "returns": "Promise<SyncResponse>"
         },
         "applySyncResponse": {
           "async": false,
-          "params": [{ "name": "response", "type": "SyncResponse" }],
+          "params": [
+            {
+              "name": "response",
+              "type": "SyncResponse"
+            }
+          ],
           "returns": "ApplySyncResult"
         },
         "syncNeeded": {
           "async": true,
-          "params": [{ "name": "remoteFrontier", "type": "Map<string, string>" }],
+          "params": [
+            {
+              "name": "remoteFrontier",
+              "type": "Map<string, string>"
+            }
+          ],
           "returns": "Promise<boolean>"
         },
         "writer": {
           "async": true,
-          "params": [{ "name": "writerId", "type": "string", "optional": true }],
+          "params": [
+            {
+              "name": "writerId",
+              "type": "string",
+              "optional": true
+            }
+          ],
           "returns": "Promise<Writer>"
         },
         "createWriter": {
           "async": true,
           "deprecated": true,
           "params": [
-            { "name": "opts", "type": "{ persist?: 'config' | 'none'; alias?: string }", "optional": true }
+            {
+              "name": "opts",
+              "type": "{ persist?: 'config' | 'none'; alias?: string }",
+              "optional": true
+            }
           ],
           "returns": "Promise<Writer>"
         },
@@ -313,255 +1244,261 @@
         }
       },
       "properties": {
-        "graphName": { "type": "string", "readonly": true },
-        "writerId": { "type": "string", "readonly": true },
-        "seekCache": { "type": "SeekCachePort | null", "readonly": true },
-        "provenanceIndex": { "type": "ProvenanceIndex | null", "readonly": true },
-        "persistence": { "type": "GraphPersistencePort", "readonly": true, "getter": true },
-        "onDeleteWithData": { "type": "'reject' | 'cascade' | 'warn'", "readonly": true, "getter": true },
-        "gcPolicy": { "type": "GCPolicyConfig", "readonly": true, "getter": true },
-        "temporal": { "type": "TemporalQuery", "readonly": true, "getter": true },
-        "traverse": { "type": "LogicalTraversal" },
+        "graphName": {
+          "type": "string",
+          "readonly": true
+        },
+        "writerId": {
+          "type": "string",
+          "readonly": true
+        },
+        "seekCache": {
+          "type": "SeekCachePort | null",
+          "readonly": true
+        },
+        "provenanceIndex": {
+          "type": "ProvenanceIndex | null",
+          "readonly": true
+        },
+        "persistence": {
+          "type": "GraphPersistencePort",
+          "readonly": true,
+          "getter": true
+        },
+        "onDeleteWithData": {
+          "type": "'reject' | 'cascade' | 'warn'",
+          "readonly": true,
+          "getter": true
+        },
+        "gcPolicy": {
+          "type": "GCPolicyConfig",
+          "readonly": true,
+          "getter": true
+        },
+        "temporal": {
+          "type": "TemporalQuery",
+          "readonly": true,
+          "getter": true
+        },
+        "traverse": {
+          "type": "LogicalTraversal"
+        },
         "setSeekCache": {
-          "params": [{ "name": "cache", "type": "SeekCachePort | null" }],
+          "params": [
+            {
+              "name": "cache",
+              "type": "SeekCachePort | null"
+            }
+          ],
           "returns": "void"
         }
       }
     },
-    "PatchBuilderV2": {
-      "kind": "class",
-      "note": "Not directly exported from index.js but referenced as return type of createPatch()",
-      "instance": {
-        "addNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "PatchBuilderV2" },
-        "removeNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "PatchBuilderV2" },
-        "addEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "PatchBuilderV2" },
-        "removeEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "PatchBuilderV2" },
-        "setProperty": { "params": [{ "name": "nodeId", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "PatchBuilderV2" },
-        "setEdgeProperty": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "PatchBuilderV2" },
-        "attachContent": { "async": true, "params": [{ "name": "nodeId", "type": "string" }, { "name": "content", "type": "Buffer | string" }], "returns": "Promise<PatchBuilderV2>" },
-        "attachEdgeContent": { "async": true, "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "content", "type": "Buffer | string" }], "returns": "Promise<PatchBuilderV2>" },
-        "build": { "params": [], "returns": "PatchV2" },
-        "commit": { "async": true, "params": [], "returns": "Promise<string>" }
-      },
-      "properties": {
-        "opCount": { "type": "number", "readonly": true }
-      }
+    "WarpGraphStatus": {
+      "kind": "interface"
     },
-    "PatchSession": {
-      "kind": "class",
-      "instance": {
-        "addNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "this" },
-        "removeNode": { "params": [{ "name": "nodeId", "type": "string" }], "returns": "this" },
-        "addEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "this" },
-        "removeEdge": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }], "returns": "this" },
-        "setProperty": { "params": [{ "name": "nodeId", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "this" },
-        "setEdgeProperty": { "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "key", "type": "string" }, { "name": "value", "type": "unknown" }], "returns": "this" },
-        "attachContent": { "async": true, "params": [{ "name": "nodeId", "type": "string" }, { "name": "content", "type": "Buffer | string" }], "returns": "Promise<this>" },
-        "attachEdgeContent": { "async": true, "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "content", "type": "Buffer | string" }], "returns": "Promise<this>" },
-        "build": { "params": [], "returns": "PatchV2" },
-        "commit": { "async": true, "params": [], "returns": "Promise<string>" }
-      },
-      "properties": {
-        "opCount": { "type": "number", "readonly": true }
-      }
+    "WarpStateIndexBuilder": {
+      "kind": "class"
+    },
+    "WarpStateV5": {
+      "kind": "interface"
+    },
+    "WebCryptoAdapter": {
+      "kind": "class"
+    },
+    "WeightedCostSelector": {
+      "kind": "type"
+    },
+    "WormholeEdge": {
+      "kind": "interface"
+    },
+    "WormholeError": {
+      "kind": "class"
     },
     "Writer": {
       "kind": "class",
       "instance": {
-        "head": { "async": true, "params": [], "returns": "Promise<string | null>" },
-        "beginPatch": { "async": true, "params": [], "returns": "Promise<PatchSession>" },
-        "commitPatch": { "async": true, "params": [{ "name": "build", "type": "(p: PatchSession) => void | Promise<void>" }], "returns": "Promise<string>" }
+        "head": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<string | null>"
+        },
+        "beginPatch": {
+          "async": true,
+          "params": [],
+          "returns": "Promise<PatchSession>"
+        },
+        "commitPatch": {
+          "async": true,
+          "params": [
+            {
+              "name": "build",
+              "type": "(p: PatchSession) => void | Promise<void>"
+            }
+          ],
+          "returns": "Promise<string>"
+        }
       },
       "properties": {
-        "writerId": { "type": "string", "readonly": true },
-        "graphName": { "type": "string", "readonly": true }
+        "writerId": {
+          "type": "string",
+          "readonly": true
+        },
+        "graphName": {
+          "type": "string",
+          "readonly": true
+        }
       }
     },
-    "QueryBuilder": {
-      "kind": "class",
-      "instance": {
-        "match": { "params": [{ "name": "pattern", "type": "string" }], "returns": "QueryBuilder" },
-        "where": { "params": [{ "name": "fn", "type": "((node: QueryNodeSnapshot) => boolean) | Record<string, unknown>" }], "returns": "QueryBuilder" },
-        "outgoing": { "params": [{ "name": "label", "type": "string", "optional": true }, { "name": "options", "type": "HopOptions", "optional": true }], "returns": "QueryBuilder" },
-        "incoming": { "params": [{ "name": "label", "type": "string", "optional": true }, { "name": "options", "type": "HopOptions", "optional": true }], "returns": "QueryBuilder" },
-        "select": { "params": [{ "name": "fields", "type": "Array<'id' | 'props'>", "optional": true }], "returns": "QueryBuilder" },
-        "aggregate": { "params": [{ "name": "spec", "type": "AggregateSpec" }], "returns": "QueryBuilder" },
-        "run": { "async": true, "params": [], "returns": "Promise<QueryResultV1 | AggregateResult>" }
-      }
+    "WriterError": {
+      "kind": "class"
     },
-    "ObserverView": {
-      "kind": "class",
-      "instance": {
-        "hasNode": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<boolean>" },
-        "getNodes": { "async": true, "params": [], "returns": "Promise<string[]>" },
-        "getNodeProps": { "async": true, "params": [{ "name": "nodeId", "type": "string" }], "returns": "Promise<Record<string, unknown> | null>" },
-        "getEdges": { "async": true, "params": [], "returns": "Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>" },
-        "query": { "params": [], "returns": "QueryBuilder" }
-      },
-      "properties": {
-        "name": { "type": "string", "readonly": true },
-        "traverse": { "type": "LogicalTraversal" }
-      }
+    "buildWarpStateIndex": {
+      "kind": "function",
+      "async": true
     },
-    "ProvenancePayload": { "kind": "class" },
-    "ProvenanceIndex": { "kind": "class" },
-    "GitGraphAdapter": { "kind": "class" },
-    "InMemoryGraphAdapter": { "kind": "class" },
-    "GraphNode": { "kind": "class" },
-    "BitmapIndexBuilder": { "kind": "class" },
-    "BitmapIndexReader": { "kind": "class" },
-    "IndexRebuildService": { "kind": "class" },
-    "HealthCheckService": { "kind": "class" },
-    "BisectService": { "kind": "class" },
-    "CommitDagTraversalService": { "kind": "class" },
-    "GraphPersistencePort": { "kind": "abstract-class" },
-    "IndexStoragePort": { "kind": "abstract-class" },
-    "LoggerPort": { "kind": "abstract-class" },
-    "ClockPort": { "kind": "abstract-class" },
-    "SeekCachePort": { "kind": "abstract-class" },
-    "NoOpLogger": { "kind": "class" },
-    "ConsoleLogger": { "kind": "class" },
-    "ClockAdapter": { "kind": "class" },
-    "HealthStatus": { "kind": "const" },
-    "LogLevel": { "kind": "const" },
-    "TraversalService": { "kind": "class", "deprecated": true, "alias": "CommitDagTraversalService" },
-
-    "ForkError": { "kind": "class" },
-    "IndexError": { "kind": "class" },
-    "QueryError": { "kind": "class" },
-    "SchemaUnsupportedError": { "kind": "class" },
-    "ShardLoadError": { "kind": "class" },
-    "ShardCorruptionError": { "kind": "class" },
-    "ShardValidationError": { "kind": "class" },
-    "StorageError": { "kind": "class" },
-    "TraversalError": { "kind": "class" },
-    "OperationAbortedError": { "kind": "class" },
-    "SyncError": { "kind": "class" },
-    "WormholeError": { "kind": "class" },
-
-    "checkAborted": { "kind": "function", "params": [{ "name": "signal", "type": "AbortSignal", "optional": true }, { "name": "operation", "type": "string", "optional": true }], "returns": "void" },
-    "createTimeoutSignal": { "kind": "function", "params": [{ "name": "ms", "type": "number" }], "returns": "AbortSignal" },
-    "encodeEdgePropKey": { "kind": "function", "params": [{ "name": "from", "type": "string" }, { "name": "to", "type": "string" }, { "name": "label", "type": "string" }, { "name": "propKey", "type": "string" }], "returns": "string" },
-    "decodeEdgePropKey": { "kind": "function", "params": [{ "name": "encoded", "type": "string" }], "returns": "{ from: string; to: string; label: string; propKey: string }" },
-    "isEdgePropKey": { "kind": "function", "params": [{ "name": "key", "type": "string" }], "returns": "boolean" },
-    "CONTENT_PROPERTY_KEY": { "kind": "const" },
-    "computeTranslationCost": { "kind": "function" },
-    "migrateV4toV5": { "kind": "function" },
-
-    "createNodeAdd": { "kind": "function" },
-    "createNodeTombstone": { "kind": "function" },
-    "createEdgeAdd": { "kind": "function" },
-    "createEdgeTombstone": { "kind": "function" },
-    "createPropSet": { "kind": "function" },
-    "createInlineValue": { "kind": "function" },
-    "createBlobValue": { "kind": "function" },
-    "createEventId": { "kind": "function" },
-
-    "createTickReceipt": { "kind": "function" },
-    "tickReceiptCanonicalJson": { "kind": "function" },
-    "TICK_RECEIPT_OP_TYPES": { "kind": "const" },
-    "TICK_RECEIPT_RESULT_TYPES": { "kind": "const" },
-
-    "createBTR": { "kind": "function", "async": true },
-    "verifyBTR": { "kind": "function", "async": true },
-    "replayBTR": { "kind": "function", "async": true },
-    "serializeBTR": { "kind": "function" },
-    "deserializeBTR": { "kind": "function" },
-
-    "createWormhole": { "kind": "function", "async": true },
-    "composeWormholes": { "kind": "function", "async": true },
-    "replayWormhole": { "kind": "function" },
-    "serializeWormhole": { "kind": "function" },
-    "deserializeWormhole": { "kind": "function" },
-
-    "CryptoPort": { "kind": "abstract-class" },
-    "NodeCryptoAdapter": { "kind": "class" },
-    "WebCryptoAdapter": { "kind": "class" },
-    "HttpServerPort": { "kind": "abstract-class" },
-    "BunHttpAdapter": { "kind": "class" },
-    "DenoHttpAdapter": { "kind": "class" },
-    "WarpStateIndexBuilder": { "kind": "class" },
-    "PatchError": { "kind": "class" },
-    "WriterError": { "kind": "class" },
-
-    "buildWarpStateIndex": { "kind": "function", "async": true },
-    "computeStateHashV5": { "kind": "function", "async": true },
-
-    "PingResult": { "kind": "interface" },
-    "RepositoryHealth": { "kind": "interface" },
-    "IndexHealth": { "kind": "interface" },
-    "HealthResult": { "kind": "interface" },
-    "CreateNodeOptions": { "kind": "interface" },
-    "BulkNodeSpec": { "kind": "interface" },
-    "ListNodesOptions": { "kind": "interface" },
-    "IterateNodesOptions": { "kind": "interface" },
-    "RebuildOptions": { "kind": "interface" },
-    "LoadOptions": { "kind": "interface" },
-    "TraversalNode": { "kind": "interface" },
-    "PathResult": { "kind": "interface" },
-    "QueryNodeSnapshot": { "kind": "interface" },
-    "QueryResultV1": { "kind": "interface" },
-    "AggregateSpec": { "kind": "interface" },
-    "AggregateResult": { "kind": "interface" },
-    "HopOptions": { "kind": "interface" },
-    "TraverseFacadeOptions": { "kind": "interface" },
-    "LogicalTraversal": { "kind": "interface" },
-    "TraversalOptions": { "kind": "interface" },
-    "AncestorOptions": { "kind": "interface" },
-    "PathOptions": { "kind": "interface" },
-    "CommonAncestorsOptions": { "kind": "interface" },
-    "TopologicalSortOptions": { "kind": "interface" },
-    "NodeInfo": { "kind": "interface" },
-    "GitPlumbing": { "kind": "interface" },
-    "ObserverConfig": { "kind": "interface" },
-    "TranslationCostBreakdown": { "kind": "interface" },
-    "TranslationCostResult": { "kind": "interface" },
-    "EdgeChange": { "kind": "interface" },
-    "PropSet": { "kind": "interface" },
-    "PropRemoved": { "kind": "interface" },
-    "StateDiffResult": { "kind": "interface" },
-    "TemporalNodeSnapshot": { "kind": "interface" },
-    "TemporalQuery": { "kind": "interface" },
-    "PatchV2": { "kind": "interface" },
-    "GCPolicyConfig": { "kind": "interface" },
-    "GCExecuteResult": { "kind": "interface" },
-    "GCMetrics": { "kind": "interface" },
-    "MaybeGCResult": { "kind": "interface" },
-    "SyncRequest": { "kind": "interface" },
-    "SyncResponse": { "kind": "interface" },
-    "ApplySyncResult": { "kind": "interface" },
-    "SyncAuthServerOptions": { "kind": "interface" },
-    "SyncAuthClientOptions": { "kind": "interface" },
-    "WarpGraphStatus": { "kind": "interface" },
-    "JoinReceipt": { "kind": "interface" },
-    "OpOutcome": { "kind": "interface" },
-    "TickReceipt": { "kind": "interface" },
-    "OpNodeAdd": { "kind": "interface" },
-    "OpNodeTombstone": { "kind": "interface" },
-    "OpEdgeAdd": { "kind": "interface" },
-    "OpEdgeTombstone": { "kind": "interface" },
-    "OpPropSet": { "kind": "interface" },
-    "ValueRefInline": { "kind": "interface" },
-    "ValueRefBlob": { "kind": "interface" },
-    "EventId": { "kind": "interface" },
-    "PatchEntry": { "kind": "interface" },
-    "WarpStateV5": { "kind": "interface" },
-    "BTR": { "kind": "interface" },
-    "BisectResult": { "kind": "type" },
-    "BTRVerificationResult": { "kind": "interface" },
-    "CreateBTROptions": { "kind": "interface" },
-    "VerifyBTROptions": { "kind": "interface" },
-    "WormholeEdge": { "kind": "interface" },
-    "CreateWormholeOptions": { "kind": "interface" },
-    "ComposeWormholesOptions": { "kind": "interface" },
-
-    "TraversalDirection": { "kind": "type" },
-    "EdgeWeightFn": { "kind": "type" },
-    "NodeWeightFn": { "kind": "type" },
-    "WeightedCostSelector": { "kind": "type" },
-    "LogLevelValue": { "kind": "type" },
-    "TickReceiptOpType": { "kind": "type" },
-    "TickReceiptResult": { "kind": "type" },
-    "ValueRef": { "kind": "type" }
+    "checkAborted": {
+      "kind": "function",
+      "params": [
+        {
+          "name": "signal",
+          "type": "AbortSignal",
+          "optional": true
+        },
+        {
+          "name": "operation",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "returns": "void"
+    },
+    "composeWormholes": {
+      "kind": "function",
+      "async": true
+    },
+    "computeStateHashV5": {
+      "kind": "function",
+      "async": true
+    },
+    "computeTranslationCost": {
+      "kind": "function"
+    },
+    "createBTR": {
+      "kind": "function",
+      "async": true
+    },
+    "createBlobValue": {
+      "kind": "function"
+    },
+    "createEdgeAdd": {
+      "kind": "function"
+    },
+    "createEdgeTombstone": {
+      "kind": "function"
+    },
+    "createEventId": {
+      "kind": "function"
+    },
+    "createInlineValue": {
+      "kind": "function"
+    },
+    "createNodeAdd": {
+      "kind": "function"
+    },
+    "createNodeTombstone": {
+      "kind": "function"
+    },
+    "createPropSet": {
+      "kind": "function"
+    },
+    "createTickReceipt": {
+      "kind": "function"
+    },
+    "createTimeoutSignal": {
+      "kind": "function",
+      "params": [
+        {
+          "name": "ms",
+          "type": "number"
+        }
+      ],
+      "returns": "AbortSignal"
+    },
+    "createWormhole": {
+      "kind": "function",
+      "async": true
+    },
+    "decodeEdgePropKey": {
+      "kind": "function",
+      "params": [
+        {
+          "name": "encoded",
+          "type": "string"
+        }
+      ],
+      "returns": "{ from: string; to: string; label: string; propKey: string }"
+    },
+    "deserializeBTR": {
+      "kind": "function"
+    },
+    "deserializeWormhole": {
+      "kind": "function"
+    },
+    "encodeEdgePropKey": {
+      "kind": "function",
+      "params": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "to",
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "type": "string"
+        },
+        {
+          "name": "propKey",
+          "type": "string"
+        }
+      ],
+      "returns": "string"
+    },
+    "isEdgePropKey": {
+      "kind": "function",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ],
+      "returns": "boolean"
+    },
+    "migrateV4toV5": {
+      "kind": "function"
+    },
+    "replayBTR": {
+      "kind": "function",
+      "async": true
+    },
+    "replayWormhole": {
+      "kind": "function"
+    },
+    "serializeBTR": {
+      "kind": "function"
+    },
+    "serializeWormhole": {
+      "kind": "function"
+    },
+    "tickReceiptCanonicalJson": {
+      "kind": "function"
+    },
+    "verifyBTR": {
+      "kind": "function",
+      "async": true
+    }
   }
 }
