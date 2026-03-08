@@ -105,9 +105,10 @@ Versioned JSON envelope: `{ v: 1, type: string, id?: string, payload: unknown }`
 
 ---
 
-### T3 — CLI Command: `git warp serve`
+### T3 — CLI Command: `git warp serve` ✅ DONE
 
-**Status:** PENDING
+**Commit:** `0ea9e01`
+**Status:** DONE
 
 **Goal:** Add `serve` as a CLI command so users can run `git warp serve` to start the WebSocket server.
 
