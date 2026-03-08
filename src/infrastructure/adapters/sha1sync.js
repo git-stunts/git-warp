@@ -105,6 +105,9 @@ function processBlock(state, w) {
  * // => 'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d'
  */
 export function sha1sync(data) {
+  if (data.length >= 0x20000000) {
+    throw new RangeError('sha1sync: input exceeds 512 MB limit');
+  }
   const blocks = preprocess(data);
   const state = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0];
 

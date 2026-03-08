@@ -5,8 +5,8 @@
  * belong on the general CryptoPort hash/hmac interface.
  *
  * This module lives in infrastructure because it depends on `node:crypto`
- * and `Buffer`. Domain code accesses it via the re-export in
- * `src/domain/trust/TrustCrypto.js`.
+ * and `Buffer`. Import directly from this file. The former domain re-export
+ * (`src/domain/trust/TrustCrypto.js`) was removed in v14.
  *
  * @module infrastructure/adapters/TrustCryptoAdapter
  * @see docs/specs/TRUST_V1_CRYPTO.md

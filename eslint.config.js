@@ -48,8 +48,6 @@ export default tseslint.config(
         fetch: "readonly",
         AbortController: "readonly",
         AbortSignal: "readonly",
-        atob: "readonly",
-        btoa: "readonly",
         performance: "readonly",
         global: "readonly",
       },

@@ -619,7 +619,11 @@ export interface GitPlumbing {
  * but stores all data in Maps — no real Git I/O required.
  */
 export class InMemoryGraphAdapter extends GraphPersistencePort {
-  constructor();
+  constructor(options?: {
+    author?: string;
+    clock?: { now: () => number };
+    hash?: (data: Uint8Array) => string;
+  });
 
   get emptyTree(): string;
   commitNode(options: CreateNodeOptions): Promise<string>;
@@ -1534,7 +1538,7 @@ export class EncryptionError extends Error {
   readonly code: string;
   readonly context: Record<string, unknown>;
 
-  constructor(message: string, options?: { code?: string; context?: Record<string, unknown> });
+  constructor(message: string, options?: { context?: Record<string, unknown> });
 }
 
 // ============================================================================

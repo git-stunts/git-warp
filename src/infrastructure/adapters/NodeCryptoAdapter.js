@@ -32,7 +32,7 @@ export default class NodeCryptoAdapter extends CryptoPort {
   // eslint-disable-next-line @typescript-eslint/require-await -- async ensures sync throws become rejected promises
   async hmac(algorithm, key, data) {
     const result = createHmac(algorithm, key).update(data).digest();
-    return new Uint8Array(result.buffer, result.byteOffset, result.byteLength);
+    return new Uint8Array(result);
   }
 
   /**

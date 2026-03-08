@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BunWsAdapter `close()` fire-and-forget** — `BunWsAdapter.close()` used `void server.stop()` and returned immediately. Now awaits the `stop()` promise, ensuring graceful shutdown.
 - **EncryptionError unused `code` option** — Removed `code` from the constructor options typedef. The error code is always `E_ENCRYPTED_PATCH`; the option was dead.
 - **CasBlobAdapter `Buffer.from` → `TextEncoder`** — Replaced `Buffer.from(content, 'utf8')` with `new TextEncoder().encode(content)` for consistency with the Uint8Array domain boundary.
-- **`defaultCrypto` hmac wrapping** — Replaced `new Uint8Array(result.buffer, result.byteOffset, result.byteLength)` with `new Uint8Array(result)` for clarity and safety against shared ArrayBuffer pools.
+- **Crypto adapter hmac wrapping** — Replaced `new Uint8Array(result.buffer, result.byteOffset, result.byteLength)` with `new Uint8Array(result)` in both `defaultCrypto` and `NodeCryptoAdapter.hmac()`, preventing shared ArrayBuffer pool aliasing.
 - **Test `Buffer` usage cleanup** — Replaced `Buffer.from()` in type-check consumer test and `Buffer.from(result.buffer)` in CasSeekCacheAdapter test with `TextEncoder`/`TextDecoder`.
 - **Duplicate `open()` in encryption test** — Consolidated redundant second `WarpGraph.open()` call in `WarpGraph.encryption.test.js` into a second assertion on the same promise.
 

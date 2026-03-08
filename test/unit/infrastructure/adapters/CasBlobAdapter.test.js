@@ -250,6 +250,40 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('bad-tree-oid');
     });
 
+    it('falls back to raw Git blob on "bad object" message (no .code)', async () => {
+      const rawBuf = Buffer.from('legacy raw blob');
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(rawBuf);
+      mockReadManifest.mockRejectedValue(new Error('bad object abc123'));
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      const result = await adapter.retrieve('bad-obj-oid');
+
+      expect(result).toBe(rawBuf);
+      expect(persistence.readBlob).toHaveBeenCalledWith('bad-obj-oid');
+    });
+
+    it('falls back to raw Git blob on "does not exist" message (no .code)', async () => {
+      const rawBuf = Buffer.from('legacy raw blob');
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(rawBuf);
+      mockReadManifest.mockRejectedValue(new Error('path does not exist'));
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      const result = await adapter.retrieve('missing-oid');
+
+      expect(result).toBe(rawBuf);
+      expect(persistence.readBlob).toHaveBeenCalledWith('missing-oid');
+    });
+
     it('rethrows non-legacy CAS errors', async () => {
       const persistence = makePersistence();
       const casErr = Object.assign(new Error('decryption failed'), { code: 'INTEGRITY_ERROR' });

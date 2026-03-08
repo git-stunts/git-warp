@@ -484,7 +484,7 @@ export default class WarpServeService {
     const { payload } = msg;
     const ceiling = /** @type {number} */ (/** @type {Record<string, unknown>} */ (payload)?.ceiling);
 
-    if (typeof ceiling !== 'number' || Number.isNaN(ceiling)) {
+    if (typeof ceiling !== 'number' || ceiling < 0 || Number.isNaN(ceiling)) {
       session.conn.send(errorEnvelope('E_INVALID_PAYLOAD', 'seek: ceiling must be a number', msg.id));
       return;
     }

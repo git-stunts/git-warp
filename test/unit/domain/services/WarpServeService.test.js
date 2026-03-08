@@ -213,6 +213,47 @@ describe('WarpServeService', () => {
       expect(msg.payload.graph).toBe('test-graph');
     });
 
+    it('serializes nodes, edges, and frontier in the state payload', async () => {
+      // Set up a graph with populated state
+      const dot = { writerId: 'w1', counter: 1 };
+      graph.materialize.mockResolvedValue({
+        nodeAlive: {
+          entries: new Map([['user:alice', new Set([dot])], ['user:bob', new Set([dot])]]),
+          tombstones: new Set(),
+        },
+        edgeAlive: {
+          entries: new Map([['user:alice\0user:bob\0knows', new Set([dot])]]),
+          tombstones: new Set(),
+        },
+        prop: new Map([
+          ['user:alice\0name', { eventId: { writerId: 'w1', counter: 1 }, value: 'Alice' }],
+        ]),
+        observedFrontier: new Map([['w1', 3]]),
+      });
+
+      const client = ws.simulateConnection();
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'req-state',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('state');
+      expect(msg.payload.graph).toBe('test-graph');
+      expect(msg.payload.nodes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'user:alice', props: { name: 'Alice' } }),
+        expect.objectContaining({ id: 'user:bob', props: {} }),
+      ]));
+      expect(msg.payload.edges).toEqual([
+        { from: 'user:alice', to: 'user:bob', label: 'knows' },
+      ]);
+      expect(msg.payload.frontier).toEqual({ w1: 3 });
+    });
+
     it('returns error for unknown graph name', async () => {
       const client = ws.simulateConnection();
       client.sent.length = 0;
@@ -492,6 +533,34 @@ describe('WarpServeService', () => {
       expect(mockPatch.attachContent).toHaveBeenCalledWith('node:blob', 'hello world');
     });
 
+    it('returns E_MUTATE_FAILED when createPatch rejects', async () => {
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      graph.createPatch.mockRejectedValueOnce(new Error('disk full'));
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-fail',
+        payload: {
+          graph: 'test-graph',
+          ops: [{ op: 'addNode', args: ['node:boom'] }],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('mut-fail');
+      expect(msg.payload.code).toBe('E_MUTATE_FAILED');
+      expect(msg.payload.message).toBe('disk full');
+    });
+
     it('rejects mutate before open', async () => {
       const client = ws.simulateConnection();
       client.sent.length = 0;
@@ -552,6 +621,31 @@ describe('WarpServeService', () => {
       expect(msg.id).toBe('ins-1');
       expect(msg.payload.props).toEqual({ name: 'Alice', role: 'admin' });
     });
+
+    it('returns E_INSPECT_FAILED when getNodeProps rejects', async () => {
+      graph.getNodeProps.mockRejectedValueOnce(new Error('node not found'));
+
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'inspect', id: 'ins-fail',
+        payload: { graph: 'test-graph', nodeId: 'user:ghost' },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('ins-fail');
+      expect(msg.payload.code).toBe('E_INSPECT_FAILED');
+      expect(msg.payload.message).toBe('node not found');
+    });
   });
 
   // ── Protocol: seek ──────────────────────────────────────────────────
@@ -593,6 +687,28 @@ describe('WarpServeService', () => {
       expect(graph.materialize).toHaveBeenCalledWith(
         expect.objectContaining({ ceiling: 5 }),
       );
+    });
+
+    it('rejects negative ceiling with E_INVALID_PAYLOAD', async () => {
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'seek', id: 'sk-neg',
+        payload: { graph: 'test-graph', ceiling: -1 },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('error');
+      expect(msg.id).toBe('sk-neg');
+      expect(msg.payload.code).toBe('E_INVALID_PAYLOAD');
     });
 
     it('treats Infinity ceiling as materialize-at-head', async () => {
