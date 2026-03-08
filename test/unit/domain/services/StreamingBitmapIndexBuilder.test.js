@@ -589,12 +589,12 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       const mockStorage = {
         writeBlob: vi.fn().mockImplementation(async (buffer) => {
           const oid = `blob-${blobCounter++}`;
-          writtenBlobs.set(oid, buffer.toString('utf-8'));
+          writtenBlobs.set(oid, new TextDecoder().decode(buffer));
           return oid;
         }),
         writeTree: vi.fn().mockResolvedValue('tree-oid'),
         readBlob: vi.fn().mockImplementation(async (oid) => {
-          return Buffer.from(writtenBlobs.get(oid) || '{}');
+          return new TextEncoder().encode(writtenBlobs.get(oid) || '{}');
         }),
       };
 

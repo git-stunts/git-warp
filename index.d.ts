@@ -528,9 +528,9 @@ export class ClockAdapter extends ClockPort {
  */
 export abstract class SeekCachePort {
   /** Retrieves a cached state buffer by key, or null on miss. */
-  abstract get(key: string): Promise<{ buffer: Buffer | Uint8Array; indexTreeOid?: string } | null>;
+  abstract get(key: string): Promise<{ buffer: Uint8Array; indexTreeOid?: string } | null>;
   /** Stores a state buffer under the given key. */
-  abstract set(key: string, buffer: Buffer | Uint8Array, options?: { indexTreeOid?: string }): Promise<void>;
+  abstract set(key: string, buffer: Uint8Array, options?: { indexTreeOid?: string }): Promise<void>;
   /** Checks whether a key exists in the cache index. */
   abstract has(key: string): Promise<boolean>;
   /** Lists all keys currently in the cache index. */
@@ -608,8 +608,8 @@ export class ConsoleLogger extends LoggerPort {
  */
 export interface GitPlumbing {
   readonly emptyTree: string;
-  execute(options: { args: string[]; input?: string | Buffer }): Promise<string>;
-  executeStream(options: { args: string[] }): Promise<AsyncIterable<Uint8Array> & { collect(opts?: { asString?: boolean }): Promise<Buffer | string> }>;
+  execute(options: { args: string[]; input?: string | Uint8Array }): Promise<string>;
+  executeStream(options: { args: string[] }): Promise<AsyncIterable<Uint8Array> & { collect(opts?: { asString?: boolean }): Promise<Uint8Array | string> }>;
 }
 
 /**
@@ -643,11 +643,11 @@ export class GitGraphAdapter extends GraphPersistencePort implements IndexStorag
   getNodeInfo(sha: string): Promise<NodeInfo>;
   logNodesStream(options: ListNodesOptions & { format: string }): Promise<AsyncIterable<Uint8Array | string>>;
   logNodes(options: ListNodesOptions & { format: string }): Promise<string>;
-  writeBlob(content: Buffer | string): Promise<string>;
+  writeBlob(content: Uint8Array | string): Promise<string>;
   writeTree(entries: string[]): Promise<string>;
   readTree(treeOid: string): Promise<Record<string, Uint8Array>>;
   readTreeOids(treeOid: string): Promise<Record<string, string>>;
-  readBlob(oid: string): Promise<Buffer>;
+  readBlob(oid: string): Promise<Uint8Array>;
   updateRef(ref: string, oid: string): Promise<void>;
   readRef(ref: string): Promise<string | null>;
   deleteRef(ref: string): Promise<void>;

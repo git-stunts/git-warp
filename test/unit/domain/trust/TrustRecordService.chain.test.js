@@ -136,7 +136,7 @@ describe('Chain integration (B15)', () => {
     }
     const records = readResult.records;
     for (const record of records) {
-      expect(verifyRecordId(record)).toBe(true);
+      expect(await verifyRecordId(record)).toBe(true);
     }
   });
 

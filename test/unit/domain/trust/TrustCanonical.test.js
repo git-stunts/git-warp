@@ -63,27 +63,27 @@ describe('computeRecordId', () => {
 });
 
 describe('verifyRecordId', () => {
-  it('returns true when recordId matches content', () => {
-    const id = computeRecordId(record);
+  it('returns true when recordId matches content', async () => {
+    const id = await computeRecordId(record);
     const r = { ...record, recordId: id };
-    expect(verifyRecordId(r)).toBe(true);
+    expect(await verifyRecordId(r)).toBe(true);
   });
 
-  it('returns false when recordId does not match', () => {
+  it('returns false when recordId does not match', async () => {
     const r = { ...record, recordId: 'f'.repeat(64) };
-    expect(verifyRecordId(r)).toBe(false);
+    expect(await verifyRecordId(r)).toBe(false);
   });
 });
 
 describe('computeSignaturePayload', () => {
-  it('returns a Buffer', () => {
+  it('returns a Uint8Array', () => {
     const payload = computeSignaturePayload(record);
-    expect(Buffer.isBuffer(payload)).toBe(true);
+    expect(payload).toBeInstanceOf(Uint8Array);
   });
 
   it('starts with the trust-sign domain prefix', () => {
     const payload = computeSignaturePayload(record);
-    const str = payload.toString('utf8');
+    const str = new TextDecoder().decode(payload);
     expect(str.startsWith('git-warp:trust-sign:v1\0')).toBe(true);
   });
 });
