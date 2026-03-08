@@ -96,7 +96,8 @@ export default async function handleServe({ options, args }) {
   }
 
   const targetGraphs = options.graph ? [options.graph] : graphNames;
-  const graphs = await openGraphs(persistence, targetGraphs, `serve:${host}:${port}`);
+  const writerId = `serve-${host}-${port}`.replace(/[^A-Za-z0-9._-]/g, '-');
+  const graphs = await openGraphs(persistence, targetGraphs, writerId);
 
   const wsPort = await createWsAdapter(staticDir);
   const service = new WarpServeService({ wsPort, graphs });
