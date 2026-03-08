@@ -1,4 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import WebSocketServerPort from '../../../../src/ports/WebSocketServerPort.js';
 import NodeWsAdapter from '../../../../src/infrastructure/adapters/NodeWsAdapter.js';
 
@@ -182,5 +185,70 @@ describe('NodeWsAdapter', () => {
     const addr = await server.listen(0, '127.0.0.1');
     expect(addr.host).toBe('127.0.0.1');
     expect(addr.port).toBeGreaterThan(0);
+  });
+
+  describe('with staticDir', () => {
+    /** @type {string} */
+    let staticDir;
+
+    beforeAll(async () => {
+      staticDir = await mkdtemp(join(tmpdir(), 'ws-static-'));
+      await writeFile(join(staticDir, 'index.html'), '<h1>Hello</h1>');
+      await writeFile(join(staticDir, 'app.js'), 'console.log("ok")');
+    });
+
+    afterAll(async () => {
+      await rm(staticDir, { recursive: true, force: true });
+    });
+
+    it('serves static files over HTTP on the same port', async () => {
+      const adapter = new NodeWsAdapter({ staticDir });
+      server = adapter.createServer(() => {});
+      const addr = await server.listen(0);
+
+      const res = await fetch(`http://127.0.0.1:${addr.port}/`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/html');
+      const body = await res.text();
+      expect(body).toContain('Hello');
+    });
+
+    it('serves non-HTML static files with correct MIME', async () => {
+      const adapter = new NodeWsAdapter({ staticDir });
+      server = adapter.createServer(() => {});
+      const addr = await server.listen(0);
+
+      const res = await fetch(`http://127.0.0.1:${addr.port}/app.js`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/javascript');
+    });
+
+    it('still accepts WebSocket connections alongside HTTP', async () => {
+      const adapter = new NodeWsAdapter({ staticDir });
+      server = adapter.createServer((conn) => {
+        conn.send('ws-hello');
+      });
+      const addr = await server.listen(0);
+
+      const ws = new globalThis.WebSocket(`ws://127.0.0.1:${addr.port}`);
+      await new Promise((resolve, reject) => {
+        ws.onopen = resolve;
+        ws.onerror = reject;
+      });
+      const msg = await new Promise((resolve) => {
+        ws.onmessage = (e) => resolve(e.data);
+      });
+      expect(msg).toBe('ws-hello');
+      ws.close();
+    });
+
+    it('returns 404 for missing files with extension', async () => {
+      const adapter = new NodeWsAdapter({ staticDir });
+      server = adapter.createServer(() => {});
+      const addr = await server.listen(0);
+
+      const res = await fetch(`http://127.0.0.1:${addr.port}/missing.css`);
+      expect(res.status).toBe(404);
+    });
   });
 });

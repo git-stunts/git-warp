@@ -1,4 +1,6 @@
 import process from 'node:process';
+import { resolve } from 'node:path';
+import { stat } from 'node:fs/promises';
 import { parseCommandArgs, usageError, notFoundError } from '../infrastructure.js';
 import { serveSchema } from '../schemas.js';
 import { createPersistence, listGraphNames } from '../shared.js';
@@ -9,25 +11,27 @@ import WarpServeService from '../../../src/domain/services/WarpServeService.js';
 /**
  * Creates the appropriate WebSocket adapter for the current runtime.
  *
+ * @param {string|null} [staticDir]
  * @returns {Promise<import('../../../src/ports/WebSocketServerPort.js').default>}
  */
-async function createWsAdapter() {
+async function createWsAdapter(staticDir) {
+  const opts = staticDir ? { staticDir } : {};
   if (globalThis.Bun) {
     const { default: BunWsAdapter } = await import(
       '../../../src/infrastructure/adapters/BunWsAdapter.js'
     );
-    return new BunWsAdapter();
+    return new BunWsAdapter(opts);
   }
   if (globalThis.Deno) {
     const { default: DenoWsAdapter } = await import(
       '../../../src/infrastructure/adapters/DenoWsAdapter.js'
     );
-    return new DenoWsAdapter();
+    return new DenoWsAdapter(opts);
   }
   const { default: NodeWsAdapter } = await import(
     '../../../src/infrastructure/adapters/NodeWsAdapter.js'
   );
-  return new NodeWsAdapter();
+  return new NodeWsAdapter(opts);
 }
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
@@ -35,6 +39,7 @@ async function createWsAdapter() {
 const SERVE_OPTIONS = {
   port: { type: 'string', default: '3000' },
   host: { type: 'string', default: '127.0.0.1' },
+  static: { type: 'string' },
 };
 
 /**
@@ -70,6 +75,16 @@ export default async function handleServe({ options, args }) {
   const { values } = parseCommandArgs(args, SERVE_OPTIONS, serveSchema, { allowPositionals: false });
   const { port, host } = values;
 
+  /** @type {string|null} */
+  let staticDir = null;
+  if (values.static) {
+    staticDir = resolve(values.static);
+    const st = await stat(staticDir).catch(() => null);
+    if (!st || !st.isDirectory()) {
+      throw usageError(`--static path is not a directory: ${values.static}`);
+    }
+  }
+
   const { persistence } = await createPersistence(options.repo);
   const graphNames = await listGraphNames(persistence);
 
@@ -83,13 +98,17 @@ export default async function handleServe({ options, args }) {
   const targetGraphs = options.graph ? [options.graph] : graphNames;
   const graphs = await openGraphs(persistence, targetGraphs, `serve:${host}:${port}`);
 
-  const wsPort = await createWsAdapter();
+  const wsPort = await createWsAdapter(staticDir);
   const service = new WarpServeService({ wsPort, graphs });
   const addr = await service.listen(port, host);
 
   const url = `ws://${addr.host}:${addr.port}`;
   process.stderr.write(`Listening on ${url}\n`);
   process.stderr.write(`Serving graph(s): ${targetGraphs.join(', ')}\n`);
+  if (staticDir) {
+    process.stderr.write(`Serving static files from ${staticDir}\n`);
+    process.stderr.write(`Open http://${addr.host}:${addr.port} in your browser\n`);
+  }
 
   return {
     payload: { url, host: addr.host, port: addr.port, graphs: targetGraphs },

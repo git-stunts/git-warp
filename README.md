@@ -552,7 +552,7 @@ git warp history --writer alice
 git warp check
 
 # Start WebSocket server for browser viewer
-git warp serve [--port 3000] [--host 127.0.0.1]
+git warp serve [--port 3000] [--host 127.0.0.1] [--static <dir>]
 ```
 
 ### Time-Travel (Seek)
@@ -599,14 +599,16 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 Browsa is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes. The serve command auto-detects Node, Bun, or Deno and uses the appropriate native WebSocket adapter.
 
 ```bash
-# Terminal 1: start the WebSocket server
-cd your-repo && git warp serve --port 3000
+# Option 1: single command with pre-built SPA
+cd demo/browsa && npm run build
+cd your-repo && git warp serve --port 3000 --static path/to/demo/browsa/dist
 
-# Terminal 2: start the Vite dev server
-cd demo/browsa && npm install && npm run dev
+# Option 2: two terminals (Vite HMR for development)
+cd your-repo && git warp serve --port 3000           # Terminal 1
+cd demo/browsa && npm install && npm run dev          # Terminal 2
 ```
 
-Open `http://localhost:5173?server=ws://localhost:3000` in your browser.
+Option 1 opens `http://localhost:3000` directly. Option 2 opens `http://localhost:5173?server=ws://localhost:3000`.
 
 ## Architecture
 

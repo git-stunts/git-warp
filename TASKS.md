@@ -311,17 +311,25 @@ const props = await ws.inspect({ graph: 'default', nodeId: 'user:alice' });
 
 ---
 
-### T11 — Deferred: Serve Static Build
+### T11 — Serve Static Build ✅ DONE
 
-**Status:** DEFERRED
+**Status:** DONE
 
-**Goal:** Have `git warp serve` also serve the built browsa SPA, so users don't need a separate Vite dev server.
+**What was built:**
+- `src/infrastructure/adapters/staticFileHandler.js` — shared static file handler with MIME type mapping, SPA fallback (extensionless paths serve `index.html`), path traversal containment (resolve-based), and null byte rejection.
+- `NodeWsAdapter` — when `staticDir` is set, creates an `http.Server` with the static handler and mounts `ws.WebSocketServer` on top of it. HTTP and WS share the same port.
+- `BunWsAdapter` — extracted `createFetchHandler()` that attempts WS upgrade, then falls back to static file serving when `staticDir` is set.
+- `DenoWsAdapter` — same pattern: WS upgrade first, static fallback for HTTP requests.
+- `bin/cli/commands/serve.js` — new `--static <dir>` flag. Validates directory exists. Passes `staticDir` to `createWsAdapter()`. Prints HTTP URL when static serving is active.
+- `bin/cli/schemas.js` — added `static` to `serveSchema`.
+- `bin/cli/infrastructure.js` — documented `--static` in `HELP_TEXT`.
+- `test/unit/infrastructure/adapters/staticFileHandler.test.js` — 14 tests (MIME types, SPA fallback, traversal, null bytes).
+- `test/unit/infrastructure/adapters/NodeWsAdapter.test.js` — 4 new integration tests (HTTP static serving + WS on same port).
 
-**Approach:**
-- Build browsa to `demo/browsa/dist/` (already works via `npm run build`)
-- `git warp serve` serves static files from that directory over HTTP on the same port
-- WebSocket upgrade on the same port (ws and http share the server)
-- This means `git warp serve` is a single command — no second terminal needed
+**Key design decisions:**
+- Static serving lives in the adapters, not the port interface — `WebSocketServerPort` stays WS-only, no ISP violation.
+- Path traversal: `resolve(root, '.' + normalize('/' + path))` guarantees the resolved path stays inside root. Null bytes are rejected explicitly.
+- SPA fallback: extensionless paths that don't match a file serve `index.html`. Paths with a file extension that don't match a file get 404.
 
 ---
 
