@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`@git-stunts/git-cas` v3.0.0 → v5.2.4** — Two major version jump. New capabilities now available: `ObservabilityPort` (replaces EventEmitter), streaming restore, CDC chunking (98.4% chunk reuse), envelope encryption (DEK/KEK), key rotation. No breaking changes for git-warp's usage — `CasSeekCacheAdapter` continues to work as-is.
 - **CDC chunking for seek cache** — `CasSeekCacheAdapter` now uses content-defined chunking (`CdcChunker`) instead of fixed-size chunking. Consecutive seek snapshots share most content; CDC's rolling-hash boundaries yield ~98% chunk reuse on incremental edits, significantly reducing Git object storage for the seek cache.
+- **Encrypted seek cache** — `CasSeekCacheAdapter` accepts an optional `encryptionKey` constructor param. When set, cached state snapshots are encrypted at rest using AES-256-GCM via git-cas.
+- **CAS observability bridge** — New `LoggerObservabilityBridge` adapter translates git-cas `ObservabilityPort` calls (metric, log, span) into git-warp `LoggerPort` calls. `CasSeekCacheAdapter` accepts an optional `logger` param to surface CAS operations through git-warp's structured logging.
 
 ### Added
 - **Browser-compatible `InMemoryGraphAdapter`** — Replaced hard `node:crypto` and `node:stream` imports with lazy-loaded fallbacks. A new `hash` constructor option lets callers inject a synchronous SHA-1 function for environments where `node:crypto` is unavailable (e.g. browsers). `node:stream` is now dynamically imported only in `logNodesStream()`.

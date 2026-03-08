@@ -23,6 +23,7 @@
 
 import SeekCachePort from '../../ports/SeekCachePort.js';
 import { buildSeekCacheRef } from '../../domain/utils/RefLayout.js';
+import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { Readable } from 'node:stream';
 
 const DEFAULT_MAX_ENTRIES = 200;
@@ -50,9 +51,9 @@ const MAX_CAS_RETRIES = 3;
 
 export default class CasSeekCacheAdapter extends SeekCachePort {
   /**
-   * @param {{ persistence: *, plumbing: *, graphName: string, maxEntries?: number }} options
+   * @param {{ persistence: *, plumbing: *, graphName: string, maxEntries?: number, encryptionKey?: Buffer|Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
    */
-  constructor({ persistence, plumbing, graphName, maxEntries }) {
+  constructor({ persistence, plumbing, graphName, maxEntries, encryptionKey, logger }) {
     super();
     this._persistence = persistence;
     this._plumbing = plumbing;
@@ -60,6 +61,10 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     this._maxEntries = maxEntries ?? DEFAULT_MAX_ENTRIES;
     this._ref = buildSeekCacheRef(graphName);
     this._casPromise = null;
+    /** @type {Buffer|Uint8Array|undefined} */
+    this._encryptionKey = encryptionKey;
+    /** @type {import('../../ports/LoggerPort.js').default|undefined} */
+    this._logger = logger;
   }
 
   /**
@@ -85,11 +90,16 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     const { default: ContentAddressableStore, CborCodec } = await import(
       /* webpackIgnore: true */ '@git-stunts/git-cas'
     );
-    return new ContentAddressableStore({
+    /** @type {{ plumbing: *, codec: *, chunking: { strategy: string }, observability?: * }} */
+    const opts = {
       plumbing: this._plumbing,
       codec: new CborCodec(),
       chunking: { strategy: 'cdc' },
-    });
+    };
+    if (this._logger) {
+      opts.observability = new LoggerObservabilityBridge(this._logger);
+    }
+    return new ContentAddressableStore(opts);
   }
 
   // ---------------------------------------------------------------------------
@@ -231,7 +241,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
     try {
       const manifest = await cas.readManifest({ treeOid: entry.treeOid });
-      const { buffer } = await cas.restore({ manifest });
+      /** @type {{ manifest: *, encryptionKey?: Buffer|Uint8Array }} */
+      const restoreOpts = { manifest };
+      if (this._encryptionKey) {
+        restoreOpts.encryptionKey = this._encryptionKey;
+      }
+      const { buffer } = await cas.restore(restoreOpts);
       // Update lastAccessedAt for LRU eviction ordering
       await this._mutateIndex((idx) => {
         if (idx.entries[key]) {
@@ -268,11 +283,12 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
 
     // Store buffer as CAS asset
     const source = Readable.from([buffer]);
-    const manifest = await cas.store({
-      source,
-      slug: key,
-      filename: 'state.cbor',
-    });
+    /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Buffer|Uint8Array }} */
+    const storeOpts = { source, slug: key, filename: 'state.cbor' };
+    if (this._encryptionKey) {
+      storeOpts.encryptionKey = this._encryptionKey;
+    }
+    const manifest = await cas.store(storeOpts);
     const treeOid = await cas.createTree({ manifest });
 
     // Update index with rich metadata

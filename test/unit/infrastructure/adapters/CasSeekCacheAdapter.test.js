@@ -116,6 +116,36 @@ describe('CasSeekCacheAdapter', () => {
     it('initialises _casPromise to null', () => {
       expect(adapter._casPromise).toBeNull();
     });
+
+    it('stores encryptionKey when provided', () => {
+      const key = Buffer.alloc(32, 0xab);
+      const encrypted = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: key,
+      });
+      expect(encrypted._encryptionKey).toBe(key);
+    });
+
+    it('defaults encryptionKey to undefined', () => {
+      expect(adapter._encryptionKey).toBeUndefined();
+    });
+
+    it('stores logger when provided', () => {
+      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() };
+      const withLogger = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        logger,
+      });
+      expect(withLogger._logger).toBe(logger);
+    });
+
+    it('defaults logger to undefined', () => {
+      expect(adapter._logger).toBeUndefined();
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -281,6 +311,49 @@ describe('CasSeekCacheAdapter', () => {
       const result = await adapter.get(SAMPLE_KEY);
       expect(result).toBeNull();
     });
+
+    it('passes encryptionKey to cas.restore when configured', async () => {
+      const encKey = Buffer.alloc(32, 0xab);
+      const encAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: encKey,
+      });
+      const treeOid = 'tree-oid-enc';
+      const manifest = { chunks: ['c1'] };
+      const stateBuffer = Buffer.from('encrypted-state');
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockResolvedValue({ buffer: stateBuffer });
+
+      await encAdapter.get(SAMPLE_KEY);
+
+      expect(mockRestore).toHaveBeenCalledWith({
+        manifest,
+        encryptionKey: encKey,
+      });
+    });
+
+    it('does not pass encryptionKey to cas.restore when not configured', async () => {
+      const treeOid = 'tree-oid-plain';
+      const manifest = { chunks: ['c1'] };
+
+      persistence.readRef.mockResolvedValue('index-oid');
+      persistence.readBlob.mockResolvedValue(
+        indexBuffer({ [SAMPLE_KEY]: { treeOid, createdAt: new Date().toISOString() } })
+      );
+      mockReadManifest.mockResolvedValue(manifest);
+      mockRestore.mockResolvedValue({ buffer: Buffer.from('plain') });
+
+      await adapter.get(SAMPLE_KEY);
+
+      expect(mockRestore).toHaveBeenCalledWith({ manifest });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -345,6 +418,37 @@ describe('CasSeekCacheAdapter', () => {
       );
       expect(writtenJson.entries[existingKey]).toEqual(existingEntry);
       expect(writtenJson.entries[SAMPLE_KEY]).toBeDefined();
+    });
+
+    it('passes encryptionKey to cas.store when configured', async () => {
+      const encKey = Buffer.alloc(32, 0xab);
+      const encAdapter = new CasSeekCacheAdapter({
+        persistence,
+        plumbing,
+        graphName: GRAPH_NAME,
+        encryptionKey: encKey,
+      });
+
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue('enc-tree');
+      persistence.readRef.mockResolvedValue(null);
+
+      await encAdapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
+
+      expect(mockStore).toHaveBeenCalledWith(
+        expect.objectContaining({ encryptionKey: encKey })
+      );
+    });
+
+    it('does not pass encryptionKey to cas.store when not configured', async () => {
+      mockStore.mockResolvedValue({ chunks: [] });
+      mockCreateTree.mockResolvedValue('plain-tree');
+      persistence.readRef.mockResolvedValue(null);
+
+      await adapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
+
+      const storeArg = mockStore.mock.calls[0][0];
+      expect(storeArg.encryptionKey).toBeUndefined();
     });
   });
 
