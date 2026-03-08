@@ -97,7 +97,7 @@ async function resolveStaticDir(raw) {
  * Determine which graphs to serve and validate the selection.
  *
  * @param {import('../types.js').Persistence} persistence
- * @param {string|undefined} graphOption
+ * @param {string|null} [graphOption]
  * @returns {Promise<{ persistence: import('../types.js').Persistence, targetGraphs: string[] }>}
  */
 async function resolveTargetGraphs(persistence, graphOption) {
