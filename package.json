@@ -118,6 +118,7 @@
     "roaring-wasm": "^1.1.0",
     "string-width": "^7.1.0",
     "wrap-ansi": "^9.0.0",
+    "ws": "^8.19.0",
     "zod": "3.24.1"
   },
   "devDependencies": {
