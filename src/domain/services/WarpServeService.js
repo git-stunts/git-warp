@@ -46,6 +46,9 @@ const MUTATE_OP_SIGNATURES = {
   removeEdge: ['string', 'string', 'string'],
   setProperty: ['string', 'string', '*'],
   setEdgeProperty: ['string', 'string', 'string', 'string', '*'],
+  // Binary content (Uint8Array) cannot survive JSON serialisation — these
+  // require string input over the WebSocket JSON protocol.  A future binary
+  // protocol could lift this limitation.
   attachContent: ['string', 'string'],
   attachEdgeContent: ['string', 'string', 'string', 'string'],
 };
@@ -521,6 +524,9 @@ export default class WarpServeService {
         try {
           client.conn.send(msg);
         } catch {
+          // Dead connection — evict silently.  No logger is available at
+          // this layer; the `onClose` handler also evicts, but `send()`
+          // can throw before `close` fires on a reset connection.
           this._clients.delete(client);
         }
       }

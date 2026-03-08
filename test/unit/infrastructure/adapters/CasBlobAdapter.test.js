@@ -40,7 +40,7 @@ const { default: BlobStoragePort } = await import(
 
 function makePersistence() {
   return {
-    readBlob: vi.fn().mockResolvedValue(Buffer.from('raw-blob-data')),
+    readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('raw-blob-data')),
     writeBlob: vi.fn().mockResolvedValue('blob-oid-1'),
   };
 }
@@ -197,7 +197,7 @@ describe('CasBlobAdapter', () => {
     });
 
     it('falls back to raw Git blob when CAS readManifest throws MANIFEST_NOT_FOUND', async () => {
-      const rawBuf = Buffer.from('legacy raw blob');
+      const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
       const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
@@ -215,7 +215,7 @@ describe('CasBlobAdapter', () => {
     });
 
     it('falls back to raw Git blob when CAS readManifest throws GIT_ERROR', async () => {
-      const rawBuf = Buffer.from('legacy raw blob');
+      const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
       const casErr = Object.assign(new Error('Failed to read tree'), { code: 'GIT_ERROR' });
@@ -233,7 +233,7 @@ describe('CasBlobAdapter', () => {
     });
 
     it('falls back to raw Git blob on message-based legacy errors (no .code)', async () => {
-      const rawBuf = Buffer.from('legacy raw blob');
+      const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
       mockReadManifest.mockResolvedValue({ chunks: [] });
@@ -251,7 +251,7 @@ describe('CasBlobAdapter', () => {
     });
 
     it('falls back to raw Git blob on "bad object" message (no .code)', async () => {
-      const rawBuf = Buffer.from('legacy raw blob');
+      const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
       mockReadManifest.mockRejectedValue(new Error('bad object abc123'));
@@ -268,7 +268,7 @@ describe('CasBlobAdapter', () => {
     });
 
     it('falls back to raw Git blob on "does not exist" message (no .code)', async () => {
-      const rawBuf = Buffer.from('legacy raw blob');
+      const rawBuf = new TextEncoder().encode('legacy raw blob');
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(rawBuf);
       mockReadManifest.mockRejectedValue(new Error('path does not exist'));

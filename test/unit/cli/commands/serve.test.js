@@ -173,6 +173,19 @@ describe('handleServe', () => {
     expect(openCall.writerId).toContain(String(process.pid));
   });
 
+  it('derives ephemeral writerId for port 0 (OS-assigned)', async () => {
+    await handleServe({
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
+      args: ['--port', '0'],
+    });
+
+    const openCall = /** @type {any} */ (WarpGraph.open).mock.calls[0][0];
+    // Port 0 means the OS assigns an ephemeral port — writerId should NOT embed "0"
+    expect(openCall.writerId).toContain('ephemeral');
+    expect(openCall.writerId).not.toContain('-0-');
+    expect(openCall.writerId).not.toMatch(/-0$/);
+  });
+
   it('uses --writer-id when provided instead of derived writerId', async () => {
     await handleServe({
       options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
@@ -201,5 +214,6 @@ describe('handleServe', () => {
     });
 
     expect(typeof result.close).toBe('function');
+    await expect(result.close()).resolves.toBeUndefined();
   });
 });

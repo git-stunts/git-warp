@@ -1,7 +1,6 @@
 import { createServer as createHttpServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 import WebSocketServerPort from '../../ports/WebSocketServerPort.js';
-import { handleStaticRequest } from './staticFileHandler.js';
 import { normalizeHost, assertNotListening, messageToString } from './wsAdapterUtils.js';
 
 /**
@@ -47,9 +46,14 @@ function wrapConnection(ws) {
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void}
  */
 function createStaticHandler(staticDir) {
+  /** @type {typeof import('./staticFileHandler.js').handleStaticRequest|null} */
+  let handler = null;
   return (req, res) => {
     const urlPath = new URL(req.url || '/', 'http://localhost').pathname;
-    handleStaticRequest(staticDir, urlPath).then((result) => {
+    (handler
+      ? Promise.resolve(handler)
+      : import('./staticFileHandler.js').then(m => { handler = m.handleStaticRequest; return handler; })
+    ).then((h) => h(staticDir, urlPath)).then((result) => {
       res.writeHead(result.status, result.headers);
       res.end(result.body);
     }).catch(() => {

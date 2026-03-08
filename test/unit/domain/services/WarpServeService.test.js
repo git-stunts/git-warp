@@ -167,11 +167,40 @@ describe('WarpServeService', () => {
       expect(hello.payload.protocol).toBe(1);
     });
 
-    it('cleans up on client disconnect', () => {
+    it('cleans up on client disconnect', async () => {
+      // Capture the onChange handler for diff broadcasting
+      /** @type {Function|null} */
+      let capturedOnChange = null;
+      graph.subscribe.mockImplementation((/** @type {any} */ opts) => {
+        capturedOnChange = opts.onChange;
+        return { unsubscribe: vi.fn() };
+      });
+
+      // Re-create service so it picks up the new subscribe mock
+      service = new WarpServeService({ wsPort: ws.port, graphs: [graph] });
+      await service.listen(0);
+
       const client = ws.simulateConnection();
+      // Open the graph so the client is subscribed to diffs
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2); // hello + state
+      client.sent.length = 0;
+
+      // Disconnect
       client.triggerClose();
-      // Should not throw or leak — no observable side-effect to test,
-      // but the service should remain functional for new connections.
+
+      // A diff broadcast after disconnect should NOT reach the dead client
+      if (capturedOnChange) {
+        /** @type {any} */ (capturedOnChange)({
+          nodes: { added: ['node:ghost'], removed: [] },
+        });
+      }
+      expect(client.sent).toHaveLength(0);
+
+      // Service should remain functional for new connections
       const client2 = ws.simulateConnection();
       expect(client2.sent.length).toBe(1);
     });
@@ -498,8 +527,9 @@ describe('WarpServeService', () => {
       const mockPatch = {
         addNode: vi.fn().mockReturnThis(),
         attachContent: vi.fn().mockImplementation(async () => {
-          // Simulate async blob write
-          await new Promise((r) => setTimeout(r, 10));
+          // Simulate async blob write — use microtask (not real timer) to
+          // prove ordering without introducing timer-based flakiness.
+          await Promise.resolve();
           attachResolved = true;
           return mockPatch;
         }),

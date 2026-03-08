@@ -231,7 +231,7 @@ describe('serveSchema', () => {
   });
 
   it('rejects unknown keys', () => {
-    expect(() => serveSchema.parse({ unknown: true })).toThrow();
+    expect(() => serveSchema.parse({ unknown: true })).toThrow(/unknown/i);
   });
 });
 
