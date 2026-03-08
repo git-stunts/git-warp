@@ -4,7 +4,13 @@ import WarpSocket from '../net/WarpSocket.js';
 
 const STORAGE_KEY_SERVER = 'browsa:serverUrl';
 const STORAGE_KEY_WRITER = 'browsa:writerId';
-const DEFAULT_SERVER_URL = 'ws://localhost:3000';
+function deriveDefaultServerUrl() {
+  const loc = globalThis.location;
+  if (!loc) { return 'ws://localhost:3000'; }
+  const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${loc.host}`;
+}
+const DEFAULT_SERVER_URL = deriveDefaultServerUrl();
 
 export const useGraphStore = defineStore('graph', () => {
   // ── Connection state ──────────────────────────────────────────────
