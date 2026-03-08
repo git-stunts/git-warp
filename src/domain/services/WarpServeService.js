@@ -424,7 +424,7 @@ export default class WarpServeService {
           session.conn.send(errorEnvelope('E_INVALID_ARGS', argError, msg.id));
           return;
         }
-        patch[op](...args);
+        await patch[op](...args);
       }
       const sha = await patch.commit();
       session.conn.send(envelope('ack', { sha }, msg.id));

@@ -392,6 +392,56 @@ describe('WarpServeService', () => {
       expect(msg.id).toBe('mut-wild');
     });
 
+    it('awaits async ops like attachContent before commit', async () => {
+      const client = ws.simulateConnection();
+      // Open first
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      client.sent.length = 0;
+
+      // Override createPatch to return a mock with an async attachContent
+      let attachResolved = false;
+      const mockPatch = {
+        addNode: vi.fn().mockReturnThis(),
+        attachContent: vi.fn().mockImplementation(async () => {
+          // Simulate async blob write
+          await new Promise((r) => setTimeout(r, 10));
+          attachResolved = true;
+          return mockPatch;
+        }),
+        commit: vi.fn().mockImplementation(async () => {
+          // If attachContent wasn't awaited, attachResolved is still false
+          if (!attachResolved) {
+            throw new Error('commit called before attachContent resolved');
+          }
+          return 'sha-blob';
+        }),
+      };
+      graph.createPatch.mockResolvedValue(mockPatch);
+
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'mutate', id: 'mut-attach',
+        payload: {
+          graph: 'test-graph',
+          ops: [
+            { op: 'addNode', args: ['node:blob'] },
+            { op: 'attachContent', args: ['node:blob', 'hello world'] },
+          ],
+        },
+      }));
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('ack');
+      expect(msg.id).toBe('mut-attach');
+      expect(msg.payload.sha).toBe('sha-blob');
+      expect(mockPatch.attachContent).toHaveBeenCalledWith('node:blob', 'hello world');
+    });
+
     it('rejects mutate before open', async () => {
       const client = ws.simulateConnection();
       client.sent.length = 0;
