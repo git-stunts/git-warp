@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`sha1sync` comment clarification** — Updated misleading comment about the `>= 0x20000000` guard to explain it ensures `msg.length * 8` fits in uint32.
 - **`_broadcastDiff` Set mutation during iteration** — Deleting dead clients from `this._clients` mid-`for...of` could skip the next entry. Dead connections are now collected and evicted after the loop completes.
 - **Double-SIGINT re-entrancy in `serve` shutdown** — Rapid Ctrl+C fired `shutdown()` concurrently twice, racing `close()` and `process.exit()`. Added a `closing` guard.
-- **Catch-all error envelope missing correlation ID** — The last-resort `.catch()` on `_onMessage` now best-effort extracts the request `id` from the raw JSON for client-side correlation.
+- **Catch-all error envelope double-parsing** — The last-resort `.catch()` on `_onMessage` re-parsed the raw JSON to extract the correlation `id`. The ID is now extracted before the async call, avoiding double-parse and ensuring availability even if the raw message was consumed.
+- **`WarpServeService` bare `Function` types** — Replaced loose `Function` JSDoc types in `resolveGraph`, constructor, and `_applyMutateOps` with a typed `GraphHandle` typedef carrying specific method signatures.
 - **`jsr.json` missing `./browser` and `./sha1sync` exports** — Subpath exports added to `package.json` were not mirrored in `jsr.json`. JSR consumers can now import both.
 - **`CasBlobAdapter` JSDoc `Buffer|Uint8Array`** — Narrowed `encryptionKey` type to `Uint8Array` per project convention.
 - **`WarpServeService.listen()` double-call guard** — Calling `listen()` twice no longer silently creates duplicate subscriptions. Second call throws `"Server is already listening"`.
