@@ -214,4 +214,11 @@ export const serveSchema = z.object({
   host: z.string().min(1).default('127.0.0.1'),
   static: z.string().optional(),
   expose: z.boolean().default(false),
-}).strict();
+  'writer-id': z.string().min(1, 'Missing value for --writer-id').regex(/^[A-Za-z0-9._-]+$/, 'writer-id must contain only [A-Za-z0-9._-]').optional(),
+}).strict().transform((val) => ({
+  port: val.port,
+  host: val.host,
+  static: val.static,
+  expose: val.expose,
+  writerId: val['writer-id'],
+}));

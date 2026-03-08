@@ -133,11 +133,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     });
 
     await expect(openPromise).rejects.toThrow(EncryptionError);
-    await expect(WarpGraph.open({
-      persistence: repo.persistence,
-      graphName: 'enc-test',
-      writerId: 'writer-2',
-    })).rejects.toThrow(/encrypted patches/);
+    await expect(openPromise).rejects.toThrow(/encrypted patches/);
   });
 
   it('handles mixed encrypted and unencrypted patches', async () => {

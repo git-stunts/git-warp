@@ -51,7 +51,8 @@ Commands:
   tree             ASCII tree traversal from root nodes
   bisect           Binary search for first bad patch in writer history
   serve            Start WebSocket server for browser-based graph viewer
-                     --static <dir>  Serve static files (SPA) on the same port
+                     --static <dir>      Serve static files (SPA) on the same port
+                     --writer-id <id>    Explicit writer identity (default: derived from host:port)
   view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
   install-hooks    Install post-merge git hook
 

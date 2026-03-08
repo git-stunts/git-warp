@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CasBlobAdapter `Buffer.from` → `TextEncoder`** — Replaced `Buffer.from(content, 'utf8')` with `new TextEncoder().encode(content)` for consistency with the Uint8Array domain boundary.
 - **`defaultCrypto` hmac wrapping** — Replaced `new Uint8Array(result.buffer, result.byteOffset, result.byteLength)` with `new Uint8Array(result)` for clarity and safety against shared ArrayBuffer pools.
 - **Test `Buffer` usage cleanup** — Replaced `Buffer.from()` in type-check consumer test and `Buffer.from(result.buffer)` in CasSeekCacheAdapter test with `TextEncoder`/`TextDecoder`.
+- **Duplicate `open()` in encryption test** — Consolidated redundant second `WarpGraph.open()` call in `WarpGraph.encryption.test.js` into a second assertion on the same promise.
+
+### Added
+
+- **`--writer-id` flag for `git warp serve`** — Allows setting an explicit, stable writer identity instead of the auto-derived `serve-<host>-<port>` value. Useful for reproducible testing and multi-instance orchestration where deterministic writer identities are needed.
 
 ### Changed
 

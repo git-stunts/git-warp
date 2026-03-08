@@ -51,6 +51,7 @@ const SERVE_OPTIONS = {
   host: { type: 'string', default: '127.0.0.1' },
   static: { type: 'string' },
   expose: { type: 'boolean', default: false },
+  'writer-id': { type: 'string' },
 };
 
 /**
@@ -176,14 +177,14 @@ function logStartup({ url, targetGraphs, staticDir, urlHost, port }) {
  */
 export default async function handleServe({ options, args }) {
   const { values } = parseCommandArgs(args, SERVE_OPTIONS, serveSchema, { allowPositionals: false });
-  const { port, host, expose } = values;
+  const { port, host, expose, writerId: explicitWriterId } = values;
   assertExposeSafety(host, expose);
 
   const staticDir = await resolveStaticDir(values.static);
   const { persistence } = await createPersistence(options.repo);
   const { targetGraphs } = await resolveTargetGraphs(persistence, options.graph);
 
-  const writerId = deriveWriterId(host, port);
+  const writerId = explicitWriterId || deriveWriterId(host, port);
   const graphs = await openGraphs(persistence, targetGraphs, writerId);
   const wsPort = await createWsAdapter(staticDir);
   const service = new WarpServeService({ wsPort, graphs });

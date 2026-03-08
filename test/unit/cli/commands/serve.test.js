@@ -173,6 +173,27 @@ describe('handleServe', () => {
     expect(openCall.writerId).toContain(String(process.pid));
   });
 
+  it('uses --writer-id when provided instead of derived writerId', async () => {
+    await handleServe({
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
+      args: ['--writer-id', 'my-custom-writer'],
+    });
+
+    const openCall = /** @type {any} */ (WarpGraph.open).mock.calls[0][0];
+    expect(openCall.writerId).toBe('my-custom-writer');
+  });
+
+  it('falls back to derived writerId when --writer-id is not provided', async () => {
+    await handleServe({
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
+      args: ['--port', '5000'],
+    });
+
+    const openCall = /** @type {any} */ (WarpGraph.open).mock.calls[0][0];
+    expect(openCall.writerId).toMatch(/^serve-/);
+    expect(openCall.writerId).toContain('5000');
+  });
+
   it('returns a close function for clean shutdown', async () => {
     const result = await handleServe({
       options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
