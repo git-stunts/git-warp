@@ -480,8 +480,8 @@ export default class WarpServeService {
     const { payload } = msg;
     const ceiling = /** @type {number} */ (/** @type {Record<string, unknown>} */ (payload)?.ceiling);
 
-    if (typeof ceiling !== 'number' || !Number.isFinite(ceiling)) {
-      session.conn.send(errorEnvelope('E_INVALID_PAYLOAD', 'seek: ceiling must be a finite number', msg.id));
+    if (typeof ceiling !== 'number' || Number.isNaN(ceiling)) {
+      session.conn.send(errorEnvelope('E_INVALID_PAYLOAD', 'seek: ceiling must be a number', msg.id));
       return;
     }
 
@@ -490,7 +490,8 @@ export default class WarpServeService {
     const { graphName, graph } = resolved;
 
     try {
-      const state = await graph.materialize({ ceiling });
+      const opts = Number.isFinite(ceiling) ? { ceiling } : {};
+      const state = await graph.materialize(opts);
       const serialized = serializeState(graphName, state);
       session.conn.send(envelope('state', serialized, msg.id));
     } catch (err) {

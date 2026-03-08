@@ -162,6 +162,17 @@ describe('handleServe', () => {
     expect(result.payload.port).toBe(4567);
   });
 
+  it('includes process.pid in ephemeral writerId for uniqueness', async () => {
+    await handleServe({
+      options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),
+      args: ['--port', '0'],
+    });
+
+    const openCall = /** @type {any} */ (WarpGraph.open).mock.calls[0][0];
+    expect(openCall.writerId).toContain('ephemeral');
+    expect(openCall.writerId).toContain(String(process.pid));
+  });
+
   it('returns a close function for clean shutdown', async () => {
     const result = await handleServe({
       options: /** @type {any} */ ({ repo: '.', writer: 'cli' }),

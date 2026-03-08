@@ -123,7 +123,7 @@ async function resolveTargetGraphs(persistence, graphOption) {
  */
 function deriveWriterId(host, port) {
   const portLabel = port === 0
-    ? `ephemeral-${Date.now().toString(36)}`
+    ? `ephemeral-${Date.now().toString(36)}-${process.pid}`
     : String(port);
   return `serve-${host}-${portLabel}`.replace(/[^A-Za-z0-9._-]/g, '-');
 }

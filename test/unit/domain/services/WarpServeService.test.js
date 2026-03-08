@@ -494,6 +494,31 @@ describe('WarpServeService', () => {
         expect.objectContaining({ ceiling: 5 }),
       );
     });
+
+    it('treats Infinity ceiling as materialize-at-head', async () => {
+      const client = ws.simulateConnection();
+      client.sendFromClient(JSON.stringify({
+        v: 1, type: 'open', id: 'o1',
+        payload: { graph: 'test-graph', writerId: 'w1' },
+      }));
+      await vi.waitFor(() => client.sent.length >= 2);
+      graph.materialize.mockClear();
+      client.sent.length = 0;
+
+      // Infinity is not valid JSON, so we hand-craft the raw string
+      // to simulate a non-JSON transport or future binary protocol.
+      client.sendFromClient(
+        '{"v":1,"type":"seek","id":"sk-inf","payload":{"graph":"test-graph","ceiling":1e999}}',
+      );
+
+      await vi.waitFor(() => expect(client.sent.length).toBeGreaterThan(0));
+
+      const msg = JSON.parse(client.sent[0]);
+      expect(msg.type).toBe('state');
+      expect(msg.id).toBe('sk-inf');
+      // Infinity should NOT be passed as ceiling — materialize at head
+      expect(graph.materialize).toHaveBeenCalledWith({});
+    });
   });
 
   // ── Live diff push ──────────────────────────────────────────────────
