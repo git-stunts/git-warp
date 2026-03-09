@@ -11,11 +11,13 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v13.1.0
+## What's New in v14.0.0
 
-- **New graph traversal primitives** — `levels()`, `transitiveReduction()`, `transitiveClosure()`, and `rootAncestors()` now ship in `GraphTraversal` and are exposed through the logical traversal facade.
-- **Portable roaring fallback stack** — bitmap indexes now work on Bun and Deno via `roaring-wasm` fallback when native V8 bindings are unavailable, with improved per-tier failure diagnostics.
-- **Toolchain and compatibility hardening** — upgraded to Vitest 4 and fixed Bun/Vite native-module loading edge cases for stable cross-runtime test execution.
+- **BREAKING: Uint8Array migration** — All domain-layer and port contract types narrowed from `Buffer|Uint8Array` to `Uint8Array`. Buffer is now confined to infrastructure adapters. Downstream TypeScript consumers using Buffer-specific APIs on return values must migrate to `hexEncode()`/`textDecode()` from `domain/utils/bytes.js`.
+- **`git warp serve`** — New CLI command starts a WebSocket server exposing graph(s) for browser-based viewing and mutation. Auto-detects runtime (Node/Bun/Deno), supports `--static <dir>` for serving a built SPA, and requires `--expose` for non-loopback binds.
+- **Graph encryption at rest** — New `patchBlobStorage` option on `WarpGraph.open()` enables AES-256-GCM encryption of patch CBOR via `CasBlobAdapter`. Mixed encrypted and unencrypted patches are fully supported.
+- **Blob attachments via CAS** — `BlobStoragePort` and `CasBlobAdapter` provide CDC-chunked, optionally encrypted content blob storage with automatic fallback to raw Git blobs for backward compatibility.
+- **`@git-stunts/git-cas` v5.3.0** — Memory restore guards, constructor validation, FixedChunker O(n) optimization, and CasError portability for non-V8 runtimes.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
