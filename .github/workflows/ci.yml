@@ -2,16 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
-    tags: [ "v*.*.*", "v*.*.*-*" ]
+    branches: [main]
+    tags: ['v*.*.*', 'v*.*.*-*']
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   # ── IRONCLAD M9 type firewall ────────────────────────────────────────────
   # This job is the primary gate. It runs ALL type safety checks in parallel.
   # It MUST pass before any PR can merge. Configure as a required status check
-  # in GitHub branch protection settings.
+  # in GitHub branch protection settings. Security audit stays advisory here so
+  # CI keeps a single authoritative gate instead of duplicating lint/type work
+  # in a second job.
   type-firewall:
     runs-on: ubuntu-latest
     steps:
@@ -22,37 +24,17 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm install
-      - name: "Gate 1: TypeScript compiler (strict mode)"
+      - name: 'Gate 1: TypeScript compiler (strict mode)'
         run: npm run typecheck
-      - name: "Gate 2: IRONCLAD policy checker (any/wildcard/ts-ignore ban)"
+      - name: 'Gate 2: IRONCLAD policy checker (any/wildcard/ts-ignore ban)'
         run: npm run typecheck:policy
-      - name: "Gate 3: Consumer type surface test"
+      - name: 'Gate 3: Consumer type surface test'
         run: npm run typecheck:consumer
-      - name: "Gate 4: ESLint (typed rules + no-explicit-any + no-unsafe-*)"
+      - name: 'Gate 4: ESLint (typed rules + no-explicit-any + no-unsafe-*)'
         run: npm run lint
-      - name: "Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)"
+      - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm install
-      - run: npm run lint
-      - name: TypeScript
-        run: npm run typecheck
-      - name: TS policy
-        run: npm run typecheck:policy
-      - name: Consumer type test
-        run: npm run typecheck:consumer
-      - name: Declaration surface
-        run: npm run typecheck:surface
-      - name: Security audit (runtime deps)
+      - name: 'Gate 6: Security audit (runtime deps, advisory)'
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
 

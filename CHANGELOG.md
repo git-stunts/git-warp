@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Trust test infrastructure deduplicated** — The TrustRecordService suites now share a single in-memory ref/blob/tree/commit fixture and JSON codec via `test/helpers/trustTestUtils.js`, eliminating the four forked mock implementations that had started to drift.
 - **Constructor option-bag defaults made explicit** — Added an ESLint rule banning `constructor({ ... } = {})` in source files and rewrote the remaining constructors to destructure an explicit `options` bag inside the constructor body. This avoids accidentally marking required constructor params optional in JSDoc and strict type checking.
 - **Checkpoint content-anchor batching** — `CheckpointService.createV5()` now folds content blob OIDs into sorted anchor entries in batches instead of building one monolithic `Set` before tree serialization. Added direct checkpoint coverage for anchor dedupe, deterministic ordering, and load-path indifference to `_content_*` anchor entries.
+- **CI gate dedupe** — Folded the duplicate `lint` workflow job into `type-firewall` and carried forward the advisory runtime `npm audit` step there, leaving one authoritative lint/type gate in the main CI workflow.
 
 ### Fixed
 
@@ -319,7 +320,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`findAttachedData` O(E+P) scan (J6)** — string prefix/infix checks instead of split+compare on every edge key.
 - **Schema version recomputed per write (J7)** — `_hasEdgeProps` boolean cache set once in `setEdgeProperty()`.
 - **Checkpoint load swallows corruption (J14)** — now catches only "not found" conditions; decode/corruption errors propagate.
-- **Receipt-path removal O(N*M) (B67/T1)** — `nodeRemoveOutcome`/`edgeRemoveOutcome` now use `buildDotToElement` reverse index.
+- **Receipt-path removal O(N\*M) (B67/T1)** — `nodeRemoveOutcome`/`edgeRemoveOutcome` now use `buildDotToElement` reverse index.
 - **`orsetClone` via empty join (B73/T2)** — dedicated `orsetClone()` function replacing `orsetJoin(x, empty)` pattern.
 - **`orsetJoin` inconsistent cloning (T11)** — b-branch now clones dots via `new Set()` matching a-branch pattern.
 - **`orsetSerialize` O(N log N) decodes (T37)** — pre-decodes all dots before sorting, reducing decode calls from O(N log N) to O(N).
@@ -407,7 +408,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multi-pattern glob support** — `graph.observer()`, `query().match()`, and `translationCost()` now accept an array of glob patterns (e.g. `['campaign:*', 'milestone:*']`). Nodes matching *any* pattern in the array are included (OR semantics).
+- **Multi-pattern glob support** — `graph.observer()`, `query().match()`, and `translationCost()` now accept an array of glob patterns (e.g. `['campaign:*', 'milestone:*']`). Nodes matching _any_ pattern in the array are included (OR semantics).
 - **Centralized `matchGlob` utility** (`src/domain/utils/matchGlob.js`) — unified glob matching logic with regex caching and support for array-based multi-pattern matching.
 - **Release preflight** — `npm run release:preflight` runs a 10-check local gate before tagging. CI (`release.yml`) now also enforces CHANGELOG and README checks on tag push.
 
@@ -494,7 +495,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`PropertyIndexBuilder`** (`src/domain/services/PropertyIndexBuilder.js`) — builds `props_XX.cbor` shards from node properties. Proto-safe array-of-pairs serialization.
   - **`PropertyIndexReader`** (`src/domain/services/PropertyIndexReader.js`) — lazy property reader with LRU shard cache via `IndexStoragePort.readBlob`.
   - **`LogicalIndexBuildService`** (`src/domain/services/LogicalIndexBuildService.js`) — orchestrates full index build from `WarpStateV5`: extracts visible projection, delegates to builder + property builder, returns serialized tree + receipt.
-- **Cross-provider equivalence tests** — 18 tests verifying BFS, DFS, shortestPath, Dijkstra, A*, topologicalSort produce identical results across `AdjacencyNeighborProvider` and `BitmapNeighborProvider`.
+- **Cross-provider equivalence tests** — 18 tests verifying BFS, DFS, shortestPath, Dijkstra, A\*, topologicalSort produce identical results across `AdjacencyNeighborProvider` and `BitmapNeighborProvider`.
   - **Benchmark** (`test/benchmark/logicalIndex.benchmark.js`) — index build time at 1K/10K/100K nodes, single-node `getNeighbors` latency, `getNodeProps` latency.
 
 ### Changed (Provider integration & fixtures)
@@ -507,7 +508,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`AdjacencyNeighborProvider`** (`src/domain/services/AdjacencyNeighborProvider.js`) — in-memory provider wrapping `{ outgoing, incoming }` adjacency maps. Pre-sorts at construction. `latencyClass: 'sync'`. Deduplicates `'both'` direction by `(neighborId, label)`.
 - **`GraphTraversal`** (`src/domain/services/GraphTraversal.js`) — unified traversal engine accepting any `NeighborProviderPort`. 11 algorithms: BFS, DFS, shortestPath, isReachable, weightedShortestPath (Dijkstra), aStarSearch, bidirectionalAStar, topologicalSort, connectedComponent, commonAncestors, weightedLongestPath. All methods accept `AbortSignal`, `maxNodes`, `maxDepth`, `hooks`, and return `stats`. Deterministic: BFS level-sorted lex, DFS reverse-push lex, PQ tie-break by lex nodeId, Kahn zero-indegree sorted lex. Equal-cost predecessor update rule enforced.
 - **`BitmapNeighborProvider`** (`src/domain/services/BitmapNeighborProvider.js`) — commit DAG provider wrapping `BitmapIndexReader`. Commit DAG edges use `label = ''` (empty string sentinel). `latencyClass: 'async-local'`.
-- **`MinHeap` tie-breaking** — optional `tieBreaker` comparator in constructor. Used by Dijkstra/A* for deterministic lex nodeId ordering on equal priority. Backward compatible.
+- **`MinHeap` tie-breaking** — optional `tieBreaker` comparator in constructor. Used by Dijkstra/A\* for deterministic lex nodeId ordering on equal priority. Backward compatible.
 
 ### Changed (Deprecations)
 
@@ -665,7 +666,7 @@ failed at runtime against a real GitGraphAdapter.
 - **HttpSyncServer allowedWriters** — Empty array `[]` no longer triggers the "requires auth" validation error (truthy check → length check).
 - **HttpSyncServer initAuth JSDoc** — Merged duplicate JSDoc blocks; removed stale `crypto?: *` and `logger?: *` wildcards.
 - **WormholeService typeof guards** — Added `typeof` string guards for `fromSha`, `toSha`, `writerId` before JSDoc casts, matching the existing `patchCount` guard pattern.
-- **TrustRecordService _persistRecord** — `record.recordId` and `record.recordType` now use `typeof` guards instead of bare JSDoc casts, preventing `TypeError` on `undefined`.
+- **TrustRecordService \_persistRecord** — `record.recordId` and `record.recordType` now use `typeof` guards instead of bare JSDoc casts, preventing `TypeError` on `undefined`.
 - **StreamingBitmapIndexBuilder frontier type** — `finalize()` JSDoc changed from `Map<string, number>` to `Map<string, string>` (writerId → tip SHA), matching all callers. Removed double cast in `IndexRebuildService.rebuild()`.
 - **BunHttpAdapter stop() typedef** — `BunServer.stop()` return type corrected from `void` to `Promise<void>` in both JSDoc typedef and `globals.d.ts`.
 - **ROADMAP.md** — Added `text` language specifier to fenced code block (MD040). Fixed grep acceptance criterion (`-rE` flag + wildcard pattern).
@@ -1006,7 +1007,7 @@ Addresses code review feedback from PR #23 across SEEKDIFF and SHIELD features.
 
 ### Fixed
 
-- **`SyncAuthService.verify()`**: Nonce is now reserved *after* signature verification, preventing valid nonces from being consumed by requests with invalid signatures.
+- **`SyncAuthService.verify()`**: Nonce is now reserved _after_ signature verification, preventing valid nonces from being consumed by requests with invalid signatures.
 - **`HttpSyncServer.initAuth()`**: Validates `auth.mode` against allowed values (`'enforce'`, `'log-only'`), throwing on invalid strings instead of silently accepting them.
 - **`parseSeekArgs()`**: `--diff-limit` without `--diff` now throws a clear usage error instead of being silently ignored.
 - **`handleDiffLimitFlag()`**: Uses `Number()` instead of `parseInt()` to reject float values like `"1.5"` that were previously silently truncated to integers.
@@ -1042,7 +1043,7 @@ Adds HMAC-SHA256 request signing with replay protection to the HTTP sync protoco
 
 ## [10.5.0] — 2026-02-10 — SEEKDIFF: Structural Seek Diff
 
-Shows *which* nodes/edges were added/removed and *which* properties changed (with old/new values) when stepping between ticks during seek exploration. Uses the existing `StateDiff.diffStates()` engine for deterministic, sorted output.
+Shows _which_ nodes/edges were added/removed and _which_ properties changed (with old/new values) when stepping between ticks during seek exploration. Uses the existing `StateDiff.diffStates()` engine for deterministic, sorted output.
 
 ### Added
 
@@ -1417,7 +1418,7 @@ Architectural hardening milestone that eliminates all hexagonal boundary violati
 Implements [Paper IV](https://doi.org/10.5281/zenodo.18038297) (Echo and the WARP Core) from the AION Foundations Series: observer-scoped views, temporal queries, and translation cost estimation.
 
 - **Observer-scoped views** (`EC/VIEW/1`): New `graph.observer(name, config)` returns a read-only `ObserverView` projecting the materialized graph through an observer lens. Config accepts `match` (glob pattern for visible nodes), `expose` (property key whitelist), and `redact` (property key blacklist — takes precedence over expose). The view supports the full query/traverse API: `hasNode()`, `getNodes()`, `getNodeProps()`, `getEdges()`, `query()`, and `traverse.*` (BFS, DFS, shortestPath). Edges are only visible when both endpoints pass the match filter. Requires materialized state.
-- **Temporal query operators** (`EC/TEMPORAL/1`): New `graph.temporal.always(nodeId, predicate, { since })` and `graph.temporal.eventually(nodeId, predicate, { since })` implement CTL*-style temporal logic over patch history. Both operators replay patches incrementally, extracting node snapshots at each tick boundary and evaluating the predicate. `always` returns true only if the predicate held at every tick where the node existed. `eventually` short-circuits on the first true tick. The `since` option filters by Lamport timestamp. Predicates receive `{ id, exists, props }` with unwrapped property values.
+- **Temporal query operators** (`EC/TEMPORAL/1`): New `graph.temporal.always(nodeId, predicate, { since })` and `graph.temporal.eventually(nodeId, predicate, { since })` implement CTL\*-style temporal logic over patch history. Both operators replay patches incrementally, extracting node snapshots at each tick boundary and evaluating the predicate. `always` returns true only if the predicate held at every tick where the node existed. `eventually` short-circuits on the first true tick. The `since` option filters by Lamport timestamp. Predicates receive `{ id, exists, props }` with unwrapped property values.
 - **Translation cost estimation** (`EC/COST/1`): New `graph.translationCost(configA, configB)` computes the directed MDL (Minimum Description Length) cost of translating observer A's view into observer B's view. Returns `{ cost, breakdown: { nodeLoss, edgeLoss, propLoss } }` normalized to [0, 1]. Weights: node loss 50%, edge loss 30%, property loss 20%. Identical views produce cost 0; completely disjoint views produce cost 1. The cost is asymmetric: `cost(A→B) ≠ cost(B→A)` in general.
 
 #### Visualization M2 — History, Path, Materialize Renderers (v7.8.1)
@@ -1516,6 +1517,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **Updated `errors/index.js` module JSDoc**: Comment now correctly describes "domain operations" instead of stale "bitmap index operations".
 
 ### Tests
+
 - Added provenance tracking tests to `PatchBuilderV2.test.js` (+20 tests)
 - Added `test/unit/domain/services/ProvenancePayload.test.js` (49 tests) — monoid laws, replay verification, fuzz tests
 - Added `test/unit/domain/services/ProvenanceIndex.test.js` (38 tests) — index construction, queries, serialization
@@ -1550,6 +1552,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 ## [7.8.0] - 2025-02-06
 
 ### Added
+
 - **Visualization system** - New `--view` flag for visual ASCII output
   - `git warp --view info` - Graph overview with writer timelines and box-framed summaries
   - `git warp --view check` - Health dashboard with progress bars and status indicators
@@ -1608,6 +1611,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 ### Added
 
 #### PULSE — Subscriptions & Reactivity (v7.7.0)
+
 - **State diff engine** (`PL/DIFF/1`): New `diffStates(before, after)` function computes deterministic diff between two `WarpStateV5` materialized states. Returns `{ nodes: { added, removed }, edges: { added, removed }, props: { set, removed } }`. Handles null `before` (initial state). O(N) single-pass comparison. Deterministic output ordering (sorted keys/IDs). Used by subscription system to notify handlers of graph changes. Includes `isEmptyDiff()` and `createEmptyDiff()` utilities.
 - **Subscription API** (`PL/SUB/1`): New `graph.subscribe({ onChange, onError? })` returns `{ unsubscribe() }`. After `materialize()`, if state changed since last materialize, computes diff and calls `onChange(diff)` for all subscribers. Errors in handlers are isolated — caught and forwarded to `onError` if provided. Multiple subscribers supported. Unsubscribe stops future notifications.
 - **Optional initial replay** (`PL/SUB/2`): New `replay` option for `graph.subscribe({ onChange, replay: true })`. When set, immediately fires `onChange` with a diff from empty state to current state. If cached state is not yet available (no prior `materialize()`), replay is deferred until the first `materialize()` call. Enables subscribers to bootstrap with current graph state without missing data.
@@ -1615,6 +1619,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **Polling integration** (`PL/WATCH/2`): New `poll` option for `graph.watch(pattern, { onChange, poll: 5000 })`. When set, periodically calls `hasFrontierChanged()` and auto-materializes if the frontier has changed (e.g., remote writes detected). Minimum poll interval is 1000ms. The interval is automatically cleaned up on `unsubscribe()`. Errors during polling are forwarded to `onError` if provided.
 
 ### Tests
+
 - Added `test/unit/domain/services/StateDiff.test.js` (27 tests) — node/edge/prop diffs, null before, identical states, determinism
 - Added `test/unit/domain/WarpGraph.subscribe.test.js` (28 tests) — subscribe/unsubscribe, onChange after materialize, error isolation, multiple subscribers, replay option
 - Added `test/unit/domain/WarpGraph.watch.test.js` (41 tests) — pattern filtering for nodes/edges/props, glob patterns, unsubscribe, error handling, polling integration with frontier change detection
@@ -1624,6 +1629,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 ### Added
 
 #### LIGHTHOUSE — Observability (v7.6.0)
+
 - **`graph.status()` API** (`LH/STATUS/1`): New async method returns a lightweight operational health snapshot: `{ cachedState: 'fresh' | 'stale' | 'none', patchesSinceCheckpoint, tombstoneRatio, writers, frontier }`. O(writers) cost — does NOT trigger materialization. `cachedState` reflects dirty flag and frontier change detection.
 - **Structured operation timing** (`LH/TIMING/1`): Core operations (`materialize()`, `syncWith()`, `createCheckpoint()`, `runGC()`) now emit structured timing logs via `LoggerPort` at info level. Format: `[warp] materialize completed in 142ms (23 patches)`. Uses injected `ClockPort` for testable timing. New `clock` option on `WarpGraph.open()` (defaults to `PerformanceClockAdapter`). Failed operations log timing with error context.
 - **CLI status enhancement** (`LH/CLI/1`): `git warp check` now surfaces full `graph.status()` output. Human mode: color-coded staleness (green/yellow/red) with patch count, tombstone ratio, and writer count. JSON mode: raw `status` object included in check payload.
@@ -1631,6 +1637,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **Tick receipt emission during materialization** (`LH/RECEIPTS/2`): New `materialize({ receipts: true })` returns `{ state, receipts }` with per-patch decision records. Each receipt records per-op outcomes: `applied`, `superseded` (with LWW winner reason), or `redundant`. **Zero-cost invariant**: when `receipts` is false/omitted (default), strictly zero overhead — no arrays allocated, no strings constructed on the hot path. Return type unchanged (just `state`). OR-Set decisions: NodeAdd/EdgeAdd track new-dot vs re-add. NodeTombstone/EdgeTombstone track effective vs already-gone. PropSet decisions: LWW comparison with reason string showing winner info.
 
 ### Fixed
+
 - **`status()` false staleness after eager commits**: `_lastFrontier` is now updated in all three `onCommitSuccess` callbacks and after `applySyncResponse()`, so `status()` correctly reports `'fresh'` instead of `'stale'` after local writes and sync operations.
 - **Receipt forward-compatibility**: Unknown/future op types in the receipt-enabled materialization path are now silently skipped instead of throwing a validation error. The op is still applied to state; it just doesn't appear in the receipt.
 - **Duplicate tombstone ratio in CLI**: `git warp check` no longer prints tombstone ratio twice when `graph.status()` is available.
@@ -1638,6 +1645,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **`Empty Graph Container` in Dockerfile**: Updated to `Git Warp Container`.
 
 ### Tests
+
 - Added `test/unit/domain/WarpGraph.status.test.js` (25 tests) — status() field correctness, no-materialize guarantee, frontier freshness after eager commits and sync
 - Added `test/unit/domain/WarpGraph.timing.test.js` (15 tests) — timing logs for all 4 operations, clock injection
 - Added `test/unit/domain/WarpGraph.receipts.test.js` (19 tests) — receipt emission, backward compatibility, zero-cost
@@ -1650,11 +1658,13 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 ### Added
 
 #### COMPASS — Advanced Query Language (v7.5.0)
+
 - **Object shorthand in `where()`** (`CP/WHERE/1`): `where({ role: 'admin' })` filters nodes by property equality. Multiple properties = AND semantics. Object and function forms can be mixed via chaining. Only primitive values (string, number, boolean, null) are accepted — non-primitive values (objects, arrays, functions) throw `E_QUERY_WHERE_VALUE_TYPE` since cloned property snapshots would never `===` match.
 - **Multi-hop traversal** (`CP/MULTIHOP/1`): `outgoing(label, { depth: [1, 3] })` traverses 1–3 hops in a single call. `depth: 2` shorthand for exactly 2 hops. `depth: [0, N]` includes the start set (self-inclusion at depth 0). Default `[1, 1]` preserves existing single-hop behavior. Cycle-safe with deterministic ordering. Depth values must be non-negative integers with min ≤ max.
 - **Aggregation** (`CP/AGG/1`): `aggregate({ count: true, sum: 'props.total' })` computes count/sum/avg/min/max over matched nodes without materializing the full result set. Terminal operation — calling `select()`, `outgoing()`, or `incoming()` after `aggregate()` throws. Non-numeric values silently skipped. Spec fields are validated: `sum`/`avg`/`min`/`max` must be strings, `count` must be boolean.
 
 ### Fixed
+
 - **`aggregate()` spec validation**: Passing non-string paths (e.g. `sum: true`) or non-boolean count (e.g. `count: 'yes'`) now throws `QueryError` with code `E_QUERY_AGGREGATE_TYPE` instead of a late `TypeError`.
 - **`Math.min/max` stack overflow**: Replaced `Math.min(...values)` / `Math.max(...values)` in aggregation with `.reduce()` to avoid `RangeError` on arrays with >65K elements.
 - **`normalizeDepth` validation**: Negative, non-integer, and min>max depth values now throw `QueryError` (`E_QUERY_DEPTH_TYPE` or `E_QUERY_DEPTH_RANGE`) instead of producing undefined behavior.
@@ -1665,6 +1675,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 ## [7.0.0]
 
 ### Added
+
 - **git-warp CLI** - canonical `git warp` entrypoint (shim + PATH install)
 - **Installer scripts** - `scripts/install-git-warp.sh` and `scripts/uninstall-git-warp.sh`
 - **Docker bats CLI test** coverage for `git warp` commands
@@ -1674,6 +1685,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **`graph.getWriterPatches(writerId)`** - public API for writer patch history
 
 #### AUTOPILOT — Kill the Materialize Tax
+
 - **Auto-invalidation** (`AP/INVAL/1-3`): `_stateDirty` flag tracks staleness. Local commits via `createPatch()`, `writer.commitPatch()`, and `PatchSession.commit()` eagerly apply patches to cached state — no stale reads after writes.
 - **Auto-materialize** (`AP/LAZY/1-2`): `autoMaterialize: boolean` option on `WarpGraph.open()`. When enabled, query methods (`hasNode`, `getNodeProps`, `neighbors`, `getNodes`, `getEdges`, `query().run()`, `traverse.*`) auto-materialize instead of throwing.
 - **Auto-checkpointing** (`AP/CKPT/1-3`): `checkpointPolicy: { every: N }` option on `WarpGraph.open()`. After `materialize()` processes N+ patches, a checkpoint is created automatically. Failures are swallowed — never breaks materialize.
@@ -1683,13 +1695,16 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **ROADMAP.md** with task DAG and `scripts/roadmap.js` tracking tool.
 
 #### Error Handling
+
 - **`QueryError` with error codes**: State guard throws now use `QueryError` with `E_NO_STATE` (no cached state) and `E_STALE_STATE` (dirty state) instead of bare `Error`.
 
 #### GROUNDSKEEPER — Index Health & GC
+
 - **Index staleness detection** (`GK/IDX/1-2`): Frontier metadata stored alongside bitmap indexes. `loadIndexFrontier()` and `checkStaleness()` detect when writer tips have advanced past the indexed state. Auto-rebuild option on `IndexRebuildService.load()`.
 - **Tombstone garbage collection** (`GK/GC/1`): `GCPolicy` wired into post-materialize path (opt-in via `gcPolicy` option). Warns when tombstone ratio exceeds threshold.
 
 #### WEIGHTED — Edge Properties (v7.3.0)
+
 - **Edge property key encoding** (`WT/EPKEY/1`): `encodeEdgePropKey()`/`decodeEdgePropKey()` with `\x01` prefix for collision-free namespacing against node property keys.
 - **`patch.setEdgeProperty(from, to, label, key, value)`** (`WT/OPS/1`): New PatchBuilderV2 method for setting properties on edges. Generates `PropSet` ops in the edge namespace.
 - **LWW semantics for edge properties** (`WT/OPS/2`): Existing JoinReducer LWW pipeline handles edge properties transparently — no special-case logic needed.
@@ -1700,6 +1715,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **`SchemaUnsupportedError`** — New error class with code `E_SCHEMA_UNSUPPORTED` for sync compatibility failures.
 
 #### HANDSHAKE — Multi-Writer Ergonomics (v7.4.0)
+
 - **Two-form writer API** (`HS/WRITER/1`): `graph.writer()` returns stable identity writer (resolved from git config or generated); `graph.writer(id)` returns explicit-identity writer. `createWriter()` deprecated with console warning.
 - **Sync-then-materialize** (`HS/SYNC/1`): `syncWith(peer, { materialize: true })` atomically syncs and materializes, returning `{ applied, attempts, state }`.
 - **Error audit** (`HS/ERR/1`): Classified all 93 throw sites across the codebase (documented in `docs/error-audit.md`).
@@ -1710,6 +1726,7 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 - **Cascade deletion** (`HS/DELGUARD/3`): Cascade mode auto-generates `EdgeRemove` ops for all connected edges before `NodeRemove`. Generated ops appear in the committed patch for auditability.
 
 #### Query API (V7 Task 7)
+
 - **`graph.hasNode(nodeId)`** - Check if node exists in materialized state
 - **`graph.getNodeProps(nodeId)`** - Get all properties for a node (returns `Record<string, unknown>` since v13.0.0)
 - **`graph.neighbors(nodeId, dir?, label?)`** - Get neighbors with direction/label filtering
@@ -1719,11 +1736,13 @@ Implements [Paper III](https://doi.org/10.5281/zenodo.17963669) (Computational H
 All query methods operate on `WarpStateV5` (materialized state), never commit DAG topology.
 
 #### WARP State Index (V7 Task 6)
+
 - **`WarpStateIndexBuilder`** - New index builder that indexes WARP logical edges from `edgeAlive` OR-Set
 - **`buildWarpStateIndex(state)`** - Convenience function to build and serialize index from state
 - Index built from materialized state, not Git commit parents (TECH-SPEC-V7.md compliance)
 
 ### Changed
+
 - **ESLint hardened** to zero-tolerance: `typescript-eslint` strict type-checked rules on `src/` and `bin/`, max-complexity 10, max-lines-per-function 50, max-depth 3 (with relaxations for algorithm-heavy modules).
 - **`_ensureFreshState()`** now throws `E_STALE_STATE` when cached state is dirty and `autoMaterialize` is off (previously silently returned stale data).
 - **`QueryBuilder.run()`** `where`/`select` loops parallelized with `Promise.all`.
@@ -1739,6 +1758,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Git ref reads** guard missing refs to avoid fatal `show-ref` errors in empty repos
 
 ### Documentation
+
 - **Complete JSDoc coverage** across 21 source files
 - **ROADMAP.md** — consolidated task tracking with dependency DAG
 - **`docs/V7_TEST_MAPPING.md`** - Maps TECH-SPEC-V7.md Task 5 requirements to existing test files
@@ -1749,6 +1769,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - Example imports clarified for external consumers
 
 ### Tests
+
 - Added `test/unit/domain/WarpGraph.invalidation.test.js` (11 tests) — dirty flag + eager re-materialize
 - Added `test/unit/domain/WarpGraph.writerInvalidation.test.js` (10 tests) — Writer API invalidation
 - Added `test/unit/domain/WarpGraph.lazyMaterialize.test.js` (46 tests) — auto-materialize guard
@@ -1773,6 +1794,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ### Breaking Changes
 
 #### WARP Unification Complete
+
 - **`WarpGraph` is now the recommended API** for all new projects
 - **`EmptyGraph` is now a wrapper** - Implementation moved to `EmptyGraphWrapper.js`, maintains full API compatibility
 - **Schema:2 is now the default** for `WarpGraph.open()` and `openMultiWriter()`
@@ -1781,6 +1803,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ### Added
 
 #### WARP v5 (OR-Set CRDT)
+
 - **OR-Set CRDTs** - `Dot`, `VersionVector`, `ORSet` for add-wins semantics
 - **`JoinReducer`** - CRDT join operation with schema:2 support
 - **`PatchBuilderV2`** - Schema:2 patch builder with dot tracking
@@ -1790,19 +1813,23 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Backfill rejection** - Graph reachability validation against checkpoint frontier
 
 #### Migration Support
+
 - **`migrateV4toV5()`** - Exported from package root for schema migration
 - **Migration boundary validation** - Prevents opening schema:2 with unmigrated v1 history
 
 #### API Status Documentation
+
 - **README API Status section** - Clear guidance on recommended vs deprecated APIs
 - **Migration examples** - Code samples for EmptyGraph → WarpGraph migration
 
 ### Changed
+
 - `WarpGraph.open()` now defaults to `schema: 2`
 - `EmptyGraph.openMultiWriter()` explicitly passes `schema: 2`
 - `EmptyGraph` constructor shows deprecation warning (once per process)
 
 ### Removed
+
 - `src/legacy/EmptyGraphLegacy.js` - Legacy engine code removed (wrapper preserves API)
 
 ## [4.0.0] - 2026-01-31
@@ -1810,6 +1837,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ### Added
 
 #### Multi-Writer Support (WARP Protocol v4)
+
 - **`EmptyGraph.openMultiWriter()`** - New static factory for creating multi-writer graphs with deterministic convergence
 - **`WarpGraph`** - Main API class for WARP multi-writer graph operations
 - **`PatchBuilder`** - Fluent API for constructing graph mutations as atomic patches
@@ -1821,19 +1849,23 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
   - `.commit()` - Commit the patch atomically
 
 #### State Materialization
+
 - **`graph.materialize()`** - Reduces all patches from all writers to current state
 - **`graph.materializeAt(checkpointSha)`** - Incremental materialization from checkpoint
 - **`graph.discoverWriters()`** - List all writers who have contributed to the graph
 
 #### Checkpoints
+
 - **`CheckpointService`** - Create, load, and incrementally rebuild from checkpoints
 - **`graph.createCheckpoint()`** - Snapshot current state for fast recovery
 - Checkpoint format: `state.cbor`, `frontier.cbor` in Git tree
 
 #### Coverage & Sync
+
 - **`graph.syncCoverage()`** - Create octopus anchor ensuring all writers reachable from single ref
 
 #### CRDT Foundation
+
 - **`LWW` (Last-Writer-Wins)** - Register type for conflict resolution
 - **`EventId`** - Total ordering tuple `(lamport, writerId, patchSha, opIndex)`
 - **`Reducer`** - Deterministic fold algorithm with LWW semantics
@@ -1841,27 +1873,32 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **`StateSerializer`** - Canonical state hashing for determinism verification
 
 #### Infrastructure
+
 - **`WarpMessageCodec`** - Encode/decode patch, checkpoint, and anchor commit messages with Git trailers
 - **`CborCodec`** - Canonical CBOR encoding for deterministic serialization
 - **`RefLayout`** - Ref path builders and validators for WARP ref structure
 - **`LegacyAnchorDetector`** - Backward compatibility for v3 JSON anchors
 
 #### GitGraphAdapter Extensions
+
 - **`commitNodeWithTree()`** - Create commits pointing to custom trees (for patch attachments)
 - **`listRefs(prefix)`** - List refs under a prefix (for writer discovery)
 
 ### Performance
+
 - 10K patches reduce in ~100ms (50x faster than 5s requirement)
 - Memory usage ~35MB for 10K patches (well under 500MB limit)
 - Incremental materialization from checkpoints for O(new patches) recovery
 
 ### Documentation
+
 - Added "Multi-Writer API (WARP v4)" section to README
 - Created `docs/MULTI-WRITER-GUIDE.md` - Comprehensive user guide
 - Created `docs/WARP-TECH-SPEC-ROADMAP.md` - Full protocol specification
 - Created `docs/WARP-V5-HANDOFF.md` - Handoff notes for v5 implementation
 
 ### Testing
+
 - Determinism tests: verify `reduce([A,B]) === reduce([B,A])`
 - Tombstone stability tests: concurrent add/tombstone/property scenarios
 - Performance benchmarks: 1K, 5K, 10K, 25K patch scaling
@@ -1873,44 +1910,53 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ### Added
 
 #### Managed Mode & Durability
+
 - **`EmptyGraph.open()`** - New static factory for creating managed graphs with automatic durability guarantees
 - **Anchor commits** - Automatic creation of anchor commits to prevent GC of disconnected subgraphs
 - **`graph.sync(sha)`** - Manual ref synchronization for `autoSync: 'manual'` mode
 - **`graph.anchor(ref, shas)`** - Power user method for explicit anchor creation
 
 #### Batching API
+
 - **`graph.beginBatch()`** - Start a batch for efficient bulk writes
 - **`GraphBatch.createNode()`** - Create nodes without per-write ref updates
 - **`GraphBatch.commit()`** - Single octopus anchor for all batch nodes
 - **`graph.compactAnchors()`** - Utility to compact anchor chains into single octopus
 
 #### Validation & Error Handling
+
 - **`EmptyMessageError`** - New error type for empty message validation (code: `EMPTY_MESSAGE`)
 - Empty messages now rejected at write time (prevents "ghost nodes")
 
 #### Index Improvements
+
 - **Canonical JSON checksums** - Deterministic checksums for cross-engine compatibility
 - **Shard version 2** - New format with backward compatibility for v1
 - **`SUPPORTED_SHARD_VERSIONS`** - Reader accepts both v1 and v2 shards
 
 #### Performance
+
 - **`isAncestor()`** - New method on GitGraphAdapter for ancestry checking
 - **Fast-forward detection** - `syncHead()` skips anchor creation for linear history
 - **Octopus anchoring** - Batch.commit() creates single anchor with N parents
 
 #### Cancellation
+
 - AbortSignal propagation added to all TraversalService methods
 - AbortSignal support in StreamingBitmapIndexBuilder finalization
 
 #### Node Query API
+
 - **`getNode(sha)`** - Returns full GraphNode with all metadata (sha, author, date, message, parents)
 - **`hasNode(sha)`** - Boolean existence check without loading full node data
 - **`countNodes(ref)`** - Count nodes reachable from a ref without loading all nodes into memory
 
 #### Batch Operations
+
 - **`createNodes(nodes)`** - Create multiple nodes in a single operation with placeholder parent refs
 
 #### Caching & Resilience
+
 - **LRU Cache** - Loaded shards now use an LRU cache to bound memory usage
 - **Retry Logic** - `GitGraphAdapter` now retries transient Git failures with exponential backoff and decorrelated jitter
   - Uses `@git-stunts/alfred` resilience library
@@ -1920,15 +1966,18 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Memory Warning** - `BitmapIndexReader` logs a warning when ID-to-SHA cache exceeds 1M entries (~40MB)
 
 ### Changed
+
 - `SHARD_VERSION` bumped from 1 to 2 (v1 still readable)
 - **TraversalService** - Refactored path reconstruction into unified `_walkPredecessors()` and `_walkSuccessors()` helpers
 - **HealthCheckService** - Now uses `CachedValue` utility instead of inline caching logic
 
 ### Fixed
+
 - **Durability bug** - Nodes created via `createNode()` were not reachable from any ref, making them vulnerable to Git GC
 - **Ghost nodes** - Empty messages allowed at write time but rejected during iteration
 
 ### Documentation
+
 - Added `SEMANTICS.md` - Durability contract and anchor commit semantics
 - Updated `README.md` - Durability warning, mode selection guide, new API docs
 - Added **Memory Considerations** section documenting memory requirements for large graphs
@@ -1936,6 +1985,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [2.5.0] - 2026-01-29
 
 ### Added
+
 - **Git Hooks**: Custom pre-commit hook runs ESLint on staged files (`npm run setup:hooks` to enable)
 - **Cancellation Support**: Abort long-running operations with `AbortSignal`
   - `checkAborted(signal, operation)` - Throws `OperationAbortedError` if aborted
@@ -1945,18 +1995,18 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Dijkstra's Algorithm**: `weightedShortestPath()` with custom weight provider
   - Supports async weight functions for Lagrangian cost calculations
   - Returns `{ path, totalCost }`
-- **A* Search**: `aStarSearch()` with heuristic guidance
+- **A\* Search**: `aStarSearch()` with heuristic guidance
   - Supports both `weightProvider` and `heuristicProvider` callbacks
   - Tie-breaking favors higher g(n) for efficiency
   - Returns `{ path, totalCost, nodesExplored }`
-- **Bidirectional A***: `bidirectionalAStar()` - meets in the middle from both ends
+- **Bidirectional A\***: `bidirectionalAStar()` - meets in the middle from both ends
   - Separate forward/backward heuristics
   - Optimal path finding with potentially fewer explored nodes
 - **MinHeap Utility**: `src/domain/utils/MinHeap.js` for priority queue operations
   - Methods: `insert()`, `extractMin()`, `peekPriority()`, `isEmpty()`, `size()`
 - **Lagrangian Demo**: `npm run demo:lagrangian` - Resource-aware pathfinding
   - Event payloads now include `metrics: { cpu, mem }` for weight calculations
-  - Demonstrates Dijkstra, A*, and cost optimization concepts
+  - Demonstrates Dijkstra, A\*, and cost optimization concepts
 - **Streaming Benchmark**: `npm run demo:bench-streaming` - Memory profile for 100K+ nodes
   - Verifies constant memory overhead during iteration (~7% variance)
   - Measures stream throughput (~24K nodes/sec)
@@ -1966,6 +2016,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **OperationAbortedError**: New error class for cancellation scenarios
 
 ### Changed
+
 - **Cancellation**: `createTimeoutSignal()` now uses native `AbortSignal.timeout()` for cleaner implementation
 - **BitmapIndexReader**: Non-strict mode now caches empty shards on validation/parse failures to avoid repeated I/O
 - **BitmapIndexReader**: Refactored for reduced complexity with extracted helper methods (`_validateShard`, `_parseAndValidateShard`, `_loadShardBuffer`, `_getEdges`)
@@ -1977,6 +2028,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **README**: Reorganized sections for better flow - moved Use Cases up, improved navigation
 
 ### Fixed
+
 - **Constructor Validation**: All services now fail fast with clear error messages when required dependencies are missing
   - `BitmapIndexReader` requires `storage`
   - `IndexRebuildService` requires `graphService` and `storage`
@@ -2015,6 +2067,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
   - Weight provider not awaited in `weightedShortestPath`, `aStarSearch`, and `bidirectionalAStar`
 
 ### Docs
+
 - README: Added `text` language specifier to output code blocks
 - TASKLIST: Fixed table formatting and grammar
 - ARCHITECTURE: Fixed table separator spacing, renamed CacheRebuildService to IndexRebuildService
@@ -2031,6 +2084,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [2.4.0] - 2026-01-29
 
 ### Added
+
 - **Interactive Docker Demo**: Production-ready demo using real `GitGraphAdapter` with plumbing
   - `npm run demo:setup` - Creates container with sample e-commerce event graph (idempotent)
   - `npm run demo` - Drops into container shell for exploration
@@ -2041,6 +2095,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Index Inspector**: New `inspect-index.js` script pretty-prints shard distribution, node counts, and memory estimates
 
 ### Changed
+
 - **Plumbing Upgrade**: Upgraded `@git-stunts/plumbing` from `^2.7.0` to `^2.8.0`
   - Version 2.8.0 adds `log` and `show` to the command whitelist
 - **NUL Byte Handling**: `GitGraphAdapter.logNodesStream()` now strips NUL bytes from format strings
@@ -2048,35 +2103,42 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
   - Node.js `child_process` rejects args containing null bytes
 
 ### Removed
+
 - **Demo Adapter Hack**: Deleted `examples/demo-adapter.js` bypass adapter
   - Demo scripts now use production `GitGraphAdapter` directly
 
 ### Fixed
+
 - **Demo Scripts**: `examples/setup.js` and `examples/explore.js` now use proper plumbing integration
 
 ## [2.3.0] - 2026-01-18
 
 ### Added
+
 - **OID Validation**: New `_validateOid()` method in `GitGraphAdapter` validates all Git object IDs before use
 - **DEFAULT_INDEX_REF Export**: The default index ref constant is now exported for TypeScript consumers
 - **Benchmark Environment Notes**: Added reproducibility information to THE_STUNT.md
 
 ### Changed
+
 - **Configurable Rebuild Limit**: `CacheRebuildService.rebuild()` now accepts an optional `{ limit }` parameter (default: 10M)
 - **Docker Compose v2**: CI workflow updated to use `docker compose` (space-separated) instead of legacy `docker-compose`
 - **Robust Parent Parsing**: Added `.filter(Boolean)` to handle empty parent lines from root commits
 - **UTF-8 Streaming**: `TextDecoder` now uses `{ stream: true }` option to correctly handle multibyte characters split across chunks
 
 ### Security
+
 - **OID Injection Prevention**: All OIDs validated against `/^[0-9a-fA-F]{4,64}$/` pattern
 - **OID Length Limits**: OIDs cannot exceed 64 characters
 - **Format Parameter Guard**: `logNodes`/`logNodesStream` now conditionally add `--format` flag to prevent `--format=undefined`
 
 ### Fixed
+
 - **UTF-8 Chunk Boundaries**: Commit messages with multibyte UTF-8 characters no longer corrupted when split across stream chunks
 - **Empty Parent Arrays**: Root commits now correctly return `[]` instead of `['']` for parents
 
 ### Tests
+
 - **Stronger Assertions**: `CacheRebuildService.test.js` now verifies `writeBlob` call count
 - **End-to-End Coverage**: Enabled `getParents`/`getChildren` assertions in integration tests
 - **Public API Usage**: Benchmarks now use public `registerNode()` instead of private `_getOrCreateId()`
@@ -2084,17 +2146,19 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [2.2.0] - 2026-01-08
 
 ### Added
+
 - **Comprehensive Audit Fixes**: Completed three-phase audit (DX, Production Readiness, Documentation)
 - **iterateNodes to Facade**: Added `iterateNodes()` async generator method to EmptyGraph facade for first-class streaming support
 - **JSDoc Examples**: Added @example tags to all facade methods (createNode, readNode, listNodes, iterateNodes, rebuildIndex)
 - **Input Validation**: GraphNode constructor now validates sha, message, and parents parameters
 - **Limit Validation**: iterateNodes validates limit parameter (1 to 10,000,000) to prevent DoS attacks
-- **Graceful Degradation**: BitmapIndexService._getOrLoadShard now handles corrupt/missing shards gracefully with try-catch
+- **Graceful Degradation**: BitmapIndexService.\_getOrLoadShard now handles corrupt/missing shards gracefully with try-catch
 - **RECORD_SEPARATOR Constant**: Documented magic string '\x1E' with Wikipedia link explaining delimiter choice
 - **Error Handling Guide**: Added comprehensive Error Handling section to README with common errors and solutions
 - **"Choosing the Right Method" Guide**: Added decision table for listNodes vs iterateNodes vs readNode
 
 ### Changed
+
 - **API Consistency**: Standardized readNode signature from `readNode({ sha })` to `readNode(sha)` for consistency
 - **Ref Validation**: Added 1024-character length limit to prevent buffer overflow attacks
 - **Error Messages**: Enhanced error messages with documentation links (#ref-validation, #security)
@@ -2102,23 +2166,27 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **README Examples**: Fixed all code examples to match actual API signatures (readNode, await keywords)
 
 ### Security
+
 - **Length Validation**: Refs cannot exceed 1024 characters
 - **DoS Prevention**: iterateNodes limit capped at 10 million nodes
 - **Input Validation**: GraphNode constructor enforces type checking on all parameters
 - **Better Error Context**: Validation errors now include links to documentation
 
 ### Documentation
+
 - **JSDoc Complete**: All facade methods now have @param, @returns, @throws, and @example tags
 - **README Accuracy**: All code examples verified against actual implementation
 - **Error Scenarios**: Documented common error patterns with solutions
 - **Usage Guidance**: Added decision tree for choosing appropriate methods
 
 ### Technical Debt Reduced
+
 - Eliminated magic string (RECORD_SEPARATOR now a documented constant)
 - Improved code readability with declarative programming (flatMap vs forEach)
 - Enhanced robustness with graceful degradation patterns
 
 ### Audit Results
+
 - **DX Score**: 8/10 → 9/10 (API consistency improved)
 - **IQ Score**: 9/10 → 9.5/10 (code quality improvements)
 - **Combined Health Score**: 8.5/10 → 9.5/10
@@ -2127,6 +2195,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [2.1.0] - 2026-01-08
 
 ### Added
+
 - **Ref Validation**: Added `_validateRef()` method in `GitGraphAdapter` to prevent command injection attacks
 - **Production Files**: Added LICENSE, NOTICE, SECURITY.md, CODE_OF_CONDUCT.md, CONTRIBUTING.md
 - **CI Pipeline**: GitHub Actions workflow for linting and testing
@@ -2134,11 +2203,13 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **npm Metadata**: Full repository URLs, keywords, engines specification, and files array
 
 ### Changed
+
 - **Dependency Management**: Switched from `file:../plumbing` to npm version `@git-stunts/plumbing: ^2.7.0`
 - **Description**: Enhanced package description with feature highlights
 - **Delimiter**: Confirmed use of ASCII Record Separator (`\x1E`) for robust parsing
 
 ### Security
+
 - **Ref Pattern Validation**: All refs validated against `/^[a-zA-Z0-9_/-]+(\^|\~|\.\.|\.)*$/`
 - **Injection Prevention**: Refs cannot start with `-` or `--` to prevent option injection
 - **Command Whitelisting**: Only safe Git plumbing commands permitted through adapter layer
@@ -2146,6 +2217,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [2.0.0] - 2026-01-07
 
 ### Added
+
 - **Roaring Bitmap Indexing**: Implemented a sharded index architecture inspired by `git-mind` for O(1) graph lookups.
 - **CacheRebuildService**: New service to scan Git history and build/persist the bitmap index as a Git Tree.
 - **Streaming Log Parser**: Refactored `listNodes` to use async generators (`iterateNodes`), supporting graphs with millions of nodes without OOM.
@@ -2153,6 +2225,7 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 - **Performance Benchmarks**: Added a comprehensive benchmark suite and D3.js visualization.
 
 ### Changed
+
 - **Hexagonal Architecture**: Full refactor into domain entities and infrastructure adapters.
 - **Local Linking**: Switched to `file:../plumbing` for explicit local-first development.
 - **Delimiter Hardening**: Moved to a Null Byte separator for robust `git log` parsing.
@@ -2160,4 +2233,5 @@ All query methods operate on `WarpStateV5` (materialized state), never commit DA
 ## [1.0.0] - 2025-10-15
 
 ### Added
+
 - Initial release with basic "Empty Tree" commit support.
