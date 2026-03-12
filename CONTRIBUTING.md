@@ -58,6 +58,8 @@ Ensure `test/unit/domain/WarpGraph.noCoordination.test.js` passes before submitt
 
 1. Create a feature branch from `main`
 2. Make your changes with clear commit messages
-3. Ensure all tests pass: `npm test`
-4. Ensure linting passes: `npx eslint .`
-5. Submit a PR with a clear description
+3. Keep commits documentation-atomic: when a change affects shipped behavior, public surface, or backlog status, update `CHANGELOG.md` and the roadmap/backlog docs in the same commit.
+4. Move completed backlog items out of `ROADMAP.md` and into `docs/ROADMAP/COMPLETED.md` as part of that same reconciliation.
+5. Ensure all tests pass: `npm test`
+6. Ensure linting passes: `npx eslint .`
+7. Submit a PR with a clear description

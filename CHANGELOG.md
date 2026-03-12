@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Streaming transitive closure traversal** — Added `transitiveClosureStream()` to the traversal stack so callers can consume reachability edges lazily as an `AsyncGenerator<{ from, to }>` without materializing the full closure array. The existing `transitiveClosure()` API remains and now collects from the stream for backward compatibility.
+- **First-class sync trust configuration** — `WarpGraph.open({ trust })` and `graph.syncWith(..., { trust })` now expose an explicit public trust-config surface for sync evaluation instead of relying on hidden controller wiring alone.
+
+### Changed
+
+- **Large-graph traversal memory profile** — `topologicalSort()` now has a lightweight mode that avoids retaining discovery adjacency when callers do not need it. `levels()` and `transitiveReduction()` were refactored to re-fetch neighbors on demand instead of pinning full topo adjacency in memory, reducing steady-state large-graph working sets.
+- **Surface validation accounting** — The declaration surface checker now distinguishes runtime-backed exports from type-only manifest entries and understands namespace declarations, which makes the type-surface contract tighter without forcing runtime exports for pure types.
+
+### Fixed
+
+- **Signed trust verification now performs real crypto checks** — Trust evaluation now verifies Ed25519 signatures and key fingerprints during evidence processing instead of stopping at envelope/shape validation.
+- **Browser/WebSocket serve payload parity for edge properties** — `WarpServeService` state payloads now include edge properties, so served graph views no longer drop part of the graph model.
+- **`attachContent()` / `attachEdgeContent()` orphan blob writes** — Content attachment now validates the target node/edge before writing blob content, preventing orphaned blob storage on invalid mutations.
+- **`NodeWsAdapter` cleanup contracts** — Failed startup paths now clean up partial internal state, and shutdown is idempotent instead of leaving stale listener/server state behind.
+- **Public export surface drift** — `WarpServeService` and `WebSocketServerPort` are exported from `index.js`, bringing runtime exports back into alignment with the declared public surface.
+- **Type-policy false positives from declaration comments** — `ts-policy-check` now ignores inline declaration comments instead of flagging `any` mentions that exist only inside explanatory comments.
+- **Trust/canonical property coverage** — Added property-based determinism coverage for `canonicalStringify()` and trust-schema canonical parse behavior, and tightened the trust property generators to avoid invalid whitespace-only `writerId` counterexamples.
+
 ## [14.0.0] — 2026-03-08
 
 ### Fixed

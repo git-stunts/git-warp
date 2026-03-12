@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-04 (priority triage: 45 standalone items sorted into P0–P6 tiers, wave-based execution order, dependency chains mapped)
+> **Last reconciled:** 2026-03-12 (v15 backlog + changelog reconciliation; 34 active standalone items remain after trust/serve hardening, type-surface cleanup, and large-graph traversal work)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -173,36 +173,34 @@ Archived to [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-11--compass-ii).
 
 ## Standalone Lane (Ongoing)
 
-45 active items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
+34 active items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
 > Completed standalone items archived in [COMPLETED.md](docs/ROADMAP/COMPLETED.md#standalone-lane--completed-items).
 
 ### P0 — Quick Wins (unblock other work, trivial effort)
 
-No dependencies. Do these first.
+All P0 items are complete on `v15`:
 
-| ID | Item | Effort |
-|----|------|--------|
-| B154 | **`transitiveReduction` REDUNDANT ADJLIST COPY** — after receiving `_neighborEdgeMap` from topo sort, builds a second `adjList: Map<string, string[]>` by extracting neighborIds. Two representations of the same edge set in memory simultaneously. Should use `_neighborEdgeMap` directly, accessing `.neighborId` inline during BFS. **File:** `src/domain/services/GraphTraversal.js`. **Unblocks:** B150 (P4) | XS |
-| B97 | **AUDIT MANIFEST vs `index.js` DRIFT** — manifest has 70 entries, `index.js` has 66 exports. 4 stale or type-only entries need reconciliation. From B-TYPE-2. **Files:** `contracts/type-surface.m8.json`, `index.js`. **Unblocks:** B85 → B57 (P2 chain) | S |
-| B81 | **`attachContent` ORPHAN BLOB GUARD** — `attachContent()` unconditionally writes blob before `setProperty()`. Validate before push to prevent orphan blobs. From B-CODE-2. **File:** `src/domain/services/PatchBuilderV2.js` | S |
+- **B154** — `transitiveReduction()` no longer builds the redundant adjacency copy.
+- **B97** — runtime exports and type-surface manifest drift reconciled.
+- **B81** — `attachContent()` / `attachEdgeContent()` now guard against orphan blob writes.
 
 ### P1 — Correctness & Test Infrastructure
 
-B36 and B37 improve velocity for all future test work — do them early. B19 + B22 batch as one PR (Conformance Property Pack). B165 and B167 completed (Defensive Hardening Sprint); B166 remains.
+B36 and B37 improve velocity for all future test work — do them early. B165, B166, and B167 are complete; B19 + B22 landed as the canonical determinism property pack.
 
 | ID | Item | Effort |
 |----|------|--------|
 | B165 | ✅ **WARPSERVESERVICE `listen()` DEFERRED STATE MUTATION** — `listen()` now defers `_server` assignment and subscription registration until bind succeeds; on failure, cleans up subscriptions. `_onConnection` catch now sends generic `"Internal error"` instead of raw `err.message`. **File:** `src/domain/services/WarpServeService.js` | S |
-| B166 | **ADAPTER CLEANUP CONTRACTS** — `NodeWsAdapter.close()` doesn't reset `state.wss`/`state.httpServer`/remove listeners after shutdown; `listenWithHttp` error path leaks partial state. **File:** `src/infrastructure/adapters/NodeWsAdapter.js` | M |
+| B166 | ✅ **ADAPTER CLEANUP CONTRACTS** — `NodeWsAdapter` now cleans up partial startup state, resets internal handles on shutdown, and closes idempotently. **File:** `src/infrastructure/adapters/NodeWsAdapter.js` | M |
 | B167 | ✅ **SERVE TEST COVERAGE GAPS** — Added tests for: listen-failure cleanup (leaked subscriptions), double-listen guard, error sanitization (no internal detail leakage), `attachContent`/`attachEdgeContent` smoke tests through mutation pipeline. **File:** `test/unit/domain/services/WarpServeService.test.js` | S |
 | B36 | **FLUENT STATE BUILDER FOR TESTS** — `StateBuilder` helper replacing manual `WarpStateV5` literals | M |
 | B37 | **SHARED MOCK PERSISTENCE FIXTURE** — dedup `createMockPersistence()` across trust test files | S |
 | B48 | **ESLINT BAN `= {}` CONSTRUCTOR DEFAULTS WITH REQUIRED PARAMS** — catches the pattern where `= {}` silently makes required options optional at the type level (found in CommitDagTraversalService, DagTraversal, DagPathFinding, DagTopology, BitmapIndexReader) | S |
 | B80 | **CHECKPOINTSERVICE CONTENT BLOB UNBOUNDED MEMORY** — iterates all properties into single `Set` before tree serialization. Stream content OIDs in batches. From B-AUDIT-10 (JANK). **File:** `src/domain/services/CheckpointService.js:224-226` | M |
 | B99 | **DETERMINISM FUZZER FOR TREE CONSTRUCTION** — property-based test randomizing content blob insertion order in `PatchBuilderV2` and content OID iteration order in `CheckpointService.createV5()`, verifying identical tree OID. From B-FEAT-2. **File:** new test in `test/unit/domain/services/` | M |
-| B19 | **CANONICAL SERIALIZATION PROPERTY TESTS** — fuzz `canonicalStringify`; verify idempotency, determinism, round-trip stability. Golden fixtures test known paths; property tests test unknown edge combinations. | S |
-| B22 | **CANONICAL PARSE DETERMINISM TEST** — verify `canonicalStringify(TrustRecordSchema.parse(record))` produces identical output across repeated calls. Batch with B19 as one PR. | S |
+| B19 | ✅ **CANONICAL SERIALIZATION PROPERTY TESTS** — Seeded `fast-check` coverage now verifies `canonicalStringify()` idempotency and determinism. | S |
+| B22 | ✅ **CANONICAL PARSE DETERMINISM TEST** — Repeated `TrustRecordSchema.parse()` canonicalization is now property-tested for stable output. | S |
 
 ### P2 — CI & Tooling (one batch PR)
 
@@ -228,24 +226,24 @@ No hard dependencies. Pick up opportunistically after P2.
 
 | ID | Item | Effort |
 |----|------|--------|
-| B95 | **NAMESPACE EXPORT SUPPORT** — handle `export declare namespace Foo` in surface validator. From B-SURF-5. **File:** `scripts/check-dts-surface.js` | S |
+| B95 | ✅ **NAMESPACE EXPORT SUPPORT** — `check-dts-surface` now handles namespace declarations in `.d.ts` parsing. | S |
 | B96 | **CONSUMER TEST TYPE-ONLY IMPORT COVERAGE** — exercise all exported types beyond just declaring variables. Types like `OpOutcome`, `TraversalDirection`, `LogLevelValue` aren't tested at all. From B-TYPE-1. **File:** `test/type-check/consumer.ts` | M |
 | B98 | **TEST-FILE WILDCARD RATCHET** — `ts-policy-check.js` excludes test files entirely. Add separate ratchet with higher threshold or document exclusion as intentional. From B-TYPE-3. **File:** `scripts/ts-policy-check.js` | S |
 | B54 | **`typedCustom()` ZOD HELPER** — `z.custom()` without a generic yields `unknown` in JS; a JSDoc-friendly wrapper (or `@typedef`-based pattern) would eliminate verbose `/** @type {z.ZodType<T>} */ (z.custom(...))` casts across HttpSyncServer and future Zod schemas | S |
-| B49 | **TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING** — strip trailing `//` and `/* */` comments before checking for `any` in `ts-policy-check.js`; low priority but closes theoretical false-positive gap | XS |
+| B49 | ✅ **TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING** — `ts-policy-check` now strips inline declaration comments before checking for `any`, closing the false-positive gap. | XS |
 | B28 | **PURE TYPESCRIPT EXAMPLE APP** — CI compile-only stub (`tsc --noEmit` on minimal TS consumer). | M |
 
 ### P4 — Large-Graph Performance (forward-looking)
 
-**Execution order:** B154 (P0) → B153 → B149 + B150 (parallel) → B151 → B152. B153 is the keystone — fixes topo sort memory, which cascades to B149 and B150.
+`v15` completed the first five large-graph items in order: **B154 → B153 → B149 + B150 → B151**. The only remaining P4 item is the broader streaming traversal surface (`B152`).
 
 | ID | Item | Depends on | Effort |
 |----|------|------------|--------|
-| B153 | **`topologicalSort` LIGHTWEIGHT MODE** — discovery phase unconditionally builds `adjList` + `neighborEdgeMap` (O(V+E)) even when `_returnAdjList` is false. Add a `_lightweight` mode that only tracks in-degree counts during discovery and re-fetches neighbors from provider during Kahn processing. Reduces topo sort memory from O(V+E) to O(V). Root cause behind B149/B150 — both inherit full-graph materialization from their topo sort call. **File:** `src/domain/services/GraphTraversal.js` | — | M |
-| B149 | **LARGE-GRAPH `levels()` — TWO-PASS STREAMING** — `levels()` currently holds O(V+E) via `topologicalSort({ _returnAdjList: true })`. Refactor to two-pass: (1) topo sort discards edge cache, (2) DP pass re-fetches neighbors from provider. Reduces steady-state memory from O(V+E) to O(V). Trade-off: one extra I/O pass over edges. **File:** `src/domain/services/GraphTraversal.js` | B153 | M |
-| B150 | **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — `transitiveReduction()` holds full adjacency list from topo sort AND builds a second `Map<string, string[]>` for per-node BFS. Refactor BFS phase to call `getNeighbors()` on demand instead of caching. Reduces memory from O(V+E) to O(V) working set per BFS sweep. Trade-off: redundant provider calls. Consider provider-level LRU to amortize. **File:** `src/domain/services/GraphTraversal.js` | B153, B154 (P0) | M |
-| B151 | **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosure()` collects all O(V²) reachability edges in an array before returning. For large graphs this can exhaust memory even with `maxEdges`. Refactor to async iterator/generator that yields `{from, to}` pairs as they're discovered. Per-node BFS working memory is already O(V); the bottleneck is the output array. **File:** `src/domain/services/GraphTraversal.js` | — | M |
-| B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of all GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Enables early break, backpressure, and pipeline composition. Array-returning methods become sugar over `collect()`. Generalizes B151 to the full traversal surface. **File:** `src/domain/services/GraphTraversal.js` | B151 | L |
+| B153 | ✅ **`topologicalSort` LIGHTWEIGHT MODE** — discovery no longer retains full adjacency when callers do not request it. | M |
+| B149 | ✅ **LARGE-GRAPH `levels()` — TWO-PASS STREAMING** — `levels()` now re-fetches neighbors during the DP pass instead of pinning topo adjacency. | M |
+| B150 | ✅ **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — reduction now fetches successors on demand and avoids the duplicate adjacency structures. | M |
+| B151 | ✅ **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosureStream()` now yields `{ from, to }` lazily; the array-returning closure API collects from the stream for compatibility. | M |
+| B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of the remaining GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Array-returning methods become sugar over `collect()`. | — | L |
 
 ### P5 — Features & Visualization
 
@@ -331,69 +329,57 @@ B5, B6, B13, B17, B18, B25, B45 — rejected 2026-02-17 with cause recorded in `
 
 Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
-#### Wave 1: Foundation (P0 + P1 start)
+#### Wave 1: Remaining Correctness Foundation (P1 start)
 
-1. **B154** — transitiveReduction adjList dedup (XS)
-2. **B97** — Manifest audit (S, unblocks P2 chain)
-3. **B81** — Orphan blob guard (S, correctness)
-4. **B36** — Fluent StateBuilder (M, test DX)
-5. **B37** — Shared mock persistence (S, test DRY)
+1. **B36** — Fluent StateBuilder (M, test DX)
+2. **B37** — Shared mock persistence (S, test DRY)
 
 #### Wave 2: Correctness (P1 finish)
 
-6. **B48** — ESLint `= {}` defaults rule (S)
-7. **B80** — CheckpointService memory streaming (M)
-8. **B19 + B22** — Conformance property pack (S, one PR)
-9. **B99** — Determinism fuzzer (M)
+3. **B48** — ESLint `= {}` defaults rule (S)
+4. **B80** — CheckpointService memory streaming (M)
+5. **B99** — Determinism fuzzer (M)
 
 #### Wave 3: CI & Tooling (P2, one batch PR)
 
-10. **B83, B85, B57, B86, B87, B88, B119, B123, B128, B12, B43**
+6. **B83, B85, B57, B86, B87, B88, B119, B123, B128, B12, B43**
 
-Internal chain: B97 (P0, Wave 1) → B85 → B57. B123 is the largest — may split out.
+Internal chain: **B97 already resolved on v15** → B85 → B57. B123 is the largest — may split out.
 
 #### Wave 4: Type Surface (P3)
 
-11. **B95, B96, B98, B54, B49** — batch or cherry-pick
-12. **B28** — TypeScript example app
+7. **B96, B98, B54** — batch or cherry-pick
+8. **B28** — TypeScript example app
 
 #### Wave 5: Large-Graph (P4)
 
-13. **B153** — topologicalSort lightweight mode (keystone)
-14. **B149 + B150** — levels + transitiveReduction streaming (parallel after B153)
-15. **B151** — transitiveClosure streaming output
-16. **B152** — full async generator API
+9. **B152** — full async generator API (B151 prerequisite is complete)
 
 #### Wave 6: Features + Docs (P5 + P6)
 
-17. **B155** — levels() as --view layout
-18. **B156** — structural diff (if H1 is in play)
-19. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147) folded into related PRs
+10. **B155** — levels() as --view layout
+11. **B156** — structural diff (if H1 is in play)
+12. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147) folded into related PRs
 
 #### Wave 7: git-cas Modernization (P7)
 
-20. **B158** — upgrade `@git-stunts/git-cas` to v5 (unblocks all P7 items)
-21. **B159** — CDC chunking for seek cache (quick win after B158)
-22. **B161** — encrypted seek cache
-23. **B160** — blob attachments via CAS
-24. **B162** — observability alignment
-25. **B163** — streaming restore for large states
-26. **B164** — graph encryption at rest (largest, last)
+13. **B158** — upgrade `@git-stunts/git-cas` to v5 (unblocks all P7 items)
+14. **B159** — CDC chunking for seek cache (quick win after B158)
+15. **B161** — encrypted seek cache
+16. **B160** — blob attachments via CAS
+17. **B162** — observability alignment
+18. **B163** — streaming restore for large states
+19. **B164** — graph encryption at rest (largest, last)
 
 ### Dependency Chains
 
 ```text
-B97 (P0) ──→ B85 (P2) ──→ B57 (P2)
-              manifest      auto-validate
+B97 (done) ──→ B85 (P2) ──→ B57 (P2)
+               manifest      auto-validate
 
-B153 (P4) ──→ B149 (P4)   levels() streaming
-          └──→ B150 (P4)   transitiveReduction() streaming
-                ↑
-B154 (P0) ─────┘           adjList dedup (quick fix)
+B151 (done) ──→ B152 (P4)   closure streaming → full async generator API
 
-B151 (P4) ──→ B152 (P4)   closure streaming → full async generator API
-
-B36 (P1) ──→ (improves velocity for B99, B19, B22, future tests)
+B36 (P1) ──→ (improves velocity for B99 and future tests)
 
 B158 (P7) ──→ B159 (P7)   CDC seek cache
           ├──→ B160 (P7)   blob attachments
@@ -416,11 +402,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)** | 18 | B66, B67, B70, B73, B75, B105–B115, B117, B118 |
 | **Milestone (M13)** | 1 | B116 (internal: DONE; wire-format: DEFERRED) |
 | **Milestone (M14)** | 16 | B130–B145 |
-| **Standalone** | 46 | B12, B19, B22, B28, B34–B37, B43, B48, B49, B53, B54, B57, B76, B79–B81, B83, B85–B88, B95–B99, B102–B104, B119, B123, B127–B129, B147, B149–B156, B166 |
-| **Standalone (done)** | 39 | B26, B44, B46, B47, B50–B52, B55, B71, B72, B77, B78, B82, B84, B89–B94, B100, B120–B122, B124, B125, B126, B146, B148, B157, B158, B159, B160, B161, B162, B163, B164, B165, B167 |
+| **Standalone** | 34 | B12, B28, B34–B37, B43, B48, B53, B54, B57, B76, B79–B80, B83, B85–B88, B96, B98–B99, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156 |
+| **Standalone (done)** | 51 | B19, B22, B26, B44, B46, B47, B49–B52, B55, B71, B72, B77, B78, B81–B82, B84, B89–B95, B97, B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
 | **Deferred** | 7 | B4, B7, B16, B20, B21, B27, B101 |
 | **Rejected** | 7 | B5, B6, B13, B17, B18, B25, B45 |
-| **Total tracked** | **144** total; 39 standalone done | |
+| **Total tracked** | **144** total; 51 standalone done | |
 
 ### STANK.md Cross-Reference
 

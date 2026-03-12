@@ -378,3 +378,20 @@ Investigation revealed the correct approach is a two-phase split:
 | B125 | ~~**`CachedValue` NULL-PAYLOAD SEMANTIC TESTS**~~ — **DONE (v13.0.0).** 3 tests documenting null = "no value" sentinel. |
 | B146 | ~~**UNIFY `CorePersistence` / `FullPersistence` TYPEDEFS**~~ — **DONE (v13.0.0).** Replaced `FullPersistence` with imported `CorePersistence`. |
 | B148 | ~~**REVIEW NITS + INVENTORY RECONCILIATION**~~ — **DONE (v13.0.0).** Fix inventory counts, COMPLETED.md ordering, stale Deno test name, BisectService invariant comment. |
+
+### v15 Branch Standalone Items (completed)
+
+| ID | Item |
+|----|------|
+| B19 | ~~**CANONICAL SERIALIZATION PROPERTY TESTS**~~ — **DONE (`v15`).** Added seeded property-based coverage for `canonicalStringify()` idempotency and determinism. |
+| B22 | ~~**CANONICAL PARSE DETERMINISM TEST**~~ — **DONE (`v15`).** Added property-based tests for stable canonical output across repeated `TrustRecordSchema.parse()` calls. |
+| B49 | ~~**TIGHTEN `checkDeclarations` INLINE COMMENT STRIPPING**~~ — **DONE (`v15`).** `ts-policy-check` now strips inline declaration comments before checking for `any`. |
+| B81 | ~~**`attachContent` ORPHAN BLOB GUARD**~~ — **DONE (`v15`).** Content attachment now validates the target node/edge before writing blob content. |
+| B95 | ~~**NAMESPACE EXPORT SUPPORT**~~ — **DONE (`v15`).** The declaration surface validator now handles namespace exports in `.d.ts` parsing. |
+| B97 | ~~**AUDIT MANIFEST vs `index.js` DRIFT**~~ — **DONE (`v15`).** Runtime exports were reconciled with the public surface, and the surface checker now distinguishes runtime-backed vs type-only manifest entries. |
+| B149 | ~~**LARGE-GRAPH `levels()` — TWO-PASS STREAMING**~~ — **DONE (`v15`).** `levels()` now re-fetches neighbors during the DP pass instead of pinning topo adjacency. |
+| B150 | ~~**LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH**~~ — **DONE (`v15`).** Reduction now uses on-demand successor fetches rather than retaining full topo adjacency plus a second adjacency copy. |
+| B151 | ~~**LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT**~~ — **DONE (`v15`).** Added `transitiveClosureStream()` and rewired `transitiveClosure()` to collect from the stream for compatibility. |
+| B153 | ~~**`topologicalSort` LIGHTWEIGHT MODE**~~ — **DONE (`v15`).** Topological discovery now skips full adjacency retention when callers do not request it. |
+| B154 | ~~**`transitiveReduction` REDUNDANT ADJLIST COPY**~~ — **DONE (`v15`).** Removed the extra adjacency-only copy from reduction. |
+| B166 | ~~**ADAPTER CLEANUP CONTRACTS**~~ — **DONE (`v15`).** `NodeWsAdapter` now cleans up partial startup state and shuts down idempotently. |
