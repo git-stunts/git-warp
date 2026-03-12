@@ -143,6 +143,60 @@ export default class GraphTraversal {
   }
 
   /**
+   * Loads neighbor IDs for topological processing and tracks traversal stats.
+   *
+   * @param {string} nodeId
+   * @param {Direction} direction
+   * @param {RunStats} rs
+   * @param {NeighborOptions} [options]
+   * @returns {Promise<string[]>}
+   * @private
+   */
+  async _loadTopoNeighborIds(nodeId, direction, rs, options) {
+    const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
+    rs.edgesTraversed += neighbors.length;
+    return neighbors.map(({ neighborId }) => neighborId);
+  }
+
+  /**
+   * Creates a neighbor-ID reader for topological phases.
+   *
+   * @param {Map<string, string[]> | null} adjList
+   * @param {Direction} direction
+   * @param {RunStats} rs
+   * @param {NeighborOptions} [options]
+   * @returns {(nodeId: string) => Promise<string[]>}
+   * @private
+   */
+  _createTopoNeighborIdReader(adjList, direction, rs, options) {
+    if (adjList) {
+      return (nodeId) => Promise.resolve(adjList.get(nodeId) || []);
+    }
+    return (nodeId) => this._loadTopoNeighborIds(nodeId, direction, rs, options);
+  }
+
+  /**
+   * Finds a cycle witness among nodes left unsorted by Kahn's algorithm.
+   *
+   * @param {{ discovered: Set<string>, sorted: string[], getNeighborIds: (nodeId: string) => Promise<string[]> }} params
+   * @returns {Promise<{ from?: string, to?: string }>}
+   * @private
+   */
+  async _findTopoCycleWitness({ discovered, sorted, getNeighborIds }) {
+    const inSorted = new Set(sorted);
+    for (const nodeId of discovered) {
+      if (inSorted.has(nodeId)) { continue; }
+      const neighbors = await getNeighborIds(nodeId);
+      for (const neighborId of neighbors) {
+        if (!inSorted.has(neighborId)) {
+          return { from: nodeId, to: neighborId };
+        }
+      }
+    }
+    return {};
+  }
+
+  /**
    * Gets neighbors with optional LRU memoization.
    *
    * @param {string} nodeId
@@ -686,7 +740,7 @@ export default class GraphTraversal {
    *
    * Deterministic: zero-indegree nodes dequeued in lexicographic nodeId order.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, throwOnCycle?: boolean, signal?: AbortSignal, _returnAdjList?: boolean }} params
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, throwOnCycle?: boolean, signal?: AbortSignal, _returnAdjList?: boolean, _lightweight?: boolean }} params
    * @returns {Promise<{sorted: string[], hasCycle: boolean, stats: TraversalStats, _neighborEdgeMap?: Map<string, NeighborEdge[]>}>}
    * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if throwOnCycle is true and cycle found
    */
@@ -696,16 +750,18 @@ export default class GraphTraversal {
     throwOnCycle = false,
     signal,
     _returnAdjList = false,
+    _lightweight = !_returnAdjList,
   }) {
     const rs = this._newRunStats();
     const starts = [...new Set(Array.isArray(start) ? start : [start])];
     for (const s of starts) {
       await this._validateStart(s);
     }
+    const lightweight = _lightweight && !_returnAdjList;
 
     // Phase 1: Discover all reachable nodes + compute in-degrees
-    /** @type {Map<string, string[]>} */
-    const adjList = new Map();
+    /** @type {Map<string, string[]> | null} */
+    const adjList = lightweight ? null : new Map();
     /** @type {Map<string, NeighborEdge[]>} — populated when _returnAdjList is true */
     const neighborEdgeMap = new Map();
     /** @type {Map<string, number>} */
@@ -724,18 +780,19 @@ export default class GraphTraversal {
       const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
       rs.edgesTraversed += neighbors.length;
 
-      /** @type {string[]} */
-      const neighborIds = [];
       for (const { neighborId } of neighbors) {
-        neighborIds.push(neighborId);
         inDegree.set(neighborId, (inDegree.get(neighborId) || 0) + 1);
         if (!discovered.has(neighborId)) {
           discovered.add(neighborId);
           queue.push(neighborId);
         }
       }
-      adjList.set(nodeId, neighborIds);
-      neighborEdgeMap.set(nodeId, neighbors);
+      if (adjList) {
+        adjList.set(nodeId, neighbors.map(({ neighborId }) => neighborId));
+      }
+      if (_returnAdjList) {
+        neighborEdgeMap.set(nodeId, neighbors);
+      }
     }
 
     // Ensure starts have in-degree entries
@@ -744,6 +801,8 @@ export default class GraphTraversal {
         inDegree.set(s, 0);
       }
     }
+
+    const getNeighborIds = this._createTopoNeighborIdReader(adjList, direction, rs, options);
 
     // Phase 2: Kahn's — MinHeap for O(N log N) zero-indegree processing
     const ready = new MinHeap({ tieBreaker: lexTieBreaker });
@@ -762,7 +821,7 @@ export default class GraphTraversal {
       const nodeId = /** @type {string} */ (ready.extractMin());
       sorted.push(nodeId);
 
-      const neighbors = adjList.get(nodeId) || [];
+      const neighbors = await getNeighborIds(nodeId);
       for (const neighborId of neighbors) {
         const deg = /** @type {number} */ (inDegree.get(neighborId)) - 1;
         inDegree.set(neighborId, deg);
@@ -779,29 +838,17 @@ export default class GraphTraversal {
       readyRemaining: !ready.isEmpty(),
     });
     if (hasCycle && throwOnCycle) {
-      // Find a back-edge as witness
-      const inSorted = new Set(sorted);
-      /** @type {string|undefined} */
-      let cycleWitnessFrom;
-      /** @type {string|undefined} */
-      let cycleWitnessTo;
-      for (const [nodeId, neighbors] of adjList) {
-        if (inSorted.has(nodeId)) { continue; }
-        for (const neighborId of neighbors) {
-          if (!inSorted.has(neighborId)) {
-            cycleWitnessFrom = nodeId;
-            cycleWitnessTo = neighborId;
-            break;
-          }
-        }
-        if (cycleWitnessFrom) { break; }
-      }
+      const cycleWitness = await this._findTopoCycleWitness({
+        discovered,
+        sorted,
+        getNeighborIds,
+      });
 
       throw new TraversalError('Graph contains a cycle', {
         code: 'ERR_GRAPH_HAS_CYCLES',
         context: {
           nodesInCycle: discovered.size - sorted.length,
-          cycleWitness: cycleWitnessFrom ? { from: cycleWitnessFrom, to: cycleWitnessTo } : undefined,
+          cycleWitness: cycleWitness.from ? cycleWitness : undefined,
         },
       });
     }

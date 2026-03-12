@@ -210,4 +210,55 @@ describe('GraphTraversal.topologicalSort', () => {
       expect(sorted).toEqual(['root', 'M', 'A', 'N', 'Z', 'B']);
     });
   });
+
+  describe('lightweight mode', () => {
+    it('preserves deterministic order without returning adjacency state', async () => {
+      const provider = makeAdjacencyProvider(F3_DIAMOND_EQUAL_PATHS);
+      const engine = new GraphTraversal({ provider });
+      const { sorted, hasCycle, _neighborEdgeMap } = await engine.topologicalSort({
+        start: 'A',
+        _lightweight: true,
+      });
+
+      expect(hasCycle).toBe(false);
+      expect(sorted).toEqual(['A', 'B', 'C', 'D']);
+      expect(_neighborEdgeMap).toBeUndefined();
+    });
+
+    it('still provides a cycle witness when lightweight mode throws', async () => {
+      const provider = makeAdjacencyProvider(F8_TOPO_CYCLE_3);
+      const engine = new GraphTraversal({ provider });
+
+      await expect(engine.topologicalSort({
+        start: 'A',
+        throwOnCycle: true,
+        _lightweight: true,
+      })).rejects.toThrow(expect.objectContaining({
+        code: 'ERR_GRAPH_HAS_CYCLES',
+        context: expect.objectContaining({
+          cycleWitness: expect.objectContaining({
+            from: expect.any(String),
+            to: expect.any(String),
+          }),
+        }),
+      }));
+    });
+
+    it('keeps neighbor-edge reuse when adjacency data is requested', async () => {
+      const provider = makeAdjacencyProvider(F3_DIAMOND_EQUAL_PATHS);
+      const engine = new GraphTraversal({ provider });
+      const { sorted, _neighborEdgeMap } = await engine.topologicalSort({
+        start: 'A',
+        _lightweight: true,
+        _returnAdjList: true,
+      });
+
+      expect(sorted).toEqual(['A', 'B', 'C', 'D']);
+      expect(_neighborEdgeMap).toBeInstanceOf(Map);
+      expect(_neighborEdgeMap?.get('A')).toEqual([
+        { neighborId: 'B', label: '' },
+        { neighborId: 'C', label: '' },
+      ]);
+    });
+  });
 });
