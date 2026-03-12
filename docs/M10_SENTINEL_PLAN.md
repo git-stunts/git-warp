@@ -12,7 +12,7 @@ M10 closes the remaining trust boundary gaps: unsigned sync ingress, unreliable 
 
 ## Execution Order
 
-```
+```text
 Wave 1 (independent, parallelizable):
   B65  Sync divergence logging         [small, low risk]
   B39  Trust CAS retry                 [small, medium risk]

@@ -8,8 +8,9 @@ on:
     branches: [main]
 
 jobs:
-  # ── IRONCLAD M9 type firewall ────────────────────────────────────────────
-  # This job is the primary gate. It runs ALL type safety checks in parallel.
+  # ── IRONCLAD M9 static firewall ──────────────────────────────────────────
+  # This job is the primary fast gate. It runs the static quality checks
+  # that should fail quickly before heavier runtime matrix jobs start.
   # It MUST pass before any PR can merge. Configure as a required status check
   # in GitHub branch protection settings. Security audit stays advisory here so
   # CI keeps a single authoritative gate instead of duplicating lint/type work
@@ -34,7 +35,9 @@ jobs:
         run: npm run lint
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
-      - name: 'Gate 6: Security audit (runtime deps, advisory)'
+      - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
+        run: npm run lint:md
+      - name: 'Gate 7: Security audit (runtime deps, advisory)'
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
 

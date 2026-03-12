@@ -10,7 +10,7 @@ Causality bisect finds the first patch (or tick) in a WARP graph's history that 
 
 ## 2. CLI Contract
 
-```
+```text
 git warp bisect --graph <name> --good <sha> --bad <sha> --test <command>
 git warp bisect --graph <name> --good <sha> --bad <sha> --test <command> [--writer <id>] [--json]
 ```
@@ -37,7 +37,7 @@ git warp bisect --graph <name> --good <sha> --bad <sha> --test <command> [--writ
 
 ### Output
 
-```
+```text
 # Text mode (default)
 First bad patch: <sha>
   Writer: <writerId>
@@ -118,7 +118,7 @@ When no `--writer` is specified and the graph has multiple writers:
 
 ### 4.4 Algorithm Pseudocode
 
-```
+```text
 function bisect(good, bad, testCmd, writer?):
   if writer:
     candidates = walkWriterChain(good, bad, writer)
@@ -158,7 +158,7 @@ function bisect(good, bad, testCmd, writer?):
 
 ### Vector 1: Linear chain (single writer)
 
-```
+```text
 Commits: A → B → C → D → E
 Good: A, Bad: E
 Property: node "bug" absent (good) / present (bad)
@@ -172,7 +172,7 @@ Result: C (2 steps)
 
 ### Vector 2: Multi-writer diamond
 
-```
+```text
 Writer w1: A → B → D
 Writer w2: A → C → D
 Good: A, Bad: D
@@ -184,7 +184,7 @@ Note: weight-based selection may test B or C first
 
 ### Vector 3: Already good
 
-```
+```text
 Commits: A → B → C
 Good: C, Bad: C
 Expected: exit 2 (range error — good equals bad)
@@ -192,7 +192,7 @@ Expected: exit 2 (range error — good equals bad)
 
 ### Vector 4: Already bad
 
-```
+```text
 Commits: A → B → C
 Good: A, Bad: A
 Expected: exit 2 (range error — good equals bad)
@@ -200,7 +200,7 @@ Expected: exit 2 (range error — good equals bad)
 
 ### Vector 5: Single step
 
-```
+```text
 Commits: A → B
 Good: A, Bad: B
 Expected: result = B (0 bisect steps — only one candidate)
@@ -208,7 +208,7 @@ Expected: result = B (0 bisect steps — only one candidate)
 
 ### Vector 6: Good is not ancestor of bad
 
-```
+```text
 Writer w1: A → B
 Writer w2: C → D
 Good: B, Bad: D (B is not an ancestor of D)
@@ -217,7 +217,7 @@ Expected: exit 2 (range error)
 
 ### Vector 7: Non-monotone property (warning case)
 
-```
+```text
 Commits: A → B → C → D
 Good: A, Bad: D
 Property at B: bad, at C: good, at D: bad (non-monotone)

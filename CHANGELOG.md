@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **First-class sync trust configuration** — `WarpGraph.open({ trust })` and `graph.syncWith(..., { trust })` now expose an explicit public trust-config surface for sync evaluation instead of relying on hidden controller wiring alone.
 - **Fluent `WarpStateV5` test builder** — Added `createStateBuilder()` in `test/helpers/stateBuilder.js` so state-heavy tests can seed nodes, edges, removals, properties, frontier state, and graph materialization through one fluent helper instead of ad hoc OR-Set/LWW mutation.
 - **Seeded tree-construction determinism fuzzer** — Added property-based coverage for patch and checkpoint tree construction, proving stable tree OIDs across internal content-anchor permutations in `PatchBuilderV2` and shuffled content-property insertion order in `CheckpointService.createV5()`.
+- **Focused markdownlint gate** — Added `npm run lint:md` backed by `markdownlint-cli` and a repo config that enforces fenced code-block languages (`MD040`) across Markdown files.
 
 ### Changed
 
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Constructor option-bag defaults made explicit** — Added an ESLint rule banning `constructor({ ... } = {})` in source files and rewrote the remaining constructors to destructure an explicit `options` bag inside the constructor body. This avoids accidentally marking required constructor params optional in JSDoc and strict type checking.
 - **Checkpoint content-anchor batching** — `CheckpointService.createV5()` now folds content blob OIDs into sorted anchor entries in batches instead of building one monolithic `Set` before tree serialization. Added direct checkpoint coverage for anchor dedupe, deterministic ordering, and load-path indifference to `_content_*` anchor entries.
 - **CI gate dedupe** — Folded the duplicate `lint` workflow job into `type-firewall` and carried forward the advisory runtime `npm audit` step there, leaving one authoritative lint/type gate in the main CI workflow.
+- **Markdown fence labeling sweep** — Unlabeled Markdown code fences now declare a language such as `text`, letting the new markdown gate verify docs/examples without broad style-rule churn.
 
 ### Fixed
 
