@@ -39,6 +39,7 @@ const issuedAtArb = fc.record({
 });
 
 const metaArb = fc.dictionary(fc.string({ maxLength: 6 }), fc.jsonValue(), { maxKeys: 4 });
+const writerIdCoreArb = fc.string({ minLength: 1, maxLength: 16 }).filter((value) => value.trim().length > 0);
 
 const baseRecordShape = {
   schemaVersion: fc.constant(1),
@@ -74,7 +75,7 @@ const trustRecordArb = fc.oneof(
     ...baseRecordShape,
     recordType: fc.constant('WRITER_BIND_ADD'),
     subject: fc.record({
-      writerId: fc.string({ minLength: 1, maxLength: 16 }).map((value) => ` ${value} `),
+      writerId: writerIdCoreArb.map((value) => ` ${value} `),
       keyId: keyIdArb,
     }),
   }),
@@ -82,7 +83,7 @@ const trustRecordArb = fc.oneof(
     ...baseRecordShape,
     recordType: fc.constant('WRITER_BIND_REVOKE'),
     subject: fc.record({
-      writerId: fc.string({ minLength: 1, maxLength: 16 }).map((value) => ` ${value} `),
+      writerId: writerIdCoreArb.map((value) => ` ${value} `),
       keyId: keyIdArb,
       reasonCode: fc.constantFrom(...BIND_REVOKE_REASONS),
     }),
