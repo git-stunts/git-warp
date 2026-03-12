@@ -54,13 +54,19 @@ describe('buildState — key lifecycle', () => {
 });
 
 describe('buildState — signature verification', () => {
+  /**
+   * @param {import('../../../../src/domain/trust/TrustStateBuilder.js').TrustRecord} record
+   * @param {string} publicKeyBase64
+   */
+  const signatureVerifier = (record, publicKeyBase64) => verifySignature({
+    algorithm: record.signature.alg,
+    publicKeyBase64,
+    signatureBase64: record.signature.sig,
+    payload: computeSignaturePayload(record),
+  });
+
   const cryptoOptions = {
-    signatureVerifier: (record, publicKeyBase64) => verifySignature({
-      algorithm: record.signature.alg,
-      publicKeyBase64,
-      signatureBase64: record.signature.sig,
-      payload: computeSignaturePayload(record),
-    }),
+    signatureVerifier,
     computeKeyFingerprint,
   };
 

@@ -1148,6 +1148,7 @@ export default class GraphTraversal {
     const rs = this._newRunStats();
     /** @type {Map<string, NeighborEdge[]>} */
     const fetchedSuccessors = new Map();
+    /** @param {string} nodeId */
     const getSuccessorEdges = async (nodeId) => {
       const cached = fetchedSuccessors.get(nodeId);
       if (cached !== undefined) {

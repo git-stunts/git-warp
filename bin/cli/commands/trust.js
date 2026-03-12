@@ -32,7 +32,7 @@ export function parseTrustArgs(args) {
 /**
  * Resolves the trust pin from CLI flag → env → live ref.
  * @param {string|null} cliPin
- * @returns {{pin: string|null, source: string, sourceDetail: string|null, status: string}}
+ * @returns {{pin: string|null, source: string, sourceDetail: string|null, status: 'configured'|'pinned'}}
  */
 function resolveTrustPin(cliPin) {
   if (cliPin) {
@@ -77,7 +77,7 @@ export default async function handleTrust({ options, args }) {
   const { pin, source, sourceDetail, status } = resolveTrustPin(trustPin);
   const writerIds = await discoverWriterIds(persistence, graphName);
   const assessment = await verifier.evaluateTrust(graphName, {
-    pin,
+    pin: pin ?? undefined,
     mode: mode ?? 'warn',
     writerIds,
     source,

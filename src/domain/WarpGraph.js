@@ -194,9 +194,10 @@ export default class WarpGraph {
     /** @type {{ mode: 'off'|'log-only'|'enforce', pin: string|null }} */
     this._trustConfig = normalizeTrustConfig(trust);
 
+    const trustGate = this._createSyncTrustGate() || undefined;
     /** @type {SyncController} */
     this._syncController = new SyncController(this, {
-      trustGate: this._createSyncTrustGate(),
+      trustGate,
     });
 
     /** @type {MaterializedViewService} */

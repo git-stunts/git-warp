@@ -33,6 +33,7 @@ const issuedAtArb = fc.record({
   minute: fc.integer({ min: 0, max: 59 }),
   second: fc.integer({ min: 0, max: 59 }),
 }).map((parts) => {
+  /** @param {number} value */
   const pad = (value) => String(value).padStart(2, '0');
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}:${pad(parts.second)}Z`;
 });

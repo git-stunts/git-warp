@@ -477,8 +477,9 @@ export default class SyncController {
       emit('requestBuilt');
       let response;
       if (isDirectPeer) {
+        const peer = /** @type {import('../WarpGraph.js').default} */ (remote);
         emit('requestSent');
-        response = await remote.processSyncRequest(request);
+        response = await peer.processSyncRequest(request);
         emit('responseReceived');
       } else {
         emit('requestSent');

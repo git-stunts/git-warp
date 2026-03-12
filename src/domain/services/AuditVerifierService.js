@@ -62,6 +62,8 @@ const STATUS_ERROR = 'ERROR';
 // Helpers
 // ============================================================================
 
+/** @typedef {'configured'|'pinned'|'error'|'not_configured'} TrustAssessmentStatus */
+
 /**
  * Validates that a string is valid lowercase hex of length 40 or 64.
  * @param {string} value
@@ -214,12 +216,12 @@ function validateTrailerConsistency(receipt, decoded) {
 /**
  * Resolves source metadata for trust evaluations.
  *
- * @param {{ status?: string, source?: string, sourceDetail?: string|null, pin?: string }} options
- * @returns {{ status: string, source: string, sourceDetail: string|null }}
+ * @param {{ status?: TrustAssessmentStatus, source?: string, sourceDetail?: string|null, pin?: string }} options
+ * @returns {{ status: TrustAssessmentStatus, source: string, sourceDetail: string|null }}
  */
 function resolveTrustSource(options) {
   return {
-    status: options.status || (options.pin ? 'pinned' : 'configured'),
+    status: options.status || /** @type {TrustAssessmentStatus} */ (options.pin ? 'pinned' : 'configured'),
     source: options.source || (options.pin ? 'pinned' : 'ref'),
     sourceDetail: options.sourceDetail ?? options.pin ?? null,
   };
@@ -228,7 +230,7 @@ function resolveTrustSource(options) {
 /**
  * Builds a fail-closed trust assessment for invalid evidence.
  *
- * @param {{ status: string, source: string, sourceDetail: string|null, writerIds?: string[], recordsScanned?: number, activeKeys?: number, revokedKeys?: number, activeBindings?: number, revokedBindings?: number, reasonCode: string, reason: string }} params
+ * @param {{ status: TrustAssessmentStatus, source: string, sourceDetail: string|null, writerIds?: string[], recordsScanned?: number, activeKeys?: number, revokedKeys?: number, activeBindings?: number, revokedBindings?: number, reasonCode: string, reason: string }} params
  * @returns {import('../trust/TrustEvaluator.js').TrustAssessment}
  */
 function buildTrustFailureAssessment({
@@ -728,7 +730,7 @@ export class AuditVerifierService {
    * and returns a TrustAssessment.
    *
    * @param {string} graphName
-   * @param {{ pin?: string, mode?: string, writerIds?: string[], source?: string, sourceDetail?: string|null, status?: string }} [options]
+   * @param {{ pin?: string, mode?: string, writerIds?: string[], source?: string, sourceDetail?: string|null, status?: TrustAssessmentStatus }} [options]
    * @returns {Promise<import('../trust/TrustEvaluator.js').TrustAssessment>}
    */
   async evaluateTrust(graphName, options = {}) {
@@ -810,7 +812,7 @@ export class AuditVerifierService {
       ...assessment,
       trust: {
         ...assessment.trust,
-        status: assessment.trust.status === 'error' ? 'error' : status,
+        status: /** @type {TrustAssessmentStatus} */ (assessment.trust.status === 'error' ? 'error' : status),
         source,
         sourceDetail,
       },

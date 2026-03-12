@@ -61,11 +61,9 @@ function verifySignature({ algorithm, publicKeyBase64, signatureBase64, payload 
   }
 
   const raw = decodePublicKey(publicKeyBase64);
-  const keyObject = _createPublicKey({
-    key: concatBytes(hexDecode(ED25519_SPKI_PREFIX_HEX), raw),
-    format: 'der',
-    type: 'spki',
-  });
+  const derKey = concatBytes(hexDecode(ED25519_SPKI_PREFIX_HEX), raw);
+  const pemBody = (base64Encode(derKey).match(/.{1,64}/g) || []).join('\n');
+  const keyObject = _createPublicKey(`-----BEGIN PUBLIC KEY-----\n${pemBody}\n-----END PUBLIC KEY-----\n`);
   return _verify(null, payload, keyObject, base64Decode(signatureBase64));
 }
 
