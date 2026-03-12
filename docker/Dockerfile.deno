@@ -7,6 +7,7 @@ ARG DENO_ALLOW_SCRIPTS="npm:roaring,npm:cbor-extract"
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
+    npm \
     python3 \
     make \
     g++ \
@@ -21,21 +22,14 @@ RUN git init -q \
   && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
-# Install npm dependencies for Deno test entrypoints and allow native addon
-# lifecycle scripts so roaring/cbor-extract are prepared before test execution.
-RUN printf '%s\n' \
-  "import 'npm:roaring';" \
-  "import 'npm:cbor-extract';" \
-  > /tmp/deno-npm-bootstrap.ts \
-  && deno install \
-  --allow-scripts=${DENO_ALLOW_SCRIPTS} \
-  --node-modules-dir=auto \
-  --entrypoint /tmp/deno-npm-bootstrap.ts \
-  && rm /tmp/deno-npm-bootstrap.ts
+# Preinstall npm dependencies with the lockfile so Deno reuses a stable
+# node_modules tree instead of resolving cbor-extract's optional platform
+# packages on its own.
+RUN npm install
 # Run tests as non-root to mirror CI and catch permission issues.
 # Also chown Deno's global cache so the deno user can fetch npm packages at runtime.
 RUN chown -R deno:deno /app /deno-dir
 USER deno
 ENV GIT_STUNTS_DOCKER=1
 ENV DENO_ALLOW_SCRIPTS=${DENO_ALLOW_SCRIPTS}
-CMD ["sh", "-lc", "deno test --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=auto test/runtime/deno/"]
+CMD ["sh", "-lc", "deno test --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=manual test/runtime/deno/"]
