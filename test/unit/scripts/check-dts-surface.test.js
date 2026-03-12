@@ -262,36 +262,38 @@ describe('extractDtsExports', () => {
 });
 
 describe('classifyManifestExports', () => {
-  it('splits runtime-backed and type-only manifest entries by kind', () => {
+  it('splits runtime-backed and type-only manifest entries by section', () => {
     const result = classifyManifestExports({
       exports: {
         WarpGraph: { kind: 'class' },
         WebSocketServerPort: { kind: 'abstract-class' },
         CONTENT_PROPERTY_KEY: { kind: 'const' },
+      },
+      typeExports: {
         QueryNodeSnapshot: { kind: 'interface' },
         TraversalDirection: { kind: 'type' },
       },
     });
 
-    expect(result.manifestNames).toEqual(new Set([
-      'WarpGraph',
-      'WebSocketServerPort',
-      'CONTENT_PROPERTY_KEY',
-      'QueryNodeSnapshot',
-      'TraversalDirection',
-    ]));
-    expect(result.runtimeNames).toEqual(new Set([
-      'WarpGraph',
-      'WebSocketServerPort',
-      'CONTENT_PROPERTY_KEY',
-    ]));
-    expect(result.typeOnlyNames).toEqual(new Set([
-      'QueryNodeSnapshot',
-      'TraversalDirection',
-    ]));
+    expect(result.manifestNames).toEqual(
+      new Set([
+        'WarpGraph',
+        'WebSocketServerPort',
+        'CONTENT_PROPERTY_KEY',
+        'QueryNodeSnapshot',
+        'TraversalDirection',
+      ])
+    );
+    expect(result.runtimeNames).toEqual(
+      new Set(['WarpGraph', 'WebSocketServerPort', 'CONTENT_PROPERTY_KEY'])
+    );
+    expect(result.typeOnlyNames).toEqual(new Set(['QueryNodeSnapshot', 'TraversalDirection']));
+    expect(result.duplicateNames).toEqual(new Set());
+    expect(result.invalidRuntimeTypeOnly).toEqual(new Set());
+    expect(result.invalidTypeSectionRuntime).toEqual(new Set());
   });
 
-  it('fails closed for unknown manifest kinds', () => {
+  it('fails closed for unknown runtime manifest kinds', () => {
     const result = classifyManifestExports({
       exports: {
         MysteryExport: { kind: 'mystery-kind' },
@@ -300,5 +302,39 @@ describe('classifyManifestExports', () => {
 
     expect(result.runtimeNames).toEqual(new Set(['MysteryExport']));
     expect(result.typeOnlyNames).toEqual(new Set());
+    expect(result.invalidRuntimeTypeOnly).toEqual(new Set());
+  });
+
+  it('reports duplicate names across exports and typeExports', () => {
+    const result = classifyManifestExports({
+      exports: {
+        WarpGraph: { kind: 'class' },
+      },
+      typeExports: {
+        WarpGraph: { kind: 'type' },
+      },
+    });
+
+    expect(result.duplicateNames).toEqual(new Set(['WarpGraph']));
+  });
+
+  it('reports type-only kinds misplaced in exports', () => {
+    const result = classifyManifestExports({
+      exports: {
+        TraversalDirection: { kind: 'type' },
+      },
+    });
+
+    expect(result.invalidRuntimeTypeOnly).toEqual(new Set(['TraversalDirection']));
+  });
+
+  it('reports runtime kinds misplaced in typeExports', () => {
+    const result = classifyManifestExports({
+      typeExports: {
+        WarpGraph: { kind: 'class' },
+      },
+    });
+
+    expect(result.invalidTypeSectionRuntime).toEqual(new Set(['WarpGraph']));
   });
 });

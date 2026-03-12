@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-12 (v15 backlog + changelog reconciliation; 28 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, and CI gate dedupe)
+> **Last reconciled:** 2026-03-12 (v15 backlog + changelog reconciliation; 27 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, and the explicit type-only export manifest split)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -204,12 +204,12 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83` is complete on `v15`: the redundant `lint` workflow job was folded into `type-firewall`, and the advisory runtime `npm audit` step moved into that single authoritative gate. Remaining P2 work starts at B85 → B57. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83` and `B85` are complete on `v15`: the redundant `lint` workflow job was folded into `type-firewall`, and the declaration surface manifest now splits runtime `exports` from type-only `typeExports`. Remaining P2 work now starts at B57. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
 | B83  | ✅ **DEDUP CI `type-firewall` AND `lint` JOBS** — Folded the duplicate `lint` job into `type-firewall` and carried forward the advisory runtime `npm audit` step there, leaving one authoritative lint/type gate in CI. **File:** `.github/workflows/ci.yml`                                                                         | —          | S      |
-| B85  | **TYPE-ONLY EXPORT MANIFEST SECTION** — `typeExports` section in `type-surface.m8.json` to catch accidental type removal from `index.d.ts`. From B-CI-3. **Files:** `contracts/type-surface.m8.json`, `scripts/check-dts-surface.js`                                                                                                 | B97 (P0)   | S      |
+| B85  | ✅ **TYPE-ONLY EXPORT MANIFEST SECTION** — Added explicit `typeExports` to `type-surface.m8.json` and taught `check-dts-surface` to fail on misplaced or duplicate entries across `exports` and `typeExports`, so type-only declaration drift is validated directly instead of inferred from `kind`.                                 | B97 (P0)   | S      |
 | B57  | **CI: AUTO-VALIDATE `type-surface.m8.json` AGAINST `index.d.ts`** — add a CI gate or pre-push check that parses the manifest and confirms every declared method/property/return type matches the corresponding signature in `index.d.ts`; prevents drift like the missing `setSeekCache` and `syncWith.state` return found in review | B97, B85   | M      |
 | B86  | **MARKDOWNLINT CI GATE** — catch MD040 (missing code fence language) etc. From B-DOC-1. **File:** `.github/workflows/ci.yml`                                                                                                                                                                                                         | —          | S      |
 | B87  | **CODE SAMPLE LINTER** — syntax-check JS/TS code blocks in markdown files via `eslint-plugin-markdown` or custom extractor. From B-DOC-2. **Files:** new script, `docs/**/*.md`                                                                                                                                                      | —          | M      |
@@ -335,7 +335,7 @@ Complete on `v15`: **B80** and **B99**.
 
 #### Wave 2: CI & Tooling (P2, one batch PR)
 
-3. **B85, B57, B86, B87, B88, B119, B123, B128, B12, B43**
+3. **B57, B86, B87, B88, B119, B123, B128, B12, B43**
 
 Internal chain: **B97 already resolved on v15** → B85 → B57. B123 is the largest — may split out.
 
@@ -367,8 +367,8 @@ Internal chain: **B97 already resolved on v15** → B85 → B57. B123 is the lar
 ### Dependency Chains
 
 ```text
-B97 (done) ──→ B85 (P2) ──→ B57 (P2)
-               manifest      auto-validate
+B97 (done) ──→ B85 (done) ──→ B57 (P2)
+               manifest        auto-validate
 
 B151 (done) ──→ B152 (P4)   closure streaming → full async generator API
 
@@ -395,11 +395,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
 | **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
 | **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 28                                | B12, B28, B34–B35, B43, B53, B54, B57, B76, B79, B85–B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156                                                         |
-| **Standalone (done)** | 57                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B71, B72, B77, B78, B80–B84, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
+| **Standalone**        | 27                                | B12, B28, B34–B35, B43, B53, B54, B57, B76, B79, B86–B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156                                                         |
+| **Standalone (done)** | 58                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B71, B72, B77, B78, B80–B85, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
-| **Total tracked**     | **144** total; 57 standalone done |                                                                                                                                                                                     |
+| **Total tracked**     | **144** total; 58 standalone done |                                                                                                                                                                                     |
 
 ### STANK.md Cross-Reference
 
@@ -472,7 +472,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | B-AUDIT-17 (TSK TSK) | B74  | M12.T9                   |
 | B-CI-1               | B83  | Standalone (DONE)        |
 | B-CI-2               | B84  | CI & Tooling Pack        |
-| B-CI-3               | B85  | CI & Tooling Pack        |
+| B-CI-3               | B85  | Standalone (DONE)        |
 | B-SURF-1             | B91  | Surface Validator Pack   |
 | B-SURF-2             | B92  | Surface Validator Pack   |
 | B-SURF-3             | B93  | Surface Validator Pack   |
@@ -503,7 +503,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **28 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete on `v15`, and Wave 2 now starts at B85/B57 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **27 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete on `v15`, and Wave 2 now starts at B57 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

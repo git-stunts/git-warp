@@ -1,29 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "M8 IRONCLAD type surface manifest \u2014 source of truth for T3 (index.d.ts) and T9 (consumer test)",
+  "$comment": "M8 IRONCLAD type surface manifest — explicit runtime exports plus type-only declarations for index.d.ts validation",
   "version": 1,
   "exports": {
-    "AggregateResult": {
-      "kind": "interface"
-    },
-    "AggregateSpec": {
-      "kind": "interface"
-    },
-    "AncestorOptions": {
-      "kind": "interface"
-    },
-    "ApplySyncResult": {
-      "kind": "interface"
-    },
-    "BTR": {
-      "kind": "interface"
-    },
-    "BTRVerificationResult": {
-      "kind": "interface"
-    },
-    "BisectResult": {
-      "kind": "type"
-    },
     "BisectService": {
       "kind": "class"
     },
@@ -35,9 +14,6 @@
     },
     "BlobStoragePort": {
       "kind": "class"
-    },
-    "BulkNodeSpec": {
-      "kind": "interface"
     },
     "BunHttpAdapter": {
       "kind": "class"
@@ -54,23 +30,8 @@
     "CommitDagTraversalService": {
       "kind": "class"
     },
-    "CommonAncestorsOptions": {
-      "kind": "interface"
-    },
-    "ComposeWormholesOptions": {
-      "kind": "interface"
-    },
     "ConsoleLogger": {
       "kind": "class"
-    },
-    "CreateBTROptions": {
-      "kind": "interface"
-    },
-    "CreateNodeOptions": {
-      "kind": "interface"
-    },
-    "CreateWormholeOptions": {
-      "kind": "interface"
     },
     "CryptoPort": {
       "kind": "abstract-class"
@@ -78,35 +39,14 @@
     "DenoHttpAdapter": {
       "kind": "class"
     },
-    "EdgeChange": {
-      "kind": "interface"
-    },
-    "EdgeWeightFn": {
-      "kind": "type"
-    },
     "EncryptionError": {
       "kind": "class"
-    },
-    "EventId": {
-      "kind": "interface"
     },
     "ForkError": {
       "kind": "class"
     },
-    "GCExecuteResult": {
-      "kind": "interface"
-    },
-    "GCMetrics": {
-      "kind": "interface"
-    },
-    "GCPolicyConfig": {
-      "kind": "interface"
-    },
     "GitGraphAdapter": {
       "kind": "class"
-    },
-    "GitPlumbing": {
-      "kind": "interface"
     },
     "GraphNode": {
       "kind": "class"
@@ -117,14 +57,8 @@
     "HealthCheckService": {
       "kind": "class"
     },
-    "HealthResult": {
-      "kind": "interface"
-    },
     "HealthStatus": {
       "kind": "const"
-    },
-    "HopOptions": {
-      "kind": "interface"
     },
     "HttpServerPort": {
       "kind": "abstract-class"
@@ -135,56 +69,23 @@
     "IndexError": {
       "kind": "class"
     },
-    "IndexHealth": {
-      "kind": "interface"
-    },
     "IndexRebuildService": {
       "kind": "class"
     },
     "IndexStoragePort": {
       "kind": "abstract-class"
     },
-    "IterateNodesOptions": {
-      "kind": "interface"
-    },
-    "JoinReceipt": {
-      "kind": "interface"
-    },
-    "ListNodesOptions": {
-      "kind": "interface"
-    },
-    "LoadOptions": {
-      "kind": "interface"
-    },
     "LogLevel": {
       "kind": "const"
     },
-    "LogLevelValue": {
-      "kind": "type"
-    },
     "LoggerPort": {
       "kind": "abstract-class"
-    },
-    "LogicalTraversal": {
-      "kind": "interface"
-    },
-    "MaybeGCResult": {
-      "kind": "interface"
     },
     "NoOpLogger": {
       "kind": "class"
     },
     "NodeCryptoAdapter": {
       "kind": "class"
-    },
-    "NodeInfo": {
-      "kind": "interface"
-    },
-    "NodeWeightFn": {
-      "kind": "type"
-    },
-    "ObserverConfig": {
-      "kind": "interface"
     },
     "ObserverView": {
       "kind": "class",
@@ -233,24 +134,6 @@
           "type": "LogicalTraversal"
         }
       }
-    },
-    "OpEdgeAdd": {
-      "kind": "interface"
-    },
-    "OpEdgeTombstone": {
-      "kind": "interface"
-    },
-    "OpNodeAdd": {
-      "kind": "interface"
-    },
-    "OpNodeTombstone": {
-      "kind": "interface"
-    },
-    "OpOutcome": {
-      "kind": "interface"
-    },
-    "OpPropSet": {
-      "kind": "interface"
     },
     "OperationAbortedError": {
       "kind": "class"
@@ -406,9 +289,6 @@
         }
       }
     },
-    "PatchEntry": {
-      "kind": "interface"
-    },
     "PatchError": {
       "kind": "class"
     },
@@ -562,24 +442,6 @@
         }
       }
     },
-    "PatchV2": {
-      "kind": "interface"
-    },
-    "PathOptions": {
-      "kind": "interface"
-    },
-    "PathResult": {
-      "kind": "interface"
-    },
-    "PingResult": {
-      "kind": "interface"
-    },
-    "PropRemoved": {
-      "kind": "interface"
-    },
-    "PropSet": {
-      "kind": "interface"
-    },
     "ProvenanceIndex": {
       "kind": "class"
     },
@@ -666,18 +528,6 @@
     "QueryError": {
       "kind": "class"
     },
-    "QueryNodeSnapshot": {
-      "kind": "interface"
-    },
-    "QueryResultV1": {
-      "kind": "interface"
-    },
-    "RebuildOptions": {
-      "kind": "interface"
-    },
-    "RepositoryHealth": {
-      "kind": "interface"
-    },
     "SchemaUnsupportedError": {
       "kind": "class"
     },
@@ -693,29 +543,11 @@
     "ShardValidationError": {
       "kind": "class"
     },
-    "StateDiffResult": {
-      "kind": "interface"
-    },
     "StorageError": {
       "kind": "class"
     },
-    "SyncAuthClientOptions": {
-      "kind": "interface"
-    },
-    "SyncAuthServerOptions": {
-      "kind": "interface"
-    },
-    "SyncTrustOptions": {
-      "kind": "interface"
-    },
     "SyncError": {
       "kind": "class"
-    },
-    "SyncRequest": {
-      "kind": "interface"
-    },
-    "SyncResponse": {
-      "kind": "interface"
     },
     "TICK_RECEIPT_OP_TYPES": {
       "kind": "const"
@@ -723,61 +555,13 @@
     "TICK_RECEIPT_RESULT_TYPES": {
       "kind": "const"
     },
-    "TemporalNodeSnapshot": {
-      "kind": "interface"
-    },
-    "TemporalQuery": {
-      "kind": "interface"
-    },
-    "TickReceipt": {
-      "kind": "interface"
-    },
-    "TickReceiptOpType": {
-      "kind": "type"
-    },
-    "TickReceiptResult": {
-      "kind": "type"
-    },
-    "TopologicalSortOptions": {
-      "kind": "interface"
-    },
-    "TranslationCostBreakdown": {
-      "kind": "interface"
-    },
-    "TranslationCostResult": {
-      "kind": "interface"
-    },
-    "TraversalDirection": {
-      "kind": "type"
-    },
     "TraversalError": {
       "kind": "class"
-    },
-    "TraversalNode": {
-      "kind": "interface"
-    },
-    "TraversalOptions": {
-      "kind": "interface"
     },
     "TraversalService": {
       "kind": "class",
       "deprecated": true,
       "alias": "CommitDagTraversalService"
-    },
-    "TraverseFacadeOptions": {
-      "kind": "interface"
-    },
-    "ValueRef": {
-      "kind": "type"
-    },
-    "ValueRefBlob": {
-      "kind": "interface"
-    },
-    "ValueRefInline": {
-      "kind": "interface"
-    },
-    "VerifyBTROptions": {
-      "kind": "interface"
     },
     "WarpGraph": {
       "kind": "class",
@@ -1297,38 +1081,20 @@
         }
       }
     },
-    "WarpGraphStatus": {
-      "kind": "interface"
+    "WarpServeService": {
+      "kind": "class"
     },
     "WarpStateIndexBuilder": {
       "kind": "class"
     },
-    "WarpStateV5": {
-      "kind": "interface"
-    },
-    "WarpServeService": {
+    "WebCryptoAdapter": {
       "kind": "class"
     },
     "WebSocketServerPort": {
       "kind": "abstract-class"
     },
-    "WebCryptoAdapter": {
-      "kind": "class"
-    },
-    "WeightedCostSelector": {
-      "kind": "type"
-    },
-    "WormholeEdge": {
-      "kind": "interface"
-    },
     "WormholeError": {
       "kind": "class"
-    },
-    "WsConnection": {
-      "kind": "interface"
-    },
-    "WsServerHandle": {
-      "kind": "interface"
     },
     "Writer": {
       "kind": "class",
@@ -1514,6 +1280,242 @@
     "verifyBTR": {
       "kind": "function",
       "async": true
+    }
+  },
+  "typeExports": {
+    "AggregateResult": {
+      "kind": "interface"
+    },
+    "AggregateSpec": {
+      "kind": "interface"
+    },
+    "AncestorOptions": {
+      "kind": "interface"
+    },
+    "ApplySyncResult": {
+      "kind": "interface"
+    },
+    "BTR": {
+      "kind": "interface"
+    },
+    "BTRVerificationResult": {
+      "kind": "interface"
+    },
+    "BisectResult": {
+      "kind": "type"
+    },
+    "BulkNodeSpec": {
+      "kind": "interface"
+    },
+    "CommonAncestorsOptions": {
+      "kind": "interface"
+    },
+    "ComposeWormholesOptions": {
+      "kind": "interface"
+    },
+    "CreateBTROptions": {
+      "kind": "interface"
+    },
+    "CreateNodeOptions": {
+      "kind": "interface"
+    },
+    "CreateWormholeOptions": {
+      "kind": "interface"
+    },
+    "EdgeChange": {
+      "kind": "interface"
+    },
+    "EdgeWeightFn": {
+      "kind": "type"
+    },
+    "EventId": {
+      "kind": "interface"
+    },
+    "GCExecuteResult": {
+      "kind": "interface"
+    },
+    "GCMetrics": {
+      "kind": "interface"
+    },
+    "GCPolicyConfig": {
+      "kind": "interface"
+    },
+    "GitPlumbing": {
+      "kind": "interface"
+    },
+    "HealthResult": {
+      "kind": "interface"
+    },
+    "HopOptions": {
+      "kind": "interface"
+    },
+    "IndexHealth": {
+      "kind": "interface"
+    },
+    "IterateNodesOptions": {
+      "kind": "interface"
+    },
+    "JoinReceipt": {
+      "kind": "interface"
+    },
+    "ListNodesOptions": {
+      "kind": "interface"
+    },
+    "LoadOptions": {
+      "kind": "interface"
+    },
+    "LogLevelValue": {
+      "kind": "type"
+    },
+    "LogicalTraversal": {
+      "kind": "interface"
+    },
+    "MaybeGCResult": {
+      "kind": "interface"
+    },
+    "NodeInfo": {
+      "kind": "interface"
+    },
+    "NodeWeightFn": {
+      "kind": "type"
+    },
+    "ObserverConfig": {
+      "kind": "interface"
+    },
+    "OpEdgeAdd": {
+      "kind": "interface"
+    },
+    "OpEdgeTombstone": {
+      "kind": "interface"
+    },
+    "OpNodeAdd": {
+      "kind": "interface"
+    },
+    "OpNodeTombstone": {
+      "kind": "interface"
+    },
+    "OpOutcome": {
+      "kind": "interface"
+    },
+    "OpPropSet": {
+      "kind": "interface"
+    },
+    "PatchEntry": {
+      "kind": "interface"
+    },
+    "PatchV2": {
+      "kind": "interface"
+    },
+    "PathOptions": {
+      "kind": "interface"
+    },
+    "PathResult": {
+      "kind": "interface"
+    },
+    "PingResult": {
+      "kind": "interface"
+    },
+    "PropRemoved": {
+      "kind": "interface"
+    },
+    "PropSet": {
+      "kind": "interface"
+    },
+    "QueryNodeSnapshot": {
+      "kind": "interface"
+    },
+    "QueryResultV1": {
+      "kind": "interface"
+    },
+    "RebuildOptions": {
+      "kind": "interface"
+    },
+    "RepositoryHealth": {
+      "kind": "interface"
+    },
+    "StateDiffResult": {
+      "kind": "interface"
+    },
+    "SyncAuthClientOptions": {
+      "kind": "interface"
+    },
+    "SyncAuthServerOptions": {
+      "kind": "interface"
+    },
+    "SyncRequest": {
+      "kind": "interface"
+    },
+    "SyncResponse": {
+      "kind": "interface"
+    },
+    "SyncTrustOptions": {
+      "kind": "interface"
+    },
+    "TemporalNodeSnapshot": {
+      "kind": "interface"
+    },
+    "TemporalQuery": {
+      "kind": "interface"
+    },
+    "TickReceipt": {
+      "kind": "interface"
+    },
+    "TickReceiptOpType": {
+      "kind": "type"
+    },
+    "TickReceiptResult": {
+      "kind": "type"
+    },
+    "TopologicalSortOptions": {
+      "kind": "interface"
+    },
+    "TranslationCostBreakdown": {
+      "kind": "interface"
+    },
+    "TranslationCostResult": {
+      "kind": "interface"
+    },
+    "TraversalDirection": {
+      "kind": "type"
+    },
+    "TraversalNode": {
+      "kind": "interface"
+    },
+    "TraversalOptions": {
+      "kind": "interface"
+    },
+    "TraverseFacadeOptions": {
+      "kind": "interface"
+    },
+    "ValueRef": {
+      "kind": "type"
+    },
+    "ValueRefBlob": {
+      "kind": "interface"
+    },
+    "ValueRefInline": {
+      "kind": "interface"
+    },
+    "VerifyBTROptions": {
+      "kind": "interface"
+    },
+    "WarpGraphStatus": {
+      "kind": "interface"
+    },
+    "WarpStateV5": {
+      "kind": "interface"
+    },
+    "WeightedCostSelector": {
+      "kind": "type"
+    },
+    "WormholeEdge": {
+      "kind": "interface"
+    },
+    "WsConnection": {
+      "kind": "interface"
+    },
+    "WsServerHandle": {
+      "kind": "interface"
     }
   }
 }

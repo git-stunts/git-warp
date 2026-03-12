@@ -4,8 +4,12 @@
  * B41 — Declaration Surface Validator
  *
  * Cross-checks the type-surface.m8.json manifest against:
- * 1. index.js  — named runtime exports
+ * 1. index.js   — named runtime exports
  * 2. index.d.ts — declaration exports
+ *
+ * Manifest structure:
+ * - `exports`     — runtime-backed exports that must exist in both index.js and index.d.ts
+ * - `typeExports` — type-only declarations that must exist in index.d.ts only
  *
  * Exits non-zero on any missing declaration.
  */
@@ -26,7 +30,9 @@ function readRequired(filePath) {
     return readFileSync(filePath, 'utf8');
   } catch (err) {
     if (err instanceof Error && /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') {
-      process.stderr.write(`ERROR: Cannot find ${filePath}\nEnsure you are running from the repository root.\n`);
+      process.stderr.write(
+        `ERROR: Cannot find ${filePath}\nEnsure you are running from the repository root.\n`
+      );
       process.exit(1);
     }
     throw err;
@@ -133,7 +139,9 @@ export function extractDtsExports(src) {
     names.add(m[1]);
   }
   // export default Foo  (standalone identifier — class declared separately)
-  for (const m of src.matchAll(/export\s+(?:declare\s+)?default\s+(?!(?:class|function)\b)([A-Z_$][\w$]*)/g)) {
+  for (const m of src.matchAll(
+    /export\s+(?:declare\s+)?default\s+(?!(?:class|function)\b)([A-Z_$][\w$]*)/g
+  )) {
     names.add(m[1]);
   }
   // export { A as B } — exported name is B
@@ -146,34 +154,59 @@ export function extractDtsExports(src) {
 const TYPE_ONLY_KINDS = new Set(['interface', 'type']);
 
 /**
- * Splits manifest exports into runtime-backed and type-only names based on kind.
- * Unknown kinds fail closed into the runtime-backed set.
+ * Splits manifest exports into runtime-backed and type-only names using the
+ * explicit `exports` and `typeExports` sections.
  *
- * @param {{ exports?: Record<string, { kind?: string }> }} manifest
- * @returns {{ manifestNames: Set<string>, runtimeNames: Set<string>, typeOnlyNames: Set<string> }}
+ * `exports` should contain only runtime-backed declarations.
+ * `typeExports` should contain only `interface` and `type` declarations.
+ *
+ * @param {{ exports?: Record<string, { kind?: string }>, typeExports?: Record<string, { kind?: string }> }} manifest
+ * @returns {{ manifestNames: Set<string>, runtimeNames: Set<string>, typeOnlyNames: Set<string>, duplicateNames: Set<string>, invalidRuntimeTypeOnly: Set<string>, invalidTypeSectionRuntime: Set<string> }}
  */
 export function classifyManifestExports(manifest) {
   const manifestNames = new Set();
   const runtimeNames = new Set();
   const typeOnlyNames = new Set();
+  const duplicateNames = new Set();
+  const invalidRuntimeTypeOnly = new Set();
+  const invalidTypeSectionRuntime = new Set();
 
   for (const [name, meta] of Object.entries(manifest.exports || {})) {
+    if (manifestNames.has(name)) {
+      duplicateNames.add(name);
+    }
     manifestNames.add(name);
+    runtimeNames.add(name);
     if (TYPE_ONLY_KINDS.has(meta?.kind || '')) {
-      typeOnlyNames.add(name);
-    } else {
-      runtimeNames.add(name);
+      invalidRuntimeTypeOnly.add(name);
     }
   }
 
-  return { manifestNames, runtimeNames, typeOnlyNames };
+  for (const [name, meta] of Object.entries(manifest.typeExports || {})) {
+    if (manifestNames.has(name)) {
+      duplicateNames.add(name);
+    }
+    manifestNames.add(name);
+    typeOnlyNames.add(name);
+    if (!TYPE_ONLY_KINDS.has(meta?.kind || '')) {
+      invalidTypeSectionRuntime.add(name);
+    }
+  }
+
+  return {
+    manifestNames,
+    runtimeNames,
+    typeOnlyNames,
+    duplicateNames,
+    invalidRuntimeTypeOnly,
+    invalidTypeSectionRuntime,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Main — runs only when executed directly
 // ---------------------------------------------------------------------------
-const isMain = process.argv[1] &&
-  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
 if (isMain) {
   const quiet = process.argv.includes('--quiet');
@@ -181,7 +214,14 @@ if (isMain) {
   // 1. Load the manifest
   const manifestPath = resolve(root, 'contracts/type-surface.m8.json');
   const manifest = JSON.parse(readRequired(manifestPath));
-  const { manifestNames, runtimeNames, typeOnlyNames } = classifyManifestExports(manifest);
+  const {
+    manifestNames,
+    runtimeNames,
+    typeOnlyNames,
+    duplicateNames,
+    invalidRuntimeTypeOnly,
+    invalidTypeSectionRuntime,
+  } = classifyManifestExports(manifest);
 
   // 2. Parse index.js — extract named exports
   const indexJs = readRequired(resolve(root, 'index.js'));
@@ -203,10 +243,12 @@ if (isMain) {
     }
   }
 
-  // Check B: Every named export in index.js must exist in the manifest
+  // Check B: Every named export in index.js must exist in the runtime manifest section
   for (const name of jsExports) {
-    if (!manifestNames.has(name)) {
-      process.stderr.write(`ERROR: index.js export "${name}" missing from type-surface.m8.json manifest\n`);
+    if (!runtimeNames.has(name)) {
+      process.stderr.write(
+        `ERROR: index.js export "${name}" missing from runtime exports manifest\n`
+      );
       errors++;
     }
   }
@@ -219,15 +261,31 @@ if (isMain) {
     }
   }
 
-  // Check D: Runtime exports must not be marked type-only in the manifest
-  for (const name of jsExports) {
-    if (typeOnlyNames.has(name)) {
-      process.stderr.write(`ERROR: runtime export "${name}" is marked type-only in type-surface.m8.json\n`);
-      errors++;
-    }
+  // Check D: No export may appear in both manifest sections
+  for (const name of duplicateNames) {
+    process.stderr.write(
+      `ERROR: manifest export "${name}" appears in both exports and typeExports\n`
+    );
+    errors++;
   }
 
-  // Check E: Warn about index.d.ts exports not in manifest
+  // Check E: `exports` must not contain interface/type entries
+  for (const name of invalidRuntimeTypeOnly) {
+    process.stderr.write(
+      `ERROR: runtime manifest export "${name}" is type-only and must move to typeExports\n`
+    );
+    errors++;
+  }
+
+  // Check F: `typeExports` must contain only interface/type entries
+  for (const name of invalidTypeSectionRuntime) {
+    process.stderr.write(
+      `ERROR: type-only manifest export "${name}" uses a runtime-backed kind and must move to exports\n`
+    );
+    errors++;
+  }
+
+  // Check G: Warn about index.d.ts exports not in manifest
   for (const name of dtsExports) {
     if (!manifestNames.has(name)) {
       process.stderr.write(`WARN: index.d.ts export "${name}" not in manifest\n`);
