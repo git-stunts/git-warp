@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deno CI resolver drift** — The Deno test image now preinstalls `node_modules` via `npm install` and runs tests with `--node-modules-dir=manual`, avoiding runtime npm re-resolution of `cbor-extract` optional platform packages that had started failing in CI.
 - **Signed trust verification now performs real crypto checks** — Trust evaluation now verifies Ed25519 signatures and key fingerprints during evidence processing instead of stopping at envelope/shape validation.
 - **Browser/WebSocket serve payload parity for edge properties** — `WarpServeService` state payloads now include edge properties, so served graph views no longer drop part of the graph model.
 - **`attachContent()` / `attachEdgeContent()` orphan blob writes** — Content attachment now validates the target node/edge before writing blob content, preventing orphaned blob storage on invalid mutations.
