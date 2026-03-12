@@ -311,6 +311,12 @@ export interface LogicalTraversal {
     maxEdges?: number;
     signal?: AbortSignal;
   }): Promise<{ edges: Array<{ from: string; to: string }> }>;
+  transitiveClosureStream(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    maxEdges?: number;
+    signal?: AbortSignal;
+  }): AsyncGenerator<{ from: string; to: string }, void, unknown>;
   rootAncestors(start: string, options?: {
     labelFilter?: string | string[];
     maxDepth?: number;

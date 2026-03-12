@@ -1243,29 +1243,26 @@ export default class GraphTraversal {
   }
 
   /**
-   * Transitive closure — all implied reachability edges.
+   * Discovers the reachable node set used by transitive closure variants.
    *
-   * For each node, BFS to find all reachable nodes and emit an edge
-   * for each pair. Works on cyclic graphs.
-   *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
-   * @returns {Promise<{edges: Array<{from: string, to: string}>, stats: TraversalStats}>}
-   * @throws {TraversalError} code 'INVALID_START' if start node missing
-   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   * @param {{ start: string | string[], direction: Direction, options?: NeighborOptions, maxNodes: number, signal?: AbortSignal, rs: RunStats, opName: string }} params
+   * @returns {Promise<{ nodeList: string[], nodesVisited: number }>}
+   * @private
    */
-  async transitiveClosure({
-    start, direction = 'out', options,
-    maxNodes = DEFAULT_MAX_NODES,
-    maxEdges = 1000000,
+  async _prepareTransitiveClosure({
+    start,
+    direction,
+    options,
+    maxNodes,
     signal,
+    rs,
+    opName,
   }) {
-    const rs = this._newRunStats();
     const starts = [...new Set(Array.isArray(start) ? start : [start])];
     for (const s of starts) {
       await this._validateStart(s);
     }
 
-    // Phase 1: Discover all reachable nodes via BFS from all starts
     const allVisited = new Set();
     /** @type {string[]} */
     const queue = [...starts];
@@ -1276,7 +1273,7 @@ export default class GraphTraversal {
 
     while (qHead < queue.length) {
       if (allVisited.size % 1000 === 0) {
-        checkAborted(signal, 'transitiveClosure');
+        checkAborted(signal, opName);
       }
       if (allVisited.size >= maxNodes) {
         break;
@@ -1292,20 +1289,42 @@ export default class GraphTraversal {
       }
     }
 
-    // Phase 2: For each node, BFS to collect all reachable nodes
-    /** @type {Array<{from: string, to: string}>} */
-    const edges = [];
+    return {
+      nodeList: [...allVisited].sort(),
+      nodesVisited: allVisited.size,
+    };
+  }
+
+  /**
+   * Streams transitive-closure edges in deterministic lexicographic order.
+   *
+   * Uses O(V) working memory per source node by collecting only that node's
+   * reachable targets before yielding them in sorted order.
+   *
+   * @param {{ nodeList: string[], direction: Direction, options?: NeighborOptions, maxEdges: number, signal?: AbortSignal, rs: RunStats, opName: string }} params
+   * @yields {{from: string, to: string}}
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   * @private
+   */
+  async *_streamTransitiveClosureEdges({
+    nodeList,
+    direction,
+    options,
+    maxEdges,
+    signal,
+    rs,
+    opName,
+  }) {
     let edgeCount = 0;
 
-    const nodeList = [...allVisited].sort();
-
     for (const fromNode of nodeList) {
-      checkAborted(signal, 'transitiveClosure');
+      checkAborted(signal, opName);
 
-      // BFS from fromNode
       const visited = new Set([fromNode]);
       /** @type {string[]} */
       let frontier = [fromNode];
+      /** @type {string[]} */
+      const reachable = [];
 
       while (frontier.length > 0) {
         /** @type {string[]} */
@@ -1317,6 +1336,7 @@ export default class GraphTraversal {
             if (!visited.has(neighborId)) {
               visited.add(neighborId);
               nextFrontier.push(neighborId);
+              reachable.push(neighborId);
               edgeCount++;
               if (edgeCount > maxEdges) {
                 throw new TraversalError(
@@ -1324,24 +1344,103 @@ export default class GraphTraversal {
                   { code: 'E_MAX_EDGES_EXCEEDED', context: { maxEdges, edgesSoFar: edgeCount } },
                 );
               }
-              edges.push({ from: fromNode, to: neighborId });
             }
           }
         }
         frontier = nextFrontier;
       }
-    }
 
-    // Sort edges for determinism
-    edges.sort((a, b) => {
-      if (a.from < b.from) { return -1; }
-      if (a.from > b.from) { return 1; }
-      if (a.to < b.to) { return -1; }
-      if (a.to > b.to) { return 1; }
-      return 0;
+      reachable.sort();
+      for (const toNode of reachable) {
+        yield { from: fromNode, to: toNode };
+      }
+    }
+  }
+
+  /**
+   * Transitive closure stream — yields implied reachability edges lazily.
+   *
+   * Works on cyclic graphs. Output order is deterministic: sorted by `from`
+   * node, then by `to` node within each source.
+   *
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
+   * @yields {{from: string, to: string}}
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   */
+  async *transitiveClosureStream({
+    start,
+    direction = 'out',
+    options,
+    maxNodes = DEFAULT_MAX_NODES,
+    maxEdges = 1000000,
+    signal,
+  }) {
+    const rs = this._newRunStats();
+    const prepared = await this._prepareTransitiveClosure({
+      start,
+      direction,
+      options,
+      maxNodes,
+      signal,
+      rs,
+      opName: 'transitiveClosureStream',
     });
 
-    return { edges, stats: this._stats(allVisited.size, rs) };
+    yield* this._streamTransitiveClosureEdges({
+      nodeList: prepared.nodeList,
+      direction,
+      options,
+      maxEdges,
+      signal,
+      rs,
+      opName: 'transitiveClosureStream',
+    });
+  }
+
+  /**
+   * Transitive closure — all implied reachability edges.
+   *
+   * For each node, BFS finds all reachable nodes and emits an edge for
+   * each pair. Works on cyclic graphs.
+   *
+   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
+   * @returns {Promise<{edges: Array<{from: string, to: string}>, stats: TraversalStats}>}
+   * @throws {TraversalError} code 'INVALID_START' if start node missing
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   */
+  async transitiveClosure({
+    start, direction = 'out', options,
+    maxNodes = DEFAULT_MAX_NODES,
+    maxEdges = 1000000,
+    signal,
+  }) {
+    const rs = this._newRunStats();
+    const { nodeList, nodesVisited } = await this._prepareTransitiveClosure({
+      start,
+      direction,
+      options,
+      maxNodes,
+      signal,
+      rs,
+      opName: 'transitiveClosure',
+    });
+
+    /** @type {Array<{from: string, to: string}>} */
+    const edges = [];
+    for await (const edge of this._streamTransitiveClosureEdges({
+      nodeList,
+      direction,
+      options,
+      maxEdges,
+      signal,
+      rs,
+      opName: 'transitiveClosure',
+    })) {
+      edges.push(edge);
+    }
+
+    return { edges, stats: this._stats(nodesVisited, rs) };
   }
 
   // ==== Private Helpers ====

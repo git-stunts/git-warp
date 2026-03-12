@@ -410,6 +410,11 @@ const gOnDelete: 'reject' | 'cascade' | 'warn' = graph.onDeleteWithData;
 const gGcPolicy: GCPolicyConfig = graph.gcPolicy;
 const gTemporal: TemporalQuery = graph.temporal;
 const gTraverse: LogicalTraversal = graph.traverse;
+const gClosureStream = gTraverse.transitiveClosureStream(['user:alice'], { dir: 'out', maxEdges: 10 });
+for await (const edge of gClosureStream) {
+  const _: [string, string] = [edge.from, edge.to];
+  break;
+}
 const gProvIdx: ProvenanceIndex | null = graph.provenanceIndex;
 
 // ---------------------------------------------------------------------------

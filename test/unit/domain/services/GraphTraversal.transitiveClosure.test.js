@@ -101,6 +101,21 @@ describe('GraphTraversal.transitiveClosure()', () => {
 
       expect(edges.length).toBe(6);
     });
+
+    it('stream throws E_MAX_EDGES_EXCEEDED when limit hit', async () => {
+      const provider = makeAdjacencyProvider(F18_TRANSITIVE_CLOSURE_CHAIN);
+      const engine = new GraphTraversal({ provider });
+
+      await expect((async () => {
+        for await (const _edge of engine.transitiveClosureStream({ start: 'A', maxEdges: 3 })) {
+          // drain until the generator enforces maxEdges
+        }
+      })()).rejects.toThrow(
+        expect.objectContaining({
+          code: 'E_MAX_EDGES_EXCEEDED',
+        }),
+      );
+    });
   });
 
   describe('INVALID_START', () => {
@@ -129,6 +144,37 @@ describe('GraphTraversal.transitiveClosure()', () => {
           prev.to < curr.to ? -1 : prev.to > curr.to ? 1 : 0;
         expect(cmp).toBeLessThanOrEqual(0);
       }
+    });
+
+    it('stream yields the same sorted edges as transitiveClosure()', async () => {
+      const provider = makeAdjacencyProvider(F3_DIAMOND_EQUAL_PATHS);
+      const engine = new GraphTraversal({ provider });
+      const streamed = [];
+
+      for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
+        streamed.push(edge);
+      }
+
+      const { edges } = await engine.transitiveClosure({ start: 'A' });
+      expect(streamed).toEqual(edges);
+    });
+
+    it('stream supports early break without materializing the whole closure', async () => {
+      const provider = makeAdjacencyProvider(F18_TRANSITIVE_CLOSURE_CHAIN);
+      const engine = new GraphTraversal({ provider });
+      const streamed = [];
+
+      for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
+        streamed.push(edge);
+        if (streamed.length === 2) {
+          break;
+        }
+      }
+
+      expect(streamed).toEqual([
+        { from: 'A', to: 'B' },
+        { from: 'A', to: 'C' },
+      ]);
     });
   });
 

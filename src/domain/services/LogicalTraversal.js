@@ -516,6 +516,38 @@ export default class LogicalTraversal {
   }
 
   /**
+   * Transitive closure stream — yields implied reachability edges lazily.
+   *
+   * @param {string|string[]} start - One or more start nodes
+   * @param {{ dir?: 'out'|'in'|'both', labelFilter?: string|string[], maxEdges?: number, signal?: AbortSignal }} [options] - Traversal options
+   * @yields {{from: string, to: string}}
+   * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
+   * @throws {TraversalError} code 'NODE_NOT_FOUND' if a start node does not exist
+   */
+  async *transitiveClosureStream(start, options = {}) {
+    const { engine, direction, options: opts } = await this._prepareEngine(options);
+
+    const starts = Array.isArray(start) ? start : [start];
+    for (const s of starts) {
+      if (!(await this._graph.hasNode(s))) {
+        throw new TraversalError(`Start node not found: ${s}`, {
+          code: 'NODE_NOT_FOUND',
+          context: { start: s },
+        });
+      }
+    }
+
+    yield* engine.transitiveClosureStream({
+      start,
+      direction,
+      options: opts,
+      maxNodes: Infinity,
+      maxEdges: options.maxEdges,
+      signal: options.signal,
+    });
+  }
+
+  /**
    * Find all root ancestors (in-degree-0 nodes) reachable backward from start.
    *
    * @param {string} start - Starting node ID

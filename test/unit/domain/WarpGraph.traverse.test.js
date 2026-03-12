@@ -187,6 +187,32 @@ describe('WarpGraph logical traversal', () => {
     expect(typeof result.nodesExplored).toBe('number');
   });
 
+  it('transitiveClosureStream yields closure edges lazily', async () => {
+    setupGraphState(graph, (/** @type {any} */ state) => {
+      addNodeToState(state, 'node:a', 1);
+      addNodeToState(state, 'node:b', 2);
+      addNodeToState(state, 'node:c', 3);
+      addNodeToState(state, 'node:d', 4);
+      addEdgeToState(state, 'node:a', 'node:b', 'x', 5);
+      addEdgeToState(state, 'node:b', 'node:c', 'x', 6);
+      addEdgeToState(state, 'node:c', 'node:d', 'x', 7);
+    });
+
+    const edges = [];
+    for await (const edge of graph.traverse.transitiveClosureStream('node:a', { dir: 'out' })) {
+      edges.push(edge);
+      if (edges.length === 3) {
+        break;
+      }
+    }
+
+    expect(edges).toEqual([
+      { from: 'node:a', to: 'node:b' },
+      { from: 'node:a', to: 'node:c' },
+      { from: 'node:a', to: 'node:d' },
+    ]);
+  });
+
   it('topologicalSort returns DAG sorted order', async () => {
     setupGraphState(graph, (/** @type {any} */ state) => {
       addNodeToState(state, 'node:a', 1);

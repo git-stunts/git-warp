@@ -154,6 +154,23 @@ describe('Cross-provider equivalence', () => {
     });
   });
 
+  describe('transitiveClosureStream: F18 chain', () => {
+    forEachProvider(F18_TRANSITIVE_CLOSURE_CHAIN, async (/** @type {*} */ engine) => {
+      const edges = [];
+      for await (const edge of engine.transitiveClosureStream({ start: 'A' })) {
+        edges.push(edge);
+      }
+      expect(edges).toEqual([
+        { from: 'A', to: 'B' },
+        { from: 'A', to: 'C' },
+        { from: 'A', to: 'D' },
+        { from: 'B', to: 'C' },
+        { from: 'B', to: 'D' },
+        { from: 'C', to: 'D' },
+      ]);
+    });
+  });
+
   describe('rootAncestors: F17 multi-root', () => {
     forEachProvider(F17_MULTI_ROOT_DAG, async (/** @type {*} */ engine) => {
       const { roots } = await engine.rootAncestors({ start: 'D' });
