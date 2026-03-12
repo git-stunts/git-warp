@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Surface validation accounting** — The declaration surface checker now distinguishes runtime-backed exports from type-only manifest entries and understands namespace declarations, which makes the type-surface contract tighter without forcing runtime exports for pure types.
 - **Trust test infrastructure deduplicated** — The TrustRecordService suites now share a single in-memory ref/blob/tree/commit fixture and JSON codec via `test/helpers/trustTestUtils.js`, eliminating the four forked mock implementations that had started to drift.
 - **Constructor option-bag defaults made explicit** — Added an ESLint rule banning `constructor({ ... } = {})` in source files and rewrote the remaining constructors to destructure an explicit `options` bag inside the constructor body. This avoids accidentally marking required constructor params optional in JSDoc and strict type checking.
+- **Checkpoint content-anchor batching** — `CheckpointService.createV5()` now folds content blob OIDs into sorted anchor entries in batches instead of building one monolithic `Set` before tree serialization. Added direct checkpoint coverage for anchor dedupe, deterministic ordering, and load-path indifference to `_content_*` anchor entries.
 
 ### Fixed
 

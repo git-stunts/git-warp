@@ -13,6 +13,7 @@ import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as 
 import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
 import { orsetAdd, orsetRemove, orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -22,6 +23,8 @@ const makeOid = (/** @type {string} */ prefix) => {
   const base = prefix.replace(/[^0-9a-f]/gi, '0').toLowerCase();
   return (base + '0'.repeat(40)).slice(0, 40);
 };
+
+const makeSequentialOid = (/** @type {number} */ index) => index.toString(16).padStart(40, '0');
 
 describe('CheckpointService', () => {
   /** @type {any} */
@@ -670,6 +673,107 @@ describe('CheckpointService', () => {
         expect(restoredState.nodeAlive.entries.has('deleted')).toBe(true);
         expect(restoredState.nodeAlive.tombstones.has('alice:1')).toBe(true);
       });
+
+      it('anchors unique content blobs in sorted tree order for node and edge content', async () => {
+        const state = createEmptyStateV5();
+        orsetAdd(state.nodeAlive, 'n1', createDot('alice', 1));
+        orsetAdd(state.nodeAlive, 'n2', createDot('alice', 2));
+        orsetAdd(state.edgeAlive, encodeEdgeKeyV5('n1', 'n2', 'link'), createDot('alice', 3));
+
+        const sharedOid = makeOid('contenta');
+        const edgeOid = makeOid('contentb');
+
+        state.prop.set(encodePropKeyV5('n1', CONTENT_PROPERTY_KEY), {
+          eventId: { lamport: 1, writerId: 'alice', patchSha: makeOid('patch1'), opIndex: 0 },
+          value: sharedOid,
+        });
+        state.prop.set(encodePropKeyV5('n2', CONTENT_PROPERTY_KEY), {
+          eventId: { lamport: 2, writerId: 'alice', patchSha: makeOid('patch2'), opIndex: 0 },
+          value: sharedOid,
+        });
+        state.prop.set(encodeEdgePropKey('n1', 'n2', 'link', CONTENT_PROPERTY_KEY), {
+          eventId: { lamport: 3, writerId: 'alice', patchSha: makeOid('patch3'), opIndex: 0 },
+          value: edgeOid,
+        });
+        state.prop.set(encodePropKeyV5('n1', 'label'), {
+          eventId: { lamport: 4, writerId: 'alice', patchSha: makeOid('patch4'), opIndex: 0 },
+          value: 'ignore-me',
+        });
+
+        const frontier = createFrontier();
+        updateFrontier(frontier, 'alice', makeOid('sha1'));
+
+        let blobIndex = 0;
+        mockPersistence.writeBlob.mockImplementation(() => Promise.resolve(makeOid(`blob${blobIndex++}`)));
+        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+        mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+        await createV5({
+          persistence: mockPersistence,
+          graphName: 'test',
+          state,
+          frontier,
+          crypto,
+        });
+
+        const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
+        expect(treeEntries).toEqual([
+          `100644 blob ${sharedOid}\t_content_${sharedOid}`,
+          `100644 blob ${edgeOid}\t_content_${edgeOid}`,
+          expect.stringContaining('\tappliedVV.cbor'),
+          expect.stringContaining('\tfrontier.cbor'),
+          expect.stringContaining('\tstate.cbor'),
+        ]);
+      });
+
+      it('anchors large content sets without duplicate entries when batch flushes occur', async () => {
+        const state = createEmptyStateV5();
+        const frontier = createFrontier();
+        updateFrontier(frontier, 'alice', makeOid('sha1'));
+
+        for (let i = 0; i < 300; i++) {
+          const nodeId = `n${i}`;
+          orsetAdd(state.nodeAlive, nodeId, createDot('alice', i + 1));
+          const contentOid = makeSequentialOid(i);
+          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+            eventId: {
+              lamport: i + 1,
+              writerId: 'alice',
+              patchSha: makeOid(`patch${String(i).padStart(3, '0')}`),
+              opIndex: 0,
+            },
+            value: contentOid,
+          });
+        }
+
+        state.prop.set(encodePropKeyV5('n0', 'name'), {
+          eventId: { lamport: 301, writerId: 'alice', patchSha: makeOid('patchname'), opIndex: 0 },
+          value: 'not-content',
+        });
+        orsetAdd(state.edgeAlive, encodeEdgeKeyV5('n0', 'n1', 'dup'), createDot('alice', 301));
+        state.prop.set(encodeEdgePropKey('n0', 'n1', 'dup', CONTENT_PROPERTY_KEY), {
+          eventId: { lamport: 302, writerId: 'alice', patchSha: makeOid('patchdup'), opIndex: 0 },
+          value: makeSequentialOid(0),
+        });
+
+        mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
+        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+        mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+        await createV5({
+          persistence: mockPersistence,
+          graphName: 'test',
+          state,
+          frontier,
+          crypto,
+        });
+
+        const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
+        const contentEntries = treeEntries.filter((/** @type {string} */ entry) => entry.includes('\t_content_'));
+        expect(contentEntries).toHaveLength(300);
+        expect(contentEntries[0]).toBe(`100644 blob ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
+        expect(contentEntries[299]).toBe(`100644 blob ${makeSequentialOid(299)}\t_content_${makeSequentialOid(299)}`);
+      });
     });
 
     describe('loadCheckpoint for V5', () => {
@@ -743,6 +847,53 @@ describe('CheckpointService', () => {
         expect(result.appliedVV).toBeDefined();
         expect(result.appliedVV.get('alice')).toBe(3);
         expect(result.appliedVV.get('bob')).toBe(2);
+      });
+
+      it('ignores _content_ anchor entries when loading a checkpoint tree', async () => {
+        const originalState = createEmptyStateV5();
+        orsetAdd(originalState.nodeAlive, 'x', createDot('alice', 1));
+
+        const frontier = createFrontier();
+        updateFrontier(frontier, 'alice', makeOid('sha1'));
+
+        const stateBuffer = serializeFullStateV5(originalState);
+        const frontierBuffer = serializeFrontier(frontier);
+        const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(originalState));
+        const stateHash = await computeStateHashV5(originalState, { crypto });
+
+        const treeOid = makeOid('tree');
+        const stateBlobOid = makeOid('state');
+        const frontierBlobOid = makeOid('frontier');
+        const appliedVVBlobOid = makeOid('appliedvv');
+        const contentAnchorOid = makeOid('content');
+
+        const message = encodeCheckpointMessage({
+          graph: 'test',
+          stateHash,
+          frontierOid: frontierBlobOid,
+          indexOid: treeOid,
+          schema: 2,
+        });
+
+        mockPersistence.showNode.mockResolvedValue(message);
+        mockPersistence.getNodeInfo.mockResolvedValue({ sha: makeOid('checkpoint') });
+        mockPersistence.readTreeOids.mockResolvedValue({
+          [`_content_${contentAnchorOid}`]: contentAnchorOid,
+          'state.cbor': stateBlobOid,
+          'frontier.cbor': frontierBlobOid,
+          'appliedVV.cbor': appliedVVBlobOid,
+        });
+        mockPersistence.readBlob.mockImplementation((/** @type {string} */ oid) => {
+          if (oid === stateBlobOid) return Promise.resolve(stateBuffer);
+          if (oid === frontierBlobOid) return Promise.resolve(frontierBuffer);
+          if (oid === appliedVVBlobOid) return Promise.resolve(appliedVVBuffer);
+          throw new Error(`Unexpected blob read: ${oid}`);
+        });
+
+        const result = await loadCheckpoint(mockPersistence, makeOid('checkpoint'));
+
+        expect(result.state.nodeAlive.entries.has('x')).toBe(true);
+        expect(mockPersistence.readBlob).not.toHaveBeenCalledWith(contentAnchorOid);
       });
 
       it('loads V5 checkpoint without appliedVV for backward compatibility', async () => {

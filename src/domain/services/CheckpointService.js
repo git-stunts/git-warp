@@ -46,6 +46,14 @@ export const CHECKPOINT_SCHEMA_STANDARD = 2;
  */
 export const CHECKPOINT_SCHEMA_INDEX_TREE = 4;
 
+/**
+ * Number of unique content blob OIDs to hold before folding a batch into the
+ * accumulated sorted anchor list. This keeps checkpoint creation from building
+ * one monolithic Set of every content blob reference before tree serialization.
+ * @type {number}
+ */
+const CONTENT_ANCHOR_BATCH_SIZE = 256;
+
 // ============================================================================
 // Internal Helpers
 // ============================================================================
@@ -91,6 +99,105 @@ function partitionTreeOids(rawOids) {
     }
   }
   return { treeOids, indexShardOids };
+}
+
+/**
+ * Compares git tree entry lines by path segment (content after the tab).
+ *
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
+function compareTreeEntriesByPath(left, right) {
+  const leftPath = left.slice(left.indexOf('\t') + 1);
+  const rightPath = right.slice(right.indexOf('\t') + 1);
+  return leftPath < rightPath ? -1 : leftPath > rightPath ? 1 : 0;
+}
+
+/**
+ * Merges two sorted string arrays into one sorted unique array.
+ *
+ * @param {string[]} existing
+ * @param {string[]} incoming
+ * @returns {string[]}
+ */
+function mergeSortedUniqueStrings(existing, incoming) {
+  /** @type {string[]} */
+  const merged = [];
+  let i = 0;
+  let j = 0;
+
+  while (i < existing.length && j < incoming.length) {
+    const left = existing[i];
+    const right = incoming[j];
+    if (left === right) {
+      merged.push(left);
+      i++;
+      j++;
+      continue;
+    }
+    if (left < right) {
+      merged.push(left);
+      i++;
+      continue;
+    }
+    merged.push(right);
+    j++;
+  }
+
+  while (i < existing.length) {
+    merged.push(existing[i++]);
+  }
+  while (j < incoming.length) {
+    merged.push(incoming[j++]);
+  }
+
+  return merged;
+}
+
+/**
+ * Collects sorted, de-duplicated content blob anchor entries for a checkpoint
+ * tree without holding all content OIDs in one monolithic Set at once.
+ *
+ * @param {Map<string, { eventId: unknown, value: unknown }>} propMap
+ * @returns {string[]}
+ */
+function collectContentAnchorEntries(propMap) {
+  /** @type {string[]} */
+  let sortedOids = [];
+  /** @type {Set<string>} */
+  let batch = new Set();
+
+  const flushBatch = () => {
+    if (batch.size === 0) {
+      return;
+    }
+    const sortedBatch = Array.from(batch).sort();
+    batch = new Set();
+    sortedOids = mergeSortedUniqueStrings(sortedOids, sortedBatch);
+  };
+
+  for (const [propKey, register] of propMap) {
+    const { propKey: decodedKey } = isEdgePropKey(propKey)
+      ? decodeEdgePropKey(propKey)
+      : decodePropKey(propKey);
+    if (decodedKey !== CONTENT_PROPERTY_KEY || typeof register.value !== 'string') {
+      continue;
+    }
+    batch.add(register.value);
+    if (batch.size >= CONTENT_ANCHOR_BATCH_SIZE) {
+      flushBatch();
+    }
+  }
+
+  flushBatch();
+
+  for (let i = 0; i < sortedOids.length; i++) {
+    const oid = sortedOids[i];
+    sortedOids[i] = `100644 blob ${oid}\t_content_${oid}`;
+  }
+
+  return sortedOids;
 }
 
 // ============================================================================
@@ -193,22 +300,13 @@ export async function createV5({
   // is infrequent. The property key format is deterministic (encodePropKey /
   // encodeEdgePropKey), but content keys are interleaved with regular keys
   // so no prefix filter can skip non-content entries without decoding.
-  const contentOids = new Set();
-  for (const [propKey, register] of checkpointState.prop) {
-    const { propKey: decodedKey } = isEdgePropKey(propKey)
-      ? decodeEdgePropKey(propKey)
-      : decodePropKey(propKey);
-    if (decodedKey === CONTENT_PROPERTY_KEY && typeof register.value === 'string') {
-      contentOids.add(register.value);
-    }
-  }
-
   // 7. Create tree with sorted entries
-  const treeEntries = [
+  const treeEntries = collectContentAnchorEntries(checkpointState.prop);
+  treeEntries.push(
     `100644 blob ${appliedVVBlobOid}\tappliedVV.cbor`,
     `100644 blob ${frontierBlobOid}\tfrontier.cbor`,
     `100644 blob ${stateBlobOid}\tstate.cbor`,
-  ];
+  );
 
   // Add provenance index if present
   if (provenanceIndexBlobOid) {
@@ -220,17 +318,8 @@ export async function createV5({
     treeEntries.push(`040000 tree ${indexSubtreeOid}\tindex`);
   }
 
-  // Add content blob anchors
-  for (const oid of contentOids) {
-    treeEntries.push(`100644 blob ${oid}\t_content_${oid}`);
-  }
-
   // Sort entries by filename for deterministic tree (git requires sorted entries by path)
-  treeEntries.sort((a, b) => {
-    const filenameA = a.split('\t')[1];
-    const filenameB = b.split('\t')[1];
-    return filenameA < filenameB ? -1 : filenameA > filenameB ? 1 : 0;
-  });
+  treeEntries.sort(compareTreeEntriesByPath);
 
   const treeOid = await persistence.writeTree(treeEntries);
 
