@@ -37,7 +37,9 @@ jobs:
         run: npm run typecheck:surface
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'
         run: npm run lint:md
-      - name: 'Gate 7: Security audit (runtime deps, advisory)'
+      - name: 'Gate 7: Markdown JS/TS code-sample syntax check'
+        run: npm run lint:md:code
+      - name: 'Gate 8: Security audit (runtime deps, advisory)'
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
 

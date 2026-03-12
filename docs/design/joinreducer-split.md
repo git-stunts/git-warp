@@ -151,7 +151,7 @@ the more complex usage is; ReceiptBuilder imports it.
 After extraction, JoinReducer retains:
 
 ### Imports
-```javascript
+```text
 import { createEventId } from '../utils/EventId.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';

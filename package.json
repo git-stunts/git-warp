@@ -74,6 +74,7 @@
   "scripts": {
     "lint": "eslint .",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md:code": "node scripts/lint-markdown-code-samples.js",
     "lint:links": "lychee --config .lychee.toml '**/*.md'",
     "format": "prettier --write .",
     "test": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest run test/unit \"$@\"; else docker compose run --build --rm test npm run test:local -- \"$@\"; fi' --",

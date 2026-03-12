@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fluent `WarpStateV5` test builder** — Added `createStateBuilder()` in `test/helpers/stateBuilder.js` so state-heavy tests can seed nodes, edges, removals, properties, frontier state, and graph materialization through one fluent helper instead of ad hoc OR-Set/LWW mutation.
 - **Seeded tree-construction determinism fuzzer** — Added property-based coverage for patch and checkpoint tree construction, proving stable tree OIDs across internal content-anchor permutations in `PatchBuilderV2` and shuffled content-property insertion order in `CheckpointService.createV5()`.
 - **Focused markdownlint gate** — Added `npm run lint:md` backed by `markdownlint-cli` and a repo config that enforces fenced code-block languages (`MD040`) across Markdown files.
+- **Markdown JS/TS code-sample linter** — Added `npm run lint:md:code`, which scans fenced JavaScript and TypeScript blocks in Markdown and syntax-checks them with the TypeScript parser for file/line-accurate diagnostics.
 
 ### Changed
 
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Checkpoint content-anchor batching** — `CheckpointService.createV5()` now folds content blob OIDs into sorted anchor entries in batches instead of building one monolithic `Set` before tree serialization. Added direct checkpoint coverage for anchor dedupe, deterministic ordering, and load-path indifference to `_content_*` anchor entries.
 - **CI gate dedupe** — Folded the duplicate `lint` workflow job into `type-firewall` and carried forward the advisory runtime `npm audit` step there, leaving one authoritative lint/type gate in the main CI workflow.
 - **Markdown fence labeling sweep** — Unlabeled Markdown code fences now declare a language such as `text`, letting the new markdown gate verify docs/examples without broad style-rule churn.
+- **Docs static firewall extended** — The CI fast gate now runs both markdown fence-language checks and JavaScript/TypeScript code-sample syntax validation before the runtime matrix jobs.
 
 ### Fixed
 
