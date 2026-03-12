@@ -1101,16 +1101,21 @@ export default class GraphTraversal {
     });
 
     const rs = this._newRunStats();
-    /** @type {Map<string, string[]>} */
-    const adjList = new Map();
-
-    // Build adjacency list from topo sort data
-    for (const nodeId of sorted) {
-      const neighbors = _neighborEdgeMap
-        ? (_neighborEdgeMap.get(nodeId) || [])
-        : await this._getNeighbors(nodeId, direction, rs, options);
-      adjList.set(nodeId, neighbors.map((n) => n.neighborId));
-    }
+    // Reuse topo-sort neighbor edges directly instead of duplicating the
+    // reachable slice as a second neighborId-only adjacency map.
+    /** @type {Map<string, NeighborEdge[]>} */
+    const fetchedSuccessors = new Map();
+    const getSuccessorEdges = _neighborEdgeMap
+      ? (nodeId) => _neighborEdgeMap.get(nodeId) || []
+      : async (nodeId) => {
+        const cached = fetchedSuccessors.get(nodeId);
+        if (cached !== undefined) {
+          return cached;
+        }
+        const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
+        fetchedSuccessors.set(nodeId, neighbors);
+        return neighbors;
+      };
 
     // For each node, find redundant edges via DFS/BFS from grandchildren
     /** @type {Set<string>} — keys are "from\0to" */
@@ -1118,12 +1123,13 @@ export default class GraphTraversal {
 
     for (const u of sorted) {
       checkAborted(signal, 'transitiveReduction');
-      const directSuccessors = adjList.get(u) || [];
-      if (directSuccessors.length <= 1) {
+      const directEdges = await getSuccessorEdges(u);
+      if (directEdges.length <= 1) {
         continue; // Cannot have redundant edges with 0 or 1 successor
       }
 
-      const directSet = new Set(directSuccessors);
+      /** @type {Set<string>} */
+      const directSet = new Set();
 
       // BFS from all grandchildren (successors-of-successors)
       // Any direct successor reachable from a grandchild is redundant
@@ -1132,9 +1138,10 @@ export default class GraphTraversal {
       /** @type {string[]} */
       let frontier = [];
 
-      for (const s of directSuccessors) {
-        const sSuccessors = adjList.get(s) || [];
-        for (const gc of sSuccessors) {
+      for (const { neighborId: successorId } of directEdges) {
+        directSet.add(successorId);
+        const successorEdges = await getSuccessorEdges(successorId);
+        for (const { neighborId: gc } of successorEdges) {
           if (!visited.has(gc)) {
             visited.add(gc);
             frontier.push(gc);
@@ -1150,11 +1157,11 @@ export default class GraphTraversal {
           if (directSet.has(nodeId)) {
             redundant.add(`${u}\0${nodeId}`);
           }
-          const successors = adjList.get(nodeId) || [];
-          for (const s of successors) {
-            if (!visited.has(s)) {
-              visited.add(s);
-              nextFrontier.push(s);
+          const successors = await getSuccessorEdges(nodeId);
+          for (const { neighborId: successorId } of successors) {
+            if (!visited.has(successorId)) {
+              visited.add(successorId);
+              nextFrontier.push(successorId);
             }
           }
         }
