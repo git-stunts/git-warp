@@ -1306,6 +1306,12 @@
     "WarpStateV5": {
       "kind": "interface"
     },
+    "WarpServeService": {
+      "kind": "class"
+    },
+    "WebSocketServerPort": {
+      "kind": "abstract-class"
+    },
     "WebCryptoAdapter": {
       "kind": "class"
     },
@@ -1317,6 +1323,12 @@
     },
     "WormholeError": {
       "kind": "class"
+    },
+    "WsConnection": {
+      "kind": "interface"
+    },
+    "WsServerHandle": {
+      "kind": "interface"
     },
     "Writer": {
       "kind": "class",
