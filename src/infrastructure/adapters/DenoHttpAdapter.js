@@ -116,7 +116,8 @@ export default class DenoHttpAdapter extends HttpServerPort {
   /**
    * @param {{ logger?: { error: (...args: unknown[]) => void } }} [options]
    */
-  constructor({ logger } = {}) {
+  constructor(options = undefined) {
+    const { logger } = options || {};
     super();
     this._logger = logger || noopLogger;
   }

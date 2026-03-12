@@ -230,7 +230,8 @@ export default class MaterializedViewService {
   /**
    * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
    */
-  constructor({ codec, logger } = {}) {
+  constructor(options = undefined) {
+    const { codec, logger } = options || {};
     this._codec = codec || defaultCodec;
     this._logger = logger || nullLogger;
   }

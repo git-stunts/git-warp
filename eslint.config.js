@@ -147,6 +147,12 @@ export default tseslint.config(
       // ── Classes ──────────────────────────────────────────────────────────
       "no-constructor-return": "error",
       "no-useless-constructor": "error",
+      "no-restricted-syntax": ["error",
+        {
+          "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
+          "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
+        },
+      ],
 
       // ── Modules ──────────────────────────────────────────────────────────
       "no-duplicate-imports": "error",

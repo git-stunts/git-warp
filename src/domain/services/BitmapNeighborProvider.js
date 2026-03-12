@@ -59,9 +59,10 @@ function dedupSorted(edges) {
 
 export default class BitmapNeighborProvider extends NeighborProviderPort {
   /**
-   * @param {{ indexReader?: BitmapIndexReader, logicalIndex?: LogicalIndex }} params
+   * @param {{ indexReader?: BitmapIndexReader, logicalIndex?: LogicalIndex }} [params]
    */
-  constructor({ indexReader, logicalIndex } = {}) {
+  constructor(params = undefined) {
+    const { indexReader, logicalIndex } = params || {};
     super();
     this._reader = indexReader ?? null;
     this._logical = logicalIndex ?? null;

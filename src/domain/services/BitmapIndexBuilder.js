@@ -85,7 +85,8 @@ export default class BitmapIndexBuilder {
    *
    * @param {{ crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} [options] - Configuration options
    */
-  constructor({ crypto, codec } = {}) {
+  constructor(options = undefined) {
+    const { crypto, codec } = options || {};
     /** @type {import('../../ports/CryptoPort.js').default} */
     this._crypto = crypto || defaultCrypto;
     /** @type {import('../../ports/CodecPort.js').default} */

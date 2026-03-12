@@ -48,7 +48,8 @@ export default class ConsoleLogger extends LoggerPort {
    * Creates a new ConsoleLogger instance.
    * @param {{ level?: number | string, context?: Record<string, unknown>, timestampFn?: function(): string }} [options] - Logger options
    */
-  constructor({ level = LogLevel.INFO, context = {}, timestampFn } = {}) {
+  constructor(options = undefined) {
+    const { level = LogLevel.INFO, context = {}, timestampFn } = options || {};
     super();
     this._level = typeof level === 'string' ? (LEVEL_NAMES[level] ?? LogLevel.INFO) : level;
     this._context = Object.freeze({ ...context });

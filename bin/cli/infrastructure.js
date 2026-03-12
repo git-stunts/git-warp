@@ -142,8 +142,13 @@ export class CliError extends Error {
    * @param {string} message - Human-readable error message
    * @param {{ code?: string, exitCode?: number, cause?: Error }} [options]
    */
-  constructor(message, { code = 'E_CLI', exitCode = EXIT_CODES.INTERNAL, cause } = {}) {
+  constructor(message, options = undefined) {
     super(message);
+    const {
+      code = 'E_CLI',
+      exitCode = EXIT_CODES.INTERNAL,
+      cause,
+    } = options || {};
     this.code = code;
     this.exitCode = exitCode;
     this.cause = cause;

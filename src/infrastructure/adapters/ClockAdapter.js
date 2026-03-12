@@ -18,7 +18,8 @@ export default class ClockAdapter extends ClockPort {
    * @param {{ now(): number }} [options.performanceImpl] - Performance API implementation.
    *   Defaults to `globalThis.performance`.
    */
-  constructor({ performanceImpl } = {}) {
+  constructor(options = undefined) {
+    const { performanceImpl } = options || {};
     super();
     this._performance = performanceImpl || globalThis.performance;
   }

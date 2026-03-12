@@ -91,7 +91,8 @@ export default class LogicalIndexReader {
   /**
    * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
    */
-  constructor({ codec } = {}) {
+  constructor(options = undefined) {
+    const { codec } = options || {};
     this._codec = codec || defaultCodec;
 
     /** @type {Map<string, number>} */

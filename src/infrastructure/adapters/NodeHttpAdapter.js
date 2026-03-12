@@ -54,8 +54,9 @@ export default class NodeHttpAdapter extends HttpServerPort {
   /**
    * @param {{ logger?: { error: (...args: unknown[]) => void } }} [options]
    */
-  constructor({ logger } = {}) {
+  constructor(options = undefined) {
     super();
+    const { logger } = options || {};
     this._logger = logger || noopLogger;
   }
 

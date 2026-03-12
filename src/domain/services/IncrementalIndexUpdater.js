@@ -46,7 +46,8 @@ export default class IncrementalIndexUpdater {
    *
    * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
    */
-  constructor({ codec } = {}) {
+  constructor(options = undefined) {
+    const { codec } = options || {};
     this._codec = codec || defaultCodec;
     /** @type {WeakMap<import('../crdt/ORSet.js').ORSet, Map<string, Set<string>>>} */
     this._edgeAdjacencyCache = new WeakMap();

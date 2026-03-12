@@ -72,7 +72,8 @@ export default class WebCryptoAdapter extends CryptoPort {
    * Creates a new WebCryptoAdapter.
    * @param {{ subtle?: SubtleCrypto }} [options] - Configuration options
    */
-  constructor({ subtle } = {}) {
+  constructor(options = undefined) {
+    const { subtle } = options || {};
     super();
     this._subtle = subtle || globalThis.crypto.subtle;
   }

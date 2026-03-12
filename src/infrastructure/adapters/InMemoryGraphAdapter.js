@@ -193,7 +193,8 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   /**
    * @param {{ author?: string, clock?: { now: () => number }, hash?: (data: Uint8Array) => string }} [options]
    */
-  constructor({ author, clock, hash } = {}) {
+  constructor(options = undefined) {
+    const { author, clock, hash } = options || {};
     super();
     this._author = author || 'InMemory <inmemory@test>';
     this._clock = clock || { now: () => Date.now() };

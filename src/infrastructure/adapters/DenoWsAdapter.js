@@ -95,7 +95,8 @@ export default class DenoWsAdapter extends WebSocketServerPort {
   /**
    * @param {{ staticDir?: string|null }} [options]
    */
-  constructor({ staticDir } = {}) {
+  constructor(options = undefined) {
+    const { staticDir } = options || {};
     super();
     /** @type {string|null} */
     this._staticDir = staticDir || null;

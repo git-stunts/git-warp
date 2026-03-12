@@ -248,7 +248,8 @@ export default class NodeWsAdapter extends WebSocketServerPort {
   /**
    * @param {{ staticDir?: string|null, onError?: (err: Error) => void }} [options]
    */
-  constructor({ staticDir, onError } = {}) {
+  constructor(options = undefined) {
+    const { staticDir, onError } = options || {};
     super();
     /** @type {string|null} */
     this._staticDir = staticDir || null;

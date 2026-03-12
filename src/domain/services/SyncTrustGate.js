@@ -32,7 +32,8 @@ export default class SyncTrustGate {
   /**
    * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../ports/LoggerPort.js').default }} [options]
    */
-  constructor({ trustEvaluator, trustMode = 'off', logger } = {}) {
+  constructor(options = undefined) {
+    const { trustEvaluator, trustMode = 'off', logger } = options || {};
     this._evaluator = trustEvaluator || null;
     this._mode = trustMode;
     this._logger = logger || nullLogger;
