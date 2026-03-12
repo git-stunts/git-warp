@@ -1020,15 +1020,15 @@ export default class GraphTraversal {
     maxNodes = DEFAULT_MAX_NODES,
     signal,
   }) {
-    // Topo sort with cycle detection + neighbor edge map reuse
-    const { sorted, _neighborEdgeMap } = await this.topologicalSort({
+    // Topo sort with cycle detection. The DP pass re-fetches neighbors
+    // instead of holding the full reachable edge set in memory.
+    const { sorted } = await this.topologicalSort({
       start,
       direction,
       options,
       maxNodes,
       throwOnCycle: true,
       signal,
-      _returnAdjList: true,
     });
 
     const rs = this._newRunStats();
@@ -1046,9 +1046,7 @@ export default class GraphTraversal {
     for (const nodeId of sorted) {
       checkAborted(signal, 'levels');
       const currentLevel = /** @type {number} */ (levelMap.get(nodeId));
-      const neighbors = _neighborEdgeMap
-        ? (_neighborEdgeMap.get(nodeId) || [])
-        : await this._getNeighbors(nodeId, direction, rs, options);
+      const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
       rs.edgesTraversed += neighbors.length;
 
       for (const { neighborId } of neighbors) {
@@ -1136,33 +1134,30 @@ export default class GraphTraversal {
     maxNodes = DEFAULT_MAX_NODES,
     signal,
   }) {
-    // Topo sort with cycle detection + neighbor edge map reuse
-    const { sorted, _neighborEdgeMap } = await this.topologicalSort({
+    // Topo sort with cycle detection. Successor edges are fetched on demand
+    // and memoized locally instead of retaining the full topo discovery cache.
+    const { sorted } = await this.topologicalSort({
       start,
       direction,
       options,
       maxNodes,
       throwOnCycle: true,
       signal,
-      _returnAdjList: true,
     });
 
     const rs = this._newRunStats();
-    // Reuse topo-sort neighbor edges directly instead of duplicating the
-    // reachable slice as a second neighborId-only adjacency map.
     /** @type {Map<string, NeighborEdge[]>} */
     const fetchedSuccessors = new Map();
-    const getSuccessorEdges = _neighborEdgeMap
-      ? (nodeId) => _neighborEdgeMap.get(nodeId) || []
-      : async (nodeId) => {
-        const cached = fetchedSuccessors.get(nodeId);
-        if (cached !== undefined) {
-          return cached;
-        }
-        const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
-        fetchedSuccessors.set(nodeId, neighbors);
-        return neighbors;
-      };
+    const getSuccessorEdges = async (nodeId) => {
+      const cached = fetchedSuccessors.get(nodeId);
+      if (cached !== undefined) {
+        return cached;
+      }
+      const neighbors = await this._getNeighbors(nodeId, direction, rs, options);
+      rs.edgesTraversed += neighbors.length;
+      fetchedSuccessors.set(nodeId, neighbors);
+      return neighbors;
+    };
 
     // For each node, find redundant edges via DFS/BFS from grandchildren
     /** @type {Set<string>} — keys are "from\0to" */
@@ -1222,9 +1217,7 @@ export default class GraphTraversal {
     let removed = 0;
 
     for (const nodeId of sorted) {
-      const neighbors = _neighborEdgeMap
-        ? (_neighborEdgeMap.get(nodeId) || [])
-        : [];
+      const neighbors = await getSuccessorEdges(nodeId);
       for (const { neighborId, label } of neighbors) {
         if (redundant.has(`${nodeId}\0${neighborId}`)) {
           removed++;
