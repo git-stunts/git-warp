@@ -7,6 +7,7 @@ import ts from 'typescript';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
+const repoTsconfigPath = resolve(root, 'tsconfig.base.json');
 
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'coverage']);
 const CODE_SAMPLE_LANGUAGES = new Set(['js', 'javascript', 'ts', 'typescript']);
@@ -41,6 +42,27 @@ export function parseFenceLanguage(info) {
 }
 
 /**
+ * @returns {ts.ScriptTarget}
+ */
+export function resolveRepoScriptTarget() {
+  try {
+    const configText = readFileSync(repoTsconfigPath, 'utf8');
+    const parsed = ts.parseConfigFileTextToJson(repoTsconfigPath, configText);
+    if (parsed.error) {
+      return ts.ScriptTarget.Latest;
+    }
+    const converted = ts.convertCompilerOptionsFromJson(parsed.config?.compilerOptions || {}, root, repoTsconfigPath);
+    return typeof converted.options.target === 'number'
+      ? converted.options.target
+      : ts.ScriptTarget.Latest;
+  } catch {
+    return ts.ScriptTarget.Latest;
+  }
+}
+
+const repoScriptTarget = resolveRepoScriptTarget();
+
+/**
  * @param {string} markdown
  * @param {string} filePath
  * @returns {MarkdownCodeSample[]}
@@ -54,7 +76,7 @@ export function extractMarkdownCodeSamples(markdown, filePath) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const fenceMatch = line.match(/^([`~]{3,})(.*)$/);
+    const fenceMatch = line.match(/^ {0,3}([`~]{3,})(.*)$/);
     if (!activeFence) {
       if (!fenceMatch) {
         continue;
@@ -69,7 +91,7 @@ export function extractMarkdownCodeSamples(markdown, filePath) {
       continue;
     }
 
-    const closePattern = new RegExp(`^${activeFence.marker}{${activeFence.markerLength},}\\s*$`);
+    const closePattern = new RegExp(`^ {0,3}${activeFence.marker}{${activeFence.markerLength},}\\s*$`);
     if (closePattern.test(line)) {
       if (activeFence.language) {
         samples.push({
@@ -129,7 +151,7 @@ export function lintMarkdownCodeSample(sample) {
   const sourceFile = ts.createSourceFile(
     sample.language.startsWith('ts') ? 'sample.ts' : 'sample.js',
     sample.code,
-    ts.ScriptTarget.Latest,
+    repoScriptTarget,
     true,
     scriptKind
   );

@@ -2,12 +2,14 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import {
   collectMarkdownFiles,
   extractMarkdownCodeSamples,
   lintMarkdownCodeSample,
   lintMarkdownCodeSamples,
   parseFenceLanguage,
+  resolveRepoScriptTarget,
 } from '../../../scripts/lint-markdown-code-samples.js';
 
 /** @type {string[]} */
@@ -83,6 +85,30 @@ describe('extractMarkdownCodeSamples', () => {
     ].join('\n');
 
     expect(extractMarkdownCodeSamples(markdown, 'GUIDE.md')).toEqual([]);
+  });
+
+  it('extracts fences indented by up to three spaces', () => {
+    const markdown = [
+      '   ```ts',
+      '   export const answer = 42;',
+      '   ```',
+    ].join('\n');
+
+    expect(extractMarkdownCodeSamples(markdown, 'INDENTED.md')).toEqual([
+      {
+        filePath: 'INDENTED.md',
+        language: 'ts',
+        code: '   export const answer = 42;',
+        fenceLine: 1,
+        startLine: 2,
+      },
+    ]);
+  });
+});
+
+describe('resolveRepoScriptTarget', () => {
+  it('uses the repository TypeScript target from tsconfig.base.json', () => {
+    expect(resolveRepoScriptTarget()).toBe(ts.ScriptTarget.ES2022);
   });
 });
 
