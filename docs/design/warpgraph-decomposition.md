@@ -300,7 +300,7 @@ Instead of reaching back into the host for every field update,
 `_setMaterializedState()` returns a result object that the host (WarpGraph)
 uses to update its own core fields:
 
-```javascript
+```text
 // In CacheCoordinator:
 setMaterializedState(state, opts) {
   // ... build adjacency, view, index ...

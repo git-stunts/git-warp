@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, and `B86` are complete on `v15`: the redundant `lint` workflow job was folded into `type-firewall`, the declaration surface manifest now splits runtime `exports` from type-only `typeExports`, the local pre-push firewall now runs `typecheck:surface` alongside the other type gates, and CI now runs markdownlint for fenced-code language coverage. Remaining P2 work now starts at B87. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, and `B86` are already merged. `B87` is complete in `feature/b87-markdown-code-lint`: the new script syntax-checks fenced JavaScript/TypeScript samples in Markdown, the CI fast gate runs it after markdownlint, the local pre-push firewall mirrors that coverage, and malformed/unterminated JS/TS fences now fail with file/line diagnostics. If this branch lands, remaining P2 work starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -212,7 +212,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 | B85  | ✅ **TYPE-ONLY EXPORT MANIFEST SECTION** — Added explicit `typeExports` to `type-surface.m8.json` and taught `check-dts-surface` to fail on misplaced or duplicate entries across `exports` and `typeExports`, so type-only declaration drift is validated directly instead of inferred from `kind`.                                 | B97 (P0)   | S      |
 | B57  | ✅ **AUTO-VALIDATE `type-surface.m8.json` AGAINST `index.d.ts`** — `typecheck:surface` now runs in CI, release preflight, and the local `scripts/hooks/pre-push` firewall, so declaration-surface drift is blocked before push instead of only after CI starts.                                                                                               | B97, B85   | M      |
 | B86  | ✅ **MARKDOWNLINT CI GATE** — Added `npm run lint:md` with focused `MD040` enforcement and wired it into `.github/workflows/ci.yml`, so fenced code blocks in Markdown must declare a language before CI passes.                                                                                                                                                | —          | S      |
-| B87  | **CODE SAMPLE LINTER** — syntax-check JS/TS code blocks in markdown files via `eslint-plugin-markdown` or custom extractor. From B-DOC-2. **Files:** new script, `docs/**/*.md`                                                                                                                                                      | —          | M      |
+| B87  | ✅ **CODE SAMPLE LINTER** — Added `scripts/lint-markdown-code-samples.js` plus `npm run lint:md:code`, which extracts fenced JavaScript/TypeScript samples from Markdown and syntax-checks them with file/line diagnostics. Wired into `.github/workflows/ci.yml` and the local `scripts/hooks/pre-push` firewall, with explicit failures for malformed mixed-marker fences and unterminated JS/TS blocks. | —          | M      |
 | B88  | **MERMAID RENDERING SMOKE TEST** — parse all ` ```mermaid ` blocks with `@mermaid-js/mermaid-cli` in CI. From B-DIAG-2. **File:** `.github/workflows/ci.yml` or `scripts/`                                                                                                                                                           | —          | S      |
 | B119 | **`scripts/pr-ready` MERGE-READINESS CLI** — single tool aggregating unresolved review threads, pending/failed checks, CodeRabbit status/cooldown, and human-review count into one deterministic verdict. From BACKLOG 2026-02-27/28.                                                                                                | —          | M      |
 | B123 | **BENCHMARK BUDGETS + CI REGRESSION GATE** — define perf thresholds for eager post-commit and materialize hash cost; fail CI on agreed regression. From BACKLOG 2026-02-27.                                                                                                                                                          | —          | L      |
@@ -335,9 +335,9 @@ Complete on `v15`: **B80** and **B99**.
 
 #### Wave 2: CI & Tooling (P2, one batch PR)
 
-3. **B87, B88, B119, B123, B128, B12, B43**
+3. **B88, B119, B123, B128, B12, B43**
 
-Internal chain: **B97 already resolved on v15** → B85 → B57. That chain is complete on `v15`; B86 closed the first docs-quality gate in the remaining P2 pack. B123 remains the largest remaining item and may need to split out.
+Internal chain: **B97 already resolved** → B85 → B57. That chain is complete, and this branch adds B87 on top of the existing B86 markdown gate to cover JS/TS sample syntax. B123 remains the largest remaining item and may need to split out.
 
 #### Wave 3: Type Surface (P3)
 
@@ -395,11 +395,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
 | **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
 | **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 25                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B87–B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156                                                             |
-| **Standalone (done)** | 60                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B86, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
+| **Standalone**        | 24                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156                                                                 |
+| **Standalone (done)** | 61                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
-| **Total tracked**     | **144** total; 60 standalone done |                                                                                                                                                                                     |
+| **Total tracked**     | **144** total; 61 standalone done |                                                                                                                                                                                     |
 
 ### STANK.md Cross-Reference
 
@@ -503,7 +503,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **25 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete on `v15`, and Wave 2 now starts at B87 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **24 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and with B87 in this branch, Wave 2 now starts at B88 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

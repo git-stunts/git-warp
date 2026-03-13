@@ -119,12 +119,14 @@ Folds should be exposed as explicit view operations, not implicit traversal surp
 
 #### 3.1 View API
 
-```javascript
-const view = graph.view({ fold: { mode: "shallow", maxDepth: 1 } });
+_Proposed API sketch: the entire `graph.view()` flow shown below, including `view.traverse()`, `view.query().match().run()`, and `view.renderAscii()`, is not implemented yet._
+
+```ts
+const view = graph.view({ fold: { mode: 'shallow', maxDepth: 1 } });
 
 await view.traverse(startNodeId);
-await view.query(...);
-await view.renderAscii(...);
+await view.query().match('doc:*').run();
+await view.renderAscii();
 ```
 
 `graph.view()` returns a wrapper that:
@@ -134,7 +136,7 @@ await view.renderAscii(...);
 
 #### 3.2 Attachment Graph Accessors
 
-```javascript
+```text
 // returns fold root id (even if fold is empty)
 graph.getFoldRootForNode(nodeId) -> string
 

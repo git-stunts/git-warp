@@ -2,18 +2,30 @@
 # Runs: API integration tests using Deno.test() wrappers.
 # CLI and unit tests are excluded — they depend on vitest / node: built-ins.
 # Build context is the parent monorepo directory (context: ..).
+FROM node:22-slim AS node22
+
 FROM denoland/deno:2.1.9
 ARG DENO_ALLOW_SCRIPTS="npm:roaring,npm:cbor-extract"
 USER root
+COPY --from=node22 /usr/local/bin/node /usr/local/bin/node
+COPY --from=node22 /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=node22 /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=node22 /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     python3 \
     make \
     g++ \
-    # Needed on PATH for Deno npm lifecycle fallback builds (roaring/cbor-extract).
-    node-gyp \
     && rm -rf /var/lib/apt/lists/*
+RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+  # Needed on PATH for Deno npm lifecycle fallback builds (roaring/cbor-extract).
+  && ln -sf /usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js /usr/local/bin/node-gyp
 WORKDIR /app
+COPY git-warp/package*.json ./
+COPY git-warp/scripts ./scripts
+COPY git-warp/patches ./patches
+RUN npm ci
 COPY git-warp/ .
 # Init a git repo so plumbing operations work inside the container.
 RUN git init -q \
@@ -21,21 +33,10 @@ RUN git init -q \
   && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
-# Install npm dependencies for Deno test entrypoints and allow native addon
-# lifecycle scripts so roaring/cbor-extract are prepared before test execution.
-RUN printf '%s\n' \
-  "import 'npm:roaring';" \
-  "import 'npm:cbor-extract';" \
-  > /tmp/deno-npm-bootstrap.ts \
-  && deno install \
-  --allow-scripts=${DENO_ALLOW_SCRIPTS} \
-  --node-modules-dir=auto \
-  --entrypoint /tmp/deno-npm-bootstrap.ts \
-  && rm /tmp/deno-npm-bootstrap.ts
 # Run tests as non-root to mirror CI and catch permission issues.
 # Also chown Deno's global cache so the deno user can fetch npm packages at runtime.
 RUN chown -R deno:deno /app /deno-dir
 USER deno
 ENV GIT_STUNTS_DOCKER=1
 ENV DENO_ALLOW_SCRIPTS=${DENO_ALLOW_SCRIPTS}
-CMD ["sh", "-lc", "deno test --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=auto test/runtime/deno/"]
+CMD ["sh", "-lc", "deno test --allow-all --allow-scripts=${DENO_ALLOW_SCRIPTS} --node-modules-dir=manual test/runtime/deno/"]

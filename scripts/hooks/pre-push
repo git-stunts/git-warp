@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # IRONCLAD M9 — pre-push gate
 #
-# Six gates in parallel, then unit tests. ALL must pass or push is blocked.
+# Seven gates in parallel, then unit tests. ALL must pass or push is blocked.
 # This is the last local line of defense before CI.
 # ═══════════════════════════════════════════════════════════════════════════
 set -e
@@ -18,7 +18,7 @@ cd "$ROOT"
 QUICK=0
 if [ "$WARP_QUICK_PUSH" = "1" ] || [ "$WARP_QUICK_PUSH" = "true" ]; then
   QUICK=1
-  echo "WARP_QUICK_PUSH: quick mode active — Gate 6 (unit tests) will be skipped"
+  echo "WARP_QUICK_PUSH: quick mode active — Gate 8 (unit tests) will be skipped"
 fi
 
 echo "══════════════════════════════════════════════════════════"
@@ -33,8 +33,8 @@ else
   echo "[Gate 0] Link check skipped (lychee not installed)"
 fi
 
-# ── Gates 1-5 in parallel (all are read-only) ─────────────────────────────
-echo "[Gates 1-5] Running lint + typecheck + policy + consumer type test + surface validator..."
+# ── Gates 1-7 in parallel (all are read-only) ─────────────────────────────
+echo "[Gates 1-7] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates..."
 
 npm run lint &
 LINT_PID=$!
@@ -46,20 +46,26 @@ npm run typecheck:consumer &
 CONSUMER_PID=$!
 npm run typecheck:surface &
 SURFACE_PID=$!
+npm run lint:md &
+MD_PID=$!
+npm run lint:md:code &
+MD_CODE_PID=$!
 
-wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 1 FAILED: ESLint (includes no-explicit-any, no-unsafe-*)"; exit 1; }
-wait $TC_PID      || { echo ""; echo "BLOCKED — Gate 2 FAILED: TypeScript compiler (strict mode)"; exit 1; }
-wait $POLICY_PID  || { echo ""; echo "BLOCKED — Gate 3 FAILED: IRONCLAD policy (any/wildcard/ts-ignore ban)"; exit 1; }
-wait $CONSUMER_PID || { echo ""; echo "BLOCKED — Gate 4 FAILED: Consumer type surface test"; exit 1; }
+wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any, no-unsafe-*)"; exit 1; }
+wait $TC_PID      || { echo ""; echo "BLOCKED — Gate 1 FAILED: TypeScript compiler (strict mode)"; exit 1; }
+wait $POLICY_PID  || { echo ""; echo "BLOCKED — Gate 2 FAILED: IRONCLAD policy (any/wildcard/ts-ignore ban)"; exit 1; }
+wait $CONSUMER_PID || { echo ""; echo "BLOCKED — Gate 3 FAILED: Consumer type surface test"; exit 1; }
 wait $SURFACE_PID || { echo ""; echo "BLOCKED — Gate 5 FAILED: Declaration surface validator"; exit 1; }
+wait $MD_PID      || { echo ""; echo "BLOCKED — Gate 6 FAILED: Markdown lint"; exit 1; }
+wait $MD_CODE_PID || { echo ""; echo "BLOCKED — Gate 7 FAILED: Markdown JS/TS code-sample syntax check"; exit 1; }
 
-echo "[Gates 1-5] All type gates passed."
+echo "[Gates 1-7] All static gates passed."
 
-# ── Gate 6: Unit tests ─────────────────────────────────────────────────────
+# ── Gate 8: Unit tests ─────────────────────────────────────────────────────
 if [ "$QUICK" = "1" ]; then
-  echo "[Gate 6] Skipped (WARP_QUICK_PUSH quick mode)"
+  echo "[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)"
 else
-  echo "[Gate 6] Running unit tests..."
+  echo "[Gate 8] Running unit tests..."
   npm run test:local
 fi
 

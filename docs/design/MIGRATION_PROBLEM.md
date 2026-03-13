@@ -64,7 +64,7 @@ All three are semantically equivalent, but the inconsistency means a reader must
 
 Introduce a new operation type `EdgePropSet` at schema version 4:
 
-```javascript
+```text
 // New op type
 {
   type: 'EdgePropSet',

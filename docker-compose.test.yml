@@ -52,5 +52,5 @@ services:
     environment:
       - GIT_STUNTS_DOCKER=1
     # Keep allow-scripts package names aligned with package.json dependencies.
-    command: ["deno", "test", "--allow-all", "--allow-scripts=npm:roaring,npm:cbor-extract", "--node-modules-dir=auto", "test/runtime/deno/"]
+    command: ["deno", "test", "--allow-all", "--allow-scripts=npm:roaring,npm:cbor-extract", "--node-modules-dir=manual", "test/runtime/deno/"]
     profiles: [deno, full]

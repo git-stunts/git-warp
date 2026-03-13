@@ -371,7 +371,7 @@ const result = await graph.query()
 
 **Object shorthand** — strict equality on primitive values. Multiple properties use AND semantics:
 
-```javascript
+```text
 .where({ role: 'admin' })
 .where({ role: 'admin', active: true })
 .where({ status: null })
@@ -379,7 +379,7 @@ const result = await graph.query()
 
 **Function form** — arbitrary predicates:
 
-```javascript
+```text
 .where(({ props }) => props.age >= 18)
 .where(({ edgesOut }) => edgesOut.length > 0)
 ```
@@ -400,7 +400,7 @@ const result = await graph.query()
 
 `outgoing()` and `incoming()` follow edges with optional depth control:
 
-```javascript
+```text
 // Single hop (default)
 .outgoing('manages')
 
