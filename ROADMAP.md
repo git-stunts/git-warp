@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-12 (v15 backlog + changelog reconciliation; 27 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, and the explicit type-only export manifest split)
+> **Last reconciled:** 2026-03-12 (main after PR #66 merge; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, and the merged Markdown code-sample lint gate)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, and `B86` are already merged. `B87` is complete in `feature/b87-markdown-code-lint`: the new script syntax-checks fenced JavaScript/TypeScript samples in Markdown, the CI fast gate runs it after markdownlint, the local pre-push firewall mirrors that coverage, and malformed/unterminated JS/TS fences now fail with file/line diagnostics. If this branch lands, remaining P2 work starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, `B86`, and `B87` are now merged on `main`. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall. Remaining P2 work starts at B88. This merge also promoted one follow-up item, B168, so the local hook's gate labels and quick-mode messaging get their own regression coverage. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -219,6 +219,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 | B128 | **DOCS CONSISTENCY PREFLIGHT** — automated pass in `release:preflight` verifying changelog/readme/guide updates for behavior changes in hot paths (materialize, checkpoint, sync). From BACKLOG 2026-02-28.                                                                                                                          | —          | S      |
 | B12  | **DOCS-VERSION-SYNC PRE-COMMIT CHECK** — grep version literals in .md files against `package.json`                                                                                                                                                                                                                                   | —          | S      |
 | B43  | **VITEST EXPLICIT RUNTIME EXCLUDES** — prevent accidental local runs of Docker-only suites                                                                                                                                                                                                                                           | —          | S      |
+| B168 | **PRE-PUSH GATE LABEL REGRESSION TEST** — add a lightweight regression test or shared source for `scripts/hooks/pre-push` gate numbering and quick-mode messaging so local hook text cannot drift from the actual gate layout or CI ordering. From PR #66 review follow-up.                                                       | —          | S      |
 
 ### P3 — Type Safety & Surface
 
@@ -268,6 +269,7 @@ Low urgency. Fold into PRs that already touch related files.
 | B104 | **MERMAID DIAGRAM CONTENT CHECKLIST** — for diagram migrations: count annotations in source/target, verify edge labels survive, check complexity annotations preserved. From B-DIAG-1.                                                                                        | XS     |
 | B129 | **CONTRIBUTOR REVIEW-LOOP HYGIENE GUIDE** — add section to `CONTRIBUTING.md` covering commit sizing, CodeRabbit cooldown strategy, and when to request bot review. From BACKLOG 2026-02-27.                                                                                   | S      |
 | B147 | **RFC FIELD COUNT DRIFT DETECTOR** — script that counts WarpGraph instance fields (grep `this._` in constructor) and warns if design RFC field counts diverge. Prevents stale numbers in `warpgraph-decomposition.md`. From B145 PR review. **Depends on:** B143 RFC (exists) | S      |
+| B169 | **ARCHIVED DOC STATUS GUARDRAIL** — add a docs checklist or automated check preventing time-sensitive branch-state wording such as `pending merge` from landing in archive/history docs like `docs/ROADMAP/COMPLETED.md`. From PR #66 review follow-up.                                | XS     |
 
 ### P7 — git-cas Modernization
 
@@ -335,9 +337,9 @@ Complete on `v15`: **B80** and **B99**.
 
 #### Wave 2: CI & Tooling (P2, one batch PR)
 
-3. **B88, B119, B123, B128, B12, B43**
+3. **B88, B119, B123, B128, B12, B43, B168**
 
-Internal chain: **B97 already resolved** → B85 → B57. That chain is complete, and this branch adds B87 on top of the existing B86 markdown gate to cover JS/TS sample syntax. B123 remains the largest remaining item and may need to split out.
+Internal chain: **B97 already resolved** → B85 → B57. That chain is complete on `main`, and B87 now ships on top of the existing B86 markdown gate to cover JS/TS sample syntax. B168 captures the remaining hook-message drift follow-up from the B87 review cycle. B123 remains the largest remaining item and may need to split out.
 
 #### Wave 3: Type Surface (P3)
 
@@ -352,7 +354,7 @@ Internal chain: **B97 already resolved** → B85 → B57. That chain is complete
 
 7. **B155** — levels() as --view layout
 8. **B156** — structural diff (if H1 is in play)
-9. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147) folded into related PRs
+9. Docs/process items (B34, B35, B76, B79, B102–B104, B129, B147, B169) folded into related PRs
 
 #### Wave 6: git-cas Modernization (P7)
 
@@ -395,11 +397,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
 | **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
 | **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 24                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156                                                                 |
+| **Standalone**        | 26                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B168–B169                                                     |
 | **Standalone (done)** | 61                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B165, B167 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
-| **Total tracked**     | **144** total; 61 standalone done |                                                                                                                                                                                     |
+| **Total tracked**     | **146** total; 61 standalone done |                                                                                                                                                                                     |
 
 ### STANK.md Cross-Reference
 
@@ -503,7 +505,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **24 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and with B87 in this branch, Wave 2 now starts at B88 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with B168 and B169 added from the PR #66 review loop. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).
