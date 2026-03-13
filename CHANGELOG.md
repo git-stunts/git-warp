@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Seeded tree-construction determinism fuzzer** — Added property-based coverage for patch and checkpoint tree construction, proving stable tree OIDs across internal content-anchor permutations in `PatchBuilderV2` and shuffled content-property insertion order in `CheckpointService.createV5()`.
 - **Focused markdownlint gate** — Added `npm run lint:md` backed by `markdownlint-cli` and a repo config that enforces fenced code-block languages (`MD040`) across Markdown files.
 - **Markdown JS/TS code-sample linter** — Added `npm run lint:md:code`, which scans fenced JavaScript and TypeScript blocks in Markdown and syntax-checks them with the TypeScript parser for file/line-accurate diagnostics.
+- **Pre-push hook regression harness** — Added a focused Vitest behavioral harness for `scripts/hooks/pre-push` that exercises the real shell hook with stubbed commands, proves quick mode skips Gate 8, and verifies Gate 1–8 failure labels at runtime.
 
 ### Changed
 

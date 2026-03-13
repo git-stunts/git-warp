@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, `B86`, and `B87` are now merged on `main`. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall. Remaining P2 work starts at B88. This merge also promoted one follow-up item, B168, so the local hook's gate labels and quick-mode messaging get their own regression coverage. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, `B86`, and `B87` are now merged on `main`. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall. Remaining P2 work starts at B88. That merge also promoted one follow-up item, B168, so the local hook's gate labels and quick-mode messaging now have their own regression-coverage task. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -339,7 +339,7 @@ Complete on `v15`: **B80** and **B99**.
 
 3. **B88, B119, B123, B128, B12, B43, B168**
 
-Internal chain: **B97 already resolved** → B85 → B57. That chain is complete on `main`, and B87 now ships on top of the existing B86 markdown gate to cover JS/TS sample syntax. B168 captures the remaining hook-message drift follow-up from the B87 review cycle. B123 remains the largest remaining item and may need to split out.
+Internal chain: **B97 already resolved** → B85 → B57. That chain is complete on `main`, and B168 remains the hook-message drift follow-up from the B87 review cycle. B123 remains the largest remaining item and may need to split out.
 
 #### Wave 3: Type Surface (P3)
 
@@ -505,7 +505,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with B168 and B169 added from the PR #66 review loop. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with B168 still active as the remaining hook-message drift follow-up. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

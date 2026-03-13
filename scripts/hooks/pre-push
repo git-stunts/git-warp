@@ -66,7 +66,7 @@ if [ "$QUICK" = "1" ]; then
   echo "[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)"
 else
   echo "[Gate 8] Running unit tests..."
-  npm run test:local
+  npm run test:local || { echo ""; echo "BLOCKED — Gate 8 FAILED: Unit tests"; exit 1; }
 fi
 
 echo "══════════════════════════════════════════════════════════"
