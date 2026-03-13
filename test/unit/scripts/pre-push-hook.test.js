@@ -89,6 +89,7 @@ function runPrePushHook(options = {}) {
     ].join('\n')
   );
 
+  /** @type {Record<string, string | undefined>} */
   const env = {
     ...process.env,
     PATH: `${binDir}:${process.env.PATH}`,
