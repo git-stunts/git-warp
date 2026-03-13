@@ -76,7 +76,7 @@ const TRANSIENT_ERROR_PATTERNS = [
 ];
 
 /**
- * @typedef {Error & { details?: { stderr?: string, code?: number }, exitCode?: number, code?: number }} GitError
+ * @typedef {Error & { details?: { stderr?: string, stdout?: string, code?: number }, exitCode?: number, code?: number }} GitError
  */
 
 /**
