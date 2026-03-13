@@ -18,7 +18,7 @@ command_exists() {
   launcher="$1"
   cmd="$2"
   if [ -n "$launcher" ]; then
-    [ -f "$cmd" ]
+    command -v "$launcher" >/dev/null 2>&1 && [ -f "$cmd" ] && [ -r "$cmd" ]
   else
     command -v "$cmd" >/dev/null 2>&1
   fi

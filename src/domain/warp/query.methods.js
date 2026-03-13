@@ -368,9 +368,10 @@ export async function getContentOid(nodeId) {
  * @this {import('../WarpGraph.js').default}
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<Uint8Array|null>} Content bytes or null
- * @throws {Error} If the referenced blob OID is not in the object store
- *   (e.g., garbage-collected despite anchoring). Callers should handle this
- *   if operating on repos with aggressive GC or partial clones.
+ * @throws {import('../errors/PersistenceError.js').default} If the referenced
+ *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
+ *   after repository corruption, aggressive GC, or a partial clone missing the
+ *   blob object.
  */
 export async function getContent(nodeId) {
   const oid = await getContentOid.call(this, nodeId);
@@ -414,9 +415,10 @@ export async function getEdgeContentOid(from, to, label) {
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<Uint8Array|null>} Content bytes or null
- * @throws {Error} If the referenced blob OID is not in the object store
- *   (e.g., garbage-collected despite anchoring). Callers should handle this
- *   if operating on repos with aggressive GC or partial clones.
+ * @throws {import('../errors/PersistenceError.js').default} If the referenced
+ *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
+ *   after repository corruption, aggressive GC, or a partial clone missing the
+ *   blob object.
  */
 export async function getEdgeContent(from, to, label) {
   const oid = await getEdgeContentOid.call(this, from, to, label);

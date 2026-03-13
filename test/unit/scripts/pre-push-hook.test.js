@@ -51,10 +51,10 @@ function readLog(filePath) {
 }
 
 /**
- * @param {{ quick?: boolean, failCommand?: string|null }} [options]
+ * @param {{ quick?: boolean, failCommand?: string|null, linkcheckReadable?: boolean }} [options]
  */
 function runPrePushHook(options = {}) {
-  const { quick = false, failCommand = null } = options;
+  const { quick = false, failCommand = null, linkcheckReadable = true } = options;
   const binDir = createTempDir();
   const npmBin = join(binDir, 'npm');
   const npmLog = join(binDir, 'npm.log');
@@ -90,6 +90,9 @@ function runPrePushHook(options = {}) {
       '',
     ].join('\n')
   );
+  if (!linkcheckReadable) {
+    chmodSync(linkcheckBin, 0o000);
+  }
 
   /** @type {Record<string, string | undefined>} */
   const env = {
@@ -153,6 +156,14 @@ describe('scripts/hooks/pre-push', () => {
       'typecheck:surface',
     ]);
     expect(result.lycheeCalls).toEqual(['--config .lychee.toml **/*.md']);
+  });
+
+  it('skips Gate 0 when the launcher target is not readable', () => {
+    const result = runPrePushHook({ quick: true, linkcheckReadable: false });
+
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('[Gate 0] Link check skipped (lychee not installed)');
+    expect(result.lycheeCalls).toEqual([]);
   });
 
   it('runs Gate 8 in normal mode', () => {

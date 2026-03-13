@@ -36,6 +36,21 @@ describe('GitGraphAdapter', () => {
       });
     });
 
+    it('throws E_MISSING_OBJECT for ambiguous exit-1 empty-read failures', async () => {
+      mockPlumbing.executeStream.mockResolvedValue({
+        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
+      });
+      const err = /** @type {any} */ (new Error(''));
+      err.details = { code: 1, stderr: '' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readBlob('deadbeef'))
+        .rejects.toMatchObject({
+          code: 'E_MISSING_OBJECT',
+          message: 'Missing Git object: deadbeef',
+        });
+    });
+
     it('rethrows unrelated exit-128 errors from the existence check', async () => {
       mockPlumbing.executeStream.mockResolvedValue({
         collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
