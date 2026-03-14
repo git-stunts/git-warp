@@ -51,10 +51,10 @@ function readLog(filePath) {
 }
 
 /**
- * @param {{ quick?: boolean, failCommand?: string|null, linkcheckReadable?: boolean }} [options]
+ * @param {{ quick?: boolean, failCommand?: string|null, linkcheckAvailable?: boolean }} [options]
  */
 function runPrePushHook(options = {}) {
-  const { quick = false, failCommand = null, linkcheckReadable = true } = options;
+  const { quick = false, failCommand = null, linkcheckAvailable = true } = options;
   const binDir = createTempDir();
   const npmBin = join(binDir, 'npm');
   const npmLog = join(binDir, 'npm.log');
@@ -80,18 +80,17 @@ function runPrePushHook(options = {}) {
     ].join('\n')
   );
 
-  writeExecutable(
-    linkcheckBin,
-    [
-      '#!/bin/sh',
-      'set -eu',
-      "printf '%s\\n' \"$*\" >> \"$WARP_LYCHEE_LOG\"",
-      'exit 0',
-      '',
-    ].join('\n')
-  );
-  if (!linkcheckReadable) {
-    chmodSync(linkcheckBin, 0o000);
+  if (linkcheckAvailable) {
+    writeExecutable(
+      linkcheckBin,
+      [
+        '#!/bin/sh',
+        'set -eu',
+        "printf '%s\\n' \"$*\" >> \"$WARP_LYCHEE_LOG\"",
+        'exit 0',
+        '',
+      ].join('\n')
+    );
   }
 
   /** @type {Record<string, string | undefined>} */
@@ -158,8 +157,8 @@ describe('scripts/hooks/pre-push', () => {
     expect(result.lycheeCalls).toEqual(['--config .lychee.toml **/*.md']);
   });
 
-  it('skips Gate 0 when the launcher target is not readable', () => {
-    const result = runPrePushHook({ quick: true, linkcheckReadable: false });
+  it('skips Gate 0 when the launcher target is unavailable', () => {
+    const result = runPrePushHook({ quick: true, linkcheckAvailable: false });
 
     expect(result.status).toBe(0);
     expect(result.output).toContain('[Gate 0] Link check skipped (lychee not installed)');
