@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-14 (main after PR #69 merge; 25 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88.)
+> **Last reconciled:** 2026-03-14 (main during v14.1.0 release prep; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -173,7 +173,7 @@ Archived to [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-11--compass-ii).
 
 ## Standalone Lane (Ongoing)
 
-25 active standalone items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
+26 active standalone items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
 > Completed standalone items archived in [COMPLETED.md](docs/ROADMAP/COMPLETED.md#standalone-lane--completed-items).
 
@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog still stands at 25 standalone items, and remaining P2 work starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog now stands at 26 standalone items after adding the native-vs-WASM roaring benchmark slice, and remaining P2 work still starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -243,6 +243,7 @@ No hard dependencies. Pick up opportunistically after P2.
 | B150 | ✅ **LARGE-GRAPH `transitiveReduction()` — ON-DEMAND NEIGHBOR FETCH** — reduction now fetches successors on demand and avoids the duplicate adjacency structures.                                                                                     | M          |
 | B151 | ✅ **LARGE-GRAPH `transitiveClosure()` — STREAMING OUTPUT** — `transitiveClosureStream()` now yields `{ from, to }` lazily; the array-returning closure API collects from the stream for compatibility.                                               | M          |
 | B152 | **ASYNC GENERATOR TRAVERSAL API** — streaming variants of the remaining GraphTraversal algorithms (`bfsStream()`, `dfsStream()`, etc.) returning `AsyncGenerator` instead of collected arrays. Array-returning methods become sugar over `collect()`. | —          | L      |
+| B170 | **NATIVE VS WASM ROARING BENCHMARK PACK** — design hot-path workload simulations from actual bitmap usage in `BitmapIndexBuilder`, `LogicalBitmapIndexBuilder`, `StreamingBitmapIndexBuilder`, `BitmapIndexReader`, and `IncrementalIndexUpdater`; benchmark native `roaring` under heavy-load scenarios, rerun the same workloads with `roaring-wasm`, and publish a decision memo with throughput/latency deltas and operational recommendations. | —          | M      |
 
 ### P5 — Features & Visualization
 
@@ -395,7 +396,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
 | **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
 | **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 25                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B169                                                           |
+| **Standalone**        | 26                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B169–B170                                                      |
 | **Standalone (done)** | 62                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B168 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
@@ -503,7 +504,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **25 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

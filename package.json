@@ -71,6 +71,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "overrides": {
+    "tar": "7.5.11"
+  },
   "scripts": {
     "lint": "eslint .",
     "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",

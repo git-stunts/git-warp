@@ -20,8 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Release audit override for transitive `tar`** — Added an npm `overrides` pin for `tar@7.5.11` so the published/runtime dependency tree can resolve past the `tar@<=7.5.10` high-severity advisory blocking the `v14.1.0` release audit.
 - **Content metadata review follow-ups** — `ContentMeta` and `ContentAttachmentOptions` are now exported as public type-only symbols, the consumer smoke test imports them directly, and the git-cas adapter docs now explicitly note that MIME/size hints are accepted for CRDT metadata but are not embedded in CAS manifests.
 - **Content metadata surface manifest follow-up** — the declaration contract manifest now matches the shipped API: `attachContent()` / `attachEdgeContent()` include the optional metadata parameter for both patch builders and patch sessions, and `WarpGraph` exports `getContentMeta()` / `getEdgeContentMeta()` in the tracked public surface.
+- **Backlog expanded for roaring runtime evaluation** — `ROADMAP.md` now tracks `B170`, a dedicated benchmark slice for native `roaring` versus `roaring-wasm` across the bitmap-heavy hot paths used by the index builders and readers.
 - **Roadmap reconciled after PR #69 merge** — `ROADMAP.md` now reflects the merged issue-45 content metadata work on `main`, records that the GitHub issue queue is empty, and keeps `B88` as the next tracked backlog slice.
 - **Roadmap reconciled after PR #67 / #68 merges** — `ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` now reflect the merged pre-push gate regression work (`B168`) and the current `main` baseline before the issue-45 slice branches off.
 - **Large-graph traversal memory profile** — `topologicalSort()` now has a lightweight mode that avoids retaining discovery adjacency when callers do not need it. `levels()` and `transitiveReduction()` were refactored to re-fetch neighbors on demand instead of pinning full topo adjacency in memory, reducing steady-state large-graph working sets.
