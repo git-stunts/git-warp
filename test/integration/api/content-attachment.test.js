@@ -282,6 +282,12 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
 
+    await expect(graph.getContentMeta('doc:1')).resolves.toEqual({
+      oid: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      mime: null,
+      size: null,
+    });
+
     await expect(graph.getContent('doc:1'))
       .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
   });
@@ -301,6 +307,12 @@ describe('API: Content Attachment', () => {
     await patch2.commit();
 
     await graph.materialize();
+
+    await expect(graph.getEdgeContentMeta('a', 'b', 'rel')).resolves.toEqual({
+      oid: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      mime: null,
+      size: null,
+    });
 
     await expect(graph.getEdgeContent('a', 'b', 'rel'))
       .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });

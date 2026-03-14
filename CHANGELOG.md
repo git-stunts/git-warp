@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Content attachment metadata API** — `attachContent()` and `attachEdgeContent()` now accept optional `{ mime, size }` metadata hints, persist byte size alongside the `_content` OID, and expose `getContentMeta()` / `getEdgeContentMeta()` for structured `{ oid, mime, size }` reads without manual `_content.*` property handling.
+- **Content attachment metadata API** — `attachContent()` and `attachEdgeContent()` now accept optional `{ mime, size }` metadata hints, persist logical content byte size alongside the `_content` OID, and expose `getContentMeta()` / `getEdgeContentMeta()` for structured `{ oid, mime, size }` reads without manual `_content.*` property handling. Metadata reads stay aligned with the current `_content` attachment instead of inheriting stale sibling props from later manual rewrites.
 - **Streaming transitive closure traversal** — Added `transitiveClosureStream()` to the traversal stack so callers can consume reachability edges lazily as an `AsyncGenerator<{ from, to }>` without materializing the full closure array. The existing `transitiveClosure()` API remains and now collects from the stream for backward compatibility.
 - **First-class sync trust configuration** — `WarpGraph.open({ trust })` and `graph.syncWith(..., { trust })` now expose an explicit public trust-config surface for sync evaluation instead of relying on hidden controller wiring alone.
 - **Fluent `WarpStateV5` test builder** — Added `createStateBuilder()` in `test/helpers/stateBuilder.js` so state-heavy tests can seed nodes, edges, removals, properties, frontier state, and graph materialization through one fluent helper instead of ad hoc OR-Set/LWW mutation.

@@ -467,7 +467,7 @@ await patch.commit();
 const buffer = await graph.getContent('adr:0007');   // Uint8Array | null
 const oid    = await graph.getContentOid('adr:0007'); // hex SHA or null
 const meta   = await graph.getContentMeta('adr:0007');
-// { oid: 'abc123...', mime: 'text/markdown', size: 26 }
+// { oid: 'abc123...', mime: 'text/markdown', size: 28 }
 
 // Edge content works the same way (assumes nodes and edge already exist)
 const patch2 = await graph.createPatch();
@@ -479,7 +479,7 @@ const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 const edgeMeta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 ```
 
-Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable. `attachContent()` / `attachEdgeContent()` also persist byte-size metadata automatically and will store a MIME hint when provided. Historical attachments created before metadata support may still return `mime: null` / `size: null` from the metadata APIs until they are rewritten. If a live `_content` reference points at a missing blob anyway (for example due to manual corruption), `getContent()` / `getEdgeContent()` throw instead of silently returning empty bytes.
+Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable. `attachContent()` / `attachEdgeContent()` also persist logical content byte-size metadata automatically and will store a MIME hint when provided. Historical attachments created before metadata support, or later manual `_content` rewrites that bypass the attachment helpers, may still return `mime: null` / `size: null` from the metadata APIs until they are re-attached through the metadata-aware APIs. If a live `_content` reference points at a missing blob anyway (for example due to manual corruption), `getContent()` / `getEdgeContent()` throw instead of silently returning empty bytes.
 
 ### Writer API
 

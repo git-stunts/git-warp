@@ -399,7 +399,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Standalone (done)** | 62                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B168 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
-| **Total tracked**     | **146** total; 61 standalone done |                                                                                                                                                                                     |
+| **Total tracked**     | **146** total; 62 standalone done |                                                                                                                                                                                     |
 
 ### STANK.md Cross-Reference
 

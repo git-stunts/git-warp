@@ -121,7 +121,7 @@ const edgeMeta = await graph.getEdgeContentMeta('a', 'b', 'rel');
 `getContent()` returns raw `Uint8Array` bytes. Consumers wanting text should decode with `new TextDecoder().decode(buffer)`.
 If `_content` points at a missing blob OID, `getContent()` throws instead of silently returning empty bytes.
 `getEdgeContent()` has the same byte-decoding and missing-blob semantics for edge `_content` references.
-`getContentMeta()` / `getEdgeContentMeta()` return `{ oid, mime, size }` when metadata exists, or `null` when no attachment exists. Historical attachments created before metadata support may still surface `mime: null` / `size: null`.
+`getContentMeta()` / `getEdgeContentMeta()` return `{ oid, mime, size }` when metadata exists, or `null` when no attachment exists. Historical attachments created before metadata support, or later manual `_content` rewrites that bypass the attachment helpers, may still surface `mime: null` / `size: null`.
 
 #### Constant
 
@@ -132,15 +132,15 @@ import { CONTENT_PROPERTY_KEY } from '@git-stunts/git-warp';
 
 ### 3.4 Content Metadata
 
-git-warp stores content metadata in sibling system properties alongside the `_content` reference:
+git-warp stores logical attachment metadata in sibling system properties alongside the `_content` reference:
 
 | Property | Purpose | Example |
 |---|---|---|
 | `_content` | CAS blob SHA (required) | `"a1b2c3d4..."` |
-| `_content.size` | Byte length | `4096` |
+| `_content.size` | Logical content byte length | `4096` |
 | `_content.mime` | MIME type hint | `"text/markdown"` |
 
-`attachContent()` / `attachEdgeContent()` always persist `_content.size` from the actual encoded byte length. If callers provide `{ mime }`, the MIME hint is stored in `_content.mime`; otherwise the metadata API returns `mime: null`.
+`attachContent()` / `attachEdgeContent()` always persist `_content.size` from the actual encoded byte length. If callers provide `{ mime }`, the MIME hint is stored in `_content.mime`; otherwise the metadata API returns `mime: null`. The read APIs only surface `_content.mime` / `_content.size` when they belong to the current `_content` attachment lineage, so a later manual `_content` rewrite does not inherit stale metadata from an older blob reference.
 
 ---
 

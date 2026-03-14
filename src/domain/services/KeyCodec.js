@@ -27,14 +27,14 @@ export const CONTENT_PROPERTY_KEY = '_content';
 
 /**
  * Well-known property key for attached content MIME metadata.
- * Stores a MIME type hint for the blob referenced by `_content`.
+ * Stores a MIME type hint for the attached logical content referenced by `_content`.
  * @const {string}
  */
 export const CONTENT_MIME_PROPERTY_KEY = '_content.mime';
 
 /**
  * Well-known property key for attached content byte-size metadata.
- * Stores the byte length of the blob referenced by `_content`.
+ * Stores the byte length of the attached logical content referenced by `_content`.
  * @const {string}
  */
 export const CONTENT_SIZE_PROPERTY_KEY = '_content.size';

@@ -23,6 +23,15 @@ function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {a
   state.edgeBirthEvent.set(edgeKey, { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 });
 }
 
+function attachmentEvent(
+  /** @type {number} */ opIndex,
+  /** @type {string} */ patchSha = 'aabbccdd',
+  /** @type {number} */ lamport = 2,
+  /** @type {string} */ writerId = 'w1',
+) {
+  return { lamport, writerId, patchSha, opIndex };
+}
+
 describe('WarpGraph content attachment (query methods)', () => {
   /** @type {any} */
   let mockPersistence;
@@ -90,9 +99,9 @@ describe('WarpGraph content attachment (query methods)', () => {
     it('returns structured metadata for a node attachment', async () => {
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
-        state.prop.set(encodePropKey('doc:1', '_content'), { eventId: null, value: 'abc123' });
-        state.prop.set(encodePropKey('doc:1', '_content.mime'), { eventId: null, value: 'text/markdown' });
-        state.prop.set(encodePropKey('doc:1', '_content.size'), { eventId: null, value: 42 });
+        state.prop.set(encodePropKey('doc:1', '_content'), { eventId: attachmentEvent(0), value: 'abc123' });
+        state.prop.set(encodePropKey('doc:1', '_content.mime'), { eventId: attachmentEvent(1), value: 'text/markdown' });
+        state.prop.set(encodePropKey('doc:1', '_content.size'), { eventId: attachmentEvent(2), value: 42 });
       });
 
       const meta = await graph.getContentMeta('doc:1');
@@ -101,6 +110,32 @@ describe('WarpGraph content attachment (query methods)', () => {
         oid: 'abc123',
         mime: 'text/markdown',
         size: 42,
+      });
+    });
+
+    it('ignores stale metadata when _content is rewritten later', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+        state.prop.set(encodePropKey('doc:1', '_content'), {
+          eventId: attachmentEvent(0, 'feedbabe', 3),
+          value: 'new456',
+        });
+        state.prop.set(encodePropKey('doc:1', '_content.mime'), {
+          eventId: attachmentEvent(1, 'aabbccdd', 2),
+          value: 'text/markdown',
+        });
+        state.prop.set(encodePropKey('doc:1', '_content.size'), {
+          eventId: attachmentEvent(2, 'aabbccdd', 2),
+          value: 42,
+        });
+      });
+
+      const meta = await graph.getContentMeta('doc:1');
+
+      expect(meta).toEqual({
+        oid: 'new456',
+        mime: null,
+        size: null,
       });
     });
 
@@ -317,15 +352,15 @@ describe('WarpGraph content attachment (query methods)', () => {
         addNode(state, 'b', 2);
         addEdge(state, 'a', 'b', 'rel', 3);
         state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content'), {
-          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
+          eventId: attachmentEvent(0),
           value: 'def456',
         });
         state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content.mime'), {
-          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 1 },
+          eventId: attachmentEvent(1),
           value: 'application/octet-stream',
         });
         state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content.size'), {
-          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 2 },
+          eventId: attachmentEvent(2),
           value: 6,
         });
       });
@@ -336,6 +371,34 @@ describe('WarpGraph content attachment (query methods)', () => {
         oid: 'def456',
         mime: 'application/octet-stream',
         size: 6,
+      });
+    });
+
+    it('ignores stale edge metadata when _content is rewritten later', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+        state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content'), {
+          eventId: attachmentEvent(0, 'feedbabe', 3),
+          value: 'new-edge-oid',
+        });
+        state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content.mime'), {
+          eventId: attachmentEvent(1),
+          value: 'application/octet-stream',
+        });
+        state.prop.set(encodeEdgePropKey('a', 'b', 'rel', '_content.size'), {
+          eventId: attachmentEvent(2),
+          value: 6,
+        });
+      });
+
+      const meta = await graph.getEdgeContentMeta('a', 'b', 'rel');
+
+      expect(meta).toEqual({
+        oid: 'new-edge-oid',
+        mime: null,
+        size: null,
       });
     });
 
