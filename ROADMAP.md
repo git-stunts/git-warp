@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
 > **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-13 (main after PR #67 / #68 merges; 25 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, and the missing-content blob error hardening)
+> **Last reconciled:** 2026-03-14 (main after PR #69 merge; 25 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. Remaining P2 work starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog still stands at 25 standalone items, and remaining P2 work starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -503,7 +503,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **25 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **25 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).
