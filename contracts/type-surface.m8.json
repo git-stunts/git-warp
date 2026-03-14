@@ -246,6 +246,11 @@
             {
               "name": "content",
               "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
             }
           ],
           "returns": "Promise<PatchBuilderV2>"
@@ -268,6 +273,11 @@
             {
               "name": "content",
               "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
             }
           ],
           "returns": "Promise<PatchBuilderV2>"
@@ -399,6 +409,11 @@
             {
               "name": "content",
               "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
             }
           ],
           "returns": "Promise<this>"
@@ -421,6 +436,11 @@
             {
               "name": "content",
               "type": "Buffer | string"
+            },
+            {
+              "name": "metadata",
+              "type": "ContentAttachmentOptions",
+              "optional": true
             }
           ],
           "returns": "Promise<this>"
@@ -694,6 +714,16 @@
           ],
           "returns": "Promise<Buffer | null>"
         },
+        "getContentMeta": {
+          "async": true,
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "Promise<ContentMeta | null>"
+        },
         "getEdgeContentOid": {
           "async": true,
           "params": [
@@ -729,6 +759,24 @@
             }
           ],
           "returns": "Promise<Buffer | null>"
+        },
+        "getEdgeContentMeta": {
+          "async": true,
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "Promise<ContentMeta | null>"
         },
         "neighbors": {
           "async": true,
