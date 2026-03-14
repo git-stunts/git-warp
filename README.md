@@ -11,13 +11,13 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.0.0
+## What's New in v14.1.0
 
-- **BREAKING: Uint8Array migration** — All domain-layer and port contract types narrowed from `Buffer|Uint8Array` to `Uint8Array`. Buffer is now confined to infrastructure adapters. Downstream TypeScript consumers using Buffer-specific APIs on return values must migrate to `hexEncode()`/`textDecode()` from `domain/utils/bytes.js`.
-- **`git warp serve`** — New CLI command starts a WebSocket server exposing graph(s) for browser-based viewing and mutation. Auto-detects runtime (Node/Bun/Deno), supports `--static <dir>` for serving a built SPA, and requires `--expose` for non-loopback binds.
-- **Graph encryption at rest** — New `patchBlobStorage` option on `WarpGraph.open()` enables AES-256-GCM encryption of patch CBOR via `CasBlobAdapter`. Mixed encrypted and unencrypted patches are fully supported.
-- **Blob attachments via CAS** — `BlobStoragePort` and `CasBlobAdapter` provide CDC-chunked, optionally encrypted content blob storage with automatic fallback to raw Git blobs for backward compatibility.
-- **`@git-stunts/git-cas` v5.3.0** — Memory restore guards, constructor validation, FixedChunker O(n) optimization, and CasError portability for non-V8 runtimes.
+- **Content attachment metadata** — `attachContent()` and `attachEdgeContent()` now accept optional `{ mime, size }` metadata, and `getContentMeta()` / `getEdgeContentMeta()` expose structured `{ oid, mime, size }` reads.
+- **Explicit sync trust configuration** — `WarpGraph.open({ trust })` and `graph.syncWith(..., { trust })` now provide a public trust-config surface instead of relying on hidden sync-controller wiring.
+- **Missing-content reads now fail correctly** — Corrupted `_content` references now throw `PersistenceError(E_MISSING_OBJECT)` instead of reading back as empty bytes.
+- **Serve payload parity for edge properties** — Browser/WebSocket state payloads now include edge properties, so served graph views no longer drop part of the graph model.
+- **Streaming transitive closure** — `transitiveClosureStream()` lets callers consume reachability edges lazily without materializing the full closure array up front.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
