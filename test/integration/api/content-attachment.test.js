@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import { createTestRepo } from './helpers/setup.js';
+import PersistenceError from '../../../src/domain/errors/PersistenceError.js';
 
 describe('API: Content Attachment', () => {
   /** @type {any} */
@@ -222,5 +223,45 @@ describe('API: Content Attachment', () => {
     expect(content).not.toBeNull();
     expect(content).toBeInstanceOf(Uint8Array);
     expect(content).toEqual(binary);
+  });
+
+  it('throws when _content points at a missing blob OID', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+
+    const patch = await graph.createPatch();
+    patch.addNode('doc:1');
+    await patch.attachContent('doc:1', 'hello');
+    await patch.commit();
+
+    await graph.materialize();
+
+    const patch2 = await graph.createPatch();
+    patch2.setProperty('doc:1', '_content', 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef');
+    await patch2.commit();
+
+    await graph.materialize();
+
+    await expect(graph.getContent('doc:1'))
+      .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
+  });
+
+  it('throws when edge _content points at a missing blob OID', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+
+    const patch = await graph.createPatch();
+    patch.addNode('a').addNode('b').addEdge('a', 'b', 'rel');
+    await patch.attachEdgeContent('a', 'b', 'rel', 'edge payload');
+    await patch.commit();
+
+    await graph.materialize();
+
+    const patch2 = await graph.createPatch();
+    patch2.setEdgeProperty('a', 'b', 'rel', '_content', 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef');
+    await patch2.commit();
+
+    await graph.materialize();
+
+    await expect(graph.getEdgeContent('a', 'b', 'rel'))
+      .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
   });
 });

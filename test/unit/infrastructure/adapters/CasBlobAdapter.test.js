@@ -33,6 +33,9 @@ const { default: CasBlobAdapter } = await import(
 const { default: BlobStoragePort } = await import(
   '../../../../src/ports/BlobStoragePort.js'
 );
+const { default: PersistenceError } = await import(
+  '../../../../src/domain/errors/PersistenceError.js'
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -284,7 +287,7 @@ describe('CasBlobAdapter', () => {
       expect(persistence.readBlob).toHaveBeenCalledWith('missing-oid');
     });
 
-    it('throws descriptive error when legacy fallback readBlob returns null', async () => {
+    it('throws E_MISSING_OBJECT when legacy fallback readBlob returns null', async () => {
       const persistence = makePersistence();
       persistence.readBlob.mockResolvedValue(null);
       const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
@@ -295,9 +298,11 @@ describe('CasBlobAdapter', () => {
         persistence,
       });
 
-      await expect(adapter.retrieve('ghost-oid')).rejects.toThrow(
-        'Blob not found: OID "ghost-oid" is neither a CAS manifest nor a readable Git blob',
-      );
+      await expect(adapter.retrieve('ghost-oid'))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: 'Missing Git object: ghost-oid',
+        });
       expect(persistence.readBlob).toHaveBeenCalledWith('ghost-oid');
     });
 

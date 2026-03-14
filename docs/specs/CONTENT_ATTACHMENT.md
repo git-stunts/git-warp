@@ -104,7 +104,7 @@ Both methods are async (they call `writeBlob()` internally) and return the build
 #### Read API (WarpGraph)
 
 ```javascript
-const buffer = await graph.getContent('adr:0007');   // Buffer | null
+const buffer = await graph.getContent('adr:0007');   // Uint8Array | null
 const oid    = await graph.getContentOid('adr:0007'); // string | null
 
 // Edge content
@@ -112,7 +112,9 @@ const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 const edgeOid = await graph.getEdgeContentOid('a', 'b', 'rel');
 ```
 
-`getContent()` returns a raw `Buffer`. Consumers wanting text call `.toString('utf8')`.
+`getContent()` returns raw `Uint8Array` bytes. Consumers wanting text should decode with `new TextDecoder().decode(buffer)`.
+If `_content` points at a missing blob OID, `getContent()` throws instead of silently returning empty bytes.
+`getEdgeContent()` has the same byte-decoding and missing-blob semantics for edge `_content` references.
 
 #### Constant
 

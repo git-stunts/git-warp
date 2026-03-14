@@ -4,6 +4,7 @@ import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../s
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
+import PersistenceError from '../../../src/domain/errors/PersistenceError.js';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyStateV5();
@@ -156,6 +157,29 @@ describe('WarpGraph content attachment (query methods)', () => {
       expect(content).toEqual(rawBuf);
       expect(mockPersistence.readBlob).toHaveBeenCalledWith('raw-oid');
     });
+
+    it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockRejectedValue(
+          new PersistenceError(
+            'Missing Git object: cas-tree-oid',
+            PersistenceError.E_MISSING_OBJECT,
+            { context: { oid: 'cas-tree-oid' } },
+          ),
+        ),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+        const propKey = encodePropKey('doc:1', '_content');
+        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+      });
+
+      await expect(graph.getContent('doc:1'))
+        .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
+    });
   });
 
   describe('getEdgeContent() with blobStorage', () => {
@@ -180,6 +204,34 @@ describe('WarpGraph content attachment (query methods)', () => {
       expect(content).toEqual(casBuf);
       expect(blobStorage.retrieve).toHaveBeenCalledWith('cas-edge-oid');
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
+    });
+
+    it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockRejectedValue(
+          new PersistenceError(
+            'Missing Git object: cas-edge-oid',
+            PersistenceError.E_MISSING_OBJECT,
+            { context: { oid: 'cas-edge-oid' } },
+          ),
+        ),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+        const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
+        state.prop.set(propKey, {
+          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
+          value: 'cas-edge-oid',
+        });
+      });
+
+      await expect(graph.getEdgeContent('a', 'b', 'rel'))
+        .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
     });
   });
 

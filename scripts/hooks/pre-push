@@ -14,6 +14,32 @@ if [ -z "$ROOT" ]; then
 fi
 cd "$ROOT"
 
+command_exists() {
+  launcher="$1"
+  cmd="$2"
+  if [ -n "$launcher" ]; then
+    command -v "$launcher" >/dev/null 2>&1 && [ -f "$cmd" ] && [ -r "$cmd" ]
+  else
+    command -v "$cmd" >/dev/null 2>&1
+  fi
+}
+
+run_tool() {
+  launcher="$1"
+  cmd="$2"
+  shift 2
+  if [ -n "$launcher" ]; then
+    "$launcher" "$cmd" "$@"
+  else
+    "$cmd" "$@"
+  fi
+}
+
+NPM_BIN="${WARP_NPM_BIN:-npm}"
+NPM_LAUNCHER="${WARP_NPM_LAUNCHER:-}"
+LINKCHECK_BIN="${WARP_LINKCHECK_BIN:-lychee}"
+LINKCHECK_LAUNCHER="${WARP_LINKCHECK_LAUNCHER:-}"
+
 # ── Quick mode: skip unit tests when WARP_QUICK_PUSH=1 or true ──────────
 QUICK=0
 if [ "$WARP_QUICK_PUSH" = "1" ] || [ "$WARP_QUICK_PUSH" = "true" ]; then
@@ -26,9 +52,9 @@ echo "  IRONCLAD M9 — pre-push type firewall"
 echo "══════════════════════════════════════════════════════════"
 
 # ── Link check (optional) ──────────────────────────────────────────────────
-if command -v lychee >/dev/null 2>&1; then
+if command_exists "$LINKCHECK_LAUNCHER" "$LINKCHECK_BIN"; then
   echo "[Gate 0] Link check..."
-  lychee --config .lychee.toml '**/*.md'
+  run_tool "$LINKCHECK_LAUNCHER" "$LINKCHECK_BIN" --config .lychee.toml '**/*.md'
 else
   echo "[Gate 0] Link check skipped (lychee not installed)"
 fi
@@ -36,19 +62,19 @@ fi
 # ── Gates 1-7 in parallel (all are read-only) ─────────────────────────────
 echo "[Gates 1-7] Running lint + typecheck + policy + consumer type test + surface validator + markdown gates..."
 
-npm run lint &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint &
 LINT_PID=$!
-npm run typecheck &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck &
 TC_PID=$!
-npm run typecheck:policy &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:policy &
 POLICY_PID=$!
-npm run typecheck:consumer &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:consumer &
 CONSUMER_PID=$!
-npm run typecheck:surface &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run typecheck:surface &
 SURFACE_PID=$!
-npm run lint:md &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md &
 MD_PID=$!
-npm run lint:md:code &
+run_tool "$NPM_LAUNCHER" "$NPM_BIN" run lint:md:code &
 MD_CODE_PID=$!
 
 wait $LINT_PID    || { echo ""; echo "BLOCKED — Gate 4 FAILED: ESLint (includes no-explicit-any, no-unsafe-*)"; exit 1; }
@@ -66,7 +92,7 @@ if [ "$QUICK" = "1" ]; then
   echo "[Gate 8] Skipped (WARP_QUICK_PUSH quick mode)"
 else
   echo "[Gate 8] Running unit tests..."
-  npm run test:local || { echo ""; echo "BLOCKED — Gate 8 FAILED: Unit tests"; exit 1; }
+  run_tool "$NPM_LAUNCHER" "$NPM_BIN" run test:local || { echo ""; echo "BLOCKED — Gate 8 FAILED: Unit tests"; exit 1; }
 fi
 
 echo "══════════════════════════════════════════════════════════"

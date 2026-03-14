@@ -13,6 +13,7 @@
  */
 
 import BlobStoragePort from '../../ports/BlobStoragePort.js';
+import PersistenceError from '../../domain/errors/PersistenceError.js';
 import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { Readable } from 'node:stream';
@@ -148,8 +149,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
       }
       const blob = await this._persistence.readBlob(oid);
       if (blob === null || blob === undefined) {
-        throw new Error(
-          `Blob not found: OID "${oid}" is neither a CAS manifest nor a readable Git blob`,
+        throw new PersistenceError(
+          `Missing Git object: ${oid}`,
+          PersistenceError.E_MISSING_OBJECT,
+          { context: { oid } },
         );
       }
       return blob;

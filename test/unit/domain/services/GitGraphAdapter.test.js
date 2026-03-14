@@ -2,6 +2,83 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
 
 describe('GitGraphAdapter', () => {
+  describe('readBlob()', () => {
+    /** @type {any} */
+    let mockPlumbing;
+    /** @type {any} */
+    let adapter;
+
+    beforeEach(() => {
+      mockPlumbing = {
+        emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+        execute: vi.fn(),
+        executeStream: vi.fn(),
+      };
+      adapter = new GitGraphAdapter({ plumbing: mockPlumbing });
+    });
+
+    it('throws E_MISSING_OBJECT when blob stream is empty and object does not exist', async () => {
+      mockPlumbing.executeStream.mockResolvedValue({
+        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
+      });
+      const err = /** @type {any} */ (new Error('fatal: bad object deadbeef'));
+      err.details = { code: 128, stderr: 'fatal: bad object deadbeef' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readBlob('deadbeef'))
+        .rejects.toMatchObject({
+          code: 'E_MISSING_OBJECT',
+          message: 'Missing Git object: deadbeef',
+        });
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-e', 'deadbeef'],
+      });
+    });
+
+    it('throws E_MISSING_OBJECT for ambiguous exit-1 empty-read failures', async () => {
+      mockPlumbing.executeStream.mockResolvedValue({
+        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
+      });
+      const err = /** @type {any} */ (new Error('Git command failed with code 1'));
+      err.name = 'GitPlumbingError';
+      err.details = { code: 1, stderr: '', stdout: '' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readBlob('deadbeef'))
+        .rejects.toMatchObject({
+          code: 'E_MISSING_OBJECT',
+          message: 'Missing Git object: deadbeef',
+        });
+    });
+
+    it('rethrows unrelated exit-128 errors from the existence check', async () => {
+      mockPlumbing.executeStream.mockResolvedValue({
+        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
+      });
+      const err = /** @type {any} */ (new Error('fatal: not a git repository'));
+      err.details = { code: 128, stderr: 'fatal: not a git repository (or any of the parent directories): .git' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readBlob('deadbeef'))
+        .rejects.toBe(err);
+    });
+
+    it('returns empty blob bytes when the object exists', async () => {
+      mockPlumbing.executeStream.mockResolvedValue({
+        collect: vi.fn().mockResolvedValue(Buffer.alloc(0)),
+      });
+      mockPlumbing.execute.mockResolvedValue('');
+
+      const result = await adapter.readBlob('abcd');
+
+      expect(result).toEqual(Buffer.alloc(0));
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['cat-file', '-e', 'abcd'],
+      });
+    });
+  });
+
   describe('getNodeInfo()', () => {
     /** @type {any} */
     let mockPlumbing;

@@ -462,7 +462,7 @@ await patch.attachContent('adr:0007', '# ADR 0007\n\nDecision text...'); // asyn
 await patch.commit();
 
 // Read content back
-const buffer = await graph.getContent('adr:0007');   // Buffer | null
+const buffer = await graph.getContent('adr:0007');   // Uint8Array | null
 const oid    = await graph.getContentOid('adr:0007'); // hex SHA or null
 
 // Edge content works the same way (assumes nodes and edge already exist)
@@ -472,7 +472,7 @@ await patch2.commit();
 const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 ```
 
-Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable.
+Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable. If a live `_content` reference points at a missing blob anyway (for example due to manual corruption), `getContent()` / `getEdgeContent()` throw instead of silently returning empty bytes.
 
 ### Writer API
 

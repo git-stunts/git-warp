@@ -76,7 +76,7 @@ const TRANSIENT_ERROR_PATTERNS = [
 ];
 
 /**
- * @typedef {Error & { details?: { stderr?: string, code?: number }, exitCode?: number, code?: number }} GitError
+ * @typedef {Error & { details?: { stderr?: string, stdout?: string, code?: number }, exitCode?: number, code?: number }} GitError
  */
 
 /**
@@ -183,6 +183,19 @@ function errorSearchText(err) {
   const message = (err.message || '').toLowerCase();
   const stderr = (err.details?.stderr || '').toLowerCase();
   return `${message} ${stderr}`;
+}
+
+/**
+ * Returns stderr/stdout diagnostic text from a Git error, ignoring wrapper
+ * messages like "Git command failed with code 1" that do not carry object
+ * lookup semantics on their own.
+ * @param {GitError} err
+ * @returns {string}
+ */
+function gitDiagnosticText(err) {
+  const stderr = String(err?.details?.stderr || '');
+  const stdout = String(err?.details?.stdout || '');
+  return `${stderr} ${stdout}`.trim().toLowerCase();
 }
 
 /**
@@ -356,6 +369,35 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async _executeWithRetry(options) {
     return await retry(() => this.plumbing.execute(options), this._retryOptions);
+  }
+
+  /**
+   * Distinguishes a legitimate zero-byte blob from a missing object when a
+   * blob stream returns no bytes. Some plumbing implementations surface the
+   * missing object case as an empty collect result instead of throwing.
+   *
+   * @param {string} oid
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _assertBlobExistsForEmptyRead(oid) {
+    try {
+      await this._executeWithRetry({ args: ['cat-file', '-e', oid] });
+    } catch (err) {
+      const gitErr = /** @type {GitError} */ (err);
+      const wrapped = wrapGitError(gitErr, { oid });
+      const exitCode = getExitCode(gitErr);
+      const diagnostics = gitDiagnosticText(gitErr);
+      const ambiguousMissingObject = exitCode === 1 && diagnostics === '';
+      if (wrapped === gitErr && ambiguousMissingObject) {
+        throw new PersistenceError(
+          `Missing Git object: ${oid}`,
+          PersistenceError.E_MISSING_OBJECT,
+          { cause: /** @type {Error} */ (gitErr), context: { oid } },
+        );
+      }
+      throw wrapped;
+    }
   }
 
   /**
@@ -651,6 +693,12 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         args: ['cat-file', 'blob', oid]
       });
       const raw = await stream.collect({ asString: false });
+      // Some executeStream implementations can surface a missing object as an
+      // empty collect result instead of throwing. Distinguish that from a real
+      // zero-byte blob with an explicit existence check.
+      if (raw.length === 0) {
+        await this._assertBlobExistsForEmptyRead(oid);
+      }
       // Return as-is — plumbing returns Buffer (which IS-A Uint8Array)
       return /** @type {Uint8Array} */ (raw);
     } catch (err) {
