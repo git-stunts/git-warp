@@ -21,12 +21,12 @@ jobs:
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
       npm_dist_tag: ${{ steps.meta.outputs.npm_dist_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -135,12 +135,12 @@ jobs:
       package_name: ${{ steps.pkg.outputs.name }}
       version: ${{ steps.pkg.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -158,7 +158,23 @@ jobs:
           echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Skip if npm version already exists
+        id: npm_exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="${{ steps.pkg.outputs.name }}"
+          VERSION="${{ steps.pkg.outputs.version }}"
+
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "::warning::npm version ${PACKAGE}@${VERSION} already exists; skipping immutable publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish npm (retry x3)
+        if: ${{ steps.npm_exists.outputs.skip != 'true' }}
         uses: ./.github/actions/retry
         with:
           attempts: "3"
@@ -175,12 +191,12 @@ jobs:
     environment: jsr
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -188,7 +204,46 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Read JSR metadata
+        id: jsr_pkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=$(node -p "require('./jsr.json').name")
+          VERSION=$(node -p "require('./jsr.json').version")
+          NPM_NAME=$(node - <<'NODE'
+          const name = require('./jsr.json').name;
+          if (!name.startsWith('@')) {
+            throw new Error(`Unsupported unscoped JSR package name: ${name}`);
+          }
+          const [scope, pkg] = name.slice(1).split('/');
+          if (!scope || !pkg) {
+            throw new Error(`Unsupported JSR package name: ${name}`);
+          }
+          process.stdout.write(`@jsr/${scope}__${pkg}`);
+          NODE
+          )
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "npm_name=$NPM_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if JSR version already exists
+        id: jsr_exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="${{ steps.jsr_pkg.outputs.npm_name }}"
+          VERSION="${{ steps.jsr_pkg.outputs.version }}"
+
+          if npm view "${PACKAGE}@${VERSION}" version --registry=https://npm.jsr.io >/dev/null 2>&1; then
+            echo "::warning::JSR version ${{ steps.jsr_pkg.outputs.name }}@${VERSION} already exists; skipping immutable publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish JSR (retry x3)
+        if: ${{ steps.jsr_exists.outputs.skip != 'true' }}
         uses: ./.github/actions/retry
         with:
           attempts: "3"
@@ -220,13 +275,24 @@ jobs:
           EOF
 
       - name: Create / update release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.verify.outputs.tag }}
-          prerelease: ${{ needs.verify.outputs.is_prerelease == 'true' }}
-          generate_release_notes: true
-          append_body: true
-          body_path: RELEASE_SUMMARY.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::warning::GitHub Release $TAG already exists; skipping immutable release update."
+          else
+            SUMMARY=$(cat RELEASE_SUMMARY.md)
+            args=(release create "$TAG" --generate-notes --notes "$SUMMARY")
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh "${args[@]}"
+          fi
 
       - name: Fail if both registries failed
         if: ${{ needs.publish_npm.result != 'success' && needs.publish_jsr.result != 'success' }}

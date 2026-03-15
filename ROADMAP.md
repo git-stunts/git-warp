@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-14 (main during v14.1.0 release prep; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
+> **Current version:** v14.1.0
+> **Last reconciled:** 2026-03-15 (main after the v14.1.0 release; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
