@@ -109,7 +109,8 @@ fi
 
 # ── 9. Pack dry-runs ─────────────────────────────────────────────────────────
 echo "Pack:"
-if npm pack --dry-run 2>&1 | grep -q "total files"; then
+PACK_OUTPUT=$(npm pack --dry-run 2>&1 || true)
+if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
   pass "npm pack dry-run"
 else
   fail "npm pack dry-run failed"
