@@ -18,9 +18,9 @@ jobs:
   type-firewall:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -49,20 +49,20 @@ jobs:
       matrix:
         node: [22]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run unit + integration tests
         run: docker compose -f docker-compose.test.yml run --rm test-node${{ matrix.node }}
 
   test-bun:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run Bun integration tests
         run: docker compose -f docker-compose.test.yml run --rm test-bun
 
   test-deno:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run Deno integration tests
         run: docker compose -f docker-compose.test.yml run --rm test-deno

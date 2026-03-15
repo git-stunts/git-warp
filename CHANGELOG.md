@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **GitHub Actions runtime refresh** — Workflow actions now use Node-24-capable majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/github-script@v8`), while the repo jobs themselves continue to run on Node 22. The release workflow also now creates or updates GitHub Releases through the `gh` CLI instead of the Node-20-only `softprops/action-gh-release` action.
+
 ## [14.1.0] — 2026-03-14
 
 ### Added

@@ -1,7 +1,7 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current version:** v14.0.0
-> **Last reconciled:** 2026-03-14 (main during v14.1.0 release prep; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
+> **Current version:** v14.1.0
+> **Last reconciled:** 2026-03-15 (main after the v14.1.0 release and a GitHub Actions runtime refresh; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, the issue-45 content metadata API, and the Node-24-capable GitHub Actions major-version bump. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -204,7 +204,7 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 
 ### P2 — CI & Tooling (one batch PR)
 
-`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog now stands at 26 standalone items after adding the native-vs-WASM roaring benchmark slice, and remaining P2 work still starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
+`B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, the hook's gate labels/quick-mode messaging now have dedicated regression coverage, and the GitHub workflow actions have been refreshed onto Node-24-capable major versions while keeping the repo runtime line on Node 22. The tracked backlog now stands at 26 standalone items after adding the native-vs-WASM roaring benchmark slice, and remaining P2 work still starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
 
 | ID   | Item                                                                                                                                                                                                                                                                                                                                 | Depends on | Effort |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------ |
@@ -504,7 +504,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
+The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, the GitHub Actions runtime refresh is merged on `main`, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
 `BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).

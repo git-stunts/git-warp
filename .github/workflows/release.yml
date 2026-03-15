@@ -21,12 +21,12 @@ jobs:
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
       npm_dist_tag: ${{ steps.meta.outputs.npm_dist_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -135,12 +135,12 @@ jobs:
       package_name: ${{ steps.pkg.outputs.name }}
       version: ${{ steps.pkg.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -175,12 +175,12 @@ jobs:
     environment: jsr
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -220,13 +220,36 @@ jobs:
           EOF
 
       - name: Create / update release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.verify.outputs.tag }}
-          prerelease: ${{ needs.verify.outputs.is_prerelease == 'true' }}
-          generate_release_notes: true
-          append_body: true
-          body_path: RELEASE_SUMMARY.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            EXISTING_BODY=$(mktemp)
+            RELEASE_BODY=$(mktemp)
+
+            gh release view "$TAG" --json body --jq '.body' > "$EXISTING_BODY"
+
+            if grep -q '^## Registry publish summary$' "$EXISTING_BODY"; then
+              cp "$EXISTING_BODY" "$RELEASE_BODY"
+            else
+              cat "$EXISTING_BODY" > "$RELEASE_BODY"
+              printf '\n\n' >> "$RELEASE_BODY"
+              cat RELEASE_SUMMARY.md >> "$RELEASE_BODY"
+            fi
+
+            gh release edit "$TAG" --notes-file "$RELEASE_BODY"
+          else
+            args=(release create "$TAG" --generate-notes --notes-file RELEASE_SUMMARY.md)
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh "${args[@]}"
+          fi
 
       - name: Fail if both registries failed
         if: ${{ needs.publish_npm.result != 'success' && needs.publish_jsr.result != 'success' }}
