@@ -27,6 +27,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{ type: string, node?: string, from?: string, to?: string, label?: string, key?: string, value?: unknown }} PatchOp
  * @typedef {{ graph: string, sha: string, writer: string, lamport: number, schema?: number, ops: PatchOp[] }} PatchShowPayload
  * @typedef {{ graph: string, total: number, showing: number, writerFilter?: string | null, entries: Array<{ sha: string, writer: string, lamport: number, opCount: number, nodeIds: string[] }> }} PatchListPayload
+ * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts' }} DebugConflictsPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -666,6 +667,87 @@ export function renderPatchList(payload) {
   for (const entry of payload.entries) {
     const nodes = entry.nodeIds.length > 0 ? ` [${entry.nodeIds.join(', ')}]` : '';
     lines.push(`  ${entry.sha}  L${String(entry.lamport).padStart(3)}  ${entry.writer.padEnd(20)}  ${entry.opCount} ops${nodes}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+// ── Debug renderer ───────────────────────────────────────────────────────────
+
+/**
+ * @param {import('../../index.js').ConflictAnchor} anchor
+ * @returns {string}
+ */
+function formatConflictAnchor(anchor) {
+  return `${anchor.writerId}@L${anchor.lamport} op#${anchor.opIndex} ${anchor.patchSha.slice(0, 7)}`;
+}
+
+/**
+ * @param {import('../../index.js').ConflictTarget} target
+ * @returns {string}
+ */
+function formatConflictTarget(target) {
+  if (target.targetKind === 'node') {
+    return target.entityId || target.targetDigest;
+  }
+  if (target.targetKind === 'node_property') {
+    return `${target.entityId}.${target.propertyKey}`;
+  }
+  if (target.targetKind === 'edge') {
+    return `${target.from} -[${target.label}]-> ${target.to}`;
+  }
+  if (target.targetKind === 'edge_property') {
+    return `edge(${target.from} -[${target.label}]-> ${target.to}).${target.propertyKey}`;
+  }
+  return target.targetDigest;
+}
+
+/** @param {DebugConflictsPayload} payload */
+export function renderDebug(payload) {
+  if (payload.debugTopic !== 'conflicts') {
+    return `${JSON.stringify(payload, null, 2)}\n`;
+  }
+
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Topic: conflicts`,
+    `Analysis Version: ${payload.analysisVersion}`,
+    `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
+    `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.frontier).length}`,
+    `Snapshot: ${payload.analysisSnapshotHash}`,
+    `Conflicts: ${payload.conflicts.length}`,
+  ];
+
+  if (payload.diagnostics && payload.diagnostics.length > 0) {
+    lines.push('');
+    lines.push('Diagnostics:');
+    for (const diagnostic of payload.diagnostics) {
+      lines.push(`- ${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`);
+    }
+  }
+
+  for (const trace of payload.conflicts) {
+    lines.push('');
+    lines.push(`- ${trace.kind} ${formatConflictTarget(trace.target)}`);
+    lines.push(`  Winner: ${formatConflictAnchor(trace.winner.anchor)} (${trace.winner.effectDigest.slice(0, 12)})`);
+    lines.push(`  Resolution: ${trace.resolution.reducerId} / ${trace.resolution.basis.code} / ${trace.resolution.winnerMode}`);
+    if (trace.resolution.basis.reason) {
+      lines.push(`  Why: ${trace.resolution.basis.reason}`);
+    }
+    lines.push(`  Fingerprint: ${trace.whyFingerprint}`);
+    lines.push('  Losers:');
+    for (const loser of trace.losers) {
+      const relation = loser.causalRelationToWinner ? ` relation=${loser.causalRelationToWinner}` : '';
+      lines.push(
+        `    - ${formatConflictAnchor(loser.anchor)} (${loser.effectDigest.slice(0, 12)})${relation} distinct=${loser.structurallyDistinctAlternative ? 'yes' : 'no'} replayable=${loser.replayableFromAnchors ? 'yes' : 'no'}`
+      );
+      if (loser.notes && loser.notes.length > 0) {
+        lines.push(`      notes: ${loser.notes.join(', ')}`);
+      }
+    }
+    if (trace.classificationNotes && trace.classificationNotes.length > 0) {
+      lines.push(`  Notes: ${trace.classificationNotes.join(', ')}`);
+    }
   }
 
   return `${lines.join('\n')}\n`;

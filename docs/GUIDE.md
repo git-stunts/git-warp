@@ -1243,13 +1243,13 @@ The `--view` flag enables visual ASCII dashboards for supported commands. Add `-
 
 **View modes:**
 - `--view` or `--view=ascii` — ASCII art (default)
-- `--view=browser` — opens in browser (planned)
 - `--view=svg:FILE` — saves as SVG (planned)
 - `--view=html:FILE` — saves as HTML (planned)
 
 **Notes:**
 - `--view` must appear before the subcommand (e.g., `git warp --view info`, not `git warp info --view`)
 - `--view`, `--json`, and `--ndjson` are mutually exclusive
+- interactive TUI/web applications are intentionally out of scope for `git-warp`; the core package keeps `--view` for static terminal/file rendering only
 - All visualizations are color-coded and terminal-width aware
 
 ---

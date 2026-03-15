@@ -15,7 +15,6 @@ import WarpGraph, {
   CryptoPort,
   SeekCachePort,
   HttpServerPort,
-  WebSocketServerPort,
   QueryBuilder,
   ObserverView,
   PatchBuilderV2,
@@ -52,7 +51,6 @@ import WarpGraph, {
   StorageError,
   checkAborted,
   createTimeoutSignal,
-  WarpServeService,
   createNodeAdd,
   createNodeTombstone,
   createEdgeAdd,
@@ -133,8 +131,6 @@ import type {
   ComposeWormholesOptions,
   VerifyBTROptions,
   WeightedCostSelector,
-  WsConnection,
-  WsServerHandle,
   TickReceiptOpType,
   TickReceiptResult,
   ConflictAnalysis,
@@ -152,7 +148,6 @@ declare const logger: LoggerPort;
 declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
-declare const wsPort: WebSocketServerPort;
 
 // Verify imported classes/ports are usable as types
 declare const _idxStorage: IndexStoragePort;
@@ -351,29 +346,6 @@ declare const httpPort: HttpServerPort;
 const server = await graph.serve({ port: 3000, httpPort });
 const serverUrl: string = server.url;
 await server.close();
-
-// ---- WarpServeService + WebSocketServerPort ----
-declare const wsConnection: WsConnection;
-declare const wsServerHandle: WsServerHandle;
-wsConnection.send('ping');
-wsConnection.onMessage((message: string) => { const _: string = message; return _; });
-wsConnection.onClose((code?: number, reason?: string) => { const _: [number | undefined, string | undefined] = [code, reason]; return _; });
-wsConnection.close();
-const wsListen: Promise<{ port: number; host: string }> = wsServerHandle.listen(0, '127.0.0.1');
-const wsClose: Promise<void> = wsServerHandle.close();
-const serveBridge = new WarpServeService({
-  wsPort,
-  graphs: [{
-    graphName: graph.graphName,
-    materialize: graph.materialize.bind(graph),
-    subscribe: graph.subscribe.bind(graph),
-    getNodeProps: graph.getNodeProps.bind(graph),
-    createPatch: graph.createPatch.bind(graph),
-    query: graph.query.bind(graph),
-  }],
-});
-const bridgeListen: Promise<{ port: number; host: string }> = serveBridge.listen(9999);
-const bridgeClose: Promise<void> = serveBridge.close();
 
 // ---- discoverWriters / getWriterPatches ----
 const writers: string[] = await graph.discoverWriters();

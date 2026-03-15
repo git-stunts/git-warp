@@ -62,6 +62,28 @@ describe('present', () => {
     expect(output).toContain('Repo: /repo');
   });
 
+  it('renders plain text for debug conflicts', () => {
+    present({
+      graph: 'g',
+      debugTopic: 'conflicts',
+      analysisVersion: 'conflict-analyzer.v1',
+      resolvedCoordinate: {
+        analysisVersion: 'conflict-analyzer.v1',
+        frontier: { alice: 'a'.repeat(40) },
+        frontierDigest: 'f'.repeat(40),
+        lamportCeiling: 3,
+        scanBudgetApplied: { maxPatches: null },
+        truncationPolicy: 'reverse-causal',
+      },
+      analysisSnapshotHash: 's'.repeat(40),
+      diagnostics: [],
+      conflicts: [],
+    }, { format: 'text', command: 'debug', view: null });
+    const output = stdoutChunks.join('');
+    expect(output).toContain('Topic: conflicts');
+    expect(output).toContain('Conflicts: 0');
+  });
+
   it('renders error payloads to stderr', () => {
     present({ error: { message: 'boom' } }, { format: 'text', command: 'info', view: null });
     expect(stdoutChunks).toHaveLength(0);

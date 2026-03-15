@@ -14,9 +14,9 @@ This guide teaches you the `git warp` command-line interface from scratch. Every
 - [Time Travel](#time-travel) (`seek`)
 - [Materializing State](#materializing-state) (`materialize`)
 - [Health and Diagnostics](#health-and-diagnostics) (`check`, `doctor`)
+- [Debugging Conflict Provenance](#debugging-conflict-provenance) (`debug conflicts`)
 - [Index Management](#index-management) (`verify-index`, `reindex`)
 - [Verifying Audit Integrity](#verifying-audit-integrity) (`verify-audit`)
-- [Interactive Explorer](#interactive-explorer) (`view`)
 - [Git Hook Integration](#git-hook-integration) (`install-hooks`)
 - [Output Formats](#output-formats)
 - [Global Options](#global-options)
@@ -830,39 +830,67 @@ Exit code 0 means all chains are valid. Exit code 3 means at least one chain has
 
 ---
 
-## Interactive Explorer
+## Debugging Conflict Provenance
 
-### `view` — Interactive TUI graph browser
+### `debug conflicts` — inspect deterministic conflict traces
 
-The `view` command launches a full-screen terminal UI for browsing the graph interactively.
-
-```bash
-git warp view --repo ./team-repo
-```
-
-**Requires** the `@git-stunts/git-warp-tui` peer dependency:
+The `debug conflicts` command exposes git-warp's read-only substrate conflict analyzer through the main CLI. It does **not** mutate the graph, and it does **not** invent domain meaning above the substrate facts.
 
 ```bash
-npm install -g @git-stunts/git-warp-tui
+git warp debug conflicts --repo ./team-repo
 ```
 
-The TUI only works in interactive terminals (TTY). Piped or redirected output is not supported.
-
-### Modes
+Common filters:
 
 ```bash
-# Default list mode — browse nodes and edges
-git warp view --repo ./team-repo
+# Focus on one entity and cap analysis at a historical Lamport tick
+git warp debug conflicts --repo ./team-repo \
+  --entity-id user:alice \
+  --lamport-ceiling 12
 
-# Log mode — browse patch history
-git warp view --repo ./team-repo --log
+# Return full loser notes and deterministic truncation diagnostics
+git warp debug conflicts --repo ./team-repo \
+  --kind supersession \
+  --evidence full \
+  --max-patches 64 \
+  --json
 ```
 
-### Complete flag reference for `view`
+Targeted selectors:
+
+```bash
+# Restrict to one node property
+git warp debug conflicts --repo ./team-repo \
+  --target-kind node_property \
+  --entity-id user:alice \
+  --property-key role
+
+# Restrict to one edge property
+git warp debug conflicts --repo ./team-repo \
+  --target-kind edge_property \
+  --from user:alice \
+  --to project:api \
+  --label works-on \
+  --property-key priority
+```
+
+### Complete flag reference for `debug conflicts`
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--log` | boolean | `false` | Start in log/history mode instead of list mode |
+| `--entity-id <id>` | string | _(none)_ | Filter traces touching this entity |
+| `--target-kind <kind>` | string | _(none)_ | Target selector kind: `node`, `edge`, `node_property`, `edge_property` |
+| `--property-key <key>` | string | _(none)_ | Property key for `*_property` selectors |
+| `--from <id>` | string | _(none)_ | Edge source for `edge` / `edge_property` selectors |
+| `--to <id>` | string | _(none)_ | Edge destination for `edge` / `edge_property` selectors |
+| `--label <label>` | string | _(none)_ | Edge label for `edge` / `edge_property` selectors |
+| `--kind <kind>` | string (repeatable) | _(all kinds)_ | Restrict returned traces to `supersession`, `eventual_override`, or `redundancy` |
+| `--writer-id <id>` | string | _(all writers)_ | Include only traces involving this writer |
+| `--lamport-ceiling <n>` | integer | active seek cursor or head | Analyze no later than Lamport tick `n` |
+| `--evidence <level>` | string | `standard` | `summary`, `standard`, or `full` evidence payload |
+| `--max-patches <n>` | integer | analyzer default | Deterministic scan budget |
+
+`debug conflicts` is intentionally a thin debugging surface. Human-facing time-travel or debugger panels belong in higher-layer applications rather than in `git-warp` itself.
 
 ---
 
@@ -964,7 +992,6 @@ ASCII visualization in the terminal, or file export. Not all commands support `-
 | ASCII | `--view` or `--view ascii` | Rendered in the terminal |
 | SVG file | `--view svg:filename.svg` | Written to disk as SVG |
 | HTML file | `--view html:filename.html` | Written to disk as HTML wrapper around SVG |
-| Browser | `--view browser` | Opens in default browser |
 
 ```bash
 # ASCII in terminal
@@ -1003,7 +1030,7 @@ These flags are accepted by every command and can appear before or after the com
 | `--writer <id>` | | string | `cli` | Writer ID for commands that need one (e.g., `history`) |
 | `--json` | | boolean | `false` | Pretty-printed JSON output |
 | `--ndjson` | | boolean | `false` | Compact single-line JSON output |
-| `--view [mode]` | | string | _(none)_ | Visual output. Mode: `ascii` (default), `browser`, `svg:FILE`, `html:FILE` |
+| `--view [mode]` | | string | _(none)_ | Visual output. Mode: `ascii` (default), `svg:FILE`, `html:FILE` |
 | `--help` | `-h` | boolean | `false` | Show help text |
 
 **Mutual exclusion:** `--json`, `--ndjson`, and `--view` cannot be combined.
@@ -1121,11 +1148,19 @@ Quick-reference table of all commands and their flags.
 |------|-------------|
 | _(global only)_ | See [Global Options](#global-options) |
 
-### `view`
+### `debug conflicts`
 
 | Flag | Description |
 |------|-------------|
-| `--log` | Start in log mode |
+| `--entity-id <id>` | Filter traces touching this entity |
+| `--target-kind <kind>` | `node`, `edge`, `node_property`, `edge_property` |
+| `--property-key <key>` | Property key for `*_property` targets |
+| `--from <id>` / `--to <id>` / `--label <label>` | Edge selector fields |
+| `--kind <kind>` | Restrict to `supersession`, `eventual_override`, `redundancy` |
+| `--writer-id <id>` | Filter returned traces by writer |
+| `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
+| `--evidence <level>` | `summary`, `standard`, or `full` |
+| `--max-patches <n>` | Deterministic scan budget |
 
 ### `install-hooks`
 

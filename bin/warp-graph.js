@@ -71,7 +71,7 @@ async function main() {
     present(/** @type {Record<string, unknown>} */ (normalized.payload), { format, command, view: /** @type {string | null | boolean} */ (options.view ?? null) });
   }
 
-  // Long-running commands (e.g. serve) return a `close` function.
+  // Long-running commands may return a `close` function.
   // Wait for SIGINT/SIGTERM instead of exiting immediately.
   const close = result && typeof result === 'object' && 'close' in /** @type {Record<string, unknown>} */ (result)
     ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result).close)

@@ -1,8 +1,8 @@
 /**
  * Contract test for the ./visualization subpath export.
  *
- * Ensures the public API surface consumed by @git-stunts/git-warp-tui
- * (and any other downstream packages) does not silently break.
+ * Ensures the public API surface consumed by downstream tools does not
+ * silently break.
  */
 
 import { describe, it, expect } from 'vitest';

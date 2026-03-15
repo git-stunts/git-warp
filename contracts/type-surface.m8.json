@@ -1140,17 +1140,11 @@
         }
       }
     },
-    "WarpServeService": {
-      "kind": "class"
-    },
     "WarpStateIndexBuilder": {
       "kind": "class"
     },
     "WebCryptoAdapter": {
       "kind": "class"
-    },
-    "WebSocketServerPort": {
-      "kind": "abstract-class"
     },
     "WormholeError": {
       "kind": "class"
@@ -1607,12 +1601,6 @@
       "kind": "type"
     },
     "WormholeEdge": {
-      "kind": "interface"
-    },
-    "WsConnection": {
-      "kind": "interface"
-    },
-    "WsServerHandle": {
       "kind": "interface"
     }
   }

@@ -127,14 +127,12 @@
     "roaring-wasm": "^1.1.0",
     "string-width": "^7.1.0",
     "wrap-ansi": "^9.0.0",
-    "ws": "^8.19.0",
     "zod": "3.24.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@git-stunts/docker-guard": "^0.1.0",
     "@types/node": "^22.15.29",
-    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^9.17.0",

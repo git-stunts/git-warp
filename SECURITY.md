@@ -129,7 +129,6 @@ await graph.syncWith('http://peer:3000', {
 | `cli-table3` | CLI-only | Negligible | Terminal table rendering |
 | `string-width` | CLI-only | Negligible | String measurement |
 | `strip-ansi` | Inlined | Negligible | ANSI escape removal; inlined into `src/visualization/utils/ansi.js` since v10.1.2, no longer a direct dependency |
-| `open` | Transitive | Low | Opens URLs in browser; transitive dependency only, invoked by `--view` flag |
 
 ## Accepted Risks
 

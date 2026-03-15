@@ -562,11 +562,11 @@ git warp path --from user:alice --to user:bob --dir out
 # Show patch history for a writer
 git warp history --writer alice
 
+# Inspect deterministic conflict traces
+git warp debug conflicts --kind supersession --evidence full
+
 # Check graph health, status, and GC metrics
 git warp check
-
-# Start WebSocket server for browser viewer
-git warp serve [--port 3000] [--host 127.0.0.1] [--static <dir>] [--expose] [--writer-id <id>]
 ```
 
 ### Time-Travel (Seek)
@@ -600,19 +600,22 @@ When a seek cursor is active, `query`, `info`, `materialize`, and `history` auto
 ```bash
 # Visualize query results (ascii output by default)
 git warp query --match 'user:*' --outgoing manages --view
+
+# Inspect substrate conflict provenance at the current frontier
+git warp debug conflicts --entity-id user:alice --lamport-ceiling 12 --json
 ```
 
-All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or browser, svg:FILE, html:FILE).
+All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).
 
 <p align="center">
   <img src="docs/seek-demo.gif" alt="git warp seek time-travel demo" width="600">
 </p>
 
-### Git WARP Inspector
+### Human-Facing Apps
 
-The [Git WARP Inspector](https://github.com/git-stunts/git-warp-web-inspector) is an interactive browser-based graph viewer that connects to a live `git warp serve` instance over WebSocket. It renders graphs using ELK layout, supports time-travel via seek, and shows real-time diffs as the graph changes.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug conflicts`.
 
-See the [git-warp-web-inspector](https://github.com/git-stunts/git-warp-web-inspector) repository for setup and development instructions.
+Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 
 ## Architecture
 

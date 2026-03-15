@@ -57,7 +57,6 @@ import WriterError from './src/domain/errors/WriterError.js';
 import BlobStoragePort from './src/ports/BlobStoragePort.js';
 import CryptoPort from './src/ports/CryptoPort.js';
 import HttpServerPort from './src/ports/HttpServerPort.js';
-import WebSocketServerPort from './src/ports/WebSocketServerPort.js';
 import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
 import WebCryptoAdapter from './src/infrastructure/adapters/WebCryptoAdapter.js';
 import BunHttpAdapter from './src/infrastructure/adapters/BunHttpAdapter.js';
@@ -79,7 +78,6 @@ import {
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
 import ObserverView from './src/domain/services/ObserverView.js';
-import WarpServeService from './src/domain/services/WarpServeService.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   encodeEdgePropKey,
@@ -157,7 +155,6 @@ export {
   BlobStoragePort,
   CryptoPort,
   HttpServerPort,
-  WebSocketServerPort,
 
   // Crypto adapters
   NodeCryptoAdapter,
@@ -192,7 +189,6 @@ export {
   WarpGraph,
   QueryBuilder,
   ObserverView,
-  WarpServeService,
   PatchBuilderV2,
   PatchSession,
   Writer,

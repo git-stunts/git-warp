@@ -41,6 +41,19 @@ Commands:
   history          Show writer history
   check            Report graph health/GC status
   doctor           Diagnose structural issues and suggest fixes
+  debug            Inspect substrate history and conflict state
+                     conflicts          Analyze conflict provenance at the current frontier
+                       --entity-id <id>       Filter by entity id
+                       --target-kind <kind>   node, edge, node_property, edge_property
+                       --property-key <key>   Property key for *_property targets
+                       --from <id>            Edge source for edge selectors
+                       --to <id>              Edge destination for edge selectors
+                       --label <label>        Edge label for edge selectors
+                       --kind <kind>          supersession, eventual_override, redundancy (repeatable)
+                       --writer-id <id>       Filter returned traces by writer id
+                       --lamport-ceiling <n>  Analyze no later than Lamport tick n
+                       --evidence <level>     summary, standard, full
+                       --max-patches <n>      Deterministic scan budget
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild
@@ -50,20 +63,13 @@ Commands:
   patch            Decode and inspect raw patches
   tree             ASCII tree traversal from root nodes
   bisect           Binary search for first bad patch in writer history
-  serve            Start WebSocket server for browser-based graph viewer
-                     --port <n>          Port to bind (default: 3000, 0 = OS-assigned)
-                     --host <addr>       Bind address (default: 127.0.0.1)
-                     --expose            Allow binding to non-loopback addresses
-                     --static <dir>      Serve static files (SPA) on the same port
-                     --writer-id <id>    Explicit writer identity (default: derived from host:port)
-  view             Interactive TUI graph browser (requires @git-stunts/git-warp-tui)
   install-hooks    Install post-merge git hook
 
 Options:
   --repo <path>     Path to git repo (default: cwd)
   --json            Emit JSON output (pretty-printed, sorted keys)
   --ndjson          Emit compact single-line JSON (for piping/scripting)
-  --view [mode]     Visual output (ascii, browser, svg:FILE, html:FILE)
+  --view [mode]     Visual output (ascii, svg:FILE, html:FILE)
   --graph <name>    Graph name (required if repo has multiple graphs)
   --writer <id>     Writer id (default: cli)
   -h, --help        Show this help
@@ -165,7 +171,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks', 'serve', 'view'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },
@@ -200,12 +206,12 @@ function preprocessView(argv) {
   if (needsDefault) {
     return [...argv.slice(0, idx + 1), 'ascii', ...argv.slice(idx + 1)];
   }
-  const validModes = ['ascii', 'browser'];
+  const validModes = ['ascii'];
   const validPrefixes = ['svg:', 'html:'];
   const isValid = validModes.includes(next) ||
     validPrefixes.some((prefix) => next.startsWith(prefix));
   if (!isValid) {
-    throw usageError(`Invalid view mode: ${next}. Valid modes: ascii, browser, svg:FILE, html:FILE`);
+    throw usageError(`Invalid view mode: ${next}. Valid modes: ascii, svg:FILE, html:FILE`);
   }
   return argv;
 }

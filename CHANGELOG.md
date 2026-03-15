@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`git warp debug conflicts` CLI** — Added a thin substrate-debugging command family to the main git-warp CLI, with `debug conflicts` exposing the read-only conflict analyzer through JSON, NDJSON, and plain-text output. The command supports deterministic filters for entity, target selector, writer, kind, Lamport ceiling, evidence level, and scan budget.
+
+### Changed
+
+- **Retired built-in browser/TUI viewer surfaces** — Removed the legacy `git warp view` command, removed the browser-viewer `git warp serve` command and its WebSocket/static-serving runtime stack, and trimmed the package surface so git-warp remains substrate plus thin debug CLI rather than a human-facing application shell.
+
 ## [14.2.0] — 2026-03-15
 
 ### Added

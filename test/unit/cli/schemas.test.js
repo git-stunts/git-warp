@@ -7,9 +7,7 @@ import {
   verifyAuditSchema,
   pathSchema,
   querySchema,
-  viewSchema,
   seekSchema,
-  serveSchema,
 } from '../../../bin/cli/schemas.js';
 
 describe('bisectSchema', () => {
@@ -173,65 +171,6 @@ describe('querySchema', () => {
   it('transforms --where-prop array', () => {
     const result = querySchema.parse({ 'where-prop': ['role=admin', 'active=true'] });
     expect(result.whereProp).toEqual(['role=admin', 'active=true']);
-  });
-});
-
-describe('viewSchema', () => {
-  it('defaults both to false', () => {
-    const result = viewSchema.parse({});
-    expect(result.list).toBe(false);
-    expect(result.log).toBe(false);
-  });
-
-  it('accepts --log', () => {
-    const result = viewSchema.parse({ log: true });
-    expect(result.log).toBe(true);
-  });
-});
-
-describe('serveSchema', () => {
-  it('defaults port to 3000, host to 127.0.0.1, expose to false', () => {
-    const result = serveSchema.parse({});
-    expect(result.port).toBe(3000);
-    expect(result.host).toBe('127.0.0.1');
-    expect(result.expose).toBe(false);
-    expect(result.writerId).toBeUndefined();
-  });
-
-  it('accepts --writer-id with valid characters', () => {
-    const result = serveSchema.parse({ 'writer-id': 'my-serve-instance' });
-    expect(result.writerId).toBe('my-serve-instance');
-  });
-
-  it('accepts --writer-id with dots and underscores', () => {
-    const result = serveSchema.parse({ 'writer-id': 'serve.test_01' });
-    expect(result.writerId).toBe('serve.test_01');
-  });
-
-  it('rejects --writer-id with invalid characters', () => {
-    expect(() => serveSchema.parse({ 'writer-id': 'has spaces' })).toThrow(/writer-id/);
-  });
-
-  it('rejects --writer-id with slashes', () => {
-    expect(() => serveSchema.parse({ 'writer-id': 'a/b' })).toThrow(/writer-id/);
-  });
-
-  it('rejects --writer-id with colons', () => {
-    expect(() => serveSchema.parse({ 'writer-id': 'serve:3000' })).toThrow(/writer-id/);
-  });
-
-  it('rejects empty --writer-id', () => {
-    expect(() => serveSchema.parse({ 'writer-id': '' })).toThrow();
-  });
-
-  it('accepts --port and --host overrides', () => {
-    const result = serveSchema.parse({ port: '8080', host: '0.0.0.0' });
-    expect(result.port).toBe(8080);
-    expect(result.host).toBe('0.0.0.0');
-  });
-
-  it('rejects unknown keys', () => {
-    expect(() => serveSchema.parse({ unknown: true })).toThrow(/unknown/i);
   });
 });
 

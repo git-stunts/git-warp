@@ -32,6 +32,7 @@ import {
   renderTrust,
   renderPatchShow,
   renderPatchList,
+  renderDebug,
 } from './text.js';
 
 // ── Color control ────────────────────────────────────────────────────────────
@@ -97,6 +98,7 @@ const TEXT_RENDERERS = new Map(/** @type {[string, function(unknown): string][]}
   ['verify-audit', renderVerifyAudit],
   ['trust', renderTrust],
   ['patch', renderPatch],
+  ['debug', renderDebug],
   ['tree', renderTree],
   ['install-hooks', renderInstallHooks],
 ]));

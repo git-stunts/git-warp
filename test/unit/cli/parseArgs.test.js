@@ -71,11 +71,6 @@ describe('parseArgs (base)', () => {
       expect(options.view).toBe('ascii');
     });
 
-    it('--view with browser mode', () => {
-      const { options } = parseArgs(['--view', 'browser', 'info']);
-      expect(options.view).toBe('browser');
-    });
-
     it('--view with svg:FILE mode', () => {
       const { options } = parseArgs(['--view', 'svg:out.svg', 'info']);
       expect(options.view).toBe('svg:out.svg');
