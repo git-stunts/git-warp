@@ -137,6 +137,9 @@ import type {
   WsServerHandle,
   TickReceiptOpType,
   TickReceiptResult,
+  ConflictAnalysis,
+  ConflictKind,
+  ConflictTargetSelector,
 } from '../../index.js';
 
 // ---------------------------------------------------------------------------
@@ -252,6 +255,16 @@ const sha2: string = await graph.patch((p: PatchBuilderV2) => {
 // ---- materialize overloads ----
 const state: WarpStateV5 = await graph.materialize();
 const withReceipts: { state: WarpStateV5; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
+const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
+const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };
+const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
+  at: { lamportCeiling: 10 },
+  kind: conflictKinds,
+  target: conflictTarget,
+  evidence: 'standard',
+  scanBudget: { maxPatches: 32 },
+});
+const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
 
 // ---- materializeAt ----
 const atState: WarpStateV5 = await graph.materializeAt('abc123');

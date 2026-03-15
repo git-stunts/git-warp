@@ -31,6 +31,7 @@ import * as checkpointMethods from './warp/checkpoint.methods.js';
 import * as patchMethods from './warp/patch.methods.js';
 import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
+import * as conflictMethods from './warp/conflict.methods.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -522,6 +523,7 @@ wireWarpMethods(WarpGraph, [
   patchMethods,
   materializeMethods,
   materializeAdvancedMethods,
+  conflictMethods,
 ]);
 
 // ── Sync methods: direct delegation to SyncController (no stub file) ────────

@@ -166,6 +166,101 @@ interface CheckpointData {
   indexShardOids?: Record<string, string>;
 }
 
+type ConflictKind = 'supersession' | 'eventual_override' | 'redundancy';
+type ConflictEvidenceLevel = 'summary' | 'standard' | 'full';
+type ConflictCausalRelation = 'concurrent' | 'ordered' | 'replay_equivalent' | 'reducer_collapsed';
+
+interface ConflictTargetSelector {
+  targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
+  entityId?: string;
+  propertyKey?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+}
+
+interface ConflictAnchor {
+  patchSha: string;
+  writerId: string;
+  lamport: number;
+  opIndex: number;
+  receiptPatchSha?: string;
+  receiptLamport?: number;
+  receiptOpIndex?: number;
+}
+
+interface ConflictTarget {
+  targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
+  targetDigest: string;
+  entityId?: string;
+  propertyKey?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+  edgeKey?: string;
+}
+
+interface ConflictParticipant {
+  anchor: ConflictAnchor;
+  effectDigest: string;
+  causalRelationToWinner?: ConflictCausalRelation;
+  structurallyDistinctAlternative: boolean;
+  replayableFromAnchors: boolean;
+  notes?: string[];
+}
+
+interface ConflictResolution {
+  reducerId: string;
+  basis: { code: string; reason?: string };
+  winnerMode: 'immediate' | 'eventual';
+  comparator?: {
+    type: 'event_id' | 'effect_digest';
+    winnerEventId?: { lamport: number; writerId: string; patchSha: string; opIndex: number };
+    loserEventId?: { lamport: number; writerId: string; patchSha: string; opIndex: number };
+  };
+}
+
+interface ConflictTrace {
+  conflictId: string;
+  kind: ConflictKind;
+  target: ConflictTarget;
+  winner: {
+    anchor: ConflictAnchor;
+    effectDigest: string;
+  };
+  losers: ConflictParticipant[];
+  resolution: ConflictResolution;
+  whyFingerprint: string;
+  classificationNotes?: string[];
+  evidence: {
+    level: ConflictEvidenceLevel;
+    patchRefs: string[];
+    receiptRefs: Array<{ patchSha: string; lamport: number; opIndex: number }>;
+  };
+}
+
+interface ConflictDiagnostic {
+  code: string;
+  severity: 'warning' | 'error';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+interface ConflictAnalysis {
+  analysisVersion: string;
+  resolvedCoordinate: {
+    analysisVersion: string;
+    frontier: Record<string, string>;
+    frontierDigest: string;
+    lamportCeiling: number | null;
+    scanBudgetApplied: { maxPatches: number | null };
+    truncationPolicy: string;
+  };
+  analysisSnapshotHash: string;
+  diagnostics?: ConflictDiagnostic[];
+  conflicts: ConflictTrace[];
+}
+
 export {};
 
 declare module '../WarpGraph.js' {
@@ -198,6 +293,15 @@ declare module '../WarpGraph.js' {
     _loadPatchBySha(sha: string): Promise<PatchV2>;
     _loadPatchesBySha(shas: string[]): Promise<Array<{ patch: PatchV2; sha: string }>>;
     _sortPatchesCausally(patches: Array<{ patch: PatchV2; sha: string }>): Array<{ patch: PatchV2; sha: string }>;
+    analyzeConflicts(options?: {
+      at?: { lamportCeiling?: number | null };
+      entityId?: string;
+      target?: ConflictTargetSelector;
+      kind?: ConflictKind | ConflictKind[];
+      writerId?: string;
+      evidence?: ConflictEvidenceLevel;
+      scanBudget?: { maxPatches?: number };
+    }): Promise<ConflictAnalysis>;
 
     // ── fork.methods.js ───────────────────────────────────────────────────
     fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpGraph>;

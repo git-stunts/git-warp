@@ -945,6 +945,17 @@
           ],
           "returns": "Promise<{ state: WarpStateV5; patchCount: number; receipts?: TickReceipt[] }>"
         },
+        "analyzeConflicts": {
+          "async": true,
+          "params": [
+            {
+              "name": "options",
+              "type": "{ at?: { lamportCeiling?: number | null }; entityId?: string; target?: ConflictTargetSelector; kind?: ConflictKind | ConflictKind[]; writerId?: string; evidence?: ConflictEvidenceLevel; scanBudget?: { maxPatches?: number } }",
+              "optional": true
+            }
+          ],
+          "returns": "Promise<ConflictAnalysis>"
+        },
         "getWriterPatches": {
           "async": true,
           "params": [
@@ -1359,6 +1370,39 @@
       "kind": "interface"
     },
     "ComposeWormholesOptions": {
+      "kind": "interface"
+    },
+    "ConflictAnalysis": {
+      "kind": "interface"
+    },
+    "ConflictAnchor": {
+      "kind": "interface"
+    },
+    "ConflictCausalRelation": {
+      "kind": "type"
+    },
+    "ConflictDiagnostic": {
+      "kind": "interface"
+    },
+    "ConflictEvidenceLevel": {
+      "kind": "type"
+    },
+    "ConflictKind": {
+      "kind": "type"
+    },
+    "ConflictParticipant": {
+      "kind": "interface"
+    },
+    "ConflictResolution": {
+      "kind": "interface"
+    },
+    "ConflictTarget": {
+      "kind": "interface"
+    },
+    "ConflictTargetSelector": {
+      "kind": "interface"
+    },
+    "ConflictTrace": {
       "kind": "interface"
     },
     "ContentAttachmentOptions": {

@@ -2015,6 +2015,20 @@ export default class WarpGraph {
   }>;
 
   /**
+   * Analyzes read-only conflict provenance against the current frontier with
+   * an optional Lamport ceiling.
+   */
+  analyzeConflicts(options?: {
+    at?: { lamportCeiling?: number | null };
+    entityId?: string;
+    target?: ConflictTargetSelector;
+    kind?: ConflictKind | ConflictKind[];
+    writerId?: string;
+    evidence?: ConflictEvidenceLevel;
+    scanBudget?: { maxPatches?: number };
+  }): Promise<ConflictAnalysis>;
+
+  /**
    * The provenance index mapping entities to contributing patches.
    * Available after materialize() has been called.
    */
@@ -2284,6 +2298,105 @@ export const TICK_RECEIPT_OP_TYPES: readonly TickReceiptOpType[];
  * Valid result values for an operation outcome.
  */
 export const TICK_RECEIPT_RESULT_TYPES: readonly TickReceiptResult[];
+
+// ============================================================================
+// Conflict Analyzer
+// ============================================================================
+
+export type ConflictKind = 'supersession' | 'eventual_override' | 'redundancy';
+export type ConflictEvidenceLevel = 'summary' | 'standard' | 'full';
+export type ConflictCausalRelation = 'concurrent' | 'ordered' | 'replay_equivalent' | 'reducer_collapsed';
+
+export interface ConflictTargetSelector {
+  targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
+  entityId?: string;
+  propertyKey?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+}
+
+export interface ConflictAnchor {
+  patchSha: string;
+  writerId: string;
+  lamport: number;
+  opIndex: number;
+  receiptPatchSha?: string;
+  receiptLamport?: number;
+  receiptOpIndex?: number;
+}
+
+export interface ConflictTarget {
+  targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
+  targetDigest: string;
+  entityId?: string;
+  propertyKey?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+  edgeKey?: string;
+}
+
+export interface ConflictParticipant {
+  anchor: ConflictAnchor;
+  effectDigest: string;
+  causalRelationToWinner?: ConflictCausalRelation;
+  structurallyDistinctAlternative: boolean;
+  replayableFromAnchors: boolean;
+  notes?: string[];
+}
+
+export interface ConflictResolution {
+  reducerId: string;
+  basis: { code: string; reason?: string };
+  winnerMode: 'immediate' | 'eventual';
+  comparator?: {
+    type: 'event_id' | 'effect_digest';
+    winnerEventId?: { lamport: number; writerId: string; patchSha: string; opIndex: number };
+    loserEventId?: { lamport: number; writerId: string; patchSha: string; opIndex: number };
+  };
+}
+
+export interface ConflictTrace {
+  conflictId: string;
+  kind: ConflictKind;
+  target: ConflictTarget;
+  winner: {
+    anchor: ConflictAnchor;
+    effectDigest: string;
+  };
+  losers: ConflictParticipant[];
+  resolution: ConflictResolution;
+  whyFingerprint: string;
+  classificationNotes?: string[];
+  evidence: {
+    level: ConflictEvidenceLevel;
+    patchRefs: string[];
+    receiptRefs: Array<{ patchSha: string; lamport: number; opIndex: number }>;
+  };
+}
+
+export interface ConflictDiagnostic {
+  code: string;
+  severity: 'warning' | 'error';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+export interface ConflictAnalysis {
+  analysisVersion: string;
+  resolvedCoordinate: {
+    analysisVersion: string;
+    frontier: Record<string, string>;
+    frontierDigest: string;
+    lamportCeiling: number | null;
+    scanBudgetApplied: { maxPatches: number | null };
+    truncationPolicy: string;
+  };
+  analysisSnapshotHash: string;
+  diagnostics?: ConflictDiagnostic[];
+  conflicts: ConflictTrace[];
+}
 
 // ============================================================================
 // WARP Type Constructors

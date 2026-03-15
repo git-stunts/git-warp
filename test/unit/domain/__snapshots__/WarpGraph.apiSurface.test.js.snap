@@ -147,6 +147,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "analyzeConflicts": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "applySyncResponse": {
     "configurable": true,
     "enumerable": false,
@@ -450,7 +455,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `89`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `90`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -483,6 +488,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "_sortPatchesCausally",
   "_validateMigrationBoundary",
   "_validatePatchAgainstCheckpoint",
+  "analyzeConflicts",
   "applySyncResponse",
   "createCheckpoint",
   "createPatch",

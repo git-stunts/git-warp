@@ -88,6 +88,7 @@ describe('WarpGraph prototype completeness', () => {
       'getNodes', 'getEdges', 'getPropertyCount', 'getStateSnapshot',
       'subscribe', 'watch',
       'patchesFor', 'materializeSlice', 'loadPatchBySha',
+      'analyzeConflicts',
       'fork', 'createWormhole',
       'syncWith', 'serve', 'createSyncRequest', 'processSyncRequest',
       'applySyncResponse', 'syncNeeded',
