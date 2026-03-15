@@ -23,7 +23,7 @@ This lands as a new public `WarpGraph.analyzeConflicts(...)` method backed by a 
 Add a dedicated method on `WarpGraph`:
 
 ```ts
-analyzeConflicts(options?: {
+declare function analyzeConflicts(options?: {
   at?: {
     lamportCeiling?: number | null;
   };
@@ -35,7 +35,7 @@ analyzeConflicts(options?: {
   scanBudget?: {
     maxPatches?: number;
   };
-}): Promise<ConflictAnalysis>
+}): Promise<ConflictAnalysis>;
 ```
 
 Implementation shape:

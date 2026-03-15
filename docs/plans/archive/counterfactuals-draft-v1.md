@@ -19,10 +19,10 @@ XYPH will consume this substrate later; it should stop compensating for missing 
 Add a new `WarpGraph` method:
 
 ```ts
-analyzeConflicts(options?: {
+declare function analyzeConflicts(options?: {
   ceiling?: number | null;
   entityId?: string;
-}): Promise<ConflictAnalysis>
+}): Promise<ConflictAnalysis>;
 ```
 
 `ConflictAnalysis` must return:

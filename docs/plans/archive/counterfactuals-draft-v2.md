@@ -19,7 +19,7 @@ Durable conflict/counterfactual storage is **deferred** until the read model sta
 Add a new public method:
 
 ```ts
-analyzeConflicts(options?: {
+declare function analyzeConflicts(options?: {
   at?: {
     lamportCeiling?: number | null;
   };
@@ -31,7 +31,7 @@ analyzeConflicts(options?: {
   scanBudget?: {
     maxPatches?: number;
   };
-}): Promise<ConflictAnalysis>
+}): Promise<ConflictAnalysis>;
 ```
 
 V1 analysis coordinate is explicit and honest:
