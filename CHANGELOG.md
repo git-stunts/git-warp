@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.2.0] — 2026-03-15
+
+### Added
+
+- **Read-only conflict analyzer API** — Added `WarpGraph.analyzeConflicts()` as a deterministic substrate analyzer over patch history, reducer receipts, and resolved state. The new public surface returns explicit analysis coordinates, canonical target identities, deterministic `conflictId` / `analysisSnapshotHash` values, per-loser conflict participants, structured diagnostics, and zero durable writes during analysis.
+- **Conflict analyzer type surface and regression fixtures** — Exported the new conflict-analysis types (`ConflictAnalysis`, `ConflictTrace`, `ConflictParticipant`, `ConflictTarget`, and related helpers) in the public declaration surface, added consumer/surface contract coverage, and introduced focused unit fixtures that lock down supersession, redundancy, eventual override, deterministic filtering, and truncation behavior.
+
 ### Changed
 
+- **`@git-stunts/git-cas` floor raised to `^5.3.1`** — The declared minimum dependency now requires the `5.3.1` bugfix release, and the checked-in lockfile has been refreshed so local and release builds actually exercise the fixed CAS behavior instead of the prior `5.3.0` resolution.
+- **Conflict analyzer v1 plan frozen in docs** — The active counterfactual/conflict-provenance direction now lives under `docs/plans/conflict-analyzer-v1.md`, with earlier draft specs archived so contributor guidance points at one canonical implementation target.
 - **GitHub Actions runtime refresh** — Workflow actions now use Node-24-capable majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/github-script@v8`), while the repo jobs themselves continue to run on Node 22. The release workflow now treats GitHub Releases and registry versions as immutable: if a tagged version already exists, it emits a warning and skips the repeated publish/update instead of mutating the existing release or retrying a republish.
 
 ## [14.1.0] — 2026-03-14

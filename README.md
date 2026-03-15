@@ -11,13 +11,13 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.1.0
+## What's New in v14.2.0
 
-- **Content attachment metadata** — `attachContent()` and `attachEdgeContent()` now accept optional `{ mime, size }` metadata, and `getContentMeta()` / `getEdgeContentMeta()` expose structured `{ oid, mime, size }` reads.
-- **Explicit sync trust configuration** — `WarpGraph.open({ trust })` and `graph.syncWith(..., { trust })` now provide a public trust-config surface instead of relying on hidden sync-controller wiring.
-- **Missing-content reads now fail correctly** — Corrupted `_content` references now throw `PersistenceError(E_MISSING_OBJECT)` instead of reading back as empty bytes.
-- **Serve payload parity for edge properties** — Browser/WebSocket state payloads now include edge properties, so served graph views no longer drop part of the graph model.
-- **Streaming transitive closure** — `transitiveClosureStream()` lets callers consume reachability edges lazily without materializing the full closure array up front.
+- **Read-only conflict analyzer** — `WarpGraph.analyzeConflicts()` exposes deterministic conflict provenance over patch history, receipts, and resolved state, including explicit analysis coordinates, canonical targets, per-loser participants, structured diagnostics, and stable conflict IDs.
+- **Published conflict-analysis type surface** — `ConflictAnalysis`, `ConflictTrace`, `ConflictParticipant`, `ConflictTarget`, and related types are now part of the public declaration contract, with consumer and declaration-surface checks keeping the API honest.
+- **`git-cas` bugfix floor raised to 5.3.1** — `git-warp` now explicitly requires the fixed `@git-stunts/git-cas` release instead of relying on an older `5.3.0` lockfile resolution.
+- **Contributor plan freeze for counterfactual work** — The active substrate direction now lives under `docs/plans/conflict-analyzer-v1.md`, with archived drafts kept out of the main contributor path.
+- **Release workflow immutability hardening** — Tag-based release automation now treats published versions and GitHub Releases as immutable, warning and skipping duplicate publish attempts instead of mutating existing release artifacts.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
