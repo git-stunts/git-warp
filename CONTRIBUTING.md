@@ -1,5 +1,17 @@
 # Contributing to @git-stunts/git-warp
 
+## Current Active Plan
+
+git-warp is currently executing the v1 conflict-analyzer tranche documented in `docs/plans/conflict-analyzer-v1.md`.
+
+Treat that plan as the active implementation source of truth for current counterfactual/conflict work. In particular:
+- this tranche is **read-only**
+- it performs **zero durable writes**
+- it adds substrate conflict facts for XYPH to consume later
+- durable artifact storage, arbitrary frontier selection, and richer worldline semantics are deferred
+
+If older notes or speculative docs conflict with the frozen v1 plan, the plan wins for this tranche.
+
 ## Getting Started
 
 1. Clone the repository
