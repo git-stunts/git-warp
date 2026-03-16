@@ -1227,6 +1227,8 @@ git-warp's debugger surface is CLI-first and substrate-focused. Use:
 - `debug provenance` to see which patches affected an entity
 - `debug receipts` to inspect per-operation reducer outcomes
 
+On supported topics, add `--working-set <id>` to inspect a pinned speculative lane instead of only the live frontier.
+
 `working-set` is intentionally **not** part of TTD. It is a separate durable substrate family that pins coordinates instead of inspecting them read-only.
 
 See [docs/CLI_GUIDE.md](CLI_GUIDE.md) for complete command flags and [docs/TTD.md](TTD.md) for the debugger architecture boundary.
@@ -1239,6 +1241,10 @@ const { ticks, maxTick, perWriter } = await graph.discoverTicks();
 
 // Materialize at a specific point in time
 const state = await graph.materialize({ ceiling: 3 });
+
+// Inspect a pinned working set through substrate APIs
+const conflicts = await graph.analyzeConflicts({ workingSetId: 'review-auth' });
+const provenance = await graph.patchesForWorkingSet('review-auth', 'task:auth');
 ```
 
 ### Git Hooks

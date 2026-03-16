@@ -13,13 +13,14 @@ import { reduceV5, normalizeRawOp } from './JoinReducer.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { createEventId } from '../utils/EventId.js';
 import { decodeEdgeKey } from './KeyCodec.js';
+import WorkingSetService from './WorkingSetService.js';
 
 /** @typedef {import('../WarpGraph.js').default} WarpGraph */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
 /** @typedef {import('../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../utils/EventId.js').EventId} EventId */
 
-export const CONFLICT_ANALYSIS_VERSION = 'conflict-analyzer/v1';
+export const CONFLICT_ANALYSIS_VERSION = 'conflict-analyzer/v2';
 export const CONFLICT_TRAVERSAL_ORDER = 'lamport_desc_writer_desc_patch_desc';
 export const CONFLICT_TRUNCATION_POLICY = 'scan_budget_max_patches_reverse_causal';
 export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
@@ -61,6 +62,7 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   at?: { lamportCeiling?: number|null },
+ *   workingSetId?: string,
  *   entityId?: string,
  *   target?: {
  *     targetKind: 'node'|'edge'|'node_property'|'edge_property',
@@ -80,6 +82,7 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   lamportCeiling: number|null,
+ *   workingSetId: string|null,
  *   entityId: string|null,
  *   target: ConflictAnalyzeOptions['target']|null,
  *   kinds: string[]|null,
@@ -175,11 +178,18 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   analysisVersion: string,
+ *   coordinateKind: 'frontier'|'working_set',
  *   frontier: Record<string, string>,
  *   frontierDigest: string,
  *   lamportCeiling: number|null,
  *   scanBudgetApplied: { maxPatches: number|null },
- *   truncationPolicy: string
+ *   truncationPolicy: string,
+ *   workingSet?: {
+ *     workingSetId: string,
+ *     baseLamportCeiling: number|null,
+ *     overlayHeadPatchSha: string|null,
+ *     overlayPatchCount: number
+ *   }
  * }} ConflictResolvedCoordinate
  */
 
@@ -658,6 +668,7 @@ function normalizeOptions(options) {
   const raw = options ?? {};
   return {
     lamportCeiling: normalizeLamportCeiling(raw.at?.lamportCeiling),
+    workingSetId: normalizeOptionalString('workingSetId', raw.workingSetId),
     entityId: normalizeOptionalString('entityId', raw.entityId),
     target: normalizeTargetFilter(raw.target),
     kinds: normalizeKinds(raw.kind),
@@ -672,13 +683,28 @@ function normalizeOptions(options) {
  *   frontier: Map<string, string>,
  *   lamportCeiling: number|null,
  *   maxPatches: number|null,
- *   frontierDigest: string
+ *   frontierDigest: string,
+ *   coordinateKind?: 'frontier'|'working_set',
+ *   workingSet?: {
+ *     workingSetId: string,
+ *     baseLamportCeiling: number|null,
+ *     overlayHeadPatchSha: string|null,
+ *     overlayPatchCount: number
+ *   }
  * }} options
  * @returns {ConflictResolvedCoordinate}
  */
-function buildResolvedCoordinate({ frontier, lamportCeiling, maxPatches, frontierDigest }) {
+function buildResolvedCoordinate({
+  frontier,
+  lamportCeiling,
+  maxPatches,
+  frontierDigest,
+  coordinateKind = 'frontier',
+  workingSet,
+}) {
   return {
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
+    coordinateKind,
     frontier: frontierToRecord(frontier),
     frontierDigest,
     lamportCeiling,
@@ -686,6 +712,7 @@ function buildResolvedCoordinate({ frontier, lamportCeiling, maxPatches, frontie
       maxPatches,
     },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
+    ...(workingSet ? { workingSet } : {}),
   };
 }
 
@@ -955,25 +982,39 @@ function diagnosticCodes(diagnostics) {
 }
 
 /**
+ * @param {Array<{ patch: PatchV2, sha: string }>} entries
+ * @returns {PatchFrame[]}
+ */
+function buildPatchFrames(entries) {
+  /** @type {PatchFrame[]} */
+  const patchFrames = [];
+  for (const entry of entries) {
+    patchFrames.push(buildPatchFrame(entry, patchFrames.length));
+  }
+  return patchFrames;
+}
+
+/**
  * @param {WarpGraph} graph
  * @param {number|null} lamportCeiling
  * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>}
  */
-async function loadPatchFrames(graph, lamportCeiling) {
+async function loadFrontierPatchFrames(graph, lamportCeiling) {
   const frontier = await graph.getFrontier();
   const writerIds = [...frontier.keys()].sort(compareStrings);
+  /** @type {Array<{ patch: PatchV2, sha: string }>} */
+  const entries = [];
   /** @type {PatchFrame[]} */
-  const patchFrames = [];
   for (const writerId of writerIds) {
-    const entries = await graph._loadWriterPatches(writerId);
-    for (const entry of entries) {
+    const writerEntries = await graph._loadWriterPatches(writerId);
+    for (const entry of writerEntries) {
       if (lamportCeiling !== null && entry.patch.lamport > lamportCeiling) {
         continue;
       }
-      patchFrames.push(buildPatchFrame(entry, patchFrames.length));
+      entries.push(entry);
     }
   }
-  return { frontier, patchFrames };
+  return { frontier, patchFrames: buildPatchFrames(entries) };
 }
 
 /**
@@ -1825,11 +1866,42 @@ async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized 
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>}
  */
 async function resolveAnalysisContext(service, normalized) {
-  const { frontier, patchFrames } = await loadPatchFrames(service._graph, normalized.lamportCeiling);
+  if (normalized.workingSetId) {
+    const workingSets = new WorkingSetService({ graph: service._graph });
+    const descriptor = await workingSets.getOrThrow(normalized.workingSetId);
+    const entries = await workingSets.getPatchEntries(normalized.workingSetId, {
+      ceiling: normalized.lamportCeiling,
+    });
+    const frontier = new Map(
+      Object.entries(descriptor.baseObservation.frontier).sort(([a], [b]) => compareStrings(a, b)),
+    );
+    return {
+      patchFrames: buildPatchFrames(entries),
+      resolvedCoordinate: buildResolvedCoordinate({
+        coordinateKind: 'working_set',
+        frontier,
+        lamportCeiling: normalized.lamportCeiling,
+        maxPatches: normalized.maxPatches,
+        frontierDigest: descriptor.baseObservation.frontierDigest,
+        workingSet: {
+          workingSetId: descriptor.workingSetId,
+          baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+          overlayHeadPatchSha: descriptor.overlay.headPatchSha,
+          overlayPatchCount: descriptor.overlay.patchCount,
+        },
+      }),
+    };
+  }
+
+  const { frontier, patchFrames } = await loadFrontierPatchFrames(
+    service._graph,
+    normalized.lamportCeiling,
+  );
   const frontierDigest = await service._hash(frontierToRecord(frontier));
   return {
     patchFrames,
     resolvedCoordinate: buildResolvedCoordinate({
+      coordinateKind: 'frontier',
       frontier,
       lamportCeiling: normalized.lamportCeiling,
       maxPatches: normalized.maxPatches,

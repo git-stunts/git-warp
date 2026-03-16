@@ -121,8 +121,9 @@ The debug family is intended to remain **read-only**.
 In practice:
 
 - `debug conflicts` uses the conflict analyzer, which performs zero durable writes.
-- `debug coordinate`, `debug provenance`, and `debug receipts` use explicit materialization without the CLI attaching checkpoint policies or persistent seek caches.
-- `debug timeline` walks existing patch history and provenance indexes without mutating seek state or graph state.
+- `debug coordinate` uses explicit materialization without the CLI attaching checkpoint policies or persistent seek caches.
+- `debug provenance` and `debug timeline` inspect either the live provenance view or the visible working-set patch universe without mutating graph state.
+- `debug receipts` uses explicit materialization over the live frontier or a pinned working set without mutating seek state or graph state.
 - debug topics may consult the active seek cursor, but they do not mutate it.
 
 If a future debugger feature requires durable writes, it should not be added casually. The read-only contract is part of the debugger’s architecture, not just a convenience.
@@ -136,11 +137,14 @@ The debugger operates over:
 - the current frontier
 - plus an optional Lamport ceiling
 - plus the optional active seek cursor when no explicit ceiling is given
+- plus, on supported topics, an explicit working-set patch universe selected by `--working-set <id>`
 
 This keeps TTD aligned with the current git-warp substrate model:
 
 - `seek` controls observation position
 - debug topics inspect facts at that position
+- `debug coordinate` remains live-frontier/cursor scoped for now
+- `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set without teaching the reducer about worldlines
 - explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
 
@@ -166,5 +170,5 @@ Likely future TTD-adjacent extensions:
 - additional debug topics once their substrate facts are stable
 - entity-local slice inspection at historical coordinates once substrate support exists
 - richer provenance drilldown over conflict anchors
-- overlay-aware working-set/worldline debugger views over the new overlay patch-log substrate
+- deeper overlay-aware working-set/worldline debugger views over the new overlay patch-log substrate
 - higher-level debugger panels in XYPH, not in git-warp

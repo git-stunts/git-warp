@@ -2043,6 +2043,7 @@ export default class WarpGraph {
    */
   analyzeConflicts(options?: {
     at?: { lamportCeiling?: number | null };
+    workingSetId?: string;
     entityId?: string;
     target?: ConflictTargetSelector;
     kind?: ConflictKind | ConflictKind[];
@@ -2072,8 +2073,14 @@ export default class WarpGraph {
   /**
    * Materializes a working set's pinned base observation plus overlay.
    */
-  materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
+  materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+
+  /** Returns the causal patch entries visible inside a working set. */
+  getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+
+  /** Returns the visible patch SHAs that touched one entity inside a working set. */
+  patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
 
   /** Creates a patch builder that writes into a working set's overlay patch-log. */
   createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
@@ -2440,11 +2447,18 @@ export interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
+    coordinateKind: 'frontier' | 'working_set';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
+    workingSet?: {
+      workingSetId: string;
+      baseLamportCeiling: number | null;
+      overlayHeadPatchSha: string | null;
+      overlayPatchCount: number;
+    };
   };
   analysisSnapshotHash: string;
   diagnostics?: ConflictDiagnostic[];

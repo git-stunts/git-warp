@@ -38,6 +38,12 @@ git-warp now includes a thin **Time Travel Debugger (TTD)** command family in th
 
 This keeps git-warp as substrate plus thin inspection tooling rather than turning the package into a TUI/web application shell. See [docs/TTD.md](docs/TTD.md) for the dedicated debugger architecture note.
 
+Read-side worldline awareness lives here, not in the reducer:
+
+- supported debug topics can inspect either the live frontier or a pinned working-set patch universe
+- analyzers and materializers decide which patches are visible
+- `reduceV5` and generic join semantics remain deterministic and worldline-blind
+
 ### Working-Set Boundary
 
 git-warp now also includes a separate **working-set** substrate family. It is intentionally **not** part of TTD because it creates durable descriptor refs.
@@ -51,6 +57,7 @@ The v1 model is deliberately narrow:
 
 - a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
 - overlay writes live in a separate working-set patch-log ref
+- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, and working-set-aware conflict analysis operate on the visible `base + overlay` patch universe
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API
 

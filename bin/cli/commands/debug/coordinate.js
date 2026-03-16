@@ -85,7 +85,10 @@ function summarizePerWriterCoordinate({ tick, perWriter }) {
  */
 async function buildResolvedCoordinate({ graph, lamportCeiling, maxTick, tickCount, perWriter }) {
   const frontierDigest = await computeFrontierHash(perWriter);
-  await materializeForDebug(graph, lamportCeiling, false);
+  await materializeForDebug(graph, {
+    lamportCeiling,
+    collectReceipts: false,
+  });
 
   const [nodes, edges, properties] = await Promise.all([
     graph.getNodes(),

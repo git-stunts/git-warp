@@ -48,12 +48,35 @@ export async function dropWorkingSet(workingSetId) {
 /**
  * @this {import('../WarpGraph.js').default}
  * @param {string} workingSetId
- * @param {{ receipts?: boolean }} [options]
+ * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
  */
 export async function materializeWorkingSet(workingSetId, options) {
   const service = new WorkingSetService({ graph: this });
   return await service.materialize(workingSetId, options);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @param {{ ceiling?: number|null }} [options]
+ * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+ */
+export async function getWorkingSetPatches(workingSetId, options) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.getPatchEntries(workingSetId, options);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @param {string} entityId
+ * @param {{ ceiling?: number|null }} [options]
+ * @returns {Promise<string[]>}
+ */
+export async function patchesForWorkingSet(workingSetId, entityId, options) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.patchesFor(workingSetId, entityId, options);
 }
 
 /**

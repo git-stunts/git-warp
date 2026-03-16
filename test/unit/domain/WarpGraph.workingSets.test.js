@@ -87,6 +87,8 @@ function createMockPersistence() {
  *   writerId: string,
  *   lamport: number,
  *   ops: Array<Record<string, unknown>>,
+ *   reads?: string[],
+ *   writes?: string[],
  *   context?: Map<string, number>|Record<string, number>|null
  * }} options
  * @returns {Promise<string>}
@@ -96,6 +98,8 @@ async function simulatePatchCommit(persistence, {
   writerId,
   lamport,
   ops,
+  reads,
+  writes,
   context,
 }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
@@ -107,6 +111,8 @@ async function simulatePatchCommit(persistence, {
     writer: writerId,
     lamport,
     ops,
+    ...(reads ? { reads } : {}),
+    ...(writes ? { writes } : {}),
     context: context || createVersionVector(),
   };
 
@@ -313,5 +319,88 @@ describe('WarpGraph working-set foundation', () => {
 
     await expect(graph.dropWorkingSet('ws_receipts')).resolves.toBe(true);
     await expect(persistence.readRef(overlayRef)).resolves.toBeNull();
+  });
+
+  it('materializeWorkingSet applies an additional ceiling over the working-set patch universe', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_ceiling',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_ceiling', (p) => {
+      p.setProperty('n1', 'color', 'blue');
+    });
+
+    await graph.materializeWorkingSet('ws_ceiling', { ceiling: 1 });
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+
+    await graph.materializeWorkingSet('ws_ceiling');
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+  });
+
+  it('getWorkingSetPatches returns the visible base-plus-overlay entries for a working set', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_entries',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_entries', (p) => {
+      p.setProperty('n1', 'status', 'overlay');
+    });
+
+    const full = await graph.getWorkingSetPatches('ws_entries');
+    const baseOnly = await graph.getWorkingSetPatches('ws_entries', { ceiling: 1 });
+
+    expect(full).toHaveLength(2);
+    expect(full.map(({ patch }) => patch.writer)).toEqual(['alice', 'ws_entries']);
+    expect(baseOnly).toHaveLength(1);
+    expect(baseOnly[0].patch.writer).toBe('alice');
+  });
+
+  it('patchesForWorkingSet returns the visible base-plus-overlay provenance set for one entity', async () => {
+    const baseSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+      reads: [],
+      writes: ['n1'],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_entries_prov',
+      owner: 'alice',
+    });
+
+    const overlaySha = await graph.patchWorkingSet('ws_entries_prov', (p) => {
+      p.setProperty('n1', 'color', 'blue');
+    });
+
+    const shas = await graph.patchesForWorkingSet('ws_entries_prov', 'n1');
+
+    expect(shas).toEqual([baseSha, overlaySha].sort());
   });
 });

@@ -66,9 +66,10 @@ describe('present', () => {
     present({
       graph: 'g',
       debugTopic: 'conflicts',
-      analysisVersion: 'conflict-analyzer.v1',
+      analysisVersion: 'conflict-analyzer.v2',
       resolvedCoordinate: {
-        analysisVersion: 'conflict-analyzer.v1',
+        analysisVersion: 'conflict-analyzer.v2',
+        coordinateKind: 'frontier',
         frontier: { alice: 'a'.repeat(40) },
         frontierDigest: 'f'.repeat(40),
         lamportCeiling: 3,
@@ -81,6 +82,7 @@ describe('present', () => {
     }, { format: 'text', command: 'debug', view: null });
     const output = stdoutChunks.join('');
     expect(output).toContain('Topic: conflicts');
+    expect(output).toContain('Coordinate Kind: frontier');
     expect(output).toContain('Conflicts: 0');
   });
 

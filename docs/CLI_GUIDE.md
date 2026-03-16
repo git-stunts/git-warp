@@ -956,6 +956,15 @@ All debugger topics are read-oriented. They inspect substrate facts; they do **n
 
 `working-set` is separate on purpose: it pins durable coordinates, while TTD inspects coordinates read-only.
 
+Supported debugger topics can inspect a pinned working set directly with `--working-set <id>`:
+
+- `debug timeline`
+- `debug conflicts`
+- `debug provenance`
+- `debug receipts`
+
+`debug coordinate` remains live-frontier/cursor scoped for now.
+
 For the architecture boundary behind this surface, see [docs/TTD.md](TTD.md).
 
 ### `debug coordinate` — inspect the resolved observation coordinate
@@ -1008,6 +1017,11 @@ git warp debug timeline --repo ./team-repo \
 # Restrict the timeline to one writer
 git warp debug timeline --repo ./team-repo \
   --writer-id alice
+
+# Inspect the visible base+overlay timeline for a pinned working set
+git warp debug timeline --repo ./team-repo \
+  --working-set review-auth \
+  --limit 10
 ```
 
 `--limit` returns the newest matching entries while preserving ascending causal order inside the returned window.
@@ -1016,6 +1030,7 @@ git warp debug timeline --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--working-set <id>` | string | _(live frontier / cursor)_ | Inspect the visible patch universe of this working set |
 | `--entity-id <id>` | string | _(all entities)_ | Restrict the timeline to patches touching this entity |
 | `--writer-id <id>` | string | _(all writers)_ | Restrict the timeline to one writer |
 | `--lamport-floor <n>` | integer | _(none)_ | Include no earlier than Lamport tick `n` |
@@ -1044,6 +1059,11 @@ git warp debug conflicts --repo ./team-repo \
   --evidence full \
   --max-patches 64 \
   --json
+
+# Inspect conflict traces inside a pinned working set
+git warp debug conflicts --repo ./team-repo \
+  --working-set review-auth \
+  --evidence full
 ```
 
 Targeted selectors:
@@ -1068,6 +1088,7 @@ git warp debug conflicts --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--working-set <id>` | string | _(live frontier / cursor)_ | Analyze conflicts against this working set instead of the live frontier |
 | `--entity-id <id>` | string | _(none)_ | Filter traces touching this entity |
 | `--target-kind <kind>` | string | _(none)_ | Target selector kind: `node`, `edge`, `node_property`, `edge_property` |
 | `--property-key <key>` | string | _(none)_ | Property key for `*_property` selectors |
@@ -1082,7 +1103,7 @@ git warp debug conflicts --repo ./team-repo \
 
 ### `debug provenance` — trace causal patch provenance for an entity
 
-The `debug provenance` command materializes explicitly at the chosen coordinate, resolves the provenance index, and reports the patches that affected a given entity ID.
+The `debug provenance` command reports the patches that affected a given entity ID. For live frontier/cursor reads it materializes explicitly and uses the provenance index. For working sets it walks the visible `base + overlay` patch universe directly.
 
 ```bash
 git warp debug provenance --repo ./team-repo --entity-id user:alice
@@ -1105,12 +1126,18 @@ git warp debug provenance --repo ./team-repo \
 git warp debug provenance --repo ./team-repo \
   --entity-id user:alice \
   --max-patches 5
+
+# Inspect provenance inside a pinned working set
+git warp debug provenance --repo ./team-repo \
+  --working-set review-auth \
+  --entity-id task:auth
 ```
 
 #### Complete flag reference for `debug provenance`
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--working-set <id>` | string | _(live frontier / cursor)_ | Inspect provenance inside this working set |
 | `--entity-id <id>` | string | _(required)_ | Entity ID to inspect |
 | `--lamport-ceiling <n>` | integer | active seek cursor or head | Analyze no later than Lamport tick `n` |
 | `--max-patches <n>` | integer | _(all matching patches)_ | Limit returned provenance entries |
@@ -1141,12 +1168,18 @@ git warp debug receipts --repo ./team-repo \
 git warp debug receipts --repo ./team-repo \
   --patch a1b2c3d \
   --limit 1
+
+# Inspect reducer outcomes for the visible base+overlay working-set state
+git warp debug receipts --repo ./team-repo \
+  --working-set review-auth \
+  --result superseded
 ```
 
 #### Complete flag reference for `debug receipts`
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--working-set <id>` | string | _(live frontier / cursor)_ | Materialize and inspect this working set instead of the live frontier |
 | `--writer-id <id>` | string | _(all writers)_ | Filter receipts by writer ID |
 | `--patch <sha>` | string | _(all patches)_ | Filter receipts by patch SHA or prefix |
 | `--target <target>` | string | _(all targets)_ | Filter matching ops by exact receipt target |
@@ -1457,6 +1490,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
+| `--working-set <id>` | Inspect the visible patch universe of this working set |
 | `--entity-id <id>` | Restrict to patches touching this entity |
 | `--writer-id <id>` | Restrict to one writer |
 | `--lamport-floor <n>` | Include no earlier than Lamport tick `n` |
@@ -1467,6 +1501,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
+| `--working-set <id>` | Analyze conflicts against this working set |
 | `--entity-id <id>` | Filter traces touching this entity |
 | `--target-kind <kind>` | `node`, `edge`, `node_property`, `edge_property` |
 | `--property-key <key>` | Property key for `*_property` targets |
@@ -1481,6 +1516,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
+| `--working-set <id>` | Inspect provenance inside this working set |
 | `--entity-id <id>` | Entity ID to inspect |
 | `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
 | `--max-patches <n>` | Limit returned provenance entries |
@@ -1489,6 +1525,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
+| `--working-set <id>` | Materialize and inspect this working set |
 | `--writer-id <id>` | Filter receipts by writer |
 | `--patch <sha>` | Filter receipts by patch SHA or prefix |
 | `--target <target>` | Filter matching ops by exact receipt target |

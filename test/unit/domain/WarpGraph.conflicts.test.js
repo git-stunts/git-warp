@@ -18,8 +18,10 @@ function createMockPersistence() {
   const refs = new Map();
   const blobs = new Map();
   const commits = new Map();
+  const trees = new Map();
   let blobCounter = 0;
   let commitCounter = 0;
+  let treeCounter = 0;
 
   return {
     _refs: refs,
@@ -48,6 +50,16 @@ function createMockPersistence() {
       const commit = commits.get(sha);
       return commit || { message: '', parents: [] };
     }),
+    writeTree: vi.fn(async (entries) => {
+      const oid = hexSha(2000000 + (++treeCounter));
+      trees.set(oid, entries);
+      return oid;
+    }),
+    commitNodeWithTree: vi.fn(async ({ treeOid, message, parents }) => {
+      const sha = hexSha(3000000 + (++commitCounter));
+      commits.set(sha, { treeOid, message, parents: parents || [] });
+      return sha;
+    }),
     readBlob: vi.fn(async (oid) => blobs.get(oid)),
     writeBlob: vi.fn(async (buf) => {
       const oid = hexSha(++blobCounter);
@@ -59,6 +71,7 @@ function createMockPersistence() {
       commits.set(sha, { message, parents: parents || [] });
       return sha;
     }),
+    nodeExists: vi.fn(async (sha) => commits.has(sha)),
   };
 }
 
@@ -138,7 +151,7 @@ describe('WarpGraph.analyzeConflicts()', () => {
     const first = await graph.analyzeConflicts({ kind: 'supersession', evidence: 'full' });
     const second = await graph.analyzeConflicts({ kind: 'supersession', evidence: 'summary' });
 
-    expect(first.analysisVersion).toBe('conflict-analyzer/v1');
+    expect(first.analysisVersion).toBe('conflict-analyzer/v2');
     expect(first.analysisSnapshotHash).toBe(second.analysisSnapshotHash);
     expect(first.conflicts).toHaveLength(1);
 
@@ -267,6 +280,46 @@ describe('WarpGraph.analyzeConflicts()', () => {
       at: { lamportCeiling: -1 },
     })).rejects.toMatchObject({
       code: 'invalid_coordinate',
+    });
+  });
+
+  it('analyzes conflicts against a working set overlay instead of the live frontier', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [{ type: 'PropSet', node: 'n1', key: 'color', value: 'red' }],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_review',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_review', (p) => {
+      p.setProperty('n1', 'color', 'blue');
+    });
+
+    const liveAnalysis = await graph.analyzeConflicts({ kind: 'eventual_override' });
+    const workingSetAnalysis = await graph.analyzeConflicts({
+      workingSetId: 'ws_review',
+      kind: 'eventual_override',
+    });
+
+    expect(liveAnalysis.conflicts).toHaveLength(0);
+    expect(workingSetAnalysis.resolvedCoordinate.coordinateKind).toBe('working_set');
+    expect(workingSetAnalysis.resolvedCoordinate.workingSet).toMatchObject({
+      workingSetId: 'ws_review',
+      overlayPatchCount: 1,
+    });
+    expect(workingSetAnalysis.conflicts).toHaveLength(1);
+    expect(workingSetAnalysis.conflicts[0]).toMatchObject({
+      kind: 'eventual_override',
+      winner: {
+        anchor: {
+          writerId: 'ws_review',
+        },
+      },
     });
   });
 

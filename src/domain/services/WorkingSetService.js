@@ -1,8 +1,8 @@
 /**
  * WorkingSetService — durable descriptor storage for explicit working sets.
  *
- * Working sets are pinned observations plus future overlay identity. In v1 the
- * overlay remains empty and authoritative state still lives in patch history;
+ * Working sets are pinned observations plus overlay patch-log identity.
+ * Authoritative truth still lives in patch history and descriptor refs;
  * materialized snapshots remain caches only.
  *
  * @module domain/services/WorkingSetService
@@ -229,6 +229,17 @@ function maxPatchLamport(patches) {
 }
 
 /**
+ * @param {import('../types/WarpTypesV2.js').PatchV2} patch
+ * @param {string} entityId
+ * @returns {boolean}
+ */
+function patchTouchesEntity(patch, entityId) {
+  const reads = Array.isArray(patch.reads) ? patch.reads : [];
+  const writes = Array.isArray(patch.writes) ? patch.writes : [];
+  return reads.includes(entityId) || writes.includes(entityId);
+}
+
+/**
  * @typedef {{
  *   workingSetId?: string,
  *   lamportCeiling?: number|null,
@@ -236,6 +247,12 @@ function maxPatchLamport(patches) {
  *   scope?: string|null,
  *   leaseExpiresAt?: string|null
  * }} WorkingSetCreateOptions
+ */
+
+/**
+ * @typedef {{
+ *   ceiling?: number|null
+ * }} WorkingSetReadOptions
  */
 
 export default class WorkingSetService {
@@ -336,13 +353,15 @@ export default class WorkingSetService {
 
   /**
    * @param {string} workingSetId
-   * @param {{ receipts?: boolean }} [options]
+   * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
    * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
    */
   async materialize(workingSetId, options = {}) {
     const descriptor = await this.getOrThrow(workingSetId);
+    const ceiling = normalizeLamportCeiling(options.ceiling);
     const { state, receipts } = await this._materializeDescriptor(descriptor, {
       collectReceipts: !!options.receipts,
+      ceiling,
     });
     if (options.receipts) {
       return freezePublicStateWithReceipts(state, receipts);
@@ -358,6 +377,7 @@ export default class WorkingSetService {
     const descriptor = await this.getOrThrow(workingSetId);
     const { state, allPatches } = await this._materializeDescriptor(descriptor, {
       collectReceipts: false,
+      ceiling: null,
     });
     const overlayRef = this._buildOverlayRef(workingSetId);
     const nextLamport = maxPatchLamport(allPatches) + 1;
@@ -402,6 +422,43 @@ export default class WorkingSetService {
     } finally {
       this._graph._patchInProgress = false;
     }
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @param {WorkingSetReadOptions} [options]
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  async getPatchEntries(workingSetId, options = {}) {
+    const descriptor = await this.getOrThrow(workingSetId);
+    return await this._collectPatchEntries(descriptor, {
+      ceiling: normalizeLamportCeiling(options.ceiling),
+    });
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @param {string} entityId
+   * @param {WorkingSetReadOptions} [options]
+   * @returns {Promise<string[]>}
+   */
+  async patchesFor(workingSetId, entityId, options = {}) {
+    const normalizedEntityId = normalizeOptionalString(entityId, 'entityId');
+    if (!normalizedEntityId) {
+      throw new WorkingSetError('entityId must not be empty', {
+        code: 'E_WORKING_SET_INVALID_ARGS',
+        context: { field: 'entityId' },
+      });
+    }
+
+    const entries = await this.getPatchEntries(workingSetId, options);
+    const shas = new Set();
+    for (const { patch, sha } of entries) {
+      if (patchTouchesEntity(patch, normalizedEntityId)) {
+        shas.add(sha);
+      }
+    }
+    return [...shas].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   }
 
   /**
@@ -573,17 +630,31 @@ export default class WorkingSetService {
   /**
    * @private
    * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
-   * @param {{ collectReceipts: boolean }} options
+   * @param {{ ceiling: number|null }} options
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  async _collectPatchEntries(descriptor, { ceiling }) {
+    const basePatches = await this._collectBasePatches(descriptor);
+    const overlayPatches = await this._collectOverlayPatches(descriptor);
+    const allPatches = basePatches.concat(overlayPatches);
+    if (ceiling === null) {
+      return allPatches;
+    }
+    return allPatches.filter(({ patch }) => (patch.lamport ?? 0) <= ceiling);
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
    *   state: import('./JoinReducer.js').WarpStateV5,
    *   receipts: import('../types/TickReceipt.js').TickReceipt[],
    *   allPatches: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>
    * }>}
    */
-  async _materializeDescriptor(descriptor, { collectReceipts }) {
-    const basePatches = await this._collectBasePatches(descriptor);
-    const overlayPatches = await this._collectOverlayPatches(descriptor);
-    const allPatches = basePatches.concat(overlayPatches);
+  async _materializeDescriptor(descriptor, { collectReceipts, ceiling }) {
+    const allPatches = await this._collectPatchEntries(descriptor, { ceiling });
 
     /** @type {import('./JoinReducer.js').WarpStateV5} */
     let state;

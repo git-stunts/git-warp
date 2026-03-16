@@ -250,11 +250,18 @@ interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
+    coordinateKind: 'frontier' | 'working_set';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
+    workingSet?: {
+      workingSetId: string;
+      baseLamportCeiling: number | null;
+      overlayHeadPatchSha: string | null;
+      overlayPatchCount: number;
+    };
   };
   analysisSnapshotHash: string;
   diagnostics?: ConflictDiagnostic[];
@@ -331,6 +338,7 @@ declare module '../WarpGraph.js' {
     _sortPatchesCausally(patches: Array<{ patch: PatchV2; sha: string }>): Array<{ patch: PatchV2; sha: string }>;
     analyzeConflicts(options?: {
       at?: { lamportCeiling?: number | null };
+      workingSetId?: string;
       entityId?: string;
       target?: ConflictTargetSelector;
       kind?: ConflictKind | ConflictKind[];
@@ -419,8 +427,10 @@ declare module '../WarpGraph.js' {
     getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
     listWorkingSets(): Promise<WorkingSetDescriptor[]>;
     dropWorkingSet(workingSetId: string): Promise<boolean>;
-    materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
+    materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+    materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+    getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+    patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
     createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
     patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
   }

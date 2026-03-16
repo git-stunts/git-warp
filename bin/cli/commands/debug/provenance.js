@@ -18,16 +18,19 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_PROVENANCE_OPTIONS = {
+  'working-set': { type: 'string' },
   'entity-id': { type: 'string' },
   'lamport-ceiling': { type: 'string' },
   'max-patches': { type: 'string' },
 };
 
 const debugProvenanceSchema = z.object({
+  'working-set': z.string().optional(),
   'entity-id': z.string().min(1, 'Missing value for --entity-id'),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   'max-patches': z.coerce.number().int().positive().optional(),
 }).strict().transform((val) => ({
+  workingSetId: val['working-set'] ?? null,
   entityId: val['entity-id'],
   lamportCeiling: val['lamport-ceiling'] ?? null,
   maxPatches: val['max-patches'] ?? null,
@@ -42,10 +45,16 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugProvenanceSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-
-  await materializeForDebug(graph, lamportCeiling, false);
-
-  const shas = await graph.patchesFor(values.entityId);
+  const shas = values.workingSetId
+    ? await graph.patchesForWorkingSet(
+        values.workingSetId,
+        values.entityId,
+        lamportCeiling === null ? undefined : { ceiling: lamportCeiling },
+      )
+    : (await materializeForDebug(graph, {
+        lamportCeiling,
+        collectReceipts: false,
+      }), await graph.patchesFor(values.entityId));
   const loadedEntries = /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>} */ (await Promise.all(
     shas.map(async (/** @type {string} */ sha) => ({
       sha,
@@ -62,6 +71,7 @@ export async function handleDebugTopic({ options, args }) {
     payload: {
       graph: graphName,
       debugTopic: 'provenance',
+      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
       entityId: values.entityId,
       lamportCeiling,
       totalPatches: entries.length,

@@ -302,6 +302,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "getWorkingSetPatches": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "getWriterPatches": {
     "configurable": true,
     "enumerable": false,
@@ -407,6 +412,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "patchesForWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "persistence": {
     "configurable": true,
     "enumerable": false,
@@ -505,7 +515,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `100`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `102`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -569,6 +579,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "getPropertyCount",
   "getStateSnapshot",
   "getWorkingSet",
+  "getWorkingSetPatches",
   "getWriterPatches",
   "graphName",
   "hasFrontierChanged",
@@ -590,6 +601,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "patchMany",
   "patchWorkingSet",
   "patchesFor",
+  "patchesForWorkingSet",
   "persistence",
   "processSyncRequest",
   "provenanceIndex",

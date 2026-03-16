@@ -67,6 +67,10 @@ const ws = await graph.createWorkingSet({
 const descriptor = await graph.getWorkingSet('review-auth');
 const all = await graph.listWorkingSets();
 const state = await graph.materializeWorkingSet('review-auth');
+const stateAtCeiling = await graph.materializeWorkingSet('review-auth', { ceiling: 12 });
+const visiblePatches = await graph.getWorkingSetPatches('review-auth');
+const provenanceShas = await graph.patchesForWorkingSet('review-auth', 'task:oauth');
+const conflicts = await graph.analyzeConflicts({ workingSetId: 'review-auth' });
 
 await graph.patchWorkingSet('review-auth', (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
@@ -110,6 +114,15 @@ The Time Travel Debugger stays read-only:
 
 - `seek` and `debug ...` inspect substrate facts
 - `working-set ...` manages durable coordinates and overlay patch logs
+
+Supported debugger topics can now inspect a working set directly with `--working-set <id>`:
+
+- `debug timeline`
+- `debug conflicts`
+- `debug provenance`
+- `debug receipts`
+
+That read-side support changes the visible patch universe, not the reducer rules. `reduceV5` remains worldline-blind.
 
 That boundary keeps the debugger from turning into a mutation channel while still letting higher layers build real fork/worldline behavior on top of working sets.
 

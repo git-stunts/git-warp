@@ -27,7 +27,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{ type: string, node?: string, from?: string, to?: string, label?: string, key?: string, value?: unknown }} PatchOp
  * @typedef {{ graph: string, sha: string, writer: string, lamport: number, schema?: number, ops: PatchOp[] }} PatchShowPayload
  * @typedef {{ graph: string, total: number, showing: number, writerFilter?: string | null, entries: Array<{ sha: string, writer: string, lamport: number, opCount: number, nodeIds: string[] }> }} PatchListPayload
- * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts' }} DebugConflictsPayload
+ * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts', workingSetId?: string }} DebugConflictsPayload
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'coordinate',
@@ -55,6 +55,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'provenance',
+ *   workingSetId?: string,
  *   entityId: string,
  *   lamportCeiling: number|null,
  *   totalPatches: number,
@@ -75,6 +76,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'receipts',
+ *   workingSetId?: string,
  *   lamportCeiling: number|null,
  *   filters: {
  *     writerId: string|null,
@@ -108,6 +110,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'timeline',
+ *   workingSetId?: string,
  *   coordinateSource: 'explicit'|'cursor'|'frontier',
  *   filters: {
  *     entityId: string|null,
@@ -851,11 +854,19 @@ function renderDebugConflicts(payload) {
     `Graph: ${payload.graph}`,
     `Topic: conflicts`,
     `Analysis Version: ${payload.analysisVersion}`,
+    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
+    `Coordinate Kind: ${payload.resolvedCoordinate.coordinateKind}`,
     `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
     `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.frontier).length}`,
     `Snapshot: ${payload.analysisSnapshotHash}`,
     `Conflicts: ${payload.conflicts.length}`,
   ];
+
+  if (payload.resolvedCoordinate.workingSet) {
+    lines.push(
+      `Overlay: head=${payload.resolvedCoordinate.workingSet.overlayHeadPatchSha ?? 'none'} patches=${payload.resolvedCoordinate.workingSet.overlayPatchCount} base-ceiling=${payload.resolvedCoordinate.workingSet.baseLamportCeiling ?? 'latest'}`
+    );
+  }
 
   if (payload.diagnostics && payload.diagnostics.length > 0) {
     lines.push('');
@@ -933,6 +944,7 @@ function renderDebugProvenance(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: provenance',
+    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
     `Entity: ${payload.entityId}`,
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Patches: ${payload.returnedPatches}/${payload.totalPatches}`,
@@ -964,6 +976,7 @@ function renderDebugReceipts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: receipts',
+    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Receipts: ${payload.returnedReceipts}/${payload.matchedReceipts} matched (${payload.totalReceipts} total)`,
     `Results: applied=${payload.summary.results.applied} superseded=${payload.summary.results.superseded} redundant=${payload.summary.results.redundant}`,
@@ -1011,6 +1024,7 @@ function renderDebugTimeline(payload) {
     `Graph: ${payload.graph}`,
     'Topic: timeline',
     `Source: ${payload.coordinateSource}`,
+    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
     `Lamport Window: ${payload.filters.lamportFloor ?? 0}..${payload.filters.lamportCeiling ?? 'head'}`,
     `Entries: ${payload.returnedEntries}/${payload.totalEntries}`,
   ];

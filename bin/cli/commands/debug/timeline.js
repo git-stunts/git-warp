@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { EXIT_CODES, notFoundError, parseCommandArgs } from '../../infrastructure.js';
 
 import {
+  getWorkingSetPatchEntriesForDebug,
   openDebugContext,
   resolveLamportCeiling,
   sortPatchEntriesCausally,
@@ -18,6 +19,7 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_TIMELINE_OPTIONS = {
+  'working-set': { type: 'string' },
   'entity-id': { type: 'string' },
   'writer-id': { type: 'string' },
   'lamport-floor': { type: 'string' },
@@ -26,6 +28,7 @@ const DEBUG_TIMELINE_OPTIONS = {
 };
 
 const debugTimelineSchema = z.object({
+  'working-set': z.string().optional(),
   'entity-id': z.string().optional(),
   'writer-id': z.string().optional(),
   'lamport-floor': z.coerce.number().int().nonnegative().optional(),
@@ -40,6 +43,7 @@ const debugTimelineSchema = z.object({
   message: '--lamport-floor must be less than or equal to --lamport-ceiling',
   path: ['lamport-floor'],
 }).transform((val) => ({
+  workingSetId: val['working-set'] ?? null,
   entityId: val['entity-id'] ?? null,
   writerId: val['writer-id'] ?? null,
   lamportFloor: val['lamport-floor'] ?? null,
@@ -97,6 +101,41 @@ async function loadTimelineEntries({ graph, entityId, writerId }) {
 }
 
 /**
+ * @param {{
+ *   graph: import('../../types.js').WarpGraphInstance,
+ *   workingSetId: string,
+ *   lamportCeiling: number|null,
+ *   entityId: string|null,
+ *   writerId: string|null
+ * }} params
+ * @returns {Promise<PatchEntry[]>}
+ */
+async function loadWorkingSetTimelineEntries({ graph, workingSetId, lamportCeiling, entityId, writerId }) {
+  let entries;
+  if (entityId) {
+    const shas = await graph.patchesForWorkingSet(
+      workingSetId,
+      entityId,
+      lamportCeiling === null ? undefined : { ceiling: lamportCeiling },
+    );
+    entries = /** @type {PatchEntry[]} */ (await Promise.all(
+      shas.map(async (sha) => ({
+        sha,
+        patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (
+          await graph.loadPatchBySha(sha)
+        ),
+      })),
+    ));
+  } else {
+    entries = await getWorkingSetPatchEntriesForDebug(graph, workingSetId, lamportCeiling);
+  }
+  if (writerId) {
+    entries = entries.filter(({ patch }) => patch.writer === writerId);
+  }
+  return entries;
+}
+
+/**
  * @param {PatchEntry[]} entries
  * @param {{lamportFloor: number|null, lamportCeiling: number|null}} filters
  * @returns {PatchEntry[]}
@@ -141,6 +180,44 @@ async function ensureKnownWriter({ graph, writerId }) {
 }
 
 /**
+ * @param {number|null} explicitLamportCeiling
+ * @param {import('../../types.js').CursorBlob|null} activeCursor
+ * @returns {'explicit'|'cursor'|'frontier'}
+ */
+function resolveCoordinateSource(explicitLamportCeiling, activeCursor) {
+  if (explicitLamportCeiling !== null) {
+    return 'explicit';
+  }
+  return activeCursor ? 'cursor' : 'frontier';
+}
+
+/**
+ * @param {{
+ *   graph: import('../../types.js').WarpGraphInstance,
+ *   values: ReturnType<typeof debugTimelineSchema.parse>,
+ *   lamportCeiling: number|null
+ * }} params
+ * @returns {Promise<PatchEntry[]>}
+ */
+async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
+  if (values.workingSetId) {
+    return await loadWorkingSetTimelineEntries({
+      graph,
+      workingSetId: values.workingSetId,
+      lamportCeiling,
+      entityId: values.entityId,
+      writerId: values.writerId,
+    });
+  }
+
+  return await loadTimelineEntries({
+    graph,
+    entityId: values.entityId,
+    writerId: values.writerId,
+  });
+}
+
+/**
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -149,19 +226,10 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugTimelineSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const coordinateSource = values.lamportCeiling !== null
-    ? 'explicit'
-    : activeCursor
-      ? 'cursor'
-      : 'frontier';
+  const coordinateSource = resolveCoordinateSource(values.lamportCeiling, activeCursor);
+  const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
 
-  const entries = await loadTimelineEntries({
-    graph,
-    entityId: values.entityId,
-    writerId: values.writerId,
-  });
-
-  if (entries.length === 0 && values.writerId) {
+  if (entries.length === 0 && values.writerId && !values.workingSetId) {
     await ensureKnownWriter({ graph, writerId: values.writerId });
   }
 
@@ -178,6 +246,7 @@ export async function handleDebugTopic({ options, args }) {
       graph: graphName,
       debugTopic: 'timeline',
       coordinateSource,
+      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
       filters: {
         entityId: values.entityId,
         writerId: values.writerId,

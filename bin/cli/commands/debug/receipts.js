@@ -22,6 +22,7 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_RECEIPT_OPTIONS = {
+  'working-set': { type: 'string' },
   'writer-id': { type: 'string' },
   patch: { type: 'string' },
   target: { type: 'string' },
@@ -32,6 +33,7 @@ const DEBUG_RECEIPT_OPTIONS = {
 };
 
 const debugReceiptsSchema = z.object({
+  'working-set': z.string().optional(),
   'writer-id': z.string().optional(),
   patch: z.string().optional(),
   target: z.string().optional(),
@@ -46,14 +48,26 @@ const debugReceiptsSchema = z.object({
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().positive().optional(),
 }).strict().transform((val) => ({
+  workingSetId: val['working-set'] ?? null,
   writerId: val['writer-id'] ?? null,
   patch: val.patch ?? null,
   target: val.target ?? null,
-  results: Array.isArray(val.result) ? val.result : val.result ? [val.result] : [],
-  opTypes: Array.isArray(val.op) ? val.op : val.op ? [val.op] : [],
+  results: normalizeRepeatedOption(val.result),
+  opTypes: normalizeRepeatedOption(val.op),
   lamportCeiling: val['lamport-ceiling'] ?? null,
   limit: val.limit ?? null,
 }));
+
+/**
+ * @param {string|string[]|undefined} value
+ * @returns {string[]}
+ */
+function normalizeRepeatedOption(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return value ? [value] : [];
+}
 
 /**
  * @param {TickReceipt[]} receipts
@@ -170,7 +184,11 @@ export async function handleDebugTopic({ options, args }) {
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
 
   const materialized = /** @type {{state: unknown, receipts: TickReceipt[]}} */ (
-    await materializeForDebug(graph, lamportCeiling, true)
+    await materializeForDebug(graph, {
+      lamportCeiling,
+      collectReceipts: true,
+      workingSetId: values.workingSetId,
+    })
   );
   const sortedReceipts = sortReceipts(materialized.receipts);
   const filteredReceipts = sortedReceipts
@@ -185,6 +203,7 @@ export async function handleDebugTopic({ options, args }) {
     payload: {
       graph: graphName,
       debugTopic: 'receipts',
+      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
       lamportCeiling,
       filters: {
         writerId: values.writerId,

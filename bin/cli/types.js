@@ -35,7 +35,9 @@
  * @property {(workingSetId: string) => Promise<{workingSetId: string, baseObservation: {lamportCeiling: number|null, frontier: Record<string, string>, frontierDigest: string}, overlay: {overlayId: string, kind: string, headPatchSha: string|null, patchCount: number}}|null>} getWorkingSet
  * @property {() => Promise<Array<{workingSetId: string, baseObservation: {lamportCeiling: number|null, frontier: Record<string, string>, frontierDigest: string}, overlay: {overlayId: string, kind: string, headPatchSha: string|null, patchCount: number}}>>} listWorkingSets
  * @property {(workingSetId: string) => Promise<boolean>} dropWorkingSet
- * @property {(workingSetId: string, options?: {receipts?: boolean}) => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.js').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.js').TickReceipt[]}>} materializeWorkingSet
+ * @property {(workingSetId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.js').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.js').TickReceipt[]}>} materializeWorkingSet
+ * @property {(workingSetId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>} getWorkingSetPatches
+ * @property {(workingSetId: string, entityId: string, options?: {ceiling?: number|null}) => Promise<string[]>} patchesForWorkingSet
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
  * @property {(sha: string) => Promise<import('../../src/domain/types/WarpTypesV2.js').PatchV2>} loadPatchBySha
  * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache

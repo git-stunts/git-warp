@@ -40,12 +40,27 @@ export function resolveLamportCeiling(explicitLamportCeiling, activeCursor) {
  * cache when opening graphs, so this remains a read-only exploratory path.
  *
  * @param {WarpGraphInstance} graph
- * @param {number|null} lamportCeiling
- * @param {boolean} collectReceipts
+ * @param {{ lamportCeiling: number|null, collectReceipts: boolean, workingSetId?: string|null }} options
  * @returns {Promise<unknown>}
  */
-export async function materializeForDebug(graph, lamportCeiling, collectReceipts) {
+export async function materializeForDebug(graph, options) {
   const debugGraph = /** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (graph));
+  const {
+    lamportCeiling,
+    collectReceipts,
+    workingSetId = null,
+  } = options;
+  if (workingSetId) {
+    if (collectReceipts) {
+      return lamportCeiling === null
+        ? await debugGraph.materializeWorkingSet(workingSetId, { receipts: true })
+        : await debugGraph.materializeWorkingSet(workingSetId, { receipts: true, ceiling: lamportCeiling });
+    }
+    return lamportCeiling === null
+      ? await debugGraph.materializeWorkingSet(workingSetId)
+      : await debugGraph.materializeWorkingSet(workingSetId, { ceiling: lamportCeiling });
+  }
+
   if (collectReceipts) {
     if (lamportCeiling === null) {
       return await debugGraph.materialize({ receipts: true });
@@ -57,6 +72,20 @@ export async function materializeForDebug(graph, lamportCeiling, collectReceipts
     return await debugGraph.materialize();
   }
   return await debugGraph.materialize({ ceiling: lamportCeiling });
+}
+
+/**
+ * @param {WarpGraphInstance} graph
+ * @param {string} workingSetId
+ * @param {number|null} lamportCeiling
+ * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>}
+ */
+export async function getWorkingSetPatchEntriesForDebug(graph, workingSetId, lamportCeiling) {
+  const debugGraph = /** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (graph));
+  if (lamportCeiling === null) {
+    return await debugGraph.getWorkingSetPatches(workingSetId);
+  }
+  return await debugGraph.getWorkingSetPatches(workingSetId, { ceiling: lamportCeiling });
 }
 
 /**
