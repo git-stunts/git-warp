@@ -11,12 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.6.0
+## What's New in v14.7.0
 
-- **Working sets can now diverge through overlay patch logs** — `WarpGraph` now exposes `createWorkingSetPatch()` and `patchWorkingSet()` so a working set can continue from its pinned base observation through a separate overlay ref, while live writer refs stay untouched.
-- **Working-set materialization now replays base plus overlay** — `materializeWorkingSet()` and `getWorkingSet()` now reflect the current overlay patch-log head and replay the full working-set view instead of treating overlays as empty identity only.
-- **The working-set architecture stays hex-clean** — overlay writes reuse the existing patch builder and mutation kernel rather than introducing a second ad hoc working-set mutation engine.
-- **Docs now describe the real substrate boundary** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the split between descriptor lifecycle in the CLI and overlay writes in the library API.
+- **Conflict analysis is now working-set aware** — `WarpGraph.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.
+- **Working-set reads gained first-class patch, provenance, and ceiling support** — `getWorkingSetPatches()` and `patchesForWorkingSet()` expose the visible `base + overlay` patch universe directly, and `materializeWorkingSet()` now accepts an optional runtime ceiling for explicit replay/debug slices.
+- **The built-in TTD can inspect working sets directly** — `git warp debug conflicts`, `debug timeline`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and agents can inspect a speculative lane without inventing separate tooling.
+- **Docs now describe the debugger/working-set join cleanly** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the read-side worldline boundary without pretending the reducer itself became worldline-aware.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
@@ -570,14 +570,26 @@ git warp debug coordinate
 # Inspect the newest causal timeline window
 git warp debug timeline --limit 10
 
+# Inspect the newest causal timeline window inside a working set
+git warp debug timeline --working-set review-auth --limit 10
+
 # Inspect deterministic conflict traces
 git warp debug conflicts --kind supersession --evidence full
+
+# Inspect deterministic conflict traces inside a working set
+git warp debug conflicts --working-set review-auth --evidence full
 
 # Trace causal provenance for one entity
 git warp debug provenance --entity-id user:alice
 
+# Trace provenance for one entity inside a working set
+git warp debug provenance --working-set review-auth --entity-id user:alice
+
 # Inspect reducer receipts at a time-travel coordinate
 git warp debug receipts --lamport-ceiling 12 --result superseded
+
+# Inspect reducer receipts inside a working set
+git warp debug receipts --working-set review-auth --result superseded
 
 # Check graph health, status, and GC metrics
 git warp check
@@ -621,14 +633,26 @@ git warp debug coordinate --json
 # Inspect the newest visible causal timeline window
 git warp debug timeline --limit 10 --json
 
+# Inspect the newest visible causal timeline window inside a working set
+git warp debug timeline --working-set review-auth --limit 10 --json
+
 # Inspect substrate conflict provenance at the current frontier
 git warp debug conflicts --entity-id user:alice --lamport-ceiling 12 --json
+
+# Inspect substrate conflict provenance inside a working set
+git warp debug conflicts --working-set review-auth --json
 
 # Inspect patch provenance for one entity
 git warp debug provenance --entity-id user:alice --json
 
+# Inspect patch provenance inside a working set
+git warp debug provenance --working-set review-auth --entity-id user:alice --json
+
 # Inspect reducer outcomes without leaving the CLI
 git warp debug receipts --writer-id alice --result superseded --json
+
+# Inspect working-set reducer outcomes without leaving the CLI
+git warp debug receipts --working-set review-auth --writer-id ws_review-auth --json
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).
@@ -639,7 +663,7 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Human-Facing Apps
 
-`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`. Those read-side debugger commands can now target either the live frontier or a pinned working set, while the reducer itself stays deterministic and worldline-blind.
 
 Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 

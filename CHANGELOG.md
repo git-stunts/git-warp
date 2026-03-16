@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.7.0] — 2026-03-16
+
+### Added
+
+- **Working-set-aware debugger reads** — `git warp debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and LLM agents can inspect a pinned speculative lane without leaving the main git-warp CLI.
+- **Working-set provenance query API** — Added `WarpGraph.patchesForWorkingSet()` as a read-side helper for entity-local provenance over the visible `base + overlay` patch universe, alongside the earlier `getWorkingSetPatches()` and `materializeWorkingSet()` surfaces.
+
+### Changed
+
+- **Conflict analysis can now target working sets explicitly** — `WarpGraph.analyzeConflicts()` now accepts `workingSetId`, returns a richer resolved coordinate that distinguishes `frontier` from `working_set`, and computes traces against the selected visible patch universe without changing reducer rules.
+- **Working-set read helpers now support deeper debugger slicing** — `materializeWorkingSet()` accepts an optional runtime ceiling, `getWorkingSetPatches()` feeds read-side debugger topics directly, and the docs now explain that worldline awareness changes patch visibility rather than CRDT resolution.
+- **TTD documentation now covers the debugger/working-set join** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the boundary between read-only debugger topics and durable working-set management stays explicit while still documenting the new `--working-set` inspection flow.
+
 ## [14.6.0] — 2026-03-16
 
 ### Added
