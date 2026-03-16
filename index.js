@@ -51,6 +51,7 @@ import {
   TraversalError,
   OperationAbortedError,
   SyncError,
+  WorkingSetError,
   WormholeError,
 } from './src/domain/errors/index.js';
 import WriterError from './src/domain/errors/WriterError.js';
@@ -178,6 +179,7 @@ export {
   TraversalError,
   OperationAbortedError,
   SyncError,
+  WorkingSetError,
   WormholeError,
   WriterError,
 

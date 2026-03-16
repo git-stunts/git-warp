@@ -569,6 +569,9 @@
     "SyncError": {
       "kind": "class"
     },
+    "WorkingSetError": {
+      "kind": "class"
+    },
     "TICK_RECEIPT_OP_TYPES": {
       "kind": "const"
     },
@@ -1403,6 +1406,12 @@
       "kind": "interface"
     },
     "ContentMeta": {
+      "kind": "interface"
+    },
+    "WorkingSetCreateOptions": {
+      "kind": "interface"
+    },
+    "WorkingSetDescriptor": {
       "kind": "interface"
     },
     "CreateBTROptions": {

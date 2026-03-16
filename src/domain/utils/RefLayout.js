@@ -10,6 +10,7 @@
  * - refs/warp/<graph>/coverage/head
  * - refs/warp/<graph>/cursor/active
  * - refs/warp/<graph>/cursor/saved/<name>
+ * - refs/warp/<graph>/working-sets/<id>
  * - refs/warp/<graph>/audit/<writer_id>
  * - refs/warp/<graph>/trust/records
  *
@@ -57,6 +58,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
   'checkpoints',
   'coverage',
   'cursor',
+  'working-sets',
   'audit',
   'trust',
   'seek-cache',
@@ -317,6 +319,33 @@ export function buildCursorSavedRef(graphName, name) {
 export function buildCursorSavedPrefix(graphName) {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/cursor/saved/`;
+}
+
+/**
+ * Builds a working-set descriptor ref path for the given graph and id.
+ *
+ * Working-set ids use the same ref-safe validation as writer ids because they
+ * appear as the final ref path segment.
+ *
+ * @param {string} graphName
+ * @param {string} workingSetId
+ * @returns {string}
+ */
+export function buildWorkingSetRef(graphName, workingSetId) {
+  validateGraphName(graphName);
+  validateWriterId(workingSetId);
+  return `${REF_PREFIX}/${graphName}/working-sets/${workingSetId}`;
+}
+
+/**
+ * Builds the working-set prefix path for the given graph.
+ *
+ * @param {string} graphName
+ * @returns {string}
+ */
+export function buildWorkingSetsPrefix(graphName) {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/working-sets/`;
 }
 
 /**

@@ -47,6 +47,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "_loadPatchChainFromSha": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_loadPatchesBySha": {
     "configurable": true,
     "enumerable": false,
@@ -73,6 +78,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "type": "method",
   },
   "_materializeWithCeiling": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_materializeWithCoordinate": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -172,6 +182,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "createWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "createWormhole": {
     "configurable": true,
     "enumerable": false,
@@ -188,6 +203,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "type": "method",
   },
   "discoverWriters": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "dropWorkingSet": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -272,6 +292,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "getWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "getWriterPatches": {
     "configurable": true,
     "enumerable": false,
@@ -302,6 +327,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "listWorkingSets": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "loadPatchBySha": {
     "configurable": true,
     "enumerable": false,
@@ -317,7 +347,17 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "materializeCoordinate": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "materializeSlice": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "materializeWorkingSet": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -455,7 +495,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `90`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `98`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -468,12 +508,14 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "_isAncestor",
   "_loadLatestCheckpoint",
   "_loadPatchBySha",
+  "_loadPatchChainFromSha",
   "_loadPatchesBySha",
   "_loadPatchesSince",
   "_loadWriterPatches",
   "_logTiming",
   "_materializeGraph",
   "_materializeWithCeiling",
+  "_materializeWithCoordinate",
   "_maxLamportFromState",
   "_maybeRunGC",
   "_nextLamport",
@@ -493,10 +535,12 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "createCheckpoint",
   "createPatch",
   "createSyncRequest",
+  "createWorkingSet",
   "createWormhole",
   "createWriter",
   "discoverTicks",
   "discoverWriters",
+  "dropWorkingSet",
   "fork",
   "gcPolicy",
   "getContent",
@@ -513,16 +557,20 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "getNodes",
   "getPropertyCount",
   "getStateSnapshot",
+  "getWorkingSet",
   "getWriterPatches",
   "graphName",
   "hasFrontierChanged",
   "hasNode",
   "invalidateIndex",
   "join",
+  "listWorkingSets",
   "loadPatchBySha",
   "materialize",
   "materializeAt",
+  "materializeCoordinate",
   "materializeSlice",
+  "materializeWorkingSet",
   "maybeRunGC",
   "neighbors",
   "observer",

@@ -170,6 +170,49 @@ export async function _nextLamport() {
 }
 
 /**
+ * Loads a patch chain starting from an explicit tip SHA.
+ *
+ * Walks commits from the given tip SHA back to the first patch commit,
+ * collecting all patches along the way until `stopAtSha` (exclusive).
+ *
+ * @this {import('./_internal.js').WarpGraphWithMixins}
+ * @param {string} tipSha - Explicit patch-commit tip SHA to walk from
+ * @param {string|null} [stopAtSha=null] - Stop walking when reaching this SHA (exclusive)
+ * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>}
+ */
+export async function _loadPatchChainFromSha(tipSha, stopAtSha = null) {
+  if (!tipSha || typeof tipSha !== 'string') {
+    return [];
+  }
+
+  const patches = [];
+  let currentSha = tipSha;
+
+  while (currentSha && currentSha !== stopAtSha) {
+    const nodeInfo = await this._persistence.getNodeInfo(currentSha);
+    const { message } = nodeInfo;
+    const kind = detectMessageKind(message);
+    if (kind !== 'patch') {
+      break;
+    }
+
+    const patchMeta = decodePatchMessage(message);
+    const patchBuffer = await this._readPatchBlob(patchMeta);
+    const decoded = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
+
+    patches.push({ patch: decoded, sha: currentSha });
+
+    if (nodeInfo.parents && nodeInfo.parents.length > 0) {
+      currentSha = nodeInfo.parents[0];
+    } else {
+      break;
+    }
+  }
+
+  return patches.reverse();
+}
+
+/**
  * Loads all patches from a writer's ref chain.
  *
  * Walks commits from the tip SHA back to the first patch commit,
@@ -188,40 +231,7 @@ export async function _loadWriterPatches(writerId, stopAtSha = null) {
     return [];
   }
 
-  const patches = [];
-  let currentSha = tipSha;
-
-  while (currentSha && currentSha !== stopAtSha) {
-    // Get commit info and message
-    const nodeInfo = await this._persistence.getNodeInfo(currentSha);
-    const {message} = nodeInfo;
-
-    // Check if this is a patch commit
-    const kind = detectMessageKind(message);
-    if (kind !== 'patch') {
-      // Not a patch commit, stop walking
-      break;
-    }
-
-    // Decode the patch message to get patchOid
-    const patchMeta = decodePatchMessage(message);
-
-    // Read the patch blob (encrypted or plain)
-    const patchBuffer = await this._readPatchBlob(patchMeta);
-    const decoded = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
-
-    patches.push({ patch: decoded, sha: currentSha });
-
-    // Move to parent commit
-    if (nodeInfo.parents && nodeInfo.parents.length > 0) {
-      currentSha = nodeInfo.parents[0];
-    } else {
-      break;
-    }
-  }
-
-  // Patches are collected in reverse order (newest first), reverse them
-  return patches.reverse();
+  return await this._loadPatchChainFromSha(tipSha, stopAtSha);
 }
 
 /**

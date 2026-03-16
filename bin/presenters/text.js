@@ -130,7 +130,35 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *     targets: string[]
  *   }>
  * }} DebugTimelinePayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'create'|'show',
+ *   workingSet: import('../../index.js').WorkingSetDescriptor
+ * }} WorkingSetShowPayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'list',
+ *   workingSets: import('../../index.js').WorkingSetDescriptor[]
+ * }} WorkingSetListPayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'drop',
+ *   workingSetId: string,
+ *   dropped: boolean
+ * }} WorkingSetDropPayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'materialize',
+ *   workingSet: import('../../index.js').WorkingSetDescriptor,
+ *   summary: {
+ *     nodeCount: number,
+ *     edgeCount: number,
+ *     propertyCount: number,
+ *     receiptCount: number
+ *   }
+ * }} WorkingSetMaterializePayload
  * @typedef {DebugConflictsPayload | DebugCoordinatePayload | DebugProvenancePayload | DebugReceiptsPayload | DebugTimelinePayload} DebugPayload
+ * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload} WorkingSetPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -1039,4 +1067,70 @@ export function renderDebug(payload) {
     return renderDebugTimeline(payload);
   }
   return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+/**
+ * @param {import('../../index.js').WorkingSetDescriptor} workingSet
+ * @returns {string[]}
+ */
+function renderWorkingSetDescriptorLines(workingSet) {
+  return [
+    `Working Set: ${workingSet.workingSetId}`,
+    `Created At: ${workingSet.createdAt}`,
+    `Owner: ${workingSet.owner ?? 'none'}`,
+    `Scope: ${workingSet.scope ?? 'none'}`,
+    `Lease Expires At: ${workingSet.lease.expiresAt ?? 'none'}`,
+    `Base Coordinate: ${workingSet.baseObservation.coordinateVersion}`,
+    `Lamport Ceiling: ${workingSet.baseObservation.lamportCeiling ?? 'latest'}`,
+    `Frontier Digest: ${workingSet.baseObservation.frontierDigest}`,
+    `Frontier Writers: ${Object.keys(workingSet.baseObservation.frontier).length}`,
+    `Overlay: ${workingSet.overlay.kind} id=${workingSet.overlay.overlayId} head=${workingSet.overlay.headPatchSha ?? 'none'} patches=${workingSet.overlay.patchCount}`,
+    `Materialization Cache: ${workingSet.materialization.cacheAuthority}`,
+  ];
+}
+
+/** @param {WorkingSetPayload} payload */
+export function renderWorkingSet(payload) {
+  if (payload.workingSetAction === 'list') {
+    const lines = [
+      `Graph: ${payload.graph}`,
+      'Working Sets:',
+    ];
+
+    if (payload.workingSets.length === 0) {
+      lines.push('  (none)');
+      return `${lines.join('\n')}\n`;
+    }
+
+    for (const workingSet of payload.workingSets) {
+      lines.push(`- ${workingSet.workingSetId} ceiling=${workingSet.baseObservation.lamportCeiling ?? 'latest'} owner=${workingSet.owner ?? 'none'} scope=${workingSet.scope ?? 'none'}`);
+    }
+    return `${lines.join('\n')}\n`;
+  }
+
+  if (payload.workingSetAction === 'drop') {
+    return [
+      `Graph: ${payload.graph}`,
+      `Working Set: ${payload.workingSetId}`,
+      `Dropped: ${payload.dropped ? 'yes' : 'no'}`,
+      '',
+    ].join('\n');
+  }
+
+  if (payload.workingSetAction === 'materialize') {
+    const lines = [
+      `Graph: ${payload.graph}`,
+      'Working Set Action: materialize',
+      ...renderWorkingSetDescriptorLines(payload.workingSet),
+      `State Summary: nodes=${payload.summary.nodeCount} edges=${payload.summary.edgeCount} props=${payload.summary.propertyCount} receipts=${payload.summary.receiptCount}`,
+    ];
+    return `${lines.join('\n')}\n`;
+  }
+
+  const lines = [
+    `Graph: ${payload.graph}`,
+    `Working Set Action: ${payload.workingSetAction}`,
+    ...renderWorkingSetDescriptorLines(payload.workingSet),
+  ];
+  return `${lines.join('\n')}\n`;
 }

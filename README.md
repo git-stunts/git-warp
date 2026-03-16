@@ -11,12 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.4.0
+## What's New in v14.5.0
 
-- **Expanded debugger CLI again** — `git warp debug` now includes `coordinate` and `timeline` alongside `conflicts`, `provenance`, and `receipts`, so operators and LLM agents can inspect the resolved observation position and a cross-writer causal patch timeline without leaving the main CLI.
-- **TTD docs now cover the full v1 command family** — [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now document the debugger boundary and all five debug topics from one coherent time-travel story.
-- **CLI adapters stay thin and hex-clean** — the new coordinate/timeline commands share extracted time-travel helpers with `seek` instead of growing ad hoc substrate logic in multiple places.
-- **Viewer surfaces remain retired** — the package stays focused on substrate APIs, static CLI rendering, and thin debug commands rather than browser/TUI application shells.
+- **Working-set foundation is now part of the substrate** — `WarpGraph` now exposes explicit coordinate materialization plus durable working-set descriptors through `materializeCoordinate()`, `createWorkingSet()`, `getWorkingSet()`, `listWorkingSets()`, `dropWorkingSet()`, and `materializeWorkingSet()`. Working sets pin a frontier plus optional Lamport ceiling without assuming a Git worktree or making cached materializations authoritative.
+- **The main CLI now has a top-level `working-set` family** — `git warp working-set create|list|show|materialize|drop` manages pinned working-set descriptors directly from the main package, with no extra package to version or keep in sync.
+- **TTD stays read-only and architecture stays hex-clean** — the debugger remains a thin inspection family (`debug ...` + `seek`), while durable coordinate management lives beside it as a separate substrate family. This keeps “debug” from becoming a side-effecting mutation channel.
+- **Working-set docs are now first-class** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now document the pinned-coordinate model, the non-authoritative cache boundary, and the CLI/API contract together.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
@@ -72,6 +72,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
+- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, empty-overlay v1 semantics, and the working-set API/CLI surface.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.

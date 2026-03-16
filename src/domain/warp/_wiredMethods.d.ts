@@ -261,6 +261,42 @@ interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
+interface WorkingSetCreateOptions {
+  workingSetId?: string;
+  lamportCeiling?: number | null;
+  owner?: string | null;
+  scope?: string | null;
+  leaseExpiresAt?: string | null;
+}
+
+interface WorkingSetDescriptor {
+  schemaVersion: number;
+  workingSetId: string;
+  graphName: string;
+  createdAt: string;
+  updatedAt: string;
+  owner: string | null;
+  scope: string | null;
+  lease: {
+    expiresAt: string | null;
+  };
+  baseObservation: {
+    coordinateVersion: string;
+    frontier: Record<string, string>;
+    frontierDigest: string;
+    lamportCeiling: number | null;
+  };
+  overlay: {
+    overlayId: string;
+    kind: string;
+    headPatchSha: string | null;
+    patchCount: number;
+  };
+  materialization: {
+    cacheAuthority: 'derived';
+  };
+}
+
 export {};
 
 declare module '../WarpGraph.js' {
@@ -346,6 +382,7 @@ declare module '../WarpGraph.js' {
     patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
     patchMany(...builds: Array<(p: PatchBuilderV2) => void | Promise<void>>): Promise<string[]>;
     _nextLamport(): Promise<{ lamport: number; parentSha: string | null }>;
+    _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
     _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
     getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
     _onPatchCommitted(writerId: string, opts?: { patch?: PatchV2; sha?: string }): Promise<void>;
@@ -367,11 +404,22 @@ declare module '../WarpGraph.js' {
     _buildAdjacency(state: WarpStateV5): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
     _buildView(state: WarpStateV5, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;
     _setMaterializedState(state: WarpStateV5, optionsOrDiff?: import('../types/PatchDiff.js').PatchDiff | { diff?: import('../types/PatchDiff.js').PatchDiff | null }): Promise<{ state: WarpStateV5; stateHash: string; adjacency: unknown }>;
+    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+    materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpStateV5>;
     _materializeWithCeiling(ceiling: number, collectReceipts: boolean, t0: number): Promise<WarpStateV5 | { state: WarpStateV5; receipts: TickReceipt[] }>;
+    _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number | null, collectReceipts: boolean, t0: number): Promise<WarpStateV5 | { state: WarpStateV5; receipts: TickReceipt[] }>;
     _persistSeekCacheEntry(cacheKey: string, buf: Uint8Array, state: WarpStateV5): Promise<void>;
     _restoreIndexFromCache(indexTreeOid: string): Promise<void>;
     materializeAt(checkpointSha: string): Promise<WarpStateV5>;
     verifyIndex(options?: { seed?: number; sampleRate?: number }): { passed: number; failed: number; errors: Array<{ nodeId: string; direction: string; expected: string[]; actual: string[] }> };
     invalidateIndex(): void;
+
+    // ── workingSet.methods.js ─────────────────────────────────────────────
+    createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
+    getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
+    listWorkingSets(): Promise<WorkingSetDescriptor[]>;
+    dropWorkingSet(workingSetId: string): Promise<boolean>;
+    materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+    materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
   }
 }

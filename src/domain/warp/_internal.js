@@ -10,6 +10,7 @@
 // ── Error constructors ──────────────────────────────────────────────────────
 export { default as QueryError } from '../errors/QueryError.js';
 export { default as ForkError } from '../errors/ForkError.js';
+export { default as WorkingSetError } from '../errors/WorkingSetError.js';
 
 /**
  * Extended WarpGraph type that includes mixin methods wired at runtime.

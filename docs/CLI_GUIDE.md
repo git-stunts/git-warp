@@ -13,6 +13,7 @@ This guide teaches you the `git warp` command-line interface from scratch. Every
 - [Reviewing History](#reviewing-history) (`history`)
 - [Time Travel](#time-travel) (`seek`)
 - [Materializing State](#materializing-state) (`materialize`)
+- [Working Sets](#working-sets) (`working-set create`, `working-set list`, `working-set show`, `working-set materialize`, `working-set drop`)
 - [Health and Diagnostics](#health-and-diagnostics) (`check`, `doctor`)
 - [Time Travel Debugger](#time-travel-debugger) (`debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, `debug receipts`)
 - [Index Management](#index-management) (`verify-index`, `reindex`)
@@ -697,6 +698,100 @@ Shows a dashboard with per-writer patch bars and node/edge/property count gauges
 
 ---
 
+## Working Sets
+
+### `working-set` — Pin reusable observation coordinates without worktrees
+
+The `working-set` family creates and manages durable descriptors for explicit observation coordinates. A working set pins:
+
+- the current frontier snapshot
+- an optional Lamport ceiling
+- optional owner/scope/lease metadata
+- an empty overlay identity for future evolution
+
+This is **not** part of the read-only Time Travel Debugger family. `working-set` creates durable descriptor refs, while TTD only inspects substrate facts.
+
+### `working-set create` — Create a pinned descriptor
+
+```bash
+# Pin the current frontier
+git warp working-set create --repo ./team-repo --id review-auth
+
+# Pin no later than Lamport tick 12 with metadata
+git warp working-set create --repo ./team-repo \
+  --id before-release \
+  --lamport-ceiling 12 \
+  --owner alice \
+  --scope "Release review" \
+  --lease-expires-at 2026-03-20T18:00:00Z
+```
+
+The descriptor is durable. Materialized state is not.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--id <id>` | string | auto-generated | Explicit working-set ID |
+| `--lamport-ceiling <n>` | integer | `null` | Pin no later than Lamport tick `n` |
+| `--owner <id>` | string | `null` | Optional owner metadata |
+| `--scope <text>` | string | `null` | Optional scope metadata |
+| `--lease-expires-at <ts>` | ISO-8601 string | `null` | Optional lease expiry metadata |
+
+### `working-set list` — List pinned descriptors
+
+```bash
+git warp working-set list --repo ./team-repo
+git warp working-set list --repo ./team-repo --json
+```
+
+This returns every working-set descriptor stored for the graph.
+
+### `working-set show <id>` — Inspect one descriptor
+
+```bash
+git warp working-set show --repo ./team-repo review-auth
+git warp working-set show --repo ./team-repo review-auth --json
+```
+
+Use this to inspect the pinned frontier, Lamport ceiling, metadata, and overlay identity without materializing state.
+
+### `working-set materialize <id>` — Replay the pinned coordinate
+
+```bash
+# Materialize the pinned base observation
+git warp working-set materialize --repo ./team-repo review-auth
+
+# Include reducer receipts
+git warp working-set materialize --repo ./team-repo review-auth --receipts --json
+```
+
+This always replays the pinned coordinate, even if the live frontier has advanced since the descriptor was created.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--receipts` | boolean | `false` | Include tick receipts in the materialized payload |
+
+### `working-set drop <id>` — Delete a descriptor
+
+```bash
+git warp working-set drop --repo ./team-repo review-auth
+```
+
+This removes the descriptor ref. It does not mutate patch history.
+
+### Complete flag reference for `working-set`
+
+| Subcommand | Flags |
+|------|------|
+| `create` | `--id`, `--lamport-ceiling`, `--owner`, `--scope`, `--lease-expires-at` |
+| `list` | _(global only)_ |
+| `show <id>` | _(global only)_ |
+| `materialize <id>` | `--receipts` |
+| `drop <id>` | _(global only)_ |
+
+See [docs/WORKING_SETS.md](WORKING_SETS.md) for the architectural model behind these commands.
+
+---
+
 ## Health and Diagnostics
 
 ### `check` — Report graph health and GC status
@@ -842,6 +937,8 @@ The git-warp Time Travel Debugger (TTD) is the thin CLI surface for substrate in
 - `debug receipts` shows what the reducer did with each operation
 
 All debugger topics are read-oriented. They inspect substrate facts; they do **not** invent domain meaning above git-warp.
+
+`working-set` is separate on purpose: it pins durable coordinates, while TTD inspects coordinates read-only.
 
 For the architecture boundary behind this surface, see [docs/TTD.md](TTD.md).
 
@@ -1264,6 +1361,40 @@ Quick-reference table of all commands and their flags.
 | `--no-persistent-cache` | Skip cache for this invocation |
 
 ### `materialize`
+
+| Flag | Description |
+|------|-------------|
+| _(global only)_ | See [Global Options](#global-options) |
+
+### `working-set create`
+
+| Flag | Description |
+|------|-------------|
+| `--id <id>` | Explicit working-set ID |
+| `--lamport-ceiling <n>` | Pin no later than Lamport tick `n` |
+| `--owner <id>` | Optional owner metadata |
+| `--scope <text>` | Optional scope metadata |
+| `--lease-expires-at <ts>` | Optional ISO-8601 lease expiry metadata |
+
+### `working-set list`
+
+| Flag | Description |
+|------|-------------|
+| _(global only)_ | See [Global Options](#global-options) |
+
+### `working-set show <id>`
+
+| Flag | Description |
+|------|-------------|
+| _(global only)_ | See [Global Options](#global-options) |
+
+### `working-set materialize <id>`
+
+| Flag | Description |
+|------|-------------|
+| `--receipts` | Include tick receipts in the output |
+
+### `working-set drop <id>`
 
 | Flag | Description |
 |------|-------------|

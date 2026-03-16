@@ -39,6 +39,7 @@ flowchart TB
     subgraph cli["git-warp CLI"]
         seek["seek"]
         debug["debug coordinate / timeline / conflicts / provenance / receipts"]
+        ws["working-set (separate durable family)"]
         raw["patch show / history / query"]
     end
 
@@ -53,6 +54,8 @@ flowchart TB
     xyphui --> xyphdomain
     xyphdomain --> debug
     debug --> analyzers
+    xyphdomain --> ws
+    ws --> materialize
     seek --> materialize
     raw --> substrate
     analyzers --> substrate
@@ -82,6 +85,11 @@ TTD in git-warp is a **family**, not a single command:
 
 Together these form the substrate-level time travel debugger.
 
+Separate but adjacent:
+
+- `git warp working-set`
+  Manages durable pinned coordinates and materializes them later. This is intentionally outside the read-only TTD family because it creates and deletes descriptor refs.
+
 ## Hexagonal Boundary
 
 TTD follows the same ports-and-adapters rules as the rest of git-warp:
@@ -100,6 +108,12 @@ The CLI must stay thin:
 - no special debugger-only mutation path
 - no embedded TUI or browser application
 
+TTD is also deliberately separate from working-set management:
+
+- debug commands inspect substrate facts
+- working-set commands pin durable coordinates
+- higher layers may combine both, but git-warp keeps the boundary explicit
+
 ## Read-Only Contract
 
 The debug family is intended to remain **read-only**.
@@ -113,6 +127,8 @@ In practice:
 
 If a future debugger feature requires durable writes, it should not be added casually. The read-only contract is part of the debugger’s architecture, not just a convenience.
 
+This is why `working-set` is a separate top-level family instead of a `debug` subcommand.
+
 ## Coordinate Model
 
 The debugger operates over:
@@ -125,6 +141,7 @@ This keeps TTD aligned with the current git-warp substrate model:
 
 - `seek` controls observation position
 - debug topics inspect facts at that position
+- explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
 
 ## Why There Is No Built-In TUI
@@ -149,5 +166,5 @@ Likely future TTD-adjacent extensions:
 - additional debug topics once their substrate facts are stable
 - entity-local slice inspection at historical coordinates once substrate support exists
 - richer provenance drilldown over conflict anchors
-- working-set/worldline-aware coordinates after substrate support exists
+- overlay-aware working-set/worldline coordinates once overlay writes exist
 - higher-level debugger panels in XYPH, not in git-warp

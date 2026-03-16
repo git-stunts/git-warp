@@ -84,10 +84,13 @@ describe('WarpGraph prototype completeness', () => {
     // Spot-check critical methods exist and are functions/getters
     const expectedMethods = [
       'createPatch', 'patch', 'materialize', 'materializeAt',
+      'materializeCoordinate',
       'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
       'getNodes', 'getEdges', 'getPropertyCount', 'getStateSnapshot',
       'subscribe', 'watch',
       'patchesFor', 'materializeSlice', 'loadPatchBySha',
+      'createWorkingSet', 'getWorkingSet', 'listWorkingSets',
+      'dropWorkingSet', 'materializeWorkingSet',
       'analyzeConflicts',
       'fork', 'createWormhole',
       'syncWith', 'serve', 'createSyncRequest', 'processSyncRequest',

@@ -1169,6 +1169,49 @@ git warp seek --no-persistent-cache --tick 5
 
 > **Note:** When state is restored from cache, provenance queries (`patchesFor`, `materializeSlice`) are unavailable because the provenance index isn't populated. Use `--no-persistent-cache` if you need provenance data.
 
+### Working Sets
+
+Working sets pin an explicit observation coordinate for later reuse without creating a Git worktree. In v1, a working set records:
+
+- the graph name
+- a pinned frontier snapshot
+- an optional Lamport ceiling
+- optional owner/scope/lease metadata
+- an empty overlay identity for future evolution
+
+Materialized state remains derived/cache only. The descriptor is the durable part.
+
+```bash
+# Pin the current frontier as a reusable working set
+git warp working-set create --id review-auth --owner alice --scope "OAuth review"
+
+# Pin no later than Lamport tick 12
+git warp working-set create --id before-hotfix --lamport-ceiling 12
+
+# Inspect and materialize later
+git warp working-set show review-auth
+git warp working-set materialize review-auth --json
+
+# List or delete descriptors
+git warp working-set list
+git warp working-set drop review-auth
+```
+
+Programmatically:
+
+```javascript
+const workingSet = await graph.createWorkingSet({
+  workingSetId: 'review-auth',
+  owner: 'alice',
+  scope: 'OAuth review',
+  lamportCeiling: 12,
+});
+
+const state = await graph.materializeWorkingSet(workingSet.workingSetId);
+```
+
+Use [docs/WORKING_SETS.md](WORKING_SETS.md) for the dedicated working-set model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.
+
 ### Time Travel Debugger (TTD)
 
 git-warp's debugger surface is CLI-first and substrate-focused. Use:
@@ -1179,6 +1222,8 @@ git-warp's debugger surface is CLI-first and substrate-focused. Use:
 - `debug conflicts` to inspect winner/loser conflict traces
 - `debug provenance` to see which patches affected an entity
 - `debug receipts` to inspect per-operation reducer outcomes
+
+`working-set` is intentionally **not** part of TTD. It is a separate durable substrate family that pins coordinates instead of inspecting them read-only.
 
 See [docs/CLI_GUIDE.md](CLI_GUIDE.md) for complete command flags and [docs/TTD.md](TTD.md) for the debugger architecture boundary.
 

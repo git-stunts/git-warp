@@ -38,6 +38,24 @@ git-warp now includes a thin **Time Travel Debugger (TTD)** command family in th
 
 This keeps git-warp as substrate plus thin inspection tooling rather than turning the package into a TUI/web application shell. See [docs/TTD.md](docs/TTD.md) for the dedicated debugger architecture note.
 
+### Working-Set Boundary
+
+git-warp now also includes a separate **working-set** substrate family. It is intentionally **not** part of TTD because it creates durable descriptor refs.
+
+- **Domain/core** owns explicit coordinate materialization and working-set descriptors.
+- **CLI adapters** expose those capabilities through `working-set create`, `working-set list`, `working-set show`, `working-set materialize`, and `working-set drop`.
+- **Presenters** render descriptor and materialization summaries without inventing higher-level product semantics.
+- **Descriptors pin coordinates; caches do not become truth.**
+
+The v1 model is deliberately narrow:
+
+- a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
+- the overlay identity exists, but remains empty in v1
+- materialized state is derived/cache only
+- no Git worktree assumption leaks into the API
+
+This gives higher layers an honest substrate for future worldline/fork behavior without teaching git-warp about XYPH governance or UI concepts. See [docs/WORKING_SETS.md](docs/WORKING_SETS.md) for the dedicated working-set note.
+
 ### Domain-Driven Design
 
 The domain layer models the graph database concepts:
@@ -141,6 +159,7 @@ src/
 |   |   +-- BitmapNeighborProvider.js   # Bitmap-backed neighbor provider
 |   |   +-- HealthCheckService.js    # K8s-style probes
 |   |   +-- GitLogParser.js          # Binary stream parsing
+|   |   +-- WorkingSetService.js     # Pinned coordinate descriptors
 |   +-- errors/             # Domain-specific errors
 |   |   +-- IndexError.js
 |   |   +-- ShardLoadError.js
@@ -149,11 +168,13 @@ src/
 |   |   +-- TraversalError.js
 |   |   +-- OperationAbortedError.js
 |   |   +-- EmptyMessageError.js
+|   |   +-- WorkingSetError.js
 |   +-- utils/              # Domain utilities
 |       +-- LRUCache.js     # Shard caching
 |       +-- MinHeap.js      # Priority queue for A*
 |       +-- CachedValue.js  # TTL-based caching
 |       +-- cancellation.js # AbortSignal utilities
+|       +-- parseWorkingSetBlob.js   # Working-set descriptor validation
 +-- infrastructure/
 |   +-- adapters/           # Port implementations
 |       +-- GitGraphAdapter.js       # Git operations via @git-stunts/plumbing

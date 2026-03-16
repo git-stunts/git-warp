@@ -19,6 +19,7 @@ import { buildSeekCacheKey } from '../utils/seekCacheKey.js';
 import { materializeIncremental } from '../services/CheckpointService.js';
 import { createFrontier, updateFrontier } from '../services/Frontier.js';
 import BitmapNeighborProvider from '../services/BitmapNeighborProvider.js';
+import { QueryError } from './_internal.js';
 
 /** @typedef {import('../types/WarpPersistence.js').CorePersistence} CorePersistence */
 /** @typedef {import('../services/JoinReducer.js').WarpStateV5} WarpStateV5 */
@@ -30,7 +31,6 @@ import BitmapNeighborProvider from '../services/BitmapNeighborProvider.js';
  */
 
 import { buildWriterRef } from '../utils/RefLayout.js';
-import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 
 /**
  * Creates a shallow-frozen public view of materialized state.
@@ -75,6 +75,141 @@ export function _resolveCeiling(options) {
     return options.ceiling ?? null;
   }
   return this._seekCeiling;
+}
+
+/**
+ * @param {Map<string, string>|Record<string, string>} frontierInput
+ * @returns {Map<string, string>}
+ */
+function normalizeFrontierInput(frontierInput) {
+  /** @type {Array<[string, string]>} */
+  let entries;
+
+  if (frontierInput instanceof Map) {
+    entries = [...frontierInput.entries()];
+  } else if (frontierInput && typeof frontierInput === 'object' && !Array.isArray(frontierInput)) {
+    entries = Object.entries(frontierInput);
+  } else {
+    throw new QueryError('frontier must be a Map or string record', {
+      code: 'E_QUERY_COORDINATE_INVALID',
+      context: { frontierType: typeof frontierInput },
+    });
+  }
+
+  const normalized = entries
+    .map(([writerId, tipSha]) => {
+      if (typeof writerId !== 'string' || writerId.length === 0 || typeof tipSha !== 'string' || tipSha.length === 0) {
+        throw new QueryError('frontier entries must be non-empty string pairs', {
+          code: 'E_QUERY_COORDINATE_INVALID',
+          context: { writerId, tipSha },
+        });
+      }
+      return /** @type {[string, string]} */ ([writerId, tipSha]);
+    })
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+
+  return new Map(normalized);
+}
+
+/**
+ * @param {number|null} ceiling
+ * @returns {number|null}
+ */
+function normalizeExplicitCeiling(ceiling) {
+  if (ceiling === undefined || ceiling === null) {
+    return null;
+  }
+  if (!Number.isInteger(ceiling) || ceiling < 0) {
+    throw new QueryError('ceiling must be a non-negative integer or null', {
+      code: 'E_QUERY_COORDINATE_INVALID',
+      context: { ceiling },
+    });
+  }
+  return ceiling;
+}
+
+/**
+ * @param {Map<string, string>|null} a
+ * @param {Map<string, string>} b
+ * @returns {boolean}
+ */
+function frontiersEqual(a, b) {
+  if (!a || a.size !== b.size) {
+    return false;
+  }
+  for (const [writerId, sha] of b) {
+    if (a.get(writerId) !== sha) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {Map<string, string>} frontier
+ * @param {number|null} ceiling
+ * @param {number} t0
+ * @returns {Promise<{state: WarpStateV5|null, cacheKey: string|null}|null>}
+ */
+async function tryReadCoordinateCache(graph, frontier, ceiling, t0) {
+  if (!graph._seekCache || ceiling === null) {
+    return null;
+  }
+
+  let cacheKey = null;
+  try {
+    cacheKey = await buildSeekCacheKey(ceiling, frontier);
+  } catch {
+    return null;
+  }
+
+  try {
+    const cached = await graph._seekCache.get(cacheKey);
+    if (!cached) {
+      return { state: null, cacheKey };
+    }
+
+    const state = deserializeFullStateV5(cached.buffer, { codec: graph._codec });
+    graph._provenanceIndex = new ProvenanceIndex();
+    graph._provenanceDegraded = true;
+    await graph._setMaterializedState(state);
+    graph._cachedCeiling = ceiling;
+    graph._cachedFrontier = new Map(frontier);
+    if (cached.indexTreeOid) {
+      await graph._restoreIndexFromCache(cached.indexTreeOid);
+    }
+    graph._logTiming('materialize', t0, { metrics: `cache hit (coordinate ceiling=${ceiling})` });
+    return { state, cacheKey };
+  } catch {
+    if (cacheKey) {
+      try { await graph._seekCache.delete(cacheKey); } catch { /* best-effort */ }
+    }
+    return { state: null, cacheKey };
+  }
+}
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {Map<string, string>} frontier
+ * @param {number|null} ceiling
+ * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+ */
+async function collectPatchesForFrontier(graph, frontier, ceiling) {
+  const allPatches = [];
+  for (const writerId of frontier.keys()) {
+    const tipSha = frontier.get(writerId);
+    if (!tipSha) {
+      continue;
+    }
+    const writerPatches = await graph._loadPatchChainFromSha(tipSha);
+    for (const entry of writerPatches) {
+      if (ceiling === null || entry.patch.lamport <= ceiling) {
+        allPatches.push(entry);
+      }
+    }
+  }
+  return allPatches;
 }
 
 /**
@@ -222,6 +357,31 @@ export function _buildView(state, stateHash, diff) {
 }
 
 /**
+ * Materializes against an explicit observation coordinate.
+ *
+ * Unlike `materialize()`, this path does not infer the frontier from current
+ * writer refs. The provided frontier snapshot is authoritative for the read.
+ *
+ * @this {import('../WarpGraph.js').default}
+ * @param {{ frontier: Map<string, string>|Record<string, string>, ceiling?: number|null, receipts?: boolean }} options
+ * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
+ */
+export async function materializeCoordinate(options) {
+  if (!options || typeof options !== 'object') {
+    throw new QueryError('materializeCoordinate() requires an options object', {
+      code: 'E_QUERY_COORDINATE_INVALID',
+    });
+  }
+
+  const frontier = normalizeFrontierInput(options.frontier);
+  const ceiling = normalizeExplicitCeiling(options.ceiling ?? null);
+  const collectReceipts = !!options.receipts;
+  const t0 = this._clock.now();
+
+  return await this._materializeWithCoordinate(frontier, ceiling, collectReceipts, t0);
+}
+
+/**
  * Materializes the graph with a Lamport ceiling (time-travel).
  *
  * Bypasses checkpoints entirely — replays all patches from all writers,
@@ -248,84 +408,60 @@ export function _buildView(state, stateHash, diff) {
  */
 export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
   const frontier = await this.getFrontier();
+  return await this._materializeWithCoordinate(frontier, ceiling, collectReceipts, t0);
+}
 
-  // Cache hit: same ceiling, clean state, AND frontier unchanged.
-  // Bypass cache when collectReceipts is true — cached path has no receipts.
-  const cf = this._cachedFrontier;
+/**
+ * Materializes the graph at an explicit frontier snapshot and optional ceiling.
+ *
+ * @this {import('../WarpGraph.js').default}
+ * @param {Map<string, string>} frontier
+ * @param {number|null} ceiling
+ * @param {boolean} collectReceipts
+ * @param {number} t0
+ * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
+ * @private
+ */
+export async function _materializeWithCoordinate(frontier, ceiling, collectReceipts, t0) {
   if (
-    this._cachedState && !this._stateDirty &&
-    ceiling === this._cachedCeiling && !collectReceipts &&
-    cf !== null &&
-    cf.size === frontier.size &&
-    [...frontier].every(([w, sha]) => cf.get(w) === sha)
+    this._cachedState &&
+    !this._stateDirty &&
+    ceiling === this._cachedCeiling &&
+    !collectReceipts &&
+    frontiersEqual(this._cachedFrontier, frontier)
   ) {
     return freezePublicState(this._cachedState);
   }
 
   const writerIds = [...frontier.keys()];
-
-  if (writerIds.length === 0 || ceiling <= 0) {
+  if (writerIds.length === 0 || (ceiling !== null && ceiling <= 0)) {
     const state = createEmptyStateV5();
     this._provenanceIndex = new ProvenanceIndex();
     this._provenanceDegraded = false;
     await this._setMaterializedState(state);
     this._cachedCeiling = ceiling;
-    this._cachedFrontier = frontier;
-    this._logTiming('materialize', t0, { metrics: '0 patches (ceiling)' });
+    this._cachedFrontier = new Map(frontier);
+    this._logTiming('materialize', t0, { metrics: '0 patches (coordinate)' });
     if (collectReceipts) {
       return freezePublicStateWithReceipts(state, []);
     }
     return freezePublicState(state);
   }
 
-  // Persistent cache check — skip when collectReceipts is requested
-  let cacheKey;
-  if (this._seekCache && !collectReceipts) {
-    try {
-      cacheKey = await buildSeekCacheKey(ceiling, frontier);
-    } catch {
-      // crypto unavailable (e.g., browser) — treat as cache miss
+  let cacheKey = null;
+  if (!collectReceipts) {
+    const cached = await tryReadCoordinateCache(this, frontier, ceiling, t0);
+    if (cached?.state) {
+      return freezePublicState(cached.state);
     }
-    try {
-      const cached = cacheKey ? await this._seekCache.get(cacheKey) : undefined;
-      if (cached) {
-        try {
-          const state = deserializeFullStateV5(cached.buffer, { codec: this._codec });
-          this._provenanceIndex = new ProvenanceIndex();
-          this._provenanceDegraded = true;
-          await this._setMaterializedState(state);
-          this._cachedCeiling = ceiling;
-          this._cachedFrontier = frontier;
-          if (cached.indexTreeOid) {
-            await this._restoreIndexFromCache(cached.indexTreeOid);
-          }
-          this._logTiming('materialize', t0, { metrics: `cache hit (ceiling=${ceiling})` });
-          return freezePublicState(state);
-        } catch {
-          // Corrupted payload — self-heal by removing the bad entry
-          if (cacheKey) {
-            try { await this._seekCache.delete(cacheKey); } catch { /* best-effort */ }
-          }
-        }
-      }
-    } catch {
-      // Cache read failed — fall through to full materialization
-    }
+    cacheKey = cached?.cacheKey ?? null;
   }
 
-  const allPatches = [];
-  for (const writerId of writerIds) {
-    const writerPatches = await this._loadWriterPatches(writerId);
-    for (const entry of writerPatches) {
-      if (entry.patch.lamport <= ceiling) {
-        allPatches.push(entry);
-      }
-    }
-  }
+  const allPatches = await collectPatchesForFrontier(this, frontier, ceiling);
 
-  /** @type {import('../services/JoinReducer.js').WarpStateV5|undefined} */
+  /** @type {WarpStateV5|undefined} */
   let state;
-  /** @type {import('../types/TickReceipt.js').TickReceipt[]|undefined} */
+  /** @type {TickReceipt[]|undefined} */
   let receipts;
 
   if (allPatches.length === 0) {
@@ -334,11 +470,15 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
       receipts = [];
     }
   } else if (collectReceipts) {
-    const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
+    const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (
+      reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true })
+    );
     state = result.state;
     receipts = result.receipts;
   } else {
-    state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches)));
+    state = /** @type {WarpStateV5} */ (
+      reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches))
+    );
   }
 
   this._provenanceIndex = new ProvenanceIndex();
@@ -349,24 +489,22 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
 
   await this._setMaterializedState(state);
   this._cachedCeiling = ceiling;
-  this._cachedFrontier = frontier;
+  this._cachedFrontier = new Map(frontier);
 
-  // Store to persistent cache (fire-and-forget — failure is non-fatal)
-  if (this._seekCache && !collectReceipts && allPatches.length > 0) {
+  if (this._seekCache && !collectReceipts && allPatches.length > 0 && ceiling !== null) {
     try {
       if (!cacheKey) {
         cacheKey = await buildSeekCacheKey(ceiling, frontier);
       }
       const buf = serializeFullStateV5(state, { codec: this._codec });
-      this._persistSeekCacheEntry(cacheKey, buf, state)
-        .catch(() => {});
+      this._persistSeekCacheEntry(cacheKey, buf, state).catch(() => {});
     } catch {
       // crypto unavailable — skip cache write
     }
   }
 
-  // Skip auto-checkpoint and GC — this is an exploratory read
-  this._logTiming('materialize', t0, { metrics: `${allPatches.length} patches (ceiling=${ceiling})` });
+  const ceilingLabel = ceiling === null ? 'latest' : String(ceiling);
+  this._logTiming('materialize', t0, { metrics: `${allPatches.length} patches (coordinate ceiling=${ceilingLabel})` });
 
   if (collectReceipts) {
     return freezePublicStateWithReceipts(
@@ -467,34 +605,8 @@ export async function materializeAt(checkpointSha) {
 
   // 3. Create a patch loader function for incremental materialization
   const patchLoader = async (/** @type {string} */ writerId, /** @type {string|null} */ fromSha, /** @type {string} */ toSha) => {
-    // Load patches from fromSha (exclusive) to toSha (inclusive)
-    // Walk from toSha back to fromSha
-    const patches = [];
-    let currentSha = toSha;
-
-    while (currentSha && currentSha !== fromSha) {
-      const nodeInfo = await this._persistence.getNodeInfo(currentSha);
-      const {message} = nodeInfo;
-
-      const kind = detectMessageKind(message);
-      if (kind !== 'patch') {
-        break;
-      }
-
-      const patchMeta = decodePatchMessage(message);
-      const patchBuffer = await this._readPatchBlob(patchMeta);
-      const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2} */ (this._codec.decode(patchBuffer));
-
-      patches.push({ patch, sha: currentSha });
-
-      if (nodeInfo.parents && nodeInfo.parents.length > 0) {
-        currentSha = nodeInfo.parents[0];
-      } else {
-        break;
-      }
-    }
-
-    return patches.reverse();
+    void writerId;
+    return await this._loadPatchChainFromSha(toSha, fromSha);
   };
 
   // 4. Call materializeIncremental with the checkpoint and target frontier

@@ -33,6 +33,7 @@ import {
   renderPatchShow,
   renderPatchList,
   renderDebug,
+  renderWorkingSet,
 } from './text.js';
 
 // ── Color control ────────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ const TEXT_RENDERERS = new Map(/** @type {[string, function(unknown): string][]}
   ['trust', renderTrust],
   ['patch', renderPatch],
   ['debug', renderDebug],
+  ['working-set', renderWorkingSet],
   ['tree', renderTree],
   ['install-hooks', renderInstallHooks],
 ]));

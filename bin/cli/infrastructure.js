@@ -74,6 +74,18 @@ Commands:
                        --lamport-floor <n>    Include no earlier than Lamport tick n
                        --lamport-ceiling <n>  Include no later than Lamport tick n
                        --limit <n>            Return the newest N entries in causal order
+  working-set      Manage pinned working-set descriptors
+                     create             Create a pinned working-set descriptor
+                       --id <id>               Explicit working-set id
+                       --lamport-ceiling <n>   Pin no later than Lamport tick n
+                       --owner <id>            Optional owner metadata
+                       --scope <text>          Optional scope metadata
+                       --lease-expires-at <ts> Optional ISO-8601 lease expiry metadata
+                     list               List working-set descriptors for the graph
+                     show <id>          Show a single working-set descriptor
+                     materialize <id>   Materialize the pinned coordinate
+                       --receipts             Include tick receipts
+                     drop <id>          Delete a working-set descriptor
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild
@@ -191,7 +203,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'working-set', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

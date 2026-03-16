@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.5.0] — 2026-03-16
+
+### Added
+
+- **Working-set foundation in the substrate** — Added explicit coordinate replay through `WarpGraph.materializeCoordinate()` plus durable working-set descriptors through `createWorkingSet()`, `getWorkingSet()`, `listWorkingSets()`, `dropWorkingSet()`, and `materializeWorkingSet()`. The v1 descriptor pins the current frontier plus an optional Lamport ceiling, carries optional owner/scope/lease metadata, records empty overlay identity for future evolution, and keeps materialized state explicitly non-authoritative.
+- **Top-level `git warp working-set` CLI family** — Added `working-set create`, `list`, `show`, `materialize`, and `drop` to the main CLI so operators and LLM agents can manage pinned coordinates directly without a second package or debugger-specific mutation path.
+- **Dedicated working-set architecture note** — Added `docs/WORKING_SETS.md` as the canonical substrate note for pinned coordinates, the truth/cache boundary, and the v1 non-goals around overlays, worktrees, and higher-level worldline meaning.
+
+### Changed
+
+- **Architecture docs now separate read-only TTD from durable working-set management** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the main docs consistently describe `debug` as the read-only time-travel debugger family and `working-set` as a separate durable substrate family.
+- **Public API surface locks updated for working-set methods** — Snapshot and prototype-completeness tests now explicitly lock the new `materializeCoordinate()` and working-set methods into the public surface, making the new substrate boundary intentional instead of accidental.
+
 ## [14.4.0] — 2026-03-15
 
 ### Added

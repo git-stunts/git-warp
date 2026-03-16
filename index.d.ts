@@ -1146,6 +1146,20 @@ export class SyncError extends Error {
 }
 
 /**
+ * Error class for working-set descriptor and replay operations.
+ */
+export class WorkingSetError extends Error {
+  readonly name: 'WorkingSetError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
  * Base error class for bitmap index operations.
  */
 export class IndexError extends Error {
@@ -1925,6 +1939,15 @@ export default class WarpGraph {
   materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
 
   /**
+   * Materializes against an explicit frontier snapshot plus optional ceiling.
+   *
+   * This is the substrate primitive used by working sets to replay a pinned
+   * observation without assuming the live frontier.
+   */
+  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts?: false }): Promise<WarpStateV5>;
+
+  /**
    * Starts a built-in sync server for this graph.
    */
   serve(options: {
@@ -2027,6 +2050,33 @@ export default class WarpGraph {
     evidence?: ConflictEvidenceLevel;
     scanBudget?: { maxPatches?: number };
   }): Promise<ConflictAnalysis>;
+
+  /**
+   * Creates a durable working-set descriptor pinned to the current frontier
+   * plus an optional Lamport ceiling.
+   *
+   * Working sets do not duplicate the graph. In v1 they record a pinned base
+   * observation plus empty overlay identity for future divergent writes.
+   */
+  createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
+
+  /** Loads a previously-created working-set descriptor. */
+  getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
+
+  /** Lists all working-set descriptors stored for this graph. */
+  listWorkingSets(): Promise<WorkingSetDescriptor[]>;
+
+  /** Drops a working-set descriptor by id. Returns false when it does not exist. */
+  dropWorkingSet(workingSetId: string): Promise<boolean>;
+
+  /**
+   * Materializes a working set's pinned base observation plus overlay.
+   *
+   * In v1 the overlay remains empty, so this replays only the pinned base
+   * coordinate.
+   */
+  materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
 
   /**
    * The provenance index mapping entities to contributing patches.
@@ -2396,6 +2446,42 @@ export interface ConflictAnalysis {
   analysisSnapshotHash: string;
   diagnostics?: ConflictDiagnostic[];
   conflicts: ConflictTrace[];
+}
+
+export interface WorkingSetCreateOptions {
+  workingSetId?: string;
+  lamportCeiling?: number | null;
+  owner?: string | null;
+  scope?: string | null;
+  leaseExpiresAt?: string | null;
+}
+
+export interface WorkingSetDescriptor {
+  schemaVersion: number;
+  workingSetId: string;
+  graphName: string;
+  createdAt: string;
+  updatedAt: string;
+  owner: string | null;
+  scope: string | null;
+  lease: {
+    expiresAt: string | null;
+  };
+  baseObservation: {
+    coordinateVersion: string;
+    frontier: Record<string, string>;
+    frontierDigest: string;
+    lamportCeiling: number | null;
+  };
+  overlay: {
+    overlayId: string;
+    kind: string;
+    headPatchSha: string | null;
+    patchCount: number;
+  };
+  materialization: {
+    cacheAuthority: 'derived';
+  };
 }
 
 // ============================================================================
