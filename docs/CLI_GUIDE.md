@@ -707,7 +707,7 @@ The `working-set` family creates and manages durable descriptors for explicit ob
 - the current frontier snapshot
 - an optional Lamport ceiling
 - optional owner/scope/lease metadata
-- an empty overlay identity for future evolution
+- an overlay identity and patch-log ref for future divergent writes
 
 This is **not** part of the read-only Time Travel Debugger family. `working-set` creates durable descriptor refs, while TTD only inspects substrate facts.
 
@@ -752,19 +752,19 @@ git warp working-set show --repo ./team-repo review-auth
 git warp working-set show --repo ./team-repo review-auth --json
 ```
 
-Use this to inspect the pinned frontier, Lamport ceiling, metadata, and overlay identity without materializing state.
+Use this to inspect the pinned frontier, Lamport ceiling, metadata, and current overlay patch-log head without materializing state.
 
 ### `working-set materialize <id>` — Replay the pinned coordinate
 
 ```bash
-# Materialize the pinned base observation
+# Materialize the pinned coordinate
 git warp working-set materialize --repo ./team-repo review-auth
 
 # Include reducer receipts
 git warp working-set materialize --repo ./team-repo review-auth --receipts --json
 ```
 
-This always replays the pinned coordinate, even if the live frontier has advanced since the descriptor was created.
+This always replays the pinned coordinate plus any overlay patches already committed through the library API, even if the live frontier has advanced since the descriptor was created.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -777,6 +777,22 @@ git warp working-set drop --repo ./team-repo review-auth
 ```
 
 This removes the descriptor ref. It does not mutate patch history.
+
+### Overlay writes stay in the library API
+
+The CLI deliberately does **not** grow a second patch DSL for working-set overlay writes.
+
+```javascript
+const builder = await graph.createWorkingSetPatch('review-auth');
+builder.setProperty('task:oauth', 'status', 'needs-review');
+await builder.commit();
+
+await graph.patchWorkingSet('review-auth', (p) => {
+  p.setProperty('task:oauth', 'owner', 'alice');
+});
+```
+
+That keeps the CLI thin and keeps overlay writes on the same mutation kernel as normal graph patches.
 
 ### Complete flag reference for `working-set`
 

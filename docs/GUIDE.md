@@ -1171,13 +1171,13 @@ git warp seek --no-persistent-cache --tick 5
 
 ### Working Sets
 
-Working sets pin an explicit observation coordinate for later reuse without creating a Git worktree. In v1, a working set records:
+Working sets pin an explicit observation coordinate for later reuse without creating a Git worktree. A working set records:
 
 - the graph name
 - a pinned frontier snapshot
 - an optional Lamport ceiling
 - optional owner/scope/lease metadata
-- an empty overlay identity for future evolution
+- an overlay identity and patch-log ref for future divergent writes
 
 Materialized state remains derived/cache only. The descriptor is the durable part.
 
@@ -1208,6 +1208,10 @@ const workingSet = await graph.createWorkingSet({
 });
 
 const state = await graph.materializeWorkingSet(workingSet.workingSetId);
+
+await graph.patchWorkingSet(workingSet.workingSetId, (p) => {
+  p.setProperty('task:oauth', 'status', 'needs-review');
+});
 ```
 
 Use [docs/WORKING_SETS.md](WORKING_SETS.md) for the dedicated working-set model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.

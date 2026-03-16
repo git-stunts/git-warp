@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
+import { buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
 
 /**
  * @param {number} counter
@@ -19,8 +20,10 @@ function createMockPersistence() {
   const refs = new Map();
   const blobs = new Map();
   const commits = new Map();
+  const trees = new Map();
   let blobCounter = 0;
   let commitCounter = 0;
+  let treeCounter = 0;
 
   return {
     _refs: refs,
@@ -51,6 +54,16 @@ function createMockPersistence() {
     getNodeInfo: vi.fn(async (sha) => {
       const commit = commits.get(sha);
       return commit || { message: '', parents: [] };
+    }),
+    writeTree: vi.fn(async (entries) => {
+      const oid = hexSha(2000000 + (++treeCounter));
+      trees.set(oid, entries);
+      return oid;
+    }),
+    commitNodeWithTree: vi.fn(async ({ treeOid, message, parents }) => {
+      const sha = hexSha(3000000 + (++commitCounter));
+      commits.set(sha, { treeOid, message, parents: parents || [] });
+      return sha;
     }),
     readBlob: vi.fn(async (oid) => blobs.get(oid) || null),
     writeBlob: vi.fn(async (buf) => {
@@ -227,5 +240,78 @@ describe('WarpGraph working-set foundation', () => {
     const result = await graph.materializeWorkingSet('ws_red', { receipts: true });
     expect(result.receipts).toHaveLength(1);
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+  });
+
+  it('patchWorkingSet persists overlay patches without mutating the live frontier', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_overlay',
+      owner: 'alice',
+    });
+
+    const liveFrontierBefore = await graph.getFrontier();
+    const overlayRef = buildWorkingSetOverlayRef(graphName, 'ws_overlay');
+
+    const overlaySha = await graph.patchWorkingSet('ws_overlay', (p) => {
+      p.setProperty('n1', 'color', 'blue');
+    });
+
+    expect(typeof overlaySha).toBe('string');
+    expect(await persistence.readRef(overlayRef)).toBe(overlaySha);
+    expect(await graph.getFrontier()).toEqual(liveFrontierBefore);
+
+    const descriptor = await graph.getWorkingSet('ws_overlay');
+    expect(descriptor?.overlay).toEqual({
+      overlayId: 'ws_overlay',
+      kind: 'patch-log',
+      headPatchSha: overlaySha,
+      patchCount: 1,
+    });
+
+    const workingSetState = await graph.materializeWorkingSet('ws_overlay');
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+
+    await graph.materialize();
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    expect(workingSetState.prop.size).toBeGreaterThan(0);
+  });
+
+  it('materializeWorkingSet includes overlay receipts and drop removes the overlay ref', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_receipts',
+      owner: 'alice',
+    });
+
+    const builder = await graph.createWorkingSetPatch('ws_receipts');
+    builder.setProperty('n1', 'status', 'overlay');
+    const overlaySha = await builder.commit();
+
+    const materialized = await graph.materializeWorkingSet('ws_receipts', { receipts: true });
+    expect(materialized.receipts).toHaveLength(2);
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ status: 'overlay' });
+
+    const overlayRef = buildWorkingSetOverlayRef(graphName, 'ws_receipts');
+    expect(await persistence.readRef(overlayRef)).toBe(overlaySha);
+
+    await expect(graph.dropWorkingSet('ws_receipts')).resolves.toBe(true);
+    await expect(persistence.readRef(overlayRef)).resolves.toBeNull();
   });
 });

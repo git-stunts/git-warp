@@ -2055,8 +2055,8 @@ export default class WarpGraph {
    * Creates a durable working-set descriptor pinned to the current frontier
    * plus an optional Lamport ceiling.
    *
-   * Working sets do not duplicate the graph. In v1 they record a pinned base
-   * observation plus empty overlay identity for future divergent writes.
+   * Working sets do not duplicate the graph. They record a pinned base
+   * observation plus overlay identity for future divergent writes.
    */
   createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
 
@@ -2071,12 +2071,15 @@ export default class WarpGraph {
 
   /**
    * Materializes a working set's pinned base observation plus overlay.
-   *
-   * In v1 the overlay remains empty, so this replays only the pinned base
-   * coordinate.
    */
   materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
+
+  /** Creates a patch builder that writes into a working set's overlay patch-log. */
+  createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
+
+  /** Convenience wrapper that creates and commits a working-set overlay patch. */
+  patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
 
   /**
    * The provenance index mapping entities to contributing patches.

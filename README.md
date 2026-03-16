@@ -11,12 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.5.0
+## What's New in v14.6.0
 
-- **Working-set foundation is now part of the substrate** — `WarpGraph` now exposes explicit coordinate materialization plus durable working-set descriptors through `materializeCoordinate()`, `createWorkingSet()`, `getWorkingSet()`, `listWorkingSets()`, `dropWorkingSet()`, and `materializeWorkingSet()`. Working sets pin a frontier plus optional Lamport ceiling without assuming a Git worktree or making cached materializations authoritative.
-- **The main CLI now has a top-level `working-set` family** — `git warp working-set create|list|show|materialize|drop` manages pinned working-set descriptors directly from the main package, with no extra package to version or keep in sync.
-- **TTD stays read-only and architecture stays hex-clean** — the debugger remains a thin inspection family (`debug ...` + `seek`), while durable coordinate management lives beside it as a separate substrate family. This keeps “debug” from becoming a side-effecting mutation channel.
-- **Working-set docs are now first-class** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now document the pinned-coordinate model, the non-authoritative cache boundary, and the CLI/API contract together.
+- **Working sets can now diverge through overlay patch logs** — `WarpGraph` now exposes `createWorkingSetPatch()` and `patchWorkingSet()` so a working set can continue from its pinned base observation through a separate overlay ref, while live writer refs stay untouched.
+- **Working-set materialization now replays base plus overlay** — `materializeWorkingSet()` and `getWorkingSet()` now reflect the current overlay patch-log head and replay the full working-set view instead of treating overlays as empty identity only.
+- **The working-set architecture stays hex-clean** — overlay writes reuse the existing patch builder and mutation kernel rather than introducing a second ad hoc working-set mutation engine.
+- **Docs now describe the real substrate boundary** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the split between descriptor lifecycle in the CLI and overlay writes in the library API.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
@@ -72,7 +72,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
-- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, empty-overlay v1 semantics, and the working-set API/CLI surface.
+- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, overlay patch-log semantics, and the working-set API/CLI surface.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.

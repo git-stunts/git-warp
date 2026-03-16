@@ -50,7 +50,7 @@ git-warp now also includes a separate **working-set** substrate family. It is in
 The v1 model is deliberately narrow:
 
 - a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
-- the overlay identity exists, but remains empty in v1
+- overlay writes live in a separate working-set patch-log ref
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API
 
@@ -159,7 +159,7 @@ src/
 |   |   +-- BitmapNeighborProvider.js   # Bitmap-backed neighbor provider
 |   |   +-- HealthCheckService.js    # K8s-style probes
 |   |   +-- GitLogParser.js          # Binary stream parsing
-|   |   +-- WorkingSetService.js     # Pinned coordinate descriptors
+|   |   +-- WorkingSetService.js     # Pinned coordinates + working-set overlays
 |   +-- errors/             # Domain-specific errors
 |   |   +-- IndexError.js
 |   |   +-- ShardLoadError.js

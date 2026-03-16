@@ -187,6 +187,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "createWorkingSetPatch": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "createWormhole": {
     "configurable": true,
     "enumerable": false,
@@ -392,6 +397,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "patchWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "patchesFor": {
     "configurable": true,
     "enumerable": false,
@@ -495,7 +505,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `98`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `100`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -536,6 +546,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "createPatch",
   "createSyncRequest",
   "createWorkingSet",
+  "createWorkingSetPatch",
   "createWormhole",
   "createWriter",
   "discoverTicks",
@@ -577,6 +588,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "onDeleteWithData",
   "patch",
   "patchMany",
+  "patchWorkingSet",
   "patchesFor",
   "persistence",
   "processSyncRequest",

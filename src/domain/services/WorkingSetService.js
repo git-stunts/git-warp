@@ -11,6 +11,7 @@
 import WorkingSetError from '../errors/WorkingSetError.js';
 import {
   buildWorkingSetRef,
+  buildWorkingSetOverlayRef,
   buildWorkingSetsPrefix,
   validateWriterId,
 } from '../utils/RefLayout.js';
@@ -18,6 +19,9 @@ import { generateWriterId } from '../utils/WriterId.js';
 import { textEncode } from '../utils/bytes.js';
 import { parseWorkingSetBlob } from '../utils/parseWorkingSetBlob.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
+import { PatchBuilderV2 } from './PatchBuilderV2.js';
+import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
+import { ProvenanceIndex } from './ProvenanceIndex.js';
 
 /** @typedef {import('../WarpGraph.js').default} WarpGraph */
 
@@ -190,6 +194,41 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
 }
 
 /**
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @returns {import('./JoinReducer.js').WarpStateV5}
+ */
+function freezePublicState(state) {
+  return Object.freeze({ ...state });
+}
+
+/**
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {import('../types/TickReceipt.js').TickReceipt[]} receipts
+ * @returns {{ state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }}
+ */
+function freezePublicStateWithReceipts(state, receipts) {
+  return Object.freeze({
+    state: freezePublicState(state),
+    receipts,
+  });
+}
+
+/**
+ * @param {Array<{ patch: { lamport?: number } }>} patches
+ * @returns {number}
+ */
+function maxPatchLamport(patches) {
+  let max = 0;
+  for (const { patch } of patches) {
+    const lamport = patch.lamport ?? 0;
+    if (lamport > max) {
+      max = lamport;
+    }
+  }
+  return max;
+}
+
+/**
  * @typedef {{
  *   workingSetId?: string,
  *   lamportCeiling?: number|null,
@@ -249,7 +288,8 @@ export default class WorkingSetService {
     if (!oid) {
       return null;
     }
-    return await this._readDescriptorByOid(oid, workingSetId);
+    const descriptor = await this._readDescriptorByOid(oid, workingSetId);
+    return await this._hydrateOverlayMetadata(descriptor);
   }
 
   /**
@@ -279,11 +319,18 @@ export default class WorkingSetService {
    */
   async drop(workingSetId) {
     const ref = this._buildRef(workingSetId);
+    const overlayRef = this._buildOverlayRef(workingSetId);
     const oid = await this._graph._persistence.readRef(ref);
-    if (!oid) {
+    const overlayHeadSha = await this._graph._persistence.readRef(overlayRef);
+    if (!oid && !overlayHeadSha) {
       return false;
     }
-    await this._graph._persistence.deleteRef(ref);
+    if (overlayHeadSha) {
+      await this._graph._persistence.deleteRef(overlayRef);
+    }
+    if (oid) {
+      await this._graph._persistence.deleteRef(ref);
+    }
     return true;
   }
 
@@ -294,17 +341,67 @@ export default class WorkingSetService {
    */
   async materialize(workingSetId, options = {}) {
     const descriptor = await this.getOrThrow(workingSetId);
-    if (options.receipts) {
-      return await this._graph.materializeCoordinate({
-        frontier: descriptor.baseObservation.frontier,
-        ceiling: descriptor.baseObservation.lamportCeiling,
-        receipts: true,
-      });
-    }
-    return await this._graph.materializeCoordinate({
-      frontier: descriptor.baseObservation.frontier,
-      ceiling: descriptor.baseObservation.lamportCeiling,
+    const { state, receipts } = await this._materializeDescriptor(descriptor, {
+      collectReceipts: !!options.receipts,
     });
+    if (options.receipts) {
+      return freezePublicStateWithReceipts(state, receipts);
+    }
+    return freezePublicState(state);
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @returns {Promise<PatchBuilderV2>}
+   */
+  async createPatchBuilder(workingSetId) {
+    const descriptor = await this.getOrThrow(workingSetId);
+    const { state, allPatches } = await this._materializeDescriptor(descriptor, {
+      collectReceipts: false,
+    });
+    const overlayRef = this._buildOverlayRef(workingSetId);
+    const nextLamport = maxPatchLamport(allPatches) + 1;
+    const expectedParentSha = descriptor.overlay.headPatchSha ?? null;
+
+    return new PatchBuilderV2({
+      persistence: this._graph._persistence,
+      graphName: this._graph._graphName,
+      writerId: descriptor.overlay.overlayId,
+      targetRefPath: overlayRef,
+      lamport: nextLamport,
+      versionVector: state.observedFrontier,
+      getCurrentState: () => this._graph._cachedState,
+      expectedParentSha,
+      onDeleteWithData: this._graph._onDeleteWithData,
+      onCommitSuccess: async ({ patch, sha }) => {
+        await this._syncOverlayDescriptor(descriptor, { patch, sha });
+      },
+      codec: this._graph._codec,
+      logger: this._graph._logger || undefined,
+      blobStorage: this._graph._blobStorage || undefined,
+      patchBlobStorage: this._graph._patchBlobStorage || undefined,
+    });
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @returns {Promise<string>}
+   */
+  async patch(workingSetId, build) {
+    if (this._graph._patchInProgress) {
+      throw new Error(
+        'graph.patchWorkingSet() is not reentrant. Use createWorkingSetPatch() for nested or concurrent patches.',
+      );
+    }
+    this._graph._patchInProgress = true;
+    try {
+      const builder = await this.createPatchBuilder(workingSetId);
+      await build(builder);
+      return await builder.commit();
+    } finally {
+      this._graph._patchInProgress = false;
+    }
   }
 
   /**
@@ -341,6 +438,23 @@ export default class WorkingSetService {
 
   /**
    * @private
+   * @param {string} workingSetId
+   * @returns {string}
+   */
+  _buildOverlayRef(workingSetId) {
+    try {
+      validateWriterId(workingSetId);
+    } catch (err) {
+      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_WORKING_SET_ID_INVALID',
+        context: { workingSetId },
+      });
+    }
+    return buildWorkingSetOverlayRef(this._graph._graphName, workingSetId);
+  }
+
+  /**
+   * @private
    * @param {string} oid
    * @param {string} workingSetId
    * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
@@ -371,5 +485,180 @@ export default class WorkingSetService {
         },
       });
     }
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
+   */
+  async _hydrateOverlayMetadata(descriptor) {
+    const overlayRef = this._buildOverlayRef(descriptor.workingSetId);
+    const headPatchSha = await this._graph._persistence.readRef(overlayRef);
+    if (!headPatchSha) {
+      if (descriptor.overlay.headPatchSha === null && descriptor.overlay.patchCount === 0) {
+        return descriptor;
+      }
+      return {
+        ...descriptor,
+        overlay: {
+          ...descriptor.overlay,
+          headPatchSha: null,
+          patchCount: 0,
+        },
+      };
+    }
+
+    const overlayPatches = await this._graph._loadPatchChainFromSha(headPatchSha);
+    const patchCount = overlayPatches.length;
+    if (
+      descriptor.overlay.headPatchSha === headPatchSha &&
+      descriptor.overlay.patchCount === patchCount
+    ) {
+      return descriptor;
+    }
+
+    return {
+      ...descriptor,
+      overlay: {
+        ...descriptor.overlay,
+        headPatchSha,
+        patchCount,
+      },
+    };
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  async _collectBasePatches(descriptor) {
+    const frontier = new Map(
+      Object.entries(descriptor.baseObservation.frontier).sort((a, b) =>
+        a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+      ),
+    );
+    const allPatches = [];
+    for (const writerId of frontier.keys()) {
+      const tipSha = frontier.get(writerId);
+      if (!tipSha) {
+        continue;
+      }
+      const writerPatches = await this._graph._loadPatchChainFromSha(tipSha);
+      for (const entry of writerPatches) {
+        if (
+          descriptor.baseObservation.lamportCeiling === null ||
+          entry.patch.lamport <= descriptor.baseObservation.lamportCeiling
+        ) {
+          allPatches.push(entry);
+        }
+      }
+    }
+    return allPatches;
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  async _collectOverlayPatches(descriptor) {
+    if (!descriptor.overlay.headPatchSha) {
+      return [];
+    }
+    return await this._graph._loadPatchChainFromSha(descriptor.overlay.headPatchSha);
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {{ collectReceipts: boolean }} options
+   * @returns {Promise<{
+   *   state: import('./JoinReducer.js').WarpStateV5,
+   *   receipts: import('../types/TickReceipt.js').TickReceipt[],
+   *   allPatches: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>
+   * }>}
+   */
+  async _materializeDescriptor(descriptor, { collectReceipts }) {
+    const basePatches = await this._collectBasePatches(descriptor);
+    const overlayPatches = await this._collectOverlayPatches(descriptor);
+    const allPatches = basePatches.concat(overlayPatches);
+
+    /** @type {import('./JoinReducer.js').WarpStateV5} */
+    let state;
+    /** @type {import('../types/TickReceipt.js').TickReceipt[]} */
+    let receipts = [];
+
+    if (allPatches.length === 0) {
+      state = createEmptyStateV5();
+    } else if (collectReceipts) {
+      const result = /** @type {{ state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }} */ (
+        reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, {
+          receipts: true,
+        })
+      );
+      state = result.state;
+      receipts = result.receipts;
+    } else {
+      state = /** @type {import('./JoinReducer.js').WarpStateV5} */ (
+        reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches))
+      );
+    }
+
+    const maxLamport = maxPatchLamport(allPatches);
+    if (maxLamport > this._graph._maxObservedLamport) {
+      this._graph._maxObservedLamport = maxLamport;
+    }
+
+    this._graph._provenanceIndex = new ProvenanceIndex();
+    for (const { patch, sha } of allPatches) {
+      this._graph._provenanceIndex.addPatch(
+        sha,
+        /** @type {string[]|undefined} */ (patch.reads),
+        /** @type {string[]|undefined} */ (patch.writes),
+      );
+    }
+    this._graph._provenanceDegraded = false;
+
+    await this._graph._setMaterializedState(state);
+    this._graph._cachedCeiling = null;
+    this._graph._cachedFrontier = null;
+    this._graph._lastFrontier = await this._graph.getFrontier();
+
+    return { state, receipts, allPatches };
+  }
+
+  /**
+   * @private
+   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result
+   * @returns {Promise<void>}
+   */
+  async _syncOverlayDescriptor(descriptor, { patch, sha }) {
+    const now = this._graph._clock.timestamp();
+    const nextDescriptor = {
+      ...descriptor,
+      updatedAt: now,
+      overlay: {
+        ...descriptor.overlay,
+        headPatchSha: sha,
+        patchCount: descriptor.overlay.patchCount + 1,
+      },
+    };
+
+    const ref = this._buildRef(descriptor.workingSetId);
+    const oid = await this._graph._persistence.writeBlob(
+      textEncode(JSON.stringify(nextDescriptor)),
+    );
+    await this._graph._persistence.updateRef(ref, oid);
+
+    if (patch.lamport > this._graph._maxObservedLamport) {
+      this._graph._maxObservedLamport = patch.lamport;
+    }
+    this._graph._stateDirty = true;
+    this._graph._cachedViewHash = null;
+    this._graph._cachedCeiling = null;
+    this._graph._cachedFrontier = null;
   }
 }

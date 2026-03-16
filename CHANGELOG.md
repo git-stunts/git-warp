@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.6.0] — 2026-03-16
+
+### Added
+
+- **Working-set overlay write API** — Added `WarpGraph.createWorkingSetPatch()` and `WarpGraph.patchWorkingSet()` so a pinned working set can diverge through its own overlay patch-log while reusing the standard patch builder and mutation kernel.
+
+### Changed
+
+- **Working-set materialization now replays base plus overlay** — `materializeWorkingSet()` now reduces the pinned base observation together with the current overlay patch-log, and `getWorkingSet()` / `listWorkingSets()` reconcile overlay metadata from the overlay ref so callers see the current head and patch count.
+- **Working-set documentation now reflects real overlay behavior** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, `docs/TTD.md`, and `docs/CLI_GUIDE.md` so the docs describe overlay patch logs, the library-first write API, and the CLI boundary accurately instead of talking about permanently empty overlays.
+
+### Fixed
+
+- **Dropping a working set now removes its overlay ref too** — `dropWorkingSet()` now cleans up both the descriptor ref and the overlay patch-log ref, preventing orphaned overlay heads from remaining reachable after a working set is deleted.
+
 ## [14.5.0] — 2026-03-16
 
 ### Added

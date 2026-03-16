@@ -421,5 +421,7 @@ declare module '../WarpGraph.js' {
     dropWorkingSet(workingSetId: string): Promise<boolean>;
     materializeWorkingSet(workingSetId: string, options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
     materializeWorkingSet(workingSetId: string, options?: { receipts?: false }): Promise<WarpStateV5>;
+    createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
+    patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
   }
 }

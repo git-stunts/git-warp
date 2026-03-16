@@ -11,6 +11,7 @@
  * - refs/warp/<graph>/cursor/active
  * - refs/warp/<graph>/cursor/saved/<name>
  * - refs/warp/<graph>/working-sets/<id>
+ * - refs/warp/<graph>/working-set-overlays/<id>
  * - refs/warp/<graph>/audit/<writer_id>
  * - refs/warp/<graph>/trust/records
  *
@@ -59,6 +60,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
   'coverage',
   'cursor',
   'working-sets',
+  'working-set-overlays',
   'audit',
   'trust',
   'seek-cache',
@@ -346,6 +348,34 @@ export function buildWorkingSetRef(graphName, workingSetId) {
 export function buildWorkingSetsPrefix(graphName) {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/working-sets/`;
+}
+
+/**
+ * Builds a working-set overlay ref path for the given graph and id.
+ *
+ * Overlay refs keep the patch-log head for a working set separate from the
+ * descriptor ref itself, allowing the descriptor to remain a single ref while
+ * the overlay history advances independently.
+ *
+ * @param {string} graphName
+ * @param {string} workingSetId
+ * @returns {string}
+ */
+export function buildWorkingSetOverlayRef(graphName, workingSetId) {
+  validateGraphName(graphName);
+  validateWriterId(workingSetId);
+  return `${REF_PREFIX}/${graphName}/working-set-overlays/${workingSetId}`;
+}
+
+/**
+ * Builds the working-set overlay prefix path for the given graph.
+ *
+ * @param {string} graphName
+ * @returns {string}
+ */
+export function buildWorkingSetOverlaysPrefix(graphName) {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/working-set-overlays/`;
 }
 
 /**

@@ -55,3 +55,24 @@ export async function materializeWorkingSet(workingSetId, options) {
   const service = new WorkingSetService({ graph: this });
   return await service.materialize(workingSetId, options);
 }
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @returns {Promise<import('../services/PatchBuilderV2.js').PatchBuilderV2>}
+ */
+export async function createWorkingSetPatch(workingSetId) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.createPatchBuilder(workingSetId);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @param {(p: import('../services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+ * @returns {Promise<string>}
+ */
+export async function patchWorkingSet(workingSetId, build) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.patch(workingSetId, build);
+}

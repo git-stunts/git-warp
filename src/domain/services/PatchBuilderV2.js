@@ -160,9 +160,9 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
     this._persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (persistence);
 
@@ -171,6 +171,11 @@ export class PatchBuilderV2 {
 
     /** @type {string} */
     this._writerId = writerId;
+
+    /** @type {string|null} */
+    this._targetRefPath = typeof targetRefPath === 'string' && targetRefPath.length > 0
+      ? targetRefPath
+      : null;
 
     /** @type {number} */
     this._lamport = lamport;
@@ -767,7 +772,7 @@ export class PatchBuilderV2 {
       }
 
       // 3. Race detection: check if writer ref has advanced since builder creation
-      const writerRef = buildWriterRef(this._graphName, this._writerId);
+      const writerRef = this._targetRefPath || buildWriterRef(this._graphName, this._writerId);
       const currentRefSha = await this._persistence.readRef(writerRef);
 
       if (currentRefSha !== this._expectedParentSha) {
