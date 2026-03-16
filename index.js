@@ -120,7 +120,7 @@ import { PatchSession } from './src/domain/warp/PatchSession.js';
 import { Writer } from './src/domain/warp/Writer.js';
 import { ProvenanceIndex } from './src/domain/services/ProvenanceIndex.js';
 import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/WarpStateIndexBuilder.js';
-import { computeStateHashV5 } from './src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5, projectStateV5 } from './src/domain/services/StateSerializerV5.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -217,6 +217,7 @@ export {
   WarpStateIndexBuilder,
   buildWarpStateIndex,
   computeStateHashV5,
+  projectStateV5,
 
   // WARP migration
   migrateV4toV5,

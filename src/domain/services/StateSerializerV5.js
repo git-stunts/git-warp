@@ -78,7 +78,26 @@ export function propVisibleV5(state, propKey) {
  * @returns {Uint8Array}
  */
 export function serializeStateV5(state, { codec } = {}) {
-  const c = codec || defaultCodec;
+  const projection = projectStateV5(state);
+  // Encode as canonical CBOR
+  return (codec || defaultCodec).encode(projection);
+}
+
+/**
+ * Projects a materialized V5 state into its visible graph projection.
+ *
+ * The returned shape is intentionally simple and stable:
+ * - `nodes`: visible node ids sorted lexicographically
+ * - `edges`: visible edges sorted by `(from, to, label)`
+ * - `props`: visible node properties sorted by `(node, key)`
+ *
+ * This helper is public so higher layers can inspect materialized working-set
+ * or coordinate state without depending on OR-Set internals.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @returns {{nodes: string[], edges: Array<{from: string, to: string, label: string}>, props: Array<{node: string, key: string, value: unknown}>}}
+ */
+export function projectStateV5(state) {
   // 1. Collect visible nodes, sorted
   const nodes = [...orsetElements(state.nodeAlive)].sort();
 
@@ -114,8 +133,7 @@ export function serializeStateV5(state, { codec } = {}) {
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
 
-  // Encode as canonical CBOR
-  return c.encode({ nodes, edges: visibleEdges, props: visibleProps });
+  return { nodes, edges: visibleEdges, props: visibleProps };
 }
 
 /**

@@ -815,6 +815,15 @@ export function buildWarpStateIndex(state: WarpStateV5, options?: { crypto?: Cry
 export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: CryptoPort; codec?: unknown }): Promise<string | null>;
 
 /**
+ * Projects a materialized WarpStateV5 into its visible graph projection.
+ *
+ * This is the stable substrate helper for higher layers that need to inspect
+ * materialized working-set or coordinate state without depending on OR-Set
+ * internals.
+ */
+export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
+
+/**
  * Service for querying a loaded bitmap index.
  *
  * Provides O(1) lookups via lazy-loaded sharded bitmap data.
@@ -2623,6 +2632,12 @@ export interface WarpStateV5 {
   prop: Map<string, unknown>;
   observedFrontier: Map<string, number>;
   edgeBirthEvent: Map<string, unknown>;
+}
+
+export interface VisibleStateProjectionV5 {
+  nodes: string[];
+  edges: Array<{ from: string; to: string; label: string }>;
+  props: Array<{ node: string; key: string; value: unknown }>;
 }
 
 /**

@@ -57,6 +57,8 @@ This keeps the substrate honest and lets higher layers decide how to interpret o
 Programmatic v1 surface:
 
 ```javascript
+import { projectStateV5 } from '@git-stunts/git-warp';
+
 const ws = await graph.createWorkingSet({
   workingSetId: 'review-auth',
   owner: 'alice',
@@ -67,6 +69,7 @@ const ws = await graph.createWorkingSet({
 const descriptor = await graph.getWorkingSet('review-auth');
 const all = await graph.listWorkingSets();
 const state = await graph.materializeWorkingSet('review-auth');
+const view = projectStateV5(state);
 const stateAtCeiling = await graph.materializeWorkingSet('review-auth', { ceiling: 12 });
 const visiblePatches = await graph.getWorkingSetPatches('review-auth');
 const provenanceShas = await graph.patchesForWorkingSet('review-auth', 'task:oauth');
@@ -90,7 +93,18 @@ const state = await graph.materializeCoordinate({
   frontier: descriptor.baseObservation.frontier,
   ceiling: descriptor.baseObservation.lamportCeiling,
 });
+const view = projectStateV5(state);
 ```
+
+`projectStateV5()` is the public helper for turning a materialized state into a
+stable visible projection:
+
+- `nodes`
+- `edges`
+- `props`
+
+That gives higher layers a substrate-clean way to inspect working-set or
+coordinate state without depending on OR-Set internals.
 
 ## CLI Surface
 

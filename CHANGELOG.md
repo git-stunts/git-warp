@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.8.0] — 2026-03-16
+
+### Added
+
+- **Visible state projection helper** — Added `projectStateV5()` as a public substrate helper that turns any materialized `WarpStateV5` into a stable `{ nodes, edges, props }` projection without exposing OR-Set internals directly.
+
+### Changed
+
+- **Working-set documentation now covers higher-layer inspection cleanly** — Updated `README.md`, `ARCHITECTURE.md`, and `docs/WORKING_SETS.md` so higher layers can use `materializeWorkingSet()` plus `projectStateV5()` instead of reinventing working-set query semantics above the substrate.
+
 ## [14.7.0] — 2026-03-16
 
 ### Added

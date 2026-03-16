@@ -11,6 +11,11 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.8.0
+
+- **Visible state projection is now a public helper** — `projectStateV5()` turns any materialized V5 state into a stable `{ nodes, edges, props }` projection so higher layers can inspect working sets and replay coordinates without depending on OR-Set internals.
+- **Working-set-aware higher-layer reads can now stay substrate-clean** — higher layers like XYPH can combine `materializeWorkingSet()` with `projectStateV5()` instead of reverse-engineering reducer state or inventing a parallel worldline query model.
+
 ## What's New in v14.7.0
 
 - **Conflict analysis is now working-set aware** — `WarpGraph.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.

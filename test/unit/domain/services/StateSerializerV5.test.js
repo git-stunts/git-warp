@@ -3,6 +3,7 @@ import {
   nodeVisibleV5,
   edgeVisibleV5,
   propVisibleV5,
+  projectStateV5,
   serializeStateV5,
   computeStateHashV5,
   deserializeStateV5,
@@ -225,6 +226,34 @@ describe('StateSerializerV5', () => {
   });
 
   describe('serializeStateV5', () => {
+    it('projectStateV5 returns the visible projection without exposing OR-Set internals', () => {
+      const state = buildStateV5({
+        nodes: [
+          { nodeId: 'a' },
+          { nodeId: 'b', alive: false },
+          { nodeId: 'c' },
+        ],
+        edges: [
+          { from: 'a', to: 'c', label: 'rel' },
+          { from: 'a', to: 'b', label: 'dead-edge' },
+        ],
+        props: [
+          { nodeId: 'a', key: 'name', value: createInlineValue('Alice') },
+          { nodeId: 'b', key: 'hidden', value: createInlineValue('Ghost') },
+          { nodeId: 'c', key: 'name', value: createInlineValue('Carol') },
+        ],
+      });
+
+      expect(projectStateV5(state)).toEqual({
+        nodes: ['a', 'c'],
+        edges: [{ from: 'a', to: 'c', label: 'rel' }],
+        props: [
+          { node: 'a', key: 'name', value: createInlineValue('Alice') },
+          { node: 'c', key: 'name', value: createInlineValue('Carol') },
+        ],
+      });
+    });
+
     it('includes only visible nodes', () => {
       const state = buildStateV5({
         nodes: [

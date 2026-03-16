@@ -1218,6 +1218,9 @@
       "kind": "function",
       "async": true
     },
+    "projectStateV5": {
+      "kind": "function"
+    },
     "computeTranslationCost": {
       "kind": "function"
     },
@@ -1598,6 +1601,9 @@
       "kind": "interface"
     },
     "VerifyBTROptions": {
+      "kind": "interface"
+    },
+    "VisibleStateProjectionV5": {
       "kind": "interface"
     },
     "WarpGraphStatus": {
