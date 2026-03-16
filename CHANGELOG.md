@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.3.0] — 2026-03-15
+
 ### Added
 
-- **`git warp debug conflicts` CLI** — Added a thin substrate-debugging command family to the main git-warp CLI, with `debug conflicts` exposing the read-only conflict analyzer through JSON, NDJSON, and plain-text output. The command supports deterministic filters for entity, target selector, writer, kind, Lamport ceiling, evidence level, and scan budget.
+- **Expanded `git warp debug` command family** — Added `debug provenance` for causal patch provenance by entity ID and `debug receipts` for reducer/tick-receipt inspection, while keeping `debug conflicts` as the conflict-analysis entrypoint. The debug family now presents a coherent CLI-first time-travel debugger surface for operators and LLM agents.
+- **Dedicated Time Travel Debugger documentation** — Added `docs/TTD.md` and updated `ARCHITECTURE.md`, `README.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the debugger boundary, command map, and layering are documented in one canonical path rather than scattered across feature notes.
 
 ### Changed
 
-- **Retired built-in browser/TUI viewer surfaces** — Removed the legacy `git warp view` command, removed the browser-viewer `git warp serve` command and its WebSocket/static-serving runtime stack, and trimmed the package surface so git-warp remains substrate plus thin debug CLI rather than a human-facing application shell.
+- **Retired built-in browser/TUI viewer surfaces from the supported CLI story** — Removed the legacy `git warp view` command, removed the browser-viewer `git warp serve` command and its WebSocket/static-serving runtime stack, and trimmed the package surface so git-warp remains substrate plus thin debug CLI rather than a human-facing application shell.
+- **Refactored debug CLI adapters into topic modules** — The `debug` command is now split into thin topic-specific adapters (`conflicts`, `provenance`, `receipts`) with shared cursor/materialization helpers and shared text/JSON rendering contracts, keeping the CLI aligned with hexagonal boundaries instead of accumulating one-off logic in a monolithic command file.
 
 ## [14.2.0] — 2026-03-15
 

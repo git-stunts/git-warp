@@ -11,13 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.2.0
+## What's New in v14.3.0
 
-- **Read-only conflict analyzer** — `WarpGraph.analyzeConflicts()` exposes deterministic conflict provenance over patch history, receipts, and resolved state, including explicit analysis coordinates, canonical targets, per-loser participants, structured diagnostics, and stable conflict IDs.
-- **Published conflict-analysis type surface** — `ConflictAnalysis`, `ConflictTrace`, `ConflictParticipant`, `ConflictTarget`, and related types are now part of the public declaration contract, with consumer and declaration-surface checks keeping the API honest.
-- **`git-cas` bugfix floor raised to 5.3.1** — `git-warp` now explicitly requires the fixed `@git-stunts/git-cas` release instead of relying on an older `5.3.0` lockfile resolution.
-- **Contributor plan freeze for counterfactual work** — The active substrate direction now lives under `docs/plans/conflict-analyzer-v1.md`, with archived drafts kept out of the main contributor path.
-- **Release workflow immutability hardening** — Tag-based release automation now treats published versions and GitHub Releases as immutable, warning and skipping duplicate publish attempts instead of mutating existing release artifacts.
+- **Expanded debugger CLI** — `git warp debug` now includes `conflicts`, `provenance`, and `receipts`, giving operators and LLM agents a coherent CLI-first time-travel debugger surface over substrate facts.
+- **Dedicated Time Travel Debugger docs** — The debugger architecture and boundary now live in [docs/TTD.md](docs/TTD.md), with matching notes in [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md).
+- **Viewer surfaces retired from the supported CLI story** — The main package now stays focused on substrate APIs, static CLI rendering, and thin debug commands rather than browser/TUI application shells.
+- **Conflict analyzer remains the substrate anchor** — The debugger expansion builds on the published `WarpGraph.analyzeConflicts()` surface from v14.2.0 instead of inventing a parallel conflict model in the CLI.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
@@ -71,6 +70,8 @@ const result = await graph.query()
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
+- **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
@@ -565,6 +566,12 @@ git warp history --writer alice
 # Inspect deterministic conflict traces
 git warp debug conflicts --kind supersession --evidence full
 
+# Trace causal provenance for one entity
+git warp debug provenance --entity-id user:alice
+
+# Inspect reducer receipts at a time-travel coordinate
+git warp debug receipts --lamport-ceiling 12 --result superseded
+
 # Check graph health, status, and GC metrics
 git warp check
 ```
@@ -603,6 +610,12 @@ git warp query --match 'user:*' --outgoing manages --view
 
 # Inspect substrate conflict provenance at the current frontier
 git warp debug conflicts --entity-id user:alice --lamport-ceiling 12 --json
+
+# Inspect patch provenance for one entity
+git warp debug provenance --entity-id user:alice --json
+
+# Inspect reducer outcomes without leaving the CLI
+git warp debug receipts --writer-id alice --result superseded --json
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).
@@ -613,7 +626,7 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Human-Facing Apps
 
-`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug conflicts`.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`.
 
 Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 
