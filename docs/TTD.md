@@ -38,7 +38,7 @@ flowchart TB
 
     subgraph cli["git-warp CLI"]
         seek["seek"]
-        debug["debug conflicts / provenance / receipts"]
+        debug["debug coordinate / timeline / conflicts / provenance / receipts"]
         raw["patch show / history / query"]
     end
 
@@ -65,6 +65,10 @@ TTD in git-warp is a **family**, not a single command:
 
 - `git warp seek`
   Controls the active historical coordinate for exploratory reads.
+- `git warp debug coordinate`
+  Shows the resolved observation coordinate, frontier digest, visible patch counts, and tick-local receipt summary.
+- `git warp debug timeline`
+  Shows a cross-writer causal patch timeline, optionally scoped to an entity, writer, or Lamport window.
 - `git warp debug conflicts`
   Shows deterministic conflict traces and structured loser/winner evidence.
 - `git warp debug provenance`
@@ -103,7 +107,8 @@ The debug family is intended to remain **read-only**.
 In practice:
 
 - `debug conflicts` uses the conflict analyzer, which performs zero durable writes.
-- `debug provenance` and `debug receipts` use explicit materialization without the CLI attaching checkpoint policies or persistent seek caches.
+- `debug coordinate`, `debug provenance`, and `debug receipts` use explicit materialization without the CLI attaching checkpoint policies or persistent seek caches.
+- `debug timeline` walks existing patch history and provenance indexes without mutating seek state or graph state.
 - debug topics may consult the active seek cursor, but they do not mutate it.
 
 If a future debugger feature requires durable writes, it should not be added casually. The read-only contract is part of the debugger’s architecture, not just a convenience.
@@ -142,6 +147,7 @@ In practice this means:
 Likely future TTD-adjacent extensions:
 
 - additional debug topics once their substrate facts are stable
+- entity-local slice inspection at historical coordinates once substrate support exists
 - richer provenance drilldown over conflict anchors
 - working-set/worldline-aware coordinates after substrate support exists
 - higher-level debugger panels in XYPH, not in git-warp

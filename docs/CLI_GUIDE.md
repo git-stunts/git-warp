@@ -14,7 +14,7 @@ This guide teaches you the `git warp` command-line interface from scratch. Every
 - [Time Travel](#time-travel) (`seek`)
 - [Materializing State](#materializing-state) (`materialize`)
 - [Health and Diagnostics](#health-and-diagnostics) (`check`, `doctor`)
-- [Time Travel Debugger](#time-travel-debugger) (`debug conflicts`, `debug provenance`, `debug receipts`)
+- [Time Travel Debugger](#time-travel-debugger) (`debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, `debug receipts`)
 - [Index Management](#index-management) (`verify-index`, `reindex`)
 - [Verifying Audit Integrity](#verifying-audit-integrity) (`verify-audit`)
 - [Git Hook Integration](#git-hook-integration) (`install-hooks`)
@@ -835,6 +835,8 @@ Exit code 0 means all chains are valid. Exit code 3 means at least one chain has
 The git-warp Time Travel Debugger (TTD) is the thin CLI surface for substrate inspection. It works together with `seek`:
 
 - `seek` chooses the observation coordinate
+- `debug coordinate` reports the resolved observation position and visible frontier
+- `debug timeline` shows a cross-writer causal patch timeline
 - `debug conflicts` explains competing writes
 - `debug provenance` shows which patches affected an entity
 - `debug receipts` shows what the reducer did with each operation
@@ -842,6 +844,70 @@ The git-warp Time Travel Debugger (TTD) is the thin CLI surface for substrate in
 All debugger topics are read-oriented. They inspect substrate facts; they do **not** invent domain meaning above git-warp.
 
 For the architecture boundary behind this surface, see [docs/TTD.md](TTD.md).
+
+### `debug coordinate` — inspect the resolved observation coordinate
+
+The `debug coordinate` command answers the most basic debugger question first: “what am I actually looking at right now?” It resolves the active seek cursor or explicit Lamport ceiling, materializes the graph at that position, and reports the visible patch counts, writer tips, and tick-local receipt summary.
+
+```bash
+git warp debug coordinate --repo ./team-repo
+```
+
+Examples:
+
+```bash
+# Show the active seek position, visible patch counts, and frontier digest
+git warp debug coordinate --repo ./team-repo
+
+# Override the active cursor and inspect a historical ceiling directly
+git warp debug coordinate --repo ./team-repo \
+  --lamport-ceiling 12 \
+  --json
+```
+
+#### Complete flag reference for `debug coordinate`
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--lamport-ceiling <n>` | integer | active seek cursor or head | Inspect no later than Lamport tick `n` |
+
+### `debug timeline` — inspect a cross-writer causal patch timeline
+
+The `debug timeline` command collects patch history across writers, sorts it causally, and returns a substrate-level timeline window. Use it when `history` is too writer-local and you need to see how patches from multiple writers interleaved at a given coordinate.
+
+```bash
+git warp debug timeline --repo ./team-repo
+```
+
+Examples:
+
+```bash
+# Show the newest 10 visible timeline entries at the current coordinate
+git warp debug timeline --repo ./team-repo --limit 10
+
+# Restrict the timeline to one entity and a historical Lamport window
+git warp debug timeline --repo ./team-repo \
+  --entity-id task:auth \
+  --lamport-floor 5 \
+  --lamport-ceiling 12 \
+  --json
+
+# Restrict the timeline to one writer
+git warp debug timeline --repo ./team-repo \
+  --writer-id alice
+```
+
+`--limit` returns the newest matching entries while preserving ascending causal order inside the returned window.
+
+#### Complete flag reference for `debug timeline`
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--entity-id <id>` | string | _(all entities)_ | Restrict the timeline to patches touching this entity |
+| `--writer-id <id>` | string | _(all writers)_ | Restrict the timeline to one writer |
+| `--lamport-floor <n>` | integer | _(none)_ | Include no earlier than Lamport tick `n` |
+| `--lamport-ceiling <n>` | integer | active seek cursor or head | Include no later than Lamport tick `n` |
+| `--limit <n>` | integer | _(all matching entries)_ | Return the newest `n` matching entries |
 
 ### `debug conflicts` — inspect deterministic conflict traces
 
@@ -1233,6 +1299,22 @@ Quick-reference table of all commands and their flags.
 | Flag | Description |
 |------|-------------|
 | _(global only)_ | See [Global Options](#global-options) |
+
+### `debug coordinate`
+
+| Flag | Description |
+|------|-------------|
+| `--lamport-ceiling <n>` | Inspect no later than Lamport tick `n` |
+
+### `debug timeline`
+
+| Flag | Description |
+|------|-------------|
+| `--entity-id <id>` | Restrict to patches touching this entity |
+| `--writer-id <id>` | Restrict to one writer |
+| `--lamport-floor <n>` | Include no earlier than Lamport tick `n` |
+| `--lamport-ceiling <n>` | Include no later than Lamport tick `n` |
+| `--limit <n>` | Return the newest `n` matching entries |
 
 ### `debug conflicts`
 

@@ -1,4 +1,3 @@
-import { summarizeOps } from '../../../src/visualization/renderers/ascii/history.js';
 import { diffStates } from '../../../src/domain/services/StateDiff.js';
 import { textEncode } from '../../../src/domain/utils/bytes.js';
 import {
@@ -7,7 +6,12 @@ import {
   buildCursorSavedPrefix,
 } from '../../../src/domain/utils/RefLayout.js';
 import { parseCursorBlob } from '../../../src/domain/utils/parseCursorBlob.js';
-import { stableStringify } from '../../presenters/json.js';
+import {
+  buildTickReceipt,
+  computeFrontierHash,
+  countPatchesAtTick,
+  serializePerWriter,
+} from '../time-travel-shared.js';
 import { EXIT_CODES, usageError, notFoundError, parseCommandArgs } from '../infrastructure.js';
 import { seekSchema } from '../schemas.js';
 import { openGraph, readActiveCursor, writeActiveCursor, wireSeekCache } from '../shared.js';
@@ -177,53 +181,6 @@ function resolveTickValue(tickValue, currentTick, ticks, maxTick) {
 // ============================================================================
 
 /**
- * @param {Map<string, WriterTickInfo>} perWriter
- * @returns {Record<string, WriterTickInfo>}
- */
-function serializePerWriter(perWriter) {
-  /** @type {Record<string, WriterTickInfo>} */
-  const result = {};
-  for (const [writerId, info] of perWriter) {
-    result[writerId] = { ticks: info.ticks, tipSha: info.tipSha, tickShas: info.tickShas };
-  }
-  return result;
-}
-
-/**
- * @param {number} tick
- * @param {Map<string, WriterTickInfo>} perWriter
- * @returns {number}
- */
-function countPatchesAtTick(tick, perWriter) {
-  let count = 0;
-  for (const [, info] of perWriter) {
-    for (const t of info.ticks) {
-      if (t <= tick) {
-        count++;
-      }
-    }
-  }
-  return count;
-}
-
-/**
- * @param {Map<string, WriterTickInfo>} perWriter
- * @returns {Promise<string>}
- */
-async function computeFrontierHash(perWriter) {
-  /** @type {Record<string, string|null>} */
-  const tips = {};
-  for (const [writerId, info] of perWriter) {
-    tips[writerId] = info?.tipSha || null;
-  }
-  const data = new TextEncoder().encode(stableStringify(tips));
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/**
  * @param {CursorBlob|null} cursor
  * @returns {{nodes: number|null, edges: number|null}}
  */
@@ -255,33 +212,6 @@ function computeSeekStateDiff(prevCursor, next, frontierHash) {
     nodes: next.nodes - prev.nodes,
     edges: next.edges - prev.edges,
   };
-}
-
-/**
- * @param {{tick: number, perWriter: Map<string, WriterTickInfo>, graph: WarpGraphInstance}} params
- * @returns {Promise<Record<string, {sha: string, opSummary: unknown}>|null>}
- */
-async function buildTickReceipt({ tick, perWriter, graph }) {
-  if (!Number.isInteger(tick) || tick <= 0) {
-    return null;
-  }
-
-  /** @type {Record<string, {sha: string, opSummary: unknown}>} */
-  const receipt = {};
-
-  for (const [writerId, info] of perWriter) {
-    const tickShas = /** @type {Record<number, string> | undefined} */ (info?.tickShas);
-    const sha = tickShas?.[tick];
-    if (!sha) {
-      continue;
-    }
-
-    const patch = await graph.loadPatchBySha(sha);
-    const ops = Array.isArray(patch?.ops) ? patch.ops : [];
-    receipt[writerId] = { sha, opSummary: summarizeOps(ops) };
-  }
-
-  return Object.keys(receipt).length > 0 ? receipt : null;
 }
 
 /**

@@ -83,6 +83,31 @@ export function compareNumbers(a, b) {
 }
 
 /**
+ * @param {Array<Record<string, unknown> & { type: string }>|undefined} ops
+ * @returns {string[]}
+ */
+export function collectTouchedIds(ops) {
+  if (!Array.isArray(ops) || ops.length === 0) {
+    return [];
+  }
+
+  const ids = new Set();
+  for (const op of ops) {
+    if (typeof op.node === 'string' && op.node.length > 0) {
+      ids.add(op.node);
+    }
+    if (typeof op.from === 'string' && op.from.length > 0) {
+      ids.add(op.from);
+    }
+    if (typeof op.to === 'string' && op.to.length > 0) {
+      ids.add(op.to);
+    }
+  }
+
+  return [...ids].sort(compareStrings);
+}
+
+/**
  * Deterministic causal sort for patch entries.
  *
  * @param {Array<{patch: {writer?: string, lamport?: number}, sha: string}>} entries
@@ -119,7 +144,8 @@ export function sortPatchEntriesCausally(entries) {
  *   opCount: number,
  *   opSummary: Record<string, number>,
  *   reads: string[],
- *   writes: string[]
+ *   writes: string[],
+ *   targets: string[]
  * }>}
  */
 export function summarizePatchEntries(entries) {
@@ -132,6 +158,7 @@ export function summarizePatchEntries(entries) {
     opSummary: Array.isArray(patch.ops) ? summarizeOps(patch.ops) : {},
     reads: Array.isArray(patch.reads) ? [...patch.reads] : [],
     writes: Array.isArray(patch.writes) ? [...patch.writes] : [],
+    targets: collectTouchedIds(patch.ops),
   }));
 }
 

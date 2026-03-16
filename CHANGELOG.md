@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.4.0] — 2026-03-15
+
+### Added
+
+- **Expanded `git warp debug` into a fuller TTD command family** — Added `debug coordinate` to inspect the resolved observation position, visible frontier, and tick-local receipt summary, and `debug timeline` to inspect a cross-writer causal patch timeline with entity/writer/Lamport-window filters. Together with `debug conflicts`, `debug provenance`, and `debug receipts`, the CLI now exposes a coherent five-topic time-travel debugger surface for operators and LLM agents.
+- **Shared time-travel CLI helpers across `seek` and `debug`** — Extracted common frontier/tick helper logic so `seek` and the new debugger topics reuse the same coordinate and receipt computations instead of carrying duplicate substrate math in separate command adapters.
+
+### Changed
+
+- **TTD documentation now covers the full v1 debugger family** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the debugger boundary, command map, and full flag surface are documented from one consistent time-travel-debugger story instead of lagging behind the CLI implementation.
+
 ## [14.3.0] — 2026-03-15
 
 ### Added

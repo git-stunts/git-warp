@@ -30,6 +30,30 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts' }} DebugConflictsPayload
  * @typedef {{
  *   graph: string,
+ *   debugTopic: 'coordinate',
+ *   coordinateSource: 'explicit'|'cursor'|'frontier',
+ *   requestedLamportCeiling: number|null,
+ *   activeCursor: { tick: number, mode: string }|null,
+ *   resolvedCoordinate: {
+ *     tick: number,
+ *     lamportCeiling: number|null,
+ *     maxTick: number,
+ *     tickCount: number,
+ *     frontierDigest: string,
+ *     patchCount: number,
+ *     nodes: number,
+ *     edges: number,
+ *     properties: number,
+ *     perWriter: Record<string, {
+ *       tipSha: string|null,
+ *       totalPatchCount: number,
+ *       visiblePatchCount: number
+ *     }>
+ *   },
+ *   tickReceipt: Record<string, { sha: string, opSummary: unknown }>|null
+ * }} DebugCoordinatePayload
+ * @typedef {{
+ *   graph: string,
  *   debugTopic: 'provenance',
  *   entityId: string,
  *   lamportCeiling: number|null,
@@ -44,7 +68,8 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *     opCount: number,
  *     opSummary: Record<string, number>,
  *     reads: string[],
- *     writes: string[]
+ *     writes: string[],
+ *     targets: string[]
  *   }>
  * }} DebugProvenancePayload
  * @typedef {{
@@ -80,7 +105,32 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *     }>
  *   }>
  * }} DebugReceiptsPayload
- * @typedef {DebugConflictsPayload | DebugProvenancePayload | DebugReceiptsPayload} DebugPayload
+ * @typedef {{
+ *   graph: string,
+ *   debugTopic: 'timeline',
+ *   coordinateSource: 'explicit'|'cursor'|'frontier',
+ *   filters: {
+ *     entityId: string|null,
+ *     writerId: string|null,
+ *     lamportFloor: number|null,
+ *     lamportCeiling: number|null
+ *   },
+ *   totalEntries: number,
+ *   returnedEntries: number,
+ *   truncated: boolean,
+ *   entries: Array<{
+ *     sha: string,
+ *     writer: string,
+ *     lamport: number,
+ *     schema?: number,
+ *     opCount: number,
+ *     opSummary: Record<string, number>,
+ *     reads: string[],
+ *     writes: string[],
+ *     targets: string[]
+ *   }>
+ * }} DebugTimelinePayload
+ * @typedef {DebugConflictsPayload | DebugCoordinatePayload | DebugProvenancePayload | DebugReceiptsPayload | DebugTimelinePayload} DebugPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -814,6 +864,42 @@ function renderDebugConflicts(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+/** @param {DebugCoordinatePayload} payload */
+function renderDebugCoordinate(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    'Topic: coordinate',
+    `Source: ${payload.coordinateSource}`,
+    `Tick: ${payload.resolvedCoordinate.tick}/${payload.resolvedCoordinate.maxTick}`,
+    `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
+    `Visible State: nodes=${payload.resolvedCoordinate.nodes} edges=${payload.resolvedCoordinate.edges} props=${payload.resolvedCoordinate.properties}`,
+    `Visible Patches: ${payload.resolvedCoordinate.patchCount}`,
+    `Frontier Digest: ${payload.resolvedCoordinate.frontierDigest}`,
+    `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.perWriter).length}`,
+  ];
+
+  if (payload.activeCursor) {
+    lines.push(`Active Cursor: tick ${payload.activeCursor.tick} (${payload.activeCursor.mode})`);
+  }
+
+  lines.push('');
+  lines.push('Per Writer:');
+  for (const [writerId, info] of Object.entries(payload.resolvedCoordinate.perWriter)) {
+    const tip = info.tipSha ? info.tipSha.slice(0, 7) : 'none';
+    lines.push(`- ${writerId}: visible=${info.visiblePatchCount}/${info.totalPatchCount} tip=${tip}`);
+  }
+
+  if (payload.tickReceipt && Object.keys(payload.tickReceipt).length > 0) {
+    lines.push('');
+    lines.push('Tick Receipt:');
+    for (const [writerId, receipt] of Object.entries(payload.tickReceipt)) {
+      lines.push(`- ${writerId}: ${receipt.sha.slice(0, 7)} ${formatOpSummaryInline(/** @type {Record<string, number>} */ (receipt.opSummary))}`);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
 /** @param {DebugProvenancePayload} payload */
 function renderDebugProvenance(payload) {
   const lines = [
@@ -891,16 +977,66 @@ function renderDebugReceipts(payload) {
   return `${lines.join('\n')}\n`;
 }
 
+/** @param {DebugTimelinePayload} payload */
+function renderDebugTimeline(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    'Topic: timeline',
+    `Source: ${payload.coordinateSource}`,
+    `Lamport Window: ${payload.filters.lamportFloor ?? 0}..${payload.filters.lamportCeiling ?? 'head'}`,
+    `Entries: ${payload.returnedEntries}/${payload.totalEntries}`,
+  ];
+
+  const activeFilters = [];
+  if (payload.filters.entityId) {
+    activeFilters.push(`entity=${payload.filters.entityId}`);
+  }
+  if (payload.filters.writerId) {
+    activeFilters.push(`writer=${payload.filters.writerId}`);
+  }
+  if (activeFilters.length > 0) {
+    lines.push(`Filters: ${activeFilters.join(' ')}`);
+  }
+  if (payload.truncated) {
+    lines.push('Truncated: yes (newest window)');
+  }
+
+  for (const entry of payload.entries) {
+    const ioParts = [];
+    if (entry.reads.length > 0) {
+      ioParts.push(`reads=${entry.reads.length}`);
+    }
+    if (entry.writes.length > 0) {
+      ioParts.push(`writes=${entry.writes.length}`);
+    }
+    const ioSuffix = ioParts.length > 0 ? ` ${ioParts.join(' ')}` : '';
+    lines.push('');
+    lines.push(`- ${entry.sha.slice(0, 7)} L${entry.lamport} ${entry.writer} (${entry.opCount} ops${ioSuffix})`);
+    lines.push(`  Ops: ${formatOpSummaryInline(entry.opSummary)}`);
+    if (entry.targets.length > 0) {
+      lines.push(`  Targets: ${entry.targets.join(', ')}`);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
 /** @param {DebugPayload} payload */
 export function renderDebug(payload) {
   if (payload.debugTopic === 'conflicts') {
     return renderDebugConflicts(payload);
+  }
+  if (payload.debugTopic === 'coordinate') {
+    return renderDebugCoordinate(payload);
   }
   if (payload.debugTopic === 'provenance') {
     return renderDebugProvenance(payload);
   }
   if (payload.debugTopic === 'receipts') {
     return renderDebugReceipts(payload);
+  }
+  if (payload.debugTopic === 'timeline') {
+    return renderDebugTimeline(payload);
   }
   return `${JSON.stringify(payload, null, 2)}\n`;
 }

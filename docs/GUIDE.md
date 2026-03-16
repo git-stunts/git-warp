@@ -1097,6 +1097,8 @@ git warp materialize                                   # Materialize all graphs
 git warp materialize --graph my-graph                  # Single graph
 git warp seek --tick 3                                 # Time-travel to tick 3
 git warp seek --latest                                 # Return to present
+git warp debug coordinate                              # Resolved observation coordinate
+git warp debug timeline --limit 10                     # Recent causal patch timeline
 git warp debug conflicts --kind supersession           # Conflict traces
 git warp debug provenance --entity-id user:alice       # Patch provenance
 git warp debug receipts --result superseded            # Reducer outcomes
@@ -1172,6 +1174,8 @@ git warp seek --no-persistent-cache --tick 5
 git-warp's debugger surface is CLI-first and substrate-focused. Use:
 
 - `seek` to choose the observation coordinate
+- `debug coordinate` to inspect the resolved position and visible frontier
+- `debug timeline` to inspect a cross-writer causal patch timeline
 - `debug conflicts` to inspect winner/loser conflict traces
 - `debug provenance` to see which patches affected an entity
 - `debug receipts` to inspect per-operation reducer outcomes

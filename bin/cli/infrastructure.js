@@ -42,6 +42,8 @@ Commands:
   check            Report graph health/GC status
   doctor           Diagnose structural issues and suggest fixes
   debug            Inspect substrate history and conflict state
+                     coordinate         Inspect the resolved observation coordinate
+                       --lamport-ceiling <n>  Inspect no later than Lamport tick n
                      conflicts          Analyze conflict provenance at the current frontier
                        --entity-id <id>       Filter by entity id
                        --target-kind <kind>   node, edge, node_property, edge_property
@@ -66,6 +68,12 @@ Commands:
                        --op <type>            Receipt op type (repeatable)
                        --lamport-ceiling <n>  Analyze no later than Lamport tick n
                        --limit <n>            Limit returned receipts
+                     timeline           Inspect a cross-writer causal patch timeline
+                       --entity-id <id>       Filter to patches touching an entity id
+                       --writer-id <id>       Filter to a specific writer
+                       --lamport-floor <n>    Include no earlier than Lamport tick n
+                       --lamport-ceiling <n>  Include no later than Lamport tick n
+                       --limit <n>            Return the newest N entries in causal order
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild

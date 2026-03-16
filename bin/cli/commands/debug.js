@@ -1,8 +1,10 @@
 import { usageError } from '../infrastructure.js';
 
+import * as coordinateTopic from './debug/coordinate.js';
 import * as conflictsTopic from './debug/conflicts.js';
 import * as provenanceTopic from './debug/provenance.js';
 import * as receiptsTopic from './debug/receipts.js';
+import * as timelineTopic from './debug/timeline.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 /**
@@ -14,9 +16,11 @@ import * as receiptsTopic from './debug/receipts.js';
 
 /** @type {Record<string, DebugTopicModule>} */
 const DEBUG_TOPICS = Object.freeze({
+  [coordinateTopic.DEBUG_TOPIC.name]: coordinateTopic,
   [conflictsTopic.DEBUG_TOPIC.name]: conflictsTopic,
   [provenanceTopic.DEBUG_TOPIC.name]: provenanceTopic,
   [receiptsTopic.DEBUG_TOPIC.name]: receiptsTopic,
+  [timelineTopic.DEBUG_TOPIC.name]: timelineTopic,
 });
 
 function buildDebugUsage() {

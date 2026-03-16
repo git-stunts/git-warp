@@ -111,6 +111,39 @@ describe('present', () => {
     expect(output).toContain('Truncated: yes');
   });
 
+  it('renders plain text for debug coordinate', () => {
+    present({
+      graph: 'g',
+      debugTopic: 'coordinate',
+      coordinateSource: 'cursor',
+      requestedLamportCeiling: null,
+      activeCursor: { tick: 4, mode: 'lamport' },
+      resolvedCoordinate: {
+        tick: 4,
+        lamportCeiling: 4,
+        maxTick: 4,
+        tickCount: 3,
+        frontierDigest: 'f'.repeat(40),
+        patchCount: 3,
+        nodes: 2,
+        edges: 1,
+        properties: 3,
+        perWriter: {
+          alice: { tipSha: 'a'.repeat(40), totalPatchCount: 2, visiblePatchCount: 2 },
+          bob: { tipSha: 'b'.repeat(40), totalPatchCount: 1, visiblePatchCount: 1 },
+        },
+      },
+      tickReceipt: {
+        alice: { sha: 'a'.repeat(40), opSummary: { PropSet: 1 } },
+      },
+    }, { format: 'text', command: 'debug', view: null });
+    const output = stdoutChunks.join('');
+    expect(output).toContain('Topic: coordinate');
+    expect(output).toContain('Source: cursor');
+    expect(output).toContain('Active Cursor: tick 4 (lamport)');
+    expect(output).toContain('Tick Receipt:');
+  });
+
   it('renders plain text for debug receipts', () => {
     present({
       graph: 'g',
@@ -148,6 +181,50 @@ describe('present', () => {
     expect(output).toContain('Topic: receipts');
     expect(output).toContain('Results: applied=0 superseded=1 redundant=0');
     expect(output).toContain('lost LWW');
+  });
+
+  it('renders plain text for debug timeline', () => {
+    present({
+      graph: 'g',
+      debugTopic: 'timeline',
+      coordinateSource: 'frontier',
+      filters: {
+        entityId: null,
+        writerId: 'alice',
+        lamportFloor: 1,
+        lamportCeiling: null,
+      },
+      totalEntries: 3,
+      returnedEntries: 2,
+      truncated: true,
+      entries: [
+        {
+          sha: 'a'.repeat(40),
+          writer: 'alice',
+          lamport: 2,
+          opCount: 1,
+          opSummary: { PropSet: 1 },
+          reads: ['user:alice'],
+          writes: ['user:alice'],
+          targets: ['user:alice'],
+        },
+        {
+          sha: 'b'.repeat(40),
+          writer: 'alice',
+          lamport: 4,
+          opCount: 2,
+          opSummary: { PropSet: 1, EdgeAdd: 1 },
+          reads: [],
+          writes: ['project:api'],
+          targets: ['project:api', 'user:alice'],
+        },
+      ],
+    }, { format: 'text', command: 'debug', view: null });
+    const output = stdoutChunks.join('');
+    expect(output).toContain('Topic: timeline');
+    expect(output).toContain('Filters: writer=alice');
+    expect(output).toContain('Truncated: yes (newest window)');
+    expect(output).toContain('Targets: project:api, user:alice');
   });
 
   it('renders error payloads to stderr', () => {

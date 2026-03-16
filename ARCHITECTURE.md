@@ -32,7 +32,7 @@ This enables:
 git-warp now includes a thin **Time Travel Debugger (TTD)** command family in the main CLI, but the architectural boundary remains strict:
 
 - **Domain/core** owns substrate analyzers, receipts, provenance, and materialization facts.
-- **CLI adapters** expose those facts through `seek`, `debug conflicts`, `debug provenance`, and `debug receipts`.
+- **CLI adapters** expose those facts through `seek`, `debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts`.
 - **Presenters** format the results for text, JSON, or NDJSON.
 - **Human-facing debugger applications do not live in git-warp.**
 

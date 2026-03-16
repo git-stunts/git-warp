@@ -11,12 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.3.0
+## What's New in v14.4.0
 
-- **Expanded debugger CLI** — `git warp debug` now includes `conflicts`, `provenance`, and `receipts`, giving operators and LLM agents a coherent CLI-first time-travel debugger surface over substrate facts.
-- **Dedicated Time Travel Debugger docs** — The debugger architecture and boundary now live in [docs/TTD.md](docs/TTD.md), with matching notes in [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md).
-- **Viewer surfaces retired from the supported CLI story** — The main package now stays focused on substrate APIs, static CLI rendering, and thin debug commands rather than browser/TUI application shells.
-- **Conflict analyzer remains the substrate anchor** — The debugger expansion builds on the published `WarpGraph.analyzeConflicts()` surface from v14.2.0 instead of inventing a parallel conflict model in the CLI.
+- **Expanded debugger CLI again** — `git warp debug` now includes `coordinate` and `timeline` alongside `conflicts`, `provenance`, and `receipts`, so operators and LLM agents can inspect the resolved observation position and a cross-writer causal patch timeline without leaving the main CLI.
+- **TTD docs now cover the full v1 command family** — [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now document the debugger boundary and all five debug topics from one coherent time-travel story.
+- **CLI adapters stay thin and hex-clean** — the new coordinate/timeline commands share extracted time-travel helpers with `seek` instead of growing ad hoc substrate logic in multiple places.
+- **Viewer surfaces remain retired** — the package stays focused on substrate APIs, static CLI rendering, and thin debug commands rather than browser/TUI application shells.
 
 See the [full changelog](CHANGELOG.md) for complete release details.
 
@@ -563,6 +563,12 @@ git warp path --from user:alice --to user:bob --dir out
 # Show patch history for a writer
 git warp history --writer alice
 
+# Inspect the resolved observation coordinate
+git warp debug coordinate
+
+# Inspect the newest causal timeline window
+git warp debug timeline --limit 10
+
 # Inspect deterministic conflict traces
 git warp debug conflicts --kind supersession --evidence full
 
@@ -608,6 +614,12 @@ When a seek cursor is active, `query`, `info`, `materialize`, and `history` auto
 # Visualize query results (ascii output by default)
 git warp query --match 'user:*' --outgoing manages --view
 
+# Inspect the resolved coordinate and visible frontier
+git warp debug coordinate --json
+
+# Inspect the newest visible causal timeline window
+git warp debug timeline --limit 10 --json
+
 # Inspect substrate conflict provenance at the current frontier
 git warp debug conflicts --entity-id user:alice --lamport-ceiling 12 --json
 
@@ -626,7 +638,7 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Human-Facing Apps
 
-`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`.
 
 Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 
