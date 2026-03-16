@@ -14,7 +14,7 @@ This guide teaches you the `git warp` command-line interface from scratch. Every
 - [Time Travel](#time-travel) (`seek`)
 - [Materializing State](#materializing-state) (`materialize`)
 - [Health and Diagnostics](#health-and-diagnostics) (`check`, `doctor`)
-- [Debugging Conflict Provenance](#debugging-conflict-provenance) (`debug conflicts`)
+- [Time Travel Debugger](#time-travel-debugger) (`debug conflicts`, `debug provenance`, `debug receipts`)
 - [Index Management](#index-management) (`verify-index`, `reindex`)
 - [Verifying Audit Integrity](#verifying-audit-integrity) (`verify-audit`)
 - [Git Hook Integration](#git-hook-integration) (`install-hooks`)
@@ -830,11 +830,22 @@ Exit code 0 means all chains are valid. Exit code 3 means at least one chain has
 
 ---
 
-## Debugging Conflict Provenance
+## Time Travel Debugger
+
+The git-warp Time Travel Debugger (TTD) is the thin CLI surface for substrate inspection. It works together with `seek`:
+
+- `seek` chooses the observation coordinate
+- `debug conflicts` explains competing writes
+- `debug provenance` shows which patches affected an entity
+- `debug receipts` shows what the reducer did with each operation
+
+All debugger topics are read-oriented. They inspect substrate facts; they do **not** invent domain meaning above git-warp.
+
+For the architecture boundary behind this surface, see [docs/TTD.md](TTD.md).
 
 ### `debug conflicts` — inspect deterministic conflict traces
 
-The `debug conflicts` command exposes git-warp's read-only substrate conflict analyzer through the main CLI. It does **not** mutate the graph, and it does **not** invent domain meaning above the substrate facts.
+The `debug conflicts` command exposes git-warp's read-only conflict analyzer through the main CLI.
 
 ```bash
 git warp debug conflicts --repo ./team-repo
@@ -874,7 +885,7 @@ git warp debug conflicts --repo ./team-repo \
   --property-key priority
 ```
 
-### Complete flag reference for `debug conflicts`
+#### Complete flag reference for `debug conflicts`
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -890,7 +901,82 @@ git warp debug conflicts --repo ./team-repo \
 | `--evidence <level>` | string | `standard` | `summary`, `standard`, or `full` evidence payload |
 | `--max-patches <n>` | integer | analyzer default | Deterministic scan budget |
 
-`debug conflicts` is intentionally a thin debugging surface. Human-facing time-travel or debugger panels belong in higher-layer applications rather than in `git-warp` itself.
+### `debug provenance` — trace causal patch provenance for an entity
+
+The `debug provenance` command materializes explicitly at the chosen coordinate, resolves the provenance index, and reports the patches that affected a given entity ID.
+
+```bash
+git warp debug provenance --repo ./team-repo --entity-id user:alice
+```
+
+Examples:
+
+```bash
+# Inspect provenance at the active seek cursor (if one exists)
+git warp debug provenance --repo ./team-repo \
+  --entity-id task:auth
+
+# Inspect provenance at an explicit historical ceiling
+git warp debug provenance --repo ./team-repo \
+  --entity-id task:auth \
+  --lamport-ceiling 9 \
+  --json
+
+# Limit the returned patch list for quick terminal inspection
+git warp debug provenance --repo ./team-repo \
+  --entity-id user:alice \
+  --max-patches 5
+```
+
+#### Complete flag reference for `debug provenance`
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--entity-id <id>` | string | _(required)_ | Entity ID to inspect |
+| `--lamport-ceiling <n>` | integer | active seek cursor or head | Analyze no later than Lamport tick `n` |
+| `--max-patches <n>` | integer | _(all matching patches)_ | Limit returned provenance entries |
+
+### `debug receipts` — inspect reducer tick receipts
+
+The `debug receipts` command exposes `materialize({ receipts: true })` through a thin inspection surface. Use it to answer “what did the reducer actually do with these operations?”
+
+```bash
+git warp debug receipts --repo ./team-repo
+```
+
+Examples:
+
+```bash
+# Focus on superseded property writes by one writer
+git warp debug receipts --repo ./team-repo \
+  --writer-id alice \
+  --result superseded \
+  --op PropSet
+
+# Inspect receipts at a historical Lamport ceiling
+git warp debug receipts --repo ./team-repo \
+  --lamport-ceiling 12 \
+  --json
+
+# Drill down into one patch's receipt payload
+git warp debug receipts --repo ./team-repo \
+  --patch a1b2c3d \
+  --limit 1
+```
+
+#### Complete flag reference for `debug receipts`
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--writer-id <id>` | string | _(all writers)_ | Filter receipts by writer ID |
+| `--patch <sha>` | string | _(all patches)_ | Filter receipts by patch SHA or prefix |
+| `--target <target>` | string | _(all targets)_ | Filter matching ops by exact receipt target |
+| `--result <kind>` | string (repeatable) | _(all results)_ | Restrict ops to `applied`, `superseded`, or `redundant` |
+| `--op <type>` | string (repeatable) | _(all receipt op types)_ | Restrict ops to one or more receipt op types |
+| `--lamport-ceiling <n>` | integer | active seek cursor or head | Analyze no later than Lamport tick `n` |
+| `--limit <n>` | integer | _(all matching receipts)_ | Limit returned receipts after filtering |
+
+The debugger surface is intentionally thin. Human-facing time-travel or debugger panels belong in higher-layer applications rather than in `git-warp` itself.
 
 ---
 
@@ -1161,6 +1247,26 @@ Quick-reference table of all commands and their flags.
 | `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
 | `--evidence <level>` | `summary`, `standard`, or `full` |
 | `--max-patches <n>` | Deterministic scan budget |
+
+### `debug provenance`
+
+| Flag | Description |
+|------|-------------|
+| `--entity-id <id>` | Entity ID to inspect |
+| `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
+| `--max-patches <n>` | Limit returned provenance entries |
+
+### `debug receipts`
+
+| Flag | Description |
+|------|-------------|
+| `--writer-id <id>` | Filter receipts by writer |
+| `--patch <sha>` | Filter receipts by patch SHA or prefix |
+| `--target <target>` | Filter matching ops by exact receipt target |
+| `--result <kind>` | Restrict to `applied`, `superseded`, or `redundant` ops |
+| `--op <type>` | Restrict to one or more receipt op types |
+| `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
+| `--limit <n>` | Limit returned receipts after filtering |
 
 ### `install-hooks`
 

@@ -1097,6 +1097,9 @@ git warp materialize                                   # Materialize all graphs
 git warp materialize --graph my-graph                  # Single graph
 git warp seek --tick 3                                 # Time-travel to tick 3
 git warp seek --latest                                 # Return to present
+git warp debug conflicts --kind supersession           # Conflict traces
+git warp debug provenance --entity-id user:alice       # Patch provenance
+git warp debug receipts --result superseded            # Reducer outcomes
 git warp install-hooks                                 # Install post-merge hook
 ```
 
@@ -1163,6 +1166,17 @@ git warp seek --no-persistent-cache --tick 5
 ```
 
 > **Note:** When state is restored from cache, provenance queries (`patchesFor`, `materializeSlice`) are unavailable because the provenance index isn't populated. Use `--no-persistent-cache` if you need provenance data.
+
+### Time Travel Debugger (TTD)
+
+git-warp's debugger surface is CLI-first and substrate-focused. Use:
+
+- `seek` to choose the observation coordinate
+- `debug conflicts` to inspect winner/loser conflict traces
+- `debug provenance` to see which patches affected an entity
+- `debug receipts` to inspect per-operation reducer outcomes
+
+See [docs/CLI_GUIDE.md](CLI_GUIDE.md) for complete command flags and [docs/TTD.md](TTD.md) for the debugger architecture boundary.
 
 **Programmatic API:**
 

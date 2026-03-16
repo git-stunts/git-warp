@@ -84,6 +84,72 @@ describe('present', () => {
     expect(output).toContain('Conflicts: 0');
   });
 
+  it('renders plain text for debug provenance', () => {
+    present({
+      graph: 'g',
+      debugTopic: 'provenance',
+      entityId: 'user:alice',
+      lamportCeiling: 7,
+      totalPatches: 2,
+      returnedPatches: 1,
+      truncated: true,
+      entries: [
+        {
+          sha: 'a'.repeat(40),
+          writer: 'alice',
+          lamport: 1,
+          opCount: 2,
+          opSummary: { NodeAdd: 1, PropSet: 1 },
+          reads: [],
+          writes: ['user:alice'],
+        },
+      ],
+    }, { format: 'text', command: 'debug', view: null });
+    const output = stdoutChunks.join('');
+    expect(output).toContain('Topic: provenance');
+    expect(output).toContain('Entity: user:alice');
+    expect(output).toContain('Truncated: yes');
+  });
+
+  it('renders plain text for debug receipts', () => {
+    present({
+      graph: 'g',
+      debugTopic: 'receipts',
+      lamportCeiling: null,
+      filters: {
+        writerId: 'alice',
+        patch: null,
+        target: null,
+        results: ['superseded'],
+        opTypes: ['PropSet'],
+      },
+      totalReceipts: 2,
+      matchedReceipts: 1,
+      returnedReceipts: 1,
+      truncated: false,
+      summary: {
+        results: { applied: 0, superseded: 1, redundant: 0 },
+        opTypes: { PropSet: 1 },
+      },
+      receipts: [
+        {
+          patchSha: 'a'.repeat(40),
+          writer: 'alice',
+          lamport: 2,
+          totalOps: 2,
+          matchedOps: 1,
+          ops: [
+            { op: 'PropSet', target: 'user:alice\0role', result: 'superseded', reason: 'lost LWW' },
+          ],
+        },
+      ],
+    }, { format: 'text', command: 'debug', view: null });
+    const output = stdoutChunks.join('');
+    expect(output).toContain('Topic: receipts');
+    expect(output).toContain('Results: applied=0 superseded=1 redundant=0');
+    expect(output).toContain('lost LWW');
+  });
+
   it('renders error payloads to stderr', () => {
     present({ error: { message: 'boom' } }, { format: 'text', command: 'info', view: null });
     expect(stdoutChunks).toHaveLength(0);

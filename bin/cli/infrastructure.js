@@ -54,6 +54,18 @@ Commands:
                        --lamport-ceiling <n>  Analyze no later than Lamport tick n
                        --evidence <level>     summary, standard, full
                        --max-patches <n>      Deterministic scan budget
+                     provenance         Trace causal patch provenance for an entity id
+                       --entity-id <id>       Entity id to inspect
+                       --lamport-ceiling <n>  Analyze no later than Lamport tick n
+                       --max-patches <n>      Limit returned provenance entries
+                     receipts           Inspect reducer tick receipts and per-op outcomes
+                       --writer-id <id>       Filter receipts by writer id
+                       --patch <sha>          Filter receipts by patch SHA/prefix
+                       --target <target>      Filter matching ops by exact receipt target
+                       --result <kind>        applied, superseded, redundant (repeatable)
+                       --op <type>            Receipt op type (repeatable)
+                       --lamport-ceiling <n>  Analyze no later than Lamport tick n
+                       --limit <n>            Limit returned receipts
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild

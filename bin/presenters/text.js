@@ -28,6 +28,59 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{ graph: string, sha: string, writer: string, lamport: number, schema?: number, ops: PatchOp[] }} PatchShowPayload
  * @typedef {{ graph: string, total: number, showing: number, writerFilter?: string | null, entries: Array<{ sha: string, writer: string, lamport: number, opCount: number, nodeIds: string[] }> }} PatchListPayload
  * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts' }} DebugConflictsPayload
+ * @typedef {{
+ *   graph: string,
+ *   debugTopic: 'provenance',
+ *   entityId: string,
+ *   lamportCeiling: number|null,
+ *   totalPatches: number,
+ *   returnedPatches: number,
+ *   truncated: boolean,
+ *   entries: Array<{
+ *     sha: string,
+ *     writer: string,
+ *     lamport: number,
+ *     schema?: number,
+ *     opCount: number,
+ *     opSummary: Record<string, number>,
+ *     reads: string[],
+ *     writes: string[]
+ *   }>
+ * }} DebugProvenancePayload
+ * @typedef {{
+ *   graph: string,
+ *   debugTopic: 'receipts',
+ *   lamportCeiling: number|null,
+ *   filters: {
+ *     writerId: string|null,
+ *     patch: string|null,
+ *     target: string|null,
+ *     results: string[],
+ *     opTypes: string[]
+ *   },
+ *   totalReceipts: number,
+ *   matchedReceipts: number,
+ *   returnedReceipts: number,
+ *   truncated: boolean,
+ *   summary: {
+ *     results: { applied: number, superseded: number, redundant: number },
+ *     opTypes: Record<string, number>
+ *   },
+ *   receipts: Array<{
+ *     patchSha: string,
+ *     writer: string,
+ *     lamport: number,
+ *     totalOps: number,
+ *     matchedOps: number,
+ *     ops: Array<{
+ *       op: string,
+ *       target: string,
+ *       result: 'applied'|'superseded'|'redundant',
+ *       reason?: string
+ *     }>
+ *   }>
+ * }} DebugReceiptsPayload
+ * @typedef {DebugConflictsPayload | DebugProvenancePayload | DebugReceiptsPayload} DebugPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -702,12 +755,20 @@ function formatConflictTarget(target) {
   return target.targetDigest;
 }
 
-/** @param {DebugConflictsPayload} payload */
-export function renderDebug(payload) {
-  if (payload.debugTopic !== 'conflicts') {
-    return `${JSON.stringify(payload, null, 2)}\n`;
-  }
+/**
+ * @param {Record<string, number>} summary
+ * @returns {string}
+ */
+function formatOpSummaryInline(summary) {
+  const entries = Object.entries(summary)
+    .filter(([, count]) => typeof count === 'number' && Number.isFinite(count) && count > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([op, count]) => `${op}:${count}`);
+  return entries.length > 0 ? entries.join(', ') : 'none';
+}
 
+/** @param {DebugConflictsPayload} payload */
+function renderDebugConflicts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     `Topic: conflicts`,
@@ -751,4 +812,95 @@ export function renderDebug(payload) {
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+/** @param {DebugProvenancePayload} payload */
+function renderDebugProvenance(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    'Topic: provenance',
+    `Entity: ${payload.entityId}`,
+    `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
+    `Patches: ${payload.returnedPatches}/${payload.totalPatches}`,
+  ];
+
+  if (payload.truncated) {
+    lines.push('Truncated: yes');
+  }
+
+  for (const entry of payload.entries) {
+    const ioParts = [];
+    if (entry.reads.length > 0) {
+      ioParts.push(`reads=${entry.reads.length}`);
+    }
+    if (entry.writes.length > 0) {
+      ioParts.push(`writes=${entry.writes.length}`);
+    }
+    const ioSuffix = ioParts.length > 0 ? ` ${ioParts.join(' ')}` : '';
+    lines.push('');
+    lines.push(`- ${entry.sha.slice(0, 7)} L${entry.lamport} ${entry.writer} (${entry.opCount} ops${ioSuffix})`);
+    lines.push(`  Ops: ${formatOpSummaryInline(entry.opSummary)}`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+/** @param {DebugReceiptsPayload} payload */
+function renderDebugReceipts(payload) {
+  const lines = [
+    `Graph: ${payload.graph}`,
+    'Topic: receipts',
+    `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
+    `Receipts: ${payload.returnedReceipts}/${payload.matchedReceipts} matched (${payload.totalReceipts} total)`,
+    `Results: applied=${payload.summary.results.applied} superseded=${payload.summary.results.superseded} redundant=${payload.summary.results.redundant}`,
+  ];
+
+  const activeFilters = [];
+  if (payload.filters.writerId) {
+    activeFilters.push(`writer=${payload.filters.writerId}`);
+  }
+  if (payload.filters.patch) {
+    activeFilters.push(`patch=${payload.filters.patch}`);
+  }
+  if (payload.filters.target) {
+    activeFilters.push(`target=${payload.filters.target}`);
+  }
+  if (payload.filters.results.length > 0) {
+    activeFilters.push(`results=${payload.filters.results.join(',')}`);
+  }
+  if (payload.filters.opTypes.length > 0) {
+    activeFilters.push(`ops=${payload.filters.opTypes.join(',')}`);
+  }
+  if (activeFilters.length > 0) {
+    lines.push(`Filters: ${activeFilters.join(' ')}`);
+  }
+  if (payload.truncated) {
+    lines.push('Truncated: yes');
+  }
+  lines.push(`Op Types: ${formatOpSummaryInline(payload.summary.opTypes)}`);
+
+  for (const receipt of payload.receipts) {
+    lines.push('');
+    lines.push(`- ${receipt.patchSha.slice(0, 7)} L${receipt.lamport} ${receipt.writer} (${receipt.matchedOps}/${receipt.totalOps} ops)`);
+    for (const op of receipt.ops) {
+      const reason = op.reason ? ` — ${op.reason}` : '';
+      lines.push(`  ${op.result.padEnd(11)} ${op.op.padEnd(14)} ${op.target}${reason}`);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+/** @param {DebugPayload} payload */
+export function renderDebug(payload) {
+  if (payload.debugTopic === 'conflicts') {
+    return renderDebugConflicts(payload);
+  }
+  if (payload.debugTopic === 'provenance') {
+    return renderDebugProvenance(payload);
+  }
+  if (payload.debugTopic === 'receipts') {
+    return renderDebugReceipts(payload);
+  }
+  return `${JSON.stringify(payload, null, 2)}\n`;
 }

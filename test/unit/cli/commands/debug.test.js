@@ -120,4 +120,113 @@ describe('handleDebug', () => {
       args: ['conflicts', '--property-key', 'role'],
     })).rejects.toThrow(/--target-kind/);
   });
+
+  it('inspects provenance with explicit materialization and causal patch summaries', async () => {
+    const materialize = vi.fn().mockResolvedValue({});
+    const patchesFor = vi.fn().mockResolvedValue(['b'.repeat(40), 'a'.repeat(40)]);
+    const loadPatchBySha = vi.fn()
+      .mockResolvedValueOnce({
+        writer: 'alice',
+        lamport: 2,
+        schema: 2,
+        ops: [{ type: 'NodeAdd', node: 'n1' }],
+        reads: ['n0'],
+        writes: ['n1'],
+      })
+      .mockResolvedValueOnce({
+        writer: 'alice',
+        lamport: 1,
+        schema: 2,
+        ops: [{ type: 'PropSet', node: 'n1', key: 'role', value: 'admin' }],
+        reads: [],
+        writes: ['n1'],
+      });
+
+    /** @type {any} */ (openGraph).mockResolvedValue({
+      graph: { materialize, patchesFor, loadPatchBySha },
+      graphName: 'demo',
+      persistence: {},
+    });
+    /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 7 });
+
+    const result = await handleDebug({
+      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      args: ['provenance', '--entity-id', 'n1', '--max-patches', '1'],
+    });
+
+    expect(materialize).toHaveBeenCalledWith({ ceiling: 7 });
+    expect(patchesFor).toHaveBeenCalledWith('n1');
+    expect(result.payload).toMatchObject({
+      graph: 'demo',
+      debugTopic: 'provenance',
+      entityId: 'n1',
+      lamportCeiling: 7,
+      totalPatches: 2,
+      returnedPatches: 1,
+      truncated: true,
+    });
+    expect(/** @type {any} */ (result.payload).entries[0]).toMatchObject({
+      sha: 'a'.repeat(40),
+      lamport: 1,
+    });
+  });
+
+  it('filters receipts by writer, result, op, and patch prefix', async () => {
+    const materialize = vi.fn().mockResolvedValue({
+      state: {},
+      receipts: [
+        {
+          patchSha: 'a'.repeat(40),
+          writer: 'alice',
+          lamport: 1,
+          ops: [
+            { op: 'NodeAdd', target: 'n1', result: 'applied' },
+            { op: 'PropSet', target: 'n1\0role', result: 'superseded', reason: 'lost LWW' },
+          ],
+        },
+        {
+          patchSha: 'b'.repeat(40),
+          writer: 'bob',
+          lamport: 2,
+          ops: [
+            { op: 'PropSet', target: 'n1\0role', result: 'applied' },
+          ],
+        },
+      ],
+    });
+
+    /** @type {any} */ (openGraph).mockResolvedValue({
+      graph: { materialize },
+      graphName: 'demo',
+      persistence: {},
+    });
+    /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
+
+    const result = await handleDebug({
+      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      args: [
+        'receipts',
+        '--writer-id', 'alice',
+        '--patch', 'aaaa',
+        '--result', 'superseded',
+        '--op', 'PropSet',
+      ],
+    });
+
+    expect(materialize).toHaveBeenCalledWith({ receipts: true });
+    expect(result.payload).toMatchObject({
+      graph: 'demo',
+      debugTopic: 'receipts',
+      totalReceipts: 2,
+      matchedReceipts: 1,
+      returnedReceipts: 1,
+      truncated: false,
+      summary: {
+        results: { applied: 0, superseded: 1, redundant: 0 },
+      },
+    });
+    expect(/** @type {any} */ (result.payload).receipts[0].ops).toEqual([
+      { op: 'PropSet', target: 'n1\0role', result: 'superseded', reason: 'lost LWW' },
+    ]);
+  });
 });

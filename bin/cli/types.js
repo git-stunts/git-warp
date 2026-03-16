@@ -25,12 +25,13 @@
  * @property {() => Promise<{frontier: Record<string, string>}>} status
  * @property {() => Promise<string[]>} discoverWriters
  * @property {() => Promise<Map<string, string>>} getFrontier
+ * @property {(entityId: string) => Promise<string[]>} patchesFor
  * @property {() => {totalTombstones: number, tombstoneRatio: number}} getGCMetrics
  * @property {() => Promise<number>} getPropertyCount
  * @property {() => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
  * @property {(options?: import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalyzeOptions) => Promise<import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalysis>} analyzeConflicts
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
- * @property {(sha: string) => Promise<{ops?: Array<{type: string, node?: string, from?: string, to?: string}>}>} loadPatchBySha
+ * @property {(sha: string) => Promise<import('../../src/domain/types/WarpTypesV2.js').PatchV2>} loadPatchBySha
  * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache
  * @property {{clear: () => Promise<void>} | null} seekCache
  * @property {number} [_seekCeiling]
