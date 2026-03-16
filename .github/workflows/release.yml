@@ -277,17 +277,18 @@ jobs:
       - name: Create / update release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.verify.outputs.tag }}
           IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "::warning::GitHub Release $TAG already exists; skipping immutable release update."
           else
             SUMMARY=$(cat RELEASE_SUMMARY.md)
-            args=(release create "$TAG" --generate-notes --notes "$SUMMARY")
+            args=(release create "$TAG" --repo "$GH_REPO" --generate-notes --notes "$SUMMARY")
             if [[ "$IS_PRERELEASE" == "true" ]]; then
               args+=(--prerelease)
             fi
