@@ -1218,6 +1218,9 @@
       "kind": "function",
       "async": true
     },
+    "createStateReaderV5": {
+      "kind": "function"
+    },
     "projectStateV5": {
       "kind": "function"
     },
@@ -1604,6 +1607,15 @@
       "kind": "interface"
     },
     "VisibleStateProjectionV5": {
+      "kind": "interface"
+    },
+    "VisibleNodeViewV5": {
+      "kind": "interface"
+    },
+    "VisibleStateNeighborV5": {
+      "kind": "interface"
+    },
+    "VisibleStateReaderV5": {
       "kind": "interface"
     },
     "WarpGraphStatus": {

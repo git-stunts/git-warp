@@ -74,6 +74,7 @@ import WarpGraph, {
   serializeWormhole,
   deserializeWormhole,
   computeTranslationCost,
+  createStateReaderV5,
   migrateV4toV5,
   encodeEdgePropKey,
   decodeEdgePropKey,
@@ -104,6 +105,9 @@ import type {
   BTRVerificationResult,
   WormholeEdge,
   PatchEntry,
+  VisibleNodeViewV5,
+  VisibleStateNeighborV5,
+  VisibleStateReaderV5,
   LogicalTraversal,
   TraversalDirection,
   TraversalNode,
@@ -249,6 +253,17 @@ const sha2: string = await graph.patch((p: PatchBuilderV2) => {
 
 // ---- materialize overloads ----
 const state: WarpStateV5 = await graph.materialize();
+const stateReader: VisibleStateReaderV5 = createStateReaderV5(state);
+const readerProjection = stateReader.project();
+const readerHasNode: boolean = stateReader.hasNode('n1');
+const readerNodes: string[] = stateReader.getNodes();
+const readerEdges: Array<{ from: string; to: string; label: string; props: Record<string, unknown> }> = stateReader.getEdges();
+const readerProps: Record<string, unknown> | null = stateReader.getNodeProps('n1');
+const readerEdgeProps: Record<string, unknown> | null = stateReader.getEdgeProps('n1', 'n2', 'knows');
+const readerNeighbors: VisibleStateNeighborV5[] = stateReader.neighbors('n1', 'outgoing');
+const readerContent: ContentMeta | null = stateReader.getNodeContentMeta('n1');
+const readerEdgeContent: ContentMeta | null = stateReader.getEdgeContentMeta('n1', 'n2', 'knows');
+const readerNodeView: VisibleNodeViewV5 | null = stateReader.inspectNode('n1');
 const withReceipts: { state: WarpStateV5; receipts: TickReceipt[] } = await graph.materialize({ receipts: true });
 const conflictKinds: ConflictKind[] = ['supersession', 'redundancy'];
 const conflictTarget: ConflictTargetSelector = { targetKind: 'node_property', entityId: 'user:alice', propertyKey: 'name' };

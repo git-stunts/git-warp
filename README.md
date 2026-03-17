@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.9.0
+
+- **Visible-state reads now go beyond aggregate projection** — `createStateReaderV5()` builds a stable substrate reader over any materialized V5 state so higher layers can inspect visible nodes, edges, properties, content metadata, neighbors, and node-local views without depending on OR-Set internals.
+- **Working-set-backed higher-layer reads can stay honest without inventing a parallel query model** — higher layers like XYPH can now combine `materializeWorkingSet()` with `createStateReaderV5()` when they need entity-local inspection, while still using `projectStateV5()` for compact whole-state summaries.
+- **Working-set docs now explain the projection-vs-reader split explicitly** — the architecture and working-set notes now distinguish aggregate visible projection (`projectStateV5()`) from richer programmatic visible-state inspection (`createStateReaderV5()`), while keeping git-warp free of application semantics.
+
 ## What's New in v14.8.0
 
 - **Visible state projection is now a public helper** — `projectStateV5()` turns any materialized V5 state into a stable `{ nodes, edges, props }` projection so higher layers can inspect working sets and replay coordinates without depending on OR-Set internals.

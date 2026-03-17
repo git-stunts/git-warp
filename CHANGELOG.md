@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.9.0] — 2026-03-17
+
+### Added
+
+- **Visible-state reader helper** — Added `createStateReaderV5()` as a public substrate helper that builds stable node, edge, property, neighbor, content-metadata, and node-local inspection reads over any materialized `WarpStateV5` without exposing OR-Set internals.
+
 ### Changed
 
 - **Future working-set composition terminology frozen to `braid`** — the active architecture and working-set docs now use **braid** as the canonical term for co-present overlay/working-set composition, explicitly distinguishing it from merge or rebase semantics.
+- **Working-set documentation now distinguishes aggregate projection from richer visible-state reads** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can choose `projectStateV5()` for compact summaries or `createStateReaderV5()` for honest entity-local inspection over the same visible patch universe.
 
 ## [14.8.0] — 2026-03-16
 

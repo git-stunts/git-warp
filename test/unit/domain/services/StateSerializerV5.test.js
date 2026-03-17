@@ -8,6 +8,7 @@ import {
   computeStateHashV5,
   deserializeStateV5,
 } from '../../../../src/domain/services/StateSerializerV5.js';
+import { createStateReaderV5 } from '../../../../src/domain/services/StateReaderV5.js';
 import {
   createEmptyStateV5,
   encodeEdgeKey,
@@ -19,6 +20,12 @@ import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import {
+  CONTENT_MIME_PROPERTY_KEY,
+  CONTENT_PROPERTY_KEY,
+  CONTENT_SIZE_PROPERTY_KEY,
+  encodeEdgePropKey,
+} from '../../../../src/domain/services/KeyCodec.js';
 
 const crypto = new NodeCryptoAdapter();
 
@@ -370,6 +377,106 @@ describe('StateSerializerV5', () => {
       const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
       expect(result).toEqual({ nodes: [], edges: [], props: [] });
+    });
+  });
+
+  describe('createStateReaderV5', () => {
+    it('provides stable node, edge, neighbor, and content helpers over visible state', () => {
+      const edgeBirth = mockEventId(2, 'alice', 'bbbbbbbb', 0);
+      const nodeContentEvent = mockEventId(4, 'alice', 'cccccccc', 0);
+      const edgeContentEvent = mockEventId(5, 'alice', 'dddddddd', 0);
+      const state = buildStateV5({
+        nodes: [
+          { nodeId: 'a' },
+          { nodeId: 'b', alive: false },
+          { nodeId: 'c' },
+          { nodeId: 'd' },
+        ],
+        edges: [
+          { from: 'a', to: 'c', label: 'rel' },
+          { from: 'd', to: 'a', label: 'back' },
+          { from: 'a', to: 'b', label: 'dead-edge' },
+        ],
+        props: [
+          { nodeId: 'a', key: 'name', value: createInlineValue('Alice') },
+          { nodeId: 'c', key: 'name', value: createInlineValue('Carol') },
+          { nodeId: 'a', key: CONTENT_PROPERTY_KEY, value: 'oid:node', eventId: nodeContentEvent },
+          { nodeId: 'a', key: CONTENT_MIME_PROPERTY_KEY, value: 'text/plain', eventId: mockEventId(4, 'alice', 'cccccccc', 1) },
+          { nodeId: 'a', key: CONTENT_SIZE_PROPERTY_KEY, value: 12, eventId: mockEventId(4, 'alice', 'cccccccc', 2) },
+        ],
+      });
+
+      state.edgeBirthEvent.set(encodeEdgeKey('a', 'c', 'rel'), edgeBirth);
+      state.prop.set(
+        encodeEdgePropKey('a', 'c', 'rel', 'since'),
+        lwwSet(mockEventId(3, 'alice', 'eeeeeeee', 0), 2026),
+      );
+      state.prop.set(
+        encodeEdgePropKey('a', 'c', 'rel', CONTENT_PROPERTY_KEY),
+        lwwSet(edgeContentEvent, 'oid:edge'),
+      );
+      state.prop.set(
+        encodeEdgePropKey('a', 'c', 'rel', CONTENT_MIME_PROPERTY_KEY),
+        lwwSet(mockEventId(5, 'alice', 'dddddddd', 1), 'application/json'),
+      );
+      state.prop.set(
+        encodeEdgePropKey('a', 'c', 'rel', CONTENT_SIZE_PROPERTY_KEY),
+        lwwSet(mockEventId(5, 'alice', 'dddddddd', 2), 7),
+      );
+      state.prop.set(
+        encodeEdgePropKey('a', 'c', 'rel', 'stale'),
+        lwwSet(mockEventId(1, 'alice', 'aaaaaaaa', 0), 'ignore-me'),
+      );
+
+      const reader = createStateReaderV5(state);
+
+      expect(reader.hasNode('a')).toBe(true);
+      expect(reader.hasNode('b')).toBe(false);
+      expect(reader.getNodes()).toEqual(['a', 'c', 'd']);
+      expect(reader.getNodeProps('a')).toEqual({
+        name: createInlineValue('Alice'),
+        [CONTENT_PROPERTY_KEY]: 'oid:node',
+        [CONTENT_MIME_PROPERTY_KEY]: 'text/plain',
+        [CONTENT_SIZE_PROPERTY_KEY]: 12,
+      });
+      expect(reader.getEdgeProps('a', 'c', 'rel')).toEqual({
+        since: 2026,
+        [CONTENT_PROPERTY_KEY]: 'oid:edge',
+        [CONTENT_MIME_PROPERTY_KEY]: 'application/json',
+        [CONTENT_SIZE_PROPERTY_KEY]: 7,
+      });
+      expect(reader.neighbors('a')).toEqual([
+        { nodeId: 'c', label: 'rel', direction: 'outgoing' },
+        { nodeId: 'd', label: 'back', direction: 'incoming' },
+      ]);
+      expect(reader.getNodeContentMeta('a')).toEqual({
+        oid: 'oid:node',
+        mime: 'text/plain',
+        size: 12,
+      });
+      expect(reader.getEdgeContentMeta('a', 'c', 'rel')).toEqual({
+        oid: 'oid:edge',
+        mime: 'application/json',
+        size: 7,
+      });
+      expect(reader.inspectNode('a')).toEqual({
+        nodeId: 'a',
+        props: {
+          name: createInlineValue('Alice'),
+          [CONTENT_PROPERTY_KEY]: 'oid:node',
+          [CONTENT_MIME_PROPERTY_KEY]: 'text/plain',
+          [CONTENT_SIZE_PROPERTY_KEY]: 12,
+        },
+        outgoing: [{ nodeId: 'c', label: 'rel', direction: 'outgoing' }],
+        incoming: [{ nodeId: 'd', label: 'back', direction: 'incoming' }],
+        content: {
+          oid: 'oid:node',
+          mime: 'text/plain',
+          size: 12,
+        },
+      });
+      expect(reader.inspectNode('b')).toBeNull();
+      expect(reader.project()).toEqual(projectStateV5(state));
     });
   });
 

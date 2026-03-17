@@ -824,6 +824,14 @@ export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: Cryp
 export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
 
 /**
+ * Creates a substrate-generic reader over a materialized WarpStateV5.
+ *
+ * The reader exposes stable node/edge/property helpers plus entity-local node
+ * inspection without requiring callers to understand reducer internals.
+ */
+export function createStateReaderV5(state: WarpStateV5): VisibleStateReaderV5;
+
+/**
  * Service for querying a loaded bitmap index.
  *
  * Provides O(1) lookups via lazy-loaded sharded bitmap data.
@@ -2638,6 +2646,37 @@ export interface VisibleStateProjectionV5 {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
   props: Array<{ node: string; key: string; value: unknown }>;
+}
+
+export interface VisibleStateNeighborV5 {
+  nodeId: string;
+  label: string;
+  direction: 'outgoing' | 'incoming';
+}
+
+export interface VisibleNodeViewV5 {
+  nodeId: string;
+  props: Record<string, unknown>;
+  outgoing: VisibleStateNeighborV5[];
+  incoming: VisibleStateNeighborV5[];
+  content: ContentMeta | null;
+}
+
+export interface VisibleStateReaderV5 {
+  project(): VisibleStateProjectionV5;
+  hasNode(nodeId: string): boolean;
+  getNodes(): string[];
+  getEdges(): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>;
+  getNodeProps(nodeId: string): Record<string, unknown> | null;
+  getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null;
+  neighbors(
+    nodeId: string,
+    direction?: 'outgoing' | 'incoming' | 'both',
+    edgeLabel?: string,
+  ): VisibleStateNeighborV5[];
+  getNodeContentMeta(nodeId: string): ContentMeta | null;
+  getEdgeContentMeta(from: string, to: string, label: string): ContentMeta | null;
+  inspectNode(nodeId: string): VisibleNodeViewV5 | null;
 }
 
 /**

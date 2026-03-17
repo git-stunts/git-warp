@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpGraph from '../../../src/domain/WarpGraph.js';
+import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
@@ -402,5 +403,55 @@ describe('WarpGraph working-set foundation', () => {
     const shas = await graph.patchesForWorkingSet('ws_entries_prov', 'n1');
 
     expect(shas).toEqual([baseSha, overlaySha].sort());
+  });
+
+  it('createStateReaderV5 inspects entity-local working-set truth without touching OR-Set internals', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'n2', dot: createDot('alice', 2) },
+        { type: 'EdgeAdd', from: 'n1', to: 'n2', label: 'links', dot: createDot('alice', 3) },
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_reader',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_reader', async (p) => {
+      p.setProperty('n1', 'status', 'overlay');
+      await p.attachContent('n1', 'hello', { mime: 'text/plain', size: 5 });
+    });
+
+    const state = await graph.materializeWorkingSet('ws_reader');
+    const reader = createStateReaderV5(state);
+
+    expect(reader.inspectNode('n1')).toEqual({
+      nodeId: 'n1',
+      props: {
+        status: 'overlay',
+        _content: expect.any(String),
+        '_content.mime': 'text/plain',
+        '_content.size': 5,
+      },
+      outgoing: [{ nodeId: 'n2', label: 'links', direction: 'outgoing' }],
+      incoming: [],
+      content: {
+        oid: expect.any(String),
+        mime: 'text/plain',
+        size: 5,
+      },
+    });
+    expect(reader.getEdgeProps('n1', 'n2', 'links')).toEqual({});
+    expect(reader.getNodeContentMeta('n1')).toEqual({
+      oid: expect.any(String),
+      mime: 'text/plain',
+      size: 5,
+    });
   });
 });

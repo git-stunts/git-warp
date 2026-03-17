@@ -57,7 +57,7 @@ The v1 model is deliberately narrow:
 
 - a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
 - overlay writes live in a separate working-set patch-log ref
-- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, and working-set-aware conflict analysis operate on the visible `base + overlay` patch universe
+- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, `createStateReaderV5()`, and working-set-aware conflict analysis operate on the visible `base + overlay` patch universe
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API
 

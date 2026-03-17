@@ -56,6 +56,7 @@ import WarpGraphDefault, {
   createInlineValue,
   createBlobValue,
   createEventId,
+  createStateReaderV5,
 } from '../../../index.js';
 
 // WarpGraph is both default and named export; index.d.ts only declares
@@ -310,6 +311,11 @@ describe('index.js exports', () => {
         patchSha: 'abc123',
         opIndex: 2,
       });
+    });
+
+    it('exports createStateReaderV5', () => {
+      expect(createStateReaderV5).toBeDefined();
+      expect(typeof createStateReaderV5).toBe('function');
     });
   });
 

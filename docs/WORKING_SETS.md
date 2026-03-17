@@ -57,7 +57,7 @@ This keeps the substrate honest and lets higher layers decide how to interpret o
 Programmatic v1 surface:
 
 ```javascript
-import { projectStateV5 } from '@git-stunts/git-warp';
+import { createStateReaderV5, projectStateV5 } from '@git-stunts/git-warp';
 
 const ws = await graph.createWorkingSet({
   workingSetId: 'review-auth',
@@ -70,6 +70,9 @@ const descriptor = await graph.getWorkingSet('review-auth');
 const all = await graph.listWorkingSets();
 const state = await graph.materializeWorkingSet('review-auth');
 const view = projectStateV5(state);
+const reader = createStateReaderV5(state);
+const task = reader.inspectNode('task:oauth');
+const neighbors = reader.neighbors('task:oauth', 'outgoing');
 const stateAtCeiling = await graph.materializeWorkingSet('review-auth', { ceiling: 12 });
 const visiblePatches = await graph.getWorkingSetPatches('review-auth');
 const provenanceShas = await graph.patchesForWorkingSet('review-auth', 'task:oauth');
@@ -97,14 +100,23 @@ const view = projectStateV5(state);
 ```
 
 `projectStateV5()` is the public helper for turning a materialized state into a
-stable visible projection:
+stable aggregate visible projection:
 
 - `nodes`
 - `edges`
 - `props`
 
-That gives higher layers a substrate-clean way to inspect working-set or
-coordinate state without depending on OR-Set internals.
+When higher layers need richer entity-local reads, `createStateReaderV5()` adds
+stable helper methods over the same materialized truth:
+
+- visible node existence
+- node and edge properties
+- neighbors
+- content metadata
+- node-local inspection via `inspectNode(...)`
+
+Together these helpers give higher layers a substrate-clean way to inspect
+working-set or coordinate state without depending on OR-Set internals.
 
 ## CLI Surface
 
@@ -121,6 +133,13 @@ git warp working-set drop review-auth
 The CLI manages descriptor lifecycle and replay. Overlay writes are available through the library API, not through a separate working-set patch DSL in the CLI.
 
 `working-set` is intentionally a top-level family rather than a `debug` subcommand because it creates durable descriptor refs.
+
+Programmatic readers and the CLI inspect the same visible patch universe:
+
+- library code can use `materializeWorkingSet()` plus `projectStateV5()` /
+  `createStateReaderV5()`
+- operators can use `working-set materialize` and the read-only debugger topics
+  against the same pinned descriptor
 
 ## Relationship to TTD
 

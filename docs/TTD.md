@@ -113,6 +113,9 @@ TTD is also deliberately separate from working-set management:
 - debug commands inspect substrate facts
 - working-set commands pin durable coordinates
 - higher layers may combine both, but git-warp keeps the boundary explicit
+- higher-layer library code that needs the same visible truth can combine
+  `materializeWorkingSet()` with `projectStateV5()` or `createStateReaderV5()`
+  without turning git-warp into an application query framework
 
 ## Read-Only Contract
 
