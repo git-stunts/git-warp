@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Future working-set composition terminology frozen to `braid`** — the active architecture and working-set docs now use **braid** as the canonical term for co-present overlay/working-set composition, explicitly distinguishing it from merge or rebase semantics.
+
 ## [14.8.0] — 2026-03-16
 
 ### Added

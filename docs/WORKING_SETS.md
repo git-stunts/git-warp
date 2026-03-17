@@ -140,6 +140,30 @@ That read-side support changes the visible patch universe, not the reducer rules
 
 That boundary keeps the debugger from turning into a mutation channel while still letting higher layers build real fork/worldline behavior on top of working sets.
 
+## Future Direction: Braids
+
+The canonical future term for co-present working-set composition is
+**braid**.
+
+A braid is not ordinary merge and not Git rebase. It is a way to keep one or
+more working-set-derived effects visible together at the same observation
+surface.
+
+Conceptually, the future substrate shape is:
+
+- base observation
+- zero or more braided read-only overlays
+- optional active writable overlay
+
+Materialization would then replay the visible patch universe composed from that
+set. The important invariant stays the same:
+
+- analyzers and materializers decide which patches are visible
+- `reduceV5` stays deterministic and working-set/worldline blind
+
+`compose`, `mount`, and `superpose` may still appear in explanatory prose, but
+**braid** is the canonical git-warp term now.
+
 ## Deferred from v1
 
 Deferred from this slice:
@@ -147,5 +171,6 @@ Deferred from this slice:
 - collapse/merge semantics
 - worldline governance
 - arbitrary higher-level meaning
+- braided working-set composition
 
 Those may come later, but only after the pinned-coordinate substrate proves itself.

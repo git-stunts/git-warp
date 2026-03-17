@@ -61,6 +61,12 @@ The v1 model is deliberately narrow:
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API
 
+Future composition terminology is now fixed as **braid**:
+
+- git-warp will use braid language for co-present working-set composition
+- braid changes the visible patch universe, not reducer rules
+- braid is not a synonym for merge or rebase
+
 This gives higher layers an honest substrate for future worldline/fork behavior without teaching git-warp about XYPH governance or UI concepts. See [docs/WORKING_SETS.md](docs/WORKING_SETS.md) for the dedicated working-set note.
 
 ### Domain-Driven Design

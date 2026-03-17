@@ -78,6 +78,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, overlay patch-log semantics, and the working-set API/CLI surface.
+- **Braids (future direction)**: the canonical term for co-present working-set composition is now **braid**. git-warp will use braid language for future mounted-overlay visibility, while keeping reducer semantics worldline-blind.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.

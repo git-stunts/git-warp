@@ -170,5 +170,5 @@ Likely future TTD-adjacent extensions:
 - additional debug topics once their substrate facts are stable
 - entity-local slice inspection at historical coordinates once substrate support exists
 - richer provenance drilldown over conflict anchors
-- deeper overlay-aware working-set/worldline debugger views over the new overlay patch-log substrate
+- deeper braid-aware working-set/worldline debugger views once co-present overlay composition lands in the substrate
 - higher-level debugger panels in XYPH, not in git-warp
