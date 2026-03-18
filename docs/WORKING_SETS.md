@@ -57,7 +57,11 @@ This keeps the substrate honest and lets higher layers decide how to interpret o
 Programmatic v1 surface:
 
 ```javascript
-import { createStateReaderV5, projectStateV5 } from '@git-stunts/git-warp';
+import {
+  compareVisibleStateV5,
+  createStateReaderV5,
+  projectStateV5,
+} from '@git-stunts/git-warp';
 
 const ws = await graph.createWorkingSet({
   workingSetId: 'review-auth',
@@ -77,6 +81,18 @@ const stateAtCeiling = await graph.materializeWorkingSet('review-auth', { ceilin
 const visiblePatches = await graph.getWorkingSetPatches('review-auth');
 const provenanceShas = await graph.patchesForWorkingSet('review-auth', 'task:oauth');
 const conflicts = await graph.analyzeConflicts({ workingSetId: 'review-auth' });
+const compareToBase = await graph.compareWorkingSet('review-auth', {
+  against: 'base',
+  targetId: 'task:oauth',
+});
+const compareToLive = await graph.compareWorkingSet('review-auth', {
+  against: 'live',
+  targetId: 'task:oauth',
+});
+const compareToPeer = await graph.compareWorkingSet('review-auth', {
+  against: { kind: 'working_set', workingSetId: 'review-auth-b' },
+  targetId: 'task:oauth',
+});
 
 await graph.patchWorkingSet('review-auth', (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
@@ -97,6 +113,14 @@ const state = await graph.materializeCoordinate({
   ceiling: descriptor.baseObservation.lamportCeiling,
 });
 const view = projectStateV5(state);
+const coordinateComparison = await graph.compareCoordinates({
+  left: { kind: 'working_set', workingSetId: 'review-auth' },
+  right: { kind: 'coordinate', frontier: descriptor.baseObservation.frontier },
+  targetId: 'task:oauth',
+});
+const stateOnlyComparison = compareVisibleStateV5(state, stateAtCeiling, {
+  targetId: 'task:oauth',
+});
 ```
 
 `projectStateV5()` is the public helper for turning a materialized state into a
@@ -118,6 +142,15 @@ stable helper methods over the same materialized truth:
 Together these helpers give higher layers a substrate-clean way to inspect
 working-set or coordinate state without depending on OR-Set internals.
 
+Comparison stays in the same substrate lane. The new comparison helpers return:
+
+- visible patch divergence between the selected coordinates
+- visible node / edge / property delta summaries
+- optional target-local node inspection for one entity ID
+- deterministic comparison digests suitable for higher-layer artifact identity
+
+They do **not** invent review, approval, or governance semantics.
+
 ## CLI Surface
 
 The main CLI exposes the same substrate family directly:
@@ -127,6 +160,8 @@ git warp working-set create --id review-auth --owner alice --scope "OAuth review
 git warp working-set list
 git warp working-set show review-auth
 git warp working-set materialize review-auth --receipts
+git warp working-set compare review-auth --against live --target-id task:oauth
+git warp working-set compare review-auth --against working-set:review-auth-b
 git warp working-set drop review-auth
 ```
 
@@ -154,6 +189,11 @@ Supported debugger topics can now inspect a working set directly with `--working
 - `debug conflicts`
 - `debug provenance`
 - `debug receipts`
+
+Coordinate comparison is adjacent but separate:
+
+- `working-set compare` is read-only, but it lives under `working-set` because it compares durable coordinates rather than acting as a single-observation debugger topic
+- library code can use `compareWorkingSet()`, `compareCoordinates()`, or `compareVisibleStateV5()` over the same substrate truth
 
 That read-side support changes the visible patch universe, not the reducer rules. `reduceV5` remains worldline-blind.
 

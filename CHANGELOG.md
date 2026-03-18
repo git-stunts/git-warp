@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.10.0] — 2026-03-17
+
+### Added
+
+- **Working-set and coordinate comparison API** — Added `WarpGraph.compareWorkingSet()` and `WarpGraph.compareCoordinates()` as deterministic substrate helpers for comparing visible patch universes, visible node/edge/property deltas, and optional target-local node views across working sets, base observations, live frontier, and explicit coordinates.
+- **Materialized visible-state comparison helper** — Added `compareVisibleStateV5()` as a public library-first helper for comparing two materialized `WarpStateV5` snapshots directly without exposing OR-Set internals.
+- **Thin `working-set compare` CLI surface** — Added `git warp working-set compare` so operators and higher layers can inspect working-set-vs-base, working-set-vs-live, and working-set-vs-working-set divergence through the main CLI without turning `debug` into an application comparison shell.
+
+### Changed
+
+- **Working-set docs now cover substrate comparison explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the library-first comparison helpers, their substrate-only fact model, and the `working-set compare` CLI boundary are documented together.
+
 ## [14.9.0] — 2026-03-17
 
 ### Added

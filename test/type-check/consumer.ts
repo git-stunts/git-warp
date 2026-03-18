@@ -75,6 +75,7 @@ import WarpGraph, {
   deserializeWormhole,
   computeTranslationCost,
   createStateReaderV5,
+  compareVisibleStateV5,
   migrateV4toV5,
   encodeEdgePropKey,
   decodeEdgePropKey,
@@ -106,8 +107,11 @@ import type {
   WormholeEdge,
   PatchEntry,
   VisibleNodeViewV5,
+  VisibleStateComparisonV5,
   VisibleStateNeighborV5,
   VisibleStateReaderV5,
+  CoordinateComparisonSelectorV1,
+  CoordinateComparisonV1,
   LogicalTraversal,
   TraversalDirection,
   TraversalNode,
@@ -254,6 +258,7 @@ const sha2: string = await graph.patch((p: PatchBuilderV2) => {
 // ---- materialize overloads ----
 const state: WarpStateV5 = await graph.materialize();
 const stateReader: VisibleStateReaderV5 = createStateReaderV5(state);
+const visibleComparison: VisibleStateComparisonV5 = compareVisibleStateV5(state, state, { targetId: 'n1' });
 const readerProjection = stateReader.project();
 const readerHasNode: boolean = stateReader.hasNode('n1');
 const readerNodes: string[] = stateReader.getNodes();
@@ -275,6 +280,21 @@ const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
   scanBudget: { maxPatches: 32 },
 });
 const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
+const compareLeft: CoordinateComparisonSelectorV1 = { kind: 'live' };
+const compareRight: CoordinateComparisonSelectorV1 = { kind: 'coordinate', frontier: { alice: 'abc123def456' }, ceiling: null };
+const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordinates({
+  left: compareLeft,
+  right: compareRight,
+  targetId: 'n1',
+});
+const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingSet('ws_demo', {
+  against: 'base',
+  targetId: 'n1',
+});
+const _comparisonDigestPair: [string, string] = [
+  coordinateComparison.comparisonDigest,
+  workingSetComparison.comparisonDigest,
+];
 
 // ---- materializeAt ----
 const atState: WarpStateV5 = await graph.materializeAt('abc123');

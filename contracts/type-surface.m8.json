@@ -1214,6 +1214,9 @@
       "kind": "function",
       "async": true
     },
+    "compareVisibleStateV5": {
+      "kind": "function"
+    },
     "computeStateHashV5": {
       "kind": "function",
       "async": true
@@ -1370,6 +1373,21 @@
       "kind": "interface"
     },
     "CommonAncestorsOptions": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonPatchDivergenceV1": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonResolvedSideV1": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonSelectorV1": {
+      "kind": "type"
+    },
+    "CoordinateComparisonSideV1": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonV1": {
       "kind": "interface"
     },
     "ComposeWormholesOptions": {
@@ -1606,6 +1624,27 @@
     "VerifyBTROptions": {
       "kind": "interface"
     },
+    "VisibleEdgeViewV5": {
+      "kind": "interface"
+    },
+    "VisibleStateComparisonTargetV5": {
+      "kind": "interface"
+    },
+    "VisibleStateComparisonV5": {
+      "kind": "interface"
+    },
+    "VisibleStateEdgePropertyChangeV5": {
+      "kind": "interface"
+    },
+    "VisibleStateEdgePropertyValueV5": {
+      "kind": "interface"
+    },
+    "VisibleStateNodePropertyChangeV5": {
+      "kind": "interface"
+    },
+    "VisibleStateNodePropertyValueV5": {
+      "kind": "interface"
+    },
     "VisibleStateProjectionV5": {
       "kind": "interface"
     },
@@ -1616,6 +1655,9 @@
       "kind": "interface"
     },
     "VisibleStateReaderV5": {
+      "kind": "interface"
+    },
+    "VisibleStateSummaryV5": {
       "kind": "interface"
     },
     "WarpGraphStatus": {

@@ -160,8 +160,15 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *     receiptCount: number
  *   }
  * }} WorkingSetMaterializePayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'compare',
+ *   workingSetId: string,
+ *   against: string,
+ *   comparison: import('../../index.js').CoordinateComparisonV1
+ * }} WorkingSetComparePayload
  * @typedef {DebugConflictsPayload | DebugCoordinatePayload | DebugProvenancePayload | DebugReceiptsPayload | DebugTimelinePayload} DebugPayload
- * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload} WorkingSetPayload
+ * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload | WorkingSetComparePayload} WorkingSetPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -1138,6 +1145,38 @@ export function renderWorkingSet(payload) {
       ...renderWorkingSetDescriptorLines(payload.workingSet),
       `State Summary: nodes=${payload.summary.nodeCount} edges=${payload.summary.edgeCount} props=${payload.summary.propertyCount} receipts=${payload.summary.receiptCount}`,
     ];
+    return `${lines.join('\n')}\n`;
+  }
+
+  if (payload.workingSetAction === 'compare') {
+    const { comparison } = payload;
+    const leftSummary = comparison.left.resolved.summary;
+    const rightSummary = comparison.right.resolved.summary;
+    const stateSummary = comparison.visibleState.summary;
+    const lines = [
+      `Graph: ${payload.graph}`,
+      'Working Set Action: compare',
+      `Working Set: ${payload.workingSetId}`,
+      `Against: ${payload.against}`,
+      `Comparison Digest: ${comparison.comparisonDigest}`,
+      `Changed: ${comparison.visibleState.changed ? 'yes' : 'no'}`,
+      `Left: ${comparison.left.resolved.coordinateKind} patches=${leftSummary.patchCount} nodes=${leftSummary.nodeCount} edges=${leftSummary.edgeCount} props=${leftSummary.nodePropertyCount + leftSummary.edgePropertyCount}`,
+      `Right: ${comparison.right.resolved.coordinateKind} patches=${rightSummary.patchCount} nodes=${rightSummary.nodeCount} edges=${rightSummary.edgeCount} props=${rightSummary.nodePropertyCount + rightSummary.edgePropertyCount}`,
+      `Patch Divergence: shared=${comparison.visiblePatchDivergence.sharedCount} leftOnly=${comparison.visiblePatchDivergence.leftOnlyCount} rightOnly=${comparison.visiblePatchDivergence.rightOnlyCount}`,
+      `State Delta: nodes=+${stateSummary.nodes.added}/-${stateSummary.nodes.removed} edges=+${stateSummary.edges.added}/-${stateSummary.edges.removed} nodeProps=+${stateSummary.nodeProperties.added}/-${stateSummary.nodeProperties.removed}/~${stateSummary.nodeProperties.changed} edgeProps=+${stateSummary.edgeProperties.added}/-${stateSummary.edgeProperties.removed}/~${stateSummary.edgeProperties.changed}`,
+    ];
+
+    if (comparison.visiblePatchDivergence.target) {
+      lines.push(
+        `Target Patch Divergence (${comparison.visiblePatchDivergence.target.targetId}): shared=${comparison.visiblePatchDivergence.target.sharedCount} leftOnly=${comparison.visiblePatchDivergence.target.leftOnlyCount} rightOnly=${comparison.visiblePatchDivergence.target.rightOnlyCount}`,
+      );
+    }
+    if (comparison.visibleState.target) {
+      lines.push(
+        `Target State (${comparison.visibleState.target.targetId ?? 'unknown'}): changed=${comparison.visibleState.target.changed ? 'yes' : 'no'} props=+${comparison.visibleState.target.propertyDelta.added.length}/-${comparison.visibleState.target.propertyDelta.removed.length}/~${comparison.visibleState.target.propertyDelta.changed.length} outgoing=+${comparison.visibleState.target.outgoingDelta.added.length}/-${comparison.visibleState.target.outgoingDelta.removed.length} incoming=+${comparison.visibleState.target.incomingDelta.added.length}/-${comparison.visibleState.target.incomingDelta.removed.length}`,
+      );
+    }
+
     return `${lines.join('\n')}\n`;
   }
 

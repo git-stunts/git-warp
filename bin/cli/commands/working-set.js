@@ -1,5 +1,6 @@
 import { usageError } from '../infrastructure.js';
 
+import * as compareSubcommand from './working-set/compare.js';
 import * as createSubcommand from './working-set/create.js';
 import * as dropSubcommand from './working-set/drop.js';
 import * as listSubcommand from './working-set/list.js';
@@ -16,6 +17,7 @@ import * as showSubcommand from './working-set/show.js';
 
 /** @type {Record<string, WorkingSetModule>} */
 const WORKING_SET_SUBCOMMANDS = Object.freeze({
+  [compareSubcommand.WORKING_SET_SUBCOMMAND.name]: compareSubcommand,
   [createSubcommand.WORKING_SET_SUBCOMMAND.name]: createSubcommand,
   [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
   [listSubcommand.WORKING_SET_SUBCOMMAND.name]: listSubcommand,

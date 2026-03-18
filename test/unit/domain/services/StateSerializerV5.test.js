@@ -9,6 +9,7 @@ import {
   deserializeStateV5,
 } from '../../../../src/domain/services/StateSerializerV5.js';
 import { createStateReaderV5 } from '../../../../src/domain/services/StateReaderV5.js';
+import { compareVisibleStateV5 } from '../../../../src/domain/services/VisibleStateComparisonV5.js';
 import {
   createEmptyStateV5,
   encodeEdgeKey,
@@ -616,6 +617,134 @@ describe('StateSerializerV5', () => {
       orsetAdd(state2.nodeAlive, 'zebra', mockDot('w2', 3));
 
       expect(await computeStateHashV5(state1, { crypto })).toBe(await computeStateHashV5(state2, { crypto }));
+    });
+  });
+
+  describe('compareVisibleStateV5', () => {
+    it('reports visible node, edge, property, and target-local deltas without exposing reducer internals', () => {
+      const left = buildStateV5({
+        nodes: [{ nodeId: 'a' }, { nodeId: 'b' }, { nodeId: 'd' }],
+        edges: [{ from: 'a', to: 'b', label: 'knows' }],
+        props: [
+          { nodeId: 'a', key: 'status', value: 'base' },
+          { nodeId: 'd', key: 'kind', value: 'legacy' },
+        ],
+      });
+      left.prop.set(
+        encodeEdgePropKey('a', 'b', 'knows', 'weight'),
+        lwwSet(mockEventId(2), 1),
+      );
+
+      const right = buildStateV5({
+        nodes: [{ nodeId: 'a' }, { nodeId: 'b' }, { nodeId: 'c' }],
+        edges: [
+          { from: 'a', to: 'b', label: 'knows' },
+          { from: 'a', to: 'c', label: 'follows' },
+        ],
+        props: [
+          { nodeId: 'a', key: 'status', value: 'overlay' },
+          { nodeId: 'c', key: 'kind', value: 'new' },
+        ],
+      });
+      right.prop.set(
+        encodeEdgePropKey('a', 'b', 'knows', 'weight'),
+        lwwSet(mockEventId(3), 2),
+      );
+      right.prop.set(
+        encodeEdgePropKey('a', 'c', 'follows', 'rank'),
+        lwwSet(mockEventId(4), 1),
+      );
+
+      const comparison = compareVisibleStateV5(left, right, { targetId: 'a' });
+
+      expect(comparison.changed).toBe(true);
+      expect(comparison.summary).toEqual({
+        left: {
+          nodeCount: 3,
+          edgeCount: 1,
+          nodePropertyCount: 2,
+          edgePropertyCount: 1,
+        },
+        right: {
+          nodeCount: 3,
+          edgeCount: 2,
+          nodePropertyCount: 2,
+          edgePropertyCount: 2,
+        },
+        nodes: {
+          added: 1,
+          removed: 1,
+        },
+        edges: {
+          added: 1,
+          removed: 0,
+        },
+        nodeProperties: {
+          added: 1,
+          removed: 1,
+          changed: 1,
+        },
+        edgeProperties: {
+          added: 1,
+          removed: 0,
+          changed: 1,
+        },
+      });
+      expect(comparison.nodes).toEqual({
+        added: ['c'],
+        removed: ['d'],
+      });
+      expect(comparison.edges).toEqual({
+        added: [{ from: 'a', to: 'c', label: 'follows' }],
+        removed: [],
+      });
+      expect(comparison.nodeProperties).toEqual({
+        added: [{ node: 'c', key: 'kind', value: 'new' }],
+        removed: [{ node: 'd', key: 'kind', value: 'legacy' }],
+        changed: [{ node: 'a', key: 'status', leftValue: 'base', rightValue: 'overlay' }],
+      });
+      expect(comparison.edgeProperties).toEqual({
+        added: [{ from: 'a', to: 'c', label: 'follows', key: 'rank', value: 1 }],
+        removed: [],
+        changed: [{ from: 'a', to: 'b', label: 'knows', key: 'weight', leftValue: 1, rightValue: 2 }],
+      });
+      expect(comparison.target).toEqual({
+        targetId: 'a',
+        leftExists: true,
+        rightExists: true,
+        changed: true,
+        left: {
+          nodeId: 'a',
+          props: { status: 'base' },
+          outgoing: [{ nodeId: 'b', label: 'knows', direction: 'outgoing' }],
+          incoming: [],
+          content: null,
+        },
+        right: {
+          nodeId: 'a',
+          props: { status: 'overlay' },
+          outgoing: [
+            { nodeId: 'b', label: 'knows', direction: 'outgoing' },
+            { nodeId: 'c', label: 'follows', direction: 'outgoing' },
+          ],
+          incoming: [],
+          content: null,
+        },
+        propertyDelta: {
+          added: [],
+          removed: [],
+          changed: [{ key: 'status', leftValue: 'base', rightValue: 'overlay' }],
+        },
+        outgoingDelta: {
+          added: [{ nodeId: 'c', label: 'follows', direction: 'outgoing' }],
+          removed: [],
+        },
+        incomingDelta: {
+          added: [],
+          removed: [],
+        },
+        contentChanged: false,
+      });
     });
   });
 });

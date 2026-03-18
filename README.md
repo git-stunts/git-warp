@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.10.0
+
+- **Working-set and coordinate comparison are now first-class substrate reads** — `WarpGraph.compareWorkingSet()` and `WarpGraph.compareCoordinates()` compare deterministic visible patch universes plus visible node/edge/property deltas without inventing application semantics.
+- **Materialized-state comparison is now reusable as a library helper** — `compareVisibleStateV5()` lets higher layers compare two materialized states directly, including optional target-local node inspection for one entity.
+- **The CLI can inspect the same comparison truth without becoming a debugger app** — `git warp working-set compare` compares a working set against its base observation, live frontier, or another working set while keeping `debug` focused on single-coordinate time-travel inspection.
+
 ## What's New in v14.9.0
 
 - **Visible-state reads now go beyond aggregate projection** — `createStateReaderV5()` builds a stable substrate reader over any materialized V5 state so higher layers can inspect visible nodes, edges, properties, content metadata, neighbors, and node-local views without depending on OR-Set internals.
@@ -83,7 +89,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
-- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, overlay patch-log semantics, and the working-set API/CLI surface.
+- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, overlay patch-log semantics, and the working-set API/CLI surface.
 - **Braids (future direction)**: the canonical term for co-present working-set composition is now **braid**. git-warp will use braid language for future mounted-overlay visibility, while keeping reducer semantics worldline-blind.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
@@ -603,6 +609,9 @@ git warp debug receipts --lamport-ceiling 12 --result superseded
 # Inspect reducer receipts inside a working set
 git warp debug receipts --working-set review-auth --result superseded
 
+# Compare a working set against live truth
+git warp working-set compare review-auth --against live --target-id user:alice
+
 # Check graph health, status, and GC metrics
 git warp check
 ```
@@ -665,6 +674,9 @@ git warp debug receipts --writer-id alice --result superseded --json
 
 # Inspect working-set reducer outcomes without leaving the CLI
 git warp debug receipts --working-set review-auth --writer-id ws_review-auth --json
+
+# Compare a working set against another speculative lane
+git warp working-set compare review-auth --against working-set:review-auth-b --target-id user:alice --json
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).

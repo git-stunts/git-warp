@@ -304,6 +304,130 @@ interface WorkingSetDescriptor {
   };
 }
 
+interface VisibleStateSummaryV5 {
+  nodeCount: number;
+  edgeCount: number;
+  nodePropertyCount: number;
+  edgePropertyCount: number;
+}
+
+interface VisibleStateComparisonV5 {
+  comparisonVersion: string;
+  changed: boolean;
+  summary: {
+    left: VisibleStateSummaryV5;
+    right: VisibleStateSummaryV5;
+    nodes: { added: number; removed: number };
+    edges: { added: number; removed: number };
+    nodeProperties: { added: number; removed: number; changed: number };
+    edgeProperties: { added: number; removed: number; changed: number };
+  };
+  nodes: {
+    added: string[];
+    removed: string[];
+  };
+  edges: {
+    added: Array<{ from: string; to: string; label: string }>;
+    removed: Array<{ from: string; to: string; label: string }>;
+  };
+  nodeProperties: {
+    added: Array<{ node: string; key: string; value: unknown }>;
+    removed: Array<{ node: string; key: string; value: unknown }>;
+    changed: Array<{ node: string; key: string; leftValue: unknown; rightValue: unknown }>;
+  };
+  edgeProperties: {
+    added: Array<{ from: string; to: string; label: string; key: string; value: unknown }>;
+    removed: Array<{ from: string; to: string; label: string; key: string; value: unknown }>;
+    changed: Array<{ from: string; to: string; label: string; key: string; leftValue: unknown; rightValue: unknown }>;
+  };
+  target?: {
+    targetId: string | null;
+    leftExists: boolean;
+    rightExists: boolean;
+    changed: boolean;
+    left: {
+      nodeId: string;
+      props: Record<string, unknown>;
+      outgoing: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      incoming: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      content: ContentMeta | null;
+    } | null;
+    right: {
+      nodeId: string;
+      props: Record<string, unknown>;
+      outgoing: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      incoming: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      content: ContentMeta | null;
+    } | null;
+    propertyDelta: {
+      added: Array<{ key: string; value: unknown }>;
+      removed: Array<{ key: string; value: unknown }>;
+      changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
+    };
+    outgoingDelta: {
+      added: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      removed: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+    };
+    incomingDelta: {
+      added: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+      removed: Array<{ nodeId: string; label: string; direction: 'outgoing' | 'incoming' }>;
+    };
+    contentChanged: boolean;
+  };
+}
+
+type CoordinateComparisonSelectorV1 =
+  | { kind: 'live'; ceiling?: number | null }
+  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
+
+interface CoordinateComparisonSideV1 {
+  requested: Record<string, unknown>;
+  resolved: {
+    coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+    patchFrontier: Record<string, string>;
+    patchFrontierDigest: string;
+    lamportFrontier: Record<string, number>;
+    lamportFrontierDigest: string;
+    lamportCeiling: number | null;
+    stateHash: string;
+    patchUniverseDigest: string;
+    summary: VisibleStateSummaryV5 & { patchCount: number };
+    workingSet?: {
+      workingSetId: string;
+      baseLamportCeiling: number | null;
+      overlayHeadPatchSha: string | null;
+      overlayPatchCount: number;
+    };
+  };
+}
+
+interface CoordinateComparisonV1 {
+  comparisonVersion: string;
+  comparisonDigest: string;
+  left: CoordinateComparisonSideV1;
+  right: CoordinateComparisonSideV1;
+  visiblePatchDivergence: {
+    sharedCount: number;
+    leftOnlyCount: number;
+    rightOnlyCount: number;
+    leftOnlyPatchShas: string[];
+    rightOnlyPatchShas: string[];
+    target?: {
+      targetId: string;
+      leftCount: number;
+      rightCount: number;
+      sharedCount: number;
+      leftOnlyCount: number;
+      rightOnlyCount: number;
+      leftOnlyPatchShas: string[];
+      rightOnlyPatchShas: string[];
+    };
+  };
+  visibleState: VisibleStateComparisonV5;
+}
+
 export {};
 
 declare module '../WarpGraph.js' {
@@ -433,5 +557,16 @@ declare module '../WarpGraph.js' {
     patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
     createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
     patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+    compareWorkingSet(workingSetId: string, options?: {
+      against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+      ceiling?: number | null;
+      againstCeiling?: number | null;
+      targetId?: string | null;
+    }): Promise<CoordinateComparisonV1>;
+    compareCoordinates(options: {
+      left: CoordinateComparisonSelectorV1;
+      right: CoordinateComparisonSelectorV1;
+      targetId?: string | null;
+    }): Promise<CoordinateComparisonV1>;
   }
 }

@@ -454,4 +454,208 @@ describe('WarpGraph working-set foundation', () => {
       size: 5,
     });
   });
+
+  it('compareWorkingSet reports working-set-vs-base divergence as substrate facts', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['n1'],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_compare_base',
+      owner: 'alice',
+    });
+
+    const overlaySha = await graph.patchWorkingSet('ws_compare_base', (p) => {
+      p.setProperty('n1', 'status', 'overlay');
+    });
+
+    const comparison = await graph.compareWorkingSet('ws_compare_base', { targetId: 'n1' });
+
+    expect(comparison.comparisonVersion).toBe('coordinate-compare/v1');
+    expect(typeof comparison.comparisonDigest).toBe('string');
+    expect(comparison.left.requested).toEqual({
+      kind: 'working_set',
+      workingSetId: 'ws_compare_base',
+    });
+    expect(comparison.right.requested).toMatchObject({
+      kind: 'working_set_base',
+      workingSetId: 'ws_compare_base',
+    });
+    expect(comparison.visiblePatchDivergence).toEqual({
+      sharedCount: 1,
+      leftOnlyCount: 1,
+      rightOnlyCount: 0,
+      leftOnlyPatchShas: [overlaySha],
+      rightOnlyPatchShas: [],
+      target: {
+        targetId: 'n1',
+        leftCount: 2,
+        rightCount: 1,
+        sharedCount: 1,
+        leftOnlyCount: 1,
+        rightOnlyCount: 0,
+        leftOnlyPatchShas: [overlaySha],
+        rightOnlyPatchShas: [],
+      },
+    });
+    expect(comparison.visibleState.changed).toBe(true);
+    expect(comparison.visibleState.nodeProperties.changed).toEqual([
+      { node: 'n1', key: 'status', leftValue: 'overlay', rightValue: 'base' },
+    ]);
+    expect(comparison.visibleState.target).toMatchObject({
+      targetId: 'n1',
+      changed: true,
+      propertyDelta: {
+        added: [],
+        removed: [],
+        changed: [{ key: 'status', leftValue: 'overlay', rightValue: 'base' }],
+      },
+    });
+  });
+
+  it('compareWorkingSet supports live-frontier comparisons without mutating the working-set boundary', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['n1'],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_compare_live',
+      owner: 'alice',
+    });
+
+    const overlaySha = await graph.patchWorkingSet('ws_compare_live', (p) => {
+      p.setProperty('n1', 'status', 'overlay');
+    });
+    const liveSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      context: new Map([['alice', 1]]),
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'live' },
+      ],
+      reads: ['n1'],
+      writes: ['n1'],
+    });
+
+    const comparison = await graph.compareWorkingSet('ws_compare_live', {
+      against: 'live',
+      targetId: 'n1',
+    });
+
+    expect(comparison.right.requested).toEqual({
+      kind: 'live',
+    });
+    expect(comparison.visiblePatchDivergence.leftOnlyPatchShas).toEqual([overlaySha]);
+    expect(comparison.visiblePatchDivergence.rightOnlyPatchShas).toEqual([liveSha]);
+    expect(comparison.visiblePatchDivergence.sharedCount).toBe(1);
+    expect(comparison.visibleState.nodeProperties.changed).toEqual([
+      { node: 'n1', key: 'status', leftValue: 'overlay', rightValue: 'live' },
+    ]);
+  });
+
+  it('compareWorkingSet supports working-set-vs-working-set comparisons and compareCoordinates handles explicit coordinates', async () => {
+    const redSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+      reads: [],
+      writes: ['n1'],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_left',
+      owner: 'alice',
+    });
+    await graph.createWorkingSet({
+      workingSetId: 'ws_right',
+      owner: 'alice',
+    });
+
+    const leftOverlaySha = await graph.patchWorkingSet('ws_left', (p) => {
+      p.setProperty('n1', 'color', 'blue');
+    });
+    const rightOverlaySha = await graph.patchWorkingSet('ws_right', (p) => {
+      p.setProperty('n1', 'color', 'green');
+    });
+
+    const wsComparison = await graph.compareWorkingSet('ws_left', {
+      against: { kind: 'working_set', workingSetId: 'ws_right' },
+      targetId: 'n1',
+    });
+
+    expect(wsComparison.visiblePatchDivergence).toEqual({
+      sharedCount: 1,
+      leftOnlyCount: 1,
+      rightOnlyCount: 1,
+      leftOnlyPatchShas: [leftOverlaySha],
+      rightOnlyPatchShas: [rightOverlaySha],
+      target: {
+        targetId: 'n1',
+        leftCount: 2,
+        rightCount: 2,
+        sharedCount: 1,
+        leftOnlyCount: 1,
+        rightOnlyCount: 1,
+        leftOnlyPatchShas: [leftOverlaySha],
+        rightOnlyPatchShas: [rightOverlaySha],
+      },
+    });
+    expect(wsComparison.visibleState.nodeProperties.changed).toEqual([
+      { node: 'n1', key: 'color', leftValue: 'blue', rightValue: 'green' },
+    ]);
+
+    const frontierAtRed = { alice: redSha };
+    const blueSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      context: new Map([['alice', 1]]),
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+      reads: ['n1'],
+      writes: ['n1'],
+    });
+
+    const coordinateComparison = await graph.compareCoordinates({
+      left: { kind: 'coordinate', frontier: frontierAtRed },
+      right: { kind: 'live' },
+      targetId: 'n1',
+    });
+
+    expect(coordinateComparison.left.requested).toEqual({
+      kind: 'coordinate',
+      frontier: frontierAtRed,
+      ceiling: null,
+    });
+    expect(coordinateComparison.visiblePatchDivergence.leftOnlyPatchShas).toEqual([]);
+    expect(coordinateComparison.visiblePatchDivergence.rightOnlyPatchShas).toEqual([blueSha]);
+    expect(coordinateComparison.visibleState.nodeProperties.changed).toEqual([
+      { node: 'n1', key: 'color', leftValue: 'red', rightValue: 'blue' },
+    ]);
+  });
 });

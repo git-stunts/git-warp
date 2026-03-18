@@ -832,6 +832,16 @@ export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
 export function createStateReaderV5(state: WarpStateV5): VisibleStateReaderV5;
 
 /**
+ * Compares two materialized WarpStateV5 snapshots using only their visible
+ * substrate truth.
+ */
+export function compareVisibleStateV5(
+  leftState: WarpStateV5,
+  rightState: WarpStateV5,
+  options?: { targetId?: string | null },
+): VisibleStateComparisonV5;
+
+/**
  * Service for querying a loaded bitmap index.
  *
  * Provides O(1) lookups via lazy-loaded sharded bitmap data.
@@ -2106,6 +2116,26 @@ export default class WarpGraph {
   patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
 
   /**
+   * Compares a working set against its base observation, the live frontier, or
+   * another working set using only substrate facts.
+   */
+  compareWorkingSet(workingSetId: string, options?: {
+    against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+    ceiling?: number | null;
+    againstCeiling?: number | null;
+    targetId?: string | null;
+  }): Promise<CoordinateComparisonV1>;
+
+  /**
+   * Compares two explicit substrate coordinate selectors.
+   */
+  compareCoordinates(options: {
+    left: CoordinateComparisonSelectorV1;
+    right: CoordinateComparisonSelectorV1;
+    targetId?: string | null;
+  }): Promise<CoordinateComparisonV1>;
+
+  /**
    * The provenance index mapping entities to contributing patches.
    * Available after materialize() has been called.
    */
@@ -2654,6 +2684,13 @@ export interface VisibleStateNeighborV5 {
   direction: 'outgoing' | 'incoming';
 }
 
+export interface VisibleEdgeViewV5 {
+  from: string;
+  to: string;
+  label: string;
+  props: Record<string, unknown>;
+}
+
 export interface VisibleNodeViewV5 {
   nodeId: string;
   props: Record<string, unknown>;
@@ -2666,7 +2703,7 @@ export interface VisibleStateReaderV5 {
   project(): VisibleStateProjectionV5;
   hasNode(nodeId: string): boolean;
   getNodes(): string[];
-  getEdges(): Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>;
+  getEdges(): VisibleEdgeViewV5[];
   getNodeProps(nodeId: string): Record<string, unknown> | null;
   getEdgeProps(from: string, to: string, label: string): Record<string, unknown> | null;
   neighbors(
@@ -2677,6 +2714,154 @@ export interface VisibleStateReaderV5 {
   getNodeContentMeta(nodeId: string): ContentMeta | null;
   getEdgeContentMeta(from: string, to: string, label: string): ContentMeta | null;
   inspectNode(nodeId: string): VisibleNodeViewV5 | null;
+}
+
+export interface VisibleStateSummaryV5 {
+  nodeCount: number;
+  edgeCount: number;
+  nodePropertyCount: number;
+  edgePropertyCount: number;
+}
+
+export interface VisibleStateNodePropertyValueV5 {
+  node: string;
+  key: string;
+  value: unknown;
+}
+
+export interface VisibleStateNodePropertyChangeV5 {
+  node: string;
+  key: string;
+  leftValue: unknown;
+  rightValue: unknown;
+}
+
+export interface VisibleStateEdgePropertyValueV5 {
+  from: string;
+  to: string;
+  label: string;
+  key: string;
+  value: unknown;
+}
+
+export interface VisibleStateEdgePropertyChangeV5 {
+  from: string;
+  to: string;
+  label: string;
+  key: string;
+  leftValue: unknown;
+  rightValue: unknown;
+}
+
+export interface VisibleStateComparisonTargetV5 {
+  targetId: string | null;
+  leftExists: boolean;
+  rightExists: boolean;
+  changed: boolean;
+  left: VisibleNodeViewV5 | null;
+  right: VisibleNodeViewV5 | null;
+  propertyDelta: {
+    added: Array<{ key: string; value: unknown }>;
+    removed: Array<{ key: string; value: unknown }>;
+    changed: Array<{ key: string; leftValue: unknown; rightValue: unknown }>;
+  };
+  outgoingDelta: {
+    added: VisibleStateNeighborV5[];
+    removed: VisibleStateNeighborV5[];
+  };
+  incomingDelta: {
+    added: VisibleStateNeighborV5[];
+    removed: VisibleStateNeighborV5[];
+  };
+  contentChanged: boolean;
+}
+
+export interface VisibleStateComparisonV5 {
+  comparisonVersion: string;
+  changed: boolean;
+  summary: {
+    left: VisibleStateSummaryV5;
+    right: VisibleStateSummaryV5;
+    nodes: { added: number; removed: number };
+    edges: { added: number; removed: number };
+    nodeProperties: { added: number; removed: number; changed: number };
+    edgeProperties: { added: number; removed: number; changed: number };
+  };
+  nodes: {
+    added: string[];
+    removed: string[];
+  };
+  edges: {
+    added: Array<{ from: string; to: string; label: string }>;
+    removed: Array<{ from: string; to: string; label: string }>;
+  };
+  nodeProperties: {
+    added: VisibleStateNodePropertyValueV5[];
+    removed: VisibleStateNodePropertyValueV5[];
+    changed: VisibleStateNodePropertyChangeV5[];
+  };
+  edgeProperties: {
+    added: VisibleStateEdgePropertyValueV5[];
+    removed: VisibleStateEdgePropertyValueV5[];
+    changed: VisibleStateEdgePropertyChangeV5[];
+  };
+  target?: VisibleStateComparisonTargetV5;
+}
+
+export type CoordinateComparisonSelectorV1 =
+  | { kind: 'live'; ceiling?: number | null }
+  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
+
+export interface CoordinateComparisonResolvedSideV1 {
+  coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+  patchFrontier: Record<string, string>;
+  patchFrontierDigest: string;
+  lamportFrontier: Record<string, number>;
+  lamportFrontierDigest: string;
+  lamportCeiling: number | null;
+  stateHash: string;
+  patchUniverseDigest: string;
+  summary: VisibleStateSummaryV5 & { patchCount: number };
+  workingSet?: {
+    workingSetId: string;
+    baseLamportCeiling: number | null;
+    overlayHeadPatchSha: string | null;
+    overlayPatchCount: number;
+  };
+}
+
+export interface CoordinateComparisonPatchDivergenceV1 {
+  sharedCount: number;
+  leftOnlyCount: number;
+  rightOnlyCount: number;
+  leftOnlyPatchShas: string[];
+  rightOnlyPatchShas: string[];
+  target?: {
+    targetId: string;
+    leftCount: number;
+    rightCount: number;
+    sharedCount: number;
+    leftOnlyCount: number;
+    rightOnlyCount: number;
+    leftOnlyPatchShas: string[];
+    rightOnlyPatchShas: string[];
+  };
+}
+
+export interface CoordinateComparisonSideV1 {
+  requested: Record<string, unknown>;
+  resolved: CoordinateComparisonResolvedSideV1;
+}
+
+export interface CoordinateComparisonV1 {
+  comparisonVersion: string;
+  comparisonDigest: string;
+  left: CoordinateComparisonSideV1;
+  right: CoordinateComparisonSideV1;
+  visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
+  visibleState: VisibleStateComparisonV5;
 }
 
 /**

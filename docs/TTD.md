@@ -89,6 +89,8 @@ Separate but adjacent:
 
 - `git warp working-set`
   Manages durable pinned coordinates and materializes them later. This is intentionally outside the read-only TTD family because it creates and deletes descriptor refs.
+- `git warp working-set compare`
+  Compares durable coordinates and visible patch universes. It stays outside `debug` because it is a coordinate-comparison surface, not a single-coordinate debugger topic.
 
 ## Hexagonal Boundary
 
@@ -111,11 +113,14 @@ The CLI must stay thin:
 TTD is also deliberately separate from working-set management:
 
 - debug commands inspect substrate facts
-- working-set commands pin durable coordinates
+- working-set commands pin durable coordinates and compare them
 - higher layers may combine both, but git-warp keeps the boundary explicit
 - higher-layer library code that needs the same visible truth can combine
   `materializeWorkingSet()` with `projectStateV5()` or `createStateReaderV5()`
   without turning git-warp into an application query framework
+- coordinate comparison helpers such as `compareWorkingSet()`,
+  `compareCoordinates()`, and `compareVisibleStateV5()` stay substrate-factual
+  and do not collapse into application-level decision semantics
 
 ## Read-Only Contract
 
@@ -148,6 +153,7 @@ This keeps TTD aligned with the current git-warp substrate model:
 - debug topics inspect facts at that position
 - `debug coordinate` remains live-frontier/cursor scoped for now
 - `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set without teaching the reducer about worldlines
+- `working-set compare` handles deterministic coordinate/working-set divergence reads outside the debugger family
 - explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
 

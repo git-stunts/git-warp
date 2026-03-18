@@ -83,6 +83,12 @@ Commands:
                        --lease-expires-at <ts> Optional ISO-8601 lease expiry metadata
                      list               List working-set descriptors for the graph
                      show <id>          Show a single working-set descriptor
+                     compare <id>       Compare a working set against another substrate surface
+                       --against <sel>        base, live, or working-set:<id>
+                       --target-id <id>       Limit target-local helpers to one entity id
+                       --lamport-ceiling <n>  Apply an additional ceiling to the working set
+                       --against-lamport-ceiling <n>
+                                              Apply an additional ceiling to the comparison side
                      materialize <id>   Materialize the pinned coordinate
                        --receipts             Include tick receipts
                      drop <id>          Delete a working-set descriptor

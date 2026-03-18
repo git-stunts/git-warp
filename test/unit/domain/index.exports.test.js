@@ -57,6 +57,7 @@ import WarpGraphDefault, {
   createBlobValue,
   createEventId,
   createStateReaderV5,
+  compareVisibleStateV5,
 } from '../../../index.js';
 
 // WarpGraph is both default and named export; index.d.ts only declares
@@ -316,6 +317,11 @@ describe('index.js exports', () => {
     it('exports createStateReaderV5', () => {
       expect(createStateReaderV5).toBeDefined();
       expect(typeof createStateReaderV5).toBe('function');
+    });
+
+    it('exports compareVisibleStateV5', () => {
+      expect(compareVisibleStateV5).toBeDefined();
+      expect(typeof compareVisibleStateV5).toBe('function');
     });
   });
 

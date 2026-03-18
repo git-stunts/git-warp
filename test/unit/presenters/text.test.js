@@ -9,6 +9,7 @@ import {
   renderError,
   renderMaterialize,
   renderInstallHooks,
+  renderWorkingSet,
   renderSeek,
 } from '../../../bin/presenters/text.js';
 
@@ -264,5 +265,123 @@ describe('renderSeek', () => {
     });
     expect(out).toContain('no cursor active');
     expect(out).toContain('3 ticks available');
+  });
+});
+
+describe('renderWorkingSet', () => {
+  it('renders comparison summaries without adding application semantics', () => {
+    const out = renderWorkingSet({
+      graph: 'g',
+      workingSetAction: 'compare',
+      workingSetId: 'ws_demo',
+      against: 'live',
+      comparison: {
+        comparisonVersion: 'coordinate-compare/v1',
+        comparisonDigest: 'abc123',
+        left: {
+          requested: { kind: 'working_set', workingSetId: 'ws_demo' },
+          resolved: {
+            coordinateKind: 'working_set',
+            patchFrontier: { alice: 'sha1' },
+            patchFrontierDigest: 'pf-left',
+            lamportFrontier: { alice: 2 },
+            lamportFrontierDigest: 'lf-left',
+            lamportCeiling: null,
+            stateHash: 'state-left',
+            patchUniverseDigest: 'pu-left',
+            summary: {
+              patchCount: 2,
+              nodeCount: 1,
+              edgeCount: 0,
+              nodePropertyCount: 1,
+              edgePropertyCount: 0,
+            },
+          },
+        },
+        right: {
+          requested: { kind: 'live' },
+          resolved: {
+            coordinateKind: 'frontier',
+            patchFrontier: { alice: 'sha2' },
+            patchFrontierDigest: 'pf-right',
+            lamportFrontier: { alice: 3 },
+            lamportFrontierDigest: 'lf-right',
+            lamportCeiling: null,
+            stateHash: 'state-right',
+            patchUniverseDigest: 'pu-right',
+            summary: {
+              patchCount: 3,
+              nodeCount: 1,
+              edgeCount: 0,
+              nodePropertyCount: 1,
+              edgePropertyCount: 0,
+            },
+          },
+        },
+        visiblePatchDivergence: {
+          sharedCount: 1,
+          leftOnlyCount: 1,
+          rightOnlyCount: 1,
+          leftOnlyPatchShas: ['left-only'],
+          rightOnlyPatchShas: ['right-only'],
+          target: {
+            targetId: 'n1',
+            leftCount: 2,
+            rightCount: 3,
+            sharedCount: 1,
+            leftOnlyCount: 1,
+            rightOnlyCount: 2,
+            leftOnlyPatchShas: ['left-only'],
+            rightOnlyPatchShas: ['right-only-a', 'right-only-b'],
+          },
+        },
+        visibleState: {
+          comparisonVersion: 'visible-state-compare/v1',
+          changed: true,
+          summary: {
+            left: { nodeCount: 1, edgeCount: 0, nodePropertyCount: 1, edgePropertyCount: 0 },
+            right: { nodeCount: 1, edgeCount: 0, nodePropertyCount: 1, edgePropertyCount: 0 },
+            nodes: { added: 0, removed: 0 },
+            edges: { added: 0, removed: 0 },
+            nodeProperties: { added: 0, removed: 0, changed: 1 },
+            edgeProperties: { added: 0, removed: 0, changed: 0 },
+          },
+          nodes: { added: [], removed: [] },
+          edges: { added: [], removed: [] },
+          nodeProperties: {
+            added: [],
+            removed: [],
+            changed: [{ node: 'n1', key: 'status', leftValue: 'overlay', rightValue: 'live' }],
+          },
+          edgeProperties: {
+            added: [],
+            removed: [],
+            changed: [],
+          },
+          target: {
+            targetId: 'n1',
+            leftExists: true,
+            rightExists: true,
+            changed: true,
+            left: null,
+            right: null,
+            propertyDelta: {
+              added: [],
+              removed: [],
+              changed: [{ key: 'status', leftValue: 'overlay', rightValue: 'live' }],
+            },
+            outgoingDelta: { added: [], removed: [] },
+            incomingDelta: { added: [], removed: [] },
+            contentChanged: false,
+          },
+        },
+      },
+    });
+
+    expect(out).toContain('Working Set Action: compare');
+    expect(out).toContain('Against: live');
+    expect(out).toContain('Comparison Digest: abc123');
+    expect(out).toContain('Patch Divergence: shared=1 leftOnly=1 rightOnly=1');
+    expect(out).toContain('Target State (n1): changed=yes');
   });
 });

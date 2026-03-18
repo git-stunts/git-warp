@@ -33,6 +33,7 @@ import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
 import * as workingSetMethods from './warp/workingSet.methods.js';
 import * as conflictMethods from './warp/conflict.methods.js';
+import * as comparisonMethods from './warp/comparison.methods.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -526,6 +527,7 @@ wireWarpMethods(WarpGraph, [
   materializeAdvancedMethods,
   workingSetMethods,
   conflictMethods,
+  comparisonMethods,
 ]);
 
 // ── Sync methods: direct delegation to SyncController (no stub file) ────────
