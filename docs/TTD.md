@@ -93,6 +93,8 @@ Separate but adjacent:
   Pins read-only braid support overlays onto a target working set without changing the TTD read-only contract.
 - `git warp working-set compare`
   Compares durable coordinates and visible patch universes. It stays outside `debug` because it is a coordinate-comparison surface, not a single-coordinate debugger topic.
+- `git warp working-set transfer-plan`
+  Extracts a deterministic candidate transfer between durable coordinates. It stays outside `debug` because settlement-runway planning is adjacent to, but distinct from, single-coordinate time-travel inspection.
 
 ## Hexagonal Boundary
 
@@ -116,13 +118,15 @@ TTD is also deliberately separate from working-set management:
 
 - debug commands inspect substrate facts
 - working-set commands pin durable coordinates and compare them
+- `working-set transfer-plan` plans substrate-factual transfer without deciding application-level settlement
 - higher layers may combine both, but git-warp keeps the boundary explicit
 - higher-layer library code that needs the same visible truth can combine
   `materializeWorkingSet()` with `projectStateV5()` or `createStateReaderV5()`
   without turning git-warp into an application query framework
 - coordinate comparison helpers such as `compareWorkingSet()`,
-  `compareCoordinates()`, and `compareVisibleStateV5()` stay substrate-factual
-  and do not collapse into application-level decision semantics
+  `compareCoordinates()`, `compareVisibleStateV5()`, `planWorkingSetTransfer()`,
+  and `planCoordinateTransfer()` stay substrate-factual and do not collapse
+  into application-level decision semantics
 
 ## Read-Only Contract
 
@@ -162,6 +166,7 @@ This keeps TTD aligned with the current git-warp substrate model:
 - `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set, including any pinned braid support overlays, without teaching the reducer about worldlines
 - those braid-aware debug topics can also report which pinned overlay/braid context backed the read, so receipts and provenance stay auditable instead of implicit
 - `working-set compare` handles deterministic coordinate/working-set divergence reads outside the debugger family
+- `working-set transfer-plan` handles deterministic candidate-transfer extraction outside the debugger family
 - `working-set braid` changes descriptor visibility, not debugger semantics
 - explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top

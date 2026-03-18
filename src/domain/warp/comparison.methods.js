@@ -15,14 +15,18 @@ import QueryError from '../errors/QueryError.js';
 import { createStateReaderV5 } from '../services/StateReaderV5.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
 import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
+import { planVisibleStateTransferV5 } from '../services/VisibleStateTransferPlannerV5.js';
 import WorkingSetService from '../services/WorkingSetService.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
+const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
 /**
  * @typedef {import('../../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1
  * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
+ * @typedef {import('../../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1
+ * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
  * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
  */
 
@@ -778,6 +782,218 @@ export async function compareWorkingSet(workingSetId, options = {}) {
         })());
 
   return await this.compareCoordinates({ left, right, targetId });
+}
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {string} oid
+ * @returns {Promise<Uint8Array>}
+ */
+async function readContentBlobByOid(graph, oid) {
+  const buf = graph._blobStorage
+    ? await graph._blobStorage.retrieve(oid)
+    : await graph._persistence.readBlob(oid);
+  if (!(buf instanceof Uint8Array)) {
+    throw new QueryError(`content blob '${oid}' is missing from the object store`, {
+      code: 'invalid_coordinate',
+      context: { oid },
+    });
+  }
+  return buf;
+}
+
+/**
+ * @param {import('../../../index.js').VisibleStateTransferOperationV1[]} ops
+ * @returns {Array<Record<string, unknown>>}
+ */
+function serializeTransferOpsForDigest(ops) {
+  return ops.map((op) => {
+    switch (op.op) {
+      case 'attach_node_content':
+        return {
+          op: op.op,
+          nodeId: op.nodeId,
+          contentOid: op.contentOid,
+          mime: op.mime ?? null,
+          size: op.size ?? null,
+        };
+      case 'attach_edge_content':
+        return {
+          op: op.op,
+          from: op.from,
+          to: op.to,
+          label: op.label,
+          contentOid: op.contentOid,
+          mime: op.mime ?? null,
+          size: op.size ?? null,
+        };
+      default:
+        return { ...op };
+    }
+  });
+}
+
+/**
+ * Plans a deterministic transfer from one working set into live truth, its
+ * pinned base observation, or another working set.
+ *
+ * The resulting plan contains only substrate facts and transfer operations.
+ * It does not apply the plan or add application-level settlement semantics.
+ *
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @param {{
+ *   into?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
+ *   ceiling?: number|null,
+ *   intoCeiling?: number|null
+ * }} [options]
+ * @returns {Promise<CoordinateTransferPlanV1>}
+ */
+export async function planWorkingSetTransfer(workingSetId, options = {}) {
+  const normalizedWorkingSetId = normalizeRequiredString(workingSetId, 'workingSetId');
+  const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
+  const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
+  const into = options.into ?? 'live';
+
+  const source = /** @type {CoordinateTransferPlanSelectorV1} */ ({
+    kind: 'working_set',
+    workingSetId: normalizedWorkingSetId,
+    ceiling,
+  });
+
+  const target = /** @type {CoordinateTransferPlanSelectorV1} */ (into === 'base'
+    ? {
+      kind: 'working_set_base',
+      workingSetId: normalizedWorkingSetId,
+      ceiling: intoCeiling,
+    }
+    : into === 'live'
+      ? {
+        kind: 'live',
+        ceiling: intoCeiling,
+      }
+      : (into && typeof into === 'object' && into.kind === 'working_set')
+        ? {
+          kind: 'working_set',
+          workingSetId: normalizeRequiredString(into.workingSetId, 'into.workingSetId'),
+          ceiling: intoCeiling,
+        }
+        : (() => {
+          throw new QueryError('into must be base, live, or { kind: "working_set", workingSetId }', {
+            code: 'invalid_coordinate',
+          });
+        })());
+
+  return await this.planCoordinateTransfer({ source, target });
+}
+
+/**
+ * @param {unknown} options
+ * @returns {void}
+ */
+function assertTransferOptions(options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new QueryError('planCoordinateTransfer() requires an options object', {
+      code: 'invalid_coordinate',
+    });
+  }
+}
+
+/**
+ * @param {{
+ *   graph: import('../WarpGraph.js').default,
+ *   sourceSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
+ *   targetSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
+ *   transfer: Awaited<ReturnType<typeof planVisibleStateTransferV5>>,
+ *   comparisonDigest: string
+ * }} params
+ * @returns {Promise<CoordinateTransferPlanV1>}
+ */
+async function finalizeTransferPlan(params) {
+  const { graph, sourceSide, targetSide, transfer, comparisonDigest } = params;
+  const changed = transfer.summary.opCount > 0;
+  const sharedSides = {
+    source: {
+      requested: sourceSide.requested,
+      resolved: sourceSide.resolved,
+    },
+    target: {
+      requested: targetSide.requested,
+      resolved: targetSide.resolved,
+    },
+  };
+  const payload = {
+    transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
+    comparisonDigest,
+    changed,
+    ...sharedSides,
+    summary: transfer.summary,
+    ops: serializeTransferOpsForDigest(transfer.ops),
+  };
+
+  return {
+    transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
+    transferDigest: await computeChecksum(payload, graph._crypto),
+    comparisonDigest,
+    changed,
+    ...sharedSides,
+    summary: transfer.summary,
+    ops: transfer.ops,
+  };
+}
+
+/**
+ * Plans a deterministic transfer between two substrate observation selectors.
+ *
+ * Supported selectors:
+ * - `{ kind: 'live', ceiling? }`
+ * - `{ kind: 'working_set', workingSetId, ceiling? }`
+ * - `{ kind: 'working_set_base', workingSetId, ceiling? }`
+ * - `{ kind: 'coordinate', frontier, ceiling? }`
+ *
+ * @this {import('../WarpGraph.js').default}
+ * @param {{
+ *   source: {
+ *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
+ *     workingSetId?: string,
+ *     frontier?: Map<string, string>|Record<string, string>,
+ *     ceiling?: number|null
+ *   },
+ *   target: {
+ *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
+ *     workingSetId?: string,
+ *     frontier?: Map<string, string>|Record<string, string>,
+ *     ceiling?: number|null
+ *   }
+ * }} options
+ * @returns {Promise<CoordinateTransferPlanV1>}
+ */
+export async function planCoordinateTransfer(options) {
+  assertTransferOptions(options);
+
+  const normalizedSource = normalizeSelector(options.source, 'source');
+  const normalizedTarget = normalizeSelector(options.target, 'target');
+  const comparison = await this.compareCoordinates({
+    left: normalizedSource,
+    right: normalizedTarget,
+  });
+  const sourceSide = await resolveComparisonSide.call(this, normalizedSource);
+  const targetSide = await resolveComparisonSide.call(this, normalizedTarget);
+  const sourceReader = createStateReaderV5(sourceSide.state);
+  const targetReader = createStateReaderV5(targetSide.state);
+  const transfer = await planVisibleStateTransferV5(sourceReader, targetReader, {
+    loadNodeContent: async (_nodeId, meta) => await readContentBlobByOid(this, meta.oid),
+    loadEdgeContent: async (_edge, meta) => await readContentBlobByOid(this, meta.oid),
+  });
+  return await finalizeTransferPlan(
+    {
+      graph: this,
+      sourceSide,
+      targetSide,
+      transfer,
+      comparisonDigest: comparison.comparisonDigest,
+    },
+  );
 }
 
 /**

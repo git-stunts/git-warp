@@ -171,6 +171,7 @@ git warp working-set show review-auth
 git warp working-set materialize review-auth --receipts
 git warp working-set compare review-auth --against live --target-id task:oauth
 git warp working-set compare review-auth --against working-set:review-auth-b
+git warp working-set transfer-plan review-auth --into live
 git warp working-set drop review-auth
 ```
 
@@ -226,6 +227,19 @@ Coordinate comparison is adjacent but separate:
 
 - `working-set compare` is read-only, but it lives under `working-set` because it compares durable coordinates rather than acting as a single-observation debugger topic
 - library code can use `compareWorkingSet()`, `compareCoordinates()`, or `compareVisibleStateV5()` over the same substrate truth
+
+Transfer planning is the next read-only substrate step:
+
+- `working-set transfer-plan` extracts a deterministic candidate transfer from one visible patch universe onto another without mutating either side
+- library code can use `planWorkingSetTransfer()` or `planCoordinateTransfer()` to get the same transfer digest, resolved coordinates, and operation list
+- transfer ops stay substrate-factual:
+  - add/remove node
+  - add/remove edge
+  - set node/edge property
+  - attach node/edge content
+  - clear node/edge content
+- this is preparation for higher-layer settlement or collapse planning, not a built-in approval engine
+- the CLI keeps it under `working-set` rather than `debug` because it plans durable-coordinate transfer rather than inspecting one coordinate in isolation
 
 That read-side support changes the visible patch universe, not the reducer rules. `reduceV5` remains worldline-blind.
 

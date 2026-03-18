@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.13.0] — 2026-03-18
+
+### Added
+
+- **Working-set and coordinate transfer-plan API** — Added `WarpGraph.planWorkingSetTransfer()` and `WarpGraph.planCoordinateTransfer()` as deterministic substrate helpers for extracting candidate transfer plans between working sets, base observations, live frontiers, and explicit coordinates without mutating either side.
+- **Thin `working-set transfer-plan` CLI surface** — Added `git warp working-set transfer-plan` so operators and higher layers can inspect a substrate-factual settlement runway without turning `debug` into a mutation shell.
+
+### Changed
+
+- **Transfer plans now include attachment deltas explicitly** — candidate plans can carry node/edge content attach and clear operations alongside topology and property updates, so higher layers do not need to reverse-engineer `_content*` substrate keys from materialized state.
+- **Working-set docs now describe settlement runway as a substrate concern** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so transfer planning is documented as read-only substrate preparation for higher-layer collapse rather than as debugger behavior or application workflow.
+
 ## [14.12.0] — 2026-03-18
 
 ### Added

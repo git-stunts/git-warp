@@ -181,8 +181,15 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *   against: string,
  *   comparison: import('../../index.js').CoordinateComparisonV1
  * }} WorkingSetComparePayload
+ * @typedef {{
+ *   graph: string,
+ *   workingSetAction: 'transfer-plan',
+ *   workingSetId: string,
+ *   into: string,
+ *   transferPlan: import('../../index.js').CoordinateTransferPlanV1
+ * }} WorkingSetTransferPlanPayload
  * @typedef {DebugConflictsPayload | DebugCoordinatePayload | DebugProvenancePayload | DebugReceiptsPayload | DebugTimelinePayload} DebugPayload
- * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload | WorkingSetComparePayload} WorkingSetPayload
+ * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload | WorkingSetComparePayload | WorkingSetTransferPlanPayload} WorkingSetPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -1211,6 +1218,27 @@ export function renderWorkingSet(payload) {
         `Target State (${comparison.visibleState.target.targetId ?? 'unknown'}): changed=${comparison.visibleState.target.changed ? 'yes' : 'no'} props=+${comparison.visibleState.target.propertyDelta.added.length}/-${comparison.visibleState.target.propertyDelta.removed.length}/~${comparison.visibleState.target.propertyDelta.changed.length} outgoing=+${comparison.visibleState.target.outgoingDelta.added.length}/-${comparison.visibleState.target.outgoingDelta.removed.length} incoming=+${comparison.visibleState.target.incomingDelta.added.length}/-${comparison.visibleState.target.incomingDelta.removed.length}`,
       );
     }
+
+    return `${lines.join('\n')}\n`;
+  }
+
+  if (payload.workingSetAction === 'transfer-plan') {
+    const { transferPlan } = payload;
+    const { summary } = transferPlan;
+    const lines = [
+      `Graph: ${payload.graph}`,
+      'Working Set Action: transfer-plan',
+      `Working Set: ${payload.workingSetId}`,
+      `Into: ${payload.into}`,
+      `Transfer Digest: ${transferPlan.transferDigest}`,
+      `Comparison Digest: ${transferPlan.comparisonDigest}`,
+      `Changed: ${transferPlan.changed ? 'yes' : 'no'}`,
+      `Source: ${transferPlan.source.resolved.coordinateKind} patches=${transferPlan.source.resolved.summary.patchCount} nodes=${transferPlan.source.resolved.summary.nodeCount} edges=${transferPlan.source.resolved.summary.edgeCount}`,
+      `Target: ${transferPlan.target.resolved.coordinateKind} patches=${transferPlan.target.resolved.summary.patchCount} nodes=${transferPlan.target.resolved.summary.nodeCount} edges=${transferPlan.target.resolved.summary.edgeCount}`,
+      `Plan Summary: ops=${summary.opCount} addNodes=${summary.addNodeCount} removeNodes=${summary.removeNodeCount} addEdges=${summary.addEdgeCount} removeEdges=${summary.removeEdgeCount}`,
+      `Property Ops: nodeSet=${summary.setNodePropertyCount} nodeClear=${summary.clearNodePropertyCount} edgeSet=${summary.setEdgePropertyCount} edgeClear=${summary.clearEdgePropertyCount}`,
+      `Content Ops: nodeAttach=${summary.attachNodeContentCount} nodeClear=${summary.clearNodeContentCount} edgeAttach=${summary.attachEdgeContentCount} edgeClear=${summary.clearEdgeContentCount}`,
+    ];
 
     return `${lines.join('\n')}\n`;
   }

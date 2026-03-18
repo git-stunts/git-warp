@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.13.0
+
+- **Deterministic transfer planning is now a first-class substrate helper** — `WarpGraph.planWorkingSetTransfer()` and `WarpGraph.planCoordinateTransfer()` extract a candidate transfer plan from one visible patch universe onto another without mutating either side.
+- **Transfer plans stay substrate-factual, including attachment changes** — the returned plan reports only add/remove/set plus explicit content attach/clear operations, deterministic transfer digests, and the resolved source/target coordinates. It does not invent collapse, approval, or governance semantics.
+- **The CLI exposes the same settlement runway without turning `debug` into a mutation shell** — `git warp working-set transfer-plan` plans a working set transfer into live truth, its pinned base observation, or another working set while keeping TTD read-only.
+
 ## What's New in v14.12.0
 
 - **Braid-aware debugger reads now surface their backing working-set context explicitly** — `git warp debug timeline`, `debug provenance`, and `debug receipts` now include the resolved working-set overlay head, patch count, writability, base Lamport ceiling, and pinned braid support IDs when `--working-set <id>` is selected.
@@ -101,7 +107,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
-- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, overlay patch-log semantics, and the working-set API/CLI surface.
+- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the working-set API/CLI surface.
 - **Braids**: the canonical term for co-present working-set composition is **braid**. The substrate now supports pinned read-only braid overlays through `braidWorkingSet()` / `git warp working-set braid`, while keeping reducer semantics worldline-blind.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
@@ -627,6 +633,9 @@ git warp working-set braid review-auth --support hold-auth --read-only
 # Compare a working set against live truth
 git warp working-set compare review-auth --against live --target-id user:alice
 
+# Plan a deterministic transfer from a working set into live truth
+git warp working-set transfer-plan review-auth --into live
+
 # Check graph health, status, and GC metrics
 git warp check
 ```
@@ -695,6 +704,9 @@ git warp working-set braid review-auth --support hold-auth --read-only --json
 
 # Compare a working set against another speculative lane
 git warp working-set compare review-auth --against working-set:review-auth-b --target-id user:alice --json
+
+# Extract a machine-readable transfer plan without mutating either side
+git warp working-set transfer-plan review-auth --into live --json
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).

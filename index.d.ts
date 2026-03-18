@@ -2133,6 +2133,17 @@ export default class WarpGraph {
   }): Promise<CoordinateComparisonV1>;
 
   /**
+   * Plans a deterministic transfer from a working set into live truth, its
+   * pinned base observation, or another working set without mutating either
+   * side.
+   */
+  planWorkingSetTransfer(workingSetId: string, options?: {
+    into?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+    ceiling?: number | null;
+    intoCeiling?: number | null;
+  }): Promise<CoordinateTransferPlanV1>;
+
+  /**
    * Compares two explicit substrate coordinate selectors.
    */
   compareCoordinates(options: {
@@ -2140,6 +2151,15 @@ export default class WarpGraph {
     right: CoordinateComparisonSelectorV1;
     targetId?: string | null;
   }): Promise<CoordinateComparisonV1>;
+
+  /**
+   * Plans a deterministic transfer between two explicit substrate coordinate
+   * selectors without mutating either side.
+   */
+  planCoordinateTransfer(options: {
+    source: CoordinateTransferPlanSelectorV1;
+    target: CoordinateTransferPlanSelectorV1;
+  }): Promise<CoordinateTransferPlanV1>;
 
   /**
    * The provenance index mapping entities to contributing patches.
@@ -2842,6 +2862,8 @@ export type CoordinateComparisonSelectorV1 =
   | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
+export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
+
 export interface CoordinateComparisonResolvedSideV1 {
   coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
   patchFrontier: Record<string, string>;
@@ -2895,6 +2917,47 @@ export interface CoordinateComparisonV1 {
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
   visibleState: VisibleStateComparisonV5;
+}
+
+export interface VisibleStateTransferPlanSummaryV1 {
+  opCount: number;
+  addNodeCount: number;
+  removeNodeCount: number;
+  setNodePropertyCount: number;
+  clearNodePropertyCount: number;
+  addEdgeCount: number;
+  removeEdgeCount: number;
+  setEdgePropertyCount: number;
+  clearEdgePropertyCount: number;
+  attachNodeContentCount: number;
+  clearNodeContentCount: number;
+  attachEdgeContentCount: number;
+  clearEdgeContentCount: number;
+}
+
+export type VisibleStateTransferOperationV1 =
+  | { op: 'add_node'; nodeId: string }
+  | { op: 'remove_node'; nodeId: string }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'add_edge'; from: string; to: string; label: string }
+  | { op: 'remove_edge'; from: string; to: string; label: string }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_node_content'; nodeId: string }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_edge_content'; from: string; to: string; label: string };
+
+export type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
+
+export interface CoordinateTransferPlanV1 {
+  transferVersion: string;
+  transferDigest: string;
+  comparisonDigest: string;
+  changed: boolean;
+  source: CoordinateTransferPlanSideV1;
+  target: CoordinateTransferPlanSideV1;
+  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperationV1[];
 }
 
 /**

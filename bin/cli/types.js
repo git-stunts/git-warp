@@ -40,7 +40,9 @@
  * @property {(workingSetId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>} getWorkingSetPatches
  * @property {(workingSetId: string, entityId: string, options?: {ceiling?: number|null}) => Promise<string[]>} patchesForWorkingSet
  * @property {(workingSetId: string, options?: {against?: 'base'|'live'|{kind: 'working_set', workingSetId: string}, ceiling?: number|null, againstCeiling?: number|null, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareWorkingSet
+ * @property {(workingSetId: string, options?: {into?: 'base'|'live'|{kind: 'working_set', workingSetId: string}, ceiling?: number|null, intoCeiling?: number|null}) => Promise<import('../../index.js').CoordinateTransferPlanV1>} planWorkingSetTransfer
  * @property {(options: {left: import('../../index.js').CoordinateComparisonSelectorV1, right: import('../../index.js').CoordinateComparisonSelectorV1, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareCoordinates
+ * @property {(options: {source: import('../../index.js').CoordinateTransferPlanSelectorV1, target: import('../../index.js').CoordinateTransferPlanSelectorV1}) => Promise<import('../../index.js').CoordinateTransferPlanV1>} planCoordinateTransfer
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
  * @property {(sha: string) => Promise<import('../../src/domain/types/WarpTypesV2.js').PatchV2>} loadPatchBySha
  * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache

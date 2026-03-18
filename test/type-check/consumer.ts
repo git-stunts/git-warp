@@ -112,6 +112,7 @@ import type {
   VisibleStateReaderV5,
   CoordinateComparisonSelectorV1,
   CoordinateComparisonV1,
+  CoordinateTransferPlanV1,
   WorkingSetBraidOptions,
   WorkingSetDescriptor,
   LogicalTraversal,
@@ -308,9 +309,20 @@ const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingS
   against: 'base',
   targetId: 'n1',
 });
+const workingSetTransferPlan: CoordinateTransferPlanV1 = await graph.planWorkingSetTransfer('ws_demo', {
+  into: 'live',
+});
+const coordinateTransferPlan: CoordinateTransferPlanV1 = await graph.planCoordinateTransfer({
+  source: { kind: 'working_set', workingSetId: 'ws_demo' },
+  target: { kind: 'live' },
+});
 const _comparisonDigestPair: [string, string] = [
   coordinateComparison.comparisonDigest,
   workingSetComparison.comparisonDigest,
+];
+const _transferDigestPair: [string, string] = [
+  workingSetTransferPlan.transferDigest,
+  coordinateTransferPlan.transferDigest,
 ];
 const _workingSetDescriptorTuple: [boolean, string[]] = [
   braidedWorkingSetDescriptor.overlay.writable,
@@ -320,6 +332,11 @@ const _workingSetGraphName: string = workingSetDescriptor.graphName;
 const _comparisonWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
   workingSetComparison.left.resolved.workingSet?.overlayWritable,
   workingSetComparison.left.resolved.workingSet?.braid.braidedWorkingSetIds,
+];
+const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
+  workingSetTransferPlan.changed,
+  coordinateTransferPlan.summary.opCount,
+  coordinateTransferPlan.ops.find((op) => op.op === 'attach_node_content')?.content,
 ];
 
 // ---- materializeAt ----

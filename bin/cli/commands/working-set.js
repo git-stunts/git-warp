@@ -7,6 +7,7 @@ import * as dropSubcommand from './working-set/drop.js';
 import * as listSubcommand from './working-set/list.js';
 import * as materializeSubcommand from './working-set/materialize.js';
 import * as showSubcommand from './working-set/show.js';
+import * as transferPlanSubcommand from './working-set/transfer-plan.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 /**
@@ -23,6 +24,7 @@ const WORKING_SET_SUBCOMMANDS = Object.freeze({
   [listSubcommand.WORKING_SET_SUBCOMMAND.name]: listSubcommand,
   [showSubcommand.WORKING_SET_SUBCOMMAND.name]: showSubcommand,
   [compareSubcommand.WORKING_SET_SUBCOMMAND.name]: compareSubcommand,
+  [transferPlanSubcommand.WORKING_SET_SUBCOMMAND.name]: transferPlanSubcommand,
   [materializeSubcommand.WORKING_SET_SUBCOMMAND.name]: materializeSubcommand,
   [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
 });

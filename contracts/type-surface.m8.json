@@ -1390,6 +1390,15 @@
     "CoordinateComparisonV1": {
       "kind": "interface"
     },
+    "CoordinateTransferPlanSelectorV1": {
+      "kind": "type"
+    },
+    "CoordinateTransferPlanSideV1": {
+      "kind": "type"
+    },
+    "CoordinateTransferPlanV1": {
+      "kind": "interface"
+    },
     "ComposeWormholesOptions": {
       "kind": "interface"
     },
@@ -1664,6 +1673,12 @@
       "kind": "interface"
     },
     "VisibleStateSummaryV5": {
+      "kind": "interface"
+    },
+    "VisibleStateTransferOperationV1": {
+      "kind": "type"
+    },
+    "VisibleStateTransferPlanSummaryV1": {
       "kind": "interface"
     },
     "WarpGraphStatus": {

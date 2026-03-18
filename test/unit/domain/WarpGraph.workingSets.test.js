@@ -4,6 +4,11 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
+import {
+  CONTENT_MIME_PROPERTY_KEY,
+  CONTENT_PROPERTY_KEY,
+  CONTENT_SIZE_PROPERTY_KEY,
+} from '../../../src/domain/services/KeyCodec.js';
 import { buildWorkingSetBraidRef, buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
 
 /**
@@ -830,6 +835,188 @@ describe('WarpGraph working-set foundation', () => {
     expect(coordinateComparison.visiblePatchDivergence.rightOnlyPatchShas).toEqual([blueSha]);
     expect(coordinateComparison.visibleState.nodeProperties.changed).toEqual([
       { node: 'n1', key: 'color', leftValue: 'red', rightValue: 'blue' },
+    ]);
+  });
+
+  it('planWorkingSetTransfer emits a deterministic transfer plan including property clears and content attachment updates', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'doc:1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'doc:1', key: 'status', value: 'draft' },
+        { type: 'PropSet', node: 'doc:1', key: 'obsolete', value: true },
+      ],
+      reads: [],
+      writes: ['doc:1'],
+    });
+
+    await graph.materialize();
+    await graph.patch(async (p) => {
+      await p.attachContent('doc:1', 'live-body', { mime: 'text/plain', size: 9 });
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_transfer_live',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_transfer_live', async (p) => {
+      p.setProperty('doc:1', 'status', 'ready');
+      p.setProperty('doc:1', 'obsolete', null);
+      await p.attachContent('doc:1', 'worldline-body', { mime: 'text/plain', size: 14 });
+    });
+
+    const workingSetState = await graph.materializeWorkingSet('ws_transfer_live');
+    const workingSetReader = createStateReaderV5(workingSetState);
+    const workingSetContentMeta = workingSetReader.getNodeContentMeta('doc:1');
+    expect(workingSetContentMeta).toEqual({
+      oid: expect.any(String),
+      mime: 'text/plain',
+      size: 14,
+    });
+    persistence._blobs.set(
+      /** @type {{ oid: string }} */ (workingSetContentMeta).oid,
+      Buffer.from('worldline-body'),
+    );
+
+    const transferPlan = await graph.planWorkingSetTransfer('ws_transfer_live');
+
+    expect(transferPlan.transferVersion).toBe('coordinate-transfer-plan/v1');
+    expect(typeof transferPlan.transferDigest).toBe('string');
+    expect(transferPlan.comparisonDigest).toEqual(expect.any(String));
+    expect(transferPlan.source.requested).toEqual({
+      kind: 'working_set',
+      workingSetId: 'ws_transfer_live',
+    });
+    expect(transferPlan.target.requested).toEqual({
+      kind: 'live',
+    });
+    expect(transferPlan.summary).toMatchObject({
+      opCount: 3,
+      setNodePropertyCount: 1,
+      clearNodePropertyCount: 1,
+      attachNodeContentCount: 1,
+      clearNodeContentCount: 0,
+    });
+    expect(transferPlan.ops).toContainEqual({
+      op: 'set_node_property',
+      nodeId: 'doc:1',
+      key: 'status',
+      value: 'ready',
+    });
+    expect(transferPlan.ops).toContainEqual({
+      op: 'set_node_property',
+      nodeId: 'doc:1',
+      key: 'obsolete',
+      value: null,
+    });
+    const attachOp = /** @type {import('../../../index.js').VisibleStateTransferOperationV1 & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentOid: string, mime?: string|null, size?: number|null }} */ (
+      transferPlan.ops.find((op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1')
+    );
+    expect(attachOp).toMatchObject({
+      op: 'attach_node_content',
+      nodeId: 'doc:1',
+      contentOid: expect.any(String),
+      mime: 'text/plain',
+      size: 14,
+    });
+    expect(Buffer.from(attachOp.content).toString('utf8')).toBe('worldline-body');
+  });
+
+  it('planWorkingSetTransfer includes braided support visibility in the candidate transfer plan', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'task:1', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['task:1'],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_target', owner: 'alice' });
+    await graph.createWorkingSet({ workingSetId: 'ws_support', owner: 'alice' });
+
+    await graph.patchWorkingSet('ws_target', (p) => {
+      p.setProperty('task:1', 'status', 'target');
+    });
+    await graph.patchWorkingSet('ws_support', (p) => {
+      p.addNode('task:2');
+      p.setProperty('task:2', 'kind', 'support');
+    });
+
+    await graph.braidWorkingSet('ws_target', {
+      braidedWorkingSetIds: ['ws_support'],
+      writable: false,
+    });
+
+    const transferPlan = await graph.planWorkingSetTransfer('ws_target');
+
+    expect(transferPlan.source.resolved.workingSet?.braid.braidedWorkingSetIds).toEqual(['ws_support']);
+    expect(transferPlan.ops).toContainEqual({
+      op: 'set_node_property',
+      nodeId: 'task:1',
+      key: 'status',
+      value: 'target',
+    });
+    expect(transferPlan.ops).toContainEqual({
+      op: 'add_node',
+      nodeId: 'task:2',
+    });
+    expect(transferPlan.ops).toContainEqual({
+      op: 'set_node_property',
+      nodeId: 'task:2',
+      key: 'kind',
+      value: 'support',
+    });
+  });
+
+  it('planWorkingSetTransfer represents content removals as explicit clear operations', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'doc:clear', dot: createDot('alice', 1) },
+      ],
+      reads: [],
+      writes: ['doc:clear'],
+    });
+
+    await graph.materialize();
+    await graph.patch(async (p) => {
+      await p.attachContent('doc:clear', 'live-only', { mime: 'text/plain', size: 9 });
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_clear_content',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_clear_content', (p) => {
+      p.setProperty('doc:clear', CONTENT_PROPERTY_KEY, null);
+      p.setProperty('doc:clear', CONTENT_MIME_PROPERTY_KEY, null);
+      p.setProperty('doc:clear', CONTENT_SIZE_PROPERTY_KEY, null);
+    });
+
+    const transferPlan = await graph.planWorkingSetTransfer('ws_clear_content');
+
+    expect(transferPlan.summary).toMatchObject({
+      opCount: 1,
+      clearNodeContentCount: 1,
+    });
+    expect(transferPlan.ops).toEqual([
+      {
+        op: 'clear_node_content',
+        nodeId: 'doc:clear',
+      },
     ]);
   });
 });

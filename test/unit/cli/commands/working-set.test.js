@@ -64,4 +64,71 @@ describe('handleWorkingSet working-set braid command', () => {
       args: ['braid', 'ws_target', '--read-only', '--writable'],
     })).rejects.toThrow(/mutually exclusive/);
   });
+
+  it('passes deterministic transfer-plan target selection through to the substrate surface', async () => {
+    const planWorkingSetTransfer = vi.fn().mockResolvedValue({
+      transferVersion: 'coordinate-transfer-plan/v1',
+      transferDigest: 'transfer:123',
+      comparisonDigest: 'comparison:123',
+      changed: true,
+      source: {
+        requested: { kind: 'working_set', workingSetId: 'ws_target' },
+        resolved: {
+          coordinateKind: 'working_set',
+          summary: { patchCount: 2, nodeCount: 2, edgeCount: 0, nodePropertyCount: 2, edgePropertyCount: 0 },
+        },
+      },
+      target: {
+        requested: { kind: 'live' },
+        resolved: {
+          coordinateKind: 'frontier',
+          summary: { patchCount: 1, nodeCount: 1, edgeCount: 0, nodePropertyCount: 1, edgePropertyCount: 0 },
+        },
+      },
+      summary: {
+        opCount: 2,
+        addNodeCount: 1,
+        removeNodeCount: 0,
+        setNodePropertyCount: 1,
+        clearNodePropertyCount: 0,
+        addEdgeCount: 0,
+        removeEdgeCount: 0,
+        setEdgePropertyCount: 0,
+        clearEdgePropertyCount: 0,
+        attachNodeContentCount: 0,
+        clearNodeContentCount: 0,
+        attachEdgeContentCount: 0,
+        clearEdgeContentCount: 0,
+      },
+      ops: [],
+    });
+
+    /** @type {any} */ (openGraph).mockResolvedValue({
+      graph: { planWorkingSetTransfer },
+      graphName: 'demo',
+    });
+
+    const result = await handleWorkingSet({
+      options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
+      args: ['transfer-plan', 'ws_target', '--into', 'working-set:ws_live_candidate', '--lamport-ceiling', '12', '--into-lamport-ceiling', '8'],
+    });
+
+    expect(planWorkingSetTransfer).toHaveBeenCalledWith('ws_target', {
+      into: {
+        kind: 'working_set',
+        workingSetId: 'ws_live_candidate',
+      },
+      ceiling: 12,
+      intoCeiling: 8,
+    });
+    expect(result.payload).toMatchObject({
+      graph: 'demo',
+      workingSetAction: 'transfer-plan',
+      workingSetId: 'ws_target',
+      into: 'working-set:ws_live_candidate',
+      transferPlan: {
+        transferDigest: 'transfer:123',
+      },
+    });
+  });
 });

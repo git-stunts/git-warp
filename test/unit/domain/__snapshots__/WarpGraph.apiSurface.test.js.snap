@@ -437,6 +437,16 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "getter",
   },
+  "planCoordinateTransfer": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "planWorkingSetTransfer": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "processSyncRequest": {
     "configurable": true,
     "enumerable": false,
@@ -530,7 +540,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `105`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `107`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -621,6 +631,8 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "patchesFor",
   "patchesForWorkingSet",
   "persistence",
+  "planCoordinateTransfer",
+  "planWorkingSetTransfer",
   "processSyncRequest",
   "provenanceIndex",
   "query",
