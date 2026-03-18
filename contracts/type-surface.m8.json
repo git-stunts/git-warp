@@ -1217,6 +1217,12 @@
     "compareVisibleStateV5": {
       "kind": "function"
     },
+    "normalizeVisibleStateScopeV1": {
+      "kind": "function"
+    },
+    "scopeMaterializedStateV5": {
+      "kind": "function"
+    },
     "computeStateHashV5": {
       "kind": "function",
       "async": true
@@ -1679,6 +1685,12 @@
       "kind": "interface"
     },
     "VisibleStateProjectionV5": {
+      "kind": "interface"
+    },
+    "VisibleStateScopePrefixFilterV1": {
+      "kind": "interface"
+    },
+    "VisibleStateScopeV1": {
       "kind": "interface"
     },
     "VisibleNodeViewV5": {
