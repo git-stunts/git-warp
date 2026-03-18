@@ -38,6 +38,8 @@
  * @property {(workingSetId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.js').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.js').TickReceipt[]}>} materializeWorkingSet
  * @property {(workingSetId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>} getWorkingSetPatches
  * @property {(workingSetId: string, entityId: string, options?: {ceiling?: number|null}) => Promise<string[]>} patchesForWorkingSet
+ * @property {(workingSetId: string, options?: {against?: 'base'|'live'|{kind: 'working_set', workingSetId: string}, ceiling?: number|null, againstCeiling?: number|null, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareWorkingSet
+ * @property {(options: {left: import('../../index.js').CoordinateComparisonSelectorV1, right: import('../../index.js').CoordinateComparisonSelectorV1, targetId?: string|null}) => Promise<import('../../index.js').CoordinateComparisonV1>} compareCoordinates
  * @property {() => Promise<{ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>}>} discoverTicks
  * @property {(sha: string) => Promise<import('../../src/domain/types/WarpTypesV2.js').PatchV2>} loadPatchBySha
  * @property {(cache: import('../../src/ports/SeekCachePort.js').default) => void} setSeekCache

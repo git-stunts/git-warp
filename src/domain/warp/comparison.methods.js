@@ -429,7 +429,7 @@ function optionalCeiling(ceiling) {
 
 /**
  * @param {string} workingSetId
- * @param {import('../services/WorkingSetService.js').WorkingSetDescriptorV1} descriptor
+ * @param {import('../../../index.js').WorkingSetDescriptor} descriptor
  * @returns {{
  *   workingSetId: string,
  *   baseLamportCeiling: number|null,
@@ -472,7 +472,7 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *     lamportFrontier: Record<string, number>,
  *     lamportFrontierDigest: string,
  *     lamportCeiling: number|null,
- *     stateHash: string|null,
+ *     stateHash: string,
  *     patchUniverseDigest: string,
  *     summary: {
  *       nodeCount: number,
@@ -514,7 +514,9 @@ async function finalizeComparisonSide(graph, params) {
       lamportFrontier: visibleLamportFrontier,
       lamportFrontierDigest: await computeChecksum(visibleLamportFrontier, graph._crypto),
       lamportCeiling,
-      stateHash: await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec }),
+      stateHash: /** @type {string} */ (
+        await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec })
+      ),
       patchUniverseDigest: await computeChecksum({ patches: uniqueSortedPatchShas(patchEntries) }, graph._crypto),
       summary: summarizeVisibleState(reader, patchEntries.length),
       ...(workingSet ? { workingSet } : {}),
@@ -688,10 +690,12 @@ async function resolveComparisonSide(selector) {
 
   const workingSets = new WorkingSetService({ graph: this });
   if (selector.kind === 'working_set') {
-    return await resolveWorkingSetComparisonSide(this, workingSets, selector);
+    const workingSetSelector = /** @type {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} */ (selector);
+    return await resolveWorkingSetComparisonSide(this, workingSets, workingSetSelector);
   }
 
-  return await resolveWorkingSetBaseComparisonSide(this, workingSets, selector);
+  const baseSelector = /** @type {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} */ (selector);
+  return await resolveWorkingSetBaseComparisonSide(this, workingSets, baseSelector);
 }
 
 /**

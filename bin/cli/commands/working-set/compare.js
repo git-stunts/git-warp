@@ -24,6 +24,7 @@ const compareWorkingSetSchema = z.object({
   'against-lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val, ctx) => {
   const rawAgainst = val.against.trim();
+  /** @type {'base'|'live'|{ kind: 'working_set', workingSetId: string }} */
   let against;
   if (rawAgainst === 'base' || rawAgainst === 'live') {
     against = rawAgainst;
@@ -41,14 +42,21 @@ const compareWorkingSetSchema = z.object({
     return z.NEVER;
   }
 
+  const comparisonOptions = /** @type {{
+    against?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
+    ceiling?: number|null,
+    againstCeiling?: number|null,
+    targetId?: string|null
+  }} */ ({
+    against,
+    ceiling: val['lamport-ceiling'] ?? null,
+    againstCeiling: val['against-lamport-ceiling'] ?? null,
+    targetId: val['target-id'],
+  });
+
   return {
     againstRaw: rawAgainst,
-    comparisonOptions: {
-      against,
-      ceiling: val['lamport-ceiling'] ?? null,
-      againstCeiling: val['against-lamport-ceiling'] ?? null,
-      targetId: val['target-id'],
-    },
+    comparisonOptions,
   };
 });
 
