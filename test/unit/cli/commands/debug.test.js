@@ -9,6 +9,39 @@ vi.mock('../../../../bin/cli/shared.js', () => ({
 const { openGraph, readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.js');
 const handleDebug = (await import('../../../../bin/cli/commands/debug.js')).default;
 
+/**
+ * @typedef {{
+ *   workingSetId?: string,
+ *   baseLamportCeiling?: number|null,
+ *   overlayHeadPatchSha?: string,
+ *   overlayPatchCount?: number,
+ *   overlayWritable?: boolean,
+ *   readOverlays?: Array<{workingSetId: string}>
+ * }} WorkingSetDescriptorOverrides
+ */
+
+/**
+ * @param {WorkingSetDescriptorOverrides} [overrides]
+ */
+function makeWorkingSetDescriptor(overrides = {}) {
+  return {
+    workingSetId: overrides.workingSetId ?? 'ws_review',
+    baseObservation: {
+      lamportCeiling: overrides.baseLamportCeiling ?? null,
+    },
+    overlay: {
+      headPatchSha: overrides.overlayHeadPatchSha ?? 'a'.repeat(40),
+      patchCount: overrides.overlayPatchCount ?? 1,
+      writable: overrides.overlayWritable ?? false,
+    },
+    braid: {
+      readOverlays: overrides.readOverlays ?? [
+        { workingSetId: 'ws_hold' },
+      ],
+    },
+  };
+}
+
 describe('handleDebug', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -277,20 +310,30 @@ describe('handleDebug', () => {
       reads: ['n1'],
       writes: ['n1'],
     });
+    const getWorkingSet = vi.fn().mockResolvedValue(makeWorkingSetDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { patchesForWorkingSet, loadPatchBySha },
+      graph: { getWorkingSet, patchesForWorkingSet, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
     /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 2 });
 
-    await handleDebug({
+    const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
       args: ['provenance', '--working-set', 'ws_review', '--entity-id', 'n1'],
     });
 
     expect(patchesForWorkingSet).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
+    expect(getWorkingSet).toHaveBeenCalledWith('ws_review');
+    expect(/** @type {any} */ (result.payload).workingSet).toMatchObject({
+      workingSetId: 'ws_review',
+      overlayWritable: false,
+      braid: {
+        readOverlayCount: 1,
+        braidedWorkingSetIds: ['ws_hold'],
+      },
+    });
   });
 
   it('inspects a cross-writer timeline with cursor-aware ceiling and newest-window limiting', async () => {
@@ -388,9 +431,10 @@ describe('handleDebug', () => {
         },
       },
     ]);
+    const getWorkingSet = vi.fn().mockResolvedValue(makeWorkingSetDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { getWorkingSetPatches },
+      graph: { getWorkingSet, getWorkingSetPatches },
       graphName: 'demo',
       persistence: {},
     });
@@ -406,6 +450,13 @@ describe('handleDebug', () => {
       graph: 'demo',
       debugTopic: 'timeline',
       workingSetId: 'ws_review',
+      workingSet: {
+        overlayWritable: false,
+        braid: {
+          readOverlayCount: 1,
+          braidedWorkingSetIds: ['ws_hold'],
+        },
+      },
       totalEntries: 2,
       returnedEntries: 2,
     });
@@ -421,9 +472,10 @@ describe('handleDebug', () => {
       reads: ['n1'],
       writes: ['n1'],
     });
+    const getWorkingSet = vi.fn().mockResolvedValue(makeWorkingSetDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { patchesForWorkingSet, loadPatchBySha },
+      graph: { getWorkingSet, patchesForWorkingSet, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
@@ -440,6 +492,13 @@ describe('handleDebug', () => {
       graph: 'demo',
       debugTopic: 'timeline',
       workingSetId: 'ws_review',
+      workingSet: {
+        overlayWritable: false,
+        braid: {
+          readOverlayCount: 1,
+          braidedWorkingSetIds: ['ws_hold'],
+        },
+      },
       filters: {
         entityId: 'n1',
         lamportCeiling: 2,
@@ -522,19 +581,29 @@ describe('handleDebug', () => {
         },
       ],
     });
+    const getWorkingSet = vi.fn().mockResolvedValue(makeWorkingSetDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { materializeWorkingSet },
+      graph: { getWorkingSet, materializeWorkingSet },
       graphName: 'demo',
       persistence: {},
     });
     /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
 
-    await handleDebug({
+    const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
       args: ['receipts', '--working-set', 'ws_review'],
     });
 
+    expect(getWorkingSet).toHaveBeenCalledWith('ws_review');
     expect(materializeWorkingSet).toHaveBeenCalledWith('ws_review', { receipts: true });
+    expect(/** @type {any} */ (result.payload).workingSet).toMatchObject({
+      workingSetId: 'ws_review',
+      overlayWritable: false,
+      braid: {
+        readOverlayCount: 1,
+        braidedWorkingSetIds: ['ws_hold'],
+      },
+    });
   });
 });

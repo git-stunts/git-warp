@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.12.0] — 2026-03-18
+
+### Added
+
+- **Braid-aware debug payload context** — `git warp debug timeline`, `debug provenance`, and `debug receipts` now report resolved working-set backing facts when `--working-set <id>` is selected, including the base Lamport ceiling, target overlay head/count/writability, and pinned braid support IDs.
+
+### Changed
+
+- **Debugger truth is now explicit across braid-backed reads** — `debug conflicts` text rendering now shows the same working-set overlay/braid context as the other working-set-aware debugger topics, and the debugger/working-set docs now explain that receipts, provenance, and timeline inspection operate over the braid-visible patch universe rather than leaving that backing context implicit.
+
 ## [14.11.0] — 2026-03-17
 
 ### Added

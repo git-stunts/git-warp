@@ -214,12 +214,24 @@ Supported debugger topics can now inspect a working set directly with `--working
 - `debug provenance`
 - `debug receipts`
 
+When those topics inspect a working set, the debug payload/output can now
+report the resolved backing descriptor context directly:
+
+- base Lamport ceiling
+- target overlay head SHA and patch count
+- target overlay writability
+- pinned braid support working-set IDs
+
 Coordinate comparison is adjacent but separate:
 
 - `working-set compare` is read-only, but it lives under `working-set` because it compares durable coordinates rather than acting as a single-observation debugger topic
 - library code can use `compareWorkingSet()`, `compareCoordinates()`, or `compareVisibleStateV5()` over the same substrate truth
 
 That read-side support changes the visible patch universe, not the reducer rules. `reduceV5` remains worldline-blind.
+
+This matters more once braids exist: provenance, receipts, timelines, and
+conflict traces are only operationally honest if operators can see which
+braid-visible surface they actually inspected.
 
 That boundary keeps the debugger from turning into a mutation channel while still letting higher layers build real fork/worldline behavior on top of working sets.
 
@@ -245,6 +257,7 @@ The key substrate invariants are:
 - braided support overlays are pinned by head SHA at braid time rather than live-following another working set
 - target-owned braid refs keep those pinned support heads reachable even if the source working set is later dropped
 - analyzers and materializers decide which patches are visible
+- debugger payloads and text rendering can surface the pinned braid support IDs and target overlay status directly, so braid-visible inspection stays auditable
 - `reduceV5` stays deterministic and working-set/worldline blind
 
 `compose`, `mount`, and `superpose` may still appear in explanatory prose, but

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.js';
 
 import {
+  loadWorkingSetContextForDebug,
   materializeForDebug,
   openDebugContext,
   resolveLamportCeiling,
@@ -45,6 +46,9 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugProvenanceSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
+  const workingSet = values.workingSetId
+    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+    : null;
   const shas = values.workingSetId
     ? await graph.patchesForWorkingSet(
         values.workingSetId,
@@ -72,6 +76,7 @@ export async function handleDebugTopic({ options, args }) {
       graph: graphName,
       debugTopic: 'provenance',
       ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
+      ...(workingSet ? { workingSet } : {}),
       entityId: values.entityId,
       lamportCeiling,
       totalPatches: entries.length,

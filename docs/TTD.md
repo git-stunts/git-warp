@@ -135,6 +135,7 @@ In practice:
 - `debug provenance` and `debug timeline` inspect either the live provenance view or the visible working-set patch universe without mutating graph state.
 - `debug receipts` uses explicit materialization over the live frontier or a pinned working set without mutating seek state or graph state.
 - debug topics may consult the active seek cursor, but they do not mutate it.
+- when `--working-set <id>` is selected, braid-aware topics can surface the resolved working-set backing facts directly in payload/output: base ceiling, overlay head/count/writability, and pinned braid support IDs
 
 When a selected working set carries braided read-only overlays, those debug
 topics inspect the resulting braid-visible patch universe automatically because
@@ -159,6 +160,7 @@ This keeps TTD aligned with the current git-warp substrate model:
 - debug topics inspect facts at that position
 - `debug coordinate` remains live-frontier/cursor scoped for now
 - `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set, including any pinned braid support overlays, without teaching the reducer about worldlines
+- those braid-aware debug topics can also report which pinned overlay/braid context backed the read, so receipts and provenance stay auditable instead of implicit
 - `working-set compare` handles deterministic coordinate/working-set divergence reads outside the debugger family
 - `working-set braid` changes descriptor visibility, not debugger semantics
 - explicit working-set descriptors pin positions without mutating the debugger family

@@ -33,7 +33,7 @@ git-warp now includes a thin **Time Travel Debugger (TTD)** command family in th
 
 - **Domain/core** owns substrate analyzers, receipts, provenance, and materialization facts.
 - **CLI adapters** expose those facts through `seek`, `debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts`.
-- **Presenters** format the results for text, JSON, or NDJSON.
+- **Presenters** format the results for text, JSON, or NDJSON, including resolved working-set overlay and braid context when a debugger topic inspects a pinned working set.
 - **Human-facing debugger applications do not live in git-warp.**
 
 This keeps git-warp as substrate plus thin inspection tooling rather than turning the package into a TUI/web application shell. See [docs/TTD.md](docs/TTD.md) for the dedicated debugger architecture note.
@@ -60,6 +60,7 @@ The active substrate model is still narrow and substrate-first:
 - zero or more braided read-only overlays can be pinned onto the same base observation
 - target-owned braid refs keep those pinned support-overlay heads reachable as durable substrate facts
 - read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, `createStateReaderV5()`, `compareVisibleStateV5()`, `compareWorkingSet()`, `compareCoordinates()`, and working-set-aware conflict analysis operate on the visible `base + braided overlays + active overlay` patch universe
+- debugger payloads can report the selected working-set backing facts directly: base ceiling, overlay head/count/writability, and pinned braid support IDs
 - comparison helpers report substrate facts such as visible patch divergence plus node/edge/property deltas instead of higher-layer review or governance meaning
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API

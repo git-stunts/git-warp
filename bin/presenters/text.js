@@ -27,6 +27,17 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{ type: string, node?: string, from?: string, to?: string, label?: string, key?: string, value?: unknown }} PatchOp
  * @typedef {{ graph: string, sha: string, writer: string, lamport: number, schema?: number, ops: PatchOp[] }} PatchShowPayload
  * @typedef {{ graph: string, total: number, showing: number, writerFilter?: string | null, entries: Array<{ sha: string, writer: string, lamport: number, opCount: number, nodeIds: string[] }> }} PatchListPayload
+ * @typedef {{
+ *   workingSetId: string,
+ *   baseLamportCeiling: number|null,
+ *   overlayHeadPatchSha: string|null,
+ *   overlayPatchCount: number,
+ *   overlayWritable: boolean,
+ *   braid: {
+ *     readOverlayCount: number,
+ *     braidedWorkingSetIds: string[]
+ *   }
+ * }} WorkingSetDebugContext
  * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts', workingSetId?: string }} DebugConflictsPayload
  * @typedef {{
  *   graph: string,
@@ -56,6 +67,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *   graph: string,
  *   debugTopic: 'provenance',
  *   workingSetId?: string,
+ *   workingSet?: WorkingSetDebugContext,
  *   entityId: string,
  *   lamportCeiling: number|null,
  *   totalPatches: number,
@@ -77,6 +89,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *   graph: string,
  *   debugTopic: 'receipts',
  *   workingSetId?: string,
+ *   workingSet?: WorkingSetDebugContext,
  *   lamportCeiling: number|null,
  *   filters: {
  *     writerId: string|null,
@@ -111,6 +124,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  *   graph: string,
  *   debugTopic: 'timeline',
  *   workingSetId?: string,
+ *   workingSet?: WorkingSetDebugContext,
  *   coordinateSource: 'explicit'|'cursor'|'frontier',
  *   filters: {
  *     entityId: string|null,
@@ -855,6 +869,18 @@ function formatOpSummaryInline(summary) {
   return entries.length > 0 ? entries.join(', ') : 'none';
 }
 
+/**
+ * @param {{ overlayHeadPatchSha: string|null, overlayPatchCount: number, baseLamportCeiling: number|null, overlayWritable: boolean, braid?: { braidedWorkingSetIds: string[] } }} workingSet
+ * @returns {string[]}
+ */
+function renderWorkingSetDebugContextLines(workingSet) {
+  const braidedWorkingSetIds = workingSet.braid?.braidedWorkingSetIds ?? [];
+  return [
+    `Working-Set Overlay: head=${workingSet.overlayHeadPatchSha ?? 'none'} patches=${workingSet.overlayPatchCount} base-ceiling=${workingSet.baseLamportCeiling ?? 'latest'} writable=${workingSet.overlayWritable ? 'yes' : 'no'}`,
+    `Working-Set Braids: ${braidedWorkingSetIds.length === 0 ? 'none' : braidedWorkingSetIds.join(', ')}`,
+  ];
+}
+
 /** @param {DebugConflictsPayload} payload */
 function renderDebugConflicts(payload) {
   const lines = [
@@ -870,9 +896,7 @@ function renderDebugConflicts(payload) {
   ];
 
   if (payload.resolvedCoordinate.workingSet) {
-    lines.push(
-      `Overlay: head=${payload.resolvedCoordinate.workingSet.overlayHeadPatchSha ?? 'none'} patches=${payload.resolvedCoordinate.workingSet.overlayPatchCount} base-ceiling=${payload.resolvedCoordinate.workingSet.baseLamportCeiling ?? 'latest'}`
-    );
+    lines.push(...renderWorkingSetDebugContextLines(payload.resolvedCoordinate.workingSet));
   }
 
   if (payload.diagnostics && payload.diagnostics.length > 0) {
@@ -960,6 +984,9 @@ function renderDebugProvenance(payload) {
   if (payload.truncated) {
     lines.push('Truncated: yes');
   }
+  if (payload.workingSet) {
+    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
+  }
 
   for (const entry of payload.entries) {
     const ioParts = [];
@@ -1011,6 +1038,9 @@ function renderDebugReceipts(payload) {
   if (payload.truncated) {
     lines.push('Truncated: yes');
   }
+  if (payload.workingSet) {
+    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
+  }
   lines.push(`Op Types: ${formatOpSummaryInline(payload.summary.opTypes)}`);
 
   for (const receipt of payload.receipts) {
@@ -1048,6 +1078,9 @@ function renderDebugTimeline(payload) {
   }
   if (payload.truncated) {
     lines.push('Truncated: yes (newest window)');
+  }
+  if (payload.workingSet) {
+    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
   }
 
   for (const entry of payload.entries) {

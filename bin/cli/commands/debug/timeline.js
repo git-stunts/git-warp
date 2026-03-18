@@ -4,6 +4,7 @@ import { EXIT_CODES, notFoundError, parseCommandArgs } from '../../infrastructur
 
 import {
   getWorkingSetPatchEntriesForDebug,
+  loadWorkingSetContextForDebug,
   openDebugContext,
   resolveLamportCeiling,
   sortPatchEntriesCausally,
@@ -227,6 +228,9 @@ export async function handleDebugTopic({ options, args }) {
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const coordinateSource = resolveCoordinateSource(values.lamportCeiling, activeCursor);
+  const workingSet = values.workingSetId
+    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+    : null;
   const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
 
   if (entries.length === 0 && values.writerId && !values.workingSetId) {
@@ -247,6 +251,7 @@ export async function handleDebugTopic({ options, args }) {
       debugTopic: 'timeline',
       coordinateSource,
       ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
+      ...(workingSet ? { workingSet } : {}),
       filters: {
         entityId: values.entityId,
         writerId: values.writerId,

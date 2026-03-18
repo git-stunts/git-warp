@@ -6,6 +6,7 @@ import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.js';
 import {
   compareNumbers,
   compareStrings,
+  loadWorkingSetContextForDebug,
   matchesShaPrefix,
   materializeForDebug,
   openDebugContext,
@@ -174,6 +175,25 @@ function filterReceipt(receipt, filters) {
 }
 
 /**
+ * @param {{
+ *   graph: import('../../types.js').WarpGraphInstance,
+ *   lamportCeiling: number|null,
+ *   workingSetId: string|null
+ * }} params
+ * @returns {Promise<TickReceipt[]>}
+ */
+async function loadReceipts({ graph, lamportCeiling, workingSetId }) {
+  const materialized = /** @type {{state: unknown, receipts: TickReceipt[]}} */ (
+    await materializeForDebug(graph, {
+      lamportCeiling,
+      collectReceipts: true,
+      workingSetId,
+    })
+  );
+  return materialized.receipts;
+}
+
+/**
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -182,15 +202,14 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugReceiptsSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-
-  const materialized = /** @type {{state: unknown, receipts: TickReceipt[]}} */ (
-    await materializeForDebug(graph, {
-      lamportCeiling,
-      collectReceipts: true,
-      workingSetId: values.workingSetId,
-    })
-  );
-  const sortedReceipts = sortReceipts(materialized.receipts);
+  const workingSet = values.workingSetId
+    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+    : null;
+  const sortedReceipts = sortReceipts(await loadReceipts({
+    graph,
+    lamportCeiling,
+    workingSetId: values.workingSetId,
+  }));
   const filteredReceipts = sortedReceipts
     .map((receipt) => filterReceipt(receipt, values))
     .filter((receipt) => receipt !== null);
@@ -204,6 +223,7 @@ export async function handleDebugTopic({ options, args }) {
       graph: graphName,
       debugTopic: 'receipts',
       ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
+      ...(workingSet ? { workingSet } : {}),
       lamportCeiling,
       filters: {
         writerId: values.writerId,

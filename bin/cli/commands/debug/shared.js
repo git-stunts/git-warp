@@ -4,6 +4,7 @@ import {
   readActiveCursor,
   emitCursorWarning,
 } from '../../shared.js';
+import { notFoundError } from '../../infrastructure.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 /** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
@@ -86,6 +87,49 @@ export async function getWorkingSetPatchEntriesForDebug(graph, workingSetId, lam
     return await debugGraph.getWorkingSetPatches(workingSetId);
   }
   return await debugGraph.getWorkingSetPatches(workingSetId, { ceiling: lamportCeiling });
+}
+
+/**
+ * @param {import('../../../../index.js').WorkingSetDescriptor} workingSet
+ * @returns {{
+ *   workingSetId: string,
+ *   baseLamportCeiling: number|null,
+ *   overlayHeadPatchSha: string|null,
+ *   overlayPatchCount: number,
+ *   overlayWritable: boolean,
+ *   braid: {
+ *     readOverlayCount: number,
+ *     braidedWorkingSetIds: string[]
+ *   }
+ * }}
+ */
+export function summarizeWorkingSetContextForDebug(workingSet) {
+  return {
+    workingSetId: workingSet.workingSetId,
+    baseLamportCeiling: workingSet.baseObservation.lamportCeiling,
+    overlayHeadPatchSha: workingSet.overlay.headPatchSha,
+    overlayPatchCount: workingSet.overlay.patchCount,
+    overlayWritable: workingSet.overlay.writable,
+    braid: {
+      readOverlayCount: workingSet.braid.readOverlays.length,
+      braidedWorkingSetIds: workingSet.braid.readOverlays
+        .map((overlay) => overlay.workingSetId)
+        .sort(compareStrings),
+    },
+  };
+}
+
+/**
+ * @param {WarpGraphInstance} graph
+ * @param {string} workingSetId
+ * @returns {Promise<ReturnType<typeof summarizeWorkingSetContextForDebug>>}
+ */
+export async function loadWorkingSetContextForDebug(graph, workingSetId) {
+  const workingSet = await graph.getWorkingSet(workingSetId);
+  if (!workingSet) {
+    throw notFoundError(`Working set not found: ${workingSetId}`);
+  }
+  return summarizeWorkingSetContextForDebug(workingSet);
 }
 
 /**

@@ -483,6 +483,46 @@ describe('WarpGraph working-set foundation', () => {
     await expect(persistence.readRef(braidRef)).resolves.toBeNull();
   });
 
+  it('braid-visible patch inspection and receipts include pinned support overlays automatically', async () => {
+    const baseSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['n1'],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_target', owner: 'alice' });
+    await graph.createWorkingSet({ workingSetId: 'ws_support', owner: 'alice' });
+
+    const supportSha = await graph.patchWorkingSet('ws_support', (p) => {
+      p.setProperty('n1', 'support', 'held');
+    });
+    const targetSha = await graph.patchWorkingSet('ws_target', (p) => {
+      p.setProperty('n1', 'status', 'target');
+    });
+
+    await graph.braidWorkingSet('ws_target', {
+      braidedWorkingSetIds: ['ws_support'],
+    });
+
+    const entries = await graph.getWorkingSetPatches('ws_target');
+    expect(entries.map(({ sha }) => sha).sort()).toEqual([baseSha, supportSha, targetSha].sort());
+
+    const shas = await graph.patchesForWorkingSet('ws_target', 'n1');
+    expect(shas).toEqual([baseSha, supportSha, targetSha].sort());
+
+    const materialized = await graph.materializeWorkingSet('ws_target', { receipts: true });
+    expect(materialized.receipts.map((receipt) => receipt.patchSha).sort()).toEqual(
+      [baseSha, supportSha, targetSha].sort(),
+    );
+  });
+
   it('getWorkingSetPatches returns the visible base-plus-overlay entries for a working set', async () => {
     await simulatePatchCommit(persistence, {
       graphName,

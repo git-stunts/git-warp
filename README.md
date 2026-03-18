@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.12.0
+
+- **Braid-aware debugger reads now surface their backing working-set context explicitly** — `git warp debug timeline`, `debug provenance`, and `debug receipts` now include the resolved working-set overlay head, patch count, writability, base Lamport ceiling, and pinned braid support IDs when `--working-set <id>` is selected.
+- **Readable/debuggable braid truth is now consistent across analyzer and receipt views** — `debug conflicts` now renders the same working-set overlay and braid context that the other debugger topics report, so operators can see which braid-visible patch universe produced the result instead of inferring it indirectly.
+- **Working-set patch inspection and receipts stay braid-honest by default** — the debugger and library reads continue to resolve against `base + braided read-only overlays + active overlay`, and the docs now make that explicit for receipts, provenance, and timeline inspection.
+
 ## What's New in v14.11.0
 
 - **Braided working-set composition is now a real substrate primitive** — `WarpGraph.braidWorkingSet()` pins zero or more read-only support overlays on top of a target working set's shared base observation while keeping the target overlay optionally writable.
@@ -38,7 +44,7 @@
 
 - **Conflict analysis is now working-set aware** — `WarpGraph.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.
 - **Working-set reads gained first-class patch, provenance, and ceiling support** — `getWorkingSetPatches()` and `patchesForWorkingSet()` expose the visible `base + overlay` patch universe directly, and `materializeWorkingSet()` now accepts an optional runtime ceiling for explicit replay/debug slices.
-- **The built-in TTD can inspect working sets directly** — `git warp debug conflicts`, `debug timeline`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and agents can inspect a speculative lane without inventing separate tooling.
+- **The built-in TTD can inspect working sets directly** — `git warp debug conflicts`, `debug timeline`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and agents can inspect a speculative lane without inventing separate tooling, and braid-aware debug payloads now report the resolved working-set backing context explicitly.
 - **Docs now describe the debugger/working-set join cleanly** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the read-side worldline boundary without pretending the reducer itself became worldline-aware.
 
 See the [full changelog](CHANGELOG.md) for complete release details.

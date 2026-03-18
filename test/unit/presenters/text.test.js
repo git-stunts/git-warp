@@ -10,6 +10,7 @@ import {
   renderMaterialize,
   renderInstallHooks,
   renderWorkingSet,
+  renderDebug,
   renderSeek,
 } from '../../../bin/presenters/text.js';
 
@@ -431,5 +432,36 @@ describe('renderWorkingSet', () => {
     expect(out).toContain('Comparison Digest: abc123');
     expect(out).toContain('Patch Divergence: shared=1 leftOnly=1 rightOnly=1');
     expect(out).toContain('Target State (n1): changed=yes');
+  });
+});
+
+describe('renderDebug', () => {
+  it('renders braid-aware working-set context on provenance payloads', () => {
+    const out = stripAnsi(renderDebug({
+      graph: 'g',
+      debugTopic: 'provenance',
+      workingSetId: 'ws_review',
+      workingSet: {
+        workingSetId: 'ws_review',
+        baseLamportCeiling: null,
+        overlayHeadPatchSha: 'a'.repeat(40),
+        overlayPatchCount: 1,
+        overlayWritable: false,
+        braid: {
+          readOverlayCount: 1,
+          braidedWorkingSetIds: ['ws_hold'],
+        },
+      },
+      entityId: 'n1',
+      lamportCeiling: 2,
+      totalPatches: 1,
+      returnedPatches: 1,
+      truncated: false,
+      entries: [],
+    }));
+
+    expect(out).toContain('Working-Set Overlay: head=');
+    expect(out).toContain('writable=no');
+    expect(out).toContain('Working-Set Braids: ws_hold');
   });
 });
