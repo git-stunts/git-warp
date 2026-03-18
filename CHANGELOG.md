@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.14.0] — 2026-03-18
+
+### Added
+
+- **Canonical coordinate fact exports** — Added `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` as public substrate helpers for exporting comparison and transfer-plan facts in a deterministic JSON-safe envelope, including canonical JSON and the already-computed substrate fact digest.
+
+### Changed
+
+- **Comparison and transfer-plan docs now describe portable substrate facts explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can record or attest exported substrate truth without reverse-engineering working-set comparison payloads or stripping raw attachment bytes themselves.
+
 ## [14.13.0] — 2026-03-18
 
 ### Added

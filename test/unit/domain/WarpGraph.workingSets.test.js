@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import WarpGraph from '../../../src/domain/WarpGraph.js';
+import {
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+} from '../../../src/domain/services/CoordinateFactExport.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
@@ -836,6 +840,23 @@ describe('WarpGraph working-set foundation', () => {
     expect(coordinateComparison.visibleState.nodeProperties.changed).toEqual([
       { node: 'n1', key: 'color', leftValue: 'red', rightValue: 'blue' },
     ]);
+
+    const factExport = exportCoordinateComparisonFact(coordinateComparison);
+    expect(factExport).toEqual({
+      exportVersion: 'coordinate-comparison-fact/v1',
+      factKind: 'coordinate-comparison',
+      factDigest: coordinateComparison.comparisonDigest,
+      canonicalFactJson: expect.any(String),
+      fact: {
+        comparisonVersion: coordinateComparison.comparisonVersion,
+        left: coordinateComparison.left,
+        right: coordinateComparison.right,
+        visiblePatchDivergence: coordinateComparison.visiblePatchDivergence,
+        visibleState: coordinateComparison.visibleState,
+      },
+    });
+    expect(JSON.parse(factExport.canonicalFactJson)).toEqual(factExport.fact);
+    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
   });
 
   it('planWorkingSetTransfer emits a deterministic transfer plan including property clears and content attachment updates', async () => {
@@ -924,6 +945,45 @@ describe('WarpGraph working-set foundation', () => {
       size: 14,
     });
     expect(Buffer.from(attachOp.content).toString('utf8')).toBe('worldline-body');
+
+    const factExport = exportCoordinateTransferPlanFact(transferPlan);
+    expect(factExport).toEqual({
+      exportVersion: 'coordinate-transfer-plan-fact/v1',
+      factKind: 'coordinate-transfer-plan',
+      factDigest: transferPlan.transferDigest,
+      canonicalFactJson: expect.any(String),
+      fact: expect.objectContaining({
+        transferVersion: transferPlan.transferVersion,
+        comparisonDigest: transferPlan.comparisonDigest,
+        changed: transferPlan.changed,
+        source: transferPlan.source,
+        target: transferPlan.target,
+        summary: transferPlan.summary,
+        ops: expect.arrayContaining([
+          expect.objectContaining({
+            op: 'set_node_property',
+            nodeId: 'doc:1',
+            key: 'status',
+            value: 'ready',
+          }),
+          expect.objectContaining({
+            op: 'set_node_property',
+            nodeId: 'doc:1',
+            key: 'obsolete',
+            value: null,
+          }),
+          {
+            op: 'attach_node_content',
+            nodeId: 'doc:1',
+            contentOid: attachOp.contentOid,
+            mime: 'text/plain',
+            size: 14,
+          },
+        ]),
+      }),
+    });
+    expect(JSON.parse(factExport.canonicalFactJson)).toEqual(factExport.fact);
+    await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
   });
 
   it('planWorkingSetTransfer includes braided support visibility in the candidate transfer plan', async () => {

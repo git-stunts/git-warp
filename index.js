@@ -123,6 +123,10 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHashV5, projectStateV5 } from './src/domain/services/StateSerializerV5.js';
 import { createStateReaderV5 } from './src/domain/services/StateReaderV5.js';
 import { compareVisibleStateV5 } from './src/domain/services/VisibleStateComparisonV5.js';
+import {
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+} from './src/domain/services/CoordinateFactExport.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -222,6 +226,8 @@ export {
   projectStateV5,
   createStateReaderV5,
   compareVisibleStateV5,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
 
   // WARP migration
   migrateV4toV5,

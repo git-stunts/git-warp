@@ -12,6 +12,10 @@
  */
 
 import QueryError from '../errors/QueryError.js';
+import {
+  buildCoordinateComparisonFact,
+  buildCoordinateTransferPlanFact,
+} from '../services/CoordinateFactExport.js';
 import { createStateReaderV5 } from '../services/StateReaderV5.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
 import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
@@ -803,37 +807,6 @@ async function readContentBlobByOid(graph, oid) {
 }
 
 /**
- * @param {import('../../../index.js').VisibleStateTransferOperationV1[]} ops
- * @returns {Array<Record<string, unknown>>}
- */
-function serializeTransferOpsForDigest(ops) {
-  return ops.map((op) => {
-    switch (op.op) {
-      case 'attach_node_content':
-        return {
-          op: op.op,
-          nodeId: op.nodeId,
-          contentOid: op.contentOid,
-          mime: op.mime ?? null,
-          size: op.size ?? null,
-        };
-      case 'attach_edge_content':
-        return {
-          op: op.op,
-          from: op.from,
-          to: op.to,
-          label: op.label,
-          contentOid: op.contentOid,
-          mime: op.mime ?? null,
-          size: op.size ?? null,
-        };
-      default:
-        return { ...op };
-    }
-  });
-}
-
-/**
  * Plans a deterministic transfer from one working set into live truth, its
  * pinned base observation, or another working set.
  *
@@ -922,18 +895,18 @@ async function finalizeTransferPlan(params) {
       resolved: targetSide.resolved,
     },
   };
-  const payload = {
+  const fact = buildCoordinateTransferPlanFact({
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     comparisonDigest,
     changed,
     ...sharedSides,
     summary: transfer.summary,
-    ops: serializeTransferOpsForDigest(transfer.ops),
-  };
+    ops: transfer.ops,
+  });
 
   return {
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
-    transferDigest: await computeChecksum(payload, graph._crypto),
+    transferDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), graph._crypto),
     comparisonDigest,
     changed,
     ...sharedSides,
@@ -1039,7 +1012,7 @@ export async function compareCoordinates(options) {
   const visiblePatchDivergence = buildPatchDivergence(left.patchEntries, right.patchEntries, targetId);
   const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
 
-  const payload = {
+  const fact = buildCoordinateComparisonFact({
     comparisonVersion: COORDINATE_COMPARISON_VERSION,
     left: {
       requested: left.requested,
@@ -1051,11 +1024,11 @@ export async function compareCoordinates(options) {
     },
     visiblePatchDivergence,
     visibleState,
-  };
-  const comparisonDigest = await computeChecksum(payload, this._crypto);
+  });
+  const comparisonDigest = await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), this._crypto);
 
   return {
-    ...payload,
+    ...fact,
     comparisonDigest,
   };
 }

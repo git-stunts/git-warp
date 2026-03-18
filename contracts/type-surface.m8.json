@@ -1224,6 +1224,12 @@
     "createStateReaderV5": {
       "kind": "function"
     },
+    "exportCoordinateComparisonFact": {
+      "kind": "function"
+    },
+    "exportCoordinateTransferPlanFact": {
+      "kind": "function"
+    },
     "projectStateV5": {
       "kind": "function"
     },
@@ -1378,6 +1384,12 @@
     "CoordinateComparisonPatchDivergenceV1": {
       "kind": "interface"
     },
+    "CoordinateComparisonFactExportV1": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonFactV1": {
+      "kind": "interface"
+    },
     "CoordinateComparisonResolvedSideV1": {
       "kind": "interface"
     },
@@ -1395,6 +1407,12 @@
     },
     "CoordinateTransferPlanSideV1": {
       "kind": "type"
+    },
+    "CoordinateTransferPlanFactExportV1": {
+      "kind": "interface"
+    },
+    "CoordinateTransferPlanFactV1": {
+      "kind": "interface"
     },
     "CoordinateTransferPlanV1": {
       "kind": "interface"
@@ -1676,6 +1694,9 @@
       "kind": "interface"
     },
     "VisibleStateTransferOperationV1": {
+      "kind": "type"
+    },
+    "VisibleStateTransferOperationFactV1": {
       "kind": "type"
     },
     "VisibleStateTransferPlanSummaryV1": {

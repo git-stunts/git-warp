@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.14.0
+
+- **Coordinate comparison and transfer-plan facts are now exportable as first-class substrate envelopes** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` publish the exact deterministic fact payload behind `comparisonDigest` and `transferDigest`, plus canonical JSON for higher-layer recording.
+- **Transfer-plan exports stay JSON-safe without losing attachment truth** — exported transfer facts replace raw content bytes with `contentOid` / `mime` / `size`, so higher layers can persist or attest the substrate plan without re-sanitizing it.
+- **The working-set docs now show how to carry substrate facts upward cleanly** — higher layers like XYPH can keep governance meaning on their side while reusing git-warp’s canonical factual envelope directly.
+
 ## What's New in v14.13.0
 
 - **Deterministic transfer planning is now a first-class substrate helper** — `WarpGraph.planWorkingSetTransfer()` and `WarpGraph.planCoordinateTransfer()` extract a candidate transfer plan from one visible patch universe onto another without mutating either side.
@@ -707,6 +713,32 @@ git warp working-set compare review-auth --against working-set:review-auth-b --t
 
 # Extract a machine-readable transfer plan without mutating either side
 git warp working-set transfer-plan review-auth --into live --json
+```
+
+When a higher layer needs to carry that same substrate truth across a process or
+governance boundary, the library can export a canonical fact envelope directly:
+
+```javascript
+import {
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+} from '@git-stunts/git-warp';
+
+const comparison = await graph.compareCoordinates({
+  left: { kind: 'working_set', workingSetId: 'review-auth' },
+  right: { kind: 'live' },
+  targetId: 'user:alice',
+});
+const comparisonFact = exportCoordinateComparisonFact(comparison);
+
+const transferPlan = await graph.planCoordinateTransfer({
+  source: { kind: 'working_set', workingSetId: 'review-auth' },
+  target: { kind: 'live' },
+});
+const transferFact = exportCoordinateTransferPlanFact(transferPlan);
+
+// `factDigest` is the substrate digest; `canonicalFactJson` is ready to store.
+console.log(comparisonFact.factDigest, transferFact.factDigest);
 ```
 
 All commands accept `--repo <path>` to target a specific Git repository, `--json` for machine-readable output, and `--view [mode]` for visual output (ascii by default, or `svg:FILE`, `html:FILE`).

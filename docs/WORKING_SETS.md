@@ -160,6 +160,31 @@ Comparison stays in the same substrate lane. The new comparison helpers return:
 
 They do **not** invent review, approval, or governance semantics.
 
+When a higher layer needs a portable substrate fact rather than an in-process
+result object, git-warp now exports that exact digest basis directly:
+
+```javascript
+import {
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+} from '@git-stunts/git-warp';
+
+const comparisonFact = exportCoordinateComparisonFact(coordinateComparison);
+const transferFact = exportCoordinateTransferPlanFact(
+  await graph.planCoordinateTransfer({
+    source: { kind: 'working_set', workingSetId: 'review-auth' },
+    target: { kind: 'live' },
+  }),
+);
+```
+
+Those exports stay substrate-only:
+
+- `factDigest` reuses the underlying substrate digest
+- `canonicalFactJson` is deterministic and ready for higher-layer storage
+- transfer-plan exports strip raw attachment bytes while preserving
+  `contentOid` / `mime` / `size`
+
 ## CLI Surface
 
 The main CLI exposes the same substrate family directly:
@@ -227,11 +252,13 @@ Coordinate comparison is adjacent but separate:
 
 - `working-set compare` is read-only, but it lives under `working-set` because it compares durable coordinates rather than acting as a single-observation debugger topic
 - library code can use `compareWorkingSet()`, `compareCoordinates()`, or `compareVisibleStateV5()` over the same substrate truth
+- library code can call `exportCoordinateComparisonFact()` when it needs to carry the exact comparison fact across a higher-layer boundary
 
 Transfer planning is the next read-only substrate step:
 
 - `working-set transfer-plan` extracts a deterministic candidate transfer from one visible patch universe onto another without mutating either side
 - library code can use `planWorkingSetTransfer()` or `planCoordinateTransfer()` to get the same transfer digest, resolved coordinates, and operation list
+- library code can call `exportCoordinateTransferPlanFact()` to get the same transfer fact in canonical JSON-safe form
 - transfer ops stay substrate-factual:
   - add/remove node
   - add/remove edge

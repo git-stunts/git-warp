@@ -842,6 +842,22 @@ export function compareVisibleStateV5(
 ): VisibleStateComparisonV5;
 
 /**
+ * Exports the exact deterministic substrate fact hashed by a coordinate
+ * comparison digest as a JSON-safe envelope for higher-layer storage.
+ */
+export function exportCoordinateComparisonFact(
+  comparison: CoordinateComparisonV1,
+): CoordinateComparisonFactExportV1;
+
+/**
+ * Exports the exact deterministic substrate fact hashed by a coordinate
+ * transfer-plan digest as a JSON-safe envelope without raw attachment bytes.
+ */
+export function exportCoordinateTransferPlanFact(
+  transferPlan: CoordinateTransferPlanV1,
+): CoordinateTransferPlanFactExportV1;
+
+/**
  * Service for querying a loaded bitmap index.
  *
  * Provides O(1) lookups via lazy-loaded sharded bitmap data.
@@ -2919,6 +2935,22 @@ export interface CoordinateComparisonV1 {
   visibleState: VisibleStateComparisonV5;
 }
 
+export interface CoordinateComparisonFactV1 {
+  comparisonVersion: string;
+  left: CoordinateComparisonSideV1;
+  right: CoordinateComparisonSideV1;
+  visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
+  visibleState: VisibleStateComparisonV5;
+}
+
+export interface CoordinateComparisonFactExportV1 {
+  exportVersion: string;
+  factKind: 'coordinate-comparison';
+  factDigest: string;
+  canonicalFactJson: string;
+  fact: CoordinateComparisonFactV1;
+}
+
 export interface VisibleStateTransferPlanSummaryV1 {
   opCount: number;
   addNodeCount: number;
@@ -2947,6 +2979,18 @@ export type VisibleStateTransferOperationV1 =
   | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
   | { op: 'clear_edge_content'; from: string; to: string; label: string };
 
+export type VisibleStateTransferOperationFactV1 =
+  | { op: 'add_node'; nodeId: string }
+  | { op: 'remove_node'; nodeId: string }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'add_edge'; from: string; to: string; label: string }
+  | { op: 'remove_edge'; from: string; to: string; label: string }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'attach_node_content'; nodeId: string; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_node_content'; nodeId: string }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_edge_content'; from: string; to: string; label: string };
+
 export type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
 
 export interface CoordinateTransferPlanV1 {
@@ -2958,6 +3002,24 @@ export interface CoordinateTransferPlanV1 {
   target: CoordinateTransferPlanSideV1;
   summary: VisibleStateTransferPlanSummaryV1;
   ops: VisibleStateTransferOperationV1[];
+}
+
+export interface CoordinateTransferPlanFactV1 {
+  transferVersion: string;
+  comparisonDigest: string;
+  changed: boolean;
+  source: CoordinateTransferPlanSideV1;
+  target: CoordinateTransferPlanSideV1;
+  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperationFactV1[];
+}
+
+export interface CoordinateTransferPlanFactExportV1 {
+  exportVersion: string;
+  factKind: 'coordinate-transfer-plan';
+  factDigest: string;
+  canonicalFactJson: string;
+  fact: CoordinateTransferPlanFactV1;
 }
 
 /**

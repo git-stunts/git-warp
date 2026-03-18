@@ -76,6 +76,8 @@ import WarpGraph, {
   computeTranslationCost,
   createStateReaderV5,
   compareVisibleStateV5,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
   migrateV4toV5,
   encodeEdgePropKey,
   decodeEdgePropKey,
@@ -112,7 +114,9 @@ import type {
   VisibleStateReaderV5,
   CoordinateComparisonSelectorV1,
   CoordinateComparisonV1,
+  CoordinateComparisonFactExportV1,
   CoordinateTransferPlanV1,
+  CoordinateTransferPlanFactExportV1,
   WorkingSetBraidOptions,
   WorkingSetDescriptor,
   LogicalTraversal,
@@ -316,6 +320,8 @@ const coordinateTransferPlan: CoordinateTransferPlanV1 = await graph.planCoordin
   source: { kind: 'working_set', workingSetId: 'ws_demo' },
   target: { kind: 'live' },
 });
+const coordinateComparisonFactExport: CoordinateComparisonFactExportV1 = exportCoordinateComparisonFact(coordinateComparison);
+const coordinateTransferPlanFactExport: CoordinateTransferPlanFactExportV1 = exportCoordinateTransferPlanFact(coordinateTransferPlan);
 const _comparisonDigestPair: [string, string] = [
   coordinateComparison.comparisonDigest,
   workingSetComparison.comparisonDigest,
@@ -323,6 +329,10 @@ const _comparisonDigestPair: [string, string] = [
 const _transferDigestPair: [string, string] = [
   workingSetTransferPlan.transferDigest,
   coordinateTransferPlan.transferDigest,
+];
+const _factExportPair: [string, string] = [
+  coordinateComparisonFactExport.factDigest,
+  coordinateTransferPlanFactExport.factDigest,
 ];
 const _workingSetDescriptorTuple: [boolean, string[]] = [
   braidedWorkingSetDescriptor.overlay.writable,
