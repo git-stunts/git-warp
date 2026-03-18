@@ -124,6 +124,10 @@ function validateOverlay(obj, label) {
       overlay.patchCount >= 0,
     `Corrupted ${label}: overlay.patchCount must be a non-negative integer`,
   );
+  invariant(
+    overlay.writable === undefined || typeof overlay.writable === 'boolean',
+    `Corrupted ${label}: overlay.writable must be boolean when provided`,
+  );
 }
 
 /**
@@ -136,6 +140,53 @@ function validateMaterialization(obj, label) {
     isPlainObject(obj.materialization) && obj.materialization.cacheAuthority === 'derived',
     `Corrupted ${label}: invalid materialization metadata`,
   );
+}
+
+/**
+ * @param {Record<string, unknown>} obj
+ * @param {string} label
+ * @returns {void}
+ */
+function validateBraid(obj, label) {
+  if (obj.braid === undefined) {
+    return;
+  }
+  invariant(isPlainObject(obj.braid), `Corrupted ${label}: braid must be an object when provided`);
+  const { braid: rawBraid } = obj;
+  const braid = /** @type {Record<string, unknown>} */ (rawBraid);
+  const { readOverlays } = braid;
+  invariant(
+    Array.isArray(readOverlays),
+    `Corrupted ${label}: braid.readOverlays must be an array when braid is present`,
+  );
+  for (const rawOverlay of /** @type {unknown[]} */ (readOverlays)) {
+    const overlay = /** @type {Record<string, unknown>} */ (rawOverlay);
+    invariant(isPlainObject(overlay), `Corrupted ${label}: braid.readOverlays entries must be objects`);
+    invariant(
+      typeof overlay.workingSetId === 'string' && overlay.workingSetId.length > 0,
+      `Corrupted ${label}: braid.readOverlays[].workingSetId must be a string`,
+    );
+    invariant(
+      typeof overlay.overlayId === 'string' && overlay.overlayId.length > 0,
+      `Corrupted ${label}: braid.readOverlays[].overlayId must be a string`,
+    );
+    invariant(
+      typeof overlay.kind === 'string' && overlay.kind.length > 0,
+      `Corrupted ${label}: braid.readOverlays[].kind must be a string`,
+    );
+    invariant(
+      overlay.headPatchSha === null ||
+        overlay.headPatchSha === undefined ||
+        typeof overlay.headPatchSha === 'string',
+      `Corrupted ${label}: braid.readOverlays[].headPatchSha must be string|null`,
+    );
+    invariant(
+      typeof overlay.patchCount === 'number' &&
+        Number.isInteger(overlay.patchCount) &&
+        overlay.patchCount >= 0,
+      `Corrupted ${label}: braid.readOverlays[].patchCount must be a non-negative integer`,
+    );
+  }
 }
 
 /**
@@ -165,7 +216,17 @@ function validateMaterialization(obj, label) {
  *     overlayId: string,
  *     kind: string,
  *     headPatchSha: string|null,
- *     patchCount: number
+ *     patchCount: number,
+ *     writable?: boolean
+ *   },
+ *   braid?: {
+ *     readOverlays: Array<{
+ *       workingSetId: string,
+ *       overlayId: string,
+ *       kind: string,
+ *       headPatchSha: string|null,
+ *       patchCount: number
+ *     }>
  *   },
  *   materialization: {
  *     cacheAuthority: 'derived'
@@ -189,6 +250,7 @@ export function parseWorkingSetBlob(buf, label) {
   validateLease(obj, label);
   validateBaseObservation(obj, label);
   validateOverlay(obj, label);
+  validateBraid(obj, label);
   validateMaterialization(obj, label);
 
   return /** @type {ReturnType<typeof parseWorkingSetBlob>} */ (obj);

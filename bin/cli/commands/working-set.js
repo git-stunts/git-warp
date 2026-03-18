@@ -1,5 +1,6 @@
 import { usageError } from '../infrastructure.js';
 
+import * as braidSubcommand from './working-set/braid.js';
 import * as compareSubcommand from './working-set/compare.js';
 import * as createSubcommand from './working-set/create.js';
 import * as dropSubcommand from './working-set/drop.js';
@@ -17,12 +18,13 @@ import * as showSubcommand from './working-set/show.js';
 
 /** @type {Record<string, WorkingSetModule>} */
 const WORKING_SET_SUBCOMMANDS = Object.freeze({
-  [compareSubcommand.WORKING_SET_SUBCOMMAND.name]: compareSubcommand,
   [createSubcommand.WORKING_SET_SUBCOMMAND.name]: createSubcommand,
-  [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
+  [braidSubcommand.WORKING_SET_SUBCOMMAND.name]: braidSubcommand,
   [listSubcommand.WORKING_SET_SUBCOMMAND.name]: listSubcommand,
-  [materializeSubcommand.WORKING_SET_SUBCOMMAND.name]: materializeSubcommand,
   [showSubcommand.WORKING_SET_SUBCOMMAND.name]: showSubcommand,
+  [compareSubcommand.WORKING_SET_SUBCOMMAND.name]: compareSubcommand,
+  [materializeSubcommand.WORKING_SET_SUBCOMMAND.name]: materializeSubcommand,
+  [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
 });
 
 function buildWorkingSetUsage() {

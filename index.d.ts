@@ -2094,6 +2094,12 @@ export default class WarpGraph {
   /** Lists all working-set descriptors stored for this graph. */
   listWorkingSets(): Promise<WorkingSetDescriptor[]>;
 
+  /**
+   * Pins one or more supporting working-set overlays as read-only braid inputs
+   * on top of a target working set's base observation.
+   */
+  braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
+
   /** Drops a working-set descriptor by id. Returns false when it does not exist. */
   dropWorkingSet(workingSetId: string): Promise<boolean>;
 
@@ -2505,6 +2511,11 @@ export interface ConflictAnalysis {
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
+      overlayWritable: boolean;
+      braid: {
+        readOverlayCount: number;
+        braidedWorkingSetIds: string[];
+      };
     };
   };
   analysisSnapshotHash: string;
@@ -2518,6 +2529,19 @@ export interface WorkingSetCreateOptions {
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
+}
+
+export interface WorkingSetBraidOptions {
+  braidedWorkingSetIds?: string[];
+  writable?: boolean | null;
+}
+
+export interface WorkingSetReadOverlayDescriptor {
+  workingSetId: string;
+  overlayId: string;
+  kind: string;
+  headPatchSha: string | null;
+  patchCount: number;
 }
 
 export interface WorkingSetDescriptor {
@@ -2542,6 +2566,10 @@ export interface WorkingSetDescriptor {
     kind: string;
     headPatchSha: string | null;
     patchCount: number;
+    writable: boolean;
+  };
+  braid: {
+    readOverlays: WorkingSetReadOverlayDescriptor[];
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -2829,6 +2857,11 @@ export interface CoordinateComparisonResolvedSideV1 {
     baseLamportCeiling: number | null;
     overlayHeadPatchSha: string | null;
     overlayPatchCount: number;
+    overlayWritable: boolean;
+    braid: {
+      readOverlayCount: number;
+      braidedWorkingSetIds: string[];
+    };
   };
 }
 

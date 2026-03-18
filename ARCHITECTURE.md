@@ -49,22 +49,24 @@ Read-side worldline awareness lives here, not in the reducer:
 git-warp now also includes a separate **working-set** substrate family. It is intentionally **not** part of TTD because it creates durable descriptor refs.
 
 - **Domain/core** owns explicit coordinate materialization and working-set descriptors.
-- **CLI adapters** expose those capabilities through `working-set create`, `working-set list`, `working-set show`, `working-set materialize`, `working-set compare`, and `working-set drop`.
+- **CLI adapters** expose those capabilities through `working-set create`, `working-set braid`, `working-set list`, `working-set show`, `working-set materialize`, `working-set compare`, and `working-set drop`.
 - **Presenters** render descriptor and materialization summaries without inventing higher-level product semantics.
 - **Descriptors pin coordinates; caches do not become truth.**
 
-The v1 model is deliberately narrow:
+The active substrate model is still narrow and substrate-first:
 
 - a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
-- overlay writes live in a separate working-set patch-log ref
-- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, `createStateReaderV5()`, `compareVisibleStateV5()`, `compareWorkingSet()`, `compareCoordinates()`, and working-set-aware conflict analysis operate on the visible `base + overlay` patch universe
+- the target working set keeps its own overlay patch-log ref and can mark that overlay writable or read-only
+- zero or more braided read-only overlays can be pinned onto the same base observation
+- target-owned braid refs keep those pinned support-overlay heads reachable as durable substrate facts
+- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, `createStateReaderV5()`, `compareVisibleStateV5()`, `compareWorkingSet()`, `compareCoordinates()`, and working-set-aware conflict analysis operate on the visible `base + braided overlays + active overlay` patch universe
 - comparison helpers report substrate facts such as visible patch divergence plus node/edge/property deltas instead of higher-layer review or governance meaning
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API
 
-Future composition terminology is now fixed as **braid**:
+Composition terminology is fixed as **braid**:
 
-- git-warp will use braid language for co-present working-set composition
+- git-warp uses braid language for co-present working-set composition
 - braid changes the visible patch universe, not reducer rules
 - braid is not a synonym for merge or rebase
 

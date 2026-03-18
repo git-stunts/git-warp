@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.11.0] — 2026-03-17
+
+### Added
+
+- **Braided working-set foundation** — Added `WarpGraph.braidWorkingSet()` plus durable braid descriptor metadata so one working set can pin zero or more read-only support overlays on top of the same base observation without teaching the reducer about application semantics.
+- **Thin `working-set braid` CLI surface** — Added `git warp working-set braid` so operators and higher layers can pin braided read-only overlays and optionally disable writes to the target overlay through the main CLI without turning `debug` into a mutation shell.
+
+### Changed
+
+- **Working-set visibility now composes base, braided overlays, and the active overlay** — `materializeWorkingSet()`, `getWorkingSetPatches()`, `patchesForWorkingSet()`, comparison helpers, and working-set-aware conflict analysis metadata now resolve against the full visible patch universe selected by the descriptor, while `reduceV5` remains deterministic and worldline-blind.
+- **Braid refs are now target-owned and durable** — target working sets now keep pinned support-overlay heads reachable through dedicated braid refs, and dropping a target working set cleans those braid refs up with the descriptor.
+- **Working-set docs now describe braid as an active substrate capability** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the braid descriptor model, CLI boundary, and visible patch-universe rules are documented together.
+
 ## [14.10.0] — 2026-03-17
 
 ### Added

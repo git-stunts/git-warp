@@ -81,6 +81,10 @@ Commands:
                        --owner <id>            Optional owner metadata
                        --scope <text>          Optional scope metadata
                        --lease-expires-at <ts> Optional ISO-8601 lease expiry metadata
+                     braid <id>        Pin read-only braid overlays onto a target working set
+                       --support <id>         Braided support working-set id (repeatable)
+                       --read-only            Disable writes to the target overlay
+                       --writable             Re-enable writes to the target overlay
                      list               List working-set descriptors for the graph
                      show <id>          Show a single working-set descriptor
                      compare <id>       Compare a working set against another substrate surface

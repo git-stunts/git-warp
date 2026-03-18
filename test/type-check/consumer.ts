@@ -112,6 +112,8 @@ import type {
   VisibleStateReaderV5,
   CoordinateComparisonSelectorV1,
   CoordinateComparisonV1,
+  WorkingSetBraidOptions,
+  WorkingSetDescriptor,
   LogicalTraversal,
   TraversalDirection,
   TraversalNode,
@@ -280,6 +282,10 @@ const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
   scanBudget: { maxPatches: 32 },
 });
 const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
+const _conflictWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
+  conflictAnalysis.resolvedCoordinate.workingSet?.overlayWritable,
+  conflictAnalysis.resolvedCoordinate.workingSet?.braid.braidedWorkingSetIds,
+];
 const compareLeft: CoordinateComparisonSelectorV1 = { kind: 'live' };
 const compareRight: CoordinateComparisonSelectorV1 = { kind: 'coordinate', frontier: { alice: 'abc123def456' }, ceiling: null };
 const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordinates({
@@ -287,6 +293,17 @@ const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordina
   right: compareRight,
   targetId: 'n1',
 });
+const braidOptions: WorkingSetBraidOptions = {
+  braidedWorkingSetIds: ['ws_support'],
+  writable: false,
+};
+const workingSetDescriptor: WorkingSetDescriptor = await graph.createWorkingSet({
+  workingSetId: 'ws_demo',
+});
+const braidedWorkingSetDescriptor: WorkingSetDescriptor = await graph.braidWorkingSet(
+  'ws_demo',
+  braidOptions,
+);
 const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingSet('ws_demo', {
   against: 'base',
   targetId: 'n1',
@@ -294,6 +311,15 @@ const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingS
 const _comparisonDigestPair: [string, string] = [
   coordinateComparison.comparisonDigest,
   workingSetComparison.comparisonDigest,
+];
+const _workingSetDescriptorTuple: [boolean, string[]] = [
+  braidedWorkingSetDescriptor.overlay.writable,
+  braidedWorkingSetDescriptor.braid.readOverlays.map(({ workingSetId }) => workingSetId),
+];
+const _workingSetGraphName: string = workingSetDescriptor.graphName;
+const _comparisonWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
+  workingSetComparison.left.resolved.workingSet?.overlayWritable,
+  workingSetComparison.left.resolved.workingSet?.braid.braidedWorkingSetIds,
 ];
 
 // ---- materializeAt ----

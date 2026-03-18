@@ -167,6 +167,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "braidWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "compareCoordinates": {
     "configurable": true,
     "enumerable": false,
@@ -525,7 +530,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `104`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `105`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -562,6 +567,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "_validatePatchAgainstCheckpoint",
   "analyzeConflicts",
   "applySyncResponse",
+  "braidWorkingSet",
   "compareCoordinates",
   "compareWorkingSet",
   "createCheckpoint",

@@ -434,7 +434,12 @@ function optionalCeiling(ceiling) {
  *   workingSetId: string,
  *   baseLamportCeiling: number|null,
  *   overlayHeadPatchSha: string|null,
- *   overlayPatchCount: number
+ *   overlayPatchCount: number,
+ *   overlayWritable: boolean,
+ *   braid: {
+ *     readOverlayCount: number,
+ *     braidedWorkingSetIds: string[]
+ *   }
  * }}
  */
 function buildWorkingSetMetadata(workingSetId, descriptor) {
@@ -443,6 +448,15 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
     baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
     overlayHeadPatchSha: descriptor.overlay.headPatchSha,
     overlayPatchCount: descriptor.overlay.patchCount,
+    overlayWritable: descriptor.overlay.writable ?? true,
+    braid: {
+      readOverlayCount: Array.isArray(descriptor.braid?.readOverlays)
+        ? descriptor.braid.readOverlays.length
+        : 0,
+      braidedWorkingSetIds: Array.isArray(descriptor.braid?.readOverlays)
+        ? descriptor.braid.readOverlays.map((overlay) => overlay.workingSetId).sort(compareStrings)
+        : [],
+    },
   };
 }
 
@@ -458,7 +472,12 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *     workingSetId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
- *     overlayPatchCount: number
+ *     overlayPatchCount: number,
+ *     overlayWritable: boolean,
+ *     braid: {
+ *       readOverlayCount: number,
+ *       braidedWorkingSetIds: string[]
+ *     }
  *   }
  * }} params
  * @returns {Promise<{
@@ -485,7 +504,12 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *       workingSetId: string,
  *       baseLamportCeiling: number|null,
  *       overlayHeadPatchSha: string|null,
- *       overlayPatchCount: number
+ *       overlayPatchCount: number,
+ *       overlayWritable: boolean,
+ *       braid: {
+ *         readOverlayCount: number,
+ *         braidedWorkingSetIds: string[]
+ *       }
  *     }
  *   }
  * }>}
@@ -674,7 +698,12 @@ async function resolveWorkingSetBaseComparisonSide(graph, workingSets, selector)
  *       workingSetId: string,
  *       baseLamportCeiling: number|null,
  *       overlayHeadPatchSha: string|null,
- *       overlayPatchCount: number
+ *       overlayPatchCount: number,
+ *       overlayWritable: boolean,
+ *       braid: {
+ *         readOverlayCount: number,
+ *         braidedWorkingSetIds: string[]
+ *       }
  *     }
  *   }
  * }>}

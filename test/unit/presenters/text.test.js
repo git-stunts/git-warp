@@ -269,6 +269,54 @@ describe('renderSeek', () => {
 });
 
 describe('renderWorkingSet', () => {
+  it('renders braid metadata on descriptor-oriented working-set actions', () => {
+    const out = renderWorkingSet({
+      graph: 'g',
+      workingSetAction: 'braid',
+      workingSet: {
+        schemaVersion: 1,
+        workingSetId: 'ws_demo',
+        graphName: 'g',
+        createdAt: '2026-03-17T00:00:00Z',
+        updatedAt: '2026-03-17T00:05:00Z',
+        owner: 'alice',
+        scope: 'review',
+        lease: { expiresAt: null },
+        baseObservation: {
+          coordinateVersion: 'frontier-lamport/v1',
+          frontier: { alice: 'a'.repeat(40) },
+          frontierDigest: 'digest',
+          lamportCeiling: null,
+        },
+        overlay: {
+          overlayId: 'ws_demo',
+          kind: 'patch-log',
+          headPatchSha: 'b'.repeat(40),
+          patchCount: 1,
+          writable: false,
+        },
+        braid: {
+          readOverlays: [
+            {
+              workingSetId: 'ws_support',
+              overlayId: 'ws_support',
+              kind: 'patch-log',
+              headPatchSha: 'c'.repeat(40),
+              patchCount: 2,
+            },
+          ],
+        },
+        materialization: {
+          cacheAuthority: 'derived',
+        },
+      },
+    });
+
+    expect(out).toContain('Working Set Action: braid');
+    expect(out).toContain('writable=no');
+    expect(out).toContain('Braids: ws_support');
+  });
+
   it('renders comparison summaries without adding application semantics', () => {
     const out = renderWorkingSet({
       graph: 'g',

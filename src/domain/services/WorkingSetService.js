@@ -10,6 +10,8 @@
 
 import WorkingSetError from '../errors/WorkingSetError.js';
 import {
+  buildWorkingSetBraidRef,
+  buildWorkingSetBraidsPrefix,
   buildWorkingSetRef,
   buildWorkingSetOverlayRef,
   buildWorkingSetsPrefix,
@@ -24,10 +26,21 @@ import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 
 /** @typedef {import('../WarpGraph.js').default} WarpGraph */
+/** @typedef {import('../../../index.js').WorkingSetDescriptor} WorkingSetDescriptor */
+/** @typedef {import('../../../index.js').WorkingSetReadOverlayDescriptor} WorkingSetReadOverlayDescriptor */
 
 export const WORKING_SET_SCHEMA_VERSION = 1;
 export const WORKING_SET_COORDINATE_VERSION = 'frontier-lamport/v1';
 export const WORKING_SET_OVERLAY_KIND = 'patch-log';
+
+/**
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function compareStrings(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
 /**
  * @param {Map<string, string>} frontier
@@ -106,6 +119,23 @@ function normalizeLeaseExpiresAt(value) {
 }
 
 /**
+ * @param {boolean|null|undefined} value
+ * @returns {boolean|null}
+ */
+function normalizeWritable(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== 'boolean') {
+    throw new WorkingSetError('writable must be boolean when provided', {
+      code: 'E_WORKING_SET_INVALID_ARGS',
+      context: { field: 'writable', valueType: typeof value },
+    });
+  }
+  return value;
+}
+
+/**
  * @param {string|undefined|null} workingSetId
  * @returns {string}
  */
@@ -125,6 +155,162 @@ function resolveWorkingSetId(workingSetId) {
   const fresh = generateWriterId().replace(/^w_/, 'ws_');
   validateWriterId(fresh);
   return fresh;
+}
+
+/**
+ * @param {Record<string, string>} left
+ * @param {Record<string, string>} right
+ * @returns {boolean}
+ */
+function frontierRecordsEqual(left, right) {
+  const leftEntries = Object.entries(left).sort(([a], [b]) => compareStrings(a, b));
+  const rightEntries = Object.entries(right).sort(([a], [b]) => compareStrings(a, b));
+  if (leftEntries.length !== rightEntries.length) {
+    return false;
+  }
+  return leftEntries.every(([leftKey, leftValue], index) => {
+    const [rightKey, rightValue] = rightEntries[index];
+    return leftKey === rightKey && leftValue === rightValue;
+  });
+}
+
+/**
+ * @param {{
+ *   coordinateVersion: string,
+ *   frontier: Record<string, string>,
+ *   lamportCeiling: number|null
+ * }} left
+ * @param {{
+ *   coordinateVersion: string,
+ *   frontier: Record<string, string>,
+ *   lamportCeiling: number|null
+ * }} right
+ * @returns {boolean}
+ */
+function baseObservationsEqual(left, right) {
+  return (
+    left.coordinateVersion === right.coordinateVersion &&
+    left.lamportCeiling === right.lamportCeiling &&
+    frontierRecordsEqual(left.frontier, right.frontier)
+  );
+}
+
+/**
+ * @param {WorkingSetDescriptor} descriptor
+ * @returns {WorkingSetReadOverlayDescriptor}
+ */
+function buildReadOverlayMetadata(descriptor) {
+  return {
+    workingSetId: descriptor.workingSetId,
+    overlayId: descriptor.overlay.overlayId,
+    kind: descriptor.overlay.kind,
+    headPatchSha: descriptor.overlay.headPatchSha,
+    patchCount: descriptor.overlay.patchCount,
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {WorkingSetReadOverlayDescriptor[]}
+ */
+function normalizeReadOverlays(value) {
+  return Array.isArray(value)
+    ? value
+      .map((overlay) => ({
+        workingSetId: overlay.workingSetId,
+        overlayId: overlay.overlayId,
+        kind: overlay.kind,
+        headPatchSha: overlay.headPatchSha ?? null,
+        patchCount: overlay.patchCount,
+      }))
+      .sort((left, right) => compareStrings(left.workingSetId, right.workingSetId))
+    : [];
+}
+
+/**
+ * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
+ * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
+ * @returns {boolean}
+ */
+function readOverlaysEqual(left, right) {
+  return (
+    left.length === right.length &&
+    left.every((overlay, index) => {
+      const candidate = right[index];
+      return (
+        overlay.workingSetId === candidate.workingSetId &&
+        overlay.overlayId === candidate.overlayId &&
+        overlay.kind === candidate.kind &&
+        overlay.headPatchSha === candidate.headPatchSha &&
+        overlay.patchCount === candidate.patchCount
+      );
+    })
+  );
+}
+
+/**
+ * @param {WorkingSetDescriptor} descriptor
+ * @param {{ headPatchSha: string|null, patchCount: number, writable: boolean }} expected
+ * @returns {boolean}
+ */
+function overlayMetadataMatches(descriptor, expected) {
+  return (
+    descriptor.overlay.headPatchSha === expected.headPatchSha &&
+    descriptor.overlay.patchCount === expected.patchCount &&
+    descriptor.overlay.writable === expected.writable
+  );
+}
+
+/**
+ * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+ * @param {WorkingSetReadOverlayDescriptor[]} braidedReadOverlays
+ * @param {boolean} writable
+ * @returns {WorkingSetDescriptor}
+ */
+function buildNormalizedWorkingSetDescriptor(descriptor, braidedReadOverlays, writable) {
+  return {
+    ...descriptor,
+    overlay: {
+      ...descriptor.overlay,
+      writable,
+    },
+    braid: {
+      readOverlays: braidedReadOverlays,
+    },
+  };
+}
+
+/**
+ * @param {WorkingSetDescriptor} descriptor
+ * @param {WorkingSetReadOverlayDescriptor[]} descriptorReadOverlays
+ * @param {{
+ *   braidedReadOverlays: WorkingSetReadOverlayDescriptor[],
+ *   expected: { headPatchSha: string|null, patchCount: number, writable: boolean }
+ * }} options
+ * @returns {boolean}
+ */
+function normalizedDescriptorMatches(descriptor, descriptorReadOverlays, options) {
+  const { braidedReadOverlays, expected } = options;
+  return (
+    overlayMetadataMatches(descriptor, expected) &&
+    readOverlaysEqual(descriptorReadOverlays, braidedReadOverlays)
+  );
+}
+
+/**
+ * @param {WorkingSetDescriptor} descriptor
+ * @param {{ headPatchSha: string|null, patchCount: number }} overlay
+ * @returns {WorkingSetDescriptor}
+ */
+function withOverlayMetadata(descriptor, overlay) {
+  return {
+    ...descriptor,
+    overlay: {
+      ...descriptor.overlay,
+      headPatchSha: overlay.headPatchSha,
+      patchCount: overlay.patchCount,
+    },
+  };
 }
 
 /**
@@ -161,7 +347,7 @@ function normalizeCreateOptions(options) {
  *     leaseExpiresAt: string|null
  *   }
  * }} params
- * @returns {ReturnType<typeof parseWorkingSetBlob>}
+ * @returns {WorkingSetDescriptor}
  */
 function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDigest, normalized }) {
   return {
@@ -186,6 +372,10 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
       kind: WORKING_SET_OVERLAY_KIND,
       headPatchSha: null,
       patchCount: 0,
+      writable: true,
+    },
+    braid: {
+      readOverlays: [],
     },
     materialization: {
       cacheAuthority: /** @type {const} */ ('derived'),
@@ -240,13 +430,61 @@ function patchTouchesEntity(patch, entityId) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {string} targetWorkingSetId
+ * @returns {string[]}
+ */
+function normalizeBraidedWorkingSetIds(value, targetWorkingSetId) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new WorkingSetError('braidedWorkingSetIds must be an array when provided', {
+      code: 'E_WORKING_SET_INVALID_ARGS',
+      context: { field: 'braidedWorkingSetIds', valueType: typeof value },
+    });
+  }
+
+  const normalized = [];
+  const seen = new Set();
+  for (const entry of value) {
+    const normalizedId = normalizeOptionalString(entry, 'braidedWorkingSetIds[]');
+    if (!normalizedId) {
+      throw new WorkingSetError('braidedWorkingSetIds[] must not be empty', {
+        code: 'E_WORKING_SET_INVALID_ARGS',
+        context: { field: 'braidedWorkingSetIds[]' },
+      });
+    }
+    if (normalizedId === targetWorkingSetId) {
+      throw new WorkingSetError('working set cannot braid itself as a read-only support overlay', {
+        code: 'E_WORKING_SET_INVALID_ARGS',
+        context: { workingSetId: targetWorkingSetId, braidedWorkingSetId: normalizedId },
+      });
+    }
+    if (seen.has(normalizedId)) {
+      continue;
+    }
+    seen.add(normalizedId);
+    normalized.push(normalizedId);
+  }
+  return normalized.sort(compareStrings);
+}
+
+/**
  * @typedef {{
  *   workingSetId?: string,
  *   lamportCeiling?: number|null,
- *   owner?: string|null,
- *   scope?: string|null,
- *   leaseExpiresAt?: string|null
+  *   owner?: string|null,
+  *   scope?: string|null,
+  *   leaseExpiresAt?: string|null
  * }} WorkingSetCreateOptions
+ */
+
+/**
+ * @typedef {{
+ *   braidedWorkingSetIds?: string[],
+ *   writable?: boolean|null
+ * }} WorkingSetBraidOptions
  */
 
 /**
@@ -265,8 +503,8 @@ export default class WorkingSetService {
 
   /**
    * @param {WorkingSetCreateOptions} [options]
-   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
-   */
+ * @returns {Promise<WorkingSetDescriptor>}
+ */
   async create(options = {}) {
     const normalized = normalizeCreateOptions(options);
     const ref = buildWorkingSetRef(this._graph._graphName, normalized.workingSetId);
@@ -297,8 +535,40 @@ export default class WorkingSetService {
 
   /**
    * @param {string} workingSetId
-   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>|null>}
-   */
+   * @param {WorkingSetBraidOptions} [options]
+ * @returns {Promise<WorkingSetDescriptor>}
+ */
+  async braid(workingSetId, options = {}) {
+    const target = await this.getOrThrow(workingSetId);
+    const braidedWorkingSetIds = normalizeBraidedWorkingSetIds(
+      options.braidedWorkingSetIds,
+      target.workingSetId,
+    );
+    const writableOverride = normalizeWritable(options.writable);
+    const readOverlays = await this._loadBraidedReadOverlays(target, braidedWorkingSetIds);
+
+    await this._syncBraidRefs(target.workingSetId, readOverlays);
+
+    const nextDescriptor = {
+      ...target,
+      updatedAt: this._graph._clock.timestamp(),
+      overlay: {
+        ...target.overlay,
+        writable: writableOverride ?? (target.overlay.writable ?? true),
+      },
+      braid: {
+        readOverlays,
+      },
+    };
+
+    await this._writeDescriptor(nextDescriptor);
+    return nextDescriptor;
+  }
+
+  /**
+   * @param {string} workingSetId
+ * @returns {Promise<WorkingSetDescriptor|null>}
+ */
   async get(workingSetId) {
     const ref = this._buildRef(workingSetId);
     const oid = await this._graph._persistence.readRef(ref);
@@ -310,8 +580,8 @@ export default class WorkingSetService {
   }
 
   /**
-   * @returns {Promise<Array<ReturnType<typeof parseWorkingSetBlob>>>}
-   */
+ * @returns {Promise<WorkingSetDescriptor[]>}
+ */
   async list() {
     const prefix = buildWorkingSetsPrefix(this._graph._graphName);
     const refs = await this._graph._persistence.listRefs(prefix);
@@ -337,10 +607,15 @@ export default class WorkingSetService {
   async drop(workingSetId) {
     const ref = this._buildRef(workingSetId);
     const overlayRef = this._buildOverlayRef(workingSetId);
+    const braidPrefix = this._buildBraidPrefix(workingSetId);
     const oid = await this._graph._persistence.readRef(ref);
     const overlayHeadSha = await this._graph._persistence.readRef(overlayRef);
-    if (!oid && !overlayHeadSha) {
+    const braidRefs = await this._graph._persistence.listRefs(braidPrefix);
+    if (!oid && !overlayHeadSha && braidRefs.length === 0) {
       return false;
+    }
+    for (const braidRef of braidRefs) {
+      await this._graph._persistence.deleteRef(braidRef);
     }
     if (overlayHeadSha) {
       await this._graph._persistence.deleteRef(overlayRef);
@@ -375,6 +650,15 @@ export default class WorkingSetService {
    */
   async createPatchBuilder(workingSetId) {
     const descriptor = await this.getOrThrow(workingSetId);
+    if (!descriptor.overlay.writable) {
+      throw new WorkingSetError(
+        `Working set '${workingSetId}' has no active writable overlay in its current braid configuration`,
+        {
+          code: 'E_WORKING_SET_INVALID_ARGS',
+          context: { workingSetId, writable: false },
+        },
+      );
+    }
     const { state, allPatches } = await this._materializeDescriptor(descriptor, {
       collectReceipts: false,
       ceiling: null,
@@ -463,8 +747,8 @@ export default class WorkingSetService {
 
   /**
    * @param {string} workingSetId
-   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
-   */
+ * @returns {Promise<WorkingSetDescriptor>}
+ */
   async getOrThrow(workingSetId) {
     const descriptor = await this.get(workingSetId);
     if (!descriptor) {
@@ -512,6 +796,42 @@ export default class WorkingSetService {
 
   /**
    * @private
+   * @param {string} workingSetId
+   * @returns {string}
+   */
+  _buildBraidPrefix(workingSetId) {
+    try {
+      validateWriterId(workingSetId);
+    } catch (err) {
+      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_WORKING_SET_ID_INVALID',
+        context: { workingSetId },
+      });
+    }
+    return buildWorkingSetBraidsPrefix(this._graph._graphName, workingSetId);
+  }
+
+  /**
+   * @private
+   * @param {string} workingSetId
+   * @param {string} braidedWorkingSetId
+   * @returns {string}
+   */
+  _buildBraidRef(workingSetId, braidedWorkingSetId) {
+    try {
+      validateWriterId(workingSetId);
+      validateWriterId(braidedWorkingSetId);
+    } catch (err) {
+      throw new WorkingSetError(`Invalid working-set braid id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_WORKING_SET_ID_INVALID',
+        context: { workingSetId, braidedWorkingSetId },
+      });
+    }
+    return buildWorkingSetBraidRef(this._graph._graphName, workingSetId, braidedWorkingSetId);
+  }
+
+  /**
+   * @private
    * @param {string} oid
    * @param {string} workingSetId
    * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
@@ -546,48 +866,103 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
-   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
+   * @param {WorkingSetDescriptor} descriptor
+   * @returns {Promise<void>}
    */
-  async _hydrateOverlayMetadata(descriptor) {
-    const overlayRef = this._buildOverlayRef(descriptor.workingSetId);
+  async _writeDescriptor(descriptor) {
+    const ref = this._buildRef(descriptor.workingSetId);
+    const oid = await this._graph._persistence.writeBlob(
+      textEncode(JSON.stringify(descriptor)),
+    );
+    await this._graph._persistence.updateRef(ref, oid);
+  }
+
+  /**
+   * @private
+   * @param {WorkingSetDescriptor} target
+   * @param {string[]} braidedWorkingSetIds
+   * @returns {Promise<WorkingSetReadOverlayDescriptor[]>}
+   */
+  async _loadBraidedReadOverlays(target, braidedWorkingSetIds) {
+    /** @type {WorkingSetReadOverlayDescriptor[]} */
+    const readOverlays = [];
+    for (const braidedWorkingSetId of braidedWorkingSetIds) {
+      const braided = await this.getOrThrow(braidedWorkingSetId);
+      if (!baseObservationsEqual(braided.baseObservation, target.baseObservation)) {
+        throw new WorkingSetError(
+          `Working set '${braidedWorkingSetId}' cannot be braided onto '${target.workingSetId}' because their pinned base observations differ`,
+          {
+            code: 'E_WORKING_SET_COORDINATE_INVALID',
+            context: {
+              workingSetId: target.workingSetId,
+              braidedWorkingSetId,
+              targetBaseObservation: target.baseObservation,
+              braidedBaseObservation: braided.baseObservation,
+            },
+          },
+        );
+      }
+      readOverlays.push(buildReadOverlayMetadata(braided));
+    }
+    return readOverlays;
+  }
+
+  /**
+   * @private
+   * @param {string} workingSetId
+   * @returns {Promise<{ headPatchSha: string|null, patchCount: number }>}
+   */
+  async _readOverlayMetadata(workingSetId) {
+    const overlayRef = this._buildOverlayRef(workingSetId);
     const headPatchSha = await this._graph._persistence.readRef(overlayRef);
     if (!headPatchSha) {
-      if (descriptor.overlay.headPatchSha === null && descriptor.overlay.patchCount === 0) {
-        return descriptor;
-      }
-      return {
-        ...descriptor,
-        overlay: {
-          ...descriptor.overlay,
-          headPatchSha: null,
-          patchCount: 0,
-        },
-      };
+      return { headPatchSha: null, patchCount: 0 };
     }
-
     const overlayPatches = await this._graph._loadPatchChainFromSha(headPatchSha);
-    const patchCount = overlayPatches.length;
-    if (
-      descriptor.overlay.headPatchSha === headPatchSha &&
-      descriptor.overlay.patchCount === patchCount
-    ) {
-      return descriptor;
-    }
-
     return {
-      ...descriptor,
-      overlay: {
-        ...descriptor.overlay,
-        headPatchSha,
-        patchCount,
-      },
+      headPatchSha,
+      patchCount: overlayPatches.length,
     };
   }
 
   /**
    * @private
    * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @returns {Promise<WorkingSetDescriptor>}
+   */
+  async _hydrateOverlayMetadata(descriptor) {
+    const braidedReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
+    const writable = descriptor.overlay.writable ?? true;
+    const normalizedDescriptor = buildNormalizedWorkingSetDescriptor(
+      descriptor,
+      braidedReadOverlays,
+      writable,
+    );
+    const descriptorReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
+    const overlay = await this._readOverlayMetadata(descriptor.workingSetId);
+    if (normalizedDescriptorMatches(
+      normalizedDescriptor,
+      descriptorReadOverlays,
+      {
+        braidedReadOverlays,
+        expected: {
+          headPatchSha: overlay.headPatchSha,
+          patchCount: overlay.patchCount,
+          writable,
+        },
+      },
+    )) {
+      return normalizedDescriptor;
+    }
+    return withOverlayMetadata(normalizedDescriptor, {
+      headPatchSha: overlay.headPatchSha,
+      patchCount: overlay.patchCount,
+    });
+  }
+
+  /**
+   * @private
+   * @param {WorkingSetDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectBasePatches(descriptor) {
@@ -617,7 +992,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {WorkingSetDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectOverlayPatches(descriptor) {
@@ -629,14 +1004,41 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {WorkingSetDescriptor} descriptor
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  async _collectBraidedOverlayPatches(descriptor) {
+    const braidedReadOverlays = Array.isArray(descriptor.braid?.readOverlays)
+      ? descriptor.braid.readOverlays
+      : [];
+    const allPatches = [];
+    for (const readOverlay of braidedReadOverlays) {
+      if (!readOverlay.headPatchSha) {
+        continue;
+      }
+      const overlayPatches = await this._graph._loadPatchChainFromSha(readOverlay.headPatchSha);
+      allPatches.push(...overlayPatches);
+    }
+    return allPatches;
+  }
+
+  /**
+   * @private
+   * @param {WorkingSetDescriptor} descriptor
    * @param {{ ceiling: number|null }} options
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectPatchEntries(descriptor, { ceiling }) {
     const basePatches = await this._collectBasePatches(descriptor);
+    const braidedOverlayPatches = await this._collectBraidedOverlayPatches(descriptor);
     const overlayPatches = await this._collectOverlayPatches(descriptor);
-    const allPatches = basePatches.concat(overlayPatches);
+    const deduped = new Map();
+    for (const entry of basePatches.concat(braidedOverlayPatches, overlayPatches)) {
+      if (!deduped.has(entry.sha)) {
+        deduped.set(entry.sha, entry);
+      }
+    }
+    const allPatches = [...deduped.values()];
     if (ceiling === null) {
       return allPatches;
     }
@@ -645,7 +1047,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {WorkingSetDescriptor} descriptor
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
    *   state: import('./JoinReducer.js').WarpStateV5,
@@ -702,7 +1104,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
+   * @param {WorkingSetDescriptor} descriptor
    * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result
    * @returns {Promise<void>}
    */
@@ -718,11 +1120,7 @@ export default class WorkingSetService {
       },
     };
 
-    const ref = this._buildRef(descriptor.workingSetId);
-    const oid = await this._graph._persistence.writeBlob(
-      textEncode(JSON.stringify(nextDescriptor)),
-    );
-    await this._graph._persistence.updateRef(ref, oid);
+    await this._writeDescriptor(nextDescriptor);
 
     if (patch.lamport > this._graph._maxObservedLamport) {
       this._graph._maxObservedLamport = patch.lamport;
@@ -731,5 +1129,39 @@ export default class WorkingSetService {
     this._graph._cachedViewHash = null;
     this._graph._cachedCeiling = null;
     this._graph._cachedFrontier = null;
+  }
+
+  /**
+   * @private
+   * @param {string} workingSetId
+   * @param {Array<{
+   *   workingSetId: string,
+   *   overlayId: string,
+   *   kind: string,
+   *   headPatchSha: string|null,
+   *   patchCount: number
+   * }>} readOverlays
+   * @returns {Promise<void>}
+   */
+  async _syncBraidRefs(workingSetId, readOverlays) {
+    const prefix = this._buildBraidPrefix(workingSetId);
+    const existingRefs = await this._graph._persistence.listRefs(prefix);
+    const nextRefs = new Set();
+
+    for (const readOverlay of readOverlays) {
+      const ref = this._buildBraidRef(workingSetId, readOverlay.workingSetId);
+      nextRefs.add(ref);
+      if (readOverlay.headPatchSha) {
+        await this._graph._persistence.updateRef(ref, readOverlay.headPatchSha);
+      } else if (await this._graph._persistence.readRef(ref)) {
+        await this._graph._persistence.deleteRef(ref);
+      }
+    }
+
+    for (const existingRef of existingRefs) {
+      if (!nextRefs.has(existingRef)) {
+        await this._graph._persistence.deleteRef(existingRef);
+      }
+    }
   }
 }

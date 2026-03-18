@@ -31,9 +31,10 @@
  * @property {() => Promise<number>} getPropertyCount
  * @property {() => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
  * @property {(options?: import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalyzeOptions) => Promise<import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalysis>} analyzeConflicts
- * @property {(options?: {workingSetId?: string, lamportCeiling?: number|null, owner?: string|null, scope?: string|null, leaseExpiresAt?: string|null}) => Promise<{workingSetId: string, baseObservation: {lamportCeiling: number|null, frontier: Record<string, string>, frontierDigest: string}, overlay: {overlayId: string, kind: string, headPatchSha: string|null, patchCount: number}}>} createWorkingSet
- * @property {(workingSetId: string) => Promise<{workingSetId: string, baseObservation: {lamportCeiling: number|null, frontier: Record<string, string>, frontierDigest: string}, overlay: {overlayId: string, kind: string, headPatchSha: string|null, patchCount: number}}|null>} getWorkingSet
- * @property {() => Promise<Array<{workingSetId: string, baseObservation: {lamportCeiling: number|null, frontier: Record<string, string>, frontierDigest: string}, overlay: {overlayId: string, kind: string, headPatchSha: string|null, patchCount: number}}>>} listWorkingSets
+ * @property {(options?: import('../../index.js').WorkingSetCreateOptions) => Promise<import('../../index.js').WorkingSetDescriptor>} createWorkingSet
+ * @property {(workingSetId: string, options?: import('../../index.js').WorkingSetBraidOptions) => Promise<import('../../index.js').WorkingSetDescriptor>} braidWorkingSet
+ * @property {(workingSetId: string) => Promise<import('../../index.js').WorkingSetDescriptor|null>} getWorkingSet
+ * @property {() => Promise<import('../../index.js').WorkingSetDescriptor[]>} listWorkingSets
  * @property {(workingSetId: string) => Promise<boolean>} dropWorkingSet
  * @property {(workingSetId: string, options?: {receipts?: boolean, ceiling?: number|null}) => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5|{state: import('../../src/domain/services/JoinReducer.js').WarpStateV5, receipts: import('../../src/domain/types/TickReceipt.js').TickReceipt[]}>} materializeWorkingSet
  * @property {(workingSetId: string, options?: {ceiling?: number|null}) => Promise<Array<{patch: import('../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>} getWorkingSetPatches

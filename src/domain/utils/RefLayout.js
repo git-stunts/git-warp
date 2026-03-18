@@ -12,6 +12,7 @@
  * - refs/warp/<graph>/cursor/saved/<name>
  * - refs/warp/<graph>/working-sets/<id>
  * - refs/warp/<graph>/working-set-overlays/<id>
+ * - refs/warp/<graph>/working-set-braids/<id>/<support_id>
  * - refs/warp/<graph>/audit/<writer_id>
  * - refs/warp/<graph>/trust/records
  *
@@ -61,6 +62,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
   'cursor',
   'working-sets',
   'working-set-overlays',
+  'working-set-braids',
   'audit',
   'trust',
   'seek-cache',
@@ -376,6 +378,39 @@ export function buildWorkingSetOverlayRef(graphName, workingSetId) {
 export function buildWorkingSetOverlaysPrefix(graphName) {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/working-set-overlays/`;
+}
+
+/**
+ * Builds a pinned braid ref for one support overlay inside a target working set.
+ *
+ * The ref points at the pinned head SHA for the support overlay at braid time,
+ * keeping the support patch chain reachable even if the source working set is
+ * later dropped or continues independently.
+ *
+ * @param {string} graphName
+ * @param {string} workingSetId
+ * @param {string} braidedWorkingSetId
+ * @returns {string}
+ */
+export function buildWorkingSetBraidRef(graphName, workingSetId, braidedWorkingSetId) {
+  validateGraphName(graphName);
+  validateWriterId(workingSetId);
+  validateWriterId(braidedWorkingSetId);
+  return `${REF_PREFIX}/${graphName}/working-set-braids/${workingSetId}/${braidedWorkingSetId}`;
+}
+
+/**
+ * Builds the braid-ref prefix path for all support overlays pinned inside one
+ * target working set.
+ *
+ * @param {string} graphName
+ * @param {string} workingSetId
+ * @returns {string}
+ */
+export function buildWorkingSetBraidsPrefix(graphName, workingSetId) {
+  validateGraphName(graphName);
+  validateWriterId(workingSetId);
+  return `${REF_PREFIX}/${graphName}/working-set-braids/${workingSetId}/`;
 }
 
 /**

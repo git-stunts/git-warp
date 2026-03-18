@@ -188,7 +188,12 @@ const CLASSIFICATION_NOTES = Object.freeze({
  *     workingSetId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
- *     overlayPatchCount: number
+ *     overlayPatchCount: number,
+ *     overlayWritable: boolean,
+ *     braid?: {
+ *       readOverlayCount: number,
+ *       braidedWorkingSetIds: string[]
+ *     }
  *   }
  * }} ConflictResolvedCoordinate
  */
@@ -689,7 +694,12 @@ function normalizeOptions(options) {
  *     workingSetId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
- *     overlayPatchCount: number
+ *     overlayPatchCount: number,
+ *     overlayWritable: boolean,
+ *     braid?: {
+ *       readOverlayCount: number,
+ *       braidedWorkingSetIds: string[]
+ *     }
  *   }
  * }} options
  * @returns {ConflictResolvedCoordinate}
@@ -713,6 +723,26 @@ function buildResolvedCoordinate({
     },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
     ...(workingSet ? { workingSet } : {}),
+  };
+}
+
+/**
+ * @param {import('../../../index.js').WorkingSetDescriptor} descriptor
+ * @returns {NonNullable<ConflictResolvedCoordinate['workingSet']>}
+ */
+function buildResolvedWorkingSetMetadata(descriptor) {
+  return {
+    workingSetId: descriptor.workingSetId,
+    baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+    overlayHeadPatchSha: descriptor.overlay.headPatchSha,
+    overlayPatchCount: descriptor.overlay.patchCount,
+    overlayWritable: descriptor.overlay.writable,
+    braid: {
+      readOverlayCount: descriptor.braid.readOverlays.length,
+      braidedWorkingSetIds: descriptor.braid.readOverlays
+        .map((overlay) => overlay.workingSetId)
+        .sort(compareStrings),
+    },
   };
 }
 
@@ -1883,12 +1913,7 @@ async function resolveAnalysisContext(service, normalized) {
         lamportCeiling: normalized.lamportCeiling,
         maxPatches: normalized.maxPatches,
         frontierDigest: descriptor.baseObservation.frontierDigest,
-        workingSet: {
-          workingSetId: descriptor.workingSetId,
-          baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
-          overlayHeadPatchSha: descriptor.overlay.headPatchSha,
-          overlayPatchCount: descriptor.overlay.patchCount,
-        },
+        workingSet: buildResolvedWorkingSetMetadata(descriptor),
       }),
     };
   }

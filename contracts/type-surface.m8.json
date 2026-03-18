@@ -1435,6 +1435,12 @@
     "WorkingSetCreateOptions": {
       "kind": "interface"
     },
+    "WorkingSetBraidOptions": {
+      "kind": "interface"
+    },
+    "WorkingSetReadOverlayDescriptor": {
+      "kind": "interface"
+    },
     "WorkingSetDescriptor": {
       "kind": "interface"
     },

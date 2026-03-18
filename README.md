@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.11.0
+
+- **Braided working-set composition is now a real substrate primitive** — `WarpGraph.braidWorkingSet()` pins zero or more read-only support overlays on top of a target working set's shared base observation while keeping the target overlay optionally writable.
+- **The main CLI can pin the same braid truth directly** — `git warp working-set braid` exposes the substrate braid descriptor without turning `debug` into a mutation surface or teaching git-warp about higher-level worldline meaning.
+- **Working-set reads now materialize the full visible patch universe** — materialization, visible patch reads, comparisons, and working-set-aware conflict analysis metadata now resolve against `base + braided read-only overlays + active overlay`, while `reduceV5` remains deterministic and blind to braid semantics.
+
 ## What's New in v14.10.0
 
 - **Working-set and coordinate comparison are now first-class substrate reads** — `WarpGraph.compareWorkingSet()` and `WarpGraph.compareCoordinates()` compare deterministic visible patch universes plus visible node/edge/property deltas without inventing application semantics.
@@ -90,7 +96,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, overlay patch-log semantics, and the working-set API/CLI surface.
-- **Braids (future direction)**: the canonical term for co-present working-set composition is now **braid**. git-warp will use braid language for future mounted-overlay visibility, while keeping reducer semantics worldline-blind.
+- **Braids**: the canonical term for co-present working-set composition is **braid**. The substrate now supports pinned read-only braid overlays through `braidWorkingSet()` / `git warp working-set braid`, while keeping reducer semantics worldline-blind.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
@@ -609,6 +615,9 @@ git warp debug receipts --lamport-ceiling 12 --result superseded
 # Inspect reducer receipts inside a working set
 git warp debug receipts --working-set review-auth --result superseded
 
+# Braid a support working set onto a target and freeze target writes
+git warp working-set braid review-auth --support hold-auth --read-only
+
 # Compare a working set against live truth
 git warp working-set compare review-auth --against live --target-id user:alice
 
@@ -675,6 +684,9 @@ git warp debug receipts --writer-id alice --result superseded --json
 # Inspect working-set reducer outcomes without leaving the CLI
 git warp debug receipts --working-set review-auth --writer-id ws_review-auth --json
 
+# Pin a braided support overlay before reading or comparing
+git warp working-set braid review-auth --support hold-auth --read-only --json
+
 # Compare a working set against another speculative lane
 git warp working-set compare review-auth --against working-set:review-auth-b --target-id user:alice --json
 ```
@@ -687,7 +699,7 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Human-Facing Apps
 
-`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`. Those read-side debugger commands can now target either the live frontier or a pinned working set, while the reducer itself stays deterministic and worldline-blind.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`. Those read-side debugger commands can now target either the live frontier or a pinned working set, and that pinned working set may itself expose a braid-visible patch universe, while the reducer itself stays deterministic and worldline-blind.
 
 Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 

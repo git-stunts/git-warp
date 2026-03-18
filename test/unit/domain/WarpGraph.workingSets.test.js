@@ -4,7 +4,7 @@ import WarpGraph from '../../../src/domain/WarpGraph.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
+import { buildWorkingSetBraidRef, buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
 
 /**
  * @param {number} counter
@@ -174,7 +174,9 @@ describe('WarpGraph working-set foundation', () => {
       kind: 'patch-log',
       headPatchSha: null,
       patchCount: 0,
+      writable: true,
     });
+    expect(created.braid).toEqual({ readOverlays: [] });
 
     const loaded = await graph.getWorkingSet('ws_demo');
     expect(loaded).not.toBeNull();
@@ -282,7 +284,9 @@ describe('WarpGraph working-set foundation', () => {
       kind: 'patch-log',
       headPatchSha: overlaySha,
       patchCount: 1,
+      writable: true,
     });
+    expect(descriptor?.braid).toEqual({ readOverlays: [] });
 
     const workingSetState = await graph.materializeWorkingSet('ws_overlay');
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
@@ -347,6 +351,136 @@ describe('WarpGraph working-set foundation', () => {
 
     await graph.materializeWorkingSet('ws_ceiling');
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+  });
+
+  it('braidWorkingSet pins support overlays onto the visible patch universe and preserves target-owned braid refs', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'base' },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_target',
+      owner: 'alice',
+    });
+    await graph.createWorkingSet({
+      workingSetId: 'ws_support',
+      owner: 'alice',
+    });
+
+    const supportSha = await graph.patchWorkingSet('ws_support', (p) => {
+      p.setProperty('n1', 'support', 'held');
+    });
+    const targetSha = await graph.patchWorkingSet('ws_target', (p) => {
+      p.setProperty('n1', 'status', 'target');
+    });
+
+    const braided = await graph.braidWorkingSet('ws_target', {
+      braidedWorkingSetIds: ['ws_support'],
+    });
+
+    expect(braided.overlay.writable).toBe(true);
+    expect(braided.braid.readOverlays).toEqual([
+      {
+        workingSetId: 'ws_support',
+        overlayId: 'ws_support',
+        kind: 'patch-log',
+        headPatchSha: supportSha,
+        patchCount: 1,
+      },
+    ]);
+    expect(await persistence.readRef(buildWorkingSetBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
+
+    await graph.materializeWorkingSet('ws_target');
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({
+      status: 'target',
+      support: 'held',
+    });
+
+    const comparison = await graph.compareWorkingSet('ws_target', { targetId: 'n1' });
+    expect(comparison.left.resolved.workingSet).toMatchObject({
+      workingSetId: 'ws_target',
+      overlayHeadPatchSha: targetSha,
+      overlayPatchCount: 1,
+      overlayWritable: true,
+      braid: {
+        readOverlayCount: 1,
+        braidedWorkingSetIds: ['ws_support'],
+      },
+    });
+
+    await expect(graph.dropWorkingSet('ws_support')).resolves.toBe(true);
+    expect(await persistence.readRef(buildWorkingSetBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
+  });
+
+  it('braidWorkingSet rejects support working sets with a different pinned base observation', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+      ],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_target', owner: 'alice' });
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      context: new Map([['alice', 1]]),
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'status', value: 'later' },
+      ],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_support', owner: 'alice' });
+
+    await expect(graph.braidWorkingSet('ws_target', {
+      braidedWorkingSetIds: ['ws_support'],
+    })).rejects.toMatchObject({
+      code: 'E_WORKING_SET_COORDINATE_INVALID',
+    });
+  });
+
+  it('patchWorkingSet rejects read-only braid targets and drop removes braid refs with the target', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+      ],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_target', owner: 'alice' });
+    await graph.createWorkingSet({ workingSetId: 'ws_support', owner: 'alice' });
+
+    const supportSha = await graph.patchWorkingSet('ws_support', (p) => {
+      p.setProperty('n1', 'support', 'held');
+    });
+
+    await graph.braidWorkingSet('ws_target', {
+      braidedWorkingSetIds: ['ws_support'],
+      writable: false,
+    });
+
+    await expect(graph.patchWorkingSet('ws_target', (p) => {
+      p.setProperty('n1', 'status', 'blocked');
+    })).rejects.toMatchObject({
+      code: 'E_WORKING_SET_INVALID_ARGS',
+    });
+
+    const braidRef = buildWorkingSetBraidRef(graphName, 'ws_target', 'ws_support');
+    expect(await persistence.readRef(braidRef)).toBe(supportSha);
+    await expect(graph.dropWorkingSet('ws_target')).resolves.toBe(true);
+    await expect(persistence.readRef(braidRef)).resolves.toBeNull();
   });
 
   it('getWorkingSetPatches returns the visible base-plus-overlay entries for a working set', async () => {

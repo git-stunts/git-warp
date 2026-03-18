@@ -89,6 +89,8 @@ Separate but adjacent:
 
 - `git warp working-set`
   Manages durable pinned coordinates and materializes them later. This is intentionally outside the read-only TTD family because it creates and deletes descriptor refs.
+- `git warp working-set braid`
+  Pins read-only braid support overlays onto a target working set without changing the TTD read-only contract.
 - `git warp working-set compare`
   Compares durable coordinates and visible patch universes. It stays outside `debug` because it is a coordinate-comparison surface, not a single-coordinate debugger topic.
 
@@ -134,6 +136,10 @@ In practice:
 - `debug receipts` uses explicit materialization over the live frontier or a pinned working set without mutating seek state or graph state.
 - debug topics may consult the active seek cursor, but they do not mutate it.
 
+When a selected working set carries braided read-only overlays, those debug
+topics inspect the resulting braid-visible patch universe automatically because
+they still materialize and analyze through the working-set substrate surface.
+
 If a future debugger feature requires durable writes, it should not be added casually. The read-only contract is part of the debugger’s architecture, not just a convenience.
 
 This is why `working-set` is a separate top-level family instead of a `debug` subcommand.
@@ -152,8 +158,9 @@ This keeps TTD aligned with the current git-warp substrate model:
 - `seek` controls observation position
 - debug topics inspect facts at that position
 - `debug coordinate` remains live-frontier/cursor scoped for now
-- `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set without teaching the reducer about worldlines
+- `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set, including any pinned braid support overlays, without teaching the reducer about worldlines
 - `working-set compare` handles deterministic coordinate/working-set divergence reads outside the debugger family
+- `working-set braid` changes descriptor visibility, not debugger semantics
 - explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
 
@@ -179,5 +186,5 @@ Likely future TTD-adjacent extensions:
 - additional debug topics once their substrate facts are stable
 - entity-local slice inspection at historical coordinates once substrate support exists
 - richer provenance drilldown over conflict anchors
-- deeper braid-aware working-set/worldline debugger views once co-present overlay composition lands in the substrate
+- richer braid-oriented debugger affordances and examples now that co-present overlay composition exists in the substrate
 - higher-level debugger panels in XYPH, not in git-warp

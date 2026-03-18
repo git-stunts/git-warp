@@ -19,6 +19,17 @@ export async function createWorkingSet(options) {
 /**
  * @this {import('../WarpGraph.js').default}
  * @param {string} workingSetId
+ * @param {import('../../../index.js').WorkingSetBraidOptions} [options]
+ * @returns {Promise<import('../../../index.js').WorkingSetDescriptor>}
+ */
+export async function braidWorkingSet(workingSetId, options) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.braid(workingSetId, options);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
  * @returns {Promise<import('../../../index.js').WorkingSetDescriptor|null>}
  */
 export async function getWorkingSet(workingSetId) {

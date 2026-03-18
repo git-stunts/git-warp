@@ -1,6 +1,6 @@
 # Working Sets
 
-**Status:** v1 substrate active.
+**Status:** v1 substrate active, with braid foundation now active inside the working-set descriptor model.
 
 Working sets give git-warp a durable way to pin explicit observation coordinates without assuming a Git worktree, a browser UI, or higher-level XYPH semantics.
 
@@ -14,12 +14,16 @@ A working set is a durable descriptor that records:
 - optional Lamport ceiling
 - optional owner/scope/lease metadata
 - overlay identity plus a patch-log ref for divergent writes
+- overlay writability for the target lane
+- zero or more pinned braid support overlays
 
 A newly created working set still starts with an empty overlay:
 
 - `overlay.kind = patch-log`
 - `overlay.headPatchSha = null`
 - `overlay.patchCount = 0`
+- `overlay.writable = true`
+- `braid.readOverlays = []`
 
 That means a newly created working set reads exactly like its base observation until an overlay patch is committed.
 
@@ -30,6 +34,7 @@ The authoritative pieces are:
 - the working-set descriptor
 - the pinned base observation coordinate
 - the overlay patch-log ref and its patch chain
+- any target-owned braid refs that pin support overlay heads
 
 Materialized state is **derived only**:
 
@@ -72,6 +77,10 @@ const ws = await graph.createWorkingSet({
 
 const descriptor = await graph.getWorkingSet('review-auth');
 const all = await graph.listWorkingSets();
+const braided = await graph.braidWorkingSet('review-auth', {
+  braidedWorkingSetIds: ['hold-auth'],
+  writable: false,
+});
 const state = await graph.materializeWorkingSet('review-auth');
 const view = projectStateV5(state);
 const reader = createStateReaderV5(state);
@@ -167,6 +176,21 @@ git warp working-set drop review-auth
 
 The CLI manages descriptor lifecycle and replay. Overlay writes are available through the library API, not through a separate working-set patch DSL in the CLI.
 
+Braids use the same CLI family:
+
+```bash
+git warp working-set braid review-auth --support hold-auth
+git warp working-set braid review-auth --support hold-auth --support audit-auth --read-only
+git warp working-set braid review-auth --writable
+```
+
+`working-set braid` stays substrate-level:
+
+- `--support <id>` pins one or more read-only support overlays by working-set ID
+- `--read-only` disables writes to the target overlay without changing braid support IDs
+- `--writable` re-enables the target overlay when the descriptor should keep accepting writes
+- omitted `--support` values mean "keep no braided support overlays" for the updated descriptor
+
 `working-set` is intentionally a top-level family rather than a `debug` subcommand because it creates durable descriptor refs.
 
 Programmatic readers and the CLI inspect the same visible patch universe:
@@ -199,24 +223,27 @@ That read-side support changes the visible patch universe, not the reducer rules
 
 That boundary keeps the debugger from turning into a mutation channel while still letting higher layers build real fork/worldline behavior on top of working sets.
 
-## Future Direction: Braids
+## Braid Foundation
 
-The canonical future term for co-present working-set composition is
-**braid**.
+The canonical git-warp term for co-present working-set composition is
+**braid**, and the substrate foundation is now active.
 
 A braid is not ordinary merge and not Git rebase. It is a way to keep one or
 more working-set-derived effects visible together at the same observation
-surface.
+surface while the reducer continues to operate over an ordinary visible patch
+universe.
 
-Conceptually, the future substrate shape is:
+The current braid descriptor shape is:
 
 - base observation
 - zero or more braided read-only overlays
-- optional active writable overlay
+- one target overlay, marked writable or read-only
 
-Materialization would then replay the visible patch universe composed from that
-set. The important invariant stays the same:
+The key substrate invariants are:
 
+- support working sets must share the exact same pinned base observation as the target working set
+- braided support overlays are pinned by head SHA at braid time rather than live-following another working set
+- target-owned braid refs keep those pinned support heads reachable even if the source working set is later dropped
 - analyzers and materializers decide which patches are visible
 - `reduceV5` stays deterministic and working-set/worldline blind
 
@@ -230,6 +257,7 @@ Deferred from this slice:
 - collapse/merge semantics
 - worldline governance
 - arbitrary higher-level meaning
-- braided working-set composition
+- higher-level braid settlement workflows
+- richer braid-specific debugger affordances and examples
 
 Those may come later, but only after the pinned-coordinate substrate proves itself.

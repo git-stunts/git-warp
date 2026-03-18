@@ -261,6 +261,11 @@ interface ConflictAnalysis {
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
+      overlayWritable: boolean;
+      braid: {
+        readOverlayCount: number;
+        braidedWorkingSetIds: string[];
+      };
     };
   };
   analysisSnapshotHash: string;
@@ -274,6 +279,19 @@ interface WorkingSetCreateOptions {
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
+}
+
+interface WorkingSetBraidOptions {
+  braidedWorkingSetIds?: string[];
+  writable?: boolean | null;
+}
+
+interface WorkingSetReadOverlayDescriptor {
+  workingSetId: string;
+  overlayId: string;
+  kind: string;
+  headPatchSha: string | null;
+  patchCount: number;
 }
 
 interface WorkingSetDescriptor {
@@ -298,6 +316,10 @@ interface WorkingSetDescriptor {
     kind: string;
     headPatchSha: string | null;
     patchCount: number;
+    writable: boolean;
+  };
+  braid: {
+    readOverlays: WorkingSetReadOverlayDescriptor[];
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -399,6 +421,11 @@ interface CoordinateComparisonSideV1 {
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
+      overlayWritable: boolean;
+      braid: {
+        readOverlayCount: number;
+        braidedWorkingSetIds: string[];
+      };
     };
   };
 }
@@ -548,6 +575,7 @@ declare module '../WarpGraph.js' {
 
     // ── workingSet.methods.js ─────────────────────────────────────────────
     createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
+    braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
     getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
     listWorkingSets(): Promise<WorkingSetDescriptor[]>;
     dropWorkingSet(workingSetId: string): Promise<boolean>;

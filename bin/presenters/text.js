@@ -135,7 +135,7 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * }} DebugTimelinePayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'create'|'show',
+ *   workingSetAction: 'braid'|'create'|'show',
  *   workingSet: import('../../index.js').WorkingSetDescriptor
  * }} WorkingSetShowPayload
  * @typedef {{
@@ -1095,6 +1095,7 @@ export function renderDebug(payload) {
  * @returns {string[]}
  */
 function renderWorkingSetDescriptorLines(workingSet) {
+  const braidedWorkingSetIds = workingSet.braid.readOverlays.map((overlay) => overlay.workingSetId);
   return [
     `Working Set: ${workingSet.workingSetId}`,
     `Created At: ${workingSet.createdAt}`,
@@ -1105,7 +1106,8 @@ function renderWorkingSetDescriptorLines(workingSet) {
     `Lamport Ceiling: ${workingSet.baseObservation.lamportCeiling ?? 'latest'}`,
     `Frontier Digest: ${workingSet.baseObservation.frontierDigest}`,
     `Frontier Writers: ${Object.keys(workingSet.baseObservation.frontier).length}`,
-    `Overlay: ${workingSet.overlay.kind} id=${workingSet.overlay.overlayId} head=${workingSet.overlay.headPatchSha ?? 'none'} patches=${workingSet.overlay.patchCount}`,
+    `Overlay: ${workingSet.overlay.kind} id=${workingSet.overlay.overlayId} head=${workingSet.overlay.headPatchSha ?? 'none'} patches=${workingSet.overlay.patchCount} writable=${workingSet.overlay.writable ? 'yes' : 'no'}`,
+    `Braids: ${braidedWorkingSetIds.length === 0 ? 'none' : braidedWorkingSetIds.join(', ')}`,
     `Materialization Cache: ${workingSet.materialization.cacheAuthority}`,
   ];
 }
@@ -1124,7 +1126,7 @@ export function renderWorkingSet(payload) {
     }
 
     for (const workingSet of payload.workingSets) {
-      lines.push(`- ${workingSet.workingSetId} ceiling=${workingSet.baseObservation.lamportCeiling ?? 'latest'} owner=${workingSet.owner ?? 'none'} scope=${workingSet.scope ?? 'none'}`);
+      lines.push(`- ${workingSet.workingSetId} ceiling=${workingSet.baseObservation.lamportCeiling ?? 'latest'} owner=${workingSet.owner ?? 'none'} scope=${workingSet.scope ?? 'none'} writable=${workingSet.overlay.writable ? 'yes' : 'no'} braid=${workingSet.braid.readOverlays.length}`);
     }
     return `${lines.join('\n')}\n`;
   }
