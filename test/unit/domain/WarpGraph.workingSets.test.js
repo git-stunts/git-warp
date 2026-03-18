@@ -859,6 +859,82 @@ describe('WarpGraph working-set foundation', () => {
     await expect(graph._crypto.hash('sha256', factExport.canonicalFactJson)).resolves.toBe(factExport.factDigest);
   });
 
+  it('scopes coordinate comparison and transfer planning by node-id prefix without mutating the raw substrate truth', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'task:1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'task:1', key: 'status', value: 'ready' },
+      ],
+      reads: [],
+      writes: ['task:1'],
+    });
+
+    const operationalFrontier = Object.fromEntries(await graph.getFrontier());
+
+    const governanceSha = await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      context: new Map([['alice', 1]]),
+      ops: [
+        { type: 'NodeAdd', node: 'comparison-artifact:cmp-1', dot: createDot('alice', 2) },
+        { type: 'PropSet', node: 'comparison-artifact:cmp-1', key: 'kind', value: 'comparison-artifact' },
+        { type: 'EdgeAdd', from: 'task:1', to: 'comparison-artifact:cmp-1', label: 'governs', dot: createDot('alice', 3) },
+      ],
+      reads: ['task:1', 'comparison-artifact:cmp-1'],
+      writes: ['comparison-artifact:cmp-1', 'task:1\0comparison-artifact:cmp-1\0governs'],
+    });
+
+    const rawComparison = await graph.compareCoordinates({
+      left: { kind: 'coordinate', frontier: operationalFrontier },
+      right: { kind: 'live' },
+    });
+    expect(rawComparison.visiblePatchDivergence.rightOnlyPatchShas).toEqual([governanceSha]);
+    expect(rawComparison.visibleState.changed).toBe(true);
+
+    const scope = {
+      nodeIdPrefixes: {
+        include: [],
+        exclude: ['comparison-artifact:'],
+      },
+    };
+
+    const scopedComparison = await graph.compareCoordinates({
+      left: { kind: 'coordinate', frontier: operationalFrontier },
+      right: { kind: 'live' },
+      scope,
+    });
+
+    expect(scopedComparison.scope).toEqual(scope);
+    expect(scopedComparison.visibleState.changed).toBe(false);
+    expect(scopedComparison.visiblePatchDivergence.leftOnlyCount).toBe(0);
+    expect(scopedComparison.visiblePatchDivergence.rightOnlyCount).toBe(0);
+    expect(scopedComparison.left.resolved.patchUniverseDigest).toBe(scopedComparison.right.resolved.patchUniverseDigest);
+
+    const scopedFactExport = exportCoordinateComparisonFact(scopedComparison);
+    expect(scopedFactExport.fact.scope).toEqual(scope);
+    expect(JSON.parse(scopedFactExport.canonicalFactJson)).toEqual(scopedFactExport.fact);
+    await expect(graph._crypto.hash('sha256', scopedFactExport.canonicalFactJson)).resolves.toBe(scopedFactExport.factDigest);
+
+    const scopedTransfer = await graph.planCoordinateTransfer({
+      source: { kind: 'coordinate', frontier: operationalFrontier },
+      target: { kind: 'live' },
+      scope,
+    });
+
+    expect(scopedTransfer.scope).toEqual(scope);
+    expect(scopedTransfer.changed).toBe(false);
+    expect(scopedTransfer.summary.opCount).toBe(0);
+    expect(scopedTransfer.ops).toEqual([]);
+
+    const transferFactExport = exportCoordinateTransferPlanFact(scopedTransfer);
+    expect(transferFactExport.fact.scope).toEqual(scope);
+  });
+
   it('planWorkingSetTransfer emits a deterministic transfer plan including property clears and content attachment updates', async () => {
     await simulatePatchCommit(persistence, {
       graphName,

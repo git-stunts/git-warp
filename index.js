@@ -124,6 +124,10 @@ import { computeStateHashV5, projectStateV5 } from './src/domain/services/StateS
 import { createStateReaderV5 } from './src/domain/services/StateReaderV5.js';
 import { compareVisibleStateV5 } from './src/domain/services/VisibleStateComparisonV5.js';
 import {
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
+} from './src/domain/services/VisibleStateScopeV1.js';
+import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.js';
@@ -226,6 +230,8 @@ export {
   projectStateV5,
   createStateReaderV5,
   compareVisibleStateV5,
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 

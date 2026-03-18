@@ -842,6 +842,25 @@ export function compareVisibleStateV5(
 ): VisibleStateComparisonV5;
 
 /**
+ * Normalizes a substrate-generic visible-state scope. Current v1 scope
+ * supports include/exclude node-id prefixes; dependent edges and properties
+ * follow node visibility.
+ */
+export function normalizeVisibleStateScopeV1(
+  scope: unknown,
+  field?: string,
+): VisibleStateScopeV1 | null;
+
+/**
+ * Projects a materialized WarpStateV5 down to the visible subset admitted by
+ * a normalized visible-state scope.
+ */
+export function scopeMaterializedStateV5(
+  state: WarpStateV5,
+  scope?: VisibleStateScopeV1 | null,
+): WarpStateV5;
+
+/**
  * Exports the exact deterministic substrate fact hashed by a coordinate
  * comparison digest as a JSON-safe envelope for higher-layer storage.
  */
@@ -2146,6 +2165,7 @@ export default class WarpGraph {
     ceiling?: number | null;
     againstCeiling?: number | null;
     targetId?: string | null;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateComparisonV1>;
 
   /**
@@ -2157,6 +2177,7 @@ export default class WarpGraph {
     into?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
     ceiling?: number | null;
     intoCeiling?: number | null;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateTransferPlanV1>;
 
   /**
@@ -2166,6 +2187,7 @@ export default class WarpGraph {
     left: CoordinateComparisonSelectorV1;
     right: CoordinateComparisonSelectorV1;
     targetId?: string | null;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateComparisonV1>;
 
   /**
@@ -2175,6 +2197,7 @@ export default class WarpGraph {
   planCoordinateTransfer(options: {
     source: CoordinateTransferPlanSelectorV1;
     target: CoordinateTransferPlanSelectorV1;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateTransferPlanV1>;
 
   /**
@@ -2872,6 +2895,15 @@ export interface VisibleStateComparisonV5 {
   target?: VisibleStateComparisonTargetV5;
 }
 
+export interface VisibleStateScopePrefixFilterV1 {
+  include?: string[];
+  exclude?: string[];
+}
+
+export interface VisibleStateScopeV1 {
+  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+}
+
 export type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
   | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
@@ -2929,6 +2961,7 @@ export interface CoordinateComparisonSideV1 {
 export interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
@@ -2937,6 +2970,7 @@ export interface CoordinateComparisonV1 {
 
 export interface CoordinateComparisonFactV1 {
   comparisonVersion: string;
+  scope?: VisibleStateScopeV1;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
@@ -2997,6 +3031,7 @@ export interface CoordinateTransferPlanV1 {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;
@@ -3007,6 +3042,7 @@ export interface CoordinateTransferPlanV1 {
 export interface CoordinateTransferPlanFactV1 {
   transferVersion: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;

@@ -18,6 +18,11 @@ import {
 } from '../services/CoordinateFactExport.js';
 import { createStateReaderV5 } from '../services/StateReaderV5.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
+import {
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
+  scopePatchEntriesV1,
+} from '../services/VisibleStateScopeV1.js';
 import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
 import { planVisibleStateTransferV5 } from '../services/VisibleStateTransferPlannerV5.js';
 import WorkingSetService from '../services/WorkingSetService.js';
@@ -27,11 +32,65 @@ const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
 /**
- * @typedef {import('../../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1
- * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
- * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
+ * @typedef {{
+ *   include?: string[],
+ *   exclude?: string[]
+ * }} VisibleStateScopePrefixFilterV1
+ * @typedef {{
+ *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
+ * }} VisibleStateScopeV1
+ * @typedef {{
+ *   getNodes: () => string[],
+ *   getEdges: () => Array<{ from: string, to: string, label: string, props?: Record<string, unknown> }>,
+ *   getNodeProps: (nodeId: string) => Record<string, unknown>|null|undefined
+ * }} VisibleStateReaderV5
+ * @typedef {{
+ *   kind: 'live',
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'working_set'|'working_set_base',
+ *   workingSetId: string,
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'coordinate',
+ *   frontier: Map<string, string>|Record<string, string>,
+ *   ceiling?: number|null
+ * }} CoordinateComparisonSelectorV1
+ * @typedef {CoordinateComparisonSelectorV1} CoordinateTransferPlanSelectorV1
+ * @typedef {{
+ *   baseObservation: {
+ *     lamportCeiling: number|null,
+ *     frontier: Record<string, string>
+ *   },
+ *   overlay: {
+ *     headPatchSha: string|null,
+ *     patchCount: number,
+ *     writable?: boolean
+ *   },
+ *   braid?: {
+ *     readOverlays?: Array<{ workingSetId: string }>
+ *   }
+ * }} WorkingSetDescriptorV1
+ * @typedef {{
+ *   comparisonVersion: string,
+ *   comparisonDigest: string,
+ *   scope?: VisibleStateScopeV1,
+ *   left: unknown,
+ *   right: unknown,
+ *   visiblePatchDivergence: unknown,
+ *   visibleState: unknown
+ * }} CoordinateComparisonV1
+ * @typedef {{
+ *   transferVersion: string,
+ *   transferDigest: string,
+ *   comparisonDigest: string,
+ *   scope?: VisibleStateScopeV1,
+ *   changed: boolean,
+ *   source: unknown,
+ *   target: unknown,
+ *   summary: unknown,
+ *   ops: Array<Record<string, unknown>>
+ * }} CoordinateTransferPlanV1
  */
 
 /**
@@ -162,20 +221,6 @@ function frontierRecordToMap(frontierRecord) {
 }
 
 /**
- * @param {Map<string, number>} frontier
- * @returns {Record<string, number>}
- */
-function observedLamportFrontierToRecord(frontier) {
-  const record = /** @type {Record<string, number>} */ ({});
-  for (const [writerId, sha] of [...frontier.entries()].sort(([a], [b]) => compareStrings(a, b))) {
-    if (typeof sha === 'number' && Number.isFinite(sha)) {
-      record[writerId] = sha;
-    }
-  }
-  return record;
-}
-
-/**
  * @param {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} entries
  * @returns {Record<string, string>}
  */
@@ -194,6 +239,26 @@ function patchFrontierFromEntries(entries) {
     [...byWriter.entries()]
       .sort(([a], [b]) => compareStrings(a, b))
       .map(([writerId, current]) => [writerId, current.sha]),
+  );
+}
+
+/**
+ * @param {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} entries
+ * @returns {Record<string, number>}
+ */
+function lamportFrontierFromEntries(entries) {
+  const byWriter = new Map();
+  for (const entry of entries) {
+    const writerId = entry.patch.writer;
+    const lamport = entry.patch.lamport ?? 0;
+    const current = byWriter.get(writerId);
+    if (current === undefined || lamport > current) {
+      byWriter.set(writerId, lamport);
+    }
+  }
+
+  return Object.fromEntries(
+    [...byWriter.entries()].sort(([a], [b]) => compareStrings(a, b)),
   );
 }
 
@@ -437,7 +502,7 @@ function optionalCeiling(ceiling) {
 
 /**
  * @param {string} workingSetId
- * @param {import('../../../index.js').WorkingSetDescriptor} descriptor
+ * @param {WorkingSetDescriptorV1} descriptor
  * @returns {{
  *   workingSetId: string,
  *   baseLamportCeiling: number|null,
@@ -488,6 +553,7 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *     }
  *   }
  * }} params
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<{
  *   requested: Record<string, unknown>,
  *   state: import('../services/JoinReducer.js').WarpStateV5,
@@ -522,7 +588,7 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *   }
  * }>}
  */
-async function finalizeComparisonSide(graph, params) {
+async function finalizeComparisonSide(graph, params, scope) {
   const {
     requested,
     state,
@@ -531,14 +597,16 @@ async function finalizeComparisonSide(graph, params) {
     lamportCeiling,
     workingSet,
   } = params;
-  const visiblePatchFrontier = patchFrontierFromEntries(patchEntries);
-  const visibleLamportFrontier = observedLamportFrontierToRecord(state.observedFrontier);
-  const reader = createStateReaderV5(state);
+  const scopedState = scopeMaterializedStateV5(state, scope);
+  const scopedPatchEntries = scopePatchEntriesV1(patchEntries, scope);
+  const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
+  const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
+  const reader = createStateReaderV5(scopedState);
 
   return {
     requested,
-    state,
-    patchEntries,
+    state: scopedState,
+    patchEntries: scopedPatchEntries,
     resolved: {
       coordinateKind,
       patchFrontier: visiblePatchFrontier,
@@ -547,10 +615,10 @@ async function finalizeComparisonSide(graph, params) {
       lamportFrontierDigest: await computeChecksum(visibleLamportFrontier, graph._crypto),
       lamportCeiling,
       stateHash: /** @type {string} */ (
-        await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec })
+        await computeStateHashV5(scopedState, { crypto: graph._crypto, codec: graph._codec })
       ),
-      patchUniverseDigest: await computeChecksum({ patches: uniqueSortedPatchShas(patchEntries) }, graph._crypto),
-      summary: summarizeVisibleState(reader, patchEntries.length),
+      patchUniverseDigest: await computeChecksum({ patches: uniqueSortedPatchShas(scopedPatchEntries) }, graph._crypto),
+      summary: summarizeVisibleState(reader, scopedPatchEntries.length),
       ...(workingSet ? { workingSet } : {}),
     },
   };
@@ -559,9 +627,10 @@ async function finalizeComparisonSide(graph, params) {
 /**
  * @param {import('../WarpGraph.js').default} graph
  * @param {{ kind: 'live', ceiling: number|null }} selector
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveLiveComparisonSide(graph, selector) {
+async function resolveLiveComparisonSide(graph, selector, scope) {
   const requestedFrontier = /** @type {Map<string, string>} */ (await graph.getFrontier());
   const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
   const state = await graph.materializeCoordinate({
@@ -578,15 +647,16 @@ async function resolveLiveComparisonSide(graph, selector) {
     patchEntries,
     coordinateKind: 'frontier',
     lamportCeiling: selector.ceiling,
-  });
+  }, scope);
 }
 
 /**
  * @param {import('../WarpGraph.js').default} graph
  * @param {{ kind: 'coordinate', frontier: Record<string, string>, ceiling: number|null }} selector
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveCoordinateComparisonSide(graph, selector) {
+async function resolveCoordinateComparisonSide(graph, selector, scope) {
   const state = await graph.materializeCoordinate({
     frontier: frontierRecordToMap(selector.frontier),
     ...optionalCeiling(selector.ceiling),
@@ -601,16 +671,17 @@ async function resolveCoordinateComparisonSide(graph, selector) {
     patchEntries,
     coordinateKind: 'frontier',
     lamportCeiling: selector.ceiling,
-  });
+  }, scope);
 }
 
 /**
  * @param {import('../WarpGraph.js').default} graph
- * @param {import('../services/WorkingSetService.js').default} workingSets
  * @param {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} selector
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveWorkingSetComparisonSide(graph, workingSets, selector) {
+async function resolveWorkingSetComparisonSide(graph, selector, scope) {
+  const workingSets = new WorkingSetService({ graph });
   const descriptor = await workingSets.getOrThrow(selector.workingSetId);
   const state = await graph.materializeWorkingSet(
     selector.workingSetId,
@@ -631,16 +702,17 @@ async function resolveWorkingSetComparisonSide(graph, workingSets, selector) {
     coordinateKind: 'working_set',
     lamportCeiling: selector.ceiling,
     workingSet: buildWorkingSetMetadata(selector.workingSetId, descriptor),
-  });
+  }, scope);
 }
 
 /**
  * @param {import('../WarpGraph.js').default} graph
- * @param {import('../services/WorkingSetService.js').default} workingSets
  * @param {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} selector
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveWorkingSetBaseComparisonSide(graph, workingSets, selector) {
+async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
+  const workingSets = new WorkingSetService({ graph });
   const descriptor = await workingSets.getOrThrow(selector.workingSetId);
   const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, selector.ceiling);
   const state = await graph.materializeCoordinate({
@@ -665,7 +737,7 @@ async function resolveWorkingSetBaseComparisonSide(graph, workingSets, selector)
     coordinateKind: 'working_set_base',
     lamportCeiling: effectiveCeiling,
     workingSet: buildWorkingSetMetadata(selector.workingSetId, descriptor),
-  });
+  }, scope);
 }
 
 /**
@@ -682,6 +754,7 @@ async function resolveWorkingSetBaseComparisonSide(graph, workingSets, selector)
  *   frontier: Record<string, string>,
  *   ceiling: number|null
  * }} selector
+ * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<{
  *   requested: Record<string, unknown>,
  *   state: import('../services/JoinReducer.js').WarpStateV5,
@@ -716,23 +789,22 @@ async function resolveWorkingSetBaseComparisonSide(graph, workingSets, selector)
  *   }
  * }>}
  */
-async function resolveComparisonSide(selector) {
+async function resolveComparisonSide(selector, scope = null) {
   if (selector.kind === 'live') {
-    return await resolveLiveComparisonSide(this, selector);
+    return await resolveLiveComparisonSide(this, selector, scope);
   }
 
   if (selector.kind === 'coordinate') {
-    return await resolveCoordinateComparisonSide(this, selector);
+    return await resolveCoordinateComparisonSide(this, selector, scope);
   }
 
-  const workingSets = new WorkingSetService({ graph: this });
   if (selector.kind === 'working_set') {
     const workingSetSelector = /** @type {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} */ (selector);
-    return await resolveWorkingSetComparisonSide(this, workingSets, workingSetSelector);
+    return await resolveWorkingSetComparisonSide(this, workingSetSelector, scope);
   }
 
   const baseSelector = /** @type {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} */ (selector);
-  return await resolveWorkingSetBaseComparisonSide(this, workingSets, baseSelector);
+  return await resolveWorkingSetBaseComparisonSide(this, baseSelector, scope);
 }
 
 /**
@@ -745,7 +817,8 @@ async function resolveComparisonSide(selector) {
  *   against?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
  *   ceiling?: number|null,
  *   againstCeiling?: number|null,
- *   targetId?: string|null
+ *   targetId?: string|null,
+ *   scope?: VisibleStateScopeV1|null
  * }} [options]
  * @returns {Promise<CoordinateComparisonV1>}
  */
@@ -754,6 +827,7 @@ export async function compareWorkingSet(workingSetId, options = {}) {
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
   const targetId = normalizeOptionalString(options.targetId, 'targetId');
+  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
   const against = options.against ?? 'base';
 
   const left = /** @type {CoordinateComparisonSelectorV1} */ ({
@@ -785,7 +859,7 @@ export async function compareWorkingSet(workingSetId, options = {}) {
           });
         })());
 
-  return await this.compareCoordinates({ left, right, targetId });
+  return await this.compareCoordinates({ left, right, targetId, ...(scope ? { scope } : {}) });
 }
 
 /**
@@ -818,7 +892,8 @@ async function readContentBlobByOid(graph, oid) {
  * @param {{
  *   into?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
  *   ceiling?: number|null,
- *   intoCeiling?: number|null
+ *   intoCeiling?: number|null,
+ *   scope?: VisibleStateScopeV1|null
  * }} [options]
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
@@ -826,6 +901,7 @@ export async function planWorkingSetTransfer(workingSetId, options = {}) {
   const normalizedWorkingSetId = normalizeRequiredString(workingSetId, 'workingSetId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
+  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
   const into = options.into ?? 'live';
 
   const source = /** @type {CoordinateTransferPlanSelectorV1} */ ({
@@ -857,7 +933,7 @@ export async function planWorkingSetTransfer(workingSetId, options = {}) {
           });
         })());
 
-  return await this.planCoordinateTransfer({ source, target });
+  return await this.planCoordinateTransfer({ source, target, ...(scope ? { scope } : {}) });
 }
 
 /**
@@ -878,12 +954,13 @@ function assertTransferOptions(options) {
  *   sourceSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
  *   targetSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
  *   transfer: Awaited<ReturnType<typeof planVisibleStateTransferV5>>,
- *   comparisonDigest: string
+ *   comparisonDigest: string,
+ *   scope: VisibleStateScopeV1|null
  * }} params
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
 async function finalizeTransferPlan(params) {
-  const { graph, sourceSide, targetSide, transfer, comparisonDigest } = params;
+  const { graph, sourceSide, targetSide, transfer, comparisonDigest, scope } = params;
   const changed = transfer.summary.opCount > 0;
   const sharedSides = {
     source: {
@@ -898,6 +975,7 @@ async function finalizeTransferPlan(params) {
   const fact = buildCoordinateTransferPlanFact({
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     comparisonDigest,
+    ...(scope ? { scope } : {}),
     changed,
     ...sharedSides,
     summary: transfer.summary,
@@ -908,6 +986,7 @@ async function finalizeTransferPlan(params) {
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     transferDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), graph._crypto),
     comparisonDigest,
+    ...(scope ? { scope } : {}),
     changed,
     ...sharedSides,
     summary: transfer.summary,
@@ -937,7 +1016,8 @@ async function finalizeTransferPlan(params) {
  *     workingSetId?: string,
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
- *   }
+ *   },
+ *   scope?: VisibleStateScopeV1|null
  * }} options
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
@@ -946,12 +1026,14 @@ export async function planCoordinateTransfer(options) {
 
   const normalizedSource = normalizeSelector(options.source, 'source');
   const normalizedTarget = normalizeSelector(options.target, 'target');
+  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
   const comparison = await this.compareCoordinates({
     left: normalizedSource,
     right: normalizedTarget,
+    ...(scope ? { scope } : {}),
   });
-  const sourceSide = await resolveComparisonSide.call(this, normalizedSource);
-  const targetSide = await resolveComparisonSide.call(this, normalizedTarget);
+  const sourceSide = await resolveComparisonSide.call(this, normalizedSource, scope);
+  const targetSide = await resolveComparisonSide.call(this, normalizedTarget, scope);
   const sourceReader = createStateReaderV5(sourceSide.state);
   const targetReader = createStateReaderV5(targetSide.state);
   const transfer = await planVisibleStateTransferV5(sourceReader, targetReader, {
@@ -965,6 +1047,7 @@ export async function planCoordinateTransfer(options) {
       targetSide,
       transfer,
       comparisonDigest: comparison.comparisonDigest,
+      scope,
     },
   );
 }
@@ -992,7 +1075,8 @@ export async function planCoordinateTransfer(options) {
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   },
- *   targetId?: string|null
+ *   targetId?: string|null,
+ *   scope?: VisibleStateScopeV1|null
  * }} options
  * @returns {Promise<CoordinateComparisonV1>}
  */
@@ -1006,14 +1090,16 @@ export async function compareCoordinates(options) {
   const normalizedLeft = normalizeSelector(options.left, 'left');
   const normalizedRight = normalizeSelector(options.right, 'right');
   const targetId = normalizeOptionalString(options.targetId, 'targetId');
+  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
 
-  const left = await resolveComparisonSide.call(this, normalizedLeft);
-  const right = await resolveComparisonSide.call(this, normalizedRight);
+  const left = await resolveComparisonSide.call(this, normalizedLeft, scope);
+  const right = await resolveComparisonSide.call(this, normalizedRight, scope);
   const visiblePatchDivergence = buildPatchDivergence(left.patchEntries, right.patchEntries, targetId);
   const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
 
   const fact = buildCoordinateComparisonFact({
     comparisonVersion: COORDINATE_COMPARISON_VERSION,
+    ...(scope ? { scope } : {}),
     left: {
       requested: left.requested,
       resolved: left.resolved,

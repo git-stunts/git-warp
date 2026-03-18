@@ -4,14 +4,67 @@ export const COORDINATE_COMPARISON_FACT_EXPORT_VERSION = 'coordinate-comparison-
 export const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-fact/v1';
 
 /**
- * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
- * @typedef {import('../../../index.js').CoordinateComparisonFactV1} CoordinateComparisonFactV1
- * @typedef {import('../../../index.js').CoordinateComparisonFactExportV1} CoordinateComparisonFactExportV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanFactV1} CoordinateTransferPlanFactV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanFactExportV1} CoordinateTransferPlanFactExportV1
- * @typedef {import('../../../index.js').VisibleStateTransferOperationV1} VisibleStateTransferOperationV1
- * @typedef {import('../../../index.js').VisibleStateTransferOperationFactV1} VisibleStateTransferOperationFactV1
+ * @typedef {{
+ *   include?: string[],
+ *   exclude?: string[]
+ * }} VisibleStateScopePrefixFilterV1
+ * @typedef {{
+ *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
+ * }} VisibleStateScopeV1
+ * @typedef {{ op: string, [key: string]: unknown }} VisibleStateTransferOperationV1
+ * @typedef {{ op: string, [key: string]: unknown }} VisibleStateTransferOperationFactV1
+ * @typedef {{
+ *   comparisonVersion: string,
+ *   comparisonDigest?: string,
+ *   scope?: VisibleStateScopeV1|null,
+ *   left: unknown,
+ *   right: unknown,
+ *   visiblePatchDivergence: unknown,
+ *   visibleState: unknown
+ * }} CoordinateComparisonV1
+ * @typedef {{
+ *   comparisonVersion: string,
+ *   scope?: VisibleStateScopeV1,
+ *   left: unknown,
+ *   right: unknown,
+ *   visiblePatchDivergence: unknown,
+ *   visibleState: unknown
+ * }} CoordinateComparisonFactV1
+ * @typedef {{
+ *   exportVersion: string,
+ *   factKind: 'coordinate-comparison',
+ *   factDigest: string,
+ *   canonicalFactJson: string,
+ *   fact: CoordinateComparisonFactV1
+ * }} CoordinateComparisonFactExportV1
+ * @typedef {{
+ *   transferVersion: string,
+ *   transferDigest?: string,
+ *   comparisonDigest: string,
+ *   scope?: VisibleStateScopeV1|null,
+ *   changed: boolean,
+ *   source: unknown,
+ *   target: unknown,
+ *   summary: unknown,
+ *   ops: VisibleStateTransferOperationV1[]
+ * }} CoordinateTransferPlanV1
+ * @typedef {{
+ *   transferVersion: string,
+ *   comparisonDigest: string,
+ *   scope?: VisibleStateScopeV1,
+ *   changed: boolean,
+ *   source: unknown,
+ *   target: unknown,
+ *   summary: unknown,
+ *   ops: VisibleStateTransferOperationFactV1[]
+ * }} CoordinateTransferPlanFactV1
+ * @typedef {{
+ *   exportVersion: string,
+ *   factKind: 'coordinate-transfer-plan',
+ *   factDigest: string,
+ *   canonicalFactJson: string,
+ *   fact: CoordinateTransferPlanFactV1
+ * }} CoordinateTransferPlanFactExportV1
  */
 
 /**
@@ -67,7 +120,7 @@ export function serializeTransferOpsForFact(ops) {
 /**
  * Builds the exact substrate fact payload hashed by `comparisonDigest`.
  *
- * @param {Pick<CoordinateComparisonV1, 'comparisonVersion'|'left'|'right'|'visiblePatchDivergence'|'visibleState'>} comparison
+ * @param {Pick<CoordinateComparisonV1, 'comparisonVersion'|'left'|'right'|'visiblePatchDivergence'|'visibleState'> & { scope?: VisibleStateScopeV1|null }} comparison
  * @returns {CoordinateComparisonFactV1}
  */
 export function buildCoordinateComparisonFact(comparison) {
@@ -78,6 +131,7 @@ export function buildCoordinateComparisonFact(comparison) {
   requireNonEmptyString(comparison.comparisonVersion, 'comparison.comparisonVersion');
   return {
     comparisonVersion: comparison.comparisonVersion,
+    ...(comparison.scope ? { scope: comparison.scope } : {}),
     left: comparison.left,
     right: comparison.right,
     visiblePatchDivergence: comparison.visiblePatchDivergence,
@@ -88,7 +142,7 @@ export function buildCoordinateComparisonFact(comparison) {
 /**
  * Builds the exact JSON-safe substrate fact payload hashed by `transferDigest`.
  *
- * @param {Pick<CoordinateTransferPlanV1, 'transferVersion'|'comparisonDigest'|'changed'|'source'|'target'|'summary'|'ops'>} transferPlan
+ * @param {Pick<CoordinateTransferPlanV1, 'transferVersion'|'comparisonDigest'|'changed'|'source'|'target'|'summary'|'ops'> & { scope?: VisibleStateScopeV1|null }} transferPlan
  * @returns {CoordinateTransferPlanFactV1}
  */
 export function buildCoordinateTransferPlanFact(transferPlan) {
@@ -101,6 +155,7 @@ export function buildCoordinateTransferPlanFact(transferPlan) {
   return {
     transferVersion: transferPlan.transferVersion,
     comparisonDigest: transferPlan.comparisonDigest,
+    ...(transferPlan.scope ? { scope: transferPlan.scope } : {}),
     changed: !!transferPlan.changed,
     source: transferPlan.source,
     target: transferPlan.target,

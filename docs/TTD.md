@@ -127,6 +127,9 @@ TTD is also deliberately separate from working-set management:
   `compareCoordinates()`, `compareVisibleStateV5()`, `planWorkingSetTransfer()`,
   and `planCoordinateTransfer()` stay substrate-factual and do not collapse
   into application-level decision semantics
+- those comparison/transfer helpers can also take an optional visible-state
+  `scope` keyed by node-id prefixes when a higher layer needs deterministic
+  substrate truth over only part of the visible graph
 - when higher layers need to record those same comparison or transfer facts,
   `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()`
   expose the canonical JSON-safe substrate envelope without making TTD or the

@@ -126,6 +126,11 @@ const coordinateComparison = await graph.compareCoordinates({
   left: { kind: 'working_set', workingSetId: 'review-auth' },
   right: { kind: 'coordinate', frontier: descriptor.baseObservation.frontier },
   targetId: 'task:oauth',
+  scope: {
+    nodeIdPrefixes: {
+      exclude: ['comparison-artifact:', 'collapse-proposal:'],
+    },
+  },
 });
 const stateOnlyComparison = compareVisibleStateV5(state, stateAtCeiling, {
   targetId: 'task:oauth',
@@ -157,6 +162,7 @@ Comparison stays in the same substrate lane. The new comparison helpers return:
 - visible node / edge / property delta summaries
 - optional target-local node inspection for one entity ID
 - deterministic comparison digests suitable for higher-layer artifact identity
+- optional scoped visible-state facts over selected node-id families
 
 They do **not** invent review, approval, or governance semantics.
 
@@ -252,12 +258,14 @@ Coordinate comparison is adjacent but separate:
 
 - `working-set compare` is read-only, but it lives under `working-set` because it compares durable coordinates rather than acting as a single-observation debugger topic
 - library code can use `compareWorkingSet()`, `compareCoordinates()`, or `compareVisibleStateV5()` over the same substrate truth
+- library code can pass `scope: { nodeIdPrefixes: { include?, exclude? } }` when only selected node-id families should count toward visible-state fact digests or transfer planning
 - library code can call `exportCoordinateComparisonFact()` when it needs to carry the exact comparison fact across a higher-layer boundary
 
 Transfer planning is the next read-only substrate step:
 
 - `working-set transfer-plan` extracts a deterministic candidate transfer from one visible patch universe onto another without mutating either side
 - library code can use `planWorkingSetTransfer()` or `planCoordinateTransfer()` to get the same transfer digest, resolved coordinates, and operation list
+- the same optional `scope` object filters transfer planning over the selected visible-state subset
 - library code can call `exportCoordinateTransferPlanFact()` to get the same transfer fact in canonical JSON-safe form
 - transfer ops stay substrate-factual:
   - add/remove node

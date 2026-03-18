@@ -58,6 +58,8 @@ import WarpGraphDefault, {
   createEventId,
   createStateReaderV5,
   compareVisibleStateV5,
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
 } from '../../../index.js';
 
 // WarpGraph is both default and named export; index.d.ts only declares
@@ -70,6 +72,18 @@ describe('index.js exports', () => {
       expect(WarpGraphDefault).toBeDefined();
       expect(typeof WarpGraphDefault).toBe('function');
       expect(WarpGraphDefault.name).toBe('WarpGraph');
+    });
+  });
+
+  describe('visible-state helpers', () => {
+    it('exports normalizeVisibleStateScopeV1', () => {
+      expect(normalizeVisibleStateScopeV1).toBeDefined();
+      expect(typeof normalizeVisibleStateScopeV1).toBe('function');
+    });
+
+    it('exports scopeMaterializedStateV5', () => {
+      expect(scopeMaterializedStateV5).toBeDefined();
+      expect(typeof scopeMaterializedStateV5).toBe('function');
     });
   });
 

@@ -398,6 +398,15 @@ interface VisibleStateComparisonV5 {
   };
 }
 
+interface VisibleStateScopePrefixFilterV1 {
+  include?: string[];
+  exclude?: string[];
+}
+
+interface VisibleStateScopeV1 {
+  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+}
+
 type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
   | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
@@ -435,6 +444,7 @@ interface CoordinateComparisonSideV1 {
 interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: {
@@ -491,6 +501,7 @@ interface CoordinateTransferPlanV1 {
   transferVersion: string;
   transferDigest: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   changed: boolean;
   source: CoordinateTransferPlanSideV1;
   target: CoordinateTransferPlanSideV1;
@@ -633,20 +644,24 @@ declare module '../WarpGraph.js' {
       ceiling?: number | null;
       againstCeiling?: number | null;
       targetId?: string | null;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateComparisonV1>;
     planWorkingSetTransfer(workingSetId: string, options?: {
       into?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
       ceiling?: number | null;
       intoCeiling?: number | null;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateTransferPlanV1>;
     compareCoordinates(options: {
       left: CoordinateComparisonSelectorV1;
       right: CoordinateComparisonSelectorV1;
       targetId?: string | null;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateComparisonV1>;
     planCoordinateTransfer(options: {
       source: CoordinateTransferPlanSelectorV1;
       target: CoordinateTransferPlanSelectorV1;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateTransferPlanV1>;
   }
 }

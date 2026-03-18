@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.15.0] — 2026-03-18
+
+### Added
+
+- **Scoped visible-state substrate facts** — Added optional `scope` support to `WarpGraph.compareWorkingSet()`, `compareCoordinates()`, `planWorkingSetTransfer()`, and `planCoordinateTransfer()`, plus reusable `normalizeVisibleStateScopeV1()` and `scopeMaterializedStateV5()` helpers. Current v1 scope supports include/exclude node-id prefixes while keeping git-warp free of application nouns.
+
+### Changed
+
+- **Scoped comparison and transfer digests now ignore excluded visible-state families** — when a scope is provided, coordinate comparison and transfer planning now filter both the materialized visible state and the contributing patch set before computing side digests, patch-universe divergence, exported facts, and transfer ops. Governance-only node families can now be excluded without perturbing scoped substrate truth.
+- **Scoped fact exports stay canonical and explicit** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` now carry the normalized scope when present, so higher layers can record both raw whole-state facts and scoped substrate facts without inventing their own serialization boundary.
+- **Working-set docs now explain scoped substrate truth explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can exclude out-of-scope node families through published substrate scope rather than local adapters.
+
 ## [14.14.0] — 2026-03-18
 
 ### Added

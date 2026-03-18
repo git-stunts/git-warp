@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.15.0
+
+- **Scoped visible-state facts are now a first-class substrate primitive** — `compareWorkingSet()`, `compareCoordinates()`, `planWorkingSetTransfer()`, and `planCoordinateTransfer()` now accept an optional `scope` object so higher layers can compute deterministic visible-state truth over selected node-id families without teaching git-warp any app semantics.
+- **Scoped digests now ignore excluded node families cleanly** — when a scope is provided, git-warp filters both the materialized visible state and the contributing patch set before computing comparison digests, transfer digests, and candidate transfer ops. This keeps governance-only node families from perturbing operational substrate facts.
+- **Scoped fact exports stay portable and explicit** — exported comparison and transfer-plan facts now carry the normalized scope, so higher layers can persist both raw whole-state facts and scoped substrate facts without inventing a second serialization boundary.
+
 ## What's New in v14.14.0
 
 - **Coordinate comparison and transfer-plan facts are now exportable as first-class substrate envelopes** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` publish the exact deterministic fact payload behind `comparisonDigest` and `transferDigest`, plus canonical JSON for higher-layer recording.
@@ -722,18 +728,27 @@ governance boundary, the library can export a canonical fact envelope directly:
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
+  normalizeVisibleStateScopeV1,
 } from '@git-stunts/git-warp';
+
+const scope = normalizeVisibleStateScopeV1({
+  nodeIdPrefixes: {
+    exclude: ['comparison-artifact:', 'collapse-proposal:', 'attestation:'],
+  },
+});
 
 const comparison = await graph.compareCoordinates({
   left: { kind: 'working_set', workingSetId: 'review-auth' },
   right: { kind: 'live' },
   targetId: 'user:alice',
+  scope,
 });
 const comparisonFact = exportCoordinateComparisonFact(comparison);
 
 const transferPlan = await graph.planCoordinateTransfer({
   source: { kind: 'working_set', workingSetId: 'review-auth' },
   target: { kind: 'live' },
+  scope,
 });
 const transferFact = exportCoordinateTransferPlanFact(transferPlan);
 
