@@ -267,6 +267,7 @@ Transfer planning is the next read-only substrate step:
 - library code can use `planWorkingSetTransfer()` or `planCoordinateTransfer()` to get the same transfer digest, resolved coordinates, and operation list
 - the same optional `scope` object filters transfer planning over the selected visible-state subset
 - library code can call `exportCoordinateTransferPlanFact()` to get the same transfer fact in canonical JSON-safe form
+- attach/clear content ops now lower through `PatchBuilderV2.clearContent()` / `clearEdgeContent()` and the matching `PatchSession` helpers, so higher layers do not need to write reserved `_content*` keys directly
 - transfer ops stay substrate-factual:
   - add/remove node
   - add/remove edge

@@ -1548,8 +1548,12 @@ export class PatchBuilderV2 {
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
   /** Attaches content to a node (writes blob + sets _content property). */
   attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  /** Clears content from a node (sets _content metadata registers to null). */
+  clearContent(nodeId: string): PatchBuilderV2;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
   attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  /** Clears content from an edge (sets _content metadata registers to null). */
+  clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
   /** Commits the patch to the graph and returns the commit SHA. */
@@ -1582,8 +1586,12 @@ export class PatchSession {
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
   /** Attaches content to a node (writes blob + sets _content property). */
   attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  /** Clears content from a node (sets _content metadata registers to null). */
+  clearContent(nodeId: string): this;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
   attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  /** Clears content from an edge (sets _content metadata registers to null). */
+  clearEdgeContent(from: string, to: string, label: string): this;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
   /** Commits the patch with CAS protection. */

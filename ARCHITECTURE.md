@@ -64,6 +64,7 @@ The active substrate model is still narrow and substrate-first:
 - comparison helpers report substrate facts such as visible patch divergence plus node/edge/property deltas instead of higher-layer review or governance meaning
 - optional visible-state scope filters stay substrate-generic by selecting node-id families rather than application nouns
 - transfer-planning helpers report substrate-factual candidate settlement ops, including content attach/clear steps, without deciding whether higher layers should execute them
+- committed content-clear patch helpers lower those attach/clear settlement ops through the same public patch surface instead of requiring higher layers to write reserved `_content*` registers manually
 - fact-export helpers publish the exact digest basis in a canonical JSON-safe envelope so higher layers can record substrate truth without inventing their own serialization boundary
 - materialized state is derived/cache only
 - no Git worktree assumption leaks into the API

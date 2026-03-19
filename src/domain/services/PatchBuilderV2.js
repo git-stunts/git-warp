@@ -619,6 +619,28 @@ export class PatchBuilderV2 {
   }
 
   /**
+   * Clears content from a node by setting the reserved content registers to
+   * `null`.
+   *
+   * This is the public substrate primitive for removing attached content
+   * without requiring higher layers to write reserved `_content*` keys
+   * manually.
+   *
+   * @param {string} nodeId - The node ID to clear content from
+   * @returns {PatchBuilderV2} This builder instance for method chaining
+   */
+  clearContent(nodeId) {
+    this._assertNotCommitted();
+    _assertNoReservedBytes(nodeId, 'nodeId');
+    _assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
+    this._assertNodeExistsForContent(nodeId);
+    this.setProperty(nodeId, CONTENT_PROPERTY_KEY, null);
+    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, null);
+    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, null);
+    return this;
+  }
+
+  /**
    * Attaches content to an edge by writing the blob to the Git object store
    * and storing the blob OID as the `_content` edge property.
    *
@@ -645,6 +667,32 @@ export class PatchBuilderV2 {
     this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, normalizedMeta.size);
     this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, normalizedMeta.mime);
     this._contentBlobs.push(oid);
+    return this;
+  }
+
+  /**
+   * Clears content from an edge by setting the reserved content registers to
+   * `null`.
+   *
+   * This is the public substrate primitive for removing attached edge content
+   * without requiring higher layers to write reserved `_content*` keys
+   * manually.
+   *
+   * @param {string} from - Source node ID
+   * @param {string} to - Target node ID
+   * @param {string} label - Edge label
+   * @returns {PatchBuilderV2} This builder instance for method chaining
+   */
+  clearEdgeContent(from, to, label) {
+    this._assertNotCommitted();
+    _assertNoReservedBytes(from, 'from');
+    _assertNoReservedBytes(to, 'to');
+    _assertNoReservedBytes(label, 'label');
+    _assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
+    this._assertEdgeExists(from, to, label);
+    this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, null);
+    this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, null);
+    this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, null);
     return this;
   }
 

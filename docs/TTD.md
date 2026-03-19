@@ -119,6 +119,7 @@ TTD is also deliberately separate from working-set management:
 - debug commands inspect substrate facts
 - working-set commands pin durable coordinates and compare them
 - `working-set transfer-plan` plans substrate-factual transfer without deciding application-level settlement
+- content-clear transfer ops lower through the same public patch helpers (`clearContent()` / `clearEdgeContent()`) rather than through debugger-only or application-only mutation conventions
 - higher layers may combine both, but git-warp keeps the boundary explicit
 - higher-layer library code that needs the same visible truth can combine
   `materializeWorkingSet()` with `projectStateV5()` or `createStateReaderV5()`

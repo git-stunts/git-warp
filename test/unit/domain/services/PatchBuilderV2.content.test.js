@@ -193,6 +193,63 @@ describe('PatchBuilderV2 content attachment', () => {
     });
   });
 
+  describe('clearContent()', () => {
+    it('sets reserved content registers to null without writing a blob', () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+      }));
+
+      const result = builder.clearContent('node:1');
+
+      expect(result).toBe(builder);
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(builder._contentBlobs).toEqual([]);
+      const patch = builder.build();
+      expect(patch.ops).toHaveLength(3);
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        node: 'node:1',
+        key: '_content',
+        value: null,
+      }));
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        node: 'node:1',
+        key: '_content.size',
+        value: null,
+      }));
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        node: 'node:1',
+        key: '_content.mime',
+        value: null,
+      }));
+    });
+
+    it('rejects unknown nodes without writing a blob', () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => createMockState(),
+      }));
+
+      expect(() => builder.clearContent('missing:node'))
+        .toThrow("Cannot attach content to unknown node 'missing:node': add the node first");
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(builder._contentBlobs).toEqual([]);
+    });
+  });
+
   describe('attachEdgeContent()', () => {
     it('writes blob and sets content reference metadata on the edge', async () => {
       const state = createMockState();
@@ -286,6 +343,61 @@ describe('PatchBuilderV2 content attachment', () => {
       await expect(
         builder.attachEdgeContent('no', 'such', 'edge', 'content')
       ).rejects.toThrow();
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(builder._contentBlobs).toEqual([]);
+    });
+  });
+
+  describe('clearEdgeContent()', () => {
+    it('sets reserved edge content registers to null without writing a blob', () => {
+      const state = createMockState();
+      const edgeKey = encodeEdgeKey('a', 'b', 'rel');
+      orsetAdd(state.edgeAlive, edgeKey, createDot('w1', 1));
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+      }));
+
+      const result = builder.clearEdgeContent('a', 'b', 'rel');
+
+      expect(result).toBe(builder);
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
+      expect(builder._contentBlobs).toEqual([]);
+      const patch = builder.build();
+      expect(patch.ops).toHaveLength(3);
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        key: '_content',
+        value: null,
+      }));
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        key: '_content.size',
+        value: null,
+      }));
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        key: '_content.mime',
+        value: null,
+      }));
+      expect(patch.schema).toBe(3);
+    });
+
+    it('rejects unknown edges without writing a blob', () => {
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => createMockState(),
+      }));
+
+      expect(() => builder.clearEdgeContent('no', 'such', 'edge')).toThrow();
       expect(persistence.writeBlob).not.toHaveBeenCalled();
       expect(builder._contentBlobs).toEqual([]);
     });

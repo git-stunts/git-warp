@@ -255,6 +255,15 @@
           ],
           "returns": "Promise<PatchBuilderV2>"
         },
+        "clearContent": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
         "attachEdgeContent": {
           "async": true,
           "params": [
@@ -281,6 +290,23 @@
             }
           ],
           "returns": "Promise<PatchBuilderV2>"
+        },
+        "clearEdgeContent": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
         },
         "build": {
           "params": [],
@@ -418,6 +444,15 @@
           ],
           "returns": "Promise<this>"
         },
+        "clearContent": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
         "attachEdgeContent": {
           "async": true,
           "params": [
@@ -444,6 +479,23 @@
             }
           ],
           "returns": "Promise<this>"
+        },
+        "clearEdgeContent": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
         },
         "build": {
           "params": [],

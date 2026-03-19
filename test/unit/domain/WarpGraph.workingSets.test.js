@@ -8,11 +8,6 @@ import {
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import {
-  CONTENT_MIME_PROPERTY_KEY,
-  CONTENT_PROPERTY_KEY,
-  CONTENT_SIZE_PROPERTY_KEY,
-} from '../../../src/domain/services/KeyCodec.js';
 import { buildWorkingSetBraidRef, buildWorkingSetOverlayRef } from '../../../src/domain/utils/RefLayout.js';
 
 /**
@@ -1137,9 +1132,7 @@ describe('WarpGraph working-set foundation', () => {
     });
 
     await graph.patchWorkingSet('ws_clear_content', (p) => {
-      p.setProperty('doc:clear', CONTENT_PROPERTY_KEY, null);
-      p.setProperty('doc:clear', CONTENT_MIME_PROPERTY_KEY, null);
-      p.setProperty('doc:clear', CONTENT_SIZE_PROPERTY_KEY, null);
+      p.clearContent('doc:clear');
     });
 
     const transferPlan = await graph.planWorkingSetTransfer('ws_clear_content');

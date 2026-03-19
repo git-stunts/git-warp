@@ -11,6 +11,12 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.16.0
+
+- **Committed content-clearing is now a first-class patch primitive** — `PatchBuilderV2` and `PatchSession` now expose `clearContent()` and `clearEdgeContent()` so higher layers can remove attached node or edge content without mutating reserved substrate keys directly.
+- **Transfer-plan content-clear ops now have an honest lowering path** — the same `clear_node_content` / `clear_edge_content` ops emitted by transfer planning can now lower through the published patch API instead of requiring higher layers to know about `_content`, `_content.size`, and `_content.mime`.
+- **Attachment docs now describe the full content lifecycle** — the README, architecture note, and working-set docs now show both attach and clear primitives as substrate concerns, while keeping governance and settlement policy above git-warp.
+
 ## What's New in v14.15.0
 
 - **Scoped visible-state facts are now a first-class substrate primitive** — `compareWorkingSet()`, `compareCoordinates()`, `planWorkingSetTransfer()`, and `planCoordinateTransfer()` now accept an optional `scope` object so higher layers can compute deterministic visible-state truth over selected node-id families without teaching git-warp any app semantics.
@@ -527,9 +533,15 @@ await patch2.attachEdgeContent('a', 'b', 'rel', 'edge payload', {
 await patch2.commit();
 const edgeBuf = await graph.getEdgeContent('a', 'b', 'rel');
 const edgeMeta = await graph.getEdgeContentMeta('a', 'b', 'rel');
+
+// Clearing content is also first-class and does not require reserved-key writes
+const patch3 = await graph.createPatch();
+patch3.clearContent('adr:0007');
+patch3.clearEdgeContent('a', 'b', 'rel');
+await patch3.commit();
 ```
 
-Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable. `attachContent()` / `attachEdgeContent()` also persist logical content byte-size metadata automatically and will store a MIME hint when provided. Historical attachments created before metadata support, or later manual `_content` rewrites that bypass the attachment helpers, may still return `mime: null` / `size: null` from the metadata APIs until they are re-attached through the metadata-aware APIs. If a live `_content` reference points at a missing blob anyway (for example due to manual corruption), `getContent()` / `getEdgeContent()` throw instead of silently returning empty bytes.
+Content blobs survive `git gc` — their OIDs are embedded in the patch commit tree and checkpoint tree, keeping them reachable. `attachContent()` / `attachEdgeContent()` also persist logical content byte-size metadata automatically and will store a MIME hint when provided. `clearContent()` / `clearEdgeContent()` remove those same logical content registers by setting the reserved content keys to `null` through the published patch API. Historical attachments created before metadata support, or later manual `_content` rewrites that bypass the attachment helpers, may still return `mime: null` / `size: null` from the metadata APIs until they are re-attached through the metadata-aware APIs. If a live `_content` reference points at a missing blob anyway (for example due to manual corruption), `getContent()` / `getEdgeContent()` throw instead of silently returning empty bytes.
 
 ### Writer API
 

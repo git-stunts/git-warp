@@ -87,6 +87,34 @@ describe('API: Content Attachment', () => {
     expect(await graph.getContentOid('nonexistent')).toBeNull();
   });
 
+  it('clearContent removes node content and metadata through the public patch API', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+
+    const patch1 = await graph.createPatch();
+    patch1.addNode('doc:1');
+    await patch1.attachContent('doc:1', 'clear me', {
+      mime: 'text/plain',
+      size: 8,
+    });
+    await patch1.commit();
+
+    await graph.materialize();
+    expect(await graph.getContent('doc:1')).not.toBeNull();
+    expect(await graph.getContentMeta('doc:1')).toMatchObject({
+      mime: 'text/plain',
+      size: 8,
+    });
+
+    const patch2 = await graph.createPatch();
+    patch2.clearContent('doc:1');
+    await patch2.commit();
+
+    await graph.materialize();
+    expect(await graph.getContent('doc:1')).toBeNull();
+    expect(await graph.getContentOid('doc:1')).toBeNull();
+    expect(await graph.getContentMeta('doc:1')).toBeNull();
+  });
+
   it('edge content: attach and retrieve via getEdgeContent', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
@@ -121,6 +149,34 @@ describe('API: Content Attachment', () => {
       mime: null,
       size: binary.byteLength,
     });
+  });
+
+  it('clearEdgeContent removes edge content and metadata through the public patch API', async () => {
+    const graph = await repo.openGraph('test', 'alice');
+
+    const patch1 = await graph.createPatch();
+    patch1.addNode('a').addNode('b').addEdge('a', 'b', 'rel');
+    await patch1.attachEdgeContent('a', 'b', 'rel', 'clear edge', {
+      mime: 'text/plain',
+      size: 10,
+    });
+    await patch1.commit();
+
+    await graph.materialize();
+    expect(await graph.getEdgeContent('a', 'b', 'rel')).not.toBeNull();
+    expect(await graph.getEdgeContentMeta('a', 'b', 'rel')).toMatchObject({
+      mime: 'text/plain',
+      size: 10,
+    });
+
+    const patch2 = await graph.createPatch();
+    patch2.clearEdgeContent('a', 'b', 'rel');
+    await patch2.commit();
+
+    await graph.materialize();
+    expect(await graph.getEdgeContent('a', 'b', 'rel')).toBeNull();
+    expect(await graph.getEdgeContentOid('a', 'b', 'rel')).toBeNull();
+    expect(await graph.getEdgeContentMeta('a', 'b', 'rel')).toBeNull();
   });
 
   it('multi-writer LWW: concurrent attachments resolve deterministically', async () => {

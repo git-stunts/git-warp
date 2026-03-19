@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.16.0] — 2026-03-18
+
+### Added
+
+- **First-class committed content-clear patch APIs** — Added synchronous `clearContent()` / `clearEdgeContent()` methods on `PatchBuilderV2` and `PatchSession` so higher layers can remove attached node or edge content through the published mutation surface instead of writing reserved `_content*` keys manually.
+
+### Changed
+
+- **Transfer planning and content-clearing examples now lower through a public primitive** — the working-set tests and docs now show content-clear transfer ops lowering through the new patch helpers rather than through reserved-key knowledge in higher layers.
+
 ## [14.15.0] — 2026-03-18
 
 ### Added
