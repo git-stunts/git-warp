@@ -11,6 +11,11 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
+## What's New in v14.16.2
+
+- **The published `git-cas` floor is now current again** — `git-warp` now depends on `@git-stunts/git-cas@^5.3.2`, closing the gap between the declared substrate range and the stale local install that had drifted to `5.3.0`.
+- **JSR and npm release metadata are aligned for the patch line** — `package.json`, `jsr.json`, and the release notes now move in lockstep again so the tag-driven publish workflow can ship the same patch version to both registries.
+
 ## What's New in v14.16.0
 
 - **Committed content-clearing is now a first-class patch primitive** — `PatchBuilderV2` and `PatchSession` now expose `clearContent()` and `clearEdgeContent()` so higher layers can remove attached node or edge content without mutating reserved substrate keys directly.
