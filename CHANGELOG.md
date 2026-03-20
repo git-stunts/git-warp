@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.16.1] — 2026-03-19
+
+### Changed
+
+- **Raised the `git-cas` substrate floor to `^5.3.2`** — refreshed the published `@git-stunts/git-cas` dependency and normalized the lockfile so `git-warp` no longer carries a stale local `5.3.0` install against a newer declared range.
+
 ## [14.16.0] — 2026-03-18
 
 ### Added
