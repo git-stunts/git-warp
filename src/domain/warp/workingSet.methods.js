@@ -110,3 +110,65 @@ export async function patchWorkingSet(workingSetId, build) {
   const service = new WorkingSetService({ graph: this });
   return await service.patch(workingSetId, build);
 }
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @param {(p: import('../services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
+ * @returns {Promise<{
+ *   intentId: string,
+ *   enqueuedAt: string,
+ *   patch: import('../types/WarpTypesV2.js').PatchV2,
+ *   reads: string[],
+ *   writes: string[],
+ *   contentBlobOids: string[]
+ * }>}
+ */
+export async function queueWorkingSetIntent(workingSetId, build) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.queueIntent(workingSetId, build);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @returns {Promise<Array<{
+ *   intentId: string,
+ *   enqueuedAt: string,
+ *   patch: import('../types/WarpTypesV2.js').PatchV2,
+ *   reads: string[],
+ *   writes: string[],
+ *   contentBlobOids: string[]
+ * }>>}
+ */
+export async function listWorkingSetIntents(workingSetId) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.listIntents(workingSetId);
+}
+
+/**
+ * @this {import('../WarpGraph.js').default}
+ * @param {string} workingSetId
+ * @returns {Promise<{
+ *   tickId: string,
+ *   workingSetId: string,
+ *   tickIndex: number,
+ *   createdAt: string,
+ *   drainedIntentCount: number,
+ *   admittedIntentIds: string[],
+ *   rejected: Array<{
+ *     intentId: string,
+ *     reason: string,
+ *     conflictsWith: string[],
+ *     reads: string[],
+ *     writes: string[]
+ *   }>,
+ *   baseOverlayHeadPatchSha: string|null,
+ *   overlayHeadPatchSha: string|null,
+ *   overlayPatchShas: string[]
+ * }>}
+ */
+export async function tickWorkingSet(workingSetId) {
+  const service = new WorkingSetService({ graph: this });
+  return await service.tick(workingSetId);
+}

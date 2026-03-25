@@ -1212,6 +1212,7 @@ Working sets pin an explicit observation coordinate for later reuse without crea
 - an optional Lamport ceiling
 - optional owner/scope/lease metadata
 - an overlay identity and patch-log ref for future divergent writes
+- an optional queued intent set plus the most recent speculative tick record
 
 Materialized state remains derived/cache only. The descriptor is the durable part.
 
@@ -1254,6 +1255,13 @@ const state = await graph.materializeWorkingSet(workingSet.workingSetId);
 await graph.patchWorkingSet(workingSet.workingSetId, (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
 });
+
+await graph.queueWorkingSetIntent(workingSet.workingSetId, (p) => {
+  p.setProperty('task:oauth', 'owner', 'alice');
+});
+
+const queuedIntents = await graph.listWorkingSetIntents(workingSet.workingSetId);
+const tick = await graph.tickWorkingSet(workingSet.workingSetId);
 ```
 
 Use [docs/WORKING_SETS.md](WORKING_SETS.md) for the dedicated working-set model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.

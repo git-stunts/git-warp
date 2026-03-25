@@ -190,6 +190,194 @@ function validateBraid(obj, label) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {string} message
+ * @returns {void}
+ */
+function validateStringArray(value, message) {
+  invariant(
+    Array.isArray(value) && value.every((entry) => typeof entry === 'string'),
+    message,
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} message
+ * @returns {void}
+ */
+function validateNonNegativeInteger(value, message) {
+  invariant(
+    typeof value === 'number' && Number.isInteger(value) && value >= 0,
+    message,
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} message
+ * @returns {void}
+ */
+function validateNullableString(value, message) {
+  invariant(
+    value === null || value === undefined || typeof value === 'string',
+    message,
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} intent
+ * @param {string} label
+ * @returns {void}
+ */
+function validateIntentEntry(intent, label) {
+  invariant(
+    typeof intent.intentId === 'string' && intent.intentId.length > 0,
+    `Corrupted ${label}: intentQueue.intents[].intentId must be a string`,
+  );
+  invariant(
+    typeof intent.enqueuedAt === 'string' && intent.enqueuedAt.length > 0,
+    `Corrupted ${label}: intentQueue.intents[].enqueuedAt must be a string`,
+  );
+  invariant(
+    isPlainObject(intent.patch),
+    `Corrupted ${label}: intentQueue.intents[].patch must be an object`,
+  );
+  if (intent.reads !== undefined) {
+    validateStringArray(intent.reads, `Corrupted ${label}: intentQueue.intents[].reads must be a string array when provided`);
+  }
+  if (intent.writes !== undefined) {
+    validateStringArray(intent.writes, `Corrupted ${label}: intentQueue.intents[].writes must be a string array when provided`);
+  }
+  if (intent.contentBlobOids !== undefined) {
+    validateStringArray(intent.contentBlobOids, `Corrupted ${label}: intentQueue.intents[].contentBlobOids must be a string array when provided`);
+  }
+}
+
+/**
+ * @param {Record<string, unknown>} obj
+ * @param {string} label
+ * @returns {void}
+ */
+function validateIntentQueue(obj, label) {
+  if (obj.intentQueue === undefined) {
+    return;
+  }
+  invariant(isPlainObject(obj.intentQueue), `Corrupted ${label}: intentQueue must be an object when provided`);
+  const queue = /** @type {Record<string, unknown>} */ (obj.intentQueue);
+  invariant(
+    typeof queue.nextIntentSeq === 'number' &&
+      Number.isInteger(queue.nextIntentSeq) &&
+      queue.nextIntentSeq > 0,
+    `Corrupted ${label}: intentQueue.nextIntentSeq must be a positive integer`,
+  );
+  invariant(Array.isArray(queue.intents), `Corrupted ${label}: intentQueue.intents must be an array`);
+  for (const rawIntent of /** @type {unknown[]} */ (queue.intents)) {
+    invariant(isPlainObject(rawIntent), `Corrupted ${label}: intentQueue.intents entries must be objects`);
+    validateIntentEntry(/** @type {Record<string, unknown>} */ (rawIntent), label);
+  }
+}
+
+/**
+ * @param {Record<string, unknown>} rejected
+ * @param {string} label
+ * @returns {void}
+ */
+function validateRejectedCounterfactual(rejected, label) {
+  invariant(
+    typeof rejected.intentId === 'string' && rejected.intentId.length > 0,
+    `Corrupted ${label}: evolution.lastTick.rejected[].intentId must be a string`,
+  );
+  invariant(
+    typeof rejected.reason === 'string' && rejected.reason.length > 0,
+    `Corrupted ${label}: evolution.lastTick.rejected[].reason must be a string`,
+  );
+  validateStringArray(
+    rejected.conflictsWith,
+    `Corrupted ${label}: evolution.lastTick.rejected[].conflictsWith must be a string array`,
+  );
+  validateStringArray(
+    rejected.reads,
+    `Corrupted ${label}: evolution.lastTick.rejected[].reads must be a string array`,
+  );
+  validateStringArray(
+    rejected.writes,
+    `Corrupted ${label}: evolution.lastTick.rejected[].writes must be a string array`,
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} lastTick
+ * @param {string} label
+ * @returns {void}
+ */
+function validateLastTick(lastTick, label) {
+  invariant(
+    typeof lastTick.tickId === 'string' && lastTick.tickId.length > 0,
+    `Corrupted ${label}: evolution.lastTick.tickId must be a string`,
+  );
+  validateNonNegativeInteger(
+    lastTick.tickIndex,
+    `Corrupted ${label}: evolution.lastTick.tickIndex must be a non-negative integer`,
+  );
+  invariant(
+    typeof lastTick.createdAt === 'string' && lastTick.createdAt.length > 0,
+    `Corrupted ${label}: evolution.lastTick.createdAt must be a string`,
+  );
+  validateNonNegativeInteger(
+    lastTick.drainedIntentCount,
+    `Corrupted ${label}: evolution.lastTick.drainedIntentCount must be a non-negative integer`,
+  );
+  validateStringArray(
+    lastTick.admittedIntentIds,
+    `Corrupted ${label}: evolution.lastTick.admittedIntentIds must be a string array`,
+  );
+  validateStringArray(
+    lastTick.overlayPatchShas,
+    `Corrupted ${label}: evolution.lastTick.overlayPatchShas must be a string array`,
+  );
+  validateNullableString(
+    lastTick.baseOverlayHeadPatchSha,
+    `Corrupted ${label}: evolution.lastTick.baseOverlayHeadPatchSha must be string|null`,
+  );
+  validateNullableString(
+    lastTick.overlayHeadPatchSha,
+    `Corrupted ${label}: evolution.lastTick.overlayHeadPatchSha must be string|null`,
+  );
+  invariant(Array.isArray(lastTick.rejected), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
+  for (const rawRejected of /** @type {unknown[]} */ (lastTick.rejected)) {
+    invariant(isPlainObject(rawRejected), `Corrupted ${label}: evolution.lastTick.rejected entries must be objects`);
+    validateRejectedCounterfactual(/** @type {Record<string, unknown>} */ (rawRejected), label);
+  }
+}
+
+/**
+ * @param {Record<string, unknown>} obj
+ * @param {string} label
+ * @returns {void}
+ */
+function validateEvolution(obj, label) {
+  if (obj.evolution === undefined) {
+    return;
+  }
+  invariant(isPlainObject(obj.evolution), `Corrupted ${label}: evolution must be an object when provided`);
+  const { evolution: rawEvolution } = obj;
+  const evolution = /** @type {Record<string, unknown>} */ (rawEvolution);
+  invariant(
+    typeof evolution.tickCount === 'number' &&
+      Number.isInteger(evolution.tickCount) &&
+      evolution.tickCount >= 0,
+    `Corrupted ${label}: evolution.tickCount must be a non-negative integer`,
+  );
+  if (evolution.lastTick === undefined || evolution.lastTick === null) {
+    return;
+  }
+  invariant(isPlainObject(evolution.lastTick), `Corrupted ${label}: evolution.lastTick must be an object when provided`);
+  const { lastTick: rawLastTick } = evolution;
+  validateLastTick(/** @type {Record<string, unknown>} */ (rawLastTick), label);
+}
+
+/**
  * Parses and validates a working-set descriptor blob.
  *
  * The blob must contain UTF-8 JSON for the v1 descriptor shape. Unknown fields
@@ -251,6 +439,8 @@ export function parseWorkingSetBlob(buf, label) {
   validateBaseObservation(obj, label);
   validateOverlay(obj, label);
   validateBraid(obj, label);
+  validateIntentQueue(obj, label);
+  validateEvolution(obj, label);
   validateMaterialization(obj, label);
 
   return /** @type {ReturnType<typeof parseWorkingSetBlob>} */ (obj);

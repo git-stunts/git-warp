@@ -352,6 +352,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "listWorkingSetIntents": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "listWorkingSets": {
     "configurable": true,
     "enumerable": false,
@@ -462,6 +467,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "queueWorkingSetIntent": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "runGC": {
     "configurable": true,
     "enumerable": false,
@@ -512,6 +522,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "getter",
   },
+  "tickWorkingSet": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "translationCost": {
     "configurable": true,
     "enumerable": false,
@@ -540,7 +555,7 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `107`;
+exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `110`;
 
 exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
 [
@@ -614,6 +629,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "hasNode",
   "invalidateIndex",
   "join",
+  "listWorkingSetIntents",
   "listWorkingSets",
   "loadPatchBySha",
   "materialize",
@@ -636,6 +652,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "processSyncRequest",
   "provenanceIndex",
   "query",
+  "queueWorkingSetIntent",
   "runGC",
   "seekCache",
   "serve",
@@ -646,6 +663,7 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "syncNeeded",
   "syncWith",
   "temporal",
+  "tickWorkingSet",
   "translationCost",
   "verifyIndex",
   "watch",

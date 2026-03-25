@@ -294,6 +294,36 @@ interface WorkingSetReadOverlayDescriptor {
   patchCount: number;
 }
 
+interface WorkingSetIntentDescriptor {
+  intentId: string;
+  enqueuedAt: string;
+  patch: PatchV2;
+  reads: string[];
+  writes: string[];
+  contentBlobOids: string[];
+}
+
+interface WorkingSetTickCounterfactual {
+  intentId: string;
+  reason: string;
+  conflictsWith: string[];
+  reads: string[];
+  writes: string[];
+}
+
+interface WorkingSetTickRecord {
+  tickId: string;
+  workingSetId: string;
+  tickIndex: number;
+  createdAt: string;
+  drainedIntentCount: number;
+  admittedIntentIds: string[];
+  rejected: WorkingSetTickCounterfactual[];
+  baseOverlayHeadPatchSha: string | null;
+  overlayHeadPatchSha: string | null;
+  overlayPatchShas: string[];
+}
+
 interface WorkingSetDescriptor {
   schemaVersion: number;
   workingSetId: string;
@@ -320,6 +350,14 @@ interface WorkingSetDescriptor {
   };
   braid: {
     readOverlays: WorkingSetReadOverlayDescriptor[];
+  };
+  intentQueue?: {
+    nextIntentSeq: number;
+    intents: WorkingSetIntentDescriptor[];
+  };
+  evolution?: {
+    tickCount: number;
+    lastTick: WorkingSetTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -639,6 +677,9 @@ declare module '../WarpGraph.js' {
     patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
     createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
     patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+    queueWorkingSetIntent(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<WorkingSetIntentDescriptor>;
+    listWorkingSetIntents(workingSetId: string): Promise<WorkingSetIntentDescriptor[]>;
+    tickWorkingSet(workingSetId: string): Promise<WorkingSetTickRecord>;
     compareWorkingSet(workingSetId: string, options?: {
       against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
       ceiling?: number | null;

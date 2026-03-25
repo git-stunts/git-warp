@@ -2180,6 +2180,15 @@ export default class WarpGraph {
   /** Convenience wrapper that creates and commits a working-set overlay patch. */
   patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
 
+  /** Queues a patch-shaped intent against a working set without advancing its overlay. */
+  queueWorkingSetIntent(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<WorkingSetIntentDescriptor>;
+
+  /** Lists the currently queued intents for one working set. */
+  listWorkingSetIntents(workingSetId: string): Promise<WorkingSetIntentDescriptor[]>;
+
+  /** Deterministically drains the queued intent set for one working set. */
+  tickWorkingSet(workingSetId: string): Promise<WorkingSetTickRecord>;
+
   /**
    * Compares a working set against its base observation, the live frontier, or
    * another working set using only substrate facts.
@@ -2627,6 +2636,36 @@ export interface WorkingSetReadOverlayDescriptor {
   patchCount: number;
 }
 
+export interface WorkingSetIntentDescriptor {
+  intentId: string;
+  enqueuedAt: string;
+  patch: PatchV2;
+  reads: string[];
+  writes: string[];
+  contentBlobOids: string[];
+}
+
+export interface WorkingSetTickCounterfactual {
+  intentId: string;
+  reason: string;
+  conflictsWith: string[];
+  reads: string[];
+  writes: string[];
+}
+
+export interface WorkingSetTickRecord {
+  tickId: string;
+  workingSetId: string;
+  tickIndex: number;
+  createdAt: string;
+  drainedIntentCount: number;
+  admittedIntentIds: string[];
+  rejected: WorkingSetTickCounterfactual[];
+  baseOverlayHeadPatchSha: string | null;
+  overlayHeadPatchSha: string | null;
+  overlayPatchShas: string[];
+}
+
 export interface WorkingSetDescriptor {
   schemaVersion: number;
   workingSetId: string;
@@ -2653,6 +2692,14 @@ export interface WorkingSetDescriptor {
   };
   braid: {
     readOverlays: WorkingSetReadOverlayDescriptor[];
+  };
+  intentQueue?: {
+    nextIntentSeq: number;
+    intents: WorkingSetIntentDescriptor[];
+  };
+  evolution?: {
+    tickCount: number;
+    lastTick: WorkingSetTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';

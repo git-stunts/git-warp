@@ -19,6 +19,7 @@ A working set is a durable descriptor that records:
 - overlay identity plus a patch-log ref for divergent writes
 - overlay writability for the target lane
 - zero or more pinned braid support overlays
+- an optional queued intent set and the most recent speculative tick record
 
 A newly created working set still starts with an empty overlay:
 
@@ -127,8 +128,36 @@ const builder = await graph.createWorkingSetPatch('review-auth');
 builder.setProperty('task:oauth', 'owner', 'alice');
 await builder.commit();
 
+await graph.queueWorkingSetIntent('review-auth', (p) => {
+  p.setProperty('task:oauth', 'priority', 'high');
+});
+await graph.queueWorkingSetIntent('review-auth', (p) => {
+  p.setProperty('task:billing', 'status', 'needs-review');
+});
+
+const queued = await graph.listWorkingSetIntents('review-auth');
+const tick = await graph.tickWorkingSet('review-auth');
+
 await graph.dropWorkingSet('review-auth');
 ```
+
+`patchWorkingSet()` remains valid plumbing for direct overlay mutation. The
+preferred speculative-lane story now starts shifting toward:
+
+1. queue intent
+2. inspect queued intent set
+3. tick the working set deterministically
+4. compare or transfer later under higher-layer policy
+
+In this first slice, `tickWorkingSet()`:
+
+- drains the queued intent set deterministically
+- admits only footprint-independent intents into the same speculative tick
+- rejects overlapping intents as substrate counterfactual facts
+- advances only the target working-set overlay
+- leaves live truth and sibling working sets unchanged
+
+It does **not** yet collapse anything into canonical truth.
 
 Explicit coordinate replay is also available directly:
 

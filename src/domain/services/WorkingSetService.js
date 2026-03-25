@@ -24,14 +24,58 @@ import { computeChecksum } from '../utils/checksumUtils.js';
 import { PatchBuilderV2 } from './PatchBuilderV2.js';
 import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
+import { encodePatchMessage } from './WarpMessageCodec.js';
 
 /** @typedef {import('../WarpGraph.js').default} WarpGraph */
 /** @typedef {import('../../../index.js').WorkingSetDescriptor} WorkingSetDescriptor */
 /** @typedef {import('../../../index.js').WorkingSetReadOverlayDescriptor} WorkingSetReadOverlayDescriptor */
+/** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
+/**
+ * @typedef {{
+ *   intentId: string,
+ *   enqueuedAt: string,
+ *   patch: PatchV2,
+ *   reads: string[],
+ *   writes: string[],
+ *   contentBlobOids: string[]
+ * }} WorkingSetQueuedIntent
+ */
+/**
+ * @typedef {{
+ *   intentId: string,
+ *   reason: string,
+ *   conflictsWith: string[],
+ *   reads: string[],
+ *   writes: string[]
+ * }} WorkingSetRejectedCounterfactual
+ */
+/**
+ * @typedef {{
+ *   tickId: string,
+ *   workingSetId: string,
+ *   tickIndex: number,
+ *   createdAt: string,
+ *   drainedIntentCount: number,
+ *   admittedIntentIds: string[],
+ *   rejected: WorkingSetRejectedCounterfactual[],
+ *   baseOverlayHeadPatchSha: string|null,
+ *   overlayHeadPatchSha: string|null,
+ *   overlayPatchShas: string[]
+ * }} WorkingSetTickRecord
+ */
+/**
+ * @typedef {{
+ *   nextIntentSeq: number,
+ *   intents: WorkingSetQueuedIntent[]
+ * }} WorkingSetIntentQueue
+ */
 
 export const WORKING_SET_SCHEMA_VERSION = 1;
 export const WORKING_SET_COORDINATE_VERSION = 'frontier-lamport/v1';
 export const WORKING_SET_OVERLAY_KIND = 'patch-log';
+export const WORKING_SET_INTENT_ID_WIDTH = 4;
+export const WORKING_SET_TICK_ID_WIDTH = 4;
+export const WORKING_SET_COUNTERFACTUAL_REASON = 'footprint_overlap';
 
 /**
  * @param {string} a
@@ -40,6 +84,33 @@ export const WORKING_SET_OVERLAY_KIND = 'patch-log';
  */
 function compareStrings(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * @param {number} value
+ * @param {number} width
+ * @returns {string}
+ */
+function formatSequence(value, width) {
+  return String(value).padStart(width, '0');
+}
+
+/**
+ * @param {string} workingSetId
+ * @param {number} sequence
+ * @returns {string}
+ */
+function buildIntentId(workingSetId, sequence) {
+  return `${workingSetId}.intent.${formatSequence(sequence, WORKING_SET_INTENT_ID_WIDTH)}`;
+}
+
+/**
+ * @param {string} workingSetId
+ * @param {number} sequence
+ * @returns {string}
+ */
+function buildTickId(workingSetId, sequence) {
+  return `${workingSetId}.tick.${formatSequence(sequence, WORKING_SET_TICK_ID_WIDTH)}`;
 }
 
 /**
@@ -228,6 +299,194 @@ function normalizeReadOverlays(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {string[]}
+ */
+function normalizeStringArray(value, field) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  /** @type {string[]} */
+  const normalized = [];
+  for (const entry of value) {
+    const maybeString = normalizeOptionalString(
+      /** @type {string|null|undefined} */ (entry),
+      field,
+    );
+    if (maybeString) {
+      normalized.push(maybeString);
+    }
+  }
+  return [...new Set(normalized)].sort(compareStrings);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {WorkingSetQueuedIntent[]}
+ */
+function normalizeQueuedIntents(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const candidate = /** @type {Record<string, unknown>} */ (entry);
+    const { patch } = /** @type {{ patch?: import('../types/WarpTypesV2.js').PatchV2 }} */ (candidate);
+    const intentId = normalizeOptionalString(
+      /** @type {string|null|undefined} */ (candidate.intentId),
+      'intentId',
+    ) ?? '';
+    const enqueuedAt = normalizeOptionalString(
+      /** @type {string|null|undefined} */ (candidate.enqueuedAt),
+      'enqueuedAt',
+    ) ?? '';
+    if (!patch || intentId.length === 0 || enqueuedAt.length === 0) {
+      return [];
+    }
+    return [{
+      intentId,
+      enqueuedAt,
+      patch,
+      reads: normalizeStringArray(candidate.reads ?? patch.reads, 'reads[]'),
+      writes: normalizeStringArray(candidate.writes ?? patch.writes, 'writes[]'),
+      contentBlobOids: normalizeStringArray(candidate.contentBlobOids, 'contentBlobOids[]'),
+    }];
+  }).sort((left, right) => compareStrings(left.intentId, right.intentId));
+}
+
+/**
+ * @param {unknown} value
+ * @returns {WorkingSetIntentQueue}
+ */
+function normalizeIntentQueue(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {
+      nextIntentSeq: 1,
+      intents: [],
+    };
+  }
+  const record = /** @type {Record<string, unknown>} */ (value);
+  const nextIntentSeq = Number.isInteger(record.nextIntentSeq) && /** @type {number} */ (record.nextIntentSeq) > 0
+    ? /** @type {number} */ (record.nextIntentSeq)
+    : 1;
+  return {
+    nextIntentSeq,
+    intents: normalizeQueuedIntents(record.intents),
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {WorkingSetRejectedCounterfactual[]}
+ */
+function normalizeRejectedCounterfactuals(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry) => {
+    const candidate = /** @type {Record<string, unknown>} */ (entry);
+    return {
+      intentId: normalizeOptionalString(
+        /** @type {string|null|undefined} */ (candidate.intentId),
+        'intentId',
+      ) ?? '',
+      reason: normalizeOptionalString(
+        /** @type {string|null|undefined} */ (candidate.reason),
+        'reason',
+      ) ?? '',
+      conflictsWith: normalizeStringArray(candidate.conflictsWith, 'conflictsWith[]'),
+      reads: normalizeStringArray(candidate.reads, 'reads[]'),
+      writes: normalizeStringArray(candidate.writes, 'writes[]'),
+    };
+  });
+}
+
+/**
+ * @param {Record<string, unknown>|null} lastTick
+ * @returns {WorkingSetTickRecord|null}
+ */
+function normalizeLastTick(lastTick) {
+  if (!lastTick) {
+    return null;
+  }
+  return {
+    tickId: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.tickId),
+      'tickId',
+    ) ?? '',
+    workingSetId: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.workingSetId),
+      'workingSetId',
+    ) ?? '',
+    tickIndex: Number.isInteger(lastTick.tickIndex) ? /** @type {number} */ (lastTick.tickIndex) : 0,
+    createdAt: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.createdAt),
+      'createdAt',
+    ) ?? '',
+    drainedIntentCount: Number.isInteger(lastTick.drainedIntentCount)
+      ? /** @type {number} */ (lastTick.drainedIntentCount)
+      : 0,
+    admittedIntentIds: normalizeStringArray(lastTick.admittedIntentIds, 'admittedIntentIds[]'),
+    rejected: normalizeRejectedCounterfactuals(lastTick.rejected),
+    baseOverlayHeadPatchSha: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.baseOverlayHeadPatchSha),
+      'baseOverlayHeadPatchSha',
+    ),
+    overlayHeadPatchSha: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.overlayHeadPatchSha),
+      'overlayHeadPatchSha',
+    ),
+    overlayPatchShas: normalizeStringArray(lastTick.overlayPatchShas, 'overlayPatchShas[]'),
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{ tickCount: number, lastTick: WorkingSetTickRecord|null }}
+ */
+function normalizeEvolution(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {
+      tickCount: 0,
+      lastTick: null,
+    };
+  }
+  const record = /** @type {Record<string, unknown>} */ (value);
+  const tickCount = Number.isInteger(record.tickCount) && /** @type {number} */ (record.tickCount) >= 0
+    ? /** @type {number} */ (record.tickCount)
+    : 0;
+  const lastTick = record.lastTick && typeof record.lastTick === 'object' && !Array.isArray(record.lastTick)
+    ? /** @type {Record<string, unknown>} */ (record.lastTick)
+    : null;
+  return {
+    tickCount,
+    lastTick: normalizeLastTick(lastTick),
+  };
+}
+
+/**
+ * @param {{ reads: string[], writes: string[] }} footprint
+ * @returns {Set<string>}
+ */
+function footprintToSet(footprint) {
+  return new Set([...footprint.reads, ...footprint.writes]);
+}
+
+/**
+ * @param {Set<string>} left
+ * @param {Set<string>} right
+ * @returns {boolean}
+ */
+function setsOverlap(left, right) {
+  for (const value of left) {
+    if (right.has(value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
  * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
  * @returns {boolean}
@@ -268,6 +527,8 @@ function overlayMetadataMatches(descriptor, expected) {
  * @returns {WorkingSetDescriptor}
  */
 function buildNormalizedWorkingSetDescriptor(descriptor, braidedReadOverlays, writable) {
+  const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+  const evolution = normalizeEvolution(descriptor.evolution);
   return {
     ...descriptor,
     overlay: {
@@ -277,6 +538,8 @@ function buildNormalizedWorkingSetDescriptor(descriptor, braidedReadOverlays, wr
     braid: {
       readOverlays: braidedReadOverlays,
     },
+    intentQueue,
+    evolution,
   };
 }
 
@@ -376,6 +639,14 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
     },
     braid: {
       readOverlays: [],
+    },
+    intentQueue: {
+      nextIntentSeq: 1,
+      intents: [],
+    },
+    evolution: {
+      tickCount: 0,
+      lastTick: null,
     },
     materialization: {
       cacheAuthority: /** @type {const} */ ('derived'),
@@ -706,6 +977,331 @@ export default class WorkingSetService {
     } finally {
       this._graph._patchInProgress = false;
     }
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @returns {Promise<{
+   *   intentId: string,
+   *   enqueuedAt: string,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   reads: string[],
+   *   writes: string[],
+   *   contentBlobOids: string[]
+   * }>}
+   */
+  async queueIntent(workingSetId, build) {
+    if (this._graph._patchInProgress) {
+      throw new Error(
+        'graph.queueWorkingSetIntent() is not reentrant. Use queueWorkingSetIntent() from one build callback at a time.',
+      );
+    }
+    this._graph._patchInProgress = true;
+    try {
+      const descriptor = await this.getOrThrow(workingSetId);
+      const queuedIntent = await this._buildQueuedIntent(descriptor, build);
+      const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+      const now = this._graph._clock.timestamp();
+      const nextDescriptor = {
+        ...descriptor,
+        updatedAt: now,
+        intentQueue: {
+          nextIntentSeq: intentQueue.nextIntentSeq + 1,
+          intents: [...intentQueue.intents, queuedIntent].sort((left, right) => compareStrings(left.intentId, right.intentId)),
+        },
+      };
+      await this._writeDescriptor(nextDescriptor);
+      this._graph._cachedViewHash = null;
+      return queuedIntent;
+    } finally {
+      this._graph._patchInProgress = false;
+    }
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @returns {Promise<Array<{
+   *   intentId: string,
+   *   enqueuedAt: string,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   reads: string[],
+   *   writes: string[],
+   *   contentBlobOids: string[]
+   * }>>}
+   */
+  async listIntents(workingSetId) {
+    const descriptor = await this.getOrThrow(workingSetId);
+    return normalizeIntentQueue(descriptor.intentQueue).intents.map((intent) => Object.freeze({
+      ...intent,
+      reads: [...intent.reads],
+      writes: [...intent.writes],
+      contentBlobOids: [...intent.contentBlobOids],
+    }));
+  }
+
+  /**
+   * @param {string} workingSetId
+   * @returns {Promise<{
+   *   tickId: string,
+   *   workingSetId: string,
+   *   tickIndex: number,
+   *   createdAt: string,
+   *   drainedIntentCount: number,
+   *   admittedIntentIds: string[],
+   *   rejected: Array<{
+   *     intentId: string,
+   *     reason: string,
+   *     conflictsWith: string[],
+   *     reads: string[],
+   *     writes: string[]
+   *   }>,
+   *   baseOverlayHeadPatchSha: string|null,
+   *   overlayHeadPatchSha: string|null,
+   *   overlayPatchShas: string[]
+   * }>}
+   */
+  async tick(workingSetId) {
+    const descriptor = await this.getOrThrow(workingSetId);
+    const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+    const evolution = normalizeEvolution(descriptor.evolution);
+    const queuedIntents = [...intentQueue.intents].sort((left, right) => compareStrings(left.intentId, right.intentId));
+    const tickIndex = evolution.tickCount + 1;
+    const now = this._graph._clock.timestamp();
+    const tickId = buildTickId(workingSetId, tickIndex);
+    const { admitted, rejected } = this._classifyQueuedIntents(queuedIntents);
+    const committed = await this._commitAdmittedQueuedIntents(descriptor, admitted);
+    const tickRecord = Object.freeze({
+      tickId,
+      workingSetId,
+      tickIndex,
+      createdAt: now,
+      drainedIntentCount: queuedIntents.length,
+      admittedIntentIds: admitted.map((intent) => intent.intentId),
+      rejected,
+      baseOverlayHeadPatchSha: descriptor.overlay.headPatchSha ?? null,
+      overlayHeadPatchSha: committed.overlayHeadPatchSha,
+      overlayPatchShas: committed.overlayPatchShas,
+    });
+    await this._persistTickResult({
+      descriptor,
+      intentQueue,
+      tickIndex,
+      now,
+      committed,
+      tickRecord,
+    });
+    return tickRecord;
+  }
+
+  /**
+   * @private
+   * @param {WorkingSetDescriptor} descriptor
+   * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+   * @returns {Promise<{
+   *   intentId: string,
+   *   enqueuedAt: string,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   reads: string[],
+   *   writes: string[],
+   *   contentBlobOids: string[]
+   * }>}
+   */
+  async _buildQueuedIntent(descriptor, build) {
+    if (!descriptor.overlay.writable) {
+      throw new WorkingSetError(
+        `Working set '${descriptor.workingSetId}' has no active writable overlay in its current braid configuration`,
+        {
+          code: 'E_WORKING_SET_INVALID_ARGS',
+          context: { workingSetId: descriptor.workingSetId, writable: false },
+        },
+      );
+    }
+    const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+    const { state, allPatches } = await this._materializeDescriptor(descriptor, {
+      collectReceipts: false,
+      ceiling: null,
+    });
+    const builder = new PatchBuilderV2({
+      persistence: this._graph._persistence,
+      graphName: this._graph._graphName,
+      writerId: descriptor.overlay.overlayId,
+      lamport: maxPatchLamport(allPatches) + 1,
+      versionVector: state.observedFrontier,
+      getCurrentState: () => state,
+      expectedParentSha: descriptor.overlay.headPatchSha ?? null,
+      onDeleteWithData: this._graph._onDeleteWithData,
+      codec: this._graph._codec,
+      logger: this._graph._logger || undefined,
+      blobStorage: this._graph._blobStorage || undefined,
+      patchBlobStorage: this._graph._patchBlobStorage || undefined,
+    });
+    await build(builder);
+    const patch = builder.build();
+    if (!Array.isArray(patch.ops) || patch.ops.length === 0) {
+      throw new Error('Cannot queue empty working-set intent: no operations added');
+    }
+    return Object.freeze({
+      intentId: buildIntentId(descriptor.workingSetId, intentQueue.nextIntentSeq),
+      enqueuedAt: this._graph._clock.timestamp(),
+      patch,
+      reads: normalizeStringArray(patch.reads, 'reads[]'),
+      writes: normalizeStringArray(patch.writes, 'writes[]'),
+      contentBlobOids: normalizeStringArray(builder._contentBlobs, 'contentBlobOids[]'),
+    });
+  }
+
+  /**
+   * @private
+   * @param {Array<{
+   *   intentId: string,
+   *   enqueuedAt: string,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   reads: string[],
+   *   writes: string[],
+   *   contentBlobOids: string[]
+   * }>} queuedIntents
+   * @returns {{
+   *   admitted: Array<{
+   *     intentId: string,
+   *     enqueuedAt: string,
+   *     patch: import('../types/WarpTypesV2.js').PatchV2,
+   *     reads: string[],
+   *     writes: string[],
+   *     contentBlobOids: string[],
+   *     footprint: Set<string>
+   *   }>,
+   *   rejected: Array<{
+   *     intentId: string,
+   *     reason: string,
+   *     conflictsWith: string[],
+   *     reads: string[],
+   *     writes: string[]
+   *   }>
+   * }}
+   */
+  _classifyQueuedIntents(queuedIntents) {
+    /** @type {Array<{
+     *   intentId: string,
+     *   enqueuedAt: string,
+     *   patch: import('../types/WarpTypesV2.js').PatchV2,
+     *   reads: string[],
+     *   writes: string[],
+     *   contentBlobOids: string[],
+     *   footprint: Set<string>
+     * }>} */
+    const admitted = [];
+    /** @type {Array<{
+     *   intentId: string,
+     *   reason: string,
+     *   conflictsWith: string[],
+     *   reads: string[],
+     *   writes: string[]
+     * }>} */
+    const rejected = [];
+    for (const intent of queuedIntents) {
+      const footprint = footprintToSet(intent);
+      const conflictsWith = admitted
+        .filter((candidate) => setsOverlap(candidate.footprint, footprint))
+        .map((candidate) => candidate.intentId);
+      if (conflictsWith.length > 0) {
+        rejected.push({
+          intentId: intent.intentId,
+          reason: WORKING_SET_COUNTERFACTUAL_REASON,
+          conflictsWith,
+          reads: [...intent.reads],
+          writes: [...intent.writes],
+        });
+      } else {
+        admitted.push({ ...intent, footprint });
+      }
+    }
+    return { admitted, rejected };
+  }
+
+  /**
+   * @private
+   * @param {WorkingSetDescriptor} descriptor
+   * @param {Array<{
+   *   intentId: string,
+   *   enqueuedAt: string,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   reads: string[],
+   *   writes: string[],
+   *   contentBlobOids: string[],
+   *   footprint: Set<string>
+   * }>} admitted
+   * @returns {Promise<{
+   *   overlayHeadPatchSha: string|null,
+   *   overlayPatchCount: number,
+   *   overlayPatchShas: string[],
+   *   maxLamport: number
+   * }>}
+   */
+  async _commitAdmittedQueuedIntents(descriptor, admitted) {
+    let overlayHeadPatchSha = descriptor.overlay.headPatchSha ?? null;
+    let overlayPatchCount = descriptor.overlay.patchCount;
+    let maxLamport = maxPatchLamport(await this._collectPatchEntries(descriptor, { ceiling: null }));
+    const overlayPatchShas = [];
+    for (const intent of admitted) {
+      maxLamport += 1;
+      const committed = await this._commitQueuedPatch({
+        workingSetId: descriptor.workingSetId,
+        overlayId: descriptor.overlay.overlayId,
+        parentSha: overlayHeadPatchSha,
+        patch: intent.patch,
+        contentBlobOids: intent.contentBlobOids,
+        lamport: maxLamport,
+      });
+      overlayHeadPatchSha = committed.sha;
+      overlayPatchCount += 1;
+      overlayPatchShas.push(committed.sha);
+    }
+    return {
+      overlayHeadPatchSha,
+      overlayPatchCount,
+      overlayPatchShas,
+      maxLamport,
+    };
+  }
+
+  /**
+   * @private
+   * @param {{
+   *   descriptor: WorkingSetDescriptor,
+   *   intentQueue: WorkingSetIntentQueue,
+   *   tickIndex: number,
+   *   now: string,
+   *   committed: { overlayHeadPatchSha: string|null, overlayPatchCount: number, overlayPatchShas: string[], maxLamport: number },
+   *   tickRecord: WorkingSetTickRecord
+   * }} params
+   * @returns {Promise<void>}
+   */
+  async _persistTickResult({ descriptor, intentQueue, tickIndex, now, committed, tickRecord }) {
+    await this._writeDescriptor({
+      ...descriptor,
+      updatedAt: now,
+      overlay: {
+        ...descriptor.overlay,
+        headPatchSha: committed.overlayHeadPatchSha,
+        patchCount: committed.overlayPatchCount,
+      },
+      intentQueue: {
+        nextIntentSeq: intentQueue.nextIntentSeq,
+        intents: [],
+      },
+      evolution: {
+        tickCount: tickIndex,
+        lastTick: tickRecord,
+      },
+    });
+    if (committed.maxLamport > this._graph._maxObservedLamport) {
+      this._graph._maxObservedLamport = committed.maxLamport;
+    }
+    this._graph._stateDirty = true;
+    this._graph._cachedViewHash = null;
+    this._graph._cachedCeiling = null;
+    this._graph._cachedFrontier = null;
   }
 
   /**
@@ -1129,6 +1725,58 @@ export default class WorkingSetService {
     this._graph._cachedViewHash = null;
     this._graph._cachedCeiling = null;
     this._graph._cachedFrontier = null;
+  }
+
+  /**
+   * @private
+   * @param {{
+   *   workingSetId: string,
+   *   overlayId: string,
+   *   parentSha: string|null,
+   *   patch: import('../types/WarpTypesV2.js').PatchV2,
+   *   contentBlobOids: string[],
+   *   lamport: number
+   * }} params
+   * @returns {Promise<{ sha: string, patch: import('../types/WarpTypesV2.js').PatchV2 }>}
+   */
+  async _commitQueuedPatch({ workingSetId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
+    const committedPatch = {
+      ...patch,
+      writer: overlayId,
+      lamport,
+    };
+    const patchCbor = this._graph._codec.encode(committedPatch);
+    const patchBlobOid = this._graph._patchBlobStorage
+      ? await this._graph._patchBlobStorage.store(patchCbor, {
+        slug: `${this._graph._graphName}/${overlayId}/patch`,
+      })
+      : await this._graph._persistence.writeBlob(patchCbor);
+
+    const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
+    const uniqueBlobOids = [...new Set(contentBlobOids)];
+    for (const blobOid of uniqueBlobOids) {
+      treeEntries.push(`100644 blob ${blobOid}\t_content_${blobOid}`);
+    }
+    const treeOid = await this._graph._persistence.writeTree(treeEntries);
+    const commitMessage = encodePatchMessage({
+      graph: this._graph._graphName,
+      writer: overlayId,
+      lamport,
+      patchOid: patchBlobOid,
+      schema: committedPatch.schema,
+      encrypted: !!this._graph._patchBlobStorage,
+    });
+    const parents = parentSha ? [parentSha] : [];
+    const sha = await this._graph._persistence.commitNodeWithTree({
+      treeOid,
+      parents,
+      message: commitMessage,
+    });
+    await this._graph._persistence.updateRef(this._buildOverlayRef(workingSetId), sha);
+    return {
+      sha,
+      patch: committedPatch,
+    };
   }
 
   /**
