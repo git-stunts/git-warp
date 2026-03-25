@@ -27,6 +27,90 @@ import ObserverView from '../services/ObserverView.js';
 import { computeTranslationCost } from '../services/TranslationCost.js';
 
 /**
+ * @typedef {{
+ *   source?: {
+ *     kind: 'coordinate',
+ *     frontier: Map<string, string>|Record<string, string>,
+ *     ceiling?: number|null
+ *   } | {
+ *     kind: 'working_set',
+ *     workingSetId: string,
+ *     ceiling?: number|null
+ *   }
+ * }} ObserverOptions
+ */
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @returns {Promise<import('../WarpGraph.js').default>}
+ */
+async function openDetachedObserverGraph(graph) {
+  const GraphClass = /** @type {typeof import('../WarpGraph.js').default} */ (graph.constructor);
+  return await GraphClass.open({
+    persistence: graph._persistence,
+    graphName: graph._graphName,
+    writerId: graph._writerId,
+    gcPolicy: graph._gcPolicy,
+    checkpointPolicy: graph._checkpointPolicy || undefined,
+    autoMaterialize: false,
+    onDeleteWithData: graph._onDeleteWithData,
+    logger: graph._logger || undefined,
+    clock: graph._clock,
+    crypto: graph._crypto,
+    codec: graph._codec,
+    seekCache: graph._seekCache || undefined,
+    audit: false,
+    blobStorage: graph._blobStorage || undefined,
+    patchBlobStorage: graph._patchBlobStorage || undefined,
+    trust: graph._trustConfig,
+  });
+}
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ */
+async function snapshotCurrentMaterialized(graph) {
+  const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string|null}> }} */ (graph)._materializeGraph();
+  return {
+    state: cloneStateV5(materialized.state),
+    stateHash: /** @type {string} */ (materialized.stateHash),
+  };
+}
+
+/**
+ * @param {import('../WarpGraph.js').default} graph
+ * @param {ObserverOptions|undefined} options
+ * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ */
+async function resolveObserverSnapshot(graph, options) {
+  const source = options?.source;
+  if (!source) {
+    await graph._ensureFreshState();
+    return await snapshotCurrentMaterialized(graph);
+  }
+
+  if (source.kind === 'coordinate') {
+    const detached = await openDetachedObserverGraph(graph);
+    await detached.materializeCoordinate({
+      frontier: source.frontier,
+      ceiling: source.ceiling ?? null,
+    });
+    return await snapshotCurrentMaterialized(detached);
+  }
+
+  if (source.kind === 'working_set') {
+    const detached = await openDetachedObserverGraph(graph);
+    await detached.materializeWorkingSet(source.workingSetId, {
+      ceiling: source.ceiling ?? null,
+    });
+    return await snapshotCurrentMaterialized(detached);
+  }
+
+  throw new Error(`unknown observer source kind: ${/** @type {{ kind?: unknown }} */ (source).kind}`);
+}
+
+/**
  * Checks if a node exists in the materialized graph state.
  *
  * **Requires a cached state.** Call materialize() first if not already cached.
@@ -327,16 +411,17 @@ export function query() {
  * @this {import('../WarpGraph.js').default}
  * @param {string} name - Observer name
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} config - Observer configuration
+ * @param {ObserverOptions} [options] - Optional pinned read source
  * @returns {Promise<import('../services/ObserverView.js').default>} A read-only observer view
  */
-export async function observer(name, config) {
+export async function observer(name, config, options = undefined) {
   /** @param {unknown} m */
   const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** @param {unknown} i */ i => typeof i === 'string'));
   if (!config || !isValidMatch(config.match)) {
     throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
   }
-  await this._ensureFreshState();
-  return new ObserverView({ name, config, graph: this });
+  const snapshot = await resolveObserverSnapshot(this, options);
+  return new ObserverView({ name, config, snapshot });
 }
 
 /**

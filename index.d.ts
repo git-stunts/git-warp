@@ -1349,6 +1349,22 @@ export interface ObserverConfig {
   redact?: string[];
 }
 
+export interface CoordinateObserverSource {
+  kind: 'coordinate';
+  frontier: Map<string, string> | Record<string, string>;
+  ceiling?: number | null;
+}
+
+export interface WorkingSetObserverSource {
+  kind: 'working_set';
+  workingSetId: string;
+  ceiling?: number | null;
+}
+
+export interface ObserverOptions {
+  source?: CoordinateObserverSource | WorkingSetObserverSource;
+}
+
 /**
  * Read-only observer view of a materialized WarpGraph state.
  *
@@ -1987,7 +2003,7 @@ export default class WarpGraph {
    * property visibility controlled by `expose` and `redact` lists.
    * Edges are only visible when both endpoints pass the match filter.
    */
-  observer(name: string, config: ObserverConfig): Promise<ObserverView>;
+  observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<ObserverView>;
 
   /**
    * Computes the directed MDL translation cost from observer A to observer B.

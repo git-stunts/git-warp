@@ -931,6 +931,18 @@ const view = await graph.observer('userView', {
   match: 'user:*',              // only user:* nodes visible
   redact: ['ssn', 'password'],  // these properties are hidden
 });
+
+const historical = await graph.observer(
+  'userViewAtTick12',
+  { match: 'user:*' },
+  {
+    source: {
+      kind: 'coordinate',
+      frontier: { writerA: 'abc123...' },
+      ceiling: 12,
+    },
+  },
+);
 ```
 
 The returned `ObserverView` is read-only and supports the same query/traverse API:
@@ -945,6 +957,10 @@ const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: '
 For higher-layer reads, this is the preferred boundary: choose a worldline,
 choose an observer, optionally seek, then read through that observer instead of
 reconstructing a second graph-shaped read model above the substrate.
+
+Observers are pinned read handles. By default they capture the current
+materialized coordinate at creation time. They can also bind directly to an
+explicit coordinate or a pinned working set instead of following live truth.
 
 #### Observer Configuration
 
@@ -1203,6 +1219,9 @@ Higher layers should think of working sets as speculative lanes, not just saved
 coordinates. They are the natural place to stage divergent writes, compare
 candidate futures, and later transfer/collapse one chosen lane into a target
 worldline under higher-layer policy.
+
+Observers can bind directly to a working set when a higher layer needs a
+read-only view over one speculative lane without mutating live truth.
 
 ```bash
 # Pin the current frontier as a reusable working set

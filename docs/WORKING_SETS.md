@@ -39,6 +39,10 @@ This is the important boundary:
 Higher layers should not need to reinvent worldline lanes above this substrate
 primitive.
 
+When a higher layer needs a read-only view over one speculative lane, it should
+prefer binding an observer to the working set rather than rebuilding a parallel
+read model above the descriptor.
+
 ## Truth Boundary
 
 The authoritative pieces are:

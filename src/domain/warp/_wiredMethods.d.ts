@@ -525,7 +525,7 @@ declare module '../WarpGraph.js' {
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
-    observer(name: string, config: ObserverConfig): Promise<import('../services/ObserverView.js').default>;
+    observer(name: string, config: ObserverConfig, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/ObserverView.js').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
     // ── subscribe.methods.js ──────────────────────────────────────────────

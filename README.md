@@ -469,6 +469,19 @@ const view = await graph.observer('publicApi', {
   redact: ['ssn', 'password'],
 });
 
+// Pin an observer to a historical coordinate
+const historical = await graph.observer(
+  'beforeHotfix',
+  { match: 'user:*' },
+  {
+    source: {
+      kind: 'coordinate',
+      frontier: { alice: 'abc123...' },
+      ceiling: 12,
+    },
+  },
+);
+
 const users = await view.getNodes();                // only user:* nodes
 const props = await view.getNodeProps('user:alice'); // { name: 'Alice', ... } without ssn/password
 const result = await view.query().match('user:*').where({ role: 'admin' }).run();
@@ -480,6 +493,11 @@ const { cost, breakdown } = await graph.translationCost(
 );
 // cost ∈ [0, 1] — 0 = identical views, 1 = completely disjoint
 ```
+
+Observers are pinned read handles. By default they capture the current
+materialized read coordinate at creation time, and they can also bind directly
+to an explicit coordinate or a pinned working set instead of live-following one
+mutable graph handle.
 
 ## Temporal Queries
 

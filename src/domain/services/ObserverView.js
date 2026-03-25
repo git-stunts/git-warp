@@ -11,6 +11,7 @@
 
 import QueryBuilder from './QueryBuilder.js';
 import LogicalTraversal from './LogicalTraversal.js';
+import { createStateReaderV5 } from './StateReaderV5.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.js';
@@ -157,9 +158,9 @@ export default class ObserverView {
   /**
    * Creates a new ObserverView.
    *
-   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph: import('../WarpGraph.js').default }} options
+   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpGraph.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string } }} options
    */
-  constructor({ name, config, graph }) {
+  constructor({ name, config, graph, snapshot }) {
     /** @type {string} */
     this._name = name;
 
@@ -172,8 +173,17 @@ export default class ObserverView {
     /** @type {string[]|undefined} */
     this._redact = config.redact;
 
-    /** @type {import('../WarpGraph.js').default} */
-    this._graph = graph;
+    /** @type {import('../WarpGraph.js').default|null} */
+    this._graph = graph || null;
+
+    /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
+    this._snapshot = snapshot || null;
+
+    /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
+    this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
+
+    /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
+    this._snapshotAdjacency = null;
 
     /**
      * Cast safety: LogicalTraversal requires the following methods from the
@@ -210,6 +220,17 @@ export default class ObserverView {
    * @private
    */
   async _materializeGraph() {
+    if (this._snapshot) {
+      if (!this._snapshotAdjacency) {
+        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._matchPattern);
+      }
+      return {
+        state: this._snapshot.state,
+        stateHash: this._snapshot.stateHash,
+        adjacency: this._snapshotAdjacency,
+      };
+    }
+
     const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, stateHash: string, provider?: import('./BitmapNeighborProvider.js').default, adjacency: {outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]>}}> }} */ (this._graph)._materializeGraph();
     const { state, stateHash } = materialized;
 
@@ -241,6 +262,9 @@ export default class ObserverView {
     if (!matchGlob(this._matchPattern, nodeId)) {
       return false;
     }
+    if (this._stateReader) {
+      return this._stateReader.hasNode(nodeId);
+    }
     return await this._graph.hasNode(nodeId);
   }
 
@@ -250,7 +274,9 @@ export default class ObserverView {
    * @returns {Promise<string[]>} Array of visible node IDs
    */
   async getNodes() {
-    const allNodes = await this._graph.getNodes();
+    const allNodes = this._stateReader
+      ? this._stateReader.getNodes()
+      : await this._graph.getNodes();
     return allNodes.filter((id) => matchGlob(this._matchPattern, id));
   }
 
@@ -267,7 +293,9 @@ export default class ObserverView {
     if (!matchGlob(this._matchPattern, nodeId)) {
       return null;
     }
-    const propsRecord = await this._graph.getNodeProps(nodeId);
+    const propsRecord = this._stateReader
+      ? this._stateReader.getNodeProps(nodeId)
+      : await this._graph.getNodeProps(nodeId);
     if (!propsRecord) {
       return null;
     }
@@ -286,7 +314,9 @@ export default class ObserverView {
    * @returns {Promise<Array<{from: string, to: string, label: string, props: Record<string, unknown>}>>}
    */
   async getEdges() {
-    const allEdges = await this._graph.getEdges();
+    const allEdges = this._stateReader
+      ? this._stateReader.getEdges()
+      : await this._graph.getEdges();
     return allEdges
       .filter(
         (e) => matchGlob(this._matchPattern, e.from) && matchGlob(this._matchPattern, e.to)
