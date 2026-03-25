@@ -255,6 +255,121 @@ describe('WarpGraph working-set foundation', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
+  it('observer() pins the read coordinate it was created from even after live truth advances', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+
+    await graph.materialize();
+    const redObserver = await graph.observer('red', { match: 'n1' });
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+    });
+
+    await graph.materialize();
+
+    await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+  });
+
+  it('observer() can bind directly to an explicit coordinate instead of the live frontier', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+    const frontierAtRed = await graph.getFrontier();
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+    });
+
+    await graph.materialize();
+    const redObserver = await graph.observer(
+      'red-coordinate',
+      { match: 'n1' },
+      {
+        source: {
+          kind: 'coordinate',
+          frontier: Object.fromEntries(frontierAtRed),
+          ceiling: null,
+        },
+      },
+    );
+
+    await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+  });
+
+  it('observer() can bind directly to a pinned working set instead of live truth', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+
+    await graph.createWorkingSet({
+      workingSetId: 'ws_red',
+      owner: 'alice',
+    });
+
+    await graph.patchWorkingSet('ws_red', (p) => {
+      p.setProperty('n1', 'status', 'reviewing');
+    });
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+    });
+
+    await graph.materialize();
+    const workingSetObserver = await graph.observer(
+      'ws-red',
+      { match: 'n1' },
+      {
+        source: {
+          kind: 'working_set',
+          workingSetId: 'ws_red',
+        },
+      },
+    );
+
+    await expect(workingSetObserver.getNodeProps('n1')).resolves.toMatchObject({
+      color: 'red',
+      status: 'reviewing',
+    });
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+  });
+
   it('patchWorkingSet persists overlay patches without mutating the live frontier', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
