@@ -128,6 +128,7 @@ const result = await graph.query()
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: `WarpGraph` as plumbing, observers as the read-side abstraction, and working sets as speculative write lanes.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the working-set API/CLI surface.
@@ -457,6 +458,10 @@ When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and au
 
 Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
 
+Higher layers should prefer observers for application-facing reads. `WarpGraph`
+remains the substrate/session facade, but observers are the cleaner read-side
+boundary when you need a worldline-relative, filtered, read-only projection.
+
 ```javascript
 // Create an observer that only sees user:* nodes, with sensitive fields hidden
 const view = await graph.observer('publicApi', {
@@ -496,6 +501,11 @@ const wasMerged = await graph.temporal.eventually(
 ```
 
 ## Patch Operations
+
+Direct patching remains part of the low-level substrate surface. For
+application-facing speculative mutation, prefer working sets and their overlay
+mechanics rather than treating one live `WarpGraph` handle as the entire product
+API.
 
 The patch builder supports seven operations:
 

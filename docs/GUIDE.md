@@ -906,6 +906,20 @@ graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 
 ## Advanced Topics
 
+### Read / Write Boundary
+
+The intended substrate boundary is:
+
+- `WarpGraph` is the low-level substrate/session facade
+- observers are the preferred read-side abstraction
+- working sets are the preferred speculative write abstraction
+
+That boundary is not about hiding `WarpGraph`. It is about keeping higher layers
+from rebuilding their own graph engine above git-warp. Reach for
+`WarpGraph`-level materialization and patch APIs when you are working on
+substrate plumbing. Reach for observers and working sets when you are building
+application-facing behavior.
+
 ### Observer Views
 
 Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV (Echo and the WARP Core).
@@ -927,6 +941,10 @@ const props = await view.getNodeProps('user:alice');  // { name: 'Alice', ... } 
 const admins = await view.query().match('user:*').where({ role: 'admin' }).run();
 const path = await view.traverse.shortestPath('user:alice', 'user:bob', { dir: 'out' });
 ```
+
+For higher-layer reads, this is the preferred boundary: choose a worldline,
+choose an observer, optionally seek, then read through that observer instead of
+reconstructing a second graph-shaped read model above the substrate.
 
 #### Observer Configuration
 
@@ -1180,6 +1198,11 @@ Working sets pin an explicit observation coordinate for later reuse without crea
 - an overlay identity and patch-log ref for future divergent writes
 
 Materialized state remains derived/cache only. The descriptor is the durable part.
+
+Higher layers should think of working sets as speculative lanes, not just saved
+coordinates. They are the natural place to stage divergent writes, compare
+candidate futures, and later transfer/collapse one chosen lane into a target
+worldline under higher-layer policy.
 
 ```bash
 # Pin the current frontier as a reusable working set

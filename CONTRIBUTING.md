@@ -12,6 +12,44 @@ Treat that plan as the active implementation source of truth for current counter
 
 If older notes or speculative docs conflict with the frozen v1 plan, the plan wins for this tranche.
 
+## Development Loop
+
+This repo follows the same disciplined cycle used by higher-layer products built
+on git-warp:
+
+1. design docs first
+2. tests as executable spec second
+3. implementation third
+4. playback and reconciliation after the slice lands
+
+Tests are the spec. Design docs define intent and invariants. Implementation
+follows.
+
+For non-trivial work, use IBM Design Thinking style framing:
+
+- sponsor actors
+- hills
+- playbacks
+- explicit non-goals
+
+Keep that vocabulary in the design method. Do not leak it into the runtime
+ontology unless the substrate truly needs a first-class concept.
+
+## Checkpoints
+
+Most slices should pass through four checkpoints:
+
+1. doctrine
+2. spec
+3. semantic
+4. surface
+
+For git-warp, "surface" often means public API, CLI, or documentation surface
+rather than a GUI.
+
+Local red while iterating is acceptable. Shared branches, pushes intended for
+review, and merge submissions should be green.
+
 ## Getting Started
 
 1. Clone the repository

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs now state the intended observer/working-set boundary explicitly** — Added a design note and updated the README, Guide, Working Sets doc, and CONTRIBUTING so git-warp now says plainly that `WarpGraph` is substrate plumbing, observers are the preferred read-side abstraction, and working sets are the preferred speculative write abstraction while governance and policy stay above the substrate.
+
 ## [14.16.2] — 2026-03-19
 
 ### Changed

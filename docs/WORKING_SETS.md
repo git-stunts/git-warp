@@ -2,6 +2,9 @@
 
 **Status:** v1 substrate active, with braid foundation now active inside the working-set descriptor model.
 
+Working sets are the substrate's speculative write lane. They are not a Git
+worktree feature and they are not a governance engine.
+
 Working sets give git-warp a durable way to pin explicit observation coordinates without assuming a Git worktree, a browser UI, or higher-level XYPH semantics.
 
 ## What a Working Set Is
@@ -26,6 +29,15 @@ A newly created working set still starts with an empty overlay:
 - `braid.readOverlays = []`
 
 That means a newly created working set reads exactly like its base observation until an overlay patch is committed.
+
+This is the important boundary:
+
+- `WarpGraph` is still the lower-level substrate/session object
+- observers are the preferred read-side abstraction
+- working sets are the preferred speculative write abstraction
+
+Higher layers should not need to reinvent worldline lanes above this substrate
+primitive.
 
 ## Truth Boundary
 
@@ -284,6 +296,11 @@ conflict traces are only operationally honest if operators can see which
 braid-visible surface they actually inspected.
 
 That boundary keeps the debugger from turning into a mutation channel while still letting higher layers build real fork/worldline behavior on top of working sets.
+
+The intended direction is stronger than "saved coordinate plus overlay." A
+working set is the durable substrate lane where higher layers can stage
+candidate futures, inspect them, compare them, and later transfer/collapse one
+chosen lane into a target worldline under policy that remains outside git-warp.
 
 ## Braid Foundation
 
