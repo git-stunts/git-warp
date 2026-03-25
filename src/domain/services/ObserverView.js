@@ -204,6 +204,19 @@ export default class ObserverView {
     return this._name;
   }
 
+  /**
+   * Returns the live backing graph when this observer was created in delegate mode.
+   *
+   * @returns {import('../WarpGraph.js').default}
+   * @private
+   */
+  _requireGraph() {
+    if (!this._graph) {
+      throw new Error('ObserverView has no live backing graph');
+    }
+    return this._graph;
+  }
+
   // ===========================================================================
   // Internal: State access (used by QueryBuilder and LogicalTraversal)
   // ===========================================================================
@@ -231,7 +244,8 @@ export default class ObserverView {
       };
     }
 
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, stateHash: string, provider?: import('./BitmapNeighborProvider.js').default, adjacency: {outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]>}}> }} */ (this._graph)._materializeGraph();
+    const graph = this._requireGraph();
+    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, stateHash: string, provider?: import('./BitmapNeighborProvider.js').default, adjacency: {outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]>}}> }} */ (graph)._materializeGraph();
     const { state, stateHash } = materialized;
 
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }} */
@@ -265,7 +279,7 @@ export default class ObserverView {
     if (this._stateReader) {
       return this._stateReader.hasNode(nodeId);
     }
-    return await this._graph.hasNode(nodeId);
+    return await this._requireGraph().hasNode(nodeId);
   }
 
   /**
@@ -276,7 +290,7 @@ export default class ObserverView {
   async getNodes() {
     const allNodes = this._stateReader
       ? this._stateReader.getNodes()
-      : await this._graph.getNodes();
+      : await this._requireGraph().getNodes();
     return allNodes.filter((id) => matchGlob(this._matchPattern, id));
   }
 
@@ -295,7 +309,7 @@ export default class ObserverView {
     }
     const propsRecord = this._stateReader
       ? this._stateReader.getNodeProps(nodeId)
-      : await this._graph.getNodeProps(nodeId);
+      : await this._requireGraph().getNodeProps(nodeId);
     if (!propsRecord) {
       return null;
     }
@@ -316,7 +330,7 @@ export default class ObserverView {
   async getEdges() {
     const allEdges = this._stateReader
       ? this._stateReader.getEdges()
-      : await this._graph.getEdges();
+      : await this._requireGraph().getEdges();
     return allEdges
       .filter(
         (e) => matchGlob(this._matchPattern, e.from) && matchGlob(this._matchPattern, e.to)
