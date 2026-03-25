@@ -2,15 +2,24 @@
 
 ## Current Active Plan
 
-git-warp is currently executing the v1 conflict-analyzer tranche documented in `docs/plans/conflict-analyzer-v1.md`.
+git-warp is currently executing the observer/working-set substrate-alignment
+tranche documented in:
 
-Treat that plan as the active implementation source of truth for current counterfactual/conflict work. In particular:
-- this tranche is **read-only**
-- it performs **zero durable writes**
-- it adds substrate conflict facts for XYPH to consume later
-- durable artifact storage, arbitrary frontier selection, and richer worldline semantics are deferred
+- `docs/design/observer-working-set-boundary.md`
+- `docs/design/working-set-intent-ticks.md`
 
-If older notes or speculative docs conflict with the frozen v1 plan, the plan wins for this tranche.
+Treat those notes as the active implementation source of truth for current
+observer/worldline/working-set work.
+
+In particular:
+- `WarpGraph` is substrate plumbing, not the preferred application-facing API
+- observers are the preferred read-side abstraction
+- working sets are the preferred speculative write abstraction
+- this tranche should add substrate mechanics, not higher-layer policy or
+  governance
+
+The earlier conflict-analyzer work remains valid substrate capability, but it is
+not the active plan that governs the current write-side pivot.
 
 ## Development Loop
 

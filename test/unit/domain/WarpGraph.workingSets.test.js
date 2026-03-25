@@ -1263,4 +1263,134 @@ describe('WarpGraph working-set foundation', () => {
       },
     ]);
   });
+
+  it('queues working-set intents without mutating visible state or live truth', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'task:queued', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'task:queued', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['task:queued'],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_queue', owner: 'alice' });
+
+    const queued = await graph.queueWorkingSetIntent('ws_queue', (p) => {
+      p.setProperty('task:queued', 'status', 'queued');
+    });
+
+    expect(queued.intentId).toBe('ws_queue.intent.0001');
+    expect(queued.patch.writes).toEqual(['task:queued']);
+
+    const intents = await graph.listWorkingSetIntents('ws_queue');
+    expect(intents.map((intent) => intent.intentId)).toEqual(['ws_queue.intent.0001']);
+
+    const workingSetState = await graph.materializeWorkingSet('ws_queue');
+    const workingSetReader = createStateReaderV5(workingSetState);
+    expect(workingSetReader.getNodeProps('task:queued')).toMatchObject({ status: 'base' });
+
+    const liveState = await graph.materialize();
+    const liveReader = createStateReaderV5(liveState);
+    expect(liveReader.getNodeProps('task:queued')).toMatchObject({ status: 'base' });
+  });
+
+  it('ticks working sets deterministically and admits independent intents together', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'task:red', dot: createDot('alice', 1) },
+        { type: 'NodeAdd', node: 'task:blue', dot: createDot('alice', 2) },
+      ],
+      reads: [],
+      writes: ['task:red', 'task:blue'],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_tick', owner: 'alice' });
+
+    await graph.queueWorkingSetIntent('ws_tick', (p) => {
+      p.setProperty('task:red', 'status', 'ready');
+    });
+    await graph.queueWorkingSetIntent('ws_tick', (p) => {
+      p.setProperty('task:blue', 'status', 'review');
+    });
+
+    const result = await graph.tickWorkingSet('ws_tick');
+
+    expect(result.admittedIntentIds).toEqual([
+      'ws_tick.intent.0001',
+      'ws_tick.intent.0002',
+    ]);
+    expect(result.rejected).toEqual([]);
+    expect(result.overlayPatchShas).toHaveLength(2);
+
+    const workingSetState = await graph.materializeWorkingSet('ws_tick');
+    const workingSetReader = createStateReaderV5(workingSetState);
+    expect(workingSetReader.getNodeProps('task:red')).toMatchObject({ status: 'ready' });
+    expect(workingSetReader.getNodeProps('task:blue')).toMatchObject({ status: 'review' });
+
+    const descriptor = await graph.getWorkingSet('ws_tick');
+    expect(descriptor?.overlay.patchCount).toBe(2);
+    expect(descriptor?.intentQueue?.intents ?? []).toHaveLength(0);
+    expect(descriptor?.evolution?.tickCount).toBe(1);
+  });
+
+  it('records overlapping queued intents as counterfactuals and leaves sibling lanes untouched', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      context: createVersionVector(),
+      ops: [
+        { type: 'NodeAdd', node: 'task:conflict', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'task:conflict', key: 'status', value: 'base' },
+      ],
+      reads: [],
+      writes: ['task:conflict'],
+    });
+
+    await graph.createWorkingSet({ workingSetId: 'ws_primary', owner: 'alice' });
+    await graph.createWorkingSet({ workingSetId: 'ws_sibling', owner: 'alice' });
+
+    await graph.queueWorkingSetIntent('ws_primary', (p) => {
+      p.setProperty('task:conflict', 'status', 'approved');
+    });
+    await graph.queueWorkingSetIntent('ws_primary', (p) => {
+      p.setProperty('task:conflict', 'priority', 'urgent');
+    });
+
+    const result = await graph.tickWorkingSet('ws_primary');
+
+    expect(result.admittedIntentIds).toEqual(['ws_primary.intent.0001']);
+    expect(result.rejected).toEqual([
+      {
+        intentId: 'ws_primary.intent.0002',
+        reason: 'footprint_overlap',
+        conflictsWith: ['ws_primary.intent.0001'],
+        reads: ['task:conflict'],
+        writes: ['task:conflict'],
+      },
+    ]);
+
+    const primaryState = await graph.materializeWorkingSet('ws_primary');
+    const primaryReader = createStateReaderV5(primaryState);
+    expect(primaryReader.getNodeProps('task:conflict')).toMatchObject({ status: 'approved' });
+    expect(primaryReader.getNodeProps('task:conflict')).not.toHaveProperty('priority');
+
+    const siblingState = await graph.materializeWorkingSet('ws_sibling');
+    const siblingReader = createStateReaderV5(siblingState);
+    expect(siblingReader.getNodeProps('task:conflict')).toMatchObject({ status: 'base' });
+
+    const liveState = await graph.materialize();
+    const liveReader = createStateReaderV5(liveState);
+    expect(liveReader.getNodeProps('task:conflict')).toMatchObject({ status: 'base' });
+    expect(liveReader.getNodeProps('task:conflict')).not.toHaveProperty('priority');
+  });
 });
