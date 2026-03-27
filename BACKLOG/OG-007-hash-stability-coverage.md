@@ -1,6 +1,13 @@
 # OG-007 — Expand Hash-Stability Coverage Across Snapshot Flavors
 
-Status: QUEUED
+Status: DONE
+
+Promoted to: `docs/design/snapshot-hash-stability-coverage.md`
+
+Closed by:
+
+- `test/unit/domain/WarpRuntime.snapshotHashStability.test.js`
+- `docs/retrospectives/2026-03-27-snapshot-hash-stability-coverage.md`
 
 ## Problem
 
@@ -14,4 +21,5 @@ semantics.
 
 ## Promotion Trigger
 
-Promote this item when the next snapshot-integrity test pass begins.
+Promoted when the next snapshot-integrity test pass began after detached reads,
+runtime renaming, and immutable public snapshots had all landed.
