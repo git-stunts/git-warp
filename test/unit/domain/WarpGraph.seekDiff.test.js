@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -122,9 +123,15 @@ describe('WarpRuntime.getStateSnapshot()', () => {
     expect(/** @type {*} */ (snap).nodeAlive).toBeDefined();
   });
 
-  it('returns a defensive copy of materialized state', async () => {
+  it('returns an immutable detached snapshot of materialized state', async () => {
     setupPersistence(persistence, 'alice', [
-      { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
+      {
+        lamport: 1,
+        ops: [
+          { type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } },
+          { type: 'PropSet', node: 'n1', key: 'profile', value: { color: 'red' } },
+        ],
+      },
     ]);
 
     const graph = await WarpRuntime.open({
@@ -137,14 +144,19 @@ describe('WarpRuntime.getStateSnapshot()', () => {
     const snap = await graph.getStateSnapshot();
     expect(snap).not.toBeNull();
 
-    // Verify it has the expected node
-    const nodes = await graph.getNodes();
-    expect(nodes).toContain('n1');
+    const propKey = encodePropKey('n1', 'profile');
+    const register = /** @type {*} */ (snap).prop.get(propKey);
+    expect(register).toBeDefined();
+    expect(Object.isFrozen(register)).toBe(true);
+    expect(Object.isFrozen(register.value)).toBe(true);
+    expect(() => /** @type {*} */ (snap).prop.set('injected', { value: 'bad' })).toThrow(TypeError);
+    expect(() => {
+      register.value.color = 'blue';
+    }).toThrow(TypeError);
 
-    // Verify defensive copy: modifying the snapshot doesn't affect the graph
-    /** @type {*} */ (snap).prop.set('injected', { value: 'bad' });
     const snap2 = /** @type {*} */ (await graph.getStateSnapshot());
     expect(snap2.prop.has('injected')).toBe(false);
+    expect(snap2.prop.get(propKey).value.color).toBe('red');
   });
 
   it('produces distinct state references at different ceilings', async () => {

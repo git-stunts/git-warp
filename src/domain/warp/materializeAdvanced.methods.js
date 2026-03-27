@@ -8,7 +8,8 @@
  * @module domain/warp/materializeAdvanced.methods
  */
 
-import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../services/JoinReducer.js';
+import { reduceV5, createEmptyStateV5 } from '../services/JoinReducer.js';
+import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from '../services/KeyCodec.js';
 import { vvClone } from '../crdt/VersionVector.js';
@@ -39,7 +40,7 @@ import { buildWriterRef } from '../utils/RefLayout.js';
  * @returns {WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze(cloneStateV5(state));
+  return createImmutableWarpStateV5(state);
 }
 
 /**
@@ -52,7 +53,7 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: /** @type {TickReceipt[]} */ (Object.freeze([...receipts])),
+    receipts: /** @type {TickReceipt[]} */ (createImmutableValue(receipts)),
   });
 }
 

@@ -22,6 +22,7 @@ import {
 } from '../services/KeyCodec.js';
 import { compareEventIds } from '../utils/EventId.js';
 import { cloneStateV5 } from '../services/JoinReducer.js';
+import { createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import QueryBuilder from '../services/QueryBuilder.js';
 import ObserverView from '../services/ObserverView.js';
 import Worldline from '../services/Worldline.js';
@@ -383,7 +384,7 @@ export async function getStateSnapshot() {
   if (!this._cachedState) {
     return null;
   }
-  return cloneStateV5(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState));
+  return createImmutableWarpStateV5(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState));
 }
 
 /**

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
+import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 
 /**
@@ -183,7 +184,12 @@ describe('WarpRuntime worldline surface', () => {
 
     const state = /** @type {any} */ (await graph.worldline().materialize());
     const reader = createStateReaderV5(state);
+    const propKey = encodePropKey('n1', 'color');
+    const liveDots = state.nodeAlive.entries.get('n1');
 
+    expect(() => state.prop.set(propKey, null)).toThrow(TypeError);
+    expect(() => state.nodeAlive.tombstones.add('alice:999')).toThrow(TypeError);
+    expect(() => liveDots.add('alice:1000')).toThrow(TypeError);
     expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });

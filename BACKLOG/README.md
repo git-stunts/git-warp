@@ -19,7 +19,7 @@ Workflow:
 | --- | --- | --- | --- |
 | DONE | OG-001 | First-class `Worldline` API | [OG-001-worldline-api.md](OG-001-worldline-api.md) |
 | DONE | OG-002 | Split mutable session `WarpRuntime` from immutable snapshot noun | [OG-002-warpgraph-role-split.md](OG-002-warpgraph-role-split.md) |
-| READY | OG-003 | Deepen public snapshot immutability | [OG-003-snapshot-immutability.md](OG-003-snapshot-immutability.md) |
+| DONE | OG-003 | Deepen public snapshot immutability | [OG-003-snapshot-immutability.md](OG-003-snapshot-immutability.md) |
 | DONE | OG-004 | Canonical immutable observer seek contract | [OG-004-observer-seek-contract.md](OG-004-observer-seek-contract.md) |
 | QUEUED | OG-005 | Benchmark detached coordinate and working-set reads | [OG-005-detached-read-benchmarks.md](OG-005-detached-read-benchmarks.md) |
 | QUEUED | OG-006 | Remove remaining docs/examples that imply caller retargeting | [OG-006-read-api-doc-consistency.md](OG-006-read-api-doc-consistency.md) |

@@ -185,11 +185,11 @@ export default class Worldline {
    * @param {WorldlineOptions} [options]
    * @returns {Promise<Worldline>}
    */
-  seek(options = undefined) {
-    return new Worldline({
+  async seek(options = undefined) {
+    return await Promise.resolve(new Worldline({
       graph: this._graph,
       source: cloneWorldlineSource(options?.source || this._source),
-    });
+    }));
   }
 
   /**

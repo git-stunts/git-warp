@@ -22,7 +22,8 @@ import { textEncode } from '../utils/bytes.js';
 import { parseWorkingSetBlob } from '../utils/parseWorkingSetBlob.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { PatchBuilderV2 } from './PatchBuilderV2.js';
-import { createEmptyStateV5, reduceV5, cloneStateV5 } from './JoinReducer.js';
+import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
+import { createImmutableValue, createImmutableWarpStateV5 } from './ImmutableSnapshot.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 import { encodePatchMessage } from './WarpMessageCodec.js';
 
@@ -659,7 +660,7 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze(cloneStateV5(state));
+  return createImmutableWarpStateV5(state);
 }
 
 /**
@@ -670,7 +671,7 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (Object.freeze([...receipts])),
+    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (createImmutableValue(receipts)),
   });
 }
 

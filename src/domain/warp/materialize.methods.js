@@ -7,6 +7,7 @@
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../services/JoinReducer.js';
+import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../services/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../services/StateDiff.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
@@ -58,7 +59,7 @@ function scanPatchesForMaxLamport(graph, patches) {
  * @returns {import('../services/JoinReducer.js').WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze(cloneStateV5(state));
+  return createImmutableWarpStateV5(state);
 }
 
 /**
@@ -71,7 +72,7 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (Object.freeze([...receipts])),
+    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (createImmutableValue(receipts)),
   });
 }
 

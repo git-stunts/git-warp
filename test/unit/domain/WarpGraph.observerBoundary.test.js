@@ -154,28 +154,37 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     });
   });
 
-  it('materialize() returns a snapshot whose nested state can be mutated without mutating the graph cache', async () => {
+  it('materialize() returns a transitively immutable detached snapshot', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
       lamport: 1,
       ops: [
         { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
-        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+        { type: 'PropSet', node: 'n1', key: 'color', value: { tone: 'red' } },
       ],
     });
 
     const state = /** @type {any} */ (await graph.materialize());
-    state.prop.set(encodePropKey('n1', 'color'), {
-      value: 'green',
-      lamport: 999,
-      writerId: 'intruder',
-    });
+    const propKey = encodePropKey('n1', 'color');
+    const colorRegister = state.prop.get(propKey);
+    const liveDots = state.nodeAlive.entries.get('n1');
+
+    expect(colorRegister).toBeDefined();
+    expect(liveDots).toBeDefined();
+    expect(Object.isFrozen(colorRegister)).toBe(true);
+    expect(Object.isFrozen(colorRegister.value)).toBe(true);
+    expect(() => state.prop.set(propKey, colorRegister)).toThrow(TypeError);
+    expect(() => state.nodeAlive.entries.set('evil', new Set())).toThrow(TypeError);
+    expect(() => liveDots.add('alice:999')).toThrow(TypeError);
+    expect(() => {
+      colorRegister.value.tone = 'green';
+    }).toThrow(TypeError);
 
     const liveSnapshot = await graph.getStateSnapshot();
     const reader = createStateReaderV5(/** @type {any} */ (liveSnapshot));
 
-    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'red' });
+    expect(reader.getNodeProps('n1')).toMatchObject({ color: { tone: 'red' } });
   });
 
   it('materializeCoordinate() returns a coordinate snapshot without retargeting the live graph handle', async () => {
@@ -208,6 +217,7 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     }));
     const redReader = createStateReaderV5(redState);
 
+    expect(() => redState.prop.set('intruder', null)).toThrow(TypeError);
     expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
@@ -247,6 +257,7 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     const workingSetState = /** @type {any} */ (await graph.materializeWorkingSet('ws_red'));
     const workingSetReader = createStateReaderV5(workingSetState);
 
+    expect(() => workingSetState.prop.set('intruder', null)).toThrow(TypeError);
     expect(workingSetReader.getNodeProps('n1')).toMatchObject({
       color: 'red',
       status: 'reviewing',
