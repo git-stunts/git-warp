@@ -26,4 +26,4 @@ Workflow:
 | DONE | OG-007 | Expand hash-stability coverage across snapshot flavors | [OG-007-hash-stability-coverage.md](OG-007-hash-stability-coverage.md) |
 | DONE | OG-008 | Make retargeting compatibility a hard major-version cut | [OG-008-retargeting-compatibility.md](OG-008-retargeting-compatibility.md) |
 | QUEUED | OG-009 | Align playback-head and TTD consumers after read nouns stabilize | [OG-009-playback-head-alignment.md](OG-009-playback-head-alignment.md) |
-| QUEUED | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |
+| ACTIVE | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |

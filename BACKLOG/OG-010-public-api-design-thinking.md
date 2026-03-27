@@ -1,6 +1,6 @@
 # OG-010 — IBM Design Thinking Pass Over Public APIs And README
 
-Status: QUEUED
+Status: ACTIVE
 
 ## Problem
 
@@ -47,8 +47,11 @@ If the public surface serves one and confuses the other, it is not good enough.
 - What public read helpers would let higher layers ask questions instead of
   rebuilding graph logic locally?
 
-## Promotion Trigger
+## Promotion
 
-Promote this item when the current Observer Geometry implementation cycle is
-fully pushed and the next cycle begins with explicit IBM Design Thinking
-artifacts for the public API and README.
+Promoted to:
+
+- [docs/design/public-api-design-thinking.md](../docs/design/public-api-design-thinking.md)
+
+This item now tracks the active cycle kickoff for the IBM Design Thinking pass
+over the `git-warp` public API and README.
