@@ -12,11 +12,13 @@ Treat those notes as the active implementation source of truth for current
 observer/worldline/working-set work.
 
 In particular:
-- `WarpGraph` is substrate plumbing, not the preferred application-facing API
+- `WarpRuntime` is substrate plumbing, not the preferred application-facing API
 - observers are the preferred read-side abstraction
 - working sets are the preferred speculative write abstraction
 - this tranche should add substrate mechanics, not higher-layer policy or
   governance
+- promotable pre-design backlog items live in `BACKLOG/` as one file per
+  substantial slice
 
 The earlier conflict-analyzer work remains valid substrate capability, but it is
 not the active plan that governs the current write-side pivot.
@@ -33,6 +35,9 @@ on git-warp:
 
 Tests are the spec. Design docs define intent and invariants. Implementation
 follows.
+
+When a `BACKLOG/` item is selected for active work, promote it into
+`docs/design/` before writing tests.
 
 For non-trivial work, use IBM Design Thinking style framing:
 
@@ -118,7 +123,7 @@ Ensure `test/unit/domain/WarpGraph.noCoordination.test.js` passes before submitt
 1. Create a feature branch from `main`
 2. Make your changes with clear commit messages
 3. Keep commits documentation-atomic: when a change affects shipped behavior, public surface, or backlog status, update `CHANGELOG.md` and the roadmap/backlog docs in the same commit.
-4. Move completed backlog items out of `ROADMAP.md` and into `docs/ROADMAP/COMPLETED.md` as part of that same reconciliation.
+4. When a `BACKLOG/` item becomes active, promote it into `docs/design/` before implementation. When roadmap work completes, reconcile `ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` in the same commit.
 5. Ensure all tests pass: `npm test`
 6. Ensure linting passes: `npx eslint .`
 7. Submit a PR with a clear description

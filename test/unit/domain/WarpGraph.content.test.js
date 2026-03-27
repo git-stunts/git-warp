@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
@@ -32,7 +32,7 @@ function attachmentEvent(
   return { lamport, writerId, patchSha, opIndex };
 }
 
-describe('WarpGraph content attachment (query methods)', () => {
+describe('WarpRuntime content attachment (query methods)', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -48,7 +48,7 @@ describe('WarpGraph content attachment (query methods)', () => {
       readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('hello world')),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

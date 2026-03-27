@@ -36,7 +36,7 @@
 
 ## What's New in v14.13.0
 
-- **Deterministic transfer planning is now a first-class substrate helper** — `WarpGraph.planWorkingSetTransfer()` and `WarpGraph.planCoordinateTransfer()` extract a candidate transfer plan from one visible patch universe onto another without mutating either side.
+- **Deterministic transfer planning is now a first-class substrate helper** — `WarpRuntime.planWorkingSetTransfer()` and `WarpRuntime.planCoordinateTransfer()` extract a candidate transfer plan from one visible patch universe onto another without mutating either side.
 - **Transfer plans stay substrate-factual, including attachment changes** — the returned plan reports only add/remove/set plus explicit content attach/clear operations, deterministic transfer digests, and the resolved source/target coordinates. It does not invent collapse, approval, or governance semantics.
 - **The CLI exposes the same settlement runway without turning `debug` into a mutation shell** — `git warp working-set transfer-plan` plans a working set transfer into live truth, its pinned base observation, or another working set while keeping TTD read-only.
 
@@ -48,13 +48,13 @@
 
 ## What's New in v14.11.0
 
-- **Braided working-set composition is now a real substrate primitive** — `WarpGraph.braidWorkingSet()` pins zero or more read-only support overlays on top of a target working set's shared base observation while keeping the target overlay optionally writable.
+- **Braided working-set composition is now a real substrate primitive** — `WarpRuntime.braidWorkingSet()` pins zero or more read-only support overlays on top of a target working set's shared base observation while keeping the target overlay optionally writable.
 - **The main CLI can pin the same braid truth directly** — `git warp working-set braid` exposes the substrate braid descriptor without turning `debug` into a mutation surface or teaching git-warp about higher-level worldline meaning.
 - **Working-set reads now materialize the full visible patch universe** — materialization, visible patch reads, comparisons, and working-set-aware conflict analysis metadata now resolve against `base + braided read-only overlays + active overlay`, while `reduceV5` remains deterministic and blind to braid semantics.
 
 ## What's New in v14.10.0
 
-- **Working-set and coordinate comparison are now first-class substrate reads** — `WarpGraph.compareWorkingSet()` and `WarpGraph.compareCoordinates()` compare deterministic visible patch universes plus visible node/edge/property deltas without inventing application semantics.
+- **Working-set and coordinate comparison are now first-class substrate reads** — `WarpRuntime.compareWorkingSet()` and `WarpRuntime.compareCoordinates()` compare deterministic visible patch universes plus visible node/edge/property deltas without inventing application semantics.
 - **Materialized-state comparison is now reusable as a library helper** — `compareVisibleStateV5()` lets higher layers compare two materialized states directly, including optional target-local node inspection for one entity.
 - **The CLI can inspect the same comparison truth without becoming a debugger app** — `git warp working-set compare` compares a working set against its base observation, live frontier, or another working set while keeping `debug` focused on single-coordinate time-travel inspection.
 
@@ -71,7 +71,7 @@
 
 ## What's New in v14.7.0
 
-- **Conflict analysis is now working-set aware** — `WarpGraph.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.
+- **Conflict analysis is now working-set aware** — `WarpRuntime.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.
 - **Working-set reads gained first-class patch, provenance, and ceiling support** — `getWorkingSetPatches()` and `patchesForWorkingSet()` expose the visible `base + overlay` patch universe directly, and `materializeWorkingSet()` now accepts an optional runtime ceiling for explicit replay/debug slices.
 - **The built-in TTD can inspect working sets directly** — `git warp debug conflicts`, `debug timeline`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and agents can inspect a speculative lane without inventing separate tooling, and braid-aware debug payloads now report the resolved working-set backing context explicitly.
 - **Docs now describe the debugger/working-set join cleanly** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the read-side worldline boundary without pretending the reducer itself became worldline-aware.
@@ -94,12 +94,12 @@ For a comprehensive walkthrough — from setup to advanced features — see the 
 
 ```javascript
 import GitPlumbing from '@git-stunts/plumbing';
-import WarpGraph, { GitGraphAdapter } from '@git-stunts/git-warp';
+import WarpRuntime, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 const plumbing = new GitPlumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -128,7 +128,7 @@ const result = await graph.query()
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
-- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: `WarpGraph` as plumbing, observers as the read-side abstraction, and working sets as speculative write lanes.
+- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: `WarpRuntime` as plumbing, observers as the read-side abstraction, and working sets as speculative write lanes.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the working-set API/CLI surface.
@@ -203,7 +203,7 @@ Writers operate independently on the same Git repository. Sync happens through s
 
 ```javascript
 // Writer A (on machine A)
-const graphA = await WarpGraph.open({
+const graphA = await WarpRuntime.open({
   persistence: persistenceA,
   graphName: 'shared',
   writerId: 'alice',
@@ -214,7 +214,7 @@ await graphA.patch(p => {
 });
 
 // Writer B (on machine B)
-const graphB = await WarpGraph.open({
+const graphB = await WarpRuntime.open({
   persistence: persistenceB,
   graphName: 'shared',
   writerId: 'bob',
@@ -458,7 +458,7 @@ When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and au
 
 Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
 
-Higher layers should prefer observers for application-facing reads. `WarpGraph`
+Higher layers should prefer observers for application-facing reads. `WarpRuntime`
 remains the substrate/session facade, but observers are the cleaner read-side
 boundary when you need a worldline-relative, filtered, read-only projection.
 
@@ -522,7 +522,7 @@ const wasMerged = await graph.temporal.eventually(
 
 Direct patching remains part of the low-level substrate surface. For
 application-facing speculative mutation, prefer working sets and their overlay
-mechanics rather than treating one live `WarpGraph` handle as the entire product
+mechanics rather than treating one live `WarpRuntime` handle as the entire product
 API.
 
 The patch builder supports seven operations:
@@ -601,7 +601,7 @@ const metrics = graph.getGCMetrics();
 const { ran, result } = graph.maybeRunGC();
 
 // Or configure automatic checkpointing
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -836,7 +836,7 @@ flowchart TB
             np["NeighborProviderPort"]
 
             subgraph domain["Domain Core"]
-                wg["WarpGraph — main API facade"]
+                wg["WarpRuntime — main API facade"]
                 jr["JoinReducer"]
                 pb["PatchBuilderV2"]
                 cs["CheckpointService"]
@@ -884,7 +884,7 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `CasSeekCacheAdapter` -- persistent seek cache via `@git-stunts/git-cas`
 
 **Domain** contains the core logic:
-- `WarpGraph` -- public API facade
+- `WarpRuntime` -- public API facade
 - `Writer` / `PatchSession` -- patch creation and commit
 - `JoinReducer` -- CRDT-based state materialization
 - `QueryBuilder` -- fluent query construction

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`WarpGraph API surface > all prototype methods have correct property descriptors 1`] = `
+exports[`WarpRuntime API surface > all prototype methods have correct property descriptors 1`] = `
 {
   "_buildAdjacency": {
     "configurable": true,
@@ -542,6 +542,11 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
     "enumerable": false,
     "type": "method",
   },
+  "worldline": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "writer": {
     "configurable": true,
     "enumerable": false,
@@ -555,9 +560,9 @@ exports[`WarpGraph API surface > all prototype methods have correct property des
 }
 `;
 
-exports[`WarpGraph API surface > prototype method count matches snapshot 1`] = `110`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `111`;
 
-exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
+exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
   "_buildAdjacency",
   "_buildView",
@@ -667,12 +672,13 @@ exports[`WarpGraph API surface > prototype methods match snapshot 1`] = `
   "translationCost",
   "verifyIndex",
   "watch",
+  "worldline",
   "writer",
   "writerId",
 ]
 `;
 
-exports[`WarpGraph API surface > static methods match snapshot 1`] = `
+exports[`WarpRuntime API surface > static methods match snapshot 1`] = `
 [
   "open",
 ]

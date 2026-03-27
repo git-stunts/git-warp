@@ -1,0 +1,18 @@
+# OG-009 — Align Playback-Head And TTD Consumers After Read Nouns Stabilize
+
+Status: QUEUED
+
+## Problem
+
+Playback-head and TTD work depends on stable read-side nouns, but that
+substrate work is not finished yet.
+
+## Why This Matters
+
+Debugger and playback consumers should follow the substrate model, not force it
+prematurely.
+
+## Promotion Trigger
+
+Promote this item when the observer/worldline API is stable enough for external
+consumers to target directly.

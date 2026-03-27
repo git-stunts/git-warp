@@ -2,9 +2,9 @@
  * Seeds a standard demo graph: 3 users, 2 follows edges, properties.
  * Used by BATS tests. Expects REPO_PATH env var.
  */
-import { WarpGraph, persistence, crypto } from './seed-setup.js';
+import { WarpRuntime, persistence, crypto } from './seed-setup.js';
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'alice',

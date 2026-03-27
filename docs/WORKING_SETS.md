@@ -33,7 +33,7 @@ That means a newly created working set reads exactly like its base observation u
 
 This is the important boundary:
 
-- `WarpGraph` is still the lower-level substrate/session object
+- `WarpRuntime` is still the lower-level substrate/session object
 - observers are the preferred read-side abstraction
 - working sets are the preferred speculative write abstraction
 

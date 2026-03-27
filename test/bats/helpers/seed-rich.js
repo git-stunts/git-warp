@@ -2,9 +2,9 @@
  * Seeds a rich graph with multiple node types, edge labels, and properties.
  * Used by BATS tests. Expects REPO_PATH env var.
  */
-import { WarpGraph, persistence, crypto } from './seed-setup.js';
+import { WarpRuntime, persistence, crypto } from './seed-setup.js';
 
-const graph = await WarpGraph.open({ persistence, graphName: 'demo', writerId: 'alice', crypto });
+const graph = await WarpRuntime.open({ persistence, graphName: 'demo', writerId: 'alice', crypto });
 
 const p1 = await graph.createPatch();
 await p1

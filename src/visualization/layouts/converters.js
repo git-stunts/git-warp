@@ -1,5 +1,5 @@
 /**
- * Data converters: transform WarpGraph payloads into a normalized graph-data
+ * Data converters: transform WarpRuntime payloads into a normalized graph-data
  * intermediate format consumed by the ELK adapter.
  *
  * Intermediate format:

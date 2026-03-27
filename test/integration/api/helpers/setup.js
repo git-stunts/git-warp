@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
-import WarpGraph from '../../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
 
 /**
@@ -31,14 +31,14 @@ export async function createTestRepo(label = 'api-test') {
     const persistence = new GitGraphAdapter({ plumbing });
 
     /**
-     * Opens a WarpGraph with WebCryptoAdapter pre-configured.
+     * Opens a WarpRuntime with WebCryptoAdapter pre-configured.
      * @param {string} graphName - Name of the graph to open
      * @param {string} writerId - Writer identity
-     * @param {Object} [opts={}] - Additional options forwarded to WarpGraph.open
-     * @returns {Promise<Object>} Opened WarpGraph instance
+     * @param {Object} [opts={}] - Additional options forwarded to WarpRuntime.open
+     * @returns {Promise<Object>} Opened WarpRuntime instance
      */
     async function openGraph(graphName, writerId, opts = {}) {
-      return WarpGraph.open({
+      return WarpRuntime.open({
         ...opts,
         persistence,
         graphName,

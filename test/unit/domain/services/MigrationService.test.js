@@ -803,7 +803,7 @@ describe('MigrationService', () => {
       /**
        * WARP v5 HARD RULE: "No interleaving v1/v2 patches in a single reducer."
        *
-       * The migration boundary enforces this at the WarpGraph level:
+       * The migration boundary enforces this at the WarpRuntime level:
        * - v1 patches are processed by reduce() (LWW-based) before migration
        * - A v5 checkpoint is created via migrateV4toV5()
        * - v2 patches are processed by reduceV5() (OR-Set based) after migration
@@ -917,7 +917,7 @@ describe('MigrationService', () => {
          * incorrectly because v1 patches use different operation types
          * (NodeAdd vs NodeAdd with dot, NodeTombstone vs NodeRemove with observedDots).
          *
-         * The proper enforcement happens at WarpGraph._validateMigrationBoundary()
+         * The proper enforcement happens at WarpRuntime._validateMigrationBoundary()
          * which prevents opening a schema:2 graph with v1 history without migration.
          */
 

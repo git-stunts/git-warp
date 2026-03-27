@@ -2,7 +2,20 @@
 
 **Status:** v1 surface accepted and active.
 
-The git-warp time travel debugger is intentionally a **thin CLI-first inspection surface** over substrate facts. It is not a human-facing TUI, and it is not a second product layered awkwardly inside git-warp.
+The git-warp TTD surface is intentionally a **thin CLI-first adapter** over
+substrate facts.
+
+That statement applies to what git-warp ships directly. It does **not** mean
+that the broader WARP TTD should be CLI-only or non-human-facing. The broader
+human-centered debugger architecture is captured in:
+
+- `docs/design/ttd-human-centered-hex-architecture.md`
+
+The boundary is:
+
+- git-warp ships substrate truth plus thin operational adapters
+- higher layers such as XYPH, Echo, or future hosts may provide richer human-
+  facing debugger experiences over those same substrate facts
 
 ## Scope
 
@@ -13,14 +26,14 @@ TTD in git-warp exists to answer substrate questions such as:
 - which patches contributed to a given entity?
 - what did the reducer do with each operation at a given Lamport ceiling?
 
-TTD does **not** own:
+The git-warp adapter does **not** own:
 
 - domain meaning above the substrate
 - workflow/governance semantics
 - compare/collapse interpretation
 - human-facing debugger panels or time-travel applications
 
-Those live in higher layers such as XYPH.
+Those live in higher layers such as XYPH or other WARP TTD hosts.
 
 ## Layering
 
@@ -178,6 +191,48 @@ This keeps TTD aligned with the current git-warp substrate model:
 - `working-set braid` changes descriptor visibility, not debugger semantics
 - explicit working-set descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
+
+## Human Playback Model
+
+The human-facing debugger model may legitimately be simpler than the substrate
+model.
+
+At the substrate level, worldlines and working sets can advance independently.
+For human DX, however, playback controls such as:
+
+- rewind
+- step backward
+- step forward
+- play
+- pause
+
+usually imply one composite scene rather than many unrelated local clocks.
+
+That is acceptable as long as we keep the boundary explicit:
+
+- substrate truth uses independent worldline coordinates
+- debugger playback may use a derived global session cursor over a merged event
+  stream
+
+In that model, "rewind everything" means:
+
+- resolve each active worldline or working set to its latest visible
+  coordinate at or before the selected debugger frame
+
+not:
+
+- pretend the substrate itself has only one real global clock
+
+This distinction matters because:
+
+- it preserves honest worldline semantics
+- it keeps the human debugger cognitively manageable
+- it lets higher layers such as XYPH present lockstep playback without forcing
+  git-warp to erase independent causality in its core model
+
+The current git-warp CLI remains intentionally thin. Richer playback-control
+surfaces belong primarily in higher layers, but they should follow this same
+split between substrate coordinates and derived debugger frames.
 
 ## Why There Is No Built-In TUI
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
 /** @returns {any} */
@@ -21,7 +21,7 @@ function canonicalStringify(/** @type {any} */ value) {
   return JSON.stringify(canonicalizeJson(value));
 }
 
-describe('WarpGraph serve', () => {
+describe('WarpRuntime serve', () => {
   /** @type {any} */
   let graph;
 
@@ -34,7 +34,7 @@ describe('WarpGraph serve', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: /** @type {any} */ (mockPersistence),
       graphName: 'test',
       writerId: 'writer-1',

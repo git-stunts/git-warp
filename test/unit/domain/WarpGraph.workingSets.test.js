@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
@@ -133,16 +133,16 @@ async function simulatePatchCommit(persistence, {
   return sha;
 }
 
-describe('WarpGraph working-set foundation', () => {
+describe('WarpRuntime working-set foundation', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpGraph} */
+  /** @type {WarpRuntime} */
   let graph;
   const graphName = 'working-sets-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName,
       writerId: 'tester',
@@ -215,11 +215,13 @@ describe('WarpGraph working-set foundation', () => {
       ],
     });
 
-    await graph.materializeCoordinate({
+    const redState = /** @type {any} */ (await graph.materializeCoordinate({
       frontier: Object.fromEntries(frontierAtRed),
       ceiling: null,
-    });
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    }));
+    const redReader = createStateReaderV5(redState);
+
+    expect(redReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
 
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
@@ -250,9 +252,14 @@ describe('WarpGraph working-set foundation', () => {
       ],
     });
 
-    const result = await graph.materializeWorkingSet('ws_red', { receipts: true });
+    const result = /** @type {{ state: any, receipts: any[] }} */ (await graph.materializeWorkingSet('ws_red', { receipts: true }));
+    const reader = createStateReaderV5(result.state);
+
     expect(result.receipts).toHaveLength(1);
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'red' });
+
+    await graph.materialize();
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
   it('observer() pins the read coordinate it was created from even after live truth advances', async () => {
@@ -407,8 +414,10 @@ describe('WarpGraph working-set foundation', () => {
     });
     expect(descriptor?.braid).toEqual({ readOverlays: [] });
 
-    const workingSetState = await graph.materializeWorkingSet('ws_overlay');
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+    const workingSetState = /** @type {any} */ (await graph.materializeWorkingSet('ws_overlay'));
+    const reader = createStateReaderV5(workingSetState);
+
+    expect(reader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
 
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
@@ -434,9 +443,19 @@ describe('WarpGraph working-set foundation', () => {
     builder.setProperty('n1', 'status', 'overlay');
     const overlaySha = await builder.commit();
 
-    const materialized = await graph.materializeWorkingSet('ws_receipts', { receipts: true });
+    const materialized = /** @type {{ state: any, receipts: any[] }} */ (await graph.materializeWorkingSet('ws_receipts', { receipts: true }));
+    const reader = createStateReaderV5(materialized.state);
+
     expect(materialized.receipts).toHaveLength(2);
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ status: 'overlay' });
+    expect(reader.getNodeProps('n1')).toMatchObject({ status: 'overlay' });
+
+    await graph.materialize();
+    const liveProps = await graph.getNodeProps('n1');
+    expect(liveProps).not.toBeNull();
+    if (!liveProps) {
+      throw new Error('expected live node props');
+    }
+    expect(liveProps.status).toBeUndefined();
 
     const overlayRef = buildWorkingSetOverlayRef(graphName, 'ws_receipts');
     expect(await persistence.readRef(overlayRef)).toBe(overlaySha);
@@ -465,11 +484,18 @@ describe('WarpGraph working-set foundation', () => {
       p.setProperty('n1', 'color', 'blue');
     });
 
-    await graph.materializeWorkingSet('ws_ceiling', { ceiling: 1 });
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+    const limitedState = /** @type {any} */ (await graph.materializeWorkingSet('ws_ceiling', { ceiling: 1 }));
+    const limitedReader = createStateReaderV5(limitedState);
 
-    await graph.materializeWorkingSet('ws_ceiling');
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
+    expect(limitedReader.getNodeProps('n1')).toMatchObject({ color: 'red' });
+
+    const fullState = /** @type {any} */ (await graph.materializeWorkingSet('ws_ceiling'));
+    const fullReader = createStateReaderV5(fullState);
+
+    expect(fullReader.getNodeProps('n1')).toMatchObject({ color: 'blue' });
+
+    await graph.materialize();
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
   it('braidWorkingSet pins support overlays onto the visible patch universe and preserves target-owned braid refs', async () => {
@@ -515,10 +541,17 @@ describe('WarpGraph working-set foundation', () => {
     ]);
     expect(await persistence.readRef(buildWorkingSetBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
 
-    await graph.materializeWorkingSet('ws_target');
-    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({
+    const braidedState = /** @type {any} */ (await graph.materializeWorkingSet('ws_target'));
+    const braidedReader = createStateReaderV5(braidedState);
+
+    expect(braidedReader.getNodeProps('n1')).toMatchObject({
       status: 'target',
       support: 'held',
+    });
+
+    await graph.materialize();
+    await expect(graph.getNodeProps('n1')).resolves.toMatchObject({
+      status: 'base',
     });
 
     const comparison = await graph.compareWorkingSet('ws_target', { targetId: 'n1' });

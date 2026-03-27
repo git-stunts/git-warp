@@ -134,7 +134,7 @@ function evaluateEventuallyCheckpointBoundary({
 /**
  * TemporalQuery provides temporal logic operators over graph history.
  *
- * Constructed by WarpGraph and exposed via `graph.temporal`.
+ * Constructed by WarpRuntime and exposed via `graph.temporal`.
  * Both methods are async because they need to load patches from Git.
  */
 export class TemporalQuery {

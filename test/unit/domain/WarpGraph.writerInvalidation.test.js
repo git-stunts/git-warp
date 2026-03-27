@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
@@ -8,8 +8,8 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
  * the same eager re-materialize as the low-level createPatch() API.
  *
  * The Writer and PatchSession are higher-level APIs that delegate to
- * PatchBuilderV2. The onCommitSuccess callback wired in WarpGraph.writer()
- * and WarpGraph.createWriter() must trigger eager state update so that
+ * PatchBuilderV2. The onCommitSuccess callback wired in WarpRuntime.writer()
+ * and WarpRuntime.createWriter() must trigger eager state update so that
  * queries after a writer commit reflect the new state immediately.
  */
 
@@ -59,7 +59,7 @@ function mockWriterSecondCommit(/** @type {any} */ persistence) {
   persistence.updateRef.mockResolvedValue(undefined);
 }
 
-describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
+describe('WarpRuntime Writer invalidation (AP/INVAL/3)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -67,7 +67,7 @@ describe('WarpGraph Writer invalidation (AP/INVAL/3)', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

@@ -504,10 +504,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
+The active roadmap is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
-`BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).
+Promotable pre-design intake now lives in `BACKLOG/`. This file remains the
+committed milestone/release inventory.
 
 ---
 
@@ -698,9 +699,16 @@ Exploratory concepts captured during PR hardening. These are intentionally fully
 - Golden output tests for deterministic summary formatting.
 - Smoke test ensuring script exits non-zero on API/auth failures.
 
-## ~~Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG.md`~~ RESOLVED
+## Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG/`
 
-Single-source policy enacted: `ROADMAP.md` is the sole document. `BACKLOG.md` deleted. Policy codified in `CLAUDE.md`.
+The roles are now split explicitly:
+
+- `ROADMAP.md` owns committed milestone/release inventory
+- `BACKLOG/` owns promotable pre-design items
+- `docs/design/` owns active design docs
+
+Backlog items should be promoted into `docs/design/` before tests and
+implementation begin.
 
 ## Appendix — Horizon Visions and Defensive Campaigns (2026-02-27)
 

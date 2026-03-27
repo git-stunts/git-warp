@@ -411,7 +411,7 @@ function buildPatchDivergence(leftEntries, rightEntries, targetId) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {Record<string, string>} frontierRecord
  * @param {number|null} ceiling
  * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -534,7 +534,7 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{
  *   requested: Record<string, unknown>,
  *   state: import('../services/JoinReducer.js').WarpStateV5,
@@ -625,7 +625,7 @@ async function finalizeComparisonSide(graph, params, scope) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{ kind: 'live', ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
@@ -651,7 +651,7 @@ async function resolveLiveComparisonSide(graph, selector, scope) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{ kind: 'coordinate', frontier: Record<string, string>, ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
@@ -675,7 +675,7 @@ async function resolveCoordinateComparisonSide(graph, selector, scope) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
@@ -706,7 +706,7 @@ async function resolveWorkingSetComparisonSide(graph, selector, scope) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
@@ -741,7 +741,7 @@ async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{
  *   kind: 'live',
  *   ceiling: number|null
@@ -811,7 +811,7 @@ async function resolveComparisonSide(selector, scope = null) {
  * Compares a working set against its base observation, the live frontier, or
  * another working set.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {{
  *   against?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
@@ -863,7 +863,7 @@ export async function compareWorkingSet(workingSetId, options = {}) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {string} oid
  * @returns {Promise<Uint8Array>}
  */
@@ -887,7 +887,7 @@ async function readContentBlobByOid(graph, oid) {
  * The resulting plan contains only substrate facts and transfer operations.
  * It does not apply the plan or add application-level settlement semantics.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {{
  *   into?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
@@ -950,7 +950,7 @@ function assertTransferOptions(options) {
 
 /**
  * @param {{
- *   graph: import('../WarpGraph.js').default,
+ *   graph: import('../WarpRuntime.js').default,
  *   sourceSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
  *   targetSide: Awaited<ReturnType<typeof finalizeComparisonSide>>,
  *   transfer: Awaited<ReturnType<typeof planVisibleStateTransferV5>>,
@@ -1003,7 +1003,7 @@ async function finalizeTransferPlan(params) {
  * - `{ kind: 'working_set_base', workingSetId, ceiling? }`
  * - `{ kind: 'coordinate', frontier, ceiling? }`
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{
  *   source: {
  *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
@@ -1061,7 +1061,7 @@ export async function planCoordinateTransfer(options) {
  * - `{ kind: 'working_set_base', workingSetId, ceiling? }`
  * - `{ kind: 'coordinate', frontier, ceiling? }`
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{
  *   left: {
  *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',

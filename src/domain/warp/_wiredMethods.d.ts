@@ -1,7 +1,7 @@
 /**
- * TypeScript augmentation for WarpGraph wired methods.
+ * TypeScript augmentation for WarpRuntime wired methods.
  *
- * Methods in *.methods.js are wired onto WarpGraph.prototype at runtime
+ * Methods in *.methods.js are wired onto WarpRuntime.prototype at runtime
  * via wireWarpMethods(). This declaration file makes them visible to tsc.
  */
 
@@ -16,7 +16,7 @@ import type { TickReceipt } from '../types/TickReceipt.js';
  * Observer configuration for view creation and translation cost.
  */
 interface ObserverConfig {
-  match: string;
+  match: string | string[];
   expose?: string[];
   redact?: string[];
 }
@@ -38,7 +38,7 @@ interface ContentMeta {
 /**
  * Lightweight status snapshot.
  */
-interface WarpGraphStatus {
+interface WarpRuntimeStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -549,8 +549,8 @@ interface CoordinateTransferPlanV1 {
 
 export {};
 
-declare module '../WarpGraph.js' {
-  export default interface WarpGraph {
+declare module '../WarpRuntime.js' {
+  export default interface WarpRuntime {
     // ── query.methods.js ──────────────────────────────────────────────────
     hasNode(nodeId: string): Promise<boolean>;
     getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
@@ -563,6 +563,7 @@ declare module '../WarpGraph.js' {
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
+    worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.js').default;
     observer(name: string, config: ObserverConfig, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/ObserverView.js').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
@@ -591,7 +592,7 @@ declare module '../WarpGraph.js' {
     }): Promise<ConflictAnalysis>;
 
     // ── fork.methods.js ───────────────────────────────────────────────────
-    fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpGraph>;
+    fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpRuntime>;
     createWormhole(fromSha: string, toSha: string): Promise<WormholeEdge>;
     _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;
     _relationToCheckpointHead(ckHead: string, incomingSha: string): Promise<string>;
@@ -600,12 +601,12 @@ declare module '../WarpGraph.js' {
     // ── SyncController (direct delegation) ─────────────────────────────────
     getFrontier(): Promise<Map<string, string>>;
     hasFrontierChanged(): Promise<boolean>;
-    status(): Promise<WarpGraphStatus>;
+    status(): Promise<WarpRuntimeStatus>;
     createSyncRequest(): Promise<SyncRequest>;
     processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
     applySyncResponse(response: SyncResponse): ApplySyncResult;
     syncNeeded(remoteFrontier: Map<string, string>): Promise<boolean>;
-    syncWith(remote: string | WarpGraph, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
+    syncWith(remote: string | WarpRuntime, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
     serve(options: {
       port: number;
       host?: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import ObserverView from '../../../../src/domain/services/ObserverView.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
@@ -45,7 +45,7 @@ describe('ObserverView', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

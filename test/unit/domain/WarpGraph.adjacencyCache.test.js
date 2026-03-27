@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
@@ -24,7 +24,7 @@ function createSeededState() {
   return state;
 }
 
-describe('WarpGraph adjacency cache', () => {
+describe('WarpRuntime adjacency cache', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -39,7 +39,7 @@ describe('WarpGraph adjacency cache', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -59,7 +59,7 @@ describe('WarpGraph adjacency cache', () => {
   });
 
   it('evicts adjacency entries when over cache cap', async () => {
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

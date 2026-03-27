@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createServer } from 'node:http';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 
 async function createGraph() {
   const mockPersistence = {
@@ -11,14 +11,14 @@ async function createGraph() {
     configSet: vi.fn().mockResolvedValue(undefined),
   };
 
-  return WarpGraph.open({
+  return WarpRuntime.open({
     persistence: /** @type {any} */ (mockPersistence),
     graphName: 'test',
     writerId: 'writer-1',
   });
 }
 
-describe('WarpGraph syncWith', () => {
+describe('WarpRuntime syncWith', () => {
   /** @type {any} */
   let graph;
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 
@@ -117,16 +117,16 @@ async function simulatePatchCommit(persistence, {
   return sha;
 }
 
-describe('WarpGraph.analyzeConflicts()', () => {
+describe('WarpRuntime.analyzeConflicts()', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpGraph} */
+  /** @type {WarpRuntime} */
   let graph;
   const graphName = 'conflicts';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName,
       writerId: 'tester',

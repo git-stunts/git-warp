@@ -22,11 +22,11 @@ import { textEncode } from '../utils/bytes.js';
 import { parseWorkingSetBlob } from '../utils/parseWorkingSetBlob.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { PatchBuilderV2 } from './PatchBuilderV2.js';
-import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
+import { createEmptyStateV5, reduceV5, cloneStateV5 } from './JoinReducer.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 import { encodePatchMessage } from './WarpMessageCodec.js';
 
-/** @typedef {import('../WarpGraph.js').default} WarpGraph */
+/** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
 /** @typedef {import('../../../index.js').WorkingSetDescriptor} WorkingSetDescriptor */
 /** @typedef {import('../../../index.js').WorkingSetReadOverlayDescriptor} WorkingSetReadOverlayDescriptor */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
@@ -659,7 +659,7 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze({ ...state });
+  return Object.freeze(cloneStateV5(state));
 }
 
 /**
@@ -670,7 +670,35 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts,
+    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (Object.freeze([...receipts])),
+  });
+}
+
+/**
+ * Opens a detached graph handle for read-only working-set materialization.
+ *
+ * @param {WarpRuntime} graph
+ * @returns {Promise<WarpRuntime>}
+ */
+async function openDetachedReadGraph(graph) {
+  const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
+  return await GraphClass.open({
+    persistence: graph._persistence,
+    graphName: graph._graphName,
+    writerId: graph._writerId,
+    gcPolicy: graph._gcPolicy,
+    checkpointPolicy: graph._checkpointPolicy || undefined,
+    autoMaterialize: false,
+    onDeleteWithData: graph._onDeleteWithData,
+    logger: graph._logger || undefined,
+    clock: graph._clock,
+    crypto: graph._crypto,
+    codec: graph._codec,
+    seekCache: graph._seekCache || undefined,
+    audit: false,
+    blobStorage: graph._blobStorage || undefined,
+    patchBlobStorage: graph._patchBlobStorage || undefined,
+    trust: graph._trustConfig,
   });
 }
 
@@ -766,7 +794,7 @@ function normalizeBraidedWorkingSetIds(value, targetWorkingSetId) {
 
 export default class WorkingSetService {
   /**
-   * @param {{ graph: WarpGraph }} options
+   * @param {{ graph: WarpRuntime }} options
    */
   constructor({ graph }) {
     this._graph = graph;
@@ -903,9 +931,11 @@ export default class WorkingSetService {
    * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
    */
   async materialize(workingSetId, options = {}) {
-    const descriptor = await this.getOrThrow(workingSetId);
+    const detached = await openDetachedReadGraph(this._graph);
+    const detachedService = new WorkingSetService({ graph: detached });
+    const descriptor = await detachedService.getOrThrow(workingSetId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
-    const { state, receipts } = await this._materializeDescriptor(descriptor, {
+    const { state, receipts } = await detachedService._materializeDescriptor(descriptor, {
       collectReceipts: !!options.receipts,
       ceiling,
     });

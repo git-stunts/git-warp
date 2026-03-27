@@ -1,5 +1,5 @@
 /**
- * Working-set methods for WarpGraph.
+ * Working-set methods for WarpRuntime.
  *
  * @module domain/warp/workingSet.methods
  */
@@ -7,7 +7,7 @@
 import WorkingSetService from '../services/WorkingSetService.js';
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../../../index.js').WorkingSetCreateOptions} [options]
  * @returns {Promise<import('../../../index.js').WorkingSetDescriptor>}
  */
@@ -17,7 +17,7 @@ export async function createWorkingSet(options) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {import('../../../index.js').WorkingSetBraidOptions} [options]
  * @returns {Promise<import('../../../index.js').WorkingSetDescriptor>}
@@ -28,7 +28,7 @@ export async function braidWorkingSet(workingSetId, options) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @returns {Promise<import('../../../index.js').WorkingSetDescriptor|null>}
  */
@@ -38,7 +38,7 @@ export async function getWorkingSet(workingSetId) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<import('../../../index.js').WorkingSetDescriptor[]>}
  */
 export async function listWorkingSets() {
@@ -47,7 +47,7 @@ export async function listWorkingSets() {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @returns {Promise<boolean>}
  */
@@ -57,7 +57,7 @@ export async function dropWorkingSet(workingSetId) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
@@ -68,7 +68,7 @@ export async function materializeWorkingSet(workingSetId, options) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {{ ceiling?: number|null }} [options]
  * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -79,7 +79,7 @@ export async function getWorkingSetPatches(workingSetId, options) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {string} entityId
  * @param {{ ceiling?: number|null }} [options]
@@ -91,7 +91,7 @@ export async function patchesForWorkingSet(workingSetId, entityId, options) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @returns {Promise<import('../services/PatchBuilderV2.js').PatchBuilderV2>}
  */
@@ -101,7 +101,7 @@ export async function createWorkingSetPatch(workingSetId) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {(p: import('../services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
  * @returns {Promise<string>}
@@ -112,7 +112,7 @@ export async function patchWorkingSet(workingSetId, build) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @param {(p: import('../services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
  * @returns {Promise<{
@@ -130,7 +130,7 @@ export async function queueWorkingSetIntent(workingSetId, build) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @returns {Promise<Array<{
  *   intentId: string,
@@ -147,7 +147,7 @@ export async function listWorkingSetIntents(workingSetId) {
 }
 
 /**
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
  * @returns {Promise<{
  *   tickId: string,

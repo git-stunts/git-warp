@@ -11,9 +11,9 @@
  *
  * @example
  * ```ts
- * import WarpGraph from "@git-stunts/git-warp";
+ * import WarpRuntime from "@git-stunts/git-warp";
  *
- * const graph = await WarpGraph.open({ repo: ".", graphName: "myGraph" });
+ * const graph = await WarpRuntime.open({ repo: ".", graphName: "myGraph" });
  * const patch = await graph.createPatch("writer-1");
  * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
  * await patch.commit();
@@ -65,7 +65,7 @@ import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
 // Multi-writer graph support (WARP)
-import WarpGraph from './src/domain/WarpGraph.js';
+import WarpRuntime from './src/domain/WarpRuntime.js';
 import {
   createNodeAdd,
   createNodeTombstone,
@@ -79,6 +79,7 @@ import {
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
 import ObserverView from './src/domain/services/ObserverView.js';
+import Worldline from './src/domain/services/Worldline.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   encodeEdgePropKey,
@@ -198,7 +199,8 @@ export {
   createTimeoutSignal,
 
   // Multi-writer graph support (WARP)
-  WarpGraph,
+  WarpRuntime,
+  Worldline,
   QueryBuilder,
   ObserverView,
   PatchBuilderV2,
@@ -262,5 +264,5 @@ export {
   deserializeWormhole,
 };
 
-// WarpGraph is the primary API for V7
-export default WarpGraph;
+// WarpRuntime is the primary API for V7
+export default WarpRuntime;

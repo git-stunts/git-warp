@@ -1093,7 +1093,7 @@ export { CommitDagTraversalService as TraversalService };
  * @since 13.0.0
  */
 export class BisectService {
-  constructor(options: { graph: { getWriterPatches: WarpGraph['getWriterPatches']; materialize: WarpGraph['materialize'] } });
+  constructor(options: { graph: { getWriterPatches: WarpRuntime['getWriterPatches']; materialize: WarpRuntime['materialize'] } });
 
   /**
    * Runs bisect on a single writer's patch chain.
@@ -1349,6 +1349,11 @@ export interface ObserverConfig {
   redact?: string[];
 }
 
+export interface LiveObserverSource {
+  kind: 'live';
+  ceiling?: number | null;
+}
+
 export interface CoordinateObserverSource {
   kind: 'coordinate';
   frontier: Map<string, string> | Record<string, string>;
@@ -1361,14 +1366,20 @@ export interface WorkingSetObserverSource {
   ceiling?: number | null;
 }
 
+export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | WorkingSetObserverSource;
+
+export interface WorldlineOptions {
+  source?: WorldlineSource;
+}
+
 export interface ObserverOptions {
-  source?: CoordinateObserverSource | WorkingSetObserverSource;
+  source?: WorldlineSource;
 }
 
 /**
- * Read-only observer view of a materialized WarpGraph state.
+ * Read-only observer view of a materialized WarpRuntime state.
  *
- * Provides the same query/traverse API as WarpGraph, but filtered
+ * Provides the same query/traverse API as WarpRuntime, but filtered
  * by observer configuration (match pattern, expose, redact).
  * Edges are only visible when both endpoints pass the match filter.
  *
@@ -1377,6 +1388,12 @@ export interface ObserverOptions {
 export class ObserverView {
   /** Observer name */
   readonly name: string;
+
+  /** Pinned observer source */
+  readonly source: LiveObserverSource | CoordinateObserverSource | WorkingSetObserverSource | null;
+
+  /** Pinned snapshot hash (null only for internal delegate-mode instances) */
+  readonly stateHash: string | null;
 
   /** Logical graph traversal helpers scoped to this observer */
   traverse: LogicalTraversal;
@@ -1395,6 +1412,27 @@ export class ObserverView {
 
   /** Creates a fluent query builder operating on the filtered view */
   query(): QueryBuilder;
+
+  /** Creates a new observer over the same aperture at a different source */
+  seek(options?: ObserverOptions): Promise<ObserverView>;
+}
+
+/**
+ * First-class read-side history handle over a pinned source selector.
+ */
+export class Worldline {
+  /** Pinned source for this worldline handle */
+  readonly source: WorldlineSource;
+
+  /** Returns a new worldline handle pinned to a different source */
+  seek(options?: WorldlineOptions): Promise<Worldline>;
+
+  /** Materializes the pinned worldline source into a detached snapshot */
+  materialize(options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
+
+  /** Creates an observer pinned to the worldline source */
+  observer(name: string, config: ObserverConfig): Promise<ObserverView>;
 }
 
 /**
@@ -1546,7 +1584,7 @@ export interface PatchV2 {
 /**
  * Fluent builder for creating WARP v5 patches with OR-Set semantics.
  *
- * Returned by WarpGraph.createPatch(). Chain mutation methods then call
+ * Returned by WarpRuntime.createPatch(). Chain mutation methods then call
  * commit() to persist the patch atomically.
  */
 export class PatchBuilderV2 {
@@ -1769,7 +1807,7 @@ export interface SyncTrustOptions {
 /**
  * Lightweight status snapshot of the graph.
  */
-export interface WarpGraphStatus {
+export interface WarpRuntimeStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -1799,7 +1837,7 @@ export interface JoinReceipt {
  * V7 primary API - uses patch-based storage with OR-Set semantics.
  * See docs/V7_CONTRACT.md for architecture details.
  */
-export default class WarpGraph {
+export declare class WarpRuntime {
   /**
    * Opens or creates a multi-writer graph.
    */
@@ -1830,7 +1868,7 @@ export default class WarpGraph {
     blobStorage?: BlobStoragePort;
     /** Patch blob storage — when set, patch CBOR is encrypted via this port. */
     patchBlobStorage?: BlobStoragePort;
-  }): Promise<WarpGraph>;
+  }): Promise<WarpRuntime>;
 
   /**
    * The graph namespace.
@@ -1997,6 +2035,11 @@ export default class WarpGraph {
   query(): QueryBuilder;
 
   /**
+   * Creates a first-class worldline handle over a pinned read source.
+   */
+  worldline(options?: WorldlineOptions): Worldline;
+
+  /**
    * Creates a read-only observer view of the current materialized state.
    *
    * The observer sees only nodes matching the `match` glob pattern, with
@@ -2047,11 +2090,11 @@ export default class WarpGraph {
   }): Promise<{ close(): Promise<void>; url: string }>;
 
   /**
-   * Syncs with a remote peer (HTTP URL or another WarpGraph instance).
+   * Syncs with a remote peer (HTTP URL or another WarpRuntime instance).
    *
    * When `options.materialize` is true, the returned object also contains a `state` property.
    */
-  syncWith(remote: string | WarpGraph, options?: {
+  syncWith(remote: string | WarpRuntime, options?: {
     path?: string;
     retries?: number;
     baseDelayMs?: number;
@@ -2074,7 +2117,7 @@ export default class WarpGraph {
   /**
    * Creates a fork of this graph at a specific point in a writer's history.
    *
-   * A fork creates a new WarpGraph instance that shares history up to the
+   * A fork creates a new WarpRuntime instance that shares history up to the
    * specified patch SHA. Due to Git's content-addressed storage, the shared
    * history is automatically deduplicated.
    */
@@ -2087,7 +2130,7 @@ export default class WarpGraph {
     forkName?: string;
     /** Writer ID for the fork. Defaults to a new canonical ID. */
     forkWriterId?: string;
-  }): Promise<WarpGraph>;
+  }): Promise<WarpRuntime>;
 
   /**
    * Creates a wormhole compressing a range of patches.
@@ -2252,7 +2295,7 @@ export default class WarpGraph {
   syncCoverage(): Promise<void>;
 
   /** Returns a lightweight status snapshot of the graph. */
-  status(): Promise<WarpGraphStatus>;
+  status(): Promise<WarpRuntimeStatus>;
 
   /**
    * Subscribes to graph changes after each materialize().
@@ -3439,3 +3482,5 @@ export function deserializeWormhole(json: {
   patchCount: number;
   payload: PatchEntry[];
 }): WormholeEdge;
+
+export default WarpRuntime;

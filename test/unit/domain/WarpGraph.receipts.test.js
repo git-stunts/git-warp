@@ -1,5 +1,5 @@
 /**
- * Tests for WarpGraph.materialize({ receipts: true }) — LH/RECEIPTS/2
+ * Tests for WarpRuntime.materialize({ receipts: true }) — LH/RECEIPTS/2
  *
  * Verifies:
  * - Backward compatibility: default materialize() returns state directly
@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd, orsetContains } from '../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.js';
@@ -126,7 +126,7 @@ async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {an
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('WarpGraph.materialize() with receipts', () => {
+describe('WarpRuntime.materialize() with receipts', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -136,7 +136,7 @@ describe('WarpGraph.materialize() with receipts', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName,
       writerId,
@@ -527,11 +527,13 @@ describe('WarpGraph.materialize() with receipts', () => {
       const { state } = await graph.materialize({ receipts: true });
       const cachedState = /** @type {any} */ (graph)._cachedState;
       expect(cachedState).not.toBe(state);
-      expect(cachedState.nodeAlive).toBe(state.nodeAlive);
-      expect(cachedState.edgeAlive).toBe(state.edgeAlive);
-      expect(cachedState.prop).toBe(state.prop);
-      expect(cachedState.observedFrontier).toBe(state.observedFrontier);
+      expect(cachedState.nodeAlive).not.toBe(state.nodeAlive);
+      expect(cachedState.edgeAlive).not.toBe(state.edgeAlive);
+      expect(cachedState.prop).not.toBe(state.prop);
+      expect(cachedState.observedFrontier).not.toBe(state.observedFrontier);
       expect(Object.isFrozen(state)).toBe(true);
+      expect(Object.isFrozen(cachedState)).toBe(false);
+      expect(orsetContains(cachedState.nodeAlive, 'n1')).toBe(true);
       expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
     });
 

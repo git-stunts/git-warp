@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { encode as cborEncode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -34,7 +34,7 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
   persistence.showNode.mockResolvedValue(patchMessage);
 }
 
-describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
+describe('WarpRuntime.hasFrontierChanged() (GK/FRONTIER/1)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -42,7 +42,7 @@ describe('WarpGraph.hasFrontierChanged() (GK/FRONTIER/1)', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

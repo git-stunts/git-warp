@@ -4,6 +4,13 @@
 **Date:** 2026-03-25
 **Scope:** First honest write-side substrate slice for speculative working-set evolution
 
+> Update 2026-03-26: this note remains useful for queue/tick mechanics, but its
+> public noun model is now constrained by
+> [`docs/design/worldline-observer-working-set-model.md`](./worldline-observer-working-set-model.md).
+> In particular, `WarpGraph` should be read as the immutable snapshot noun, and
+> working sets should be treated as speculative child-worldline handles rather
+> than merely overlay descriptors.
+
 ---
 
 ## Problem

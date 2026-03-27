@@ -1,5 +1,5 @@
 /**
- * Shared constants and re-exports for WarpGraph method files.
+ * Shared constants and re-exports for WarpRuntime method files.
  *
  * Method files (`*.methods.js`) import from here to avoid
  * brittle relative paths back into the domain root.
@@ -13,10 +13,10 @@ export { default as ForkError } from '../errors/ForkError.js';
 export { default as WorkingSetError } from '../errors/WorkingSetError.js';
 
 /**
- * Extended WarpGraph type that includes mixin methods wired at runtime.
+ * Extended WarpRuntime type that includes mixin methods wired at runtime.
  * Use this as the `@this` type in method files that call other mixin methods.
  *
- * @typedef {import('../WarpGraph.js').default & { _readPatchBlob(patchMeta: { patchOid: string, encrypted: boolean }): Promise<Uint8Array> }} WarpGraphWithMixins
+ * @typedef {import('../WarpRuntime.js').default & { _readPatchBlob(patchMeta: { patchOid: string, encrypted: boolean }): Promise<Uint8Array> }} WarpGraphWithMixins
  */
 
 // ── Shared constants ────────────────────────────────────────────────────────

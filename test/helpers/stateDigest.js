@@ -1,5 +1,5 @@
 /**
- * Test helper: deterministic state digest for WarpGraph.
+ * Test helper: deterministic state digest for WarpRuntime.
  *
  * Computes a SHA-256 hash of the serialized WarpStateV5 + version vector
  * for use in test assertions (e.g., "state did not mutate").

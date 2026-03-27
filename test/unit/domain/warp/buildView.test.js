@@ -17,7 +17,7 @@ describe('_buildView', () => {
       _materializedGraph: {},
     };
 
-    _buildView.call(/** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash123');
+    _buildView.call(/** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash123');
 
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0][0]).toContain('index build failed');
@@ -40,7 +40,7 @@ describe('_buildView', () => {
     };
 
     // Should not throw
-    _buildView.call(/** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash456');
+    _buildView.call(/** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash456');
     expect(ctx._logicalIndex).toBeNull();
   });
 });

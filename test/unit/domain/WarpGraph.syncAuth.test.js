@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapter.js';
 
 async function createGraph(writerId = 'writer-1') {
@@ -10,14 +10,14 @@ async function createGraph(writerId = 'writer-1') {
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
   };
-  return WarpGraph.open({ persistence: /** @type {any} */ (mockPersistence), graphName: 'test', writerId });
+  return WarpRuntime.open({ persistence: /** @type {any} */ (mockPersistence), graphName: 'test', writerId });
 }
 
 /**
  * Mocks on _syncController — syncWith calls createSyncRequest/applySyncResponse
  * as this.method() inside SyncController, so instance-level mocks won't intercept.
  */
-function mockClientGraph(/** @type {WarpGraph} */ graph) {
+function mockClientGraph(/** @type {WarpRuntime} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
   g._cachedState = {};
   const sc = /** @type {Record<string, unknown>} */ (g._syncController);
@@ -29,7 +29,7 @@ function mockClientGraph(/** @type {WarpGraph} */ graph) {
  * Mocks on _syncController — processSyncRequest is called by HttpSyncServer
  * via the host reference, which delegates to the controller.
  */
-function mockServerGraph(/** @type {WarpGraph} */ graph) {
+function mockServerGraph(/** @type {WarpRuntime} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
   const sc = /** @type {Record<string, unknown>} */ (g._syncController);
   sc.processSyncRequest = vi.fn().mockResolvedValue({
@@ -39,7 +39,7 @@ function mockServerGraph(/** @type {WarpGraph} */ graph) {
   });
 }
 
-describe('WarpGraph syncAuth (real HTTP)', () => {
+describe('WarpRuntime syncAuth (real HTTP)', () => {
   it('serve(enforce) + syncWith(matching key) succeeds', async () => {
     const secret = 'shared-secret-123';
     const serverGraph = await createGraph('server-1');

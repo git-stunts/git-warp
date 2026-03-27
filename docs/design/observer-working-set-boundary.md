@@ -4,6 +4,12 @@
 **Date:** 2026-03-25
 **Scope:** Public substrate boundary for worldlines, observers, and speculative lanes
 
+> Update 2026-03-26: this note is now superseded by
+> [`docs/design/worldline-observer-working-set-model.md`](./worldline-observer-working-set-model.md),
+> which makes the stronger noun split explicit: `Worldline` as history handle,
+> `WarpGraph` as immutable snapshot, `Observer` as immutable read handle, and
+> `WorkingSet` as speculative child-worldline write handle.
+
 ---
 
 ## Problem

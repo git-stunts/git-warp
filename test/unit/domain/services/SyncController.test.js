@@ -45,7 +45,7 @@ const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, pr
   /** @type {Record<string, import('vitest').Mock>} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
 
 /**
- * Creates a mock WarpGraph host for SyncController tests.
+ * Creates a mock WarpRuntime host for SyncController tests.
  *
  * @param {Record<string, unknown>} [overrides]
  * @returns {Record<string, unknown>}

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { addNodeToState, addEdgeToState, setupGraphState, createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph logical traversal', () => {
+describe('WarpRuntime logical traversal', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -11,7 +11,7 @@ describe('WarpGraph logical traversal', () => {
   beforeEach(async () => {
     mockPersistence = createMockPersistence();
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

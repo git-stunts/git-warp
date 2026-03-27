@@ -34,8 +34,8 @@ export function createBarrier() {
  * The returned hooks object has mutable properties that tests can set
  * to inject barriers at critical points.
  *
- * @param {import('../../src/domain/WarpGraph.js').default} graph
- * @returns {{ graph: import('../../src/domain/WarpGraph.js').default, hooks: ConcurrencyHooks }}
+ * @param {import('../../src/domain/WarpRuntime.js').default} graph
+ * @returns {{ graph: import('../../src/domain/WarpRuntime.js').default, hooks: ConcurrencyHooks }}
  */
 export function wrapWithHooks(graph) {
   /** @type {ConcurrencyHooks} */

@@ -1,19 +1,19 @@
 // @ts-nocheck — tests dynamic prototype descriptors that TypeScript cannot track
 import { describe, it, expect } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 
 /**
  * API Surface Snapshot Lock
  *
- * This test captures the public API of WarpGraph.prototype and fails
+ * This test captures the public API of WarpRuntime.prototype and fails
  * if any method is added, removed, or renamed. It prevents accidental
- * API breakage during the decomposition of WarpGraph into method files.
+ * API breakage during the decomposition of WarpRuntime into method files.
  *
  * Update the snapshot ONLY when an intentional API change is made.
  */
-describe('WarpGraph API surface', () => {
+describe('WarpRuntime API surface', () => {
   it('prototype methods match snapshot', () => {
-    const proto = WarpGraph.prototype;
+    const proto = WarpRuntime.prototype;
     const descriptors = Object.getOwnPropertyDescriptors(proto);
     const names = Object.keys(descriptors)
       .filter(n => n !== 'constructor')
@@ -23,7 +23,7 @@ describe('WarpGraph API surface', () => {
   });
 
   it('prototype method count matches snapshot', () => {
-    const proto = WarpGraph.prototype;
+    const proto = WarpRuntime.prototype;
     const descriptors = Object.getOwnPropertyDescriptors(proto);
     const names = Object.keys(descriptors).filter(n => n !== 'constructor');
 
@@ -31,7 +31,7 @@ describe('WarpGraph API surface', () => {
   });
 
   it('static methods match snapshot', () => {
-    const staticNames = Object.getOwnPropertyNames(WarpGraph)
+    const staticNames = Object.getOwnPropertyNames(WarpRuntime)
       .filter(n => !['length', 'name', 'prototype'].includes(n))
       .sort();
 
@@ -39,7 +39,7 @@ describe('WarpGraph API surface', () => {
   });
 
   it('all prototype methods have correct property descriptors', () => {
-    const proto = WarpGraph.prototype;
+    const proto = WarpRuntime.prototype;
     const descriptors = Object.getOwnPropertyDescriptors(proto);
 
     const summary = {};

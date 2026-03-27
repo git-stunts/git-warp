@@ -1,7 +1,7 @@
 /**
- * Fork and wormhole methods for WarpGraph, plus backfill-rejection helpers.
+ * Fork and wormhole methods for WarpRuntime, plus backfill-rejection helpers.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/fork.methods
@@ -19,7 +19,7 @@ import { createWormhole as createWormholeImpl } from '../services/WormholeServic
 /**
  * Creates a fork of this graph at a specific point in a writer's history.
  *
- * A fork creates a new WarpGraph instance that shares history up to the
+ * A fork creates a new WarpRuntime instance that shares history up to the
  * specified patch SHA. Due to Git's content-addressed storage, the shared
  * history is automatically deduplicated. The fork gets a new writer ID and
  * operates independently from the original graph.
@@ -30,9 +30,9 @@ import { createWormhole as createWormholeImpl } from '../services/WormholeServic
  * - Writes to the original after fork don't appear in the fork
  * - History up to the fork point is shared (content-addressed dedup)
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ from: string, at: string, forkName?: string, forkWriterId?: string }} options - Fork configuration
- * @returns {Promise<import('../WarpGraph.js').default>} A new WarpGraph instance for the fork
+ * @returns {Promise<import('../WarpRuntime.js').default>} A new WarpRuntime instance for the fork
  * @throws {ForkError} If `from` writer does not exist (code: `E_FORK_WRITER_NOT_FOUND`)
  * @throws {ForkError} If `at` SHA does not exist (code: `E_FORK_PATCH_NOT_FOUND`)
  * @throws {ForkError} If `at` SHA is not in the writer's chain (code: `E_FORK_PATCH_NOT_IN_CHAIN`)
@@ -135,11 +135,11 @@ export async function fork({ from, at, forkName, forkWriterId }) {
     const forkWriterRef = buildWriterRef(resolvedForkName, resolvedForkWriterId);
     await this._persistence.updateRef(forkWriterRef, at);
 
-    // 8. Open and return a new WarpGraph instance for the fork
-    // Dynamic import to avoid circular dependency (WarpGraph -> fork.methods -> WarpGraph)
-    const { default: WarpGraph } = await import('../WarpGraph.js');
+    // 8. Open and return a new WarpRuntime instance for the fork
+    // Dynamic import to avoid circular dependency (WarpRuntime -> fork.methods -> WarpRuntime)
+    const { default: WarpRuntime } = await import('../WarpRuntime.js');
 
-    const forkGraph = await WarpGraph.open({
+    const forkGraph = await WarpRuntime.open({
       persistence: this._persistence,
       graphName: resolvedForkName,
       writerId: resolvedForkWriterId,
@@ -184,7 +184,7 @@ export async function fork({ from, at, forkName, forkWriterId }) {
  * - **Materialization Equivalence**: A wormhole + remaining patches produces
  *   the same state as materializing all patches.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} fromSha - SHA of the first (oldest) patch commit in the range
  * @param {string} toSha - SHA of the last (newest) patch commit in the range
  * @returns {Promise<{fromSha: string, toSha: string, writerId: string, payload: import('../services/ProvenancePayload.js').default, patchCount: number}>} The created wormhole edge
@@ -224,7 +224,7 @@ export async function createWormhole(fromSha, toSha) {
  * Checks if ancestorSha is an ancestor of descendantSha.
  * Walks the commit graph (linear per-writer chain assumption).
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} ancestorSha - The potential ancestor commit SHA
  * @param {string} descendantSha - The potential descendant commit SHA
  * @returns {Promise<boolean>} True if ancestorSha is an ancestor of descendantSha
@@ -258,7 +258,7 @@ export async function _isAncestor(ancestorSha, descendantSha) {
 /**
  * Determines relationship between incoming patch and checkpoint head.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} ckHead - The checkpoint head SHA for this writer
  * @param {string} incomingSha - The incoming patch commit SHA
  * @returns {Promise<'same' | 'ahead' | 'behind' | 'diverged'>} The relationship
@@ -281,7 +281,7 @@ export async function _relationToCheckpointHead(ckHead, incomingSha) {
  * Validates an incoming patch against checkpoint frontier.
  * Uses graph reachability, NOT lamport timestamps.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} writerId - The writer ID for this patch
  * @param {string} incomingSha - The incoming patch commit SHA
  * @param {{state: import('../services/JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint - The checkpoint to validate against

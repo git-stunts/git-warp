@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
@@ -51,7 +51,7 @@ function mockSecondCommit(/** @type {any} */ persistence) {
   persistence.updateRef.mockResolvedValue(undefined);
 }
 
-describe('WarpGraph dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
+describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -59,7 +59,7 @@ describe('WarpGraph dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2)'
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

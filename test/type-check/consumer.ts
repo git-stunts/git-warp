@@ -7,7 +7,8 @@
  * @see contracts/type-surface.m8.json
  */
 
-import WarpGraph, {
+import WarpRuntime, {
+  WarpRuntime as WarpRuntimeNamed,
   GraphPersistencePort,
   IndexStoragePort,
   LoggerPort,
@@ -95,7 +96,7 @@ import type {
   TranslationCostResult,
   TranslationCostBreakdown,
   StateDiffResult,
-  WarpGraphStatus,
+  WarpRuntimeStatus,
   SyncRequest,
   SyncResponse,
   ApplySyncResult,
@@ -164,6 +165,8 @@ declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 
+const _sameRuntimeCtor: typeof WarpRuntime = WarpRuntimeNamed;
+
 // Verify imported classes/ports are usable as types
 declare const _idxStorage: IndexStoragePort;
 declare const _schemaErr: SchemaUnsupportedError;
@@ -172,8 +175,8 @@ declare const _shardCorruptErr: ShardCorruptionError;
 declare const _shardValErr: ShardValidationError;
 declare const _storageErr: StorageError;
 
-// WarpGraph.open() — full options
-const graph: WarpGraph = await WarpGraph.open({
+// WarpRuntime.open() — full options
+const graph: WarpRuntime = await WarpRuntime.open({
   graphName: 'test',
   persistence,
   writerId: 'w1',
@@ -451,8 +454,8 @@ const slicePatchCount: number = slice.patchCount;
 const sliceWithReceipts = await graph.materializeSlice('n1', { receipts: true });
 
 // ---- fork ----
-const forked: WarpGraph = await graph.fork({ from: 'w1', at: 'abc123' });
-const forkedCustom: WarpGraph = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
+const forked: WarpRuntime = await graph.fork({ from: 'w1', at: 'abc123' });
+const forkedCustom: WarpRuntime = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
 
 // ---- createWormhole (instance method) ----
 const wormhole: WormholeEdge = await graph.createWormhole('sha1', 'sha2');
@@ -462,7 +465,7 @@ const watcher = graph.watch('user:*', { onChange: (diff: StateDiffResult) => {},
 watcher.unsubscribe();
 
 // ---- status ----
-const status: WarpGraphStatus = await graph.status();
+const status: WarpRuntimeStatus = await graph.status();
 
 // ---- GC ----
 const gcMaybe: MaybeGCResult = graph.maybeRunGC();
@@ -653,8 +656,8 @@ await graph.patch((p: string) => {});
 // @ts-expect-error -- getEdgeProps requires 3 string args
 await graph.getEdgeProps('a', 'b');
 
-// @ts-expect-error -- WarpGraph.open requires persistence (missing required option)
-await WarpGraph.open({ graphName: 'test', writerId: 'w1' });
+// @ts-expect-error -- WarpRuntime.open requires persistence (missing required option)
+await WarpRuntime.open({ graphName: 'test', writerId: 'w1' });
 
 // @ts-expect-error -- createNodeAdd requires string, not number
 createNodeAdd(42);

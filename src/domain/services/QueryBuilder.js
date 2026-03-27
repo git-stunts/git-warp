@@ -471,7 +471,7 @@ export default class QueryBuilder {
   /**
    * Creates a new QueryBuilder.
    *
-   * @param {import('../WarpGraph.js').default} graph - The WarpGraph instance to query
+   * @param {import('../WarpRuntime.js').default} graph - The WarpRuntime instance to query
    */
   constructor(graph) {
     this._graph = graph;

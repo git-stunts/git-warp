@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
@@ -9,7 +9,7 @@ function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type 
   state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
 }
 
-describe('WarpGraph QueryBuilder', () => {
+describe('WarpRuntime QueryBuilder', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -24,7 +24,7 @@ describe('WarpGraph QueryBuilder', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

@@ -15,7 +15,7 @@ import { createEventId } from '../utils/EventId.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import WorkingSetService from './WorkingSetService.js';
 
-/** @typedef {import('../WarpGraph.js').default} WarpGraph */
+/** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
 /** @typedef {import('../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../utils/EventId.js').EventId} EventId */
@@ -1025,7 +1025,7 @@ function buildPatchFrames(entries) {
 }
 
 /**
- * @param {WarpGraph} graph
+ * @param {WarpRuntime} graph
  * @param {number|null} lamportCeiling
  * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>}
  */
@@ -1964,7 +1964,7 @@ function buildConflictAnalysisResult({
  */
 export class ConflictAnalyzerService {
   /**
-   * @param {{ graph: WarpGraph }} options
+   * @param {{ graph: WarpRuntime }} options
    */
   constructor({ graph }) {
     this._graph = graph;

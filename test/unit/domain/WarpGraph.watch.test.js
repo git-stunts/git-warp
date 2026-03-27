@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph.watch() (PL/WATCH/1)', () => {
+describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
   /** @type {any} */
   let repo;
   /** @type {any} */
@@ -10,7 +10,7 @@ describe('WarpGraph.watch() (PL/WATCH/1)', () => {
 
   beforeEach(async () => {
     repo = await createGitRepo('watch');
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -467,7 +467,7 @@ describe('WarpGraph.watch() (PL/WATCH/1)', () => {
   });
 });
 
-describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
+describe('WarpRuntime.watch() polling (PL/WATCH/2)', () => {
   /** @type {any} */
   let repo;
   /** @type {any} */
@@ -476,7 +476,7 @@ describe('WarpGraph.watch() polling (PL/WATCH/2)', () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     repo = await createGitRepo('watch');
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',

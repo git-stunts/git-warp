@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { buildSeekCacheKey } from '../../../src/domain/utils/seekCacheKey.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
@@ -173,10 +173,10 @@ describe('buildSeekCacheKey', () => {
 const flush = () => new Promise((r) => { setTimeout(r, 0); });
 
 // ===========================================================================
-// WarpGraph seek cache integration (mock cache)
+// WarpRuntime seek cache integration (mock cache)
 // ===========================================================================
 
-describe('WarpGraph seek cache integration', () => {
+describe('WarpRuntime seek cache integration', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -192,7 +192,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('stores state to cache on first ceiling materialize', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -210,7 +210,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('restores state from cache on second visit to same tick', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -238,7 +238,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('skips cache when collectReceipts is true', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -253,7 +253,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('does not store when no patches match ceiling', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -267,7 +267,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('sets _provenanceDegraded on cache hit', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -291,7 +291,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('throws E_PROVENANCE_DEGRADED on patchesFor after cache hit', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -312,7 +312,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('clears _provenanceDegraded on full materialize', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -335,7 +335,7 @@ describe('WarpGraph seek cache integration', () => {
   it('gracefully handles cache get() failure', async () => {
     setupPersistence(persistence, { w1: 3 });
     seekCache.get.mockRejectedValue(new Error('storage error'));
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -351,7 +351,7 @@ describe('WarpGraph seek cache integration', () => {
   it('gracefully handles cache set() failure', async () => {
     setupPersistence(persistence, { w1: 3 });
     seekCache.set.mockRejectedValue(new Error('storage error'));
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -365,7 +365,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('works without seekCache (null)', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -378,7 +378,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('setSeekCache(null) detaches the cache', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -398,7 +398,7 @@ describe('WarpGraph seek cache integration', () => {
 
   it('deletes corrupted cache entry on deserialize failure', async () => {
     setupPersistence(persistence, { w1: 3 });
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',

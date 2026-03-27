@@ -11,7 +11,7 @@
  * In WARP's hexagonal architecture, GitGraphAdapter sits at the infrastructure layer:
  *
  * ```
- *   Domain (WarpGraph, JoinReducer)
+ *   Domain (WarpRuntime, JoinReducer)
  *            ↓
  *   Ports (GraphPersistencePort - abstract interface)
  *            ↓

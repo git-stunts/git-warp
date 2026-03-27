@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
+describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
   it('returns empty array when called with no arguments', async () => {
     const repo = await createGitRepo('patchMany-empty');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',
@@ -22,7 +22,7 @@ describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('applies a single patch and returns its SHA', async () => {
     const repo = await createGitRepo('patchMany-single');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',
@@ -45,7 +45,7 @@ describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('applies multiple patches sequentially', async () => {
     const repo = await createGitRepo('patchMany-multi');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',
@@ -73,7 +73,7 @@ describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('each callback sees state from previous patches', async () => {
     const repo = await createGitRepo('patchMany-sees-prior');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',
@@ -102,7 +102,7 @@ describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('propagates error from failing callback without applying further patches', async () => {
     const repo = await createGitRepo('patchMany-error');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',
@@ -128,7 +128,7 @@ describe('WarpGraph.patchMany()', { timeout: 30000 }, () => {
   it('triggers reentrancy guard when nesting patch inside patchMany callback', async () => {
     const repo = await createGitRepo('patchMany-reentrant');
     try {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence: repo.persistence,
         graphName: 'test',
         writerId: 'writer-a',

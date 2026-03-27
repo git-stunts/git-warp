@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
-import WarpGraph from '../../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 
 describe('InMemoryGraphAdapter integration smoke test', () => {
-  it('WarpGraph can write a patch and materialize with InMemoryAdapter', async () => {
+  it('WarpRuntime can write a patch and materialize with InMemoryAdapter', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test-graph',
       writerId: 'alice',
@@ -24,13 +24,13 @@ describe('InMemoryGraphAdapter integration smoke test', () => {
   it('multi-writer convergence works with InMemoryAdapter', async () => {
     const persistence = new InMemoryGraphAdapter();
 
-    const graphA = await WarpGraph.open({
+    const graphA = await WarpRuntime.open({
       persistence,
       graphName: 'multi',
       writerId: 'alice',
     });
 
-    const graphB = await WarpGraph.open({
+    const graphB = await WarpRuntime.open({
       persistence,
       graphName: 'multi',
       writerId: 'bob',

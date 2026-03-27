@@ -1,7 +1,7 @@
 /**
- * Query methods for WarpGraph — pure reads on materialized state.
+ * Query methods for WarpRuntime — pure reads on materialized state.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/query.methods
@@ -24,11 +24,16 @@ import { compareEventIds } from '../utils/EventId.js';
 import { cloneStateV5 } from '../services/JoinReducer.js';
 import QueryBuilder from '../services/QueryBuilder.js';
 import ObserverView from '../services/ObserverView.js';
+import Worldline from '../services/Worldline.js';
 import { computeTranslationCost } from '../services/TranslationCost.js';
+import { computeStateHashV5 } from '../services/StateSerializerV5.js';
 
 /**
  * @typedef {{
  *   source?: {
+ *     kind: 'live',
+ *     ceiling?: number|null
+ *   } | {
  *     kind: 'coordinate',
  *     frontier: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
@@ -41,11 +46,43 @@ import { computeTranslationCost } from '../services/TranslationCost.js';
  */
 
 /**
- * @param {import('../WarpGraph.js').default} graph
- * @returns {Promise<import('../WarpGraph.js').default>}
+ * @param {ObserverOptions['source']|undefined} source
+ * @returns {ObserverOptions['source']}
+ */
+function cloneObserverSource(source) {
+  if (!source) {
+    return undefined;
+  }
+
+  if (source.kind === 'live') {
+    return 'ceiling' in source
+      ? { kind: 'live', ceiling: source.ceiling ?? null }
+      : { kind: 'live' };
+  }
+
+  if (source.kind === 'coordinate') {
+    return {
+      kind: 'coordinate',
+      frontier: source.frontier instanceof Map
+        ? new Map(source.frontier)
+        : { ...source.frontier },
+      ceiling: source.ceiling ?? null,
+    };
+  }
+
+  return {
+    kind: 'working_set',
+    workingSetId: source.workingSetId,
+    ceiling: source.ceiling ?? null,
+  };
+}
+
+/**
+ * @param {import('../WarpRuntime.js').default} graph
+ * @returns {Promise<import('../WarpRuntime.js').default>}
  */
 async function openDetachedObserverGraph(graph) {
-  const GraphClass = /** @type {typeof import('../WarpGraph.js').default} */ (graph.constructor);
+  const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
   return await GraphClass.open({
     persistence: graph._persistence,
     graphName: graph._graphName,
@@ -67,7 +104,7 @@ async function openDetachedObserverGraph(graph) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
  */
 async function snapshotCurrentMaterialized(graph) {
@@ -79,7 +116,23 @@ async function snapshotCurrentMaterialized(graph) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
+ * @param {import('../services/JoinReducer.js').WarpStateV5} state
+ * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ */
+async function snapshotReturnedState(graph, state) {
+  const stateHash = await computeStateHashV5(state, {
+    crypto: graph._crypto,
+    codec: graph._codec,
+  });
+  return {
+    state: cloneStateV5(state),
+    stateHash,
+  };
+}
+
+/**
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {ObserverOptions|undefined} options
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
  */
@@ -90,21 +143,29 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotCurrentMaterialized(graph);
   }
 
+  if (source.kind === 'live') {
+    const detached = await openDetachedObserverGraph(graph);
+    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materialize({
+      ceiling: source.ceiling ?? null,
+    }));
+    return await snapshotReturnedState(detached, state);
+  }
+
   if (source.kind === 'coordinate') {
     const detached = await openDetachedObserverGraph(graph);
-    await detached.materializeCoordinate({
+    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materializeCoordinate({
       frontier: source.frontier,
       ceiling: source.ceiling ?? null,
-    });
-    return await snapshotCurrentMaterialized(detached);
+    }));
+    return await snapshotReturnedState(detached, state);
   }
 
   if (source.kind === 'working_set') {
     const detached = await openDetachedObserverGraph(graph);
-    await detached.materializeWorkingSet(source.workingSetId, {
+    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materializeWorkingSet(source.workingSetId, {
       ceiling: source.ceiling ?? null,
-    });
-    return await snapshotCurrentMaterialized(detached);
+    }));
+    return await snapshotReturnedState(detached, state);
   }
 
   throw new Error(`unknown observer source kind: ${/** @type {{ kind?: unknown }} */ (source).kind}`);
@@ -115,7 +176,7 @@ async function resolveObserverSnapshot(graph, options) {
  *
  * **Requires a cached state.** Call materialize() first if not already cached.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<boolean>} True if the node exists in the materialized state
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
@@ -130,7 +191,7 @@ export async function hasNode(nodeId) {
 /**
  * Gets all properties for a node from the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get properties for
  * @returns {Promise<Record<string, unknown>|null>} Object of property key → value, or null if node doesn't exist
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
@@ -173,7 +234,7 @@ export async function getNodeProps(nodeId) {
 /**
  * Gets all properties for an edge from the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -228,7 +289,7 @@ function tagDirection(edges, dir) {
 /**
  * Gets neighbors of a node from the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get neighbors for
  * @param {'outgoing' | 'incoming' | 'both'} [direction='both'] - Edge direction to follow
  * @param {string} [edgeLabel] - Optional edge label filter
@@ -311,7 +372,7 @@ function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
 /**
  * Returns a defensive copy of the current materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5 | null>}
  */
 export async function getStateSnapshot() {
@@ -328,7 +389,7 @@ export async function getStateSnapshot() {
 /**
  * Gets all visible nodes in the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<string[]>} Array of node IDs
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  */
@@ -341,7 +402,7 @@ export async function getNodes() {
 /**
  * Gets all visible edges in the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<Array<{from: string, to: string, label: string, props: Record<string, unknown>}>>} Array of edge info
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  */
@@ -385,7 +446,7 @@ export async function getEdges() {
 /**
  * Returns the number of property entries in the materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<number>} Number of property entries
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  */
@@ -398,7 +459,7 @@ export async function getPropertyCount() {
 /**
  * Creates a fluent query builder for the logical graph.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {import('../services/QueryBuilder.js').default} A fluent query builder
  */
 export function query() {
@@ -406,9 +467,23 @@ export function query() {
 }
 
 /**
+ * Creates a first-class worldline handle over a pinned read source.
+ *
+ * @this {import('../WarpRuntime.js').default}
+ * @param {ObserverOptions} [options]
+ * @returns {import('../services/Worldline.js').default}
+ */
+export function worldline(options = undefined) {
+  return new Worldline({
+    graph: this,
+    source: cloneObserverSource(options?.source) || { kind: 'live' },
+  });
+}
+
+/**
  * Creates a read-only observer view of the current materialized state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} name - Observer name
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} config - Observer configuration
  * @param {ObserverOptions} [options] - Optional pinned read source
@@ -421,13 +496,19 @@ export async function observer(name, config, options = undefined) {
     throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
   }
   const snapshot = await resolveObserverSnapshot(this, options);
-  return new ObserverView({ name, config, snapshot });
+  return new ObserverView({
+    name,
+    config,
+    graph: this,
+    snapshot,
+    source: cloneObserverSource(options?.source) || { kind: 'live' },
+  });
 }
 
 /**
  * Computes the directed MDL translation cost from observer A to observer B.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configA - Observer configuration for A
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configB - Observer configuration for B
  * @returns {Promise<{cost: number, breakdown: {nodeLoss: number, edgeLoss: number, propLoss: number}}>}
@@ -571,7 +652,7 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
 /**
  * Gets the content blob OID for a node, or null if none is attached.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<string|null>} Hex blob OID or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
@@ -586,7 +667,7 @@ export async function getContentOid(nodeId) {
 /**
  * Gets structured content metadata for a node attachment, or null if none is attached.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} Content metadata or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
@@ -606,7 +687,7 @@ export async function getContentMeta(nodeId) {
  * Returns the raw bytes from `readBlob()`. Consumers wanting text
  * should decode the result with `new TextDecoder().decode(buf)`.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<Uint8Array|null>} Content bytes or null
  * @throws {import('../errors/PersistenceError.js').default} If the referenced
@@ -631,7 +712,7 @@ export async function getContent(nodeId) {
 /**
  * Gets the content blob OID for an edge, or null if none is attached.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -648,7 +729,7 @@ export async function getEdgeContentOid(from, to, label) {
 /**
  * Gets structured content metadata for an edge attachment, or null if none is attached.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -670,7 +751,7 @@ export async function getEdgeContentMeta(from, to, label) {
  * Returns the raw bytes from `readBlob()`. Consumers wanting text
  * should decode the result with `new TextDecoder().decode(buf)`.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label

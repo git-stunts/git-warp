@@ -1,5 +1,5 @@
 /**
- * ObserverView - Read-only filtered view of a materialized WarpGraph.
+ * ObserverView - Read-only filtered view of a materialized WarpRuntime.
  *
  * Provides an observer that sees only nodes matching a glob pattern,
  * with property visibility controlled by expose/redact lists.
@@ -15,6 +15,62 @@ import { createStateReaderV5 } from './StateReaderV5.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.js';
+
+/** @typedef {import('../../../index.js').WorldlineSource} WorldlineSource */
+
+/**
+ * @param {{
+ *   kind: 'live',
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'coordinate',
+ *   frontier: Map<string, string>|Record<string, string>,
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'working_set',
+ *   workingSetId: string,
+ *   ceiling?: number|null
+ * } | null | undefined} source
+ * @returns {{
+ *   kind: 'live',
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'coordinate',
+ *   frontier: Map<string, string>|Record<string, string>,
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'working_set',
+ *   workingSetId: string,
+ *   ceiling?: number|null
+ * } | null}
+ */
+function cloneObserverSource(source) {
+  if (!source) {
+    return null;
+  }
+
+  if (source.kind === 'live') {
+    return 'ceiling' in source
+      ? { kind: 'live', ceiling: source.ceiling ?? null }
+      : { kind: 'live' };
+  }
+
+  if (source.kind === 'coordinate') {
+    return {
+      kind: 'coordinate',
+      frontier: source.frontier instanceof Map
+        ? new Map(source.frontier)
+        : { ...source.frontier },
+      ceiling: source.ceiling ?? null,
+    };
+  }
+
+  return {
+    kind: 'working_set',
+    workingSetId: source.workingSetId,
+    ceiling: source.ceiling ?? null,
+  };
+}
 
 /**
  * Filters a properties Record based on expose and redact lists.
@@ -149,35 +205,40 @@ async function buildAdjacencyViaProvider(provider, visibleNodes) {
 }
 
 /**
- * Read-only observer view of a materialized WarpGraph state.
+ * Read-only observer view of a materialized WarpRuntime state.
  *
- * Provides the same query/traverse API as WarpGraph, but filtered
+ * Provides the same query/traverse API as WarpRuntime, but filtered
  * by observer configuration (match pattern, expose, redact).
  */
 export default class ObserverView {
   /**
    * Creates a new ObserverView.
    *
-   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpGraph.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string } }} options
+   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} options
    */
-  constructor({ name, config, graph, snapshot }) {
+  constructor({ name, config, graph, snapshot, source }) {
     /** @type {string} */
     this._name = name;
 
     /** @type {string|string[]} */
-    this._matchPattern = config.match;
+    this._matchPattern = Array.isArray(config.match)
+      ? [...config.match]
+      : config.match;
 
     /** @type {string[]|undefined} */
-    this._expose = config.expose;
+    this._expose = config.expose ? [...config.expose] : undefined;
 
     /** @type {string[]|undefined} */
-    this._redact = config.redact;
+    this._redact = config.redact ? [...config.redact] : undefined;
 
-    /** @type {import('../WarpGraph.js').default|null} */
+    /** @type {import('../WarpRuntime.js').default|null} */
     this._graph = graph || null;
 
     /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
     this._snapshot = snapshot || null;
+
+    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } | null} */
+    this._source = cloneObserverSource(source || { kind: 'live' });
 
     /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
     this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
@@ -193,7 +254,7 @@ export default class ObserverView {
      * ObserverView implements both: hasNode() at line ~242, _materializeGraph() at line ~214.
      */
     /** @type {LogicalTraversal} */
-    this.traverse = new LogicalTraversal(/** @type {import('../WarpGraph.js').default} */ (/** @type {unknown} */ (this)));
+    this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 
   /**
@@ -205,9 +266,27 @@ export default class ObserverView {
   }
 
   /**
+   * Gets the effective pinned source for this observer.
+   *
+   * @returns {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } | null}
+   */
+  get source() {
+    return cloneObserverSource(this._source);
+  }
+
+  /**
+   * Gets the pinned snapshot hash when this observer is snapshot-backed.
+   *
+   * @returns {string|null}
+   */
+  get stateHash() {
+    return this._snapshot ? this._snapshot.stateHash : null;
+  }
+
+  /**
    * Returns the live backing graph when this observer was created in delegate mode.
    *
-   * @returns {import('../WarpGraph.js').default}
+   * @returns {import('../WarpRuntime.js').default}
    * @private
    */
   _requireGraph() {
@@ -215,6 +294,34 @@ export default class ObserverView {
       throw new Error('ObserverView has no live backing graph');
     }
     return this._graph;
+  }
+
+  /**
+   * Creates a new observer over the same aperture at a different source.
+   *
+   * When no explicit source is supplied, seek targets current live truth.
+   *
+   * @param {{ source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} [options]
+   * @returns {Promise<ObserverView>}
+   */
+  async seek(options = undefined) {
+    const graph = this._requireGraph();
+    const config = {
+      match: Array.isArray(this._matchPattern)
+        ? [...this._matchPattern]
+        : this._matchPattern,
+      ...(this._expose ? { expose: [...this._expose] } : {}),
+      ...(this._redact ? { redact: [...this._redact] } : {}),
+    };
+    /** @type {WorldlineSource|null} */
+    const nextSource = options?.source
+      ? cloneObserverSource(options.source)
+      : { kind: 'live' };
+    if (!nextSource) {
+      throw new Error('observer seek requires a non-null source');
+    }
+
+    return await graph.observer(this._name, config, { source: nextSource });
   }
 
   // ===========================================================================
@@ -360,6 +467,6 @@ export default class ObserverView {
      * ObserverView implements all three: getNodes() at line ~254, getNodeProps() at line ~268,
      * _materializeGraph() at line ~214.
      */
-    return new QueryBuilder(/** @type {import('../WarpGraph.js').default} */ (/** @type {unknown} */ (this)));
+    return new QueryBuilder(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 }

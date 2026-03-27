@@ -45,7 +45,7 @@ export function resolveLamportCeiling(explicitLamportCeiling, activeCursor) {
  * @returns {Promise<unknown>}
  */
 export async function materializeForDebug(graph, options) {
-  const debugGraph = /** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (graph));
+  const debugGraph = /** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (graph));
   const {
     lamportCeiling,
     collectReceipts,
@@ -82,7 +82,7 @@ export async function materializeForDebug(graph, options) {
  * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>}
  */
 export async function getWorkingSetPatchEntriesForDebug(graph, workingSetId, lamportCeiling) {
-  const debugGraph = /** @type {import('../../../../src/domain/WarpGraph.js').default} */ (/** @type {unknown} */ (graph));
+  const debugGraph = /** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (graph));
   if (lamportCeiling === null) {
     return await debugGraph.getWorkingSetPatches(workingSetId);
   }

@@ -1,10 +1,10 @@
 /**
- * WarpGraph - Main API class for WARP multi-writer graph database.
+ * WarpRuntime - Main API class for WARP multi-writer graph database.
  *
  * Provides a factory for opening multi-writer graphs and methods for
  * creating patches, materializing state, and managing checkpoints.
  *
- * @module domain/WarpGraph
+ * @module domain/WarpRuntime
  * @see WARP Spec Section 11
  */
 
@@ -72,9 +72,9 @@ function normalizeTrustConfig(trust) {
  */
 
 /**
- * WarpGraph class for interacting with a WARP multi-writer graph.
+ * WarpRuntime class for interacting with a WARP multi-writer graph.
  */
-export default class WarpGraph {
+export default class WarpRuntime {
   /**
    * @private
    * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} options
@@ -337,11 +337,11 @@ export default class WarpGraph {
    * Opens a multi-writer graph.
    *
    * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} options
-   * @returns {Promise<WarpGraph>} The opened graph instance
+   * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
    * @example
-   * const graph = await WarpGraph.open({
+   * const graph = await WarpRuntime.open({
    *   persistence: gitAdapter,
    *   graphName: 'events',
    *   writerId: 'node-1'
@@ -386,7 +386,7 @@ export default class WarpGraph {
       }
     }
 
-    const graph = new WarpGraph({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust });
+    const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -515,8 +515,8 @@ export default class WarpGraph {
   }
 }
 
-// ── Wire extracted method groups onto WarpGraph.prototype ───────────────────
-wireWarpMethods(WarpGraph, [
+// ── Wire extracted method groups onto WarpRuntime.prototype ───────────────────
+wireWarpMethods(WarpRuntime, [
   queryMethods,
   subscribeMethods,
   provenanceMethods,
@@ -537,9 +537,9 @@ const syncDelegates = /** @type {const} */ ([
   'syncNeeded', 'syncWith', 'serve',
 ]);
 for (const method of syncDelegates) {
-  Object.defineProperty(WarpGraph.prototype, method, {
+  Object.defineProperty(WarpRuntime.prototype, method, {
     // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
-    value: /** @this {WarpGraph} @param {*[]} args */ function (...args) {
+    value: /** @this {WarpRuntime} @param {*[]} args */ function (...args) {
       return this._syncController[method](...args);
     },
     writable: true,

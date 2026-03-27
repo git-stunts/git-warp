@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph onDeleteWithData option', () => {
+describe('WarpRuntime onDeleteWithData option', () => {
   it('defaults to warn when not specified', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -14,7 +14,7 @@ describe('WarpGraph onDeleteWithData option', () => {
   });
 
   it('accepts reject', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -25,7 +25,7 @@ describe('WarpGraph onDeleteWithData option', () => {
   });
 
   it('accepts cascade', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -36,7 +36,7 @@ describe('WarpGraph onDeleteWithData option', () => {
   });
 
   it('accepts warn explicitly', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -48,7 +48,7 @@ describe('WarpGraph onDeleteWithData option', () => {
 
   it('throws on invalid value', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -58,7 +58,7 @@ describe('WarpGraph onDeleteWithData option', () => {
   });
 
   it('getter returns the configured value', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',

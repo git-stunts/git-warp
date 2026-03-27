@@ -5,13 +5,13 @@ import { tmpdir } from 'os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
-import WarpGraph from '../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../src/domain/WarpRuntime.js';
 import { computeStateHashV5, nodeVisibleV5, edgeVisibleV5 } from '../../src/domain/services/StateSerializerV5.js';
 import { encodeEdgeKey } from '../../src/domain/services/JoinReducer.js';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.js';
 
-describe('WarpGraph Integration', () => {
+describe('WarpRuntime Integration', () => {
   /** @type {any} */
   let tempDir;
   /** @type {any} */
@@ -35,7 +35,7 @@ describe('WarpGraph Integration', () => {
 
   describe('Single Writer Workflow', () => {
     it('creates patches and materializes state', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -65,7 +65,7 @@ describe('WarpGraph Integration', () => {
     });
 
     it('handles tombstones correctly', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -94,7 +94,7 @@ describe('WarpGraph Integration', () => {
   describe('Multi-Writer Workflow', () => {
     it('two writers create independent patches', async () => {
       // Writer 1: Alice
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
@@ -105,7 +105,7 @@ describe('WarpGraph Integration', () => {
         .commit();
 
       // Writer 2: Bob (same repo, different writer ID)
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -124,14 +124,14 @@ describe('WarpGraph Integration', () => {
     });
 
     it('discovers all writers', async () => {
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
       await (await alice.createPatch()).addNode('a').commit();
 
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -145,7 +145,7 @@ describe('WarpGraph Integration', () => {
 
   describe('Checkpoint Workflow', () => {
     it('creates and uses checkpoint', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer1',
@@ -174,7 +174,7 @@ describe('WarpGraph Integration', () => {
   describe('Determinism', () => {
     it('same patches produce identical state hash', async () => {
       // Create repo 1
-      const graph1 = await WarpGraph.open({
+      const graph1 = await WarpRuntime.open({
         persistence,
         graphName: 'det-test',
         writerId: 'w1',
@@ -191,7 +191,7 @@ describe('WarpGraph Integration', () => {
       const hash1 = await computeStateHashV5(state1, { crypto });
 
       // Create identical patches in repo 2 (same repo, fresh graph)
-      const graph2 = await WarpGraph.open({
+      const graph2 = await WarpRuntime.open({
         persistence,
         graphName: 'det-test-2',
         writerId: 'w1',
@@ -212,14 +212,14 @@ describe('WarpGraph Integration', () => {
 
   describe('Coverage Sync', () => {
     it('creates coverage anchor with all writer tips', async () => {
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence,
         graphName: 'cov',
         writerId: 'alice',
       });
       await (await alice.createPatch()).addNode('a').commit();
 
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence,
         graphName: 'cov',
         writerId: 'bob',
@@ -238,7 +238,7 @@ describe('WarpGraph Integration', () => {
 
   describe('patch() CAS integration', () => {
     it('basic patch advances writer ref and materializes', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'cas-test',
         writerId: 'alice',
@@ -258,7 +258,7 @@ describe('WarpGraph Integration', () => {
     });
 
     it('sequential patches advance ref each time', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'cas-seq',
         writerId: 'alice',
@@ -280,7 +280,7 @@ describe('WarpGraph Integration', () => {
     });
 
     it('reentrancy throws but outer patch still commits', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'cas-reentrant',
         writerId: 'alice',
@@ -310,7 +310,7 @@ describe('WarpGraph Integration', () => {
     });
 
     it('error in callback does not advance ref', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'cas-err',
         writerId: 'alice',

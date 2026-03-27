@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.js';
@@ -26,7 +26,7 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
     };
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -190,7 +190,7 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
     };
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -394,7 +394,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
     };
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

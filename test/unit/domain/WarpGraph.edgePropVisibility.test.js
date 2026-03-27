@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { createStateBuilder } from '../../helpers/stateBuilder.js';
 
 // =============================================================================
 
-describe('WarpGraph edge property visibility (WT/VIS/1)', () => {
+describe('WarpRuntime edge property visibility (WT/VIS/1)', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -20,7 +20,7 @@ describe('WarpGraph edge property visibility (WT/VIS/1)', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

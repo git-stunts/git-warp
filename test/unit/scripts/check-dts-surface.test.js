@@ -104,15 +104,15 @@ describe('extractJsExports', () => {
   });
 
   it('extracts export default', () => {
-    const src = `export default WarpGraph;`;
+    const src = `export default WarpRuntime;`;
     const result = extractJsExports(src);
-    expect(result).toEqual(new Set(['WarpGraph']));
+    expect(result).toEqual(new Set(['WarpRuntime']));
   });
 
   it('extracts named export default class', () => {
-    const src = `export default class WarpGraph {}`;
+    const src = `export default class WarpRuntime {}`;
     const result = extractJsExports(src);
-    expect(result).toEqual(new Set(['WarpGraph']));
+    expect(result).toEqual(new Set(['WarpRuntime']));
   });
 
   it('extracts named export default function', () => {
@@ -171,15 +171,15 @@ describe('extractDtsExports', () => {
   });
 
   it('extracts export class', () => {
-    const src = `export class WarpGraph {}`;
+    const src = `export class WarpRuntime {}`;
     const result = extractDtsExports(src);
-    expect(result).toEqual(new Set(['WarpGraph']));
+    expect(result).toEqual(new Set(['WarpRuntime']));
   });
 
   it('extracts export declare class', () => {
-    const src = `export declare class WarpGraph {}`;
+    const src = `export declare class WarpRuntime {}`;
     const result = extractDtsExports(src);
-    expect(result).toEqual(new Set(['WarpGraph']));
+    expect(result).toEqual(new Set(['WarpRuntime']));
   });
 
   it('extracts export abstract class', () => {
@@ -219,9 +219,9 @@ describe('extractDtsExports', () => {
   });
 
   it('extracts export default class', () => {
-    const src = `export default class WarpGraph {}`;
+    const src = `export default class WarpRuntime {}`;
     const result = extractDtsExports(src);
-    expect(result).toEqual(new Set(['WarpGraph']));
+    expect(result).toEqual(new Set(['WarpRuntime']));
   });
 
   it('extracts export default identifier', () => {
@@ -265,7 +265,7 @@ describe('classifyManifestExports', () => {
   it('splits runtime-backed and type-only manifest entries by section', () => {
     const result = classifyManifestExports({
       exports: {
-        WarpGraph: { kind: 'class' },
+        WarpRuntime: { kind: 'class' },
         WebSocketServerPort: { kind: 'abstract-class' },
         CONTENT_PROPERTY_KEY: { kind: 'const' },
       },
@@ -277,7 +277,7 @@ describe('classifyManifestExports', () => {
 
     expect(result.manifestNames).toEqual(
       new Set([
-        'WarpGraph',
+        'WarpRuntime',
         'WebSocketServerPort',
         'CONTENT_PROPERTY_KEY',
         'QueryNodeSnapshot',
@@ -285,7 +285,7 @@ describe('classifyManifestExports', () => {
       ])
     );
     expect(result.runtimeNames).toEqual(
-      new Set(['WarpGraph', 'WebSocketServerPort', 'CONTENT_PROPERTY_KEY'])
+      new Set(['WarpRuntime', 'WebSocketServerPort', 'CONTENT_PROPERTY_KEY'])
     );
     expect(result.typeOnlyNames).toEqual(new Set(['QueryNodeSnapshot', 'TraversalDirection']));
     expect(result.duplicateNames).toEqual(new Set());
@@ -308,14 +308,14 @@ describe('classifyManifestExports', () => {
   it('reports duplicate names across exports and typeExports', () => {
     const result = classifyManifestExports({
       exports: {
-        WarpGraph: { kind: 'class' },
+        WarpRuntime: { kind: 'class' },
       },
       typeExports: {
-        WarpGraph: { kind: 'type' },
+        WarpRuntime: { kind: 'type' },
       },
     });
 
-    expect(result.duplicateNames).toEqual(new Set(['WarpGraph']));
+    expect(result.duplicateNames).toEqual(new Set(['WarpRuntime']));
   });
 
   it('reports type-only kinds misplaced in exports', () => {
@@ -331,10 +331,10 @@ describe('classifyManifestExports', () => {
   it('reports runtime kinds misplaced in typeExports', () => {
     const result = classifyManifestExports({
       typeExports: {
-        WarpGraph: { kind: 'class' },
+        WarpRuntime: { kind: 'class' },
       },
     });
 
-    expect(result.invalidTypeSectionRuntime).toEqual(new Set(['WarpGraph']));
+    expect(result.invalidTypeSectionRuntime).toEqual(new Set(['WarpRuntime']));
   });
 });

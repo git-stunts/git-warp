@@ -1,5 +1,5 @@
 /**
- * Prototype wiring helper for WarpGraph method extraction.
+ * Prototype wiring helper for WarpRuntime method extraction.
  *
  * Assigns exported functions from `*.methods.js` modules onto a class
  * prototype, with duplicate-name detection at import time.

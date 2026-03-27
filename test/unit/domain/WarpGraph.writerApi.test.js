@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 
-describe('WarpGraph writer API', () => {
+describe('WarpRuntime writer API', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -16,7 +16,7 @@ describe('WarpGraph writer API', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -67,7 +67,7 @@ describe('WarpGraph writer API', () => {
   it('createWriter() logs via logger when present', async () => {
     /** @type {any} */
     const mockLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const graphWithLogger = await WarpGraph.open({
+    const graphWithLogger = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

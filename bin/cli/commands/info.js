@@ -1,5 +1,5 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.js';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import {
   buildCheckpointRef,
   buildCoverageRef,
@@ -69,7 +69,7 @@ async function getGraphInfo(persistence, graphName, {
   }
 
   if (includeWriterPatches && writerIds.length > 0) {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
       graphName,
       writerId: 'cli',

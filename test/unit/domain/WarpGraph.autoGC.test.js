@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createStateBuilder } from '../../helpers/stateBuilder.js';
 import { createMockPersistence, createMockLogger } from '../../helpers/warpGraphTestUtils.js';
 
@@ -24,7 +24,7 @@ function createHighTombstoneState() {
   return builder.vv('writer-1', 100).build();
 }
 
-describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
+describe('WarpRuntime auto-GC after materialize (GK/GC/1)', () => {
   /** @type {any} */
   let persistence;
 
@@ -35,7 +35,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
 
   it('default gcPolicy (enabled: false) + high tombstones → warning logged, no GC', async () => {
     const logger = createMockLogger();
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -72,7 +72,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
 
   it('gcPolicy: { enabled: true } + high tombstones → GC executed, logger.info', async () => {
     const logger = createMockLogger();
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -101,7 +101,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
 
   it('low tombstones → no warning, no GC', async () => {
     const logger = createMockLogger();
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -125,7 +125,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
 
   it('GC throws → materialize still succeeds', async () => {
     const logger = createMockLogger();
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -149,7 +149,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
   });
 
   it('_lastGCTime and _patchesSinceGC reset after GC', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -174,7 +174,7 @@ describe('WarpGraph auto-GC after materialize (GK/GC/1)', () => {
   });
 
   it('no logger provided → no crash', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

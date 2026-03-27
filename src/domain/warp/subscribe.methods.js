@@ -1,8 +1,8 @@
 /**
  * @module domain/warp/subscribe.methods
  *
- * Extracted subscribe, watch, and _notifySubscribers methods from WarpGraph.
- * Each function is bound to a WarpGraph instance at runtime via `this`.
+ * Extracted subscribe, watch, and _notifySubscribers methods from WarpRuntime.
+ * Each function is bound to a WarpRuntime instance at runtime via `this`.
  */
 
 import { diffStates, isEmptyDiff } from '../services/StateDiff.js';
@@ -24,7 +24,7 @@ import { matchGlob } from '../utils/matchGlob.js';
  * @public
  * @since 13.0.0 (stable)
  * @stability stable
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ onChange: (diff: import('../services/StateDiff.js').StateDiffResult) => void, onError?: (error: unknown) => void, replay?: boolean }} options - Subscription options
  * @returns {{unsubscribe: () => void}} Subscription handle
  * @throws {Error} If onChange is not a function
@@ -104,7 +104,7 @@ export function subscribe({ onChange, onError, replay = false }) {
  * @public
  * @since 13.0.0 (stable)
  * @stability stable
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string|string[]} pattern - Glob pattern(s) (e.g., 'user:*', 'order:123', '*')
  * @param {{ onChange: (diff: import('../services/StateDiff.js').StateDiffResult) => void, onError?: (error: unknown) => void, poll?: number }} options - Watch options
  * @returns {{unsubscribe: () => void}} Subscription handle
@@ -229,7 +229,7 @@ export function watch(pattern, { onChange, onError, poll }) {
  * Handles deferred replay for subscribers added with `replay: true` before
  * cached state was available.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/StateDiff.js').StateDiffResult} diff
  * @param {import('../services/JoinReducer.js').WarpStateV5} currentState - The current state for deferred replay
  * @private

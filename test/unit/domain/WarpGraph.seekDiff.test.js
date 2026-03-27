@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -81,7 +81,7 @@ function setupPersistence(/** @type {any} */ persistence, /** @type {any} */ wri
   });
 }
 
-describe('WarpGraph.getStateSnapshot()', () => {
+describe('WarpRuntime.getStateSnapshot()', () => {
   /** @type {any} */
   let persistence;
 
@@ -93,7 +93,7 @@ describe('WarpGraph.getStateSnapshot()', () => {
     persistence.listRefs.mockResolvedValue([]);
     persistence.readRef.mockResolvedValue(null);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -109,7 +109,7 @@ describe('WarpGraph.getStateSnapshot()', () => {
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -127,7 +127,7 @@ describe('WarpGraph.getStateSnapshot()', () => {
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -153,7 +153,7 @@ describe('WarpGraph.getStateSnapshot()', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -185,7 +185,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -212,7 +212,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 2, ops: [{ type: 'NodeAdd', node: 'n2', dot: { writerId: 'alice', counter: 2 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -241,7 +241,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       ] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -262,7 +262,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       { lamport: 1, ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'alice', counter: 1 } }] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -291,7 +291,7 @@ describe('Structural seek diff (diffStates integration)', () => {
       ] },
     ]);
 
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',

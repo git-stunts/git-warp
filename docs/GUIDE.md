@@ -1,8 +1,8 @@
-# WarpGraph User Guide
+# WarpRuntime User Guide
 
-WarpGraph is a multi-writer graph database that uses Git commits as its storage substrate. Multiple independent writers can modify the same graph without coordination — changes merge deterministically using CRDTs, and Git provides content-addressing, cryptographic integrity, and distributed replication for free.
+WarpRuntime is a multi-writer graph database that uses Git commits as its storage substrate. Multiple independent writers can modify the same graph without coordination — changes merge deterministically using CRDTs, and Git provides content-addressing, cryptographic integrity, and distributed replication for free.
 
-## When to Use WarpGraph
+## When to Use WarpRuntime
 
 - **Multiple processes or machines** writing to the same graph
 - **Offline-first applications** that sync later
@@ -33,9 +33,9 @@ The domain layer has no direct Node.js built-in imports. Runtime-specific adapte
 | Browser | `WebCryptoAdapter` | N/A |
 
 ```javascript
-import { WarpGraph, WebCryptoAdapter } from '@git-stunts/git-warp';
+import { WarpRuntime, WebCryptoAdapter } from '@git-stunts/git-warp';
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -50,7 +50,7 @@ If no crypto adapter is provided, checksum computation gracefully returns `null`
 ## Quick Start
 
 ```javascript
-import { WarpGraph, GitGraphAdapter } from '@git-stunts/git-warp';
+import { WarpRuntime, GitGraphAdapter } from '@git-stunts/git-warp';
 import Plumbing from '@git-stunts/plumbing';
 
 // 1. Point at a Git repo
@@ -58,7 +58,7 @@ const plumbing = new Plumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
 // 2. Open a graph
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'todos',
   writerId: 'local',
@@ -107,7 +107,7 @@ flowchart TB
             sp["SeekCachePort"]
 
             subgraph domain["Domain Core"]
-                wg["WarpGraph — main API facade"]
+                wg["WarpRuntime — main API facade"]
                 jr["JoinReducer"]
                 pb["PatchBuilderV2"]
                 cs["CheckpointService"]
@@ -182,7 +182,7 @@ await graph.hasNode('temp');    // false
 await graph.getEdges();         // [] — edge is hidden too
 ```
 
-The `onDeleteWithData` option (set on `WarpGraph.open()`) controls what happens when you remove a node that has attached edges or properties:
+The `onDeleteWithData` option (set on `WarpRuntime.open()`) controls what happens when you remove a node that has attached edges or properties:
 
 | Policy | Behavior |
 |---|---|
@@ -296,7 +296,7 @@ await graph.neighbors('user:alice', 'outgoing');
 By default, `autoMaterialize` is `true` — query methods transparently call `materialize()` when no cached state exists or when the state is stale. To opt out:
 
 ```javascript
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -612,7 +612,7 @@ const result = await graph.traverse.weightedLongestPath('task:start', 'task:end'
 
 ## Multi-Writer Collaboration
 
-WarpGraph's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
+WarpRuntime's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
 
 ### How It Works
 
@@ -633,7 +633,7 @@ flowchart TB
 
 ```javascript
 // === Machine A ===
-const graphA = await WarpGraph.open({
+const graphA = await WarpRuntime.open({
   persistence: persistenceA,
   graphName: 'shared-doc',
   writerId: 'machine-a',
@@ -645,7 +645,7 @@ await (await graphA.createPatch())
   .commit();
 
 // === Machine B ===
-const graphB = await WarpGraph.open({
+const graphB = await WarpRuntime.open({
   persistence: persistenceB,
   graphName: 'shared-doc',
   writerId: 'machine-b',
@@ -789,7 +789,7 @@ const state = await graph.materializeAt(sha);
 Configure automatic checkpointing so you never have to think about it:
 
 ```javascript
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -910,13 +910,13 @@ graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 
 The intended substrate boundary is:
 
-- `WarpGraph` is the low-level substrate/session facade
+- `WarpRuntime` is the low-level substrate/session facade
 - observers are the preferred read-side abstraction
 - working sets are the preferred speculative write abstraction
 
-That boundary is not about hiding `WarpGraph`. It is about keeping higher layers
+That boundary is not about hiding `WarpRuntime`. It is about keeping higher layers
 from rebuilding their own graph engine above git-warp. Reach for
-`WarpGraph`-level materialization and patch APIs when you are working on
+`WarpRuntime`-level materialization and patch APIs when you are working on
 substrate plumbing. Reach for observers and working sets when you are building
 application-facing behavior.
 
@@ -1076,7 +1076,7 @@ const forked = await graph.fork({
   forkWriterId: 'fork-writer',
 });
 
-// forked is a new WarpGraph sharing history up to the fork point
+// forked is a new WarpRuntime sharing history up to the fork point
 await (await forked.createPatch()).addNode('new:node').commit();
 ```
 
@@ -1299,7 +1299,7 @@ const provenance = await graph.patchesForWorkingSet('review-auth', 'task:auth');
 
 ### Git Hooks
 
-WarpGraph ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
+WarpRuntime ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
 
 ```text
 [warp] Writer refs changed during merge. Call materialize() to see updates.
@@ -1578,7 +1578,7 @@ Inject a logger for structured timing output:
 ```javascript
 import { ConsoleLogger } from '@git-stunts/git-warp';
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -1886,7 +1886,7 @@ const { state, receipts } = await graph.materialize({ receipts: true });
 
 ### Appendix F: Sync Protocol
 
-WarpGraph provides a request/response sync protocol for programmatic synchronization without Git remotes.
+WarpRuntime provides a request/response sync protocol for programmatic synchronization without Git remotes.
 
 #### Protocol Flow
 
@@ -1957,10 +1957,10 @@ Over time, tombstoned entries accumulate in ORSets. Garbage collection compacts 
 
 #### Automatic GC
 
-Configure GC policy on `WarpGraph.open()`:
+Configure GC policy on `WarpRuntime.open()`:
 
 ```javascript
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2048,12 +2048,12 @@ Memory: initial load near-zero (lazy); single shard 0.5–2 MB; full index at 1M
 
 ### Appendix I: Audit Receipts
 
-When `audit: true` is set on `WarpGraph.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
+When `audit: true` is set on `WarpRuntime.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
 
 #### Enabling Audit Mode
 
 ```javascript
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2146,18 +2146,18 @@ As of v11.0.0, `autoMaterialize` defaults to `true`. If you relied on the previo
 **Option A:** Accept the new default (recommended for most users):
 ```js
 // Before: required explicit materialize()
-const graph = await WarpGraph.open({ persistence, graphName, writerId });
+const graph = await WarpRuntime.open({ persistence, graphName, writerId });
 await graph.materialize();
 const nodes = await graph.getNodes();
 
 // After: just works
-const graph = await WarpGraph.open({ persistence, graphName, writerId });
+const graph = await WarpRuntime.open({ persistence, graphName, writerId });
 const nodes = await graph.getNodes();
 ```
 
 **Option B:** Opt out explicitly:
 ```js
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence, graphName, writerId,
   autoMaterialize: false, // preserve pre-v11 behavior
 });
