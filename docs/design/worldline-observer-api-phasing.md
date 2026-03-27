@@ -158,7 +158,9 @@ This remains substrate-factual. It is not application policy.
 Observers gain:
 
 ```ts
-seek(options?: ObserverOptions): Promise<ObserverView>
+interface ObserverView {
+  seek(options?: ObserverOptions): Promise<ObserverView>
+}
 ```
 
 Semantics:
@@ -252,7 +254,9 @@ class Worldline {
 And `WarpRuntime` should gain:
 
 ```ts
-worldline(options?: { source?: WorldlineSource }): Worldline;
+interface WarpRuntime {
+  worldline(options?: { source?: WorldlineSource }): Worldline;
+}
 ```
 
 Semantics:

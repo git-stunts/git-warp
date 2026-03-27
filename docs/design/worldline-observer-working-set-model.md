@@ -508,7 +508,7 @@ This document intentionally points toward a major-version rewrite.
 The public read story should look like:
 
 ```javascript
-const repo = await WarpRepository.open({ ... });
+const repo = await WarpRepository.open({});
 const worldline = await repo.openWorldline('live');
 
 const graph = await worldline.materialize({ tick: 42 });
