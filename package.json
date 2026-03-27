@@ -86,6 +86,7 @@
     "test:coverage": "vitest run --coverage test/unit",
     "benchmark": "sh -c 'if [ \"$GIT_STUNTS_DOCKER\" = \"1\" ]; then vitest bench --run test/benchmark \"$@\"; else docker compose run --build --rm test npm run benchmark:local -- \"$@\"; fi' --",
     "benchmark:local": "vitest bench --run test/benchmark",
+    "benchmark:detached-reads": "vitest run test/benchmark/DetachedReadBoundary.benchmark.js",
     "demo": "cd examples && docker compose up -d && docker compose exec demo bash",
     "demo:setup": "cd examples && docker compose up -d && docker compose exec demo sh -c 'cd /app && npm install --silent && cd /demo && node /app/examples/scripts/setup.js'",
     "demo:explore": "cd examples && docker compose exec demo node /app/examples/scripts/explore.js",

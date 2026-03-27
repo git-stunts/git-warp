@@ -1,6 +1,14 @@
 # OG-005 — Benchmark Detached Coordinate And Working-Set Reads
 
-Status: QUEUED
+Status: DONE
+
+Promoted to: `docs/design/detached-read-benchmarks.md`
+
+Closed by:
+
+- `test/unit/benchmark/detachedReadBenchmark.fixture.test.js`
+- `test/benchmark/DetachedReadBoundary.benchmark.js`
+- `docs/retrospectives/2026-03-27-detached-read-benchmarks.md`
 
 ## Problem
 
@@ -13,4 +21,4 @@ know what the coordinate and working-set read boundary actually costs.
 
 ## Promotion Trigger
 
-Promote this item when the next performance or caching slice begins.
+Promoted when the detached-read performance slice began.
