@@ -79,6 +79,8 @@ export default class WarpRuntime {
    * @private
    * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} options
    */
+  // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
+  // eslint-disable-next-line max-lines-per-function, complexity
   constructor(options) {
     const {
       persistence,
@@ -347,6 +349,8 @@ export default class WarpRuntime {
    *   writerId: 'node-1'
    * });
    */
+  // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
+  // eslint-disable-next-line max-lines-per-function, complexity
   static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust }) {
     // Validate inputs
     validateGraphName(graphName);
