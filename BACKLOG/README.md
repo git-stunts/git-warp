@@ -22,7 +22,7 @@ Workflow:
 | DONE | OG-003 | Deepen public snapshot immutability | [OG-003-snapshot-immutability.md](OG-003-snapshot-immutability.md) |
 | DONE | OG-004 | Canonical immutable observer seek contract | [OG-004-observer-seek-contract.md](OG-004-observer-seek-contract.md) |
 | QUEUED | OG-005 | Benchmark detached coordinate and working-set reads | [OG-005-detached-read-benchmarks.md](OG-005-detached-read-benchmarks.md) |
-| QUEUED | OG-006 | Remove remaining docs/examples that imply caller retargeting | [OG-006-read-api-doc-consistency.md](OG-006-read-api-doc-consistency.md) |
+| DONE | OG-006 | Remove remaining docs/examples that imply caller retargeting | [OG-006-read-api-doc-consistency.md](OG-006-read-api-doc-consistency.md) |
 | DONE | OG-007 | Expand hash-stability coverage across snapshot flavors | [OG-007-hash-stability-coverage.md](OG-007-hash-stability-coverage.md) |
 | DONE | OG-008 | Make retargeting compatibility a hard major-version cut | [OG-008-retargeting-compatibility.md](OG-008-retargeting-compatibility.md) |
 | QUEUED | OG-009 | Align playback-head and TTD consumers after read nouns stabilize | [OG-009-playback-head-alignment.md](OG-009-playback-head-alignment.md) |

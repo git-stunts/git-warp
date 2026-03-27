@@ -463,28 +463,42 @@ remains the substrate/session facade, but observers are the cleaner read-side
 boundary when you need a worldline-relative, filtered, read-only projection.
 
 ```javascript
+const publicWorldline = graph.worldline();
+
 // Create an observer that only sees user:* nodes, with sensitive fields hidden
-const view = await graph.observer('publicApi', {
+const view = await publicWorldline.observer('publicApi', {
   match: 'user:*',
   redact: ['ssn', 'password'],
 });
 
-// Pin an observer to a historical coordinate
-const historical = await graph.observer(
-  'beforeHotfix',
-  { match: 'user:*' },
-  {
-    source: {
-      kind: 'coordinate',
-      frontier: { alice: 'abc123...' },
-      ceiling: 12,
-    },
+// Pin a worldline to a historical coordinate, then read through an observer
+const historicalWorldline = graph.worldline({
+  source: {
+    kind: 'coordinate',
+    frontier: { alice: 'abc123...' },
+    ceiling: 12,
   },
-);
+});
+const historical = await historicalWorldline.observer('beforeHotfix', {
+  match: 'user:*',
+});
+
+// The same pattern works for speculative lanes
+const reviewLane = graph.worldline({
+  source: {
+    kind: 'working_set',
+    workingSetId: 'review-auth',
+    ceiling: 12,
+  },
+});
+const reviewView = await reviewLane.observer('review-auth-view', {
+  match: 'task:*',
+});
 
 const users = await view.getNodes();                // only user:* nodes
 const props = await view.getNodeProps('user:alice'); // { name: 'Alice', ... } without ssn/password
 const result = await view.query().match('user:*').where({ role: 'admin' }).run();
+const reviewTasks = await reviewView.getNodes();
 
 // Measure information loss between two observer perspectives
 const { cost, breakdown } = await graph.translationCost(
@@ -493,6 +507,16 @@ const { cost, breakdown } = await graph.translationCost(
 );
 // cost ∈ [0, 1] — 0 = identical views, 1 = completely disjoint
 ```
+
+When you want a pinned read handle, prefer `worldline()` first and then create
+an observer from that handle. `graph.observer(..., { source })` still exists as
+a convenience surface, but `Worldline` is the clearer noun when you are binding
+history explicitly.
+
+Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a
+detached immutable snapshot and does not retarget the caller runtime. Use them
+when you need direct replay output for helpers such as `projectStateV5()` or
+`createStateReaderV5()`, not as a mode switch on one live `WarpRuntime`.
 
 Observers are pinned read handles. By default they capture the current
 materialized read coordinate at creation time, and they can also bind directly

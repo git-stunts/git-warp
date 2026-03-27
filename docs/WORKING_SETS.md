@@ -98,12 +98,22 @@ const braided = await graph.braidWorkingSet('review-auth', {
   braidedWorkingSetIds: ['hold-auth'],
   writable: false,
 });
-const state = await graph.materializeWorkingSet('review-auth');
+const state = await graph.materializeWorkingSet('review-auth'); // detached immutable snapshot
 const view = projectStateV5(state);
 const reader = createStateReaderV5(state);
 const task = reader.inspectNode('task:oauth');
 const neighbors = reader.neighbors('task:oauth', 'outgoing');
 const stateAtCeiling = await graph.materializeWorkingSet('review-auth', { ceiling: 12 });
+const reviewLane = graph.worldline({
+  source: {
+    kind: 'working_set',
+    workingSetId: 'review-auth',
+    ceiling: 12,
+  },
+});
+const reviewView = await reviewLane.observer('review-auth-view', {
+  match: 'task:*',
+});
 const visiblePatches = await graph.getWorkingSetPatches('review-auth');
 const provenanceShas = await graph.patchesForWorkingSet('review-auth', 'task:oauth');
 const conflicts = await graph.analyzeConflicts({ workingSetId: 'review-auth' });
@@ -140,6 +150,13 @@ const tick = await graph.tickWorkingSet('review-auth');
 
 await graph.dropWorkingSet('review-auth');
 ```
+
+`materializeWorkingSet()` and `materializeCoordinate()` each return a detached
+immutable snapshot and does not retarget the caller runtime. Use those helpers
+when you need direct replay output for `projectStateV5()` or
+`createStateReaderV5()`. When you want a pinned application-facing read handle
+over one speculative lane, prefer `worldline()` and then create an observer from
+that lane.
 
 `patchWorkingSet()` remains valid plumbing for direct overlay mutation. The
 preferred speculative-lane story now starts shifting toward:

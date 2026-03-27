@@ -927,22 +927,33 @@ Observers project the graph through a filtered lens — restricting which nodes,
 ```javascript
 await graph.materialize();
 
-const view = await graph.observer('userView', {
+const liveWorldline = graph.worldline();
+const view = await liveWorldline.observer('userView', {
   match: 'user:*',              // only user:* nodes visible
   redact: ['ssn', 'password'],  // these properties are hidden
 });
 
-const historical = await graph.observer(
-  'userViewAtTick12',
-  { match: 'user:*' },
-  {
-    source: {
-      kind: 'coordinate',
-      frontier: { writerA: 'abc123...' },
-      ceiling: 12,
-    },
+const historicalWorldline = graph.worldline({
+  source: {
+    kind: 'coordinate',
+    frontier: { writerA: 'abc123...' },
+    ceiling: 12,
   },
-);
+});
+const historical = await historicalWorldline.observer('userViewAtTick12', {
+  match: 'user:*',
+});
+
+const reviewLane = graph.worldline({
+  source: {
+    kind: 'working_set',
+    workingSetId: 'review-auth',
+    ceiling: 12,
+  },
+});
+const reviewView = await reviewLane.observer('reviewUsers', {
+  match: 'user:*',
+});
 ```
 
 The returned `ObserverView` is read-only and supports the same query/traverse API:
@@ -961,6 +972,15 @@ reconstructing a second graph-shaped read model above the substrate.
 Observers are pinned read handles. By default they capture the current
 materialized coordinate at creation time. They can also bind directly to an
 explicit coordinate or a pinned working set instead of following live truth.
+
+`graph.observer(..., { source })` remains available as a convenience entry
+point, but `worldline()` is the clearer public noun when the caller wants to pin
+history explicitly.
+
+`materializeCoordinate()` and `materializeWorkingSet()` each return a detached
+immutable snapshot and does not retarget the caller runtime. Use them when you
+want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
+lower-level inspection rather than an application-facing read handle.
 
 #### Observer Configuration
 
@@ -1250,7 +1270,13 @@ const workingSet = await graph.createWorkingSet({
   lamportCeiling: 12,
 });
 
-const state = await graph.materializeWorkingSet(workingSet.workingSetId);
+const state = await graph.materializeWorkingSet(workingSet.workingSetId); // detached immutable snapshot
+const reviewLane = graph.worldline({
+  source: { kind: 'working_set', workingSetId: workingSet.workingSetId },
+});
+const reviewView = await reviewLane.observer('review-auth-view', {
+  match: 'task:*',
+});
 
 await graph.patchWorkingSet(workingSet.workingSetId, (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
@@ -1263,6 +1289,11 @@ await graph.queueWorkingSetIntent(workingSet.workingSetId, (p) => {
 const queuedIntents = await graph.listWorkingSetIntents(workingSet.workingSetId);
 const tick = await graph.tickWorkingSet(workingSet.workingSetId);
 ```
+
+That raw working-set materialization call returns a detached immutable snapshot
+and does not retarget the caller runtime. When you want a pinned application-
+facing read handle over the same speculative lane, prefer `worldline(...)` plus
+`observer(...)` as shown above.
 
 Use [docs/WORKING_SETS.md](WORKING_SETS.md) for the dedicated working-set model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.
 
