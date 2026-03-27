@@ -119,10 +119,12 @@ The public surface should teach these rules plainly:
 This cycle should produce, at minimum:
 
 1. a doctrine note describing the intended public read model
-2. a README rewrite that teaches the right path first
-3. explicit cost-signaling guidance for inspection APIs
-4. task-shaped examples for both human developers and coding agents
-5. tests-as-spec for the most important doc and API affordance constraints
+2. a public API stratification note describing which primitives should feel
+   primary versus advanced
+3. a README rewrite that teaches the right path first
+4. explicit cost-signaling guidance for inspection APIs
+5. task-shaped examples for both human developers and coding agents
+6. tests-as-spec for the most important doc and API affordance constraints
 
 ## Candidate Questions For Design Exploration
 
