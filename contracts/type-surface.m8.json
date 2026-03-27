@@ -638,7 +638,7 @@
       "deprecated": true,
       "alias": "CommitDagTraversalService"
     },
-    "WarpGraph": {
+    "WarpRuntime": {
       "kind": "class",
       "default": true,
       "static": {
@@ -650,7 +650,7 @@
               "type": "{ persistence: GraphPersistencePort; graphName: string; writerId: string; logger?: LoggerPort; adjacencyCacheSize?: number; gcPolicy?: GCPolicyConfig; checkpointPolicy?: { every: number }; autoMaterialize?: boolean; onDeleteWithData?: 'reject' | 'cascade' | 'warn'; clock?: ClockPort; crypto?: CryptoPort; codec?: unknown; seekCache?: SeekCachePort }"
             }
           ],
-          "returns": "Promise<WarpGraph>"
+          "returns": "Promise<WarpRuntime>"
         }
       },
       "instance": {
@@ -941,7 +941,7 @@
           "params": [
             {
               "name": "remote",
-              "type": "string | WarpGraph"
+              "type": "string | WarpRuntime"
             },
             {
               "name": "options",
@@ -959,7 +959,7 @@
               "type": "{ from: string; at: string; forkName?: string; forkWriterId?: string }"
             }
           ],
-          "returns": "Promise<WarpGraph>"
+          "returns": "Promise<WarpRuntime>"
         },
         "createWormhole": {
           "async": true,
@@ -1126,7 +1126,7 @@
         "status": {
           "async": true,
           "params": [],
-          "returns": "Promise<WarpGraphStatus>"
+          "returns": "Promise<WarpRuntimeStatus>"
         },
         "maybeRunGC": {
           "async": false,
@@ -1194,6 +1194,9 @@
           "returns": "void"
         }
       }
+    },
+    "Worldline": {
+      "kind": "class"
     },
     "WarpStateIndexBuilder": {
       "kind": "class"
@@ -1607,6 +1610,9 @@
     "ObserverConfig": {
       "kind": "interface"
     },
+    "LiveObserverSource": {
+      "kind": "interface"
+    },
     "CoordinateObserverSource": {
       "kind": "interface"
     },
@@ -1614,6 +1620,12 @@
       "kind": "interface"
     },
     "ObserverOptions": {
+      "kind": "interface"
+    },
+    "WorldlineSource": {
+      "kind": "type"
+    },
+    "WorldlineOptions": {
       "kind": "interface"
     },
     "OpEdgeAdd": {
@@ -1784,7 +1796,7 @@
     "VisibleStateTransferPlanSummaryV1": {
       "kind": "interface"
     },
-    "WarpGraphStatus": {
+    "WarpRuntimeStatus": {
       "kind": "interface"
     },
     "WarpStateV5": {
