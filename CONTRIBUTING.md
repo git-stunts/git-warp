@@ -31,7 +31,7 @@ on git-warp:
 1. design docs first
 2. tests as executable spec second
 3. implementation third
-4. playback and reconciliation after the slice lands
+4. playback, retrospective, and reconciliation after the slice lands
 
 Tests are the spec. Design docs define intent and invariants. Implementation
 follows.
@@ -48,6 +48,45 @@ For non-trivial work, use IBM Design Thinking style framing:
 
 Keep that vocabulary in the design method. Do not leak it into the runtime
 ontology unless the substrate truly needs a first-class concept.
+
+## Retrospectives
+
+Retrospectives are not optional cleanup. Every closed slice should leave behind
+an explicit retrospective, and that retrospective must audit the landed changes
+against the intended design.
+
+At minimum, every retrospective should include:
+
+1. governing design docs and backlog IDs
+2. what actually landed
+3. a `Design Alignment Audit` section
+4. any observed drift
+5. whether the drift is accepted, rejected, or deferred
+
+The `Design Alignment Audit` should check the implemented slice against the
+intended invariants and label each major point as:
+
+- `aligned`
+- `partially aligned`
+- `not aligned`
+
+If implementation drift occurred, the retrospective must say why:
+
+- deliberate tradeoff
+- implementation shortcut
+- hidden pre-existing constraint
+- test gap
+- design ambiguity
+
+And it must say how the repo resolves that drift:
+
+- update the design docs
+- add a follow-on `BACKLOG/` item
+- immediately fix the implementation in the next slice
+
+Do not treat a passing test suite as proof that the design was honored. The
+retro is where we verify that the code matches the intended architecture, not
+just the executable spec that happened to be written.
 
 ## Checkpoints
 
