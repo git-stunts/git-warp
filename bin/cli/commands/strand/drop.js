@@ -7,31 +7,31 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'drop',
-  summary: 'Delete a working-set descriptor',
+  summary: 'Delete a strand descriptor',
 });
 
 const DROP_OPTIONS = /** @type {Record<string, { type: string, short?: string, default?: unknown, multiple?: boolean }>} */ ({});
-const dropWorkingSetSchema = z.object({}).strict();
+const dropStrandSchema = z.object({}).strict();
 
 /**
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  const { positionals } = parseCommandArgs(args, DROP_OPTIONS, dropWorkingSetSchema, { allowPositionals: true });
+export async function handleStrandSubcommand({ options, args }) {
+  const { positionals } = parseCommandArgs(args, DROP_OPTIONS, dropStrandSchema, { allowPositionals: true });
   if (positionals.length !== 1) {
-    throw usageError('Usage: warp-graph working-set drop <id>');
+    throw usageError('Usage: warp-graph strand drop <id>');
   }
 
-  const workingSetId = positionals[0];
+  const strandId = positionals[0];
   const { graph, graphName } = await openGraph(options);
-  const dropped = await graph.dropWorkingSet(workingSetId);
+  const dropped = await graph.dropStrand(strandId);
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'drop',
-      workingSetId,
+      strandAction: 'drop',
+      strandId,
       dropped,
     },
     exitCode: dropped ? EXIT_CODES.OK : EXIT_CODES.NOT_FOUND,

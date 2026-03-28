@@ -7,7 +7,7 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'create',
-  summary: 'Create a pinned working-set descriptor',
+  summary: 'Create a pinned strand descriptor',
 });
 
 const CREATE_OPTIONS = {
@@ -18,14 +18,14 @@ const CREATE_OPTIONS = {
   'lease-expires-at': { type: 'string' },
 };
 
-const createWorkingSetSchema = z.object({
+const createStrandSchema = z.object({
   id: z.string().optional(),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   owner: z.string().optional(),
   scope: z.string().optional(),
   'lease-expires-at': z.string().optional(),
 }).strict().transform((val) => ({
-  workingSetId: val.id,
+  strandId: val.id,
   lamportCeiling: val['lamport-ceiling'] ?? null,
   owner: val.owner,
   scope: val.scope,
@@ -36,16 +36,16 @@ const createWorkingSetSchema = z.object({
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  const { values } = parseCommandArgs(args, CREATE_OPTIONS, createWorkingSetSchema);
+export async function handleStrandSubcommand({ options, args }) {
+  const { values } = parseCommandArgs(args, CREATE_OPTIONS, createStrandSchema);
   const { graph, graphName } = await openGraph(options);
-  const workingSet = await graph.createWorkingSet(values);
+  const strand = await graph.createStrand(values);
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'create',
-      workingSet,
+      strandAction: 'create',
+      strand,
     },
     exitCode: EXIT_CODES.OK,
   };

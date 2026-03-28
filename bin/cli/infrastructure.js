@@ -45,6 +45,7 @@ Commands:
                      coordinate         Inspect the resolved observation coordinate
                        --lamport-ceiling <n>  Inspect no later than Lamport tick n
                      conflicts          Analyze conflict provenance at the current frontier
+                       --strand <id>         Analyze one pinned strand instead of the live frontier
                        --entity-id <id>       Filter by entity id
                        --target-kind <kind>   node, edge, node_property, edge_property
                        --property-key <key>   Property key for *_property targets
@@ -57,10 +58,12 @@ Commands:
                        --evidence <level>     summary, standard, full
                        --max-patches <n>      Deterministic scan budget
                      provenance         Trace causal patch provenance for an entity id
+                       --strand <id>         Inspect provenance inside one pinned strand
                        --entity-id <id>       Entity id to inspect
                        --lamport-ceiling <n>  Analyze no later than Lamport tick n
                        --max-patches <n>      Limit returned provenance entries
                      receipts           Inspect reducer tick receipts and per-op outcomes
+                       --strand <id>         Materialize and inspect one pinned strand
                        --writer-id <id>       Filter receipts by writer id
                        --patch <sha>          Filter receipts by patch SHA/prefix
                        --target <target>      Filter matching ops by exact receipt target
@@ -69,33 +72,34 @@ Commands:
                        --lamport-ceiling <n>  Analyze no later than Lamport tick n
                        --limit <n>            Limit returned receipts
                      timeline           Inspect a cross-writer causal patch timeline
+                       --strand <id>         Inspect the visible patch universe of one pinned strand
                        --entity-id <id>       Filter to patches touching an entity id
                        --writer-id <id>       Filter to a specific writer
                        --lamport-floor <n>    Include no earlier than Lamport tick n
                        --lamport-ceiling <n>  Include no later than Lamport tick n
                        --limit <n>            Return the newest N entries in causal order
-  working-set      Manage pinned working-set descriptors
-                     create             Create a pinned working-set descriptor
-                       --id <id>               Explicit working-set id
+  strand      Manage pinned strand descriptors
+                     create             Create a pinned strand descriptor
+                       --id <id>               Explicit strand id
                        --lamport-ceiling <n>   Pin no later than Lamport tick n
                        --owner <id>            Optional owner metadata
                        --scope <text>          Optional scope metadata
                        --lease-expires-at <ts> Optional ISO-8601 lease expiry metadata
-                     braid <id>        Pin read-only braid overlays onto a target working set
-                       --support <id>         Braided support working-set id (repeatable)
+                     braid <id>        Pin read-only braid overlays onto a target strand
+                       --support <id>         Braided support strand id (repeatable)
                        --read-only            Disable writes to the target overlay
                        --writable             Re-enable writes to the target overlay
-                     list               List working-set descriptors for the graph
-                     show <id>          Show a single working-set descriptor
-                     compare <id>       Compare a working set against another substrate surface
-                       --against <sel>        base, live, or working-set:<id>
+                     list               List strand descriptors for the graph
+                     show <id>          Show a single strand descriptor
+                     compare <id>       Compare a strand against another substrate surface
+                       --against <sel>        base, live, or strand:<id>
                        --target-id <id>       Limit target-local helpers to one entity id
-                       --lamport-ceiling <n>  Apply an additional ceiling to the working set
+                       --lamport-ceiling <n>  Apply an additional ceiling to the strand
                        --against-lamport-ceiling <n>
                                               Apply an additional ceiling to the comparison side
                      materialize <id>   Materialize the pinned coordinate
                        --receipts             Include tick receipts
-                     drop <id>          Delete a working-set descriptor
+                     drop <id>          Delete a strand descriptor
   verify-audit     Verify audit receipt chain integrity
   verify-index     Verify bitmap index integrity by sampling
   reindex          Force full index rebuild
@@ -213,7 +217,7 @@ export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
 
-export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'working-set', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
+export const KNOWN_COMMANDS = ['info', 'query', 'path', 'history', 'check', 'doctor', 'debug', 'strand', 'materialize', 'seek', 'verify-audit', 'verify-index', 'reindex', 'trust', 'patch', 'tree', 'bisect', 'install-hooks'];
 
 const BASE_OPTIONS = {
   repo:   { type: 'string', short: 'r' },

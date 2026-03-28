@@ -8,14 +8,14 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'materialize',
-  summary: 'Materialize the pinned working-set coordinate',
+  summary: 'Materialize the pinned strand coordinate',
 });
 
 const MATERIALIZE_OPTIONS = {
   receipts: { type: 'boolean', default: false },
 };
 
-const materializeWorkingSetSchema = z.object({
+const materializeStrandSchema = z.object({
   receipts: z.boolean().default(false),
 }).strict();
 
@@ -23,22 +23,22 @@ const materializeWorkingSetSchema = z.object({
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  const { values, positionals } = parseCommandArgs(args, MATERIALIZE_OPTIONS, materializeWorkingSetSchema, { allowPositionals: true });
+export async function handleStrandSubcommand({ options, args }) {
+  const { values, positionals } = parseCommandArgs(args, MATERIALIZE_OPTIONS, materializeStrandSchema, { allowPositionals: true });
   if (positionals.length !== 1) {
-    throw usageError('Usage: warp-graph working-set materialize <id> [--receipts]');
+    throw usageError('Usage: warp-graph strand materialize <id> [--receipts]');
   }
 
-  const workingSetId = positionals[0];
+  const strandId = positionals[0];
   const { graph, graphName } = await openGraph(options);
-  const workingSet = await graph.getWorkingSet(workingSetId);
-  if (!workingSet) {
-    throw notFoundError(`Working set not found: ${workingSetId}`);
+  const strand = await graph.getStrand(strandId);
+  if (!strand) {
+    throw notFoundError(`Strand not found: ${strandId}`);
   }
 
   const materialized = values.receipts
-    ? await graph.materializeWorkingSet(workingSetId, { receipts: true })
-    : await graph.materializeWorkingSet(workingSetId);
+    ? await graph.materializeStrand(strandId, { receipts: true })
+    : await graph.materializeStrand(strandId);
 
   const state = 'state' in materialized ? materialized.state : materialized;
   const receipts = 'state' in materialized ? materialized.receipts : undefined;
@@ -46,8 +46,8 @@ export async function handleWorkingSetSubcommand({ options, args }) {
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'materialize',
-      workingSet,
+      strandAction: 'materialize',
+      strand,
       state,
       receipts,
       summary: {

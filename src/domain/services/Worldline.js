@@ -2,7 +2,7 @@
  * Worldline - First-class read-side history handle over WARP selectors.
  *
  * This initial implementation is intentionally thin: it wraps the existing
- * read-source selector vocabulary (`live`, `coordinate`, `working_set`) in a
+ * read-source selector vocabulary (`live`, `coordinate`, `strand`) in a
  * dedicated public noun without yet requiring tick-indexed coordinates.
  *
  * @module domain/services/Worldline
@@ -10,12 +10,15 @@
 
 import QueryBuilder from './QueryBuilder.js';
 import LogicalTraversal from './LogicalTraversal.js';
+import { toInternalStrandShape } from '../utils/strandPublicShape.js';
+import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
 /** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
 /** @typedef {import('../../../index.js').ObserverConfig} ObserverConfig */
 /**
  * @typedef {import('../../../index.js').WorldlineSource} WorldlineSource
  * @typedef {import('../../../index.js').WorldlineOptions} WorldlineOptions
+ * @typedef {import('../services/JoinReducer.js').WarpStateV5 | { state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }} MaterializedSourceResult
  * @typedef {{
  *   _materializeGraph: () => Promise<{
  *     state: unknown,
@@ -29,7 +32,7 @@ import LogicalTraversal from './LogicalTraversal.js';
  */
 
 /**
- * @param {WorldlineSource|undefined|null} source
+ * @param {WorldlineSource|{ kind: 'working_set', workingSetId: string, ceiling?: number|null }|undefined|null} source
  * @returns {WorldlineSource}
  */
 function cloneWorldlineSource(source) {
@@ -52,8 +55,8 @@ function cloneWorldlineSource(source) {
   }
 
   return {
-    kind: 'working_set',
-    workingSetId: value.workingSetId,
+    kind: 'strand',
+    strandId: 'strandId' in value ? value.strandId : value.workingSetId,
     ceiling: value.ceiling ?? null,
   };
 }
@@ -126,26 +129,31 @@ async function materializeCoordinateSource(graph, source, collectReceipts) {
 
 /**
  * @param {WarpRuntime} graph
- * @param {{ kind: 'working_set', workingSetId: string, ceiling?: number|null }} source
+ * @param {{ kind: 'strand', strandId: string, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
- * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5 | { state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
+ * @returns {Promise<MaterializedSourceResult>}
  */
 async function materializeWorkingSetSource(graph, source, collectReceipts) {
+  const internalSource = /** @type {{ workingSetId: string, ceiling?: number|null }} */ (toInternalStrandShape(source));
   if (collectReceipts) {
-    return await graph.materializeWorkingSet(
-      source.workingSetId,
+    return /** @type {MaterializedSourceResult} */ (await callInternalRuntimeMethod(
+      graph,
+      'materializeWorkingSet',
+      internalSource.workingSetId,
       {
         receipts: true,
-        ceiling: source.ceiling ?? null,
+        ceiling: internalSource.ceiling ?? null,
       },
-    );
+    ));
   }
-  return await graph.materializeWorkingSet(
-    source.workingSetId,
+  return /** @type {MaterializedSourceResult} */ (await callInternalRuntimeMethod(
+    graph,
+    'materializeWorkingSet',
+    internalSource.workingSetId,
     {
-      ceiling: source.ceiling ?? null,
+      ceiling: internalSource.ceiling ?? null,
     },
-  );
+  ));
 }
 
 /**
@@ -211,7 +219,9 @@ export default class Worldline {
   async seek(options = undefined) {
     return await Promise.resolve(new Worldline({
       graph: this._graph,
-      source: cloneWorldlineSource(options?.source || this._source),
+      source: cloneWorldlineSource(
+        cloneWorldlineSource(options?.source || this._source),
+      ),
     }));
   }
 

@@ -13,7 +13,7 @@ This guide teaches you the `git warp` command-line interface from scratch. Every
 - [Reviewing History](#reviewing-history) (`history`)
 - [Time Travel](#time-travel) (`seek`)
 - [Materializing State](#materializing-state) (`materialize`)
-- [Working Sets](#working-sets) (`working-set create`, `working-set list`, `working-set show`, `working-set materialize`, `working-set drop`)
+- [Strands](#strands) (`strand create`, `strand list`, `strand show`, `strand materialize`, `strand drop`)
 - [Health and Diagnostics](#health-and-diagnostics) (`check`, `doctor`)
 - [Time Travel Debugger](#time-travel-debugger) (`debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, `debug receipts`)
 - [Index Management](#index-management) (`verify-index`, `reindex`)
@@ -231,7 +231,7 @@ This renders an ASCII dashboard with writer timelines showing patch distribution
 
 ### `query` — Run a logical graph query
 
-The `query` command is the workhorse of the CLI. It matches nodes by pattern, filters by properties, traverses edges, and selects output fields. Steps are applied left-to-right, each narrowing the working set.
+The `query` command is the workhorse of the CLI. It matches nodes by pattern, filters by properties, traverses edges, and selects output fields. Steps are applied left-to-right, each narrowing the strand.
 
 ### Matching nodes
 
@@ -698,27 +698,27 @@ Shows a dashboard with per-writer patch bars and node/edge/property count gauges
 
 ---
 
-## Working Sets
+## Strands
 
-### `working-set` — Pin reusable observation coordinates without worktrees
+### `strand` — Pin reusable observation coordinates without worktrees
 
-The `working-set` family creates and manages durable descriptors for explicit observation coordinates. A working set pins:
+The `strand` family creates and manages durable descriptors for explicit observation coordinates. A strand pins:
 
 - the current frontier snapshot
 - an optional Lamport ceiling
 - optional owner/scope/lease metadata
 - an overlay identity and patch-log ref for future divergent writes
 
-This is **not** part of the read-only Time Travel Debugger family. `working-set` creates durable descriptor refs, while TTD only inspects substrate facts.
+This is **not** part of the read-only Time Travel Debugger family. `strand` creates durable descriptor refs, while TTD only inspects substrate facts.
 
-### `working-set create` — Create a pinned descriptor
+### `strand create` — Create a pinned descriptor
 
 ```bash
 # Pin the current frontier
-git warp working-set create --repo ./team-repo --id review-auth
+git warp strand create --repo ./team-repo --id review-auth
 
 # Pin no later than Lamport tick 12 with metadata
-git warp working-set create --repo ./team-repo \
+git warp strand create --repo ./team-repo \
   --id before-release \
   --lamport-ceiling 12 \
   --owner alice \
@@ -730,38 +730,38 @@ The descriptor is durable. Materialized state is not.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--id <id>` | string | auto-generated | Explicit working-set ID |
+| `--id <id>` | string | auto-generated | Explicit strand ID |
 | `--lamport-ceiling <n>` | integer | `null` | Pin no later than Lamport tick `n` |
 | `--owner <id>` | string | `null` | Optional owner metadata |
 | `--scope <text>` | string | `null` | Optional scope metadata |
 | `--lease-expires-at <ts>` | ISO-8601 string | `null` | Optional lease expiry metadata |
 
-### `working-set list` — List pinned descriptors
+### `strand list` — List pinned descriptors
 
 ```bash
-git warp working-set list --repo ./team-repo
-git warp working-set list --repo ./team-repo --json
+git warp strand list --repo ./team-repo
+git warp strand list --repo ./team-repo --json
 ```
 
-This returns every working-set descriptor stored for the graph.
+This returns every strand descriptor stored for the graph.
 
-### `working-set show <id>` — Inspect one descriptor
+### `strand show <id>` — Inspect one descriptor
 
 ```bash
-git warp working-set show --repo ./team-repo review-auth
-git warp working-set show --repo ./team-repo review-auth --json
+git warp strand show --repo ./team-repo review-auth
+git warp strand show --repo ./team-repo review-auth --json
 ```
 
 Use this to inspect the pinned frontier, Lamport ceiling, metadata, and current overlay patch-log head without materializing state.
 
-### `working-set materialize <id>` — Replay the pinned coordinate
+### `strand materialize <id>` — Replay the pinned coordinate
 
 ```bash
 # Materialize the pinned coordinate
-git warp working-set materialize --repo ./team-repo review-auth
+git warp strand materialize --repo ./team-repo review-auth
 
 # Include reducer receipts
-git warp working-set materialize --repo ./team-repo review-auth --receipts --json
+git warp strand materialize --repo ./team-repo review-auth --receipts --json
 ```
 
 This always replays the pinned coordinate plus any overlay patches already committed through the library API, even if the live frontier has advanced since the descriptor was created.
@@ -770,31 +770,31 @@ This always replays the pinned coordinate plus any overlay patches already commi
 |------|------|---------|-------------|
 | `--receipts` | boolean | `false` | Include tick receipts in the materialized payload |
 
-### `working-set drop <id>` — Delete a descriptor
+### `strand drop <id>` — Delete a descriptor
 
 ```bash
-git warp working-set drop --repo ./team-repo review-auth
+git warp strand drop --repo ./team-repo review-auth
 ```
 
 This removes the descriptor ref. It does not mutate patch history.
 
 ### Overlay writes stay in the library API
 
-The CLI deliberately does **not** grow a second patch DSL for working-set overlay writes.
+The CLI deliberately does **not** grow a second patch DSL for strand overlay writes.
 
 ```javascript
-const builder = await graph.createWorkingSetPatch('review-auth');
+const builder = await graph.createStrandPatch('review-auth');
 builder.setProperty('task:oauth', 'status', 'needs-review');
 await builder.commit();
 
-await graph.patchWorkingSet('review-auth', (p) => {
+await graph.patchStrand('review-auth', (p) => {
   p.setProperty('task:oauth', 'owner', 'alice');
 });
 ```
 
 That keeps the CLI thin and keeps overlay writes on the same mutation kernel as normal graph patches.
 
-### Complete flag reference for `working-set`
+### Complete flag reference for `strand`
 
 | Subcommand | Flags |
 |------|------|
@@ -804,7 +804,7 @@ That keeps the CLI thin and keeps overlay writes on the same mutation kernel as 
 | `materialize <id>` | `--receipts` |
 | `drop <id>` | _(global only)_ |
 
-See [docs/WORKING_SETS.md](WORKING_SETS.md) for the architectural model behind these commands.
+See [docs/STRANDS.md](STRANDS.md) for the architectural model behind these commands.
 
 ---
 
@@ -954,9 +954,9 @@ The git-warp Time Travel Debugger (TTD) is the thin CLI surface for substrate in
 
 All debugger topics are read-oriented. They inspect substrate facts; they do **not** invent domain meaning above git-warp.
 
-`working-set` is separate on purpose: it pins durable coordinates, while TTD inspects coordinates read-only.
+`strand` is separate on purpose: it pins durable coordinates, while TTD inspects coordinates read-only.
 
-Supported debugger topics can inspect a pinned working set directly with `--working-set <id>`:
+Supported debugger topics can inspect a pinned strand directly with `--strand <id>`:
 
 - `debug timeline`
 - `debug conflicts`
@@ -1018,9 +1018,9 @@ git warp debug timeline --repo ./team-repo \
 git warp debug timeline --repo ./team-repo \
   --writer-id alice
 
-# Inspect the visible base+overlay timeline for a pinned working set
+# Inspect the visible base+overlay timeline for a pinned strand
 git warp debug timeline --repo ./team-repo \
-  --working-set review-auth \
+  --strand review-auth \
   --limit 10
 ```
 
@@ -1030,7 +1030,7 @@ git warp debug timeline --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--working-set <id>` | string | _(live frontier / cursor)_ | Inspect the visible patch universe of this working set |
+| `--strand <id>` | string | _(live frontier / cursor)_ | Inspect the visible patch universe of this strand |
 | `--entity-id <id>` | string | _(all entities)_ | Restrict the timeline to patches touching this entity |
 | `--writer-id <id>` | string | _(all writers)_ | Restrict the timeline to one writer |
 | `--lamport-floor <n>` | integer | _(none)_ | Include no earlier than Lamport tick `n` |
@@ -1060,9 +1060,9 @@ git warp debug conflicts --repo ./team-repo \
   --max-patches 64 \
   --json
 
-# Inspect conflict traces inside a pinned working set
+# Inspect conflict traces inside a pinned strand
 git warp debug conflicts --repo ./team-repo \
-  --working-set review-auth \
+  --strand review-auth \
   --evidence full
 ```
 
@@ -1088,7 +1088,7 @@ git warp debug conflicts --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--working-set <id>` | string | _(live frontier / cursor)_ | Analyze conflicts against this working set instead of the live frontier |
+| `--strand <id>` | string | _(live frontier / cursor)_ | Analyze conflicts against this strand instead of the live frontier |
 | `--entity-id <id>` | string | _(none)_ | Filter traces touching this entity |
 | `--target-kind <kind>` | string | _(none)_ | Target selector kind: `node`, `edge`, `node_property`, `edge_property` |
 | `--property-key <key>` | string | _(none)_ | Property key for `*_property` selectors |
@@ -1103,7 +1103,7 @@ git warp debug conflicts --repo ./team-repo \
 
 ### `debug provenance` — trace causal patch provenance for an entity
 
-The `debug provenance` command reports the patches that affected a given entity ID. For live frontier/cursor reads it materializes explicitly and uses the provenance index. For working sets it walks the visible `base + overlay` patch universe directly.
+The `debug provenance` command reports the patches that affected a given entity ID. For live frontier/cursor reads it materializes explicitly and uses the provenance index. For strands it walks the visible `base + overlay` patch universe directly.
 
 ```bash
 git warp debug provenance --repo ./team-repo --entity-id user:alice
@@ -1127,9 +1127,9 @@ git warp debug provenance --repo ./team-repo \
   --entity-id user:alice \
   --max-patches 5
 
-# Inspect provenance inside a pinned working set
+# Inspect provenance inside a pinned strand
 git warp debug provenance --repo ./team-repo \
-  --working-set review-auth \
+  --strand review-auth \
   --entity-id task:auth
 ```
 
@@ -1137,7 +1137,7 @@ git warp debug provenance --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--working-set <id>` | string | _(live frontier / cursor)_ | Inspect provenance inside this working set |
+| `--strand <id>` | string | _(live frontier / cursor)_ | Inspect provenance inside this strand |
 | `--entity-id <id>` | string | _(required)_ | Entity ID to inspect |
 | `--lamport-ceiling <n>` | integer | active seek cursor or head | Analyze no later than Lamport tick `n` |
 | `--max-patches <n>` | integer | _(all matching patches)_ | Limit returned provenance entries |
@@ -1169,9 +1169,9 @@ git warp debug receipts --repo ./team-repo \
   --patch a1b2c3d \
   --limit 1
 
-# Inspect reducer outcomes for the visible base+overlay working-set state
+# Inspect reducer outcomes for the visible base+overlay strand state
 git warp debug receipts --repo ./team-repo \
-  --working-set review-auth \
+  --strand review-auth \
   --result superseded
 ```
 
@@ -1179,7 +1179,7 @@ git warp debug receipts --repo ./team-repo \
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--working-set <id>` | string | _(live frontier / cursor)_ | Materialize and inspect this working set instead of the live frontier |
+| `--strand <id>` | string | _(live frontier / cursor)_ | Materialize and inspect this strand instead of the live frontier |
 | `--writer-id <id>` | string | _(all writers)_ | Filter receipts by writer ID |
 | `--patch <sha>` | string | _(all patches)_ | Filter receipts by patch SHA or prefix |
 | `--target <target>` | string | _(all targets)_ | Filter matching ops by exact receipt target |
@@ -1415,35 +1415,35 @@ Quick-reference table of all commands and their flags.
 |------|-------------|
 | _(global only)_ | See [Global Options](#global-options) |
 
-### `working-set create`
+### `strand create`
 
 | Flag | Description |
 |------|-------------|
-| `--id <id>` | Explicit working-set ID |
+| `--id <id>` | Explicit strand ID |
 | `--lamport-ceiling <n>` | Pin no later than Lamport tick `n` |
 | `--owner <id>` | Optional owner metadata |
 | `--scope <text>` | Optional scope metadata |
 | `--lease-expires-at <ts>` | Optional ISO-8601 lease expiry metadata |
 
-### `working-set list`
+### `strand list`
 
 | Flag | Description |
 |------|-------------|
 | _(global only)_ | See [Global Options](#global-options) |
 
-### `working-set show <id>`
+### `strand show <id>`
 
 | Flag | Description |
 |------|-------------|
 | _(global only)_ | See [Global Options](#global-options) |
 
-### `working-set materialize <id>`
+### `strand materialize <id>`
 
 | Flag | Description |
 |------|-------------|
 | `--receipts` | Include tick receipts in the output |
 
-### `working-set drop <id>`
+### `strand drop <id>`
 
 | Flag | Description |
 |------|-------------|
@@ -1490,7 +1490,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
-| `--working-set <id>` | Inspect the visible patch universe of this working set |
+| `--strand <id>` | Inspect the visible patch universe of this strand |
 | `--entity-id <id>` | Restrict to patches touching this entity |
 | `--writer-id <id>` | Restrict to one writer |
 | `--lamport-floor <n>` | Include no earlier than Lamport tick `n` |
@@ -1501,7 +1501,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
-| `--working-set <id>` | Analyze conflicts against this working set |
+| `--strand <id>` | Analyze conflicts against this strand |
 | `--entity-id <id>` | Filter traces touching this entity |
 | `--target-kind <kind>` | `node`, `edge`, `node_property`, `edge_property` |
 | `--property-key <key>` | Property key for `*_property` targets |
@@ -1516,7 +1516,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
-| `--working-set <id>` | Inspect provenance inside this working set |
+| `--strand <id>` | Inspect provenance inside this strand |
 | `--entity-id <id>` | Entity ID to inspect |
 | `--lamport-ceiling <n>` | Analyze no later than Lamport tick `n` |
 | `--max-patches <n>` | Limit returned provenance entries |
@@ -1525,7 +1525,7 @@ Quick-reference table of all commands and their flags.
 
 | Flag | Description |
 |------|-------------|
-| `--working-set <id>` | Materialize and inspect this working set |
+| `--strand <id>` | Materialize and inspect this strand |
 | `--writer-id <id>` | Filter receipts by writer |
 | `--patch <sha>` | Filter receipts by patch SHA or prefix |
 | `--target <target>` | Filter matching ops by exact receipt target |

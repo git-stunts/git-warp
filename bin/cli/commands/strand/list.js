@@ -7,26 +7,26 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'list',
-  summary: 'List working-set descriptors for the graph',
+  summary: 'List strand descriptors for the graph',
 });
 
 const LIST_OPTIONS = /** @type {Record<string, { type: string, short?: string, default?: unknown, multiple?: boolean }>} */ ({});
-const listWorkingSetSchema = z.object({}).strict();
+const listStrandSchema = z.object({}).strict();
 
 /**
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  parseCommandArgs(args, LIST_OPTIONS, listWorkingSetSchema);
+export async function handleStrandSubcommand({ options, args }) {
+  parseCommandArgs(args, LIST_OPTIONS, listStrandSchema);
   const { graph, graphName } = await openGraph(options);
-  const workingSets = await graph.listWorkingSets();
+  const strands = await graph.listStrands();
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'list',
-      workingSets,
+      strandAction: 'list',
+      strands,
     },
     exitCode: EXIT_CODES.OK,
   };

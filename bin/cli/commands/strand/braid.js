@@ -7,7 +7,7 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'braid',
-  summary: 'Pin read-only braid overlays onto a target working set',
+  summary: 'Pin read-only braid overlays onto a target strand',
 });
 
 const BRAID_OPTIONS = {
@@ -16,7 +16,7 @@ const BRAID_OPTIONS = {
   writable: { type: 'boolean', default: false },
 };
 
-const braidWorkingSetSchema = z.object({
+const braidStrandSchema = z.object({
   support: z.array(z.string()).optional(),
   'read-only': z.boolean().default(false),
   writable: z.boolean().default(false),
@@ -28,7 +28,7 @@ const braidWorkingSetSchema = z.object({
     });
   }
 }).transform((val) => ({
-  braidedWorkingSetIds: val.support ?? [],
+  braidedStrandIds: val.support ?? [],
   writable: val['read-only'] ? false : val.writable ? true : null,
 }));
 
@@ -36,25 +36,25 @@ const braidWorkingSetSchema = z.object({
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  const { values, positionals } = parseCommandArgs(args, BRAID_OPTIONS, braidWorkingSetSchema, {
+export async function handleStrandSubcommand({ options, args }) {
+  const { values, positionals } = parseCommandArgs(args, BRAID_OPTIONS, braidStrandSchema, {
     allowPositionals: true,
   });
   if (positionals.length !== 1) {
     throw usageError(
-      'Usage: warp-graph working-set braid <id> [--support <id> ...] [--read-only|--writable]',
+      'Usage: warp-graph strand braid <id> [--support <id> ...] [--read-only|--writable]',
     );
   }
 
-  const workingSetId = positionals[0];
+  const strandId = positionals[0];
   const { graph, graphName } = await openGraph(options);
-  const workingSet = await graph.braidWorkingSet(workingSetId, values);
+  const strand = await graph.braidStrand(strandId, values);
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'braid',
-      workingSet,
+      strandAction: 'braid',
+      strand,
     },
     exitCode: EXIT_CODES.OK,
   };

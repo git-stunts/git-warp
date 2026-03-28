@@ -9,7 +9,7 @@ import {
   renderError,
   renderMaterialize,
   renderInstallHooks,
-  renderWorkingSet,
+  renderStrand,
   renderDebug,
   renderSeek,
 } from '../../../bin/presenters/text.js';
@@ -269,14 +269,14 @@ describe('renderSeek', () => {
   });
 });
 
-describe('renderWorkingSet', () => {
-  it('renders braid metadata on descriptor-oriented working-set actions', () => {
-    const out = renderWorkingSet({
+describe('renderStrand', () => {
+  it('renders braid metadata on descriptor-oriented strand actions', () => {
+    const out = renderStrand({
       graph: 'g',
-      workingSetAction: 'braid',
-      workingSet: {
+      strandAction: 'braid',
+      strand: {
         schemaVersion: 1,
-        workingSetId: 'ws_demo',
+        strandId: 'ws_demo',
         graphName: 'g',
         createdAt: '2026-03-17T00:00:00Z',
         updatedAt: '2026-03-17T00:05:00Z',
@@ -299,7 +299,7 @@ describe('renderWorkingSet', () => {
         braid: {
           readOverlays: [
             {
-              workingSetId: 'ws_support',
+              strandId: 'ws_support',
               overlayId: 'ws_support',
               kind: 'patch-log',
               headPatchSha: 'c'.repeat(40),
@@ -319,18 +319,18 @@ describe('renderWorkingSet', () => {
   });
 
   it('renders comparison summaries without adding application semantics', () => {
-    const out = renderWorkingSet({
+    const out = renderStrand({
       graph: 'g',
-      workingSetAction: 'compare',
-      workingSetId: 'ws_demo',
+      strandAction: 'compare',
+      strandId: 'ws_demo',
       against: 'live',
       comparison: {
         comparisonVersion: 'coordinate-compare/v1',
         comparisonDigest: 'abc123',
         left: {
-          requested: { kind: 'working_set', workingSetId: 'ws_demo' },
+          requested: { kind: 'strand', strandId: 'ws_demo' },
           resolved: {
-            coordinateKind: 'working_set',
+            coordinateKind: 'strand',
             patchFrontier: { alice: 'sha1' },
             patchFrontierDigest: 'pf-left',
             lamportFrontier: { alice: 2 },
@@ -436,20 +436,20 @@ describe('renderWorkingSet', () => {
 });
 
 describe('renderDebug', () => {
-  it('renders braid-aware working-set context on provenance payloads', () => {
+  it('renders braid-aware strand context on provenance payloads', () => {
     const out = stripAnsi(renderDebug({
       graph: 'g',
       debugTopic: 'provenance',
-      workingSetId: 'ws_review',
-      workingSet: {
-        workingSetId: 'ws_review',
+      strandId: 'ws_review',
+      strand: {
+        strandId: 'ws_review',
         baseLamportCeiling: null,
         overlayHeadPatchSha: 'a'.repeat(40),
         overlayPatchCount: 1,
         overlayWritable: false,
         braid: {
           readOverlayCount: 1,
-          braidedWorkingSetIds: ['ws_hold'],
+          braidedStrandIds: ['ws_hold'],
         },
       },
       entityId: 'n1',

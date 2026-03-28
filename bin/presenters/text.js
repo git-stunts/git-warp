@@ -28,17 +28,17 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{ graph: string, sha: string, writer: string, lamport: number, schema?: number, ops: PatchOp[] }} PatchShowPayload
  * @typedef {{ graph: string, total: number, showing: number, writerFilter?: string | null, entries: Array<{ sha: string, writer: string, lamport: number, opCount: number, nodeIds: string[] }> }} PatchListPayload
  * @typedef {{
- *   workingSetId: string,
+ *   strandId: string,
  *   baseLamportCeiling: number|null,
  *   overlayHeadPatchSha: string|null,
  *   overlayPatchCount: number,
  *   overlayWritable: boolean,
  *   braid: {
  *     readOverlayCount: number,
- *     braidedWorkingSetIds: string[]
+ *     braidedStrandIds: string[]
  *   }
- * }} WorkingSetDebugContext
- * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts', workingSetId?: string }} DebugConflictsPayload
+ * }} StrandDebugContext
+ * @typedef {import('../../index.js').ConflictAnalysis & { graph: string, debugTopic: 'conflicts', strandId?: string }} DebugConflictsPayload
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'coordinate',
@@ -66,8 +66,8 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'provenance',
- *   workingSetId?: string,
- *   workingSet?: WorkingSetDebugContext,
+ *   strandId?: string,
+ *   strand?: StrandDebugContext,
  *   entityId: string,
  *   lamportCeiling: number|null,
  *   totalPatches: number,
@@ -88,8 +88,8 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'receipts',
- *   workingSetId?: string,
- *   workingSet?: WorkingSetDebugContext,
+ *   strandId?: string,
+ *   strand?: StrandDebugContext,
  *   lamportCeiling: number|null,
  *   filters: {
  *     writerId: string|null,
@@ -123,8 +123,8 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * @typedef {{
  *   graph: string,
  *   debugTopic: 'timeline',
- *   workingSetId?: string,
- *   workingSet?: WorkingSetDebugContext,
+ *   strandId?: string,
+ *   strand?: StrandDebugContext,
  *   coordinateSource: 'explicit'|'cursor'|'frontier',
  *   filters: {
  *     entityId: string|null,
@@ -149,47 +149,47 @@ import { formatStructuralDiff } from '../../src/visualization/renderers/ascii/se
  * }} DebugTimelinePayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'braid'|'create'|'show',
- *   workingSet: import('../../index.js').WorkingSetDescriptor
- * }} WorkingSetShowPayload
+ *   strandAction: 'braid'|'create'|'show',
+ *   strand: import('../../index.js').StrandDescriptor
+ * }} StrandShowPayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'list',
- *   workingSets: import('../../index.js').WorkingSetDescriptor[]
- * }} WorkingSetListPayload
+ *   strandAction: 'list',
+ *   strands: import('../../index.js').StrandDescriptor[]
+ * }} StrandListPayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'drop',
- *   workingSetId: string,
+ *   strandAction: 'drop',
+ *   strandId: string,
  *   dropped: boolean
- * }} WorkingSetDropPayload
+ * }} StrandDropPayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'materialize',
- *   workingSet: import('../../index.js').WorkingSetDescriptor,
+ *   strandAction: 'materialize',
+ *   strand: import('../../index.js').StrandDescriptor,
  *   summary: {
  *     nodeCount: number,
  *     edgeCount: number,
  *     propertyCount: number,
  *     receiptCount: number
  *   }
- * }} WorkingSetMaterializePayload
+ * }} StrandMaterializePayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'compare',
- *   workingSetId: string,
+ *   strandAction: 'compare',
+ *   strandId: string,
  *   against: string,
  *   comparison: import('../../index.js').CoordinateComparisonV1
- * }} WorkingSetComparePayload
+ * }} StrandComparePayload
  * @typedef {{
  *   graph: string,
- *   workingSetAction: 'transfer-plan',
- *   workingSetId: string,
+ *   strandAction: 'transfer-plan',
+ *   strandId: string,
  *   into: string,
  *   transferPlan: import('../../index.js').CoordinateTransferPlanV1
- * }} WorkingSetTransferPlanPayload
+ * }} StrandTransferPlanPayload
  * @typedef {DebugConflictsPayload | DebugCoordinatePayload | DebugProvenancePayload | DebugReceiptsPayload | DebugTimelinePayload} DebugPayload
- * @typedef {WorkingSetShowPayload | WorkingSetListPayload | WorkingSetDropPayload | WorkingSetMaterializePayload | WorkingSetComparePayload | WorkingSetTransferPlanPayload} WorkingSetPayload
+ * @typedef {StrandShowPayload | StrandListPayload | StrandDropPayload | StrandMaterializePayload | StrandComparePayload | StrandTransferPlanPayload} StrandPayload
  */
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -877,14 +877,14 @@ function formatOpSummaryInline(summary) {
 }
 
 /**
- * @param {{ overlayHeadPatchSha: string|null, overlayPatchCount: number, baseLamportCeiling: number|null, overlayWritable: boolean, braid?: { braidedWorkingSetIds: string[] } }} workingSet
+ * @param {{ overlayHeadPatchSha: string|null, overlayPatchCount: number, baseLamportCeiling: number|null, overlayWritable: boolean, braid?: { braidedStrandIds: string[] } }} strand
  * @returns {string[]}
  */
-function renderWorkingSetDebugContextLines(workingSet) {
-  const braidedWorkingSetIds = workingSet.braid?.braidedWorkingSetIds ?? [];
+function renderStrandDebugContextLines(strand) {
+  const braidedStrandIds = strand.braid?.braidedStrandIds ?? [];
   return [
-    `Working-Set Overlay: head=${workingSet.overlayHeadPatchSha ?? 'none'} patches=${workingSet.overlayPatchCount} base-ceiling=${workingSet.baseLamportCeiling ?? 'latest'} writable=${workingSet.overlayWritable ? 'yes' : 'no'}`,
-    `Working-Set Braids: ${braidedWorkingSetIds.length === 0 ? 'none' : braidedWorkingSetIds.join(', ')}`,
+    `Working-Set Overlay: head=${strand.overlayHeadPatchSha ?? 'none'} patches=${strand.overlayPatchCount} base-ceiling=${strand.baseLamportCeiling ?? 'latest'} writable=${strand.overlayWritable ? 'yes' : 'no'}`,
+    `Working-Set Braids: ${braidedStrandIds.length === 0 ? 'none' : braidedStrandIds.join(', ')}`,
   ];
 }
 
@@ -894,7 +894,7 @@ function renderDebugConflicts(payload) {
     `Graph: ${payload.graph}`,
     `Topic: conflicts`,
     `Analysis Version: ${payload.analysisVersion}`,
-    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
+    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
     `Coordinate Kind: ${payload.resolvedCoordinate.coordinateKind}`,
     `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
     `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.frontier).length}`,
@@ -902,8 +902,8 @@ function renderDebugConflicts(payload) {
     `Conflicts: ${payload.conflicts.length}`,
   ];
 
-  if (payload.resolvedCoordinate.workingSet) {
-    lines.push(...renderWorkingSetDebugContextLines(payload.resolvedCoordinate.workingSet));
+  if (payload.resolvedCoordinate.strand) {
+    lines.push(...renderStrandDebugContextLines(payload.resolvedCoordinate.strand));
   }
 
   if (payload.diagnostics && payload.diagnostics.length > 0) {
@@ -982,7 +982,7 @@ function renderDebugProvenance(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: provenance',
-    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
+    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
     `Entity: ${payload.entityId}`,
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Patches: ${payload.returnedPatches}/${payload.totalPatches}`,
@@ -991,8 +991,8 @@ function renderDebugProvenance(payload) {
   if (payload.truncated) {
     lines.push('Truncated: yes');
   }
-  if (payload.workingSet) {
-    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
+  if (payload.strand) {
+    lines.push(...renderStrandDebugContextLines(payload.strand));
   }
 
   for (const entry of payload.entries) {
@@ -1017,7 +1017,7 @@ function renderDebugReceipts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: receipts',
-    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
+    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Receipts: ${payload.returnedReceipts}/${payload.matchedReceipts} matched (${payload.totalReceipts} total)`,
     `Results: applied=${payload.summary.results.applied} superseded=${payload.summary.results.superseded} redundant=${payload.summary.results.redundant}`,
@@ -1045,8 +1045,8 @@ function renderDebugReceipts(payload) {
   if (payload.truncated) {
     lines.push('Truncated: yes');
   }
-  if (payload.workingSet) {
-    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
+  if (payload.strand) {
+    lines.push(...renderStrandDebugContextLines(payload.strand));
   }
   lines.push(`Op Types: ${formatOpSummaryInline(payload.summary.opTypes)}`);
 
@@ -1068,7 +1068,7 @@ function renderDebugTimeline(payload) {
     `Graph: ${payload.graph}`,
     'Topic: timeline',
     `Source: ${payload.coordinateSource}`,
-    ...(payload.workingSetId ? [`Working Set: ${payload.workingSetId}`] : []),
+    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
     `Lamport Window: ${payload.filters.lamportFloor ?? 0}..${payload.filters.lamportCeiling ?? 'head'}`,
     `Entries: ${payload.returnedEntries}/${payload.totalEntries}`,
   ];
@@ -1086,8 +1086,8 @@ function renderDebugTimeline(payload) {
   if (payload.truncated) {
     lines.push('Truncated: yes (newest window)');
   }
-  if (payload.workingSet) {
-    lines.push(...renderWorkingSetDebugContextLines(payload.workingSet));
+  if (payload.strand) {
+    lines.push(...renderStrandDebugContextLines(payload.strand));
   }
 
   for (const entry of payload.entries) {
@@ -1131,66 +1131,66 @@ export function renderDebug(payload) {
 }
 
 /**
- * @param {import('../../index.js').WorkingSetDescriptor} workingSet
+ * @param {import('../../index.js').StrandDescriptor} strand
  * @returns {string[]}
  */
-function renderWorkingSetDescriptorLines(workingSet) {
-  const braidedWorkingSetIds = workingSet.braid.readOverlays.map((overlay) => overlay.workingSetId);
+function renderStrandDescriptorLines(strand) {
+  const braidedStrandIds = strand.braid.readOverlays.map((overlay) => overlay.strandId);
   return [
-    `Working Set: ${workingSet.workingSetId}`,
-    `Created At: ${workingSet.createdAt}`,
-    `Owner: ${workingSet.owner ?? 'none'}`,
-    `Scope: ${workingSet.scope ?? 'none'}`,
-    `Lease Expires At: ${workingSet.lease.expiresAt ?? 'none'}`,
-    `Base Coordinate: ${workingSet.baseObservation.coordinateVersion}`,
-    `Lamport Ceiling: ${workingSet.baseObservation.lamportCeiling ?? 'latest'}`,
-    `Frontier Digest: ${workingSet.baseObservation.frontierDigest}`,
-    `Frontier Writers: ${Object.keys(workingSet.baseObservation.frontier).length}`,
-    `Overlay: ${workingSet.overlay.kind} id=${workingSet.overlay.overlayId} head=${workingSet.overlay.headPatchSha ?? 'none'} patches=${workingSet.overlay.patchCount} writable=${workingSet.overlay.writable ? 'yes' : 'no'}`,
-    `Braids: ${braidedWorkingSetIds.length === 0 ? 'none' : braidedWorkingSetIds.join(', ')}`,
-    `Materialization Cache: ${workingSet.materialization.cacheAuthority}`,
+    `Working Set: ${strand.strandId}`,
+    `Created At: ${strand.createdAt}`,
+    `Owner: ${strand.owner ?? 'none'}`,
+    `Scope: ${strand.scope ?? 'none'}`,
+    `Lease Expires At: ${strand.lease.expiresAt ?? 'none'}`,
+    `Base Coordinate: ${strand.baseObservation.coordinateVersion}`,
+    `Lamport Ceiling: ${strand.baseObservation.lamportCeiling ?? 'latest'}`,
+    `Frontier Digest: ${strand.baseObservation.frontierDigest}`,
+    `Frontier Writers: ${Object.keys(strand.baseObservation.frontier).length}`,
+    `Overlay: ${strand.overlay.kind} id=${strand.overlay.overlayId} head=${strand.overlay.headPatchSha ?? 'none'} patches=${strand.overlay.patchCount} writable=${strand.overlay.writable ? 'yes' : 'no'}`,
+    `Braids: ${braidedStrandIds.length === 0 ? 'none' : braidedStrandIds.join(', ')}`,
+    `Materialization Cache: ${strand.materialization.cacheAuthority}`,
   ];
 }
 
-/** @param {WorkingSetPayload} payload */
-export function renderWorkingSet(payload) {
-  if (payload.workingSetAction === 'list') {
+/** @param {StrandPayload} payload */
+export function renderStrand(payload) {
+  if (payload.strandAction === 'list') {
     const lines = [
       `Graph: ${payload.graph}`,
       'Working Sets:',
     ];
 
-    if (payload.workingSets.length === 0) {
+    if (payload.strands.length === 0) {
       lines.push('  (none)');
       return `${lines.join('\n')}\n`;
     }
 
-    for (const workingSet of payload.workingSets) {
-      lines.push(`- ${workingSet.workingSetId} ceiling=${workingSet.baseObservation.lamportCeiling ?? 'latest'} owner=${workingSet.owner ?? 'none'} scope=${workingSet.scope ?? 'none'} writable=${workingSet.overlay.writable ? 'yes' : 'no'} braid=${workingSet.braid.readOverlays.length}`);
+    for (const strand of payload.strands) {
+      lines.push(`- ${strand.strandId} ceiling=${strand.baseObservation.lamportCeiling ?? 'latest'} owner=${strand.owner ?? 'none'} scope=${strand.scope ?? 'none'} writable=${strand.overlay.writable ? 'yes' : 'no'} braid=${strand.braid.readOverlays.length}`);
     }
     return `${lines.join('\n')}\n`;
   }
 
-  if (payload.workingSetAction === 'drop') {
+  if (payload.strandAction === 'drop') {
     return [
       `Graph: ${payload.graph}`,
-      `Working Set: ${payload.workingSetId}`,
+      `Working Set: ${payload.strandId}`,
       `Dropped: ${payload.dropped ? 'yes' : 'no'}`,
       '',
     ].join('\n');
   }
 
-  if (payload.workingSetAction === 'materialize') {
+  if (payload.strandAction === 'materialize') {
     const lines = [
       `Graph: ${payload.graph}`,
       'Working Set Action: materialize',
-      ...renderWorkingSetDescriptorLines(payload.workingSet),
+      ...renderStrandDescriptorLines(payload.strand),
       `State Summary: nodes=${payload.summary.nodeCount} edges=${payload.summary.edgeCount} props=${payload.summary.propertyCount} receipts=${payload.summary.receiptCount}`,
     ];
     return `${lines.join('\n')}\n`;
   }
 
-  if (payload.workingSetAction === 'compare') {
+  if (payload.strandAction === 'compare') {
     const { comparison } = payload;
     const leftSummary = comparison.left.resolved.summary;
     const rightSummary = comparison.right.resolved.summary;
@@ -1198,7 +1198,7 @@ export function renderWorkingSet(payload) {
     const lines = [
       `Graph: ${payload.graph}`,
       'Working Set Action: compare',
-      `Working Set: ${payload.workingSetId}`,
+      `Working Set: ${payload.strandId}`,
       `Against: ${payload.against}`,
       `Comparison Digest: ${comparison.comparisonDigest}`,
       `Changed: ${comparison.visibleState.changed ? 'yes' : 'no'}`,
@@ -1222,13 +1222,13 @@ export function renderWorkingSet(payload) {
     return `${lines.join('\n')}\n`;
   }
 
-  if (payload.workingSetAction === 'transfer-plan') {
+  if (payload.strandAction === 'transfer-plan') {
     const { transferPlan } = payload;
     const { summary } = transferPlan;
     const lines = [
       `Graph: ${payload.graph}`,
       'Working Set Action: transfer-plan',
-      `Working Set: ${payload.workingSetId}`,
+      `Working Set: ${payload.strandId}`,
       `Into: ${payload.into}`,
       `Transfer Digest: ${transferPlan.transferDigest}`,
       `Comparison Digest: ${transferPlan.comparisonDigest}`,
@@ -1245,8 +1245,8 @@ export function renderWorkingSet(payload) {
 
   const lines = [
     `Graph: ${payload.graph}`,
-    `Working Set Action: ${payload.workingSetAction}`,
-    ...renderWorkingSetDescriptorLines(payload.workingSet),
+    `Working Set Action: ${payload.strandAction}`,
+    ...renderStrandDescriptorLines(payload.strand),
   ];
   return `${lines.join('\n')}\n`;
 }

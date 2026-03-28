@@ -14,31 +14,31 @@ function readDoc(relativePath) {
 
 const readme = readDoc('README.md');
 const guide = readDoc('docs/GUIDE.md');
-const workingSets = readDoc('docs/WORKING_SETS.md');
+const strands = readDoc('docs/STRANDS.md');
 
 describe('public read API docs stay aligned with observer geometry', () => {
   it('teaches worldline-first pinned read examples in the public docs', () => {
     expect(readme).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
     expect(guide).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
     expect(guide).toMatch(/worldline\([\s\S]*?\.observer\(/);
-    expect(workingSets).toMatch(/worldline\([\s\S]*?\.observer\(/);
+    expect(strands).toMatch(/worldline\([\s\S]*?\.observer\(/);
   });
 
-  it('describes coordinate and working-set materialization as detached immutable snapshots', () => {
+  it('describes coordinate and strand materialization as detached immutable snapshots', () => {
     expect(readme).toContain('detached immutable snapshot');
     expect(guide).toContain('detached immutable snapshot');
-    expect(workingSets).toContain('detached immutable snapshot');
+    expect(strands).toContain('detached immutable snapshot');
   });
 
   it('states that pinned materialization does not retarget the caller runtime', () => {
     expect(readme).toContain('does not retarget the caller runtime');
     expect(guide).toContain('does not retarget the caller runtime');
-    expect(workingSets).toContain('does not retarget the caller runtime');
+    expect(strands).toContain('does not retarget the caller runtime');
   });
 
   it('keeps the legacy WarpGraph noun out of the public read-surface docs', () => {
     expect(readme).not.toContain('WarpGraph');
     expect(guide).not.toContain('WarpGraph');
-    expect(workingSets).not.toContain('WarpGraph');
+    expect(strands).not.toContain('WarpGraph');
   });
 });

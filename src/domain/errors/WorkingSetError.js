@@ -1,7 +1,7 @@
 import WarpError from './WarpError.js';
 
 /**
- * Error class for working-set descriptor and materialization operations.
+ * Error class for strand descriptor and materialization operations.
  *
  * ## Error Codes
  *
@@ -16,10 +16,10 @@ import WarpError from './WarpError.js';
  * | `E_WORKING_SET_COORDINATE_INVALID` | The working-set base observation coordinate is invalid |
  * | `WORKING_SET_ERROR` | Generic/default working-set error |
  *
- * @class WorkingSetError
+ * @class StrandError
  * @extends WarpError
  */
-export default class WorkingSetError extends WarpError {
+export default class StrandError extends WarpError {
   /**
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]

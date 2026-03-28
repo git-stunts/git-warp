@@ -17,7 +17,7 @@ describe('WarpApp facade', () => {
     expect(typeof app.patch).toBe('function');
     expect(typeof app.worldline).toBe('function');
     expect(typeof app.observer).toBe('function');
-    expect(typeof app.createWorkingSet).toBe('function');
+    expect(typeof app.createStrand).toBe('function');
     expect(typeof app.core).toBe('function');
 
     const appAny = /** @type {any} */ (app);

@@ -120,8 +120,8 @@ import type {
   CoordinateComparisonFactExportV1,
   CoordinateTransferPlanV1,
   CoordinateTransferPlanFactExportV1,
-  WorkingSetBraidOptions,
-  WorkingSetDescriptor,
+  StrandBraidOptions,
+  StrandDescriptor,
   LogicalTraversal,
   TraversalDirection,
   TraversalNode,
@@ -297,9 +297,9 @@ const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
   scanBudget: { maxPatches: 32 },
 });
 const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
-const _conflictWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
-  conflictAnalysis.resolvedCoordinate.workingSet?.overlayWritable,
-  conflictAnalysis.resolvedCoordinate.workingSet?.braid.braidedWorkingSetIds,
+const _conflictStrandMetadata: [boolean | undefined, string[] | undefined] = [
+  conflictAnalysis.resolvedCoordinate.strand?.overlayWritable,
+  conflictAnalysis.resolvedCoordinate.strand?.braid.braidedStrandIds,
 ];
 const compareLeft: CoordinateComparisonSelectorV1 = { kind: 'live' };
 const compareRight: CoordinateComparisonSelectorV1 = { kind: 'coordinate', frontier: { alice: 'abc123def456' }, ceiling: null };
@@ -308,53 +308,53 @@ const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordina
   right: compareRight,
   targetId: 'n1',
 });
-const braidOptions: WorkingSetBraidOptions = {
-  braidedWorkingSetIds: ['ws_support'],
+const braidOptions: StrandBraidOptions = {
+  braidedStrandIds: ['ws_support'],
   writable: false,
 };
-const workingSetDescriptor: WorkingSetDescriptor = await graph.createWorkingSet({
-  workingSetId: 'ws_demo',
+const strandDescriptor: StrandDescriptor = await graph.createStrand({
+  strandId: 'ws_demo',
 });
-const braidedWorkingSetDescriptor: WorkingSetDescriptor = await graph.braidWorkingSet(
+const braidedStrandDescriptor: StrandDescriptor = await graph.braidStrand(
   'ws_demo',
   braidOptions,
 );
-const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingSet('ws_demo', {
+const strandComparison: CoordinateComparisonV1 = await graph.compareStrand('ws_demo', {
   against: 'base',
   targetId: 'n1',
 });
-const workingSetTransferPlan: CoordinateTransferPlanV1 = await graph.planWorkingSetTransfer('ws_demo', {
+const strandTransferPlan: CoordinateTransferPlanV1 = await graph.planStrandTransfer('ws_demo', {
   into: 'live',
 });
 const coordinateTransferPlan: CoordinateTransferPlanV1 = await graph.planCoordinateTransfer({
-  source: { kind: 'working_set', workingSetId: 'ws_demo' },
+  source: { kind: 'strand', strandId: 'ws_demo' },
   target: { kind: 'live' },
 });
 const coordinateComparisonFactExport: CoordinateComparisonFactExportV1 = exportCoordinateComparisonFact(coordinateComparison);
 const coordinateTransferPlanFactExport: CoordinateTransferPlanFactExportV1 = exportCoordinateTransferPlanFact(coordinateTransferPlan);
 const _comparisonDigestPair: [string, string] = [
   coordinateComparison.comparisonDigest,
-  workingSetComparison.comparisonDigest,
+  strandComparison.comparisonDigest,
 ];
 const _transferDigestPair: [string, string] = [
-  workingSetTransferPlan.transferDigest,
+  strandTransferPlan.transferDigest,
   coordinateTransferPlan.transferDigest,
 ];
 const _factExportPair: [string, string] = [
   coordinateComparisonFactExport.factDigest,
   coordinateTransferPlanFactExport.factDigest,
 ];
-const _workingSetDescriptorTuple: [boolean, string[]] = [
-  braidedWorkingSetDescriptor.overlay.writable,
-  braidedWorkingSetDescriptor.braid.readOverlays.map(({ workingSetId }) => workingSetId),
+const _strandDescriptorTuple: [boolean, string[]] = [
+  braidedStrandDescriptor.overlay.writable,
+  braidedStrandDescriptor.braid.readOverlays.map(({ strandId }) => strandId),
 ];
-const _workingSetGraphName: string = workingSetDescriptor.graphName;
-const _comparisonWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
-  workingSetComparison.left.resolved.workingSet?.overlayWritable,
-  workingSetComparison.left.resolved.workingSet?.braid.braidedWorkingSetIds,
+const _strandGraphName: string = strandDescriptor.graphName;
+const _comparisonStrandMetadata: [boolean | undefined, string[] | undefined] = [
+  strandComparison.left.resolved.strand?.overlayWritable,
+  strandComparison.left.resolved.strand?.braid.braidedStrandIds,
 ];
 const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
-  workingSetTransferPlan.changed,
+  strandTransferPlan.changed,
   coordinateTransferPlan.summary.opCount,
   coordinateTransferPlan.ops.find((op) => op.op === 'attach_node_content')?.content,
 ];

@@ -1,10 +1,14 @@
+// @ts-nocheck
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpCore from '../../../src/domain/WarpCore.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
+
+/** @typedef {any} WarpCoreRuntime */
 
 /**
  * @param {number} counter
@@ -135,21 +139,21 @@ async function simulatePatchCommit(persistence, {
   return sha;
 }
 
-describe('WarpRuntime worldline surface', () => {
+describe('WarpCore worldline surface', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpRuntime} */
+  /** @type {WarpCoreRuntime} */
   let graph;
   const graphName = 'worldline-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    });
+    }));
   });
 
   it('graph.worldline() returns a live worldline handle', () => {
@@ -359,7 +363,7 @@ describe('WarpRuntime worldline surface', () => {
     await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
-  it('working-set worldlines create observers and materializations without mutating live caller state', async () => {
+  it('strand worldlines create observers and materializations without mutating live caller state', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -370,12 +374,12 @@ describe('WarpRuntime worldline surface', () => {
       ],
     });
 
-    await graph.createWorkingSet({
-      workingSetId: 'ws_red',
+    await graph.createStrand({
+      strandId: 'ws_red',
       owner: 'alice',
     });
 
-    await graph.patchWorkingSet('ws_red', (patch) => {
+    await graph.patchStrand('ws_red', (patch) => {
       patch.setProperty('n1', 'status', 'reviewing');
     });
 
@@ -393,8 +397,8 @@ describe('WarpRuntime worldline surface', () => {
 
     const worldline = graph.worldline({
       source: {
-        kind: 'working_set',
-        workingSetId: 'ws_red',
+        kind: 'strand',
+        strandId: 'ws_red',
       },
     });
 

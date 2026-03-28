@@ -22,24 +22,24 @@ async function hashState(state) {
 }
 
 describe('detached read benchmark fixture', () => {
-  it('enumerates deterministic coverage for live, coordinate, and working-set reads', () => {
+  it('enumerates deterministic coverage for live, coordinate, and strand reads', () => {
     const plan = createDetachedReadBenchmarkPlan();
     const labels = new Set(plan.map((entry) => entry.label));
 
     expect(DETACHED_READ_BENCHMARK_SCALES).toEqual([250, 1000, 2500]);
-    expect(DETACHED_READ_BENCHMARK_KINDS).toEqual(['live', 'coordinate', 'working_set']);
+    expect(DETACHED_READ_BENCHMARK_KINDS).toEqual(['live', 'coordinate', 'strand']);
     expect(plan).toHaveLength(DETACHED_READ_BENCHMARK_SCALES.length * DETACHED_READ_BENCHMARK_KINDS.length);
     expect(labels.size).toBe(plan.length);
     expect(labels).toEqual(new Set([
       'live:250',
       'coordinate:250',
-      'working_set:250',
+      'strand:250',
       'live:1000',
       'coordinate:1000',
-      'working_set:1000',
+      'strand:1000',
       'live:2500',
       'coordinate:2500',
-      'working_set:2500',
+      'strand:2500',
     ]));
   });
 
@@ -52,11 +52,11 @@ describe('detached read benchmark fixture', () => {
 
     const liveState = await fixture.graph.materialize();
     const coordinateState = await fixture.graph.materializeCoordinate(fixture.coordinateSource);
-    const workingSetState = await fixture.graph.materializeWorkingSet(fixture.workingSetId);
+    const strandState = await fixture.graph.materializeStrand(fixture.strandId);
 
     expect(fixture.captureAt).toBeGreaterThan(1);
     expect(fixture.overlayPatchCount).toBe(4);
     expect(await hashState(liveState)).toBe(await hashState(coordinateState));
-    expect(await hashState(workingSetState)).not.toBe(await hashState(liveState));
+    expect(await hashState(strandState)).not.toBe(await hashState(liveState));
   });
 });

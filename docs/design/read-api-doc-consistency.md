@@ -51,7 +51,7 @@ model:
 ## Invariants
 
 The slice should make the following public-doc invariants true for
-`README.md`, `docs/GUIDE.md`, and `docs/WORKING_SETS.md`:
+`README.md`, `docs/GUIDE.md`, and `docs/STRANDS.md`:
 
 1. pinned-read examples show `worldline()` as the explicit history handle
 2. at least one observer example uses `worldline().observer(...)` or a

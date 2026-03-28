@@ -516,7 +516,7 @@ The `props.` prefix is optional — `'total'` and `'props.total'` are equivalent
 
 #### Composing Steps
 
-Steps compose left-to-right, each narrowing the working set:
+Steps compose left-to-right, each narrowing the strand:
 
 ```javascript
 const result = await worldline.query()
@@ -970,12 +970,12 @@ The intended substrate boundary is:
 
 - `WarpCore` is the low-level substrate/session facade
 - observers are the preferred read-side abstraction
-- working sets are the preferred speculative write abstraction
+- strands are the preferred speculative write abstraction
 
 That boundary is not about hiding `WarpCore`. It is about keeping higher layers
 from rebuilding their own graph engine above git-warp. Reach for
 `WarpCore`-level materialization and patch APIs when you are working on
-substrate plumbing. Reach for observers and working sets when you are building
+substrate plumbing. Reach for observers and strands when you are building
 application-facing behavior.
 
 ### Observers
@@ -1004,8 +1004,8 @@ const historical = await historicalWorldline.observer('userViewAtTick12', {
 
 const reviewLane = graph.worldline({
   source: {
-    kind: 'working_set',
-    workingSetId: 'review-auth',
+    kind: 'strand',
+    strandId: 'review-auth',
     ceiling: 12,
   },
 });
@@ -1029,13 +1029,13 @@ reconstructing a second graph-shaped read model above the substrate.
 
 Observers are pinned read handles. By default they capture the current
 materialized coordinate at creation time. They can also bind directly to an
-explicit coordinate or a pinned working set instead of following live truth.
+explicit coordinate or a pinned strand instead of following live truth.
 
 `graph.observer(..., { source })` remains available as a convenience entry
 point, but `worldline()` is the clearer public noun when the caller wants to pin
 history explicitly.
 
-`materializeCoordinate()` and `materializeWorkingSet()` each return a detached
+`materializeCoordinate()` and `materializeStrand()` each return a detached
 immutable snapshot and does not retarget the caller runtime. Use them when you
 want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
 lower-level inspection rather than an application-facing read handle.
@@ -1284,9 +1284,9 @@ git warp seek --no-persistent-cache --tick 5
 
 > **Note:** When state is restored from cache, provenance queries (`patchesFor`, `materializeSlice`) are unavailable because the provenance index isn't populated. Use `--no-persistent-cache` if you need provenance data.
 
-### Working Sets
+### Strands
 
-Working sets pin an explicit observation coordinate for later reuse without creating a Git worktree. A working set records:
+Strands pin an explicit observation coordinate for later reuse without creating a Git worktree. A strand records:
 
 - the graph name
 - a pinned frontier snapshot
@@ -1297,66 +1297,66 @@ Working sets pin an explicit observation coordinate for later reuse without crea
 
 Materialized state remains derived/cache only. The descriptor is the durable part.
 
-Higher layers should think of working sets as speculative lanes, not just saved
+Higher layers should think of strands as speculative lanes, not just saved
 coordinates. They are the natural place to stage divergent writes, compare
 candidate futures, and later transfer/collapse one chosen lane into a target
 worldline under higher-layer policy.
 
-Observers can bind directly to a working set when a higher layer needs a
+Observers can bind directly to a strand when a higher layer needs a
 read-only view over one speculative lane without mutating live truth.
 
 ```bash
-# Pin the current frontier as a reusable working set
-git warp working-set create --id review-auth --owner alice --scope "OAuth review"
+# Pin the current frontier as a reusable strand
+git warp strand create --id review-auth --owner alice --scope "OAuth review"
 
 # Pin no later than Lamport tick 12
-git warp working-set create --id before-hotfix --lamport-ceiling 12
+git warp strand create --id before-hotfix --lamport-ceiling 12
 
 # Inspect and materialize later
-git warp working-set show review-auth
-git warp working-set materialize review-auth --json
+git warp strand show review-auth
+git warp strand materialize review-auth --json
 
 # List or delete descriptors
-git warp working-set list
-git warp working-set drop review-auth
+git warp strand list
+git warp strand drop review-auth
 ```
 
 Programmatically:
 
 ```javascript
-const workingSet = await graph.createWorkingSet({
-  workingSetId: 'review-auth',
+const strand = await graph.createStrand({
+  strandId: 'review-auth',
   owner: 'alice',
   scope: 'OAuth review',
   lamportCeiling: 12,
 });
 
-const state = await graph.materializeWorkingSet(workingSet.workingSetId); // detached immutable snapshot
+const state = await graph.materializeStrand(strand.strandId); // detached immutable snapshot
 const reviewLane = graph.worldline({
-  source: { kind: 'working_set', workingSetId: workingSet.workingSetId },
+  source: { kind: 'strand', strandId: strand.strandId },
 });
 const reviewView = await reviewLane.observer('review-auth-view', {
   match: 'task:*',
 });
 
-await graph.patchWorkingSet(workingSet.workingSetId, (p) => {
+await graph.patchStrand(strand.strandId, (p) => {
   p.setProperty('task:oauth', 'status', 'needs-review');
 });
 
-await graph.queueWorkingSetIntent(workingSet.workingSetId, (p) => {
+await graph.queueStrandIntent(strand.strandId, (p) => {
   p.setProperty('task:oauth', 'owner', 'alice');
 });
 
-const queuedIntents = await graph.listWorkingSetIntents(workingSet.workingSetId);
-const tick = await graph.tickWorkingSet(workingSet.workingSetId);
+const queuedIntents = await graph.listStrandIntents(strand.strandId);
+const tick = await graph.tickStrand(strand.strandId);
 ```
 
-That raw working-set materialization call returns a detached immutable snapshot
+That raw strand materialization call returns a detached immutable snapshot
 and does not retarget the caller runtime. When you want a pinned application-
 facing read handle over the same speculative lane, prefer `worldline(...)` plus
 `observer(...)` as shown above.
 
-Use [docs/WORKING_SETS.md](WORKING_SETS.md) for the dedicated working-set model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.
+Use [docs/STRANDS.md](STRANDS.md) for the dedicated strand model and [docs/CLI_GUIDE.md](CLI_GUIDE.md) for the full CLI flags.
 
 ### Time Travel Debugger (TTD)
 
@@ -1369,9 +1369,9 @@ git-warp's debugger surface is CLI-first and substrate-focused. Use:
 - `debug provenance` to see which patches affected an entity
 - `debug receipts` to inspect per-operation reducer outcomes
 
-On supported topics, add `--working-set <id>` to inspect a pinned speculative lane instead of only the live frontier.
+On supported topics, add `--strand <id>` to inspect a pinned speculative lane instead of only the live frontier.
 
-`working-set` is intentionally **not** part of TTD. It is a separate durable substrate family that pins coordinates instead of inspecting them read-only.
+`strand` is intentionally **not** part of TTD. It is a separate durable substrate family that pins coordinates instead of inspecting them read-only.
 
 See [docs/CLI_GUIDE.md](CLI_GUIDE.md) for complete command flags and [docs/TTD.md](TTD.md) for the debugger architecture boundary.
 
@@ -1384,9 +1384,9 @@ const { ticks, maxTick, perWriter } = await graph.discoverTicks();
 // Materialize at a specific point in time
 const state = await graph.materialize({ ceiling: 3 });
 
-// Inspect a pinned working set through substrate APIs
-const conflicts = await graph.analyzeConflicts({ workingSetId: 'review-auth' });
-const provenance = await graph.patchesForWorkingSet('review-auth', 'task:auth');
+// Inspect a pinned strand through substrate APIs
+const conflicts = await graph.analyzeConflicts({ strandId: 'review-auth' });
+const provenance = await graph.patchesForStrand('review-auth', 'task:auth');
 ```
 
 ### Git Hooks

@@ -81,7 +81,9 @@ describe('wireWarpMethods', () => {
 describe('WarpRuntime prototype completeness', () => {
   it('has all core methods on prototype', () => {
     const proto = WarpRuntime.prototype;
-    // Spot-check critical methods exist and are functions/getters
+    // Spot-check critical internal runtime methods exist and are functions/getters.
+    // WarpRuntime remains the internal implementation class; the public major-cut
+    // nouns now live on WarpApp/WarpCore.
     const expectedMethods = [
       'createPatch', 'patch', 'materialize', 'materializeAt',
       'materializeCoordinate',

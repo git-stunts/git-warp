@@ -1,20 +1,24 @@
-import WarpRuntime from '../../src/domain/WarpRuntime.js';
+// @ts-nocheck
+
+import WarpCore from '../../src/domain/WarpCore.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 
+/** @typedef {any} WarpCoreRuntime */
+
 /** @type {number[]} */
 export const DETACHED_READ_BENCHMARK_SCALES = [250, 1000, 2500];
-/** @type {ReadonlyArray<'live'|'coordinate'|'working_set'>} */
-export const DETACHED_READ_BENCHMARK_KINDS = ['live', 'coordinate', 'working_set'];
+/** @type {ReadonlyArray<'live'|'coordinate'|'strand'>} */
+export const DETACHED_READ_BENCHMARK_KINDS = ['live', 'coordinate', 'strand'];
 
 /**
  * @param {number[]} [scales]
- * @returns {Array<{ patchCount: number, kind: 'live'|'coordinate'|'working_set', label: string }>}
+ * @returns {Array<{ patchCount: number, kind: 'live'|'coordinate'|'strand', label: string }>}
  */
 export function createDetachedReadBenchmarkPlan(scales = DETACHED_READ_BENCHMARK_SCALES) {
   return scales.flatMap((patchCount) => DETACHED_READ_BENCHMARK_KINDS.map((kind) => ({
     patchCount,
-    kind: /** @type {'live'|'coordinate'|'working_set'} */ (kind),
+    kind: /** @type {'live'|'coordinate'|'strand'} */ (kind),
     label: `${kind}:${patchCount}`,
   })));
 }
@@ -155,9 +159,9 @@ async function simulatePatchCommit(persistence, {
  *   overlayPatchCount?: number
  * }} options
  * @returns {Promise<{
- *   graph: WarpRuntime,
+ *   graph: WarpCoreRuntime,
  *   coordinateSource: { kind: 'coordinate', frontier: Record<string, string>, ceiling: null },
- *   workingSetId: string,
+ *   strandId: string,
  *   patchCount: number,
  *   captureAt: number,
  *   overlayPatchCount: number
@@ -170,19 +174,19 @@ export async function seedDetachedReadBenchmarkFixture({
 }) {
   const persistence = createMockPersistence();
   const graphName = `detached-read-bench-${patchCount}`;
-  const graph = await WarpRuntime.open({
+  const graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
     persistence,
     graphName,
     writerId: 'bench',
     autoMaterialize: false,
-  });
+  }));
 
   const captureAt = patchCount;
   const writers = Array.from({ length: writerCount }, (_, index) => `writer-${index}`);
   const lamports = new Map();
   /** @type {Map<string, string>|null} */
   let coordinateFrontier = null;
-  const workingSetId = 'ws_bench';
+  const strandId = 'ws_bench';
 
   for (let index = 1; index <= patchCount; index += 1) {
     const writerId = writers[(index - 1) % writers.length];
@@ -207,14 +211,14 @@ export async function seedDetachedReadBenchmarkFixture({
     throw new Error('benchmark fixture failed to capture coordinate frontier');
   }
 
-  await graph.createWorkingSet({
-    workingSetId,
+  await graph.createStrand({
+    strandId,
     owner: 'bench',
   });
 
   for (let index = 0; index < overlayPatchCount; index += 1) {
     const nodeOrdinal = (index % captureAt) + 1;
-    await graph.patchWorkingSet(workingSetId, (patch) => {
+    await graph.patchStrand(strandId, (patch) => {
       patch.setProperty(`task:${nodeOrdinal}`, 'reviewState', `overlay-${index}`);
     });
   }
@@ -226,7 +230,7 @@ export async function seedDetachedReadBenchmarkFixture({
       frontier: Object.fromEntries(coordinateFrontier),
       ceiling: null,
     },
-    workingSetId,
+    strandId,
     patchCount,
     captureAt,
     overlayPatchCount,

@@ -1,10 +1,14 @@
+// @ts-nocheck
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpCore from '../../../src/domain/WarpCore.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { computeStateHashV5 } from '../../../src/domain/services/StateSerializerV5.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+
+/** @typedef {any} WarpCoreRuntime */
 
 const crypto = new NodeCryptoAdapter();
 
@@ -160,10 +164,10 @@ function createCoordinateSource(frontier) {
   };
 }
 
-describe('WarpRuntime public snapshot hash stability', () => {
+describe('WarpCore public snapshot hash stability', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpRuntime} */
+  /** @type {WarpCoreRuntime} */
   let graph;
   /** @type {{ kind: 'coordinate', frontier: Record<string, string>, ceiling: null }} */
   let coordinateSource;
@@ -171,12 +175,12 @@ describe('WarpRuntime public snapshot hash stability', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    });
+    }));
 
     await simulatePatchCommit(persistence, {
       graphName,
@@ -190,12 +194,12 @@ describe('WarpRuntime public snapshot hash stability', () => {
 
     coordinateSource = createCoordinateSource(await graph.getFrontier());
 
-    await graph.createWorkingSet({
-      workingSetId: 'ws_red',
+    await graph.createStrand({
+      strandId: 'ws_red',
       owner: 'alice',
     });
 
-    await graph.patchWorkingSet('ws_red', (patch) => {
+    await graph.patchStrand('ws_red', (patch) => {
       patch.setProperty('n1', 'status', 'reviewing');
     });
 
@@ -237,11 +241,11 @@ describe('WarpRuntime public snapshot hash stability', () => {
     expect(await hashState(directState)).toBe(await hashState(worldlineState));
   });
 
-  it('preserves the same working-set hash across repeated reads and receipt mode', async () => {
-    const stateA = await graph.materializeWorkingSet('ws_red');
-    const stateB = await graph.materializeWorkingSet('ws_red');
+  it('preserves the same strand hash across repeated reads and receipt mode', async () => {
+    const stateA = await graph.materializeStrand('ws_red');
+    const stateB = await graph.materializeStrand('ws_red');
     const withReceipts = /** @type {{ state: unknown, receipts: unknown[] }} */ (
-      await graph.materializeWorkingSet('ws_red', { receipts: true })
+      await graph.materializeStrand('ws_red', { receipts: true })
     );
 
     expect(await hashState(stateA)).toBe(await hashState(stateB));

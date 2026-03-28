@@ -621,7 +621,7 @@
     "SyncError": {
       "kind": "class"
     },
-    "WorkingSetError": {
+    "StrandError": {
       "kind": "class"
     },
     "TICK_RECEIPT_OP_TYPES": {
@@ -1523,25 +1523,25 @@
     "ContentMeta": {
       "kind": "interface"
     },
-    "WorkingSetCreateOptions": {
+    "StrandCreateOptions": {
       "kind": "interface"
     },
-    "WorkingSetBraidOptions": {
+    "StrandBraidOptions": {
       "kind": "interface"
     },
-    "WorkingSetReadOverlayDescriptor": {
+    "StrandReadOverlayDescriptor": {
       "kind": "interface"
     },
-    "WorkingSetIntentDescriptor": {
+    "StrandIntentDescriptor": {
       "kind": "interface"
     },
-    "WorkingSetTickCounterfactual": {
+    "StrandTickCounterfactual": {
       "kind": "interface"
     },
-    "WorkingSetTickRecord": {
+    "StrandTickRecord": {
       "kind": "interface"
     },
-    "WorkingSetDescriptor": {
+    "StrandDescriptor": {
       "kind": "interface"
     },
     "CreateBTROptions": {
@@ -1622,7 +1622,7 @@
     "CoordinateObserverSource": {
       "kind": "interface"
     },
-    "WorkingSetObserverSource": {
+    "StrandObserverSource": {
       "kind": "interface"
     },
     "ObserverOptions": {

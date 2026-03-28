@@ -28,9 +28,16 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
 import { encodePatchMessage } from './WarpMessageCodec.js';
 
 /** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
-/** @typedef {import('../../../index.js').WorkingSetDescriptor} WorkingSetDescriptor */
-/** @typedef {import('../../../index.js').WorkingSetReadOverlayDescriptor} WorkingSetReadOverlayDescriptor */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
+/**
+ * @typedef {{
+ *   workingSetId: string,
+ *   overlayId: string,
+ *   kind: string,
+ *   headPatchSha: string|null,
+ *   patchCount: number
+ * }} WorkingSetReadOverlayDescriptor
+ */
 /**
  * @typedef {{
  *   intentId: string,
@@ -69,6 +76,14 @@ import { encodePatchMessage } from './WarpMessageCodec.js';
  *   nextIntentSeq: number,
  *   intents: WorkingSetQueuedIntent[]
  * }} WorkingSetIntentQueue
+ */
+/**
+ * @typedef {ReturnType<typeof parseWorkingSetBlob> & {
+ *   overlay: ReturnType<typeof parseWorkingSetBlob>['overlay'] & { writable: boolean },
+ *   braid: { readOverlays: WorkingSetReadOverlayDescriptor[] },
+ *   intentQueue: WorkingSetIntentQueue,
+ *   evolution: { tickCount: number, lastTick: WorkingSetTickRecord|null }
+ * }} WorkingSetDescriptor
  */
 
 export const WORKING_SET_SCHEMA_VERSION = 1;

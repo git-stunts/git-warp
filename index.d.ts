@@ -818,7 +818,7 @@ export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: Cryp
  * Projects a materialized WarpStateV5 into its visible graph projection.
  *
  * This is the stable substrate helper for higher layers that need to inspect
- * materialized working-set or coordinate state without depending on OR-Set
+ * materialized strand or coordinate state without depending on OR-Set
  * internals.
  */
 export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
@@ -1208,10 +1208,10 @@ export class SyncError extends Error {
 }
 
 /**
- * Error class for working-set descriptor and replay operations.
+ * Error class for strand descriptor and replay operations.
  */
-export class WorkingSetError extends Error {
-  readonly name: 'WorkingSetError';
+export class StrandError extends Error {
+  readonly name: 'StrandError';
   readonly code: string;
   readonly context: Record<string, unknown>;
 
@@ -1368,13 +1368,13 @@ export interface CoordinateObserverSource {
   ceiling?: number | null;
 }
 
-export interface WorkingSetObserverSource {
-  kind: 'working_set';
-  workingSetId: string;
+export interface StrandObserverSource {
+  kind: 'strand';
+  strandId: string;
   ceiling?: number | null;
 }
 
-export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | WorkingSetObserverSource;
+export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | StrandObserverSource;
 
 export interface WorldlineOptions {
   source?: WorldlineSource;
@@ -1398,7 +1398,7 @@ export class Observer {
   readonly name: string;
 
   /** Pinned observer source */
-  readonly source: LiveObserverSource | CoordinateObserverSource | WorkingSetObserverSource | null;
+  readonly source: LiveObserverSource | CoordinateObserverSource | StrandObserverSource | null;
 
   /** Pinned snapshot hash (null only for internal delegate-mode instances) */
   readonly stateHash: string | null;
@@ -2137,7 +2137,7 @@ declare class WarpCoreBase {
   /**
    * Advanced substrate replay primitive against an explicit pinned frontier.
    *
-   * This is the substrate primitive used by working sets to replay a pinned
+   * This is the substrate primitive used by strands to replay a pinned
    * observation without assuming the live frontier.
    */
   materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
@@ -2239,7 +2239,7 @@ declare class WarpCoreBase {
    */
   analyzeConflicts(options?: {
     at?: { lamportCeiling?: number | null };
-    workingSetId?: string;
+    strandId?: string;
     entityId?: string;
     target?: ConflictTargetSelector;
     kind?: ConflictKind | ConflictKind[];
@@ -2249,62 +2249,62 @@ declare class WarpCoreBase {
   }): Promise<ConflictAnalysis>;
 
   /**
-   * Creates a durable working-set descriptor pinned to the current frontier
+   * Creates a durable strand descriptor pinned to the current frontier
    * plus an optional Lamport ceiling.
    *
-   * Working sets do not duplicate the graph. They record a pinned base
+   * Strands do not duplicate the graph. They record a pinned base
    * observation plus overlay identity for future divergent writes.
    */
-  createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
+  createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor>;
 
-  /** Loads a previously-created working-set descriptor. */
-  getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
+  /** Loads a previously-created strand descriptor. */
+  getStrand(strandId: string): Promise<StrandDescriptor | null>;
 
-  /** Lists all working-set descriptors stored for this graph. */
-  listWorkingSets(): Promise<WorkingSetDescriptor[]>;
-
-  /**
-   * Pins one or more supporting working-set overlays as read-only braid inputs
-   * on top of a target working set's base observation.
-   */
-  braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
-
-  /** Drops a working-set descriptor by id. Returns false when it does not exist. */
-  dropWorkingSet(workingSetId: string): Promise<boolean>;
+  /** Lists all strand descriptors stored for this graph. */
+  listStrands(): Promise<StrandDescriptor[]>;
 
   /**
-   * Advanced substrate replay primitive for a working set's pinned base observation plus overlay.
+   * Pins one or more supporting strand overlays as read-only braid inputs
+   * on top of a target strand's base observation.
    */
-  materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+  braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;
 
-  /** Returns the causal patch entries visible inside a working set. */
-  getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
-
-  /** Returns the visible patch SHAs that touched one entity inside a working set. */
-  patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
-
-  /** Creates a patch builder that writes into a working set's overlay patch-log. */
-  createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
-
-  /** Convenience wrapper that creates and commits a working-set overlay patch. */
-  patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
-
-  /** Queues a patch-shaped intent against a working set without advancing its overlay. */
-  queueWorkingSetIntent(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<WorkingSetIntentDescriptor>;
-
-  /** Lists the currently queued intents for one working set. */
-  listWorkingSetIntents(workingSetId: string): Promise<WorkingSetIntentDescriptor[]>;
-
-  /** Deterministically drains the queued intent set for one working set. */
-  tickWorkingSet(workingSetId: string): Promise<WorkingSetTickRecord>;
+  /** Drops a strand descriptor by id. Returns false when it does not exist. */
+  dropStrand(strandId: string): Promise<boolean>;
 
   /**
-   * Compares a working set against its base observation, the live frontier, or
-   * another working set using only substrate facts.
+   * Advanced substrate replay primitive for a strand's pinned base observation plus overlay.
    */
-  compareWorkingSet(workingSetId: string, options?: {
-    against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+  materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+
+  /** Returns the causal patch entries visible inside a strand. */
+  getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+
+  /** Returns the visible patch SHAs that touched one entity inside a strand. */
+  patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
+
+  /** Creates a patch builder that writes into a strand's overlay patch-log. */
+  createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
+
+  /** Convenience wrapper that creates and commits a strand overlay patch. */
+  patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+
+  /** Queues a patch-shaped intent against a strand without advancing its overlay. */
+  queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+
+  /** Lists the currently queued intents for one strand. */
+  listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
+
+  /** Deterministically drains the queued intent set for one strand. */
+  tickStrand(strandId: string): Promise<StrandTickRecord>;
+
+  /**
+   * Compares a strand against its base observation, the live frontier, or
+   * another strand using only substrate facts.
+   */
+  compareStrand(strandId: string, options?: {
+    against?: 'base' | 'live' | { kind: 'strand'; strandId: string };
     ceiling?: number | null;
     againstCeiling?: number | null;
     targetId?: string | null;
@@ -2312,12 +2312,12 @@ declare class WarpCoreBase {
   }): Promise<CoordinateComparisonV1>;
 
   /**
-   * Plans a deterministic transfer from a working set into live truth, its
-   * pinned base observation, or another working set without mutating either
+   * Plans a deterministic transfer from a strand into live truth, its
+   * pinned base observation, or another strand without mutating either
    * side.
    */
-  planWorkingSetTransfer(workingSetId: string, options?: {
-    into?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+  planStrandTransfer(strandId: string, options?: {
+    into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
     ceiling?: number | null;
     intoCeiling?: number | null;
     scope?: VisibleStateScopeV1 | null;
@@ -2512,48 +2512,48 @@ export declare class WarpApp {
     options: Parameters<WarpCore['watch']>[1],
   ): ReturnType<WarpCore['watch']>;
 
-  /** Creates a durable working-set descriptor. */
-  createWorkingSet(options?: Parameters<WarpCore['createWorkingSet']>[0]): ReturnType<WarpCore['createWorkingSet']>;
+  /** Creates a durable strand descriptor. */
+  createStrand(options?: Parameters<WarpCore['createStrand']>[0]): ReturnType<WarpCore['createStrand']>;
 
-  /** Loads a previously-created working-set descriptor. */
-  getWorkingSet(workingSetId: Parameters<WarpCore['getWorkingSet']>[0]): ReturnType<WarpCore['getWorkingSet']>;
+  /** Loads a previously-created strand descriptor. */
+  getStrand(strandId: Parameters<WarpCore['getStrand']>[0]): ReturnType<WarpCore['getStrand']>;
 
-  /** Lists all working-set descriptors stored for this graph. */
-  listWorkingSets(): ReturnType<WarpCore['listWorkingSets']>;
+  /** Lists all strand descriptors stored for this graph. */
+  listStrands(): ReturnType<WarpCore['listStrands']>;
 
-  /** Pins one or more supporting overlays as braid inputs on a target working set. */
-  braidWorkingSet(
-    workingSetId: Parameters<WarpCore['braidWorkingSet']>[0],
-    options?: Parameters<WarpCore['braidWorkingSet']>[1],
-  ): ReturnType<WarpCore['braidWorkingSet']>;
+  /** Pins one or more supporting overlays as braid inputs on a target strand. */
+  braidStrand(
+    strandId: Parameters<WarpCore['braidStrand']>[0],
+    options?: Parameters<WarpCore['braidStrand']>[1],
+  ): ReturnType<WarpCore['braidStrand']>;
 
-  /** Drops a working-set descriptor by id. */
-  dropWorkingSet(workingSetId: Parameters<WarpCore['dropWorkingSet']>[0]): ReturnType<WarpCore['dropWorkingSet']>;
+  /** Drops a strand descriptor by id. */
+  dropStrand(strandId: Parameters<WarpCore['dropStrand']>[0]): ReturnType<WarpCore['dropStrand']>;
 
-  /** Creates a patch builder that writes into a working-set overlay patch-log. */
-  createWorkingSetPatch(
-    workingSetId: Parameters<WarpCore['createWorkingSetPatch']>[0],
-  ): ReturnType<WarpCore['createWorkingSetPatch']>;
+  /** Creates a patch builder that writes into a strand overlay patch-log. */
+  createStrandPatch(
+    strandId: Parameters<WarpCore['createStrandPatch']>[0],
+  ): ReturnType<WarpCore['createStrandPatch']>;
 
-  /** Convenience wrapper that creates and commits a working-set overlay patch. */
-  patchWorkingSet(
-    workingSetId: Parameters<WarpCore['patchWorkingSet']>[0],
-    build: Parameters<WarpCore['patchWorkingSet']>[1],
-  ): ReturnType<WarpCore['patchWorkingSet']>;
+  /** Convenience wrapper that creates and commits a strand overlay patch. */
+  patchStrand(
+    strandId: Parameters<WarpCore['patchStrand']>[0],
+    build: Parameters<WarpCore['patchStrand']>[1],
+  ): ReturnType<WarpCore['patchStrand']>;
 
-  /** Queues a patch-shaped intent against a working set. */
-  queueWorkingSetIntent(
-    workingSetId: Parameters<WarpCore['queueWorkingSetIntent']>[0],
-    build: Parameters<WarpCore['queueWorkingSetIntent']>[1],
-  ): ReturnType<WarpCore['queueWorkingSetIntent']>;
+  /** Queues a patch-shaped intent against a strand. */
+  queueStrandIntent(
+    strandId: Parameters<WarpCore['queueStrandIntent']>[0],
+    build: Parameters<WarpCore['queueStrandIntent']>[1],
+  ): ReturnType<WarpCore['queueStrandIntent']>;
 
-  /** Lists the currently queued intents for one working set. */
-  listWorkingSetIntents(
-    workingSetId: Parameters<WarpCore['listWorkingSetIntents']>[0],
-  ): ReturnType<WarpCore['listWorkingSetIntents']>;
+  /** Lists the currently queued intents for one strand. */
+  listStrandIntents(
+    strandId: Parameters<WarpCore['listStrandIntents']>[0],
+  ): ReturnType<WarpCore['listStrandIntents']>;
 
-  /** Deterministically drains the queued intent set for one working set. */
-  tickWorkingSet(workingSetId: Parameters<WarpCore['tickWorkingSet']>[0]): ReturnType<WarpCore['tickWorkingSet']>;
+  /** Deterministically drains the queued intent set for one strand. */
+  tickStrand(strandId: Parameters<WarpCore['tickStrand']>[0]): ReturnType<WarpCore['tickStrand']>;
 }
 
 /**
@@ -2829,21 +2829,21 @@ export interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
-    coordinateKind: 'frontier' | 'working_set';
+    coordinateKind: 'frontier' | 'strand';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -2852,28 +2852,28 @@ export interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
-export interface WorkingSetCreateOptions {
-  workingSetId?: string;
+export interface StrandCreateOptions {
+  strandId?: string;
   lamportCeiling?: number | null;
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
 }
 
-export interface WorkingSetBraidOptions {
-  braidedWorkingSetIds?: string[];
+export interface StrandBraidOptions {
+  braidedStrandIds?: string[];
   writable?: boolean | null;
 }
 
-export interface WorkingSetReadOverlayDescriptor {
-  workingSetId: string;
+export interface StrandReadOverlayDescriptor {
+  strandId: string;
   overlayId: string;
   kind: string;
   headPatchSha: string | null;
   patchCount: number;
 }
 
-export interface WorkingSetIntentDescriptor {
+export interface StrandIntentDescriptor {
   intentId: string;
   enqueuedAt: string;
   patch: PatchV2;
@@ -2882,7 +2882,7 @@ export interface WorkingSetIntentDescriptor {
   contentBlobOids: string[];
 }
 
-export interface WorkingSetTickCounterfactual {
+export interface StrandTickCounterfactual {
   intentId: string;
   reason: string;
   conflictsWith: string[];
@@ -2890,22 +2890,22 @@ export interface WorkingSetTickCounterfactual {
   writes: string[];
 }
 
-export interface WorkingSetTickRecord {
+export interface StrandTickRecord {
   tickId: string;
-  workingSetId: string;
+  strandId: string;
   tickIndex: number;
   createdAt: string;
   drainedIntentCount: number;
   admittedIntentIds: string[];
-  rejected: WorkingSetTickCounterfactual[];
+  rejected: StrandTickCounterfactual[];
   baseOverlayHeadPatchSha: string | null;
   overlayHeadPatchSha: string | null;
   overlayPatchShas: string[];
 }
 
-export interface WorkingSetDescriptor {
+export interface StrandDescriptor {
   schemaVersion: number;
-  workingSetId: string;
+  strandId: string;
   graphName: string;
   createdAt: string;
   updatedAt: string;
@@ -2928,15 +2928,15 @@ export interface WorkingSetDescriptor {
     writable: boolean;
   };
   braid: {
-    readOverlays: WorkingSetReadOverlayDescriptor[];
+    readOverlays: StrandReadOverlayDescriptor[];
   };
   intentQueue?: {
     nextIntentSeq: number;
-    intents: WorkingSetIntentDescriptor[];
+    intents: StrandIntentDescriptor[];
   };
   evolution?: {
     tickCount: number;
-    lastTick: WorkingSetTickRecord | null;
+    lastTick: StrandTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -3214,14 +3214,14 @@ export interface VisibleStateScopeV1 {
 
 export type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
-  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
-  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'strand'; strandId: string; ceiling?: number | null }
+  | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
 export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
 
 export interface CoordinateComparisonResolvedSideV1 {
-  coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+  coordinateKind: 'frontier' | 'strand' | 'strand_base';
   patchFrontier: Record<string, string>;
   patchFrontierDigest: string;
   lamportFrontier: Record<string, number>;
@@ -3230,15 +3230,15 @@ export interface CoordinateComparisonResolvedSideV1 {
   stateHash: string;
   patchUniverseDigest: string;
   summary: VisibleStateSummaryV5 & { patchCount: number };
-  workingSet?: {
-    workingSetId: string;
+  strand?: {
+    strandId: string;
     baseLamportCeiling: number | null;
     overlayHeadPatchSha: string | null;
     overlayPatchCount: number;
     overlayWritable: boolean;
     braid: {
       readOverlayCount: number;
-      braidedWorkingSetIds: string[];
+      braidedStrandIds: string[];
     };
   };
 }

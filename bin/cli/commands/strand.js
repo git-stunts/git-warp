@@ -1,23 +1,23 @@
 import { usageError } from '../infrastructure.js';
 
-import * as braidSubcommand from './working-set/braid.js';
-import * as compareSubcommand from './working-set/compare.js';
-import * as createSubcommand from './working-set/create.js';
-import * as dropSubcommand from './working-set/drop.js';
-import * as listSubcommand from './working-set/list.js';
-import * as materializeSubcommand from './working-set/materialize.js';
-import * as showSubcommand from './working-set/show.js';
-import * as transferPlanSubcommand from './working-set/transfer-plan.js';
+import * as braidSubcommand from './strand/braid.js';
+import * as compareSubcommand from './strand/compare.js';
+import * as createSubcommand from './strand/create.js';
+import * as dropSubcommand from './strand/drop.js';
+import * as listSubcommand from './strand/list.js';
+import * as materializeSubcommand from './strand/materialize.js';
+import * as showSubcommand from './strand/show.js';
+import * as transferPlanSubcommand from './strand/transfer-plan.js';
 
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 /**
  * @typedef {{
  *   WORKING_SET_SUBCOMMAND: { name: string, summary: string },
- *   handleWorkingSetSubcommand: (params: { options: CliOptions, args: string[] }) => Promise<{ payload: unknown, exitCode: number }>
- * }} WorkingSetModule
+ *   handleStrandSubcommand: (params: { options: CliOptions, args: string[] }) => Promise<{ payload: unknown, exitCode: number }>
+ * }} StrandModule
  */
 
-/** @type {Record<string, WorkingSetModule>} */
+/** @type {Record<string, StrandModule>} */
 const WORKING_SET_SUBCOMMANDS = Object.freeze({
   [createSubcommand.WORKING_SET_SUBCOMMAND.name]: createSubcommand,
   [braidSubcommand.WORKING_SET_SUBCOMMAND.name]: braidSubcommand,
@@ -29,11 +29,11 @@ const WORKING_SET_SUBCOMMANDS = Object.freeze({
   [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
 });
 
-function buildWorkingSetUsage() {
+function buildStrandUsage() {
   const subcommandLines = Object.values(WORKING_SET_SUBCOMMANDS)
     .map(({ WORKING_SET_SUBCOMMAND }) => `  ${WORKING_SET_SUBCOMMAND.name.padEnd(12)} ${WORKING_SET_SUBCOMMAND.summary}`);
   return [
-    'Usage: warp-graph working-set <subcommand> [options]',
+    'Usage: warp-graph strand <subcommand> [options]',
     ...subcommandLines,
   ].join('\n');
 }
@@ -42,18 +42,18 @@ function buildWorkingSetUsage() {
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export default async function handleWorkingSet({ options, args }) {
+export default async function handleStrand({ options, args }) {
   const subcommandName = args[0];
   const rest = args.slice(1);
 
   if (!subcommandName) {
-    throw usageError(buildWorkingSetUsage());
+    throw usageError(buildStrandUsage());
   }
 
   const subcommand = WORKING_SET_SUBCOMMANDS[subcommandName];
   if (!subcommand) {
-    throw usageError(`Unknown working-set subcommand: ${subcommandName}\n${buildWorkingSetUsage()}`);
+    throw usageError(`Unknown strand subcommand: ${subcommandName}\n${buildStrandUsage()}`);
   }
 
-  return await subcommand.handleWorkingSetSubcommand({ options, args: rest });
+  return await subcommand.handleStrandSubcommand({ options, args: rest });
 }

@@ -28,6 +28,8 @@ import Observer from '../services/Observer.js';
 import Worldline from '../services/Worldline.js';
 import { computeTranslationCost } from '../services/TranslationCost.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
+import { toInternalStrandShape } from '../utils/strandPublicShape.js';
+import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
 /**
  * @typedef {{
@@ -39,15 +41,19 @@ import { computeStateHashV5 } from '../services/StateSerializerV5.js';
  *     frontier: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   } | {
- *     kind: 'working_set',
- *     workingSetId: string,
+ *     kind: 'strand',
+ *     strandId: string,
  *     ceiling?: number|null
  *   }
  * }} ObserverOptions
  */
 
 /**
- * @param {ObserverOptions['source']|undefined} source
+ * @param {ObserverOptions['source']|{
+ *   kind: 'working_set',
+ *   workingSetId: string,
+ *   ceiling?: number|null
+ * }|undefined} source
  * @returns {ObserverOptions['source']}
  */
 function cloneObserverSource(source) {
@@ -72,8 +78,8 @@ function cloneObserverSource(source) {
   }
 
   return {
-    kind: 'working_set',
-    workingSetId: source.workingSetId,
+    kind: 'strand',
+    strandId: 'strandId' in source ? source.strandId : source.workingSetId,
     ceiling: source.ceiling ?? null,
   };
 }
@@ -138,7 +144,7 @@ async function snapshotReturnedState(graph, state) {
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
  */
 async function resolveObserverSnapshot(graph, options) {
-  const source = options?.source;
+  const source = cloneObserverSource(options?.source);
   if (!source) {
     await graph._ensureFreshState();
     return await snapshotCurrentMaterialized(graph);
@@ -161,11 +167,16 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotReturnedState(detached, state);
   }
 
-  if (source.kind === 'working_set') {
+  if (source.kind === 'strand') {
     const detached = await openDetachedObserverGraph(graph);
-    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materializeWorkingSet(source.workingSetId, {
-      ceiling: source.ceiling ?? null,
-    }));
+    const internalSource = /** @type {{ workingSetId: string, ceiling?: number|null }} */ (
+      /** @type {unknown} */ (toInternalStrandShape(source))
+    );
+    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (
+      await callInternalRuntimeMethod(detached, 'materializeWorkingSet', internalSource.workingSetId, {
+        ceiling: internalSource.ceiling ?? null,
+      })
+    );
     return await snapshotReturnedState(detached, state);
   }
 

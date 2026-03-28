@@ -12,7 +12,7 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_CONFLICT_OPTIONS = {
-  'working-set': { type: 'string' },
+  'strand': { type: 'string' },
   'entity-id': { type: 'string' },
   'target-kind': { type: 'string' },
   'property-key': { type: 'string' },
@@ -133,7 +133,7 @@ function validateEdgeIdentity({ from, to, label, ctx }) {
 }
 
 const debugConflictsSchema = z.object({
-  'working-set': z.string().optional(),
+  'strand': z.string().optional(),
   'entity-id': z.string().optional(),
   'target-kind': z.enum(['node', 'edge', 'node_property', 'edge_property']).optional(),
   'property-key': z.string().optional(),
@@ -160,7 +160,7 @@ const debugConflictsSchema = z.object({
   } : null;
 
   return {
-    workingSetId: val['working-set'] ?? null,
+    strandId: val.strand ?? null,
     entityId: val['entity-id'] ?? null,
     target,
     kinds,
@@ -178,7 +178,7 @@ const debugConflictsSchema = z.object({
  */
 function buildConflictAnalyzeOptions(spec, lamportCeiling) {
   return {
-    workingSetId: spec.workingSetId ?? undefined,
+    strandId: spec.strandId ?? undefined,
     at: lamportCeiling === null ? undefined : { lamportCeiling },
     entityId: spec.entityId ?? undefined,
     target: spec.target ?? undefined,
@@ -203,7 +203,7 @@ export async function handleDebugTopic({ options, args }) {
     payload: {
       graph: graphName,
       debugTopic: 'conflicts',
-      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
+      ...(values.strandId ? { strandId: values.strandId } : {}),
       ...analysis,
     },
     exitCode: EXIT_CODES.OK,

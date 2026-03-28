@@ -15,7 +15,6 @@ import { createStateReaderV5 } from './StateReaderV5.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.js';
-
 /** @typedef {import('../../../index.js').WorldlineSource} WorldlineSource */
 
 /**
@@ -25,6 +24,10 @@ import { matchGlob } from '../utils/matchGlob.js';
  * } | {
  *   kind: 'coordinate',
  *   frontier: Map<string, string>|Record<string, string>,
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'strand',
+ *   strandId: string,
  *   ceiling?: number|null
  * } | {
  *   kind: 'working_set',
@@ -39,8 +42,8 @@ import { matchGlob } from '../utils/matchGlob.js';
  *   frontier: Map<string, string>|Record<string, string>,
  *   ceiling?: number|null
  * } | {
- *   kind: 'working_set',
- *   workingSetId: string,
+ *   kind: 'strand',
+ *   strandId: string,
  *   ceiling?: number|null
  * } | null}
  */
@@ -66,8 +69,8 @@ function cloneObserverSource(source) {
   }
 
   return {
-    kind: 'working_set',
-    workingSetId: source.workingSetId,
+    kind: 'strand',
+    strandId: 'strandId' in source ? source.strandId : source.workingSetId,
     ceiling: source.ceiling ?? null,
   };
 }
@@ -214,7 +217,7 @@ export default class Observer {
   /**
    * Creates a new Observer.
    *
-   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} options
+   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
    */
   constructor({ name, config, graph, snapshot, source }) {
     /** @type {string} */
@@ -237,7 +240,7 @@ export default class Observer {
     /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
     this._snapshot = snapshot || null;
 
-    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } | null} */
+    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
     this._source = cloneObserverSource(source || { kind: 'live' });
 
     /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
@@ -268,7 +271,7 @@ export default class Observer {
   /**
    * Gets the effective pinned source for this observer.
    *
-   * @returns {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } | null}
+   * @returns {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null}
    */
   get source() {
     return cloneObserverSource(this._source);
@@ -301,7 +304,7 @@ export default class Observer {
    *
    * When no explicit source is supplied, seek targets current live truth.
    *
-   * @param {{ source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} [options]
+   * @param {{ source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} [options]
    * @returns {Promise<Observer>}
    */
   async seek(options = undefined) {
@@ -315,7 +318,7 @@ export default class Observer {
     };
     /** @type {WorldlineSource|null} */
     const nextSource = options?.source
-      ? cloneObserverSource(options.source)
+      ? cloneObserverSource(/** @type {WorldlineSource} */ (options.source))
       : { kind: 'live' };
     if (!nextSource) {
       throw new Error('observer seek requires a non-null source');

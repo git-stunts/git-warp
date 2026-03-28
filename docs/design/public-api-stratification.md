@@ -80,11 +80,11 @@ A coding agent should be able to infer:
 These are the nouns and entrypoints we want consumers to reach for first.
 
 - `WarpCore`
-  - compatibility alias to the core surface during the transition
+  - opening a graph for core/tooling usage
 - `WarpApp`
   - opening a graph for product usage
   - patching/writing
-  - creating working sets
+  - creating strands
   - syncing
   - producing pinned read handles
 - `WarpCore`
@@ -103,7 +103,7 @@ These are the nouns and entrypoints we want consumers to reach for first.
   - explicit aperture definition
   - match/expose/redact policy
   - reusable observer input
-- `WorkingSet`
+- `Strand`
   - speculative write lane semantics
   - not yet fully reified as a first-class runtime object, but conceptually in
     this primary layer
@@ -187,7 +187,7 @@ README.
 | Open/write | `WarpApp` / `WarpCore` | `patch()` / `writer()` | patch-chain internals |
 | Stable reads | `Worldline` | `Observer` | explicit coordinate materialization |
 | Filtered product reads | `Observer` | `query()` / `traverse` | direct snapshot inspection |
-| Speculation | working-set concept | working-set methods | overlay/receipt plumbing |
+| Speculation | `Strand` | strand methods | overlay/receipt plumbing |
 | Co-present reads | braid | lane selectors | braid descriptor plumbing |
 | Multi-lane stepping | `PlaybackHead` (tooling/core) | frame seek/step helpers | composite-frame resolution |
 | Inspection | explicit inspection methods | `getStateSnapshot()` | raw materialization |
@@ -203,7 +203,7 @@ The README should teach in this order:
    - `Worldline`
    - `Lens`
    - `Observer`
-   - `WorkingSet`
+   - `Strand`
    - braid, when product behavior needs co-present lanes
 3. the default developer move:
    - write through `WarpApp`
@@ -213,7 +213,7 @@ The README should teach in this order:
 4. query/traversal examples over read handles
 5. explicit note that TTD/debugger/tooling flows use a deeper core stratum
 6. explicit inspection/admin section with cost warnings
-7. advanced materialization/provenance/playback-head/working-set mechanics
+7. advanced materialization/provenance/playback-head/strand mechanics
    later
 
 The Quick Start should no longer imply that product reads normally begin with

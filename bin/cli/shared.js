@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { textEncode } from '../../src/domain/utils/bytes.js';
 // @ts-expect-error — no type declarations for @git-stunts/plumbing
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
-import WarpRuntime from '../../src/domain/WarpRuntime.js';
+import WarpCore from '../../src/domain/WarpCore.js';
 import GitGraphAdapter from '../../src/infrastructure/adapters/GitGraphAdapter.js';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.js';
 import {
@@ -79,7 +79,7 @@ export async function resolveGraphName(persistence, explicitGraph) {
 }
 
 /**
- * Opens a WarpRuntime for the given CLI options.
+ * Opens a WarpCore for the given CLI options.
  * @param {CliOptions} options - Parsed CLI options
  * @returns {Promise<{graph: WarpGraphInstance, graphName: string, persistence: Persistence}>}
  * @throws {import('./infrastructure.js').CliError} If the specified graph is not found
@@ -93,7 +93,7 @@ export async function openGraph(options) {
       throw notFoundError(`Graph not found: ${options.graph}`);
     }
   }
-  const graph = /** @type {WarpGraphInstance} */ (/** @type {unknown} */ (await WarpRuntime.open({
+  const graph = /** @type {WarpGraphInstance} */ (/** @type {unknown} */ (await WarpCore.open({
     persistence: /** @type {import('../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
     graphName,
     writerId: options.writer,
@@ -106,7 +106,7 @@ export async function openGraph(options) {
  * Reads the active cursor and sets `_seekCeiling` on the graph instance
  * so that subsequent materialize calls respect the time-travel boundary.
  *
- * @param {WarpGraphInstance} graph - WarpRuntime instance
+ * @param {WarpGraphInstance} graph - WarpCore instance
  * @param {Persistence} persistence - GraphPersistencePort adapter
  * @param {string} graphName - Name of the WARP graph
  * @returns {Promise<{active: boolean, tick: number|null, maxTick: number|null}>}

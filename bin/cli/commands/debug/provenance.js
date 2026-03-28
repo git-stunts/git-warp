@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.js';
 
 import {
-  loadWorkingSetContextForDebug,
+  loadStrandContextForDebug,
   materializeForDebug,
   openDebugContext,
   resolveLamportCeiling,
@@ -19,19 +19,19 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_PROVENANCE_OPTIONS = {
-  'working-set': { type: 'string' },
+  'strand': { type: 'string' },
   'entity-id': { type: 'string' },
   'lamport-ceiling': { type: 'string' },
   'max-patches': { type: 'string' },
 };
 
 const debugProvenanceSchema = z.object({
-  'working-set': z.string().optional(),
+  'strand': z.string().optional(),
   'entity-id': z.string().min(1, 'Missing value for --entity-id'),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   'max-patches': z.coerce.number().int().positive().optional(),
 }).strict().transform((val) => ({
-  workingSetId: val['working-set'] ?? null,
+  strandId: val.strand ?? null,
   entityId: val['entity-id'],
   lamportCeiling: val['lamport-ceiling'] ?? null,
   maxPatches: val['max-patches'] ?? null,
@@ -46,12 +46,12 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugProvenanceSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const workingSet = values.workingSetId
-    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+  const strand = values.strandId
+    ? await loadStrandContextForDebug(graph, values.strandId)
     : null;
-  const shas = values.workingSetId
-    ? await graph.patchesForWorkingSet(
-        values.workingSetId,
+  const shas = values.strandId
+    ? await graph.patchesForStrand(
+        values.strandId,
         values.entityId,
         lamportCeiling === null ? undefined : { ceiling: lamportCeiling },
       )
@@ -75,8 +75,8 @@ export async function handleDebugTopic({ options, args }) {
     payload: {
       graph: graphName,
       debugTopic: 'provenance',
-      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
-      ...(workingSet ? { workingSet } : {}),
+      ...(values.strandId ? { strandId: values.strandId } : {}),
+      ...(strand ? { strand } : {}),
       entityId: values.entityId,
       lamportCeiling,
       totalPatches: entries.length,

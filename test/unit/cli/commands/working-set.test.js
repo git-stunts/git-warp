@@ -5,16 +5,16 @@ vi.mock('../../../../bin/cli/shared.js', () => ({
 }));
 
 const { openGraph } = await import('../../../../bin/cli/shared.js');
-const handleWorkingSet = (await import('../../../../bin/cli/commands/working-set.js')).default;
+const handleStrand = (await import('../../../../bin/cli/commands/strand.js')).default;
 
-describe('handleWorkingSet working-set braid command', () => {
+describe('handleStrand strand braid command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('passes braid support overlays and writable mode through to the substrate surface', async () => {
-    const braidWorkingSet = vi.fn().mockResolvedValue({
-      workingSetId: 'ws_target',
+    const braidStrand = vi.fn().mockResolvedValue({
+      strandId: 'ws_target',
       overlay: {
         overlayId: 'ws_target',
         kind: 'patch-log',
@@ -25,7 +25,7 @@ describe('handleWorkingSet working-set braid command', () => {
       braid: {
         readOverlays: [
           {
-            workingSetId: 'ws_support',
+            strandId: 'ws_support',
             overlayId: 'ws_support',
             kind: 'patch-log',
             headPatchSha: 'a'.repeat(40),
@@ -36,45 +36,45 @@ describe('handleWorkingSet working-set braid command', () => {
     });
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { braidWorkingSet },
+      graph: { braidStrand },
       graphName: 'demo',
     });
 
-    const result = await handleWorkingSet({
+    const result = await handleStrand({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
       args: ['braid', 'ws_target', '--support', 'ws_support', '--read-only'],
     });
 
-    expect(braidWorkingSet).toHaveBeenCalledWith('ws_target', {
-      braidedWorkingSetIds: ['ws_support'],
+    expect(braidStrand).toHaveBeenCalledWith('ws_target', {
+      braidedStrandIds: ['ws_support'],
       writable: false,
     });
     expect(result.payload).toMatchObject({
       graph: 'demo',
-      workingSetAction: 'braid',
-      workingSet: {
-        workingSetId: 'ws_target',
+      strandAction: 'braid',
+      strand: {
+        strandId: 'ws_target',
       },
     });
   });
 
   it('rejects conflicting braid writability flags', async () => {
-    await expect(handleWorkingSet({
+    await expect(handleStrand({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
       args: ['braid', 'ws_target', '--read-only', '--writable'],
     })).rejects.toThrow(/mutually exclusive/);
   });
 
   it('passes deterministic transfer-plan target selection through to the substrate surface', async () => {
-    const planWorkingSetTransfer = vi.fn().mockResolvedValue({
+    const planStrandTransfer = vi.fn().mockResolvedValue({
       transferVersion: 'coordinate-transfer-plan/v1',
       transferDigest: 'transfer:123',
       comparisonDigest: 'comparison:123',
       changed: true,
       source: {
-        requested: { kind: 'working_set', workingSetId: 'ws_target' },
+        requested: { kind: 'strand', strandId: 'ws_target' },
         resolved: {
-          coordinateKind: 'working_set',
+          coordinateKind: 'strand',
           summary: { patchCount: 2, nodeCount: 2, edgeCount: 0, nodePropertyCount: 2, edgePropertyCount: 0 },
         },
       },
@@ -104,28 +104,28 @@ describe('handleWorkingSet working-set braid command', () => {
     });
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { planWorkingSetTransfer },
+      graph: { planStrandTransfer },
       graphName: 'demo',
     });
 
-    const result = await handleWorkingSet({
+    const result = await handleStrand({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['transfer-plan', 'ws_target', '--into', 'working-set:ws_live_candidate', '--lamport-ceiling', '12', '--into-lamport-ceiling', '8'],
+      args: ['transfer-plan', 'ws_target', '--into', 'strand:ws_live_candidate', '--lamport-ceiling', '12', '--into-lamport-ceiling', '8'],
     });
 
-    expect(planWorkingSetTransfer).toHaveBeenCalledWith('ws_target', {
+    expect(planStrandTransfer).toHaveBeenCalledWith('ws_target', {
       into: {
-        kind: 'working_set',
-        workingSetId: 'ws_live_candidate',
+        kind: 'strand',
+        strandId: 'ws_live_candidate',
       },
       ceiling: 12,
       intoCeiling: 8,
     });
     expect(result.payload).toMatchObject({
       graph: 'demo',
-      workingSetAction: 'transfer-plan',
-      workingSetId: 'ws_target',
-      into: 'working-set:ws_live_candidate',
+      strandAction: 'transfer-plan',
+      strandId: 'ws_target',
+      into: 'strand:ws_live_candidate',
       transferPlan: {
         transferDigest: 'transfer:123',
       },

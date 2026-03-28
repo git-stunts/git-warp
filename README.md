@@ -85,7 +85,7 @@ For a comprehensive walkthrough — from setup to advanced features — see the 
 
 You only need a few ideas to get through the README tutorial:
 
-- write through a **runtime**
+- write through **WarpApp**
 - changes are committed as **patches**
 - sync is **Git transport plus CRDT convergence**
 - reads pin history through a **worldline**
@@ -99,11 +99,11 @@ You only need a few ideas to get through the README tutorial:
 - **Patch** — an atomic batch of graph rewrite operations committed by one writer.
 - **WarpApp** — the primary app-facing API for opening a graph, writing patches, syncing, and creating pinned read handles.
 - **WarpCore** — the plumbing-facing API for replay, provenance, materialization, whole-state inspection, and debugger/tooling integration.
-- **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a working set.
+- **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a strand.
 - **Lens** — the aperture definition that shapes what an observer can see.
 - **Observer** — a filtered, read-only projection over a worldline through a lens.
 - **WarpState** — an immutable materialized graph snapshot produced by replay.
-- **Working set** — a speculative write lane branched from a base observation.
+- **Strand** — a speculative write lane branched from a base observation.
 
 ## Quick Start
 
@@ -182,13 +182,13 @@ Use `app.core()` when you need the plumbing-facing surface, and then reach for `
 
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
-- **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[Documentation Index](docs/README.md)**: Canonical map of the docs corpus, including current docs, operational references, and archive material.
 - **[Changelog](CHANGELOG.md)**: Release history and patch-by-patch updates.
-- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: plumbing/core on one side, observers as the read-side abstraction, and working sets as speculative write lanes.
+- **[Observer / Strand Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: plumbing/core on one side, observers as the read-side abstraction, and strands as speculative write lanes.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
-- **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the working-set API/CLI surface.
-- **Braids**: the canonical term for co-present working-set composition is **braid**. The substrate now supports pinned read-only braid overlays through `braidWorkingSet()` / `git warp working-set braid`, while keeping reducer semantics worldline-blind.
+- **[Strands](docs/STRANDS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the strand API/CLI surface.
+- **Braids**: the canonical term for co-present strand composition is **braid**. The substrate now supports pinned read-only braid overlays through `braidStrand()` / `git warp strand braid`, while keeping reducer semantics worldline-blind.
 - **[Protocol Specs](docs/specs/)**: Binary formats for Audit Receipts, Content Attachments, and BTRs.
 - **[ADR Registry](adr/)**: Architectural Decision Records (e.g., edge-property internal canonicalization).
 - **[Cookbook](examples/)**: Functional examples of Event Sourcing, Pathfinding, and Multi-Writer setups.
@@ -564,8 +564,8 @@ const historical = await historicalWorldline.observer('beforeHotfix', {
 // The same pattern works for speculative lanes
 const reviewLane = graph.worldline({
   source: {
-    kind: 'working_set',
-    workingSetId: 'review-auth',
+    kind: 'strand',
+    strandId: 'review-auth',
     ceiling: 12,
   },
 });
@@ -588,9 +588,9 @@ const { cost, breakdown } = await graph.translationCost(
 
 When you want a pinned read handle, prefer `worldline()` first and then create an observer from that handle. `graph.observer(..., { source })` still exists as a convenience surface, but `Worldline` is the clearer noun when you are binding history explicitly.
 
-Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a detached immutable snapshot and does not retarget the caller runtime. Use them when you need direct replay output for helpers such as `projectStateV5()` or `createStateReaderV5()`, not as a mode switch on one live app-facing handle.
+Each of `materializeCoordinate()` and `materializeStrand()` returns a detached immutable snapshot and does not retarget the caller runtime. Use them when you need direct replay output for helpers such as `projectStateV5()` or `createStateReaderV5()`, not as a mode switch on one live app-facing handle.
 
-Observers are pinned read handles. By default they capture the current materialized read coordinate at creation time, and they can also bind directly to an explicit coordinate or a pinned working set instead of live-following one mutable graph handle.
+Observers are pinned read handles. By default they capture the current materialized read coordinate at creation time, and they can also bind directly to an explicit coordinate or a pinned strand instead of live-following one mutable graph handle.
 
 ## Temporal Queries
 
@@ -613,7 +613,7 @@ const wasMerged = await graph.temporal.eventually(
 
 ## Patch Operations
 
-Direct patching remains part of the low-level substrate surface. For application-facing speculative mutation, prefer working sets and their overlay mechanics rather than treating one live core/runtime handle as the entire product API.
+Direct patching remains part of the low-level substrate surface. For application-facing speculative mutation, prefer strands and their overlay mechanics rather than treating one live core/runtime handle as the entire product API.
 
 The patch builder supports seven operations:
 
@@ -753,35 +753,35 @@ git warp debug coordinate
 # Inspect the newest causal timeline window
 git warp debug timeline --limit 10
 
-# Inspect the newest causal timeline window inside a working set
-git warp debug timeline --working-set review-auth --limit 10
+# Inspect the newest causal timeline window inside a strand
+git warp debug timeline --strand review-auth --limit 10
 
 # Inspect deterministic conflict traces
 git warp debug conflicts --kind supersession --evidence full
 
-# Inspect deterministic conflict traces inside a working set
-git warp debug conflicts --working-set review-auth --evidence full
+# Inspect deterministic conflict traces inside a strand
+git warp debug conflicts --strand review-auth --evidence full
 
 # Trace causal provenance for one entity
 git warp debug provenance --entity-id user:alice
 
-# Trace provenance for one entity inside a working set
-git warp debug provenance --working-set review-auth --entity-id user:alice
+# Trace provenance for one entity inside a strand
+git warp debug provenance --strand review-auth --entity-id user:alice
 
 # Inspect reducer receipts at a time-travel coordinate
 git warp debug receipts --lamport-ceiling 12 --result superseded
 
-# Inspect reducer receipts inside a working set
-git warp debug receipts --working-set review-auth --result superseded
+# Inspect reducer receipts inside a strand
+git warp debug receipts --strand review-auth --result superseded
 
-# Braid a support working set onto a target and freeze target writes
-git warp working-set braid review-auth --support hold-auth --read-only
+# Braid a support strand onto a target and freeze target writes
+git warp strand braid review-auth --support hold-auth --read-only
 
-# Compare a working set against live truth
-git warp working-set compare review-auth --against live --target-id user:alice
+# Compare a strand against live truth
+git warp strand compare review-auth --against live --target-id user:alice
 
-# Plan a deterministic transfer from a working set into live truth
-git warp working-set transfer-plan review-auth --into live
+# Plan a deterministic transfer from a strand into live truth
+git warp strand transfer-plan review-auth --into live
 
 # Check graph health, status, and GC metrics
 git warp check
@@ -825,35 +825,35 @@ git warp debug coordinate --json
 # Inspect the newest visible causal timeline window
 git warp debug timeline --limit 10 --json
 
-# Inspect the newest visible causal timeline window inside a working set
-git warp debug timeline --working-set review-auth --limit 10 --json
+# Inspect the newest visible causal timeline window inside a strand
+git warp debug timeline --strand review-auth --limit 10 --json
 
 # Inspect substrate conflict provenance at the current frontier
 git warp debug conflicts --entity-id user:alice --lamport-ceiling 12 --json
 
-# Inspect substrate conflict provenance inside a working set
-git warp debug conflicts --working-set review-auth --json
+# Inspect substrate conflict provenance inside a strand
+git warp debug conflicts --strand review-auth --json
 
 # Inspect patch provenance for one entity
 git warp debug provenance --entity-id user:alice --json
 
-# Inspect patch provenance inside a working set
-git warp debug provenance --working-set review-auth --entity-id user:alice --json
+# Inspect patch provenance inside a strand
+git warp debug provenance --strand review-auth --entity-id user:alice --json
 
 # Inspect reducer outcomes without leaving the CLI
 git warp debug receipts --writer-id alice --result superseded --json
 
-# Inspect working-set reducer outcomes without leaving the CLI
-git warp debug receipts --working-set review-auth --writer-id ws_review-auth --json
+# Inspect strand reducer outcomes without leaving the CLI
+git warp debug receipts --strand review-auth --writer-id ws_review-auth --json
 
 # Pin a braided support overlay before reading or comparing
-git warp working-set braid review-auth --support hold-auth --read-only --json
+git warp strand braid review-auth --support hold-auth --read-only --json
 
-# Compare a working set against another speculative lane
-git warp working-set compare review-auth --against working-set:review-auth-b --target-id user:alice --json
+# Compare a strand against another speculative lane
+git warp strand compare review-auth --against strand:review-auth-b --target-id user:alice --json
 
 # Extract a machine-readable transfer plan without mutating either side
-git warp working-set transfer-plan review-auth --into live --json
+git warp strand transfer-plan review-auth --into live --json
 ```
 
 When a higher layer needs to carry that same substrate truth across a process or governance boundary, the library can export a canonical fact envelope directly:
@@ -872,7 +872,7 @@ const scope = normalizeVisibleStateScopeV1({
 });
 
 const comparison = await graph.compareCoordinates({
-  left: { kind: 'working_set', workingSetId: 'review-auth' },
+  left: { kind: 'strand', strandId: 'review-auth' },
   right: { kind: 'live' },
   targetId: 'user:alice',
   scope,
@@ -880,7 +880,7 @@ const comparison = await graph.compareCoordinates({
 const comparisonFact = exportCoordinateComparisonFact(comparison);
 
 const transferPlan = await graph.planCoordinateTransfer({
-  source: { kind: 'working_set', workingSetId: 'review-auth' },
+  source: { kind: 'strand', strandId: 'review-auth' },
   target: { kind: 'live' },
   scope,
 });
@@ -898,7 +898,7 @@ All commands accept `--repo <path>` to target a specific Git repository, `--json
 
 ### Human-Facing Apps
 
-`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`. Those read-side debugger commands can now target either the live frontier or a pinned working set, and that pinned working set may itself expose a braid-visible patch universe, while the reducer itself stays deterministic and worldline-blind.
+`git-warp` now ships substrate APIs, low-level CLI plumbing, and thin debug commands such as `git warp debug coordinate`, `git warp debug timeline`, `git warp debug conflicts`, `git warp debug provenance`, and `git warp debug receipts`. Those read-side debugger commands can now target either the live frontier or a pinned strand, and that pinned strand may itself expose a braid-visible patch universe, while the reducer itself stays deterministic and worldline-blind.
 
 Interactive human-facing applications do **not** live in the core package anymore. Build or use those at a higher layer, where domain meaning belongs. Static CLI visualization remains available through `--view`, but full TUI/web experiences are intentionally out of scope for `git-warp` itself.
 

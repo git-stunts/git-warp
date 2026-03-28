@@ -24,7 +24,7 @@ describe('public API cost signaling', () => {
   it('labels direct materialization as advanced substrate replay', () => {
     expect(dts).toContain('Advanced substrate replay primitive over the live frontier.');
     expect(dts).toContain('Advanced substrate replay primitive against an explicit pinned frontier.');
-    expect(dts).toContain("Advanced substrate replay primitive for a working set's pinned base observation plus overlay.");
+    expect(dts).toContain("Advanced substrate replay primitive for a strand's pinned base observation plus overlay.");
     expect(dts).toContain('Advanced substrate replay primitive for this pinned source.');
   });
 });

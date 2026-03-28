@@ -63,6 +63,7 @@ const CLASSIFICATION_NOTES = Object.freeze({
  * @typedef {{
  *   at?: { lamportCeiling?: number|null },
  *   workingSetId?: string,
+ *   strandId?: string,
  *   entityId?: string,
  *   target?: {
  *     targetKind: 'node'|'edge'|'node_property'|'edge_property',
@@ -671,9 +672,10 @@ function normalizeMaxPatches(maxPatches) {
  */
 function normalizeOptions(options) {
   const raw = options ?? {};
+  const normalizedWorkingSetId = normalizeOptionalString('workingSetId', raw.workingSetId ?? raw.strandId);
   return {
     lamportCeiling: normalizeLamportCeiling(raw.at?.lamportCeiling),
-    workingSetId: normalizeOptionalString('workingSetId', raw.workingSetId),
+    workingSetId: normalizedWorkingSetId,
     entityId: normalizeOptionalString('entityId', raw.entityId),
     target: normalizeTargetFilter(raw.target),
     kinds: normalizeKinds(raw.kind),
@@ -727,7 +729,12 @@ function buildResolvedCoordinate({
 }
 
 /**
- * @param {import('../../../index.js').WorkingSetDescriptor} descriptor
+ * @param {{
+ *   workingSetId: string,
+ *   baseObservation: { lamportCeiling: number|null },
+ *   overlay: { headPatchSha: string|null, patchCount: number, writable: boolean },
+ *   braid: { readOverlays: Array<{ workingSetId: string }> }
+ * }} descriptor
  * @returns {NonNullable<ConflictResolvedCoordinate['workingSet']>}
  */
 function buildResolvedWorkingSetMetadata(descriptor) {

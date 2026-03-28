@@ -15,7 +15,7 @@
 - Updated `docs/GUIDE.md` so the advanced read boundary teaches `Worldline` as
   the explicit history handle and describes pinned materialization as detached
   replay.
-- Updated `docs/WORKING_SETS.md` so speculative-lane docs now show
+- Updated `docs/STRANDS.md` so speculative-lane docs now show
   `worldline(...).observer(...)` alongside raw state materialization.
 
 ## Design Alignment Audit
@@ -40,7 +40,7 @@ There was no semantic drift from the governing design note.
 One implementation choice was narrower than the design could have allowed:
 
 - the policy test targets `README.md`, `docs/GUIDE.md`, and
-  `docs/WORKING_SETS.md` only
+  `docs/STRANDS.md` only
 - it does not attempt to normalize historical RFCs or internal design notes
 
 ## Why The Adjustment Happened
@@ -57,4 +57,4 @@ One implementation choice was narrower than the design could have allowed:
 ## Verification
 
 - `npx vitest run test/unit/scripts/read-api-doc-consistency.test.js`
-- `node scripts/lint-markdown-code-samples.js README.md docs/GUIDE.md docs/WORKING_SETS.md`
+- `node scripts/lint-markdown-code-samples.js README.md docs/GUIDE.md docs/STRANDS.md`

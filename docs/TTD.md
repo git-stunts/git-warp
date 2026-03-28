@@ -52,7 +52,7 @@ flowchart TB
     subgraph cli["git-warp CLI"]
         seek["seek"]
         debug["debug coordinate / timeline / conflicts / provenance / receipts"]
-        ws["working-set (separate durable family)"]
+        ws["strand (separate durable family)"]
         raw["patch show / history / query"]
     end
 
@@ -100,13 +100,13 @@ Together these form the substrate-level time travel debugger.
 
 Separate but adjacent:
 
-- `git warp working-set`
+- `git warp strand`
   Manages durable pinned coordinates and materializes them later. This is intentionally outside the read-only TTD family because it creates and deletes descriptor refs.
-- `git warp working-set braid`
-  Pins read-only braid support overlays onto a target working set without changing the TTD read-only contract.
-- `git warp working-set compare`
+- `git warp strand braid`
+  Pins read-only braid support overlays onto a target strand without changing the TTD read-only contract.
+- `git warp strand compare`
   Compares durable coordinates and visible patch universes. It stays outside `debug` because it is a coordinate-comparison surface, not a single-coordinate debugger topic.
-- `git warp working-set transfer-plan`
+- `git warp strand transfer-plan`
   Extracts a deterministic candidate transfer between durable coordinates. It stays outside `debug` because settlement-runway planning is adjacent to, but distinct from, single-coordinate time-travel inspection.
 
 ## Hexagonal Boundary
@@ -127,18 +127,18 @@ The CLI must stay thin:
 - no special debugger-only mutation path
 - no embedded TUI or browser application
 
-TTD is also deliberately separate from working-set management:
+TTD is also deliberately separate from strand management:
 
 - debug commands inspect substrate facts
-- working-set commands pin durable coordinates and compare them
-- `working-set transfer-plan` plans substrate-factual transfer without deciding application-level settlement
+- strand commands pin durable coordinates and compare them
+- `strand transfer-plan` plans substrate-factual transfer without deciding application-level settlement
 - content-clear transfer ops lower through the same public patch helpers (`clearContent()` / `clearEdgeContent()`) rather than through debugger-only or application-only mutation conventions
 - higher layers may combine both, but git-warp keeps the boundary explicit
 - higher-layer library code that needs the same visible truth can combine
-  `materializeWorkingSet()` with `projectStateV5()` or `createStateReaderV5()`
+  `materializeStrand()` with `projectStateV5()` or `createStateReaderV5()`
   without turning git-warp into an application query framework
-- coordinate comparison helpers such as `compareWorkingSet()`,
-  `compareCoordinates()`, `compareVisibleStateV5()`, `planWorkingSetTransfer()`,
+- coordinate comparison helpers such as `compareStrand()`,
+  `compareCoordinates()`, `compareVisibleStateV5()`, `planStrandTransfer()`,
   and `planCoordinateTransfer()` stay substrate-factual and do not collapse
   into application-level decision semantics
 - those comparison/transfer helpers can also take an optional visible-state
@@ -157,18 +157,18 @@ In practice:
 
 - `debug conflicts` uses the conflict analyzer, which performs zero durable writes.
 - `debug coordinate` uses explicit materialization without the CLI attaching checkpoint policies or persistent seek caches.
-- `debug provenance` and `debug timeline` inspect either the live provenance view or the visible working-set patch universe without mutating graph state.
-- `debug receipts` uses explicit materialization over the live frontier or a pinned working set without mutating seek state or graph state.
+- `debug provenance` and `debug timeline` inspect either the live provenance view or the visible strand patch universe without mutating graph state.
+- `debug receipts` uses explicit materialization over the live frontier or a pinned strand without mutating seek state or graph state.
 - debug topics may consult the active seek cursor, but they do not mutate it.
-- when `--working-set <id>` is selected, braid-aware topics can surface the resolved working-set backing facts directly in payload/output: base ceiling, overlay head/count/writability, and pinned braid support IDs
+- when `--strand <id>` is selected, braid-aware topics can surface the resolved strand backing facts directly in payload/output: base ceiling, overlay head/count/writability, and pinned braid support IDs
 
-When a selected working set carries braided read-only overlays, those debug
+When a selected strand carries braided read-only overlays, those debug
 topics inspect the resulting braid-visible patch universe automatically because
-they still materialize and analyze through the working-set substrate surface.
+they still materialize and analyze through the strand substrate surface.
 
 If a future debugger feature requires durable writes, it should not be added casually. The read-only contract is part of the debugger’s architecture, not just a convenience.
 
-This is why `working-set` is a separate top-level family instead of a `debug` subcommand.
+This is why `strand` is a separate top-level family instead of a `debug` subcommand.
 
 ## Coordinate Model
 
@@ -177,19 +177,19 @@ The debugger operates over:
 - the current frontier
 - plus an optional Lamport ceiling
 - plus the optional active seek cursor when no explicit ceiling is given
-- plus, on supported topics, an explicit working-set patch universe selected by `--working-set <id>`
+- plus, on supported topics, an explicit strand patch universe selected by `--strand <id>`
 
 This keeps TTD aligned with the current git-warp substrate model:
 
 - `seek` controls observation position
 - debug topics inspect facts at that position
 - `debug coordinate` remains live-frontier/cursor scoped for now
-- `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned working set, including any pinned braid support overlays, without teaching the reducer about worldlines
+- `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` can inspect a pinned strand, including any pinned braid support overlays, without teaching the reducer about worldlines
 - those braid-aware debug topics can also report which pinned overlay/braid context backed the read, so receipts and provenance stay auditable instead of implicit
-- `working-set compare` handles deterministic coordinate/working-set divergence reads outside the debugger family
-- `working-set transfer-plan` handles deterministic candidate-transfer extraction outside the debugger family
-- `working-set braid` changes descriptor visibility, not debugger semantics
-- explicit working-set descriptors pin positions without mutating the debugger family
+- `strand compare` handles deterministic coordinate/strand divergence reads outside the debugger family
+- `strand transfer-plan` handles deterministic candidate-transfer extraction outside the debugger family
+- `strand braid` changes descriptor visibility, not debugger semantics
+- explicit strand descriptors pin positions without mutating the debugger family
 - higher layers may later project richer worldline semantics on top
 
 ## Human Playback Model
@@ -197,7 +197,7 @@ This keeps TTD aligned with the current git-warp substrate model:
 The human-facing debugger model may legitimately be simpler than the substrate
 model.
 
-At the substrate level, worldlines and working sets can advance independently.
+At the substrate level, worldlines and strands can advance independently.
 For human DX, however, playback controls such as:
 
 - rewind
@@ -216,7 +216,7 @@ That is acceptable as long as we keep the boundary explicit:
 
 In that model, "rewind everything" means:
 
-- resolve each active worldline or working set to its latest visible
+- resolve each active worldline or strand to its latest visible
   coordinate at or before the selected debugger frame
 
 not:

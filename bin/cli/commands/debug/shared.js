@@ -8,6 +8,7 @@ import { notFoundError } from '../../infrastructure.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 /** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
+/** @typedef {import('../../../../src/domain/WarpCore.js').default & import('../../../../src/domain/WarpRuntime.js').default} WarpCoreRuntime */
 
 /**
  * @param {CliOptions} options
@@ -41,25 +42,25 @@ export function resolveLamportCeiling(explicitLamportCeiling, activeCursor) {
  * cache when opening graphs, so this remains a read-only exploratory path.
  *
  * @param {WarpGraphInstance} graph
- * @param {{ lamportCeiling: number|null, collectReceipts: boolean, workingSetId?: string|null }} options
+ * @param {{ lamportCeiling: number|null, collectReceipts: boolean, strandId?: string|null }} options
  * @returns {Promise<unknown>}
  */
 export async function materializeForDebug(graph, options) {
-  const debugGraph = /** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (graph));
+  const debugGraph = /** @type {WarpCoreRuntime} */ (/** @type {unknown} */ (graph));
   const {
     lamportCeiling,
     collectReceipts,
-    workingSetId = null,
+    strandId = null,
   } = options;
-  if (workingSetId) {
+  if (strandId) {
     if (collectReceipts) {
       return lamportCeiling === null
-        ? await debugGraph.materializeWorkingSet(workingSetId, { receipts: true })
-        : await debugGraph.materializeWorkingSet(workingSetId, { receipts: true, ceiling: lamportCeiling });
+        ? await debugGraph.materializeStrand(strandId, { receipts: true })
+        : await debugGraph.materializeStrand(strandId, { receipts: true, ceiling: lamportCeiling });
     }
     return lamportCeiling === null
-      ? await debugGraph.materializeWorkingSet(workingSetId)
-      : await debugGraph.materializeWorkingSet(workingSetId, { ceiling: lamportCeiling });
+      ? await debugGraph.materializeStrand(strandId)
+      : await debugGraph.materializeStrand(strandId, { ceiling: lamportCeiling });
   }
 
   if (collectReceipts) {
@@ -77,43 +78,47 @@ export async function materializeForDebug(graph, options) {
 
 /**
  * @param {WarpGraphInstance} graph
- * @param {string} workingSetId
+ * @param {string} strandId
  * @param {number|null} lamportCeiling
  * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>}
  */
-export async function getWorkingSetPatchEntriesForDebug(graph, workingSetId, lamportCeiling) {
-  const debugGraph = /** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (graph));
+export async function getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling) {
+  const debugGraph = /** @type {WarpCoreRuntime} */ (/** @type {unknown} */ (graph));
   if (lamportCeiling === null) {
-    return await debugGraph.getWorkingSetPatches(workingSetId);
+    return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>} */ (
+      await debugGraph.getStrandPatches(strandId)
+    );
   }
-  return await debugGraph.getWorkingSetPatches(workingSetId, { ceiling: lamportCeiling });
+  return /** @type {Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>} */ (
+    await debugGraph.getStrandPatches(strandId, { ceiling: lamportCeiling })
+  );
 }
 
 /**
- * @param {import('../../../../index.js').WorkingSetDescriptor} workingSet
+ * @param {import('../../../../index.js').StrandDescriptor} strand
  * @returns {{
- *   workingSetId: string,
+ *   strandId: string,
  *   baseLamportCeiling: number|null,
  *   overlayHeadPatchSha: string|null,
  *   overlayPatchCount: number,
  *   overlayWritable: boolean,
  *   braid: {
  *     readOverlayCount: number,
- *     braidedWorkingSetIds: string[]
+ *     braidedStrandIds: string[]
  *   }
  * }}
  */
-export function summarizeWorkingSetContextForDebug(workingSet) {
+export function summarizeStrandContextForDebug(strand) {
   return {
-    workingSetId: workingSet.workingSetId,
-    baseLamportCeiling: workingSet.baseObservation.lamportCeiling,
-    overlayHeadPatchSha: workingSet.overlay.headPatchSha,
-    overlayPatchCount: workingSet.overlay.patchCount,
-    overlayWritable: workingSet.overlay.writable,
+    strandId: strand.strandId,
+    baseLamportCeiling: strand.baseObservation.lamportCeiling,
+    overlayHeadPatchSha: strand.overlay.headPatchSha,
+    overlayPatchCount: strand.overlay.patchCount,
+    overlayWritable: strand.overlay.writable,
     braid: {
-      readOverlayCount: workingSet.braid.readOverlays.length,
-      braidedWorkingSetIds: workingSet.braid.readOverlays
-        .map((overlay) => overlay.workingSetId)
+      readOverlayCount: strand.braid.readOverlays.length,
+      braidedStrandIds: strand.braid.readOverlays
+        .map((overlay) => overlay.strandId)
         .sort(compareStrings),
     },
   };
@@ -121,15 +126,15 @@ export function summarizeWorkingSetContextForDebug(workingSet) {
 
 /**
  * @param {WarpGraphInstance} graph
- * @param {string} workingSetId
- * @returns {Promise<ReturnType<typeof summarizeWorkingSetContextForDebug>>}
+ * @param {string} strandId
+ * @returns {Promise<ReturnType<typeof summarizeStrandContextForDebug>>}
  */
-export async function loadWorkingSetContextForDebug(graph, workingSetId) {
-  const workingSet = await graph.getWorkingSet(workingSetId);
-  if (!workingSet) {
-    throw notFoundError(`Working set not found: ${workingSetId}`);
+export async function loadStrandContextForDebug(graph, strandId) {
+  const strand = await graph.getStrand(strandId);
+  if (!strand) {
+    throw notFoundError(`Strand not found: ${strandId}`);
   }
-  return summarizeWorkingSetContextForDebug(workingSet);
+  return summarizeStrandContextForDebug(strand);
 }
 
 /**

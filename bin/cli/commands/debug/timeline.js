@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { EXIT_CODES, notFoundError, parseCommandArgs } from '../../infrastructure.js';
 
 import {
-  getWorkingSetPatchEntriesForDebug,
-  loadWorkingSetContextForDebug,
+  getStrandPatchEntriesForDebug,
+  loadStrandContextForDebug,
   openDebugContext,
   resolveLamportCeiling,
   sortPatchEntriesCausally,
@@ -20,7 +20,7 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_TIMELINE_OPTIONS = {
-  'working-set': { type: 'string' },
+  'strand': { type: 'string' },
   'entity-id': { type: 'string' },
   'writer-id': { type: 'string' },
   'lamport-floor': { type: 'string' },
@@ -29,7 +29,7 @@ const DEBUG_TIMELINE_OPTIONS = {
 };
 
 const debugTimelineSchema = z.object({
-  'working-set': z.string().optional(),
+  'strand': z.string().optional(),
   'entity-id': z.string().optional(),
   'writer-id': z.string().optional(),
   'lamport-floor': z.coerce.number().int().nonnegative().optional(),
@@ -44,7 +44,7 @@ const debugTimelineSchema = z.object({
   message: '--lamport-floor must be less than or equal to --lamport-ceiling',
   path: ['lamport-floor'],
 }).transform((val) => ({
-  workingSetId: val['working-set'] ?? null,
+  strandId: val.strand ?? null,
   entityId: val['entity-id'] ?? null,
   writerId: val['writer-id'] ?? null,
   lamportFloor: val['lamport-floor'] ?? null,
@@ -104,18 +104,18 @@ async function loadTimelineEntries({ graph, entityId, writerId }) {
 /**
  * @param {{
  *   graph: import('../../types.js').WarpGraphInstance,
- *   workingSetId: string,
+ *   strandId: string,
  *   lamportCeiling: number|null,
  *   entityId: string|null,
  *   writerId: string|null
  * }} params
  * @returns {Promise<PatchEntry[]>}
  */
-async function loadWorkingSetTimelineEntries({ graph, workingSetId, lamportCeiling, entityId, writerId }) {
+async function loadStrandTimelineEntries({ graph, strandId, lamportCeiling, entityId, writerId }) {
   let entries;
   if (entityId) {
-    const shas = await graph.patchesForWorkingSet(
-      workingSetId,
+    const shas = await graph.patchesForStrand(
+      strandId,
       entityId,
       lamportCeiling === null ? undefined : { ceiling: lamportCeiling },
     );
@@ -128,7 +128,7 @@ async function loadWorkingSetTimelineEntries({ graph, workingSetId, lamportCeili
       })),
     ));
   } else {
-    entries = await getWorkingSetPatchEntriesForDebug(graph, workingSetId, lamportCeiling);
+    entries = await getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling);
   }
   if (writerId) {
     entries = entries.filter(({ patch }) => patch.writer === writerId);
@@ -201,10 +201,10 @@ function resolveCoordinateSource(explicitLamportCeiling, activeCursor) {
  * @returns {Promise<PatchEntry[]>}
  */
 async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
-  if (values.workingSetId) {
-    return await loadWorkingSetTimelineEntries({
+  if (values.strandId) {
+    return await loadStrandTimelineEntries({
       graph,
-      workingSetId: values.workingSetId,
+      strandId: values.strandId,
       lamportCeiling,
       entityId: values.entityId,
       writerId: values.writerId,
@@ -228,12 +228,12 @@ export async function handleDebugTopic({ options, args }) {
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const coordinateSource = resolveCoordinateSource(values.lamportCeiling, activeCursor);
-  const workingSet = values.workingSetId
-    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+  const strand = values.strandId
+    ? await loadStrandContextForDebug(graph, values.strandId)
     : null;
   const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
 
-  if (entries.length === 0 && values.writerId && !values.workingSetId) {
+  if (entries.length === 0 && values.writerId && !values.strandId) {
     await ensureKnownWriter({ graph, writerId: values.writerId });
   }
 
@@ -250,8 +250,8 @@ export async function handleDebugTopic({ options, args }) {
       graph: graphName,
       debugTopic: 'timeline',
       coordinateSource,
-      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
-      ...(workingSet ? { workingSet } : {}),
+      ...(values.strandId ? { strandId: values.strandId } : {}),
+      ...(strand ? { strand } : {}),
       filters: {
         entityId: values.entityId,
         writerId: values.writerId,

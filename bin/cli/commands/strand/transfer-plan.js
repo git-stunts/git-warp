@@ -7,7 +7,7 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'transfer-plan',
-  summary: 'Plan a deterministic transfer from one working set into live, base, or another working set',
+  summary: 'Plan a deterministic transfer from one strand into live, base, or another strand',
 });
 
 const TRANSFER_PLAN_OPTIONS = {
@@ -22,20 +22,20 @@ const transferPlanSchema = z.object({
   'into-lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val, ctx) => {
   const rawInto = val.into.trim();
-  /** @type {'base'|'live'|{ kind: 'working_set', workingSetId: string }} */
+  /** @type {'base'|'live'|{ kind: 'strand', strandId: string }} */
   let into;
   if (rawInto === 'base' || rawInto === 'live') {
     into = rawInto;
-  } else if (rawInto.startsWith('working-set:') && rawInto.length > 'working-set:'.length) {
+  } else if (rawInto.startsWith('strand:') && rawInto.length > 'strand:'.length) {
     into = {
-      kind: /** @type {const} */ ('working_set'),
-      workingSetId: rawInto.slice('working-set:'.length),
+      kind: /** @type {const} */ ('strand'),
+      strandId: rawInto.slice('strand:'.length),
     };
   } else {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['into'],
-      message: 'into must be base, live, or working-set:<id>',
+      message: 'into must be base, live, or strand:<id>',
     });
     return z.NEVER;
   }
@@ -43,7 +43,7 @@ const transferPlanSchema = z.object({
   return {
     intoRaw: rawInto,
     transferOptions: /** @type {{
-      into?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
+      into?: 'base'|'live'|{ kind: 'strand', strandId: string },
       ceiling?: number|null,
       intoCeiling?: number|null
     }} */ ({
@@ -58,25 +58,25 @@ const transferPlanSchema = z.object({
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
+export async function handleStrandSubcommand({ options, args }) {
   const { values, positionals } = parseCommandArgs(args, TRANSFER_PLAN_OPTIONS, transferPlanSchema, {
     allowPositionals: true,
   });
   if (positionals.length !== 1) {
     throw usageError(
-      'Usage: warp-graph working-set transfer-plan <id> [--into live|base|working-set:<id>] [--lamport-ceiling <n>] [--into-lamport-ceiling <n>]',
+      'Usage: warp-graph strand transfer-plan <id> [--into live|base|strand:<id>] [--lamport-ceiling <n>] [--into-lamport-ceiling <n>]',
     );
   }
 
-  const workingSetId = positionals[0];
+  const strandId = positionals[0];
   const { graph, graphName } = await openGraph(options);
-  const transferPlan = await graph.planWorkingSetTransfer(workingSetId, values.transferOptions);
+  const transferPlan = await graph.planStrandTransfer(strandId, values.transferOptions);
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'transfer-plan',
-      workingSetId,
+      strandAction: 'transfer-plan',
+      strandId,
       into: values.intoRaw,
       transferPlan,
     },

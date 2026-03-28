@@ -370,6 +370,17 @@ export function buildWorkingSetOverlayRef(graphName, workingSetId) {
 }
 
 /**
+ * Public Strand-noun alias for the working-set overlay ref layout.
+ *
+ * @param {string} graphName
+ * @param {string} strandId
+ * @returns {string}
+ */
+export function buildStrandOverlayRef(graphName, strandId) {
+  return buildWorkingSetOverlayRef(graphName, strandId);
+}
+
+/**
  * Builds the working-set overlay prefix path for the given graph.
  *
  * @param {string} graphName
@@ -397,6 +408,18 @@ export function buildWorkingSetBraidRef(graphName, workingSetId, braidedWorkingS
   validateWriterId(workingSetId);
   validateWriterId(braidedWorkingSetId);
   return `${REF_PREFIX}/${graphName}/working-set-braids/${workingSetId}/${braidedWorkingSetId}`;
+}
+
+/**
+ * Public Strand-noun alias for the working-set braid ref layout.
+ *
+ * @param {string} graphName
+ * @param {string} strandId
+ * @param {string} braidedStrandId
+ * @returns {string}
+ */
+export function buildStrandBraidRef(graphName, strandId, braidedStrandId) {
+  return buildWorkingSetBraidRef(graphName, strandId, braidedStrandId);
 }
 
 /**

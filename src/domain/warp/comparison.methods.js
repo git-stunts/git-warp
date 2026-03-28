@@ -27,6 +27,7 @@ import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
 import { planVisibleStateTransferV5 } from '../services/VisibleStateTransferPlannerV5.js';
 import WorkingSetService from '../services/WorkingSetService.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
+import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
@@ -683,10 +684,12 @@ async function resolveCoordinateComparisonSide(graph, selector, scope) {
 async function resolveWorkingSetComparisonSide(graph, selector, scope) {
   const workingSets = new WorkingSetService({ graph });
   const descriptor = await workingSets.getOrThrow(selector.workingSetId);
-  const state = await graph.materializeWorkingSet(
+  const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
+    graph,
+    'materializeWorkingSet',
     selector.workingSetId,
     selector.ceiling === null ? undefined : { ceiling: selector.ceiling },
-  );
+  ));
   const patchEntries = await workingSets.getPatchEntries(
     selector.workingSetId,
     selector.ceiling === null ? undefined : { ceiling: selector.ceiling },

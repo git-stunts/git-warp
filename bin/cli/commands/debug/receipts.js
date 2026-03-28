@@ -6,7 +6,7 @@ import { EXIT_CODES, parseCommandArgs } from '../../infrastructure.js';
 import {
   compareNumbers,
   compareStrings,
-  loadWorkingSetContextForDebug,
+  loadStrandContextForDebug,
   matchesShaPrefix,
   materializeForDebug,
   openDebugContext,
@@ -23,7 +23,7 @@ export const DEBUG_TOPIC = Object.freeze({
 });
 
 const DEBUG_RECEIPT_OPTIONS = {
-  'working-set': { type: 'string' },
+  'strand': { type: 'string' },
   'writer-id': { type: 'string' },
   patch: { type: 'string' },
   target: { type: 'string' },
@@ -34,7 +34,7 @@ const DEBUG_RECEIPT_OPTIONS = {
 };
 
 const debugReceiptsSchema = z.object({
-  'working-set': z.string().optional(),
+  'strand': z.string().optional(),
   'writer-id': z.string().optional(),
   patch: z.string().optional(),
   target: z.string().optional(),
@@ -49,7 +49,7 @@ const debugReceiptsSchema = z.object({
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().positive().optional(),
 }).strict().transform((val) => ({
-  workingSetId: val['working-set'] ?? null,
+  strandId: val.strand ?? null,
   writerId: val['writer-id'] ?? null,
   patch: val.patch ?? null,
   target: val.target ?? null,
@@ -178,16 +178,16 @@ function filterReceipt(receipt, filters) {
  * @param {{
  *   graph: import('../../types.js').WarpGraphInstance,
  *   lamportCeiling: number|null,
- *   workingSetId: string|null
+ *   strandId: string|null
  * }} params
  * @returns {Promise<TickReceipt[]>}
  */
-async function loadReceipts({ graph, lamportCeiling, workingSetId }) {
+async function loadReceipts({ graph, lamportCeiling, strandId }) {
   const materialized = /** @type {{state: unknown, receipts: TickReceipt[]}} */ (
     await materializeForDebug(graph, {
       lamportCeiling,
       collectReceipts: true,
-      workingSetId,
+      strandId,
     })
   );
   return materialized.receipts;
@@ -202,13 +202,13 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugReceiptsSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const workingSet = values.workingSetId
-    ? await loadWorkingSetContextForDebug(graph, values.workingSetId)
+  const strand = values.strandId
+    ? await loadStrandContextForDebug(graph, values.strandId)
     : null;
   const sortedReceipts = sortReceipts(await loadReceipts({
     graph,
     lamportCeiling,
-    workingSetId: values.workingSetId,
+    strandId: values.strandId,
   }));
   const filteredReceipts = sortedReceipts
     .map((receipt) => filterReceipt(receipt, values))
@@ -222,8 +222,8 @@ export async function handleDebugTopic({ options, args }) {
     payload: {
       graph: graphName,
       debugTopic: 'receipts',
-      ...(values.workingSetId ? { workingSetId: values.workingSetId } : {}),
-      ...(workingSet ? { workingSet } : {}),
+      ...(values.strandId ? { strandId: values.strandId } : {}),
+      ...(strand ? { strand } : {}),
       lamportCeiling,
       filters: {
         writerId: values.writerId,

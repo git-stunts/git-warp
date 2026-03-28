@@ -7,34 +7,34 @@ import { openGraph } from '../../shared.js';
 
 export const WORKING_SET_SUBCOMMAND = Object.freeze({
   name: 'show',
-  summary: 'Show a single working-set descriptor',
+  summary: 'Show a single strand descriptor',
 });
 
 const SHOW_OPTIONS = /** @type {Record<string, { type: string, short?: string, default?: unknown, multiple?: boolean }>} */ ({});
-const showWorkingSetSchema = z.object({}).strict();
+const showStrandSchema = z.object({}).strict();
 
 /**
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export async function handleWorkingSetSubcommand({ options, args }) {
-  const { positionals } = parseCommandArgs(args, SHOW_OPTIONS, showWorkingSetSchema, { allowPositionals: true });
+export async function handleStrandSubcommand({ options, args }) {
+  const { positionals } = parseCommandArgs(args, SHOW_OPTIONS, showStrandSchema, { allowPositionals: true });
   if (positionals.length !== 1) {
-    throw usageError('Usage: warp-graph working-set show <id>');
+    throw usageError('Usage: warp-graph strand show <id>');
   }
 
-  const workingSetId = positionals[0];
+  const strandId = positionals[0];
   const { graph, graphName } = await openGraph(options);
-  const workingSet = await graph.getWorkingSet(workingSetId);
-  if (!workingSet) {
-    throw notFoundError(`Working set not found: ${workingSetId}`);
+  const strand = await graph.getStrand(strandId);
+  if (!strand) {
+    throw notFoundError(`Strand not found: ${strandId}`);
   }
 
   return {
     payload: {
       graph: graphName,
-      workingSetAction: 'show',
-      workingSet,
+      strandAction: 'show',
+      strand,
     },
     exitCode: EXIT_CODES.OK,
   };

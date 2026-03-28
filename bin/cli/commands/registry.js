@@ -7,7 +7,7 @@ import handleDoctor from './doctor/index.js';
 import handleMaterialize from './materialize.js';
 import handleSeek from './seek.js';
 import handleDebug from './debug.js';
-import handleWorkingSet from './working-set.js';
+import handleStrand from './strand.js';
 import handleVerifyAudit from './verify-audit.js';
 import handleVerifyIndex from './verify-index.js';
 import handleReindex from './reindex.js';
@@ -28,7 +28,7 @@ export const COMMANDS = new Map(/** @type {[string, Function][]} */ ([
   ['materialize', handleMaterialize],
   ['seek', handleSeek],
   ['debug', handleDebug],
-  ['working-set', handleWorkingSet],
+  ['strand', handleStrand],
   ['verify-audit', handleVerifyAudit],
   ['verify-index', handleVerifyIndex],
   ['reindex', handleReindex],

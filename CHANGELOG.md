@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Public API now splits into `WarpApp` and `WarpCore`** — the package default export is now `WarpApp`, the curated product-facing surface for app builders and agentic consumers. `WarpCore` is now the explicit plumbing/tooling surface for replay, materialization, provenance, and whole-state inspection. `WarpRuntime` is no longer part of the public API.
-- **Docs now state the intended observer/working-set boundary explicitly** — Added a design note and updated the README, Guide, Working Sets doc, and CONTRIBUTING so git-warp now says plainly that `WarpGraph` is substrate plumbing, observers are the preferred read-side abstraction, and working sets are the preferred speculative write abstraction while governance and policy stay above the substrate.
-- **Observers now pin their read source instead of live-following one mutable graph handle** — `graph.observer(...)` now captures the current materialized coordinate at creation time and can also bind directly to an explicit coordinate or a pinned working set, giving higher layers a real read-handle abstraction for historical or speculative inspection.
-- **Working sets can now queue speculative intents and drain them as deterministic ticks** — Added `queueWorkingSetIntent()`, `listWorkingSetIntents()`, and `tickWorkingSet()` so higher layers can stage patch-shaped candidate rewrites against one working set, admit footprint-independent intents together, record overlapping intents as substrate counterfactuals, and advance only the speculative overlay without touching live truth.
+- **Docs now state the intended observer/strand boundary explicitly** — Added a design note and updated the README, Guide, Strands doc, and CONTRIBUTING so git-warp now says plainly that `WarpCore` is substrate plumbing, observers are the preferred read-side abstraction, and strands are the preferred speculative write abstraction while governance and policy stay above the substrate.
+- **Observers now pin their read source instead of live-following one mutable graph handle** — `graph.observer(...)` now captures the current materialized coordinate at creation time and can also bind directly to an explicit coordinate or a pinned strand, giving higher layers a real read-handle abstraction for historical or speculative inspection.
+- **Strands now carry the speculative-lane public API** — `createStrand()`, `getStrand()`, `listStrands()`, `braidStrand()`, `materializeStrand()`, `queueStrandIntent()`, `listStrandIntents()`, `tickStrand()`, `compareStrand()`, and `planStrandTransfer()` now replace the old `WorkingSet*` public nouns across the package, CLI, and front-door docs.
 
 ## [14.16.2] — 2026-03-19
 
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Scoped comparison and transfer digests now ignore excluded visible-state families** — when a scope is provided, coordinate comparison and transfer planning now filter both the materialized visible state and the contributing patch set before computing side digests, patch-universe divergence, exported facts, and transfer ops. Governance-only node families can now be excluded without perturbing scoped substrate truth.
 - **Scoped fact exports stay canonical and explicit** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` now carry the normalized scope when present, so higher layers can record both raw whole-state facts and scoped substrate facts without inventing their own serialization boundary.
-- **Working-set docs now explain scoped substrate truth explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can exclude out-of-scope node families through published substrate scope rather than local adapters.
+- **Working-set docs now explain scoped substrate truth explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can exclude out-of-scope node families through published substrate scope rather than local adapters.
 
 ## [14.14.0] — 2026-03-18
 
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Comparison and transfer-plan docs now describe portable substrate facts explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can record or attest exported substrate truth without reverse-engineering working-set comparison payloads or stripping raw attachment bytes themselves.
+- **Comparison and transfer-plan docs now describe portable substrate facts explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can record or attest exported substrate truth without reverse-engineering working-set comparison payloads or stripping raw attachment bytes themselves.
 
 ## [14.13.0] — 2026-03-18
 
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Transfer plans now include attachment deltas explicitly** — candidate plans can carry node/edge content attach and clear operations alongside topology and property updates, so higher layers do not need to reverse-engineer `_content*` substrate keys from materialized state.
-- **Working-set docs now describe settlement runway as a substrate concern** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so transfer planning is documented as read-only substrate preparation for higher-layer collapse rather than as debugger behavior or application workflow.
+- **Working-set docs now describe settlement runway as a substrate concern** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so transfer planning is documented as read-only substrate preparation for higher-layer collapse rather than as debugger behavior or application workflow.
 
 ## [14.12.0] — 2026-03-18
 
@@ -85,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Working-set visibility now composes base, braided overlays, and the active overlay** — `materializeWorkingSet()`, `getWorkingSetPatches()`, `patchesForWorkingSet()`, comparison helpers, and working-set-aware conflict analysis metadata now resolve against the full visible patch universe selected by the descriptor, while `reduceV5` remains deterministic and worldline-blind.
 - **Braid refs are now target-owned and durable** — target working sets now keep pinned support-overlay heads reachable through dedicated braid refs, and dropping a target working set cleans those braid refs up with the descriptor.
-- **Working-set docs now describe braid as an active substrate capability** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the braid descriptor model, CLI boundary, and visible patch-universe rules are documented together.
+- **Working-set docs now describe braid as an active substrate capability** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so the braid descriptor model, CLI boundary, and visible patch-universe rules are documented together.
 
 ## [14.10.0] — 2026-03-17
 
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Working-set docs now cover substrate comparison explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the library-first comparison helpers, their substrate-only fact model, and the `working-set compare` CLI boundary are documented together.
+- **Working-set docs now cover substrate comparison explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so the library-first comparison helpers, their substrate-only fact model, and the `working-set compare` CLI boundary are documented together.
 
 ## [14.9.0] — 2026-03-17
 
@@ -108,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Future working-set composition terminology frozen to `braid`** — the active architecture and working-set docs now use **braid** as the canonical term for co-present overlay/working-set composition, explicitly distinguishing it from merge or rebase semantics.
-- **Working-set documentation now distinguishes aggregate projection from richer visible-state reads** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can choose `projectStateV5()` for compact summaries or `createStateReaderV5()` for honest entity-local inspection over the same visible patch universe.
+- **Working-set documentation now distinguishes aggregate projection from richer visible-state reads** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can choose `projectStateV5()` for compact summaries or `createStateReaderV5()` for honest entity-local inspection over the same visible patch universe.
 
 ## [14.8.0] — 2026-03-16
 
@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Working-set documentation now covers higher-layer inspection cleanly** — Updated `README.md`, `ARCHITECTURE.md`, and `docs/WORKING_SETS.md` so higher layers can use `materializeWorkingSet()` plus `projectStateV5()` instead of reinventing working-set query semantics above the substrate.
+- **Working-set documentation now covers higher-layer inspection cleanly** — Updated `README.md`, `ARCHITECTURE.md`, and `docs/STRANDS.md` so higher layers can use `materializeWorkingSet()` plus `projectStateV5()` instead of reinventing working-set query semantics above the substrate.
 
 ## [14.7.0] — 2026-03-16
 
@@ -131,7 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Conflict analysis can now target working sets explicitly** — `WarpGraph.analyzeConflicts()` now accepts `workingSetId`, returns a richer resolved coordinate that distinguishes `frontier` from `working_set`, and computes traces against the selected visible patch universe without changing reducer rules.
 - **Working-set read helpers now support deeper debugger slicing** — `materializeWorkingSet()` accepts an optional runtime ceiling, `getWorkingSetPatches()` feeds read-side debugger topics directly, and the docs now explain that worldline awareness changes patch visibility rather than CRDT resolution.
-- **TTD documentation now covers the debugger/working-set join** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the boundary between read-only debugger topics and durable working-set management stays explicit while still documenting the new `--working-set` inspection flow.
+- **TTD documentation now covers the debugger/working-set join** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/STRANDS.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the boundary between read-only debugger topics and durable working-set management stays explicit while still documenting the new `--working-set` inspection flow.
 
 ## [14.6.0] — 2026-03-16
 
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Working-set materialization now replays base plus overlay** — `materializeWorkingSet()` now reduces the pinned base observation together with the current overlay patch-log, and `getWorkingSet()` / `listWorkingSets()` reconcile overlay metadata from the overlay ref so callers see the current head and patch count.
-- **Working-set documentation now reflects real overlay behavior** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, `docs/TTD.md`, and `docs/CLI_GUIDE.md` so the docs describe overlay patch logs, the library-first write API, and the CLI boundary accurately instead of talking about permanently empty overlays.
+- **Working-set documentation now reflects real overlay behavior** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, `docs/GUIDE.md`, `docs/TTD.md`, and `docs/CLI_GUIDE.md` so the docs describe overlay patch logs, the library-first write API, and the CLI boundary accurately instead of talking about permanently empty overlays.
 
 ### Fixed
 
@@ -154,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Working-set foundation in the substrate** — Added explicit coordinate replay through `WarpGraph.materializeCoordinate()` plus durable working-set descriptors through `createWorkingSet()`, `getWorkingSet()`, `listWorkingSets()`, `dropWorkingSet()`, and `materializeWorkingSet()`. The v1 descriptor pins the current frontier plus an optional Lamport ceiling, carries optional owner/scope/lease metadata, records empty overlay identity for future evolution, and keeps materialized state explicitly non-authoritative.
 - **Top-level `git warp working-set` CLI family** — Added `working-set create`, `list`, `show`, `materialize`, and `drop` to the main CLI so operators and LLM agents can manage pinned coordinates directly without a second package or debugger-specific mutation path.
-- **Dedicated working-set architecture note** — Added `docs/WORKING_SETS.md` as the canonical substrate note for pinned coordinates, the truth/cache boundary, and the v1 non-goals around overlays, worktrees, and higher-level worldline meaning.
+- **Dedicated working-set architecture note** — Added `docs/STRANDS.md` as the canonical substrate note for pinned coordinates, the truth/cache boundary, and the v1 non-goals around overlays, worktrees, and higher-level worldline meaning.
 
 ### Changed
 
@@ -194,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`@git-stunts/git-cas` floor raised to `^5.3.1`** — The declared minimum dependency now requires the `5.3.1` bugfix release, and the checked-in lockfile has been refreshed so local and release builds actually exercise the fixed CAS behavior instead of the prior `5.3.0` resolution.
-- **Conflict analyzer v1 plan frozen in docs** — The active counterfactual/conflict-provenance direction now lives under `docs/plans/conflict-analyzer-v1.md`, with earlier draft specs archived so contributor guidance points at one canonical implementation target.
+- **Conflict analyzer v1 plan frozen in docs** — The active counterfactual/conflict-provenance direction now lives under `docs/archive/plans/conflict-analyzer-v1.md`, with earlier draft specs archived so contributor guidance points at one canonical implementation target.
 - **GitHub Actions runtime refresh** — Workflow actions now use Node-24-capable majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/github-script@v8`), while the repo jobs themselves continue to run on Node 22. The release workflow now treats GitHub Releases and registry versions as immutable: if a tagged version already exists, it emits a warning and skips the repeated publish/update instead of mutating the existing release or retrying a republish.
 
 ### Fixed
@@ -974,8 +974,8 @@ Implements Milestone 7 (Trust V1). Writer trust is now derived from signed Ed255
   - TrustAssessment schema conformance: 9 snapshot tests
   - Domain purity: 37 grep-based checks (no `process.env` or infrastructure imports in trust domain)
   - CLI pin precedence + exit code matrix: 10 tests
-- **Migration doc** (`docs/TRUST_MIGRATION.md`): Migration path from env-var allowlist to signed evidence.
-- **Operator runbook** (`docs/TRUST_OPERATOR_RUNBOOK.md`): Bootstrap, verify, rotate, revoke, and incident response procedures.
+- **Migration doc** (`docs/trust/TRUST_MIGRATION.md`): Migration path from env-var allowlist to signed evidence.
+- **Operator runbook** (`docs/trust/TRUST_OPERATOR_RUNBOOK.md`): Bootstrap, verify, rotate, revoke, and incident response procedures.
 
 ### Changed
 
@@ -1301,7 +1301,7 @@ Shows _which_ nodes/edges were added/removed and _which_ properties changed (wit
 - **Pre-push hook**: Removed BATS E2E tests (now CI-only) to keep pre-push fast.
 - **`@ts-ignore` → `@ts-expect-error`** across 3 source files and 4 test files. `@ts-expect-error` is strictly better: it errors when the suppression becomes unnecessary.
 - **~108 wildcard casts tagged** with `// TODO(ts-cleanup): reason` across ~30 source files in `src/`, `bin/`, and `scripts/`. Categorized reasons: `needs options type`, `type error`, `narrow port type`, `type patch array`, `type CLI payload`, `type http callback`, `type sync protocol`, `type lazy singleton`, `type observer cast`, and others.
-- **`TYPESCRIPT_ZERO.md`**: B3 (Policy enforcement) marked complete.
+- **`docs/archive/checklists/TYPESCRIPT_ZERO.md`**: B3 (Policy enforcement) marked complete.
 
 ## [10.4.1] — 2026-02-10 — Default crypto & join() fix
 

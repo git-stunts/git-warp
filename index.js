@@ -52,7 +52,7 @@ import {
   TraversalError,
   OperationAbortedError,
   SyncError,
-  WorkingSetError,
+  StrandError,
   WormholeError,
 } from './src/domain/errors/index.js';
 import WriterError from './src/domain/errors/WriterError.js';
@@ -192,7 +192,7 @@ export {
   TraversalError,
   OperationAbortedError,
   SyncError,
-  WorkingSetError,
+  StrandError,
   WormholeError,
   WriterError,
 

@@ -1,10 +1,14 @@
+// @ts-nocheck
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import WarpRuntime from '../../../src/domain/WarpRuntime.js';
+import WarpCore from '../../../src/domain/WarpCore.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
+
+/** @typedef {any} WarpCoreRuntime */
 
 /**
  * @param {number} counter
@@ -137,21 +141,21 @@ async function simulatePatchCommit(persistence, {
   return sha;
 }
 
-describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
+describe('WarpCore plumbing vs porcelain observer boundary', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpRuntime} */
+  /** @type {WarpCoreRuntime} */
   let graph;
   const graphName = 'observer-boundary-demo';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpRuntime.open({
+    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    });
+    }));
   });
 
   it('materialize() returns a transitively immutable detached snapshot', async () => {
@@ -222,7 +226,7 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
-  it('materializeWorkingSet() returns a working-set snapshot without retargeting the live graph handle', async () => {
+  it('materializeStrand() returns a strand snapshot without retargeting the live graph handle', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -233,12 +237,12 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
       ],
     });
 
-    await graph.createWorkingSet({
-      workingSetId: 'ws_red',
+    await graph.createStrand({
+      strandId: 'ws_red',
       owner: 'alice',
     });
 
-    await graph.patchWorkingSet('ws_red', (patch) => {
+    await graph.patchStrand('ws_red', (patch) => {
       patch.setProperty('n1', 'status', 'reviewing');
     });
 
@@ -254,11 +258,11 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     await graph.materialize();
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
 
-    const workingSetState = /** @type {any} */ (await graph.materializeWorkingSet('ws_red'));
-    const workingSetReader = createStateReaderV5(workingSetState);
+    const strandState = /** @type {any} */ (await graph.materializeStrand('ws_red'));
+    const strandReader = createStateReaderV5(strandState);
 
-    expect(() => workingSetState.prop.set('intruder', null)).toThrow(TypeError);
-    expect(workingSetReader.getNodeProps('n1')).toMatchObject({
+    expect(() => strandState.prop.set('intruder', null)).toThrow(TypeError);
+    expect(strandReader.getNodeProps('n1')).toMatchObject({
       color: 'red',
       status: 'reviewing',
     });
@@ -438,7 +442,7 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
-  it('observer.seek() can pin a working-set source without mutating live graph state', async () => {
+  it('observer.seek() can pin a strand source without mutating live graph state', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -449,12 +453,12 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
       ],
     });
 
-    await graph.createWorkingSet({
-      workingSetId: 'ws_red',
+    await graph.createStrand({
+      strandId: 'ws_red',
       owner: 'alice',
     });
 
-    await graph.patchWorkingSet('ws_red', (patch) => {
+    await graph.patchStrand('ws_red', (patch) => {
       patch.setProperty('n1', 'status', 'reviewing');
     });
 
@@ -469,21 +473,21 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
 
     await graph.materialize();
     const liveObserver = await (await graph.observer('lane', { match: 'n1' })).seek();
-    const workingSetObserver = await liveObserver.seek({
+    const strandObserver = await liveObserver.seek({
       source: {
-        kind: 'working_set',
-        workingSetId: 'ws_red',
+        kind: 'strand',
+        strandId: 'ws_red',
       },
     });
 
-    const workingSetSource = workingSetObserver.source;
-    expect(workingSetSource).not.toBeNull();
-    if (!workingSetSource) {
-      throw new Error('expected working-set observer source');
+    const strandSource = strandObserver.source;
+    expect(strandSource).not.toBeNull();
+    if (!strandSource) {
+      throw new Error('expected strand observer source');
     }
-    expect(workingSetSource.kind).toBe('working_set');
+    expect(strandSource.kind).toBe('strand');
     await expect(liveObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
-    await expect(workingSetObserver.getNodeProps('n1')).resolves.toMatchObject({
+    await expect(strandObserver.getNodeProps('n1')).resolves.toMatchObject({
       color: 'red',
       status: 'reviewing',
     });

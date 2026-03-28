@@ -8,8 +8,8 @@ import WorkingSetService from '../services/WorkingSetService.js';
 
 /**
  * @this {import('../WarpRuntime.js').default}
- * @param {import('../../../index.js').WorkingSetCreateOptions} [options]
- * @returns {Promise<import('../../../index.js').WorkingSetDescriptor>}
+ * @param {import('../services/WorkingSetService.js').WorkingSetCreateOptions} [options]
+ * @returns {Promise<import('../services/WorkingSetService.js').WorkingSetDescriptor>}
  */
 export async function createWorkingSet(options) {
   const service = new WorkingSetService({ graph: this });
@@ -19,8 +19,8 @@ export async function createWorkingSet(options) {
 /**
  * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
- * @param {import('../../../index.js').WorkingSetBraidOptions} [options]
- * @returns {Promise<import('../../../index.js').WorkingSetDescriptor>}
+ * @param {import('../services/WorkingSetService.js').WorkingSetBraidOptions} [options]
+ * @returns {Promise<import('../services/WorkingSetService.js').WorkingSetDescriptor>}
  */
 export async function braidWorkingSet(workingSetId, options) {
   const service = new WorkingSetService({ graph: this });
@@ -30,7 +30,7 @@ export async function braidWorkingSet(workingSetId, options) {
 /**
  * @this {import('../WarpRuntime.js').default}
  * @param {string} workingSetId
- * @returns {Promise<import('../../../index.js').WorkingSetDescriptor|null>}
+ * @returns {Promise<import('../services/WorkingSetService.js').WorkingSetDescriptor|null>}
  */
 export async function getWorkingSet(workingSetId) {
   const service = new WorkingSetService({ graph: this });
@@ -39,7 +39,7 @@ export async function getWorkingSet(workingSetId) {
 
 /**
  * @this {import('../WarpRuntime.js').default}
- * @returns {Promise<import('../../../index.js').WorkingSetDescriptor[]>}
+ * @returns {Promise<import('../services/WorkingSetService.js').WorkingSetDescriptor[]>}
  */
 export async function listWorkingSets() {
   const service = new WorkingSetService({ graph: this });

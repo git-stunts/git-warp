@@ -24,7 +24,7 @@ The substrate now has much better semantics than it had before:
 - detached immutable snapshots
 - `Worldline`
 - `Observer`
-- working-set read boundaries
+- strand read boundaries
 
 But the public API and README still need a product-design pass so the right path
 is easier to discover than the wrong one.

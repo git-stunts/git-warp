@@ -5,7 +5,7 @@ import WarpCore from './WarpCore.js';
  *
  * `WarpApp` is the default entrypoint for application builders, agentic CLI
  * usage, and other flows that should prefer worldlines, lenses, observers,
- * speculative lanes, and explicit sync over whole-state replay mechanics.
+ * strands, and explicit sync over whole-state replay mechanics.
  */
 export default class WarpApp {
   /**
@@ -99,7 +99,7 @@ export default class WarpApp {
   }
 
   /**
-   * @param {import('./WarpRuntime.js').default['syncWith'] extends (remote: infer R, options?: infer O) => infer P ? string | WarpApp | WarpCore : never} remote
+   * @param {string | WarpApp | WarpCore} remote
    * @param {Parameters<import('./WarpRuntime.js').default['syncWith']>[1]} [options]
    * @returns {ReturnType<import('./WarpRuntime.js').default['syncWith']>}
    */
@@ -108,8 +108,8 @@ export default class WarpApp {
       typeof remote === 'string'
         ? remote
         : remote instanceof WarpApp
-          ? /** @type {import('./WarpRuntime.js').default} */ (remote.core())
-          : /** @type {import('./WarpRuntime.js').default} */ (remote);
+          ? /** @type {import('./WarpRuntime.js').default} */ (/** @type {unknown} */ (remote.core()))
+          : /** @type {import('./WarpRuntime.js').default} */ (/** @type {unknown} */ (remote));
     return await this._runtime().syncWith(unwrappedRemote, options);
   }
 
@@ -168,84 +168,154 @@ export default class WarpApp {
   }
 
   /**
-   * @param {Parameters<import('./WarpRuntime.js').default['createWorkingSet']>[0]} [options]
-   * @returns {ReturnType<import('./WarpRuntime.js').default['createWorkingSet']>}
+   * @param {Parameters<WarpCore['createStrand']>[0]} [options]
+   * @returns {ReturnType<WarpCore['createStrand']>}
    */
-  async createWorkingSet(options) {
-    return await this._runtime().createWorkingSet(options);
+  async createStrand(options) {
+    return await this.core().createStrand(options);
   }
 
   /**
-   * @param {string} workingSetId
-   * @returns {ReturnType<import('./WarpRuntime.js').default['getWorkingSet']>}
+   * @param {string} strandId
+   * @returns {ReturnType<WarpCore['getStrand']>}
    */
-  async getWorkingSet(workingSetId) {
-    return await this._runtime().getWorkingSet(workingSetId);
+  async getStrand(strandId) {
+    return await this.core().getStrand(strandId);
   }
 
   /**
-   * @returns {ReturnType<import('./WarpRuntime.js').default['listWorkingSets']>}
+   * @returns {ReturnType<WarpCore['listStrands']>}
    */
-  async listWorkingSets() {
-    return await this._runtime().listWorkingSets();
+  async listStrands() {
+    return await this.core().listStrands();
   }
 
   /**
-   * @param {string} workingSetId
-   * @param {Parameters<import('./WarpRuntime.js').default['braidWorkingSet']>[1]} [options]
-   * @returns {ReturnType<import('./WarpRuntime.js').default['braidWorkingSet']>}
+   * @param {string} strandId
+   * @param {Parameters<WarpCore['braidStrand']>[1]} [options]
+   * @returns {ReturnType<WarpCore['braidStrand']>}
    */
-  async braidWorkingSet(workingSetId, options) {
-    return await this._runtime().braidWorkingSet(workingSetId, options);
+  async braidStrand(strandId, options) {
+    return await this.core().braidStrand(strandId, options);
   }
 
   /**
-   * @param {string} workingSetId
-   * @returns {ReturnType<import('./WarpRuntime.js').default['dropWorkingSet']>}
+   * @param {string} strandId
+   * @returns {ReturnType<WarpCore['dropStrand']>}
    */
-  async dropWorkingSet(workingSetId) {
-    return await this._runtime().dropWorkingSet(workingSetId);
+  async dropStrand(strandId) {
+    return await this.core().dropStrand(strandId);
   }
 
   /**
-   * @param {string} workingSetId
-   * @returns {ReturnType<import('./WarpRuntime.js').default['createWorkingSetPatch']>}
+   * @param {string} strandId
+   * @returns {ReturnType<WarpCore['createStrandPatch']>}
    */
-  async createWorkingSetPatch(workingSetId) {
-    return await this._runtime().createWorkingSetPatch(workingSetId);
+  async createStrandPatch(strandId) {
+    return await this.core().createStrandPatch(strandId);
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
-  async patchWorkingSet(workingSetId, build) {
-    return await this._runtime().patchWorkingSet(workingSetId, build);
+  async patchStrand(strandId, build) {
+    return await this.core().patchStrand(strandId, build);
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
-   * @returns {ReturnType<import('./WarpRuntime.js').default['queueWorkingSetIntent']>}
+   * @returns {ReturnType<WarpCore['queueStrandIntent']>}
    */
-  async queueWorkingSetIntent(workingSetId, build) {
-    return await this._runtime().queueWorkingSetIntent(workingSetId, build);
+  async queueStrandIntent(strandId, build) {
+    return await this.core().queueStrandIntent(strandId, build);
   }
 
   /**
-   * @param {string} workingSetId
-   * @returns {ReturnType<import('./WarpRuntime.js').default['listWorkingSetIntents']>}
+   * @param {string} strandId
+   * @returns {ReturnType<WarpCore['listStrandIntents']>}
    */
-  async listWorkingSetIntents(workingSetId) {
-    return await this._runtime().listWorkingSetIntents(workingSetId);
+  async listStrandIntents(strandId) {
+    return await this.core().listStrandIntents(strandId);
   }
 
   /**
-   * @param {string} workingSetId
-   * @returns {ReturnType<import('./WarpRuntime.js').default['tickWorkingSet']>}
+   * @param {string} strandId
+   * @returns {ReturnType<WarpCore['tickStrand']>}
    */
-  async tickWorkingSet(workingSetId) {
-    return await this._runtime().tickWorkingSet(workingSetId);
+  async tickStrand(strandId) {
+    return await this.core().tickStrand(strandId);
+  }
+
+  /**
+   * Removed in v15. Use `createStrand()`.
+   */
+  createWorkingSet() {
+    throw new Error('createWorkingSet() was removed in v15. Use createStrand().');
+  }
+
+  /**
+   * Removed in v15. Use `getStrand()`.
+   */
+  getWorkingSet() {
+    throw new Error('getWorkingSet() was removed in v15. Use getStrand().');
+  }
+
+  /**
+   * Removed in v15. Use `listStrands()`.
+   */
+  listWorkingSets() {
+    throw new Error('listWorkingSets() was removed in v15. Use listStrands().');
+  }
+
+  /**
+   * Removed in v15. Use `braidStrand()`.
+   */
+  braidWorkingSet() {
+    throw new Error('braidWorkingSet() was removed in v15. Use braidStrand().');
+  }
+
+  /**
+   * Removed in v15. Use `dropStrand()`.
+   */
+  dropWorkingSet() {
+    throw new Error('dropWorkingSet() was removed in v15. Use dropStrand().');
+  }
+
+  /**
+   * Removed in v15. Use `createStrandPatch()`.
+   */
+  createWorkingSetPatch() {
+    throw new Error('createWorkingSetPatch() was removed in v15. Use createStrandPatch().');
+  }
+
+  /**
+   * Removed in v15. Use `patchStrand()`.
+   */
+  patchWorkingSet() {
+    throw new Error('patchWorkingSet() was removed in v15. Use patchStrand().');
+  }
+
+  /**
+   * Removed in v15. Use `queueStrandIntent()`.
+   */
+  queueWorkingSetIntent() {
+    throw new Error('queueWorkingSetIntent() was removed in v15. Use queueStrandIntent().');
+  }
+
+  /**
+   * Removed in v15. Use `listStrandIntents()`.
+   */
+  listWorkingSetIntents() {
+    throw new Error('listWorkingSetIntents() was removed in v15. Use listStrandIntents().');
+  }
+
+  /**
+   * Removed in v15. Use `tickStrand()`.
+   */
+  tickWorkingSet() {
+    throw new Error('tickWorkingSet() was removed in v15. Use tickStrand().');
   }
 }
