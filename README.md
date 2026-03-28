@@ -116,12 +116,45 @@ await graph.patch(p => {
     .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024');
 });
 
-// Query the graph
-const result = await graph.query()
+// Read through a pinned worldline and observer
+const worldline = graph.worldline();
+const view = await worldline.observer('publicApi', {
+  match: 'user:*',
+});
+
+const result = await view.query()
   .match('user:*')
   .outgoing('manages')
   .run();
 ```
+
+## Core Primitives
+
+git-warp is easier to use correctly when you think in terms of a few explicit
+primitives:
+
+- **`WarpRuntime`**
+  Opens the substrate, writes patches, syncs, manages checkpoints, and creates
+  pinned read handles.
+- **`Worldline`**
+  Pins a read source in history. This is the right starting noun when you want a
+  stable read coordinate instead of one mutable live handle.
+- **`Observer`**
+  A filtered, read-only projection over a worldline. This is the preferred
+  application-facing read primitive.
+- **`WarpState`**
+  The immutable materialized snapshot produced by replay.
+- **Working sets**
+  Speculative lanes for divergent writes and comparison against live truth or
+  other lanes.
+
+## Read Model
+
+For application-facing reads, prefer `worldline()` plus `observer(...)` and then query or traverse through that read handle.
+
+Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.
+
+Use `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.
 
 ## Documentation Map
 
@@ -258,7 +291,34 @@ await graphA.syncWith(graphB);
 
 Query methods auto-materialize by default. Just open a graph and start querying:
 
-### Simple Queries
+### Application-Facing Reads
+
+For product read paths, prefer a pinned worldline and observer before reaching
+for whole-state inspection helpers.
+
+```javascript
+const worldline = graph.worldline();
+const view = await worldline.observer('taskBoard', {
+  match: 'user:*',
+  redact: ['ssn', 'password'],
+});
+
+const result = await view.query()
+  .match('user:*')
+  .outgoing('manages')
+  .run();
+
+const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
+  dir: 'outgoing',
+  labelFilter: 'manages',
+});
+```
+
+### Inspection APIs
+
+These helpers are useful substrate tools, but they enumerate or inspect visible
+materialized state directly and should not be treated as the default app read
+model.
 
 ```javascript
 await graph.getNodes();                              // ['user:alice', 'user:bob']
