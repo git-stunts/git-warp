@@ -27,31 +27,43 @@ describe('README public API teaching order', () => {
     expect(readme).not.toContain('## What\'s New');
   });
 
-  it('uses worldline-first observer reads in Quick Start', () => {
+  it('uses worldline-first reads and shows write/read/query/traverse in Quick Start', () => {
     const quickStart = betweenHeadings(readme, '## Quick Start', '## Documentation Map');
+    expect(quickStart).toMatch(/graph\.patch\(/);
+    expect(quickStart).toMatch(/getNodeProps\('user:alice'\)/);
     expect(quickStart).toMatch(/worldline\([\s\S]*?\.observer\(/);
-    expect(quickStart).toMatch(/\.observer\([\s\S]*?\.query\(\)/);
+    expect(quickStart).toMatch(/\.query\(\)/);
+    expect(quickStart).toMatch(/traverse\.shortestPath/);
     expect(quickStart).toContain('Observer labels are optional.');
     expect(quickStart).toContain("worldline.observer('public-users', { match: 'user:*' })");
   });
 
-  it('introduces concepts, glossary, and main components before raw querying sections', () => {
-    const concepts = readme.indexOf('## Concepts');
+  it('introduces the system in progressive layers before raw querying sections', () => {
+    const whatIs = readme.indexOf('## What Is git-warp?');
+    const whyUseIt = readme.indexOf('## Why Use It?');
+    const mentalModel = readme.indexOf('## Minimal Mental Model');
     const glossary = readme.indexOf('## Glossary');
-    const mainComponents = readme.indexOf('## Main Components');
+    const quickStart = readme.indexOf('## Quick Start');
     const readModel = readme.indexOf('## Read Model');
     const querying = readme.indexOf('## Querying');
 
-    expect(concepts).toBeGreaterThan(-1);
+    expect(whatIs).toBeGreaterThan(-1);
+    expect(whyUseIt).toBeGreaterThan(-1);
+    expect(mentalModel).toBeGreaterThan(-1);
     expect(glossary).toBeGreaterThan(-1);
-    expect(mainComponents).toBeGreaterThan(-1);
+    expect(quickStart).toBeGreaterThan(-1);
     expect(readModel).toBeGreaterThan(-1);
     expect(querying).toBeGreaterThan(-1);
-    expect(concepts).toBeLessThan(querying);
+    expect(whatIs).toBeLessThan(querying);
+    expect(whyUseIt).toBeLessThan(querying);
+    expect(mentalModel).toBeLessThan(querying);
     expect(glossary).toBeLessThan(querying);
-    expect(mainComponents).toBeLessThan(querying);
+    expect(quickStart).toBeLessThan(querying);
     expect(readModel).toBeLessThan(querying);
-    expect(readme).not.toContain('## Core Primitives');
+    expect(whatIs).toBeLessThan(whyUseIt);
+    expect(whyUseIt).toBeLessThan(mentalModel);
+    expect(mentalModel).toBeLessThan(quickStart);
+    expect(readme).not.toContain('## Main Components');
   });
 
   it('labels whole-state enumeration as inspection and explains the read-model tradeoff', () => {

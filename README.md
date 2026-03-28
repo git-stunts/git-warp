@@ -11,24 +11,49 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## The Core Idea
+## What Is git-warp?
 
-**git-warp** is a Git-native implementation of WARP: a deterministic,
-append-only graph substrate where writers commit causal patches into Git and
-readers materialize immutable graph state at explicit coordinates in history.
-The graph lives alongside your repository without taking over your worktree,
-because the data is stored in Git objects and refs instead of ordinary files.
+**git-warp** is a library for storing a graph inside a Git repository.
 
-That gives you a graph that is:
+You can use it to:
 
-- **Git-native** — replication, content-addressing, integrity, and existing Git
-  infrastructure come for free
-- **multi-writer** — independent writers can append concurrently and still
-  converge deterministically
-- **time-travel capable** — reads can pin history explicitly instead of always
-  following live truth
-- **provenance-aware** — patches, receipts, and holographic replay artifacts
-  preserve how state came to be, not just what it is now
+- write nodes, edges, and properties
+- read them back without running a separate database server
+- query and traverse the graph in application code
+- sync graph history through normal Git infrastructure
+
+If you have never heard of WARP before, the shortest useful description is:
+
+- it is a **Git-native graph store**
+- it records changes as **append-only history**
+- it supports **deterministic multi-writer convergence**
+- it lets readers pin **explicit points in history** when they need stable
+  reads or time travel
+
+WARP stands for **Worldline Algebra for Recursive Provenance**. You do not need
+the theory to get started with the library. For the README, you can think of it
+as a graph system that lives in Git, keeps history explicitly, and gives you a
+clean read/write boundary.
+
+One more term in plain language: when this repo talks about a **causal graph**,
+it means the system records not only what the graph looks like now, but also
+the sequence of changes that produced it.
+
+## Why Use It?
+
+`git-warp` is useful when you want graph data but do not want the operational
+shape of a traditional database server.
+
+It is a strong fit when you:
+
+- already trust Git for replication, integrity, and distribution
+- want local-first or offline-friendly graph workflows
+- need more than a mutable current-state graph and care about how state was
+  produced
+- need multiple writers to converge deterministically without a central write
+  coordinator
+- want to inspect old graph state without inventing a separate time-travel
+  layer
 
 ```bash
 npm install @git-stunts/git-warp @git-stunts/plumbing
@@ -36,7 +61,32 @@ npm install @git-stunts/git-warp @git-stunts/plumbing
 
 For a comprehensive walkthrough — from setup to advanced features — see the [Guide](docs/GUIDE.md).
 
+## Minimal Mental Model
+
+You only need a few ideas to get through the README tutorial:
+
+- write through a **runtime**
+- changes are committed as **patches**
+- reads pin history through a **worldline**
+- visibility is filtered through an **observer**
+- replay produces an immutable **state snapshot**
+
+## Glossary
+
+- **WARP graph** — an append-only graph stored in Git objects and refs.
+- **Patch** — an atomic batch of graph rewrite operations committed by one
+  writer.
+- **WarpRuntime** — the host object that opens the graph, writes patches, syncs,
+  manages checkpoints, and creates pinned read handles.
+- **Worldline** — a pinned read-history handle over live truth, an explicit
+  coordinate, or a working set.
+- **Observer** — a filtered, read-only projection over a worldline.
+- **WarpState** — an immutable materialized graph snapshot produced by replay.
+- **Working set** — a speculative write lane branched from a base observation.
+
 ## Quick Start
+
+### 1. Open a graph and write some data
 
 ```javascript
 import GitPlumbing from '@git-stunts/plumbing';
@@ -51,7 +101,6 @@ const graph = await WarpRuntime.open({
   writerId: 'writer-1',
 });
 
-// Write data — single await with graph.patch()
 await graph.patch(p => {
   p.addNode('user:alice')
     .setProperty('user:alice', 'name', 'Alice')
@@ -61,78 +110,39 @@ await graph.patch(p => {
     .addEdge('user:alice', 'user:bob', 'manages')
     .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024');
 });
+```
 
-// Read through a pinned worldline and observer
+### 2. Read a node back
+
+```javascript
 const worldline = graph.worldline();
 const view = await worldline.observer({
   match: 'user:*',
 });
 
+const alice = await view.getNodeProps('user:alice');
+// { name: 'Alice', role: 'admin' }
+```
+
+### 3. Query matching nodes
+
+```javascript
 const result = await view.query()
   .match('user:*')
-  .outgoing('manages')
   .run();
+```
+
+### 4. Traverse the graph
+
+```javascript
+const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
+  dir: 'out',
+});
 ```
 
 Observer labels are optional. If you omit one, the handle defaults to
 `observer`. When a descriptive label helps debugging or UI semantics, pass it
 as the first argument: `worldline.observer('public-users', { match: 'user:*' })`.
-
-## Concepts
-
-A WARP graph differs from a conventional mutable graph store in a few important
-ways:
-
-- **Writers append patches instead of mutating one shared in-memory graph.**
-  Each writer advances its own causal lane and synchronization merges those
-  lanes deterministically.
-- **Reads are explicit about history.** A `Worldline` pins a coordinate in
-  history and an `Observer` projects what is visible through a chosen aperture.
-- **Materialization produces immutable state.** A `WarpState` is a replayed
-  snapshot, not a mutable session object.
-- **Speculation is built into the model.** Working sets let higher layers branch
-  from a frontier, tick speculatively, compare, and later collapse or transfer
-  according to their own governance rules.
-
-In practice, the system is designed to work like this:
-
-1. Write through `WarpRuntime`.
-2. Pin a read source through `Worldline`.
-3. Shape visibility through `Observer`.
-4. Query or traverse through that observer.
-5. Materialize whole state directly only when you are doing explicit substrate
-   inspection, replay, migration, or other bounded tooling work.
-
-## Glossary
-
-- **WARP graph** — an append-only causal graph stored in Git objects and refs.
-- **Patch** — an atomic batch of graph rewrite operations committed by one
-  writer.
-- **WarpRuntime** — the host object that opens the graph, writes patches, syncs,
-  manages checkpoints, and creates pinned read handles.
-- **Worldline** — a pinned read-history handle over live truth, an explicit
-  coordinate, or a working set.
-- **Observer** — a filtered, read-only projection over a worldline.
-- **WarpState** — an immutable materialized graph snapshot produced by replay.
-- **Working set** — a speculative write lane branched from a base observation.
-
-## Main Components
-
-The main public components fit together like this:
-
-- **`WarpRuntime`**
-  Opens the substrate, writes patches, syncs, manages checkpoints, and creates
-  pinned read handles.
-- **`Worldline`**
-  Pins a read source in history so repeated reads stay explicit and stable.
-- **`Observer`**
-  Applies a filtered, read-only aperture to a worldline and exposes query and
-  traversal over that projected view.
-- **`WarpState`**
-  The immutable materialized snapshot produced by replay.
-- **Working sets**
-  Speculative lanes for divergent writes and comparison against live truth or
-  other lanes.
 
 ## Read Model
 
