@@ -177,14 +177,14 @@
      stroke-linecap="round"
      fill-rule="evenodd"
      font-size="12px"
-     stroke="#0e6a6c"
+     stroke="#ffe2a0"
      stroke-width="0.25mm"
      fill="#ffffff"
-     style="fill:#ffffff;stroke:#0e6a6c;stroke-width:0.25mm"
+     style="fill:#ffffff;stroke:#ffe2a0;stroke-width:0.25mm"
      transform="translate(0.5,0.49799998)">
     <animate
        attributeName="stroke"
-       values="#0e6a6c;#084f2c;#366698;#7d7da6;#bcbcbc;#e2b0a9;#0e6a6c"
+       values="#ffe2a0;#fecf9e;#f7ba9e;#e2b0a9;#cac8b8;#bdbfbc;#bcbcbc;#ffe2a0"
        dur="12s"
        repeatCount="indefinite" />
     <path
