@@ -229,7 +229,7 @@ Multiple people (or machines, or processes) can write to the same graph **simult
 
 Each writer maintains their own independent chain of **patches** — atomic batches of operations like "add this node, set this property, create this edge." These patches are stored as Git commits under refs like `refs/warp/<graphName>/writers/<writerId>`.
 
-When you want to read the graph, you **materialize** — which means replaying all patches from all writers and merging them into a single consistent view. The specific CRDT rules are:
+When you want to read the graph in an app, start from a pinned **worldline** or **observer**. Under the hood, `git-warp` can materialize by replaying patches from all writers and merging them into a single consistent view. The specific CRDT rules are:
 
 - **Nodes and edges** use an OR-Set (Observed-Remove Set). If Alice adds a node and Bob concurrently deletes it, the add wins — unless Bob's delete specifically observed Alice's add. This is the "add wins over concurrent remove" principle.
 - **Properties** use LWW (Last-Writer-Wins) registers. If two writers set the same property at the same time, the one with the higher Lamport timestamp wins. Ties are broken by writer ID (lexicographic), then by patch SHA.
@@ -281,10 +281,10 @@ await graphB.patch(p => {
   p.addNode('doc:2').setProperty('doc:2', 'title', 'Notes');
 });
 
-// After git push/pull, materialize merges both writers
-const state = await graphA.materialize();
-await graphA.hasNode('doc:1'); // true
-await graphA.hasNode('doc:2'); // true
+// After git push/pull, read through a pinned worldline
+const worldline = graphA.worldline();
+await worldline.hasNode('doc:1'); // true
+await worldline.hasNode('doc:2'); // true
 ```
 
 ### HTTP Sync

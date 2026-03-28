@@ -111,6 +111,13 @@ describe('README public API teaching order', () => {
     expect(readme).toContain('That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.');
   });
 
+  it('does not teach direct materialization as the default way to read the graph', () => {
+    expect(readme).not.toContain('When you want to read the graph, you **materialize**');
+    expect(readme).toContain('When you want to read the graph in an app, start from a pinned **worldline** or **observer**.');
+    expect(readme).toContain('// After git push/pull, read through a pinned worldline');
+    expect(readme).toContain("const worldline = graphA.worldline();");
+  });
+
   it('does not teach the removed WarpRuntime public noun', () => {
     expect(readme).not.toContain('WarpRuntime');
   });
