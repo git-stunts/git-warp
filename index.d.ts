@@ -1401,16 +1401,16 @@ export class Observer {
   /** Checks if a node exists and is visible to this observer */
   hasNode(nodeId: string): Promise<boolean>;
 
-  /** Gets all visible nodes that match the observer pattern */
+  /** Gets all visible nodes that match the observer aperture. */
   getNodes(): Promise<string[]>;
 
-  /** Gets filtered properties for a visible node (null if hidden or missing) */
+  /** Gets filtered properties for a visible node (null if hidden or missing). */
   getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
-  /** Gets all visible edges (both endpoints must match the observer pattern) */
+  /** Gets all visible edges (both endpoints must match the observer aperture). */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
-  /** Creates a fluent query builder operating on the filtered view */
+  /** Creates a fluent query builder operating on the filtered view. */
   query(): QueryBuilder;
 
   /** Creates a new observer over the same aperture at a different source */
@@ -1427,7 +1427,11 @@ export class Worldline {
   /** Returns a new worldline handle pinned to a different source */
   seek(options?: WorldlineOptions): Promise<Worldline>;
 
-  /** Materializes the pinned worldline source into a detached snapshot */
+  /**
+   * Advanced substrate replay primitive for this pinned source.
+   *
+   * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
+   */
   materialize(options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
@@ -1922,17 +1926,26 @@ export declare class WarpRuntime {
   ): Promise<Array<{ patch: PatchV2; sha: string }>>;
 
   /**
-   * Gets all visible nodes in the materialized state.
+   * Inspection API: enumerates all visible nodes in the current materialized state.
+   *
+   * Fine for debugging, migration, and bounded tooling. Repeated use in product
+   * hot paths can turn into whole-state preload bugs.
    */
   getNodes(): Promise<string[]>;
 
   /**
-   * Gets all visible edges in the materialized state.
+   * Inspection API: enumerates all visible edges in the current materialized state.
+   *
+   * Fine for debugging, migration, and bounded tooling. Prefer observer-scoped
+   * reads when you are building a stable product surface.
    */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
   /**
-   * Gets all properties for a node from the materialized state.
+   * Inspection API: reads one node from the current materialized state.
+   *
+   * Safe for targeted checks, but looping this across many ids is a signal to
+   * move the read flow toward `Worldline` / `Observer` query or traversal.
    */
   getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
@@ -1944,6 +1957,9 @@ export declare class WarpRuntime {
   /**
    * Returns a defensive copy of the current materialized state,
    * or null if no state has been materialized yet.
+   *
+   * Inspection API for debugging or explicit substrate integration, not the
+   * preferred starting point for application-facing reads.
    */
   getStateSnapshot(): Promise<WarpStateV5 | null>;
 
@@ -1991,7 +2007,10 @@ export declare class WarpRuntime {
   hasNode(nodeId: string): Promise<boolean>;
 
   /**
-   * Gets neighbors of a node from the materialized state.
+   * Inspection API: walks visible neighbors from the current materialized state.
+   *
+   * Useful for bounded graph inspection. When you are building a stable product
+   * read, prefer an explicit `Worldline` / `Observer` handle first.
    */
   neighbors(
     nodeId: string,
@@ -2031,7 +2050,11 @@ export declare class WarpRuntime {
   traverse: LogicalTraversal;
 
   /**
-   * Creates a fluent query builder for the logical graph.
+   * Creates a fluent query builder over the currently visible materialized state.
+   *
+   * Prefer `worldline().observer(...).query()` for stable product read flows.
+   * Direct runtime queries are best treated as bounded inspection or admin
+   * reads unless you intentionally want whole-visible-state scope.
    */
   query(): QueryBuilder;
 
@@ -2061,16 +2084,20 @@ export declare class WarpRuntime {
   translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
   /**
-   * Materializes the current graph state from all patches.
+   * Advanced substrate replay primitive over the live frontier.
    *
    * When `options.receipts` is true, returns `{ state, receipts }`.
    * Otherwise returns the WarpStateV5 directly.
+   *
+   * Use this when you need replay output itself. For application-facing reads,
+   * prefer `Worldline` / `Observer` and then query or traverse through that
+   * read handle.
    */
   materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
 
   /**
-   * Materializes against an explicit frontier snapshot plus optional ceiling.
+   * Advanced substrate replay primitive against an explicit pinned frontier.
    *
    * This is the substrate primitive used by working sets to replay a pinned
    * observation without assuming the live frontier.
@@ -2208,7 +2235,7 @@ export declare class WarpRuntime {
   dropWorkingSet(workingSetId: string): Promise<boolean>;
 
   /**
-   * Materializes a working set's pinned base observation plus overlay.
+   * Advanced substrate replay primitive for a working set's pinned base observation plus overlay.
    */
   materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
