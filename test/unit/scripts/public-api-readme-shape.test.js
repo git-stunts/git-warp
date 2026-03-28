@@ -39,11 +39,11 @@ describe('README front-door shape', () => {
   });
 
   it('hands off to the progressive disclosure pipeline explicitly', () => {
-    expect(readme).toContain('[Getting Started](docs/GETTING_STARTED.md)');
-    expect(readme).toContain('[Guide](docs/GUIDE.md)');
-    expect(readme).toContain('[API Reference](docs/API_REFERENCE.md)');
-    expect(readme).toContain('[Advanced Guide](docs/ADVANCED_GUIDE.md)');
-    expect(readme).toContain('[CLI Guide](docs/CLI_GUIDE.md)');
-    expect(readme).toContain('**[Documentation index](docs/README.md)**');
+    expect(readme).toContain('[Getting Started](https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md)');
+    expect(readme).toContain('[Guide](https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md)');
+    expect(readme).toContain('[API Reference](https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md)');
+    expect(readme).toContain('[Advanced Guide](https://github.com/git-stunts/git-warp/blob/main/docs/ADVANCED_GUIDE.md)');
+    expect(readme).toContain('[CLI Guide](https://github.com/git-stunts/git-warp/blob/main/docs/CLI_GUIDE.md)');
+    expect(readme).toContain('**[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**');
   });
 });

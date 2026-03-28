@@ -9,7 +9,7 @@ Instead, use these sources:
 
 - `BACKLOG/README.md` for the currently active cycle and promotable pre-design
   slices
-- `ROADMAP.md` for committed release and milestone inventory
+- `docs/ROADMAP.md` for committed release and milestone inventory
 - `CHANGELOG.md` for what has already landed on the branch or in released
   versions
 - `docs/design/` for the governing design notes promoted from active backlog
@@ -157,7 +157,7 @@ Ensure `test/unit/domain/WarpGraph.noCoordination.test.js` passes before submitt
 1. Create a feature branch from `main`
 2. Make your changes with clear commit messages
 3. Keep commits documentation-atomic: when a change affects shipped behavior, public surface, or backlog status, update `CHANGELOG.md` and the roadmap/backlog docs in the same commit.
-4. When a `BACKLOG/` item becomes active, promote it into `docs/design/` before implementation. When roadmap work completes, reconcile `ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` in the same commit.
+4. When a `BACKLOG/` item becomes active, promote it into `docs/design/` before implementation. When roadmap work completes, reconcile `docs/ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` in the same commit.
 5. Ensure all tests pass: `npm test`
 6. Ensure linting passes: `npx eslint .`
 7. Submit a PR with a clear description

@@ -30,7 +30,7 @@ describe('Advanced Guide engine-room shape', () => {
     expect(advancedGuide).toContain("factKind: 'coordinate-comparison'");
     expect(advancedGuide).toContain("factKind: 'coordinate-transfer-plan'");
     expect(advancedGuide).toContain('[API Reference](API_REFERENCE.md)');
-    expect(advancedGuide).toContain('[Architecture](../ARCHITECTURE.md)');
+    expect(advancedGuide).toContain('[Architecture](ARCHITECTURE.md)');
     expect(advancedGuide).toContain('OG-013');
     expect(advancedGuide).toContain('OG-014');
   });

@@ -169,7 +169,13 @@ describe('WarpRuntime Writer invalidation (AP/INVAL/3)', () => {
     await graph.materialize();
 
     mockWriterFirstCommit(persistence);
-    const writer = await graph.createWriter();
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let writer;
+    try {
+      writer = await graph.createWriter();
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
 
     await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 

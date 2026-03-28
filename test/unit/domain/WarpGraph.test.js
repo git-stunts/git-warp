@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
 
@@ -1972,6 +1972,16 @@ eg-schema: 2`;
     });
 
     describe('createWriter()', () => {
+      let consoleWarnSpy;
+
+      beforeEach(() => {
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        consoleWarnSpy.mockRestore();
+      });
+
       it('generates fresh canonical ID', async () => {
         const persistence = createMockPersistence();
         persistence.configGet = vi.fn();

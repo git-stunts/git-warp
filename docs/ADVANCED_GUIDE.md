@@ -215,5 +215,5 @@ Current design backlog:
 - [Guide](GUIDE.md): builder patterns and day-to-day app flows
 - [CLI Guide](CLI_GUIDE.md): operator workflows, time travel, and debugger commands
 - [Conceptual Overview](CONCEPTUAL_OVERVIEW.md): the broader WARP mental model
-- [Architecture](../ARCHITECTURE.md): internal layering
+- [Architecture](ARCHITECTURE.md): internal layering
 - [Protocol specs](specs/): normative formats

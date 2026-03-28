@@ -33,10 +33,18 @@ function hasFile(relativePath) {
 
 describe('documentation corpus taxonomy', () => {
   it('exposes a docs index and links to it from the root README', () => {
-    expect(readme).toContain('**[Documentation index](docs/README.md)**');
+    expect(readme).toContain('**[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**');
     expect(hasFile('docs/GETTING_STARTED.md')).toBe(true);
     expect(hasFile('docs/API_REFERENCE.md')).toBe(true);
     expect(hasFile('docs/ADVANCED_GUIDE.md')).toBe(true);
+    expect(hasFile('docs/ARCHITECTURE.md')).toBe(true);
+    expect(hasFile('docs/ROADMAP.md')).toBe(true);
+    expect(hasFile('ARCHITECTURE.md')).toBe(false);
+    expect(hasFile('ROADMAP.md')).toBe(false);
+    expect(hasFile('adr/ADR-0004-folds.md')).toBe(true);
+    expect(hasFile('docs/ADR-001-Folds.md')).toBe(false);
+    expect(hasFile('examples')).toBe(false);
+    expect(hasFile('GRAVEYARD.md')).toBe(false);
     expect(docsIndex).toContain('# Documentation Index');
     expect(docsIndex).toContain('[Getting Started](GETTING_STARTED.md)');
     expect(docsIndex).toContain('[Guide](GUIDE.md)');
@@ -44,7 +52,8 @@ describe('documentation corpus taxonomy', () => {
     expect(docsIndex).toContain('[Advanced Guide](ADVANCED_GUIDE.md)');
     expect(docsIndex).toContain('[CLI Guide](CLI_GUIDE.md)');
     expect(docsIndex).toContain('[Conceptual Overview](CONCEPTUAL_OVERVIEW.md)');
-    expect(docsIndex).toContain('[Architecture](../ARCHITECTURE.md)');
+    expect(docsIndex).toContain('[Architecture](ARCHITECTURE.md)');
+    expect(docsIndex).toContain('[Roadmap](ROADMAP.md)');
     expect(docsIndex).not.toContain('## Current Release-Blocker Docs');
   });
 

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/images/git-warp.svg" alt="git-warp logo" />
+  <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp.svg" alt="git-warp logo" />
   <h1><code>git-warp</code>: a causal, multi-writer graph database for the Git substrate</h1>
   <p>Distributed, conflict-free graph storage that lives orthogonally to your source tree.</p>
 </div>
@@ -84,18 +84,18 @@ The normal builder path is `WarpApp`. `WarpCore` is the plumbing surface for rep
 
 Use these docs in order, based on the job you are trying to do:
 
-- **[Getting Started](docs/GETTING_STARTED.md)**: see `git-warp` work in a few minutes.
-- **[Guide](docs/GUIDE.md)**: build an app with `WarpApp`, worldlines, observers, and strands.
-- **[API Reference](docs/API_REFERENCE.md)**: exhaustive API, flags, and examples without the narrative.
-- **[Advanced Guide](docs/ADVANCED_GUIDE.md)**: substrate internals, replay, trust, performance, and engine-room details.
-- **[CLI Guide](docs/CLI_GUIDE.md)**: operate, inspect, and debug a live repo from the terminal.
-- **[Documentation index](docs/README.md)**: canonical map of the full docs corpus.
+- **[Getting Started](https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md)**: see `git-warp` work in a few minutes.
+- **[Guide](https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md)**: build an app with `WarpApp`, worldlines, observers, and strands.
+- **[API Reference](https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md)**: exhaustive API, flags, and examples without the narrative.
+- **[Advanced Guide](https://github.com/git-stunts/git-warp/blob/main/docs/ADVANCED_GUIDE.md)**: substrate internals, replay, trust, performance, and engine-room details.
+- **[CLI Guide](https://github.com/git-stunts/git-warp/blob/main/docs/CLI_GUIDE.md)**: operate, inspect, and debug a live repo from the terminal.
+- **[Documentation index](https://github.com/git-stunts/git-warp/blob/main/docs/README.md)**: canonical map of the full docs corpus.
 
 Focused docs:
 
-- **[Conceptual overview](docs/CONCEPTUAL_OVERVIEW.md)**: a deeper conceptual explanation of the WARP model and the Git substrate.
-- **[Architecture](ARCHITECTURE.md)**: system structure and internal layering.
-- **[Protocol specs](docs/specs/)**: normative formats such as content attachments, receipts, and BTRs.
+- **[Conceptual overview](https://github.com/git-stunts/git-warp/blob/main/docs/CONCEPTUAL_OVERVIEW.md)**: a deeper conceptual explanation of the WARP model and the Git substrate.
+- **[Architecture](https://github.com/git-stunts/git-warp/blob/main/docs/ARCHITECTURE.md)**: system structure and internal layering.
+- **[Protocol specs](https://github.com/git-stunts/git-warp/tree/main/docs/specs)**: normative formats such as content attachments, receipts, and BTRs.
 
 ## Core nouns
 

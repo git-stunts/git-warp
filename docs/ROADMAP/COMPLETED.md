@@ -1,6 +1,6 @@
 # Completed Milestones — @git-stunts/git-warp
 
-> Archived from `ROADMAP.md`. These milestones are fully complete and preserved here for historical reference.
+> Archived from `docs/ROADMAP.md`. These milestones are fully complete and preserved here for historical reference.
 
 ---
 

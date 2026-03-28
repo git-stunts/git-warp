@@ -2418,5 +2418,5 @@ For very large graphs, consider warming `materialize()` on startup rather than t
 
 ## Further Reading
 
-- [Architecture](../ARCHITECTURE.md) — system design and internals
+- [Architecture](ARCHITECTURE.md) — system design and internals
 - [Conceptual Overview](CONCEPTUAL_OVERVIEW.md) — WARP concepts and substrate mental model

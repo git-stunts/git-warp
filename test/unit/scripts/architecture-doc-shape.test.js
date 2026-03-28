@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const architecture = readFileSync(
-  fileURLToPath(new URL('../../../ARCHITECTURE.md', import.meta.url)),
+  fileURLToPath(new URL('../../../docs/ARCHITECTURE.md', import.meta.url)),
   'utf8',
 );
 

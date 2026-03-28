@@ -38,8 +38,10 @@ when you need that level of detail.
 
 ## Operational And Normative Docs
 
-- [Architecture](../ARCHITECTURE.md)
+- [Architecture](ARCHITECTURE.md)
   System structure, public/core boundaries, and internal layering.
+- [Roadmap](ROADMAP.md)
+  Current committed release and milestone inventory.
 - [Release Guide](release.md)
   Release and preflight process.
 - [Trust Migration](trust/TRUST_MIGRATION.md)
