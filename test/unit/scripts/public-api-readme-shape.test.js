@@ -40,7 +40,9 @@ describe('README public API teaching order', () => {
 
   it('introduces the system in progressive layers before raw querying sections', () => {
     const whatIs = readme.indexOf('## What Is git-warp?');
-    const whyUseIt = readme.indexOf('## Why Use It?');
+    const whatIsWarp = readme.indexOf('## What Is WARP?');
+    const whyGit = readme.indexOf('## Why Git?');
+    const whereItFits = readme.indexOf('## Where git-warp Fits');
     const mentalModel = readme.indexOf('## Minimal Mental Model');
     const glossary = readme.indexOf('## Glossary');
     const quickStart = readme.indexOf('## Quick Start');
@@ -48,22 +50,44 @@ describe('README public API teaching order', () => {
     const querying = readme.indexOf('## Querying');
 
     expect(whatIs).toBeGreaterThan(-1);
-    expect(whyUseIt).toBeGreaterThan(-1);
+    expect(whatIsWarp).toBeGreaterThan(-1);
+    expect(whyGit).toBeGreaterThan(-1);
+    expect(whereItFits).toBeGreaterThan(-1);
     expect(mentalModel).toBeGreaterThan(-1);
     expect(glossary).toBeGreaterThan(-1);
     expect(quickStart).toBeGreaterThan(-1);
     expect(readModel).toBeGreaterThan(-1);
     expect(querying).toBeGreaterThan(-1);
     expect(whatIs).toBeLessThan(querying);
-    expect(whyUseIt).toBeLessThan(querying);
+    expect(whatIsWarp).toBeLessThan(querying);
+    expect(whyGit).toBeLessThan(querying);
+    expect(whereItFits).toBeLessThan(querying);
     expect(mentalModel).toBeLessThan(querying);
     expect(glossary).toBeLessThan(querying);
     expect(quickStart).toBeLessThan(querying);
     expect(readModel).toBeLessThan(querying);
-    expect(whatIs).toBeLessThan(whyUseIt);
-    expect(whyUseIt).toBeLessThan(mentalModel);
+    expect(whatIs).toBeLessThan(whatIsWarp);
+    expect(whatIsWarp).toBeLessThan(whyGit);
+    expect(whyGit).toBeLessThan(whereItFits);
+    expect(whereItFits).toBeLessThan(mentalModel);
     expect(mentalModel).toBeLessThan(quickStart);
     expect(readme).not.toContain('## Main Components');
+  });
+
+  it('distinguishes WARP from Git and explains CRDT sync explicitly', () => {
+    expect(readme).toContain('WARP itself is not tied to Git.');
+    expect(readme).toContain('`git-warp` implements WARP on top of Git.');
+    expect(readme).toContain('changes merge deterministically using CRDTs');
+    expect(readme).toMatch(/You do not\s+manually resolve Git merge conflicts for graph data\./);
+  });
+
+  it('links theory and sibling runtime context and includes a fit table', () => {
+    expect(readme).toContain('[AIΩN](https://github.com/flyingrobots/aion)');
+    expect(readme).toContain('[Echo](https://github.com/flyingrobots/echo)');
+    expect(readme).toContain('| Use Case | git-warp | Echo | Other | Remarks |');
+    expect(readme).toContain('| Offline-first collaborative app |');
+    expect(readme).toContain('| High-performance real-time simulation or game loop |');
+    expect(readme).toContain('| Centralized OLTP web app |');
   });
 
   it('labels whole-state enumeration as inspection and explains the read-model tradeoff', () => {

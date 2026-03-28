@@ -13,7 +13,8 @@
 
 ## What Is git-warp?
 
-**git-warp** is a library for storing a graph inside a Git repository.
+**git-warp** is a JavaScript library that implements a WARP graph on top of
+Git.
 
 You can use it to:
 
@@ -22,38 +23,74 @@ You can use it to:
 - query and traverse the graph in application code
 - sync graph history through normal Git infrastructure
 
-If you have never heard of WARP before, the shortest useful description is:
+`git-warp` is designed for offline-first, multi-writer, distributed
+applications: collaborative tools, decentralized software, edge and IoT
+systems, and any workflow where writers may work independently and sync later.
 
-- it is a **Git-native graph store**
-- it records changes as **append-only history**
-- it supports **deterministic multi-writer convergence**
-- it lets readers pin **explicit points in history** when they need stable
-  reads or time travel
+It runs anywhere Git works, syncs through push/pull, and converges eventually
+but deterministically.
 
-WARP stands for **Worldline Algebra for Recursive Provenance**. You do not need
-the theory to get started with the library. For the README, you can think of it
-as a graph system that lives in Git, keeps history explicitly, and gives you a
-clean read/write boundary.
+Multiple independent writers can modify the same graph without coordination.
+When they sync, changes merge deterministically using CRDTs. You do not
+manually resolve Git merge conflicts for graph data.
 
-One more term in plain language: when this repo talks about a **causal graph**,
-it means the system records not only what the graph looks like now, but also
-the sequence of changes that produced it.
+## What Is WARP?
 
-## Why Use It?
+WARP stands for **Worldline Algebra for Recursive Provenance**.
 
-`git-warp` is useful when you want graph data but do not want the operational
-shape of a traditional database server.
+WARP itself is not tied to Git. It is a history-native graph model where the
+system records not only what the graph looks like now, but also the sequence of
+changes that produced it.
 
-It is a strong fit when you:
+`git-warp` implements WARP on top of Git.
 
-- already trust Git for replication, integrity, and distribution
-- want local-first or offline-friendly graph workflows
-- need more than a mutable current-state graph and care about how state was
-  produced
-- need multiple writers to converge deterministically without a central write
-  coordinator
-- want to inspect old graph state without inventing a separate time-travel
-  layer
+If you want the underlying theory, see
+[AIΩN](https://github.com/flyingrobots/aion). If you want a sibling runtime
+that targets high-performance real-time graph rewriting instead of Git-native
+distribution, see [Echo](https://github.com/flyingrobots/echo).
+
+In plain language, when this repo talks about a **causal graph**, it means the
+graph carries explicit history instead of pretending that only the latest
+snapshot matters.
+
+## Why Git?
+
+Git and WARP fit together unusually well:
+
+- both are history-native and append-only in spirit
+- both rely on content-addressed artifacts
+- both work well in distributed, multi-writer environments
+
+`git-warp` uses Git because Git already gives us battle-tested content
+addressing, cryptographic integrity, and distributed replication. It is one of
+the most battle-tested distributed systems you can build on. `git-warp` adds
+graph structure, CRDT merge semantics, and pinned read handles on top.
+
+In practice that means:
+
+- writers can work independently
+- sync happens with normal push/pull workflows
+- changes merge deterministically using CRDTs
+- the graph converges without a central write coordinator
+
+## Where git-warp Fits
+
+| Use Case | git-warp | Echo | Other | Remarks |
+| --- | --- | --- | --- | --- |
+| Offline-first collaborative app | ✅ | ❌ | CouchDB / PouchDB | `git-warp` is a strong fit when your data is graph-shaped, writers work independently, and eventual consistency is acceptable. |
+| Multi-writer edge or IoT fleet with intermittent network access | ✅ | ❌ | Event log + custom sync | `git-warp` works well when devices need local writes, later sync, and deterministic convergence without central coordination. |
+| Decentralized tool that already trusts Git remotes | ✅ | ❌ | Plain Git + custom files | `git-warp` is a better fit when the replicated data is a graph and you do not want to invent your own merge semantics. |
+| High-performance real-time simulation or game loop | ❌ | ✅ | Traditional ECS / game engine | Echo is designed for deterministic, replayable, high-throughput rewrite execution where runtime performance matters more than Git-native storage. |
+| Replayable deterministic simulation tooling | ❌ | ✅ | Custom lockstep engine | Echo is the better fit when ticks, throughput, and realtime stepping are the core problem. |
+| Centralized OLTP web app | ❌ | ❌ | Postgres | If you have one primary database, low-latency transactions, and always-on connectivity, use a normal database. |
+| Analytics warehouse or OLAP workload | ❌ | ❌ | DuckDB / ClickHouse | Neither `git-warp` nor Echo is a warehouse or columnar analytics engine. |
+
+If you only need the shortest reason to pick `git-warp`, it is this:
+
+- multiple independent writers can modify the same graph without coordination
+- changes merge deterministically using CRDTs
+- Git provides content-addressing, cryptographic integrity, and distributed
+  replication for free
 
 ```bash
 npm install @git-stunts/git-warp @git-stunts/plumbing
@@ -67,13 +104,17 @@ You only need a few ideas to get through the README tutorial:
 
 - write through a **runtime**
 - changes are committed as **patches**
+- sync is **Git transport plus CRDT convergence**
 - reads pin history through a **worldline**
 - visibility is filtered through an **observer**
 - replay produces an immutable **state snapshot**
 
 ## Glossary
 
-- **WARP graph** — an append-only graph stored in Git objects and refs.
+- **WARP graph** — a history-native graph model; in `git-warp`, it is stored
+  in Git objects and refs.
+- **Causal graph** — a graph whose change history is part of the model, not
+  discarded implementation detail.
 - **Patch** — an atomic batch of graph rewrite operations committed by one
   writer.
 - **WarpRuntime** — the host object that opens the graph, writes patches, syncs,
