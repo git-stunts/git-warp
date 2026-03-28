@@ -104,18 +104,6 @@ jobs:
             exit 1
           fi
 
-      - name: Verify README What's New section
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG_VERSION="${{ steps.meta.outputs.tag_version }}"
-          if grep -qiE "what.s new.*(in|for)?\s*v?${TAG_VERSION}" README.md; then
-            echo "README What's New found for v$TAG_VERSION"
-          else
-            echo "ERROR: README 'What's New' section not updated for v$TAG_VERSION"
-            exit 1
-          fi
-
       - name: Verify published files
         run: npm pack --dry-run
 

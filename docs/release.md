@@ -48,12 +48,11 @@ This script (`scripts/release-preflight.sh`) checks:
 | 2 | Clean working tree (no uncommitted changes) | Yes |
 | 3 | On `main` branch | Warning |
 | 4 | CHANGELOG has a dated `[X.Y.Z] — YYYY-MM-DD` entry | Yes |
-| 5 | README "What's New" section updated for version | Yes |
-| 6 | ESLint clean | Yes |
-| 7 | Type firewall (tsc + IRONCLAD policy + consumer + surface) | Yes |
-| 8 | Unit tests pass | Yes |
-| 9 | `npm pack --dry-run` + `jsr publish --dry-run` | Yes |
-| 10 | `npm audit` (runtime deps, high/critical) | Warning |
+| 5 | ESLint clean | Yes |
+| 6 | Type firewall (tsc + IRONCLAD policy + consumer + surface) | Yes |
+| 7 | Unit tests pass | Yes |
+| 8 | `npm pack --dry-run` + `jsr publish --dry-run` | Yes |
+| 9 | `npm audit` (runtime deps, high/critical) | Warning |
 
 If all checks pass, the script prints the exact tag + push commands.
 
@@ -62,32 +61,38 @@ If all checks pass, the script prints the exact tag + push commands.
 1. Prepare the release content:
    - Bump version in **both** `package.json` and `jsr.json`.
    - Move `[Unreleased]` items in `CHANGELOG.md` to a dated `[X.Y.Z] — YYYY-MM-DD` section.
-   - Update the `## What's New in vX.Y.Z` section in `README.md`.
    - Commit: `git commit -m "release: vX.Y.Z"`
 2. Run preflight:
    ```bash
    npm run release:preflight
    ```
-3. Merge to `main` (all CI checks green).
-4. Tag the release:
+3. Push the release-prep branch and open a PR to `main`.
+4. Merge to `main` after review and green CI.
+5. Tag the release:
    - Stable: `git tag -s vX.Y.Z -m "release: vX.Y.Z"`
    - RC: `git tag -s vX.Y.Z-rc.N -m "release: vX.Y.Z-rc.N"`
-5. Push the tag:
+6. Push the tag:
    ```bash
    git push origin vX.Y.Z
    ```
-6. Watch the Actions pipeline:
+7. Watch the Actions pipeline:
    - **tag-guard** -- validates tag format (`vX.Y.Z` or `vX.Y.Z-(rc|beta|alpha).N`)
    - **CI** -- full test suite (type firewall, lint, Docker tests across Node/Bun/Deno)
-   - **verify** -- version match (package.json == jsr.json == tag), CHANGELOG entry, README What's New, dry-run pack, dry-run JSR
+   - **verify** -- version match (package.json == jsr.json == tag), CHANGELOG entry, dry-run pack, dry-run JSR
    - **publish_npm** -- publishes to npm via OIDC with provenance
    - **publish_jsr** -- publishes to JSR via OIDC
    - **github_release** -- creates GitHub Release with auto-generated notes
-7. If one registry fails, re-run only that job from the Actions UI.
-8. Confirm:
+8. If one registry fails, re-run only that job from the Actions UI.
+9. Confirm:
    - npm dist-tag is correct (`latest` for stable, `next`/`beta`/`alpha` for prereleases)
    - JSR version is visible
    - GitHub Release notes are generated
+
+## Release notes policy
+
+Release chronology lives in `CHANGELOG.md`.
+
+The README no longer carries a per-release `What's New` section. Update the README only when the front-door onboarding, examples, or current product positioning materially change.
 
 ## Dist-tag mapping
 

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docs now state the intended observer/strand boundary explicitly** — Added a design note and updated the README, Guide, Strands doc, and CONTRIBUTING so git-warp now says plainly that `WarpCore` is substrate plumbing, observers are the preferred read-side abstraction, and strands are the preferred speculative write abstraction while governance and policy stay above the substrate.
 - **Observers now pin their read source instead of live-following one mutable graph handle** — `graph.observer(...)` now captures the current materialized coordinate at creation time and can also bind directly to an explicit coordinate or a pinned strand, giving higher layers a real read-handle abstraction for historical or speculative inspection.
 - **Strands now carry the speculative-lane public API** — `createStrand()`, `getStrand()`, `listStrands()`, `braidStrand()`, `materializeStrand()`, `queueStrandIntent()`, `listStrandIntents()`, `tickStrand()`, `compareStrand()`, and `planStrandTransfer()` now replace the old `WorkingSet*` public nouns across the package, CLI, and front-door docs.
+- **Release policy now matches the post-IBM docs model** — `jsr.json` now matches the intended `15.0.0` release line, the release runbook and workflow no longer require a README `What's New` section that the README intentionally does not have, and the release steps now explicitly include the normal branch -> PR -> merge -> tag loop.
 
 ## [14.16.2] — 2026-03-19
 
