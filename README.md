@@ -13,8 +13,7 @@
 
 ## What Is git-warp?
 
-**git-warp** is a JavaScript library that implements a WARP graph on top of
-Git.
+**git-warp** is a JavaScript library that implements a WARP graph on top of Git.
 
 You can use it to:
 
@@ -23,35 +22,23 @@ You can use it to:
 - query and traverse the graph in application code
 - sync graph history through normal Git infrastructure
 
-`git-warp` is designed for offline-first, multi-writer, distributed
-applications: collaborative tools, decentralized software, edge and IoT
-systems, and any workflow where writers may work independently and sync later.
+`git-warp` is designed for offline-first, multi-writer, distributed applications: collaborative tools, decentralized software, edge and IoT systems, and any workflow where writers may work independently and sync later.
 
-It runs anywhere Git works, syncs through push/pull, and converges eventually
-but deterministically.
+It runs anywhere Git works, syncs through push/pull, and converges eventually but deterministically.
 
-Multiple independent writers can modify the same graph without coordination.
-When they sync, changes merge deterministically using CRDTs. You do not
-manually resolve Git merge conflicts for graph data.
+Multiple independent writers can modify the same graph without coordination. When they sync, changes merge deterministically using CRDTs. You do not manually resolve Git merge conflicts for graph data.
 
 ## What Is WARP?
 
 WARP stands for **Worldline Algebra for Recursive Provenance**.
 
-WARP itself is not tied to Git. It is a history-native graph model where the
-system records not only what the graph looks like now, but also the sequence of
-changes that produced it.
+WARP itself is not tied to Git. It is a history-native graph model where the system records not only what the graph looks like now, but also the sequence of changes that produced it.
 
 `git-warp` implements WARP on top of Git.
 
-If you want the underlying theory, see
-[AIΩN](https://github.com/flyingrobots/aion). If you want a sibling runtime
-that targets high-performance real-time graph rewriting instead of Git-native
-distribution, see [Echo](https://github.com/flyingrobots/echo).
+If you want the underlying theory, see [AIΩN](https://github.com/flyingrobots/aion). If you want a sibling runtime that targets high-performance real-time graph rewriting instead of Git-native distribution, see [Echo](https://github.com/flyingrobots/echo).
 
-In plain language, when this repo talks about a **causal graph**, it means the
-graph carries explicit history instead of pretending that only the latest
-snapshot matters.
+In plain language, when this repo talks about a **causal graph**, it means the graph carries explicit history instead of pretending that only the latest snapshot matters.
 
 ## Why Git?
 
@@ -61,10 +48,7 @@ Git and WARP fit together unusually well:
 - both rely on content-addressed artifacts
 - both work well in distributed, multi-writer environments
 
-`git-warp` uses Git because Git already gives us battle-tested content
-addressing, cryptographic integrity, and distributed replication. It is one of
-the most battle-tested distributed systems you can build on. `git-warp` adds
-graph structure, CRDT merge semantics, and pinned read handles on top.
+`git-warp` uses Git because Git already gives us battle-tested content addressing, cryptographic integrity, and distributed replication. It is one of the most battle-tested distributed systems you can build on. `git-warp` adds graph structure, CRDT merge semantics, and pinned read handles on top.
 
 In practice that means:
 
@@ -89,8 +73,7 @@ If you only need the shortest reason to pick `git-warp`, it is this:
 
 - multiple independent writers can modify the same graph without coordination
 - changes merge deterministically using CRDTs
-- Git provides content-addressing, cryptographic integrity, and distributed
-  replication for free
+- Git provides content-addressing, cryptographic integrity, and distributed replication for free
 
 ```bash
 npm install @git-stunts/git-warp @git-stunts/plumbing
@@ -111,16 +94,11 @@ You only need a few ideas to get through the README tutorial:
 
 ## Glossary
 
-- **WARP graph** — a history-native graph model; in `git-warp`, it is stored
-  in Git objects and refs.
-- **Causal graph** — a graph whose change history is part of the model, not
-  discarded implementation detail.
-- **Patch** — an atomic batch of graph rewrite operations committed by one
-  writer.
-- **WarpRuntime** — the host object that opens the graph, writes patches, syncs,
-  manages checkpoints, and creates pinned read handles.
-- **Worldline** — a pinned read-history handle over live truth, an explicit
-  coordinate, or a working set.
+- **WARP graph** — a history-native graph model; in `git-warp`, it is stored in Git objects and refs.
+- **Causal graph** — a graph whose change history is part of the model, not discarded implementation detail.
+- **Patch** — an atomic batch of graph rewrite operations committed by one writer.
+- **WarpRuntime** — the host object that opens the graph, writes patches, syncs, manages checkpoints, and creates pinned read handles.
+- **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a working set.
 - **Observer** — a filtered, read-only projection over a worldline.
 - **WarpState** — an immutable materialized graph snapshot produced by replay.
 - **Working set** — a speculative write lane branched from a base observation.

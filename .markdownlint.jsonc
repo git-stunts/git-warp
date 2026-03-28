@@ -1,4 +1,6 @@
 {
   "default": false,
+  // Do not require hard-wrapped prose in Markdown source.
+  "MD013": false,
   "MD040": true
 }
