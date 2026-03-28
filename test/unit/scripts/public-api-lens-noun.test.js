@@ -25,14 +25,13 @@ describe('Lens is a first-class public noun', () => {
   });
 
   it('teaches Lens in the README glossary and observer example', () => {
-    expect(readme).toContain('**Lens** — the aperture definition that shapes what an observer can see.');
-    expect(readme).toContain('**Observer** — a filtered, read-only projection over a worldline through a lens.');
-    expect(readme).toContain('const publicUserLens = {');
-    expect(readme).toContain("worldline.observer('public-users', publicUserLens)");
+    expect(readme).toContain('| **Lens** | The aperture definition that shapes what an observer can see. |');
+    expect(readme).toContain('| **Observer** | A filtered, read-only projection over a worldline through a lens. |');
   });
 
   it('uses Lens language in the guide observer walkthrough', () => {
-    expect(guide).toContain('define a lens and create an');
-    expect(guide).toContain('#### Lens Shape');
+    expect(guide).toContain('- A `Lens` defines what is visible.');
+    expect(guide).toContain('const userLens = {');
+    expect(guide).toContain("worldline.observer('public-users', userLens)");
   });
 });

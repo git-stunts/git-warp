@@ -11,10 +11,20 @@
  *
  * @example
  * ```ts
+ * import GitPlumbing from "@git-stunts/plumbing";
  * import WarpApp from "@git-stunts/git-warp";
+ * import { GitGraphAdapter } from "@git-stunts/git-warp";
  *
- * const app = await WarpApp.open({ repo: ".", graphName: "myGraph" });
- * const patch = await app.createPatch("writer-1");
+ * const plumbing = new GitPlumbing({ cwd: "." });
+ * const persistence = new GitGraphAdapter({ plumbing });
+ *
+ * const app = await WarpApp.open({
+ *   persistence,
+ *   graphName: "myGraph",
+ *   writerId: "writer-1",
+ * });
+ *
+ * const patch = await app.createPatch();
  * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
  * await patch.commit();
  * const worldline = app.worldline();

@@ -36,6 +36,10 @@ const app = await WarpApp.open({
 // app is a WarpApp handle over the graph named "security-audit"
 ```
 
+Use a unique `writerId` per machine or clone in real deployments. The tutorial
+uses `local` to keep the example readable, but production graphs should use a
+stable unique id such as a hostname, device id, or UUID.
+
 ## Write the first patch
 
 ```javascript

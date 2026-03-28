@@ -1391,7 +1391,6 @@ export interface ObserverOptions {
  * lens (match pattern, expose, redact).
  * Edges are only visible when both endpoints pass the match filter.
  *
- * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
 export class Observer {
   /** Observer name (defaults to `observer` when omitted at construction time) */
@@ -1511,7 +1510,6 @@ export interface TranslationCostResult {
  * @param configA - Lens for observer A
  * @param configB - Lens for observer B
  * @param state - WarpStateV5 materialized state
- * @see Paper IV, Section 4 -- Directed rulial cost
  */
 export function computeTranslationCost(
   configA: Lens,
@@ -1563,7 +1561,7 @@ export interface StateDiffResult {
 }
 
 // ============================================================================
-// Temporal Query (Paper IV CTL* operators)
+// Temporal Query (history-aware temporal operators)
 // ============================================================================
 
 /**
@@ -1858,7 +1856,7 @@ export interface SyncTrustOptions {
 /**
  * Lightweight status snapshot of the graph.
  */
-export interface WarpRuntimeStatus {
+export interface WarpStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -2128,7 +2126,6 @@ declare class WarpCoreBase {
    * The cost measures how much information is lost when translating from
    * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
    *
-   * @see Paper IV, Section 4 -- Directed rulial cost
    */
   translationCost(configA: Lens, configB: Lens): Promise<TranslationCostResult>;
 
@@ -2373,7 +2370,7 @@ declare class WarpCoreBase {
   syncCoverage(): Promise<void>;
 
   /** Returns a lightweight status snapshot of the graph. */
-  status(): Promise<WarpRuntimeStatus>;
+  status(): Promise<WarpStatus>;
 
   /**
    * Subscribes to graph changes after each materialize().
@@ -2710,8 +2707,6 @@ export interface OpOutcome {
 
 /**
  * Immutable record of per-operation outcomes from a single patch application.
- *
- * @see Paper II, Section 5 -- Tick receipts
  */
 export interface TickReceipt {
   /** SHA of the patch commit */
@@ -3384,14 +3379,12 @@ export interface CoordinateTransferPlanFactExportV1 {
 /**
  * ProvenancePayload - Transferable provenance as a monoid.
  *
- * Implements the provenance payload from Paper III (Computational Holography):
- * P = (mu_0, ..., mu_{n-1}) - an ordered sequence of tick patches.
+ * Implements transferable provenance as an ordered sequence of tick patches:
+ * P = (mu_0, ..., mu_{n-1}).
  *
  * The payload monoid (Payload, ., epsilon):
  * - Composition is concatenation
  * - Identity is empty sequence
- *
- * @see Paper III, Section 4 -- Computational Holography
  */
 export class ProvenancePayload {
   /**
@@ -3462,8 +3455,6 @@ export class ProvenancePayload {
  *
  * Binds (h_in, h_out, U_0, P, t, kappa) for auditable exchange of graph
  * segments between parties who don't share full history.
- *
- * @see Paper III, Section 4 -- Boundary Transition Records
  */
 export interface BTR {
   /** BTR format version */

@@ -1129,7 +1129,7 @@
         "status": {
           "async": true,
           "params": [],
-          "returns": "Promise<WarpRuntimeStatus>"
+          "returns": "Promise<WarpStatus>"
         },
         "maybeRunGC": {
           "async": false,
@@ -1802,7 +1802,7 @@
     "VisibleStateTransferPlanSummaryV1": {
       "kind": "interface"
     },
-    "WarpRuntimeStatus": {
+    "WarpStatus": {
       "kind": "interface"
     },
     "WarpStateV5": {

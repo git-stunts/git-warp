@@ -58,8 +58,8 @@ describe('Strand is the public speculative-lane noun', () => {
   });
 
   it('teaches Strand in the README and guide', () => {
-    expect(readme).toContain('**Strand**');
-    expect(guide).toContain('## Strands');
+    expect(readme).toContain('| **Strand** | A speculative write lane branched from a base observation. |');
+    expect(guide).toContain('Use a `Strand` when you want reviewable or transferable work that should not land in live truth yet.');
     expect(readme).not.toContain('**WorkingSet**');
   });
 

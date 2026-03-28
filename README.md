@@ -101,6 +101,8 @@ Focused docs:
 
 | Term | Meaning |
 | --- | --- |
+| **WarpApp** | The product-facing root for writing, syncing, worldlines, observers, and strands. |
+| **WarpCore** | The plumbing-facing root for replay, provenance, inspection, and tooling. |
 | **Patch** | A WARP patch is a Git commit under `refs/warp/...` containing a CBOR-encoded operation log plus metadata. |
 | **Tick** | One logical replay step: the application of one patch into visible state. |
 | **Worldline** | A pinned read-history handle over live truth, an explicit coordinate, or a strand. |

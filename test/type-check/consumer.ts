@@ -98,7 +98,7 @@ import type {
   TranslationCostResult,
   TranslationCostBreakdown,
   StateDiffResult,
-  WarpRuntimeStatus,
+  WarpStatus,
   SyncRequest,
   SyncResponse,
   ApplySyncResult,
@@ -478,7 +478,7 @@ const watcher = graph.watch('user:*', { onChange: (diff: StateDiffResult) => {},
 watcher.unsubscribe();
 
 // ---- status ----
-const status: WarpRuntimeStatus = await graph.status();
+const status: WarpStatus = await graph.status();
 
 // ---- GC ----
 const gcMaybe: MaybeGCResult = graph.maybeRunGC();

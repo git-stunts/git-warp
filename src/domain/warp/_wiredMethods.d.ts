@@ -38,7 +38,7 @@ interface ContentMeta {
 /**
  * Lightweight status snapshot.
  */
-interface WarpRuntimeStatus {
+interface WarpStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -601,7 +601,7 @@ declare module '../WarpRuntime.js' {
     // ── SyncController (direct delegation) ─────────────────────────────────
     getFrontier(): Promise<Map<string, string>>;
     hasFrontierChanged(): Promise<boolean>;
-    status(): Promise<WarpRuntimeStatus>;
+    status(): Promise<WarpStatus>;
     createSyncRequest(): Promise<SyncRequest>;
     processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
     applySyncResponse(response: SyncResponse): ApplySyncResult;

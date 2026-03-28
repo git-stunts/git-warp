@@ -1022,8 +1022,7 @@ application-facing behavior.
 ### Observers
 
 Observers project the graph through a filtered lens — restricting which nodes,
-edges, and properties are visible. This implements the observer-as-functor
-concept from Paper IV (Echo and the WARP Core).
+edges, and properties are visible.
 
 ```javascript
 const liveWorldline = graph.worldline();
@@ -1120,7 +1119,7 @@ const adminView = await graph.observer('admin', {
 
 ### Translation Cost
 
-Estimate the information loss when translating between two observer views. Based on Minimum Description Length (MDL) from Paper IV.
+Estimate the information loss when translating between two observer views.
 
 ```javascript
 await graph.materialize();
@@ -1152,7 +1151,7 @@ await graph.translationCost({ match: 'user:*' }, { match: '*' });  // 0 (nothing
 
 ### Temporal Queries
 
-Query properties across a node's history. Implements CTL*-style temporal logic from Paper IV.
+Query properties across a node's history using built-in temporal operators.
 
 #### `graph.temporal.always()`
 
@@ -2420,7 +2419,4 @@ For very large graphs, consider warming `materialize()` on startup rather than t
 ## Further Reading
 
 - [Architecture](../ARCHITECTURE.md) — system design and internals
-- Paper I — *WARP Graphs: A Worldline Algebra for Recursive Provenance*
-- Paper II — *Canonical State Evolution and Deterministic Worldlines*
-- Paper III — *Computational Holography & Provenance Payloads*
-- Paper IV — *Echo and the WARP Core*
+- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md) — WARP concepts and substrate mental model

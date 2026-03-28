@@ -21,6 +21,9 @@
       "src/**/*.js",
       "src/**/*.d.ts",
       "README.md",
+      "ARCHITECTURE.md",
+      "adr/**/*.md",
+      "docs/**/*",
       "LICENSE",
       "NOTICE",
       "SECURITY.md"
