@@ -99,7 +99,8 @@ You only need a few ideas to get through the README tutorial:
 - **Patch** — an atomic batch of graph rewrite operations committed by one writer.
 - **WarpRuntime** — the host object that opens the graph, writes patches, syncs, manages checkpoints, and creates pinned read handles.
 - **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a working set.
-- **Observer** — a filtered, read-only projection over a worldline.
+- **Lens** — the aperture definition that shapes what an observer can see.
+- **Observer** — a filtered, read-only projection over a worldline through a lens.
 - **WarpState** — an immutable materialized graph snapshot produced by replay.
 - **Working set** — a speculative write lane branched from a base observation.
 
@@ -158,10 +159,12 @@ const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
 When you want a filtered or redacted read aperture, add an observer on top of the worldline instead of falling back to runtime-wide reads:
 
 ```javascript
-const publicUsers = await worldline.observer('public-users', {
+const publicUserLens = {
   match: 'user:*',
   redact: ['ssn'],
-});
+};
+
+const publicUsers = await worldline.observer('public-users', publicUserLens);
 ```
 
 ## Read Model

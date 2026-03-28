@@ -89,6 +89,7 @@ import WarpRuntime, {
 import type {
   WarpStateV5,
   TickReceipt,
+  Lens,
   ObserverConfig,
   PingResult,
   RepositoryHealth,
@@ -222,6 +223,8 @@ const queryResultV1: QueryResultV1 = {
 };
 const weightedCostSelector: WeightedCostSelector = { weightFn: (_from, _to, _label) => 1 };
 const translationCostBreakdown: TranslationCostBreakdown = { nodeLoss: 0, edgeLoss: 0, propLoss: 0 };
+const publicLens: Lens = { match: 'user:*', redact: ['ssn'] };
+const legacyObserverConfig: ObserverConfig = publicLens;
 const propSet: PropSet = { key: 'node\0name', nodeId: 'user:alice', propKey: 'name', oldValue: 'A', newValue: 'B' };
 const propRemoved: PropRemoved = { key: 'node\0age', nodeId: 'user:alice', propKey: 'age', oldValue: 42 };
 const valueRef: ValueRef = Math.random() > -1 ? { type: 'inline', value: 'x' } : { type: 'blob', oid: 'abc123' };
@@ -234,6 +237,7 @@ const _typeCoverageTuple: [
   QueryResultV1,
   WeightedCostSelector,
   TranslationCostBreakdown,
+  Lens,
   PropSet,
   PropRemoved,
   ValueRef,
@@ -246,6 +250,7 @@ const _typeCoverageTuple: [
   queryResultV1,
   weightedCostSelector,
   translationCostBreakdown,
+  publicLens,
   propSet,
   propRemoved,
   valueRef,
@@ -398,7 +403,7 @@ const worldlineObs: Observer = await worldline.observer({ match: '*' });
 const worldlineObsNamed: Observer = await worldline.observer('users', { match: '*' });
 
 // ---- translationCost (instance method) ----
-const costResult: TranslationCostResult = await graph.translationCost({ match: 'user:*' }, { match: 'admin:*' });
+const costResult: TranslationCostResult = await graph.translationCost(publicLens, legacyObserverConfig);
 
 // ---- writer ----
 const w: Writer = await graph.writer();

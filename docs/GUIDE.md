@@ -274,14 +274,16 @@ const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
 });
 ```
 
-When you need a filtered or redacted aperture, create an observer on top of the
-worldline:
+When you need a filtered or redacted aperture, define a lens and create an
+observer on top of the worldline:
 
 ```javascript
-const publicUsers = await worldline.observer('public-users', {
+const publicUserLens = {
   match: 'user:*',
   redact: ['ssn', 'password'],
-});
+};
+
+const publicUsers = await worldline.observer('public-users', publicUserLens);
 ```
 
 ### Inspection And Materialization
@@ -973,7 +975,9 @@ application-facing behavior.
 
 ### Observers
 
-Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV (Echo and the WARP Core).
+Observers project the graph through a filtered lens — restricting which nodes,
+edges, and properties are visible. This implements the observer-as-functor
+concept from Paper IV (Echo and the WARP Core).
 
 ```javascript
 const liveWorldline = graph.worldline();
@@ -1031,7 +1035,7 @@ immutable snapshot and does not retarget the caller runtime. Use them when you
 want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
 lower-level inspection rather than an application-facing read handle.
 
-#### Observer Configuration
+#### Lens Shape
 
 | Field | Type | Description |
 |---|---|---|

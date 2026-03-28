@@ -1338,9 +1338,12 @@ export function isEdgePropKey(key: string): boolean;
 export const CONTENT_PROPERTY_KEY: '_content';
 
 /**
- * Configuration for an observer view.
+ * Aperture definition for an observer.
+ *
+ * A lens describes which nodes are visible and which properties are exposed or
+ * redacted within that projection.
  */
-export interface ObserverConfig {
+export interface Lens {
   /** Glob pattern or array of patterns for visible nodes (e.g. 'user:*' or ['user:*', 'team:*']) */
   match: string | string[];
   /** Property keys to include (whitelist). If omitted, all non-redacted properties are visible. */
@@ -1348,6 +1351,11 @@ export interface ObserverConfig {
   /** Property keys to exclude (blacklist). Takes precedence over expose. */
   redact?: string[];
 }
+
+/**
+ * Legacy compatibility alias for Lens.
+ */
+export type ObserverConfig = Lens;
 
 export interface LiveObserverSource {
   kind: 'live';
@@ -1379,8 +1387,8 @@ export interface ObserverOptions {
 /**
  * Read-only observer over a materialized WarpRuntime state.
  *
- * Provides the same query/traverse API as WarpRuntime, but filtered
- * by observer configuration (match pattern, expose, redact).
+ * Provides the same query/traverse API as WarpRuntime, but filtered through a
+ * lens (match pattern, expose, redact).
  * Edges are only visible when both endpoints pass the match filter.
  *
  * @see Paper IV, Section 3 -- Observers as resource-bounded functors
@@ -1471,8 +1479,8 @@ export class Worldline {
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
   /** Creates an observer pinned to the worldline source when a filtered aperture is needed. */
-  observer(config: ObserverConfig): Promise<Observer>;
-  observer(name: string, config: ObserverConfig): Promise<Observer>;
+  observer(config: Lens): Promise<Observer>;
+  observer(name: string, config: Lens): Promise<Observer>;
 }
 
 /**
@@ -1500,14 +1508,14 @@ export interface TranslationCostResult {
 /**
  * Computes the directed MDL translation cost from observer A to observer B.
  *
- * @param configA - Observer configuration for A
- * @param configB - Observer configuration for B
+ * @param configA - Lens for observer A
+ * @param configB - Lens for observer B
  * @param state - WarpStateV5 materialized state
  * @see Paper IV, Section 4 -- Directed rulial cost
  */
 export function computeTranslationCost(
-  configA: ObserverConfig,
-  configB: ObserverConfig,
+  configA: Lens,
+  configB: Lens,
   state: WarpStateV5
 ): TranslationCostResult;
 
@@ -2106,8 +2114,8 @@ export declare class WarpRuntime {
   * property visibility controlled by `expose` and `redact` lists.
   * Edges are only visible when both endpoints pass the match filter.
   */
-  observer(config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
-  observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
+  observer(config: Lens, options?: ObserverOptions): Promise<Observer>;
+  observer(name: string, config: Lens, options?: ObserverOptions): Promise<Observer>;
 
   /**
    * Computes the directed MDL translation cost from observer A to observer B.
@@ -2117,7 +2125,7 @@ export declare class WarpRuntime {
    *
    * @see Paper IV, Section 4 -- Directed rulial cost
    */
-  translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
+  translationCost(configA: Lens, configB: Lens): Promise<TranslationCostResult>;
 
   /**
    * Advanced substrate replay primitive over the live frontier.

@@ -34,7 +34,8 @@ describe('README public API teaching order', () => {
     expect(quickStart).toMatch(/worldline\.getNodeProps\('user:alice'\)/);
     expect(quickStart).toMatch(/worldline\.query\(\)/);
     expect(quickStart).toMatch(/worldline\.traverse\.shortestPath/);
-    expect(quickStart).toContain("worldline.observer('public-users', {");
+    expect(quickStart).toContain('const publicUserLens = {');
+    expect(quickStart).toContain("worldline.observer('public-users', publicUserLens)");
   });
 
   it('introduces the system in progressive layers before raw querying sections', () => {

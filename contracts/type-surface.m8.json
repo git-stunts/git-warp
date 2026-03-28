@@ -903,11 +903,11 @@
           "params": [
             {
               "name": "nameOrConfig",
-              "type": "string | ObserverConfig"
+              "type": "string | Lens"
             },
             {
               "name": "configOrOptions",
-              "type": "ObserverConfig | ObserverOptions"
+              "type": "Lens | ObserverOptions"
             }
           ],
           "returns": "Promise<Observer>"
@@ -917,11 +917,11 @@
           "params": [
             {
               "name": "configA",
-              "type": "ObserverConfig"
+              "type": "Lens"
             },
             {
               "name": "configB",
-              "type": "ObserverConfig"
+              "type": "Lens"
             }
           ],
           "returns": "Promise<TranslationCostResult>"
@@ -1607,8 +1607,11 @@
     "NodeWeightFn": {
       "kind": "type"
     },
-    "ObserverConfig": {
+    "Lens": {
       "kind": "interface"
+    },
+    "ObserverConfig": {
+      "kind": "type"
     },
     "LiveObserverSource": {
       "kind": "interface"

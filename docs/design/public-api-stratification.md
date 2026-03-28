@@ -34,7 +34,7 @@ The public API should make these interactions feel natural:
 
 - write/speculate through `WarpRuntime` and `WorkingSet`
 - pin read history through `Worldline`
-- shape read visibility through `Observer`
+- shape read visibility through `Lens` and `Observer`
 - ask read questions through query/traversal surfaces scoped to a worldline or
   observer
 - treat full-state enumeration and direct materialization as advanced or
@@ -55,6 +55,7 @@ An app developer should be able to infer:
 
 - `WarpRuntime` is the host/runtime and write surface
 - `Worldline` is the pinned read-history primitive
+- `Lens` is the aperture definition
 - `Observer` is the filtered product-read primitive
 - whole-state inspection APIs are not the normal first tool for product reads
 
@@ -63,7 +64,8 @@ An app developer should be able to infer:
 A coding agent should be able to infer:
 
 - start from `worldline()` when building stable read flows
-- create `observer(...)` when the app has a read aperture
+- create a `Lens` when the app has a read aperture
+- create `observer(...)` from that lens
 - use `query()` or `traverse` on that read handle before considering state
   enumeration
 - treat direct materialization and broad enumeration as advanced or bounded
@@ -90,6 +92,10 @@ These are the nouns and entrypoints we want consumers to reach for first.
   - filtered product reads
   - scoped query/traversal
   - app-facing visibility aperture
+- `Lens`
+  - explicit aperture definition
+  - match/expose/redact policy
+  - reusable observer input
 - `WorkingSet`
   - speculative write lane semantics
   - not yet fully reified as a first-class runtime object, but conceptually in
@@ -163,6 +169,7 @@ The README should teach in this order:
 2. the main nouns:
    - `WarpRuntime`
    - `Worldline`
+   - `Lens`
    - `Observer`
    - `WorkingSet`
 3. the default developer move:
@@ -217,9 +224,6 @@ This cycle should not immediately:
 
 ## Open Questions
 
-- Should `Observer` remain the stable public noun for the read handle, or do
-  we need an additional aperture noun such as `Lens` to make projection policy
-  clearer?
 - Should `Worldline` eventually expose more direct query/traversal helpers, or
   is `worldline.observer(...)` the right forcing function?
 - Should inspection methods be regrouped in docs under an explicit
