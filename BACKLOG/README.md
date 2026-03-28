@@ -1,9 +1,9 @@
-# BACKLOG — Observer / Working-Set Alignment
+# BACKLOG — Observer Geometry
 
-Last updated: 2026-03-27
+Last updated: 2026-03-28
 
-This directory holds promotable pre-design items for the current substrate
-alignment tranche.
+This directory holds promotable pre-design items for the current Observer
+Geometry tranche.
 
 Workflow:
 

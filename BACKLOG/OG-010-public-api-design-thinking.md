@@ -36,7 +36,13 @@ This cycle must consider two sponsor perspectives equally:
 - sponsor agent: a coding agent trying to use `git-warp` without rebuilding a
   second graph engine above it
 
-If the public surface serves one and confuses the other, it is not good enough.
+This cycle must also remain honest to a third tooling/debugger sponsor:
+
+- sponsor tooling: a TTD or provenance/debugger consumer that needs explicit
+  replay, provenance, comparison, and multi-lane playback truth
+
+If the public surface serves one and confuses the others, it is not good
+enough.
 
 ## Intended Questions For The Cycle
 
@@ -46,6 +52,8 @@ If the public surface serves one and confuses the other, it is not good enough.
 - What task-shaped read examples should exist for both humans and agents?
 - What public read helpers would let higher layers ask questions instead of
   rebuilding graph logic locally?
+- Which features are primary WARP product value versus core/tooling truth?
+- Where should multi-lane playback coordination such as `PlaybackHead` live?
 
 ## Promotion
 

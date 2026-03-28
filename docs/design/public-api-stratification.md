@@ -35,6 +35,8 @@ The public API should make these interactions feel natural:
 - write/speculate through `WarpRuntime` and `WorkingSet`
 - pin read history through `Worldline`
 - shape read visibility through `Lens` and `Observer`
+- coordinate normal multi-writer app behavior without first learning replay
+  internals
 - ask read questions through query/traversal surfaces scoped to a worldline or
   observer
 - treat full-state enumeration and direct materialization as advanced or
@@ -100,6 +102,9 @@ These are the nouns and entrypoints we want consumers to reach for first.
   - speculative write lane semantics
   - not yet fully reified as a first-class runtime object, but conceptually in
     this primary layer
+- braid
+  - co-present lane composition for product-visible reads
+  - unusual enough to be part of the WARP value story when it is relevant
 
 ### Layer 2 — Product Read Operations
 
@@ -116,7 +121,22 @@ questions for applications.
 The README and guides should lead with these operations before broad state
 enumeration.
 
-### Layer 3 — Inspection And Bounded Admin Reads
+### Layer 3 — Core Coordination, Tooling, And Bounded Inspection
+
+These operations remain public because tooling and debugger-style consumers need
+them, but they should not be taught as the first-use app story.
+
+- `PlaybackHead`
+- stepped multi-lane observation
+- lane catalog and braid/ancestry inspection
+- coordinate comparison and settlement helpers
+- provenance / receipt / BTR access
+- bounded whole-state inspection and admin reads
+
+This is the stratum where TTD, migration tooling, provenance explorers, and
+advanced operators should spend more time than normal app code.
+
+### Layer 4 — Inspection And Bounded Admin Reads
 
 These operations are valid, but should be framed explicitly as bounded
 inspection or debugging tools unless the caller has a strong reason otherwise.
@@ -135,7 +155,7 @@ These methods should be documented with explicit cost language:
 - repeated loops over them can become product hot-path bugs
 - they are not the recommended starting point for consumer read models
 
-### Layer 4 — Advanced Substrate Mechanics
+### Layer 5 — Advanced Substrate Mechanics
 
 These APIs are real substrate capabilities, but they should not be the default
 mental model presented to most consumers.
@@ -144,9 +164,12 @@ mental model presented to most consumers.
 - `materializeCoordinate()`
 - `materializeWorkingSet()`
 - `materializeSlice()`
+- causal slicing / cone inspection where present
 - provenance and receipt plumbing
+- `PlaybackHead` frame-resolution plumbing
 - transfer planning and comparison facts
 - checkpoint mechanics
+- content-addressed storage / `git-cas`-adjacent lifecycle mechanics
 
 These belong in advanced sections, not in the primary first-read path of the
 README.
@@ -159,6 +182,8 @@ README.
 | Stable reads | `Worldline` | `Observer` | explicit coordinate materialization |
 | Filtered product reads | `Observer` | `query()` / `traverse` | direct snapshot inspection |
 | Speculation | working-set concept | working-set methods | overlay/receipt plumbing |
+| Co-present reads | braid | lane selectors | braid descriptor plumbing |
+| Multi-lane stepping | `PlaybackHead` (tooling/core) | frame seek/step helpers | composite-frame resolution |
 | Inspection | explicit inspection methods | `getStateSnapshot()` | raw materialization |
 
 ## README Implications
@@ -172,12 +197,15 @@ The README should teach in this order:
    - `Lens`
    - `Observer`
    - `WorkingSet`
+   - braid, when product behavior needs co-present lanes
 3. the default developer move:
    - write through runtime
    - read through worldline + observer
 4. query/traversal examples over read handles
-5. explicit inspection/admin section with cost warnings
-6. advanced materialization/provenance/working-set mechanics later
+5. explicit note that TTD/debugger/tooling flows use a deeper core stratum
+6. explicit inspection/admin section with cost warnings
+7. advanced materialization/provenance/playback-head/working-set mechanics
+   later
 
 The Quick Start should no longer imply that product reads normally begin with
 full-state enumeration on `WarpRuntime`.
@@ -207,6 +235,12 @@ stable product read surface.
 
 ### Recommendation 5
 
+`PlaybackHead` should be treated as a core/tooling coordination primitive over
+many lanes, not as a normal app read noun. It belongs in the honest public
+surface, but outside the first-use product story.
+
+### Recommendation 6
+
 We should consider whether a small number of question-shaped read helpers are
 needed, but only after docs/test evidence shows that the current nouns plus
 better teaching still leave a gap.
@@ -221,6 +255,8 @@ This cycle should not immediately:
 - pretend whole-state reads are forbidden
 - collapse the distinction between honest substrate mechanics and product
   ergonomics
+- flatten multi-lane debugger coordination into the same story as ordinary app
+  reads
 
 ## Open Questions
 
@@ -228,6 +264,10 @@ This cycle should not immediately:
   is `worldline.observer(...)` the right forcing function?
 - Should inspection methods be regrouped in docs under an explicit
   "Inspection API" heading without changing code names?
+- Should `PlaybackHead` become a real public noun in v15, or remain design-only
+  until TTD integration becomes concrete?
+- Should `WorkingSet` ship unchanged in v15, or does the `Strand` noun cut need
+  to happen before release?
 - Is cost signaling best done through docs alone, or do we also want runtime
   warnings, profiling counters, or debug instrumentation?
 

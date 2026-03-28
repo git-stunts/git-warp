@@ -56,8 +56,20 @@ This agent needs to:
 - avoid calling low-level materialization or enumeration APIs as the default
 - learn the doctrine from examples and type/documentation affordances
 
-If the public surface serves one perspective while confusing the other, the
-cycle has failed.
+### Sponsor Tooling
+
+A debugger or tooling author building on substrate truth rather than just
+application ergonomics.
+
+This sponsor needs to:
+
+- coordinate many lanes without inventing fake global time
+- inspect immutable coordinate snapshots, receipts, and provenance honestly
+- compare speculative and canonical lanes without reverse-engineering internals
+- rely on public substrate APIs instead of private runtime knowledge
+
+If the public surface serves one sponsor while confusing the others, the cycle
+has failed.
 
 ## Hills
 
@@ -75,11 +87,13 @@ query logic in application code.
 
 ### Hill 3
 
-As a maintainer, I can point to a clear doctrine that separates:
+As a maintainer or tooling author, I can point to a clear doctrine that
+separates:
 
 - inspection/debug APIs
 - product hot-path read APIs
 - write/speculation APIs
+- multi-lane playback/control APIs
 
 so consumers stop learning the wrong cost model by accident.
 
@@ -89,6 +103,8 @@ so consumers stop learning the wrong cost model by accident.
 - Can a new consumer discover when whole-state enumeration is inappropriate?
 - Are inspection APIs clearly separated from product read APIs?
 - Do examples show question-shaped reads instead of app-local corpus preload?
+- Can TTD-style tooling find `PlaybackHead`-class coordination and provenance
+  APIs without those APIs being confused for normal app reads?
 - Do both human readers and coding agents receive the same intended mental
   model from the public surface?
 
@@ -109,8 +125,12 @@ The public surface should teach these rules plainly:
 - application code does not own graph materialization strategy
 - application code does not own generic traversal strategy if `git-warp`
   already can answer the read question
+- application code should reach first for product nouns such as `Worldline`,
+  `Lens`, `Observer`, speculative lanes, and braid
 - whole-graph enumeration is for inspection, debugging, migration, and bounded
   tooling, not normal product hot paths
+- multi-lane stepping and playback coordination belong to a tooling/core
+  stratum, not to the first-use app story
 - higher layers should ask `git-warp` read questions, not reconstruct the graph
   in memory first
 
@@ -133,11 +153,16 @@ This cycle should produce, at minimum:
   inspection section?
 - What is the smallest public read helper surface that prevents app-local graph
   rebuilding without becoming application-specific?
+- Which nouns are strong enough to survive future cross-host alignment with
+  Echo and Wesley-generated shared contracts?
+- Should stepped multi-lane playback be surfaced as a first-class core noun
+  such as `PlaybackHead`, and if so where should it live in the public API?
 - How should documentation distinguish:
   - `Worldline`
   - `Observer`
   - immutable snapshot reads
   - speculative write flows
+  - multi-lane playback/control
 - What wording best communicates cost to both humans and agents?
 
 ## Exit Criteria
