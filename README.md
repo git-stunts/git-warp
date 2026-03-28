@@ -1,15 +1,14 @@
 <div align="center"><img src="docs/images/git-warp.svg" alt="git-warp logo" />
 <h1><code>npm install @git-stunts/git-warp</code></h1>
+</div>
 
 [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
-</div>
 
 <p align="center">
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
-
 ## What Is git-warp?
 
 **git-warp** is a JavaScript library that implements a WARP graph on top of Git.
@@ -31,13 +30,9 @@ Multiple independent writers can modify the same graph without coordination. Whe
 
 WARP stands for **Worldline Algebra for Recursive Provenance**.
 
-WARP itself is not tied to Git. It is a history-native graph model where the
-system records not only what the graph looks like now, but also the sequence of
-changes that produced it.
+WARP itself is not tied to Git. It is a history-native graph model where the system records not only what the graph looks like now, but also the sequence of changes that produced it.
 
-In WARP, current state is a derived view over causal history rather than the
-only artifact that matters. That is what enables pinned reads, replay,
-provenance, and speculative lanes without treating history as optional logging.
+In WARP, current state is a derived view over causal history rather than the only artifact that matters. That is what enables pinned reads, replay, provenance, and speculative lanes without treating history as optional logging.
 
 `git-warp` implements WARP on top of Git.
 
@@ -164,9 +159,7 @@ const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
 });
 ```
 
-Observer labels are optional. If you omit one, the handle defaults to
-`observer`. When a descriptive label helps debugging or UI semantics, pass it
-as the first argument: `worldline.observer('public-users', { match: 'user:*' })`.
+Observer labels are optional. If you omit one, the handle defaults to `observer`. When a descriptive label helps debugging or UI semantics, pass it as the first argument: `worldline.observer('public-users', { match: 'user:*' })`.
 
 ## Read Model
 
@@ -316,8 +309,7 @@ Query methods auto-materialize by default. Just open a graph and start querying:
 
 ### Application-Facing Reads
 
-For product read paths, prefer a pinned worldline and observer before reaching
-for whole-state inspection helpers.
+For product read paths, prefer a pinned worldline and observer before reaching for whole-state inspection helpers.
 
 ```javascript
 const worldline = graph.worldline();
@@ -339,9 +331,7 @@ const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
 
 ### Inspection APIs
 
-These helpers are useful substrate tools, but they enumerate or inspect visible
-materialized state directly and should not be treated as the default app read
-model.
+These helpers are useful substrate tools, but they enumerate or inspect visible materialized state directly and should not be treated as the default app read model.
 
 ```javascript
 await graph.getNodes();                              // ['user:alice', 'user:bob']
@@ -541,9 +531,7 @@ When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and au
 
 Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
 
-Higher layers should prefer observers for application-facing reads. `WarpRuntime`
-remains the substrate/session facade, but observers are the cleaner read-side
-boundary when you need a worldline-relative, filtered, read-only projection.
+Higher layers should prefer observers for application-facing reads. `WarpRuntime` remains the substrate/session facade, but observers are the cleaner read-side boundary when you need a worldline-relative, filtered, read-only projection.
 
 ```javascript
 const publicWorldline = graph.worldline();
@@ -591,20 +579,11 @@ const { cost, breakdown } = await graph.translationCost(
 // cost ∈ [0, 1] — 0 = identical views, 1 = completely disjoint
 ```
 
-When you want a pinned read handle, prefer `worldline()` first and then create
-an observer from that handle. `graph.observer(..., { source })` still exists as
-a convenience surface, but `Worldline` is the clearer noun when you are binding
-history explicitly.
+When you want a pinned read handle, prefer `worldline()` first and then create an observer from that handle. `graph.observer(..., { source })` still exists as a convenience surface, but `Worldline` is the clearer noun when you are binding history explicitly.
 
-Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a
-detached immutable snapshot and does not retarget the caller runtime. Use them
-when you need direct replay output for helpers such as `projectStateV5()` or
-`createStateReaderV5()`, not as a mode switch on one live `WarpRuntime`.
+Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a detached immutable snapshot and does not retarget the caller runtime. Use them when you need direct replay output for helpers such as `projectStateV5()` or `createStateReaderV5()`, not as a mode switch on one live `WarpRuntime`.
 
-Observers are pinned read handles. By default they capture the current
-materialized read coordinate at creation time, and they can also bind directly
-to an explicit coordinate or a pinned working set instead of live-following one
-mutable graph handle.
+Observers are pinned read handles. By default they capture the current materialized read coordinate at creation time, and they can also bind directly to an explicit coordinate or a pinned working set instead of live-following one mutable graph handle.
 
 ## Temporal Queries
 
@@ -627,10 +606,7 @@ const wasMerged = await graph.temporal.eventually(
 
 ## Patch Operations
 
-Direct patching remains part of the low-level substrate surface. For
-application-facing speculative mutation, prefer working sets and their overlay
-mechanics rather than treating one live `WarpRuntime` handle as the entire product
-API.
+Direct patching remains part of the low-level substrate surface. For application-facing speculative mutation, prefer working sets and their overlay mechanics rather than treating one live `WarpRuntime` handle as the entire product API.
 
 The patch builder supports seven operations:
 
@@ -873,8 +849,7 @@ git warp working-set compare review-auth --against working-set:review-auth-b --t
 git warp working-set transfer-plan review-auth --into live --json
 ```
 
-When a higher layer needs to carry that same substrate truth across a process or
-governance boundary, the library can export a canonical fact envelope directly:
+When a higher layer needs to carry that same substrate truth across a process or governance boundary, the library can export a canonical fact envelope directly:
 
 ```javascript
 import {
