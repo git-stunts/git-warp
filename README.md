@@ -11,78 +11,24 @@
   <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
 </p>
 
-## What's New in v14.16.2
-
-- **The published `git-cas` floor is now current again** — `git-warp` now depends on `@git-stunts/git-cas@^5.3.2`, closing the gap between the declared substrate range and the stale local install that had drifted to `5.3.0`.
-- **JSR and npm release metadata are aligned for the patch line** — `package.json`, `jsr.json`, and the release notes now move in lockstep again so the tag-driven publish workflow can ship the same patch version to both registries.
-
-## What's New in v14.16.0
-
-- **Committed content-clearing is now a first-class patch primitive** — `PatchBuilderV2` and `PatchSession` now expose `clearContent()` and `clearEdgeContent()` so higher layers can remove attached node or edge content without mutating reserved substrate keys directly.
-- **Transfer-plan content-clear ops now have an honest lowering path** — the same `clear_node_content` / `clear_edge_content` ops emitted by transfer planning can now lower through the published patch API instead of requiring higher layers to know about `_content`, `_content.size`, and `_content.mime`.
-- **Attachment docs now describe the full content lifecycle** — the README, architecture note, and working-set docs now show both attach and clear primitives as substrate concerns, while keeping governance and settlement policy above git-warp.
-
-## What's New in v14.15.0
-
-- **Scoped visible-state facts are now a first-class substrate primitive** — `compareWorkingSet()`, `compareCoordinates()`, `planWorkingSetTransfer()`, and `planCoordinateTransfer()` now accept an optional `scope` object so higher layers can compute deterministic visible-state truth over selected node-id families without teaching git-warp any app semantics.
-- **Scoped digests now ignore excluded node families cleanly** — when a scope is provided, git-warp filters both the materialized visible state and the contributing patch set before computing comparison digests, transfer digests, and candidate transfer ops. This keeps governance-only node families from perturbing operational substrate facts.
-- **Scoped fact exports stay portable and explicit** — exported comparison and transfer-plan facts now carry the normalized scope, so higher layers can persist both raw whole-state facts and scoped substrate facts without inventing a second serialization boundary.
-
-## What's New in v14.14.0
-
-- **Coordinate comparison and transfer-plan facts are now exportable as first-class substrate envelopes** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` publish the exact deterministic fact payload behind `comparisonDigest` and `transferDigest`, plus canonical JSON for higher-layer recording.
-- **Transfer-plan exports stay JSON-safe without losing attachment truth** — exported transfer facts replace raw content bytes with `contentOid` / `mime` / `size`, so higher layers can persist or attest the substrate plan without re-sanitizing it.
-- **The working-set docs now show how to carry substrate facts upward cleanly** — higher layers like XYPH can keep governance meaning on their side while reusing git-warp’s canonical factual envelope directly.
-
-## What's New in v14.13.0
-
-- **Deterministic transfer planning is now a first-class substrate helper** — `WarpRuntime.planWorkingSetTransfer()` and `WarpRuntime.planCoordinateTransfer()` extract a candidate transfer plan from one visible patch universe onto another without mutating either side.
-- **Transfer plans stay substrate-factual, including attachment changes** — the returned plan reports only add/remove/set plus explicit content attach/clear operations, deterministic transfer digests, and the resolved source/target coordinates. It does not invent collapse, approval, or governance semantics.
-- **The CLI exposes the same settlement runway without turning `debug` into a mutation shell** — `git warp working-set transfer-plan` plans a working set transfer into live truth, its pinned base observation, or another working set while keeping TTD read-only.
-
-## What's New in v14.12.0
-
-- **Braid-aware debugger reads now surface their backing working-set context explicitly** — `git warp debug timeline`, `debug provenance`, and `debug receipts` now include the resolved working-set overlay head, patch count, writability, base Lamport ceiling, and pinned braid support IDs when `--working-set <id>` is selected.
-- **Readable/debuggable braid truth is now consistent across analyzer and receipt views** — `debug conflicts` now renders the same working-set overlay and braid context that the other debugger topics report, so operators can see which braid-visible patch universe produced the result instead of inferring it indirectly.
-- **Working-set patch inspection and receipts stay braid-honest by default** — the debugger and library reads continue to resolve against `base + braided read-only overlays + active overlay`, and the docs now make that explicit for receipts, provenance, and timeline inspection.
-
-## What's New in v14.11.0
-
-- **Braided working-set composition is now a real substrate primitive** — `WarpRuntime.braidWorkingSet()` pins zero or more read-only support overlays on top of a target working set's shared base observation while keeping the target overlay optionally writable.
-- **The main CLI can pin the same braid truth directly** — `git warp working-set braid` exposes the substrate braid descriptor without turning `debug` into a mutation surface or teaching git-warp about higher-level worldline meaning.
-- **Working-set reads now materialize the full visible patch universe** — materialization, visible patch reads, comparisons, and working-set-aware conflict analysis metadata now resolve against `base + braided read-only overlays + active overlay`, while `reduceV5` remains deterministic and blind to braid semantics.
-
-## What's New in v14.10.0
-
-- **Working-set and coordinate comparison are now first-class substrate reads** — `WarpRuntime.compareWorkingSet()` and `WarpRuntime.compareCoordinates()` compare deterministic visible patch universes plus visible node/edge/property deltas without inventing application semantics.
-- **Materialized-state comparison is now reusable as a library helper** — `compareVisibleStateV5()` lets higher layers compare two materialized states directly, including optional target-local node inspection for one entity.
-- **The CLI can inspect the same comparison truth without becoming a debugger app** — `git warp working-set compare` compares a working set against its base observation, live frontier, or another working set while keeping `debug` focused on single-coordinate time-travel inspection.
-
-## What's New in v14.9.0
-
-- **Visible-state reads now go beyond aggregate projection** — `createStateReaderV5()` builds a stable substrate reader over any materialized V5 state so higher layers can inspect visible nodes, edges, properties, content metadata, neighbors, and node-local views without depending on OR-Set internals.
-- **Working-set-backed higher-layer reads can stay honest without inventing a parallel query model** — higher layers like XYPH can now combine `materializeWorkingSet()` with `createStateReaderV5()` when they need entity-local inspection, while still using `projectStateV5()` for compact whole-state summaries.
-- **Working-set docs now explain the projection-vs-reader split explicitly** — the architecture and working-set notes now distinguish aggregate visible projection (`projectStateV5()`) from richer programmatic visible-state inspection (`createStateReaderV5()`), while keeping git-warp free of application semantics.
-
-## What's New in v14.8.0
-
-- **Visible state projection is now a public helper** — `projectStateV5()` turns any materialized V5 state into a stable `{ nodes, edges, props }` projection so higher layers can inspect working sets and replay coordinates without depending on OR-Set internals.
-- **Working-set-aware higher-layer reads can now stay substrate-clean** — higher layers like XYPH can combine `materializeWorkingSet()` with `projectStateV5()` instead of reverse-engineering reducer state or inventing a parallel worldline query model.
-
-## What's New in v14.7.0
-
-- **Conflict analysis is now working-set aware** — `WarpRuntime.analyzeConflicts()` can now analyze a pinned working set instead of only the live frontier, and the resolved coordinate now says whether the analysis ran against the frontier or a working set.
-- **Working-set reads gained first-class patch, provenance, and ceiling support** — `getWorkingSetPatches()` and `patchesForWorkingSet()` expose the visible `base + overlay` patch universe directly, and `materializeWorkingSet()` now accepts an optional runtime ceiling for explicit replay/debug slices.
-- **The built-in TTD can inspect working sets directly** — `git warp debug conflicts`, `debug timeline`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and agents can inspect a speculative lane without inventing separate tooling, and braid-aware debug payloads now report the resolved working-set backing context explicitly.
-- **Docs now describe the debugger/working-set join cleanly** — [docs/WORKING_SETS.md](docs/WORKING_SETS.md), [docs/TTD.md](docs/TTD.md), [ARCHITECTURE.md](ARCHITECTURE.md), [docs/GUIDE.md](docs/GUIDE.md), and [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) now explain the read-side worldline boundary without pretending the reducer itself became worldline-aware.
-
-See the [full changelog](CHANGELOG.md) for complete release details.
-
 ## The Core Idea
 
-**git-warp** is a graph database that doesn't need a database server. It stores all its data inside a Git repository by abusing a clever trick: every piece of data is a Git commit that points to the **empty tree** — a special object that exists in every Git repo. Because the commits don't reference any actual files, they're completely invisible to normal Git operations like `git log`, `git diff`, or `git status`. Your codebase stays untouched, but there's a full graph database living alongside it.
+**git-warp** is a Git-native implementation of WARP: a deterministic,
+append-only graph substrate where writers commit causal patches into Git and
+readers materialize immutable graph state at explicit coordinates in history.
+The graph lives alongside your repository without taking over your worktree,
+because the data is stored in Git objects and refs instead of ordinary files.
 
-Writers collaborate without coordination using CRDTs (Conflict-free Replicated Data Types) that guarantee deterministic convergence regardless of what order the patches arrive in.
+That gives you a graph that is:
+
+- **Git-native** — replication, content-addressing, integrity, and existing Git
+  infrastructure come for free
+- **multi-writer** — independent writers can append concurrently and still
+  converge deterministically
+- **time-travel capable** — reads can pin history explicitly instead of always
+  following live truth
+- **provenance-aware** — patches, receipts, and holographic replay artifacts
+  preserve how state came to be, not just what it is now
 
 ```bash
 npm install @git-stunts/git-warp @git-stunts/plumbing
@@ -118,7 +64,7 @@ await graph.patch(p => {
 
 // Read through a pinned worldline and observer
 const worldline = graph.worldline();
-const view = await worldline.observer('publicApi', {
+const view = await worldline.observer('public-users', {
   match: 'user:*',
 });
 
@@ -128,20 +74,60 @@ const result = await view.query()
   .run();
 ```
 
-## Core Primitives
+The first argument to `observer(...)` is just a descriptive label for that read
+handle. It shows up on `observer.name`, is reused by `seek()`, and can be any
+stable string meaningful to your app or debugger.
 
-git-warp is easier to use correctly when you think in terms of a few explicit
-primitives:
+## Concepts
+
+A WARP graph differs from a conventional mutable graph store in a few important
+ways:
+
+- **Writers append patches instead of mutating one shared in-memory graph.**
+  Each writer advances its own causal lane and synchronization merges those
+  lanes deterministically.
+- **Reads are explicit about history.** A `Worldline` pins a coordinate in
+  history and an `Observer` projects what is visible through a chosen aperture.
+- **Materialization produces immutable state.** A `WarpState` is a replayed
+  snapshot, not a mutable session object.
+- **Speculation is built into the model.** Working sets let higher layers branch
+  from a frontier, tick speculatively, compare, and later collapse or transfer
+  according to their own governance rules.
+
+In practice, the system is designed to work like this:
+
+1. Write through `WarpRuntime`.
+2. Pin a read source through `Worldline`.
+3. Shape visibility through `Observer`.
+4. Query or traverse through that observer.
+5. Materialize whole state directly only when you are doing explicit substrate
+   inspection, replay, migration, or other bounded tooling work.
+
+## Glossary
+
+- **WARP graph** — an append-only causal graph stored in Git objects and refs.
+- **Patch** — an atomic batch of graph rewrite operations committed by one
+  writer.
+- **WarpRuntime** — the host object that opens the graph, writes patches, syncs,
+  manages checkpoints, and creates pinned read handles.
+- **Worldline** — a pinned read-history handle over live truth, an explicit
+  coordinate, or a working set.
+- **Observer** — a filtered, read-only projection over a worldline.
+- **WarpState** — an immutable materialized graph snapshot produced by replay.
+- **Working set** — a speculative write lane branched from a base observation.
+
+## Main Components
+
+The main public components fit together like this:
 
 - **`WarpRuntime`**
   Opens the substrate, writes patches, syncs, manages checkpoints, and creates
   pinned read handles.
 - **`Worldline`**
-  Pins a read source in history. This is the right starting noun when you want a
-  stable read coordinate instead of one mutable live handle.
+  Pins a read source in history so repeated reads stay explicit and stable.
 - **`Observer`**
-  A filtered, read-only projection over a worldline. This is the preferred
-  application-facing read primitive.
+  Applies a filtered, read-only aperture to a worldline and exposes query and
+  traversal over that projected view.
 - **`WarpState`**
   The immutable materialized snapshot produced by replay.
 - **Working sets**
@@ -152,6 +138,8 @@ primitives:
 
 For application-facing reads, prefer `worldline()` plus `observer(...)` and then query or traverse through that read handle.
 
+That boundary keeps the read coordinate explicit, preserves the observer aperture, and reduces the temptation to preload the whole visible graph into application memory.
+
 Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.
 
 Use `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.
@@ -161,6 +149,7 @@ Use `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `mat
 If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deeper dives:
 
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
+- **[Changelog](CHANGELOG.md)**: Release history and patch-by-patch updates.
 - **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: `WarpRuntime` as plumbing, observers as the read-side abstraction, and working sets as speculative write lanes.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
