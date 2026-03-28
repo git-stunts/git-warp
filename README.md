@@ -409,10 +409,14 @@ Use this canonical graph for the examples below:
 
 ```mermaid
 flowchart LR
-    root["org:root"] -->|"child"| team["team:alpha"]
-    team -->|"child"| squad["squad:red"]
-    squad -->|"child"| member["user:alice"]
-    member -->|"next"| ticket["task:123"]
+    root["org:root"] -->|"child"| teamA["team:alpha"]
+    root -->|"child"| teamB["team:beta"]
+    teamA -->|"child"| squadRed["squad:red"]
+    teamA -->|"child"| squadBlue["squad:blue"]
+    teamB -->|"child"| squadGreen["squad:green"]
+    squadRed -->|"child"| alice["user:alice"]
+    squadBlue -->|"child"| bob["user:bob"]
+    alice -->|"next"| ticket["task:123"]
     ticket -->|"next"| review["review:456"]
     review -->|"next"| done["done:789"]
 ```
@@ -426,12 +430,12 @@ const grandchildren = await core.query()
 
 // grandchildren = {
 //   stateHash: 'abc123...',
-//   nodes: [{ id: 'squad:red' }],
+//   nodes: [{ id: 'squad:red' }, { id: 'squad:blue' }, { id: 'squad:green' }],
 // }
 
 // Range [1, 3]: return neighbors at hops 1, 2, and 3
 const reachable = await core.query()
-  .match('node:a')
+  .match('user:alice')
   .outgoing('next', { depth: [1, 3] })
   .run();
 
@@ -442,7 +446,7 @@ const reachable = await core.query()
 
 // Depth [0, 2]: include the start set (self) plus hops 1 and 2
 const selfAndNeighbors = await core.query()
-  .match('node:a')
+  .match('user:alice')
   .outgoing('next', { depth: [0, 2] })
   .run();
 
@@ -453,7 +457,7 @@ const selfAndNeighbors = await core.query()
 
 // Incoming edges work the same way
 const ancestors = await core.query()
-  .match('node:leaf')
+  .match('user:alice')
   .incoming('child', { depth: [1, 5] })
   .run();
 
@@ -471,58 +475,129 @@ const ancestors = await core.query()
 
 Compute count, sum, avg, min, max over matched nodes. This is a terminal operation — `select()`, `outgoing()`, and `incoming()` cannot follow `aggregate()`.
 
+Assume the visible graph currently contains these order nodes:
+
+| Node | status | total |
+| --- | --- | ---: |
+| `order:100` | `paid` | `100` |
+| `order:101` | `paid` | `250` |
+| `order:102` | `draft` | `75` |
+
 ```javascript
 const stats = await core.query()
   .match('order:*')
   .where({ status: 'paid' })
-  .aggregate({ count: true, sum: 'props.total', avg: 'props.total' })
+  .aggregate({
+    count: true,
+    sum: 'props.total',
+    avg: 'props.total',
+    min: 'props.total',
+    max: 'props.total',
+  })
   .run();
 
-// stats = { stateHash: '...', count: 12, sum: 1450, avg: 120.83 }
+// stats = {
+//   stateHash: 'abc123...',
+//   count: 2,
+//   sum: 350,
+//   avg: 175,
+//   min: 100,
+//   max: 250,
+// }
 ```
 
 Non-numeric property values are silently skipped during aggregation.
 
 ### Path Finding
 
+Use these two canonical graphs for the examples below.
+
+Route graph:
+
+```mermaid
+flowchart LR
+    cityA["city:a"] -->|"road (2)"| cityB["city:b"]
+    cityA -->|"road (5)"| cityC["city:c"]
+    cityB -->|"road (2)"| cityD["city:d"]
+    cityC -->|"road (1)"| cityD
+    cityD -->|"road (3)"| cityZ["city:z"]
+    cityB -->|"road (10)"| cityZ
+```
+
+Task DAG:
+
+```mermaid
+flowchart LR
+    start["task:start"] -->|"depends-on"| design["task:design"]
+    start -->|"depends-on"| infra["task:infra"]
+    design -->|"depends-on"| auth["task:auth"]
+    infra -->|"depends-on"| review["task:review"]
+    auth -->|"depends-on"| review
+    review -->|"depends-on"| done["task:end"]
+```
+
 ```javascript
-const result = await core.traverse.shortestPath('user:alice', 'user:bob', {
+const result = await core.traverse.shortestPath('city:a', 'city:z', {
   dir: 'outgoing',
-  labelFilter: 'manages',
+  labelFilter: 'road',
   maxDepth: 10,
 });
 
-if (result.found) {
-  console.log(result.path);   // ['user:alice', 'user:bob']
-  console.log(result.length); // 1
-}
+// result = {
+//   found: true,
+//   path: ['city:a', 'city:b', 'city:z'],
+//   length: 2,
+// }
 ```
 
 ```javascript
 // Weighted shortest path (Dijkstra) with edge weight function
 const weighted = await core.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'outgoing',
+  labelFilter: 'road',
   weightFn: (from, to, label) => edgeWeights.get(`${from}-${to}`) ?? 1,
 });
+
+// weighted = {
+//   path: ['city:a', 'city:b', 'city:d', 'city:z'],
+//   totalCost: 7,
+// }
 
 // Weighted shortest path with per-node weight function
 const nodeWeighted = await core.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'outgoing',
+  labelFilter: 'road',
   nodeWeightFn: (nodeId) => nodeDelays.get(nodeId) ?? 0,
 });
+
+// nodeWeighted = {
+//   path: ['city:a', 'city:b', 'city:d', 'city:z'],
+//   totalCost: 3,
+// }
 
 // A* search with heuristic
 const astar = await core.traverse.aStarSearch('city:a', 'city:z', {
   dir: 'outgoing',
-  heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
+  labelFilter: 'road',
+  heuristicFn: (nodeId, goalId) => euclideanDistance(coords[nodeId], coords[goalId]),
 });
+
+// astar = {
+//   path: ['city:a', 'city:b', 'city:d', 'city:z'],
+//   totalCost: 7,
+//   nodesExplored: 4,
+// }
 
 // Topological sort (Kahn's algorithm with cycle detection)
 const sorted = await core.traverse.topologicalSort('task:root', {
   dir: 'outgoing',
   labelFilter: 'depends-on',
 });
-// sorted = ['task:root', 'task:auth', 'task:caching', ...]
+
+// sorted = {
+//   sorted: ['task:start', 'task:design', 'task:infra', 'task:auth', 'task:review', 'task:end'],
+//   hasCycle: false,
+// }
 
 // Longest path on DAGs (critical path)
 const critical = await core.traverse.weightedLongestPath('task:start', 'task:end', {
@@ -530,11 +605,17 @@ const critical = await core.traverse.weightedLongestPath('task:start', 'task:end
   weightFn: (from, to, label) => taskDurations.get(to) ?? 1,
 });
 
+// critical = {
+//   path: ['task:start', 'task:design', 'task:auth', 'task:review', 'task:end'],
+//   totalCost: 8,
+// }
+
 // Reachability check (fast, no path reconstruction)
-const canReach = await core.traverse.isReachable('user:alice', 'user:bob', {
+const canReach = await core.traverse.isReachable('city:a', 'city:z', {
   dir: 'outgoing',
+  labelFilter: 'road',
 });
-// canReach = true | false
+// canReach = { reachable: true }
 ```
 
 ### Graph Traversal Directory
@@ -595,12 +676,22 @@ When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and au
 
 ## Observers
 
-Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
+Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation.
 
 Higher layers should prefer observers for application-facing reads. `WarpApp` is the primary product-facing surface, while `WarpCore` remains available through `app.core()` when you need lower-level substrate mechanics.
 
+Assume the visible graph currently looks like this:
+
+```mermaid
+flowchart LR
+    tenant["tenant:acme"] -->|"member"| alice["user:alice"]
+    tenant -->|"member"| bob["user:bob"]
+    tenant -->|"owns"| billing["system:billing"]
+    alice -->|"assigned"| task["task:123"]
+```
+
 ```javascript
-const publicWorldline = graph.worldline();
+const publicWorldline = app.worldline();
 
 // Create an observer that only sees user:* nodes, with sensitive fields hidden
 const view = await publicWorldline.observer('publicApi', {
@@ -609,7 +700,7 @@ const view = await publicWorldline.observer('publicApi', {
 });
 
 // Pin a worldline to a historical coordinate, then read through an observer
-const historicalWorldline = graph.worldline({
+const historicalWorldline = app.worldline({
   source: {
     kind: 'coordinate',
     frontier: { alice: 'abc123...' },
@@ -619,9 +710,11 @@ const historicalWorldline = graph.worldline({
 const historical = await historicalWorldline.observer('beforeHotfix', {
   match: 'user:*',
 });
+const beforeHotfix = await historical.getNodeProps('user:alice');
+// beforeHotfix = { name: 'Alice', role: 'maintainer' }
 
 // The same pattern works for speculative lanes
-const reviewLane = graph.worldline({
+const reviewLane = app.worldline({
   source: {
     kind: 'strand',
     strandId: 'review-auth',
@@ -632,13 +725,23 @@ const reviewView = await reviewLane.observer('review-auth-view', {
   match: 'task:*',
 });
 
-const users = await view.getNodes();                // only user:* nodes
-const props = await view.getNodeProps('user:alice'); // { name: 'Alice', ... } without ssn/password
+const users = await view.getNodes();
+// users = ['user:alice', 'user:bob']
+
+const props = await view.getNodeProps('user:alice');
+// props = { name: 'Alice', role: 'admin' }   // ssn/password removed
+
 const result = await view.query().match('user:*').where({ role: 'admin' }).run();
+// result = {
+//   stateHash: 'abc123...',
+//   nodes: [{ id: 'user:alice', props: { name: 'Alice', role: 'admin' } }],
+// }
+
 const reviewTasks = await reviewView.getNodes();
+// reviewTasks = ['task:123']
 
 // Measure information loss between two observer perspectives
-const { cost, breakdown } = await graph.translationCost(
+const { cost, breakdown } = await app.translationCost(
   { match: '*' },                         // full view
   { match: 'user:*', redact: ['ssn'] },   // restricted view
 );
@@ -653,7 +756,7 @@ Observers are pinned read handles. By default they capture the current materiali
 
 ## Temporal Queries
 
-CTL*-style temporal operators over patch history (Paper IV).
+CTL*-style temporal operators over patch history.
 
 ```javascript
 // Was this node always in 'active' status?
@@ -691,7 +794,7 @@ Each `commit()` creates one Git commit containing all the operations, advances t
 
 ### Content Attachment
 
-Attach content-addressed blobs to nodes and edges as first-class payloads (Paper I `Atom(p)`). Blobs are stored in the Git object store, referenced by SHA, and inherit CRDT merge, time-travel, and observer scoping automatically.
+Attach content-addressed blobs to nodes and edges as first-class payloads. Blobs are stored in the Git object store, referenced by SHA, and inherit CRDT merge, time-travel, and observer scoping automatically.
 
 ```javascript
 const patch = await graph.createPatch();
@@ -1096,9 +1199,9 @@ npm run test:matrix     # All runtimes in parallel
 - **Simple key-value storage.** If you don't have relationships or need traversals, a graph database is overkill.
 - **Non-Git environments.** The value proposition depends on Git infrastructure (push/pull, content-addressing).
 
-## AIΩN Foundations Series
+## Theory and background
 
-This package is the reference implementation of WARP (Worldline Algebra for Recursive Provenance) graphs as described in the AIΩN Foundations Series. The papers formalize the graph as a minimal recursive state object ([Paper I](https://doi.org/10.5281/zenodo.17908005)), equip it with deterministic tick-based semantics ([Paper II](https://doi.org/10.5281/zenodo.17934512)), develop computational holography and provenance payloads ([Paper III](https://doi.org/10.5281/zenodo.17963669)), and introduce observer geometry with the translation cost metric ([Paper IV](https://doi.org/10.5281/zenodo.18038297)).
+If you want the formal model behind WARP, start with [AIΩN](https://github.com/flyingrobots/aion). The README stays focused on building with `git-warp`; the papers live there.
 
 ## Runtime Compatibility
 

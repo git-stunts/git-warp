@@ -108,6 +108,10 @@ describe('README public API teaching order', () => {
     expect(readme).toContain('| Offline-first collaborative app |');
     expect(readme).toContain('| High-performance real-time simulation or game loop |');
     expect(readme).toContain('| Centralized OLTP web app |');
+    expect(readme).not.toContain('Paper I');
+    expect(readme).not.toContain('Paper II');
+    expect(readme).not.toContain('Paper III');
+    expect(readme).not.toContain('Paper IV');
   });
 
   it('treats broad reads as valid while warning against app-local graph reconstruction', () => {
@@ -136,8 +140,34 @@ describe('README public API teaching order', () => {
     expect(querying).toContain("{ id: 'user:bob', props: { name: 'Bob', role: 'manager' } }");
     expect(querying).toContain('Use this canonical graph for the examples below:');
     expect(querying).toContain('flowchart LR');
-    expect(querying).toContain("nodes: [{ id: 'squad:red' }]");
+    expect(querying).toContain("{ id: 'squad:red' }, { id: 'squad:blue' }, { id: 'squad:green' }");
     expect(querying).toContain("{ id: 'task:123' }, { id: 'review:456' }, { id: 'done:789' }");
+    expect(querying).toContain(".match('user:alice')");
+    expect(querying).toContain('Assume the visible graph currently contains these order nodes:');
+    expect(querying).toContain('| `order:100` | `paid` | `100` |');
+    expect(querying).toContain("count: 2");
+    expect(querying).toContain("sum: 350");
+  });
+
+  it('uses illustrative graphs and result shapes in the path finding section', () => {
+    const pathFinding = betweenHeadings(readme, '### Path Finding', '### Graph Traversal Directory');
+    expect(pathFinding).toContain('Route graph:');
+    expect(pathFinding).toContain('Task DAG:');
+    expect(pathFinding).toContain("path: ['city:a', 'city:b', 'city:z']");
+    expect(pathFinding).toContain("totalCost: 7");
+    expect(pathFinding).toContain("hasCycle: false");
+    expect(pathFinding).toContain("canReach = { reachable: true }");
+  });
+
+  it('uses an illustrative observer example with explicit result shapes', () => {
+    const observers = betweenHeadings(readme, '## Observers', '## Temporal Queries');
+    expect(observers).toContain('Assume the visible graph currently looks like this:');
+    expect(observers).toContain('tenant:acme');
+    expect(observers).toContain('const publicWorldline = app.worldline();');
+    expect(observers).toContain("users = ['user:alice', 'user:bob']");
+    expect(observers).toContain("props = { name: 'Alice', role: 'admin' }");
+    expect(observers).toContain("beforeHotfix = { name: 'Alice', role: 'maintainer' }");
+    expect(observers).toContain("reviewTasks = ['task:123']");
   });
 
   it('does not teach direct materialization as the default way to read the graph', () => {
