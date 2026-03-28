@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0] — 2026-03-28
 
+## [15.0.1] — 2026-03-28
+
+### Changed
+
+- **Published artifacts are now slim and release-relevant** — npm and JSR now ship the runtime surface, `README.md`, `CHANGELOG.md`, and release/legal files without bundling the full docs corpus, maintainer governance docs, ADR history, or other internal repository context.
+- **Packaged README links now resolve outside the repo checkout** — front-door documentation links and the logo now point at GitHub-hosted paths so installed package consumers are not handed broken relative links to files that are intentionally not shipped in the tarball.
+- **Repository topology is cleaner and more intentional** — moved `ARCHITECTURE.md` and `ROADMAP.md` under `docs/`, moved the stray Folds ADR into the main `adr/` registry, and removed the stale `examples/` tree and `GRAVEYARD.md` from the repo root.
+
+## [15.0.0] — 2026-03-28
+
 ### Changed
 
 - **Public API now splits into `WarpApp` and `WarpCore`** — the package default export is now `WarpApp`, the curated product-facing surface for app builders and agentic consumers. `WarpCore` is now the explicit plumbing/tooling surface for replay, materialization, provenance, and whole-state inspection. `WarpRuntime` is no longer part of the public API.

@@ -1,9 +1,9 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current release on `main`:** v14.16.2
-> **Next intended release:** v15.0.0 (currently unreleased on `slice-5-collapse-runway`)
-> **Last reconciled:** 2026-03-28 (after the `WarpApp` / `WarpCore` split, the `Strand` public noun cut, the IBM public API pass, and the documentation corpus audit/rewrite. `OG-010` remains active until the `v15` PR loop closes and the release is tagged from `main`.)
-> **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
+> **Current release on `main`:** v15.0.0
+> **Next intended release:** v15.0.1
+> **Last reconciled:** 2026-03-28 (after publishing `v15.0.0` and then cleaning the npm/JSR artifact surface, packaged README links, and repo topology on `main`. `OG-010` is complete; `v15.0.1` is the release-correction patch.)
+> **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
 ---
 
@@ -22,7 +22,7 @@
 **Theme:** Trust hardening + sync safety + correctness
 **Triage date:** 2026-02-17
 
-> T1–T3 completed — see [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-10--sentinel-completed-tasks).
+> T1–T3 completed — see [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-10--sentinel-completed-tasks).
 
 ### M10.T4 — Causality Bisect Spec
 
@@ -41,7 +41,7 @@
 **Theme:** Edge property encoding — internal canonicalization + governed wire-format migration
 **Triage date:** 2026-02-28
 
-> T1–T2 completed — see [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-13--scalpel-ii-completed-tasks).
+> T1–T2 completed — see [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-13--scalpel-ii-completed-tasks).
 
 ### M13.T3 — Persisted Wire-Format Migration (ADR 2)
 
@@ -168,7 +168,7 @@ Design-only items. RFCs filed — implementation deferred to future milestones.
 
 ## Milestone 11 — COMPASS II ✅ COMPLETE (v13.0.0)
 
-Archived to [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-11--compass-ii).
+Archived to [COMPLETED.md](ROADMAP/COMPLETED.md#milestone-11--compass-ii).
 
 ---
 
@@ -176,7 +176,7 @@ Archived to [COMPLETED.md](docs/ROADMAP/COMPLETED.md#milestone-11--compass-ii).
 
 26 active standalone items sorted into priority tiers. Guiding principles: (1) harden first — correctness, memory safety, test infra, CI gates before features; (2) large-graph support is forward-looking — medium priority; (3) CI & Tooling items batch into one PR.
 
-> Completed standalone items archived in [COMPLETED.md](docs/ROADMAP/COMPLETED.md#standalone-lane--completed-items).
+> Completed standalone items archived in [COMPLETED.md](ROADMAP/COMPLETED.md#standalone-lane--completed-items).
 
 ### P0 — Quick Wins (unblock other work, trivial effort)
 

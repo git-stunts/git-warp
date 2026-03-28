@@ -1,3 +1,5 @@
+/* @ts-self-types="../../../sha1sync.d.ts" */
+
 /**
  * Synchronous SHA-1 for browser use with InMemoryGraphAdapter.
  *
