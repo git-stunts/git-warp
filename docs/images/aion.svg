@@ -22,28 +22,19 @@
        gradientUnits="userSpaceOnUse">
       <stop
          offset="0%"
-         style="stop-color:#ecf5e9;stop-opacity:1" />
+         style="stop-color:#a395b0;stop-opacity:1" />
       <stop
-         offset="14.2857%"
-         style="stop-color:#e2f0db;stop-opacity:1" />
+         offset="25%"
+         style="stop-color:#7d7da6;stop-opacity:1" />
       <stop
-         offset="28.5714%"
-         style="stop-color:#c8dfb6;stop-opacity:1" />
+         offset="50%"
+         style="stop-color:#366698;stop-opacity:1" />
       <stop
-         offset="42.8571%"
-         style="stop-color:#a7c780;stop-opacity:1" />
-      <stop
-         offset="57.1429%"
-         style="stop-color:#85a44c;stop-opacity:1" />
-      <stop
-         offset="71.4286%"
-         style="stop-color:#606e34;stop-opacity:1" />
-      <stop
-         offset="85.7143%"
-         style="stop-color:#444923;stop-opacity:1" />
+         offset="75%"
+         style="stop-color:#0e6a6c;stop-opacity:1" />
       <stop
          offset="100%"
-         style="stop-color:#3b3c1d;stop-opacity:1" />
+         style="stop-color:#084f2c;stop-opacity:1" />
     </linearGradient>
   </defs>
   <sodipodi:namedview
@@ -69,10 +60,10 @@
      stroke-linecap="round"
      fill-rule="evenodd"
      font-size="9pt"
-     stroke="#3b3c1d"
+     stroke="#084f2c"
      stroke-width="0.25mm"
      fill="url(#aionGradient)"
-     style="stroke:#3b3c1d;stroke-width:0.25mm;fill:url(#aionGradient);fill-opacity:1;stroke-dasharray:none">
+     style="stroke:#084f2c;stroke-width:0.25mm;fill:url(#aionGradient);fill-opacity:1;stroke-dasharray:none">
     <path
        d="M 172.2 154 L 97 0 L 50.4 0 L 63 25.2 L 0 154 L 172.2 154 Z M 167.4 151 L 48.2 151 L 63.2 119 L 112.6 119 L 55.2 3 L 95.2 3 L 167.4 151 Z"
        id="0"
