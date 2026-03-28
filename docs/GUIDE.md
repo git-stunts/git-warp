@@ -293,8 +293,13 @@ const publicUsers = await worldline.observer('public-users', publicUserLens);
 
 ### Inspection And Materialization
 
-Use runtime-wide enumeration and direct materialization when you are doing
-bounded inspection, debugging, migration, or lower-level substrate work.
+Use runtime-wide enumeration and direct materialization when you intentionally
+want whole-visible-state reads, admin views, bounded inspection, debugging,
+migration, or lower-level substrate work.
+
+What you should avoid is exporting that data into a second app-local graph
+layer or custom traversal engine when `Worldline`, `Observer`, `query()`, and
+`traverse` already cover the read path you need.
 
 `materialize()` replays all visible patches from all writers and computes the
 current cached `WarpState` for the runtime.
@@ -316,6 +321,15 @@ flowchart TB
 
 ```javascript
 const state = await graph.materialize();
+
+// state = WarpStateV5
+// {
+//   nodeAlive: Map(...),
+//   edgeAlive: Map(...),
+//   prop: Map(...),
+//   frontier: Map(...),
+//   ...
+// }
 ```
 
 After materializing, runtime-wide inspection methods work against the cached
@@ -772,7 +786,10 @@ const writers = await graph.discoverWriters();
 
 ### Syncing
 
-The simplest sync is via Git itself — `git push` and `git pull`. After pulling, call `materialize()` to see the updates.
+The simplest sync is via Git itself — `git push` and `git pull`. If your Git
+configuration does not mirror `refs/warp/<graph>/...` automatically, make sure
+those refs are fetched and pushed explicitly alongside your normal branch
+history.
 
 For programmatic sync without Git remotes:
 

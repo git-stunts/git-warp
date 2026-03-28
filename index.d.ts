@@ -1965,24 +1965,28 @@ declare class WarpCoreBase {
   /**
    * Inspection API: enumerates all visible nodes in the current materialized state.
    *
-   * Fine for debugging, migration, and bounded tooling. Repeated use in product
-   * hot paths can turn into whole-state preload bugs.
+   * Legitimate for whole-visible-state reads, tooling, migration, and admin
+   * surfaces. The anti-pattern is pulling results like this into an app-local
+   * shadow graph instead of using `Worldline`, `Observer`, `query()`, or
+   * `traverse`.
    */
   getNodes(): Promise<string[]>;
 
   /**
    * Inspection API: enumerates all visible edges in the current materialized state.
    *
-   * Fine for debugging, migration, and bounded tooling. Prefer observer-scoped
-   * reads when you are building a stable product surface.
+   * Legitimate for whole-visible-state reads, tooling, migration, and admin
+   * surfaces. Prefer pinned handles when you are exposing a stable product
+   * surface, and avoid rebuilding your own traversal layer above the substrate.
    */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
   /**
    * Inspection API: reads one node from the current materialized state.
    *
-   * Safe for targeted checks, but looping this across many ids is a signal to
-   * move the read flow toward `Worldline` / `Observer` query or traversal.
+   * Safe for targeted checks. If you find yourself looping this across many ids
+   * to reconstruct graph structure, move the read flow toward `Worldline` /
+   * `Observer` query or traversal instead.
    */
   getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
@@ -1995,8 +1999,9 @@ declare class WarpCoreBase {
    * Returns a defensive copy of the current materialized state,
    * or null if no state has been materialized yet.
    *
-   * Inspection API for debugging or explicit substrate integration, not the
-   * preferred starting point for application-facing reads.
+   * Useful for explicit substrate integration, debugging, or snapshot export.
+   * Application-facing reads are usually clearer through `Worldline` or
+   * `Observer` handles.
    */
   getStateSnapshot(): Promise<WarpStateV5 | null>;
 
@@ -2046,8 +2051,10 @@ declare class WarpCoreBase {
   /**
    * Inspection API: walks visible neighbors from the current materialized state.
    *
-   * Useful for bounded graph inspection. When you are building a stable product
-   * read, prefer an explicit `Worldline` / `Observer` handle first.
+   * Useful for bounded graph exploration, admin reads, and tooling. When you
+   * are building a stable product surface, prefer an explicit `Worldline` /
+   * `Observer` handle and the built-in traversal helpers instead of inventing a
+   * second traversal engine in app code.
    */
   neighbors(
     nodeId: string,
@@ -2091,8 +2098,9 @@ declare class WarpCoreBase {
    *
    * Prefer `worldline().query()` for stable product reads, or
    * `worldline().observer(...).query()` when you need a filtered aperture.
-   * Direct runtime queries are best treated as bounded inspection or admin
-   * reads unless you intentionally want whole-visible-state scope.
+   * Direct runtime queries are still valid whole-visible-state or admin reads.
+   * The thing to avoid is exporting those results into a separate app-local
+   * graph/query layer when the substrate already provides one.
    */
   query(): QueryBuilder;
 

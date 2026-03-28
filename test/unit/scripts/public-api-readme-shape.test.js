@@ -43,7 +43,6 @@ describe('README public API teaching order', () => {
   it('uses WarpApp for app examples and app.core() for explicit substrate escape hatches', () => {
     expect(readme).toContain('const appA = await WarpApp.open({');
     expect(readme).toContain('const appB = await WarpApp.open({');
-    expect(readme).toContain('const server = await appB.core().serve({ port: 3000 });');
     expect(readme).toContain('const core = app.core();');
   });
 
@@ -111,11 +110,34 @@ describe('README public API teaching order', () => {
     expect(readme).toContain('| Centralized OLTP web app |');
   });
 
-  it('labels whole-state enumeration as inspection and explains the read-model tradeoff', () => {
-    expect(readme).toContain('Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.');
-    expect(readme).toContain('Use `app.core()` when you need the plumbing-facing surface');
+  it('treats broad reads as valid while warning against app-local graph reconstruction', () => {
+    expect(readme).toContain('Whole-visible-state reads and direct materialization are still legitimate APIs.');
+    expect(readme).toContain('The thing to avoid is pulling those results into a second app-local graph layer or writing custom traversal/query logic');
+    expect(readme).toContain('Use `app.core()` when you intentionally need whole-visible-state reads, provenance, materialization, or tooling.');
+    expect(readme).toContain('just do not turn them into a shadow graph runtime in application code');
     expect(readme).toContain('For application-facing reads, prefer `WarpApp` plus `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.');
-    expect(readme).toContain('That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.');
+    expect(readme).toContain("That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and keeps application code pointed at the substrate's built-in read model.");
+  });
+
+  it('keeps the README sync story focused on Git push/pull instead of advanced transports', () => {
+    expect(readme).toContain('### Sync');
+    expect(readme).toContain('`git pull` to bring in code plus WARP refs');
+    expect(readme).toContain('`git push` to publish code plus WARP refs');
+    expect(readme).toContain('`refs/warp/<graph>/...`');
+    expect(readme).not.toContain('### HTTP Sync');
+    expect(readme).not.toContain('### Direct Sync');
+  });
+
+  it('shows result shape for the core query builder example', () => {
+    const querying = betweenHeadings(readme, '## Querying', '### Path Finding');
+    expect(querying).toContain('### Core Query Builder');
+    expect(querying).toContain("// result = {");
+    expect(querying).toContain("stateHash: 'abc123...'");
+    expect(querying).toContain("{ id: 'user:bob', props: { name: 'Bob', role: 'manager' } }");
+    expect(querying).toContain('Use this canonical graph for the examples below:');
+    expect(querying).toContain('flowchart LR');
+    expect(querying).toContain("nodes: [{ id: 'squad:red' }]");
+    expect(querying).toContain("{ id: 'task:123' }, { id: 'review:456' }, { id: 'done:789' }");
   });
 
   it('does not teach direct materialization as the default way to read the graph', () => {

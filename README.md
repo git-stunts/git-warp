@@ -173,11 +173,11 @@ In practice that means:
 
 For application-facing reads, prefer `WarpApp` plus `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.
 
-That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.
+That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and keeps application code pointed at the substrate's built-in read model.
 
-Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.
+Whole-visible-state reads and direct materialization are still legitimate APIs. The thing to avoid is pulling those results into a second app-local graph layer or writing custom traversal/query logic when `git-warp` already gives you `Worldline`, `Observer`, `query()`, and `traverse`.
 
-Use `app.core()` when you need the plumbing-facing surface, and then reach for `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.
+Use `app.core()` when you intentionally need whole-visible-state reads, provenance, materialization, or tooling. `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `query()` are all valid APIs; just do not turn them into a shadow graph runtime in application code.
 
 ## Documentation Map
 
@@ -256,7 +256,7 @@ flowchart TB
     reducer --> state["WarpStateV5<br/>nodeAlive · edgeAlive · prop · frontier"]
 ```
 
-Writers operate independently on the same Git repository. Sync happens through standard Git transport (push/pull) or the built-in HTTP sync protocol.
+Writers operate independently on the same Git repository. In the common case, sync is just Git: `git pull` to bring in remote graph refs and `git push` to publish your local ones. If your remote configuration does not mirror non-branch refs automatically, make sure the relevant `refs/warp/<graph>/...` refs are fetched and pushed explicitly alongside your normal branch work.
 
 ```javascript
 // Writer A (on machine A)
@@ -287,29 +287,15 @@ await worldline.hasNode('doc:1'); // true
 await worldline.hasNode('doc:2'); // true
 ```
 
-### HTTP Sync
+### Sync
 
-```javascript
-// Start a sync server through the explicit core escape hatch
-const server = await appB.core().serve({ port: 3000 });
+The README stays focused on the normal Git-native sync story:
 
-// Sync from another instance
-await appA.syncWith('http://localhost:3000/sync');
+- `git pull` to bring in code plus WARP refs
+- `git push` to publish code plus WARP refs
+- if your Git config does not mirror `refs/warp/<graph>/...` automatically, add explicit refspecs for those refs
 
-// Optional signed trust evaluation for inbound patches
-await appA.syncWith('http://localhost:3000/sync', {
-  trust: { mode: 'enforce', pin: 'abc123def456' },
-});
-
-await server.close();
-```
-
-### Direct Sync
-
-```javascript
-// Sync two in-process instances directly
-await appA.syncWith(appB);
-```
+Programmatic HTTP sync and direct in-process sync are still available on the core surface, but they belong in the guide and reference docs rather than the first-use README.
 
 ## Querying
 
@@ -317,7 +303,7 @@ Assume `const app = await WarpApp.open(...)` from the Quick Start. Query methods
 
 ### Application-Facing Reads
 
-For product read paths, prefer a pinned worldline and observer before reaching for whole-state inspection helpers.
+For product read paths, prefer a pinned worldline and observer first. Inspection APIs are also valid, but they should stay as reads into `git-warp`'s state rather than raw material for rebuilding your own graph layer.
 
 ```javascript
 const worldline = app.worldline();
@@ -331,6 +317,13 @@ const result = await view.query()
   .outgoing('manages')
   .run();
 
+// result = {
+//   stateHash: 'abc123...',
+//   nodes: [
+//     { id: 'user:bob', props: { name: 'Bob', role: 'manager' } },
+//   ],
+// }
+
 const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
   dir: 'outgoing',
   labelFilter: 'manages',
@@ -339,11 +332,15 @@ const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
 
 ### Inspection APIs
 
-These helpers are useful substrate tools, but they enumerate or inspect visible materialized state directly and should not be treated as the default app read model.
+If you opened `WarpApp`, the explicit escape hatch to these APIs is:
 
 ```javascript
 const core = app.core();
+```
 
+These helpers are legitimate APIs for whole-visible-state reads, admin surfaces, bounded inspection, and tooling. What you should avoid is using them to reconstruct a second graph engine or custom traversal layer in app code when `Worldline`, `Observer`, `query()`, and `traverse` already exist.
+
+```javascript
 await core.getNodes();                              // ['user:alice', 'user:bob']
 await core.hasNode('user:alice');                   // true
 await core.getNodeProps('user:alice');              // { name: 'Alice', role: 'admin' }
@@ -355,11 +352,20 @@ await core.getEdgeProps('user:alice', 'user:bob', 'manages');  // { weight: 0.9 
 ### Core Query Builder
 
 ```javascript
+const core = app.core();
+
 const result = await core.query()
   .match('user:*')           // glob pattern matching
   .outgoing('manages')       // traverse outgoing edges with label
   .select(['id', 'props'])   // select fields
   .run();
+
+// result = {
+//   stateHash: 'abc123...',
+//   nodes: [
+//     { id: 'user:bob', props: { name: 'Bob', role: 'manager' } },
+//   ],
+// }
 ```
 
 #### Object shorthand in `where()`
@@ -373,17 +379,43 @@ const admins = await core.query()
   .where({ role: 'admin', active: true })
   .run();
 
+// admins = {
+//   stateHash: 'abc123...',
+//   nodes: [
+//     { id: 'user:alice', props: { role: 'admin', active: true, name: 'Alice' } },
+//   ],
+// }
+
 // Chain object and function filters
 const seniorAdmins = await core.query()
   .match('user:*')
   .where({ role: 'admin' })
   .where(({ props }) => props.age >= 30)
   .run();
+
+// seniorAdmins = {
+//   stateHash: 'abc123...',
+//   nodes: [
+//     { id: 'user:alice', props: { role: 'admin', age: 34, name: 'Alice' } },
+//   ],
+// }
 ```
 
 #### Multi-hop traversal
 
 Traverse multiple hops in a single call with `depth`. Default is `[1, 1]` (single hop).
+
+Use this canonical graph for the examples below:
+
+```mermaid
+flowchart LR
+    root["org:root"] -->|"child"| team["team:alpha"]
+    team -->|"child"| squad["squad:red"]
+    squad -->|"child"| member["user:alice"]
+    member -->|"next"| ticket["task:123"]
+    ticket -->|"next"| review["review:456"]
+    review -->|"next"| done["done:789"]
+```
 
 ```javascript
 // Depth 2: return only hop-2 neighbors
@@ -392,11 +424,21 @@ const grandchildren = await core.query()
   .outgoing('child', { depth: 2 })
   .run();
 
+// grandchildren = {
+//   stateHash: 'abc123...',
+//   nodes: [{ id: 'squad:red' }],
+// }
+
 // Range [1, 3]: return neighbors at hops 1, 2, and 3
 const reachable = await core.query()
   .match('node:a')
   .outgoing('next', { depth: [1, 3] })
   .run();
+
+// reachable = {
+//   stateHash: 'abc123...',
+//   nodes: [{ id: 'task:123' }, { id: 'review:456' }, { id: 'done:789' }],
+// }
 
 // Depth [0, 2]: include the start set (self) plus hops 1 and 2
 const selfAndNeighbors = await core.query()
@@ -404,11 +446,25 @@ const selfAndNeighbors = await core.query()
   .outgoing('next', { depth: [0, 2] })
   .run();
 
+// selfAndNeighbors = {
+//   stateHash: 'abc123...',
+//   nodes: [{ id: 'user:alice' }, { id: 'task:123' }, { id: 'review:456' }],
+// }
+
 // Incoming edges work the same way
 const ancestors = await core.query()
   .match('node:leaf')
   .incoming('child', { depth: [1, 5] })
   .run();
+
+// ancestors = {
+//   stateHash: 'abc123...',
+//   nodes: [
+//     { id: 'squad:red' },
+//     { id: 'team:alpha' },
+//     { id: 'org:root' },
+//   ],
+// }
 ```
 
 #### Aggregation

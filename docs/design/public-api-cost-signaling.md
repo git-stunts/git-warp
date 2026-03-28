@@ -9,7 +9,8 @@ Cycle: OG-010
 ## Problem
 
 The README now teaches the worldline-first read model more honestly, but the
-public type surface still presents several broad runtime methods too neutrally.
+public type surface still needs to communicate cost and intended usage without
+accidentally teaching that broad read APIs are somehow forbidden.
 
 That means a consumer reading `index.d.ts` can still infer the wrong default
 path:
@@ -28,31 +29,35 @@ That is exactly the failure pattern this IBM cycle exists to stop.
 A developer browsing the public API in an editor or generated docs should learn:
 
 - `Worldline` and `Observer` are the preferred read-side primitives
-- runtime-wide enumeration is valid, but it is inspection-oriented
+- runtime-wide enumeration is still valid
 - direct materialization is substrate machinery, not the first product-read move
+- the real anti-pattern is rebuilding a second graph layer or traversal engine
+  in app space
 
 ### Sponsor Agent
 
 A coding agent reading `index.d.ts` should infer:
 
 - prefer `worldline().observer(...).query()` or `traverse`
-- treat `getNodes()`, `getEdges()`, `neighbors()`, and direct runtime `query()`
-  as bounded inspection unless there is a strong reason otherwise
+- `getNodes()`, `getEdges()`, `neighbors()`, and direct runtime `query()` are
+  legitimate APIs when you intentionally want whole-visible-state scope
 - avoid `materialize*()` as the default application read strategy
+- avoid rebuilding graph reads and traversal logic above the substrate
 
 ## Design Goal
 
 The type surface should communicate two things explicitly:
 
 1. which APIs are primary product-read surfaces
-2. which APIs are broad inspection or advanced substrate mechanics
+2. which APIs are advanced substrate mechanics or whole-visible-state surfaces
 
 The point is not to deprecate broad APIs.
-The point is to make their cost model impossible to miss.
+The point is to make their scope and cost model impossible to miss, while
+keeping the real warning aimed at app-local graph reconstruction.
 
 ## Intended Changes
 
-- annotate runtime-wide enumeration methods as inspection-oriented
+- annotate runtime-wide enumeration methods as legitimate broad-read surfaces
 - annotate direct runtime `query()` as valid but not the preferred product-read
   entrypoint
 - annotate `materialize*()` as advanced substrate replay primitives
@@ -69,10 +74,12 @@ The point is to make their cost model impossible to miss.
 
 ## Acceptance Criteria
 
-1. `index.d.ts` explicitly labels runtime-wide enumeration methods as
-   inspection-oriented.
+1. `index.d.ts` explicitly labels runtime-wide enumeration methods as valid
+   broad-read surfaces.
 2. `index.d.ts` explicitly tells consumers to prefer `Worldline` / `Observer`
    for stable product reads.
 3. `index.d.ts` explicitly labels `materialize*()` as advanced substrate replay
    mechanics.
-4. A script-level test fails if those cost signals disappear.
+4. `index.d.ts` explicitly warns against rebuilding a second graph/traversal
+   layer in app space.
+5. A script-level test fails if those cost signals disappear.

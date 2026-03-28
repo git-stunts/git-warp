@@ -42,6 +42,8 @@ maintainers.
 - Theory belongs in theory docs, not in getting-started pages.
 - Removed public nouns should not be taught in current docs.
 - Examples should answer a concrete user question whenever possible.
+- When an example produces data, show the result shape or output shape right
+  next to the code unless it is obvious from the code itself.
 
 In practice, a public example should usually answer one of these questions:
 

@@ -46,8 +46,9 @@ describe('Guide public read-model teaching shape', () => {
     );
     expect(reading).toContain('For application-facing reads, start from `worldline()`.');
     expect(reading).toMatch(
-      /Use runtime-wide enumeration and direct materialization when you are doing[\s\S]*bounded inspection, debugging, migration, or lower-level substrate work\./,
+      /Use runtime-wide enumeration and direct materialization when you intentionally[\s\S]*whole-visible-state reads[\s\S]*lower-level substrate work\./,
     );
+    expect(reading).toContain('What you should avoid is exporting that data into a second app-local graph');
   });
 
   it('leads the query section with worldline-scoped query examples', () => {
