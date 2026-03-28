@@ -1972,6 +1972,7 @@ eg-schema: 2`;
     });
 
     describe('createWriter()', () => {
+      /** @type {ReturnType<typeof vi.spyOn>} */
       let consoleWarnSpy;
 
       beforeEach(() => {
