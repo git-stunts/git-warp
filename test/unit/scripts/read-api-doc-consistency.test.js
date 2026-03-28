@@ -19,6 +19,7 @@ const workingSets = readDoc('docs/WORKING_SETS.md');
 describe('public read API docs stay aligned with observer geometry', () => {
   it('teaches worldline-first pinned read examples in the public docs', () => {
     expect(readme).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
+    expect(guide).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
     expect(guide).toMatch(/worldline\([\s\S]*?\.observer\(/);
     expect(workingSets).toMatch(/worldline\([\s\S]*?\.observer\(/);
   });

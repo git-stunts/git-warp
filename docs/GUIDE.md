@@ -65,24 +65,28 @@ const graph = await WarpRuntime.open({
 });
 
 // 3. Write some data
-await (await graph.createPatch())
-  .addNode('todo:1')
-  .setProperty('todo:1', 'title', 'Buy groceries')
-  .setProperty('todo:1', 'done', false)
-  .addEdge('todo:1', 'list:shopping', 'belongs-to')
-  .commit();
+await graph.patch(p => {
+  p.addNode('list:shopping')
+    .addNode('todo:1')
+    .setProperty('todo:1', 'title', 'Buy groceries')
+    .setProperty('todo:1', 'done', false)
+    .addEdge('todo:1', 'list:shopping', 'belongs-to');
+});
 
-// 4. Materialize and read
-await graph.materialize();
+// 4. Create a pinned read handle
+const worldline = graph.worldline();
 
-const nodes = await graph.getNodes();
-// ['list:shopping', 'todo:1']
+// 5. Read, query, and traverse through that worldline
+const props = await worldline.getNodeProps('todo:1');
+// { title: 'Buy groceries', done: false }
 
-const props = await graph.getNodeProps('todo:1');
-// Map { 'title' => 'Buy groceries', 'done' => false }
+const todos = await worldline.query()
+  .match('todo:*')
+  .run();
 
-const exists = await graph.hasNode('todo:1');
-// true
+const path = await worldline.traverse.shortestPath('todo:1', 'list:shopping', {
+  dir: 'out',
+});
 ```
 
 That's it. Your graph data is stored as Git commits — invisible to normal Git workflows but inheriting all of Git's properties.
@@ -245,7 +249,48 @@ const writer = await graph.writer('machine-a');
 
 ## Reading Data
 
-Before reading, you need to **materialize** — this replays all patches from all writers to compute the current state.
+For application-facing reads, start from `worldline()`.
+
+`Worldline` pins the read source and gives you stable direct reads, query, and
+traversal without forcing application code to preload the whole visible graph
+or manage replay details itself.
+
+### Product Reads
+
+```javascript
+const worldline = graph.worldline();
+
+await worldline.hasNode('user:alice');      // true
+await worldline.getNodes();                 // ['user:alice', 'user:bob']
+await worldline.getNodeProps('user:alice'); // { name: 'Alice' }
+
+const admins = await worldline.query()
+  .match('user:*')
+  .where({ role: 'admin' })
+  .run();
+
+const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
+  dir: 'out',
+});
+```
+
+When you need a filtered or redacted aperture, create an observer on top of the
+worldline:
+
+```javascript
+const publicUsers = await worldline.observer('public-users', {
+  match: 'user:*',
+  redact: ['ssn', 'password'],
+});
+```
+
+### Inspection And Materialization
+
+Use runtime-wide enumeration and direct materialization when you are doing
+bounded inspection, debugging, migration, or lower-level substrate work.
+
+`materialize()` replays all visible patches from all writers and computes the
+current cached `WarpState` for the runtime.
 
 ### Materialization
 
@@ -266,7 +311,8 @@ flowchart TB
 const state = await graph.materialize();
 ```
 
-After materializing, all read methods work against the cached state:
+After materializing, runtime-wide inspection methods work against the cached
+state:
 
 ```javascript
 // Check existence
@@ -341,10 +387,14 @@ Tombstoning a node automatically hides its edges and properties without explicit
 
 ### Query Builder
 
-The fluent query builder provides pattern matching, filtering, multi-hop traversal, field selection, and aggregation.
+The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and
+`WarpRuntime`. For stable product reads, prefer a pinned `Worldline` and query
+through that handle.
 
 ```javascript
-const result = await graph.query()
+const worldline = graph.worldline();
+
+const result = await worldline.query()
   .match('user:*')             // glob pattern (* = wildcard)
   .where({ role: 'admin' })   // filter by property equality
   .select(['id', 'props'])    // choose output fields
@@ -387,7 +437,7 @@ const result = await graph.query()
 Both forms can be chained:
 
 ```javascript
-const result = await graph.query()
+const result = await worldline.query()
   .match('user:*')
   .where({ role: 'admin' })
   .where(({ props }) => props.age >= 30)
@@ -423,13 +473,13 @@ Traversal is cycle-safe and results are deterministically sorted.
 
 ```javascript
 // All reports up to 3 levels deep
-const reports = await graph.query()
+const reports = await worldline.query()
   .match('user:ceo')
   .outgoing('manages', { depth: [1, 3] })
   .run();
 
 // All ancestors
-const chain = await graph.query()
+const chain = await worldline.query()
   .match('user:intern')
   .incoming('manages', { depth: [1, 10] })
   .run();
@@ -440,7 +490,7 @@ const chain = await graph.query()
 `aggregate()` computes numeric summaries. It is a terminal operation — calling `select()`, `outgoing()`, or `incoming()` after it throws.
 
 ```javascript
-const stats = await graph.query()
+const stats = await worldline.query()
   .match('order:*')
   .where({ status: 'paid' })
   .aggregate({
@@ -462,7 +512,7 @@ The `props.` prefix is optional — `'total'` and `'props.total'` are equivalent
 Steps compose left-to-right, each narrowing the working set:
 
 ```javascript
-const result = await graph.query()
+const result = await worldline.query()
   .match('user:*')
   .where({ role: 'admin' })
   .outgoing('manages', { depth: [1, 2] })
@@ -472,7 +522,8 @@ const result = await graph.query()
 
 ### Graph Traversals
 
-The `graph.traverse` object provides algorithmic traversal over the materialized graph.
+`LogicalTraversal` is available on `Worldline`, `Observer`, and `WarpRuntime`.
+For stable product reads, prefer `worldline.traverse` or `observer.traverse`.
 
 All traversal methods accept:
 - `dir` — `'out'`, `'in'`, or `'both'` (default: `'out'`)
@@ -482,7 +533,7 @@ All traversal methods accept:
 #### BFS
 
 ```javascript
-const visited = await graph.traverse.bfs('user:alice', {
+const visited = await worldline.traverse.bfs('user:alice', {
   dir: 'out',
   labelFilter: 'follows',
   maxDepth: 5,
@@ -493,13 +544,13 @@ const visited = await graph.traverse.bfs('user:alice', {
 #### DFS
 
 ```javascript
-const visited = await graph.traverse.dfs('user:alice', { dir: 'out' });
+const visited = await worldline.traverse.dfs('user:alice', { dir: 'out' });
 ```
 
 #### Shortest Path
 
 ```javascript
-const result = await graph.traverse.shortestPath('user:alice', 'user:dave', {
+const result = await worldline.traverse.shortestPath('user:alice', 'user:dave', {
   dir: 'out',
 });
 // { found: true, path: ['user:alice', 'user:bob', 'user:dave'], length: 2 }
@@ -509,7 +560,7 @@ const result = await graph.traverse.shortestPath('user:alice', 'user:dave', {
 #### Connected Component
 
 ```javascript
-const component = await graph.traverse.connectedComponent('user:alice');
+const component = await worldline.traverse.connectedComponent('user:alice');
 // All nodes reachable from user:alice in either direction
 ```
 
@@ -518,7 +569,7 @@ const component = await graph.traverse.connectedComponent('user:alice');
 Fast reachability check — returns `true`/`false` without reconstructing the path:
 
 ```javascript
-const canReach = await graph.traverse.isReachable('user:alice', 'user:bob', {
+const canReach = await worldline.traverse.isReachable('user:alice', 'user:bob', {
   dir: 'out',
   labelFilter: 'follows',
 });
@@ -530,7 +581,7 @@ const canReach = await graph.traverse.isReachable('user:alice', 'user:bob', {
 Dijkstra's algorithm with a custom edge weight function:
 
 ```javascript
-const result = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
+const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'out',
   weightFn: (from, to, label) => distances.get(`${from}->${to}`) ?? 1,
 });
@@ -540,7 +591,7 @@ const result = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
 Use `nodeWeightFn` to add per-node traversal costs (e.g., node processing delays):
 
 ```javascript
-const result = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
+const result = await worldline.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'out',
   weightFn: (from, to, label) => distances.get(`${from}->${to}`) ?? 1,
   nodeWeightFn: (nodeId) => processingDelay.get(nodeId) ?? 0,
@@ -552,7 +603,7 @@ const result = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
 A* with a heuristic function for guided search:
 
 ```javascript
-const result = await graph.traverse.aStarSearch('city:a', 'city:z', {
+const result = await worldline.traverse.aStarSearch('city:a', 'city:z', {
   dir: 'out',
   heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
 });
@@ -564,7 +615,7 @@ const result = await graph.traverse.aStarSearch('city:a', 'city:z', {
 A* search from both endpoints simultaneously — faster for large graphs:
 
 ```javascript
-const result = await graph.traverse.bidirectionalAStar('city:a', 'city:z', {
+const result = await worldline.traverse.bidirectionalAStar('city:a', 'city:z', {
   dir: 'out',
   heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
 });
@@ -575,7 +626,7 @@ const result = await graph.traverse.bidirectionalAStar('city:a', 'city:z', {
 Kahn's algorithm with cycle detection — useful for dependency graphs:
 
 ```javascript
-const sorted = await graph.traverse.topologicalSort('task:root', {
+const sorted = await worldline.traverse.topologicalSort('task:root', {
   dir: 'out',
   labelFilter: 'depends-on',
 });
@@ -588,7 +639,7 @@ const sorted = await graph.traverse.topologicalSort('task:root', {
 Find shared ancestors of multiple nodes:
 
 ```javascript
-const ancestors = await graph.traverse.commonAncestors(
+const ancestors = await worldline.traverse.commonAncestors(
   ['user:carol', 'user:dave'],
   { dir: 'in', labelFilter: 'manages' },
 );
@@ -600,7 +651,7 @@ const ancestors = await graph.traverse.commonAncestors(
 Find the longest (most expensive) path on a DAG — useful for critical path analysis:
 
 ```javascript
-const result = await graph.traverse.weightedLongestPath('task:start', 'task:end', {
+const result = await worldline.traverse.weightedLongestPath('task:start', 'task:end', {
   dir: 'out',
   weightFn: (from, to, label) => durations.get(to) ?? 1,
 });
@@ -925,8 +976,6 @@ application-facing behavior.
 Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV (Echo and the WARP Core).
 
 ```javascript
-await graph.materialize();
-
 const liveWorldline = graph.worldline();
 const view = await liveWorldline.observer('userView', {
   match: 'user:*',              // only user:* nodes visible
@@ -994,19 +1043,22 @@ Edges are only visible when **both** endpoints pass the match filter:
 
 ```javascript
 // Graph has: user:alice --manages--> server:prod
-const view = await graph.observer('users', { match: 'user:*' });
+const liveWorldline = graph.worldline();
+const view = await liveWorldline.observer('users', { match: 'user:*' });
 const edges = await view.getEdges(); // [] — server:prod doesn't match
 ```
 
 Multiple observers can coexist with different projections:
 
 ```javascript
-const publicView = await graph.observer('public', {
+const liveWorldline = graph.worldline();
+
+const publicView = await liveWorldline.observer('public', {
   match: '*',
   redact: ['ssn', 'password', 'salary'],
 });
 
-const hrView = await graph.observer('hr', {
+const hrView = await liveWorldline.observer('hr', {
   match: 'employee:*',
   expose: ['name', 'department', 'salary'],
 });
