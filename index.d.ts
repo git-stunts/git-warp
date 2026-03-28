@@ -1885,6 +1885,12 @@ export interface JoinReceipt {
  * V7 primary API - uses patch-based storage with OR-Set semantics.
  * See docs/V7_CONTRACT.md for architecture details.
  */
+/**
+ * Full runtime surface.
+ *
+ * @deprecated Prefer `WarpApp` for product-facing usage or `WarpCore` for
+ * explicit tooling/plumbing usage.
+ */
 export declare class WarpRuntime {
   /**
    * Opens or creates a multi-writer graph.
@@ -2433,6 +2439,133 @@ export declare class WarpRuntime {
 
   /** CTL*-style temporal operators over graph history. */
   get temporal(): TemporalQuery;
+}
+
+/**
+ * Full plumbing-facing WARP surface.
+ *
+ * Use `WarpCore` for replay, provenance, inspection, debugger tooling, and
+ * other advanced substrate mechanics.
+ */
+export declare class WarpCore extends WarpRuntime {
+  /**
+   * Opens or creates a multi-writer graph and returns the full core surface.
+   */
+  static open(options: Parameters<typeof WarpRuntime.open>[0]): Promise<WarpCore>;
+}
+
+/**
+ * Curated product-facing WARP surface.
+ *
+ * Use `WarpApp` when building applications, agentic CLI flows, and other
+ * higher-level integrations that should prefer worldlines, lenses, observers,
+ * speculative lanes, and explicit sync over direct replay mechanics.
+ */
+export declare class WarpApp {
+  /**
+   * Opens or creates a multi-writer graph and returns the curated app surface.
+   */
+  static open(options: Parameters<typeof WarpRuntime.open>[0]): Promise<WarpApp>;
+
+  /** The graph namespace. */
+  readonly graphName: WarpCore['graphName'];
+
+  /** This writer's ID. */
+  readonly writerId: WarpCore['writerId'];
+
+  /** Explicit escape hatch to the full plumbing surface. */
+  core(): WarpCore;
+
+  /** Gets or creates a Writer, optionally resolving from git config. */
+  writer(writerId?: Parameters<WarpCore['writer']>[0]): ReturnType<WarpCore['writer']>;
+
+  /**
+   * Creates a new Writer with a fresh canonical ID.
+   * @deprecated Use writer() or writer(id) instead.
+   */
+  createWriter(opts?: Parameters<WarpCore['createWriter']>[0]): ReturnType<WarpCore['createWriter']>;
+
+  /** Creates a new PatchBuilderV2 for adding operations. */
+  createPatch(): ReturnType<WarpCore['createPatch']>;
+
+  /** Convenience wrapper that creates, builds, and commits one patch. */
+  patch(build: Parameters<WarpCore['patch']>[0]): ReturnType<WarpCore['patch']>;
+
+  /** Applies multiple patches sequentially. */
+  patchMany(...builds: Parameters<WarpCore['patchMany']>): ReturnType<WarpCore['patchMany']>;
+
+  /**
+   * Syncs with a remote peer (HTTP URL, `WarpApp`, or `WarpCore`).
+   */
+  syncWith(
+    remote: string | WarpApp | WarpCore | WarpRuntime,
+    options?: Parameters<WarpCore['syncWith']>[1],
+  ): ReturnType<WarpCore['syncWith']>;
+
+  /** Creates a first-class worldline handle over a pinned read source. */
+  worldline(options?: Parameters<WarpCore['worldline']>[0]): ReturnType<WarpCore['worldline']>;
+
+  /** Creates a read-only observer over the current pinned read source. */
+  observer(config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+  observer(name: string, config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+
+  /** Computes the directed MDL translation cost from one lens to another. */
+  translationCost(
+    configA: Parameters<WarpCore['translationCost']>[0],
+    configB: Parameters<WarpCore['translationCost']>[1],
+  ): ReturnType<WarpCore['translationCost']>;
+
+  /** Subscribes to graph changes after each materialize(). */
+  subscribe(options: Parameters<WarpCore['subscribe']>[0]): ReturnType<WarpCore['subscribe']>;
+
+  /** Filtered watcher for changes matching a glob pattern. */
+  watch(
+    pattern: Parameters<WarpCore['watch']>[0],
+    options: Parameters<WarpCore['watch']>[1],
+  ): ReturnType<WarpCore['watch']>;
+
+  /** Creates a durable working-set descriptor. */
+  createWorkingSet(options?: Parameters<WarpCore['createWorkingSet']>[0]): ReturnType<WarpCore['createWorkingSet']>;
+
+  /** Loads a previously-created working-set descriptor. */
+  getWorkingSet(workingSetId: Parameters<WarpCore['getWorkingSet']>[0]): ReturnType<WarpCore['getWorkingSet']>;
+
+  /** Lists all working-set descriptors stored for this graph. */
+  listWorkingSets(): ReturnType<WarpCore['listWorkingSets']>;
+
+  /** Pins one or more supporting overlays as braid inputs on a target working set. */
+  braidWorkingSet(
+    workingSetId: Parameters<WarpCore['braidWorkingSet']>[0],
+    options?: Parameters<WarpCore['braidWorkingSet']>[1],
+  ): ReturnType<WarpCore['braidWorkingSet']>;
+
+  /** Drops a working-set descriptor by id. */
+  dropWorkingSet(workingSetId: Parameters<WarpCore['dropWorkingSet']>[0]): ReturnType<WarpCore['dropWorkingSet']>;
+
+  /** Creates a patch builder that writes into a working-set overlay patch-log. */
+  createWorkingSetPatch(
+    workingSetId: Parameters<WarpCore['createWorkingSetPatch']>[0],
+  ): ReturnType<WarpCore['createWorkingSetPatch']>;
+
+  /** Convenience wrapper that creates and commits a working-set overlay patch. */
+  patchWorkingSet(
+    workingSetId: Parameters<WarpCore['patchWorkingSet']>[0],
+    build: Parameters<WarpCore['patchWorkingSet']>[1],
+  ): ReturnType<WarpCore['patchWorkingSet']>;
+
+  /** Queues a patch-shaped intent against a working set. */
+  queueWorkingSetIntent(
+    workingSetId: Parameters<WarpCore['queueWorkingSetIntent']>[0],
+    build: Parameters<WarpCore['queueWorkingSetIntent']>[1],
+  ): ReturnType<WarpCore['queueWorkingSetIntent']>;
+
+  /** Lists the currently queued intents for one working set. */
+  listWorkingSetIntents(
+    workingSetId: Parameters<WarpCore['listWorkingSetIntents']>[0],
+  ): ReturnType<WarpCore['listWorkingSetIntents']>;
+
+  /** Deterministically drains the queued intent set for one working set. */
+  tickWorkingSet(workingSetId: Parameters<WarpCore['tickWorkingSet']>[0]): ReturnType<WarpCore['tickWorkingSet']>;
 }
 
 /**
@@ -3556,4 +3689,4 @@ export function deserializeWormhole(json: {
   payload: PatchEntry[];
 }): WormholeEdge;
 
-export default WarpRuntime;
+export default WarpApp;

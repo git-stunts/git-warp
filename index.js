@@ -11,13 +11,14 @@
  *
  * @example
  * ```ts
- * import WarpRuntime from "@git-stunts/git-warp";
+ * import WarpApp from "@git-stunts/git-warp";
  *
- * const graph = await WarpRuntime.open({ repo: ".", graphName: "myGraph" });
- * const patch = await graph.createPatch("writer-1");
+ * const app = await WarpApp.open({ repo: ".", graphName: "myGraph" });
+ * const patch = await app.createPatch("writer-1");
  * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
  * await patch.commit();
- * const state = await graph.materialize();
+ * const worldline = app.worldline();
+ * const node = await worldline.getNodeProps("user:alice");
  * ```
  */
 
@@ -65,7 +66,8 @@ import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
 // Multi-writer graph support (WARP)
-import WarpRuntime from './src/domain/WarpRuntime.js';
+import WarpCore from './src/domain/WarpCore.js';
+import WarpApp from './src/domain/WarpApp.js';
 import {
   createNodeAdd,
   createNodeTombstone,
@@ -199,7 +201,9 @@ export {
   createTimeoutSignal,
 
   // Multi-writer graph support (WARP)
-  WarpRuntime,
+  WarpApp,
+  WarpCore,
+  WarpCore as WarpRuntime,
   Worldline,
   QueryBuilder,
   Observer,
@@ -264,5 +268,5 @@ export {
   deserializeWormhole,
 };
 
-// WarpRuntime is the primary API for V7
-export default WarpRuntime;
+// WarpApp is the primary product-facing API for v15.
+export default WarpApp;

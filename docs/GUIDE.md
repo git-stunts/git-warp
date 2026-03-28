@@ -1,8 +1,13 @@
-# WarpRuntime User Guide
+# WarpApp / WarpCore User Guide
 
-WarpRuntime is a multi-writer graph database that uses Git commits as its storage substrate. Multiple independent writers can modify the same graph without coordination — changes merge deterministically using CRDTs, and Git provides content-addressing, cryptographic integrity, and distributed replication for free.
+`git-warp` now exposes two top-level public roots:
 
-## When to Use WarpRuntime
+- `WarpApp` for building apps and agentic workflows
+- `WarpCore` for replay, provenance, materialization, inspection, and tooling plumbing
+
+Both sit on the same underlying deterministic WARP engine. Multiple independent writers can modify the same graph without coordination — changes merge deterministically using CRDTs, and Git provides content-addressing, cryptographic integrity, and distributed replication for free.
+
+## When to Use git-warp
 
 - **Multiple processes or machines** writing to the same graph
 - **Offline-first applications** that sync later
@@ -33,9 +38,9 @@ The domain layer has no direct Node.js built-in imports. Runtime-specific adapte
 | Browser | `WebCryptoAdapter` | N/A |
 
 ```javascript
-import { WarpRuntime, WebCryptoAdapter } from '@git-stunts/git-warp';
+import WarpApp, { WebCryptoAdapter } from '@git-stunts/git-warp';
 
-const graph = await WarpRuntime.open({
+const app = await WarpApp.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -50,7 +55,7 @@ If no crypto adapter is provided, checksum computation gracefully returns `null`
 ## Quick Start
 
 ```javascript
-import { WarpRuntime, GitGraphAdapter } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 import Plumbing from '@git-stunts/plumbing';
 
 // 1. Point at a Git repo
@@ -58,14 +63,14 @@ const plumbing = new Plumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
 // 2. Open a graph
-const graph = await WarpRuntime.open({
+const app = await WarpApp.open({
   persistence,
   graphName: 'todos',
   writerId: 'local',
 });
 
 // 3. Write some data
-await graph.patch(p => {
+await app.patch(p => {
   p.addNode('list:shopping')
     .addNode('todo:1')
     .setProperty('todo:1', 'title', 'Buy groceries')
@@ -74,7 +79,7 @@ await graph.patch(p => {
 });
 
 // 4. Create a pinned read handle
-const worldline = graph.worldline();
+const worldline = app.worldline();
 
 // 5. Read, query, and traverse through that worldline
 const props = await worldline.getNodeProps('todo:1');
@@ -390,8 +395,8 @@ Tombstoning a node automatically hides its edges and properties without explicit
 ### Query Builder
 
 The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and
-`WarpRuntime`. For stable product reads, prefer a pinned `Worldline` and query
-through that handle.
+`WarpCore`. For stable product reads, prefer a pinned `Worldline` and query
+through that handle from `WarpApp`.
 
 ```javascript
 const worldline = graph.worldline();

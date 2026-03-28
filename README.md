@@ -97,7 +97,8 @@ You only need a few ideas to get through the README tutorial:
 - **WARP graph** — a history-native graph model; in `git-warp`, it is stored in Git objects and refs.
 - **Causal graph** — a graph whose change history is part of the model, not discarded implementation detail.
 - **Patch** — an atomic batch of graph rewrite operations committed by one writer.
-- **WarpRuntime** — the host object that opens the graph, writes patches, syncs, manages checkpoints, and creates pinned read handles.
+- **WarpApp** — the primary app-facing API for opening a graph, writing patches, syncing, and creating pinned read handles.
+- **WarpCore** — the plumbing-facing API for replay, provenance, materialization, whole-state inspection, and debugger/tooling integration.
 - **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a working set.
 - **Lens** — the aperture definition that shapes what an observer can see.
 - **Observer** — a filtered, read-only projection over a worldline through a lens.
@@ -110,18 +111,18 @@ You only need a few ideas to get through the README tutorial:
 
 ```javascript
 import GitPlumbing from '@git-stunts/plumbing';
-import WarpRuntime, { GitGraphAdapter } from '@git-stunts/git-warp';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
 
 const plumbing = new GitPlumbing({ cwd: './my-repo' });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await WarpRuntime.open({
+const app = await WarpApp.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
 });
 
-await graph.patch(p => {
+await app.patch(p => {
   p.addNode('user:alice')
     .setProperty('user:alice', 'name', 'Alice')
     .setProperty('user:alice', 'role', 'admin')
@@ -135,7 +136,7 @@ await graph.patch(p => {
 ### 2. Read a node back
 
 ```javascript
-const worldline = graph.worldline();
+const worldline = app.worldline();
 const alice = await worldline.getNodeProps('user:alice');
 // { name: 'Alice', role: 'admin' }
 ```
@@ -169,13 +170,13 @@ const publicUsers = await worldline.observer('public-users', publicUserLens);
 
 ## Read Model
 
-For application-facing reads, prefer `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.
+For application-facing reads, prefer `WarpApp` plus `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.
 
 That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.
 
 Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.
 
-Use `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.
+Use `app.core()` when you need the plumbing-facing surface, and then reach for `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.
 
 ## Documentation Map
 
@@ -183,7 +184,7 @@ If you are new to git-warp, start with the **[Guide](docs/GUIDE.md)**. For deepe
 
 - **[Architecture](ARCHITECTURE.md)**: Deep dive into the hexagonal "Ports and Adapters" design.
 - **[Changelog](CHANGELOG.md)**: Release history and patch-by-patch updates.
-- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: `WarpRuntime` as plumbing, observers as the read-side abstraction, and working sets as speculative write lanes.
+- **[Observer / Working-Set Boundary](docs/design/observer-working-set-boundary.md)**: Design note for the intended substrate boundary: plumbing/core on one side, observers as the read-side abstraction, and working sets as speculative write lanes.
 - **[CLI Guide](docs/CLI_GUIDE.md)**: Command-by-command reference with examples, flags, and output formats.
 - **[Time Travel Debugger](docs/TTD.md)**: Architecture and scope of the thin debugger CLI surface.
 - **[Working Sets](docs/WORKING_SETS.md)**: Pinned observation coordinates, comparison helpers, transfer planning, overlay patch-log semantics, and the working-set API/CLI surface.
@@ -537,7 +538,7 @@ When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and au
 
 Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
 
-Higher layers should prefer observers for application-facing reads. `WarpRuntime` remains the substrate/session facade, but observers are the cleaner read-side boundary when you need a worldline-relative, filtered, read-only projection.
+Higher layers should prefer observers for application-facing reads. `WarpApp` is the primary product-facing surface, while `WarpCore` remains available through `app.core()` when you need lower-level substrate mechanics.
 
 ```javascript
 const publicWorldline = graph.worldline();
@@ -587,7 +588,7 @@ const { cost, breakdown } = await graph.translationCost(
 
 When you want a pinned read handle, prefer `worldline()` first and then create an observer from that handle. `graph.observer(..., { source })` still exists as a convenience surface, but `Worldline` is the clearer noun when you are binding history explicitly.
 
-Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a detached immutable snapshot and does not retarget the caller runtime. Use them when you need direct replay output for helpers such as `projectStateV5()` or `createStateReaderV5()`, not as a mode switch on one live `WarpRuntime`.
+Each of `materializeCoordinate()` and `materializeWorkingSet()` returns a detached immutable snapshot and does not retarget the caller runtime. Use them when you need direct replay output for helpers such as `projectStateV5()` or `createStateReaderV5()`, not as a mode switch on one live app-facing handle.
 
 Observers are pinned read handles. By default they capture the current materialized read coordinate at creation time, and they can also bind directly to an explicit coordinate or a pinned working set instead of live-following one mutable graph handle.
 
@@ -612,7 +613,7 @@ const wasMerged = await graph.temporal.eventually(
 
 ## Patch Operations
 
-Direct patching remains part of the low-level substrate surface. For application-facing speculative mutation, prefer working sets and their overlay mechanics rather than treating one live `WarpRuntime` handle as the entire product API.
+Direct patching remains part of the low-level substrate surface. For application-facing speculative mutation, prefer working sets and their overlay mechanics rather than treating one live core/runtime handle as the entire product API.
 
 The patch builder supports seven operations:
 

@@ -25,11 +25,12 @@ function betweenHeadings(source, startHeading, endHeading) {
 describe('Guide public read-model teaching shape', () => {
   it('uses worldline-first reads in Quick Start', () => {
     const quickStart = betweenHeadings(guide, '## Quick Start', '## Writing Data');
-    expect(quickStart).toMatch(/graph\.worldline\(\)/);
+    expect(quickStart).toMatch(/WarpApp\.open\(/);
+    expect(quickStart).toMatch(/app\.worldline\(\)/);
     expect(quickStart).toMatch(/worldline\.getNodeProps\('todo:1'\)/);
     expect(quickStart).toMatch(/worldline\.query\(\)/);
     expect(quickStart).toMatch(/worldline\.traverse\.shortestPath/);
-    expect(quickStart).not.toContain('await graph.materialize();');
+    expect(quickStart).not.toContain('await app.materialize();');
   });
 
   it('teaches product reads before inspection in the reading section', () => {
@@ -47,9 +48,9 @@ describe('Guide public read-model teaching shape', () => {
 
   it('leads the query section with worldline-scoped query examples', () => {
     const querying = betweenHeadings(guide, '## Querying', '## Multi-Writer Collaboration');
-    expect(querying).toMatch(/const worldline = graph\.worldline\(\);[\s\S]*?worldline\.query\(\)/);
+    expect(querying).toMatch(/const worldline = (graph|app)\.worldline\(\);[\s\S]*?worldline\.query\(\)/);
     expect(querying).toMatch(
-      /The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and[\s\S]*`WarpRuntime`\./,
+      /The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and[\s\S]*`WarpCore`\./,
     );
   });
 });

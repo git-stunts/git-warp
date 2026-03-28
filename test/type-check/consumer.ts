@@ -7,8 +7,10 @@
  * @see contracts/type-surface.m8.json
  */
 
-import WarpRuntime, {
-  WarpRuntime as WarpRuntimeNamed,
+import WarpApp, {
+  WarpApp as WarpAppNamed,
+  WarpCore,
+  WarpRuntime,
   GraphPersistencePort,
   IndexStoragePort,
   LoggerPort,
@@ -166,7 +168,8 @@ declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 
-const _sameRuntimeCtor: typeof WarpRuntime = WarpRuntimeNamed;
+const _sameAppCtor: typeof WarpApp = WarpAppNamed;
+const _runtimeAlias: typeof WarpCore = WarpRuntime;
 
 // Verify imported classes/ports are usable as types
 declare const _idxStorage: IndexStoragePort;
@@ -176,8 +179,8 @@ declare const _shardCorruptErr: ShardCorruptionError;
 declare const _shardValErr: ShardValidationError;
 declare const _storageErr: StorageError;
 
-// WarpRuntime.open() — full options
-const graph: WarpRuntime = await WarpRuntime.open({
+// WarpApp.open() — curated product-facing options
+const app: WarpApp = await WarpApp.open({
   graphName: 'test',
   persistence,
   writerId: 'w1',
@@ -189,6 +192,7 @@ const graph: WarpRuntime = await WarpRuntime.open({
   onDeleteWithData: 'reject',
   trust: { mode: 'off' },
 });
+const graph: WarpCore = app.core();
 
 // ---- additional type-only surface coverage ----
 const ping: PingResult = { ok: true, latencyMs: 1 };

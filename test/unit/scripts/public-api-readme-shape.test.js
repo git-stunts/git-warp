@@ -29,7 +29,8 @@ describe('README public API teaching order', () => {
 
   it('uses worldline-first reads and shows write/read/query/traverse in Quick Start', () => {
     const quickStart = betweenHeadings(readme, '## Quick Start', '## Documentation Map');
-    expect(quickStart).toMatch(/graph\.patch\(/);
+    expect(quickStart).toMatch(/WarpApp\.open\(/);
+    expect(quickStart).toMatch(/app\.patch\(/);
     expect(quickStart).toMatch(/worldline\(\)/);
     expect(quickStart).toMatch(/worldline\.getNodeProps\('user:alice'\)/);
     expect(quickStart).toMatch(/worldline\.query\(\)/);
@@ -92,8 +93,8 @@ describe('README public API teaching order', () => {
 
   it('labels whole-state enumeration as inspection and explains the read-model tradeoff', () => {
     expect(readme).toContain('Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.');
-    expect(readme).toContain('Use `getNodes()`, `getEdges()`, `getNodeProps()`, `neighbors()`, and direct `materialize*()` helpers for debugging, migration, bounded tooling, or explicit substrate inspection.');
-    expect(readme).toContain('For application-facing reads, prefer `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.');
+    expect(readme).toContain('Use `app.core()` when you need the plumbing-facing surface');
+    expect(readme).toContain('For application-facing reads, prefer `WarpApp` plus `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.');
     expect(readme).toContain('That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.');
   });
 });

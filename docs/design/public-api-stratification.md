@@ -32,7 +32,7 @@ substrate-mechanics territory.
 
 The public API should make these interactions feel natural:
 
-- write/speculate through `WarpRuntime` and `WorkingSet`
+- write/speculate through `WarpApp` and speculative-lane primitives
 - pin read history through `Worldline`
 - shape read visibility through `Lens` and `Observer`
 - coordinate normal multi-writer app behavior without first learning replay
@@ -80,11 +80,16 @@ A coding agent should be able to infer:
 These are the nouns and entrypoints we want consumers to reach for first.
 
 - `WarpRuntime`
-  - opening a graph
+  - compatibility alias to the core surface during the transition
+- `WarpApp`
+  - opening a graph for product usage
   - patching/writing
   - creating working sets
   - syncing
   - producing pinned read handles
+- `WarpCore`
+  - explicit core/tooling escape hatch
+  - replay, inspection, and substrate plumbing
 - `Worldline`
   - pinning a read source
   - seeking immutably
@@ -111,7 +116,8 @@ These are the nouns and entrypoints we want consumers to reach for first.
 These are operations that should be presented as the normal way to answer read
 questions for applications.
 
-- `worldline(...)`
+- `WarpApp.open(...)`
+- `app.worldline(...)`
 - `worldline.observer(...)`
 - `observer.query()`
 - `observer.traverse.*`
@@ -192,15 +198,18 @@ The README should teach in this order:
 
 1. what `git-warp` is
 2. the main nouns:
-   - `WarpRuntime`
+   - `WarpApp`
+   - `WarpCore`
    - `Worldline`
    - `Lens`
    - `Observer`
    - `WorkingSet`
    - braid, when product behavior needs co-present lanes
 3. the default developer move:
-   - write through runtime
+   - write through `WarpApp`
    - read through worldline + observer
+   - drop into `app.core()` only when the task is explicitly plumbing/tooling
+     shaped
 4. query/traversal examples over read handles
 5. explicit note that TTD/debugger/tooling flows use a deeper core stratum
 6. explicit inspection/admin section with cost warnings
@@ -214,7 +223,8 @@ full-state enumeration on `WarpRuntime`.
 
 ### Recommendation 1
 
-Docs and examples should prefer `worldline()` over direct runtime read methods
+Docs and examples should prefer `WarpApp` plus `worldline()` over direct core
+read methods
 for pinned or repeated read flows.
 
 ### Recommendation 2
@@ -229,7 +239,7 @@ them as substrate/advanced operations and make their cost and purpose explicit.
 
 ### Recommendation 4
 
-`WarpRuntime.query()` should stay available, but README-first guidance should
+`WarpCore.query()` should stay available, but README-first guidance should
 prefer observer-scoped or worldline-scoped reads when the caller is building a
 stable product read surface.
 

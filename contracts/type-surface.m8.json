@@ -638,9 +638,17 @@
       "deprecated": true,
       "alias": "CommitDagTraversalService"
     },
+    "WarpApp": {
+      "kind": "class",
+      "default": true
+    },
+    "WarpCore": {
+      "kind": "class"
+    },
     "WarpRuntime": {
       "kind": "class",
-      "default": true,
+      "deprecated": true,
+      "alias": "WarpCore",
       "static": {
         "open": {
           "async": true,

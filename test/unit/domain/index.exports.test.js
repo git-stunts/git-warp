@@ -8,7 +8,10 @@
 import { describe, it, expect } from 'vitest';
 
 // Import everything from the main entry point
-import WarpRuntimeDefault, {
+import WarpAppDefault, {
+  WarpApp,
+  WarpCore,
+  WarpRuntime,
   // Core classes
   GitGraphAdapter,
   GraphNode,
@@ -63,22 +66,35 @@ import WarpRuntimeDefault, {
   scopeMaterializedStateV5,
 } from '../../../index.js';
 
-const { WarpRuntime, WarpGraph, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
+const { WarpGraph, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
 
 describe('index.js exports', () => {
   describe('default export', () => {
-    it('exports WarpRuntime as default', () => {
-      expect(WarpRuntimeDefault).toBeDefined();
-      expect(typeof WarpRuntimeDefault).toBe('function');
-      expect(WarpRuntimeDefault.name).toBe('WarpRuntime');
+    it('exports WarpApp as default', () => {
+      expect(WarpAppDefault).toBeDefined();
+      expect(typeof WarpAppDefault).toBe('function');
+      expect(WarpAppDefault).toBe(WarpApp);
+      expect(WarpAppDefault.name).toBe('WarpApp');
     });
   });
 
   describe('runtime exports', () => {
-    it('exports WarpRuntime as a named export', () => {
+    it('exports WarpApp as a named export', () => {
+      expect(WarpApp).toBeDefined();
+      expect(typeof WarpApp).toBe('function');
+      expect(WarpApp).toBe(WarpAppDefault);
+    });
+
+    it('exports WarpCore as the full plumbing-facing surface', () => {
+      expect(WarpCore).toBeDefined();
+      expect(typeof WarpCore).toBe('function');
+      expect(WarpCore.name).toBe('WarpCore');
+    });
+
+    it('keeps WarpRuntime as a compatibility alias to WarpCore', () => {
       expect(WarpRuntime).toBeDefined();
       expect(typeof WarpRuntime).toBe('function');
-      expect(WarpRuntime).toBe(WarpRuntimeDefault);
+      expect(WarpRuntime).toBe(WarpCore);
     });
 
     it('does not export WarpGraph as a public compatibility alias', () => {
@@ -270,10 +286,10 @@ describe('index.js exports', () => {
   });
 
   describe('multi-writer graph support (WARP)', () => {
-    it('exports WarpRuntime from the main entry point', () => {
+    it('exports WarpRuntime as a compatibility alias from the main entry point', () => {
       expect(WarpRuntime).toBeDefined();
       expect(typeof WarpRuntime).toBe('function');
-      expect(WarpRuntime.name).toBe('WarpRuntime');
+      expect(WarpRuntime).toBe(WarpCore);
     });
 
     it('WarpRuntime has static open method', () => {
@@ -363,17 +379,19 @@ describe('index.js exports', () => {
   });
 
   describe('usage patterns', () => {
-    it('supports ESM default and named imports for WarpRuntime', () => {
+    it('supports ESM default and named imports for WarpApp/WarpCore', () => {
       // This test verifies the import syntax works
-      // import WarpRuntime, { WarpRuntime as Runtime } from 'warp';
-      expect(WarpRuntimeDefault).toBeDefined();
-      expect(WarpRuntime).toBeDefined();
-      expect(WarpRuntimeDefault).toBe(WarpRuntime);
+      // import WarpApp, { WarpCore } from 'warp';
+      expect(WarpAppDefault).toBeDefined();
+      expect(WarpApp).toBeDefined();
+      expect(WarpCore).toBeDefined();
+      expect(WarpAppDefault).toBe(WarpApp);
     });
 
     it('supports importing all WARP utilities together', () => {
       // Verify all the pieces needed for WARP usage are available
-      expect(WarpRuntime).toBeDefined();
+      expect(WarpApp).toBeDefined();
+      expect(WarpCore).toBeDefined();
       expect(createNodeAdd).toBeDefined();
       // Note: createPatch (schema:1) removed - use createPatchV2 from WarpTypesV2
     });

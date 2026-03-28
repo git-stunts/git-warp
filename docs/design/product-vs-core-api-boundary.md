@@ -248,85 +248,35 @@ The lesson is:
 - keep substrate APIs explicit
 - do not flatten both onto one undifferentiated root surface
 
-## Candidate Public Shapes
+## Chosen Public Shape
 
-### Option A — Keep one root, stratify through docs only
-
-Example:
-
-- `WarpRuntime.worldline()`
-- `WarpRuntime.observer()`
-- `WarpRuntime.materialize()`
-- `WarpRuntime.getNodes()`
-
-Pros:
-
-- low migration cost
-- no structural facade work
-
-Cons:
-
-- still easy to misuse
-- still relies heavily on prose discipline
-
-### Option B — One underlying runtime, two public facades
-
-Example shape:
+`v15` should expose one underlying engine through two public roots:
 
 - `WarpApp`
 - `WarpCore`
 
-Or:
+with:
 
-- one open call that yields both app/core views over the same underlying
-  system
-
-Pros:
-
-- cost model becomes structural
-- app builders and agentic CLIs get a clearer default path
-- TTD/tooling can still access core facts honestly
-- may also resolve discomfort with `WarpRuntime` as the main public noun
-
-Cons:
-
-- larger public API redesign
-- requires careful method-placement design
-- should not be rushed as a cosmetic rename
-
-### Option C — Explicit namespaces under one root
-
-Example shape:
-
-- `warp.app.*`
-- `warp.core.*`
-
-Pros:
-
-- keeps one root object
-- still introduces explicit separation
-
-Cons:
-
-- still needs a careful method map
-- can become ceremony if the split is not principled
+- `WarpApp` as the primary product-facing surface
+- `WarpCore` as the honest plumbing/tooling-facing surface
+- one underlying runtime implementation beneath both
+- `app.core()` as the explicit escape hatch from product code into substrate
+  mechanics
 
 ## Current Recommendation
 
 The strongest current direction is:
 
 1. keep one underlying runtime implementation
-2. define a **product API stratum** and a **core API stratum**
-3. decide whether that stratification should become:
-   - facade objects
-   - namespaces
-   - or a smaller structural regrouping of methods
-4. do not release v15 until the split is at least conceptually explicit in the
-   public surface
+2. make the **product API stratum** and **core API stratum** structural through
+   `WarpApp` and `WarpCore`
+3. keep `WarpApp` curated and intentionally smaller than the core surface
+4. do not release v15 until this split is explicit in the public docs, type
+   surface, and runtime exports
 
 My current bias is:
 
-- the split should eventually be structural, not prose-only
+- the split should be structural, not prose-only
 - `Worldline`, `Lens`, `Observer`, speculative lanes, and braid belong to the
   product-facing stratum
 - `PlaybackHead`, provenance, coordinate replay, and settlement/comparison
@@ -358,6 +308,7 @@ It also aligns with the future Echo/Wesley compatibility goal:
 - open graph
 - patch / writer
 - sync
+- `app.core()`
 - `worldline()`
 - `Worldline.seek()`
 - `Worldline.query()`
@@ -388,9 +339,5 @@ It also aligns with the future Echo/Wesley compatibility goal:
    to `Strand` important enough to do before release?
 3. Is braid mature enough to foreground as a primary feature, or should it
    remain documented but secondary in v15?
-4. What is the cleanest public shape for app/core separation:
-   - dual facades
-   - namespaces
-   - or narrower regrouping?
-5. Should `PlaybackHead` ship as a first-class public noun in v15, or remain a
+4. Should `PlaybackHead` ship as a first-class public noun in v15, or remain a
    design-level core concept until the first `warp-ttd` integration slice lands?

@@ -278,11 +278,11 @@ product-facing stratum.
 TTD and advanced tooling must still have honest access to the core-facing
 stratum.
 
-The remaining design problem is structural:
+The structural decision is now:
 
-- do we keep one flat root and rely on docs?
-- do we introduce namespaces?
-- do we introduce product/core facades?
+- `WarpApp` as the primary product-facing surface
+- `WarpCore` as the tooling/plumbing-facing surface
+- one underlying runtime implementation beneath both
 
 The remaining naming problem is also real:
 
