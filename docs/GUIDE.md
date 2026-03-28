@@ -23,7 +23,7 @@ Both sit on the same underlying deterministic WARP engine. Multiple independent 
 ## Installation
 
 ```bash
-npm install @git-stunts/git-warp
+npm install @git-stunts/git-warp @git-stunts/plumbing
 ```
 
 ### Multi-Runtime Support
@@ -191,7 +191,7 @@ await graph.hasNode('temp');    // false
 await graph.getEdges();         // [] — edge is hidden too
 ```
 
-The `onDeleteWithData` option (set on `WarpCore.open()`) controls what happens when you remove a node that has attached edges or properties:
+The `onDeleteWithData` option (set on `WarpApp.open()` or `WarpCore.open()`) controls what happens when you remove a node that has attached edges or properties:
 
 | Policy | Behavior |
 |---|---|

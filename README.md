@@ -1,17 +1,100 @@
 <div align="center"><img src="docs/images/git-warp.svg" alt="git-warp logo" />
-<h1><code>npm install @git-stunts/git-warp</code></h1>
+<h1><code>git-warp</code> is a distributed, conflict-free graph database that lives invisibly inside your Git repository, alongside your code, docs, and everything else</h1>
 </div>
 
 [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
 
-<p align="center">
-  <img src="docs/images/hero.gif" alt="git-warp CLI demo" width="600">
-</p>
+## TL;DR for humans
+
+`git-warp` is for apps that need local graph writes, later sync, deterministic conflict-free convergence, and time-travelable history without running a separate database server.
+
+- It stores graph data under Git objects and refs, so your repo can still hold normal code, docs, assets, and tests.
+- Writers can work independently and sync later with ordinary Git push/pull.
+- Graph data converges deterministically using CRDTs, so you do not hand-resolve Git merge conflicts for the graph itself.
+- If you need a centralized OLTP database, use Postgres. If you need a high-performance realtime rewrite engine, use Echo.
+
+## Quick Start
+
+### 1. Install
+
+```bash
+npm install @git-stunts/git-warp @git-stunts/plumbing
+```
+
+### 2. Open a graph and write some data
+
+```javascript
+import GitPlumbing from '@git-stunts/plumbing';
+import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
+
+const plumbing = new GitPlumbing({ cwd: './my-repo' });
+const persistence = new GitGraphAdapter({ plumbing });
+
+const app = await WarpApp.open({
+  persistence,
+  graphName: 'demo',
+  writerId: 'writer-1',
+});
+
+await app.patch(p => {
+  p.addNode('user:alice')
+    .setProperty('user:alice', 'name', 'Alice')
+    .setProperty('user:alice', 'role', 'admin')
+    .addNode('user:bob')
+    .setProperty('user:bob', 'name', 'Bob')
+    .addEdge('user:alice', 'user:bob', 'manages')
+    .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024');
+});
+```
+
+### 3. Read a node back
+
+A worldline is a pinned read handle over graph history.
+
+```javascript
+const worldline = app.worldline();
+const alice = await worldline.getNodeProps('user:alice');
+// { name: 'Alice', role: 'admin' }
+```
+
+### 4. Query matching nodes
+
+```javascript
+const users = await worldline.query()
+  .match('user:*')
+  .run();
+```
+
+### 5. Traverse the graph
+
+```javascript
+const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
+  dir: 'out',
+});
+```
+
+### 6. Add a filtered read aperture when you need one
+
+A lens defines what is visible. An observer applies that lens over a worldline.
+
+```javascript
+const publicUserLens = {
+  match: 'user:*',
+  redact: ['ssn'],
+};
+
+const publicUsers = await worldline.observer('public-users', publicUserLens);
+```
+
+For a longer walkthrough, start with the [Guide](docs/GUIDE.md).
+
 ## What Is git-warp?
 
 **git-warp** is a JavaScript library that implements a WARP graph on top of Git.
+
+The graph lives inside your repository, but not as a pile of app-specific working-tree files. You can keep code, docs, assets, and graph data together in the same repo and still use the repo like a normal repo.
 
 You can use it to:
 
@@ -69,34 +152,14 @@ In practice that means:
 | Centralized OLTP web app | ❌ | ❌ | Postgres | If you have one primary database, low-latency transactions, and always-on connectivity, use a normal database. |
 | Analytics warehouse or OLAP workload | ❌ | ❌ | DuckDB / ClickHouse | Neither `git-warp` nor Echo is a warehouse or columnar analytics engine. |
 
-If you only need the shortest reason to pick `git-warp`, it is this:
-
-- multiple independent writers can modify the same graph without coordination
-- changes merge deterministically using CRDTs
-- Git provides content-addressing, cryptographic integrity, and distributed replication for free
-
-```bash
-npm install @git-stunts/git-warp @git-stunts/plumbing
-```
-
-For a comprehensive walkthrough — from setup to advanced features — see the [Guide](docs/GUIDE.md).
-
-## Minimal Mental Model
-
-You only need a few ideas to get through the README tutorial:
-
-- write through **WarpApp**
-- changes are committed as **patches**
-- sync is **Git transport plus CRDT convergence**
-- reads pin history through a **worldline**
-- visibility is filtered through an **observer**
-- replay produces an immutable **state snapshot**
-
-## Glossary
+## Conceptual glossary
 
 - **WARP graph** — a history-native graph model; in `git-warp`, it is stored in Git objects and refs.
 - **Causal graph** — a graph whose change history is part of the model, not discarded implementation detail.
 - **Patch** — an atomic batch of graph rewrite operations committed by one writer.
+- **Tick** — one deterministic replay step while materializing patches into visible state. When you ask for receipts, a tick can also report what happened during that step.
+- **Frontier** — the current map of writer IDs to their latest observed patch tips. It tells `git-warp` which patch universe a live or pinned read is talking about.
+- **Lamport clock** — a logical timestamp used to order concurrent operations deterministically.
 - **WarpApp** — the primary app-facing API for opening a graph, writing patches, syncing, and creating pinned read handles.
 - **WarpCore** — the plumbing-facing API for replay, provenance, materialization, whole-state inspection, and debugger/tooling integration.
 - **Worldline** — a pinned read-history handle over live truth, an explicit coordinate, or a strand.
@@ -104,69 +167,7 @@ You only need a few ideas to get through the README tutorial:
 - **Observer** — a filtered, read-only projection over a worldline through a lens.
 - **WarpState** — an immutable materialized graph snapshot produced by replay.
 - **Strand** — a speculative write lane branched from a base observation.
-
-## Quick Start
-
-### 1. Open a graph and write some data
-
-```javascript
-import GitPlumbing from '@git-stunts/plumbing';
-import WarpApp, { GitGraphAdapter } from '@git-stunts/git-warp';
-
-const plumbing = new GitPlumbing({ cwd: './my-repo' });
-const persistence = new GitGraphAdapter({ plumbing });
-
-const app = await WarpApp.open({
-  persistence,
-  graphName: 'demo',
-  writerId: 'writer-1',
-});
-
-await app.patch(p => {
-  p.addNode('user:alice')
-    .setProperty('user:alice', 'name', 'Alice')
-    .setProperty('user:alice', 'role', 'admin')
-    .addNode('user:bob')
-    .setProperty('user:bob', 'name', 'Bob')
-    .addEdge('user:alice', 'user:bob', 'manages')
-    .setEdgeProperty('user:alice', 'user:bob', 'manages', 'since', '2024');
-});
-```
-
-### 2. Read a node back
-
-```javascript
-const worldline = app.worldline();
-const alice = await worldline.getNodeProps('user:alice');
-// { name: 'Alice', role: 'admin' }
-```
-
-### 3. Query matching nodes
-
-```javascript
-const result = await worldline.query()
-  .match('user:*')
-  .run();
-```
-
-### 4. Traverse the graph
-
-```javascript
-const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
-  dir: 'out',
-});
-```
-
-When you want a filtered or redacted read aperture, add an observer on top of the worldline instead of falling back to runtime-wide reads:
-
-```javascript
-const publicUserLens = {
-  match: 'user:*',
-  redact: ['ssn'],
-};
-
-const publicUsers = await worldline.observer('public-users', publicUserLens);
-```
+- **Braid** — a read-only composition that lets one strand see one or more support strands without collapsing them together.
 
 ## Read Model
 

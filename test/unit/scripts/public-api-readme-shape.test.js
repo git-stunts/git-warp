@@ -28,7 +28,8 @@ describe('README public API teaching order', () => {
   });
 
   it('uses worldline-first reads and shows write/read/query/traverse in Quick Start', () => {
-    const quickStart = betweenHeadings(readme, '## Quick Start', '## Documentation Map');
+    const quickStart = betweenHeadings(readme, '## Quick Start', '## What Is git-warp?');
+    expect(quickStart).toMatch(/npm install @git-stunts\/git-warp @git-stunts\/plumbing/);
     expect(quickStart).toMatch(/WarpApp\.open\(/);
     expect(quickStart).toMatch(/app\.patch\(/);
     expect(quickStart).toMatch(/worldline\(\)/);
@@ -40,39 +41,51 @@ describe('README public API teaching order', () => {
   });
 
   it('introduces the system in progressive layers before raw querying sections', () => {
+    const tldr = readme.indexOf('## TL;DR for humans');
+    const quickStart = readme.indexOf('## Quick Start');
     const whatIs = readme.indexOf('## What Is git-warp?');
     const whatIsWarp = readme.indexOf('## What Is WARP?');
     const whyGit = readme.indexOf('## Why Git?');
     const whereItFits = readme.indexOf('## Where git-warp Fits');
-    const mentalModel = readme.indexOf('## Minimal Mental Model');
-    const glossary = readme.indexOf('## Glossary');
-    const quickStart = readme.indexOf('## Quick Start');
+    const glossary = readme.indexOf('## Conceptual glossary');
     const readModel = readme.indexOf('## Read Model');
     const querying = readme.indexOf('## Querying');
 
+    expect(tldr).toBeGreaterThan(-1);
+    expect(quickStart).toBeGreaterThan(-1);
     expect(whatIs).toBeGreaterThan(-1);
     expect(whatIsWarp).toBeGreaterThan(-1);
     expect(whyGit).toBeGreaterThan(-1);
     expect(whereItFits).toBeGreaterThan(-1);
-    expect(mentalModel).toBeGreaterThan(-1);
     expect(glossary).toBeGreaterThan(-1);
-    expect(quickStart).toBeGreaterThan(-1);
     expect(readModel).toBeGreaterThan(-1);
     expect(querying).toBeGreaterThan(-1);
+    expect(tldr).toBeLessThan(querying);
+    expect(quickStart).toBeLessThan(querying);
     expect(whatIs).toBeLessThan(querying);
     expect(whatIsWarp).toBeLessThan(querying);
     expect(whyGit).toBeLessThan(querying);
     expect(whereItFits).toBeLessThan(querying);
-    expect(mentalModel).toBeLessThan(querying);
     expect(glossary).toBeLessThan(querying);
-    expect(quickStart).toBeLessThan(querying);
     expect(readModel).toBeLessThan(querying);
+    expect(tldr).toBeLessThan(quickStart);
+    expect(quickStart).toBeLessThan(whatIs);
     expect(whatIs).toBeLessThan(whatIsWarp);
     expect(whatIsWarp).toBeLessThan(whyGit);
     expect(whyGit).toBeLessThan(whereItFits);
-    expect(whereItFits).toBeLessThan(mentalModel);
-    expect(mentalModel).toBeLessThan(quickStart);
+    expect(whereItFits).toBeLessThan(glossary);
+    expect(glossary).toBeLessThan(readModel);
     expect(readme).not.toContain('## Main Components');
+  });
+
+  it('includes a conceptual glossary that bridges API nouns and theory nouns', () => {
+    const glossary = betweenHeadings(readme, '## Conceptual glossary', '## Read Model');
+    expect(glossary).toContain('**Tick**');
+    expect(glossary).toContain('**Frontier**');
+    expect(glossary).toContain('**Lamport clock**');
+    expect(glossary).toContain('**Braid**');
+    expect(glossary).toContain('**Worldline**');
+    expect(glossary).toContain('**Strand**');
   });
 
   it('distinguishes WARP from Git and explains CRDT sync explicitly', () => {

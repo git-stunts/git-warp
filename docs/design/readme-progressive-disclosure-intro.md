@@ -6,6 +6,8 @@ Legend: Observer Geometry
 
 Cycle: OG-010
 
+Note: the original "explain before quick start" ordering in this note was later refined by [README first 30 seconds](./readme-first-thirty-seconds.md), which moves `TL;DR` and the runnable quick start earlier while keeping the deeper WARP framing and glossary in the README front matter.
+
 ## Problem
 
 The README front matter is better than it was, but it still assumes too much:

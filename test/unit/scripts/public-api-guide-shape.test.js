@@ -23,6 +23,10 @@ function betweenHeadings(source, startHeading, endHeading) {
 }
 
 describe('Guide public read-model teaching shape', () => {
+  it('installs the packages that the quick start actually uses', () => {
+    expect(guide).toContain('npm install @git-stunts/git-warp @git-stunts/plumbing');
+  });
+
   it('uses worldline-first reads in Quick Start', () => {
     const quickStart = betweenHeadings(guide, '## Quick Start', '## Writing Data');
     expect(quickStart).toMatch(/WarpApp\.open\(/);
