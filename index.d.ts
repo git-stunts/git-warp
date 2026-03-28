@@ -1377,7 +1377,7 @@ export interface ObserverOptions {
 }
 
 /**
- * Read-only observer view of a materialized WarpRuntime state.
+ * Read-only observer over a materialized WarpRuntime state.
  *
  * Provides the same query/traverse API as WarpRuntime, but filtered
  * by observer configuration (match pattern, expose, redact).
@@ -1386,7 +1386,7 @@ export interface ObserverOptions {
  * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
 export class Observer {
-  /** Observer name */
+  /** Observer name (defaults to `observer` when omitted at construction time) */
   readonly name: string;
 
   /** Pinned observer source */
@@ -1432,6 +1432,7 @@ export class Worldline {
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
   /** Creates an observer pinned to the worldline source */
+  observer(config: ObserverConfig): Promise<Observer>;
   observer(name: string, config: ObserverConfig): Promise<Observer>;
 }
 
@@ -2040,12 +2041,13 @@ export declare class WarpRuntime {
   worldline(options?: WorldlineOptions): Worldline;
 
   /**
-   * Creates a read-only observer view of the current materialized state.
-   *
-   * The observer sees only nodes matching the `match` glob pattern, with
-   * property visibility controlled by `expose` and `redact` lists.
-   * Edges are only visible when both endpoints pass the match filter.
-   */
+   * Creates a read-only observer over the current materialized state.
+  *
+  * The observer sees only nodes matching the `match` glob pattern, with
+  * property visibility controlled by `expose` and `redact` lists.
+  * Edges are only visible when both endpoints pass the match filter.
+  */
+  observer(config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
   observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
 
   /**

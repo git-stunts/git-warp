@@ -481,16 +481,43 @@ export function worldline(options = undefined) {
   });
 }
 
+const DEFAULT_OBSERVER_NAME = 'observer';
+
 /**
- * Creates a read-only observer view of the current materialized state.
+ * @param {string|{ match: string|string[], expose?: string[], redact?: string[] }} nameOrConfig
+ * @param {{ match: string|string[], expose?: string[], redact?: string[] }|ObserverOptions|undefined} configOrOptions
+ * @param {ObserverOptions|undefined} maybeOptions
+ * @returns {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }|undefined, options: ObserverOptions|undefined }}
+ */
+function normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions) {
+  if (typeof nameOrConfig === 'string') {
+    return {
+      name: nameOrConfig,
+      config: /** @type {{ match: string|string[], expose?: string[], redact?: string[] }|undefined} */ (configOrOptions),
+      options: maybeOptions,
+    };
+  }
+
+  return {
+    name: DEFAULT_OBSERVER_NAME,
+    config: nameOrConfig,
+    options: /** @type {ObserverOptions|undefined} */ (configOrOptions),
+  };
+}
+
+/**
+ * Creates a read-only observer over the current materialized state.
  *
  * @this {import('../WarpRuntime.js').default}
- * @param {string} name - Observer name
- * @param {{ match: string|string[], expose?: string[], redact?: string[] }} config - Observer configuration
- * @param {ObserverOptions} [options] - Optional pinned read source
+ * @param {string|{ match: string|string[], expose?: string[], redact?: string[] }} nameOrConfig
+ *   Observer name or observer configuration
+ * @param {{ match: string|string[], expose?: string[], redact?: string[] }|ObserverOptions} [configOrOptions]
+ *   Observer configuration when a name is supplied, otherwise observer options
+ * @param {ObserverOptions} [maybeOptions] - Optional pinned read source
  * @returns {Promise<import('../services/Observer.js').default>} A read-only observer
  */
-export async function observer(name, config, options = undefined) {
+export async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions = undefined) {
+  const { name, config, options } = normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions);
   /** @param {unknown} m */
   const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** @param {unknown} i */ i => typeof i === 'string'));
   if (!config || !isValidMatch(config.match)) {

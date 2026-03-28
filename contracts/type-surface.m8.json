@@ -902,12 +902,12 @@
           "async": true,
           "params": [
             {
-              "name": "name",
-              "type": "string"
+              "name": "nameOrConfig",
+              "type": "string | ObserverConfig"
             },
             {
-              "name": "config",
-              "type": "ObserverConfig"
+              "name": "configOrOptions",
+              "type": "ObserverConfig | ObserverOptions"
             }
           ],
           "returns": "Promise<Observer>"

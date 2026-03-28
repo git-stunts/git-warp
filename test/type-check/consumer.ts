@@ -383,6 +383,7 @@ const qb: QueryBuilder = graph.query();
 
 // ---- observer ----
 const obs: Observer = await graph.observer('obs1', { match: '*' });
+const obsDefault: Observer = await graph.observer({ match: '*' });
 const obsNodes: string[] = await obs.getNodes();
 const obsHas: boolean = await obs.hasNode('n1');
 const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');
@@ -390,6 +391,11 @@ const obsEdges: Array<{ from: string; to: string; label: string; props: Record<s
 const obsQb: QueryBuilder = obs.query();
 const obsTraverse: LogicalTraversal = obs.traverse;
 const obsName: string = obs.name;
+const obsDefaultName: string = obsDefault.name;
+
+const worldline = graph.worldline();
+const worldlineObs: Observer = await worldline.observer({ match: '*' });
+const worldlineObsNamed: Observer = await worldline.observer('users', { match: '*' });
 
 // ---- translationCost (instance method) ----
 const costResult: TranslationCostResult = await graph.translationCost({ match: 'user:*' }, { match: 'admin:*' });

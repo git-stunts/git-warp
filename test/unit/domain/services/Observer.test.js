@@ -462,5 +462,21 @@ describe('Observer', () => {
       const view = await graph.observer('myObserver', { match: '*' });
       expect(view.name).toBe('myObserver');
     });
+
+    it('defaults the observer name when created without an explicit label', async () => {
+      setupGraphState(graph, () => {});
+
+      const view = await graph.observer({ match: '*' });
+      expect(view.name).toBe('observer');
+    });
+
+    it('preserves the default observer name across seek()', async () => {
+      setupGraphState(graph, () => {});
+
+      const view = await graph.observer({ match: '*' });
+      const next = await view.seek();
+
+      expect(next.name).toBe('observer');
+    });
   });
 });

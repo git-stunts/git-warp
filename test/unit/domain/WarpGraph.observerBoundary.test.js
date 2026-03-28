@@ -317,6 +317,42 @@ describe('WarpRuntime plumbing vs porcelain observer boundary', () => {
     await expect(graph.getNodeProps('n1')).resolves.toMatchObject({ color: 'blue' });
   });
 
+  it('observer(config, { source }) supports the unlabeled call shape', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+    const frontierAtRed = await graph.getFrontier();
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+    });
+
+    const observer = await graph.observer(
+      { match: 'n1' },
+      {
+        source: {
+          kind: 'coordinate',
+          frontier: Object.fromEntries(frontierAtRed),
+          ceiling: null,
+        },
+      },
+    );
+
+    expect(observer.name).toBe('observer');
+    await expect(observer.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+  });
+
   it('observer.seek() returns a new live observer without mutating the original observer or caller graph', async () => {
     await simulatePatchCommit(persistence, {
       graphName,

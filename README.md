@@ -64,7 +64,7 @@ await graph.patch(p => {
 
 // Read through a pinned worldline and observer
 const worldline = graph.worldline();
-const view = await worldline.observer('public-users', {
+const view = await worldline.observer({
   match: 'user:*',
 });
 
@@ -74,9 +74,9 @@ const result = await view.query()
   .run();
 ```
 
-The first argument to `observer(...)` is just a descriptive label for that read
-handle. It shows up on `observer.name`, is reused by `seek()`, and can be any
-stable string meaningful to your app or debugger.
+Observer labels are optional. If you omit one, the handle defaults to
+`observer`. When a descriptive label helps debugging or UI semantics, pass it
+as the first argument: `worldline.observer('public-users', { match: 'user:*' })`.
 
 ## Concepts
 

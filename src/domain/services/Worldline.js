@@ -207,12 +207,18 @@ export default class Worldline {
   /**
    * Creates an observer pinned to this worldline source.
    *
-   * @param {string} name
-   * @param {ObserverConfig} config
+   * @param {string|ObserverConfig} nameOrConfig
+   * @param {ObserverConfig} [config]
    * @returns {Promise<import('./Observer.js').default>}
    */
-  async observer(name, config) {
-    return await this._graph.observer(name, config, {
+  async observer(nameOrConfig, config = undefined) {
+    if (typeof nameOrConfig === 'string') {
+      return await this._graph.observer(nameOrConfig, config, {
+        source: cloneWorldlineSource(this._source),
+      });
+    }
+
+    return await this._graph.observer(nameOrConfig, {
       source: cloneWorldlineSource(this._source),
     });
   }

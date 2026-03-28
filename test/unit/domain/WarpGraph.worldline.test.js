@@ -227,6 +227,40 @@ describe('WarpRuntime worldline surface', () => {
     await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
+  it('worldline.observer() supports the unlabeled call shape', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'n1', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'red' },
+      ],
+    });
+    const frontierAtRed = await graph.getFrontier();
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'n1', key: 'color', value: 'blue' },
+      ],
+    });
+
+    const redWorldline = await graph.worldline({
+      source: {
+        kind: 'coordinate',
+        frontier: Object.fromEntries(frontierAtRed),
+        ceiling: null,
+      },
+    });
+
+    const redObserver = await redWorldline.observer({ match: 'n1' });
+    expect(redObserver.name).toBe('observer');
+    await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
+  });
+
   it('worldline.seek() returns a new worldline while preserving the original source', async () => {
     await simulatePatchCommit(persistence, {
       graphName,

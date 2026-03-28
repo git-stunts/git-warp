@@ -218,7 +218,7 @@ export default class Observer {
    */
   constructor({ name, config, graph, snapshot, source }) {
     /** @type {string} */
-    this._name = name;
+    this._name = name ?? 'observer';
 
     /** @type {string|string[]} */
     this._matchPattern = Array.isArray(config.match)

@@ -65,14 +65,17 @@ as `Main Components` or equivalent.
 The prose should teach the system as-designed, not talk as if the reader is
 already making mistakes.
 
-### 5. Explain the observer name argument
+### 5. Explain observer labels plainly
 
 Quick Start should not use a mysterious observer label like `publicApi`
-unexplained.
+unexplained, and it should not require a label when the simpler unlabeled call
+shape is sufficient.
 
 The README should say plainly that:
 
-- the first argument to `observer(...)` is a descriptive observer label
+- observer labels are optional
+- the first argument to `observer(...)` is a descriptive observer label when
+  supplied
 - it is retained on `observer.name`
 - it is reused when the observer seeks
 - callers can choose any stable descriptive string meaningful to their app or

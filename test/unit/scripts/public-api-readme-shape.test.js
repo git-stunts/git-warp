@@ -31,7 +31,8 @@ describe('README public API teaching order', () => {
     const quickStart = betweenHeadings(readme, '## Quick Start', '## Documentation Map');
     expect(quickStart).toMatch(/worldline\([\s\S]*?\.observer\(/);
     expect(quickStart).toMatch(/\.observer\([\s\S]*?\.query\(\)/);
-    expect(quickStart).toMatch(/The first argument to `observer\(\.\.\.\)` is just a descriptive label for that read[\s\S]*?meaningful to your app or debugger\./);
+    expect(quickStart).toContain('Observer labels are optional.');
+    expect(quickStart).toContain("worldline.observer('public-users', { match: 'user:*' })");
   });
 
   it('introduces concepts, glossary, and main components before raw querying sections', () => {
