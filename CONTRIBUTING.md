@@ -1,27 +1,22 @@
 # Contributing to @git-stunts/git-warp
 
-## Current Active Plan
+## Planning Sources Of Truth
 
-git-warp is currently executing the observer/working-set substrate-alignment
-tranche documented in:
+Do not duplicate the repo's "active plan" inside `CONTRIBUTING.md`.
+That information drifts too easily here.
 
-- `docs/design/observer-working-set-boundary.md`
-- `docs/design/working-set-intent-ticks.md`
+Instead, use these sources:
 
-Treat those notes as the active implementation source of truth for current
-observer/worldline/working-set work.
+- `BACKLOG/README.md` for the currently active cycle and promotable pre-design
+  slices
+- `ROADMAP.md` for committed release and milestone inventory
+- `CHANGELOG.md` for what has already landed on the branch or in released
+  versions
+- `docs/design/` for the governing design notes promoted from active backlog
+  items
 
-In particular:
-- `WarpRuntime` is substrate plumbing, not the preferred application-facing API
-- observers are the preferred read-side abstraction
-- working sets are the preferred speculative write abstraction
-- this tranche should add substrate mechanics, not higher-layer policy or
-  governance
-- promotable pre-design backlog items live in `BACKLOG/` as one file per
-  substantial slice
-
-The earlier conflict-analyzer work remains valid substrate capability, but it is
-not the active plan that governs the current write-side pivot.
+If these artifacts disagree, reconcile them as part of the cycle close instead
+of letting `CONTRIBUTING.md` become a second planning registry.
 
 ## Development Loop
 
