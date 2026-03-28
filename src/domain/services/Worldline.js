@@ -209,7 +209,7 @@ export default class Worldline {
    *
    * @param {string} name
    * @param {ObserverConfig} config
-   * @returns {Promise<import('./ObserverView.js').default>}
+   * @returns {Promise<import('./Observer.js').default>}
    */
   async observer(name, config) {
     return await this._graph.observer(name, config, {

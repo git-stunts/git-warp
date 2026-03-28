@@ -78,7 +78,7 @@ import {
 } from './src/domain/types/WarpTypes.js';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
-import ObserverView from './src/domain/services/ObserverView.js';
+import Observer from './src/domain/services/Observer.js';
 import Worldline from './src/domain/services/Worldline.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
@@ -202,7 +202,7 @@ export {
   WarpRuntime,
   Worldline,
   QueryBuilder,
-  ObserverView,
+  Observer,
   PatchBuilderV2,
   PatchSession,
   Writer,

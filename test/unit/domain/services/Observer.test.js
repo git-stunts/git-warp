@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
-import ObserverView from '../../../../src/domain/services/ObserverView.js';
+import Observer from '../../../../src/domain/services/Observer.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
@@ -30,7 +30,7 @@ function addProp(state, nodeId, key, value) {
   state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
 }
 
-describe('ObserverView', () => {
+describe('Observer', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -87,7 +87,7 @@ describe('ObserverView', () => {
         }),
       };
 
-      const view = new ObserverView({
+      const view = new Observer({
         name: 'batching',
         config: { match: 'user:*' },
         graph: fakeGraph,

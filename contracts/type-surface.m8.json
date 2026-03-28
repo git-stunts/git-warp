@@ -87,7 +87,7 @@
     "NodeCryptoAdapter": {
       "kind": "class"
     },
-    "ObserverView": {
+    "Observer": {
       "kind": "class",
       "instance": {
         "hasNode": {
@@ -910,7 +910,7 @@
               "type": "ObserverConfig"
             }
           ],
-          "returns": "Promise<ObserverView>"
+          "returns": "Promise<Observer>"
         },
         "translationCost": {
           "async": true,

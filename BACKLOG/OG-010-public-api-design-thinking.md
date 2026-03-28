@@ -23,7 +23,7 @@ The substrate now has much better semantics than it had before:
 - pinned read handles
 - detached immutable snapshots
 - `Worldline`
-- `ObserverView`
+- `Observer`
 - working-set read boundaries
 
 But the public API and README still need a product-design pass so the right path

@@ -34,7 +34,7 @@ The public API should make these interactions feel natural:
 
 - write/speculate through `WarpRuntime` and `WorkingSet`
 - pin read history through `Worldline`
-- shape read visibility through `ObserverView`
+- shape read visibility through `Observer`
 - ask read questions through query/traversal surfaces scoped to a worldline or
   observer
 - treat full-state enumeration and direct materialization as advanced or
@@ -55,7 +55,7 @@ An app developer should be able to infer:
 
 - `WarpRuntime` is the host/runtime and write surface
 - `Worldline` is the pinned read-history primitive
-- `ObserverView` is the filtered product-read primitive
+- `Observer` is the filtered product-read primitive
 - whole-state inspection APIs are not the normal first tool for product reads
 
 ### Sponsor Agent
@@ -86,7 +86,7 @@ These are the nouns and entrypoints we want consumers to reach for first.
   - seeking immutably
   - producing observers
   - advanced materialization when explicitly needed
-- `ObserverView`
+- `Observer`
   - filtered product reads
   - scoped query/traversal
   - app-facing visibility aperture
@@ -150,8 +150,8 @@ README.
 | Concern | Primary primitive | Secondary helper | Advanced mechanic |
 | --- | --- | --- | --- |
 | Open/write | `WarpRuntime` | `patch()` / `writer()` | patch-chain internals |
-| Stable reads | `Worldline` | `ObserverView` | explicit coordinate materialization |
-| Filtered product reads | `ObserverView` | `query()` / `traverse` | direct snapshot inspection |
+| Stable reads | `Worldline` | `Observer` | explicit coordinate materialization |
+| Filtered product reads | `Observer` | `query()` / `traverse` | direct snapshot inspection |
 | Speculation | working-set concept | working-set methods | overlay/receipt plumbing |
 | Inspection | explicit inspection methods | `getStateSnapshot()` | raw materialization |
 
@@ -163,7 +163,7 @@ The README should teach in this order:
 2. the main nouns:
    - `WarpRuntime`
    - `Worldline`
-   - `ObserverView`
+   - `Observer`
    - `WorkingSet`
 3. the default developer move:
    - write through runtime
@@ -217,8 +217,9 @@ This cycle should not immediately:
 
 ## Open Questions
 
-- Should `ObserverView` gain a slightly more explicit naming alias such as
-  `Observer`, or is documentation enough?
+- Should `Observer` remain the stable public noun for the read handle, or do
+  we need an additional aperture noun such as `Lens` to make projection policy
+  clearer?
 - Should `Worldline` eventually expose more direct query/traversal helpers, or
   is `worldline.observer(...)` the right forcing function?
 - Should inspection methods be regrouped in docs under an explicit
@@ -232,5 +233,5 @@ Turn this stratification into executable documentation constraints:
 
 - README teaching-order assertions
 - inspection-vs-product-read wording constraints
-- public examples that work from `Worldline` / `ObserverView`
+- public examples that work from `Worldline` / `Observer`
 - explicit cost notes around whole-state enumeration and materialization

@@ -42,6 +42,7 @@ import WarpRuntimeDefault, {
   StorageError,
   TraversalError,
   OperationAbortedError,
+  Observer,
 
   // Cancellation utilities
   checkAborted,
@@ -62,7 +63,7 @@ import WarpRuntimeDefault, {
   scopeMaterializedStateV5,
 } from '../../../index.js';
 
-const { WarpRuntime, WarpGraph, Worldline } = /** @type {any} */ (await import('../../../index.js'));
+const { WarpRuntime, WarpGraph, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
 
 describe('index.js exports', () => {
   describe('default export', () => {
@@ -101,6 +102,13 @@ describe('index.js exports', () => {
     it('exports Worldline', () => {
       expect(Worldline).toBeDefined();
       expect(typeof Worldline).toBe('function');
+    });
+
+    it('exports Observer', () => {
+      expect(Observer).toBeDefined();
+      expect(typeof Observer).toBe('function');
+      expect(Observer.name).toBe('Observer');
+      expect(ObserverView).toBeUndefined();
     });
 
     it('exports GitGraphAdapter', () => {

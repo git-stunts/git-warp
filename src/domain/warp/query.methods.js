@@ -24,7 +24,7 @@ import { compareEventIds } from '../utils/EventId.js';
 import { cloneStateV5 } from '../services/JoinReducer.js';
 import { createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import QueryBuilder from '../services/QueryBuilder.js';
-import ObserverView from '../services/ObserverView.js';
+import Observer from '../services/Observer.js';
 import Worldline from '../services/Worldline.js';
 import { computeTranslationCost } from '../services/TranslationCost.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
@@ -488,7 +488,7 @@ export function worldline(options = undefined) {
  * @param {string} name - Observer name
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} config - Observer configuration
  * @param {ObserverOptions} [options] - Optional pinned read source
- * @returns {Promise<import('../services/ObserverView.js').default>} A read-only observer view
+ * @returns {Promise<import('../services/Observer.js').default>} A read-only observer
  */
 export async function observer(name, config, options = undefined) {
   /** @param {unknown} m */
@@ -497,7 +497,7 @@ export async function observer(name, config, options = undefined) {
     throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
   }
   const snapshot = await resolveObserverSnapshot(this, options);
-  return new ObserverView({
+  return new Observer({
     name,
     config,
     graph: this,

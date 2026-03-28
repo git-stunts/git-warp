@@ -514,7 +514,7 @@ const { unsubscribe } = graph.watch('user:*', {
 
 When `poll` is set, the watcher periodically calls `hasFrontierChanged()` and auto-materializes if remote changes are detected.
 
-## Observer Views
+## Observers
 
 Project the graph through filtered lenses for access control, data minimization, or multi-tenant isolation (Paper IV).
 
@@ -980,9 +980,9 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `AdjacencyNeighborProvider` / `BitmapNeighborProvider` -- neighbor provider implementations
 - `SyncProtocol` -- multi-writer synchronization
 - `CheckpointService` -- state snapshot creation and loading
-- `ObserverView` -- read-only filtered graph projections
+- `Observer` -- read-only filtered graph projections
 - `TemporalQuery` -- CTL* temporal operators over history
-- `TranslationCost` -- MDL cost estimation between observer views
+- `TranslationCost` -- MDL cost estimation between observers
 - `BitmapIndexBuilder` / `BitmapIndexReader` -- roaring bitmap indexes
 - `VersionVector` / `ORSet` / `LWW` -- CRDT primitives
 

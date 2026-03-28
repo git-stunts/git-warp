@@ -1,11 +1,11 @@
 /**
- * ObserverView - Read-only filtered view of a materialized WarpRuntime.
+ * Observer - Read-only filtered view of a materialized WarpRuntime.
  *
  * Provides an observer that sees only nodes matching a glob pattern,
  * with property visibility controlled by expose/redact lists.
  * Edges are only visible when both endpoints pass the match filter.
  *
- * @module domain/services/ObserverView
+ * @module domain/services/Observer
  * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
 
@@ -210,9 +210,9 @@ async function buildAdjacencyViaProvider(provider, visibleNodes) {
  * Provides the same query/traverse API as WarpRuntime, but filtered
  * by observer configuration (match pattern, expose, redact).
  */
-export default class ObserverView {
+export default class Observer {
   /**
-   * Creates a new ObserverView.
+   * Creates a new Observer.
    *
    * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} options
    */
@@ -251,7 +251,7 @@ export default class ObserverView {
      * graph-like object it wraps:
      *   - hasNode(nodeId): Promise<boolean>          (line ~96 in LogicalTraversal)
      *   - _materializeGraph(): Promise<{adjacency}>  (line ~94 in LogicalTraversal)
-     * ObserverView implements both: hasNode() at line ~242, _materializeGraph() at line ~214.
+     * Observer implements both: hasNode() at line ~242, _materializeGraph() at line ~214.
      */
     /** @type {LogicalTraversal} */
     this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
@@ -291,7 +291,7 @@ export default class ObserverView {
    */
   _requireGraph() {
     if (!this._graph) {
-      throw new Error('ObserverView has no live backing graph');
+      throw new Error('Observer has no live backing graph');
     }
     return this._graph;
   }
@@ -302,7 +302,7 @@ export default class ObserverView {
    * When no explicit source is supplied, seek targets current live truth.
    *
    * @param {{ source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null } }} [options]
-   * @returns {Promise<ObserverView>}
+   * @returns {Promise<Observer>}
    */
   async seek(options = undefined) {
     const graph = this._requireGraph();
@@ -464,7 +464,7 @@ export default class ObserverView {
      *   - getNodes(): Promise<string[]>                  (line ~680 in QueryBuilder)
      *   - getNodeProps(nodeId): Promise<Record|null>       (lines ~691, ~757, ~806 in QueryBuilder)
      *   - _materializeGraph(): Promise<{adjacency, stateHash}>  (line ~678 in QueryBuilder)
-     * ObserverView implements all three: getNodes() at line ~254, getNodeProps() at line ~268,
+     * Observer implements all three: getNodes() at line ~254, getNodeProps() at line ~268,
      * _materializeGraph() at line ~214.
      */
     return new QueryBuilder(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));

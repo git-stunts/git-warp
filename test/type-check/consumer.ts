@@ -17,7 +17,7 @@ import WarpRuntime, {
   SeekCachePort,
   HttpServerPort,
   QueryBuilder,
-  ObserverView,
+  Observer,
   PatchBuilderV2,
   PatchSession,
   PatchV2,
@@ -382,7 +382,7 @@ const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
 const qb: QueryBuilder = graph.query();
 
 // ---- observer ----
-const obs: ObserverView = await graph.observer('obs1', { match: '*' });
+const obs: Observer = await graph.observer('obs1', { match: '*' });
 const obsNodes: string[] = await obs.getNodes();
 const obsHas: boolean = await obs.hasNode('n1');
 const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');

@@ -564,7 +564,7 @@ declare module '../WarpRuntime.js' {
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
     worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.js').default;
-    observer(name: string, config: ObserverConfig, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/ObserverView.js').default>;
+    observer(name: string, config: ObserverConfig, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/Observer.js').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
     // ── subscribe.methods.js ──────────────────────────────────────────────

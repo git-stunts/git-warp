@@ -1385,7 +1385,7 @@ export interface ObserverOptions {
  *
  * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
-export class ObserverView {
+export class Observer {
   /** Observer name */
   readonly name: string;
 
@@ -1414,7 +1414,7 @@ export class ObserverView {
   query(): QueryBuilder;
 
   /** Creates a new observer over the same aperture at a different source */
-  seek(options?: ObserverOptions): Promise<ObserverView>;
+  seek(options?: ObserverOptions): Promise<Observer>;
 }
 
 /**
@@ -1432,7 +1432,7 @@ export class Worldline {
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
   /** Creates an observer pinned to the worldline source */
-  observer(name: string, config: ObserverConfig): Promise<ObserverView>;
+  observer(name: string, config: ObserverConfig): Promise<Observer>;
 }
 
 /**
@@ -2046,7 +2046,7 @@ export declare class WarpRuntime {
    * property visibility controlled by `expose` and `redact` lists.
    * Edges are only visible when both endpoints pass the match filter.
    */
-  observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<ObserverView>;
+  observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;
 
   /**
    * Computes the directed MDL translation cost from observer A to observer B.

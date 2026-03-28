@@ -920,7 +920,7 @@ from rebuilding their own graph engine above git-warp. Reach for
 substrate plumbing. Reach for observers and working sets when you are building
 application-facing behavior.
 
-### Observer Views
+### Observers
 
 Observers project the graph through a filtered lens — restricting which nodes, edges, and properties are visible. This implements the observer-as-functor concept from Paper IV (Echo and the WARP Core).
 
@@ -956,7 +956,7 @@ const reviewView = await reviewLane.observer('reviewUsers', {
 });
 ```
 
-The returned `ObserverView` is read-only and supports the same query/traverse API:
+The returned `Observer` is read-only and supports the same query/traverse API:
 
 ```javascript
 const nodes = await view.getNodes();
