@@ -61,7 +61,7 @@ Status: partially aligned
 The new notes now call out future Echo/Wesley compatibility explicitly, but the
 public noun set is still unresolved in two places:
 
-- `WorkingSet` vs `Strand`
+- `Strand` vs `Strand`
 - whether `PlaybackHead` becomes a shipped public noun in v15
 
 ## Drift
@@ -70,7 +70,7 @@ No implementation drift occurred in this slice because the work was design-only.
 
 The remaining open design drift is intentional:
 
-- the public docs and type surface still present `WorkingSet`
+- the public docs and type surface still present `Strand`
 - the codebase does not yet expose a real `PlaybackHead` API
 - the public structure is still flatter than the design now recommends
 
@@ -90,6 +90,6 @@ Keep OG-010 active.
 The next slices should answer:
 
 1. whether product/core separation becomes structural in v15
-2. whether `WorkingSet` is renamed to `Strand` before release
+2. whether `Strand` is renamed to `Strand` before release
 3. whether `PlaybackHead` remains design-only for v15 or becomes a real public
    core noun

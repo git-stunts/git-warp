@@ -11,7 +11,7 @@
 - Added `test/unit/scripts/read-api-doc-consistency.test.js` as a docs-policy
   spec for the public read surface.
 - Updated `README.md` so the public observer examples now start from
-  `worldline()` for pinned historical and working-set reads.
+  `worldline()` for pinned historical and strand reads.
 - Updated `docs/GUIDE.md` so the advanced read boundary teaches `Worldline` as
   the explicit history handle and describes pinned materialization as detached
   replay.
@@ -24,7 +24,7 @@
   read handle.
 - `aligned` — at least one observer example in each targeted public doc now
   flows through `worldline(...).observer(...)`.
-- `aligned` — coordinate and working-set materialization are now described as
+- `aligned` — coordinate and strand materialization are now described as
   detached immutable snapshots.
 - `aligned` — the public docs now say those reads do not retarget the caller
   runtime.

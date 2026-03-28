@@ -1,14 +1,14 @@
-# RFC: Observer-First Reads, Working-Set Writes
+# RFC: Observer-First Reads, Strand Writes
 
 **Status:** DESIGN
 **Date:** 2026-03-25
 **Scope:** Public substrate boundary for worldlines, observers, and speculative lanes
 
 > Update 2026-03-26: this note is now superseded by
-> [`docs/design/worldline-observer-working-set-model.md`](./worldline-observer-working-set-model.md),
+> [`docs/design/worldline-observer-strand-model.md`](./worldline-observer-strand-model.md),
 > which makes the stronger noun split explicit: `Worldline` as history handle,
 > `WarpGraph` as immutable snapshot, `Observer` as immutable read handle, and
-> `WorkingSet` as speculative child-worldline write handle.
+> `Strand` as speculative child-worldline write handle.
 
 ---
 
@@ -19,7 +19,7 @@ reads and speculative evolution:
 
 - coordinate materialization
 - observer projections
-- working sets with pinned base observations and overlays
+- strands with pinned base observations and overlays
 - braid composition
 - state readers and visible-state projection helpers
 - transfer planning and deterministic substrate facts
@@ -61,10 +61,10 @@ The intended public boundary is:
   - seekable within lawful bounds
   - the right abstraction for higher-layer reads
 
-- **`WorkingSet` is the speculative write porcelain**
+- **`Strand` is the speculative write porcelain**
   - pinned base observation plus overlay
   - durable speculative lane
-  - writable through intents/ticks or equivalent working-set mutation paths
+  - writable through intents/ticks or equivalent strand mutation paths
   - the right abstraction for higher-layer divergent planning
 
 - **transfer / collapse stays substrate-factual**
@@ -85,10 +85,10 @@ Current git-warp behavior is close to this model, but does not yet present it
 cleanly enough as the primary story:
 
 - `WarpGraph` already supports coordinate materialization, queries, traversal,
-  comparison, and working-set APIs.
+  comparison, and strand APIs.
 - observer views already exist and are read-only.
-- working sets already pin a base observation and store a divergent overlay.
-- braid support already lets multiple working-set effects be present together at
+- strands already pin a base observation and store a divergent overlay.
+- braid support already lets multiple strand effects be present together at
   one observation surface.
 - transfer planning already computes deterministic substrate deltas without
   mutating either side.
@@ -98,7 +98,7 @@ The mismatch is mainly one of boundary and emphasis:
 - `WarpGraph` still looks like the normal application API.
 - observers are documented as a projection feature rather than the preferred
   read abstraction.
-- working sets are documented as durable coordinates with overlays, but not yet
+- strands are documented as durable coordinates with overlays, but not yet
   strongly enough as the preferred speculative write abstraction.
 - ticking / intent admission / counterfactual recording are not yet the dominant
   public write story.
@@ -123,9 +123,9 @@ under the hood, but higher layers should not need to reinvent that boundary.
 
 Higher layers should think in terms of:
 
-- create a working set from a base observation
-- enqueue or apply speculative intent to that working set
-- tick or otherwise advance the working set without advancing canonical truth
+- create a strand from a base observation
+- enqueue or apply speculative intent to that strand
+- tick or otherwise advance the strand without advancing canonical truth
 - compare multiple candidate lanes
 - transfer/collapse one chosen lane into a target worldline under higher-layer
   policy
@@ -166,7 +166,7 @@ entire migration is already complete.
 Near-term implications for git-warp:
 
 1. Strengthen observer documentation and APIs as the primary read-side story.
-2. Strengthen working-set documentation and APIs as the primary speculative
+2. Strengthen strand documentation and APIs as the primary speculative
    write-side story.
 3. Keep transfer/collapse facts substrate-only.
 4. Keep higher-layer governance semantics out of git-warp.
@@ -176,7 +176,7 @@ Near-term implications for git-warp:
 Near-term implications for integrators:
 
 1. Prefer observers for reads when building app-facing read surfaces.
-2. Prefer working sets for speculative mutation and future search.
+2. Prefer strands for speculative mutation and future search.
 3. Treat `WarpGraph` as the lower-level substrate/session object rather than the
    full product API.
 

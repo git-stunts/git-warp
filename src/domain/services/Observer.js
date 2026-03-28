@@ -30,8 +30,8 @@ import { matchGlob } from '../utils/matchGlob.js';
  *   strandId: string,
  *   ceiling?: number|null
  * } | {
- *   kind: 'working_set',
- *   workingSetId: string,
+ *   kind: 'strand',
+ *   strandId: string,
  *   ceiling?: number|null
  * } | null | undefined} source
  * @returns {{
@@ -70,7 +70,7 @@ function cloneObserverSource(source) {
 
   return {
     kind: 'strand',
-    strandId: 'strandId' in source ? source.strandId : source.workingSetId,
+    strandId: 'strandId' in source ? source.strandId : source.strandId,
     ceiling: source.ceiling ?? null,
   };
 }

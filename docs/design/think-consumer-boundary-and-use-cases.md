@@ -36,7 +36,7 @@ In practice, that means `think` should not think in terms of:
 
 - `materialize()`
 - `materializeCoordinate()`
-- `materializeWorkingSet()`
+- `materializeStrand()`
 - `WarpState` snapshots
 - `git-cas` lookups
 - replay pipelines
@@ -68,7 +68,7 @@ So the conceptual API shape should feel closer to:
 
 ```ts
 await gitWarp.readNodes({
-  source: { kind: 'working_set', workingSetId: 'review-auth' },
+  source: { kind: 'strand', strandId: 'review-auth' },
   match: 'thought:*',
   where: { status: 'open' },
 });
@@ -86,7 +86,7 @@ await gitWarp.readProvenance({
 not:
 
 ```ts
-const state = await graph.materializeWorkingSet('review-auth');
+const state = await graph.materializeStrand('review-auth');
 // app reconstructs read semantics from raw graph state here
 ```
 

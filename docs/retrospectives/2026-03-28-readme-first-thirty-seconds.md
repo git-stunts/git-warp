@@ -26,7 +26,7 @@ The README front door now:
 
 No meaningful drift in this slice.
 
-One adjacent issue remains outside this slice: some internal source filenames still use legacy `WorkingSet` and `WarpRuntime` terminology even though the public API no longer does.
+One adjacent issue remains outside this slice: some internal source filenames still use legacy `Strand` and `WarpRuntime` terminology even though the public API no longer does.
 
 ## Resolution
 

@@ -286,7 +286,7 @@ The structural decision is now:
 
 The remaining naming problem is also real:
 
-- whether `WorkingSet` should become `Strand`
+- whether `Strand` should become `Strand`
 - whether `PlaybackHead` is mature enough to become a public noun in v15
 - whether `WarpCore` is the right plumbing root noun once a product/core
   split becomes structural

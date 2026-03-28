@@ -1,33 +1,33 @@
-# RFC: Working-Set Intent Queues and Deterministic Ticks
+# RFC: Strand Intent Queues and Deterministic Ticks
 
 **Status:** DESIGN
 **Date:** 2026-03-25
-**Scope:** First honest write-side substrate slice for speculative working-set evolution
+**Scope:** First honest write-side substrate slice for speculative strand evolution
 
 > Update 2026-03-26: this note remains useful for queue/tick mechanics, but its
 > public noun model is now constrained by
-> [`docs/design/worldline-observer-working-set-model.md`](./worldline-observer-working-set-model.md).
+> [`docs/design/worldline-observer-strand-model.md`](./worldline-observer-strand-model.md).
 > In particular, `WarpGraph` should be read as the immutable snapshot noun, and
-> working sets should be treated as speculative child-worldline handles rather
+> strands should be treated as speculative child-worldline handles rather
 > than merely overlay descriptors.
 
 ---
 
 ## Problem
 
-git-warp working sets already pin a base observation, carry an overlay, braid
+git-warp strands already pin a base observation, carry an overlay, braid
 support overlays, materialize deterministically, and produce comparison and
 transfer facts.
 
 What they still do not do is behave like speculative future lanes.
 
-Today, higher layers can mutate a working set only by committing overlay patches
-immediately through `patchWorkingSet()`. That is useful plumbing, but it is not
+Today, higher layers can mutate a strand only by committing overlay patches
+immediately through `patchStrand()`. That is useful plumbing, but it is not
 yet the write-side model we want higher layers to think in.
 
 The missing substrate step is:
 
-- queue intent against a working set
+- queue intent against a strand
 - drain that queue deterministically as a tick
 - admit independent rewrites together
 - reject conflicting rewrites for that tick
@@ -41,22 +41,22 @@ admission, and counterfactual bookkeeping above the substrate.
 
 ## Direction
 
-The first bounded write-side slice should add three public working-set
+The first bounded write-side slice should add three public strand
 capabilities:
 
 1. **Queue intent**
-   - enqueue a patch-shaped candidate rewrite against a working set
-   - do not change the visible working-set overlay yet
+   - enqueue a patch-shaped candidate rewrite against a strand
+   - do not change the visible strand overlay yet
 
 2. **Inspect intent queue**
    - list queued intents deterministically
    - keep queue identity stable across repeated reads
 
-3. **Tick a working set**
+3. **Tick a strand**
    - drain the queue deterministically
    - admit only footprint-independent intents into the same speculative tick
    - reject conflicting intents for that tick
-   - advance only the working-set overlay
+   - advance only the strand overlay
    - leave live truth unchanged
    - return and persist deterministic counterfactual facts for the rejected
      intents
@@ -67,8 +67,8 @@ capabilities:
 
 ### Queue
 
-Queued intents are substrate facts attached to a working set descriptor. They
-are not yet canonical graph truth and they are not yet part of the working-set
+Queued intents are substrate facts attached to a strand descriptor. They
+are not yet canonical graph truth and they are not yet part of the strand
 overlay patch chain.
 
 Each queued intent should minimally carry:
@@ -83,7 +83,7 @@ shape so git-warp does not invent a second rewrite language.
 
 ### Tick
 
-A working-set tick is a deterministic queue-drain step over one working set.
+A strand tick is a deterministic queue-drain step over one strand.
 
 For this first slice:
 
@@ -92,7 +92,7 @@ For this first slice:
   the already-admitted footprint for that tick
 - conflicting intents are rejected from that tick and recorded as
   counterfactuals
-- admitted intents are committed onto the target working-set overlay in that
+- admitted intents are committed onto the target strand overlay in that
   same deterministic order
 
 ### Counterfactuals
@@ -115,9 +115,9 @@ This slice does **not** yet require:
 - human or agent policy
 - case/decision semantics
 - automatic collapse into live truth
-- multi-working-set search orchestration
+- multi-strand search orchestration
 - worldline governance
-- full BTR packaging for every working-set tick
+- full BTR packaging for every strand tick
 - fancy scoring or outcome ranking
 
 Those remain higher-layer concerns or later substrate slices.
@@ -129,8 +129,8 @@ Those remain higher-layer concerns or later substrate slices.
 To keep this first tick slice honest:
 
 - live truth must not advance
-- sibling working sets must not change
-- queued intents may be persisted in the working-set descriptor
+- sibling strands must not change
+- queued intents may be persisted in the strand descriptor
 - a small tick record on the descriptor is acceptable
 - durable queue/tick refs can come later if growth or replay pressure demands it
 
@@ -142,11 +142,11 @@ This is the first honest primitive, not the final storage architecture.
 
 The first public API slice should look roughly like:
 
-- `queueWorkingSetIntent(workingSetId, build)`
-- `listWorkingSetIntents(workingSetId)`
-- `tickWorkingSet(workingSetId)`
+- `queueStrandIntent(strandId, build)`
+- `listStrandIntents(strandId)`
+- `tickStrand(strandId)`
 
-`patchWorkingSet()` remains valid plumbing for direct overlay mutation, but the
+`patchStrand()` remains valid plumbing for direct overlay mutation, but the
 preferred speculative-lane story should start shifting toward queue + tick.
 
 ---
@@ -155,11 +155,11 @@ preferred speculative-lane story should start shifting toward queue + tick.
 
 The executable spec for this slice should prove at least:
 
-1. queueing intents does not mutate the working set or live truth
-2. ticking a working set admits independent intents in deterministic order
+1. queueing intents does not mutate the strand or live truth
+2. ticking a strand admits independent intents in deterministic order
 3. conflicting intents are rejected and recorded as counterfactuals
-4. ticking one working set does not affect sibling working sets
-5. ticking a working set advances only its overlay
+4. ticking one strand does not affect sibling strands
+5. ticking a strand advances only its overlay
 
 ---
 
@@ -171,5 +171,5 @@ Once this slice is solid, later substrate work can add:
 - durable tick/BTR packaging
 - multi-lane candidate evaluation helpers
 - transfer/collapse from a selected speculative lane
-- explicit worldline handles that compose observer + working-set semantics more
+- explicit worldline handles that compose observer + strand semantics more
   directly

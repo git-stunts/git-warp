@@ -14,8 +14,8 @@
   live reads.
 - Proved hash equality across direct coordinate reads and
   `Worldline.materialize()` for the same coordinate.
-- Proved hash equality across repeated working-set reads and receipt-enabled
-  working-set reads.
+- Proved hash equality across repeated strand reads and receipt-enabled
+  strand reads.
 - Proved `getStateSnapshot()` preserves the currently materialized live hash.
 - Proved `ObserverView.stateHash` remains aligned with the pinned snapshot hash
   for a coordinate observer.
@@ -29,7 +29,7 @@
   returned materialized state.
 - `aligned` — coordinate reads are proven hash-stable across runtime and
   worldline entry points.
-- `aligned` — working-set reads are proven hash-stable across repeated and
+- `aligned` — strand reads are proven hash-stable across repeated and
   receipt-enabled entry points.
 - `aligned` — observer `stateHash` is now explicitly tied to the pinned source
   snapshot rather than treated as an untested convenience field.
@@ -60,4 +60,4 @@ The only adjustment was scope discipline:
 ## Verification
 
 - `npx vitest run test/unit/domain/WarpRuntime.snapshotHashStability.test.js`
-- `npx vitest run test/unit/domain/WarpRuntime.snapshotHashStability.test.js test/unit/domain/WarpGraph.observerBoundary.test.js test/unit/domain/WarpGraph.worldline.test.js test/unit/domain/WarpGraph.workingSets.test.js`
+- `npx vitest run test/unit/domain/WarpRuntime.snapshotHashStability.test.js test/unit/domain/WarpGraph.observerBoundary.test.js test/unit/domain/WarpGraph.worldline.test.js test/unit/domain/WarpGraph.strands.test.js`

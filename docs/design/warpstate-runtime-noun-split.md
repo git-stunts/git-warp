@@ -7,13 +7,13 @@
 **Scope:** Public noun split after `Worldline` and observer seek landed
 
 > This note revises the naming proposal in
-> [`docs/design/worldline-observer-working-set-model.md`](./worldline-observer-working-set-model.md).
+> [`docs/design/worldline-observer-strand-model.md`](./worldline-observer-strand-model.md).
 > The stronger naming direction is now:
 >
 > - `WarpState` = immutable materialized snapshot
 > - `Worldline` = history handle
 > - `Observer` = read handle
-> - `WorkingSet` = speculative write handle
+> - `Strand` = speculative write handle
 > - `WarpRuntime` = mutable/session substrate host
 
 ---
@@ -28,7 +28,7 @@ Today, the codebase has one root object, `WarpGraph`, that acts as:
 - materialization orchestrator
 - checkpoint driver
 - sync surface
-- working-set host
+- strand host
 - observer factory
 
 At the same time, the broader design work has been trying to reserve one noun
@@ -55,7 +55,7 @@ The cleaner long-term noun split is:
 - `WarpState` = immutable materialized snapshot/value
 - `Worldline` = history handle
 - `Observer` = read handle
-- `WorkingSet` = speculative write handle
+- `Strand` = speculative write handle
 
 That gives each noun one job:
 
@@ -63,7 +63,7 @@ That gives each noun one job:
 - the state is the value produced by replay
 - the worldline identifies history
 - the observer reads
-- the working set speculates
+- the strand speculates
 
 This is a better semantic fit than preserving `WarpGraph` as the immutable
 snapshot noun.
@@ -105,7 +105,7 @@ The host object:
 - owns persistence and sync
 - tracks cache invalidation
 - coordinates materialization
-- manages working sets
+- manages strands
 - creates observers and worldlines
 - exposes patch/write entry points
 
@@ -121,11 +121,11 @@ another.
 ### Public nouns
 
 - `WarpRuntime` — current root object, opened from persistence and used to
-  coordinate reads, writes, sync, checkpoints, and working sets
+  coordinate reads, writes, sync, checkpoints, and strands
 - `WarpState` — immutable materialized snapshot returned by replay
 - `Worldline` — read/history handle over lawful coordinates
 - `Observer` / `ObserverView` — immutable read handle over a worldline source
-- `WorkingSet` — speculative child-worldline write handle
+- `Strand` — speculative child-worldline write handle
 
 ### Internal nouns
 
@@ -152,7 +152,7 @@ It actively coordinates:
 - sync
 - ticking support
 - checkpointing
-- working-set services
+- strand services
 - observer/worldline creation
 
 That makes `WarpRuntime` the most honest default.
@@ -203,7 +203,7 @@ The rename must preserve these semantic rules:
 2. Materialization returns `WarpState`, not a mutable session object.
 3. `WarpRuntime` remains the orchestration root and does not pretend to be a
    value object.
-4. `Worldline`, `Observer`, and `WorkingSet` remain the preferred porcelain
+4. `Worldline`, `Observer`, and `Strand` remain the preferred porcelain
    nouns over the runtime.
 5. Hard breaks must be explicit and versioned; removed aliases must not linger
    as silent semantic traps.

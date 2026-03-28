@@ -50,8 +50,8 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
 
 /**
  * @param {ObserverOptions['source']|{
- *   kind: 'working_set',
- *   workingSetId: string,
+ *   kind: 'strand',
+ *   strandId: string,
  *   ceiling?: number|null
  * }|undefined} source
  * @returns {ObserverOptions['source']}
@@ -79,7 +79,7 @@ function cloneObserverSource(source) {
 
   return {
     kind: 'strand',
-    strandId: 'strandId' in source ? source.strandId : source.workingSetId,
+    strandId: 'strandId' in source ? source.strandId : source.strandId,
     ceiling: source.ceiling ?? null,
   };
 }
@@ -169,11 +169,11 @@ async function resolveObserverSnapshot(graph, options) {
 
   if (source.kind === 'strand') {
     const detached = await openDetachedObserverGraph(graph);
-    const internalSource = /** @type {{ workingSetId: string, ceiling?: number|null }} */ (
+    const internalSource = /** @type {{ strandId: string, ceiling?: number|null }} */ (
       /** @type {unknown} */ (toInternalStrandShape(source))
     );
     const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (
-      await callInternalRuntimeMethod(detached, 'materializeWorkingSet', internalSource.workingSetId, {
+      await callInternalRuntimeMethod(detached, 'materializeStrand', internalSource.strandId, {
         ceiling: internalSource.ceiling ?? null,
       })
     );

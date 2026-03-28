@@ -409,7 +409,7 @@ It also suggests that:
 
 - `Hologram` can be a good implementation noun if it refers to replay-sufficient
   boundary content rather than explanatory receipts
-- `Strand` is a clearer speculative-lane noun than `WorkingSet` if the API
+- `Strand` is a clearer speculative-lane noun than `Strand` if the API
   leans harder into worldline family semantics
 
 The example does **not** by itself settle the root-system noun (`WarpRuntime`

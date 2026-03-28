@@ -21,7 +21,7 @@ Workflow:
 | DONE | OG-002 | Split mutable session `WarpRuntime` from immutable snapshot noun | [OG-002-warpgraph-role-split.md](OG-002-warpgraph-role-split.md) |
 | DONE | OG-003 | Deepen public snapshot immutability | [OG-003-snapshot-immutability.md](OG-003-snapshot-immutability.md) |
 | DONE | OG-004 | Canonical immutable observer seek contract | [OG-004-observer-seek-contract.md](OG-004-observer-seek-contract.md) |
-| DONE | OG-005 | Benchmark detached coordinate and working-set reads | [OG-005-detached-read-benchmarks.md](OG-005-detached-read-benchmarks.md) |
+| DONE | OG-005 | Benchmark detached coordinate and strand reads | [OG-005-detached-read-benchmarks.md](OG-005-detached-read-benchmarks.md) |
 | DONE | OG-006 | Remove remaining docs/examples that imply caller retargeting | [OG-006-read-api-doc-consistency.md](OG-006-read-api-doc-consistency.md) |
 | DONE | OG-007 | Expand hash-stability coverage across snapshot flavors | [OG-007-hash-stability-coverage.md](OG-007-hash-stability-coverage.md) |
 | DONE | OG-008 | Make retargeting compatibility a hard major-version cut | [OG-008-retargeting-compatibility.md](OG-008-retargeting-compatibility.md) |

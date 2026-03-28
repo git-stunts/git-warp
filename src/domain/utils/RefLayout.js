@@ -10,9 +10,9 @@
  * - refs/warp/<graph>/coverage/head
  * - refs/warp/<graph>/cursor/active
  * - refs/warp/<graph>/cursor/saved/<name>
- * - refs/warp/<graph>/working-sets/<id>
- * - refs/warp/<graph>/working-set-overlays/<id>
- * - refs/warp/<graph>/working-set-braids/<id>/<support_id>
+ * - refs/warp/<graph>/strands/<id>
+ * - refs/warp/<graph>/strand-overlays/<id>
+ * - refs/warp/<graph>/strand-braids/<id>/<support_id>
  * - refs/warp/<graph>/audit/<writer_id>
  * - refs/warp/<graph>/trust/records
  *
@@ -60,9 +60,9 @@ export const RESERVED_GRAPH_NAME_SEGMENTS = new Set([
   'checkpoints',
   'coverage',
   'cursor',
-  'working-sets',
-  'working-set-overlays',
-  'working-set-braids',
+  'strands',
+  'strand-overlays',
+  'strand-braids',
   'audit',
   'trust',
   'seek-cache',
@@ -326,92 +326,66 @@ export function buildCursorSavedPrefix(graphName) {
 }
 
 /**
- * Builds a working-set descriptor ref path for the given graph and id.
+ * Builds a strand descriptor ref path for the given graph and id.
  *
- * Working-set ids use the same ref-safe validation as writer ids because they
+ * Strand ids use the same ref-safe validation as writer ids because they
  * appear as the final ref path segment.
  *
  * @param {string} graphName
- * @param {string} workingSetId
+ * @param {string} strandId
  * @returns {string}
  */
-export function buildWorkingSetRef(graphName, workingSetId) {
+export function buildStrandRef(graphName, strandId) {
   validateGraphName(graphName);
-  validateWriterId(workingSetId);
-  return `${REF_PREFIX}/${graphName}/working-sets/${workingSetId}`;
+  validateWriterId(strandId);
+  return `${REF_PREFIX}/${graphName}/strands/${strandId}`;
 }
 
 /**
- * Builds the working-set prefix path for the given graph.
+ * Builds the strand prefix path for the given graph.
  *
  * @param {string} graphName
  * @returns {string}
  */
-export function buildWorkingSetsPrefix(graphName) {
+export function buildStrandsPrefix(graphName) {
   validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/working-sets/`;
+  return `${REF_PREFIX}/${graphName}/strands/`;
 }
 
 /**
- * Builds a working-set overlay ref path for the given graph and id.
+ * Builds a strand overlay ref path for the given graph and id.
  *
- * Overlay refs keep the patch-log head for a working set separate from the
+ * Overlay refs keep the patch-log head for a strand separate from the
  * descriptor ref itself, allowing the descriptor to remain a single ref while
  * the overlay history advances independently.
- *
- * @param {string} graphName
- * @param {string} workingSetId
- * @returns {string}
- */
-export function buildWorkingSetOverlayRef(graphName, workingSetId) {
-  validateGraphName(graphName);
-  validateWriterId(workingSetId);
-  return `${REF_PREFIX}/${graphName}/working-set-overlays/${workingSetId}`;
-}
-
-/**
- * Public Strand-noun alias for the working-set overlay ref layout.
  *
  * @param {string} graphName
  * @param {string} strandId
  * @returns {string}
  */
 export function buildStrandOverlayRef(graphName, strandId) {
-  return buildWorkingSetOverlayRef(graphName, strandId);
+  validateGraphName(graphName);
+  validateWriterId(strandId);
+  return `${REF_PREFIX}/${graphName}/strand-overlays/${strandId}`;
 }
 
 /**
- * Builds the working-set overlay prefix path for the given graph.
+ * Builds the strand overlay prefix path for the given graph.
  *
  * @param {string} graphName
  * @returns {string}
  */
-export function buildWorkingSetOverlaysPrefix(graphName) {
+export function buildStrandOverlaysPrefix(graphName) {
   validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/working-set-overlays/`;
+  return `${REF_PREFIX}/${graphName}/strand-overlays/`;
 }
 
 /**
- * Builds a pinned braid ref for one support overlay inside a target working set.
+ * Builds a pinned braid ref for one support overlay inside a target strand.
  *
  * The ref points at the pinned head SHA for the support overlay at braid time,
- * keeping the support patch chain reachable even if the source working set is
+ * keeping the support patch chain reachable even if the source strand is
  * later dropped or continues independently.
- *
- * @param {string} graphName
- * @param {string} workingSetId
- * @param {string} braidedWorkingSetId
- * @returns {string}
- */
-export function buildWorkingSetBraidRef(graphName, workingSetId, braidedWorkingSetId) {
-  validateGraphName(graphName);
-  validateWriterId(workingSetId);
-  validateWriterId(braidedWorkingSetId);
-  return `${REF_PREFIX}/${graphName}/working-set-braids/${workingSetId}/${braidedWorkingSetId}`;
-}
-
-/**
- * Public Strand-noun alias for the working-set braid ref layout.
  *
  * @param {string} graphName
  * @param {string} strandId
@@ -419,21 +393,24 @@ export function buildWorkingSetBraidRef(graphName, workingSetId, braidedWorkingS
  * @returns {string}
  */
 export function buildStrandBraidRef(graphName, strandId, braidedStrandId) {
-  return buildWorkingSetBraidRef(graphName, strandId, braidedStrandId);
+  validateGraphName(graphName);
+  validateWriterId(strandId);
+  validateWriterId(braidedStrandId);
+  return `${REF_PREFIX}/${graphName}/strand-braids/${strandId}/${braidedStrandId}`;
 }
 
 /**
  * Builds the braid-ref prefix path for all support overlays pinned inside one
- * target working set.
+ * target strand.
  *
  * @param {string} graphName
- * @param {string} workingSetId
+ * @param {string} strandId
  * @returns {string}
  */
-export function buildWorkingSetBraidsPrefix(graphName, workingSetId) {
+export function buildStrandBraidsPrefix(graphName, strandId) {
   validateGraphName(graphName);
-  validateWriterId(workingSetId);
-  return `${REF_PREFIX}/${graphName}/working-set-braids/${workingSetId}/`;
+  validateWriterId(strandId);
+  return `${REF_PREFIX}/${graphName}/strand-braids/${strandId}/`;
 }
 
 /**

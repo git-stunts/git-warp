@@ -601,7 +601,7 @@ describe('WarpCore strand foundation', () => {
     await expect(graph.braidStrand('ws_target', {
       braidedStrandIds: ['ws_support'],
     })).rejects.toMatchObject({
-      code: 'E_WORKING_SET_COORDINATE_INVALID',
+      code: 'E_STRAND_COORDINATE_INVALID',
     });
   });
 
@@ -630,7 +630,7 @@ describe('WarpCore strand foundation', () => {
     await expect(graph.patchStrand('ws_target', (p) => {
       p.setProperty('n1', 'status', 'blocked');
     })).rejects.toMatchObject({
-      code: 'E_WORKING_SET_INVALID_ARGS',
+      code: 'E_STRAND_INVALID_ARGS',
     });
 
     const braidRef = buildStrandBraidRef(graphName, 'ws_target', 'ws_support');

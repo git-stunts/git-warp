@@ -2,7 +2,7 @@
  * Calls an inherited internal WarpRuntime method even when a public facade
  * prototype shadows the same legacy name with a removal shim.
  *
- * This keeps `WarpCore` free to reject old public `WorkingSet*` calls while
+ * This keeps `WarpCore` free to reject old public `Strand*` calls while
  * still letting the substrate internals route through the underlying runtime
  * implementation.
  *

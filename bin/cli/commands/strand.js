@@ -12,26 +12,26 @@ import * as transferPlanSubcommand from './strand/transfer-plan.js';
 /** @typedef {import('../types.js').CliOptions} CliOptions */
 /**
  * @typedef {{
- *   WORKING_SET_SUBCOMMAND: { name: string, summary: string },
+ *   STRAND_SUBCOMMAND: { name: string, summary: string },
  *   handleStrandSubcommand: (params: { options: CliOptions, args: string[] }) => Promise<{ payload: unknown, exitCode: number }>
  * }} StrandModule
  */
 
 /** @type {Record<string, StrandModule>} */
-const WORKING_SET_SUBCOMMANDS = Object.freeze({
-  [createSubcommand.WORKING_SET_SUBCOMMAND.name]: createSubcommand,
-  [braidSubcommand.WORKING_SET_SUBCOMMAND.name]: braidSubcommand,
-  [listSubcommand.WORKING_SET_SUBCOMMAND.name]: listSubcommand,
-  [showSubcommand.WORKING_SET_SUBCOMMAND.name]: showSubcommand,
-  [compareSubcommand.WORKING_SET_SUBCOMMAND.name]: compareSubcommand,
-  [transferPlanSubcommand.WORKING_SET_SUBCOMMAND.name]: transferPlanSubcommand,
-  [materializeSubcommand.WORKING_SET_SUBCOMMAND.name]: materializeSubcommand,
-  [dropSubcommand.WORKING_SET_SUBCOMMAND.name]: dropSubcommand,
+const STRAND_SUBCOMMANDS = Object.freeze({
+  [createSubcommand.STRAND_SUBCOMMAND.name]: createSubcommand,
+  [braidSubcommand.STRAND_SUBCOMMAND.name]: braidSubcommand,
+  [listSubcommand.STRAND_SUBCOMMAND.name]: listSubcommand,
+  [showSubcommand.STRAND_SUBCOMMAND.name]: showSubcommand,
+  [compareSubcommand.STRAND_SUBCOMMAND.name]: compareSubcommand,
+  [transferPlanSubcommand.STRAND_SUBCOMMAND.name]: transferPlanSubcommand,
+  [materializeSubcommand.STRAND_SUBCOMMAND.name]: materializeSubcommand,
+  [dropSubcommand.STRAND_SUBCOMMAND.name]: dropSubcommand,
 });
 
 function buildStrandUsage() {
-  const subcommandLines = Object.values(WORKING_SET_SUBCOMMANDS)
-    .map(({ WORKING_SET_SUBCOMMAND }) => `  ${WORKING_SET_SUBCOMMAND.name.padEnd(12)} ${WORKING_SET_SUBCOMMAND.summary}`);
+  const subcommandLines = Object.values(STRAND_SUBCOMMANDS)
+    .map(({ STRAND_SUBCOMMAND }) => `  ${STRAND_SUBCOMMAND.name.padEnd(12)} ${STRAND_SUBCOMMAND.summary}`);
   return [
     'Usage: warp-graph strand <subcommand> [options]',
     ...subcommandLines,
@@ -50,7 +50,7 @@ export default async function handleStrand({ options, args }) {
     throw usageError(buildStrandUsage());
   }
 
-  const subcommand = WORKING_SET_SUBCOMMANDS[subcommandName];
+  const subcommand = STRAND_SUBCOMMANDS[subcommandName];
   if (!subcommand) {
     throw usageError(`Unknown strand subcommand: ${subcommandName}\n${buildStrandUsage()}`);
   }

@@ -29,7 +29,7 @@ This slice landed with one shared immutable-snapshot helper that now hardens:
 
 - `WarpRuntime.materialize(...)`
 - `WarpRuntime.materializeCoordinate(...)`
-- `WarpRuntime.materializeWorkingSet(...)`
+- `WarpRuntime.materializeStrand(...)`
 - `WarpRuntime.getStateSnapshot()`
 - `Worldline.materialize()`
 

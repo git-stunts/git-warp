@@ -96,7 +96,7 @@ before the user has even asked for a projection.
 
 ## Non-goals
 
-- no renaming of `Observer`, `WorkingSet`, or `WarpRuntime`
+- no renaming of `Observer`, `Strand`, or `WarpRuntime`
 - no new `Lens` public noun in this slice
 - no runtime warnings or profiling counters
 - no filtered-read behavior change

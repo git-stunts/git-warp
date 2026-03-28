@@ -16,13 +16,13 @@ The runtime and tests now enforce the intended read-side boundary:
 - `WarpRuntime` is the mutable/session substrate facade
 - `Worldline` is the pinned read-history handle
 - `ObserverView` is the filtered read projection
-- coordinate and working-set materialization return detached immutable snapshots
+- coordinate and strand materialization return detached immutable snapshots
 
 But the public docs still teach parts of the old mental model by omission:
 
 - pinned historical reads are still often shown as `graph.observer(..., { source })`
   instead of starting from `worldline()`
-- materialized coordinate and working-set reads are shown as helper calls
+- materialized coordinate and strand reads are shown as helper calls
   without always stating that they return detached immutable snapshots
 - the prose surface does not consistently say that these reads do not retarget
   the caller runtime
@@ -40,10 +40,10 @@ After this slice, a reader of the public docs should come away with this mental
 model:
 
 1. `WarpRuntime` is the substrate/session facade.
-2. `Worldline` is the explicit way to pin a live, coordinate, or working-set
+2. `Worldline` is the explicit way to pin a live, coordinate, or strand
    read source.
 3. `ObserverView` is the preferred application-facing read handle.
-4. `materializeCoordinate()` and `materializeWorkingSet()` return detached
+4. `materializeCoordinate()` and `materializeStrand()` return detached
    immutable snapshots and do not retarget the caller runtime.
 
 ---
@@ -56,7 +56,7 @@ The slice should make the following public-doc invariants true for
 1. pinned-read examples show `worldline()` as the explicit history handle
 2. at least one observer example uses `worldline().observer(...)` or a
    `Worldline` variable followed by `.observer(...)`
-3. coordinate and working-set materialization are described as returning a
+3. coordinate and strand materialization are described as returning a
    detached immutable snapshot
 4. the docs explicitly say those reads do not retarget the caller runtime
 5. those public docs do not reintroduce the legacy `WarpGraph` noun

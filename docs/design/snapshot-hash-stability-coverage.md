@@ -27,7 +27,7 @@ coverage for these public-facing questions:
   `materialize()` for the same slice?
 - do coordinate snapshots hash identically across direct runtime and worldline
   entry points?
-- do working-set snapshots hash identically across repeated reads and receipt
+- do strand snapshots hash identically across repeated reads and receipt
   modes?
 - does `getStateSnapshot()` preserve the same hash as the current materialized
   snapshot?
@@ -59,9 +59,9 @@ After this slice lands, the test suite should prove:
    for the same history slice
 3. `materializeCoordinate(...)` and `worldline({source: coordinate}).materialize()`
    hash identically for the same coordinate
-4. `materializeWorkingSet(...)` and
-   `materializeWorkingSet(..., { receipts: true }).state` hash identically for
-   the same working-set slice
+4. `materializeStrand(...)` and
+   `materializeStrand(..., { receipts: true }).state` hash identically for
+   the same strand slice
 5. `getStateSnapshot()` hashes identically to the currently materialized public
    snapshot for the same runtime state
 6. observer `stateHash` remains aligned with the hash of the pinned snapshot it
@@ -87,7 +87,7 @@ The red spec should stay entirely at the public API layer:
 
 - build a small deterministic multi-slice graph
 - compute hashes from returned public snapshots using `computeStateHashV5(...)`
-- compare the hashes across live, coordinate, working-set, receipt-enabled, and
+- compare the hashes across live, coordinate, strand, receipt-enabled, and
   worldline entry points
 
 If the current behavior already satisfies the contract, this slice may close as

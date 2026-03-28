@@ -18,7 +18,7 @@ This note defines the next public read-side slices after the detached snapshot
 boundary landed.
 
 The previous slice fixed the most dangerous semantic leak: public coordinate and
-working-set reads no longer retarget the caller graph handle. That was
+strand reads no longer retarget the caller graph handle. That was
 necessary, but it did not complete the read-side model.
 
 Two gaps remain:
@@ -37,7 +37,7 @@ Today, git-warp exposes:
 
 - `WarpRuntime.observer(name, config, options?)`
 - `WarpRuntime.materializeCoordinate(...)`
-- `WarpRuntime.materializeWorkingSet(...)`
+- `WarpRuntime.materializeStrand(...)`
 
 And `observer()` currently works like this:
 
@@ -70,7 +70,7 @@ This phase treats the current selector surface as the coordinate vocabulary:
 
 - live
 - explicit coordinate
-- working set
+- strand
 
 The key contract is:
 
@@ -130,11 +130,11 @@ So the incremental rule is:
 ### New source vocabulary
 
 The current `ObserverOptions` shape only accepts `coordinate` and
-`working_set`. For seekability, the explicit source vocabulary should become:
+`strand`. For seekability, the explicit source vocabulary should become:
 
 - `{ kind: 'live', ceiling?: number | null }`
 - `{ kind: 'coordinate', frontier, ceiling?: number | null }`
-- `{ kind: 'working_set', workingSetId, ceiling?: number | null }`
+- `{ kind: 'strand', strandId, ceiling?: number | null }`
 
 Rule:
 
@@ -177,7 +177,7 @@ If `seek()` is called with:
 
 - no options, the observer should seek to the latest live truth
 - `source.kind === 'live'`, the observer should pin the latest live truth
-- an explicit coordinate or working set, the observer should pin that selector
+- an explicit coordinate or strand, the observer should pin that selector
 
 This makes live truth a lawful source instead of an implicit special case.
 
@@ -195,7 +195,7 @@ The following must hold:
 5. `observer.source` is factual and stable for the life of that observer.
 6. `observer.stateHash` identifies the pinned snapshot seen by that observer.
 7. A seek from one explicit source to another is observational only; it does
-   not modify worldline history or working-set state.
+   not modify worldline history or strand state.
 
 ---
 
@@ -208,7 +208,7 @@ Red-spec coverage for the next slice should prove:
 2. `observer.seek()` with no options seeks to current live truth.
 3. `observer.seek({ source: { kind: 'coordinate', ... } })` can time-travel to
    an explicit earlier coordinate.
-4. `observer.seek({ source: { kind: 'working_set', ... } })` can pin a working
+4. `observer.seek({ source: { kind: 'strand', ... } })` can pin a working
    set without mutating the live graph handle.
 5. `observer.source` and `observer.stateHash` reflect the pinned snapshot.
 
@@ -239,7 +239,7 @@ selector vocabulary:
 type WorldlineSource =
   | { kind: 'live', ceiling?: number | null }
   | { kind: 'coordinate', frontier: Map<string, string> | Record<string, string>, ceiling?: number | null }
-  | { kind: 'working_set', workingSetId: string, ceiling?: number | null };
+  | { kind: 'strand', strandId: string, ceiling?: number | null };
 
 class Worldline {
   readonly source: WorldlineSource;

@@ -168,7 +168,7 @@ mental model presented to most consumers.
 
 - `materialize()`
 - `materializeCoordinate()`
-- `materializeWorkingSet()`
+- `materializeStrand()`
 - `materializeSlice()`
 - causal slicing / cone inspection where present
 - provenance and receipt plumbing
@@ -276,7 +276,7 @@ This cycle should not immediately:
   "Inspection API" heading without changing code names?
 - Should `PlaybackHead` become a real public noun in v15, or remain design-only
   until TTD integration becomes concrete?
-- Should `WorkingSet` ship unchanged in v15, or does the `Strand` noun cut need
+- Should `Strand` ship unchanged in v15, or does the `Strand` noun cut need
   to happen before release?
 - Is cost signaling best done through docs alone, or do we also want runtime
   warnings, profiling counters, or debug instrumentation?

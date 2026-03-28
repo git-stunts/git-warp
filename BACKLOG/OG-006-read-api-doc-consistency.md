@@ -12,7 +12,7 @@ Closed by:
 ## Problem
 
 Some docs and examples may still imply that `materializeCoordinate()` or
-`materializeWorkingSet()` retarget the caller graph instance.
+`materializeStrand()` retarget the caller graph instance.
 
 ## Why This Matters
 

@@ -17,7 +17,7 @@ The substrate remains responsible for causal truth:
 - worldlines
 - immutable `WarpGraph` snapshots
 - observers
-- working sets
+- strands
 - BTRs
 - replay/materialization
 
@@ -120,7 +120,7 @@ than host-specific reimplementation.
 
 When a user wants to continue execution from the past, the debugger makes the
 boundary explicit: observing history is read-only, while "try from here"
-creates a fork or working set instead of mutating the live past.
+creates a fork or strand instead of mutating the live past.
 
 ### Non-Goals
 
@@ -213,7 +213,7 @@ flowchart TB
     subgraph domain["WARP Substrate Domain"]
         worldline["Worldline"]
         observer["Observer"]
-        ws["WorkingSet"]
+        ws["Strand"]
         head["PlaybackHead"]
         graph["WarpGraph"]
         btr["BTR / receipts / provenance"]
@@ -257,7 +257,7 @@ Owns:
 - `Worldline`
 - `WarpGraph`
 - `Observer`
-- `WorkingSet`
+- `Strand`
 - `PlaybackHead`
 - replay/materialization
 - receipts
@@ -313,7 +313,7 @@ Humans want one scrubber and one stepper.
 The substrate, however, may contain:
 
 - many worldlines
-- many working sets
+- many strands
 - multiple observers
 - partial overlap in writable footprint authority
 
@@ -388,7 +388,7 @@ The host-agnostic TTD core should depend on capabilities exposed through ports.
 Enumerates:
 
 - worldlines
-- working sets
+- strands
 - ancestry/braid relations
 - available playback heads
 - readable versus writable lanes
@@ -427,9 +427,9 @@ Supports:
 Optional, capability-gated support for:
 
 - fork from coordinate
-- create working set
+- create strand
 - enqueue intents
-- tick working set
+- tick strand
 
 This port exists because "what if?" is a debugger workflow, but it must remain
 explicitly separate from read-only observation.
@@ -468,7 +468,7 @@ A host is TTD-readable if it can:
 A host is TTD-speculative if it can additionally:
 
 - fork from a coordinate
-- create or open a working set
+- create or open a strand
 - admit intents
 - tick deterministically
 
@@ -487,7 +487,7 @@ local. Composite debugger frames are derived from per-lane coordinates.
 ### 2. Observation is read-only
 
 Debugger reads never mutate the live frontier. Continuing from the past always
-requires a fork or working set.
+requires a fork or strand.
 
 ### 3. `PlaybackHead` is not UI state
 

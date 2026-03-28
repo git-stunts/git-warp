@@ -32,7 +32,7 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
  */
 
 /**
- * @param {WorldlineSource|{ kind: 'working_set', workingSetId: string, ceiling?: number|null }|undefined|null} source
+ * @param {WorldlineSource|{ kind: 'strand', strandId: string, ceiling?: number|null }|undefined|null} source
  * @returns {WorldlineSource}
  */
 function cloneWorldlineSource(source) {
@@ -56,7 +56,7 @@ function cloneWorldlineSource(source) {
 
   return {
     kind: 'strand',
-    strandId: 'strandId' in value ? value.strandId : value.workingSetId,
+    strandId: 'strandId' in value ? value.strandId : value.strandId,
     ceiling: value.ceiling ?? null,
   };
 }
@@ -129,17 +129,17 @@ async function materializeCoordinateSource(graph, source, collectReceipts) {
 
 /**
  * @param {WarpRuntime} graph
- * @param {{ kind: 'strand', strandId: string, ceiling?: number|null } | { kind: 'working_set', workingSetId: string, ceiling?: number|null }} source
+ * @param {{ kind: 'strand', strandId: string, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
  * @returns {Promise<MaterializedSourceResult>}
  */
-async function materializeWorkingSetSource(graph, source, collectReceipts) {
-  const internalSource = /** @type {{ workingSetId: string, ceiling?: number|null }} */ (toInternalStrandShape(source));
+async function materializeStrandSource(graph, source, collectReceipts) {
+  const internalSource = /** @type {{ strandId: string, ceiling?: number|null }} */ (toInternalStrandShape(source));
   if (collectReceipts) {
     return /** @type {MaterializedSourceResult} */ (await callInternalRuntimeMethod(
       graph,
-      'materializeWorkingSet',
-      internalSource.workingSetId,
+      'materializeStrand',
+      internalSource.strandId,
       {
         receipts: true,
         ceiling: internalSource.ceiling ?? null,
@@ -148,8 +148,8 @@ async function materializeWorkingSetSource(graph, source, collectReceipts) {
   }
   return /** @type {MaterializedSourceResult} */ (await callInternalRuntimeMethod(
     graph,
-    'materializeWorkingSet',
-    internalSource.workingSetId,
+    'materializeStrand',
+    internalSource.strandId,
     {
       ceiling: internalSource.ceiling ?? null,
     },
@@ -171,7 +171,7 @@ async function materializeSource(graph, source, collectReceipts) {
     return await materializeCoordinateSource(graph, source, collectReceipts);
   }
 
-  return await materializeWorkingSetSource(graph, source, collectReceipts);
+  return await materializeStrandSource(graph, source, collectReceipts);
 }
 
 /**

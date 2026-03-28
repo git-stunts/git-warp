@@ -50,4 +50,4 @@
 
 - `npx vitest run test/unit/domain`
 - `npm run typecheck`
-- `npx vitest run test/unit/domain/WarpGraph.worldline.test.js test/unit/domain/WarpGraph.observerBoundary.test.js test/unit/domain/services/ObserverView.test.js test/unit/domain/WarpGraph.workingSets.test.js test/unit/domain/WarpGraph.receipts.test.js test/unit/domain/index.exports.test.js test/unit/domain/WarpRuntime.apiSurface.test.js`
+- `npx vitest run test/unit/domain/WarpGraph.worldline.test.js test/unit/domain/WarpGraph.observerBoundary.test.js test/unit/domain/services/ObserverView.test.js test/unit/domain/WarpGraph.strands.test.js test/unit/domain/WarpGraph.receipts.test.js test/unit/domain/index.exports.test.js test/unit/domain/WarpRuntime.apiSurface.test.js`

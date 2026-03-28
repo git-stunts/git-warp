@@ -6,10 +6,10 @@ import {
 } from './services/CoordinateFactExport.js';
 import { computeChecksum } from './utils/checksumUtils.js';
 
-/** @typedef {Parameters<WarpRuntime['braidWorkingSet']>[1]} InternalBraidWorkingSetOptions */
-/** @typedef {Parameters<WarpRuntime['materializeWorkingSet']>[1]} InternalMaterializeWorkingSetOptions */
-/** @typedef {Parameters<WarpRuntime['compareWorkingSet']>[1]} InternalCompareWorkingSetOptions */
-/** @typedef {Parameters<WarpRuntime['planWorkingSetTransfer']>[1]} InternalPlanWorkingSetTransferOptions */
+/** @typedef {Parameters<WarpRuntime['braidStrand']>[1]} InternalBraidStrandOptions */
+/** @typedef {Parameters<WarpRuntime['materializeStrand']>[1]} InternalMaterializeStrandOptions */
+/** @typedef {Parameters<WarpRuntime['compareStrand']>[1]} InternalCompareStrandOptions */
+/** @typedef {Parameters<WarpRuntime['planStrandTransfer']>[1]} InternalPlanStrandTransferOptions */
 /** @typedef {Parameters<WarpRuntime['compareCoordinates']>[0]} InternalCompareCoordinatesOptions */
 /** @typedef {Parameters<WarpRuntime['planCoordinateTransfer']>[0]} InternalPlanCoordinateTransferOptions */
 /** @typedef {Parameters<WarpRuntime['analyzeConflicts']>[0]} InternalConflictAnalyzeOptions */
@@ -84,7 +84,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.createWorkingSet.call(this, toInternalStrandShape(options)),
+          await WarpRuntime.prototype.createStrand.call(this, toInternalStrandShape(options)),
         )
       )
     );
@@ -100,7 +100,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandDescriptor | null} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.getWorkingSet.call(this, strandId),
+          await WarpRuntime.prototype.getStrand.call(this, strandId),
         )
       )
     );
@@ -115,7 +115,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandDescriptor[]} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.listWorkingSets.call(this),
+          await WarpRuntime.prototype.listStrands.call(this),
         )
       )
     );
@@ -132,10 +132,10 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.braidWorkingSet.call(
+          await WarpRuntime.prototype.braidStrand.call(
             this,
             strandId,
-            /** @type {InternalBraidWorkingSetOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+            /** @type {InternalBraidStrandOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
           ),
         )
       )
@@ -149,7 +149,7 @@ export default class WarpCore {
    * @returns {Promise<boolean>}
    */
   async dropStrand(strandId) {
-    return await WarpRuntime.prototype.dropWorkingSet.call(this, strandId);
+    return await WarpRuntime.prototype.dropStrand.call(this, strandId);
   }
 
   /**
@@ -162,10 +162,10 @@ export default class WarpCore {
   async materializeStrand(strandId, options) {
     return await /** @type {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>} */ (
       /** @type {unknown} */ (
-        WarpRuntime.prototype.materializeWorkingSet.call(
+        WarpRuntime.prototype.materializeStrand.call(
           this,
           strandId,
-          /** @type {InternalMaterializeWorkingSetOptions | undefined} */ (/** @type {unknown} */ (options)),
+          /** @type {InternalMaterializeStrandOptions | undefined} */ (/** @type {unknown} */ (options)),
         )
       )
     );
@@ -180,7 +180,7 @@ export default class WarpCore {
    */
   async getStrandPatches(strandId, options) {
     return await /** @type {Promise<Array<{ patch: import('./types/WarpTypesV2.js').PatchV2, sha: string }>>} */ (
-      /** @type {unknown} */ (WarpRuntime.prototype.getWorkingSetPatches.call(this, strandId, options))
+      /** @type {unknown} */ (WarpRuntime.prototype.getStrandPatches.call(this, strandId, options))
     );
   }
 
@@ -193,7 +193,7 @@ export default class WarpCore {
    * @returns {Promise<string[]>}
    */
   async patchesForStrand(strandId, entityId, options) {
-    return await WarpRuntime.prototype.patchesForWorkingSet.call(this, strandId, entityId, options);
+    return await WarpRuntime.prototype.patchesForStrand.call(this, strandId, entityId, options);
   }
 
   /**
@@ -203,7 +203,7 @@ export default class WarpCore {
    * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
    */
   async createStrandPatch(strandId) {
-    return await WarpRuntime.prototype.createWorkingSetPatch.call(this, strandId);
+    return await WarpRuntime.prototype.createStrandPatch.call(this, strandId);
   }
 
   /**
@@ -214,7 +214,7 @@ export default class WarpCore {
    * @returns {Promise<string>}
    */
   async patchStrand(strandId, build) {
-    return await WarpRuntime.prototype.patchWorkingSet.call(this, strandId, build);
+    return await WarpRuntime.prototype.patchStrand.call(this, strandId, build);
   }
 
   /**
@@ -228,7 +228,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandIntentDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.queueWorkingSetIntent.call(this, strandId, build),
+          await WarpRuntime.prototype.queueStrandIntent.call(this, strandId, build),
         )
       )
     );
@@ -244,7 +244,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandIntentDescriptor[]} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.listWorkingSetIntents.call(this, strandId),
+          await WarpRuntime.prototype.listStrandIntents.call(this, strandId),
         )
       )
     );
@@ -260,7 +260,7 @@ export default class WarpCore {
     return /** @type {import('../../index.js').StrandTickRecord} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.tickWorkingSet.call(this, strandId),
+          await WarpRuntime.prototype.tickStrand.call(this, strandId),
         )
       )
     );
@@ -283,10 +283,10 @@ export default class WarpCore {
     const comparison = /** @type {import('../../index.js').CoordinateComparisonV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.compareWorkingSet.call(
+          await WarpRuntime.prototype.compareStrand.call(
             this,
             strandId,
-            /** @type {InternalCompareWorkingSetOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+            /** @type {InternalCompareStrandOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
           ),
         )
       )
@@ -310,10 +310,10 @@ export default class WarpCore {
     const transferPlan = /** @type {import('../../index.js').CoordinateTransferPlanV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
-          await WarpRuntime.prototype.planWorkingSetTransfer.call(
+          await WarpRuntime.prototype.planStrandTransfer.call(
             this,
             strandId,
-            /** @type {InternalPlanWorkingSetTransferOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+            /** @type {InternalPlanStrandTransferOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
           ),
         )
       )
@@ -381,111 +381,6 @@ export default class WarpCore {
         )
       )
     );
-  }
-
-  /**
-   * Removed in v15. Use `createStrand()`.
-   */
-  createWorkingSet() {
-    throw new Error('createWorkingSet() was removed in v15. Use createStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `getStrand()`.
-   */
-  getWorkingSet() {
-    throw new Error('getWorkingSet() was removed in v15. Use getStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `listStrands()`.
-   */
-  listWorkingSets() {
-    throw new Error('listWorkingSets() was removed in v15. Use listStrands().');
-  }
-
-  /**
-   * Removed in v15. Use `braidStrand()`.
-   */
-  braidWorkingSet() {
-    throw new Error('braidWorkingSet() was removed in v15. Use braidStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `dropStrand()`.
-   */
-  dropWorkingSet() {
-    throw new Error('dropWorkingSet() was removed in v15. Use dropStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `materializeStrand()`.
-   */
-  materializeWorkingSet() {
-    throw new Error('materializeWorkingSet() was removed in v15. Use materializeStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `getStrandPatches()`.
-   */
-  getWorkingSetPatches() {
-    throw new Error('getWorkingSetPatches() was removed in v15. Use getStrandPatches().');
-  }
-
-  /**
-   * Removed in v15. Use `patchesForStrand()`.
-   */
-  patchesForWorkingSet() {
-    throw new Error('patchesForWorkingSet() was removed in v15. Use patchesForStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `createStrandPatch()`.
-   */
-  createWorkingSetPatch() {
-    throw new Error('createWorkingSetPatch() was removed in v15. Use createStrandPatch().');
-  }
-
-  /**
-   * Removed in v15. Use `patchStrand()`.
-   */
-  patchWorkingSet() {
-    throw new Error('patchWorkingSet() was removed in v15. Use patchStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `queueStrandIntent()`.
-   */
-  queueWorkingSetIntent() {
-    throw new Error('queueWorkingSetIntent() was removed in v15. Use queueStrandIntent().');
-  }
-
-  /**
-   * Removed in v15. Use `listStrandIntents()`.
-   */
-  listWorkingSetIntents() {
-    throw new Error('listWorkingSetIntents() was removed in v15. Use listStrandIntents().');
-  }
-
-  /**
-   * Removed in v15. Use `tickStrand()`.
-   */
-  tickWorkingSet() {
-    throw new Error('tickWorkingSet() was removed in v15. Use tickStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `compareStrand()`.
-   */
-  compareWorkingSet() {
-    throw new Error('compareWorkingSet() was removed in v15. Use compareStrand().');
-  }
-
-  /**
-   * Removed in v15. Use `planStrandTransfer()`.
-   */
-  planWorkingSetTransfer() {
-    throw new Error('planWorkingSetTransfer() was removed in v15. Use planStrandTransfer().');
   }
 }
 

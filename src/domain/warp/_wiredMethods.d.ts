@@ -250,21 +250,21 @@ interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
-    coordinateKind: 'frontier' | 'working_set';
+    coordinateKind: 'frontier' | 'strand';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -273,28 +273,28 @@ interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
-interface WorkingSetCreateOptions {
-  workingSetId?: string;
+interface StrandCreateOptions {
+  strandId?: string;
   lamportCeiling?: number | null;
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
 }
 
-interface WorkingSetBraidOptions {
-  braidedWorkingSetIds?: string[];
+interface StrandBraidOptions {
+  braidedStrandIds?: string[];
   writable?: boolean | null;
 }
 
-interface WorkingSetReadOverlayDescriptor {
-  workingSetId: string;
+interface StrandReadOverlayDescriptor {
+  strandId: string;
   overlayId: string;
   kind: string;
   headPatchSha: string | null;
   patchCount: number;
 }
 
-interface WorkingSetIntentDescriptor {
+interface StrandIntentDescriptor {
   intentId: string;
   enqueuedAt: string;
   patch: PatchV2;
@@ -303,7 +303,7 @@ interface WorkingSetIntentDescriptor {
   contentBlobOids: string[];
 }
 
-interface WorkingSetTickCounterfactual {
+interface StrandTickCounterfactual {
   intentId: string;
   reason: string;
   conflictsWith: string[];
@@ -311,22 +311,22 @@ interface WorkingSetTickCounterfactual {
   writes: string[];
 }
 
-interface WorkingSetTickRecord {
+interface StrandTickRecord {
   tickId: string;
-  workingSetId: string;
+  strandId: string;
   tickIndex: number;
   createdAt: string;
   drainedIntentCount: number;
   admittedIntentIds: string[];
-  rejected: WorkingSetTickCounterfactual[];
+  rejected: StrandTickCounterfactual[];
   baseOverlayHeadPatchSha: string | null;
   overlayHeadPatchSha: string | null;
   overlayPatchShas: string[];
 }
 
-interface WorkingSetDescriptor {
+interface StrandDescriptor {
   schemaVersion: number;
-  workingSetId: string;
+  strandId: string;
   graphName: string;
   createdAt: string;
   updatedAt: string;
@@ -349,15 +349,15 @@ interface WorkingSetDescriptor {
     writable: boolean;
   };
   braid: {
-    readOverlays: WorkingSetReadOverlayDescriptor[];
+    readOverlays: StrandReadOverlayDescriptor[];
   };
   intentQueue?: {
     nextIntentSeq: number;
-    intents: WorkingSetIntentDescriptor[];
+    intents: StrandIntentDescriptor[];
   };
   evolution?: {
     tickCount: number;
-    lastTick: WorkingSetTickRecord | null;
+    lastTick: StrandTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -447,8 +447,8 @@ interface VisibleStateScopeV1 {
 
 type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
-  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
-  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'strand'; strandId: string; ceiling?: number | null }
+  | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
 type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
@@ -456,7 +456,7 @@ type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
 interface CoordinateComparisonSideV1 {
   requested: Record<string, unknown>;
   resolved: {
-    coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+    coordinateKind: 'frontier' | 'strand' | 'strand_base';
     patchFrontier: Record<string, string>;
     patchFrontierDigest: string;
     lamportFrontier: Record<string, number>;
@@ -465,15 +465,15 @@ interface CoordinateComparisonSideV1 {
     stateHash: string;
     patchUniverseDigest: string;
     summary: VisibleStateSummaryV5 & { patchCount: number };
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -582,7 +582,7 @@ declare module '../WarpRuntime.js' {
     _sortPatchesCausally(patches: Array<{ patch: PatchV2; sha: string }>): Array<{ patch: PatchV2; sha: string }>;
     analyzeConflicts(options?: {
       at?: { lamportCeiling?: number | null };
-      workingSetId?: string;
+      strandId?: string;
       entityId?: string;
       target?: ConflictTargetSelector;
       kind?: ConflictKind | ConflictKind[];
@@ -666,30 +666,30 @@ declare module '../WarpRuntime.js' {
     verifyIndex(options?: { seed?: number; sampleRate?: number }): { passed: number; failed: number; errors: Array<{ nodeId: string; direction: string; expected: string[]; actual: string[] }> };
     invalidateIndex(): void;
 
-    // ── workingSet.methods.js ─────────────────────────────────────────────
-    createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
-    braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
-    getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
-    listWorkingSets(): Promise<WorkingSetDescriptor[]>;
-    dropWorkingSet(workingSetId: string): Promise<boolean>;
-    materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
-    getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
-    createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
-    patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
-    queueWorkingSetIntent(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<WorkingSetIntentDescriptor>;
-    listWorkingSetIntents(workingSetId: string): Promise<WorkingSetIntentDescriptor[]>;
-    tickWorkingSet(workingSetId: string): Promise<WorkingSetTickRecord>;
-    compareWorkingSet(workingSetId: string, options?: {
-      against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+    // ── strand.methods.js ─────────────────────────────────────────────
+    createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor>;
+    braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;
+    getStrand(strandId: string): Promise<StrandDescriptor | null>;
+    listStrands(): Promise<StrandDescriptor[]>;
+    dropStrand(strandId: string): Promise<boolean>;
+    materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+    materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+    getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+    patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
+    createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
+    patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+    queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+    listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
+    tickStrand(strandId: string): Promise<StrandTickRecord>;
+    compareStrand(strandId: string, options?: {
+      against?: 'base' | 'live' | { kind: 'strand'; strandId: string };
       ceiling?: number | null;
       againstCeiling?: number | null;
       targetId?: string | null;
       scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateComparisonV1>;
-    planWorkingSetTransfer(workingSetId: string, options?: {
-      into?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+    planStrandTransfer(strandId: string, options?: {
+      into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
       ceiling?: number | null;
       intoCeiling?: number | null;
       scope?: VisibleStateScopeV1 | null;

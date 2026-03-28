@@ -77,7 +77,7 @@ Status: aligned
 
 The split resolves the root-noun problem, but intentionally leaves these open:
 
-- `WorkingSet` vs `Strand`
+- `Strand` vs `Strand`
 - whether `PlaybackHead` becomes a public v15 noun
 
 ## Drift
@@ -116,5 +116,5 @@ The next likely slices are:
 
 1. finish the deeper README/Guide/API wording cleanup around `WarpApp` /
    `WarpCore`
-2. decide whether `WorkingSet` becomes `Strand` before release
+2. decide whether `Strand` becomes `Strand` before release
 3. decide whether `PlaybackHead` becomes a public core noun in `v15`

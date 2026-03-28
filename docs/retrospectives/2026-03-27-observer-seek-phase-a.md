@@ -14,11 +14,11 @@ introducing the full `Worldline` API yet.
   - `observer.source`
   - `observer.stateHash`
 - Added explicit live observer source support alongside coordinate and
-  working-set sources.
+  strand sources.
 - Extended the observer boundary spec to prove:
   - seeking returns a new observer
   - explicit coordinate seek works
-  - working-set seek works
+  - strand seek works
   - the caller graph is not retargeted by seek
 
 ## What We Learned

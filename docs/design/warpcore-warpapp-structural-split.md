@@ -102,23 +102,23 @@ Initial curated surface:
 - `translationCost(...)`
 - `subscribe(...)`
 - `watch(...)`
-- working-set / speculative methods:
-  - `createWorkingSet(...)`
-  - `getWorkingSet(...)`
-  - `listWorkingSets()`
-  - `braidWorkingSet(...)`
-  - `dropWorkingSet(...)`
-  - `createWorkingSetPatch(...)`
-  - `patchWorkingSet(...)`
-  - `queueWorkingSetIntent(...)`
-  - `listWorkingSetIntents(...)`
-  - `tickWorkingSet(...)`
+- strand / speculative methods:
+  - `createStrand(...)`
+  - `getStrand(...)`
+  - `listStrands()`
+  - `braidStrand(...)`
+  - `dropStrand(...)`
+  - `createStrandPatch(...)`
+  - `patchStrand(...)`
+  - `queueStrandIntent(...)`
+  - `listStrandIntents(...)`
+  - `tickStrand(...)`
 
 ### `WarpApp` intentionally omits
 
 - `materialize()`
 - `materializeCoordinate()`
-- `materializeWorkingSet()`
+- `materializeStrand()`
 - `materializeSlice()`
 - `getNodes()`
 - `getEdges()`
@@ -192,7 +192,7 @@ It does **not** resolve every noun question yet.
 
 Still open:
 
-- `WorkingSet` vs `Strand`
+- `Strand` vs `Strand`
 - whether `PlaybackHead` ships in `v15`
 - whether the public `WarpRuntime` export should be cut immediately in `v15`
 

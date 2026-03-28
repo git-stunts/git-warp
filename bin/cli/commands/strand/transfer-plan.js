@@ -5,7 +5,7 @@ import { openGraph } from '../../shared.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 
-export const WORKING_SET_SUBCOMMAND = Object.freeze({
+export const STRAND_SUBCOMMAND = Object.freeze({
   name: 'transfer-plan',
   summary: 'Plan a deterministic transfer from one strand into live, base, or another strand',
 });

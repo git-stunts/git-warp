@@ -1,5 +1,5 @@
 /**
- * Comparison methods for substrate-visible coordinate and working-set reads.
+ * Comparison methods for substrate-visible coordinate and strand reads.
  *
  * These helpers compare only deterministic substrate facts:
  * - visible patch-universe divergence
@@ -25,7 +25,7 @@ import {
 } from '../services/VisibleStateScopeV1.js';
 import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
 import { planVisibleStateTransferV5 } from '../services/VisibleStateTransferPlannerV5.js';
-import WorkingSetService from '../services/WorkingSetService.js';
+import StrandService from '../services/StrandService.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
@@ -49,8 +49,8 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  *   kind: 'live',
  *   ceiling?: number|null
  * } | {
- *   kind: 'working_set'|'working_set_base',
- *   workingSetId: string,
+ *   kind: 'strand'|'strand_base',
+ *   strandId: string,
  *   ceiling?: number|null
  * } | {
  *   kind: 'coordinate',
@@ -69,9 +69,9 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  *     writable?: boolean
  *   },
  *   braid?: {
- *     readOverlays?: Array<{ workingSetId: string }>
+ *     readOverlays?: Array<{ strandId: string }>
  *   }
- * }} WorkingSetDescriptorV1
+ * }} StrandDescriptorV1
  * @typedef {{
  *   comparisonVersion: string,
  *   comparisonDigest: string,
@@ -442,8 +442,8 @@ async function collectPatchEntriesForFrontier(graph, frontierRecord, ceiling) {
  *   kind: 'live',
  *   ceiling: number|null
  * } | {
- *   kind: 'working_set'|'working_set_base',
- *   workingSetId: string,
+ *   kind: 'strand'|'strand_base',
+ *   strandId: string,
  *   ceiling: number|null
  * } | {
  *   kind: 'coordinate',
@@ -468,10 +468,10 @@ function normalizeSelector(selector, field) {
     };
   }
 
-  if (kind === 'working_set' || kind === 'working_set_base') {
+  if (kind === 'strand' || kind === 'strand_base') {
     return {
       kind,
-      workingSetId: normalizeRequiredString(raw.workingSetId, `${field}.workingSetId`),
+      strandId: normalizeRequiredString(raw.strandId, `${field}.strandId`),
       ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
     };
   }
@@ -502,23 +502,23 @@ function optionalCeiling(ceiling) {
 }
 
 /**
- * @param {string} workingSetId
- * @param {WorkingSetDescriptorV1} descriptor
+ * @param {string} strandId
+ * @param {StrandDescriptorV1} descriptor
  * @returns {{
- *   workingSetId: string,
+ *   strandId: string,
  *   baseLamportCeiling: number|null,
  *   overlayHeadPatchSha: string|null,
  *   overlayPatchCount: number,
  *   overlayWritable: boolean,
  *   braid: {
  *     readOverlayCount: number,
- *     braidedWorkingSetIds: string[]
+ *     braidedStrandIds: string[]
  *   }
  * }}
  */
-function buildWorkingSetMetadata(workingSetId, descriptor) {
+function buildStrandMetadata(strandId, descriptor) {
   return {
-    workingSetId,
+    strandId,
     baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
     overlayHeadPatchSha: descriptor.overlay.headPatchSha,
     overlayPatchCount: descriptor.overlay.patchCount,
@@ -527,8 +527,8 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
       readOverlayCount: Array.isArray(descriptor.braid?.readOverlays)
         ? descriptor.braid.readOverlays.length
         : 0,
-      braidedWorkingSetIds: Array.isArray(descriptor.braid?.readOverlays)
-        ? descriptor.braid.readOverlays.map((overlay) => overlay.workingSetId).sort(compareStrings)
+      braidedStrandIds: Array.isArray(descriptor.braid?.readOverlays)
+        ? descriptor.braid.readOverlays.map((overlay) => overlay.strandId).sort(compareStrings)
         : [],
     },
   };
@@ -540,17 +540,17 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *   requested: Record<string, unknown>,
  *   state: import('../services/JoinReducer.js').WarpStateV5,
  *   patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>,
- *   coordinateKind: 'frontier'|'working_set'|'working_set_base',
+ *   coordinateKind: 'frontier'|'strand'|'strand_base',
  *   lamportCeiling: number|null,
- *   workingSet?: {
- *     workingSetId: string,
+ *   strand?: {
+ *     strandId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
  *     overlayPatchCount: number,
  *     overlayWritable: boolean,
  *     braid: {
  *       readOverlayCount: number,
- *       braidedWorkingSetIds: string[]
+ *       braidedStrandIds: string[]
  *     }
  *   }
  * }} params
@@ -560,7 +560,7 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *   state: import('../services/JoinReducer.js').WarpStateV5,
  *   patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>,
  *   resolved: {
- *     coordinateKind: 'frontier'|'working_set'|'working_set_base',
+ *     coordinateKind: 'frontier'|'strand'|'strand_base',
  *     patchFrontier: Record<string, string>,
  *     patchFrontierDigest: string,
  *     lamportFrontier: Record<string, number>,
@@ -575,15 +575,15 @@ function buildWorkingSetMetadata(workingSetId, descriptor) {
  *       edgePropertyCount: number,
  *       patchCount: number
  *     },
- *     workingSet?: {
- *       workingSetId: string,
+ *     strand?: {
+ *       strandId: string,
  *       baseLamportCeiling: number|null,
  *       overlayHeadPatchSha: string|null,
  *       overlayPatchCount: number,
  *       overlayWritable: boolean,
  *       braid: {
  *         readOverlayCount: number,
- *         braidedWorkingSetIds: string[]
+ *         braidedStrandIds: string[]
  *       }
  *     }
  *   }
@@ -596,7 +596,7 @@ async function finalizeComparisonSide(graph, params, scope) {
     patchEntries,
     coordinateKind,
     lamportCeiling,
-    workingSet,
+    strand,
   } = params;
   const scopedState = scopeMaterializedStateV5(state, scope);
   const scopedPatchEntries = scopePatchEntriesV1(patchEntries, scope);
@@ -620,7 +620,7 @@ async function finalizeComparisonSide(graph, params, scope) {
       ),
       patchUniverseDigest: await computeChecksum({ patches: uniqueSortedPatchShas(scopedPatchEntries) }, graph._crypto),
       summary: summarizeVisibleState(reader, scopedPatchEntries.length),
-      ...(workingSet ? { workingSet } : {}),
+      ...(strand ? { strand } : {}),
     },
   };
 }
@@ -677,46 +677,46 @@ async function resolveCoordinateComparisonSide(graph, selector, scope) {
 
 /**
  * @param {import('../WarpRuntime.js').default} graph
- * @param {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} selector
+ * @param {{ kind: 'strand', strandId: string, ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveWorkingSetComparisonSide(graph, selector, scope) {
-  const workingSets = new WorkingSetService({ graph });
-  const descriptor = await workingSets.getOrThrow(selector.workingSetId);
+async function resolveStrandComparisonSide(graph, selector, scope) {
+  const strands = new StrandService({ graph });
+  const descriptor = await strands.getOrThrow(selector.strandId);
   const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
     graph,
-    'materializeWorkingSet',
-    selector.workingSetId,
+    'materializeStrand',
+    selector.strandId,
     selector.ceiling === null ? undefined : { ceiling: selector.ceiling },
   ));
-  const patchEntries = await workingSets.getPatchEntries(
-    selector.workingSetId,
+  const patchEntries = await strands.getPatchEntries(
+    selector.strandId,
     selector.ceiling === null ? undefined : { ceiling: selector.ceiling },
   );
   return await finalizeComparisonSide(graph, {
     requested: {
-      kind: 'working_set',
-      workingSetId: selector.workingSetId,
+      kind: 'strand',
+      strandId: selector.strandId,
       ...optionalCeiling(selector.ceiling),
     },
     state,
     patchEntries,
-    coordinateKind: 'working_set',
+    coordinateKind: 'strand',
     lamportCeiling: selector.ceiling,
-    workingSet: buildWorkingSetMetadata(selector.workingSetId, descriptor),
+    strand: buildStrandMetadata(selector.strandId, descriptor),
   }, scope);
 }
 
 /**
  * @param {import('../WarpRuntime.js').default} graph
- * @param {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} selector
+ * @param {{ kind: 'strand_base', strandId: string, ceiling: number|null }} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<ReturnType<typeof finalizeComparisonSide>>}
  */
-async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
-  const workingSets = new WorkingSetService({ graph });
-  const descriptor = await workingSets.getOrThrow(selector.workingSetId);
+async function resolveStrandBaseComparisonSide(graph, selector, scope) {
+  const strands = new StrandService({ graph });
+  const descriptor = await strands.getOrThrow(selector.strandId);
   const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, selector.ceiling);
   const state = await graph.materializeCoordinate({
     frontier: descriptor.baseObservation.frontier,
@@ -729,17 +729,17 @@ async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
   );
   return await finalizeComparisonSide(graph, {
     requested: {
-      kind: 'working_set_base',
-      workingSetId: selector.workingSetId,
+      kind: 'strand_base',
+      strandId: selector.strandId,
       frontier: { ...descriptor.baseObservation.frontier },
       baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
       ...optionalCeiling(selector.ceiling),
     },
     state,
     patchEntries,
-    coordinateKind: 'working_set_base',
+    coordinateKind: 'strand_base',
     lamportCeiling: effectiveCeiling,
-    workingSet: buildWorkingSetMetadata(selector.workingSetId, descriptor),
+    strand: buildStrandMetadata(selector.strandId, descriptor),
   }, scope);
 }
 
@@ -749,8 +749,8 @@ async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
  *   kind: 'live',
  *   ceiling: number|null
  * } | {
- *   kind: 'working_set'|'working_set_base',
- *   workingSetId: string,
+ *   kind: 'strand'|'strand_base',
+ *   strandId: string,
  *   ceiling: number|null
  * } | {
  *   kind: 'coordinate',
@@ -763,7 +763,7 @@ async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
  *   state: import('../services/JoinReducer.js').WarpStateV5,
  *   patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>,
  *   resolved: {
- *     coordinateKind: 'frontier'|'working_set'|'working_set_base',
+ *     coordinateKind: 'frontier'|'strand'|'strand_base',
  *     patchFrontier: Record<string, string>,
  *     patchFrontierDigest: string,
  *     lamportFrontier: Record<string, number>,
@@ -778,15 +778,15 @@ async function resolveWorkingSetBaseComparisonSide(graph, selector, scope) {
  *       edgePropertyCount: number,
  *       patchCount: number
  *     },
- *     workingSet?: {
- *       workingSetId: string,
+ *     strand?: {
+ *       strandId: string,
  *       baseLamportCeiling: number|null,
  *       overlayHeadPatchSha: string|null,
  *       overlayPatchCount: number,
  *       overlayWritable: boolean,
  *       braid: {
  *         readOverlayCount: number,
- *         braidedWorkingSetIds: string[]
+ *         braidedStrandIds: string[]
  *       }
  *     }
  *   }
@@ -801,23 +801,23 @@ async function resolveComparisonSide(selector, scope = null) {
     return await resolveCoordinateComparisonSide(this, selector, scope);
   }
 
-  if (selector.kind === 'working_set') {
-    const workingSetSelector = /** @type {{ kind: 'working_set', workingSetId: string, ceiling: number|null }} */ (selector);
-    return await resolveWorkingSetComparisonSide(this, workingSetSelector, scope);
+  if (selector.kind === 'strand') {
+    const strandSelector = /** @type {{ kind: 'strand', strandId: string, ceiling: number|null }} */ (selector);
+    return await resolveStrandComparisonSide(this, strandSelector, scope);
   }
 
-  const baseSelector = /** @type {{ kind: 'working_set_base', workingSetId: string, ceiling: number|null }} */ (selector);
-  return await resolveWorkingSetBaseComparisonSide(this, baseSelector, scope);
+  const baseSelector = /** @type {{ kind: 'strand_base', strandId: string, ceiling: number|null }} */ (selector);
+  return await resolveStrandBaseComparisonSide(this, baseSelector, scope);
 }
 
 /**
- * Compares a working set against its base observation, the live frontier, or
- * another working set.
+ * Compares a strand against its base observation, the live frontier, or
+ * another strand.
  *
  * @this {import('../WarpRuntime.js').default}
- * @param {string} workingSetId
+ * @param {string} strandId
  * @param {{
- *   against?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
+ *   against?: 'base'|'live'|{ kind: 'strand', strandId: string },
  *   ceiling?: number|null,
  *   againstCeiling?: number|null,
  *   targetId?: string|null,
@@ -825,8 +825,8 @@ async function resolveComparisonSide(selector, scope = null) {
  * }} [options]
  * @returns {Promise<CoordinateComparisonV1>}
  */
-export async function compareWorkingSet(workingSetId, options = {}) {
-  const normalizedWorkingSetId = normalizeRequiredString(workingSetId, 'workingSetId');
+export async function compareStrand(strandId, options = {}) {
+  const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
   const targetId = normalizeOptionalString(options.targetId, 'targetId');
@@ -834,15 +834,15 @@ export async function compareWorkingSet(workingSetId, options = {}) {
   const against = options.against ?? 'base';
 
   const left = /** @type {CoordinateComparisonSelectorV1} */ ({
-    kind: 'working_set',
-    workingSetId: normalizedWorkingSetId,
+    kind: 'strand',
+    strandId: normalizedStrandId,
     ceiling,
   });
 
   const right = /** @type {CoordinateComparisonSelectorV1} */ (against === 'base'
     ? {
-      kind: 'working_set_base',
-      workingSetId: normalizedWorkingSetId,
+      kind: 'strand_base',
+      strandId: normalizedStrandId,
       ceiling: againstCeiling,
     }
     : against === 'live'
@@ -850,14 +850,14 @@ export async function compareWorkingSet(workingSetId, options = {}) {
         kind: 'live',
         ceiling: againstCeiling,
       }
-      : (against && typeof against === 'object' && against.kind === 'working_set')
+      : (against && typeof against === 'object' && against.kind === 'strand')
         ? {
-          kind: 'working_set',
-          workingSetId: normalizeRequiredString(against.workingSetId, 'against.workingSetId'),
+          kind: 'strand',
+          strandId: normalizeRequiredString(against.strandId, 'against.strandId'),
           ceiling: againstCeiling,
         }
         : (() => {
-          throw new QueryError('against must be base, live, or { kind: "working_set", workingSetId }', {
+          throw new QueryError('against must be base, live, or { kind: "strand", strandId }', {
             code: 'invalid_coordinate',
           });
         })());
@@ -884,39 +884,39 @@ async function readContentBlobByOid(graph, oid) {
 }
 
 /**
- * Plans a deterministic transfer from one working set into live truth, its
- * pinned base observation, or another working set.
+ * Plans a deterministic transfer from one strand into live truth, its
+ * pinned base observation, or another strand.
  *
  * The resulting plan contains only substrate facts and transfer operations.
  * It does not apply the plan or add application-level settlement semantics.
  *
  * @this {import('../WarpRuntime.js').default}
- * @param {string} workingSetId
+ * @param {string} strandId
  * @param {{
- *   into?: 'base'|'live'|{ kind: 'working_set', workingSetId: string },
+ *   into?: 'base'|'live'|{ kind: 'strand', strandId: string },
  *   ceiling?: number|null,
  *   intoCeiling?: number|null,
  *   scope?: VisibleStateScopeV1|null
  * }} [options]
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
-export async function planWorkingSetTransfer(workingSetId, options = {}) {
-  const normalizedWorkingSetId = normalizeRequiredString(workingSetId, 'workingSetId');
+export async function planStrandTransfer(strandId, options = {}) {
+  const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
   const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
   const into = options.into ?? 'live';
 
   const source = /** @type {CoordinateTransferPlanSelectorV1} */ ({
-    kind: 'working_set',
-    workingSetId: normalizedWorkingSetId,
+    kind: 'strand',
+    strandId: normalizedStrandId,
     ceiling,
   });
 
   const target = /** @type {CoordinateTransferPlanSelectorV1} */ (into === 'base'
     ? {
-      kind: 'working_set_base',
-      workingSetId: normalizedWorkingSetId,
+      kind: 'strand_base',
+      strandId: normalizedStrandId,
       ceiling: intoCeiling,
     }
     : into === 'live'
@@ -924,14 +924,14 @@ export async function planWorkingSetTransfer(workingSetId, options = {}) {
         kind: 'live',
         ceiling: intoCeiling,
       }
-      : (into && typeof into === 'object' && into.kind === 'working_set')
+      : (into && typeof into === 'object' && into.kind === 'strand')
         ? {
-          kind: 'working_set',
-          workingSetId: normalizeRequiredString(into.workingSetId, 'into.workingSetId'),
+          kind: 'strand',
+          strandId: normalizeRequiredString(into.strandId, 'into.strandId'),
           ceiling: intoCeiling,
         }
         : (() => {
-          throw new QueryError('into must be base, live, or { kind: "working_set", workingSetId }', {
+          throw new QueryError('into must be base, live, or { kind: "strand", strandId }', {
             code: 'invalid_coordinate',
           });
         })());
@@ -1002,21 +1002,21 @@ async function finalizeTransferPlan(params) {
  *
  * Supported selectors:
  * - `{ kind: 'live', ceiling? }`
- * - `{ kind: 'working_set', workingSetId, ceiling? }`
- * - `{ kind: 'working_set_base', workingSetId, ceiling? }`
+ * - `{ kind: 'strand', strandId, ceiling? }`
+ * - `{ kind: 'strand_base', strandId, ceiling? }`
  * - `{ kind: 'coordinate', frontier, ceiling? }`
  *
  * @this {import('../WarpRuntime.js').default}
  * @param {{
  *   source: {
- *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
- *     workingSetId?: string,
+ *     kind: 'live'|'strand'|'strand_base'|'coordinate',
+ *     strandId?: string,
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   },
  *   target: {
- *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
- *     workingSetId?: string,
+ *     kind: 'live'|'strand'|'strand_base'|'coordinate',
+ *     strandId?: string,
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   },
@@ -1060,21 +1060,21 @@ export async function planCoordinateTransfer(options) {
  *
  * Supported selectors:
  * - `{ kind: 'live', ceiling? }`
- * - `{ kind: 'working_set', workingSetId, ceiling? }`
- * - `{ kind: 'working_set_base', workingSetId, ceiling? }`
+ * - `{ kind: 'strand', strandId, ceiling? }`
+ * - `{ kind: 'strand_base', strandId, ceiling? }`
  * - `{ kind: 'coordinate', frontier, ceiling? }`
  *
  * @this {import('../WarpRuntime.js').default}
  * @param {{
  *   left: {
- *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
- *     workingSetId?: string,
+ *     kind: 'live'|'strand'|'strand_base'|'coordinate',
+ *     strandId?: string,
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   },
  *   right: {
- *     kind: 'live'|'working_set'|'working_set_base'|'coordinate',
- *     workingSetId?: string,
+ *     kind: 'live'|'strand'|'strand_base'|'coordinate',
+ *     strandId?: string,
  *     frontier?: Map<string, string>|Record<string, string>,
  *     ceiling?: number|null
  *   },

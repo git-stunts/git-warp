@@ -1,25 +1,25 @@
 /**
- * WorkingSetService — durable descriptor storage for explicit working sets.
+ * StrandService — durable descriptor storage for explicit strands.
  *
- * Working sets are pinned observations plus overlay patch-log identity.
+ * Strands are pinned observations plus overlay patch-log identity.
  * Authoritative truth still lives in patch history and descriptor refs;
  * materialized snapshots remain caches only.
  *
- * @module domain/services/WorkingSetService
+ * @module domain/services/StrandService
  */
 
-import WorkingSetError from '../errors/WorkingSetError.js';
+import StrandError from '../errors/StrandError.js';
 import {
-  buildWorkingSetBraidRef,
-  buildWorkingSetBraidsPrefix,
-  buildWorkingSetRef,
-  buildWorkingSetOverlayRef,
-  buildWorkingSetsPrefix,
+  buildStrandBraidRef,
+  buildStrandBraidsPrefix,
+  buildStrandRef,
+  buildStrandOverlayRef,
+  buildStrandsPrefix,
   validateWriterId,
 } from '../utils/RefLayout.js';
 import { generateWriterId } from '../utils/WriterId.js';
 import { textEncode } from '../utils/bytes.js';
-import { parseWorkingSetBlob } from '../utils/parseWorkingSetBlob.js';
+import { parseStrandBlob } from '../utils/parseStrandBlob.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { PatchBuilderV2 } from './PatchBuilderV2.js';
 import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
@@ -31,12 +31,12 @@ import { encodePatchMessage } from './WarpMessageCodec.js';
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
 /**
  * @typedef {{
- *   workingSetId: string,
+ *   strandId: string,
  *   overlayId: string,
  *   kind: string,
  *   headPatchSha: string|null,
  *   patchCount: number
- * }} WorkingSetReadOverlayDescriptor
+ * }} StrandReadOverlayDescriptor
  */
 /**
  * @typedef {{
@@ -46,7 +46,7 @@ import { encodePatchMessage } from './WarpMessageCodec.js';
  *   reads: string[],
  *   writes: string[],
  *   contentBlobOids: string[]
- * }} WorkingSetQueuedIntent
+ * }} StrandQueuedIntent
  */
 /**
  * @typedef {{
@@ -55,43 +55,43 @@ import { encodePatchMessage } from './WarpMessageCodec.js';
  *   conflictsWith: string[],
  *   reads: string[],
  *   writes: string[]
- * }} WorkingSetRejectedCounterfactual
+ * }} StrandRejectedCounterfactual
  */
 /**
  * @typedef {{
  *   tickId: string,
- *   workingSetId: string,
+ *   strandId: string,
  *   tickIndex: number,
  *   createdAt: string,
  *   drainedIntentCount: number,
  *   admittedIntentIds: string[],
- *   rejected: WorkingSetRejectedCounterfactual[],
+ *   rejected: StrandRejectedCounterfactual[],
  *   baseOverlayHeadPatchSha: string|null,
  *   overlayHeadPatchSha: string|null,
  *   overlayPatchShas: string[]
- * }} WorkingSetTickRecord
+ * }} StrandTickRecord
  */
 /**
  * @typedef {{
  *   nextIntentSeq: number,
- *   intents: WorkingSetQueuedIntent[]
- * }} WorkingSetIntentQueue
+ *   intents: StrandQueuedIntent[]
+ * }} StrandIntentQueue
  */
 /**
- * @typedef {ReturnType<typeof parseWorkingSetBlob> & {
- *   overlay: ReturnType<typeof parseWorkingSetBlob>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: WorkingSetReadOverlayDescriptor[] },
- *   intentQueue: WorkingSetIntentQueue,
- *   evolution: { tickCount: number, lastTick: WorkingSetTickRecord|null }
- * }} WorkingSetDescriptor
+ * @typedef {ReturnType<typeof parseStrandBlob> & {
+ *   overlay: ReturnType<typeof parseStrandBlob>['overlay'] & { writable: boolean },
+ *   braid: { readOverlays: StrandReadOverlayDescriptor[] },
+ *   intentQueue: StrandIntentQueue,
+ *   evolution: { tickCount: number, lastTick: StrandTickRecord|null }
+ * }} StrandDescriptor
  */
 
-export const WORKING_SET_SCHEMA_VERSION = 1;
-export const WORKING_SET_COORDINATE_VERSION = 'frontier-lamport/v1';
-export const WORKING_SET_OVERLAY_KIND = 'patch-log';
-export const WORKING_SET_INTENT_ID_WIDTH = 4;
-export const WORKING_SET_TICK_ID_WIDTH = 4;
-export const WORKING_SET_COUNTERFACTUAL_REASON = 'footprint_overlap';
+export const STRAND_SCHEMA_VERSION = 1;
+export const STRAND_COORDINATE_VERSION = 'frontier-lamport/v1';
+export const STRAND_OVERLAY_KIND = 'patch-log';
+export const STRAND_INTENT_ID_WIDTH = 4;
+export const STRAND_TICK_ID_WIDTH = 4;
+export const STRAND_COUNTERFACTUAL_REASON = 'footprint_overlap';
 
 /**
  * @param {string} a
@@ -112,21 +112,21 @@ function formatSequence(value, width) {
 }
 
 /**
- * @param {string} workingSetId
+ * @param {string} strandId
  * @param {number} sequence
  * @returns {string}
  */
-function buildIntentId(workingSetId, sequence) {
-  return `${workingSetId}.intent.${formatSequence(sequence, WORKING_SET_INTENT_ID_WIDTH)}`;
+function buildIntentId(strandId, sequence) {
+  return `${strandId}.intent.${formatSequence(sequence, STRAND_INTENT_ID_WIDTH)}`;
 }
 
 /**
- * @param {string} workingSetId
+ * @param {string} strandId
  * @param {number} sequence
  * @returns {string}
  */
-function buildTickId(workingSetId, sequence) {
-  return `${workingSetId}.tick.${formatSequence(sequence, WORKING_SET_TICK_ID_WIDTH)}`;
+function buildTickId(strandId, sequence) {
+  return `${strandId}.tick.${formatSequence(sequence, STRAND_TICK_ID_WIDTH)}`;
 }
 
 /**
@@ -149,15 +149,15 @@ function normalizeOptionalString(value, field) {
     return null;
   }
   if (typeof value !== 'string') {
-    throw new WorkingSetError(`${field} must be a string`, {
-      code: 'E_WORKING_SET_INVALID_ARGS',
+    throw new StrandError(`${field} must be a string`, {
+      code: 'E_STRAND_INVALID_ARGS',
       context: { field, valueType: typeof value },
     });
   }
   const trimmed = value.trim();
   if (trimmed.length === 0) {
-    throw new WorkingSetError(`${field} must not be empty`, {
-      code: 'E_WORKING_SET_INVALID_ARGS',
+    throw new StrandError(`${field} must not be empty`, {
+      code: 'E_STRAND_INVALID_ARGS',
       context: { field },
     });
   }
@@ -173,8 +173,8 @@ function normalizeLamportCeiling(value) {
     return null;
   }
   if (!Number.isInteger(value) || value < 0) {
-    throw new WorkingSetError('lamportCeiling must be a non-negative integer or null', {
-      code: 'E_WORKING_SET_COORDINATE_INVALID',
+    throw new StrandError('lamportCeiling must be a non-negative integer or null', {
+      code: 'E_STRAND_COORDINATE_INVALID',
       context: { lamportCeiling: value },
     });
   }
@@ -190,15 +190,15 @@ function normalizeLeaseExpiresAt(value) {
     return null;
   }
   if (typeof value !== 'string') {
-    throw new WorkingSetError('leaseExpiresAt must be a string', {
-      code: 'E_WORKING_SET_INVALID_ARGS',
+    throw new StrandError('leaseExpiresAt must be a string', {
+      code: 'E_STRAND_INVALID_ARGS',
       context: { valueType: typeof value },
     });
   }
   const millis = globalThis.Date.parse(value);
   if (!Number.isFinite(millis)) {
-    throw new WorkingSetError('leaseExpiresAt must be a valid ISO-8601 timestamp', {
-      code: 'E_WORKING_SET_INVALID_ARGS',
+    throw new StrandError('leaseExpiresAt must be a valid ISO-8601 timestamp', {
+      code: 'E_STRAND_INVALID_ARGS',
       context: { leaseExpiresAt: value },
     });
   }
@@ -214,8 +214,8 @@ function normalizeWritable(value) {
     return null;
   }
   if (typeof value !== 'boolean') {
-    throw new WorkingSetError('writable must be boolean when provided', {
-      code: 'E_WORKING_SET_INVALID_ARGS',
+    throw new StrandError('writable must be boolean when provided', {
+      code: 'E_STRAND_INVALID_ARGS',
       context: { field: 'writable', valueType: typeof value },
     });
   }
@@ -223,18 +223,18 @@ function normalizeWritable(value) {
 }
 
 /**
- * @param {string|undefined|null} workingSetId
+ * @param {string|undefined|null} strandId
  * @returns {string}
  */
-function resolveWorkingSetId(workingSetId) {
-  if (workingSetId !== undefined && workingSetId !== null) {
+function resolveStrandId(strandId) {
+  if (strandId !== undefined && strandId !== null) {
     try {
-      validateWriterId(workingSetId);
-      return workingSetId;
+      validateWriterId(strandId);
+      return strandId;
     } catch (err) {
-      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_WORKING_SET_ID_INVALID',
-        context: { workingSetId },
+      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_STRAND_ID_INVALID',
+        context: { strandId },
       });
     }
   }
@@ -283,12 +283,12 @@ function baseObservationsEqual(left, right) {
 }
 
 /**
- * @param {WorkingSetDescriptor} descriptor
- * @returns {WorkingSetReadOverlayDescriptor}
+ * @param {StrandDescriptor} descriptor
+ * @returns {StrandReadOverlayDescriptor}
  */
 function buildReadOverlayMetadata(descriptor) {
   return {
-    workingSetId: descriptor.workingSetId,
+    strandId: descriptor.strandId,
     overlayId: descriptor.overlay.overlayId,
     kind: descriptor.overlay.kind,
     headPatchSha: descriptor.overlay.headPatchSha,
@@ -298,19 +298,19 @@ function buildReadOverlayMetadata(descriptor) {
 
 /**
  * @param {unknown} value
- * @returns {WorkingSetReadOverlayDescriptor[]}
+ * @returns {StrandReadOverlayDescriptor[]}
  */
 function normalizeReadOverlays(value) {
   return Array.isArray(value)
     ? value
       .map((overlay) => ({
-        workingSetId: overlay.workingSetId,
+        strandId: overlay.strandId,
         overlayId: overlay.overlayId,
         kind: overlay.kind,
         headPatchSha: overlay.headPatchSha ?? null,
         patchCount: overlay.patchCount,
       }))
-      .sort((left, right) => compareStrings(left.workingSetId, right.workingSetId))
+      .sort((left, right) => compareStrings(left.strandId, right.strandId))
     : [];
 }
 
@@ -339,7 +339,7 @@ function normalizeStringArray(value, field) {
 
 /**
  * @param {unknown} value
- * @returns {WorkingSetQueuedIntent[]}
+ * @returns {StrandQueuedIntent[]}
  */
 function normalizeQueuedIntents(value) {
   if (!Array.isArray(value)) {
@@ -372,7 +372,7 @@ function normalizeQueuedIntents(value) {
 
 /**
  * @param {unknown} value
- * @returns {WorkingSetIntentQueue}
+ * @returns {StrandIntentQueue}
  */
 function normalizeIntentQueue(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -393,7 +393,7 @@ function normalizeIntentQueue(value) {
 
 /**
  * @param {unknown} value
- * @returns {WorkingSetRejectedCounterfactual[]}
+ * @returns {StrandRejectedCounterfactual[]}
  */
 function normalizeRejectedCounterfactuals(value) {
   if (!Array.isArray(value)) {
@@ -419,7 +419,7 @@ function normalizeRejectedCounterfactuals(value) {
 
 /**
  * @param {Record<string, unknown>|null} lastTick
- * @returns {WorkingSetTickRecord|null}
+ * @returns {StrandTickRecord|null}
  */
 function normalizeLastTick(lastTick) {
   if (!lastTick) {
@@ -430,9 +430,9 @@ function normalizeLastTick(lastTick) {
       /** @type {string|null|undefined} */ (lastTick.tickId),
       'tickId',
     ) ?? '',
-    workingSetId: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.workingSetId),
-      'workingSetId',
+    strandId: normalizeOptionalString(
+      /** @type {string|null|undefined} */ (lastTick.strandId),
+      'strandId',
     ) ?? '',
     tickIndex: Number.isInteger(lastTick.tickIndex) ? /** @type {number} */ (lastTick.tickIndex) : 0,
     createdAt: normalizeOptionalString(
@@ -458,7 +458,7 @@ function normalizeLastTick(lastTick) {
 
 /**
  * @param {unknown} value
- * @returns {{ tickCount: number, lastTick: WorkingSetTickRecord|null }}
+ * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
  */
 function normalizeEvolution(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -503,8 +503,8 @@ function setsOverlap(left, right) {
 }
 
 /**
- * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
- * @param {Array<{ workingSetId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
+ * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
+ * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
  * @returns {boolean}
  */
 function readOverlaysEqual(left, right) {
@@ -513,7 +513,7 @@ function readOverlaysEqual(left, right) {
     left.every((overlay, index) => {
       const candidate = right[index];
       return (
-        overlay.workingSetId === candidate.workingSetId &&
+        overlay.strandId === candidate.strandId &&
         overlay.overlayId === candidate.overlayId &&
         overlay.kind === candidate.kind &&
         overlay.headPatchSha === candidate.headPatchSha &&
@@ -524,7 +524,7 @@ function readOverlaysEqual(left, right) {
 }
 
 /**
- * @param {WorkingSetDescriptor} descriptor
+ * @param {StrandDescriptor} descriptor
  * @param {{ headPatchSha: string|null, patchCount: number, writable: boolean }} expected
  * @returns {boolean}
  */
@@ -537,12 +537,12 @@ function overlayMetadataMatches(descriptor, expected) {
 }
 
 /**
- * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
- * @param {WorkingSetReadOverlayDescriptor[]} braidedReadOverlays
+ * @param {ReturnType<typeof parseStrandBlob>} descriptor
+ * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
  * @param {boolean} writable
- * @returns {WorkingSetDescriptor}
+ * @returns {StrandDescriptor}
  */
-function buildNormalizedWorkingSetDescriptor(descriptor, braidedReadOverlays, writable) {
+function buildNormalizedStrandDescriptor(descriptor, braidedReadOverlays, writable) {
   const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
   const evolution = normalizeEvolution(descriptor.evolution);
   return {
@@ -560,10 +560,10 @@ function buildNormalizedWorkingSetDescriptor(descriptor, braidedReadOverlays, wr
 }
 
 /**
- * @param {WorkingSetDescriptor} descriptor
- * @param {WorkingSetReadOverlayDescriptor[]} descriptorReadOverlays
+ * @param {StrandDescriptor} descriptor
+ * @param {StrandReadOverlayDescriptor[]} descriptorReadOverlays
  * @param {{
- *   braidedReadOverlays: WorkingSetReadOverlayDescriptor[],
+ *   braidedReadOverlays: StrandReadOverlayDescriptor[],
  *   expected: { headPatchSha: string|null, patchCount: number, writable: boolean }
  * }} options
  * @returns {boolean}
@@ -577,9 +577,9 @@ function normalizedDescriptorMatches(descriptor, descriptorReadOverlays, options
 }
 
 /**
- * @param {WorkingSetDescriptor} descriptor
+ * @param {StrandDescriptor} descriptor
  * @param {{ headPatchSha: string|null, patchCount: number }} overlay
- * @returns {WorkingSetDescriptor}
+ * @returns {StrandDescriptor}
  */
 function withOverlayMetadata(descriptor, overlay) {
   return {
@@ -593,9 +593,9 @@ function withOverlayMetadata(descriptor, overlay) {
 }
 
 /**
- * @param {WorkingSetCreateOptions} options
+ * @param {StrandCreateOptions} options
  * @returns {{
- *   workingSetId: string,
+ *   strandId: string,
  *   lamportCeiling: number|null,
  *   owner: string|null,
  *   scope: string|null,
@@ -604,7 +604,7 @@ function withOverlayMetadata(descriptor, overlay) {
  */
 function normalizeCreateOptions(options) {
   return {
-    workingSetId: resolveWorkingSetId(options.workingSetId),
+    strandId: resolveStrandId(options.strandId),
     lamportCeiling: normalizeLamportCeiling(options.lamportCeiling),
     owner: normalizeOptionalString(options.owner, 'owner'),
     scope: normalizeOptionalString(options.scope, 'scope'),
@@ -619,19 +619,19 @@ function normalizeCreateOptions(options) {
  *   frontierRecord: Record<string, string>,
  *   frontierDigest: string,
  *   normalized: {
- *     workingSetId: string,
+ *     strandId: string,
  *     lamportCeiling: number|null,
  *     owner: string|null,
  *     scope: string|null,
  *     leaseExpiresAt: string|null
  *   }
  * }} params
- * @returns {WorkingSetDescriptor}
+ * @returns {StrandDescriptor}
  */
-function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDigest, normalized }) {
+function buildStrandDescriptor({ graphName, now, frontierRecord, frontierDigest, normalized }) {
   return {
-    schemaVersion: WORKING_SET_SCHEMA_VERSION,
-    workingSetId: normalized.workingSetId,
+    schemaVersion: STRAND_SCHEMA_VERSION,
+    strandId: normalized.strandId,
     graphName,
     createdAt: now,
     updatedAt: now,
@@ -641,14 +641,14 @@ function buildWorkingSetDescriptor({ graphName, now, frontierRecord, frontierDig
       expiresAt: normalized.leaseExpiresAt,
     },
     baseObservation: {
-      coordinateVersion: WORKING_SET_COORDINATE_VERSION,
+      coordinateVersion: STRAND_COORDINATE_VERSION,
       frontier: frontierRecord,
       frontierDigest,
       lamportCeiling: normalized.lamportCeiling,
     },
     overlay: {
-      overlayId: normalized.workingSetId,
-      kind: WORKING_SET_OVERLAY_KIND,
+      overlayId: normalized.strandId,
+      kind: STRAND_OVERLAY_KIND,
       headPatchSha: null,
       patchCount: 0,
       writable: true,
@@ -691,7 +691,7 @@ function freezePublicStateWithReceipts(state, receipts) {
 }
 
 /**
- * Opens a detached graph handle for read-only working-set materialization.
+ * Opens a detached graph handle for read-only strand materialization.
  *
  * @param {WarpRuntime} graph
  * @returns {Promise<WarpRuntime>}
@@ -746,34 +746,34 @@ function patchTouchesEntity(patch, entityId) {
 
 /**
  * @param {unknown} value
- * @param {string} targetWorkingSetId
+ * @param {string} targetStrandId
  * @returns {string[]}
  */
-function normalizeBraidedWorkingSetIds(value, targetWorkingSetId) {
+function normalizeBraidedStrandIds(value, targetStrandId) {
   if (value === undefined || value === null) {
     return [];
   }
   if (!Array.isArray(value)) {
-    throw new WorkingSetError('braidedWorkingSetIds must be an array when provided', {
-      code: 'E_WORKING_SET_INVALID_ARGS',
-      context: { field: 'braidedWorkingSetIds', valueType: typeof value },
+    throw new StrandError('braidedStrandIds must be an array when provided', {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field: 'braidedStrandIds', valueType: typeof value },
     });
   }
 
   const normalized = [];
   const seen = new Set();
   for (const entry of value) {
-    const normalizedId = normalizeOptionalString(entry, 'braidedWorkingSetIds[]');
+    const normalizedId = normalizeOptionalString(entry, 'braidedStrandIds[]');
     if (!normalizedId) {
-      throw new WorkingSetError('braidedWorkingSetIds[] must not be empty', {
-        code: 'E_WORKING_SET_INVALID_ARGS',
-        context: { field: 'braidedWorkingSetIds[]' },
+      throw new StrandError('braidedStrandIds[] must not be empty', {
+        code: 'E_STRAND_INVALID_ARGS',
+        context: { field: 'braidedStrandIds[]' },
       });
     }
-    if (normalizedId === targetWorkingSetId) {
-      throw new WorkingSetError('working set cannot braid itself as a read-only support overlay', {
-        code: 'E_WORKING_SET_INVALID_ARGS',
-        context: { workingSetId: targetWorkingSetId, braidedWorkingSetId: normalizedId },
+    if (normalizedId === targetStrandId) {
+      throw new StrandError('strand cannot braid itself as a read-only support overlay', {
+        code: 'E_STRAND_INVALID_ARGS',
+        context: { strandId: targetStrandId, braidedStrandId: normalizedId },
       });
     }
     if (seen.has(normalizedId)) {
@@ -787,28 +787,28 @@ function normalizeBraidedWorkingSetIds(value, targetWorkingSetId) {
 
 /**
  * @typedef {{
- *   workingSetId?: string,
+ *   strandId?: string,
  *   lamportCeiling?: number|null,
   *   owner?: string|null,
   *   scope?: string|null,
   *   leaseExpiresAt?: string|null
- * }} WorkingSetCreateOptions
+ * }} StrandCreateOptions
  */
 
 /**
  * @typedef {{
- *   braidedWorkingSetIds?: string[],
+ *   braidedStrandIds?: string[],
  *   writable?: boolean|null
- * }} WorkingSetBraidOptions
+ * }} StrandBraidOptions
  */
 
 /**
  * @typedef {{
  *   ceiling?: number|null
- * }} WorkingSetReadOptions
+ * }} StrandReadOptions
  */
 
-export default class WorkingSetService {
+export default class StrandService {
   /**
    * @param {{ graph: WarpRuntime }} options
    */
@@ -817,17 +817,17 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {WorkingSetCreateOptions} [options]
- * @returns {Promise<WorkingSetDescriptor>}
+   * @param {StrandCreateOptions} [options]
+ * @returns {Promise<StrandDescriptor>}
  */
   async create(options = {}) {
     const normalized = normalizeCreateOptions(options);
-    const ref = buildWorkingSetRef(this._graph._graphName, normalized.workingSetId);
+    const ref = buildStrandRef(this._graph._graphName, normalized.strandId);
     const existing = await this._graph._persistence.readRef(ref);
     if (existing) {
-      throw new WorkingSetError(`Working set '${normalized.workingSetId}' already exists`, {
-        code: 'E_WORKING_SET_ALREADY_EXISTS',
-        context: { graphName: this._graph._graphName, workingSetId: normalized.workingSetId },
+      throw new StrandError(`Strand '${normalized.strandId}' already exists`, {
+        code: 'E_STRAND_ALREADY_EXISTS',
+        context: { graphName: this._graph._graphName, strandId: normalized.strandId },
       });
     }
 
@@ -835,7 +835,7 @@ export default class WorkingSetService {
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord, this._graph._crypto);
     const now = this._graph._clock.timestamp();
-    const descriptor = buildWorkingSetDescriptor({
+    const descriptor = buildStrandDescriptor({
       graphName: this._graph._graphName,
       now,
       frontierRecord,
@@ -849,20 +849,20 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
-   * @param {WorkingSetBraidOptions} [options]
- * @returns {Promise<WorkingSetDescriptor>}
+   * @param {string} strandId
+   * @param {StrandBraidOptions} [options]
+ * @returns {Promise<StrandDescriptor>}
  */
-  async braid(workingSetId, options = {}) {
-    const target = await this.getOrThrow(workingSetId);
-    const braidedWorkingSetIds = normalizeBraidedWorkingSetIds(
-      options.braidedWorkingSetIds,
-      target.workingSetId,
+  async braid(strandId, options = {}) {
+    const target = await this.getOrThrow(strandId);
+    const braidedStrandIds = normalizeBraidedStrandIds(
+      options.braidedStrandIds,
+      target.strandId,
     );
     const writableOverride = normalizeWritable(options.writable);
-    const readOverlays = await this._loadBraidedReadOverlays(target, braidedWorkingSetIds);
+    const readOverlays = await this._loadBraidedReadOverlays(target, braidedStrandIds);
 
-    await this._syncBraidRefs(target.workingSetId, readOverlays);
+    await this._syncBraidRefs(target.strandId, readOverlays);
 
     const nextDescriptor = {
       ...target,
@@ -881,24 +881,24 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
- * @returns {Promise<WorkingSetDescriptor|null>}
+   * @param {string} strandId
+ * @returns {Promise<StrandDescriptor|null>}
  */
-  async get(workingSetId) {
-    const ref = this._buildRef(workingSetId);
+  async get(strandId) {
+    const ref = this._buildRef(strandId);
     const oid = await this._graph._persistence.readRef(ref);
     if (!oid) {
       return null;
     }
-    const descriptor = await this._readDescriptorByOid(oid, workingSetId);
+    const descriptor = await this._readDescriptorByOid(oid, strandId);
     return await this._hydrateOverlayMetadata(descriptor);
   }
 
   /**
- * @returns {Promise<WorkingSetDescriptor[]>}
+ * @returns {Promise<StrandDescriptor[]>}
  */
   async list() {
-    const prefix = buildWorkingSetsPrefix(this._graph._graphName);
+    const prefix = buildStrandsPrefix(this._graph._graphName);
     const refs = await this._graph._persistence.listRefs(prefix);
     const ids = refs
       .map((ref) => ref.slice(prefix.length))
@@ -906,8 +906,8 @@ export default class WorkingSetService {
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
     const descriptors = [];
-    for (const workingSetId of ids) {
-      const descriptor = await this.get(workingSetId);
+    for (const strandId of ids) {
+      const descriptor = await this.get(strandId);
       if (descriptor) {
         descriptors.push(descriptor);
       }
@@ -916,13 +916,13 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {Promise<boolean>}
    */
-  async drop(workingSetId) {
-    const ref = this._buildRef(workingSetId);
-    const overlayRef = this._buildOverlayRef(workingSetId);
-    const braidPrefix = this._buildBraidPrefix(workingSetId);
+  async drop(strandId) {
+    const ref = this._buildRef(strandId);
+    const overlayRef = this._buildOverlayRef(strandId);
+    const braidPrefix = this._buildBraidPrefix(strandId);
     const oid = await this._graph._persistence.readRef(ref);
     const overlayHeadSha = await this._graph._persistence.readRef(overlayRef);
     const braidRefs = await this._graph._persistence.listRefs(braidPrefix);
@@ -942,14 +942,14 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
    * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
    */
-  async materialize(workingSetId, options = {}) {
+  async materialize(strandId, options = {}) {
     const detached = await openDetachedReadGraph(this._graph);
-    const detachedService = new WorkingSetService({ graph: detached });
-    const descriptor = await detachedService.getOrThrow(workingSetId);
+    const detachedService = new StrandService({ graph: detached });
+    const descriptor = await detachedService.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     const { state, receipts } = await detachedService._materializeDescriptor(descriptor, {
       collectReceipts: !!options.receipts,
@@ -962,17 +962,17 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {Promise<PatchBuilderV2>}
    */
-  async createPatchBuilder(workingSetId) {
-    const descriptor = await this.getOrThrow(workingSetId);
+  async createPatchBuilder(strandId) {
+    const descriptor = await this.getOrThrow(strandId);
     if (!descriptor.overlay.writable) {
-      throw new WorkingSetError(
-        `Working set '${workingSetId}' has no active writable overlay in its current braid configuration`,
+      throw new StrandError(
+        `Strand '${strandId}' has no active writable overlay in its current braid configuration`,
         {
-          code: 'E_WORKING_SET_INVALID_ARGS',
-          context: { workingSetId, writable: false },
+          code: 'E_STRAND_INVALID_ARGS',
+          context: { strandId, writable: false },
         },
       );
     }
@@ -980,7 +980,7 @@ export default class WorkingSetService {
       collectReceipts: false,
       ceiling: null,
     });
-    const overlayRef = this._buildOverlayRef(workingSetId);
+    const overlayRef = this._buildOverlayRef(strandId);
     const nextLamport = maxPatchLamport(allPatches) + 1;
     const expectedParentSha = descriptor.overlay.headPatchSha ?? null;
 
@@ -1005,19 +1005,19 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
-  async patch(workingSetId, build) {
+  async patch(strandId, build) {
     if (this._graph._patchInProgress) {
       throw new Error(
-        'graph.patchWorkingSet() is not reentrant. Use createWorkingSetPatch() for nested or concurrent patches.',
+        'graph.patchStrand() is not reentrant. Use createStrandPatch() for nested or concurrent patches.',
       );
     }
     this._graph._patchInProgress = true;
     try {
-      const builder = await this.createPatchBuilder(workingSetId);
+      const builder = await this.createPatchBuilder(strandId);
       await build(builder);
       return await builder.commit();
     } finally {
@@ -1026,7 +1026,7 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<{
    *   intentId: string,
@@ -1037,15 +1037,15 @@ export default class WorkingSetService {
    *   contentBlobOids: string[]
    * }>}
    */
-  async queueIntent(workingSetId, build) {
+  async queueIntent(strandId, build) {
     if (this._graph._patchInProgress) {
       throw new Error(
-        'graph.queueWorkingSetIntent() is not reentrant. Use queueWorkingSetIntent() from one build callback at a time.',
+        'graph.queueStrandIntent() is not reentrant. Use queueStrandIntent() from one build callback at a time.',
       );
     }
     this._graph._patchInProgress = true;
     try {
-      const descriptor = await this.getOrThrow(workingSetId);
+      const descriptor = await this.getOrThrow(strandId);
       const queuedIntent = await this._buildQueuedIntent(descriptor, build);
       const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
       const now = this._graph._clock.timestamp();
@@ -1066,7 +1066,7 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {Promise<Array<{
    *   intentId: string,
    *   enqueuedAt: string,
@@ -1076,8 +1076,8 @@ export default class WorkingSetService {
    *   contentBlobOids: string[]
    * }>>}
    */
-  async listIntents(workingSetId) {
-    const descriptor = await this.getOrThrow(workingSetId);
+  async listIntents(strandId) {
+    const descriptor = await this.getOrThrow(strandId);
     return normalizeIntentQueue(descriptor.intentQueue).intents.map((intent) => Object.freeze({
       ...intent,
       reads: [...intent.reads],
@@ -1087,10 +1087,10 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {Promise<{
    *   tickId: string,
-   *   workingSetId: string,
+   *   strandId: string,
    *   tickIndex: number,
    *   createdAt: string,
    *   drainedIntentCount: number,
@@ -1107,19 +1107,19 @@ export default class WorkingSetService {
    *   overlayPatchShas: string[]
    * }>}
    */
-  async tick(workingSetId) {
-    const descriptor = await this.getOrThrow(workingSetId);
+  async tick(strandId) {
+    const descriptor = await this.getOrThrow(strandId);
     const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
     const evolution = normalizeEvolution(descriptor.evolution);
     const queuedIntents = [...intentQueue.intents].sort((left, right) => compareStrings(left.intentId, right.intentId));
     const tickIndex = evolution.tickCount + 1;
     const now = this._graph._clock.timestamp();
-    const tickId = buildTickId(workingSetId, tickIndex);
+    const tickId = buildTickId(strandId, tickIndex);
     const { admitted, rejected } = this._classifyQueuedIntents(queuedIntents);
     const committed = await this._commitAdmittedQueuedIntents(descriptor, admitted);
     const tickRecord = Object.freeze({
       tickId,
-      workingSetId,
+      strandId,
       tickIndex,
       createdAt: now,
       drainedIntentCount: queuedIntents.length,
@@ -1142,7 +1142,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<{
    *   intentId: string,
@@ -1155,11 +1155,11 @@ export default class WorkingSetService {
    */
   async _buildQueuedIntent(descriptor, build) {
     if (!descriptor.overlay.writable) {
-      throw new WorkingSetError(
-        `Working set '${descriptor.workingSetId}' has no active writable overlay in its current braid configuration`,
+      throw new StrandError(
+        `Strand '${descriptor.strandId}' has no active writable overlay in its current braid configuration`,
         {
-          code: 'E_WORKING_SET_INVALID_ARGS',
-          context: { workingSetId: descriptor.workingSetId, writable: false },
+          code: 'E_STRAND_INVALID_ARGS',
+          context: { strandId: descriptor.strandId, writable: false },
         },
       );
     }
@@ -1185,10 +1185,10 @@ export default class WorkingSetService {
     await build(builder);
     const patch = builder.build();
     if (!Array.isArray(patch.ops) || patch.ops.length === 0) {
-      throw new Error('Cannot queue empty working-set intent: no operations added');
+      throw new Error('Cannot queue empty strand intent: no operations added');
     }
     return Object.freeze({
-      intentId: buildIntentId(descriptor.workingSetId, intentQueue.nextIntentSeq),
+      intentId: buildIntentId(descriptor.strandId, intentQueue.nextIntentSeq),
       enqueuedAt: this._graph._clock.timestamp(),
       patch,
       reads: normalizeStringArray(patch.reads, 'reads[]'),
@@ -1253,7 +1253,7 @@ export default class WorkingSetService {
       if (conflictsWith.length > 0) {
         rejected.push({
           intentId: intent.intentId,
-          reason: WORKING_SET_COUNTERFACTUAL_REASON,
+          reason: STRAND_COUNTERFACTUAL_REASON,
           conflictsWith,
           reads: [...intent.reads],
           writes: [...intent.writes],
@@ -1267,7 +1267,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @param {Array<{
    *   intentId: string,
    *   enqueuedAt: string,
@@ -1292,7 +1292,7 @@ export default class WorkingSetService {
     for (const intent of admitted) {
       maxLamport += 1;
       const committed = await this._commitQueuedPatch({
-        workingSetId: descriptor.workingSetId,
+        strandId: descriptor.strandId,
         overlayId: descriptor.overlay.overlayId,
         parentSha: overlayHeadPatchSha,
         patch: intent.patch,
@@ -1314,12 +1314,12 @@ export default class WorkingSetService {
   /**
    * @private
    * @param {{
-   *   descriptor: WorkingSetDescriptor,
-   *   intentQueue: WorkingSetIntentQueue,
+   *   descriptor: StrandDescriptor,
+   *   intentQueue: StrandIntentQueue,
    *   tickIndex: number,
    *   now: string,
    *   committed: { overlayHeadPatchSha: string|null, overlayPatchCount: number, overlayPatchShas: string[], maxLamport: number },
-   *   tickRecord: WorkingSetTickRecord
+   *   tickRecord: StrandTickRecord
    * }} params
    * @returns {Promise<void>}
    */
@@ -1351,33 +1351,33 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
-   * @param {WorkingSetReadOptions} [options]
+   * @param {string} strandId
+   * @param {StrandReadOptions} [options]
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
-  async getPatchEntries(workingSetId, options = {}) {
-    const descriptor = await this.getOrThrow(workingSetId);
+  async getPatchEntries(strandId, options = {}) {
+    const descriptor = await this.getOrThrow(strandId);
     return await this._collectPatchEntries(descriptor, {
       ceiling: normalizeLamportCeiling(options.ceiling),
     });
   }
 
   /**
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {string} entityId
-   * @param {WorkingSetReadOptions} [options]
+   * @param {StrandReadOptions} [options]
    * @returns {Promise<string[]>}
    */
-  async patchesFor(workingSetId, entityId, options = {}) {
+  async patchesFor(strandId, entityId, options = {}) {
     const normalizedEntityId = normalizeOptionalString(entityId, 'entityId');
     if (!normalizedEntityId) {
-      throw new WorkingSetError('entityId must not be empty', {
-        code: 'E_WORKING_SET_INVALID_ARGS',
+      throw new StrandError('entityId must not be empty', {
+        code: 'E_STRAND_INVALID_ARGS',
         context: { field: 'entityId' },
       });
     }
 
-    const entries = await this.getPatchEntries(workingSetId, options);
+    const entries = await this.getPatchEntries(strandId, options);
     const shas = new Set();
     for (const { patch, sha } of entries) {
       if (patchTouchesEntity(patch, normalizedEntityId)) {
@@ -1388,15 +1388,15 @@ export default class WorkingSetService {
   }
 
   /**
-   * @param {string} workingSetId
- * @returns {Promise<WorkingSetDescriptor>}
+   * @param {string} strandId
+ * @returns {Promise<StrandDescriptor>}
  */
-  async getOrThrow(workingSetId) {
-    const descriptor = await this.get(workingSetId);
+  async getOrThrow(strandId) {
+    const descriptor = await this.get(strandId);
     if (!descriptor) {
-      throw new WorkingSetError(`Working set '${workingSetId}' not found`, {
-        code: 'E_WORKING_SET_NOT_FOUND',
-        context: { graphName: this._graph._graphName, workingSetId },
+      throw new StrandError(`Strand '${strandId}' not found`, {
+        code: 'E_STRAND_NOT_FOUND',
+        context: { graphName: this._graph._graphName, strandId },
       });
     }
     return descriptor;
@@ -1404,101 +1404,101 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {string}
    */
-  _buildRef(workingSetId) {
+  _buildRef(strandId) {
     try {
-      validateWriterId(workingSetId);
+      validateWriterId(strandId);
     } catch (err) {
-      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_WORKING_SET_ID_INVALID',
-        context: { workingSetId },
+      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_STRAND_ID_INVALID',
+        context: { strandId },
       });
     }
-    return buildWorkingSetRef(this._graph._graphName, workingSetId);
+    return buildStrandRef(this._graph._graphName, strandId);
   }
 
   /**
    * @private
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {string}
    */
-  _buildOverlayRef(workingSetId) {
+  _buildOverlayRef(strandId) {
     try {
-      validateWriterId(workingSetId);
+      validateWriterId(strandId);
     } catch (err) {
-      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_WORKING_SET_ID_INVALID',
-        context: { workingSetId },
+      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_STRAND_ID_INVALID',
+        context: { strandId },
       });
     }
-    return buildWorkingSetOverlayRef(this._graph._graphName, workingSetId);
+    return buildStrandOverlayRef(this._graph._graphName, strandId);
   }
 
   /**
    * @private
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {string}
    */
-  _buildBraidPrefix(workingSetId) {
+  _buildBraidPrefix(strandId) {
     try {
-      validateWriterId(workingSetId);
+      validateWriterId(strandId);
     } catch (err) {
-      throw new WorkingSetError(`Invalid working-set id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_WORKING_SET_ID_INVALID',
-        context: { workingSetId },
+      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_STRAND_ID_INVALID',
+        context: { strandId },
       });
     }
-    return buildWorkingSetBraidsPrefix(this._graph._graphName, workingSetId);
+    return buildStrandBraidsPrefix(this._graph._graphName, strandId);
   }
 
   /**
    * @private
-   * @param {string} workingSetId
-   * @param {string} braidedWorkingSetId
+   * @param {string} strandId
+   * @param {string} braidedStrandId
    * @returns {string}
    */
-  _buildBraidRef(workingSetId, braidedWorkingSetId) {
+  _buildBraidRef(strandId, braidedStrandId) {
     try {
-      validateWriterId(workingSetId);
-      validateWriterId(braidedWorkingSetId);
+      validateWriterId(strandId);
+      validateWriterId(braidedStrandId);
     } catch (err) {
-      throw new WorkingSetError(`Invalid working-set braid id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_WORKING_SET_ID_INVALID',
-        context: { workingSetId, braidedWorkingSetId },
+      throw new StrandError(`Invalid strand braid id: ${/** @type {Error} */ (err).message}`, {
+        code: 'E_STRAND_ID_INVALID',
+        context: { strandId, braidedStrandId },
       });
     }
-    return buildWorkingSetBraidRef(this._graph._graphName, workingSetId, braidedWorkingSetId);
+    return buildStrandBraidRef(this._graph._graphName, strandId, braidedStrandId);
   }
 
   /**
    * @private
    * @param {string} oid
-   * @param {string} workingSetId
-   * @returns {Promise<ReturnType<typeof parseWorkingSetBlob>>}
+   * @param {string} strandId
+   * @returns {Promise<ReturnType<typeof parseStrandBlob>>}
    */
-  async _readDescriptorByOid(oid, workingSetId) {
+  async _readDescriptorByOid(oid, strandId) {
     const buf = await this._graph._persistence.readBlob(oid);
     if (!buf) {
-      throw new WorkingSetError(`Working set '${workingSetId}' points to a missing blob`, {
-        code: 'E_WORKING_SET_MISSING_OBJECT',
-        context: { graphName: this._graph._graphName, workingSetId, oid },
+      throw new StrandError(`Strand '${strandId}' points to a missing blob`, {
+        code: 'E_STRAND_MISSING_OBJECT',
+        context: { graphName: this._graph._graphName, strandId, oid },
       });
     }
 
     try {
-      const descriptor = parseWorkingSetBlob(buf, `working set '${workingSetId}'`);
+      const descriptor = parseStrandBlob(buf, `strand '${strandId}'`);
       if (descriptor.graphName !== this._graph._graphName) {
         throw new Error('descriptor graphName does not match the current graph');
       }
       return descriptor;
     } catch (err) {
-      throw new WorkingSetError(`Working set '${workingSetId}' is corrupt`, {
-        code: 'E_WORKING_SET_CORRUPT',
+      throw new StrandError(`Strand '${strandId}' is corrupt`, {
+        code: 'E_STRAND_CORRUPT',
         context: {
           graphName: this._graph._graphName,
-          workingSetId,
+          strandId,
           oid,
           cause: /** @type {Error} */ (err).message,
         },
@@ -1508,11 +1508,11 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @returns {Promise<void>}
    */
   async _writeDescriptor(descriptor) {
-    const ref = this._buildRef(descriptor.workingSetId);
+    const ref = this._buildRef(descriptor.strandId);
     const oid = await this._graph._persistence.writeBlob(
       textEncode(JSON.stringify(descriptor)),
     );
@@ -1521,23 +1521,23 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} target
-   * @param {string[]} braidedWorkingSetIds
-   * @returns {Promise<WorkingSetReadOverlayDescriptor[]>}
+   * @param {StrandDescriptor} target
+   * @param {string[]} braidedStrandIds
+   * @returns {Promise<StrandReadOverlayDescriptor[]>}
    */
-  async _loadBraidedReadOverlays(target, braidedWorkingSetIds) {
-    /** @type {WorkingSetReadOverlayDescriptor[]} */
+  async _loadBraidedReadOverlays(target, braidedStrandIds) {
+    /** @type {StrandReadOverlayDescriptor[]} */
     const readOverlays = [];
-    for (const braidedWorkingSetId of braidedWorkingSetIds) {
-      const braided = await this.getOrThrow(braidedWorkingSetId);
+    for (const braidedStrandId of braidedStrandIds) {
+      const braided = await this.getOrThrow(braidedStrandId);
       if (!baseObservationsEqual(braided.baseObservation, target.baseObservation)) {
-        throw new WorkingSetError(
-          `Working set '${braidedWorkingSetId}' cannot be braided onto '${target.workingSetId}' because their pinned base observations differ`,
+        throw new StrandError(
+          `Strand '${braidedStrandId}' cannot be braided onto '${target.strandId}' because their pinned base observations differ`,
           {
-            code: 'E_WORKING_SET_COORDINATE_INVALID',
+            code: 'E_STRAND_COORDINATE_INVALID',
             context: {
-              workingSetId: target.workingSetId,
-              braidedWorkingSetId,
+              strandId: target.strandId,
+              braidedStrandId,
               targetBaseObservation: target.baseObservation,
               braidedBaseObservation: braided.baseObservation,
             },
@@ -1551,11 +1551,11 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @returns {Promise<{ headPatchSha: string|null, patchCount: number }>}
    */
-  async _readOverlayMetadata(workingSetId) {
-    const overlayRef = this._buildOverlayRef(workingSetId);
+  async _readOverlayMetadata(strandId) {
+    const overlayRef = this._buildOverlayRef(strandId);
     const headPatchSha = await this._graph._persistence.readRef(overlayRef);
     if (!headPatchSha) {
       return { headPatchSha: null, patchCount: 0 };
@@ -1569,19 +1569,19 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {ReturnType<typeof parseWorkingSetBlob>} descriptor
-   * @returns {Promise<WorkingSetDescriptor>}
+   * @param {ReturnType<typeof parseStrandBlob>} descriptor
+   * @returns {Promise<StrandDescriptor>}
    */
   async _hydrateOverlayMetadata(descriptor) {
     const braidedReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
     const writable = descriptor.overlay.writable ?? true;
-    const normalizedDescriptor = buildNormalizedWorkingSetDescriptor(
+    const normalizedDescriptor = buildNormalizedStrandDescriptor(
       descriptor,
       braidedReadOverlays,
       writable,
     );
     const descriptorReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
-    const overlay = await this._readOverlayMetadata(descriptor.workingSetId);
+    const overlay = await this._readOverlayMetadata(descriptor.strandId);
     if (normalizedDescriptorMatches(
       normalizedDescriptor,
       descriptorReadOverlays,
@@ -1604,7 +1604,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectBasePatches(descriptor) {
@@ -1634,7 +1634,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectOverlayPatches(descriptor) {
@@ -1646,7 +1646,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectBraidedOverlayPatches(descriptor) {
@@ -1666,7 +1666,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @param {{ ceiling: number|null }} options
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
@@ -1689,7 +1689,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
    * @returns {Promise<{
    *   state: import('./JoinReducer.js').WarpStateV5,
@@ -1746,7 +1746,7 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {WorkingSetDescriptor} descriptor
+   * @param {StrandDescriptor} descriptor
    * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result
    * @returns {Promise<void>}
    */
@@ -1776,7 +1776,7 @@ export default class WorkingSetService {
   /**
    * @private
    * @param {{
-   *   workingSetId: string,
+   *   strandId: string,
    *   overlayId: string,
    *   parentSha: string|null,
    *   patch: import('../types/WarpTypesV2.js').PatchV2,
@@ -1785,7 +1785,7 @@ export default class WorkingSetService {
    * }} params
    * @returns {Promise<{ sha: string, patch: import('../types/WarpTypesV2.js').PatchV2 }>}
    */
-  async _commitQueuedPatch({ workingSetId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
+  async _commitQueuedPatch({ strandId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
     const committedPatch = {
       ...patch,
       writer: overlayId,
@@ -1818,7 +1818,7 @@ export default class WorkingSetService {
       parents,
       message: commitMessage,
     });
-    await this._graph._persistence.updateRef(this._buildOverlayRef(workingSetId), sha);
+    await this._graph._persistence.updateRef(this._buildOverlayRef(strandId), sha);
     return {
       sha,
       patch: committedPatch,
@@ -1827,9 +1827,9 @@ export default class WorkingSetService {
 
   /**
    * @private
-   * @param {string} workingSetId
+   * @param {string} strandId
    * @param {Array<{
-   *   workingSetId: string,
+   *   strandId: string,
    *   overlayId: string,
    *   kind: string,
    *   headPatchSha: string|null,
@@ -1837,13 +1837,13 @@ export default class WorkingSetService {
    * }>} readOverlays
    * @returns {Promise<void>}
    */
-  async _syncBraidRefs(workingSetId, readOverlays) {
-    const prefix = this._buildBraidPrefix(workingSetId);
+  async _syncBraidRefs(strandId, readOverlays) {
+    const prefix = this._buildBraidPrefix(strandId);
     const existingRefs = await this._graph._persistence.listRefs(prefix);
     const nextRefs = new Set();
 
     for (const readOverlay of readOverlays) {
-      const ref = this._buildBraidRef(workingSetId, readOverlay.workingSetId);
+      const ref = this._buildBraidRef(strandId, readOverlay.strandId);
       nextRefs.add(ref);
       if (readOverlay.headPatchSha) {
         await this._graph._persistence.updateRef(ref, readOverlay.headPatchSha);

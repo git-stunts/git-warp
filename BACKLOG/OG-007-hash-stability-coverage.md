@@ -12,7 +12,7 @@ Closed by:
 ## Problem
 
 The read-boundary slice added detached snapshot behavior, but hash-stability
-coverage is still incomplete across receipt-enabled and working-set snapshots.
+coverage is still incomplete across receipt-enabled and strand snapshots.
 
 ## Why This Matters
 

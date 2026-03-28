@@ -13,7 +13,7 @@
 - Wired that helper through all public state-returning read paths:
   - `WarpRuntime.materialize(...)`
   - `WarpRuntime.materializeCoordinate(...)`
-  - `WarpRuntime.materializeWorkingSet(...)`
+  - `WarpRuntime.materializeStrand(...)`
   - `WarpRuntime.getStateSnapshot()`
   - `Worldline.materialize()`
 - Strengthened the read-side spec so public snapshots now reject ordinary
@@ -24,7 +24,7 @@
 - `aligned` — public snapshots no longer alias mutable runtime cache state.
 - `aligned` — nested `Map` / `Set` mutators now throw on returned snapshots.
 - `aligned` — `createStateReaderV5(...)` still works on hardened snapshots.
-- `aligned` — the hardening is shared across live, coordinate, working-set, and
+- `aligned` — the hardening is shared across live, coordinate, strand, and
   `getStateSnapshot()` paths rather than implemented piecemeal.
 - `partially aligned` — the stronger public `WarpState` noun did not land here.
   That remained outside the scope of `OG-003`.

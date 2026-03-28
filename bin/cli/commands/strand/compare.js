@@ -5,7 +5,7 @@ import { openGraph } from '../../shared.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 
-export const WORKING_SET_SUBCOMMAND = Object.freeze({
+export const STRAND_SUBCOMMAND = Object.freeze({
   name: 'compare',
   summary: 'Compare a strand against base, live, or another strand',
 });

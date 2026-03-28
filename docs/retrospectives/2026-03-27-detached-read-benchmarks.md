@@ -27,22 +27,22 @@ Environment at measurement time:
 
 Observed medians:
 
-- `250` patches: live `13.94ms`, coordinate `6.95ms`, working set `7.24ms`
-- `1000` patches: live `146.20ms`, coordinate `25.48ms`, working set `27.74ms`
-- `2500` patches: live `872.43ms`, coordinate `62.81ms`, working set `65.70ms`
+- `250` patches: live `13.94ms`, coordinate `6.95ms`, strand `7.24ms`
+- `1000` patches: live `146.20ms`, coordinate `25.48ms`, strand `27.74ms`
+- `2500` patches: live `872.43ms`, coordinate `62.81ms`, strand `65.70ms`
 
-At these scales, detached coordinate and working-set reads were faster than the
+At these scales, detached coordinate and strand reads were faster than the
 warm live `materialize()` baseline on this fixture.
 
 ## Design Alignment Audit
 
 - `aligned` — the slice measures all three intended read surfaces: live,
-  coordinate, and working set.
+  coordinate, and strand.
 - `aligned` — the unit spec proves the fixture semantics before the benchmark is
   used.
 - `aligned` — live and coordinate now resolve the same frontier, which isolates
   detached entry-point behavior more honestly than the first draft.
-- `aligned` — the working-set fixture diverges through overlay patches rather
+- `aligned` — the strand fixture diverges through overlay patches rather
   than through an unrelated shorter replay distance.
 - `aligned` — the benchmark remains informational and does not enforce hard CI
   latency gates.

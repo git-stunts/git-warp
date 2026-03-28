@@ -13,9 +13,9 @@ API.
 - Added a dedicated red spec for the observer/materialization boundary in
   `test/unit/domain/WarpGraph.observerBoundary.test.js`.
 - Changed public `materialize()`, `materializeCoordinate()`, and
-  `materializeWorkingSet()` returns to be detached from the caller graph's live
+  `materializeStrand()` returns to be detached from the caller graph's live
   cached state.
-- Moved coordinate and working-set public materialization onto detached graph
+- Moved coordinate and strand public materialization onto detached graph
   handles so read calls no longer retarget the live graph instance.
 - Updated observer snapshot construction to work from returned detached state
   rather than assuming the detached graph was mutated in place.
@@ -43,6 +43,6 @@ API.
 ## Verification
 
 - `npx vitest run test/unit/domain/WarpGraph.observerBoundary.test.js`
-- `npx vitest run test/unit/domain/WarpGraph.workingSets.test.js`
+- `npx vitest run test/unit/domain/WarpGraph.strands.test.js`
 - `npx vitest run test/unit/domain/WarpGraph.receipts.test.js`
 - `npx vitest run test/unit/domain`

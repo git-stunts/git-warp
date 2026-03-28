@@ -12,7 +12,7 @@
 - `index.d.ts` now labels broad runtime enumeration methods as inspection APIs.
 - The runtime `query()` docs now point consumers toward `Worldline` and
   `Observer` for stable product reads.
-- `materialize()`, `materializeCoordinate()`, `materializeWorkingSet()`, and
+- `materialize()`, `materializeCoordinate()`, `materializeStrand()`, and
   `Worldline.materialize()` now describe themselves as advanced substrate replay
   primitives instead of neutral everyday reads.
 - A script-level test now guards those cost signals.

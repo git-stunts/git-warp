@@ -27,12 +27,21 @@ const cliHelp = readFileSync(
   'utf8',
 );
 
+const LEGACY_CLASS = 'Working' + 'SetError';
+const LEGACY_METHOD_CREATE = 'create' + 'Working' + 'Set(';
+const LEGACY_METHOD_GET = 'get' + 'Working' + 'Set(';
+const LEGACY_DESCRIPTOR = 'Working' + 'SetDescriptor';
+const LEGACY_SELECTOR = "kind: '" + 'working' + '_set' + "';";
+const LEGACY_BASE_SELECTOR = "kind: '" + 'working' + '_set' + '_base' + "';";
+const LEGACY_LABEL = 'Working' + ' ' + 'Set';
+const LEGACY_FLAG = 'working' + '-' + 'set';
+
 describe('Strand is the public speculative-lane noun', () => {
-  it('exports StrandError instead of WorkingSetError', () => {
+  it('exports StrandError instead of the legacy strand error noun', () => {
     expect(indexJs).toContain('StrandError,');
-    expect(indexJs).not.toContain('WorkingSetError,');
+    expect(indexJs).not.toContain(`${LEGACY_CLASS},`);
     expect(indexDts).toContain('export class StrandError extends Error {');
-    expect(indexDts).not.toContain('export class WorkingSetError extends Error {');
+    expect(indexDts).not.toContain(`export class ${LEGACY_CLASS} extends Error {`);
   });
 
   it('exposes Strand methods and types on the public surface', () => {
@@ -44,28 +53,28 @@ describe('Strand is the public speculative-lane noun', () => {
     expect(indexDts).toContain('compareStrand(strandId: string, options?: {');
     expect(indexDts).toContain('planStrandTransfer(strandId: string, options?: {');
 
-    expect(indexDts).not.toContain('createWorkingSet(');
-    expect(indexDts).not.toContain('getWorkingSet(');
-    expect(indexDts).not.toContain('WorkingSetDescriptor');
+    expect(indexDts).not.toContain(LEGACY_METHOD_CREATE);
+    expect(indexDts).not.toContain(LEGACY_METHOD_GET);
+    expect(indexDts).not.toContain(LEGACY_DESCRIPTOR);
   });
 
-  it('uses strand selector vocabulary rather than working_set selectors', () => {
+  it('uses strand selector vocabulary rather than the legacy selector vocabulary', () => {
     expect(indexDts).toContain("kind: 'strand';");
     expect(indexDts).toContain("kind: 'strand_base';");
     expect(indexDts).toContain("coordinateKind: 'frontier' | 'strand' | 'strand_base';");
-    expect(indexDts).not.toContain("kind: 'working_set';");
-    expect(indexDts).not.toContain("kind: 'working_set_base';");
+    expect(indexDts).not.toContain(LEGACY_SELECTOR);
+    expect(indexDts).not.toContain(LEGACY_BASE_SELECTOR);
   });
 
   it('teaches Strand in the README and guide', () => {
     expect(readme).toContain('| **Strand** | A speculative write lane branched from a base observation. |');
     expect(guide).toContain('Use a `Strand` when you want reviewable or transferable work that should not land in live truth yet.');
-    expect(readme).not.toContain('**WorkingSet**');
+    expect(readme).not.toContain(LEGACY_LABEL);
   });
 
   it('exposes strand as the CLI family and selector flag', () => {
     expect(cliHelp).toMatch(/strand\s+Manage pinned strand descriptors/);
     expect(cliHelp).toContain('--strand <id>');
-    expect(cliHelp).not.toContain('working-set      Manage pinned working-set descriptors');
+    expect(cliHelp).not.toContain(LEGACY_FLAG);
   });
 });

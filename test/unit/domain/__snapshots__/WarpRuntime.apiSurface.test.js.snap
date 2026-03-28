@@ -167,7 +167,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "braidWorkingSet": {
+  "braidStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -177,7 +177,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "compareWorkingSet": {
+  "compareStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -192,17 +192,17 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "createStrand": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "createStrandPatch": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "createSyncRequest": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
-  "createWorkingSet": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
-  "createWorkingSetPatch": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -227,7 +227,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "dropWorkingSet": {
+  "dropStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -312,12 +312,12 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "getWorkingSet": {
+  "getStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
   },
-  "getWorkingSetPatches": {
+  "getStrandPatches": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -352,12 +352,12 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "listWorkingSetIntents": {
+  "listStrandIntents": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
   },
-  "listWorkingSets": {
+  "listStrands": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -387,7 +387,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "materializeWorkingSet": {
+  "materializeStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -422,7 +422,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "patchWorkingSet": {
+  "patchStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -432,7 +432,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "patchesForWorkingSet": {
+  "patchesForStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -447,7 +447,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "planWorkingSetTransfer": {
+  "planStrandTransfer": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -467,7 +467,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "queueWorkingSetIntent": {
+  "queueStrandIntent": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -522,7 +522,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "getter",
   },
-  "tickWorkingSet": {
+  "tickStrand": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -597,19 +597,19 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "_validatePatchAgainstCheckpoint",
   "analyzeConflicts",
   "applySyncResponse",
-  "braidWorkingSet",
+  "braidStrand",
   "compareCoordinates",
-  "compareWorkingSet",
+  "compareStrand",
   "createCheckpoint",
   "createPatch",
+  "createStrand",
+  "createStrandPatch",
   "createSyncRequest",
-  "createWorkingSet",
-  "createWorkingSetPatch",
   "createWormhole",
   "createWriter",
   "discoverTicks",
   "discoverWriters",
-  "dropWorkingSet",
+  "dropStrand",
   "fork",
   "gcPolicy",
   "getContent",
@@ -626,38 +626,38 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "getNodes",
   "getPropertyCount",
   "getStateSnapshot",
-  "getWorkingSet",
-  "getWorkingSetPatches",
+  "getStrand",
+  "getStrandPatches",
   "getWriterPatches",
   "graphName",
   "hasFrontierChanged",
   "hasNode",
   "invalidateIndex",
   "join",
-  "listWorkingSetIntents",
-  "listWorkingSets",
+  "listStrandIntents",
+  "listStrands",
   "loadPatchBySha",
   "materialize",
   "materializeAt",
   "materializeCoordinate",
   "materializeSlice",
-  "materializeWorkingSet",
+  "materializeStrand",
   "maybeRunGC",
   "neighbors",
   "observer",
   "onDeleteWithData",
   "patch",
   "patchMany",
-  "patchWorkingSet",
+  "patchStrand",
   "patchesFor",
-  "patchesForWorkingSet",
+  "patchesForStrand",
   "persistence",
   "planCoordinateTransfer",
-  "planWorkingSetTransfer",
+  "planStrandTransfer",
   "processSyncRequest",
   "provenanceIndex",
   "query",
-  "queueWorkingSetIntent",
+  "queueStrandIntent",
   "runGC",
   "seekCache",
   "serve",
@@ -668,7 +668,7 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "syncNeeded",
   "syncWith",
   "temporal",
-  "tickWorkingSet",
+  "tickStrand",
   "translationCost",
   "verifyIndex",
   "watch",

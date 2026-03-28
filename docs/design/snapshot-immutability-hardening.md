@@ -18,7 +18,7 @@ Today:
 
 - `materialize()` returns a detached clone
 - `materializeCoordinate()` returns a detached clone
-- `materializeWorkingSet()` returns a detached clone
+- `materializeStrand()` returns a detached clone
 - `getStateSnapshot()` returns a detached clone
 
 But those clones still expose mutable nested containers and payload objects.
@@ -108,7 +108,7 @@ This slice should harden every public API that returns materialized state:
 
 - `WarpRuntime.materialize(...)`
 - `WarpRuntime.materializeCoordinate(...)`
-- `WarpRuntime.materializeWorkingSet(...)`
+- `WarpRuntime.materializeStrand(...)`
 - `WarpRuntime.getStateSnapshot()`
 - `Worldline.materialize()`
 
@@ -127,7 +127,7 @@ After this slice lands:
 4. Mutating a nested property payload object from the returned snapshot does not
    affect live runtime state.
 5. `createStateReaderV5(snapshot)` still works.
-6. Detached immutability applies equally to live, coordinate, and working-set
+6. Detached immutability applies equally to live, coordinate, and strand
    materialization.
 
 ---

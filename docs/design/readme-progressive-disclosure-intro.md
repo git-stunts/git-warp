@@ -89,7 +89,7 @@ The README introduction should not rely on:
 - holography
 - wormholes
 - settlement transfer planning
-- advanced working-set mechanics
+- advanced strand mechanics
 
 Those are real and important, but they are not required to get through the
 first-use path.

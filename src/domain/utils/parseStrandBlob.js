@@ -1,7 +1,7 @@
 /**
- * Utilities for parsing working-set descriptor blobs stored as Git refs.
+ * Utilities for parsing strand descriptor blobs stored as Git refs.
  *
- * @module parseWorkingSetBlob
+ * @module parseStrandBlob
  */
 
 import { textDecode } from './bytes.js';
@@ -43,7 +43,7 @@ function invariant(condition, message) {
  */
 function validateTopLevelFields(obj, label) {
   invariant(obj.schemaVersion === 1, `Corrupted ${label}: unsupported schemaVersion`);
-  invariant(typeof obj.workingSetId === 'string' && obj.workingSetId.length > 0, `Corrupted ${label}: missing workingSetId`);
+  invariant(typeof obj.strandId === 'string' && obj.strandId.length > 0, `Corrupted ${label}: missing strandId`);
   invariant(typeof obj.graphName === 'string' && obj.graphName.length > 0, `Corrupted ${label}: missing graphName`);
   invariant(typeof obj.createdAt === 'string' && obj.createdAt.length > 0, `Corrupted ${label}: missing createdAt`);
   invariant(typeof obj.updatedAt === 'string' && obj.updatedAt.length > 0, `Corrupted ${label}: missing updatedAt`);
@@ -163,8 +163,8 @@ function validateBraid(obj, label) {
     const overlay = /** @type {Record<string, unknown>} */ (rawOverlay);
     invariant(isPlainObject(overlay), `Corrupted ${label}: braid.readOverlays entries must be objects`);
     invariant(
-      typeof overlay.workingSetId === 'string' && overlay.workingSetId.length > 0,
-      `Corrupted ${label}: braid.readOverlays[].workingSetId must be a string`,
+      typeof overlay.strandId === 'string' && overlay.strandId.length > 0,
+      `Corrupted ${label}: braid.readOverlays[].strandId must be a string`,
     );
     invariant(
       typeof overlay.overlayId === 'string' && overlay.overlayId.length > 0,
@@ -378,7 +378,7 @@ function validateEvolution(obj, label) {
 }
 
 /**
- * Parses and validates a working-set descriptor blob.
+ * Parses and validates a strand descriptor blob.
  *
  * The blob must contain UTF-8 JSON for the v1 descriptor shape. Unknown fields
  * are preserved, but the core identity and coordinate fields must be valid.
@@ -387,7 +387,7 @@ function validateEvolution(obj, label) {
  * @param {string} label
  * @returns {{
  *   schemaVersion: number,
- *   workingSetId: string,
+ *   strandId: string,
  *   graphName: string,
  *   createdAt: string,
  *   updatedAt: string,
@@ -409,7 +409,7 @@ function validateEvolution(obj, label) {
  *   },
  *   braid?: {
  *     readOverlays: Array<{
- *       workingSetId: string,
+ *       strandId: string,
  *       overlayId: string,
  *       kind: string,
  *       headPatchSha: string|null,
@@ -422,7 +422,7 @@ function validateEvolution(obj, label) {
  *   [key: string]: unknown
  * }}
  */
-export function parseWorkingSetBlob(buf, label) {
+export function parseStrandBlob(buf, label) {
   let obj;
   try {
     obj = JSON.parse(textDecode(buf));
@@ -443,5 +443,5 @@ export function parseWorkingSetBlob(buf, label) {
   validateEvolution(obj, label);
   validateMaterialization(obj, label);
 
-  return /** @type {ReturnType<typeof parseWorkingSetBlob>} */ (obj);
+  return /** @type {ReturnType<typeof parseStrandBlob>} */ (obj);
 }

@@ -1,23 +1,23 @@
 const TO_PUBLIC_KEY = new Map([
-  ['workingSet', 'strand'],
-  ['workingSetId', 'strandId'],
-  ['braidedWorkingSetIds', 'braidedStrandIds'],
+  ['strand', 'strand'],
+  ['strandId', 'strandId'],
+  ['braidedStrandIds', 'braidedStrandIds'],
 ]);
 
 const TO_INTERNAL_KEY = new Map([
-  ['strand', 'workingSet'],
-  ['strandId', 'workingSetId'],
-  ['braidedStrandIds', 'braidedWorkingSetIds'],
+  ['strand', 'strand'],
+  ['strandId', 'strandId'],
+  ['braidedStrandIds', 'braidedStrandIds'],
 ]);
 
 const TO_PUBLIC_KIND = new Map([
-  ['working_set', 'strand'],
-  ['working_set_base', 'strand_base'],
+  ['strand', 'strand'],
+  ['strand_base', 'strand_base'],
 ]);
 
 const TO_INTERNAL_KIND = new Map([
-  ['strand', 'working_set'],
-  ['strand_base', 'working_set_base'],
+  ['strand', 'strand'],
+  ['strand_base', 'strand_base'],
 ]);
 
 /**
@@ -78,7 +78,7 @@ function transform(value, keyMap, kindMap) {
 }
 
 /**
- * Converts a public strand-shaped object into the internal working-set-shaped
+ * Converts a public strand-shaped object into the internal strand-shaped
  * equivalent. Intended for API inputs only.
  *
  * @template T
@@ -90,7 +90,7 @@ export function toInternalStrandShape(value) {
 }
 
 /**
- * Converts an internal working-set-shaped object into the public strand-shaped
+ * Converts an internal strand-shaped object into the public strand-shaped
  * equivalent. Intended for API outputs only.
  *
  * @template T

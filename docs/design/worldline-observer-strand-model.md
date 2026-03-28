@@ -1,4 +1,4 @@
-# RFC: Worldlines, Immutable WarpGraphs, Observers, and WorkingSets
+# RFC: Worldlines, Immutable WarpGraphs, Observers, and Strands
 
 **Status:** DESIGN
 **Date:** 2026-03-26
@@ -14,10 +14,10 @@
 ## Purpose
 
 This note captures the stronger model now intended for git-warp after the
-docs-first observer/working-set checkpoint.
+docs-first observer/strand checkpoint.
 
 The previous boundary note correctly identified that observers should be the
-preferred read-side abstraction and working sets the preferred speculative
+preferred read-side abstraction and strands the preferred speculative
 write abstraction. That note did **not** go far enough on the underlying noun
 split.
 
@@ -26,7 +26,7 @@ The public model should be:
 - `Worldline` is the append-only causal history handle
 - `WarpGraph` is the immutable materialized snapshot at one coordinate
 - `Observer` is an immutable read-only view over a worldline coordinate
-- `WorkingSet` is the speculative write handle over a child worldline
+- `Strand` is the speculative write handle over a child worldline
 - `BTR` is the causal boundary/hologram appended to a worldline on each tick
 
 This is a stronger statement than "WarpGraph is plumbing." It means the current
@@ -53,7 +53,7 @@ In that model:
 - materialization is replay
 - replay produces immutable snapshots
 - observers never mutate snapshots
-- working sets never mutate canonical worldlines directly
+- strands never mutate canonical worldlines directly
 - ticks append new BTRs to child worldlines
 - transfer/collapse remains a later explicit move between worldlines
 
@@ -66,7 +66,7 @@ instance that:
 
 - owns cached state
 - is retargeted by coordinate materialization
-- is retargeted by working-set materialization
+- is retargeted by strand materialization
 - is then wrapped by snapshotting helpers to simulate independent reads
 
 That shape is serviceable for incremental evolution, but it bakes in the wrong
@@ -75,7 +75,7 @@ ontology:
 - `WarpGraph` looks like a live mutable session instead of an immutable graph
 - "materialize" looks like mutating one handle instead of producing a snapshot
 - observers look like filtered wrappers around mutable substrate plumbing
-- working sets look like overlay patch logs instead of child worldlines with
+- strands look like overlay patch logs instead of child worldlines with
   tick semantics
 
 Because major-version API changes are acceptable, git-warp should correct the
@@ -134,9 +134,9 @@ An observer should be treated as immutable. Seeking should return a **new**
 observer bound to a different lawful coordinate instead of mutating the current
 observer in place.
 
-### `WorkingSet`
+### `Strand`
 
-A `WorkingSet` is the speculative write porcelain:
+A `Strand` is the speculative write porcelain:
 
 - a child worldline
 - an observer-relative read surface over that child worldline
@@ -144,7 +144,7 @@ A `WorkingSet` is the speculative write porcelain:
 - deterministic tick semantics
 - BTR emission on successful tick
 
-The working set does not mutate its parent worldline. It appends to its own
+The strand does not mutate its parent worldline. It appends to its own
 child worldline, which shares prefix history structurally with its ancestor.
 
 ### `BTR`
@@ -172,7 +172,7 @@ To avoid repeating the current confusion, the naming split should be:
 - `WarpState`: internal in-memory structural representation used during replay
 - `ObserverProjection`: optional derived observer-filtered cached view
 - `Worldline`: public history handle
-- `WorkingSet`: public speculative child-worldline handle
+- `Strand`: public speculative child-worldline handle
 
 The current mutable/session façade should be renamed away from `WarpGraph`.
 Placeholder names:
@@ -206,7 +206,7 @@ This is the right API-level coordinate because:
 - it is stable for observers
 - it matches worldline semantics
 - multiple observers can occupy different ticks on the same worldline
-- a working set can append beyond previously observed ticks without changing
+- a strand can append beyond previously observed ticks without changing
   what an existing observer sees
 
 ### Content identity
@@ -364,9 +364,9 @@ better noun than `WarpGraph` or `WarpState`.
 
 ---
 
-## WorkingSet Model
+## Strand Model
 
-A `WorkingSet` is a writable child worldline with deterministic tick semantics.
+A `Strand` is a writable child worldline with deterministic tick semantics.
 
 It should be understood as:
 
@@ -377,7 +377,7 @@ It should be understood as:
 
 ### Parent / child behavior
 
-If working set `C` is forked from worldline `P` at tick \( t_f \):
+If strand `C` is forked from worldline `P` at tick \( t_f \):
 
 - `C` inherits `P`'s history through \( t_f \)
 - `C` may append its own BTR suffix after \( t_f \)
@@ -406,10 +406,10 @@ mechanisms, but the semantic model is:
 
 The write path should be:
 
-1. enqueue graph rewrite intents against a working set
+1. enqueue graph rewrite intents against a strand
 2. compute the deterministic rewrite bundle for one tick
 3. emit a BTR for that tick
-4. append the BTR to the working set's child worldline
+4. append the BTR to the strand's child worldline
 5. materialize and cache the resulting immutable frontier snapshot
 
 ### Intent
@@ -430,17 +430,17 @@ footprint. There is no separate loophole for attachments.
 
 ### Tick
 
-Ticking a working set means:
+Ticking a strand means:
 
 1. sort queued intents deterministically
 2. iterate through intents in that order
 3. admit an intent only if its footprint does not overlap with the already
    admitted set
 4. reject conflicting intents as counterfactuals
-5. apply the admitted rewrites to the working-set frontier `WarpGraph`
+5. apply the admitted rewrites to the strand frontier `WarpGraph`
 6. emit a BTR carrying the admitted set, receipts, and rejected
    counterfactuals
-7. append that BTR to the child worldline as the new working-set frontier
+7. append that BTR to the child worldline as the new strand frontier
 
 Because admitted footprints are disjoint, rewrite application order inside the
 bundle should be semantically irrelevant.
@@ -526,16 +526,16 @@ const earlier = observer.seek(12);
 The public speculative story should look like:
 
 ```javascript
-const workingSet = await worldline.forkWorkingSet({
-  workingSetId: 'plan-rewrite',
+const strand = await worldline.forkStrand({
+  strandId: 'plan-rewrite',
   atTick: 42,
 });
 
-await workingSet.queueIntent(intentA);
-await workingSet.queueIntent(intentB);
+await strand.queueIntent(intentA);
+await strand.queueIntent(intentB);
 
-const tick = await workingSet.tick();
-const nextGraph = await workingSet.materialize();
+const tick = await strand.tick();
+const nextGraph = await strand.materialize();
 ```
 
 This note does **not** fix the exact method names. It fixes the noun model and
@@ -553,7 +553,7 @@ deliberately.
 At the substrate level:
 
 - worldlines may tick independently
-- working sets may tick independently
+- strands may tick independently
 - parent and child worldlines do not advance in lockstep
 - observers remain pinned to their own coordinates unless explicitly re-seeked
 
@@ -577,7 +577,7 @@ One useful model is:
 where:
 
 - \( g \) is a global debugger-frame index over a merged event stream
-- \( \mathcal{A} \) is the set of active worldlines/working sets in the current
+- \( \mathcal{A} \) is the set of active worldlines/strands in the current
   debugger session
 - \( c_W(g) \) is the latest coordinate on worldline \( W \) visible at
   debugger frame \( g \)
@@ -643,14 +643,14 @@ The intended model likely requires:
 - introducing first-class `Worldline`
 - making `WarpGraph` immutable by construction
 - making observer handles immutable
-- moving materialization to worldline/working-set APIs
-- turning current working-set overlay mechanics into an implementation detail
+- moving materialization to worldline/strand APIs
+- turning current strand overlay mechanics into an implementation detail
   of child-worldline replay
 - replacing any shallow-frozen materialized-state returns with truly immutable
   snapshots
 
 The current coordinate materialization, detached observer snapshotting, and
-working-set descriptor model are therefore best treated as transitional
+strand descriptor model are therefore best treated as transitional
 substrate steps, not the final architecture.
 
 ---
@@ -680,7 +680,7 @@ informal design preferences.
 1. `Worldline` is the authoritative append-only causal history handle.
 2. `WarpGraph` means immutable materialized snapshot only.
 3. `Observer` means immutable read handle only.
-4. `WorkingSet` means speculative child-worldline write handle only.
+4. `Strand` means speculative child-worldline write handle only.
 5. `BTR` is the authoritative tick-level boundary record appended to a
    worldline.
 6. No mutable/session façade may continue to use the `WarpGraph` noun.
@@ -735,11 +735,11 @@ informal design preferences.
 6. Observer projection must not become a second hidden graph system above the
    canonical snapshot.
 
-### G. Working-set invariants
+### G. Strand invariants
 
-1. A working set is a child worldline, not a mutable overlay pretending to be
+1. A strand is a child worldline, not a mutable overlay pretending to be
    one.
-2. Ticking a working set appends only to that child worldline.
+2. Ticking a strand appends only to that child worldline.
 3. Ticking a child worldline does not mutate its parent worldline.
 4. Ticking a parent worldline does not automatically advance existing children.
 5. Forked worldlines share prefix history structurally but own independent
@@ -855,7 +855,7 @@ The rewrite should preserve these commitments:
 - BTRs are the authoritative tick-level boundary records.
 - `WarpGraph` means immutable materialized snapshot.
 - Observers are immutable read handles.
-- Working sets are child-worldline speculative write handles.
+- Strands are child-worldline speculative write handles.
 - Attachment-plane truth is first-class and included in hashing, replay, and
   footprint analysis.
 - Shared-prefix / braid semantics should reuse content without collapsing
@@ -868,11 +868,11 @@ The rewrite should preserve these commitments:
 
 This note supersedes the older, weaker reading of:
 
-- `docs/design/observer-working-set-boundary.md`
+- `docs/design/observer-strand-boundary.md`
 
 and constrains future work described in:
 
-- `docs/design/working-set-intent-ticks.md`
+- `docs/design/strand-intent-ticks.md`
 
 Those notes remain useful historical context, but their use of `WarpGraph` as a
 lower-level session façade should be treated as transitional rather than

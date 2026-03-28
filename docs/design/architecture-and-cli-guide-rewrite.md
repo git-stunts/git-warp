@@ -14,7 +14,7 @@ The documentation corpus audit identified two remaining canonical docs that stil
 Both files were still teaching removed or stale ideas:
 
 - `WarpGraph` as the public root
-- `working-set` as the product noun
+- `strand` as the product noun
 - a flatter runtime story than the current `WarpApp` / `WarpCore` split
 - outdated CLI examples and setup code
 

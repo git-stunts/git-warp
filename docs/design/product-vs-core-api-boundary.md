@@ -14,7 +14,7 @@ Cycle: OG-010
 - `Lens`
 - `Observer`
 - detached immutable snapshots
-- pinned working-set reads
+- pinned strand reads
 
 But the public surface still mixes two different kinds of value:
 
@@ -91,14 +91,14 @@ This should be treated as primary product API, not debugger jargon.
 
 Conceptually primary:
 
-- working sets
+- strands
 - intent queues
 - deterministic ticking
 - speculative divergence from canonical history
 
 Current public noun:
 
-- `WorkingSet`
+- `Strand`
 
 Likely future product noun:
 
@@ -158,7 +158,7 @@ They exist because honest tooling and infrastructure need them.
 
 - `materialize()`
 - `materializeCoordinate()`
-- `materializeWorkingSet()`
+- `materializeStrand()`
 - `materializeSlice()`
 
 These are substrate mechanics and should be framed that way.
@@ -200,7 +200,7 @@ thing most app builders should see first.
 ### 4. Transfer / comparison / settlement tooling
 
 - compare coordinates
-- compare working sets
+- compare strands
 - transfer plans
 - scope-aware fact exports
 
@@ -312,7 +312,7 @@ It also aligns with the future Echo/Wesley compatibility goal:
 - `Worldline.observer()`
 - `Observer.query()`
 - `Observer.traverse`
-- working-set / strand creation and normal speculative workflows
+- strand / strand creation and normal speculative workflows
 - braid composition where it participates directly in normal app behavior
 
 ### Core-facing stratum
@@ -323,7 +323,7 @@ It also aligns with the future Echo/Wesley compatibility goal:
 - `PlaybackHead` creation/selection/step/seek once exposed concretely
 - receipts / provenance
 - BTR / wormhole
-- coordinate / working-set comparison
+- coordinate / strand comparison
 - transfer plans
 - checkpoint / GC / index / seek-cache lifecycle mechanics
 
@@ -331,7 +331,7 @@ It also aligns with the future Echo/Wesley compatibility goal:
 
 1. Should direct root `query()` / `traverse` remain in the product-facing
    stratum, or should those also move to explicit inspection/core placement?
-2. Should speculative lanes ship in v15 under `WorkingSet`, or is the noun cut
+2. Should speculative lanes ship in v15 under `Strand`, or is the noun cut
    to `Strand` important enough to do before release?
 3. Is braid mature enough to foreground as a primary feature, or should it
    remain documented but secondary in v15?

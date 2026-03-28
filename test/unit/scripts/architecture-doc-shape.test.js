@@ -23,6 +23,6 @@ describe('architecture doc shape', () => {
     expect(architecture).toContain('`Observer`');
     expect(architecture).toContain('`Strand`');
     expect(architecture).not.toContain('# WarpGraph Architecture');
-    expect(architecture).not.toContain('## Working-Set Boundary');
+    expect(architecture).not.toContain('## Strand Boundary');
   });
 });

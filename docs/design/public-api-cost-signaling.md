@@ -68,7 +68,7 @@ keeping the real warning aimed at app-local graph reconstruction.
 ## Non-goals
 
 - no runtime warnings in this slice
-- no renaming of `WorkingSet`
+- no renaming of `Strand`
 - no introduction of `Lens` as a public noun here
 - no application-specific query helpers
 

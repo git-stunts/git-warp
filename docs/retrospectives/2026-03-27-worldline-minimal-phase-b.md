@@ -12,7 +12,7 @@ full tick-indexed worldline model.
 - Added exported `Worldline` class.
 - Added `WarpGraph.worldline()` as the public entry point.
 - Added detached `Worldline.materialize()` across live, coordinate, and
-  working-set sources.
+  strand sources.
 - Added `Worldline.observer()` so observers can now be created from a
   first-class history handle rather than only from `WarpGraph`.
 - Added immutable `Worldline.seek()` returning a new worldline handle.

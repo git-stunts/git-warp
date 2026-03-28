@@ -883,8 +883,8 @@ function formatOpSummaryInline(summary) {
 function renderStrandDebugContextLines(strand) {
   const braidedStrandIds = strand.braid?.braidedStrandIds ?? [];
   return [
-    `Working-Set Overlay: head=${strand.overlayHeadPatchSha ?? 'none'} patches=${strand.overlayPatchCount} base-ceiling=${strand.baseLamportCeiling ?? 'latest'} writable=${strand.overlayWritable ? 'yes' : 'no'}`,
-    `Working-Set Braids: ${braidedStrandIds.length === 0 ? 'none' : braidedStrandIds.join(', ')}`,
+    `Strand Overlay: head=${strand.overlayHeadPatchSha ?? 'none'} patches=${strand.overlayPatchCount} base-ceiling=${strand.baseLamportCeiling ?? 'latest'} writable=${strand.overlayWritable ? 'yes' : 'no'}`,
+    `Strand Braids: ${braidedStrandIds.length === 0 ? 'none' : braidedStrandIds.join(', ')}`,
   ];
 }
 
@@ -894,7 +894,7 @@ function renderDebugConflicts(payload) {
     `Graph: ${payload.graph}`,
     `Topic: conflicts`,
     `Analysis Version: ${payload.analysisVersion}`,
-    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
+    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
     `Coordinate Kind: ${payload.resolvedCoordinate.coordinateKind}`,
     `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
     `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.frontier).length}`,
@@ -982,7 +982,7 @@ function renderDebugProvenance(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: provenance',
-    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
+    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
     `Entity: ${payload.entityId}`,
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Patches: ${payload.returnedPatches}/${payload.totalPatches}`,
@@ -1017,7 +1017,7 @@ function renderDebugReceipts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: receipts',
-    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
+    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Receipts: ${payload.returnedReceipts}/${payload.matchedReceipts} matched (${payload.totalReceipts} total)`,
     `Results: applied=${payload.summary.results.applied} superseded=${payload.summary.results.superseded} redundant=${payload.summary.results.redundant}`,
@@ -1068,7 +1068,7 @@ function renderDebugTimeline(payload) {
     `Graph: ${payload.graph}`,
     'Topic: timeline',
     `Source: ${payload.coordinateSource}`,
-    ...(payload.strandId ? [`Working Set: ${payload.strandId}`] : []),
+    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
     `Lamport Window: ${payload.filters.lamportFloor ?? 0}..${payload.filters.lamportCeiling ?? 'head'}`,
     `Entries: ${payload.returnedEntries}/${payload.totalEntries}`,
   ];
@@ -1137,7 +1137,7 @@ export function renderDebug(payload) {
 function renderStrandDescriptorLines(strand) {
   const braidedStrandIds = strand.braid.readOverlays.map((overlay) => overlay.strandId);
   return [
-    `Working Set: ${strand.strandId}`,
+    `Strand: ${strand.strandId}`,
     `Created At: ${strand.createdAt}`,
     `Owner: ${strand.owner ?? 'none'}`,
     `Scope: ${strand.scope ?? 'none'}`,
@@ -1157,7 +1157,7 @@ export function renderStrand(payload) {
   if (payload.strandAction === 'list') {
     const lines = [
       `Graph: ${payload.graph}`,
-      'Working Sets:',
+      'Strands:',
     ];
 
     if (payload.strands.length === 0) {
@@ -1174,7 +1174,7 @@ export function renderStrand(payload) {
   if (payload.strandAction === 'drop') {
     return [
       `Graph: ${payload.graph}`,
-      `Working Set: ${payload.strandId}`,
+      `Strand: ${payload.strandId}`,
       `Dropped: ${payload.dropped ? 'yes' : 'no'}`,
       '',
     ].join('\n');
@@ -1183,7 +1183,7 @@ export function renderStrand(payload) {
   if (payload.strandAction === 'materialize') {
     const lines = [
       `Graph: ${payload.graph}`,
-      'Working Set Action: materialize',
+      'Strand Action: materialize',
       ...renderStrandDescriptorLines(payload.strand),
       `State Summary: nodes=${payload.summary.nodeCount} edges=${payload.summary.edgeCount} props=${payload.summary.propertyCount} receipts=${payload.summary.receiptCount}`,
     ];
@@ -1197,8 +1197,8 @@ export function renderStrand(payload) {
     const stateSummary = comparison.visibleState.summary;
     const lines = [
       `Graph: ${payload.graph}`,
-      'Working Set Action: compare',
-      `Working Set: ${payload.strandId}`,
+      'Strand Action: compare',
+      `Strand: ${payload.strandId}`,
       `Against: ${payload.against}`,
       `Comparison Digest: ${comparison.comparisonDigest}`,
       `Changed: ${comparison.visibleState.changed ? 'yes' : 'no'}`,
@@ -1227,8 +1227,8 @@ export function renderStrand(payload) {
     const { summary } = transferPlan;
     const lines = [
       `Graph: ${payload.graph}`,
-      'Working Set Action: transfer-plan',
-      `Working Set: ${payload.strandId}`,
+      'Strand Action: transfer-plan',
+      `Strand: ${payload.strandId}`,
       `Into: ${payload.into}`,
       `Transfer Digest: ${transferPlan.transferDigest}`,
       `Comparison Digest: ${transferPlan.comparisonDigest}`,
@@ -1245,7 +1245,7 @@ export function renderStrand(payload) {
 
   const lines = [
     `Graph: ${payload.graph}`,
-    `Working Set Action: ${payload.strandAction}`,
+    `Strand Action: ${payload.strandAction}`,
     ...renderStrandDescriptorLines(payload.strand),
   ];
   return `${lines.join('\n')}\n`;

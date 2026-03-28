@@ -376,21 +376,21 @@ function normalizeDepth(depth) {
 }
 
 /**
- * Applies a single-hop traversal from a working set of nodes.
+ * Applies a single-hop traversal from a strand of nodes.
  *
  * Collects all neighbors reachable via one edge in the specified direction,
  * optionally filtered by edge label.
  *
- * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, workingSet: string[], adjacency: AdjacencyMaps }} params - Traversal parameters
+ * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, strand: string[], adjacency: AdjacencyMaps }} params - Traversal parameters
  * @returns {string[]} Sorted array of neighbor node IDs
  * @private
  */
-function applyHop({ direction, label, workingSet, adjacency }) {
+function applyHop({ direction, label, strand, adjacency }) {
   const next = new Set();
   const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
   const labelFilter = label === undefined ? null : label;
 
-  for (const nodeId of workingSet) {
+  for (const nodeId of strand) {
     const edges = source.get(nodeId) || [];
     for (const edge of edges) {
       if (labelFilter && edge.label !== labelFilter) {
@@ -404,7 +404,7 @@ function applyHop({ direction, label, workingSet, adjacency }) {
 }
 
 /**
- * Applies a multi-hop BFS traversal from a working set of nodes.
+ * Applies a multi-hop BFS traversal from a strand of nodes.
  *
  * Performs breadth-first traversal up to maxDepth hops, collecting nodes
  * that fall within the [minDepth, maxDepth] range. Each node is visited
@@ -412,21 +412,21 @@ function applyHop({ direction, label, workingSet, adjacency }) {
  *
  * If minDepth is 0, the starting nodes themselves are included in the result.
  *
- * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, workingSet: string[], adjacency: AdjacencyMaps, depth: [number, number] }} params - Traversal parameters
+ * @param {{ direction: 'outgoing' | 'incoming', label: string | undefined, strand: string[], adjacency: AdjacencyMaps, depth: [number, number] }} params - Traversal parameters
  * @returns {string[]} Sorted array of reachable node IDs within the depth range
  * @private
  */
-function applyMultiHop({ direction, label, workingSet, adjacency, depth }) {
+function applyMultiHop({ direction, label, strand, adjacency, depth }) {
   const [minDepth, maxDepth] = depth;
   const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
   const labelFilter = label === undefined ? null : label;
 
   const result = new Set();
-  let currentLevel = new Set(workingSet);
-  const visited = new Set(workingSet);
+  let currentLevel = new Set(strand);
+  const visited = new Set(strand);
 
   if (minDepth === 0) {
-    for (const nodeId of workingSet) {
+    for (const nodeId of strand) {
       result.add(nodeId);
     }
   }
@@ -525,9 +525,9 @@ export default class QueryBuilder {
   }
 
   /**
-   * Traverses outgoing edges from the current working set.
+   * Traverses outgoing edges from the current strand.
    *
-   * Replaces the working set with all nodes reachable via outgoing edges.
+   * Replaces the strand with all nodes reachable via outgoing edges.
    * Use the depth option for multi-hop traversal.
    *
    * @param {string} [label] - Edge label filter (undefined = all labels)
@@ -550,9 +550,9 @@ export default class QueryBuilder {
   }
 
   /**
-   * Traverses incoming edges to the current working set.
+   * Traverses incoming edges to the current strand.
    *
-   * Replaces the working set with all nodes that have edges pointing to nodes in the current set.
+   * Replaces the strand with all nodes that have edges pointing to nodes in the current set.
    * Use the depth option for multi-hop traversal.
    *
    * @param {string} [label] - Edge label filter (undefined = all labels)
@@ -677,12 +677,12 @@ export default class QueryBuilder {
       return propsRecord;
     };
 
-    let workingSet;
-    workingSet = allNodes.filter((nodeId) => matchGlob(pattern, nodeId));
+    let strand;
+    strand = allNodes.filter((nodeId) => matchGlob(pattern, nodeId));
 
     for (const op of this._operations) {
       if (op.type === 'where') {
-        const snapshots = await batchMap(workingSet, async (nodeId) => {
+        const snapshots = await batchMap(strand, async (nodeId) => {
           const propsRecord = await getProps(nodeId);
           const edgesOut = adjacency.outgoing.get(nodeId) || [];
           const edgesIn = adjacency.incoming.get(nodeId) || [];
@@ -695,24 +695,24 @@ export default class QueryBuilder {
         const filtered = snapshots
           .filter(({ snapshot }) => predicate(snapshot))
           .map(({ nodeId }) => nodeId);
-        workingSet = sortIds(filtered);
+        strand = sortIds(filtered);
         continue;
       }
 
       if (op.type === 'outgoing' || op.type === 'incoming') {
         const [minD, maxD] = /** @type {[number, number]} */ (op.depth);
         if (minD === 1 && maxD === 1) {
-          workingSet = applyHop({
+          strand = applyHop({
             direction: op.type,
             label: op.label,
-            workingSet,
+            strand,
             adjacency,
           });
         } else {
-          workingSet = applyMultiHop({
+          strand = applyMultiHop({
             direction: op.type,
             label: op.label,
-            workingSet,
+            strand,
             adjacency,
             depth: /** @type {[number, number]} */ (op.depth),
           });
@@ -721,7 +721,7 @@ export default class QueryBuilder {
     }
 
     if (this._aggregate) {
-      return await this._runAggregate(workingSet, stateHash, getProps);
+      return await this._runAggregate(strand, stateHash, getProps);
     }
 
     const selected = this._select;
@@ -741,7 +741,7 @@ export default class QueryBuilder {
     const includeId = !selectFields || selectFields.includes('id');
     const includeProps = !selectFields || selectFields.includes('props');
 
-    const nodes = await batchMap(workingSet, async (nodeId) => {
+    const nodes = await batchMap(strand, async (nodeId) => {
       const entry = {};
       if (includeId) {
         entry.id = nodeId;
@@ -766,20 +766,20 @@ export default class QueryBuilder {
    * (sum, avg, min, max) operate on property paths like "price" or "props.nested.value".
    * Non-numeric values are silently ignored in numeric aggregations.
    *
-   * @param {string[]} workingSet - Array of matched node IDs
+   * @param {string[]} strand - Array of matched node IDs
    * @param {string} stateHash - Hash of the materialized state
    * @param {(nodeId: string) => Promise<Record<string, unknown>>} getProps - Memoized props fetcher
    * @returns {Promise<AggregateResult>} Object containing stateHash and requested aggregation values
    * @private
    */
-  async _runAggregate(workingSet, stateHash, getProps) {
+  async _runAggregate(strand, stateHash, getProps) {
     const spec = /** @type {AggregateSpec} */ (this._aggregate);
     /** @type {AggregateResult} */
     const result = { stateHash };
     const specRec = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (spec));
 
     if (spec.count) {
-      result.count = workingSet.length;
+      result.count = strand.length;
     }
 
     const numericAggs = ['sum', 'avg', 'min', 'max'];
@@ -796,7 +796,7 @@ export default class QueryBuilder {
       }
 
       // Pre-fetch all props with bounded concurrency
-      const propsList = await batchMap(workingSet, getProps);
+      const propsList = await batchMap(strand, getProps);
 
       for (const propsRecord of propsList) {
         for (const { segments, values } of propsByAgg.values()) {

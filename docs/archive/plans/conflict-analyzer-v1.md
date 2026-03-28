@@ -259,7 +259,7 @@ TypeScript types are not enough.
 - **Arbitrary frontier selection**
   Reason: good future direction, wrong v1 scope.
 - **Worldline-local/frontier-local conflict analysis**
-  Reason: depends on later working-set substrate.
+  Reason: depends on later strand substrate.
 - **`analyzeConflict(conflictId)`**
   Reason: base trace identity should stabilize first.
 - **`explainConflict(anchor)`**

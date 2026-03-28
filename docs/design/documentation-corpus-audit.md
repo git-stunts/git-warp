@@ -109,7 +109,7 @@ Add `docs/README.md` as the canonical map for the documentation set, including:
 
 Current release-blocking doc drift discovered during the audit:
 
-- `ARCHITECTURE.md` still teaches `WarpGraph`, `working-set`, and outdated
+- `ARCHITECTURE.md` still teaches `WarpGraph`, `strand`, and outdated
   layering.
 - `docs/CLI_GUIDE.md` still teaches `WarpGraph` and old examples.
 

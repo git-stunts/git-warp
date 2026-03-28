@@ -31,7 +31,7 @@ import * as checkpointMethods from './warp/checkpoint.methods.js';
 import * as patchMethods from './warp/patch.methods.js';
 import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
-import * as workingSetMethods from './warp/workingSet.methods.js';
+import * as strandMethods from './warp/strand.methods.js';
 import * as conflictMethods from './warp/conflict.methods.js';
 import * as comparisonMethods from './warp/comparison.methods.js';
 
@@ -529,7 +529,7 @@ wireWarpMethods(WarpRuntime, [
   patchMethods,
   materializeMethods,
   materializeAdvancedMethods,
-  workingSetMethods,
+  strandMethods,
   conflictMethods,
   comparisonMethods,
 ]);

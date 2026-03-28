@@ -71,7 +71,7 @@ This slice does not attempt to:
 
 - rewrite every historical RFC or retrospective in the repository
 - introduce `Lens` as a public noun in the same change
-- rename `WorkingSet` or `WarpRuntime`
+- rename `Strand` or `WarpRuntime`
 
 ## Tests As Spec
 

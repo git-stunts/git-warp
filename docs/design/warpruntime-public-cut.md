@@ -38,5 +38,5 @@ temporarily. This slice is about the public contract, not internal file churn.
 ## Non-Goals
 
 - renaming the internal runtime implementation file in the same slice
-- finishing the `WorkingSet` vs `Strand` noun decision
+- finishing the `Strand` vs `Strand` noun decision
 - shipping a web documentation site in the same slice

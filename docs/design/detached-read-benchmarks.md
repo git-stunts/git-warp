@@ -4,7 +4,7 @@
 **Date:** 2026-03-27
 **Legend:** Observer Geometry
 **Backlog:** `OG-005`
-**Scope:** Measure the steady-state cost of detached coordinate and working-set
+**Scope:** Measure the steady-state cost of detached coordinate and strand
 reads against a warm live-read baseline
 
 ---
@@ -14,7 +14,7 @@ reads against a warm live-read baseline
 The read-side boundary is now semantically correct:
 
 - coordinate reads are detached
-- working-set reads are detached
+- strand reads are detached
 - public snapshots are immutable
 - observers and worldlines are pinned read handles
 
@@ -32,7 +32,7 @@ Add a reproducible benchmark slice that measures:
 
 1. warm live `materialize()` on an already-open runtime
 2. detached `materializeCoordinate(...)`
-3. detached `materializeWorkingSet(...)`
+3. detached `materializeStrand(...)`
 
 all against the same seeded history fixture.
 
@@ -49,10 +49,10 @@ The benchmark should be informative, not gatekeeping:
 This slice should make the following true:
 
 1. the benchmark fixture always seeds all three read surfaces:
-   live, coordinate, and working set
+   live, coordinate, and strand
 2. the benchmark fixture is meaningful:
    live and coordinate resolve the same frontier through different entry points,
-   while the working set diverges from that frontier through its overlay
+   while the strand diverges from that frontier through its overlay
 3. benchmark scenario coverage is deterministic and explicitly enumerable
 4. the benchmark suite reports detached-read cost relative to the warm live
    baseline at multiple scales
@@ -78,7 +78,7 @@ Use two executable layers:
 
 1. a deterministic unit spec that validates the benchmark plan and the seeded
    fixture semantics
-2. a benchmark suite that measures live, coordinate, and working-set reads
+2. a benchmark suite that measures live, coordinate, and strand reads
    against the same seeded runtime
 
 The unit spec should prove the fixture is meaningful before the benchmark is

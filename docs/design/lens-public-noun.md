@@ -47,7 +47,7 @@ for both human readers and coding agents scanning the public type surface.
 
 - do not add runtime ceremony just to manufacture a `Lens` object
 - do not remove `ObserverConfig` outright in this slice
-- do not attempt the much larger `WorkingSet` -> `Strand` rename here
+- do not attempt the much larger `Strand` -> `Strand` rename here
 
 ## Intended Outcome
 

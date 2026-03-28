@@ -8,7 +8,7 @@ import ConflictAnalyzerService from '../services/ConflictAnalyzerService.js';
 
 /**
  * Analyze read-only conflict provenance over either the current frontier or
- * an explicit working set, with an optional Lamport ceiling.
+ * an explicit strand, with an optional Lamport ceiling.
  *
  * This method performs zero durable writes. It does not materialize or mutate
  * cached graph state, checkpoints, or persistent caches.

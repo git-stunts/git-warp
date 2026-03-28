@@ -313,7 +313,7 @@ describe('renderStrand', () => {
       },
     });
 
-    expect(out).toContain('Working Set Action: braid');
+    expect(out).toContain('Strand Action: braid');
     expect(out).toContain('writable=no');
     expect(out).toContain('Braids: ws_support');
   });
@@ -427,7 +427,7 @@ describe('renderStrand', () => {
       },
     });
 
-    expect(out).toContain('Working Set Action: compare');
+    expect(out).toContain('Strand Action: compare');
     expect(out).toContain('Against: live');
     expect(out).toContain('Comparison Digest: abc123');
     expect(out).toContain('Patch Divergence: shared=1 leftOnly=1 rightOnly=1');
@@ -460,8 +460,8 @@ describe('renderDebug', () => {
       entries: [],
     }));
 
-    expect(out).toContain('Working-Set Overlay: head=');
+    expect(out).toContain('Strand Overlay: head=');
     expect(out).toContain('writable=no');
-    expect(out).toContain('Working-Set Braids: ws_hold');
+    expect(out).toContain('Strand Braids: ws_hold');
   });
 });
