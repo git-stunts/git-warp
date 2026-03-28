@@ -29,3 +29,4 @@ Workflow:
 | ACTIVE | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |
 | QUEUED | OG-011 | Publish a public API catalog and browser documentation playground | [OG-011-public-api-catalog-and-playground.md](OG-011-public-api-catalog-and-playground.md) |
 | DONE | OG-012 | Audit and reconcile the documentation corpus before v15 | [OG-012-documentation-corpus-audit.md](OG-012-documentation-corpus-audit.md) |
+| QUEUED | OG-013 | Design out-of-core materialization and streaming reads | [OG-013-out-of-core-materialization-and-streaming-reads.md](OG-013-out-of-core-materialization-and-streaming-reads.md) |
