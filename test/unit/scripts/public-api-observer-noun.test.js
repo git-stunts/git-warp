@@ -25,7 +25,7 @@ describe('public observer noun', () => {
     expect(indexDts).toContain('export class Observer {');
     expect(indexDts).not.toContain('export class ObserverView {');
     expect(indexDts).toContain('seek(options?: ObserverOptions): Promise<Observer>;');
-    expect(indexDts).toContain('observer(name: string, config: ObserverConfig): Promise<Observer>;');
-    expect(indexDts).toContain('observer(name: string, config: ObserverConfig, options?: ObserverOptions): Promise<Observer>;');
+    expect(indexDts).toContain('observer(name: string, config: Lens): Promise<Observer>;');
+    expect(indexDts).toContain('observer(name: string, config: Lens, options?: ObserverOptions): Promise<Observer>;');
   });
 });
