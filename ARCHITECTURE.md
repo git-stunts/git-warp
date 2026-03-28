@@ -75,7 +75,7 @@ Composition terminology is fixed as **braid**:
 - braid changes the visible patch universe, not reducer rules
 - braid is not a synonym for merge or rebase
 
-This gives higher layers an honest substrate for future worldline/fork behavior without teaching git-warp about XYPH governance or UI concepts. See [docs/WORKING_SETS.md](docs/WORKING_SETS.md) for the dedicated working-set note.
+This gives higher layers an honest substrate for future worldline/fork behavior without teaching git-warp about XYPH governance or UI concepts. See [docs/STRANDS.md](docs/STRANDS.md) for the dedicated strand note.
 
 ### Domain-Driven Design
 

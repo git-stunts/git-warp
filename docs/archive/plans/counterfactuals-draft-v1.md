@@ -1,6 +1,6 @@
 # Archived draft
 
-Superseded by `/Users/james/git/git-stunts/git-warp/docs/plans/conflict-analyzer-v1.md`.
+Superseded by `/Users/james/git/git-stunts/git-warp/docs/archive/plans/conflict-analyzer-v1.md`.
 
 # git-warp Conflict Provenance and Counterfactual Artifact Plan
 

@@ -69,7 +69,7 @@
 **Theme:** Test quality, DRY extraction, SOLID quick-wins
 **Objective:** Fix every actionable finding from the HEX_AUDIT (hexagonal architecture, SOLID, DRY, test brittleness audit). Harden test determinism, extract duplicated infrastructure code, and clean up low-hanging SOLID violations. Larger decompositions (WarpGraph god object, JoinReducer split) are scoped as design-only items — implementation deferred until an RFC is filed.
 **Triage date:** 2026-03-02
-**Audit source:** `docs/HEX_AUDIT.convo.txt`
+**Audit source:** `docs/archive/audits/HEX_AUDIT.convo.txt`
 
 ### Audit Summary
 

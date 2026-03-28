@@ -28,3 +28,4 @@ Workflow:
 | QUEUED | OG-009 | Align playback-head and TTD consumers after read nouns stabilize | [OG-009-playback-head-alignment.md](OG-009-playback-head-alignment.md) |
 | ACTIVE | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |
 | QUEUED | OG-011 | Publish a public API catalog and browser documentation playground | [OG-011-public-api-catalog-and-playground.md](OG-011-public-api-catalog-and-playground.md) |
+| ACTIVE | OG-012 | Audit and reconcile the documentation corpus before v15 | [OG-012-documentation-corpus-audit.md](OG-012-documentation-corpus-audit.md) |
