@@ -15,10 +15,11 @@
      id="defs1">
     <linearGradient
        id="aionGradient"
-       x1="0%"
-       y1="0%"
-       x2="100%"
-       y2="0%">
+       x1="0"
+       y1="0"
+       x2="503"
+       y2="0"
+       gradientUnits="userSpaceOnUse">
       <stop
          offset="0%"
          style="stop-color:#ecf5e9;stop-opacity:1" />
@@ -68,29 +69,29 @@
      stroke-linecap="round"
      fill-rule="evenodd"
      font-size="9pt"
-     stroke="#000000"
+     stroke="#3b3c1d"
      stroke-width="0.25mm"
      fill="url(#aionGradient)"
-     style="stroke:#000000;stroke-width:0;fill:url(#aionGradient);fill-opacity:1;stroke-dasharray:none">
+     style="stroke:#3b3c1d;stroke-width:0.25mm;fill:url(#aionGradient);fill-opacity:1;stroke-dasharray:none">
     <path
        d="M 172.2 154 L 97 0 L 50.4 0 L 63 25.2 L 0 154 L 172.2 154 Z M 167.4 151 L 48.2 151 L 63.2 119 L 112.6 119 L 55.2 3 L 95.2 3 L 167.4 151 Z"
        id="0"
        vector-effect="non-scaling-stroke"
-       style="fill:url(#aionGradient);fill-opacity:1;stroke-width:0;stroke-dasharray:none" />
+       style="stroke-dasharray:none" />
     <path
        d="M 176.2 154 L 214.8 154 L 214.8 0 L 176.2 0 L 176.2 154 Z M 179.2 151 L 179.2 3 L 211.8 3 L 211.8 151 L 179.2 151 Z"
        id="1"
        vector-effect="non-scaling-stroke"
-       style="fill:url(#aionGradient);fill-opacity:1;stroke-width:0;stroke-dasharray:none" />
+       style="stroke-dasharray:none" />
     <path
        d="M 226.8 154 L 296.8 154 L 296.8 106.8 C 284.2 103 276.8 92.6 276.8 80.4 C 276.8 66.6 287.6 55.8 301.2 55.8 C 314.8 55.8 325.8 66.8 325.8 80.4 C 325.8 91.8 318.6 102.8 306.8 106.8 L 306.8 154 L 374.8 154 L 374.8 115 L 361 115 C 371 104 375.8 89 375.8 76.4 C 375.8 35.2 342.4 6 301.2 6 C 260 6 226.8 35.2 226.8 76.4 C 226.8 89 231.4 103.8 241.6 115 L 226.8 115 L 226.8 154 Z M 229.8 151 L 229.8 118 L 293.8 118 L 293.8 151 L 229.8 151 Z M 309.8 151 L 309.8 118 L 371.8 118 L 371.8 151 L 309.8 151 Z"
        id="2"
        vector-effect="non-scaling-stroke"
-       style="fill:url(#aionGradient);fill-opacity:1;stroke-width:0;stroke-dasharray:none" />
+       style="stroke-dasharray:none" />
     <path
        d="M 503 154.6 L 503 0 L 463.8 0 L 463.8 67.8 L 387.8 0.2 L 387.8 154 L 426.4 154 L 426.4 90 L 503 154.6 Z M 500 148 L 390.8 54.4 L 390.8 6.8 L 466.8 74.4 L 466.8 3 L 500 3 L 500 148 Z"
        id="3"
        vector-effect="non-scaling-stroke"
-       style="fill:url(#aionGradient);fill-opacity:1;stroke-width:0;stroke-dasharray:none" />
+       style="stroke-dasharray:none" />
   </g>
 </svg>
