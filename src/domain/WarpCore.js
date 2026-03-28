@@ -13,15 +13,26 @@ import { computeChecksum } from './utils/checksumUtils.js';
 /** @typedef {Parameters<WarpRuntime['compareCoordinates']>[0]} InternalCompareCoordinatesOptions */
 /** @typedef {Parameters<WarpRuntime['planCoordinateTransfer']>[0]} InternalPlanCoordinateTransferOptions */
 /** @typedef {Parameters<WarpRuntime['analyzeConflicts']>[0]} InternalConflictAnalyzeOptions */
+/** @typedef {import('../../index.js').CoordinateComparisonV1} CoordinateComparisonV1 */
+/** @typedef {import('../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1 */
+/** @typedef {import('../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1 */
+/** @typedef {import('../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1 */
+/** @typedef {import('../../index.js').VisibleStateScopeV1} VisibleStateScopeV1 */
+/** @typedef {import('../../index.js').CryptoPort} CryptoPort */
+/** @typedef {import('../../index.js').StrandCreateOptions} StrandCreateOptions */
+/** @typedef {import('../../index.js').StrandBraidOptions} StrandBraidOptions */
+/** @typedef {import('../../index.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('../../index.js').StrandIntentDescriptor} StrandIntentDescriptor */
+/** @typedef {import('../../index.js').StrandTickRecord} StrandTickRecord */
 
 /**
  * @param {WarpCore} graph
- * @param {import('../../index.js').CoordinateComparisonV1} comparison
- * @returns {Promise<import('../../index.js').CoordinateComparisonV1>}
+ * @param {CoordinateComparisonV1} comparison
+ * @returns {Promise<CoordinateComparisonV1>}
  */
 async function refreshPublicComparisonDigest(graph, comparison) {
   const fact = buildCoordinateComparisonFact(comparison);
-  const crypto = /** @type {(WarpCore & { _crypto: import('../../index.js').CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
+  const crypto = /** @type {(WarpCore & { _crypto: CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
   return {
     ...comparison,
     comparisonDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), crypto),
@@ -30,12 +41,12 @@ async function refreshPublicComparisonDigest(graph, comparison) {
 
 /**
  * @param {WarpCore} graph
- * @param {import('../../index.js').CoordinateTransferPlanV1} transferPlan
- * @returns {Promise<import('../../index.js').CoordinateTransferPlanV1>}
+ * @param {CoordinateTransferPlanV1} transferPlan
+ * @returns {Promise<CoordinateTransferPlanV1>}
  */
 async function refreshPublicTransferDigest(graph, transferPlan) {
   const fact = buildCoordinateTransferPlanFact(transferPlan);
-  const crypto = /** @type {(WarpCore & { _crypto: import('../../index.js').CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
+  const crypto = /** @type {(WarpCore & { _crypto: CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
   return {
     ...transferPlan,
     transferDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), crypto),
@@ -77,11 +88,11 @@ export default class WarpCore {
   /**
    * Creates a durable strand descriptor pinned to the current frontier.
    *
-   * @param {import('../../index.js').StrandCreateOptions} [options]
-   * @returns {Promise<import('../../index.js').StrandDescriptor>}
+   * @param {StrandCreateOptions} [options]
+   * @returns {Promise<StrandDescriptor>}
    */
   async createStrand(options) {
-    return /** @type {import('../../index.js').StrandDescriptor} */ (
+    return /** @type {StrandDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.createStrand.call(this, toInternalStrandShape(options)),
@@ -94,10 +105,10 @@ export default class WarpCore {
    * Loads a previously-created strand descriptor.
    *
    * @param {string} strandId
-   * @returns {Promise<import('../../index.js').StrandDescriptor | null>}
+   * @returns {Promise<StrandDescriptor | null>}
    */
   async getStrand(strandId) {
-    return /** @type {import('../../index.js').StrandDescriptor | null} */ (
+    return /** @type {StrandDescriptor | null} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.getStrand.call(this, strandId),
@@ -109,10 +120,10 @@ export default class WarpCore {
   /**
    * Lists all strand descriptors stored for this graph.
    *
-   * @returns {Promise<import('../../index.js').StrandDescriptor[]>}
+   * @returns {Promise<StrandDescriptor[]>}
    */
   async listStrands() {
-    return /** @type {import('../../index.js').StrandDescriptor[]} */ (
+    return /** @type {StrandDescriptor[]} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.listStrands.call(this),
@@ -125,11 +136,11 @@ export default class WarpCore {
    * Pins one or more support overlays as braid inputs on a target strand.
    *
    * @param {string} strandId
-   * @param {import('../../index.js').StrandBraidOptions} [options]
-   * @returns {Promise<import('../../index.js').StrandDescriptor>}
+   * @param {StrandBraidOptions} [options]
+   * @returns {Promise<StrandDescriptor>}
    */
   async braidStrand(strandId, options) {
-    return /** @type {import('../../index.js').StrandDescriptor} */ (
+    return /** @type {StrandDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.braidStrand.call(
@@ -222,10 +233,10 @@ export default class WarpCore {
    *
    * @param {string} strandId
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void|Promise<void>} build
-   * @returns {Promise<import('../../index.js').StrandIntentDescriptor>}
+   * @returns {Promise<StrandIntentDescriptor>}
    */
   async queueStrandIntent(strandId, build) {
-    return /** @type {import('../../index.js').StrandIntentDescriptor} */ (
+    return /** @type {StrandIntentDescriptor} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.queueStrandIntent.call(this, strandId, build),
@@ -238,10 +249,10 @@ export default class WarpCore {
    * Lists the currently queued intents for one strand.
    *
    * @param {string} strandId
-   * @returns {Promise<import('../../index.js').StrandIntentDescriptor[]>}
+   * @returns {Promise<StrandIntentDescriptor[]>}
    */
   async listStrandIntents(strandId) {
-    return /** @type {import('../../index.js').StrandIntentDescriptor[]} */ (
+    return /** @type {StrandIntentDescriptor[]} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.listStrandIntents.call(this, strandId),
@@ -254,10 +265,10 @@ export default class WarpCore {
    * Deterministically drains the queued intent set for one strand.
    *
    * @param {string} strandId
-   * @returns {Promise<import('../../index.js').StrandTickRecord>}
+   * @returns {Promise<StrandTickRecord>}
    */
   async tickStrand(strandId) {
-    return /** @type {import('../../index.js').StrandTickRecord} */ (
+    return /** @type {StrandTickRecord} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.tickStrand.call(this, strandId),
@@ -275,12 +286,12 @@ export default class WarpCore {
    *   ceiling?: number|null,
    *   againstCeiling?: number|null,
    *   targetId?: string|null,
-   *   scope?: import('../../index.js').VisibleStateScopeV1|null
+   *   scope?: VisibleStateScopeV1|null
    * }} [options]
-   * @returns {Promise<import('../../index.js').CoordinateComparisonV1>}
+   * @returns {Promise<CoordinateComparisonV1>}
    */
   async compareStrand(strandId, options) {
-    const comparison = /** @type {import('../../index.js').CoordinateComparisonV1} */ (
+    const comparison = /** @type {CoordinateComparisonV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.compareStrand.call(
@@ -302,12 +313,12 @@ export default class WarpCore {
    *   into?: 'base'|'live'|{ kind: 'strand', strandId: string },
    *   ceiling?: number|null,
    *   intoCeiling?: number|null,
-   *   scope?: import('../../index.js').VisibleStateScopeV1|null
+   *   scope?: VisibleStateScopeV1|null
    * }} [options]
-   * @returns {Promise<import('../../index.js').CoordinateTransferPlanV1>}
+   * @returns {Promise<CoordinateTransferPlanV1>}
    */
   async planStrandTransfer(strandId, options) {
-    const transferPlan = /** @type {import('../../index.js').CoordinateTransferPlanV1} */ (
+    const transferPlan = /** @type {CoordinateTransferPlanV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.planStrandTransfer.call(
@@ -323,15 +334,15 @@ export default class WarpCore {
 
   /**
    * @param {{
-   *   left: import('../../index.js').CoordinateComparisonSelectorV1,
-   *   right: import('../../index.js').CoordinateComparisonSelectorV1,
+   *   left: CoordinateComparisonSelectorV1,
+   *   right: CoordinateComparisonSelectorV1,
    *   targetId?: string|null,
-   *   scope?: import('../../index.js').VisibleStateScopeV1|null
+   *   scope?: VisibleStateScopeV1|null
    * }} options
-   * @returns {Promise<import('../../index.js').CoordinateComparisonV1>}
+   * @returns {Promise<CoordinateComparisonV1>}
    */
   async compareCoordinates(options) {
-    const comparison = /** @type {import('../../index.js').CoordinateComparisonV1} */ (
+    const comparison = /** @type {CoordinateComparisonV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.compareCoordinates.call(
@@ -346,14 +357,14 @@ export default class WarpCore {
 
   /**
    * @param {{
-   *   source: import('../../index.js').CoordinateTransferPlanSelectorV1,
-   *   target: import('../../index.js').CoordinateTransferPlanSelectorV1,
-   *   scope?: import('../../index.js').VisibleStateScopeV1|null
+   *   source: CoordinateTransferPlanSelectorV1,
+   *   target: CoordinateTransferPlanSelectorV1,
+   *   scope?: VisibleStateScopeV1|null
    * }} options
-   * @returns {Promise<import('../../index.js').CoordinateTransferPlanV1>}
+   * @returns {Promise<CoordinateTransferPlanV1>}
    */
   async planCoordinateTransfer(options) {
-    const transferPlan = /** @type {import('../../index.js').CoordinateTransferPlanV1} */ (
+    const transferPlan = /** @type {CoordinateTransferPlanV1} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.planCoordinateTransfer.call(
