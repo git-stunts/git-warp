@@ -4,9 +4,9 @@ This document explains how `git-warp` is structured internally.
 
 If you are learning the product for the first time, start here instead:
 
-- [README.md](README.md)
-- [docs/GUIDE.md](docs/GUIDE.md)
-- [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
+- [README.md](../README.md)
+- [docs/GUIDE.md](GUIDE.md)
+- [docs/CLI_GUIDE.md](CLI_GUIDE.md)
 
 ## What this document is for
 
