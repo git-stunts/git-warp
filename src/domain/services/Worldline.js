@@ -56,7 +56,7 @@ function cloneWorldlineSource(source) {
 
   return {
     kind: 'strand',
-    strandId: 'strandId' in value ? value.strandId : value.strandId,
+    strandId: value.strandId,
     ceiling: value.ceiling ?? null,
   };
 }

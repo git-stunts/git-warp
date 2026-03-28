@@ -70,7 +70,7 @@ function cloneObserverSource(source) {
 
   return {
     kind: 'strand',
-    strandId: 'strandId' in source ? source.strandId : source.strandId,
+    strandId: source.strandId,
     ceiling: source.ceiling ?? null,
   };
 }

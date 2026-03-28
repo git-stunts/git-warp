@@ -63,7 +63,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
  * @typedef {{
  *   at?: { lamportCeiling?: number|null },
  *   strandId?: string,
- *   strandId?: string,
  *   entityId?: string,
  *   target?: {
  *     targetKind: 'node'|'edge'|'node_property'|'edge_property',
