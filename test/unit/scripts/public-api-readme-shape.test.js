@@ -40,6 +40,13 @@ describe('README public API teaching order', () => {
     expect(quickStart).toContain("worldline.observer('public-users', publicUserLens)");
   });
 
+  it('uses WarpApp for app examples and app.core() for explicit substrate escape hatches', () => {
+    expect(readme).toContain('const appA = await WarpApp.open({');
+    expect(readme).toContain('const appB = await WarpApp.open({');
+    expect(readme).toContain('const server = await appB.core().serve({ port: 3000 });');
+    expect(readme).toContain('const core = app.core();');
+  });
+
   it('introduces the system in progressive layers before raw querying sections', () => {
     const tldr = readme.indexOf('## TL;DR for humans');
     const quickStart = readme.indexOf('## Quick Start');
@@ -115,7 +122,7 @@ describe('README public API teaching order', () => {
     expect(readme).not.toContain('When you want to read the graph, you **materialize**');
     expect(readme).toContain('When you want to read the graph in an app, start from a pinned **worldline** or **observer**.');
     expect(readme).toContain('// After git push/pull, read through a pinned worldline');
-    expect(readme).toContain("const worldline = graphA.worldline();");
+    expect(readme).toContain("const worldline = appA.worldline();");
   });
 
   it('does not teach the removed WarpRuntime public noun', () => {

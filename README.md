@@ -260,29 +260,29 @@ Writers operate independently on the same Git repository. Sync happens through s
 
 ```javascript
 // Writer A (on machine A)
-const graphA = await WarpCore.open({
+const appA = await WarpApp.open({
   persistence: persistenceA,
   graphName: 'shared',
   writerId: 'alice',
 });
 
-await graphA.patch(p => {
+await appA.patch(p => {
   p.addNode('doc:1').setProperty('doc:1', 'title', 'Draft');
 });
 
 // Writer B (on machine B)
-const graphB = await WarpCore.open({
+const appB = await WarpApp.open({
   persistence: persistenceB,
   graphName: 'shared',
   writerId: 'bob',
 });
 
-await graphB.patch(p => {
+await appB.patch(p => {
   p.addNode('doc:2').setProperty('doc:2', 'title', 'Notes');
 });
 
 // After git push/pull, read through a pinned worldline
-const worldline = graphA.worldline();
+const worldline = appA.worldline();
 await worldline.hasNode('doc:1'); // true
 await worldline.hasNode('doc:2'); // true
 ```
@@ -290,14 +290,14 @@ await worldline.hasNode('doc:2'); // true
 ### HTTP Sync
 
 ```javascript
-// Start a sync server
-const server = await graphB.serve({ port: 3000 });
+// Start a sync server through the explicit core escape hatch
+const server = await appB.core().serve({ port: 3000 });
 
 // Sync from another instance
-await graphA.syncWith('http://localhost:3000/sync');
+await appA.syncWith('http://localhost:3000/sync');
 
 // Optional signed trust evaluation for inbound patches
-await graphA.syncWith('http://localhost:3000/sync', {
+await appA.syncWith('http://localhost:3000/sync', {
   trust: { mode: 'enforce', pin: 'abc123def456' },
 });
 
@@ -308,19 +308,19 @@ await server.close();
 
 ```javascript
 // Sync two in-process instances directly
-await graphA.syncWith(graphB);
+await appA.syncWith(appB);
 ```
 
 ## Querying
 
-Query methods auto-materialize by default. Just open a graph and start querying:
+Assume `const app = await WarpApp.open(...)` from the Quick Start. Query methods auto-materialize under the hood, but application code should still start from a pinned worldline or observer.
 
 ### Application-Facing Reads
 
 For product read paths, prefer a pinned worldline and observer before reaching for whole-state inspection helpers.
 
 ```javascript
-const worldline = graph.worldline();
+const worldline = app.worldline();
 const view = await worldline.observer('taskBoard', {
   match: 'user:*',
   redact: ['ssn', 'password'],
@@ -342,18 +342,20 @@ const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
 These helpers are useful substrate tools, but they enumerate or inspect visible materialized state directly and should not be treated as the default app read model.
 
 ```javascript
-await graph.getNodes();                              // ['user:alice', 'user:bob']
-await graph.hasNode('user:alice');                   // true
-await graph.getNodeProps('user:alice');              // { name: 'Alice', role: 'admin' }
-await graph.neighbors('user:alice', 'outgoing');    // [{ nodeId: 'user:bob', label: 'manages', direction: 'outgoing' }]
-await graph.getEdges();                              // [{ from: 'user:alice', to: 'user:bob', label: 'manages', props: {} }]
-await graph.getEdgeProps('user:alice', 'user:bob', 'manages');  // { weight: 0.9 } or null
+const core = app.core();
+
+await core.getNodes();                              // ['user:alice', 'user:bob']
+await core.hasNode('user:alice');                   // true
+await core.getNodeProps('user:alice');              // { name: 'Alice', role: 'admin' }
+await core.neighbors('user:alice', 'outgoing');    // [{ nodeId: 'user:bob', label: 'manages', direction: 'outgoing' }]
+await core.getEdges();                              // [{ from: 'user:alice', to: 'user:bob', label: 'manages', props: {} }]
+await core.getEdgeProps('user:alice', 'user:bob', 'manages');  // { weight: 0.9 } or null
 ```
 
-### Fluent Query Builder
+### Core Query Builder
 
 ```javascript
-const result = await graph.query()
+const result = await core.query()
   .match('user:*')           // glob pattern matching
   .outgoing('manages')       // traverse outgoing edges with label
   .select(['id', 'props'])   // select fields
@@ -366,13 +368,13 @@ Filter nodes by property equality using plain objects. Multiple properties = AND
 
 ```javascript
 // Object shorthand — strict equality on primitive values
-const admins = await graph.query()
+const admins = await core.query()
   .match('user:*')
   .where({ role: 'admin', active: true })
   .run();
 
 // Chain object and function filters
-const seniorAdmins = await graph.query()
+const seniorAdmins = await core.query()
   .match('user:*')
   .where({ role: 'admin' })
   .where(({ props }) => props.age >= 30)
@@ -385,25 +387,25 @@ Traverse multiple hops in a single call with `depth`. Default is `[1, 1]` (singl
 
 ```javascript
 // Depth 2: return only hop-2 neighbors
-const grandchildren = await graph.query()
+const grandchildren = await core.query()
   .match('org:root')
   .outgoing('child', { depth: 2 })
   .run();
 
 // Range [1, 3]: return neighbors at hops 1, 2, and 3
-const reachable = await graph.query()
+const reachable = await core.query()
   .match('node:a')
   .outgoing('next', { depth: [1, 3] })
   .run();
 
 // Depth [0, 2]: include the start set (self) plus hops 1 and 2
-const selfAndNeighbors = await graph.query()
+const selfAndNeighbors = await core.query()
   .match('node:a')
   .outgoing('next', { depth: [0, 2] })
   .run();
 
 // Incoming edges work the same way
-const ancestors = await graph.query()
+const ancestors = await core.query()
   .match('node:leaf')
   .incoming('child', { depth: [1, 5] })
   .run();
@@ -414,7 +416,7 @@ const ancestors = await graph.query()
 Compute count, sum, avg, min, max over matched nodes. This is a terminal operation — `select()`, `outgoing()`, and `incoming()` cannot follow `aggregate()`.
 
 ```javascript
-const stats = await graph.query()
+const stats = await core.query()
   .match('order:*')
   .where({ status: 'paid' })
   .aggregate({ count: true, sum: 'props.total', avg: 'props.total' })
@@ -428,7 +430,7 @@ Non-numeric property values are silently skipped during aggregation.
 ### Path Finding
 
 ```javascript
-const result = await graph.traverse.shortestPath('user:alice', 'user:bob', {
+const result = await core.traverse.shortestPath('user:alice', 'user:bob', {
   dir: 'outgoing',
   labelFilter: 'manages',
   maxDepth: 10,
@@ -442,38 +444,38 @@ if (result.found) {
 
 ```javascript
 // Weighted shortest path (Dijkstra) with edge weight function
-const weighted = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
+const weighted = await core.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'outgoing',
   weightFn: (from, to, label) => edgeWeights.get(`${from}-${to}`) ?? 1,
 });
 
 // Weighted shortest path with per-node weight function
-const nodeWeighted = await graph.traverse.weightedShortestPath('city:a', 'city:z', {
+const nodeWeighted = await core.traverse.weightedShortestPath('city:a', 'city:z', {
   dir: 'outgoing',
   nodeWeightFn: (nodeId) => nodeDelays.get(nodeId) ?? 0,
 });
 
 // A* search with heuristic
-const astar = await graph.traverse.aStarSearch('city:a', 'city:z', {
+const astar = await core.traverse.aStarSearch('city:a', 'city:z', {
   dir: 'outgoing',
   heuristic: (nodeId) => euclideanDistance(coords[nodeId], coords['city:z']),
 });
 
 // Topological sort (Kahn's algorithm with cycle detection)
-const sorted = await graph.traverse.topologicalSort('task:root', {
+const sorted = await core.traverse.topologicalSort('task:root', {
   dir: 'outgoing',
   labelFilter: 'depends-on',
 });
 // sorted = ['task:root', 'task:auth', 'task:caching', ...]
 
 // Longest path on DAGs (critical path)
-const critical = await graph.traverse.weightedLongestPath('task:start', 'task:end', {
+const critical = await core.traverse.weightedLongestPath('task:start', 'task:end', {
   dir: 'outgoing',
   weightFn: (from, to, label) => taskDurations.get(to) ?? 1,
 });
 
 // Reachability check (fast, no path reconstruction)
-const canReach = await graph.traverse.isReachable('user:alice', 'user:bob', {
+const canReach = await core.traverse.isReachable('user:alice', 'user:bob', {
   dir: 'outgoing',
 });
 // canReach = true | false
