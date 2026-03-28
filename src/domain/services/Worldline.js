@@ -8,11 +8,24 @@
  * @module domain/services/Worldline
  */
 
+import QueryBuilder from './QueryBuilder.js';
+import LogicalTraversal from './LogicalTraversal.js';
+
 /** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
 /** @typedef {import('../../../index.js').ObserverConfig} ObserverConfig */
 /**
  * @typedef {import('../../../index.js').WorldlineSource} WorldlineSource
  * @typedef {import('../../../index.js').WorldlineOptions} WorldlineOptions
+ * @typedef {{
+ *   _materializeGraph: () => Promise<{
+ *     state: unknown,
+ *     stateHash: string,
+ *     adjacency: {
+ *       outgoing: Map<string, Array<{ neighborId: string, label: string }>>,
+ *       incoming: Map<string, Array<{ neighborId: string, label: string }>>
+ *     }
+ *   }>
+ * }} WorldlineMaterializedDelegate
  */
 
 /**
@@ -166,6 +179,16 @@ export default class Worldline {
 
     /** @type {WorldlineSource} */
     this._source = cloneWorldlineSource(source);
+
+    /** @type {Promise<import('./Observer.js').default>|null} */
+    this._delegateObserverPromise = null;
+
+    /**
+     * Cast safety: LogicalTraversal requires `hasNode()` and
+     * `_materializeGraph()` on the wrapped graph-like object. Worldline
+     * implements those by delegating to a cached full-aperture observer.
+     */
+    this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 
   /**
@@ -202,6 +225,86 @@ export default class Worldline {
     const detached = await openDetachedReadGraph(this._graph);
     const collectReceipts = !!options?.receipts;
     return await materializeSource(detached, this._source, collectReceipts);
+  }
+
+  /**
+   * Resolves the cached full-aperture observer for this worldline.
+   *
+   * @returns {Promise<import('./Observer.js').default>}
+   * @private
+   */
+  async _delegateObserver() {
+    if (!this._delegateObserverPromise) {
+      this._delegateObserverPromise = this._graph.observer(
+        { match: '*' },
+        { source: cloneWorldlineSource(this._source) },
+      );
+    }
+    return await this._delegateObserverPromise;
+  }
+
+  /**
+   * Internal state access used by QueryBuilder and LogicalTraversal.
+   *
+   * @returns {Promise<{ state: unknown, stateHash: string, adjacency: { outgoing: Map<string, Array<{ neighborId: string, label: string }>>, incoming: Map<string, Array<{ neighborId: string, label: string }>> } }>}
+   * @private
+   */
+  async _materializeGraph() {
+    const observer = /** @type {WorldlineMaterializedDelegate} */ (
+      /** @type {unknown} */ (await this._delegateObserver())
+    );
+    return await observer._materializeGraph();
+  }
+
+  /**
+   * Checks if a node exists on this pinned worldline.
+   *
+   * @param {string} nodeId
+   * @returns {Promise<boolean>}
+   */
+  async hasNode(nodeId) {
+    const observer = await this._delegateObserver();
+    return await observer.hasNode(nodeId);
+  }
+
+  /**
+   * Returns all visible nodes for the full aperture of this pinned worldline.
+   *
+   * @returns {Promise<string[]>}
+   */
+  async getNodes() {
+    const observer = await this._delegateObserver();
+    return await observer.getNodes();
+  }
+
+  /**
+   * Reads one node's properties from this pinned worldline.
+   *
+   * @param {string} nodeId
+   * @returns {Promise<Record<string, unknown>|null>}
+   */
+  async getNodeProps(nodeId) {
+    const observer = await this._delegateObserver();
+    return await observer.getNodeProps(nodeId);
+  }
+
+  /**
+   * Returns all visible edges for the full aperture of this pinned worldline.
+   *
+   * @returns {Promise<Array<{from: string, to: string, label: string, props: Record<string, unknown>}>>}
+   */
+  async getEdges() {
+    const observer = await this._delegateObserver();
+    return await observer.getEdges();
+  }
+
+  /**
+   * Creates a fluent query builder over this pinned worldline.
+   *
+   * @returns {QueryBuilder}
+   */
+  query() {
+    return new QueryBuilder(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 
   /**

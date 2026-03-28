@@ -261,6 +261,63 @@ describe('WarpRuntime worldline surface', () => {
     await expect(redObserver.getNodeProps('n1')).resolves.toMatchObject({ color: 'red' });
   });
 
+  it('worldline supports direct stable read, query, and traversal without an explicit observer', async () => {
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'user:alice', dot: createDot('alice', 1) },
+        { type: 'PropSet', node: 'user:alice', key: 'role', value: 'admin' },
+        { type: 'NodeAdd', node: 'user:bob', dot: createDot('alice', 2) },
+        { type: 'PropSet', node: 'user:bob', key: 'role', value: 'member' },
+        { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'manages', dot: createDot('alice', 3) },
+      ],
+    });
+    const frontierAtInitial = await graph.getFrontier();
+
+    await simulatePatchCommit(persistence, {
+      graphName,
+      writerId: 'alice',
+      lamport: 2,
+      ops: [
+        { type: 'PropSet', node: 'user:alice', key: 'role', value: 'owner' },
+      ],
+    });
+    await graph.materialize();
+
+    const initialWorldline = await graph.worldline({
+      source: {
+        kind: 'coordinate',
+        frontier: Object.fromEntries(frontierAtInitial),
+        ceiling: null,
+      },
+    });
+
+    await expect(initialWorldline.getNodeProps('user:alice')).resolves.toMatchObject({ role: 'admin' });
+    await expect(initialWorldline.hasNode('user:bob')).resolves.toBe(true);
+
+    const result = await initialWorldline.query()
+      .match('user:*')
+      .where({ role: 'admin' })
+      .run();
+    expect(result).toMatchObject({
+      nodes: [
+        { id: 'user:alice', props: { role: 'admin' } },
+      ],
+    });
+
+    await expect(initialWorldline.traverse.shortestPath('user:alice', 'user:bob', {
+      dir: 'out',
+    })).resolves.toMatchObject({
+      found: true,
+      path: ['user:alice', 'user:bob'],
+      length: 1,
+    });
+
+    await expect(graph.getNodeProps('user:alice')).resolves.toMatchObject({ role: 'owner' });
+  });
+
   it('worldline.seek() returns a new worldline while preserving the original source', async () => {
     await simulatePatchCommit(persistence, {
       graphName,

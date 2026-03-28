@@ -16,7 +16,8 @@ describe('public API cost signaling', () => {
   });
 
   it('tells consumers to prefer worldline and observer for stable product reads', () => {
-    expect(dts).toContain('Prefer `worldline().observer(...).query()` for stable product read flows.');
+    expect(dts).toContain('Prefer `worldline().query()` for stable product reads, or');
+    expect(dts).toContain('`worldline().observer(...).query()` when you need a filtered aperture.');
     expect(dts).toContain('For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.');
   });
 

@@ -135,18 +135,14 @@ await graph.patch(p => {
 
 ```javascript
 const worldline = graph.worldline();
-const view = await worldline.observer({
-  match: 'user:*',
-});
-
-const alice = await view.getNodeProps('user:alice');
+const alice = await worldline.getNodeProps('user:alice');
 // { name: 'Alice', role: 'admin' }
 ```
 
 ### 3. Query matching nodes
 
 ```javascript
-const result = await view.query()
+const result = await worldline.query()
   .match('user:*')
   .run();
 ```
@@ -154,18 +150,25 @@ const result = await view.query()
 ### 4. Traverse the graph
 
 ```javascript
-const path = await view.traverse.shortestPath('user:alice', 'user:bob', {
+const path = await worldline.traverse.shortestPath('user:alice', 'user:bob', {
   dir: 'out',
 });
 ```
 
-Observer labels are optional. If you omit one, the handle defaults to `observer`. When a descriptive label helps debugging or UI semantics, pass it as the first argument: `worldline.observer('public-users', { match: 'user:*' })`.
+When you want a filtered or redacted read aperture, add an observer on top of the worldline instead of falling back to runtime-wide reads:
+
+```javascript
+const publicUsers = await worldline.observer('public-users', {
+  match: 'user:*',
+  redact: ['ssn'],
+});
+```
 
 ## Read Model
 
-For application-facing reads, prefer `worldline()` plus `observer(...)` and then query or traverse through that read handle.
+For application-facing reads, prefer `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.
 
-That boundary keeps the read coordinate explicit, preserves the observer aperture, and reduces the temptation to preload the whole visible graph into application memory.
+That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.
 
 Whole-state enumeration and direct materialization are inspection or advanced substrate operations, not normal product hot paths.
 

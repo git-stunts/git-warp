@@ -1424,8 +1424,43 @@ export class Worldline {
   /** Pinned source for this worldline handle */
   readonly source: WorldlineSource;
 
+  /** Full-aperture traversal helpers over this pinned source. */
+  traverse: LogicalTraversal;
+
   /** Returns a new worldline handle pinned to a different source */
   seek(options?: WorldlineOptions): Promise<Worldline>;
+
+  /**
+   * Checks whether a node exists on this pinned worldline.
+   */
+  hasNode(nodeId: string): Promise<boolean>;
+
+  /**
+   * Full-aperture read over this pinned source.
+   *
+   * Useful for stable reads, but still a broad enumeration operation over the
+   * visible worldline state.
+   */
+  getNodes(): Promise<string[]>;
+
+  /**
+   * Reads one node from this pinned worldline without requiring an explicit
+   * observer aperture.
+   */
+  getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
+
+  /**
+   * Full-aperture edge read over this pinned source.
+   */
+  getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
+
+  /**
+   * Creates a fluent query builder over this pinned worldline.
+   *
+   * Use this when you want a stable read without a filtered observer aperture.
+   * Add `observer(...)` when the application needs a narrower view.
+   */
+  query(): QueryBuilder;
 
   /**
    * Advanced substrate replay primitive for this pinned source.
@@ -1435,7 +1470,7 @@ export class Worldline {
   materialize(options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
-  /** Creates an observer pinned to the worldline source */
+  /** Creates an observer pinned to the worldline source when a filtered aperture is needed. */
   observer(config: ObserverConfig): Promise<Observer>;
   observer(name: string, config: ObserverConfig): Promise<Observer>;
 }
@@ -2052,7 +2087,8 @@ export declare class WarpRuntime {
   /**
    * Creates a fluent query builder over the currently visible materialized state.
    *
-   * Prefer `worldline().observer(...).query()` for stable product read flows.
+   * Prefer `worldline().query()` for stable product reads, or
+   * `worldline().observer(...).query()` when you need a filtered aperture.
    * Direct runtime queries are best treated as bounded inspection or admin
    * reads unless you intentionally want whole-visible-state scope.
    */
