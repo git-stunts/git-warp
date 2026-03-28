@@ -11,7 +11,6 @@ import { describe, it, expect } from 'vitest';
 import WarpAppDefault, {
   WarpApp,
   WarpCore,
-  WarpRuntime,
   // Core classes
   GitGraphAdapter,
   GraphNode,
@@ -66,7 +65,7 @@ import WarpAppDefault, {
   scopeMaterializedStateV5,
 } from '../../../index.js';
 
-const { WarpGraph, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
+const { WarpGraph, WarpRuntime, Worldline, ObserverView } = /** @type {any} */ (await import('../../../index.js'));
 
 describe('index.js exports', () => {
   describe('default export', () => {
@@ -91,10 +90,8 @@ describe('index.js exports', () => {
       expect(WarpCore.name).toBe('WarpCore');
     });
 
-    it('keeps WarpRuntime as a compatibility alias to WarpCore', () => {
-      expect(WarpRuntime).toBeDefined();
-      expect(typeof WarpRuntime).toBe('function');
-      expect(WarpRuntime).toBe(WarpCore);
+    it('does not export WarpRuntime from the public entry point', () => {
+      expect(WarpRuntime).toBeUndefined();
     });
 
     it('does not export WarpGraph as a public compatibility alias', () => {
@@ -286,14 +283,9 @@ describe('index.js exports', () => {
   });
 
   describe('multi-writer graph support (WARP)', () => {
-    it('exports WarpRuntime as a compatibility alias from the main entry point', () => {
-      expect(WarpRuntime).toBeDefined();
-      expect(typeof WarpRuntime).toBe('function');
-      expect(WarpRuntime).toBe(WarpCore);
-    });
-
-    it('WarpRuntime has static open method', () => {
-      expect(typeof WarpRuntime.open).toBe('function');
+    it('exports WarpCore as the public plumbing surface from the main entry point', () => {
+      expect(WarpCore).toBeDefined();
+      expect(typeof WarpCore.open).toBe('function');
     });
   });
 

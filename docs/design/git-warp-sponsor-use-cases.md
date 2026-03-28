@@ -288,7 +288,7 @@ The remaining naming problem is also real:
 
 - whether `WorkingSet` should become `Strand`
 - whether `PlaybackHead` is mature enough to become a public noun in v15
-- whether `WarpRuntime` should remain the primary root noun if a product/core
+- whether `WarpCore` is the right plumbing root noun once a product/core
   split becomes structural
 
 That is the next decision OG-010 needs to settle.

@@ -14,7 +14,7 @@ not stratify that power clearly enough.
 For both human developers and coding agents, the easiest visible path still
 looks too much like:
 
-1. open `WarpRuntime`
+1. open `WarpApp` for product-facing work or `WarpCore` for substrate work
 2. call broad graph methods
 3. materialize visible state
 4. iterate arrays
@@ -55,7 +55,7 @@ The public API should not teach this interaction as the default product model:
 
 An app developer should be able to infer:
 
-- `WarpRuntime` is the host/runtime and write surface
+- `WarpApp` is the product-facing root and `WarpCore` is the plumbing/runtime root
 - `Worldline` is the pinned read-history primitive
 - `Lens` is the aperture definition
 - `Observer` is the filtered product-read primitive
@@ -79,7 +79,7 @@ A coding agent should be able to infer:
 
 These are the nouns and entrypoints we want consumers to reach for first.
 
-- `WarpRuntime`
+- `WarpCore`
   - compatibility alias to the core surface during the transition
 - `WarpApp`
   - opening a graph for product usage
@@ -153,7 +153,7 @@ inspection or debugging tools unless the caller has a strong reason otherwise.
 - `neighbors()`
 - `getContent()` / `getEdgeContent()`
 - `getStateSnapshot()`
-- whole-state `query()` directly on `WarpRuntime`
+- whole-state `query()` directly on `WarpCore`
 
 These methods should be documented with explicit cost language:
 
@@ -184,7 +184,7 @@ README.
 
 | Concern | Primary primitive | Secondary helper | Advanced mechanic |
 | --- | --- | --- | --- |
-| Open/write | `WarpRuntime` | `patch()` / `writer()` | patch-chain internals |
+| Open/write | `WarpApp` / `WarpCore` | `patch()` / `writer()` | patch-chain internals |
 | Stable reads | `Worldline` | `Observer` | explicit coordinate materialization |
 | Filtered product reads | `Observer` | `query()` / `traverse` | direct snapshot inspection |
 | Speculation | working-set concept | working-set methods | overlay/receipt plumbing |
@@ -217,7 +217,7 @@ The README should teach in this order:
    later
 
 The Quick Start should no longer imply that product reads normally begin with
-full-state enumeration on `WarpRuntime`.
+full-state enumeration on `WarpCore`.
 
 ## API Shaping Recommendations
 

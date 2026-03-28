@@ -37,13 +37,12 @@ describe('public facade split', () => {
     expect(indexDts).toContain('export default WarpApp;');
   });
 
-  it('exposes WarpCore and keeps WarpRuntime only as a compatibility alias', async () => {
+  it('exposes WarpCore and does not export WarpRuntime anymore', async () => {
     const pkg = /** @type {{ WarpCore?: unknown; WarpRuntime?: unknown }} */ (await import('../../../index.js'));
     expect(pkg.WarpCore).toBeDefined();
-    expect(pkg.WarpRuntime).toBeDefined();
-    expect(pkg.WarpRuntime).toBe(pkg.WarpCore);
-    expect(indexJs).toContain('WarpCore as WarpRuntime,');
-    expect(indexDts).toContain('@deprecated Prefer `WarpApp` for product-facing usage or `WarpCore` for');
+    expect(pkg.WarpRuntime).toBeUndefined();
+    expect(indexJs).not.toContain('WarpCore as WarpRuntime,');
+    expect(indexDts).not.toContain('export declare class WarpRuntime {');
   });
 
   it('declares WarpApp as a curated surface with an explicit core escape hatch', () => {

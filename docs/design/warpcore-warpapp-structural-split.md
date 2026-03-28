@@ -19,6 +19,10 @@ The existing engine implementation may remain one underlying runtime
 internally, but the public API should stop presenting one flat `WarpRuntime`
 surface as the primary story.
 
+The compatibility-alias decision in this note is superseded by
+[warpruntime-public-cut.md](warpruntime-public-cut.md), which removes the
+public `WarpRuntime` export entirely for `v15`.
+
 ## Why This Cut Is Worth Doing Now
 
 The IBM cycle already established:
@@ -129,7 +133,7 @@ Initial curated surface:
 `WarpCore` should remain the honest "everything below the product veneer"
 surface. For this slice, the simplest rule is:
 
-- `WarpCore` exposes the full current `WarpRuntime` API
+- `WarpCore` exposes the full current plumbing API
 
 That keeps TTD and advanced tooling unblocked while `WarpApp` becomes the
 safer primary story.
@@ -190,7 +194,7 @@ Still open:
 
 - `WorkingSet` vs `Strand`
 - whether `PlaybackHead` ships in `v15`
-- whether `WarpRuntime` remains as a compatibility alias during the transition
+- whether the public `WarpRuntime` export should be cut immediately in `v15`
 
 ## Exit Criteria
 

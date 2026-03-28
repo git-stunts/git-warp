@@ -10,7 +10,6 @@
 import WarpApp, {
   WarpApp as WarpAppNamed,
   WarpCore,
-  WarpRuntime,
   GraphPersistencePort,
   IndexStoragePort,
   LoggerPort,
@@ -169,7 +168,6 @@ declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 
 const _sameAppCtor: typeof WarpApp = WarpAppNamed;
-const _runtimeAlias: typeof WarpCore = WarpRuntime;
 
 // Verify imported classes/ports are usable as types
 declare const _idxStorage: IndexStoragePort;
@@ -469,8 +467,8 @@ const slicePatchCount: number = slice.patchCount;
 const sliceWithReceipts = await graph.materializeSlice('n1', { receipts: true });
 
 // ---- fork ----
-const forked: WarpRuntime = await graph.fork({ from: 'w1', at: 'abc123' });
-const forkedCustom: WarpRuntime = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
+const forked: WarpCore = await graph.fork({ from: 'w1', at: 'abc123' });
+const forkedCustom: WarpCore = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
 
 // ---- createWormhole (instance method) ----
 const wormhole: WormholeEdge = await graph.createWormhole('sha1', 'sha2');
@@ -671,8 +669,8 @@ await graph.patch((p: string) => {});
 // @ts-expect-error -- getEdgeProps requires 3 string args
 await graph.getEdgeProps('a', 'b');
 
-// @ts-expect-error -- WarpRuntime.open requires persistence (missing required option)
-await WarpRuntime.open({ graphName: 'test', writerId: 'w1' });
+// @ts-expect-error -- WarpCore.open requires persistence (missing required option)
+await WarpCore.open({ graphName: 'test', writerId: 'w1' });
 
 // @ts-expect-error -- createNodeAdd requires string, not number
 createNodeAdd(42);

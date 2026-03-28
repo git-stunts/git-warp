@@ -53,4 +53,8 @@ describe('Guide public read-model teaching shape', () => {
       /The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and[\s\S]*`WarpCore`\./,
     );
   });
+
+  it('does not teach the removed WarpRuntime public noun', () => {
+    expect(guide).not.toContain('WarpRuntime');
+  });
 });

@@ -259,7 +259,7 @@ Writers operate independently on the same Git repository. Sync happens through s
 
 ```javascript
 // Writer A (on machine A)
-const graphA = await WarpRuntime.open({
+const graphA = await WarpCore.open({
   persistence: persistenceA,
   graphName: 'shared',
   writerId: 'alice',
@@ -270,7 +270,7 @@ await graphA.patch(p => {
 });
 
 // Writer B (on machine B)
-const graphB = await WarpRuntime.open({
+const graphB = await WarpCore.open({
   persistence: persistenceB,
   graphName: 'shared',
   writerId: 'bob',
@@ -691,7 +691,7 @@ const metrics = graph.getGCMetrics();
 const { ran, result } = graph.maybeRunGC();
 
 // Or configure automatic checkpointing
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'demo',
   writerId: 'writer-1',
@@ -925,7 +925,7 @@ flowchart TB
             np["NeighborProviderPort"]
 
             subgraph domain["Domain Core"]
-                wg["WarpRuntime — main API facade"]
+                wg["WarpCore — plumbing/tooling facade"]
                 jr["JoinReducer"]
                 pb["PatchBuilderV2"]
                 cs["CheckpointService"]
@@ -973,7 +973,8 @@ The codebase follows hexagonal architecture with ports and adapters:
 - `CasSeekCacheAdapter` -- persistent seek cache via `@git-stunts/git-cas`
 
 **Domain** contains the core logic:
-- `WarpRuntime` -- public API facade
+- `WarpApp` -- curated product-facing facade
+- `WarpCore` -- plumbing/tooling facade
 - `Writer` / `PatchSession` -- patch creation and commit
 - `JoinReducer` -- CRDT-based state materialization
 - `QueryBuilder` -- fluent query construction

@@ -97,4 +97,8 @@ describe('README public API teaching order', () => {
     expect(readme).toContain('For application-facing reads, prefer `WarpApp` plus `worldline()` for stable reads, and add `observer(...)` when you need a filtered aperture.');
     expect(readme).toContain('That boundary keeps the read coordinate explicit, preserves the observer aperture when needed, and reduces the temptation to preload the whole visible graph into application memory.');
   });
+
+  it('does not teach the removed WarpRuntime public noun', () => {
+    expect(readme).not.toContain('WarpRuntime');
+  });
 });

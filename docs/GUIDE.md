@@ -116,7 +116,7 @@ flowchart TB
             sp["SeekCachePort"]
 
             subgraph domain["Domain Core"]
-                wg["WarpRuntime — main API facade"]
+                wg["WarpCore — plumbing/tooling facade"]
                 jr["JoinReducer"]
                 pb["PatchBuilderV2"]
                 cs["CheckpointService"]
@@ -191,7 +191,7 @@ await graph.hasNode('temp');    // false
 await graph.getEdges();         // [] — edge is hidden too
 ```
 
-The `onDeleteWithData` option (set on `WarpRuntime.open()`) controls what happens when you remove a node that has attached edges or properties:
+The `onDeleteWithData` option (set on `WarpCore.open()`) controls what happens when you remove a node that has attached edges or properties:
 
 | Policy | Behavior |
 |---|---|
@@ -349,7 +349,7 @@ await graph.neighbors('user:alice', 'outgoing');
 By default, `autoMaterialize` is `true` — query methods transparently call `materialize()` when no cached state exists or when the state is stale. To opt out:
 
 ```javascript
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -529,7 +529,7 @@ const result = await worldline.query()
 
 ### Graph Traversals
 
-`LogicalTraversal` is available on `Worldline`, `Observer`, and `WarpRuntime`.
+`LogicalTraversal` is available on `Worldline`, `Observer`, and `WarpCore`.
 For stable product reads, prefer `worldline.traverse` or `observer.traverse`.
 
 All traversal methods accept:
@@ -670,7 +670,7 @@ const result = await worldline.traverse.weightedLongestPath('task:start', 'task:
 
 ## Multi-Writer Collaboration
 
-WarpRuntime's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
+WarpCore's core strength is coordination-free multi-writer collaboration. Each writer maintains an independent chain of patches. Materialization deterministically merges all writers into a single consistent view.
 
 ### How It Works
 
@@ -691,7 +691,7 @@ flowchart TB
 
 ```javascript
 // === Machine A ===
-const graphA = await WarpRuntime.open({
+const graphA = await WarpCore.open({
   persistence: persistenceA,
   graphName: 'shared-doc',
   writerId: 'machine-a',
@@ -703,7 +703,7 @@ await (await graphA.createPatch())
   .commit();
 
 // === Machine B ===
-const graphB = await WarpRuntime.open({
+const graphB = await WarpCore.open({
   persistence: persistenceB,
   graphName: 'shared-doc',
   writerId: 'machine-b',
@@ -847,7 +847,7 @@ const state = await graph.materializeAt(sha);
 Configure automatic checkpointing so you never have to think about it:
 
 ```javascript
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -968,13 +968,13 @@ graph.watch('order:*', { onChange: updateDashboard, poll: 3000 });
 
 The intended substrate boundary is:
 
-- `WarpRuntime` is the low-level substrate/session facade
+- `WarpCore` is the low-level substrate/session facade
 - observers are the preferred read-side abstraction
 - working sets are the preferred speculative write abstraction
 
-That boundary is not about hiding `WarpRuntime`. It is about keeping higher layers
+That boundary is not about hiding `WarpCore`. It is about keeping higher layers
 from rebuilding their own graph engine above git-warp. Reach for
-`WarpRuntime`-level materialization and patch APIs when you are working on
+`WarpCore`-level materialization and patch APIs when you are working on
 substrate plumbing. Reach for observers and working sets when you are building
 application-facing behavior.
 
@@ -1157,7 +1157,7 @@ const forked = await graph.fork({
   forkWriterId: 'fork-writer',
 });
 
-// forked is a new WarpRuntime sharing history up to the fork point
+// forked is a new WarpCore sharing history up to the fork point
 await (await forked.createPatch()).addNode('new:node').commit();
 ```
 
@@ -1391,7 +1391,7 @@ const provenance = await graph.patchesForWorkingSet('review-auth', 'task:auth');
 
 ### Git Hooks
 
-WarpRuntime ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
+WarpCore ships a `post-merge` hook that runs after `git merge` or `git pull`. If warp refs changed, it prints:
 
 ```text
 [warp] Writer refs changed during merge. Call materialize() to see updates.
@@ -1670,7 +1670,7 @@ Inject a logger for structured timing output:
 ```javascript
 import { ConsoleLogger } from '@git-stunts/git-warp';
 
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -1978,7 +1978,7 @@ const { state, receipts } = await graph.materialize({ receipts: true });
 
 ### Appendix F: Sync Protocol
 
-WarpRuntime provides a request/response sync protocol for programmatic synchronization without Git remotes.
+WarpCore provides a request/response sync protocol for programmatic synchronization without Git remotes.
 
 #### Protocol Flow
 
@@ -2049,10 +2049,10 @@ Over time, tombstoned entries accumulate in ORSets. Garbage collection compacts 
 
 #### Automatic GC
 
-Configure GC policy on `WarpRuntime.open()`:
+Configure GC policy on `WarpCore.open()`:
 
 ```javascript
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2140,12 +2140,12 @@ Memory: initial load near-zero (lazy); single shard 0.5–2 MB; full index at 1M
 
 ### Appendix I: Audit Receipts
 
-When `audit: true` is set on `WarpRuntime.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
+When `audit: true` is set on `WarpCore.open()`, every data commit produces a corresponding **audit commit** — a tamper-evident record of what happened when the patch was materialized.
 
 #### Enabling Audit Mode
 
 ```javascript
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence,
   graphName: 'my-graph',
   writerId: 'local',
@@ -2238,18 +2238,18 @@ As of v11.0.0, `autoMaterialize` defaults to `true`. If you relied on the previo
 **Option A:** Accept the new default (recommended for most users):
 ```js
 // Before: required explicit materialize()
-const graph = await WarpRuntime.open({ persistence, graphName, writerId });
+const graph = await WarpCore.open({ persistence, graphName, writerId });
 await graph.materialize();
 const nodes = await graph.getNodes();
 
 // After: just works
-const graph = await WarpRuntime.open({ persistence, graphName, writerId });
+const graph = await WarpCore.open({ persistence, graphName, writerId });
 const nodes = await graph.getNodes();
 ```
 
 **Option B:** Opt out explicitly:
 ```js
-const graph = await WarpRuntime.open({
+const graph = await WarpCore.open({
   persistence, graphName, writerId,
   autoMaterialize: false, // preserve pre-v11 behavior
 });

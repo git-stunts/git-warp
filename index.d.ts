@@ -1093,7 +1093,7 @@ export { CommitDagTraversalService as TraversalService };
  * @since 13.0.0
  */
 export class BisectService {
-  constructor(options: { graph: { getWriterPatches: WarpRuntime['getWriterPatches']; materialize: WarpRuntime['materialize'] } });
+  constructor(options: { graph: { getWriterPatches: WarpCore['getWriterPatches']; materialize: WarpCore['materialize'] } });
 
   /**
    * Runs bisect on a single writer's patch chain.
@@ -1385,9 +1385,9 @@ export interface ObserverOptions {
 }
 
 /**
- * Read-only observer over a materialized WarpRuntime state.
+ * Read-only observer over a materialized WarpCore state.
  *
- * Provides the same query/traverse API as WarpRuntime, but filtered through a
+ * Provides the same query/traverse API as WarpCore, but filtered through a
  * lens (match pattern, expose, redact).
  * Edges are only visible when both endpoints pass the match filter.
  *
@@ -1632,7 +1632,7 @@ export interface PatchV2 {
 /**
  * Fluent builder for creating WARP v5 patches with OR-Set semantics.
  *
- * Returned by WarpRuntime.createPatch(). Chain mutation methods then call
+ * Returned by WarpCore.createPatch(). Chain mutation methods then call
  * commit() to persist the patch atomically.
  */
 export class PatchBuilderV2 {
@@ -1879,19 +1879,7 @@ export interface JoinReceipt {
   frontierMerged: boolean;
 }
 
-/**
- * Multi-writer graph database using WARP CRDT protocol.
- *
- * V7 primary API - uses patch-based storage with OR-Set semantics.
- * See docs/V7_CONTRACT.md for architecture details.
- */
-/**
- * Full runtime surface.
- *
- * @deprecated Prefer `WarpApp` for product-facing usage or `WarpCore` for
- * explicit tooling/plumbing usage.
- */
-export declare class WarpRuntime {
+declare class WarpCoreBase {
   /**
    * Opens or creates a multi-writer graph.
    */
@@ -1922,7 +1910,7 @@ export declare class WarpRuntime {
     blobStorage?: BlobStoragePort;
     /** Patch blob storage — when set, patch CBOR is encrypted via this port. */
     patchBlobStorage?: BlobStoragePort;
-  }): Promise<WarpRuntime>;
+  }): Promise<WarpCore>;
 
   /**
    * The graph namespace.
@@ -2169,11 +2157,11 @@ export declare class WarpRuntime {
   }): Promise<{ close(): Promise<void>; url: string }>;
 
   /**
-   * Syncs with a remote peer (HTTP URL or another WarpRuntime instance).
+   * Syncs with a remote peer (HTTP URL or another WarpCore instance).
    *
    * When `options.materialize` is true, the returned object also contains a `state` property.
    */
-  syncWith(remote: string | WarpRuntime, options?: {
+  syncWith(remote: string | WarpCore, options?: {
     path?: string;
     retries?: number;
     baseDelayMs?: number;
@@ -2196,7 +2184,7 @@ export declare class WarpRuntime {
   /**
    * Creates a fork of this graph at a specific point in a writer's history.
    *
-   * A fork creates a new WarpRuntime instance that shares history up to the
+   * A fork creates a new WarpCore instance that shares history up to the
    * specified patch SHA. Due to Git's content-addressed storage, the shared
    * history is automatically deduplicated.
    */
@@ -2209,7 +2197,7 @@ export declare class WarpRuntime {
     forkName?: string;
     /** Writer ID for the fork. Defaults to a new canonical ID. */
     forkWriterId?: string;
-  }): Promise<WarpRuntime>;
+  }): Promise<WarpCore>;
 
   /**
    * Creates a wormhole compressing a range of patches.
@@ -2447,11 +2435,11 @@ export declare class WarpRuntime {
  * Use `WarpCore` for replay, provenance, inspection, debugger tooling, and
  * other advanced substrate mechanics.
  */
-export declare class WarpCore extends WarpRuntime {
+export declare class WarpCore extends WarpCoreBase {
   /**
    * Opens or creates a multi-writer graph and returns the full core surface.
    */
-  static open(options: Parameters<typeof WarpRuntime.open>[0]): Promise<WarpCore>;
+  static open(options: Parameters<typeof WarpCoreBase.open>[0]): Promise<WarpCore>;
 }
 
 /**
@@ -2465,7 +2453,7 @@ export declare class WarpApp {
   /**
    * Opens or creates a multi-writer graph and returns the curated app surface.
    */
-  static open(options: Parameters<typeof WarpRuntime.open>[0]): Promise<WarpApp>;
+  static open(options: Parameters<typeof WarpCoreBase.open>[0]): Promise<WarpApp>;
 
   /** The graph namespace. */
   readonly graphName: WarpCore['graphName'];
@@ -2498,7 +2486,7 @@ export declare class WarpApp {
    * Syncs with a remote peer (HTTP URL, `WarpApp`, or `WarpCore`).
    */
   syncWith(
-    remote: string | WarpApp | WarpCore | WarpRuntime,
+    remote: string | WarpApp | WarpCore,
     options?: Parameters<WarpCore['syncWith']>[1],
   ): ReturnType<WarpCore['syncWith']>;
 

@@ -643,12 +643,7 @@
       "default": true
     },
     "WarpCore": {
-      "kind": "class"
-    },
-    "WarpRuntime": {
       "kind": "class",
-      "deprecated": true,
-      "alias": "WarpCore",
       "static": {
         "open": {
           "async": true,
@@ -658,7 +653,7 @@
               "type": "{ persistence: GraphPersistencePort; graphName: string; writerId: string; logger?: LoggerPort; adjacencyCacheSize?: number; gcPolicy?: GCPolicyConfig; checkpointPolicy?: { every: number }; autoMaterialize?: boolean; onDeleteWithData?: 'reject' | 'cascade' | 'warn'; clock?: ClockPort; crypto?: CryptoPort; codec?: unknown; seekCache?: SeekCachePort }"
             }
           ],
-          "returns": "Promise<WarpRuntime>"
+          "returns": "Promise<WarpCore>"
         }
       },
       "instance": {
@@ -949,7 +944,7 @@
           "params": [
             {
               "name": "remote",
-              "type": "string | WarpRuntime"
+              "type": "string | WarpCore"
             },
             {
               "name": "options",
@@ -967,7 +962,7 @@
               "type": "{ from: string; at: string; forkName?: string; forkWriterId?: string }"
             }
           ],
-          "returns": "Promise<WarpRuntime>"
+          "returns": "Promise<WarpCore>"
         },
         "createWormhole": {
           "async": true,

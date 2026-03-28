@@ -59,14 +59,10 @@ developer experience.
 - sync
 - create higher-level read and speculative handles
 
-Current noun:
+Current nouns:
 
-- `WarpRuntime`
-
-Open question:
-
-- whether `WarpRuntime` remains the public root noun, or whether a higher-level
-  product-facing facade should become primary
+- `WarpApp`
+- `WarpCore`
 
 ### 2. Pinned read history
 

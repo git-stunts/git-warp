@@ -203,7 +203,6 @@ export {
   // Multi-writer graph support (WARP)
   WarpApp,
   WarpCore,
-  WarpCore as WarpRuntime,
   Worldline,
   QueryBuilder,
   Observer,
