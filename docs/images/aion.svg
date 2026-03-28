@@ -21,19 +21,28 @@
        y2="0%">
       <stop
          offset="0%"
-         style="stop-color:#a41c28;stop-opacity:1" />
+         style="stop-color:#ecf5e9;stop-opacity:1" />
       <stop
-         offset="25%"
-         style="stop-color:#ce3c3c;stop-opacity:1" />
+         offset="14.2857%"
+         style="stop-color:#e2f0db;stop-opacity:1" />
       <stop
-         offset="50%"
-         style="stop-color:#f95a52;stop-opacity:1" />
+         offset="28.5714%"
+         style="stop-color:#c8dfb6;stop-opacity:1" />
       <stop
-         offset="75%"
-         style="stop-color:#e47698;stop-opacity:1" />
+         offset="42.8571%"
+         style="stop-color:#a7c780;stop-opacity:1" />
+      <stop
+         offset="57.1429%"
+         style="stop-color:#85a44c;stop-opacity:1" />
+      <stop
+         offset="71.4286%"
+         style="stop-color:#606e34;stop-opacity:1" />
+      <stop
+         offset="85.7143%"
+         style="stop-color:#444923;stop-opacity:1" />
       <stop
          offset="100%"
-         style="stop-color:#cc89d5;stop-opacity:1" />
+         style="stop-color:#3b3c1d;stop-opacity:1" />
     </linearGradient>
   </defs>
   <sodipodi:namedview
