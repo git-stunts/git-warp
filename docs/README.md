@@ -26,6 +26,8 @@ when you need that level of detail.
 
 ## Operational And Normative Docs
 
+- [Architecture](../ARCHITECTURE.md)
+  System structure, public/core boundaries, and internal layering.
 - [Release Guide](release.md)
   Release and preflight process.
 - [Trust Migration](trust/TRUST_MIGRATION.md)
@@ -62,14 +64,3 @@ when you need that level of detail.
 - [Archive Index](archive/README.md)
   Superseded plans, transcripts, completed checklists, and other historical
   artifacts that should not be used as first-use docs.
-
-## Current Release-Blocker Docs
-
-These files are still in the repo but are under active reconciliation before
-`v15`:
-
-- `ARCHITECTURE.md`
-- `docs/CLI_GUIDE.md`
-
-They are not junk, but they still need a current-noun and current-surface pass
-before release.

@@ -33,8 +33,10 @@ describe('documentation corpus taxonomy', () => {
     expect(docsIndex).toContain('# Documentation Index');
     expect(docsIndex).toContain('[Guide](GUIDE.md)');
     expect(docsIndex).toContain('[CLI Guide](CLI_GUIDE.md)');
+    expect(docsIndex).toContain('[Architecture](../ARCHITECTURE.md)');
     expect(docsIndex).toContain('[Strands](STRANDS.md)');
     expect(docsIndex).toContain('[TTD](TTD.md)');
+    expect(docsIndex).not.toContain('## Current Release-Blocker Docs');
   });
 
   it('keeps a maintainer-facing documentation guide for writing and information architecture', () => {

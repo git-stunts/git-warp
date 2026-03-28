@@ -1,7 +1,7 @@
 # Documentation Corpus Audit
 
 Backlog: `OG-012`
-Status: Active
+Status: Closed
 Date: 2026-03-28
 
 ## Problem
@@ -105,7 +105,7 @@ Add `docs/README.md` as the canonical map for the documentation set, including:
 - which docs are operational/spec references
 - where historical material lives
 
-### 6. This slice identifies release blockers but does not pretend they are fixed
+### 6. This slice identifies release blockers and sends them into a focused follow-on rewrite
 
 Current release-blocking doc drift discovered during the audit:
 
@@ -113,7 +113,8 @@ Current release-blocking doc drift discovered during the audit:
   layering.
 - `docs/CLI_GUIDE.md` still teaches `WarpGraph` and old examples.
 
-Those docs should not be treated as release-ready until reconciled.
+Those docs were later reconciled in
+[architecture-and-cli-guide-rewrite.md](architecture-and-cli-guide-rewrite.md).
 
 ### 7. Documentation governance needs a maintainer-facing home
 
@@ -183,6 +184,6 @@ The target live structure should move toward explicit homes for:
 
 ## Follow-On Work
 
-- reconcile `ARCHITECTURE.md` with `WarpApp` / `WarpCore` / `Strand`
-- reconcile `docs/CLI_GUIDE.md` with current public nouns and command families
+- completed: reconcile `ARCHITECTURE.md` with `WarpApp` / `WarpCore` / `Strand`
+- completed: reconcile `docs/CLI_GUIDE.md` with current public nouns and command families
 - decide whether any additional root docs should be archived or rewritten

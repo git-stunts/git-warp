@@ -97,6 +97,11 @@ Commands:
                        --lamport-ceiling <n>  Apply an additional ceiling to the strand
                        --against-lamport-ceiling <n>
                                               Apply an additional ceiling to the comparison side
+                     transfer-plan <id> Plan a deterministic transfer from one strand into live, base, or another strand
+                       --into <sel>           live, base, or strand:<id>
+                       --lamport-ceiling <n>  Apply an additional ceiling to the source strand
+                       --into-lamport-ceiling <n>
+                                              Apply an additional ceiling to the target side
                      materialize <id>   Materialize the pinned coordinate
                        --receipts             Include tick receipts
                      drop <id>          Delete a strand descriptor

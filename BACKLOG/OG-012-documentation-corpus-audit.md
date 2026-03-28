@@ -1,6 +1,6 @@
 # OG-012 — Audit And Reconcile The Documentation Corpus Before v15
 
-Status: ACTIVE
+Status: DONE
 
 ## Problem
 
@@ -41,3 +41,4 @@ This is a release-quality problem, not just housekeeping.
 Promoted to:
 
 - [docs/design/documentation-corpus-audit.md](../docs/design/documentation-corpus-audit.md)
+- [docs/design/architecture-and-cli-guide-rewrite.md](../docs/design/architecture-and-cli-guide-rewrite.md)
