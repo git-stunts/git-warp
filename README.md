@@ -1,4 +1,4 @@
-<div align="center"><img src="https://github.com/user-attachments/assets/a8e4e0da-ba13-4b8e-aeb3-4eced40123a5" />
+<div align="center"><img src="docs/images/git-warp.svg" alt="git-warp logo" />
 <h1><code>npm install @git-stunts/git-warp</code></h1>
 
 
