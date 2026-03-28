@@ -8,32 +8,33 @@ const guide = readFileSync(
 );
 
 describe('CLI guide shape', () => {
-  it('uses the current API to seed the sample graph', () => {
-    expect(guide).toContain('# git warp CLI guide');
-    expect(guide).toContain('## Create a sample graph');
-    expect(guide).toContain('WarpApp.open({');
-    expect(guide).not.toContain('WarpGraph.open({');
+  it('positions the CLI as the operator surface', () => {
+    expect(guide).toContain('# CLI guide');
+    expect(guide).toContain("This is the operator's guide.");
+    expect(guide).toContain('If you are building an app, start with the [Guide](GUIDE.md).');
+    expect(guide).not.toContain('WarpRuntime');
   });
 
-  it('covers the current command families', () => {
+  it('organizes commands by workflow instead of as a flag bucket', () => {
+    expect(guide).toContain('## Workflow 1: pre-flight checks');
+    expect(guide).toContain('## Workflow 2: in-flight inspection');
+    expect(guide).toContain('## Workflow 3: black-box recovery');
+    expect(guide).toContain('## Workflow 4: debugger commands');
+    expect(guide).toContain('## Workflow 5: speculative lanes');
+    expect(guide).toContain('## Workflow 6: trust and maintenance');
+  });
+
+  it('covers the current command families and operator views', () => {
+    expect(guide).toContain('git warp info');
+    expect(guide).toContain('git warp check');
+    expect(guide).toContain('git warp doctor');
     expect(guide).toContain('git warp query');
     expect(guide).toContain('git warp seek');
+    expect(guide).toContain('git warp bisect');
+    expect(guide).toContain('git warp debug conflicts');
     expect(guide).toContain('git warp strand create');
-    expect(guide).toContain('git warp strand transfer-plan');
-    expect(guide).toContain('git warp debug coordinate');
     expect(guide).toContain('git warp verify-audit');
     expect(guide).toContain('git warp install-hooks');
-  });
-
-  it('frames the CLI as operational and inspection surface, not the app API', () => {
-    expect(guide).toContain('The CLI is the operational and inspection surface.');
-    expect(guide).toContain('For application code, use `WarpApp`.');
-    expect(guide).toContain('Treat `materialize` as advanced substrate inspection, not the default app read path.');
-    expect(guide).not.toContain('working-set');
-  });
-
-  it('includes a high-level command reference table', () => {
-    expect(guide).toContain('## Command reference');
-    expect(guide).toContain('| Command | Use it for | Notable flags |');
+    expect(guide).toContain('active seek cursor');
   });
 });

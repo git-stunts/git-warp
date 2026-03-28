@@ -29,13 +29,18 @@ function hasFile(relativePath) {
 
 describe('documentation corpus taxonomy', () => {
   it('exposes a docs index and links to it from the root README', () => {
-    expect(readme).toContain('**[Documentation Index](docs/README.md)**');
+    expect(readme).toContain('**[Documentation index](docs/README.md)**');
+    expect(hasFile('docs/GETTING_STARTED.md')).toBe(true);
+    expect(hasFile('docs/API_REFERENCE.md')).toBe(true);
+    expect(hasFile('docs/ADVANCED_GUIDE.md')).toBe(true);
     expect(docsIndex).toContain('# Documentation Index');
+    expect(docsIndex).toContain('[Getting Started](GETTING_STARTED.md)');
     expect(docsIndex).toContain('[Guide](GUIDE.md)');
+    expect(docsIndex).toContain('[API Reference](API_REFERENCE.md)');
+    expect(docsIndex).toContain('[Advanced Guide](ADVANCED_GUIDE.md)');
     expect(docsIndex).toContain('[CLI Guide](CLI_GUIDE.md)');
+    expect(docsIndex).toContain('[Conceptual Overview](CONCEPTUAL_OVERVIEW.md)');
     expect(docsIndex).toContain('[Architecture](../ARCHITECTURE.md)');
-    expect(docsIndex).toContain('[Strands](STRANDS.md)');
-    expect(docsIndex).toContain('[TTD](TTD.md)');
     expect(docsIndex).not.toContain('## Current Release-Blocker Docs');
   });
 
@@ -65,6 +70,8 @@ describe('documentation corpus taxonomy', () => {
     expect(hasFile('docs/archive/checklists/TYPESCRIPT_ZERO.md')).toBe(true);
     expect(hasFile('docs/trust/TRUST_MIGRATION.md')).toBe(true);
     expect(hasFile('docs/trust/TRUST_OPERATOR_RUNBOOK.md')).toBe(true);
+    expect(hasFile('docs/archive/STRANDS.md')).toBe(false);
+    expect(hasFile('docs/archive/TTD.md')).toBe(false);
   });
 
   it('keeps superseded plans under docs/archive instead of the live docs surface', () => {

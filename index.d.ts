@@ -1633,7 +1633,8 @@ export interface PatchV2 {
  * Fluent builder for creating WARP v5 patches with OR-Set semantics.
  *
  * Returned by WarpCore.createPatch(). Chain mutation methods then call
- * commit() to persist the patch atomically.
+ * commit() to persist one atomic WARP patch under `refs/warp/...`.
+ * This does not touch the caller's normal Git worktree.
  */
 export class PatchBuilderV2 {
   /** Adds a node to the graph. */
@@ -1658,7 +1659,7 @@ export class PatchBuilderV2 {
   clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
-  /** Commits the patch to the graph and returns the commit SHA. */
+  /** Commits one atomic WARP patch under `refs/warp/...` and returns the patch commit SHA. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
   readonly opCount: number;
@@ -1696,7 +1697,7 @@ export class PatchSession {
   clearEdgeContent(from: string, to: string, label: string): this;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
-  /** Commits the patch with CAS protection. */
+  /** Commits one atomic WARP patch with CAS protection. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
   readonly opCount: number;
@@ -1715,7 +1716,9 @@ export class Writer {
   /** Begins a new patch session. */
   beginPatch(): Promise<PatchSession>;
   /**
-   * Builds and commits a patch in one call.
+   * Builds and commits one patch in one call.
+   * The callback does not commit per write; all queued mutations become one
+   * atomic WARP patch after the callback finishes.
    * @throws {WriterError} COMMIT_IN_PROGRESS if called while another commitPatch() is in progress (not reentrant)
    */
   commitPatch(build: (p: PatchSession) => void | Promise<void>): Promise<string>;
@@ -2484,7 +2487,11 @@ export declare class WarpApp {
   /** Creates a new PatchBuilderV2 for adding operations. */
   createPatch(): ReturnType<WarpCore['createPatch']>;
 
-  /** Convenience wrapper that creates, builds, and commits one patch. */
+  /**
+   * Convenience wrapper that creates, builds, and commits one patch.
+   * The callback does not commit per write; all queued mutations become one
+   * atomic WARP patch after the callback finishes.
+   */
   patch(build: Parameters<WarpCore['patch']>[0]): ReturnType<WarpCore['patch']>;
 
   /** Applies multiple patches sequentially. */

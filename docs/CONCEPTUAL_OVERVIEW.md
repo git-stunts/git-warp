@@ -1,4 +1,8 @@
-# Git Warp
+# Conceptual overview
+
+This document explains the core ideas behind `git-warp` in plain language.
+
+Use it when you understand what the package does and want a deeper conceptual model before diving into the implementation specs or the formal AIΩN papers.
 
 ## The Core Idea
 

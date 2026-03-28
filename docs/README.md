@@ -9,20 +9,32 @@ when you need that level of detail.
 ## Start Here
 
 - [Root README](../README.md)
-  Product overview, fit, quick start, and the first-use read model.
+  Evaluator-facing overview: fit, architecture at a glance, and where to go next.
+- [Getting Started](GETTING_STARTED.md)
+  New-user tutorial: see the system work in a few minutes.
 - [Guide](GUIDE.md)
-  The main API walkthrough for `WarpApp`, `WarpCore`, worldlines, observers,
-  reads, writes, and sync.
+  Builder guide: common app patterns with `WarpApp`, worldlines, observers, and strands.
+- [API Reference](API_REFERENCE.md)
+  Exhaustive API, appendices, flags, and examples without the narrative.
+- [Advanced Guide](ADVANCED_GUIDE.md)
+  Architect guide: substrate internals, replay, trust, and performance.
 - [CLI Guide](CLI_GUIDE.md)
-  Command-line walkthrough and command reference.
+  Operator guide: inspect, validate, debug, and time-travel live repos.
+- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md)
+  Deeper conceptual explanation of the WARP model and the Git substrate.
 
 ## Primary Product Docs
 
-- [Strands](STRANDS.md)
-  Speculative write lanes, braid composition, comparison, transfer planning, and
-  the strand surface.
-- [TTD](TTD.md)
-  The thin debugger/tooling boundary inside `git-warp`.
+- [Getting Started](GETTING_STARTED.md)
+  The first successful end-to-end path.
+- [Guide](GUIDE.md)
+  Day-to-day builder workflows.
+- [API Reference](API_REFERENCE.md)
+  Exhaustive surface for methods, flags, appendices, and errors.
+- [Advanced Guide](ADVANCED_GUIDE.md)
+  Advanced substrate and tooling topics.
+- [Conceptual Overview](CONCEPTUAL_OVERVIEW.md)
+  Background concepts and mental model for the Git-native WARP substrate.
 
 ## Operational And Normative Docs
 

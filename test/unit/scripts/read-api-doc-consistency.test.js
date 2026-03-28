@@ -13,32 +13,42 @@ function readDoc(relativePath) {
 }
 
 const readme = readDoc('README.md');
+const gettingStarted = readDoc('docs/GETTING_STARTED.md');
 const guide = readDoc('docs/GUIDE.md');
-const strands = readDoc('docs/STRANDS.md');
+const advancedGuide = readDoc('docs/ADVANCED_GUIDE.md');
 
 describe('public read API docs stay aligned with observer geometry', () => {
-  it('teaches worldline-first pinned read examples in the public docs', () => {
-    expect(readme).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
+  it('teaches worldline-first pinned read examples in the learning and builder docs', () => {
+    expect(gettingStarted).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
+    expect(gettingStarted).toMatch(/worldline\([\s\S]*?\.observer\(/);
     expect(guide).toMatch(/worldline\([\s\S]*?worldline\.query\(/);
     expect(guide).toMatch(/worldline\([\s\S]*?\.observer\(/);
-    expect(strands).toMatch(/worldline\([\s\S]*?\.observer\(/);
+    expect(advancedGuide).toContain('## Strands and braids');
   });
 
-  it('describes coordinate and strand materialization as detached immutable snapshots', () => {
-    expect(readme).toContain('detached immutable snapshot');
-    expect(guide).toContain('detached immutable snapshot');
-    expect(strands).toContain('detached immutable snapshot');
+  it('keeps pinned materialization details in the deeper docs, not the front door docs', () => {
+    expect(readme).not.toContain('detached immutable snapshot');
+    expect(gettingStarted).not.toContain('detached immutable snapshot');
+    expect(guide).not.toContain('detached immutable snapshot');
+    expect(advancedGuide).not.toContain('detached immutable snapshot');
   });
 
-  it('states that pinned materialization does not retarget the caller runtime', () => {
-    expect(readme).toContain('does not retarget the caller runtime');
-    expect(guide).toContain('does not retarget the caller runtime');
-    expect(strands).toContain('does not retarget the caller runtime');
+  it('keeps runtime-retargeting caveats in the deeper docs, not the front door docs', () => {
+    expect(readme).not.toContain('does not retarget the caller runtime');
+    expect(gettingStarted).not.toContain('does not retarget the caller runtime');
+    expect(guide).not.toContain('does not retarget the caller runtime');
+    expect(advancedGuide).not.toContain('does not retarget the caller runtime');
+  });
+
+  it('keeps code-heavy read examples out of the evaluator README', () => {
+    expect(readme).not.toContain('WarpApp.open(');
+    expect(readme).not.toContain('worldline.query()');
   });
 
   it('keeps the legacy WarpGraph noun out of the public read-surface docs', () => {
     expect(readme).not.toContain('WarpGraph');
+    expect(gettingStarted).not.toContain('WarpGraph');
     expect(guide).not.toContain('WarpGraph');
-    expect(strands).not.toContain('WarpGraph');
+    expect(advancedGuide).not.toContain('WarpGraph');
   });
 });

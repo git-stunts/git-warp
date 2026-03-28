@@ -300,10 +300,12 @@ bin/
   cli/
 
 docs/
+  CONCEPTUAL_OVERVIEW.md
+  GETTING_STARTED.md
   GUIDE.md
+  API_REFERENCE.md
+  ADVANCED_GUIDE.md
   CLI_GUIDE.md
-  STRANDS.md
-  TTD.md
   design/
   retrospectives/
   specs/
@@ -312,10 +314,10 @@ docs/
 
 Use the docs corpus as follows:
 
-- `README.md` and `docs/GUIDE.md` for product-facing usage
+- `README.md`, `docs/GETTING_STARTED.md`, and `docs/GUIDE.md` for the primary user journey
+- `docs/API_REFERENCE.md` for exhaustive API detail
+- `docs/ADVANCED_GUIDE.md` and `docs/CONCEPTUAL_OVERVIEW.md` for deeper substrate concepts
 - `docs/CLI_GUIDE.md` for command-line workflows
-- `docs/STRANDS.md` for speculative lane semantics
-- `docs/TTD.md` for debugger/tooling boundaries
 - `docs/specs/` and `adr/` for lower-level normative details
 
 ## Current architecture boundary in one sentence

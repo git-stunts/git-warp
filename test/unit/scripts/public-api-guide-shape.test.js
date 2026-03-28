@@ -7,59 +7,47 @@ const guide = readFileSync(
   'utf8',
 );
 
-/**
- * @param {string} source
- * @param {string} startHeading
- * @param {string} endHeading
- * @returns {string}
- */
-function betweenHeadings(source, startHeading, endHeading) {
-  const start = source.indexOf(startHeading);
-  const end = source.indexOf(endHeading);
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`Unable to find ordered headings: ${startHeading} -> ${endHeading}`);
-  }
-  return source.slice(start, end);
-}
-
-describe('Guide public read-model teaching shape', () => {
-  it('installs the packages that the quick start actually uses', () => {
-    expect(guide).toContain('npm install @git-stunts/git-warp @git-stunts/plumbing');
+describe('Guide builder-shape', () => {
+  it('starts with the state model before diving into methods', () => {
+    expect(guide).toContain('## Mental model');
+    expect(guide).toContain('A `Worldline` is a pinned read coordinate.');
+    expect(guide).toContain('A `Lens` defines what is visible.');
+    expect(guide).toContain('An `Observer` is a filtered read-only view through that lens.');
+    expect(guide).toContain('A `Strand` is a speculative write lane');
   });
 
-  it('uses worldline-first reads in Quick Start', () => {
-    const quickStart = betweenHeadings(guide, '## Quick Start', '## Writing Data');
-    expect(quickStart).toMatch(/WarpApp\.open\(/);
-    expect(quickStart).toMatch(/app\.worldline\(\)/);
-    expect(quickStart).toMatch(/worldline\.getNodeProps\('todo:1'\)/);
-    expect(quickStart).toMatch(/worldline\.query\(\)/);
-    expect(quickStart).toMatch(/worldline\.traverse\.shortestPath/);
-    expect(quickStart).not.toContain('await app.materialize();');
+  it('organizes the main API around common write and read patterns', () => {
+    expect(guide).toContain('## Common write patterns');
+    expect(guide).toContain('### Pattern 1: direct patch');
+    expect(guide).toContain('### Pattern 2: explicit writer session');
+    expect(guide).toContain('### Pattern 3: speculative write lane');
+    expect(guide).toContain('## Common read patterns');
+    expect(guide).toContain('### Pattern 1: the live view');
+    expect(guide).toContain('### Pattern 2: the redacted view');
+    expect(guide).toContain('### Pattern 3: the historical view');
+    expect(guide).toContain('### Pattern 4: the speculative view');
   });
 
-  it('teaches product reads before inspection in the reading section', () => {
-    const reading = betweenHeadings(guide, '## Reading Data', '## Querying');
-    expect(reading).toContain('### Product Reads');
-    expect(reading).toContain('### Inspection And Materialization');
-    expect(reading.indexOf('### Product Reads')).toBeLessThan(
-      reading.indexOf('### Inspection And Materialization'),
-    );
-    expect(reading).toContain('For application-facing reads, start from `worldline()`.');
-    expect(reading).toMatch(
-      /Use runtime-wide enumeration and direct materialization when you intentionally[\s\S]*whole-visible-state reads[\s\S]*lower-level substrate work\./,
-    );
-    expect(reading).toContain('What you should avoid is exporting that data into a second app-local graph');
+  it('shows query, hop, aggregate, and path result shapes against a canonical tree graph', () => {
+    expect(guide).toContain('## Common query patterns');
+    expect(guide).toContain('flowchart TD');
+    expect(guide).toContain("// tasks = {");
+    expect(guide).toContain('// downstream = {');
+    expect(guide).toContain('// summary = {');
+    expect(guide).toContain('// dependencyPath = {');
   });
 
-  it('leads the query section with worldline-scoped query examples', () => {
-    const querying = betweenHeadings(guide, '## Querying', '## Multi-Writer Collaboration');
-    expect(querying).toMatch(/const worldline = (graph|app)\.worldline\(\);[\s\S]*?worldline\.query\(\)/);
-    expect(querying).toMatch(
-      /The same `QueryBuilder` surface is available on `Worldline`, `Observer`, and[\s\S]*`WarpCore`\./,
-    );
+  it('uses a conflict-outcome table instead of CRDT theory dump', () => {
+    expect(guide).toContain('## Collaboration patterns');
+    expect(guide).toContain('| Alice writes | Bob writes | Outcome |');
+    expect(guide).toContain('concurrent add wins');
   });
 
-  it('does not teach the removed WarpRuntime public noun', () => {
+  it('keeps the core escape hatch explicit and points deep detail to API reference and advanced guide', () => {
+    expect(guide).toContain('## When to drop to WarpCore');
+    expect(guide).toContain('The thing to avoid is exporting that data into a second app-local graph');
+    expect(guide).toContain('[API Reference](API_REFERENCE.md)');
+    expect(guide).toContain('[Advanced Guide](ADVANCED_GUIDE.md)');
     expect(guide).not.toContain('WarpRuntime');
   });
 });
