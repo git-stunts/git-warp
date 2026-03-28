@@ -1,7 +1,6 @@
 <div align="center"><img src="docs/images/git-warp.svg" alt="git-warp logo" />
 <h1><code>npm install @git-stunts/git-warp</code></h1>
 
-
 [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
@@ -32,7 +31,13 @@ Multiple independent writers can modify the same graph without coordination. Whe
 
 WARP stands for **Worldline Algebra for Recursive Provenance**.
 
-WARP itself is not tied to Git. It is a history-native graph model where the system records not only what the graph looks like now, but also the sequence of changes that produced it.
+WARP itself is not tied to Git. It is a history-native graph model where the
+system records not only what the graph looks like now, but also the sequence of
+changes that produced it.
+
+In WARP, current state is a derived view over causal history rather than the
+only artifact that matters. That is what enables pinned reads, replay,
+provenance, and speculative lanes without treating history as optional logging.
 
 `git-warp` implements WARP on top of Git.
 
@@ -1030,7 +1035,7 @@ npm run test:deno       # Deno: API integration tests
 npm run test:matrix     # All runtimes in parallel
 ```
 
-## When git-warp is Most Useful
+## When `git-warp` is Most Useful
 
 - **Distributed configuration management.** A fleet of servers each writing their own state into a shared graph without a central database.
 - **Offline-first field applications.** Collecting data in the field with no connectivity; merging cleanly when back online.
