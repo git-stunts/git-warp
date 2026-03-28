@@ -15,7 +15,11 @@ const archiveIndex = readFileSync(
   'utf8',
 );
 const styleGuide = readFileSync(
-  fileURLToPath(new URL('../../../docs/dev/documentation/style-guide.md', import.meta.url)),
+  fileURLToPath(new URL('../../../.github/maintainers/documentation/style-guide.md', import.meta.url)),
+  'utf8',
+);
+const maintainerDocsIndex = readFileSync(
+  fileURLToPath(new URL('../../../.github/maintainers/README.md', import.meta.url)),
   'utf8',
 );
 
@@ -45,7 +49,10 @@ describe('documentation corpus taxonomy', () => {
   });
 
   it('keeps a maintainer-facing documentation guide for writing and information architecture', () => {
-    expect(docsIndex).toContain('[Documentation style guide](dev/documentation/style-guide.md)');
+    expect(docsIndex).toContain('[Maintainer docs](../.github/maintainers/README.md)');
+    expect(docsIndex).toContain('[Documentation style guide](../.github/maintainers/documentation/style-guide.md)');
+    expect(maintainerDocsIndex).toContain('# Maintainer docs');
+    expect(maintainerDocsIndex).toContain('[Documentation style guide](documentation/style-guide.md)');
     expect(styleGuide).toContain('# Documentation style guide');
     expect(styleGuide).toContain('## Writing principles');
     expect(styleGuide).toContain('## Audience model');

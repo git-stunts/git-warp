@@ -120,7 +120,7 @@ Those docs were later reconciled in
 
 Add a maintainer-facing documentation guide under:
 
-- `docs/dev/documentation/`
+- `.github/maintainers/documentation/`
 
 That guide should establish:
 
@@ -177,7 +177,7 @@ The target live structure should move toward explicit homes for:
 
 - add `docs/README.md`
 - add `docs/archive/README.md`
-- add `docs/dev/documentation/style-guide.md`
+- add `.github/maintainers/documentation/style-guide.md`
 - move obvious historical clutter out of top-level `docs/`
 - delete `.DS_Store`
 - add executable checks for the docs taxonomy

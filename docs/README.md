@@ -67,7 +67,9 @@ when you need that level of detail.
 
 ## Development Docs
 
-- [Documentation style guide](dev/documentation/style-guide.md)
+- [Maintainer docs](../.github/maintainers/README.md)
+  Contributor-facing process and documentation guidance for the repo.
+- [Documentation style guide](../.github/maintainers/documentation/style-guide.md)
   Writing standard, audience model, and target information architecture for the
   docs corpus.
 

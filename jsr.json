@@ -22,11 +22,14 @@
       "src/**/*.d.ts",
       "README.md",
       "ARCHITECTURE.md",
+      ".github/CONTRIBUTING.md",
+      ".github/CODE_OF_CONDUCT.md",
+      ".github/SECURITY.md",
+      ".github/maintainers/**/*",
       "adr/**/*.md",
       "docs/**/*",
       "LICENSE",
-      "NOTICE",
-      "SECURITY.md"
+      "NOTICE"
     ]
   }
 }

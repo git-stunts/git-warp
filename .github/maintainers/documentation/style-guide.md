@@ -143,7 +143,7 @@ This is the intended documentation layout for the live corpus.
   Generated machine-readable artifacts for agents and tooling.
 - `docs/theory/`
   WARP theory and deeper conceptual material.
-- `docs/dev/`
+- `.github/maintainers/`
   Maintainer-facing docs, including this style guide.
 - `docs/archive/`
   Superseded or historical material that should not be treated as current
@@ -206,7 +206,8 @@ of the first-use user journey.
 ## Change-management rules
 
 - Rewrite front-door docs against this guide before release.
-- Archive superseded docs instead of deleting them blindly.
+- Archive superseded docs or remove redundant live copies when the Git history
+  is already the appropriate archive.
 - Do not let archived material sit beside current onboarding/reference docs.
 - When a public noun changes, update current product docs, current reference
   docs, and the docs index in the same slice.

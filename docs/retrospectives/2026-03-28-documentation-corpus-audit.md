@@ -8,7 +8,7 @@ Design: `docs/design/documentation-corpus-audit.md`
 - added a documentation index at `docs/README.md`
 - added an archive index at `docs/archive/README.md`
 - added a maintainer-facing documentation guide at
-  `docs/dev/documentation/style-guide.md`
+  `.github/maintainers/documentation/style-guide.md`
 - moved obvious historical clutter out of top-level `docs/`
 - grouped trust docs under `docs/trust/`
 - added executable policy coverage for the docs taxonomy
