@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
@@ -107,7 +107,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 1. Trigger at threshold
   // --------------------------------------------------------------------------
   it('calls createCheckpoint when patchCount >= policy.every', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -130,7 +130,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 2. Does NOT trigger below threshold
   // --------------------------------------------------------------------------
   it('does NOT call createCheckpoint when patchCount < policy.every', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -153,7 +153,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 3. Counter resets to 0 after successful checkpoint
   // --------------------------------------------------------------------------
   it('resets _patchesSinceCheckpoint to 0 after auto-checkpoint', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -174,7 +174,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 4. Checkpoint failure does not break materialize
   // --------------------------------------------------------------------------
   it('materialize resolves even when createCheckpoint rejects', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -196,7 +196,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   });
 
   it('state is correct even when auto-checkpoint throws', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -224,7 +224,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 5. Counter is NOT reset when checkpoint fails
   // --------------------------------------------------------------------------
   it('_patchesSinceCheckpoint retains patchCount when checkpoint fails', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -248,7 +248,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 6. No policy → no checkpoint
   // --------------------------------------------------------------------------
   it('never calls createCheckpoint when no checkpointPolicy is set', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -271,7 +271,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 7. Exact threshold triggers
   // --------------------------------------------------------------------------
   it('triggers at exactly the threshold (every: 5, patches: 5)', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -294,7 +294,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 8. Above threshold also triggers
   // --------------------------------------------------------------------------
   it('triggers when patchCount exceeds the threshold', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -317,7 +317,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 9. Zero patches → no checkpoint even with policy
   // --------------------------------------------------------------------------
   it('does not trigger checkpoint when no patches exist', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -341,7 +341,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 10. every: 1 triggers on a single patch
   // --------------------------------------------------------------------------
   it('every: 1 triggers auto-checkpoint on a single patch', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -365,7 +365,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 11. Incremental (checkpoint-based) materialize also triggers
   // --------------------------------------------------------------------------
   it('triggers auto-checkpoint after incremental materialize from checkpoint', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -401,7 +401,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   });
 
   it('does NOT trigger after incremental materialize below threshold', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -439,7 +439,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // 12. Return value of materialize is the state, not the checkpoint
   // --------------------------------------------------------------------------
   it('materialize returns the state, not the checkpoint SHA', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -465,7 +465,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // H8: createCheckpoint reuses _cachedIndexTree instead of rebuilding
   // --------------------------------------------------------------------------
   it('createCheckpoint reuses cached index tree (H8)', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -497,7 +497,7 @@ describe('AP/CKPT/3: auto-checkpoint in materialize() path', () => {
   // H5: Schema 4 checkpoints are accepted by the materialize path
   // --------------------------------------------------------------------------
   it('materializes from a schema:4 checkpoint (H5)', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'w1',

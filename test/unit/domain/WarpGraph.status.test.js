@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { encode as cborEncode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -34,7 +34,7 @@ function mockSingleWriter(/** @type {any} */ persistence, /** @type {any} */ { w
   persistence.showNode.mockResolvedValue(patchMessage);
 }
 
-describe('WarpGraph.status() (LH/STATUS/1)', () => {
+describe('WarpRuntime.status() (LH/STATUS/1)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -42,7 +42,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -305,7 +305,7 @@ describe('WarpGraph.status() (LH/STATUS/1)', () => {
   });
 
   it('does NOT trigger materialization even when autoMaterialize is true', async () => {
-    const autoGraph = await WarpGraph.open({
+    const autoGraph = await WarpRuntime.open({
       persistence,
       graphName: 'test',
       writerId: 'writer-1',

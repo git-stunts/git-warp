@@ -1,5 +1,5 @@
 /**
- * Tests for WarpGraph Query API (Task 7)
+ * Tests for WarpRuntime Query API (Task 7)
  *
  * Tests the query surface required by TECH-SPEC-V7.md:
  * - hasNode(nodeId)
@@ -10,13 +10,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import QueryError from '../../../src/domain/errors/QueryError.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 
-describe('WarpGraph Query API', () => {
+describe('WarpRuntime Query API', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -31,7 +31,7 @@ describe('WarpGraph Query API', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

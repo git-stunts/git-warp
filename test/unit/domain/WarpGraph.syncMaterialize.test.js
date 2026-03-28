@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
 describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
@@ -8,12 +8,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -45,12 +45,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',
@@ -76,12 +76,12 @@ describe('syncWith({ materialize }) option', { timeout: 20000 }, () => {
     const repoB = await createGitRepo('syncmat');
 
     try {
-      const alice = await WarpGraph.open({
+      const alice = await WarpRuntime.open({
         persistence: repoA.persistence,
         graphName: 'shared',
         writerId: 'alice',
       });
-      const bob = await WarpGraph.open({
+      const bob = await WarpRuntime.open({
         persistence: repoB.persistence,
         graphName: 'shared',
         writerId: 'bob',

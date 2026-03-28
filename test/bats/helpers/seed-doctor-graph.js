@@ -3,9 +3,9 @@
  * Creates patches and materializes (checkpoint + coverage).
  * Expects REPO_PATH env var (consumed by seed-setup.js).
  */
-import { WarpGraph, persistence, crypto } from './seed-setup.js';
+import { WarpRuntime, persistence, crypto } from './seed-setup.js';
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'alice',

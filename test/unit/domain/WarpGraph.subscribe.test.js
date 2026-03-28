@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { isEmptyDiff } from '../../../src/domain/services/StateDiff.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
+describe('WarpRuntime.subscribe() (PL/SUB/1)', () => {
   /** @type {any} */
   let repo;
   /** @type {any} */
@@ -11,7 +11,7 @@ describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',
@@ -332,7 +332,7 @@ describe('WarpGraph.subscribe() (PL/SUB/1)', () => {
   });
 });
 
-describe('WarpGraph.subscribe() with replay option (PL/SUB/2)', () => {
+describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
   /** @type {any} */
   let repo;
   /** @type {any} */
@@ -340,7 +340,7 @@ describe('WarpGraph.subscribe() with replay option (PL/SUB/2)', () => {
 
   beforeEach(async () => {
     repo = await createGitRepo('subscribe');
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'test',
       writerId: 'w1',

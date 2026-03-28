@@ -11,13 +11,24 @@
  *
  * @example
  * ```ts
- * import WarpGraph from "@git-stunts/git-warp";
+ * import GitPlumbing from "@git-stunts/plumbing";
+ * import WarpApp from "@git-stunts/git-warp";
+ * import { GitGraphAdapter } from "@git-stunts/git-warp";
  *
- * const graph = await WarpGraph.open({ repo: ".", graphName: "myGraph" });
- * const patch = await graph.createPatch("writer-1");
+ * const plumbing = new GitPlumbing({ cwd: "." });
+ * const persistence = new GitGraphAdapter({ plumbing });
+ *
+ * const app = await WarpApp.open({
+ *   persistence,
+ *   graphName: "myGraph",
+ *   writerId: "writer-1",
+ * });
+ *
+ * const patch = await app.createPatch();
  * patch.addNode("user:alice").setProperty("user:alice", "name", "Alice");
  * await patch.commit();
- * const state = await graph.materialize();
+ * const worldline = app.worldline();
+ * const node = await worldline.getNodeProps("user:alice");
  * ```
  */
 
@@ -51,7 +62,7 @@ import {
   TraversalError,
   OperationAbortedError,
   SyncError,
-  WorkingSetError,
+  StrandError,
   WormholeError,
 } from './src/domain/errors/index.js';
 import WriterError from './src/domain/errors/WriterError.js';
@@ -65,7 +76,8 @@ import DenoHttpAdapter from './src/infrastructure/adapters/DenoHttpAdapter.js';
 import { checkAborted, createTimeoutSignal } from './src/domain/utils/cancellation.js';
 
 // Multi-writer graph support (WARP)
-import WarpGraph from './src/domain/WarpGraph.js';
+import WarpCore from './src/domain/WarpCore.js';
+import WarpApp from './src/domain/WarpApp.js';
 import {
   createNodeAdd,
   createNodeTombstone,
@@ -78,7 +90,8 @@ import {
 } from './src/domain/types/WarpTypes.js';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/QueryBuilder.js';
-import ObserverView from './src/domain/services/ObserverView.js';
+import Observer from './src/domain/services/Observer.js';
+import Worldline from './src/domain/services/Worldline.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   encodeEdgePropKey,
@@ -123,6 +136,14 @@ import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/service
 import { computeStateHashV5, projectStateV5 } from './src/domain/services/StateSerializerV5.js';
 import { createStateReaderV5 } from './src/domain/services/StateReaderV5.js';
 import { compareVisibleStateV5 } from './src/domain/services/VisibleStateComparisonV5.js';
+import {
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
+} from './src/domain/services/VisibleStateScopeV1.js';
+import {
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
+} from './src/domain/services/CoordinateFactExport.js';
 
 const TraversalService = CommitDagTraversalService;
 
@@ -181,7 +202,7 @@ export {
   TraversalError,
   OperationAbortedError,
   SyncError,
-  WorkingSetError,
+  StrandError,
   WormholeError,
   WriterError,
 
@@ -190,9 +211,11 @@ export {
   createTimeoutSignal,
 
   // Multi-writer graph support (WARP)
-  WarpGraph,
+  WarpApp,
+  WarpCore,
+  Worldline,
   QueryBuilder,
-  ObserverView,
+  Observer,
   PatchBuilderV2,
   PatchSession,
   Writer,
@@ -222,6 +245,10 @@ export {
   projectStateV5,
   createStateReaderV5,
   compareVisibleStateV5,
+  normalizeVisibleStateScopeV1,
+  scopeMaterializedStateV5,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
 
   // WARP migration
   migrateV4toV5,
@@ -250,5 +277,5 @@ export {
   deserializeWormhole,
 };
 
-// WarpGraph is the primary API for V7
-export default WarpGraph;
+// WarpApp is the primary product-facing API for v15.
+export default WarpApp;

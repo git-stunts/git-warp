@@ -10,7 +10,7 @@
  * @example
  * ```js
  * import {
- *   WarpGraph,
+ *   WarpApp,
  *   InMemoryGraphAdapter,
  *   WebCryptoAdapter,
  *   generateWriterId,
@@ -19,7 +19,7 @@
  *
  * const adapter = new InMemoryGraphAdapter({ hash: sha1sync });
  * const crypto = new WebCryptoAdapter();
- * const graph = await WarpGraph.open({
+ * const app = await WarpApp.open({
  *   persistence: adapter,
  *   graphName: 'demo',
  *   writerId: generateWriterId(),
@@ -29,7 +29,8 @@
  */
 
 // Core API
-export { default as WarpGraph } from './src/domain/WarpGraph.js';
+export { default as WarpApp } from './src/domain/WarpApp.js';
+export { default as WarpCore } from './src/domain/WarpCore.js';
 export { default as GraphNode } from './src/domain/entities/GraphNode.js';
 
 // Browser-compatible adapters

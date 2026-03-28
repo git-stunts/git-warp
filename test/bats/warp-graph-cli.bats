@@ -25,16 +25,16 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
 const projectRoot = process.env.PROJECT_ROOT;
 const repoPath = process.env.REPO_PATH;
-const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpGraph.js')).href;
+const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.js')).href;
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
-const { default: WarpGraph } = await import(warpGraphUrl);
+const { default: WarpRuntime } = await import(warpGraphUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);
 
 const runner = ShellRunnerFactory.create();
 const plumbing = new GitPlumbing({ cwd: repoPath, runner });
 const persistence = new GitGraphAdapter({ plumbing });
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'alice',

@@ -13,9 +13,9 @@ import { reduceV5, normalizeRawOp } from './JoinReducer.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { createEventId } from '../utils/EventId.js';
 import { decodeEdgeKey } from './KeyCodec.js';
-import WorkingSetService from './WorkingSetService.js';
+import StrandService from './StrandService.js';
 
-/** @typedef {import('../WarpGraph.js').default} WarpGraph */
+/** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
 /** @typedef {import('../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../utils/EventId.js').EventId} EventId */
@@ -62,7 +62,7 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   at?: { lamportCeiling?: number|null },
- *   workingSetId?: string,
+ *   strandId?: string,
  *   entityId?: string,
  *   target?: {
  *     targetKind: 'node'|'edge'|'node_property'|'edge_property',
@@ -82,7 +82,7 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   lamportCeiling: number|null,
- *   workingSetId: string|null,
+ *   strandId: string|null,
  *   entityId: string|null,
  *   target: ConflictAnalyzeOptions['target']|null,
  *   kinds: string[]|null,
@@ -178,21 +178,21 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * @typedef {{
  *   analysisVersion: string,
- *   coordinateKind: 'frontier'|'working_set',
+ *   coordinateKind: 'frontier'|'strand',
  *   frontier: Record<string, string>,
  *   frontierDigest: string,
  *   lamportCeiling: number|null,
  *   scanBudgetApplied: { maxPatches: number|null },
  *   truncationPolicy: string,
- *   workingSet?: {
- *     workingSetId: string,
+ *   strand?: {
+ *     strandId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
  *     overlayPatchCount: number,
  *     overlayWritable: boolean,
  *     braid?: {
  *       readOverlayCount: number,
- *       braidedWorkingSetIds: string[]
+ *       braidedStrandIds: string[]
  *     }
  *   }
  * }} ConflictResolvedCoordinate
@@ -671,9 +671,10 @@ function normalizeMaxPatches(maxPatches) {
  */
 function normalizeOptions(options) {
   const raw = options ?? {};
+  const normalizedStrandId = normalizeOptionalString('strandId', raw.strandId ?? raw.strandId);
   return {
     lamportCeiling: normalizeLamportCeiling(raw.at?.lamportCeiling),
-    workingSetId: normalizeOptionalString('workingSetId', raw.workingSetId),
+    strandId: normalizedStrandId,
     entityId: normalizeOptionalString('entityId', raw.entityId),
     target: normalizeTargetFilter(raw.target),
     kinds: normalizeKinds(raw.kind),
@@ -689,16 +690,16 @@ function normalizeOptions(options) {
  *   lamportCeiling: number|null,
  *   maxPatches: number|null,
  *   frontierDigest: string,
- *   coordinateKind?: 'frontier'|'working_set',
- *   workingSet?: {
- *     workingSetId: string,
+ *   coordinateKind?: 'frontier'|'strand',
+ *   strand?: {
+ *     strandId: string,
  *     baseLamportCeiling: number|null,
  *     overlayHeadPatchSha: string|null,
  *     overlayPatchCount: number,
  *     overlayWritable: boolean,
  *     braid?: {
  *       readOverlayCount: number,
- *       braidedWorkingSetIds: string[]
+ *       braidedStrandIds: string[]
  *     }
  *   }
  * }} options
@@ -710,7 +711,7 @@ function buildResolvedCoordinate({
   maxPatches,
   frontierDigest,
   coordinateKind = 'frontier',
-  workingSet,
+  strand,
 }) {
   return {
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
@@ -722,25 +723,30 @@ function buildResolvedCoordinate({
       maxPatches,
     },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
-    ...(workingSet ? { workingSet } : {}),
+    ...(strand ? { strand } : {}),
   };
 }
 
 /**
- * @param {import('../../../index.js').WorkingSetDescriptor} descriptor
- * @returns {NonNullable<ConflictResolvedCoordinate['workingSet']>}
+ * @param {{
+ *   strandId: string,
+ *   baseObservation: { lamportCeiling: number|null },
+ *   overlay: { headPatchSha: string|null, patchCount: number, writable: boolean },
+ *   braid: { readOverlays: Array<{ strandId: string }> }
+ * }} descriptor
+ * @returns {NonNullable<ConflictResolvedCoordinate['strand']>}
  */
-function buildResolvedWorkingSetMetadata(descriptor) {
+function buildResolvedStrandMetadata(descriptor) {
   return {
-    workingSetId: descriptor.workingSetId,
+    strandId: descriptor.strandId,
     baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
     overlayHeadPatchSha: descriptor.overlay.headPatchSha,
     overlayPatchCount: descriptor.overlay.patchCount,
     overlayWritable: descriptor.overlay.writable,
     braid: {
       readOverlayCount: descriptor.braid.readOverlays.length,
-      braidedWorkingSetIds: descriptor.braid.readOverlays
-        .map((overlay) => overlay.workingSetId)
+      braidedStrandIds: descriptor.braid.readOverlays
+        .map((overlay) => overlay.strandId)
         .sort(compareStrings),
     },
   };
@@ -1025,7 +1031,7 @@ function buildPatchFrames(entries) {
 }
 
 /**
- * @param {WarpGraph} graph
+ * @param {WarpRuntime} graph
  * @param {number|null} lamportCeiling
  * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>}
  */
@@ -1896,10 +1902,10 @@ async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized 
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>}
  */
 async function resolveAnalysisContext(service, normalized) {
-  if (normalized.workingSetId) {
-    const workingSets = new WorkingSetService({ graph: service._graph });
-    const descriptor = await workingSets.getOrThrow(normalized.workingSetId);
-    const entries = await workingSets.getPatchEntries(normalized.workingSetId, {
+  if (normalized.strandId) {
+    const strands = new StrandService({ graph: service._graph });
+    const descriptor = await strands.getOrThrow(normalized.strandId);
+    const entries = await strands.getPatchEntries(normalized.strandId, {
       ceiling: normalized.lamportCeiling,
     });
     const frontier = new Map(
@@ -1908,12 +1914,12 @@ async function resolveAnalysisContext(service, normalized) {
     return {
       patchFrames: buildPatchFrames(entries),
       resolvedCoordinate: buildResolvedCoordinate({
-        coordinateKind: 'working_set',
+        coordinateKind: 'strand',
         frontier,
         lamportCeiling: normalized.lamportCeiling,
         maxPatches: normalized.maxPatches,
         frontierDigest: descriptor.baseObservation.frontierDigest,
-        workingSet: buildResolvedWorkingSetMetadata(descriptor),
+        strand: buildResolvedStrandMetadata(descriptor),
       }),
     };
   }
@@ -1964,7 +1970,7 @@ function buildConflictAnalysisResult({
  */
 export class ConflictAnalyzerService {
   /**
-   * @param {{ graph: WarpGraph }} options
+   * @param {{ graph: WarpRuntime }} options
    */
   constructor({ graph }) {
     this._graph = graph;

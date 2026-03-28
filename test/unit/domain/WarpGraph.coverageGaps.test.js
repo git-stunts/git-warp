@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
@@ -69,7 +69,7 @@ function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, par
   };
 }
 
-describe('WarpGraph coverage gaps', () => {
+describe('WarpRuntime coverage gaps', () => {
   /** @type {any} */
   let persistence;
 
@@ -82,7 +82,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('get seekCache', () => {
     it('returns null when no seek cache is set', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -95,7 +95,7 @@ describe('WarpGraph coverage gaps', () => {
     it('returns the seek cache passed at construction', async () => {
       /** @type {any} */
       const mockCache = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -112,7 +112,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('setSeekCache', () => {
     it('sets the seek cache after construction', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -134,7 +134,7 @@ describe('WarpGraph coverage gaps', () => {
       /** @type {any} */
       const cache2 = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -155,7 +155,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('join', () => {
     it('throws E_NO_STATE when no cached state exists', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -168,7 +168,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('throws when otherState is null', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -181,7 +181,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('throws when otherState is missing nodeAlive', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -194,7 +194,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('throws when otherState is missing edgeAlive', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -207,7 +207,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('merges two empty states and returns zero-change receipt', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -229,7 +229,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('merges a state with nodes into empty and reports additions', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -251,7 +251,7 @@ describe('WarpGraph coverage gaps', () => {
     // ── B108 cache coherence regression tests ──────────────────────────────
 
     it('sets _stateDirty = false and _materializedGraph is not null after join()', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -275,7 +275,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('preserves merged state — _ensureFreshState() does not throw or rematerialize', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -297,7 +297,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('builds adjacency so traversal works without rematerialization', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -329,7 +329,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('clears _cachedViewHash after join()', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -347,7 +347,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('updates _versionVector from merged frontier', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -374,7 +374,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('_onPatchCommitted dirty path', () => {
     it('clears _cachedViewHash when taking the dirty path', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -393,7 +393,7 @@ describe('WarpGraph coverage gaps', () => {
 
   describe('_onPatchCommitted eager path', () => {
     it('passes computed diff to _setMaterializedState when audit is disabled', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -436,7 +436,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('passes diff:null to _setMaterializedState when audit is enabled', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -482,7 +482,7 @@ describe('WarpGraph coverage gaps', () => {
 
   describe('_setMaterializedState diff argument compatibility', () => {
     it('accepts legacy positional diff argument', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -510,7 +510,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('accepts options object with diff', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -543,7 +543,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('maybeRunGC', () => {
     it('returns ran: false when no cached state exists', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -556,7 +556,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns ran: false when GC policy thresholds are not met', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -574,7 +574,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('runs GC when tombstone ratio threshold is exceeded', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -610,7 +610,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('getGCMetrics', () => {
     it('returns null when no cached state exists', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -621,7 +621,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns metrics when cached state exists', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -644,7 +644,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('includes patchesSinceCompaction and lastCompactionTime', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -668,7 +668,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('get gcPolicy', () => {
     it('returns default GC policy when none provided', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -687,7 +687,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns custom GC policy when provided', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -708,7 +708,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns a defensive copy (mutations do not affect the graph)', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -733,7 +733,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('syncNeeded', () => {
     it('returns false when local and remote frontiers match', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -753,7 +753,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns true when remote has a writer not in local', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -770,7 +770,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns true when local has a writer not in remote', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -788,7 +788,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns true when same writer has different SHAs', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -813,7 +813,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('getPropertyCount', () => {
     it('throws E_NO_STATE when no cached state exists', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -825,7 +825,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns 0 for empty state', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -840,7 +840,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns correct count when properties exist', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -864,7 +864,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('createWormhole', () => {
     it('delegates to WormholeService with correct arguments', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -918,7 +918,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('loadPatchBySha', () => {
     it('loads and decodes a patch by SHA', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -952,7 +952,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('throws when commit is not a patch', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -972,7 +972,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('throws when getNodeInfo fails', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -991,7 +991,7 @@ describe('WarpGraph coverage gaps', () => {
   // --------------------------------------------------------------------------
   describe('get temporal', () => {
     it('returns a TemporalQuery instance', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',
@@ -1006,7 +1006,7 @@ describe('WarpGraph coverage gaps', () => {
     });
 
     it('returns the same instance on subsequent accesses (lazy singleton)', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test-graph',
         writerId: 'writer-1',

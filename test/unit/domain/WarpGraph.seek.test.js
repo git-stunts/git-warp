@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
@@ -108,7 +108,7 @@ function setupMultiWriterPersistence(persistence, writerSpecs, graphName = 'test
   return writerTips;
 }
 
-describe('WarpGraph.seek (time-travel)', () => {
+describe('WarpRuntime.seek (time-travel)', () => {
   /** @type {any} */
   let persistence;
 
@@ -122,7 +122,7 @@ describe('WarpGraph.seek (time-travel)', () => {
 
   describe('discoverTicks()', () => {
     it('returns correct sorted ticks for a multi-writer graph', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -140,7 +140,7 @@ describe('WarpGraph.seek (time-travel)', () => {
       persistence.listRefs.mockResolvedValue([]);
       persistence.readRef.mockResolvedValue(null);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -154,7 +154,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('returns per-writer breakdown', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -176,7 +176,7 @@ describe('WarpGraph.seek (time-travel)', () => {
 
   describe('materialize({ ceiling })', () => {
     it('includes only patches at or below the ceiling', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -194,7 +194,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('ceiling of 0 returns empty state', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -208,7 +208,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('ceiling above maxTick yields same as full materialization', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -229,7 +229,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('multi-writer ceiling includes correct cross-writer patches', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -250,7 +250,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('cache invalidation: different ceilings produce different states', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -269,7 +269,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('cache hit: same ceiling returns cached state without re-materialize', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -288,7 +288,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('_seekCeiling is used when no explicit ceiling is passed', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -303,7 +303,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('explicit ceiling overrides _seekCeiling', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -318,7 +318,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('skips auto-checkpoint when ceiling is active', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -335,7 +335,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('cache hit with collectReceipts bypasses cache and returns real receipts', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -358,7 +358,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('cache is invalidated when frontier advances at the same ceiling', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',
@@ -379,7 +379,7 @@ describe('WarpGraph.seek (time-travel)', () => {
     });
 
     it('explicit ceiling: null overrides _seekCeiling and materializes latest', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'w1',

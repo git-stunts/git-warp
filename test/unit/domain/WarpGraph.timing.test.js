@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 import { createMockPersistence, createMockLogger, createMockClock } from '../../helpers/warpGraphTestUtils.js';
 
@@ -13,7 +13,7 @@ const crypto = new NodeCryptoAdapter();
  * Failed operations still log timing with error context.
  */
 
-describe('WarpGraph operation timing (LH/TIMING/1)', () => {
+describe('WarpRuntime operation timing (LH/TIMING/1)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -38,7 +38,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
   describe('materialize()', () => {
     it('logs timing on successful materialize with patch count', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -55,7 +55,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('uses injected clock for timing', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -71,7 +71,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('logs timing with error context on failure', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -91,7 +91,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('does not log when no logger is injected', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -113,7 +113,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       const checkpointSha = 'e'.repeat(40);
       persistence.commitNodeWithTree.mockResolvedValue(checkpointSha);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -131,7 +131,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('uses injected clock for timing', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -147,7 +147,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('logs timing with error context on failure', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -174,7 +174,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
   describe('runGC()', () => {
     it('logs timing with tombstones removed count on success', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -196,7 +196,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('uses injected clock for timing', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -214,7 +214,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('logs timing with error context when no cached state', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -238,7 +238,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
   describe('syncWith()', () => {
     it('logs timing with applied count on successful direct-peer sync', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -263,7 +263,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('uses injected clock for timing', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -285,7 +285,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
     });
 
     it('logs timing with error context on sync failure', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -315,7 +315,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
 
   describe('default clock', () => {
     it('uses ClockAdapter default when no clock is injected', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',
@@ -340,7 +340,7 @@ describe('WarpGraph operation timing (LH/TIMING/1)', () => {
       // Clock increments by 150ms per call
       const preciseClock = createMockClock(150);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'writer-1',

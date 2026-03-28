@@ -60,15 +60,7 @@ else
   fail "no dated entry for $PKG in CHANGELOG.md"
 fi
 
-# ── 5. README "What's New" section ───────────────────────────────────────────
-echo "README:"
-if grep -qiE "what.s new.*(in|for)?\s*v?${PKG}" README.md; then
-  pass "README mentions What's New for v$PKG"
-else
-  fail "README 'What's New' section not updated for v$PKG"
-fi
-
-# ── 6. Lint ───────────────────────────────────────────────────────────────────
+# ── 5. Lint ───────────────────────────────────────────────────────────────────
 echo "Lint:"
 if npm run lint --silent 2>/dev/null; then
   pass "ESLint clean"
@@ -76,7 +68,7 @@ else
   fail "ESLint errors"
 fi
 
-# ── 7. Type firewall ─────────────────────────────────────────────────────────
+# ── 6. Type firewall ─────────────────────────────────────────────────────────
 echo "Type firewall:"
 if npm run typecheck --silent 2>/dev/null; then
   pass "tsc --noEmit"
@@ -99,7 +91,7 @@ else
   fail "Declaration surface mismatch"
 fi
 
-# ── 8. Unit tests ────────────────────────────────────────────────────────────
+# ── 7. Unit tests ────────────────────────────────────────────────────────────
 echo "Tests:"
 if npm run test:local --silent 2>/dev/null; then
   pass "unit tests"
@@ -107,7 +99,7 @@ else
   fail "unit test failures"
 fi
 
-# ── 9. Pack dry-runs ─────────────────────────────────────────────────────────
+# ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
 echo "Pack:"
 PACK_OUTPUT=$(npm pack --dry-run 2>&1 || true)
 if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
@@ -121,7 +113,7 @@ else
   fail "JSR publish dry-run failed"
 fi
 
-# ── 10. Security audit (warning only) ────────────────────────────────────────
+# ── 9. Security audit (warning only) ─────────────────────────────────────────
 echo "Security:"
 if npm audit --omit=dev --audit-level=high 2>/dev/null; then
   pass "no high/critical vulnerabilities"

@@ -1,14 +1,15 @@
 /**
- * Advanced materialization methods for WarpGraph — ceiling-aware replay,
+ * Advanced materialization methods for WarpRuntime — ceiling-aware replay,
  * checkpoint-based materializeAt, adjacency building, and state caching.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/materializeAdvanced.methods
  */
 
 import { reduceV5, createEmptyStateV5 } from '../services/JoinReducer.js';
+import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from '../services/KeyCodec.js';
 import { vvClone } from '../crdt/VersionVector.js';
@@ -39,7 +40,7 @@ import { buildWriterRef } from '../utils/RefLayout.js';
  * @returns {WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze({ ...state });
+  return createImmutableWarpStateV5(state);
 }
 
 /**
@@ -52,7 +53,35 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts,
+    receipts: /** @type {TickReceipt[]} */ (createImmutableValue(receipts)),
+  });
+}
+
+/**
+ * Opens a detached graph handle for read-only materialization.
+ *
+ * @param {import('../WarpRuntime.js').default} graph
+ * @returns {Promise<import('../WarpRuntime.js').default>}
+ */
+async function openDetachedReadGraph(graph) {
+  const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
+  return await GraphClass.open({
+    persistence: graph._persistence,
+    graphName: graph._graphName,
+    writerId: graph._writerId,
+    gcPolicy: graph._gcPolicy,
+    checkpointPolicy: graph._checkpointPolicy || undefined,
+    autoMaterialize: false,
+    onDeleteWithData: graph._onDeleteWithData,
+    logger: graph._logger || undefined,
+    clock: graph._clock,
+    crypto: graph._crypto,
+    codec: graph._codec,
+    seekCache: graph._seekCache || undefined,
+    audit: false,
+    blobStorage: graph._blobStorage || undefined,
+    patchBlobStorage: graph._patchBlobStorage || undefined,
+    trust: graph._trustConfig,
   });
 }
 
@@ -64,7 +93,7 @@ function freezePublicStateWithReceipts(state, receipts) {
  * `{ ceiling: null }` explicitly clears the seek ceiling for that call
  * (returns `null`), while omitting the key falls through to `_seekCeiling`.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ceiling?: number|null}} [options] - Options object; when the
  *   `ceiling` key is present (even if `null`), its value takes precedence
  * @returns {number|null} Lamport ceiling to apply, or `null` for latest
@@ -146,7 +175,7 @@ function frontiersEqual(a, b) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
  * @param {number} t0
@@ -190,7 +219,7 @@ async function tryReadCoordinateCache(graph, frontier, ceiling, t0) {
 }
 
 /**
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
  * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -215,7 +244,7 @@ async function collectPatchesForFrontier(graph, frontier, ceiling) {
 /**
  * Builds a deterministic adjacency map for the logical graph.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
  * @returns {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}
  * @private
@@ -265,7 +294,7 @@ export function _buildAdjacency(state) {
 /**
  * Sets the cached state and materialized graph details.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
  * @param {import('../types/PatchDiff.js').PatchDiff|{diff?: import('../types/PatchDiff.js').PatchDiff|null}} [optionsOrDiff]
  *   Either a PatchDiff (legacy positional form) or options object.
@@ -312,7 +341,7 @@ export async function _setMaterializedState(state, optionsOrDiff) {
  * the stateHash matches the previous build. Uses incremental update when
  * a diff and cached index tree are available.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
  * @param {string} stateHash
  * @param {import('../types/PatchDiff.js').PatchDiff} [diff] - Optional diff for incremental update
@@ -362,7 +391,7 @@ export function _buildView(state, stateHash, diff) {
  * Unlike `materialize()`, this path does not infer the frontier from current
  * writer refs. The provided frontier snapshot is authoritative for the read.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ frontier: Map<string, string>|Record<string, string>, ceiling?: number|null, receipts?: boolean }} options
  * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
  */
@@ -376,9 +405,14 @@ export async function materializeCoordinate(options) {
   const frontier = normalizeFrontierInput(options.frontier);
   const ceiling = normalizeExplicitCeiling(options.ceiling ?? null);
   const collectReceipts = !!options.receipts;
-  const t0 = this._clock.now();
+  const detached = await openDetachedReadGraph(this);
 
-  return await this._materializeWithCoordinate(frontier, ceiling, collectReceipts, t0);
+  return await detached._materializeWithCoordinate(
+    frontier,
+    ceiling,
+    collectReceipts,
+    detached._clock.now(),
+  );
 }
 
 /**
@@ -393,7 +427,7 @@ export async function materializeCoordinate(options) {
  * updated tips) or when `collectReceipts` is `true` because the cached
  * path does not retain receipt data.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {number} ceiling - Maximum Lamport tick to include (patches with
  *   `lamport <= ceiling` are replayed; `ceiling <= 0` yields empty state)
  * @param {boolean} collectReceipts - When `true`, return receipts alongside
@@ -414,7 +448,7 @@ export async function _materializeWithCeiling(ceiling, collectReceipts, t0) {
 /**
  * Materializes the graph at an explicit frontier snapshot and optional ceiling.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
  * @param {boolean} collectReceipts
@@ -523,7 +557,7 @@ export async function _materializeWithCoordinate(frontier, ceiling, collectRecei
  * entry metadata. Index persistence failure is non-fatal — the state
  * buffer is still cached without the index.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} cacheKey - Seek cache key
  * @param {Uint8Array} buf - Serialized WarpStateV5 buffer
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
@@ -554,7 +588,7 @@ export async function _persistSeekCacheEntry(cacheKey, buf, state) {
  * the MaterializedViewService. Failure is non-fatal — the in-memory
  * index built by `_buildView` remains as fallback.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} indexTreeOid - Git tree OID of the bitmap index snapshot
  * @returns {Promise<void>}
  * @private
@@ -627,7 +661,7 @@ export async function materializeAt(checkpointSha) {
 /**
  * Verifies the bitmap index against adjacency ground truth.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ seed?: number, sampleRate?: number }} [options]
  * @returns {{ passed: number, failed: number, errors: Array<{nodeId: string, direction: string, expected: string[], actual: string[]}> }}
  */
@@ -645,7 +679,7 @@ export function verifyIndex(options) {
 /**
  * Clears the cached bitmap index, forcing a full rebuild on next materialize.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  */
 export function invalidateIndex() {
   this._cachedIndexTree = null;

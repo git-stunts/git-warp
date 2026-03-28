@@ -1,8 +1,8 @@
 /**
- * SyncController - Encapsulates all sync functionality for WarpGraph.
+ * SyncController - Encapsulates all sync functionality for WarpRuntime.
  *
  * Extracted from the original sync.methods.js free functions into a
- * service class. WarpGraph.prototype delegates directly to this controller
+ * service class. WarpRuntime.prototype delegates directly to this controller
  * via defineProperty loops — no intermediate stub file.
  *
  * @module domain/services/SyncController
@@ -33,7 +33,7 @@ import SyncTrustGate from './SyncTrustGate.js';
 /**
  * The host interface that SyncController depends on.
  *
- * Documents the exact WarpGraph surface the controller accesses,
+ * Documents the exact WarpRuntime surface the controller accesses,
  * making the coupling explicit and enabling lightweight mock hosts
  * in unit tests.
  *
@@ -100,7 +100,7 @@ function normalizeSyncPath(path) {
 /**
  * Resolves a sync remote into either a direct peer or an HTTP URL target.
  *
- * @param {string|import('../WarpGraph.js').default} remote
+ * @param {string|import('../WarpRuntime.js').default} remote
  * @param {string} path
  * @param {boolean} hasPathOverride
  * @returns {{ isDirectPeer: boolean, targetUrl: URL|null }}
@@ -181,11 +181,11 @@ async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
 // ── SyncController ──────────────────────────────────────────────────────────
 
 /**
- * Encapsulates all sync-related operations for a WarpGraph instance.
+ * Encapsulates all sync-related operations for a WarpRuntime instance.
  */
 export default class SyncController {
   /**
-   * @param {SyncHost} host - The WarpGraph instance (or any object satisfying SyncHost)
+   * @param {SyncHost} host - The WarpRuntime instance (or any object satisfying SyncHost)
    * @param {{ trustGate?: SyncTrustGate }} [options]
    */
   constructor(host, options = {}) {
@@ -433,7 +433,7 @@ export default class SyncController {
   /**
    * Syncs with a remote peer (HTTP or direct graph instance).
    *
-   * @param {string|import('../WarpGraph.js').default} remote - URL or peer graph instance
+   * @param {string|import('../WarpRuntime.js').default} remote - URL or peer graph instance
    * @param {{ path?: string, retries?: number, baseDelayMs?: number, maxDelayMs?: number, timeoutMs?: number, signal?: AbortSignal, onStatus?: (event: {type: string, attempt: number, durationMs?: number, status?: number, error?: Error}) => void, materialize?: boolean, auth?: { secret: string, keyId?: string }, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} [options]
    * @returns {Promise<{applied: number, attempts: number, skippedWriters: Array<{writerId: string, reason: string, localSha: string, remoteSha: string|null}>, state?: import('./JoinReducer.js').WarpStateV5}>}
    */
@@ -477,7 +477,7 @@ export default class SyncController {
       emit('requestBuilt');
       let response;
       if (isDirectPeer) {
-        const peer = /** @type {import('../WarpGraph.js').default} */ (remote);
+        const peer = /** @type {import('../WarpRuntime.js').default} */ (remote);
         emit('requestSent');
         response = await peer.processSyncRequest(request);
         emit('responseReceived');

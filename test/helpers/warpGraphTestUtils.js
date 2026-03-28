@@ -1,5 +1,5 @@
 /**
- * Shared test utilities for WarpGraph tests.
+ * Shared test utilities for WarpRuntime tests.
  *
  * This module provides commonly used helpers for creating mock patches,
  * persistence adapters, and test data. Import these instead of duplicating
@@ -667,7 +667,7 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  * Seeds a graph instance with a fresh empty state and applies a seed function.
  * Patches the graph's internal state and materialize method for testing.
  *
- * @param {any} graph - WarpGraph instance
+ * @param {any} graph - WarpRuntime instance
  * @param {Function} seedFn - Function that receives the state and populates it
  * @returns {any} The seeded WarpStateV5
  *
@@ -679,7 +679,7 @@ export function addEdgeToState(state, from, to, label, counter, writerId = 'w1')
  */
 export function setupGraphState(graph, seedFn) {
   const state = createEmptyStateV5();
-  // COUPLING: relies on WarpGraph internal field `_cachedState`
+  // COUPLING: relies on WarpRuntime internal field `_cachedState`
   graph._cachedState = state;
   graph.materialize = vi.fn().mockResolvedValue(state);
   seedFn(state);

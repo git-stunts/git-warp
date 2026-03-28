@@ -818,7 +818,7 @@ export function computeStateHashV5(state: WarpStateV5, options?: { crypto?: Cryp
  * Projects a materialized WarpStateV5 into its visible graph projection.
  *
  * This is the stable substrate helper for higher layers that need to inspect
- * materialized working-set or coordinate state without depending on OR-Set
+ * materialized strand or coordinate state without depending on OR-Set
  * internals.
  */
 export function projectStateV5(state: WarpStateV5): VisibleStateProjectionV5;
@@ -840,6 +840,41 @@ export function compareVisibleStateV5(
   rightState: WarpStateV5,
   options?: { targetId?: string | null },
 ): VisibleStateComparisonV5;
+
+/**
+ * Normalizes a substrate-generic visible-state scope. Current v1 scope
+ * supports include/exclude node-id prefixes; dependent edges and properties
+ * follow node visibility.
+ */
+export function normalizeVisibleStateScopeV1(
+  scope: unknown,
+  field?: string,
+): VisibleStateScopeV1 | null;
+
+/**
+ * Projects a materialized WarpStateV5 down to the visible subset admitted by
+ * a normalized visible-state scope.
+ */
+export function scopeMaterializedStateV5(
+  state: WarpStateV5,
+  scope?: VisibleStateScopeV1 | null,
+): WarpStateV5;
+
+/**
+ * Exports the exact deterministic substrate fact hashed by a coordinate
+ * comparison digest as a JSON-safe envelope for higher-layer storage.
+ */
+export function exportCoordinateComparisonFact(
+  comparison: CoordinateComparisonV1,
+): CoordinateComparisonFactExportV1;
+
+/**
+ * Exports the exact deterministic substrate fact hashed by a coordinate
+ * transfer-plan digest as a JSON-safe envelope without raw attachment bytes.
+ */
+export function exportCoordinateTransferPlanFact(
+  transferPlan: CoordinateTransferPlanV1,
+): CoordinateTransferPlanFactExportV1;
 
 /**
  * Service for querying a loaded bitmap index.
@@ -1058,7 +1093,7 @@ export { CommitDagTraversalService as TraversalService };
  * @since 13.0.0
  */
 export class BisectService {
-  constructor(options: { graph: { getWriterPatches: WarpGraph['getWriterPatches']; materialize: WarpGraph['materialize'] } });
+  constructor(options: { graph: { getWriterPatches: WarpCore['getWriterPatches']; materialize: WarpCore['materialize'] } });
 
   /**
    * Runs bisect on a single writer's patch chain.
@@ -1173,10 +1208,10 @@ export class SyncError extends Error {
 }
 
 /**
- * Error class for working-set descriptor and replay operations.
+ * Error class for strand descriptor and replay operations.
  */
-export class WorkingSetError extends Error {
-  readonly name: 'WorkingSetError';
+export class StrandError extends Error {
+  readonly name: 'StrandError';
   readonly code: string;
   readonly context: Record<string, unknown>;
 
@@ -1303,9 +1338,12 @@ export function isEdgePropKey(key: string): boolean;
 export const CONTENT_PROPERTY_KEY: '_content';
 
 /**
- * Configuration for an observer view.
+ * Aperture definition for an observer.
+ *
+ * A lens describes which nodes are visible and which properties are exposed or
+ * redacted within that projection.
  */
-export interface ObserverConfig {
+export interface Lens {
   /** Glob pattern or array of patterns for visible nodes (e.g. 'user:*' or ['user:*', 'team:*']) */
   match: string | string[];
   /** Property keys to include (whitelist). If omitted, all non-redacted properties are visible. */
@@ -1315,17 +1353,54 @@ export interface ObserverConfig {
 }
 
 /**
- * Read-only observer view of a materialized WarpGraph state.
+ * Legacy compatibility alias for Lens.
+ */
+export type ObserverConfig = Lens;
+
+export interface LiveObserverSource {
+  kind: 'live';
+  ceiling?: number | null;
+}
+
+export interface CoordinateObserverSource {
+  kind: 'coordinate';
+  frontier: Map<string, string> | Record<string, string>;
+  ceiling?: number | null;
+}
+
+export interface StrandObserverSource {
+  kind: 'strand';
+  strandId: string;
+  ceiling?: number | null;
+}
+
+export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | StrandObserverSource;
+
+export interface WorldlineOptions {
+  source?: WorldlineSource;
+}
+
+export interface ObserverOptions {
+  source?: WorldlineSource;
+}
+
+/**
+ * Read-only observer over a materialized WarpCore state.
  *
- * Provides the same query/traverse API as WarpGraph, but filtered
- * by observer configuration (match pattern, expose, redact).
+ * Provides the same query/traverse API as WarpCore, but filtered through a
+ * lens (match pattern, expose, redact).
  * Edges are only visible when both endpoints pass the match filter.
  *
- * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
-export class ObserverView {
-  /** Observer name */
+export class Observer {
+  /** Observer name (defaults to `observer` when omitted at construction time) */
   readonly name: string;
+
+  /** Pinned observer source */
+  readonly source: LiveObserverSource | CoordinateObserverSource | StrandObserverSource | null;
+
+  /** Pinned snapshot hash (null only for internal delegate-mode instances) */
+  readonly stateHash: string | null;
 
   /** Logical graph traversal helpers scoped to this observer */
   traverse: LogicalTraversal;
@@ -1333,17 +1408,78 @@ export class ObserverView {
   /** Checks if a node exists and is visible to this observer */
   hasNode(nodeId: string): Promise<boolean>;
 
-  /** Gets all visible nodes that match the observer pattern */
+  /** Gets all visible nodes that match the observer aperture. */
   getNodes(): Promise<string[]>;
 
-  /** Gets filtered properties for a visible node (null if hidden or missing) */
+  /** Gets filtered properties for a visible node (null if hidden or missing). */
   getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
-  /** Gets all visible edges (both endpoints must match the observer pattern) */
+  /** Gets all visible edges (both endpoints must match the observer aperture). */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
-  /** Creates a fluent query builder operating on the filtered view */
+  /** Creates a fluent query builder operating on the filtered view. */
   query(): QueryBuilder;
+
+  /** Creates a new observer over the same aperture at a different source */
+  seek(options?: ObserverOptions): Promise<Observer>;
+}
+
+/**
+ * First-class read-side history handle over a pinned source selector.
+ */
+export class Worldline {
+  /** Pinned source for this worldline handle */
+  readonly source: WorldlineSource;
+
+  /** Full-aperture traversal helpers over this pinned source. */
+  traverse: LogicalTraversal;
+
+  /** Returns a new worldline handle pinned to a different source */
+  seek(options?: WorldlineOptions): Promise<Worldline>;
+
+  /**
+   * Checks whether a node exists on this pinned worldline.
+   */
+  hasNode(nodeId: string): Promise<boolean>;
+
+  /**
+   * Full-aperture read over this pinned source.
+   *
+   * Useful for stable reads, but still a broad enumeration operation over the
+   * visible worldline state.
+   */
+  getNodes(): Promise<string[]>;
+
+  /**
+   * Reads one node from this pinned worldline without requiring an explicit
+   * observer aperture.
+   */
+  getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
+
+  /**
+   * Full-aperture edge read over this pinned source.
+   */
+  getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
+
+  /**
+   * Creates a fluent query builder over this pinned worldline.
+   *
+   * Use this when you want a stable read without a filtered observer aperture.
+   * Add `observer(...)` when the application needs a narrower view.
+   */
+  query(): QueryBuilder;
+
+  /**
+   * Advanced substrate replay primitive for this pinned source.
+   *
+   * For application-facing reads, prefer `Observer` query/traverse helpers over direct materialization.
+   */
+  materialize(options: { receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
+
+  /** Creates an observer pinned to the worldline source when a filtered aperture is needed. */
+  observer(config: Lens): Promise<Observer>;
+  observer(name: string, config: Lens): Promise<Observer>;
 }
 
 /**
@@ -1371,14 +1507,13 @@ export interface TranslationCostResult {
 /**
  * Computes the directed MDL translation cost from observer A to observer B.
  *
- * @param configA - Observer configuration for A
- * @param configB - Observer configuration for B
+ * @param configA - Lens for observer A
+ * @param configB - Lens for observer B
  * @param state - WarpStateV5 materialized state
- * @see Paper IV, Section 4 -- Directed rulial cost
  */
 export function computeTranslationCost(
-  configA: ObserverConfig,
-  configB: ObserverConfig,
+  configA: Lens,
+  configB: Lens,
   state: WarpStateV5
 ): TranslationCostResult;
 
@@ -1426,7 +1561,7 @@ export interface StateDiffResult {
 }
 
 // ============================================================================
-// Temporal Query (Paper IV CTL* operators)
+// Temporal Query (history-aware temporal operators)
 // ============================================================================
 
 /**
@@ -1495,8 +1630,9 @@ export interface PatchV2 {
 /**
  * Fluent builder for creating WARP v5 patches with OR-Set semantics.
  *
- * Returned by WarpGraph.createPatch(). Chain mutation methods then call
- * commit() to persist the patch atomically.
+ * Returned by WarpCore.createPatch(). Chain mutation methods then call
+ * commit() to persist one atomic WARP patch under `refs/warp/...`.
+ * This does not touch the caller's normal Git worktree.
  */
 export class PatchBuilderV2 {
   /** Adds a node to the graph. */
@@ -1513,11 +1649,15 @@ export class PatchBuilderV2 {
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
   /** Attaches content to a node (writes blob + sets _content property). */
   attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  /** Clears content from a node (sets _content metadata registers to null). */
+  clearContent(nodeId: string): PatchBuilderV2;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
   attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  /** Clears content from an edge (sets _content metadata registers to null). */
+  clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
-  /** Commits the patch to the graph and returns the commit SHA. */
+  /** Commits one atomic WARP patch under `refs/warp/...` and returns the patch commit SHA. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
   readonly opCount: number;
@@ -1547,11 +1687,15 @@ export class PatchSession {
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
   /** Attaches content to a node (writes blob + sets _content property). */
   attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  /** Clears content from a node (sets _content metadata registers to null). */
+  clearContent(nodeId: string): this;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
   attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  /** Clears content from an edge (sets _content metadata registers to null). */
+  clearEdgeContent(from: string, to: string, label: string): this;
   /** Builds the PatchV2 object without committing. */
   build(): PatchV2;
-  /** Commits the patch with CAS protection. */
+  /** Commits one atomic WARP patch with CAS protection. */
   commit(): Promise<string>;
   /** Number of operations in this patch. */
   readonly opCount: number;
@@ -1570,7 +1714,9 @@ export class Writer {
   /** Begins a new patch session. */
   beginPatch(): Promise<PatchSession>;
   /**
-   * Builds and commits a patch in one call.
+   * Builds and commits one patch in one call.
+   * The callback does not commit per write; all queued mutations become one
+   * atomic WARP patch after the callback finishes.
    * @throws {WriterError} COMMIT_IN_PROGRESS if called while another commitPatch() is in progress (not reentrant)
    */
   commitPatch(build: (p: PatchSession) => void | Promise<void>): Promise<string>;
@@ -1710,7 +1856,7 @@ export interface SyncTrustOptions {
 /**
  * Lightweight status snapshot of the graph.
  */
-export interface WarpGraphStatus {
+export interface WarpStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -1734,13 +1880,7 @@ export interface JoinReceipt {
   frontierMerged: boolean;
 }
 
-/**
- * Multi-writer graph database using WARP CRDT protocol.
- *
- * V7 primary API - uses patch-based storage with OR-Set semantics.
- * See docs/V7_CONTRACT.md for architecture details.
- */
-export default class WarpGraph {
+declare class WarpCoreBase {
   /**
    * Opens or creates a multi-writer graph.
    */
@@ -1771,7 +1911,7 @@ export default class WarpGraph {
     blobStorage?: BlobStoragePort;
     /** Patch blob storage — when set, patch CBOR is encrypted via this port. */
     patchBlobStorage?: BlobStoragePort;
-  }): Promise<WarpGraph>;
+  }): Promise<WarpCore>;
 
   /**
    * The graph namespace.
@@ -1824,17 +1964,30 @@ export default class WarpGraph {
   ): Promise<Array<{ patch: PatchV2; sha: string }>>;
 
   /**
-   * Gets all visible nodes in the materialized state.
+   * Inspection API: enumerates all visible nodes in the current materialized state.
+   *
+   * Legitimate for whole-visible-state reads, tooling, migration, and admin
+   * surfaces. The anti-pattern is pulling results like this into an app-local
+   * shadow graph instead of using `Worldline`, `Observer`, `query()`, or
+   * `traverse`.
    */
   getNodes(): Promise<string[]>;
 
   /**
-   * Gets all visible edges in the materialized state.
+   * Inspection API: enumerates all visible edges in the current materialized state.
+   *
+   * Legitimate for whole-visible-state reads, tooling, migration, and admin
+   * surfaces. Prefer pinned handles when you are exposing a stable product
+   * surface, and avoid rebuilding your own traversal layer above the substrate.
    */
   getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
 
   /**
-   * Gets all properties for a node from the materialized state.
+   * Inspection API: reads one node from the current materialized state.
+   *
+   * Safe for targeted checks. If you find yourself looping this across many ids
+   * to reconstruct graph structure, move the read flow toward `Worldline` /
+   * `Observer` query or traversal instead.
    */
   getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
 
@@ -1846,6 +1999,10 @@ export default class WarpGraph {
   /**
    * Returns a defensive copy of the current materialized state,
    * or null if no state has been materialized yet.
+   *
+   * Useful for explicit substrate integration, debugging, or snapshot export.
+   * Application-facing reads are usually clearer through `Worldline` or
+   * `Observer` handles.
    */
   getStateSnapshot(): Promise<WarpStateV5 | null>;
 
@@ -1893,7 +2050,12 @@ export default class WarpGraph {
   hasNode(nodeId: string): Promise<boolean>;
 
   /**
-   * Gets neighbors of a node from the materialized state.
+   * Inspection API: walks visible neighbors from the current materialized state.
+   *
+   * Useful for bounded graph exploration, admin reads, and tooling. When you
+   * are building a stable product surface, prefer an explicit `Worldline` /
+   * `Observer` handle and the built-in traversal helpers instead of inventing a
+   * second traversal engine in app code.
    */
   neighbors(
     nodeId: string,
@@ -1933,18 +2095,30 @@ export default class WarpGraph {
   traverse: LogicalTraversal;
 
   /**
-   * Creates a fluent query builder for the logical graph.
+   * Creates a fluent query builder over the currently visible materialized state.
+   *
+   * Prefer `worldline().query()` for stable product reads, or
+   * `worldline().observer(...).query()` when you need a filtered aperture.
+   * Direct runtime queries are still valid whole-visible-state or admin reads.
+   * The thing to avoid is exporting those results into a separate app-local
+   * graph/query layer when the substrate already provides one.
    */
   query(): QueryBuilder;
 
   /**
-   * Creates a read-only observer view of the current materialized state.
-   *
-   * The observer sees only nodes matching the `match` glob pattern, with
-   * property visibility controlled by `expose` and `redact` lists.
-   * Edges are only visible when both endpoints pass the match filter.
+   * Creates a first-class worldline handle over a pinned read source.
    */
-  observer(name: string, config: ObserverConfig): Promise<ObserverView>;
+  worldline(options?: WorldlineOptions): Worldline;
+
+  /**
+   * Creates a read-only observer over the current materialized state.
+  *
+  * The observer sees only nodes matching the `match` glob pattern, with
+  * property visibility controlled by `expose` and `redact` lists.
+  * Edges are only visible when both endpoints pass the match filter.
+  */
+  observer(config: Lens, options?: ObserverOptions): Promise<Observer>;
+  observer(name: string, config: Lens, options?: ObserverOptions): Promise<Observer>;
 
   /**
    * Computes the directed MDL translation cost from observer A to observer B.
@@ -1952,23 +2126,26 @@ export default class WarpGraph {
    * The cost measures how much information is lost when translating from
    * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
    *
-   * @see Paper IV, Section 4 -- Directed rulial cost
    */
-  translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
+  translationCost(configA: Lens, configB: Lens): Promise<TranslationCostResult>;
 
   /**
-   * Materializes the current graph state from all patches.
+   * Advanced substrate replay primitive over the live frontier.
    *
    * When `options.receipts` is true, returns `{ state, receipts }`.
    * Otherwise returns the WarpStateV5 directly.
+   *
+   * Use this when you need replay output itself. For application-facing reads,
+   * prefer `Worldline` / `Observer` and then query or traverse through that
+   * read handle.
    */
   materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
   materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
 
   /**
-   * Materializes against an explicit frontier snapshot plus optional ceiling.
+   * Advanced substrate replay primitive against an explicit pinned frontier.
    *
-   * This is the substrate primitive used by working sets to replay a pinned
+   * This is the substrate primitive used by strands to replay a pinned
    * observation without assuming the live frontier.
    */
   materializeCoordinate(options: { frontier: Map<string, string> | Record<string, string>; ceiling?: number | null; receipts: true }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
@@ -1988,11 +2165,11 @@ export default class WarpGraph {
   }): Promise<{ close(): Promise<void>; url: string }>;
 
   /**
-   * Syncs with a remote peer (HTTP URL or another WarpGraph instance).
+   * Syncs with a remote peer (HTTP URL or another WarpCore instance).
    *
    * When `options.materialize` is true, the returned object also contains a `state` property.
    */
-  syncWith(remote: string | WarpGraph, options?: {
+  syncWith(remote: string | WarpCore, options?: {
     path?: string;
     retries?: number;
     baseDelayMs?: number;
@@ -2015,7 +2192,7 @@ export default class WarpGraph {
   /**
    * Creates a fork of this graph at a specific point in a writer's history.
    *
-   * A fork creates a new WarpGraph instance that shares history up to the
+   * A fork creates a new WarpCore instance that shares history up to the
    * specified patch SHA. Due to Git's content-addressed storage, the shared
    * history is automatically deduplicated.
    */
@@ -2028,7 +2205,7 @@ export default class WarpGraph {
     forkName?: string;
     /** Writer ID for the fork. Defaults to a new canonical ID. */
     forkWriterId?: string;
-  }): Promise<WarpGraph>;
+  }): Promise<WarpCore>;
 
   /**
    * Creates a wormhole compressing a range of patches.
@@ -2070,7 +2247,7 @@ export default class WarpGraph {
    */
   analyzeConflicts(options?: {
     at?: { lamportCeiling?: number | null };
-    workingSetId?: string;
+    strandId?: string;
     entityId?: string;
     target?: ConflictTargetSelector;
     kind?: ConflictKind | ConflictKind[];
@@ -2080,57 +2257,79 @@ export default class WarpGraph {
   }): Promise<ConflictAnalysis>;
 
   /**
-   * Creates a durable working-set descriptor pinned to the current frontier
+   * Creates a durable strand descriptor pinned to the current frontier
    * plus an optional Lamport ceiling.
    *
-   * Working sets do not duplicate the graph. They record a pinned base
+   * Strands do not duplicate the graph. They record a pinned base
    * observation plus overlay identity for future divergent writes.
    */
-  createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
+  createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor>;
 
-  /** Loads a previously-created working-set descriptor. */
-  getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
+  /** Loads a previously-created strand descriptor. */
+  getStrand(strandId: string): Promise<StrandDescriptor | null>;
 
-  /** Lists all working-set descriptors stored for this graph. */
-  listWorkingSets(): Promise<WorkingSetDescriptor[]>;
-
-  /**
-   * Pins one or more supporting working-set overlays as read-only braid inputs
-   * on top of a target working set's base observation.
-   */
-  braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
-
-  /** Drops a working-set descriptor by id. Returns false when it does not exist. */
-  dropWorkingSet(workingSetId: string): Promise<boolean>;
+  /** Lists all strand descriptors stored for this graph. */
+  listStrands(): Promise<StrandDescriptor[]>;
 
   /**
-   * Materializes a working set's pinned base observation plus overlay.
+   * Pins one or more supporting strand overlays as read-only braid inputs
+   * on top of a target strand's base observation.
    */
-  materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-  materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+  braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;
 
-  /** Returns the causal patch entries visible inside a working set. */
-  getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
-
-  /** Returns the visible patch SHAs that touched one entity inside a working set. */
-  patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
-
-  /** Creates a patch builder that writes into a working set's overlay patch-log. */
-  createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
-
-  /** Convenience wrapper that creates and commits a working-set overlay patch. */
-  patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+  /** Drops a strand descriptor by id. Returns false when it does not exist. */
+  dropStrand(strandId: string): Promise<boolean>;
 
   /**
-   * Compares a working set against its base observation, the live frontier, or
-   * another working set using only substrate facts.
+   * Advanced substrate replay primitive for a strand's pinned base observation plus overlay.
    */
-  compareWorkingSet(workingSetId: string, options?: {
-    against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+  materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+  materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+
+  /** Returns the causal patch entries visible inside a strand. */
+  getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+
+  /** Returns the visible patch SHAs that touched one entity inside a strand. */
+  patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
+
+  /** Creates a patch builder that writes into a strand's overlay patch-log. */
+  createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
+
+  /** Convenience wrapper that creates and commits a strand overlay patch. */
+  patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+
+  /** Queues a patch-shaped intent against a strand without advancing its overlay. */
+  queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+
+  /** Lists the currently queued intents for one strand. */
+  listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
+
+  /** Deterministically drains the queued intent set for one strand. */
+  tickStrand(strandId: string): Promise<StrandTickRecord>;
+
+  /**
+   * Compares a strand against its base observation, the live frontier, or
+   * another strand using only substrate facts.
+   */
+  compareStrand(strandId: string, options?: {
+    against?: 'base' | 'live' | { kind: 'strand'; strandId: string };
     ceiling?: number | null;
     againstCeiling?: number | null;
     targetId?: string | null;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateComparisonV1>;
+
+  /**
+   * Plans a deterministic transfer from a strand into live truth, its
+   * pinned base observation, or another strand without mutating either
+   * side.
+   */
+  planStrandTransfer(strandId: string, options?: {
+    into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
+    ceiling?: number | null;
+    intoCeiling?: number | null;
+    scope?: VisibleStateScopeV1 | null;
+  }): Promise<CoordinateTransferPlanV1>;
 
   /**
    * Compares two explicit substrate coordinate selectors.
@@ -2139,7 +2338,18 @@ export default class WarpGraph {
     left: CoordinateComparisonSelectorV1;
     right: CoordinateComparisonSelectorV1;
     targetId?: string | null;
+    scope?: VisibleStateScopeV1 | null;
   }): Promise<CoordinateComparisonV1>;
+
+  /**
+   * Plans a deterministic transfer between two explicit substrate coordinate
+   * selectors without mutating either side.
+   */
+  planCoordinateTransfer(options: {
+    source: CoordinateTransferPlanSelectorV1;
+    target: CoordinateTransferPlanSelectorV1;
+    scope?: VisibleStateScopeV1 | null;
+  }): Promise<CoordinateTransferPlanV1>;
 
   /**
    * The provenance index mapping entities to contributing patches.
@@ -2160,7 +2370,7 @@ export default class WarpGraph {
   syncCoverage(): Promise<void>;
 
   /** Returns a lightweight status snapshot of the graph. */
-  status(): Promise<WarpGraphStatus>;
+  status(): Promise<WarpStatus>;
 
   /**
    * Subscribes to graph changes after each materialize().
@@ -2225,6 +2435,137 @@ export default class WarpGraph {
 
   /** CTL*-style temporal operators over graph history. */
   get temporal(): TemporalQuery;
+}
+
+/**
+ * Full plumbing-facing WARP surface.
+ *
+ * Use `WarpCore` for replay, provenance, inspection, debugger tooling, and
+ * other advanced substrate mechanics.
+ */
+export declare class WarpCore extends WarpCoreBase {
+  /**
+   * Opens or creates a multi-writer graph and returns the full core surface.
+   */
+  static open(options: Parameters<typeof WarpCoreBase.open>[0]): Promise<WarpCore>;
+}
+
+/**
+ * Curated product-facing WARP surface.
+ *
+ * Use `WarpApp` when building applications, agentic CLI flows, and other
+ * higher-level integrations that should prefer worldlines, lenses, observers,
+ * speculative lanes, and explicit sync over direct replay mechanics.
+ */
+export declare class WarpApp {
+  /**
+   * Opens or creates a multi-writer graph and returns the curated app surface.
+   */
+  static open(options: Parameters<typeof WarpCoreBase.open>[0]): Promise<WarpApp>;
+
+  /** The graph namespace. */
+  readonly graphName: WarpCore['graphName'];
+
+  /** This writer's ID. */
+  readonly writerId: WarpCore['writerId'];
+
+  /** Explicit escape hatch to the full plumbing surface. */
+  core(): WarpCore;
+
+  /** Gets or creates a Writer, optionally resolving from git config. */
+  writer(writerId?: Parameters<WarpCore['writer']>[0]): ReturnType<WarpCore['writer']>;
+
+  /**
+   * Creates a new Writer with a fresh canonical ID.
+   * @deprecated Use writer() or writer(id) instead.
+   */
+  createWriter(opts?: Parameters<WarpCore['createWriter']>[0]): ReturnType<WarpCore['createWriter']>;
+
+  /** Creates a new PatchBuilderV2 for adding operations. */
+  createPatch(): ReturnType<WarpCore['createPatch']>;
+
+  /**
+   * Convenience wrapper that creates, builds, and commits one patch.
+   * The callback does not commit per write; all queued mutations become one
+   * atomic WARP patch after the callback finishes.
+   */
+  patch(build: Parameters<WarpCore['patch']>[0]): ReturnType<WarpCore['patch']>;
+
+  /** Applies multiple patches sequentially. */
+  patchMany(...builds: Parameters<WarpCore['patchMany']>): ReturnType<WarpCore['patchMany']>;
+
+  /**
+   * Syncs with a remote peer (HTTP URL, `WarpApp`, or `WarpCore`).
+   */
+  syncWith(
+    remote: string | WarpApp | WarpCore,
+    options?: Parameters<WarpCore['syncWith']>[1],
+  ): ReturnType<WarpCore['syncWith']>;
+
+  /** Creates a first-class worldline handle over a pinned read source. */
+  worldline(options?: Parameters<WarpCore['worldline']>[0]): ReturnType<WarpCore['worldline']>;
+
+  /** Creates a read-only observer over the current pinned read source. */
+  observer(config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+  observer(name: string, config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+
+  /** Computes the directed MDL translation cost from one lens to another. */
+  translationCost(
+    configA: Parameters<WarpCore['translationCost']>[0],
+    configB: Parameters<WarpCore['translationCost']>[1],
+  ): ReturnType<WarpCore['translationCost']>;
+
+  /** Subscribes to graph changes after each materialize(). */
+  subscribe(options: Parameters<WarpCore['subscribe']>[0]): ReturnType<WarpCore['subscribe']>;
+
+  /** Filtered watcher for changes matching a glob pattern. */
+  watch(
+    pattern: Parameters<WarpCore['watch']>[0],
+    options: Parameters<WarpCore['watch']>[1],
+  ): ReturnType<WarpCore['watch']>;
+
+  /** Creates a durable strand descriptor. */
+  createStrand(options?: Parameters<WarpCore['createStrand']>[0]): ReturnType<WarpCore['createStrand']>;
+
+  /** Loads a previously-created strand descriptor. */
+  getStrand(strandId: Parameters<WarpCore['getStrand']>[0]): ReturnType<WarpCore['getStrand']>;
+
+  /** Lists all strand descriptors stored for this graph. */
+  listStrands(): ReturnType<WarpCore['listStrands']>;
+
+  /** Pins one or more supporting overlays as braid inputs on a target strand. */
+  braidStrand(
+    strandId: Parameters<WarpCore['braidStrand']>[0],
+    options?: Parameters<WarpCore['braidStrand']>[1],
+  ): ReturnType<WarpCore['braidStrand']>;
+
+  /** Drops a strand descriptor by id. */
+  dropStrand(strandId: Parameters<WarpCore['dropStrand']>[0]): ReturnType<WarpCore['dropStrand']>;
+
+  /** Creates a patch builder that writes into a strand overlay patch-log. */
+  createStrandPatch(
+    strandId: Parameters<WarpCore['createStrandPatch']>[0],
+  ): ReturnType<WarpCore['createStrandPatch']>;
+
+  /** Convenience wrapper that creates and commits a strand overlay patch. */
+  patchStrand(
+    strandId: Parameters<WarpCore['patchStrand']>[0],
+    build: Parameters<WarpCore['patchStrand']>[1],
+  ): ReturnType<WarpCore['patchStrand']>;
+
+  /** Queues a patch-shaped intent against a strand. */
+  queueStrandIntent(
+    strandId: Parameters<WarpCore['queueStrandIntent']>[0],
+    build: Parameters<WarpCore['queueStrandIntent']>[1],
+  ): ReturnType<WarpCore['queueStrandIntent']>;
+
+  /** Lists the currently queued intents for one strand. */
+  listStrandIntents(
+    strandId: Parameters<WarpCore['listStrandIntents']>[0],
+  ): ReturnType<WarpCore['listStrandIntents']>;
+
+  /** Deterministically drains the queued intent set for one strand. */
+  tickStrand(strandId: Parameters<WarpCore['tickStrand']>[0]): ReturnType<WarpCore['tickStrand']>;
 }
 
 /**
@@ -2366,8 +2707,6 @@ export interface OpOutcome {
 
 /**
  * Immutable record of per-operation outcomes from a single patch application.
- *
- * @see Paper II, Section 5 -- Tick receipts
  */
 export interface TickReceipt {
   /** SHA of the patch commit */
@@ -2500,21 +2839,21 @@ export interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
-    coordinateKind: 'frontier' | 'working_set';
+    coordinateKind: 'frontier' | 'strand';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -2523,30 +2862,60 @@ export interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
-export interface WorkingSetCreateOptions {
-  workingSetId?: string;
+export interface StrandCreateOptions {
+  strandId?: string;
   lamportCeiling?: number | null;
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
 }
 
-export interface WorkingSetBraidOptions {
-  braidedWorkingSetIds?: string[];
+export interface StrandBraidOptions {
+  braidedStrandIds?: string[];
   writable?: boolean | null;
 }
 
-export interface WorkingSetReadOverlayDescriptor {
-  workingSetId: string;
+export interface StrandReadOverlayDescriptor {
+  strandId: string;
   overlayId: string;
   kind: string;
   headPatchSha: string | null;
   patchCount: number;
 }
 
-export interface WorkingSetDescriptor {
+export interface StrandIntentDescriptor {
+  intentId: string;
+  enqueuedAt: string;
+  patch: PatchV2;
+  reads: string[];
+  writes: string[];
+  contentBlobOids: string[];
+}
+
+export interface StrandTickCounterfactual {
+  intentId: string;
+  reason: string;
+  conflictsWith: string[];
+  reads: string[];
+  writes: string[];
+}
+
+export interface StrandTickRecord {
+  tickId: string;
+  strandId: string;
+  tickIndex: number;
+  createdAt: string;
+  drainedIntentCount: number;
+  admittedIntentIds: string[];
+  rejected: StrandTickCounterfactual[];
+  baseOverlayHeadPatchSha: string | null;
+  overlayHeadPatchSha: string | null;
+  overlayPatchShas: string[];
+}
+
+export interface StrandDescriptor {
   schemaVersion: number;
-  workingSetId: string;
+  strandId: string;
   graphName: string;
   createdAt: string;
   updatedAt: string;
@@ -2569,7 +2938,15 @@ export interface WorkingSetDescriptor {
     writable: boolean;
   };
   braid: {
-    readOverlays: WorkingSetReadOverlayDescriptor[];
+    readOverlays: StrandReadOverlayDescriptor[];
+  };
+  intentQueue?: {
+    nextIntentSeq: number;
+    intents: StrandIntentDescriptor[];
+  };
+  evolution?: {
+    tickCount: number;
+    lastTick: StrandTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -2836,14 +3213,25 @@ export interface VisibleStateComparisonV5 {
   target?: VisibleStateComparisonTargetV5;
 }
 
+export interface VisibleStateScopePrefixFilterV1 {
+  include?: string[];
+  exclude?: string[];
+}
+
+export interface VisibleStateScopeV1 {
+  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+}
+
 export type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
-  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
-  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'strand'; strandId: string; ceiling?: number | null }
+  | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
+export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
+
 export interface CoordinateComparisonResolvedSideV1 {
-  coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+  coordinateKind: 'frontier' | 'strand' | 'strand_base';
   patchFrontier: Record<string, string>;
   patchFrontierDigest: string;
   lamportFrontier: Record<string, number>;
@@ -2852,15 +3240,15 @@ export interface CoordinateComparisonResolvedSideV1 {
   stateHash: string;
   patchUniverseDigest: string;
   summary: VisibleStateSummaryV5 & { patchCount: number };
-  workingSet?: {
-    workingSetId: string;
+  strand?: {
+    strandId: string;
     baseLamportCeiling: number | null;
     overlayHeadPatchSha: string | null;
     overlayPatchCount: number;
     overlayWritable: boolean;
     braid: {
       readOverlayCount: number;
-      braidedWorkingSetIds: string[];
+      braidedStrandIds: string[];
     };
   };
 }
@@ -2891,23 +3279,112 @@ export interface CoordinateComparisonSideV1 {
 export interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
   visibleState: VisibleStateComparisonV5;
 }
 
+export interface CoordinateComparisonFactV1 {
+  comparisonVersion: string;
+  scope?: VisibleStateScopeV1;
+  left: CoordinateComparisonSideV1;
+  right: CoordinateComparisonSideV1;
+  visiblePatchDivergence: CoordinateComparisonPatchDivergenceV1;
+  visibleState: VisibleStateComparisonV5;
+}
+
+export interface CoordinateComparisonFactExportV1 {
+  exportVersion: string;
+  factKind: 'coordinate-comparison';
+  factDigest: string;
+  canonicalFactJson: string;
+  fact: CoordinateComparisonFactV1;
+}
+
+export interface VisibleStateTransferPlanSummaryV1 {
+  opCount: number;
+  addNodeCount: number;
+  removeNodeCount: number;
+  setNodePropertyCount: number;
+  clearNodePropertyCount: number;
+  addEdgeCount: number;
+  removeEdgeCount: number;
+  setEdgePropertyCount: number;
+  clearEdgePropertyCount: number;
+  attachNodeContentCount: number;
+  clearNodeContentCount: number;
+  attachEdgeContentCount: number;
+  clearEdgeContentCount: number;
+}
+
+export type VisibleStateTransferOperationV1 =
+  | { op: 'add_node'; nodeId: string }
+  | { op: 'remove_node'; nodeId: string }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'add_edge'; from: string; to: string; label: string }
+  | { op: 'remove_edge'; from: string; to: string; label: string }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_node_content'; nodeId: string }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_edge_content'; from: string; to: string; label: string };
+
+export type VisibleStateTransferOperationFactV1 =
+  | { op: 'add_node'; nodeId: string }
+  | { op: 'remove_node'; nodeId: string }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'add_edge'; from: string; to: string; label: string }
+  | { op: 'remove_edge'; from: string; to: string; label: string }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'attach_node_content'; nodeId: string; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_node_content'; nodeId: string }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_edge_content'; from: string; to: string; label: string };
+
+export type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
+
+export interface CoordinateTransferPlanV1 {
+  transferVersion: string;
+  transferDigest: string;
+  comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
+  changed: boolean;
+  source: CoordinateTransferPlanSideV1;
+  target: CoordinateTransferPlanSideV1;
+  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperationV1[];
+}
+
+export interface CoordinateTransferPlanFactV1 {
+  transferVersion: string;
+  comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
+  changed: boolean;
+  source: CoordinateTransferPlanSideV1;
+  target: CoordinateTransferPlanSideV1;
+  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperationFactV1[];
+}
+
+export interface CoordinateTransferPlanFactExportV1 {
+  exportVersion: string;
+  factKind: 'coordinate-transfer-plan';
+  factDigest: string;
+  canonicalFactJson: string;
+  fact: CoordinateTransferPlanFactV1;
+}
+
 /**
  * ProvenancePayload - Transferable provenance as a monoid.
  *
- * Implements the provenance payload from Paper III (Computational Holography):
- * P = (mu_0, ..., mu_{n-1}) - an ordered sequence of tick patches.
+ * Implements transferable provenance as an ordered sequence of tick patches:
+ * P = (mu_0, ..., mu_{n-1}).
  *
  * The payload monoid (Payload, ., epsilon):
  * - Composition is concatenation
  * - Identity is empty sequence
- *
- * @see Paper III, Section 4 -- Computational Holography
  */
 export class ProvenancePayload {
   /**
@@ -2978,8 +3455,6 @@ export class ProvenancePayload {
  *
  * Binds (h_in, h_out, U_0, P, t, kappa) for auditable exchange of graph
  * segments between parties who don't share full history.
- *
- * @see Paper III, Section 4 -- Boundary Transition Records
  */
 export interface BTR {
   /** BTR format version */
@@ -3207,3 +3682,5 @@ export function deserializeWormhole(json: {
   patchCount: number;
   payload: PatchEntry[];
 }): WormholeEdge;
+
+export default WarpApp;

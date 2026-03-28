@@ -1,0 +1,398 @@
+import WarpRuntime from './WarpRuntime.js';
+import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.js';
+import {
+  buildCoordinateComparisonFact,
+  buildCoordinateTransferPlanFact,
+} from './services/CoordinateFactExport.js';
+import { computeChecksum } from './utils/checksumUtils.js';
+
+/** @typedef {Parameters<WarpRuntime['braidStrand']>[1]} InternalBraidStrandOptions */
+/** @typedef {Parameters<WarpRuntime['materializeStrand']>[1]} InternalMaterializeStrandOptions */
+/** @typedef {Parameters<WarpRuntime['compareStrand']>[1]} InternalCompareStrandOptions */
+/** @typedef {Parameters<WarpRuntime['planStrandTransfer']>[1]} InternalPlanStrandTransferOptions */
+/** @typedef {Parameters<WarpRuntime['compareCoordinates']>[0]} InternalCompareCoordinatesOptions */
+/** @typedef {Parameters<WarpRuntime['planCoordinateTransfer']>[0]} InternalPlanCoordinateTransferOptions */
+/** @typedef {Parameters<WarpRuntime['analyzeConflicts']>[0]} InternalConflictAnalyzeOptions */
+/** @typedef {import('../../index.js').CoordinateComparisonV1} CoordinateComparisonV1 */
+/** @typedef {import('../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1 */
+/** @typedef {import('../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1 */
+/** @typedef {import('../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1 */
+/** @typedef {import('../../index.js').VisibleStateScopeV1} VisibleStateScopeV1 */
+/** @typedef {import('../../index.js').CryptoPort} CryptoPort */
+/** @typedef {import('../../index.js').StrandCreateOptions} StrandCreateOptions */
+/** @typedef {import('../../index.js').StrandBraidOptions} StrandBraidOptions */
+/** @typedef {import('../../index.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('../../index.js').StrandIntentDescriptor} StrandIntentDescriptor */
+/** @typedef {import('../../index.js').StrandTickRecord} StrandTickRecord */
+
+/**
+ * @param {WarpCore} graph
+ * @param {CoordinateComparisonV1} comparison
+ * @returns {Promise<CoordinateComparisonV1>}
+ */
+async function refreshPublicComparisonDigest(graph, comparison) {
+  const fact = buildCoordinateComparisonFact(comparison);
+  const crypto = /** @type {(WarpCore & { _crypto: CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
+  return {
+    ...comparison,
+    comparisonDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), crypto),
+  };
+}
+
+/**
+ * @param {WarpCore} graph
+ * @param {CoordinateTransferPlanV1} transferPlan
+ * @returns {Promise<CoordinateTransferPlanV1>}
+ */
+async function refreshPublicTransferDigest(graph, transferPlan) {
+  const fact = buildCoordinateTransferPlanFact(transferPlan);
+  const crypto = /** @type {(WarpCore & { _crypto: CryptoPort })} */ (/** @type {unknown} */ (graph))._crypto;
+  return {
+    ...transferPlan,
+    transferDigest: await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), crypto),
+  };
+}
+
+/**
+ * Full plumbing-facing WARP surface.
+ *
+ * `WarpCore` is the honest substrate/tooling entrypoint for replay,
+ * materialization, provenance, comparison, and other low-level mechanics.
+ * It adopts the existing runtime implementation rather than forking it.
+ */
+export default class WarpCore {
+  /**
+   * Opens or creates a multi-writer graph and returns the full core surface.
+   *
+   * @param {Parameters<typeof WarpRuntime.open>[0]} options
+   * @returns {Promise<WarpCore>}
+   */
+  static async open(options) {
+    const runtime = await WarpRuntime.open(options);
+    return WarpCore._adopt(runtime);
+  }
+
+  /**
+   * @param {WarpRuntime | WarpCore} runtime
+   * @returns {WarpCore}
+   * @internal
+   */
+  static _adopt(runtime) {
+    if (runtime instanceof WarpCore) {
+      return runtime;
+    }
+    Object.setPrototypeOf(runtime, WarpCore.prototype);
+    return /** @type {WarpCore} */ (/** @type {unknown} */ (runtime));
+  }
+
+  /**
+   * Creates a durable strand descriptor pinned to the current frontier.
+   *
+   * @param {StrandCreateOptions} [options]
+   * @returns {Promise<StrandDescriptor>}
+   */
+  async createStrand(options) {
+    return /** @type {StrandDescriptor} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.createStrand.call(this, toInternalStrandShape(options)),
+        )
+      )
+    );
+  }
+
+  /**
+   * Loads a previously-created strand descriptor.
+   *
+   * @param {string} strandId
+   * @returns {Promise<StrandDescriptor | null>}
+   */
+  async getStrand(strandId) {
+    return /** @type {StrandDescriptor | null} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.getStrand.call(this, strandId),
+        )
+      )
+    );
+  }
+
+  /**
+   * Lists all strand descriptors stored for this graph.
+   *
+   * @returns {Promise<StrandDescriptor[]>}
+   */
+  async listStrands() {
+    return /** @type {StrandDescriptor[]} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.listStrands.call(this),
+        )
+      )
+    );
+  }
+
+  /**
+   * Pins one or more support overlays as braid inputs on a target strand.
+   *
+   * @param {string} strandId
+   * @param {StrandBraidOptions} [options]
+   * @returns {Promise<StrandDescriptor>}
+   */
+  async braidStrand(strandId, options) {
+    return /** @type {StrandDescriptor} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.braidStrand.call(
+            this,
+            strandId,
+            /** @type {InternalBraidStrandOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+  }
+
+  /**
+   * Drops a strand descriptor by id.
+   *
+   * @param {string} strandId
+   * @returns {Promise<boolean>}
+   */
+  async dropStrand(strandId) {
+    return await WarpRuntime.prototype.dropStrand.call(this, strandId);
+  }
+
+  /**
+   * Advanced substrate replay primitive for a strand's pinned base observation plus overlay.
+   *
+   * @param {string} strandId
+   * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
+   * @returns {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>}
+   */
+  async materializeStrand(strandId, options) {
+    return await /** @type {Promise<import('./services/JoinReducer.js').WarpStateV5|{state: import('./services/JoinReducer.js').WarpStateV5, receipts: import('./types/TickReceipt.js').TickReceipt[]}>} */ (
+      /** @type {unknown} */ (
+        WarpRuntime.prototype.materializeStrand.call(
+          this,
+          strandId,
+          /** @type {InternalMaterializeStrandOptions | undefined} */ (/** @type {unknown} */ (options)),
+        )
+      )
+    );
+  }
+
+  /**
+   * Returns the causal patch entries visible inside a strand.
+   *
+   * @param {string} strandId
+   * @param {Record<string, unknown>} [options]
+   * @returns {Promise<unknown>}
+   */
+  async getStrandPatches(strandId, options) {
+    return await /** @type {Promise<Array<{ patch: import('./types/WarpTypesV2.js').PatchV2, sha: string }>>} */ (
+      /** @type {unknown} */ (WarpRuntime.prototype.getStrandPatches.call(this, strandId, options))
+    );
+  }
+
+  /**
+   * Returns the visible patch SHAs that touched one entity inside a strand.
+   *
+   * @param {string} strandId
+   * @param {string} entityId
+   * @param {Record<string, unknown>} [options]
+   * @returns {Promise<string[]>}
+   */
+  async patchesForStrand(strandId, entityId, options) {
+    return await WarpRuntime.prototype.patchesForStrand.call(this, strandId, entityId, options);
+  }
+
+  /**
+   * Creates a patch builder that writes into a strand's overlay patch-log.
+   *
+   * @param {string} strandId
+   * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
+   */
+  async createStrandPatch(strandId) {
+    return await WarpRuntime.prototype.createStrandPatch.call(this, strandId);
+  }
+
+  /**
+   * Convenience wrapper that creates and commits a strand overlay patch.
+   *
+   * @param {string} strandId
+   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void|Promise<void>} build
+   * @returns {Promise<string>}
+   */
+  async patchStrand(strandId, build) {
+    return await WarpRuntime.prototype.patchStrand.call(this, strandId, build);
+  }
+
+  /**
+   * Queues a patch-shaped intent against a strand without advancing its overlay.
+   *
+   * @param {string} strandId
+   * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void|Promise<void>} build
+   * @returns {Promise<StrandIntentDescriptor>}
+   */
+  async queueStrandIntent(strandId, build) {
+    return /** @type {StrandIntentDescriptor} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.queueStrandIntent.call(this, strandId, build),
+        )
+      )
+    );
+  }
+
+  /**
+   * Lists the currently queued intents for one strand.
+   *
+   * @param {string} strandId
+   * @returns {Promise<StrandIntentDescriptor[]>}
+   */
+  async listStrandIntents(strandId) {
+    return /** @type {StrandIntentDescriptor[]} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.listStrandIntents.call(this, strandId),
+        )
+      )
+    );
+  }
+
+  /**
+   * Deterministically drains the queued intent set for one strand.
+   *
+   * @param {string} strandId
+   * @returns {Promise<StrandTickRecord>}
+   */
+  async tickStrand(strandId) {
+    return /** @type {StrandTickRecord} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.tickStrand.call(this, strandId),
+        )
+      )
+    );
+  }
+
+  /**
+   * Compares a strand against its base observation, the live frontier, or another strand.
+   *
+   * @param {string} strandId
+   * @param {{
+   *   against?: 'base'|'live'|{ kind: 'strand', strandId: string },
+   *   ceiling?: number|null,
+   *   againstCeiling?: number|null,
+   *   targetId?: string|null,
+   *   scope?: VisibleStateScopeV1|null
+   * }} [options]
+   * @returns {Promise<CoordinateComparisonV1>}
+   */
+  async compareStrand(strandId, options) {
+    const comparison = /** @type {CoordinateComparisonV1} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.compareStrand.call(
+            this,
+            strandId,
+            /** @type {InternalCompareStrandOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+    return await refreshPublicComparisonDigest(this, comparison);
+  }
+
+  /**
+   * Plans a deterministic transfer from a strand into live truth, its pinned base observation, or another strand.
+   *
+   * @param {string} strandId
+   * @param {{
+   *   into?: 'base'|'live'|{ kind: 'strand', strandId: string },
+   *   ceiling?: number|null,
+   *   intoCeiling?: number|null,
+   *   scope?: VisibleStateScopeV1|null
+   * }} [options]
+   * @returns {Promise<CoordinateTransferPlanV1>}
+   */
+  async planStrandTransfer(strandId, options) {
+    const transferPlan = /** @type {CoordinateTransferPlanV1} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.planStrandTransfer.call(
+            this,
+            strandId,
+            /** @type {InternalPlanStrandTransferOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+    return await refreshPublicTransferDigest(this, transferPlan);
+  }
+
+  /**
+   * @param {{
+   *   left: CoordinateComparisonSelectorV1,
+   *   right: CoordinateComparisonSelectorV1,
+   *   targetId?: string|null,
+   *   scope?: VisibleStateScopeV1|null
+   * }} options
+   * @returns {Promise<CoordinateComparisonV1>}
+   */
+  async compareCoordinates(options) {
+    const comparison = /** @type {CoordinateComparisonV1} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.compareCoordinates.call(
+            this,
+            /** @type {InternalCompareCoordinatesOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+    return await refreshPublicComparisonDigest(this, comparison);
+  }
+
+  /**
+   * @param {{
+   *   source: CoordinateTransferPlanSelectorV1,
+   *   target: CoordinateTransferPlanSelectorV1,
+   *   scope?: VisibleStateScopeV1|null
+   * }} options
+   * @returns {Promise<CoordinateTransferPlanV1>}
+   */
+  async planCoordinateTransfer(options) {
+    const transferPlan = /** @type {CoordinateTransferPlanV1} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.planCoordinateTransfer.call(
+            this,
+            /** @type {InternalPlanCoordinateTransferOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+    return await refreshPublicTransferDigest(this, transferPlan);
+  }
+
+  /**
+   * @param {import('./services/ConflictAnalyzerService.js').ConflictAnalyzeOptions} [options]
+   * @returns {Promise<import('./services/ConflictAnalyzerService.js').ConflictAnalysis>}
+   */
+  async analyzeConflicts(options) {
+    return /** @type {import('./services/ConflictAnalyzerService.js').ConflictAnalysis} */ (
+      /** @type {unknown} */ (
+        toPublicStrandShape(
+          await WarpRuntime.prototype.analyzeConflicts.call(
+            this,
+            /** @type {InternalConflictAnalyzeOptions} */ (/** @type {unknown} */ (toInternalStrandShape(options))),
+          ),
+        )
+      )
+    );
+  }
+}
+
+Object.setPrototypeOf(WarpCore.prototype, WarpRuntime.prototype);

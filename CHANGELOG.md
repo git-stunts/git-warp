@@ -7,30 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Public API now splits into `WarpApp` and `WarpCore`** — the package default export is now `WarpApp`, the curated product-facing surface for app builders and agentic consumers. `WarpCore` is now the explicit plumbing/tooling surface for replay, materialization, provenance, and whole-state inspection. `WarpRuntime` is no longer part of the public API.
+- **Docs now state the intended observer/strand boundary explicitly** — Added a design note and updated the README, Guide, Strands doc, and CONTRIBUTING so git-warp now says plainly that `WarpCore` is substrate plumbing, observers are the preferred read-side abstraction, and strands are the preferred speculative write abstraction while governance and policy stay above the substrate.
+- **README front matter now pays off faster for first-time builders** — the front door now leads with a plain-language `TL;DR for humans`, moves install and the runnable quick start above the deeper WARP explanation, and adds a conceptual glossary that bridges API nouns like `Worldline`, `Observer`, and `Strand` with paper-facing terms like `tick`, `frontier`, and `braid`.
+- **Observers now pin their read source instead of live-following one mutable graph handle** — `graph.observer(...)` now captures the current materialized coordinate at creation time and can also bind directly to an explicit coordinate or a pinned strand, giving higher layers a real read-handle abstraction for historical or speculative inspection.
+- **Strands now carry the speculative-lane public API** — `createStrand()`, `getStrand()`, `listStrands()`, `braidStrand()`, `materializeStrand()`, `queueStrandIntent()`, `listStrandIntents()`, `tickStrand()`, `compareStrand()`, and `planStrandTransfer()` now replace the old `Strand*` public nouns across the package, CLI, and front-door docs.
+- **Release policy now matches the post-IBM docs model** — `jsr.json` now matches the intended `15.0.0` release line, the release runbook and workflow no longer require a README `What's New` section that the README intentionally does not have, and the release steps now explicitly include the normal branch -> PR -> merge -> tag loop.
+
+## [14.16.2] — 2026-03-19
+
+### Changed
+
+- **Raised the `git-cas` substrate floor to `^5.3.2`** — refreshed the published `@git-stunts/git-cas` dependency and normalized the lockfile so `git-warp` no longer carries a stale local `5.3.0` install against a newer declared range.
+
+## [14.16.0] — 2026-03-18
+
+### Added
+
+- **First-class committed content-clear patch APIs** — Added synchronous `clearContent()` / `clearEdgeContent()` methods on `PatchBuilderV2` and `PatchSession` so higher layers can remove attached node or edge content through the published mutation surface instead of writing reserved `_content*` keys manually.
+
+### Changed
+
+- **Transfer planning and content-clearing examples now lower through a public primitive** — the strand tests and docs now show content-clear transfer ops lowering through the new patch helpers rather than through reserved-key knowledge in higher layers.
+
+## [14.15.0] — 2026-03-18
+
+### Added
+
+- **Scoped visible-state substrate facts** — Added optional `scope` support to `WarpGraph.compareStrand()`, `compareCoordinates()`, `planStrandTransfer()`, and `planCoordinateTransfer()`, plus reusable `normalizeVisibleStateScopeV1()` and `scopeMaterializedStateV5()` helpers. Current v1 scope supports include/exclude node-id prefixes while keeping git-warp free of application nouns.
+
+### Changed
+
+- **Scoped comparison and transfer digests now ignore excluded visible-state families** — when a scope is provided, coordinate comparison and transfer planning now filter both the materialized visible state and the contributing patch set before computing side digests, patch-universe divergence, exported facts, and transfer ops. Governance-only node families can now be excluded without perturbing scoped substrate truth.
+- **Scoped fact exports stay canonical and explicit** — `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` now carry the normalized scope when present, so higher layers can record both raw whole-state facts and scoped substrate facts without inventing their own serialization boundary.
+- **Strand docs now explain scoped substrate truth explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can exclude out-of-scope node families through published substrate scope rather than local adapters.
+
+## [14.14.0] — 2026-03-18
+
+### Added
+
+- **Canonical coordinate fact exports** — Added `exportCoordinateComparisonFact()` and `exportCoordinateTransferPlanFact()` as public substrate helpers for exporting comparison and transfer-plan facts in a deterministic JSON-safe envelope, including canonical JSON and the already-computed substrate fact digest.
+
+### Changed
+
+- **Comparison and transfer-plan docs now describe portable substrate facts explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can record or attest exported substrate truth without reverse-engineering strand comparison payloads or stripping raw attachment bytes themselves.
+
+## [14.13.0] — 2026-03-18
+
+### Added
+
+- **Strand and coordinate transfer-plan API** — Added `WarpGraph.planStrandTransfer()` and `WarpGraph.planCoordinateTransfer()` as deterministic substrate helpers for extracting candidate transfer plans between strands, base observations, live frontiers, and explicit coordinates without mutating either side.
+- **Thin `strand transfer-plan` CLI surface** — Added `git warp strand transfer-plan` so operators and higher layers can inspect a substrate-factual settlement runway without turning `debug` into a mutation shell.
+
+### Changed
+
+- **Transfer plans now include attachment deltas explicitly** — candidate plans can carry node/edge content attach and clear operations alongside topology and property updates, so higher layers do not need to reverse-engineer `_content*` substrate keys from materialized state.
+- **Strand docs now describe settlement runway as a substrate concern** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so transfer planning is documented as read-only substrate preparation for higher-layer collapse rather than as debugger behavior or application workflow.
+
+## [14.12.0] — 2026-03-18
+
+### Added
+
+- **Braid-aware debug payload context** — `git warp debug timeline`, `debug provenance`, and `debug receipts` now report resolved strand backing facts when `--strand <id>` is selected, including the base Lamport ceiling, target overlay head/count/writability, and pinned braid support IDs.
+
+### Changed
+
+- **Debugger truth is now explicit across braid-backed reads** — `debug conflicts` text rendering now shows the same strand overlay/braid context as the other strand-aware debugger topics, and the debugger/strand docs now explain that receipts, provenance, and timeline inspection operate over the braid-visible patch universe rather than leaving that backing context implicit.
+
 ## [14.11.0] — 2026-03-17
 
 ### Added
 
-- **Braided working-set foundation** — Added `WarpGraph.braidWorkingSet()` plus durable braid descriptor metadata so one working set can pin zero or more read-only support overlays on top of the same base observation without teaching the reducer about application semantics.
-- **Thin `working-set braid` CLI surface** — Added `git warp working-set braid` so operators and higher layers can pin braided read-only overlays and optionally disable writes to the target overlay through the main CLI without turning `debug` into a mutation shell.
+- **Braided strand foundation** — Added `WarpGraph.braidStrand()` plus durable braid descriptor metadata so one strand can pin zero or more read-only support overlays on top of the same base observation without teaching the reducer about application semantics.
+- **Thin `strand braid` CLI surface** — Added `git warp strand braid` so operators and higher layers can pin braided read-only overlays and optionally disable writes to the target overlay through the main CLI without turning `debug` into a mutation shell.
 
 ### Changed
 
-- **Working-set visibility now composes base, braided overlays, and the active overlay** — `materializeWorkingSet()`, `getWorkingSetPatches()`, `patchesForWorkingSet()`, comparison helpers, and working-set-aware conflict analysis metadata now resolve against the full visible patch universe selected by the descriptor, while `reduceV5` remains deterministic and worldline-blind.
-- **Braid refs are now target-owned and durable** — target working sets now keep pinned support-overlay heads reachable through dedicated braid refs, and dropping a target working set cleans those braid refs up with the descriptor.
-- **Working-set docs now describe braid as an active substrate capability** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the braid descriptor model, CLI boundary, and visible patch-universe rules are documented together.
+- **Strand visibility now composes base, braided overlays, and the active overlay** — `materializeStrand()`, `getStrandPatches()`, `patchesForStrand()`, comparison helpers, and strand-aware conflict analysis metadata now resolve against the full visible patch universe selected by the descriptor, while `reduceV5` remains deterministic and worldline-blind.
+- **Braid refs are now target-owned and durable** — target strands now keep pinned support-overlay heads reachable through dedicated braid refs, and dropping a target strand cleans those braid refs up with the descriptor.
+- **Strand docs now describe braid as an active substrate capability** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so the braid descriptor model, CLI boundary, and visible patch-universe rules are documented together.
 
 ## [14.10.0] — 2026-03-17
 
 ### Added
 
-- **Working-set and coordinate comparison API** — Added `WarpGraph.compareWorkingSet()` and `WarpGraph.compareCoordinates()` as deterministic substrate helpers for comparing visible patch universes, visible node/edge/property deltas, and optional target-local node views across working sets, base observations, live frontier, and explicit coordinates.
+- **Strand and coordinate comparison API** — Added `WarpGraph.compareStrand()` and `WarpGraph.compareCoordinates()` as deterministic substrate helpers for comparing visible patch universes, visible node/edge/property deltas, and optional target-local node views across strands, base observations, live frontier, and explicit coordinates.
 - **Materialized visible-state comparison helper** — Added `compareVisibleStateV5()` as a public library-first helper for comparing two materialized `WarpStateV5` snapshots directly without exposing OR-Set internals.
-- **Thin `working-set compare` CLI surface** — Added `git warp working-set compare` so operators and higher layers can inspect working-set-vs-base, working-set-vs-live, and working-set-vs-working-set divergence through the main CLI without turning `debug` into an application comparison shell.
+- **Thin `strand compare` CLI surface** — Added `git warp strand compare` so operators and higher layers can inspect strand-vs-base, strand-vs-live, and strand-vs-strand divergence through the main CLI without turning `debug` into an application comparison shell.
 
 ### Changed
 
-- **Working-set docs now cover substrate comparison explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so the library-first comparison helpers, their substrate-only fact model, and the `working-set compare` CLI boundary are documented together.
+- **Strand docs now cover substrate comparison explicitly** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so the library-first comparison helpers, their substrate-only fact model, and the `strand compare` CLI boundary are documented together.
 
 ## [14.9.0] — 2026-03-17
 
@@ -40,8 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Future working-set composition terminology frozen to `braid`** — the active architecture and working-set docs now use **braid** as the canonical term for co-present overlay/working-set composition, explicitly distinguishing it from merge or rebase semantics.
-- **Working-set documentation now distinguishes aggregate projection from richer visible-state reads** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, and `docs/TTD.md` so higher layers can choose `projectStateV5()` for compact summaries or `createStateReaderV5()` for honest entity-local inspection over the same visible patch universe.
+- **Future strand composition terminology frozen to `braid`** — the active architecture and strand docs now use **braid** as the canonical term for co-present overlay/strand composition, explicitly distinguishing it from merge or rebase semantics.
+- **Strand documentation now distinguishes aggregate projection from richer visible-state reads** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, and `docs/TTD.md` so higher layers can choose `projectStateV5()` for compact summaries or `createStateReaderV5()` for honest entity-local inspection over the same visible patch universe.
 
 ## [14.8.0] — 2026-03-16
 
@@ -51,48 +120,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Working-set documentation now covers higher-layer inspection cleanly** — Updated `README.md`, `ARCHITECTURE.md`, and `docs/WORKING_SETS.md` so higher layers can use `materializeWorkingSet()` plus `projectStateV5()` instead of reinventing working-set query semantics above the substrate.
+- **Strand documentation now covers higher-layer inspection cleanly** — Updated `README.md`, `ARCHITECTURE.md`, and `docs/STRANDS.md` so higher layers can use `materializeStrand()` plus `projectStateV5()` instead of reinventing strand query semantics above the substrate.
 
 ## [14.7.0] — 2026-03-16
 
 ### Added
 
-- **Working-set-aware debugger reads** — `git warp debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` now accept `--working-set <id>` so operators and LLM agents can inspect a pinned speculative lane without leaving the main git-warp CLI.
-- **Working-set provenance query API** — Added `WarpGraph.patchesForWorkingSet()` as a read-side helper for entity-local provenance over the visible `base + overlay` patch universe, alongside the earlier `getWorkingSetPatches()` and `materializeWorkingSet()` surfaces.
+- **Strand-aware debugger reads** — `git warp debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts` now accept `--strand <id>` so operators and LLM agents can inspect a pinned speculative lane without leaving the main git-warp CLI.
+- **Strand provenance query API** — Added `WarpGraph.patchesForStrand()` as a read-side helper for entity-local provenance over the visible `base + overlay` patch universe, alongside the earlier `getStrandPatches()` and `materializeStrand()` surfaces.
 
 ### Changed
 
-- **Conflict analysis can now target working sets explicitly** — `WarpGraph.analyzeConflicts()` now accepts `workingSetId`, returns a richer resolved coordinate that distinguishes `frontier` from `working_set`, and computes traces against the selected visible patch universe without changing reducer rules.
-- **Working-set read helpers now support deeper debugger slicing** — `materializeWorkingSet()` accepts an optional runtime ceiling, `getWorkingSetPatches()` feeds read-side debugger topics directly, and the docs now explain that worldline awareness changes patch visibility rather than CRDT resolution.
-- **TTD documentation now covers the debugger/working-set join** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the boundary between read-only debugger topics and durable working-set management stays explicit while still documenting the new `--working-set` inspection flow.
+- **Conflict analysis can now target strands explicitly** — `WarpGraph.analyzeConflicts()` now accepts `strandId`, returns a richer resolved coordinate that distinguishes `frontier` from `strand`, and computes traces against the selected visible patch universe without changing reducer rules.
+- **Strand read helpers now support deeper debugger slicing** — `materializeStrand()` accepts an optional runtime ceiling, `getStrandPatches()` feeds read-side debugger topics directly, and the docs now explain that worldline awareness changes patch visibility rather than CRDT resolution.
+- **TTD documentation now covers the debugger/strand join** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/STRANDS.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the boundary between read-only debugger topics and durable strand management stays explicit while still documenting the new `--strand` inspection flow.
 
 ## [14.6.0] — 2026-03-16
 
 ### Added
 
-- **Working-set overlay write API** — Added `WarpGraph.createWorkingSetPatch()` and `WarpGraph.patchWorkingSet()` so a pinned working set can diverge through its own overlay patch-log while reusing the standard patch builder and mutation kernel.
+- **Strand overlay write API** — Added `WarpGraph.createStrandPatch()` and `WarpGraph.patchStrand()` so a pinned strand can diverge through its own overlay patch-log while reusing the standard patch builder and mutation kernel.
 
 ### Changed
 
-- **Working-set materialization now replays base plus overlay** — `materializeWorkingSet()` now reduces the pinned base observation together with the current overlay patch-log, and `getWorkingSet()` / `listWorkingSets()` reconcile overlay metadata from the overlay ref so callers see the current head and patch count.
-- **Working-set documentation now reflects real overlay behavior** — Updated `README.md`, `ARCHITECTURE.md`, `docs/WORKING_SETS.md`, `docs/GUIDE.md`, `docs/TTD.md`, and `docs/CLI_GUIDE.md` so the docs describe overlay patch logs, the library-first write API, and the CLI boundary accurately instead of talking about permanently empty overlays.
+- **Strand materialization now replays base plus overlay** — `materializeStrand()` now reduces the pinned base observation together with the current overlay patch-log, and `getStrand()` / `listStrands()` reconcile overlay metadata from the overlay ref so callers see the current head and patch count.
+- **Strand documentation now reflects real overlay behavior** — Updated `README.md`, `ARCHITECTURE.md`, `docs/STRANDS.md`, `docs/GUIDE.md`, `docs/TTD.md`, and `docs/CLI_GUIDE.md` so the docs describe overlay patch logs, the library-first write API, and the CLI boundary accurately instead of talking about permanently empty overlays.
 
 ### Fixed
 
-- **Dropping a working set now removes its overlay ref too** — `dropWorkingSet()` now cleans up both the descriptor ref and the overlay patch-log ref, preventing orphaned overlay heads from remaining reachable after a working set is deleted.
+- **Dropping a strand now removes its overlay ref too** — `dropStrand()` now cleans up both the descriptor ref and the overlay patch-log ref, preventing orphaned overlay heads from remaining reachable after a strand is deleted.
 
 ## [14.5.0] — 2026-03-16
 
 ### Added
 
-- **Working-set foundation in the substrate** — Added explicit coordinate replay through `WarpGraph.materializeCoordinate()` plus durable working-set descriptors through `createWorkingSet()`, `getWorkingSet()`, `listWorkingSets()`, `dropWorkingSet()`, and `materializeWorkingSet()`. The v1 descriptor pins the current frontier plus an optional Lamport ceiling, carries optional owner/scope/lease metadata, records empty overlay identity for future evolution, and keeps materialized state explicitly non-authoritative.
-- **Top-level `git warp working-set` CLI family** — Added `working-set create`, `list`, `show`, `materialize`, and `drop` to the main CLI so operators and LLM agents can manage pinned coordinates directly without a second package or debugger-specific mutation path.
-- **Dedicated working-set architecture note** — Added `docs/WORKING_SETS.md` as the canonical substrate note for pinned coordinates, the truth/cache boundary, and the v1 non-goals around overlays, worktrees, and higher-level worldline meaning.
+- **Strand foundation in the substrate** — Added explicit coordinate replay through `WarpGraph.materializeCoordinate()` plus durable strand descriptors through `createStrand()`, `getStrand()`, `listStrands()`, `dropStrand()`, and `materializeStrand()`. The v1 descriptor pins the current frontier plus an optional Lamport ceiling, carries optional owner/scope/lease metadata, records empty overlay identity for future evolution, and keeps materialized state explicitly non-authoritative.
+- **Top-level `git warp strand` CLI family** — Added `strand create`, `list`, `show`, `materialize`, and `drop` to the main CLI so operators and LLM agents can manage pinned coordinates directly without a second package or debugger-specific mutation path.
+- **Dedicated strand architecture note** — Added `docs/STRANDS.md` as the canonical substrate note for pinned coordinates, the truth/cache boundary, and the v1 non-goals around overlays, worktrees, and higher-level worldline meaning.
 
 ### Changed
 
-- **Architecture docs now separate read-only TTD from durable working-set management** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the main docs consistently describe `debug` as the read-only time-travel debugger family and `working-set` as a separate durable substrate family.
-- **Public API surface locks updated for working-set methods** — Snapshot and prototype-completeness tests now explicitly lock the new `materializeCoordinate()` and working-set methods into the public surface, making the new substrate boundary intentional instead of accidental.
+- **Architecture docs now separate read-only TTD from durable strand management** — Updated `README.md`, `ARCHITECTURE.md`, `docs/TTD.md`, `docs/GUIDE.md`, and `docs/CLI_GUIDE.md` so the main docs consistently describe `debug` as the read-only time-travel debugger family and `strand` as a separate durable substrate family.
+- **Public API surface locks updated for strand methods** — Snapshot and prototype-completeness tests now explicitly lock the new `materializeCoordinate()` and strand methods into the public surface, making the new substrate boundary intentional instead of accidental.
 
 ## [14.4.0] — 2026-03-15
 
@@ -127,7 +196,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`@git-stunts/git-cas` floor raised to `^5.3.1`** — The declared minimum dependency now requires the `5.3.1` bugfix release, and the checked-in lockfile has been refreshed so local and release builds actually exercise the fixed CAS behavior instead of the prior `5.3.0` resolution.
-- **Conflict analyzer v1 plan frozen in docs** — The active counterfactual/conflict-provenance direction now lives under `docs/plans/conflict-analyzer-v1.md`, with earlier draft specs archived so contributor guidance points at one canonical implementation target.
+- **Conflict analyzer v1 plan frozen in docs** — The active counterfactual/conflict-provenance direction now lives under `docs/archive/plans/conflict-analyzer-v1.md`, with earlier draft specs archived so contributor guidance points at one canonical implementation target.
 - **GitHub Actions runtime refresh** — Workflow actions now use Node-24-capable majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/github-script@v8`), while the repo jobs themselves continue to run on Node 22. The release workflow now treats GitHub Releases and registry versions as immutable: if a tagged version already exists, it emits a warning and skips the repeated publish/update instead of mutating the existing release or retrying a republish.
 
 ### Fixed
@@ -155,7 +224,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backlog expanded for roaring runtime evaluation** — `ROADMAP.md` now tracks `B170`, a dedicated benchmark slice for native `roaring` versus `roaring-wasm` across the bitmap-heavy hot paths used by the index builders and readers.
 - **Roadmap reconciled after PR #69 merge** — `ROADMAP.md` now reflects the merged issue-45 content metadata work on `main`, records that the GitHub issue queue is empty, and keeps `B88` as the next tracked backlog slice.
 - **Roadmap reconciled after PR #67 / #68 merges** — `ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` now reflect the merged pre-push gate regression work (`B168`) and the current `main` baseline before the issue-45 slice branches off.
-- **Large-graph traversal memory profile** — `topologicalSort()` now has a lightweight mode that avoids retaining discovery adjacency when callers do not need it. `levels()` and `transitiveReduction()` were refactored to re-fetch neighbors on demand instead of pinning full topo adjacency in memory, reducing steady-state large-graph working sets.
+- **Large-graph traversal memory profile** — `topologicalSort()` now has a lightweight mode that avoids retaining discovery adjacency when callers do not need it. `levels()` and `transitiveReduction()` were refactored to re-fetch neighbors on demand instead of pinning full topo adjacency in memory, reducing steady-state large-graph strands.
 - **Roadmap reconciled after B87 merge** — `ROADMAP.md` now treats the Markdown code-sample linter as merged work on `main`, advances the CI/tooling wave to start at `B88`, and records the follow-up backlog items for pre-push gate-message regression coverage (`B168`) and archived-doc status guardrails (`B169`).
 - **Surface validation accounting** — The declaration surface checker now distinguishes runtime-backed exports from type-only manifest entries and understands namespace declarations, which makes the type-surface contract tighter without forcing runtime exports for pure types.
 - **Local push firewall now matches CI surface and docs checks** — `scripts/hooks/pre-push` now runs `npm run typecheck:surface`, `npm run lint:md`, and `npm run lint:md:code` alongside lint, strict typecheck, policy, and consumer surface checks before unit tests, so declaration-surface drift and Markdown sample regressions are blocked locally instead of waiting for CI.
@@ -907,8 +976,8 @@ Implements Milestone 7 (Trust V1). Writer trust is now derived from signed Ed255
   - TrustAssessment schema conformance: 9 snapshot tests
   - Domain purity: 37 grep-based checks (no `process.env` or infrastructure imports in trust domain)
   - CLI pin precedence + exit code matrix: 10 tests
-- **Migration doc** (`docs/TRUST_MIGRATION.md`): Migration path from env-var allowlist to signed evidence.
-- **Operator runbook** (`docs/TRUST_OPERATOR_RUNBOOK.md`): Bootstrap, verify, rotate, revoke, and incident response procedures.
+- **Migration doc** (`docs/trust/TRUST_MIGRATION.md`): Migration path from env-var allowlist to signed evidence.
+- **Operator runbook** (`docs/trust/TRUST_OPERATOR_RUNBOOK.md`): Bootstrap, verify, rotate, revoke, and incident response procedures.
 
 ### Changed
 
@@ -1234,7 +1303,7 @@ Shows _which_ nodes/edges were added/removed and _which_ properties changed (wit
 - **Pre-push hook**: Removed BATS E2E tests (now CI-only) to keep pre-push fast.
 - **`@ts-ignore` → `@ts-expect-error`** across 3 source files and 4 test files. `@ts-expect-error` is strictly better: it errors when the suppression becomes unnecessary.
 - **~108 wildcard casts tagged** with `// TODO(ts-cleanup): reason` across ~30 source files in `src/`, `bin/`, and `scripts/`. Categorized reasons: `needs options type`, `type error`, `narrow port type`, `type patch array`, `type CLI payload`, `type http callback`, `type sync protocol`, `type lazy singleton`, `type observer cast`, and others.
-- **`TYPESCRIPT_ZERO.md`**: B3 (Policy enforcement) marked complete.
+- **`docs/archive/checklists/TYPESCRIPT_ZERO.md`**: B3 (Policy enforcement) marked complete.
 
 ## [10.4.1] — 2026-02-10 — Default crypto & join() fix
 

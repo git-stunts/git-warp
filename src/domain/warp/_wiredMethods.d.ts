@@ -1,7 +1,7 @@
 /**
- * TypeScript augmentation for WarpGraph wired methods.
+ * TypeScript augmentation for WarpRuntime wired methods.
  *
- * Methods in *.methods.js are wired onto WarpGraph.prototype at runtime
+ * Methods in *.methods.js are wired onto WarpRuntime.prototype at runtime
  * via wireWarpMethods(). This declaration file makes them visible to tsc.
  */
 
@@ -16,7 +16,7 @@ import type { TickReceipt } from '../types/TickReceipt.js';
  * Observer configuration for view creation and translation cost.
  */
 interface ObserverConfig {
-  match: string;
+  match: string | string[];
   expose?: string[];
   redact?: string[];
 }
@@ -38,7 +38,7 @@ interface ContentMeta {
 /**
  * Lightweight status snapshot.
  */
-interface WarpGraphStatus {
+interface WarpStatus {
   cachedState: 'fresh' | 'stale' | 'none';
   patchesSinceCheckpoint: number;
   tombstoneRatio: number;
@@ -250,21 +250,21 @@ interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
     analysisVersion: string;
-    coordinateKind: 'frontier' | 'working_set';
+    coordinateKind: 'frontier' | 'strand';
     frontier: Record<string, string>;
     frontierDigest: string;
     lamportCeiling: number | null;
     scanBudgetApplied: { maxPatches: number | null };
     truncationPolicy: string;
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -273,30 +273,60 @@ interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
-interface WorkingSetCreateOptions {
-  workingSetId?: string;
+interface StrandCreateOptions {
+  strandId?: string;
   lamportCeiling?: number | null;
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
 }
 
-interface WorkingSetBraidOptions {
-  braidedWorkingSetIds?: string[];
+interface StrandBraidOptions {
+  braidedStrandIds?: string[];
   writable?: boolean | null;
 }
 
-interface WorkingSetReadOverlayDescriptor {
-  workingSetId: string;
+interface StrandReadOverlayDescriptor {
+  strandId: string;
   overlayId: string;
   kind: string;
   headPatchSha: string | null;
   patchCount: number;
 }
 
-interface WorkingSetDescriptor {
+interface StrandIntentDescriptor {
+  intentId: string;
+  enqueuedAt: string;
+  patch: PatchV2;
+  reads: string[];
+  writes: string[];
+  contentBlobOids: string[];
+}
+
+interface StrandTickCounterfactual {
+  intentId: string;
+  reason: string;
+  conflictsWith: string[];
+  reads: string[];
+  writes: string[];
+}
+
+interface StrandTickRecord {
+  tickId: string;
+  strandId: string;
+  tickIndex: number;
+  createdAt: string;
+  drainedIntentCount: number;
+  admittedIntentIds: string[];
+  rejected: StrandTickCounterfactual[];
+  baseOverlayHeadPatchSha: string | null;
+  overlayHeadPatchSha: string | null;
+  overlayPatchShas: string[];
+}
+
+interface StrandDescriptor {
   schemaVersion: number;
-  workingSetId: string;
+  strandId: string;
   graphName: string;
   createdAt: string;
   updatedAt: string;
@@ -319,7 +349,15 @@ interface WorkingSetDescriptor {
     writable: boolean;
   };
   braid: {
-    readOverlays: WorkingSetReadOverlayDescriptor[];
+    readOverlays: StrandReadOverlayDescriptor[];
+  };
+  intentQueue?: {
+    nextIntentSeq: number;
+    intents: StrandIntentDescriptor[];
+  };
+  evolution?: {
+    tickCount: number;
+    lastTick: StrandTickRecord | null;
   };
   materialization: {
     cacheAuthority: 'derived';
@@ -398,16 +436,27 @@ interface VisibleStateComparisonV5 {
   };
 }
 
+interface VisibleStateScopePrefixFilterV1 {
+  include?: string[];
+  exclude?: string[];
+}
+
+interface VisibleStateScopeV1 {
+  nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
+}
+
 type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
-  | { kind: 'working_set'; workingSetId: string; ceiling?: number | null }
-  | { kind: 'working_set_base'; workingSetId: string; ceiling?: number | null }
+  | { kind: 'strand'; strandId: string; ceiling?: number | null }
+  | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
+
+type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
 
 interface CoordinateComparisonSideV1 {
   requested: Record<string, unknown>;
   resolved: {
-    coordinateKind: 'frontier' | 'working_set' | 'working_set_base';
+    coordinateKind: 'frontier' | 'strand' | 'strand_base';
     patchFrontier: Record<string, string>;
     patchFrontierDigest: string;
     lamportFrontier: Record<string, number>;
@@ -416,15 +465,15 @@ interface CoordinateComparisonSideV1 {
     stateHash: string;
     patchUniverseDigest: string;
     summary: VisibleStateSummaryV5 & { patchCount: number };
-    workingSet?: {
-      workingSetId: string;
+    strand?: {
+      strandId: string;
       baseLamportCeiling: number | null;
       overlayHeadPatchSha: string | null;
       overlayPatchCount: number;
       overlayWritable: boolean;
       braid: {
         readOverlayCount: number;
-        braidedWorkingSetIds: string[];
+        braidedStrandIds: string[];
       };
     };
   };
@@ -433,6 +482,7 @@ interface CoordinateComparisonSideV1 {
 interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
   left: CoordinateComparisonSideV1;
   right: CoordinateComparisonSideV1;
   visiblePatchDivergence: {
@@ -455,10 +505,52 @@ interface CoordinateComparisonV1 {
   visibleState: VisibleStateComparisonV5;
 }
 
+interface VisibleStateTransferPlanSummaryV1 {
+  opCount: number;
+  addNodeCount: number;
+  removeNodeCount: number;
+  setNodePropertyCount: number;
+  clearNodePropertyCount: number;
+  addEdgeCount: number;
+  removeEdgeCount: number;
+  setEdgePropertyCount: number;
+  clearEdgePropertyCount: number;
+  attachNodeContentCount: number;
+  clearNodeContentCount: number;
+  attachEdgeContentCount: number;
+  clearEdgeContentCount: number;
+}
+
+type VisibleStateTransferOperationV1 =
+  | { op: 'add_node'; nodeId: string }
+  | { op: 'remove_node'; nodeId: string }
+  | { op: 'set_node_property'; nodeId: string; key: string; value: unknown }
+  | { op: 'add_edge'; from: string; to: string; label: string }
+  | { op: 'remove_edge'; from: string; to: string; label: string }
+  | { op: 'set_edge_property'; from: string; to: string; label: string; key: string; value: unknown }
+  | { op: 'attach_node_content'; nodeId: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_node_content'; nodeId: string }
+  | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
+  | { op: 'clear_edge_content'; from: string; to: string; label: string };
+
+type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
+
+interface CoordinateTransferPlanV1 {
+  transferVersion: string;
+  transferDigest: string;
+  comparisonDigest: string;
+  scope?: VisibleStateScopeV1;
+  changed: boolean;
+  source: CoordinateTransferPlanSideV1;
+  target: CoordinateTransferPlanSideV1;
+  summary: VisibleStateTransferPlanSummaryV1;
+  ops: VisibleStateTransferOperationV1[];
+}
+
 export {};
 
-declare module '../WarpGraph.js' {
-  export default interface WarpGraph {
+declare module '../WarpRuntime.js' {
+  export default interface WarpRuntime {
     // ── query.methods.js ──────────────────────────────────────────────────
     hasNode(nodeId: string): Promise<boolean>;
     getNodeProps(nodeId: string): Promise<Record<string, unknown> | null>;
@@ -471,7 +563,8 @@ declare module '../WarpGraph.js' {
     getEdges(): Promise<Array<{ from: string; to: string; label: string; props: Record<string, unknown> }>>;
     getPropertyCount(): Promise<number>;
     query(): import('../services/QueryBuilder.js').default;
-    observer(name: string, config: ObserverConfig): Promise<import('../services/ObserverView.js').default>;
+    worldline(options?: import('../../../index.js').WorldlineOptions): import('../services/Worldline.js').default;
+    observer(nameOrConfig: string | ObserverConfig, configOrOptions?: ObserverConfig | import('../../../index.js').ObserverOptions, options?: import('../../../index.js').ObserverOptions): Promise<import('../services/Observer.js').default>;
     translationCost(configA: ObserverConfig, configB: ObserverConfig): Promise<TranslationCostResult>;
 
     // ── subscribe.methods.js ──────────────────────────────────────────────
@@ -489,7 +582,7 @@ declare module '../WarpGraph.js' {
     _sortPatchesCausally(patches: Array<{ patch: PatchV2; sha: string }>): Array<{ patch: PatchV2; sha: string }>;
     analyzeConflicts(options?: {
       at?: { lamportCeiling?: number | null };
-      workingSetId?: string;
+      strandId?: string;
       entityId?: string;
       target?: ConflictTargetSelector;
       kind?: ConflictKind | ConflictKind[];
@@ -499,7 +592,7 @@ declare module '../WarpGraph.js' {
     }): Promise<ConflictAnalysis>;
 
     // ── fork.methods.js ───────────────────────────────────────────────────
-    fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpGraph>;
+    fork(options: { from: string; at: string; forkName?: string; forkWriterId?: string }): Promise<WarpRuntime>;
     createWormhole(fromSha: string, toSha: string): Promise<WormholeEdge>;
     _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;
     _relationToCheckpointHead(ckHead: string, incomingSha: string): Promise<string>;
@@ -508,12 +601,12 @@ declare module '../WarpGraph.js' {
     // ── SyncController (direct delegation) ─────────────────────────────────
     getFrontier(): Promise<Map<string, string>>;
     hasFrontierChanged(): Promise<boolean>;
-    status(): Promise<WarpGraphStatus>;
+    status(): Promise<WarpStatus>;
     createSyncRequest(): Promise<SyncRequest>;
     processSyncRequest(request: SyncRequest): Promise<SyncResponse>;
     applySyncResponse(response: SyncResponse): ApplySyncResult;
     syncNeeded(remoteFrontier: Map<string, string>): Promise<boolean>;
-    syncWith(remote: string | WarpGraph, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
+    syncWith(remote: string | WarpRuntime, options?: SyncWithOptions): Promise<{ applied: number; attempts: number; state?: WarpStateV5 }>;
     serve(options: {
       port: number;
       host?: string;
@@ -573,28 +666,44 @@ declare module '../WarpGraph.js' {
     verifyIndex(options?: { seed?: number; sampleRate?: number }): { passed: number; failed: number; errors: Array<{ nodeId: string; direction: string; expected: string[]; actual: string[] }> };
     invalidateIndex(): void;
 
-    // ── workingSet.methods.js ─────────────────────────────────────────────
-    createWorkingSet(options?: WorkingSetCreateOptions): Promise<WorkingSetDescriptor>;
-    braidWorkingSet(workingSetId: string, options?: WorkingSetBraidOptions): Promise<WorkingSetDescriptor>;
-    getWorkingSet(workingSetId: string): Promise<WorkingSetDescriptor | null>;
-    listWorkingSets(): Promise<WorkingSetDescriptor[]>;
-    dropWorkingSet(workingSetId: string): Promise<boolean>;
-    materializeWorkingSet(workingSetId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
-    materializeWorkingSet(workingSetId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
-    getWorkingSetPatches(workingSetId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
-    patchesForWorkingSet(workingSetId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
-    createWorkingSetPatch(workingSetId: string): Promise<PatchBuilderV2>;
-    patchWorkingSet(workingSetId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
-    compareWorkingSet(workingSetId: string, options?: {
-      against?: 'base' | 'live' | { kind: 'working_set'; workingSetId: string };
+    // ── strand.methods.js ─────────────────────────────────────────────
+    createStrand(options?: StrandCreateOptions): Promise<StrandDescriptor>;
+    braidStrand(strandId: string, options?: StrandBraidOptions): Promise<StrandDescriptor>;
+    getStrand(strandId: string): Promise<StrandDescriptor | null>;
+    listStrands(): Promise<StrandDescriptor[]>;
+    dropStrand(strandId: string): Promise<boolean>;
+    materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
+    materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
+    getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: PatchV2; sha: string }>>;
+    patchesForStrand(strandId: string, entityId: string, options?: { ceiling?: number | null }): Promise<string[]>;
+    createStrandPatch(strandId: string): Promise<PatchBuilderV2>;
+    patchStrand(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
+    queueStrandIntent(strandId: string, build: (p: PatchBuilderV2) => void | Promise<void>): Promise<StrandIntentDescriptor>;
+    listStrandIntents(strandId: string): Promise<StrandIntentDescriptor[]>;
+    tickStrand(strandId: string): Promise<StrandTickRecord>;
+    compareStrand(strandId: string, options?: {
+      against?: 'base' | 'live' | { kind: 'strand'; strandId: string };
       ceiling?: number | null;
       againstCeiling?: number | null;
       targetId?: string | null;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateComparisonV1>;
+    planStrandTransfer(strandId: string, options?: {
+      into?: 'base' | 'live' | { kind: 'strand'; strandId: string };
+      ceiling?: number | null;
+      intoCeiling?: number | null;
+      scope?: VisibleStateScopeV1 | null;
+    }): Promise<CoordinateTransferPlanV1>;
     compareCoordinates(options: {
       left: CoordinateComparisonSelectorV1;
       right: CoordinateComparisonSelectorV1;
       targetId?: string | null;
+      scope?: VisibleStateScopeV1 | null;
     }): Promise<CoordinateComparisonV1>;
+    planCoordinateTransfer(options: {
+      source: CoordinateTransferPlanSelectorV1;
+      target: CoordinateTransferPlanSelectorV1;
+      scope?: VisibleStateScopeV1 | null;
+    }): Promise<CoordinateTransferPlanV1>;
   }
 }

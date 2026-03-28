@@ -2,9 +2,9 @@
  * Seeds a graph with audit enabled: 3 patches under writer "alice".
  * Used by cli-verify-audit.bats. Expects REPO_PATH env var.
  */
-import { WarpGraph, persistence, crypto } from './seed-setup.js';
+import { WarpRuntime, persistence, crypto } from './seed-setup.js';
 
-const graph = await WarpGraph.open({
+const graph = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'alice',

@@ -7,7 +7,9 @@
  * @see contracts/type-surface.m8.json
  */
 
-import WarpGraph, {
+import WarpApp, {
+  WarpApp as WarpAppNamed,
+  WarpCore,
   GraphPersistencePort,
   IndexStoragePort,
   LoggerPort,
@@ -16,7 +18,7 @@ import WarpGraph, {
   SeekCachePort,
   HttpServerPort,
   QueryBuilder,
-  ObserverView,
+  Observer,
   PatchBuilderV2,
   PatchSession,
   PatchV2,
@@ -76,6 +78,8 @@ import WarpGraph, {
   computeTranslationCost,
   createStateReaderV5,
   compareVisibleStateV5,
+  exportCoordinateComparisonFact,
+  exportCoordinateTransferPlanFact,
   migrateV4toV5,
   encodeEdgePropKey,
   decodeEdgePropKey,
@@ -86,6 +90,7 @@ import WarpGraph, {
 import type {
   WarpStateV5,
   TickReceipt,
+  Lens,
   ObserverConfig,
   PingResult,
   RepositoryHealth,
@@ -93,7 +98,7 @@ import type {
   TranslationCostResult,
   TranslationCostBreakdown,
   StateDiffResult,
-  WarpGraphStatus,
+  WarpStatus,
   SyncRequest,
   SyncResponse,
   ApplySyncResult,
@@ -112,8 +117,11 @@ import type {
   VisibleStateReaderV5,
   CoordinateComparisonSelectorV1,
   CoordinateComparisonV1,
-  WorkingSetBraidOptions,
-  WorkingSetDescriptor,
+  CoordinateComparisonFactExportV1,
+  CoordinateTransferPlanV1,
+  CoordinateTransferPlanFactExportV1,
+  StrandBraidOptions,
+  StrandDescriptor,
   LogicalTraversal,
   TraversalDirection,
   TraversalNode,
@@ -159,6 +167,8 @@ declare const clock: ClockPort;
 declare const crypto: CryptoPort;
 declare const seekCache: SeekCachePort;
 
+const _sameAppCtor: typeof WarpApp = WarpAppNamed;
+
 // Verify imported classes/ports are usable as types
 declare const _idxStorage: IndexStoragePort;
 declare const _schemaErr: SchemaUnsupportedError;
@@ -167,8 +177,8 @@ declare const _shardCorruptErr: ShardCorruptionError;
 declare const _shardValErr: ShardValidationError;
 declare const _storageErr: StorageError;
 
-// WarpGraph.open() — full options
-const graph: WarpGraph = await WarpGraph.open({
+// WarpApp.open() — curated product-facing options
+const app: WarpApp = await WarpApp.open({
   graphName: 'test',
   persistence,
   writerId: 'w1',
@@ -180,6 +190,7 @@ const graph: WarpGraph = await WarpGraph.open({
   onDeleteWithData: 'reject',
   trust: { mode: 'off' },
 });
+const graph: WarpCore = app.core();
 
 // ---- additional type-only surface coverage ----
 const ping: PingResult = { ok: true, latencyMs: 1 };
@@ -214,6 +225,8 @@ const queryResultV1: QueryResultV1 = {
 };
 const weightedCostSelector: WeightedCostSelector = { weightFn: (_from, _to, _label) => 1 };
 const translationCostBreakdown: TranslationCostBreakdown = { nodeLoss: 0, edgeLoss: 0, propLoss: 0 };
+const publicLens: Lens = { match: 'user:*', redact: ['ssn'] };
+const legacyObserverConfig: ObserverConfig = publicLens;
 const propSet: PropSet = { key: 'node\0name', nodeId: 'user:alice', propKey: 'name', oldValue: 'A', newValue: 'B' };
 const propRemoved: PropRemoved = { key: 'node\0age', nodeId: 'user:alice', propKey: 'age', oldValue: 42 };
 const valueRef: ValueRef = Math.random() > -1 ? { type: 'inline', value: 'x' } : { type: 'blob', oid: 'abc123' };
@@ -226,6 +239,7 @@ const _typeCoverageTuple: [
   QueryResultV1,
   WeightedCostSelector,
   TranslationCostBreakdown,
+  Lens,
   PropSet,
   PropRemoved,
   ValueRef,
@@ -238,6 +252,7 @@ const _typeCoverageTuple: [
   queryResultV1,
   weightedCostSelector,
   translationCostBreakdown,
+  publicLens,
   propSet,
   propRemoved,
   valueRef,
@@ -282,9 +297,9 @@ const conflictAnalysis: ConflictAnalysis = await graph.analyzeConflicts({
   scanBudget: { maxPatches: 32 },
 });
 const _conflictId: string | undefined = conflictAnalysis.conflicts[0]?.conflictId;
-const _conflictWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
-  conflictAnalysis.resolvedCoordinate.workingSet?.overlayWritable,
-  conflictAnalysis.resolvedCoordinate.workingSet?.braid.braidedWorkingSetIds,
+const _conflictStrandMetadata: [boolean | undefined, string[] | undefined] = [
+  conflictAnalysis.resolvedCoordinate.strand?.overlayWritable,
+  conflictAnalysis.resolvedCoordinate.strand?.braid.braidedStrandIds,
 ];
 const compareLeft: CoordinateComparisonSelectorV1 = { kind: 'live' };
 const compareRight: CoordinateComparisonSelectorV1 = { kind: 'coordinate', frontier: { alice: 'abc123def456' }, ceiling: null };
@@ -293,33 +308,55 @@ const coordinateComparison: CoordinateComparisonV1 = await graph.compareCoordina
   right: compareRight,
   targetId: 'n1',
 });
-const braidOptions: WorkingSetBraidOptions = {
-  braidedWorkingSetIds: ['ws_support'],
+const braidOptions: StrandBraidOptions = {
+  braidedStrandIds: ['ws_support'],
   writable: false,
 };
-const workingSetDescriptor: WorkingSetDescriptor = await graph.createWorkingSet({
-  workingSetId: 'ws_demo',
+const strandDescriptor: StrandDescriptor = await graph.createStrand({
+  strandId: 'ws_demo',
 });
-const braidedWorkingSetDescriptor: WorkingSetDescriptor = await graph.braidWorkingSet(
+const braidedStrandDescriptor: StrandDescriptor = await graph.braidStrand(
   'ws_demo',
   braidOptions,
 );
-const workingSetComparison: CoordinateComparisonV1 = await graph.compareWorkingSet('ws_demo', {
+const strandComparison: CoordinateComparisonV1 = await graph.compareStrand('ws_demo', {
   against: 'base',
   targetId: 'n1',
 });
+const strandTransferPlan: CoordinateTransferPlanV1 = await graph.planStrandTransfer('ws_demo', {
+  into: 'live',
+});
+const coordinateTransferPlan: CoordinateTransferPlanV1 = await graph.planCoordinateTransfer({
+  source: { kind: 'strand', strandId: 'ws_demo' },
+  target: { kind: 'live' },
+});
+const coordinateComparisonFactExport: CoordinateComparisonFactExportV1 = exportCoordinateComparisonFact(coordinateComparison);
+const coordinateTransferPlanFactExport: CoordinateTransferPlanFactExportV1 = exportCoordinateTransferPlanFact(coordinateTransferPlan);
 const _comparisonDigestPair: [string, string] = [
   coordinateComparison.comparisonDigest,
-  workingSetComparison.comparisonDigest,
+  strandComparison.comparisonDigest,
 ];
-const _workingSetDescriptorTuple: [boolean, string[]] = [
-  braidedWorkingSetDescriptor.overlay.writable,
-  braidedWorkingSetDescriptor.braid.readOverlays.map(({ workingSetId }) => workingSetId),
+const _transferDigestPair: [string, string] = [
+  strandTransferPlan.transferDigest,
+  coordinateTransferPlan.transferDigest,
 ];
-const _workingSetGraphName: string = workingSetDescriptor.graphName;
-const _comparisonWorkingSetMetadata: [boolean | undefined, string[] | undefined] = [
-  workingSetComparison.left.resolved.workingSet?.overlayWritable,
-  workingSetComparison.left.resolved.workingSet?.braid.braidedWorkingSetIds,
+const _factExportPair: [string, string] = [
+  coordinateComparisonFactExport.factDigest,
+  coordinateTransferPlanFactExport.factDigest,
+];
+const _strandDescriptorTuple: [boolean, string[]] = [
+  braidedStrandDescriptor.overlay.writable,
+  braidedStrandDescriptor.braid.readOverlays.map(({ strandId }) => strandId),
+];
+const _strandGraphName: string = strandDescriptor.graphName;
+const _comparisonStrandMetadata: [boolean | undefined, string[] | undefined] = [
+  strandComparison.left.resolved.strand?.overlayWritable,
+  strandComparison.left.resolved.strand?.braid.braidedStrandIds,
+];
+const _transferPlanShape: [boolean, number, Uint8Array | undefined] = [
+  strandTransferPlan.changed,
+  coordinateTransferPlan.summary.opCount,
+  coordinateTransferPlan.ops.find((op) => op.op === 'attach_node_content')?.content,
 ];
 
 // ---- materializeAt ----
@@ -352,7 +389,8 @@ const _contentKey: '_content' = CONTENT_PROPERTY_KEY;
 const qb: QueryBuilder = graph.query();
 
 // ---- observer ----
-const obs: ObserverView = await graph.observer('obs1', { match: '*' });
+const obs: Observer = await graph.observer('obs1', { match: '*' });
+const obsDefault: Observer = await graph.observer({ match: '*' });
 const obsNodes: string[] = await obs.getNodes();
 const obsHas: boolean = await obs.hasNode('n1');
 const obsProps: Record<string, unknown> | null = await obs.getNodeProps('n1');
@@ -360,9 +398,14 @@ const obsEdges: Array<{ from: string; to: string; label: string; props: Record<s
 const obsQb: QueryBuilder = obs.query();
 const obsTraverse: LogicalTraversal = obs.traverse;
 const obsName: string = obs.name;
+const obsDefaultName: string = obsDefault.name;
+
+const worldline = graph.worldline();
+const worldlineObs: Observer = await worldline.observer({ match: '*' });
+const worldlineObsNamed: Observer = await worldline.observer('users', { match: '*' });
 
 // ---- translationCost (instance method) ----
-const costResult: TranslationCostResult = await graph.translationCost({ match: 'user:*' }, { match: 'admin:*' });
+const costResult: TranslationCostResult = await graph.translationCost(publicLens, legacyObserverConfig);
 
 // ---- writer ----
 const w: Writer = await graph.writer();
@@ -424,8 +467,8 @@ const slicePatchCount: number = slice.patchCount;
 const sliceWithReceipts = await graph.materializeSlice('n1', { receipts: true });
 
 // ---- fork ----
-const forked: WarpGraph = await graph.fork({ from: 'w1', at: 'abc123' });
-const forkedCustom: WarpGraph = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
+const forked: WarpCore = await graph.fork({ from: 'w1', at: 'abc123' });
+const forkedCustom: WarpCore = await graph.fork({ from: 'w1', at: 'abc123', forkName: 'my-fork', forkWriterId: 'w2' });
 
 // ---- createWormhole (instance method) ----
 const wormhole: WormholeEdge = await graph.createWormhole('sha1', 'sha2');
@@ -435,7 +478,7 @@ const watcher = graph.watch('user:*', { onChange: (diff: StateDiffResult) => {},
 watcher.unsubscribe();
 
 // ---- status ----
-const status: WarpGraphStatus = await graph.status();
+const status: WarpStatus = await graph.status();
 
 // ---- GC ----
 const gcMaybe: MaybeGCResult = graph.maybeRunGC();
@@ -626,8 +669,8 @@ await graph.patch((p: string) => {});
 // @ts-expect-error -- getEdgeProps requires 3 string args
 await graph.getEdgeProps('a', 'b');
 
-// @ts-expect-error -- WarpGraph.open requires persistence (missing required option)
-await WarpGraph.open({ graphName: 'test', writerId: 'w1' });
+// @ts-expect-error -- WarpCore.open requires persistence (missing required option)
+await WarpCore.open({ graphName: 'test', writerId: 'w1' });
 
 // @ts-expect-error -- createNodeAdd requires string, not number
 createNodeAdd(42);

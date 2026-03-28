@@ -87,7 +87,7 @@
     "NodeCryptoAdapter": {
       "kind": "class"
     },
-    "ObserverView": {
+    "Observer": {
       "kind": "class",
       "instance": {
         "hasNode": {
@@ -255,6 +255,15 @@
           ],
           "returns": "Promise<PatchBuilderV2>"
         },
+        "clearContent": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
+        },
         "attachEdgeContent": {
           "async": true,
           "params": [
@@ -281,6 +290,23 @@
             }
           ],
           "returns": "Promise<PatchBuilderV2>"
+        },
+        "clearEdgeContent": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "PatchBuilderV2"
         },
         "build": {
           "params": [],
@@ -418,6 +444,15 @@
           ],
           "returns": "Promise<this>"
         },
+        "clearContent": {
+          "params": [
+            {
+              "name": "nodeId",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
+        },
         "attachEdgeContent": {
           "async": true,
           "params": [
@@ -444,6 +479,23 @@
             }
           ],
           "returns": "Promise<this>"
+        },
+        "clearEdgeContent": {
+          "params": [
+            {
+              "name": "from",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "type": "string"
+            },
+            {
+              "name": "label",
+              "type": "string"
+            }
+          ],
+          "returns": "this"
         },
         "build": {
           "params": [],
@@ -569,7 +621,7 @@
     "SyncError": {
       "kind": "class"
     },
-    "WorkingSetError": {
+    "StrandError": {
       "kind": "class"
     },
     "TICK_RECEIPT_OP_TYPES": {
@@ -586,9 +638,12 @@
       "deprecated": true,
       "alias": "CommitDagTraversalService"
     },
-    "WarpGraph": {
+    "WarpApp": {
       "kind": "class",
-      "default": true,
+      "default": true
+    },
+    "WarpCore": {
+      "kind": "class",
       "static": {
         "open": {
           "async": true,
@@ -598,7 +653,7 @@
               "type": "{ persistence: GraphPersistencePort; graphName: string; writerId: string; logger?: LoggerPort; adjacencyCacheSize?: number; gcPolicy?: GCPolicyConfig; checkpointPolicy?: { every: number }; autoMaterialize?: boolean; onDeleteWithData?: 'reject' | 'cascade' | 'warn'; clock?: ClockPort; crypto?: CryptoPort; codec?: unknown; seekCache?: SeekCachePort }"
             }
           ],
-          "returns": "Promise<WarpGraph>"
+          "returns": "Promise<WarpCore>"
         }
       },
       "instance": {
@@ -850,26 +905,26 @@
           "async": true,
           "params": [
             {
-              "name": "name",
-              "type": "string"
+              "name": "nameOrConfig",
+              "type": "string | Lens"
             },
             {
-              "name": "config",
-              "type": "ObserverConfig"
+              "name": "configOrOptions",
+              "type": "Lens | ObserverOptions"
             }
           ],
-          "returns": "Promise<ObserverView>"
+          "returns": "Promise<Observer>"
         },
         "translationCost": {
           "async": true,
           "params": [
             {
               "name": "configA",
-              "type": "ObserverConfig"
+              "type": "Lens"
             },
             {
               "name": "configB",
-              "type": "ObserverConfig"
+              "type": "Lens"
             }
           ],
           "returns": "Promise<TranslationCostResult>"
@@ -889,7 +944,7 @@
           "params": [
             {
               "name": "remote",
-              "type": "string | WarpGraph"
+              "type": "string | WarpCore"
             },
             {
               "name": "options",
@@ -907,7 +962,7 @@
               "type": "{ from: string; at: string; forkName?: string; forkWriterId?: string }"
             }
           ],
-          "returns": "Promise<WarpGraph>"
+          "returns": "Promise<WarpCore>"
         },
         "createWormhole": {
           "async": true,
@@ -1074,7 +1129,7 @@
         "status": {
           "async": true,
           "params": [],
-          "returns": "Promise<WarpGraphStatus>"
+          "returns": "Promise<WarpStatus>"
         },
         "maybeRunGC": {
           "async": false,
@@ -1142,6 +1197,9 @@
           "returns": "void"
         }
       }
+    },
+    "Worldline": {
+      "kind": "class"
     },
     "WarpStateIndexBuilder": {
       "kind": "class"
@@ -1217,11 +1275,23 @@
     "compareVisibleStateV5": {
       "kind": "function"
     },
+    "normalizeVisibleStateScopeV1": {
+      "kind": "function"
+    },
+    "scopeMaterializedStateV5": {
+      "kind": "function"
+    },
     "computeStateHashV5": {
       "kind": "function",
       "async": true
     },
     "createStateReaderV5": {
+      "kind": "function"
+    },
+    "exportCoordinateComparisonFact": {
+      "kind": "function"
+    },
+    "exportCoordinateTransferPlanFact": {
       "kind": "function"
     },
     "projectStateV5": {
@@ -1378,6 +1448,12 @@
     "CoordinateComparisonPatchDivergenceV1": {
       "kind": "interface"
     },
+    "CoordinateComparisonFactExportV1": {
+      "kind": "interface"
+    },
+    "CoordinateComparisonFactV1": {
+      "kind": "interface"
+    },
     "CoordinateComparisonResolvedSideV1": {
       "kind": "interface"
     },
@@ -1388,6 +1464,21 @@
       "kind": "interface"
     },
     "CoordinateComparisonV1": {
+      "kind": "interface"
+    },
+    "CoordinateTransferPlanSelectorV1": {
+      "kind": "type"
+    },
+    "CoordinateTransferPlanSideV1": {
+      "kind": "type"
+    },
+    "CoordinateTransferPlanFactExportV1": {
+      "kind": "interface"
+    },
+    "CoordinateTransferPlanFactV1": {
+      "kind": "interface"
+    },
+    "CoordinateTransferPlanV1": {
       "kind": "interface"
     },
     "ComposeWormholesOptions": {
@@ -1432,16 +1523,25 @@
     "ContentMeta": {
       "kind": "interface"
     },
-    "WorkingSetCreateOptions": {
+    "StrandCreateOptions": {
       "kind": "interface"
     },
-    "WorkingSetBraidOptions": {
+    "StrandBraidOptions": {
       "kind": "interface"
     },
-    "WorkingSetReadOverlayDescriptor": {
+    "StrandReadOverlayDescriptor": {
       "kind": "interface"
     },
-    "WorkingSetDescriptor": {
+    "StrandIntentDescriptor": {
+      "kind": "interface"
+    },
+    "StrandTickCounterfactual": {
+      "kind": "interface"
+    },
+    "StrandTickRecord": {
+      "kind": "interface"
+    },
+    "StrandDescriptor": {
       "kind": "interface"
     },
     "CreateBTROptions": {
@@ -1510,7 +1610,28 @@
     "NodeWeightFn": {
       "kind": "type"
     },
+    "Lens": {
+      "kind": "interface"
+    },
     "ObserverConfig": {
+      "kind": "type"
+    },
+    "LiveObserverSource": {
+      "kind": "interface"
+    },
+    "CoordinateObserverSource": {
+      "kind": "interface"
+    },
+    "StrandObserverSource": {
+      "kind": "interface"
+    },
+    "ObserverOptions": {
+      "kind": "interface"
+    },
+    "WorldlineSource": {
+      "kind": "type"
+    },
+    "WorldlineOptions": {
       "kind": "interface"
     },
     "OpEdgeAdd": {
@@ -1654,6 +1775,12 @@
     "VisibleStateProjectionV5": {
       "kind": "interface"
     },
+    "VisibleStateScopePrefixFilterV1": {
+      "kind": "interface"
+    },
+    "VisibleStateScopeV1": {
+      "kind": "interface"
+    },
     "VisibleNodeViewV5": {
       "kind": "interface"
     },
@@ -1666,7 +1793,16 @@
     "VisibleStateSummaryV5": {
       "kind": "interface"
     },
-    "WarpGraphStatus": {
+    "VisibleStateTransferOperationV1": {
+      "kind": "type"
+    },
+    "VisibleStateTransferOperationFactV1": {
+      "kind": "type"
+    },
+    "VisibleStateTransferPlanSummaryV1": {
+      "kind": "interface"
+    },
+    "WarpStatus": {
       "kind": "interface"
     },
     "WarpStateV5": {

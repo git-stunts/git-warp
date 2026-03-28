@@ -2,10 +2,10 @@
  * Seeds a multi-writer graph: alice, bob, charlie each add nodes.
  * Used by BATS tests. Expects REPO_PATH env var.
  */
-import { WarpGraph, persistence, crypto } from './seed-setup.js';
+import { WarpRuntime, persistence, crypto } from './seed-setup.js';
 
 // Alice
-const alice = await WarpGraph.open({ persistence, graphName: 'demo', writerId: 'alice', crypto });
+const alice = await WarpRuntime.open({ persistence, graphName: 'demo', writerId: 'alice', crypto });
 await (await alice.createPatch())
   .addNode('user:alice')
   .setProperty('user:alice', 'role', 'engineering')
@@ -16,7 +16,7 @@ await (await alice.createPatch())
   .commit();
 
 // Bob
-const bob = await WarpGraph.open({ persistence, graphName: 'demo', writerId: 'bob', crypto });
+const bob = await WarpRuntime.open({ persistence, graphName: 'demo', writerId: 'bob', crypto });
 await (await bob.createPatch())
   .addNode('user:bob')
   .setProperty('user:bob', 'role', 'design')
@@ -26,7 +26,7 @@ await (await bob.createPatch())
   .commit();
 
 // Charlie
-const charlie = await WarpGraph.open({ persistence, graphName: 'demo', writerId: 'charlie', crypto });
+const charlie = await WarpRuntime.open({ persistence, graphName: 'demo', writerId: 'charlie', crypto });
 await (await charlie.createPatch())
   .addNode('user:charlie')
   .setProperty('user:charlie', 'role', 'marketing')

@@ -19,14 +19,14 @@ import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 const projectRoot = process.env.PROJECT_ROOT || resolve(import.meta.dirname, '../../..');
 const repoPath = process.env.REPO_PATH;
 
-const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpGraph.js')).href;
+const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.js')).href;
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;
 const cryptoUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/NodeCryptoAdapter.js')).href;
 const trustRecordServiceUrl = pathToFileURL(resolve(projectRoot, 'src/domain/trust/TrustRecordService.js')).href;
 const goldenRecordsUrl = pathToFileURL(resolve(projectRoot, 'test/unit/domain/trust/fixtures/goldenRecords.js')).href;
 const defaultCodecUrl = pathToFileURL(resolve(projectRoot, 'src/domain/utils/defaultCodec.js')).href;
 
-const { default: WarpGraph } = await import(warpGraphUrl);
+const { default: WarpRuntime } = await import(warpGraphUrl);
 const { default: GitGraphAdapter } = await import(adapterUrl);
 const { default: NodeCryptoAdapter } = await import(cryptoUrl);
 const { TrustRecordService } = await import(trustRecordServiceUrl);
@@ -39,7 +39,7 @@ const persistence = new GitGraphAdapter({ plumbing });
 const crypto = new NodeCryptoAdapter();
 
 // 1. Seed graph data as "alice" (trusted writer)
-const graphAlice = await WarpGraph.open({
+const graphAlice = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'alice',
@@ -62,7 +62,7 @@ await trustService.appendRecord('demo', KEY_ADD_2, { skipSignatureVerify: true }
 await trustService.appendRecord('demo', WRITER_BIND_ADD_ALICE, { skipSignatureVerify: true });
 
 // 3. Seed graph data as "bob" (untrusted writer)
-const graphBob = await WarpGraph.open({
+const graphBob = await WarpRuntime.open({
   persistence,
   graphName: 'demo',
   writerId: 'bob',

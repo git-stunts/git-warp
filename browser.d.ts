@@ -5,7 +5,7 @@
  * or @git-stunts/plumbing imports.
  */
 
-export { default as WarpGraph } from './index';
+export { WarpApp, WarpCore } from './index';
 export {
   GraphNode,
   InMemoryGraphAdapter,

@@ -1,13 +1,13 @@
 // @ts-nocheck — tests dynamic prototype wiring that TypeScript cannot track
 import { describe, it, expect } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { wireWarpMethods } from '../../../src/domain/warp/_wire.js';
 
 /**
  * Prototype Wiring Invariant Lock
  *
  * Ensures that the wireWarpMethods helper works correctly and that
- * all extracted methods are properly bound to WarpGraph instances.
+ * all extracted methods are properly bound to WarpRuntime instances.
  * Run after every extraction phase.
  */
 describe('wireWarpMethods', () => {
@@ -78,10 +78,12 @@ describe('wireWarpMethods', () => {
   });
 });
 
-describe('WarpGraph prototype completeness', () => {
+describe('WarpRuntime prototype completeness', () => {
   it('has all core methods on prototype', () => {
-    const proto = WarpGraph.prototype;
-    // Spot-check critical methods exist and are functions/getters
+    const proto = WarpRuntime.prototype;
+    // Spot-check critical internal runtime methods exist and are functions/getters.
+    // WarpRuntime remains the internal implementation class; the public major-cut
+    // nouns now live on WarpApp/WarpCore.
     const expectedMethods = [
       'createPatch', 'patch', 'materialize', 'materializeAt',
       'materializeCoordinate',
@@ -89,8 +91,8 @@ describe('WarpGraph prototype completeness', () => {
       'getNodes', 'getEdges', 'getPropertyCount', 'getStateSnapshot',
       'subscribe', 'watch',
       'patchesFor', 'materializeSlice', 'loadPatchBySha',
-      'createWorkingSet', 'getWorkingSet', 'listWorkingSets',
-      'dropWorkingSet', 'materializeWorkingSet',
+      'createStrand', 'getStrand', 'listStrands',
+      'dropStrand', 'materializeStrand',
       'analyzeConflicts',
       'fork', 'createWormhole',
       'syncWith', 'serve', 'createSyncRequest', 'processSyncRequest',
@@ -113,7 +115,7 @@ describe('WarpGraph prototype completeness', () => {
   });
 
   it('has all core getters on prototype', () => {
-    const proto = WarpGraph.prototype;
+    const proto = WarpRuntime.prototype;
     const expectedGetters = [
       'graphName', 'writerId', 'persistence', 'onDeleteWithData',
       'seekCache', 'gcPolicy', 'temporal', 'provenanceIndex',
@@ -127,6 +129,6 @@ describe('WarpGraph prototype completeness', () => {
   });
 
   it('has static open method', () => {
-    expect(typeof WarpGraph.open).toBe('function');
+    expect(typeof WarpRuntime.open).toBe('function');
   });
 });

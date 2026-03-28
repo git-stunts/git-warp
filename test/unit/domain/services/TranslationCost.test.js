@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
@@ -46,7 +46,7 @@ describe('TranslationCost', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

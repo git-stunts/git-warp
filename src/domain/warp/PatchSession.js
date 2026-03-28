@@ -159,6 +159,19 @@ export class PatchSession {
   }
 
   /**
+   * Clears content from a node.
+   *
+   * @param {string} nodeId - The node ID to clear content from
+   * @returns {this} This session for chaining
+   * @throws {WriterError} SESSION_COMMITTED if already committed
+   */
+  clearContent(nodeId) {
+    this._ensureNotCommitted();
+    this._builder.clearContent(nodeId);
+    return this;
+  }
+
+  /**
    * Attaches content to an edge.
    *
    * @param {string} from - Source node ID
@@ -173,6 +186,21 @@ export class PatchSession {
   async attachEdgeContent(from, to, label, content, metadata = undefined) {
     this._ensureNotCommitted();
     await this._builder.attachEdgeContent(from, to, label, content, metadata);
+    return this;
+  }
+
+  /**
+   * Clears content from an edge.
+   *
+   * @param {string} from - Source node ID
+   * @param {string} to - Target node ID
+   * @param {string} label - Edge label/type
+   * @returns {this} This session for chaining
+   * @throws {WriterError} SESSION_COMMITTED if already committed
+   */
+  clearEdgeContent(from, to, label) {
+    this._ensureNotCommitted();
+    this._builder.clearEdgeContent(from, to, label);
     return this;
   }
 

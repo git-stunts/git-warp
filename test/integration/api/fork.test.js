@@ -23,7 +23,7 @@ describe('API: Fork', () => {
 
     await graph.materialize();
 
-    // Fork at the first patch — fork() returns a usable WarpGraph
+    // Fork at the first patch — fork() returns a usable WarpRuntime
     const forkedGraph = await graph.fork({
       from: 'alice',
       at: sha1,
@@ -56,7 +56,7 @@ describe('API: Fork', () => {
     expect(forkNodes).not.toContain('original-only');
   });
 
-  it('fork() returns a writable WarpGraph instance', async () => {
+  it('fork() returns a writable WarpRuntime instance', async () => {
     const graph = await repo.openGraph('src', 'writer-a');
 
     const sha = await (await graph.createPatch())
@@ -72,7 +72,7 @@ describe('API: Fork', () => {
       forkWriterId: 'writer-b',
     });
 
-    // Return value must be a WarpGraph that supports immediate writes
+    // Return value must be a WarpRuntime that supports immediate writes
     await (await forked.createPatch())
       .addNode('new-node')
       .setProperty('new-node', 'added-by', 'fork-return')

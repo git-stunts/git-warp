@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "14.11.0",
+  "version": "15.0.0",
   "imports": {
     "roaring": "npm:roaring@^2.7.0"
   },
@@ -21,9 +21,15 @@
       "src/**/*.js",
       "src/**/*.d.ts",
       "README.md",
+      "ARCHITECTURE.md",
+      ".github/CONTRIBUTING.md",
+      ".github/CODE_OF_CONDUCT.md",
+      ".github/SECURITY.md",
+      ".github/maintainers/**/*",
+      "adr/**/*.md",
+      "docs/**/*",
       "LICENSE",
-      "NOTICE",
-      "SECURITY.md"
+      "NOTICE"
     ]
   }
 }

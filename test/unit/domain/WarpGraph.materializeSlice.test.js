@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { encodeEdgeKey, encodePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetContains } from '../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../src/domain/crdt/LWW.js';
@@ -10,7 +10,7 @@ import {
   createDot,
 } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
+describe('WarpRuntime.materializeSlice() (HG/SLICE/1)', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -23,7 +23,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
 
   describe('error handling', () => {
     it('throws E_NO_STATE if not materialized', async () => {
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -39,7 +39,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
     it('returns empty state for unknown node', async () => {
       persistence.listRefs.mockResolvedValue([]);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -76,7 +76,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -153,7 +153,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -244,7 +244,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -316,7 +316,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -396,7 +396,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -481,7 +481,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -520,7 +520,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -555,7 +555,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -639,7 +639,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -679,7 +679,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
       persistence.showNode.mockResolvedValue(patch1.message);
       persistence.readBlob.mockResolvedValue(patch1.patchBuffer);
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',
@@ -783,7 +783,7 @@ describe('WarpGraph.materializeSlice() (HG/SLICE/1)', () => {
         return null;
       });
 
-      const graph = await WarpGraph.open({
+      const graph = await WarpRuntime.open({
         persistence,
         graphName: 'test',
         writerId: 'alice',

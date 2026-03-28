@@ -1,8 +1,8 @@
 /**
- * Provenance methods for WarpGraph — patch lookups, slice materialization,
+ * Provenance methods for WarpRuntime — patch lookups, slice materialization,
  * backward causal cone computation, and causal sorting.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/provenance.methods
@@ -24,7 +24,7 @@ import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCo
  * If `autoMaterialize` is enabled, this will automatically materialize
  * the state if dirty. Otherwise, call `materialize()` first.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} entityId - The node ID or edge key to query
  * @returns {Promise<string[]>} Array of patch SHAs that affected the entity, sorted alphabetically
  * @throws {QueryError} If no cached state exists and autoMaterialize is off (code: `E_NO_STATE`)
@@ -62,7 +62,7 @@ export async function patchesFor(entityId) {
  *
  * **Requires a cached state.** Call materialize() first to build the provenance index.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The target node ID to materialize the cone for
  * @param {{receipts?: boolean}} [options] - Optional configuration
  * @returns {Promise<{state: import('../services/JoinReducer.js').WarpStateV5, patchCount: number, receipts?: import('../types/TickReceipt.js').TickReceipt[]}>}
@@ -150,7 +150,7 @@ export async function materializeSlice(nodeId, options) {
  * computation needs to read patches for their read-dependencies,
  * so we cache them for later replay).
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The target node ID
  * @returns {Promise<Map<string, import('../types/WarpTypesV2.js').PatchV2>>} Map of patch SHA to loaded patch object
  */
@@ -207,7 +207,7 @@ export async function _computeBackwardCone(nodeId) {
  * CLI/debug tooling (e.g. seek tick receipts) that needs to inspect patch
  * operations without re-materializing intermediate states.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} sha - The patch commit SHA
  * @returns {Promise<import('../types/WarpTypesV2.js').PatchV2>} The decoded patch object
  * @throws {Error} If the commit is not a patch or loading fails
@@ -240,7 +240,7 @@ export async function _loadPatchBySha(sha) {
 /**
  * Loads multiple patches by their SHAs.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string[]} shas - Array of patch commit SHAs
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>} Array of patch entries
  * @throws {Error} If any SHA is not a patch or loading fails
@@ -262,7 +262,7 @@ export async function _loadPatchesBySha(shas) {
  * Sort order: Lamport timestamp (ascending), then writer ID, then SHA.
  * This ensures deterministic ordering regardless of discovery order.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {Array<{patch: PatchV2, sha: string}>} patches - Unsorted patch entries
  * @returns {Array<{patch: PatchV2, sha: string}>} Sorted patch entries
  */

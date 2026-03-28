@@ -5,7 +5,7 @@
  * BlobStoragePort that simulates encrypted storage in memory.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import BlobStoragePort from '../../../src/ports/BlobStoragePort.js';
 import EncryptionError from '../../../src/domain/errors/EncryptionError.js';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.js';
@@ -46,7 +46,7 @@ class InMemoryBlobStorage extends BlobStoragePort {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('WarpGraph encryption at rest (B164)', () => {
+describe('WarpRuntime encryption at rest (B164)', () => {
   /** @type {ReturnType<typeof createInMemoryRepo>} */
   let repo;
   /** @type {InMemoryBlobStorage} */
@@ -58,7 +58,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
   });
 
   it('writes encrypted patches via patchBlobStorage and reads them back', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'enc-test',
       writerId: 'writer-1',
@@ -87,7 +87,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
   it('reads encrypted patches after re-opening with patchBlobStorage', async () => {
     // Write with encryption
-    const graph1 = await WarpGraph.open({
+    const graph1 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'enc-test',
       writerId: 'writer-1',
@@ -99,7 +99,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     });
 
     // Re-open with same storage (simulating re-open with key)
-    const graph2 = await WarpGraph.open({
+    const graph2 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'enc-test',
       writerId: 'writer-2',
@@ -114,7 +114,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
   it('throws EncryptionError when reading encrypted patches without patchBlobStorage', async () => {
     // Write with encryption
-    const graph1 = await WarpGraph.open({
+    const graph1 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'enc-test',
       writerId: 'writer-1',
@@ -126,7 +126,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
     // Re-open WITHOUT patchBlobStorage — should fail during open() or materialize()
     // (the migration boundary check in open() reads the tip patch)
-    const openPromise = WarpGraph.open({
+    const openPromise = WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'enc-test',
       writerId: 'writer-2',
@@ -137,7 +137,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
 
   it('handles mixed encrypted and unencrypted patches', async () => {
     // Write unencrypted patches first
-    const graph1 = await WarpGraph.open({
+    const graph1 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'mixed-test',
       writerId: 'writer-1',
@@ -148,7 +148,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     });
 
     // Then write encrypted patches with a different writer
-    const graph2 = await WarpGraph.open({
+    const graph2 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'mixed-test',
       writerId: 'writer-2',
@@ -160,7 +160,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
     });
 
     // Re-open with patchBlobStorage — should read both
-    const graph3 = await WarpGraph.open({
+    const graph3 = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'mixed-test',
       writerId: 'reader',
@@ -177,7 +177,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
   });
 
   it('no behavior change when patchBlobStorage is not provided', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'plain-test',
       writerId: 'writer-1',
@@ -200,7 +200,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
   });
 
   it('multiple encrypted patches accumulate correctly', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'multi-test',
       writerId: 'writer-1',
@@ -232,7 +232,7 @@ describe('WarpGraph encryption at rest (B164)', () => {
   });
 
   it('provenance methods work with encrypted patches', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: repo.persistence,
       graphName: 'prov-test',
       writerId: 'writer-1',

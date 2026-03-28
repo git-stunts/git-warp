@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import ForkError from '../../../src/domain/errors/ForkError.js';
 import {
   createMockPersistence,
@@ -14,7 +14,7 @@ const POID1 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const POID2 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 const POID3 = 'cccccccccccccccccccccccccccccccccccccccc';
 
-describe('WarpGraph.fork', () => {
+describe('WarpRuntime.fork', () => {
   /** @type {any} */
   let persistence;
   /** @type {any} */
@@ -22,7 +22,7 @@ describe('WarpGraph.fork', () => {
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence,
       graphName: 'test-graph',
       writerId: 'test-writer',
@@ -191,7 +191,7 @@ describe('WarpGraph.fork', () => {
 
       const fork = await graph.fork({ from: 'alice', at: SHA1 });
 
-      expect(fork).toBeInstanceOf(WarpGraph);
+      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(fork.graphName).toMatch(/^test-graph-fork-[a-z0-9]{8}$/);
       expect(fork.writerId).toMatch(/^w_[0-9a-hjkmnp-tv-z]{26}$/);
 
@@ -227,7 +227,7 @@ describe('WarpGraph.fork', () => {
         forkWriterId: 'experiment-writer',
       });
 
-      expect(fork).toBeInstanceOf(WarpGraph);
+      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(fork.graphName).toBe('my-experiment');
       expect(fork.writerId).toBe('experiment-writer');
 
@@ -349,7 +349,7 @@ describe('WarpGraph.fork', () => {
 
       const fork = await graph.fork({ from: 'alice', at: SHA2 });
 
-      expect(fork).toBeInstanceOf(WarpGraph);
+      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(persistence.updateRef).toHaveBeenCalledWith(
         expect.stringContaining('writers/'),
         SHA2
@@ -384,7 +384,7 @@ describe('WarpGraph.fork', () => {
       // Fork at sha1 (earliest commit)
       const fork = await graph.fork({ from: 'alice', at: SHA1 });
 
-      expect(fork).toBeInstanceOf(WarpGraph);
+      expect(fork).toBeInstanceOf(WarpRuntime);
       expect(persistence.updateRef).toHaveBeenCalledWith(
         expect.stringContaining('writers/'),
         SHA1

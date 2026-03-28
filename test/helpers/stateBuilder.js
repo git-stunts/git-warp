@@ -197,7 +197,7 @@ export class StateBuilder {
   }
 
   /**
-   * Seeds a WarpGraph-like object with the built state and a stable materialize mock.
+   * Seeds a WarpRuntime-like object with the built state and a stable materialize mock.
    *
    * @param {any} graph
    * @returns {WarpStateV5}

@@ -1,5 +1,5 @@
 /**
- * Conflict analysis methods for WarpGraph.
+ * Conflict analysis methods for WarpRuntime.
  *
  * @module domain/warp/conflict.methods
  */
@@ -8,12 +8,12 @@ import ConflictAnalyzerService from '../services/ConflictAnalyzerService.js';
 
 /**
  * Analyze read-only conflict provenance over either the current frontier or
- * an explicit working set, with an optional Lamport ceiling.
+ * an explicit strand, with an optional Lamport ceiling.
  *
  * This method performs zero durable writes. It does not materialize or mutate
  * cached graph state, checkpoints, or persistent caches.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/ConflictAnalyzerService.js').ConflictAnalyzeOptions} [options]
  * @returns {Promise<import('../services/ConflictAnalyzerService.js').ConflictAnalysis>}
  */

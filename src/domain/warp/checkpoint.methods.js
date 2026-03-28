@@ -1,7 +1,7 @@
 /**
- * Checkpoint, GC, and coverage methods for WarpGraph.
+ * Checkpoint, GC, and coverage methods for WarpRuntime.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/checkpoint.methods
@@ -25,7 +25,7 @@ import { cloneStateV5 } from '../services/JoinReducer.js';
  * Discovers all writers, builds a frontier of writer tips, materializes
  * the current state, and creates a checkpoint commit with provenance.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<string>} The checkpoint commit SHA
  * @throws {Error} If materialization or commit creation fails
  */
@@ -113,7 +113,7 @@ export async function createCheckpoint() {
  * is a merge commit that records which writer tips have been observed,
  * enabling efficient replication and consistency checks.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<void>}
  * @throws {Error} If ref access or commit creation fails
  */
@@ -153,7 +153,7 @@ export async function syncCoverage() {
 /**
  * Loads the latest checkpoint for this graph.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<{state: import('../services/JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number, provenanceIndex?: import('../services/ProvenanceIndex.js').ProvenanceIndex, indexShardOids?: Record<string, string>|null}|null>} The checkpoint or null
  * @private
  */
@@ -195,7 +195,7 @@ export async function _loadLatestCheckpoint() {
 /**
  * Loads patches since a checkpoint for incremental materialization.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{state: import('../services/JoinReducer.js').WarpStateV5, frontier: Map<string, string>, stateHash: string, schema: number}} checkpoint - The checkpoint to start from
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>} Patches since checkpoint
  * @private
@@ -229,7 +229,7 @@ export async function _loadPatchesSince(checkpoint) {
  * Graphs cannot be opened if there is schema:1 history without
  * a migration checkpoint. This ensures data consistency during migration.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<void>}
  * @throws {Error} If v1 history exists without migration checkpoint
  * @private
@@ -302,7 +302,7 @@ export async function _hasSchema1Patches() {
  * 3. Compare frontier after GC — if changed, discard clone + mark dirty
  * 4. If unchanged, swap compacted clone into _cachedState
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
  * @private
  */
@@ -374,7 +374,7 @@ export function _maybeRunGC(state) {
  *
  * **Requires a cached state.**
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {{ran: boolean, result: import('../services/GCPolicy.js').GCExecuteResult|null, reasons: string[]}} GC result
  *
  * @example
@@ -418,7 +418,7 @@ export function maybeRunGC() {
  *
  * **Requires a cached state.**
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {{nodesCompacted: number, edgesCompacted: number, tombstonesRemoved: number, durationMs: number}}
  * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
  * @throws {QueryError} If frontier changed during GC (code: `E_GC_STALE`)
@@ -476,7 +476,7 @@ export function runGC() {
 /**
  * Gets current GC metrics for the cached state.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {{
  *   nodeCount: number,
  *   edgeCount: number,

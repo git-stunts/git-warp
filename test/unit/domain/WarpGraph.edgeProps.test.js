@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createEmptyStateV5, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
@@ -26,7 +26,7 @@ function addEdgeProp(/** @type {any} */ state, /** @type {any} */ from, /** @typ
   state.prop.set(propKey, { eventId: { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value });
 }
 
-describe('WarpGraph edge properties', () => {
+describe('WarpRuntime edge properties', () => {
   /** @type {any} */
   let mockPersistence;
   /** @type {any} */
@@ -41,7 +41,7 @@ describe('WarpGraph edge properties', () => {
       configSet: vi.fn().mockResolvedValue(undefined),
     };
 
-    graph = await WarpGraph.open({
+    graph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',
@@ -182,7 +182,7 @@ describe('WarpGraph edge properties', () => {
   });
 
   it('getEdgeProps throws E_NO_STATE when no cached state', async () => {
-    const noAutoGraph = await WarpGraph.open({
+    const noAutoGraph = await WarpRuntime.open({
       persistence: mockPersistence,
       graphName: 'test',
       writerId: 'writer-1',

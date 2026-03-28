@@ -71,7 +71,7 @@ export default class LogicalTraversal {
   /**
    * Creates a new LogicalTraversal.
    *
-   * @param {import('../WarpGraph.js').default} graph - The WarpGraph instance to traverse
+   * @param {import('../WarpRuntime.js').default} graph - The WarpRuntime instance to traverse
    */
   constructor(graph) {
     this._graph = graph;
@@ -89,7 +89,7 @@ export default class LogicalTraversal {
    * @throws {TraversalError} If the labelFilter is invalid (INVALID_LABEL_FILTER)
    */
   async _prepareEngine({ dir, labelFilter, maxDepth }) {
-    // Private access: _materializeGraph is a WarpGraph internal.
+    // Private access: _materializeGraph is a WarpRuntime internal.
     // This coupling will be removed when the LogicalTraversal facade is sunset
     // and callers migrate to GraphTraversal + NeighborProvider directly.
     const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../crdt/ORSet.js').ORSet}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();

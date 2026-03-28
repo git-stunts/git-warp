@@ -1,5 +1,5 @@
 /**
- * HTTP sync server extracted from WarpGraph.serve().
+ * HTTP sync server extracted from WarpRuntime.serve().
  *
  * Handles request routing, JSON parsing, validation, and error responses
  * for the sync protocol. All HTTP I/O flows through an HttpServerPort
@@ -35,7 +35,7 @@ const optionsSchema = z.object({
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'httpPort must be a non-null object',
   )),
-  graph: /** @type {z.ZodType<import('../WarpGraph.js').default>} */ (z.custom(
+  graph: /** @type {z.ZodType<import('../WarpRuntime.js').default>} */ (z.custom(
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'graph must be a non-null object',
   )),

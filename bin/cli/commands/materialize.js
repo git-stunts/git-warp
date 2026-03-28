@@ -1,5 +1,5 @@
 import WebCryptoAdapter from '../../../src/infrastructure/adapters/WebCryptoAdapter.js';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { EXIT_CODES, notFoundError } from '../infrastructure.js';
 import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning } from '../shared.js';
 
@@ -12,7 +12,7 @@ import { createPersistence, listGraphNames, readActiveCursor, emitCursorWarning 
  * @returns {Promise<{graph: string, nodes: number, edges: number, properties: number, checkpoint: string|null, writers: Record<string, number>, patchCount: number}>}
  */
 async function materializeOneGraph({ persistence, graphName, writerId, ceiling }) {
-  const graph = await WarpGraph.open({
+  const graph = await WarpRuntime.open({
     persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)),
     graphName,
     writerId,

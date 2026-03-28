@@ -1,8 +1,8 @@
 /**
- * Patch/writer methods for WarpGraph — state mutation, writer lifecycle,
+ * Patch/writer methods for WarpRuntime — state mutation, writer lifecycle,
  * discovery, and CRDT join.
  *
- * Every function uses `this` bound to a WarpGraph instance at runtime
+ * Every function uses `this` bound to a WarpRuntime instance at runtime
  * via wireWarpMethods().
  *
  * @module domain/warp/patch.methods
@@ -33,7 +33,7 @@ import PersistenceError from '../errors/PersistenceError.js';
  * time, so correctness is preserved — but the tick may be lower than
  * necessary, losing LWW tiebreakers against other writers.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<PatchBuilderV2>} A new patch builder
  */
 export async function createPatch() {
@@ -69,7 +69,7 @@ export async function createPatch() {
  * **Multi-writer note:** call `materialize()` before `patch()` so that
  * `_maxObservedLamport` is up-to-date. See `createPatch()` for details.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {(p: PatchBuilderV2) => void | Promise<void>} build - Callback that adds operations to the patch
  * @returns {Promise<string>} The commit SHA of the new patch
  *
@@ -106,7 +106,7 @@ export async function patch(build) {
  *
  * @public
  * @since 13.0.0
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {...((p: PatchBuilderV2) => void | Promise<void>)} builds - Patch callbacks
  * @returns {Promise<string[]>} Commit SHAs in order of application
  *
@@ -131,7 +131,7 @@ export async function patchMany(...builds) {
  * Gets the next lamport timestamp and current parent SHA for this writer.
  * Reads from the current ref chain to determine values.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<{lamport: number, parentSha: string|null}>} The next lamport and current parent
  */
 export async function _nextLamport() {
@@ -237,7 +237,7 @@ export async function _loadWriterPatches(writerId, stopAtSha = null) {
 /**
  * Returns patches from a writer's ref chain.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} writerId - The writer ID to load patches for
  * @param {string|null} [stopAtSha=null] - Stop walking when reaching this SHA (exclusive)
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>} Array of patches
@@ -250,7 +250,7 @@ export async function getWriterPatches(writerId, stopAtSha = null) {
  * Post-commit hook: updates version vector, eager re-materialize,
  * provenance index, frontier, and audit service.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} writerId - The writer that committed
  * @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} [opts]
  * @returns {Promise<void>}
@@ -309,7 +309,7 @@ export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}
 /**
  * Creates a Writer bound to an existing (or resolved) writer ID.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {string} writerId - The writer ID to resolve
  * @returns {Promise<Writer>} A Writer instance
  */
@@ -353,7 +353,7 @@ export async function writer(writerId) {
  * identity (e.g., spawning a new writer process).
  *
  * @deprecated Use `writer()` to resolve a stable ID from git config, or `writer(id)` with an explicit ID.
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{ persist?: 'config'|'none', alias?: string }} [opts]
  * @returns {Promise<Writer>} A Writer instance with new canonical ID
  * @throws {Error} If config operations fail (when persist:'config')
@@ -408,7 +408,7 @@ export async function createWriter(opts = {}) {
  * Ensures cached state is fresh. When autoMaterialize is enabled,
  * materializes if state is null or dirty. Otherwise throws.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<void>}
  * @throws {QueryError} If no cached state and autoMaterialize is off (code: `E_NO_STATE`)
  * @throws {QueryError} If cached state is dirty and autoMaterialize is off (code: `E_STALE_STATE`)
@@ -463,7 +463,7 @@ export async function _readPatchBlob(patchMeta) {
 /**
  * Discovers all writers that have written to this graph.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<string[]>} Sorted array of writer IDs
  */
 export async function discoverWriters() {
@@ -490,7 +490,7 @@ export async function discoverWriters() {
  * Logs a warning for any non-monotonic lamport sequence within a single
  * writer's chain.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<{
  *   ticks: number[],
  *   maxTick: number,
@@ -560,7 +560,7 @@ export async function discoverTicks() {
 /**
  * Joins an external WarpStateV5 into the cached state using CRDT merge.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../services/JoinReducer.js').WarpStateV5} otherState - The state to merge in
  * @returns {{state: import('../services/JoinReducer.js').WarpStateV5, receipt: {nodesAdded: number, nodesRemoved: number, edgesAdded: number, edgesRemoved: number, propsChanged: number, frontierMerged: boolean}}} Merged state and receipt
  * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
@@ -632,7 +632,7 @@ export function join(otherState) {
 /**
  * Compares two version vectors for equality.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {import('../crdt/VersionVector.js').VersionVector} a
  * @param {import('../crdt/VersionVector.js').VersionVector} b
  * @returns {boolean}

@@ -1,7 +1,8 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current version:** v14.1.0
-> **Last reconciled:** 2026-03-15 (main after the v14.1.0 release; 26 active standalone items remain after trust/serve hardening, type-surface cleanup, large-graph traversal work, test-infra extraction, the constructor-default lint cleanup, checkpoint content-anchor batching, tree-construction determinism fuzzing, CI gate dedupe, the explicit type-only export manifest split, the merged Markdown code-sample lint gate, the pre-push gate regression harness, the missing-content blob error hardening, and the issue-45 content metadata API. The GitHub issue queue is now empty, so remaining tracked work resumes at B88, with a new benchmark slice queued for native-vs-WASM roaring evaluation.)
+> **Current release on `main`:** v14.16.2
+> **Next intended release:** v15.0.0 (currently unreleased on `slice-5-collapse-runway`)
+> **Last reconciled:** 2026-03-28 (after the `WarpApp` / `WarpCore` split, the `Strand` public noun cut, the IBM public API pass, and the documentation corpus audit/rewrite. `OG-010` remains active until the `v15` PR loop closes and the release is tagged from `main`.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](docs/ROADMAP/COMPLETED.md)
 
 ---
@@ -69,7 +70,7 @@
 **Theme:** Test quality, DRY extraction, SOLID quick-wins
 **Objective:** Fix every actionable finding from the HEX_AUDIT (hexagonal architecture, SOLID, DRY, test brittleness audit). Harden test determinism, extract duplicated infrastructure code, and clean up low-hanging SOLID violations. Larger decompositions (WarpGraph god object, JoinReducer split) are scoped as design-only items — implementation deferred until an RFC is filed.
 **Triage date:** 2026-03-02
-**Audit source:** `docs/HEX_AUDIT.convo.txt`
+**Audit source:** `docs/archive/audits/HEX_AUDIT.convo.txt`
 
 ### Audit Summary
 
@@ -504,10 +505,11 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 Every milestone has a hard gate. No milestone blurs into the next.
 All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13 wire-format cutover remains deferred by ADR 3 readiness gates.
 
-The active backlog is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
+The active roadmap is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
 Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
-`BACKLOG.md` retired — all intake goes directly into this file (policy in `CLAUDE.md`).
+Promotable pre-design intake now lives in `BACKLOG/`. This file remains the
+committed milestone/release inventory.
 
 ---
 
@@ -698,9 +700,16 @@ Exploratory concepts captured during PR hardening. These are intentionally fully
 - Golden output tests for deterministic summary formatting.
 - Smoke test ensuring script exits non-zero on API/auth failures.
 
-## ~~Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG.md`~~ RESOLVED
+## Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG/`
 
-Single-source policy enacted: `ROADMAP.md` is the sole document. `BACKLOG.md` deleted. Policy codified in `CLAUDE.md`.
+The roles are now split explicitly:
+
+- `ROADMAP.md` owns committed milestone/release inventory
+- `BACKLOG/` owns promotable pre-design items
+- `docs/design/` owns active design docs
+
+Backlog items should be promoted into `docs/design/` before tests and
+implementation begin.
 
 ## Appendix — Horizon Visions and Defensive Campaigns (2026-02-27)
 

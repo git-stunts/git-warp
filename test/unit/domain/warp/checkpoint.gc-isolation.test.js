@@ -16,7 +16,7 @@ import { createFrontier, updateFrontier } from '../../../../src/domain/services/
 import * as GCPolicy from '../../../../src/domain/services/GCPolicy.js';
 
 /**
- * Creates a minimal WarpGraph-like host for testing GC methods.
+ * Creates a minimal WarpRuntime-like host for testing GC methods.
  * @param {Object} [overrides]
  */
 function createMockHost(overrides = {}) {

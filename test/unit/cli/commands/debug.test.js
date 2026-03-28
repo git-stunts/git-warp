@@ -9,6 +9,39 @@ vi.mock('../../../../bin/cli/shared.js', () => ({
 const { openGraph, readActiveCursor, emitCursorWarning } = await import('../../../../bin/cli/shared.js');
 const handleDebug = (await import('../../../../bin/cli/commands/debug.js')).default;
 
+/**
+ * @typedef {{
+ *   strandId?: string,
+ *   baseLamportCeiling?: number|null,
+ *   overlayHeadPatchSha?: string,
+ *   overlayPatchCount?: number,
+ *   overlayWritable?: boolean,
+ *   readOverlays?: Array<{strandId: string}>
+ * }} StrandDescriptorOverrides
+ */
+
+/**
+ * @param {StrandDescriptorOverrides} [overrides]
+ */
+function makeStrandDescriptor(overrides = {}) {
+  return {
+    strandId: overrides.strandId ?? 'ws_review',
+    baseObservation: {
+      lamportCeiling: overrides.baseLamportCeiling ?? null,
+    },
+    overlay: {
+      headPatchSha: overrides.overlayHeadPatchSha ?? 'a'.repeat(40),
+      patchCount: overrides.overlayPatchCount ?? 1,
+      writable: overrides.overlayWritable ?? false,
+    },
+    braid: {
+      readOverlays: overrides.readOverlays ?? [
+        { strandId: 'ws_hold' },
+      ],
+    },
+  };
+}
+
 describe('handleDebug', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,7 +75,7 @@ describe('handleDebug', () => {
     });
 
     expect(analyzeConflicts).toHaveBeenCalledWith({
-      workingSetId: undefined,
+      strandId: undefined,
       at: { lamportCeiling: 12 },
       entityId: undefined,
       target: undefined,
@@ -98,7 +131,7 @@ describe('handleDebug', () => {
     });
 
     expect(analyzeConflicts).toHaveBeenCalledWith({
-      workingSetId: undefined,
+      strandId: undefined,
       at: { lamportCeiling: 3 },
       entityId: 'user:alice',
       target: {
@@ -116,19 +149,19 @@ describe('handleDebug', () => {
     });
   });
 
-  it('passes --working-set through to analyzeConflicts without changing the live CLI shape', async () => {
+  it('passes --strand through to analyzeConflicts without changing the live CLI shape', async () => {
     const analyzeConflicts = vi.fn().mockResolvedValue({
       analysisVersion: 'conflict-analyzer.v2',
       resolvedCoordinate: {
         analysisVersion: 'conflict-analyzer.v2',
-        coordinateKind: 'working_set',
+        coordinateKind: 'strand',
         frontier: {},
         frontierDigest: 'f'.repeat(40),
         lamportCeiling: null,
         scanBudgetApplied: { maxPatches: null },
         truncationPolicy: 'reverse-causal',
-        workingSet: {
-          workingSetId: 'ws_review',
+        strand: {
+          strandId: 'ws_review',
           baseLamportCeiling: null,
           overlayHeadPatchSha: 'a'.repeat(40),
           overlayPatchCount: 1,
@@ -147,11 +180,11 @@ describe('handleDebug', () => {
 
     await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['conflicts', '--working-set', 'ws_review'],
+      args: ['conflicts', '--strand', 'ws_review'],
     });
 
     expect(analyzeConflicts).toHaveBeenCalledWith({
-      workingSetId: 'ws_review',
+      strandId: 'ws_review',
       at: undefined,
       entityId: undefined,
       target: undefined,
@@ -267,8 +300,8 @@ describe('handleDebug', () => {
     });
   });
 
-  it('inspects provenance inside a working set via patchesForWorkingSet', async () => {
-    const patchesForWorkingSet = vi.fn().mockResolvedValue(['a'.repeat(40)]);
+  it('inspects provenance inside a strand via patchesForStrand', async () => {
+    const patchesForStrand = vi.fn().mockResolvedValue(['a'.repeat(40)]);
     const loadPatchBySha = vi.fn().mockResolvedValue({
       writer: 'ws_review',
       lamport: 2,
@@ -277,20 +310,30 @@ describe('handleDebug', () => {
       reads: ['n1'],
       writes: ['n1'],
     });
+    const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { patchesForWorkingSet, loadPatchBySha },
+      graph: { getStrand, patchesForStrand, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
     /** @type {any} */ (readActiveCursor).mockResolvedValue({ tick: 2 });
 
-    await handleDebug({
+    const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['provenance', '--working-set', 'ws_review', '--entity-id', 'n1'],
+      args: ['provenance', '--strand', 'ws_review', '--entity-id', 'n1'],
     });
 
-    expect(patchesForWorkingSet).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
+    expect(patchesForStrand).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
+    expect(getStrand).toHaveBeenCalledWith('ws_review');
+    expect(/** @type {any} */ (result.payload).strand).toMatchObject({
+      strandId: 'ws_review',
+      overlayWritable: false,
+      braid: {
+        readOverlayCount: 1,
+        braidedStrandIds: ['ws_hold'],
+      },
+    });
   });
 
   it('inspects a cross-writer timeline with cursor-aware ceiling and newest-window limiting', async () => {
@@ -363,8 +406,8 @@ describe('handleDebug', () => {
     expect(/** @type {any} */ (result.payload).entries.map((/** @type {{lamport: number}} */ entry) => entry.lamport)).toEqual([2, 4]);
   });
 
-  it('inspects a working-set timeline through getWorkingSetPatches', async () => {
-    const getWorkingSetPatches = vi.fn().mockResolvedValue([
+  it('inspects a strand timeline through getStrandPatches', async () => {
+    const getStrandPatches = vi.fn().mockResolvedValue([
       {
         sha: 'a'.repeat(40),
         patch: {
@@ -388,9 +431,10 @@ describe('handleDebug', () => {
         },
       },
     ]);
+    const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { getWorkingSetPatches },
+      graph: { getStrand, getStrandPatches },
       graphName: 'demo',
       persistence: {},
     });
@@ -398,21 +442,28 @@ describe('handleDebug', () => {
 
     const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['timeline', '--working-set', 'ws_review'],
+      args: ['timeline', '--strand', 'ws_review'],
     });
 
-    expect(getWorkingSetPatches).toHaveBeenCalledWith('ws_review');
+    expect(getStrandPatches).toHaveBeenCalledWith('ws_review');
     expect(result.payload).toMatchObject({
       graph: 'demo',
       debugTopic: 'timeline',
-      workingSetId: 'ws_review',
+      strandId: 'ws_review',
+      strand: {
+        overlayWritable: false,
+        braid: {
+          readOverlayCount: 1,
+          braidedStrandIds: ['ws_hold'],
+        },
+      },
       totalEntries: 2,
       returnedEntries: 2,
     });
   });
 
-  it('inspects an entity-local working-set timeline through patchesForWorkingSet', async () => {
-    const patchesForWorkingSet = vi.fn().mockResolvedValue(['a'.repeat(40)]);
+  it('inspects an entity-local strand timeline through patchesForStrand', async () => {
+    const patchesForStrand = vi.fn().mockResolvedValue(['a'.repeat(40)]);
     const loadPatchBySha = vi.fn().mockResolvedValue({
       writer: 'ws_review',
       lamport: 2,
@@ -421,9 +472,10 @@ describe('handleDebug', () => {
       reads: ['n1'],
       writes: ['n1'],
     });
+    const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { patchesForWorkingSet, loadPatchBySha },
+      graph: { getStrand, patchesForStrand, loadPatchBySha },
       graphName: 'demo',
       persistence: {},
     });
@@ -431,15 +483,22 @@ describe('handleDebug', () => {
 
     const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['timeline', '--working-set', 'ws_review', '--entity-id', 'n1'],
+      args: ['timeline', '--strand', 'ws_review', '--entity-id', 'n1'],
     });
 
-    expect(patchesForWorkingSet).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
+    expect(patchesForStrand).toHaveBeenCalledWith('ws_review', 'n1', { ceiling: 2 });
     expect(loadPatchBySha).toHaveBeenCalledWith('a'.repeat(40));
     expect(result.payload).toMatchObject({
       graph: 'demo',
       debugTopic: 'timeline',
-      workingSetId: 'ws_review',
+      strandId: 'ws_review',
+      strand: {
+        overlayWritable: false,
+        braid: {
+          readOverlayCount: 1,
+          braidedStrandIds: ['ws_hold'],
+        },
+      },
       filters: {
         entityId: 'n1',
         lamportCeiling: 2,
@@ -508,8 +567,8 @@ describe('handleDebug', () => {
     ]);
   });
 
-  it('inspects working-set receipts via materializeWorkingSet', async () => {
-    const materializeWorkingSet = vi.fn().mockResolvedValue({
+  it('inspects strand receipts via materializeStrand', async () => {
+    const materializeStrand = vi.fn().mockResolvedValue({
       state: {},
       receipts: [
         {
@@ -522,19 +581,29 @@ describe('handleDebug', () => {
         },
       ],
     });
+    const getStrand = vi.fn().mockResolvedValue(makeStrandDescriptor());
 
     /** @type {any} */ (openGraph).mockResolvedValue({
-      graph: { materializeWorkingSet },
+      graph: { getStrand, materializeStrand },
       graphName: 'demo',
       persistence: {},
     });
     /** @type {any} */ (readActiveCursor).mockResolvedValue(null);
 
-    await handleDebug({
+    const result = await handleDebug({
       options: /** @type {any} */ ({ repo: '.', graph: 'demo', writer: 'cli' }),
-      args: ['receipts', '--working-set', 'ws_review'],
+      args: ['receipts', '--strand', 'ws_review'],
     });
 
-    expect(materializeWorkingSet).toHaveBeenCalledWith('ws_review', { receipts: true });
+    expect(getStrand).toHaveBeenCalledWith('ws_review');
+    expect(materializeStrand).toHaveBeenCalledWith('ws_review', { receipts: true });
+    expect(/** @type {any} */ (result.payload).strand).toMatchObject({
+      strandId: 'ws_review',
+      overlayWritable: false,
+      braid: {
+        readOverlayCount: 1,
+        braidedStrandIds: ['ws_hold'],
+      },
+    });
   });
 });

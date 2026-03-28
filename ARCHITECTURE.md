@@ -1,638 +1,325 @@
-# WarpGraph Architecture
+# git-warp architecture
 
-## Overview
+This document explains how `git-warp` is structured internally.
 
-WarpGraph is a graph database built on Git. It uses a patch-based CRDT model where Git commits represent patch objects containing graph operations, with commit messages encoding patch metadata and parent relationships linking patch history.
+If you are learning the product for the first time, start here instead:
 
-This architecture enables:
+- [README.md](README.md)
+- [docs/GUIDE.md](docs/GUIDE.md)
+- [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
 
-- Content-addressable storage with built-in deduplication
-- Git's proven durability and integrity guarantees
-- Standard Git tooling compatibility
-- Distributed replication via git push/pull
+## What this document is for
 
-## Design Principles
+Use this page when you want to understand:
 
-### Hexagonal Architecture (Ports & Adapters)
+- the architectural boundary between `WarpApp` and `WarpCore`
+- the internal engine and service layering
+- how writes, reads, strands, and debugger/tooling flows move through the system
+- where Git ends and WARP-specific logic begins
 
-The codebase follows hexagonal architecture to isolate domain logic from infrastructure concerns:
+This is not the front-door tutorial. It is the system map.
 
-- **Ports** define abstract interfaces for external dependencies
-- **Adapters** implement ports for specific technologies (Git, console, etc.)
-- **Domain services** contain pure business logic with injected dependencies
+## Architectural goals
 
-This enables:
+`git-warp` exists to make WARP graphs practical in a Git-backed, offline-first, multi-writer environment.
 
-- Easy testing via mock adapters
-- Swappable infrastructure (different Git implementations, logging backends)
-- Clear separation of concerns
+The architecture optimizes for:
 
-### Time Travel Debugger Boundary
+- deterministic multi-writer convergence
+- explicit history and replay
+- hexagonal boundaries between domain logic and infrastructure
+- one honest substrate shared by apps, agentic CLI flows, and tooling such as TTD
+- browser-, Node-, Bun-, and Deno-friendly core logic
 
-git-warp now includes a thin **Time Travel Debugger (TTD)** command family in the main CLI, but the architectural boundary remains strict:
+## Public surfaces
 
-- **Domain/core** owns substrate analyzers, receipts, provenance, and materialization facts.
-- **CLI adapters** expose those facts through `seek`, `debug coordinate`, `debug timeline`, `debug conflicts`, `debug provenance`, and `debug receipts`.
-- **Presenters** format the results for text, JSON, or NDJSON.
-- **Human-facing debugger applications do not live in git-warp.**
+`v15` intentionally splits the public API into two top-level surfaces.
 
-This keeps git-warp as substrate plus thin inspection tooling rather than turning the package into a TUI/web application shell. See [docs/TTD.md](docs/TTD.md) for the dedicated debugger architecture note.
+### `WarpApp`
 
-Read-side worldline awareness lives here, not in the reducer:
+`WarpApp` is the default, product-facing surface.
 
-- supported debug topics can inspect either the live frontier or a pinned working-set patch universe
-- analyzers and materializers decide which patches are visible
-- `reduceV5` and generic join semantics remain deterministic and worldline-blind
+Use it when you are:
 
-### Working-Set Boundary
+- building applications
+- writing agentic CLI or automation flows
+- teaching the system to new users
 
-git-warp now also includes a separate **working-set** substrate family. It is intentionally **not** part of TTD because it creates durable descriptor refs.
+It makes these operations feel normal:
 
-- **Domain/core** owns explicit coordinate materialization and working-set descriptors.
-- **CLI adapters** expose those capabilities through `working-set create`, `working-set braid`, `working-set list`, `working-set show`, `working-set materialize`, `working-set compare`, and `working-set drop`.
-- **Presenters** render descriptor and materialization summaries without inventing higher-level product semantics.
-- **Descriptors pin coordinates; caches do not become truth.**
+- opening a graph
+- writing patches
+- syncing
+- creating pinned reads with `Worldline`
+- shaping reads with `Lens` and `Observer`
+- working with speculative lanes through `Strand`
 
-The active substrate model is still narrow and substrate-first:
+`WarpApp` is intentionally opinionated. It prefers the nouns that make WARP desirable to application builders.
 
-- a working set pins an explicit frontier snapshot plus an optional Lamport ceiling
-- the target working set keeps its own overlay patch-log ref and can mark that overlay writable or read-only
-- zero or more braided read-only overlays can be pinned onto the same base observation
-- target-owned braid refs keep those pinned support-overlay heads reachable as durable substrate facts
-- read-side helpers such as `getWorkingSetPatches()`, `patchesForWorkingSet()`, `projectStateV5()`, `createStateReaderV5()`, `compareVisibleStateV5()`, `compareWorkingSet()`, `compareCoordinates()`, and working-set-aware conflict analysis operate on the visible `base + braided overlays + active overlay` patch universe
-- comparison helpers report substrate facts such as visible patch divergence plus node/edge/property deltas instead of higher-layer review or governance meaning
-- materialized state is derived/cache only
-- no Git worktree assumption leaks into the API
+### `WarpCore`
 
-Composition terminology is fixed as **braid**:
+`WarpCore` is the plumbing-facing surface.
 
-- git-warp uses braid language for co-present working-set composition
-- braid changes the visible patch universe, not reducer rules
-- braid is not a synonym for merge or rebase
+Use it when you need:
 
-This gives higher layers an honest substrate for future worldline/fork behavior without teaching git-warp about XYPH governance or UI concepts. See [docs/WORKING_SETS.md](docs/WORKING_SETS.md) for the dedicated working-set note.
+- explicit replay and materialization
+- receipts, provenance, and conflict analysis
+- coordinate comparison and transfer planning
+- broad inspection
+- debugger and TTD integration
+- maintenance and migration helpers
 
-### Domain-Driven Design
+`WarpCore` stays public because tooling needs honest access to substrate truth. It is not hidden. It is just not the first-use story.
 
-The domain layer models the graph database concepts:
+### Internal engine
 
-- `GraphNode` - Immutable value object representing a node
-- `WarpGraph` - Node CRUD operations (the main API class)
-- `GraphTraversal` - Graph algorithms (11 algorithms: BFS, DFS, shortest path, A*, topological sort, etc.)
-- `BitmapIndexBuilder/Reader` - High-performance indexing
-- `MaterializedViewService` - Orchestrate materialized view lifecycle
-- `NeighborProviderPort` - Abstract neighbor lookup interface
+Under both public surfaces, the implementation still runs through one internal engine: `src/domain/WarpRuntime.js`.
 
-### Immutable Entities
+That internal runtime is not the public root anymore. It is the shared engine that both façades wrap.
 
-`GraphNode` instances are frozen after construction. The `parents` array is also frozen to prevent accidental mutation. This aligns with Git's immutable commit model.
+This preserves:
 
-### Dependency Injection
+- one reducer and replay implementation
+- one sync model
+- one provenance and receipt model
+- one hexagonal core
 
-All services accept their dependencies via constructor options:
+## Core runtime concepts
 
-- Persistence adapters
-- Loggers
-- Clocks
-- Parsers
+### Patches and writer chains
 
-This enables testing with mocks and flexible runtime configuration.
+Every writer appends patches to their own writer chain under `refs/warp/...`.
 
-## Layer Diagram
+A patch is an atomic batch of graph operations. It is the unit of:
 
-```text
-+--------------------------------------------------------------+
-|                       WarpGraph                              |  <- Main API
-|                      (WarpGraph.js)                          |
-+--------------------------------------------------------------+
-|                     Supporting Services                      |
-|  +---------------+ +--------------------+                    |
-|  | IndexRebuild  | | GraphTraversal     |                    |
-|  | Service       | |                    |                    |
-|  +---------------+ +--------------------+                    |
-|  +-------------+ +---------------+ +--------------------+    |
-|  | HealthCheck | | BitmapIndex   | | BitmapIndex        |    |
-|  | Service     | | Builder       | | Reader             |    |
-|  +-------------+ +---------------+ +--------------------+    |
-|  +---------------+ +--------------------+                    |
-|  | GitLogParser  | | Streaming          |                    |
-|  |               | | BitmapIndexBuilder |                    |
-|  +---------------+ +--------------------+                    |
-|  +---------------------+ +----------------------------+     |
-|  | MaterializedView    | | IncrementalIndexUpdater     |     |
-|  | Service             | |                            |     |
-|  +---------------------+ +----------------------------+     |
-|  +---------------------+ +----------------------------+     |
-|  | LogicalIndex        | | LogicalIndex               |     |
-|  | BuildService        | | Reader                     |     |
-|  +---------------------+ +----------------------------+     |
-+--------------------------------------------------------------+
-|                         Ports                                |
-|  +-------------------+ +---------------------------+         |
-|  | GraphPersistence  | | IndexStoragePort          |         |
-|  | Port              | |                           |         |
-|  +-------------------+ +---------------------------+         |
-|  +-------------------+ +---------------------------+         |
-|  | LoggerPort        | | ClockPort                 |         |
-|  +-------------------+ +---------------------------+         |
-|  +-------------------+                                       |
-|  | NeighborProvider  |                                       |
-|  | Port              |                                       |
-|  +-------------------+                                       |
-+--------------------------------------------------------------+
-|                       Adapters                               |
-|  +-------------------+ +---------------------------+         |
-|  | GitGraphAdapter   | | ConsoleLogger             |         |
-|  |                   | | NoOpLogger                |         |
-|  +-------------------+ +---------------------------+         |
-|  +-------------------+                                       |
-|  | PerformanceClock  |                                       |
-|  | GlobalClock       |                                       |
-|  +-------------------+                                       |
-+--------------------------------------------------------------+
+- write intent
+- sync
+- replay
+- provenance
+- deterministic merge ordering
+
+### Worldlines
+
+`Worldline` is the first-class read-history handle.
+
+A worldline can pin:
+
+- the live frontier
+- an explicit coordinate
+- a strand-backed observation
+
+That makes read position explicit instead of treating the runtime itself as the read coordinate.
+
+### Lenses and observers
+
+`Lens` defines the aperture. It says which nodes are visible and which properties are exposed or redacted.
+
+`Observer` is the read-only projection over a worldline through that lens.
+
+This is the product-facing read model:
+
+1. start from `WarpApp`
+2. pin a `Worldline`
+3. optionally shape it with a `Lens`
+4. read through an `Observer`
+
+### Strands and braid
+
+`Strand` is the speculative write lane.
+
+A strand records:
+
+- a pinned base observation
+- an overlay identity for divergent writes
+- optional braid inputs from supporting read-only strands
+
+The important architectural boundary is:
+
+- strands are durable substrate coordinates
+- braid changes what is visible, not how the reducer works
+- materialized strand state is derived, never authoritative
+
+### Warp state, receipts, and provenance
+
+Replay produces immutable `WarpState` snapshots.
+
+The substrate also exposes:
+
+- tick receipts
+- provenance indexes
+- comparison facts
+- transfer plans
+
+These belong to the `WarpCore` layer because they are part of the substrate truth, not ordinary product reads.
+
+## Layering
+
+```mermaid
+flowchart TB
+    subgraph public["Public surfaces"]
+        app["WarpApp"]
+        core["WarpCore"]
+    end
+
+    subgraph engine["Internal engine"]
+        runtime["WarpRuntime (internal)"]
+        domain["Worldline / Observer / Strand / query / reducer services"]
+    end
+
+    subgraph ports["Ports"]
+        persistence["GraphPersistencePort / IndexStoragePort"]
+        crypto["CryptoPort"]
+        clock["ClockPort"]
+        logger["LoggerPort"]
+        http["HttpServerPort"]
+        cache["SeekCachePort / BlobStoragePort"]
+    end
+
+    subgraph adapters["Adapters"]
+        git["GitGraphAdapter"]
+        mem["InMemoryGraphAdapter"]
+        clocks["ClockAdapter"]
+        logs["ConsoleLogger / NoOpLogger"]
+        web["WebCryptoAdapter / NodeCryptoAdapter / HTTP adapters"]
+    end
+
+    subgraph tools["Operational adapters"]
+        cli["warp-graph / git warp CLI"]
+    end
+
+    app --> runtime
+    core --> runtime
+    cli --> core
+    runtime --> domain
+    domain --> persistence
+    domain --> crypto
+    domain --> clock
+    domain --> logger
+    domain --> http
+    domain --> cache
+    persistence --> git
+    persistence --> mem
+    crypto --> web
+    clock --> clocks
+    logger --> logs
 ```
 
-## Directory Structure
+## Hexagonal boundary
+
+The codebase follows ports-and-adapters rules:
+
+- domain code owns graph semantics, replay, query, strands, observers, and receipts
+- ports define what the domain needs from storage, crypto, clocks, logging, and HTTP
+- adapters implement those ports for Git, in-memory tests, Node, Bun, Deno, and browser-capable environments
+
+That split matters because `git-warp` is meant to be used:
+
+- as a library
+- as a CLI
+- in tests
+- in browsers
+- as substrate for higher-level hosts
+
+The domain logic must not depend on one runtime shell or one transport model.
+
+## Write path
+
+At a high level, a normal write looks like this:
+
+1. `WarpApp.patch(...)` or `WarpCore.patch(...)` creates a patch builder.
+2. The builder records graph operations.
+3. The patch is committed onto the current writer chain.
+4. Sync later exchanges missing patches between writers.
+5. Materialization or query reads merge all visible patches deterministically.
+
+The reducer stays history-native. It does not pretend the latest snapshot is the only truth.
+
+## Read path
+
+The preferred product read path is:
+
+1. `WarpApp.worldline(...)`
+2. optionally `worldline.observer(...)`
+3. `getNodeProps()`, `query()`, or `traverse.*`
+
+The lower-level read path is:
+
+1. `app.core()`
+2. explicit `materialize*()` or broader inspection helpers
+3. optional projection helpers such as `projectStateV5()` or `createStateReaderV5()`
+
+That split is deliberate:
+
+- product reads should not accidentally become whole-graph preload logic
+- tooling and debugger consumers still need direct replay truth
+
+## Strand path
+
+A strand-backed flow looks like this:
+
+1. create a strand descriptor pinned to a base observation
+2. add overlay patches or queue intents
+3. optionally braid in supporting read-only strands
+4. inspect or compare the strand through `Worldline`, `Observer`, or `WarpCore`
+5. plan transfer or settlement later under higher-level policy
+
+`git-warp` does not treat strands as Git worktrees, governance workflows, or UI artifacts. They are substrate lanes.
+
+## Tooling and TTD path
+
+The debugger and inspection model stays thin:
+
+- the CLI is an adapter
+- `WarpCore` exposes substrate facts
+- higher layers such as TTD hosts can build richer experiences on top
+
+This is why commands such as `git warp debug ...`, `git warp seek`, and `git warp strand ...` exist without turning `git-warp` into an application shell.
+
+## Repository layout
+
+At a high level, the code is organized like this:
 
 ```text
 src/
-+-- domain/
-|   +-- entities/           # Immutable domain objects
-|   |   +-- GraphNode.js    # Node value object (sha, message, parents)
-|   +-- services/           # Business logic
-|   |   +-- WarpGraph.js             # Main API - Node CRUD operations
-|   |   +-- IndexRebuildService.js   # Index orchestration
-|   |   +-- BitmapIndexBuilder.js    # In-memory index construction
-|   |   +-- BitmapIndexReader.js     # O(1) index queries
-|   |   +-- StreamingBitmapIndexBuilder.js  # Memory-bounded building
-|   |   +-- LogicalTraversal.js      # Graph algorithms (deprecated facade)
-|   |   +-- GraphTraversal.js        # Unified traversal engine (11 algorithms)
-|   |   +-- MaterializedViewService.js  # Materialized view lifecycle
-|   |   +-- LogicalIndexBuildService.js # Build bitmap indexes from state
-|   |   +-- LogicalIndexReader.js       # Hydrate indexes from tree
-|   |   +-- IncrementalIndexUpdater.js  # O(diff) index updates
-|   |   +-- AdjacencyNeighborProvider.js # In-memory neighbor provider
-|   |   +-- BitmapNeighborProvider.js   # Bitmap-backed neighbor provider
-|   |   +-- HealthCheckService.js    # K8s-style probes
-|   |   +-- GitLogParser.js          # Binary stream parsing
-|   |   +-- WorkingSetService.js     # Pinned coordinates + working-set overlays
-|   +-- errors/             # Domain-specific errors
-|   |   +-- IndexError.js
-|   |   +-- ShardLoadError.js
-|   |   +-- ShardCorruptionError.js
-|   |   +-- ShardValidationError.js
-|   |   +-- TraversalError.js
-|   |   +-- OperationAbortedError.js
-|   |   +-- EmptyMessageError.js
-|   |   +-- WorkingSetError.js
-|   +-- utils/              # Domain utilities
-|       +-- LRUCache.js     # Shard caching
-|       +-- MinHeap.js      # Priority queue for A*
-|       +-- CachedValue.js  # TTL-based caching
-|       +-- cancellation.js # AbortSignal utilities
-|       +-- parseWorkingSetBlob.js   # Working-set descriptor validation
-+-- infrastructure/
-|   +-- adapters/           # Port implementations
-|       +-- GitGraphAdapter.js       # Git operations via @git-stunts/plumbing
-|       +-- ConsoleLogger.js         # Structured JSON logging
-|       +-- NoOpLogger.js            # Silent logger for tests
-|       +-- PerformanceClockAdapter.js  # Node.js timing
-|       +-- GlobalClockAdapter.js       # Bun/Deno/Browser timing
-+-- ports/                  # Abstract interfaces
-    +-- GraphPersistencePort.js  # Git commit/ref operations
-    +-- IndexStoragePort.js      # Blob/tree storage
-    +-- LoggerPort.js            # Structured logging contract
-    +-- ClockPort.js             # Timing abstraction
-    +-- NeighborProviderPort.js  # Abstract neighbor lookup interface
-    +-- SeekCachePort.js         # Persistent seek cache interface
+  domain/
+    WarpApp.js
+    WarpCore.js
+    WarpRuntime.js
+    services/
+    warp/
+    entities/
+    errors/
+    utils/
+  infrastructure/
+    adapters/
+  ports/
+
+bin/
+  warp-graph.js
+  git-warp
+  cli/
+
+docs/
+  CONCEPTUAL_OVERVIEW.md
+  GETTING_STARTED.md
+  GUIDE.md
+  API_REFERENCE.md
+  ADVANCED_GUIDE.md
+  CLI_GUIDE.md
+  design/
+  retrospectives/
+  specs/
+  trust/
 ```
 
-## Key Components
+Use the docs corpus as follows:
 
-### Main API: WarpGraph
+- `README.md`, `docs/GETTING_STARTED.md`, and `docs/GUIDE.md` for the primary user journey
+- `docs/API_REFERENCE.md` for exhaustive API detail
+- `docs/ADVANCED_GUIDE.md` and `docs/CONCEPTUAL_OVERVIEW.md` for deeper substrate concepts
+- `docs/CLI_GUIDE.md` for command-line workflows
+- `docs/specs/` and `adr/` for lower-level normative details
 
-The main entry point (`WarpGraph.js`) provides:
+## Current architecture boundary in one sentence
 
-- Direct graph database API
-- `open()` factory for managed mode with automatic durability
-- Batch API for efficient bulk writes
-- Health check endpoints (K8s liveness/readiness)
-- Index management (rebuild, load, save)
-
-### Core API
-
-#### WarpGraph
-
-Core node operations:
-
-- `createNode()` - Create a single node
-- `createNodes()` - Bulk creation with placeholder references (`$0`, `$1`)
-- `readNode()` / `getNode()` - Retrieve node data
-- `hasNode()` - Existence check
-- `iterateNodes()` - Streaming iterator for large graphs
-- `countNodes()` - Efficient count via `git rev-list --count`
-
-Message validation enforces size limits (default 1MB) and non-empty content.
-
-#### IndexRebuildService
-
-Orchestrates index creation:
-
-- **In-memory mode**: Fast, O(N) memory, single serialization pass
-- **Streaming mode**: Memory-bounded, flushes to storage periodically
-
-Supports cancellation via `AbortSignal` and progress callbacks.
-
-#### GraphTraversal
-
-Unified traversal engine with 11 algorithms, operating over a `NeighborProviderPort` abstraction (in-memory via `AdjacencyNeighborProvider` or bitmap-backed via `BitmapNeighborProvider`):
-
-- `bfs()` / `dfs()` - Deterministic traversals returning ordered node arrays
-- `shortestPath()` - Unweighted shortest path (BFS-based)
-- `weightedShortestPath()` - Dijkstra with custom `weightFn` or `nodeWeightFn`
-- `aStarSearch()` - A* with heuristic guidance
-- `bidirectionalAStar()` - Bidirectional A*
-- `topologicalSort()` - Kahn's algorithm with cycle detection
-- `weightedLongestPath()` - Longest path on DAGs (critical path)
-- `connectedComponent()` - All reachable nodes
-- `isReachable()` - Fast reachability check
-- `commonAncestors()` - Multi-source ancestor intersection
-
-All traversals support:
-
-- `maxNodes` / `maxDepth` limits
-- Cancellation via `AbortSignal`
-- Direction control (forward/reverse)
-- `nodeWeightFn` - Per-node weight function for weighted algorithms
-
-> **Note:** `LogicalTraversal` remains as a deprecated facade that delegates to `GraphTraversal`.
-
-#### BitmapIndexBuilder / BitmapIndexReader
-
-Roaring bitmap-based indexes for O(1) neighbor lookups:
-
-**Builder**:
-
-- `registerNode()` - Assign numeric ID to SHA
-- `addEdge()` - Record parent/child relationship
-- `serialize()` - Output sharded JSON structure
-
-**Reader**:
-
-- `setup()` - Configure with shard OID mappings
-- `getParents()` / `getChildren()` - O(1) lookups
-- Lazy loading with LRU cache for bounded memory
-- Checksum validation with strict/non-strict modes
-
-#### StreamingBitmapIndexBuilder
-
-Memory-bounded variant of BitmapIndexBuilder:
-
-- Flushes bitmap data to storage when threshold exceeded
-- SHA-to-ID mappings remain in memory (required for consistency)
-- Merges chunks at finalization via bitmap OR operations
-
-#### MaterializedViewService
-
-Orchestrates the full materialized view lifecycle — build, persist, and load:
-
-- Coordinates `JoinReducer` (patch replay), `LogicalIndexBuildService` (bitmap index construction), and `CheckpointService` (state snapshots)
-- Supports checkpoint schema 4 with embedded bitmap indexes
-- `IncrementalIndexUpdater` enables O(diff) bitmap index updates when only a few patches have arrived since the last checkpoint
-- Lifecycle: `build()` → `persistIndexTree()` → `loadFromOids()`, with incremental `applyDiff()` for hot paths and integrity checks via `verifyIndex()`
-
-#### NeighborProviderPort
-
-Abstract interface for neighbor lookups, decoupling traversal algorithms from storage:
-
-- `getNeighbors(nodeId, direction, options?)` — returns neighbor edges; `options.labels` (a `Set`) filters by label
-- Two implementations:
-  - `AdjacencyNeighborProvider` — builds adjacency lists from materialized state (in-memory, O(E) build)
-  - `BitmapNeighborProvider` — delegates to `LogicalIndexReader` for O(1) bitmap lookups
-
-### Ports (Interfaces)
-
-#### GraphPersistencePort
-
-Git operations contract:
-
-- `commitNode()` - Create commit pointing to empty tree
-- `showNode()` / `getNodeInfo()` - Retrieve commit data
-- `logNodesStream()` - Stream commit history
-- `updateRef()` / `readRef()` / `deleteRef()` - Ref management
-- `isAncestor()` - Ancestry testing for fast-forward detection
-- `countNodes()` - Efficient count
-- `ping()` - Health check
-
-Also includes blob/tree operations for index storage.
-
-#### IndexStoragePort
-
-Index persistence contract:
-
-- `writeBlob()` / `readBlob()` - Blob I/O
-- `writeTree()` / `readTreeOids()` - Tree I/O
-- `updateRef()` / `readRef()` - Index ref management
-
-#### LoggerPort
-
-Structured logging contract:
-
-- `debug()`, `info()`, `warn()`, `error()` - Log levels
-- `child()` - Create scoped logger with inherited context
-
-#### ClockPort
-
-Timing abstraction:
-
-- `now()` - High-resolution timestamp (ms)
-- `timestamp()` - ISO 8601 wall-clock time
-
-#### NeighborProviderPort
-
-Neighbor lookup abstraction:
-
-- `getNeighbors(nodeId, direction, options?)` — returns neighbor edges; `options.labels` (a `Set`) filters by label
-- Implementations: `AdjacencyNeighborProvider` (in-memory), `BitmapNeighborProvider` (bitmap-backed)
-
-#### SeekCachePort
-
-Persistent seek-cache abstraction used by `materializeAt` and cursor-bound materialization:
-
-- `get(key)` — returns `{ buffer, indexTreeOid? } | null` for a cached state snapshot
-- `set(key, buffer, { indexTreeOid? })` — stores a snapshot with optional index-tree metadata
-- `delete(key)` / `clear()` — invalidates stale seek-cache entries
-
-Implementations must preserve the optional `indexTreeOid` metadata so index hydration can skip full rebuilds on cache hits.
-
-### Adapters (Implementations)
-
-#### GitGraphAdapter
-
-Implements both `GraphPersistencePort` and `IndexStoragePort`:
-
-- Uses `@git-stunts/plumbing` for git command execution
-- Retry logic with exponential backoff for transient errors
-- Input validation to prevent command injection
-- NUL-terminated output parsing for reliability
-
-#### ConsoleLogger / NoOpLogger
-
-- `ConsoleLogger`: Structured JSON output with configurable levels
-- `NoOpLogger`: Zero-overhead silent logger for tests
-
-#### PerformanceClockAdapter / GlobalClockAdapter
-
-- `PerformanceClockAdapter`: Uses Node.js `perf_hooks`
-- `GlobalClockAdapter`: Uses global `performance` for Bun/Deno/browsers
-
-## Data Flow
-
-### Write Path
-
-```text
-createNode() -> WarpGraph.createNode()
-             -> persistence.commitNode()
-             -> persistence.updateRef()
-```
-
-### Read Path (with index)
-
-```text
-getParents() -> BitmapIndexReader._getEdges()
-             -> _getOrLoadShard() (lazy load)
-             -> storage.readBlob()
-             -> Validate checksum
-             -> RoaringBitmap32.deserialize()
-             -> Map IDs to SHAs
-```
-
-### Index Rebuild
-
-```text
-rebuildIndex() -> IndexRebuildService.rebuild()
-               -> WarpGraph.iterateNodes()
-               -> BitmapIndexBuilder.registerNode() / addEdge()
-               -> builder.serialize()
-               -> storage.writeBlob() (per shard, parallel)
-               -> storage.writeTree()
-```
-
-## The Empty Tree Trick
-
-All WarpGraph nodes are Git commits pointing to the empty tree:
-
-```text
-SHA: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
-```
-
-This is the well-known SHA of an empty Git tree, automatically available in every repository.
-
-**How it works:**
-
-- **Data**: Stored in commit message (arbitrary payload up to 1MB default)
-- **Edges**: Commit parent relationships (directed, multi-parent supported)
-- **Identity**: Commit SHA (content-addressable)
-
-**Benefits:**
-
-- Introduces no files into the repository working tree
-- Content-addressable with automatic deduplication
-- Git's proven durability and integrity (SHA verification)
-- Standard tooling compatibility (`git log`, `git show`, etc.)
-- Distributed replication via `git push`/`git pull`
-
-## Index Structure
-
-The bitmap index enables O(1) neighbor lookups. It is stored as a Git tree with sharded JSON blobs:
-
-```text
-index-tree/
-+-- meta_00.json        # SHA->ID mappings for prefix "00"
-+-- meta_01.json        # SHA->ID mappings for prefix "01"
-+-- ...
-+-- meta_ff.json        # SHA->ID mappings for prefix "ff"
-+-- shards_fwd_00.json  # Forward edges (parent->children) for prefix "00"
-+-- shards_rev_00.json  # Reverse edges (child->parents) for prefix "00"
-+-- ...
-+-- shards_fwd_ff.json
-+-- shards_rev_ff.json
-```
-
-**Shard envelope format:**
-
-```json
-{
-  "version": 2,
-  "checksum": "sha256-hex-of-data",
-  "data": { ... actual content ... }
-}
-```
-
-**Meta shard content:**
-
-```json
-{
-  "00a1b2c3d4e5f6789...": 0,
-  "00d4e5f6a7b8c9012...": 42
-}
-```
-
-**Edge shard content:**
-
-```json
-{
-  "00a1b2c3d4e5f6789...": "OjAAAAEAAAAAAAEAEAAAABAAAA=="
-}
-```
-
-Values are base64-encoded Roaring bitmaps containing numeric IDs of connected nodes.
-
-## Durability & Semantics
-
-This section defines the official durability contract for WarpGraph and the mechanisms used to enforce it.
-
-### Core Durability Contract
-
-**A write is durable if and only if it becomes reachable from the graph ref.**
-
-Git garbage collection (GC) prunes commits that are not reachable from any ref. Since WarpGraph patches are Git commits, without careful ref management, data can be silently deleted. WarpGraph provides mechanisms to ensure writes remain reachable.
-
-### Modes
-
-#### Managed Mode (Default)
-
-In managed mode, WarpGraph guarantees durability for all writes.
-- Every write operation updates the graph ref (or creates an anchor commit).
-- Reachability from the ref is maintained automatically.
-- Users do not need to manage refs or call sync manually.
-
-#### Manual Mode
-
-In manual mode, WarpGraph provides no automatic ref management.
-- Writes create commits but do not update refs.
-- User is responsible for calling `sync()` to persist reachability.
-- User may manage refs directly via Git commands.
-- **Warning**: Uncommitted writes are subject to garbage collection.
-
-### Anchor Commits
-
-Anchor commits are the mechanism used to maintain reachability for disconnected graphs (e.g., disjoint roots or imported history).
-
-#### The Problem
-
-In a linear history, every new commit points to the previous tip, maintaining a single chain reachable from the ref. However, graph operations can create disconnected commits:
-- Creating a new root node (no parents).
-- Merging unrelated graph histories.
-- Importing commits from external sources.
-
-If the ref simply moves to the new commit, the old history becomes unreachable and will be GC'd.
-
-#### The Solution
-
-An anchor commit is a special infrastructure commit that:
-- Has multiple **parents**: The previous ref tip AND the new commit(s).
-- Has an **Empty Tree** (like all WarpGraph nodes).
-- Has a specific **Payload/Trailer**:
-  - **v4+ format**: Trailer-typed (`eg-kind: anchor`, `eg-schema: 1`).
-  - **Legacy v3**: JSON `{"_type":"anchor"}`.
-- Is **filtered out** during graph traversal (invisible to domain logic).
-
-#### Anchoring Strategies
-
-**1. Chained Anchors (per-write sync)**
-Used by `autoSync: 'onWrite'`.
-- Each disconnected write creates one anchor with 2 parents.
-- **Pro**: Simple, stateless, works for incremental writes.
-- **Con**: O(N) anchor commits for N disconnected tips.
-
-**2. Octopus Anchors (batch mode)**
-Used by `Batch.commit()`.
-- Single anchor with N parents for all tips.
-- **Pro**: O(1) anchor overhead.
-- **Con**: Requires knowing all tips upfront.
-
-**3. Hybrid**
-WarpGraph defaults to chained anchors for individual writes but uses octopus anchors for batch operations. `compactAnchors()` can be called to rewrite chains into octopus anchors for cleanup.
-
-### Guarantees
-
-1. In **managed mode**, any successfully returned write is durable.
-2. Anchor commits preserve all previously reachable history.
-3. The sync algorithm is idempotent for the same inputs.
-4. Graph semantics are unaffected by anchor commits (they are transparent to traversal).
-
-### Storage & Rebuild Impact
-
-In V7, logical graph traversal uses the **Bitmap Index** (built from materialized state) and is **O(1)** regardless of the underlying commit topology. Anchor commits do **not** appear in the logical graph.
-
-However, anchors do impact **Materialization** (scanning Git history to build state) and **Git Storage** (number of objects).
-
-| Metric            | Chained Anchors          | Octopus Anchors          |
-| ----------------- | ------------------------ | ------------------------ |
-| Logical Traversal | **O(1)** (Index)         | **O(1)** (Index)         |
-| Materialization   | N patches + O(N) anchors | N patches + O(1) anchors |
-| Git Object Count  | Higher                   | Lower                    |
-
-**Chained Anchors** (linear history enforcement) add overhead to the `git rev-list` walk required during materialization.
-**Octopus Anchors** (used by `syncCoverage`) are more efficient for bulk operations, keeping the commit depth shallow.
-
-### Sync Algorithm (V7)
-
-In V7 Multi-Writer mode:
-
-1. Each writer maintains their own ref (`refs/.../writers/<id>`), pointing to a chain of **Patch Commits**.
-2. **Durability** is ensured because writes update these refs.
-3. **Global Reachability** (optional) is maintained via `syncCoverage()`, which creates an **Octopus Anchor** commit pointed to by `refs/.../coverage/head`. This anchor has all writer tips as parents, ensuring they aren't GC'd even if individual writer refs are deleted (e.g. during a clone).
-
-## Performance Characteristics
-
-| Operation           | Complexity   | Notes                        |
-| ------------------- | ------------ | ---------------------------- |
-| Write (createNode)  | O(1)         | Append-only commit           |
-| Read (readNode)     | O(1)         | Direct SHA lookup            |
-| Unindexed traversal | O(N)         | Linear scan via git log      |
-| Indexed lookup      | O(1)         | Bitmap query + ID resolution |
-| Index rebuild       | O(N)         | One-time scan                |
-| Index load          | O(1) initial | Lazy shard loading           |
-
-**Memory characteristics:**
-
-| Scenario              | Approximate Memory  |
-| --------------------- | ------------------- |
-| Cold start (no index) | Near-zero           |
-| Single shard loaded   | 0.5-2 MB per prefix |
-| Full index (1M nodes) | 150-200 MB          |
-
-## Error Handling
-
-Domain-specific error types enable precise error handling:
-
-- `ShardLoadError` - Storage I/O failure
-- `ShardCorruptionError` - Invalid shard format
-- `ShardValidationError` - Version/checksum mismatch
-- `TraversalError` - Algorithm failures (no path, cycle detected)
-- `OperationAbortedError` - Cancellation via AbortSignal
-- `EmptyMessageError` - Empty message validation failure
-
-## Cancellation Support
-
-Long-running operations support `AbortSignal` for cooperative cancellation:
-
-```javascript
-const controller = new AbortController();
-setTimeout(() => controller.abort(), 5000);
-
-for await (const node of graph.iterateNodes({
-  ref: 'HEAD',
-  signal: controller.signal
-})) {
-  // Process node
-}
-```
-
-Supported operations:
-
-- `iterateNodes()`
-- `rebuildIndex()`
-- All traversal methods (BFS, DFS, shortest path, etc.)
+`git-warp` exposes WARP as two public façades over one hexagonal Git-backed engine: `WarpApp` for application-facing worldlines, observers, and strands, and `WarpCore` for replay, provenance, inspection, and tooling truth.

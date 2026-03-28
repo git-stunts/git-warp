@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
-describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
+describe('WarpRuntime checkpointPolicy (AP/CKPT/1)', () => {
   it('stores checkpointPolicy when opened with { every: 500 }', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -15,7 +15,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
   });
 
   it('accepts minimum valid value { every: 1 }', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -26,7 +26,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
   });
 
   it('defaults _checkpointPolicy to null when not provided', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
@@ -37,7 +37,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
 
   it('rejects every: 0', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -48,7 +48,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
 
   it('rejects every: -1', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -59,7 +59,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
 
   it('rejects every: "foo" (non-integer string)', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -70,7 +70,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
 
   it('rejects every: 1.5 (non-integer float)', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -81,7 +81,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
 
   it('rejects checkpointPolicy that is not an object', async () => {
     await expect(
-      WarpGraph.open({
+      WarpRuntime.open({
         persistence: createMockPersistence(),
         graphName: 'test',
         writerId: 'writer-1',
@@ -91,7 +91,7 @@ describe('WarpGraph checkpointPolicy (AP/CKPT/1)', () => {
   });
 
   it('treats checkpointPolicy: /** @type {any} */ (null) as no policy', async () => {
-    const graph = await WarpGraph.open({
+    const graph = await WarpRuntime.open({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',

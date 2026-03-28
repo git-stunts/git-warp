@@ -91,7 +91,7 @@ export function serializeStateV5(state, { codec } = {}) {
  * - `edges`: visible edges sorted by `(from, to, label)`
  * - `props`: visible node properties sorted by `(node, key)`
  *
- * This helper is public so higher layers can inspect materialized working-set
+ * This helper is public so higher layers can inspect materialized strand
  * or coordinate state without depending on OR-Set internals.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state

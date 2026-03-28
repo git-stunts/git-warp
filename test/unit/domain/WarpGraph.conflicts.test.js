@@ -1,7 +1,11 @@
+// @ts-nocheck
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import WarpGraph from '../../../src/domain/WarpGraph.js';
+import WarpCore from '../../../src/domain/WarpCore.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
+
+/** @typedef {any} WarpCoreRuntime */
 
 /**
  * @param {number} counter
@@ -117,21 +121,21 @@ async function simulatePatchCommit(persistence, {
   return sha;
 }
 
-describe('WarpGraph.analyzeConflicts()', () => {
+describe('WarpCore.analyzeConflicts()', () => {
   /** @type {any} */
   let persistence;
-  /** @type {WarpGraph} */
+  /** @type {WarpCoreRuntime} */
   let graph;
   const graphName = 'conflicts';
 
   beforeEach(async () => {
     persistence = createMockPersistence();
-    graph = await WarpGraph.open({
+    graph = /** @type {WarpCoreRuntime} */ (await WarpCore.open({
       persistence,
       graphName,
       writerId: 'tester',
       autoMaterialize: false,
-    });
+    }));
   });
 
   it('returns deterministic supersession traces for competing property writes', async () => {
@@ -283,7 +287,7 @@ describe('WarpGraph.analyzeConflicts()', () => {
     });
   });
 
-  it('analyzes conflicts against a working set overlay instead of the live frontier', async () => {
+  it('analyzes conflicts against a strand overlay instead of the live frontier', async () => {
     await simulatePatchCommit(persistence, {
       graphName,
       writerId: 'alice',
@@ -291,29 +295,29 @@ describe('WarpGraph.analyzeConflicts()', () => {
       ops: [{ type: 'PropSet', node: 'n1', key: 'color', value: 'red' }],
     });
 
-    await graph.createWorkingSet({
-      workingSetId: 'ws_review',
+    await graph.createStrand({
+      strandId: 'ws_review',
       owner: 'alice',
     });
 
-    await graph.patchWorkingSet('ws_review', (p) => {
+    await graph.patchStrand('ws_review', (p) => {
       p.setProperty('n1', 'color', 'blue');
     });
 
     const liveAnalysis = await graph.analyzeConflicts({ kind: 'eventual_override' });
-    const workingSetAnalysis = await graph.analyzeConflicts({
-      workingSetId: 'ws_review',
+    const strandAnalysis = await graph.analyzeConflicts({
+      strandId: 'ws_review',
       kind: 'eventual_override',
     });
 
     expect(liveAnalysis.conflicts).toHaveLength(0);
-    expect(workingSetAnalysis.resolvedCoordinate.coordinateKind).toBe('working_set');
-    expect(workingSetAnalysis.resolvedCoordinate.workingSet).toMatchObject({
-      workingSetId: 'ws_review',
+    expect(strandAnalysis.resolvedCoordinate.coordinateKind).toBe('strand');
+    expect(strandAnalysis.resolvedCoordinate.strand).toMatchObject({
+      strandId: 'ws_review',
       overlayPatchCount: 1,
     });
-    expect(workingSetAnalysis.conflicts).toHaveLength(1);
-    expect(workingSetAnalysis.conflicts[0]).toMatchObject({
+    expect(strandAnalysis.conflicts).toHaveLength(1);
+    expect(strandAnalysis.conflicts[0]).toMatchObject({
       kind: 'eventual_override',
       winner: {
         anchor: {

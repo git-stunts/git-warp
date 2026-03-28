@@ -1,12 +1,13 @@
 /**
- * Extracted materialize methods for WarpGraph.
+ * Extracted materialize methods for WarpRuntime.
  *
- * Each function is designed to be bound to a WarpGraph instance at runtime.
+ * Each function is designed to be bound to a WarpRuntime instance at runtime.
  *
  * @module domain/warp/materialize.methods
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../services/JoinReducer.js';
+import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../services/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../services/StateDiff.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
@@ -15,7 +16,7 @@ import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCo
  * Scans the checkpoint frontier's tip commits for the maximum observed Lamport tick.
  * Updates `graph._maxObservedLamport` in-place; best-effort (skips unreadable commits).
  *
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {Map<string, string>} frontier
  * @returns {Promise<void>}
  */
@@ -39,7 +40,7 @@ async function scanFrontierForMaxLamport(graph, frontier) {
  * Scans a list of patch entries for the maximum observed Lamport tick.
  * Updates `graph._maxObservedLamport` in-place.
  *
- * @param {import('../WarpGraph.js').default} graph
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {Array<{patch: {lamport?: number}}>} patches
  */
 function scanPatchesForMaxLamport(graph, patches) {
@@ -58,7 +59,7 @@ function scanPatchesForMaxLamport(graph, patches) {
  * @returns {import('../services/JoinReducer.js').WarpStateV5}
  */
 function freezePublicState(state) {
-  return Object.freeze({ ...state });
+  return createImmutableWarpStateV5(state);
 }
 
 /**
@@ -71,7 +72,7 @@ function freezePublicState(state) {
 function freezePublicStateWithReceipts(state, receipts) {
   return Object.freeze({
     state: freezePublicState(state),
-    receipts,
+    receipts: /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (createImmutableValue(receipts)),
   });
 }
 
@@ -98,7 +99,7 @@ function freezePublicStateWithReceipts(state, receipts) {
  * and patches-since-checkpoint counter. May trigger auto-checkpoint and GC
  * based on configured policies. Notifies subscribers if state changed.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @param {{receipts?: boolean, ceiling?: number|null}} [options] - Optional configuration
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>} The materialized graph state, or { state, receipts } when receipts enabled
  * @throws {Error} If checkpoint loading fails or patch decoding fails
@@ -269,7 +270,7 @@ export async function materialize(options) {
 /**
  * Materializes the graph and returns the materialized graph details.
  *
- * @this {import('../WarpGraph.js').default}
+ * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<object>}
  * @private
  */
