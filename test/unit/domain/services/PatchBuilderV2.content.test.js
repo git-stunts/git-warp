@@ -431,6 +431,109 @@ describe('PatchBuilderV2 content attachment', () => {
     });
   });
 
+  describe('attachContent() with streaming input', () => {
+    it('accepts an AsyncIterable<Uint8Array> as content', async () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
+      const blobStorage = {
+        store: vi.fn().mockResolvedValue('cas-oid-1'),
+        retrieve: vi.fn(),
+        storeStream: vi.fn().mockResolvedValue('cas-stream-oid'),
+        retrieveStream: vi.fn(),
+      };
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence: createMockPersistence(),
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+        blobStorage,
+      }));
+
+      async function* source() {
+        yield new TextEncoder().encode('hello ');
+        yield new TextEncoder().encode('world');
+      }
+
+      await builder.attachContent('node:1', source(), { size: 11 });
+
+      // Should call storeStream, not store
+      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
+      expect(blobStorage.store).not.toHaveBeenCalled();
+      const patch = builder.build();
+      expect(patch.ops).toContainEqual(expect.objectContaining({
+        type: 'PropSet',
+        node: 'node:1',
+        key: '_content',
+        value: 'cas-stream-oid',
+      }));
+    });
+
+    it('accepts a ReadableStream<Uint8Array> as content', async () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
+      const blobStorage = {
+        store: vi.fn().mockResolvedValue('cas-oid-1'),
+        retrieve: vi.fn(),
+        storeStream: vi.fn().mockResolvedValue('cas-rs-oid'),
+        retrieveStream: vi.fn(),
+      };
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence: createMockPersistence(),
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+        blobStorage,
+      }));
+
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('rs content'));
+          controller.close();
+        },
+      });
+
+      await builder.attachContent('node:1', stream, { size: 10 });
+
+      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('attachEdgeContent() with streaming input', () => {
+    it('accepts an AsyncIterable<Uint8Array> as content', async () => {
+      const state = createMockState();
+      orsetAdd(state.edgeAlive, encodeEdgeKey('a', 'b', 'rel'), createDot('w1', 1));
+      const blobStorage = {
+        store: vi.fn().mockResolvedValue('cas-oid-1'),
+        retrieve: vi.fn(),
+        storeStream: vi.fn().mockResolvedValue('cas-edge-stream-oid'),
+        retrieveStream: vi.fn(),
+      };
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence: createMockPersistence(),
+        graphName: 'g',
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+        blobStorage,
+      }));
+
+      async function* source() {
+        yield new TextEncoder().encode('edge ');
+        yield new TextEncoder().encode('data');
+      }
+
+      await builder.attachEdgeContent('a', 'b', 'rel', source(), { size: 9 });
+
+      expect(blobStorage.storeStream).toHaveBeenCalledOnce();
+      expect(blobStorage.store).not.toHaveBeenCalled();
+    });
+  });
+
   describe('attachContent() with blobStorage', () => {
     it('uses blobStorage.store() when blobStorage is provided', async () => {
       const state = createMockState();
@@ -484,6 +587,30 @@ describe('PatchBuilderV2 content attachment', () => {
       await builder.attachContent('node:1', 'hello');
 
       expect(persistence.writeBlob).toHaveBeenCalledWith('hello');
+    });
+  });
+
+  describe('no raw writeBlob fallback (OG-014)', () => {
+    it('throws when blobStorage is absent and content is attached', async () => {
+      // OG-014 mandates that CAS is mandatory. Once implemented,
+      // attachContent without blobStorage should throw, not silently
+      // fall back to persistence.writeBlob().
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
+      const persistence = createMockPersistence();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        persistence,
+        writerId: 'w1',
+        lamport: 1,
+        versionVector: createVersionVector(),
+        getCurrentState: () => state,
+        // blobStorage intentionally omitted
+      }));
+
+      // Should throw because there is no blob storage to handle content
+      await expect(builder.attachContent('node:1', 'hello'))
+        .rejects.toThrow();
+      expect(persistence.writeBlob).not.toHaveBeenCalled();
     });
   });
 

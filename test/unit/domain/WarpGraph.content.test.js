@@ -442,4 +442,105 @@ describe('WarpRuntime content attachment (query methods)', () => {
       expect(content).toBeNull();
     });
   });
+
+  describe('getContentStream()', () => {
+    it('returns an async iterable of content chunks', async () => {
+      const chunk1 = new TextEncoder().encode('hello ');
+      const chunk2 = new TextEncoder().encode('world');
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn(),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn().mockReturnValue((async function* () {
+          yield chunk1;
+          yield chunk2;
+        })()),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+        const propKey = encodePropKey('doc:1', '_content');
+        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+      });
+
+      const stream = await graph.getContentStream('doc:1');
+      expect(stream).not.toBeNull();
+
+      const chunks = [];
+      for await (const chunk of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(2);
+      expect(chunks[0]).toBe(chunk1);
+      expect(chunks[1]).toBe(chunk2);
+      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-tree-oid');
+    });
+
+    it('returns null when no content is attached', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+      });
+
+      const stream = await graph.getContentStream('doc:1');
+      expect(stream).toBeNull();
+    });
+
+    it('returns null for nonexistent node', async () => {
+      setupGraphState(graph, () => {});
+
+      const stream = await graph.getContentStream('nonexistent');
+      expect(stream).toBeNull();
+    });
+  });
+
+  describe('getEdgeContentStream()', () => {
+    it('returns an async iterable of edge content chunks', async () => {
+      const chunk = new TextEncoder().encode('edge stream data');
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn(),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn().mockReturnValue((async function* () {
+          yield chunk;
+        })()),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+        const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
+        state.prop.set(propKey, {
+          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
+          value: 'cas-edge-tree-oid',
+        });
+      });
+
+      const stream = await graph.getEdgeContentStream('a', 'b', 'rel');
+      expect(stream).not.toBeNull();
+
+      const chunks = [];
+      for await (const c of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+        chunks.push(c);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toBe(chunk);
+      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-edge-tree-oid');
+    });
+
+    it('returns null when no edge content is attached', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+      });
+
+      const stream = await graph.getEdgeContentStream('a', 'b', 'rel');
+      expect(stream).toBeNull();
+    });
+  });
 });

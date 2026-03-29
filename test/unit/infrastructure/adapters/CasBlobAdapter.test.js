@@ -321,6 +321,179 @@ describe('CasBlobAdapter', () => {
     });
   });
 
+  describe('storeStream()', () => {
+    it('stores content from an async iterable via CAS and returns tree OID', async () => {
+      const manifest = { chunks: ['chunk1', 'chunk2'] };
+      mockStore.mockResolvedValue(manifest);
+      mockCreateTree.mockResolvedValue('tree-oid-stream');
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+      });
+
+      async function* source() {
+        yield new TextEncoder().encode('hello ');
+        yield new TextEncoder().encode('world');
+      }
+
+      const oid = await adapter.storeStream(source(), { slug: 'test/streamed' });
+
+      expect(oid).toBe('tree-oid-stream');
+      expect(mockStore).toHaveBeenCalledOnce();
+      expect(mockCreateTree).toHaveBeenCalledWith({ manifest });
+      // The source passed to CAS store should be the async iterable (or wrapped)
+      const storeCall = mockStore.mock.calls[0][0];
+      expect(storeCall.slug).toBe('test/streamed');
+    });
+
+    it('passes encryptionKey to CAS store when configured', async () => {
+      mockStore.mockResolvedValue({});
+      mockCreateTree.mockResolvedValue('tree-oid');
+
+      const encKey = new Uint8Array(32);
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+        encryptionKey: encKey,
+      });
+
+      async function* source() {
+        yield new Uint8Array([1]);
+      }
+
+      await adapter.storeStream(source());
+
+      const storeCall = mockStore.mock.calls[0][0];
+      expect(storeCall.encryptionKey).toBe(encKey);
+    });
+  });
+
+  describe('retrieveStream()', () => {
+    it('retrieves content as an async iterable via CAS restoreStream', async () => {
+      const manifest = { chunks: ['chunk1'] };
+      const chunk1 = new TextEncoder().encode('hello ');
+      const chunk2 = new TextEncoder().encode('world');
+
+      mockReadManifest.mockResolvedValue(manifest);
+
+      // Mock restoreStream on the CAS instance
+      const mockRestoreStream = vi.fn().mockReturnValue((async function* () {
+        yield chunk1;
+        yield chunk2;
+      })());
+
+      // We need the CAS instance to have restoreStream — capture via store first
+      mockStore.mockResolvedValue({});
+      mockCreateTree.mockResolvedValue('tree-oid');
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+      });
+
+      // Prime CAS initialization
+      await adapter.store('init');
+
+      // Attach restoreStream to the mock CAS
+      const casInstance = lastConstructorArgs;
+      // The CAS instance is the MockContentAddressableStore — attach method
+      MockContentAddressableStore.prototype.restoreStream = mockRestoreStream;
+
+      const stream = adapter.retrieveStream('tree-oid-abc');
+      const chunks = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(2);
+      const combined = new Uint8Array([...chunk1, ...chunk2]);
+      const result = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
+      let offset = 0;
+      for (const c of chunks) {
+        result.set(c, offset);
+        offset += c.byteLength;
+      }
+      expect(new TextDecoder().decode(result)).toBe('hello world');
+
+      // Cleanup prototype
+      delete MockContentAddressableStore.prototype.restoreStream;
+    });
+
+    it('falls back to single-chunk yield for legacy raw Git blobs', async () => {
+      const rawBuf = new TextEncoder().encode('legacy blob content');
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(rawBuf);
+      const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
+      mockReadManifest.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      const stream = adapter.retrieveStream('raw-blob-oid');
+      const chunks = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toBe(rawBuf);
+      expect(persistence.readBlob).toHaveBeenCalledWith('raw-blob-oid');
+    });
+
+    it('passes encryptionKey to CAS restoreStream when configured', async () => {
+      const manifest = { chunks: ['chunk1'] };
+      mockReadManifest.mockResolvedValue(manifest);
+
+      const mockRestoreStream = vi.fn().mockReturnValue((async function* () {
+        yield new Uint8Array([1]);
+      })());
+
+      const encKey = new Uint8Array(32);
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence: makePersistence(),
+        encryptionKey: encKey,
+      });
+
+      // Prime CAS
+      mockStore.mockResolvedValue({});
+      mockCreateTree.mockResolvedValue('tree-oid');
+      await adapter.store('init');
+      MockContentAddressableStore.prototype.restoreStream = mockRestoreStream;
+
+      const stream = adapter.retrieveStream('tree-oid');
+      for await (const _ of stream) { /* drain */ }
+
+      expect(mockRestoreStream).toHaveBeenCalledWith(
+        expect.objectContaining({ manifest, encryptionKey: encKey }),
+      );
+
+      delete MockContentAddressableStore.prototype.restoreStream;
+    });
+
+    it('throws E_MISSING_OBJECT when legacy fallback readBlob returns null', async () => {
+      const persistence = makePersistence();
+      persistence.readBlob.mockResolvedValue(null);
+      const casErr = Object.assign(new Error('No manifest entry'), { code: 'MANIFEST_NOT_FOUND' });
+      mockReadManifest.mockRejectedValue(casErr);
+
+      const adapter = new CasBlobAdapter({
+        plumbing: makePlumbing(),
+        persistence,
+      });
+
+      const stream = adapter.retrieveStream('ghost-oid');
+      await expect(async () => {
+        for await (const _ of stream) { /* drain */ }
+      }).rejects.toMatchObject({
+        code: PersistenceError.E_MISSING_OBJECT,
+      });
+    });
+  });
+
   describe('CAS initialization', () => {
     it('lazily initializes CAS on first store() call', async () => {
       mockStore.mockResolvedValue({});
