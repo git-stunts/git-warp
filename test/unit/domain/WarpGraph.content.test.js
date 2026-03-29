@@ -166,7 +166,13 @@ describe('WarpRuntime content attachment (query methods)', () => {
   describe('getContent()', () => {
     it('reads and returns the blob buffer', async () => {
       const buf = new TextEncoder().encode('# ADR 001\n\nSome content');
-      mockPersistence.readBlob.mockResolvedValue(buf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(buf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -176,7 +182,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
 
       const content = await graph.getContent('doc:1');
       expect(content).toEqual(buf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('abc123');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('abc123');
     });
 
     it('returns null when no content attached', async () => {
@@ -219,9 +225,18 @@ describe('WarpRuntime content attachment (query methods)', () => {
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
 
-    it('falls back to persistence.readBlob() when blobStorage is not provided', async () => {
+    it('uses auto-constructed blobStorage when none explicitly provided', async () => {
+      // OG-014: blob storage is always present (auto-constructed)
+      // The auto-constructed InMemoryBlobStorageAdapter won't have this OID,
+      // so we inject a mock to verify the read path goes through blobStorage
       const rawBuf = new TextEncoder().encode('raw blob');
-      mockPersistence.readBlob.mockResolvedValue(rawBuf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(rawBuf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -232,7 +247,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
       const content = await graph.getContent('doc:1');
 
       expect(content).toEqual(rawBuf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('raw-oid');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('raw-oid');
     });
 
     it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
@@ -416,7 +431,13 @@ describe('WarpRuntime content attachment (query methods)', () => {
   describe('getEdgeContent()', () => {
     it('reads and returns the blob buffer', async () => {
       const buf = new TextEncoder().encode('edge content');
-      mockPersistence.readBlob.mockResolvedValue(buf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(buf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -428,7 +449,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
 
       const content = await graph.getEdgeContent('a', 'b', 'rel');
       expect(content).toEqual(buf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('def456');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('def456');
     });
 
     it('returns null when no content attached', async () => {
@@ -440,6 +461,107 @@ describe('WarpRuntime content attachment (query methods)', () => {
 
       const content = await graph.getEdgeContent('a', 'b', 'rel');
       expect(content).toBeNull();
+    });
+  });
+
+  describe('getContentStream()', () => {
+    it('returns an async iterable of content chunks', async () => {
+      const chunk1 = new TextEncoder().encode('hello ');
+      const chunk2 = new TextEncoder().encode('world');
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn(),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn().mockReturnValue((async function* () {
+          yield chunk1;
+          yield chunk2;
+        })()),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+        const propKey = encodePropKey('doc:1', '_content');
+        state.prop.set(propKey, { eventId: null, value: 'cas-tree-oid' });
+      });
+
+      const stream = await graph.getContentStream('doc:1');
+      expect(stream).not.toBeNull();
+
+      const chunks = [];
+      for await (const chunk of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(2);
+      expect(chunks[0]).toBe(chunk1);
+      expect(chunks[1]).toBe(chunk2);
+      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-tree-oid');
+    });
+
+    it('returns null when no content is attached', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'doc:1', 1);
+      });
+
+      const stream = await graph.getContentStream('doc:1');
+      expect(stream).toBeNull();
+    });
+
+    it('returns null for nonexistent node', async () => {
+      setupGraphState(graph, () => {});
+
+      const stream = await graph.getContentStream('nonexistent');
+      expect(stream).toBeNull();
+    });
+  });
+
+  describe('getEdgeContentStream()', () => {
+    it('returns an async iterable of edge content chunks', async () => {
+      const chunk = new TextEncoder().encode('edge stream data');
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn(),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn().mockReturnValue((async function* () {
+          yield chunk;
+        })()),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
+
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+        const propKey = encodeEdgePropKey('a', 'b', 'rel', '_content');
+        state.prop.set(propKey, {
+          eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 },
+          value: 'cas-edge-tree-oid',
+        });
+      });
+
+      const stream = await graph.getEdgeContentStream('a', 'b', 'rel');
+      expect(stream).not.toBeNull();
+
+      const chunks = [];
+      for await (const c of /** @type {AsyncIterable<Uint8Array>} */ (stream)) {
+        chunks.push(c);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toBe(chunk);
+      expect(blobStorage.retrieveStream).toHaveBeenCalledWith('cas-edge-tree-oid');
+    });
+
+    it('returns null when no edge content is attached', async () => {
+      setupGraphState(graph, (/** @type {any} */ state) => {
+        addNode(state, 'a', 1);
+        addNode(state, 'b', 2);
+        addEdge(state, 'a', 'b', 'rel', 3);
+      });
+
+      const stream = await graph.getEdgeContentStream('a', 'b', 'rel');
+      expect(stream).toBeNull();
     });
   });
 });

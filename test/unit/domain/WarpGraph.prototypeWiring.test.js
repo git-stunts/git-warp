@@ -99,7 +99,7 @@ describe('WarpRuntime prototype completeness', () => {
       'applySyncResponse', 'syncNeeded',
       'createCheckpoint', 'maybeRunGC', 'runGC', 'getGCMetrics',
       'getFrontier', 'hasFrontierChanged', 'status',
-      'writer', 'createWriter',
+      'writer',
       'query', 'observer', 'translationCost',
       'discoverWriters', 'discoverTicks',
       'join', 'syncCoverage',

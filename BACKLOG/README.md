@@ -1,6 +1,6 @@
 # BACKLOG — Observer Geometry
 
-Last updated: 2026-03-28
+Last updated: 2026-03-29
 
 This directory holds promotable pre-design items for the current Observer
 Geometry tranche.
@@ -26,9 +26,9 @@ Workflow:
 | DONE | OG-007 | Expand hash-stability coverage across snapshot flavors | [OG-007-hash-stability-coverage.md](OG-007-hash-stability-coverage.md) |
 | DONE | OG-008 | Make retargeting compatibility a hard major-version cut | [OG-008-retargeting-compatibility.md](OG-008-retargeting-compatibility.md) |
 | QUEUED | OG-009 | Align playback-head and TTD consumers after read nouns stabilize | [OG-009-playback-head-alignment.md](OG-009-playback-head-alignment.md) |
-| ACTIVE | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |
+| DONE | OG-010 | IBM Design Thinking pass over public APIs and README | [OG-010-public-api-design-thinking.md](OG-010-public-api-design-thinking.md) |
 | QUEUED | OG-011 | Publish a public API catalog and browser documentation playground | [OG-011-public-api-catalog-and-playground.md](OG-011-public-api-catalog-and-playground.md) |
 | DONE | OG-012 | Audit and reconcile the documentation corpus before v15 | [OG-012-documentation-corpus-audit.md](OG-012-documentation-corpus-audit.md) |
 | QUEUED | OG-013 | Design out-of-core materialization and streaming reads | [OG-013-out-of-core-materialization-and-streaming-reads.md](OG-013-out-of-core-materialization-and-streaming-reads.md) |
-| QUEUED | OG-014 | Stream content attachments through `git-cas` | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
-| QUEUED | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |
+| DONE | OG-014 | Mandatory CAS blob storage with streaming I/O | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
+| DONE | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |

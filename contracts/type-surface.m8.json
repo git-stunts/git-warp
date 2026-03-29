@@ -15,6 +15,9 @@
     "BlobStoragePort": {
       "kind": "class"
     },
+    "InMemoryBlobStorageAdapter": {
+      "kind": "class"
+    },
     "BunHttpAdapter": {
       "kind": "class"
     },
@@ -633,11 +636,6 @@
     "TraversalError": {
       "kind": "class"
     },
-    "TraversalService": {
-      "kind": "class",
-      "deprecated": true,
-      "alias": "CommitDagTraversalService"
-    },
     "WarpApp": {
       "kind": "class",
       "default": true
@@ -1104,18 +1102,6 @@
             {
               "name": "writerId",
               "type": "string",
-              "optional": true
-            }
-          ],
-          "returns": "Promise<Writer>"
-        },
-        "createWriter": {
-          "async": true,
-          "deprecated": true,
-          "params": [
-            {
-              "name": "opts",
-              "type": "{ persist?: 'config' | 'none'; alias?: string }",
               "optional": true
             }
           ],

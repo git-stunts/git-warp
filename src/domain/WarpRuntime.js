@@ -22,6 +22,7 @@ import SyncController from './services/SyncController.js';
 import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
+import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 import { wireWarpMethods } from './warp/_wire.js';
 import * as queryMethods from './warp/query.methods.js';
 import * as subscribeMethods from './warp/subscribe.methods.js';
@@ -38,6 +39,27 @@ import * as comparisonMethods from './warp/comparison.methods.js';
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
+
+/**
+ * Auto-constructs a BlobStoragePort when none is explicitly provided.
+ *
+ * When persistence has `plumbing` (Git-backed), constructs a CasBlobAdapter
+ * for CDC chunking and Git-native GC reachability. Otherwise uses
+ * InMemoryBlobStorageAdapter for browser/test paths.
+ *
+ * @param {unknown} persistence
+ * @returns {Promise<import('../ports/BlobStoragePort.js').default>}
+ */
+async function autoConstructBlobStorage(persistence) {
+  const p = /** @type {{ plumbing?: unknown }} */ (persistence);
+  if (p.plumbing) {
+    const { default: CasBlobAdapter } = await import(
+      /* webpackIgnore: true */ '../infrastructure/adapters/CasBlobAdapter.js'
+    );
+    return new CasBlobAdapter({ plumbing: p.plumbing, persistence });
+  }
+  return new InMemoryBlobStorageAdapter();
+}
 
 /**
  * @param {{ mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null} trust
@@ -390,7 +412,10 @@ export default class WarpRuntime {
       }
     }
 
-    const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust });
+    // Auto-construct blob storage when none provided (OG-014: CAS is mandatory)
+    const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
+
+    const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage: resolvedBlobStorage, patchBlobStorage, trust });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();

@@ -1,4 +1,14 @@
 import WarpCore from './WarpCore.js';
+import {
+  getContent as _getContent,
+  getContentStream as _getContentStream,
+  getContentOid as _getContentOid,
+  getContentMeta as _getContentMeta,
+  getEdgeContent as _getEdgeContent,
+  getEdgeContentStream as _getEdgeContentStream,
+  getEdgeContentOid as _getEdgeContentOid,
+  getEdgeContentMeta as _getEdgeContentMeta,
+} from './warp/query.methods.js';
 
 /**
  * Curated product-facing WARP surface.
@@ -65,14 +75,6 @@ export default class WarpApp {
    */
   async writer(writerId) {
     return await this._runtime().writer(writerId);
-  }
-
-  /**
-   * @param {{ persist?: 'config' | 'none', alias?: string }} [opts]
-   * @returns {Promise<import('./warp/Writer.js').Writer>}
-   */
-  async createWriter(opts) {
-    return await this._runtime().createWriter(opts);
   }
 
   /**
@@ -166,6 +168,51 @@ export default class WarpApp {
   watch(pattern, options) {
     return this._runtime().watch(pattern, options);
   }
+
+  // ── Content attachment reads ──────────────────────────────────────────
+  // Imported from query.methods.js and called with the runtime as this binding.
+
+  /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
+  async getContent(nodeId) {
+    return await _getContent.call(this._runtime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  async getContentStream(nodeId) {
+    return await _getContentStream.call(this._runtime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<string|null>} */
+  async getContentOid(nodeId) {
+    return await _getContentOid.call(this._runtime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  async getContentMeta(nodeId) {
+    return await _getContentMeta.call(this._runtime(), nodeId);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
+  async getEdgeContent(from, to, label) {
+    return await _getEdgeContent.call(this._runtime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  async getEdgeContentStream(from, to, label) {
+    return await _getEdgeContentStream.call(this._runtime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
+  async getEdgeContentOid(from, to, label) {
+    return await _getEdgeContentOid.call(this._runtime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  async getEdgeContentMeta(from, to, label) {
+    return await _getEdgeContentMeta.call(this._runtime(), from, to, label);
+  }
+
+  // ── Strands ─────────────────────────────────────────────────────────
 
   /**
    * @param {Parameters<WarpCore['createStrand']>[0]} [options]

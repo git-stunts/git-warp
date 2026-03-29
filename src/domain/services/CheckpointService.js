@@ -194,7 +194,7 @@ function collectContentAnchorEntries(propMap) {
 
   for (let i = 0; i < sortedOids.length; i++) {
     const oid = sortedOids[i];
-    sortedOids[i] = `100644 blob ${oid}\t_content_${oid}`;
+    sortedOids[i] = `040000 tree ${oid}\t_content_${oid}`;
   }
 
   return sortedOids;

@@ -416,10 +416,6 @@ const wPs: PatchSession = await w.beginPatch();
 const wWriterId: string = w.writerId;
 const wGraphName: string = w.graphName;
 
-// ---- createWriter (deprecated) ----
-const cw: Writer = await graph.createWriter();
-const cwWithOpts: Writer = await graph.createWriter({ persist: 'config', alias: 'test' });
-
 // ---- PatchSession methods ----
 const ps: PatchSession = await w.beginPatch();
 const ps2: PatchSession = ps.addNode('x').removeNode('y').addEdge('a', 'b', 'c').removeEdge('a', 'b', 'c');

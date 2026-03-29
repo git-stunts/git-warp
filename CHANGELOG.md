@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [16.0.0] — 2026-03-29
+
+### Added
+
+- **Streaming content attachment I/O (OG-014)** — `getContentStream()` and `getEdgeContentStream()` return `AsyncIterable<Uint8Array>` for incremental consumption of large content blobs. `attachContent()` and `attachEdgeContent()` now accept `AsyncIterable<Uint8Array>`, `ReadableStream<Uint8Array>`, `Uint8Array`, or `string` — streaming inputs are piped directly to blob storage without intermediate buffering.
+- **`InMemoryBlobStorageAdapter`** — new domain-local adapter implementing `BlobStoragePort` with content-addressed `Map`-based storage for browser and test paths. Exported from the package surface.
+- **`BlobStoragePort.storeStream()` / `retrieveStream()`** — streaming variants of the blob storage port contract. `storeStream()` accepts `AsyncIterable<Uint8Array>`, `retrieveStream()` returns `AsyncIterable<Uint8Array>`.
+- **Content methods on `WarpApp` and `WarpCore`** — `getContent()`, `getContentStream()`, `getContentOid()`, `getContentMeta()` and their edge equivalents are now exposed on both public API surfaces (previously only on `WarpRuntime`).
+
+### Changed
+
+- **CAS blob storage is now mandatory for content attachments** — `attachContent()` and `attachEdgeContent()` always route through `BlobStoragePort`. The raw `persistence.writeBlob()` fallback has been removed. `WarpRuntime.open()` auto-constructs `CasBlobAdapter` for Git-backed persistence (when `plumbing` is available) or `InMemoryBlobStorageAdapter` otherwise.
+- **Content blob tree entries use tree mode** — patch commit trees and checkpoint trees now reference content blobs as `040000 tree` entries (matching CAS tree OIDs) instead of `100644 blob` entries.
+
+### Removed
+
+- **`TraversalService`** — deprecated alias removed. Use `CommitDagTraversalService` directly.
+- **`createWriter()`** — deprecated method removed from `WarpApp` and `WarpCore`. Use `writer()` or `writer(id)` instead.
+
 ## [15.0.0] — 2026-03-28
 
 ## [15.0.1] — 2026-03-28

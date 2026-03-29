@@ -9,8 +9,8 @@ import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
  *
  * The Writer and PatchSession are higher-level APIs that delegate to
  * PatchBuilderV2. The onCommitSuccess callback wired in WarpRuntime.writer()
- * and WarpRuntime.createWriter() must trigger eager state update so that
- * queries after a writer commit reflect the new state immediately.
+ * must trigger eager state update so that queries after a writer commit
+ * reflect the new state immediately.
  */
 
 const FAKE_BLOB_OID = 'a'.repeat(40);
@@ -163,19 +163,13 @@ describe('WarpRuntime Writer invalidation (AP/INVAL/3)', () => {
     expect(/** @type {any} */ (graph)._stateDirty).toBe(true);
   });
 
-  // ── createWriter() path ──────────────────────────────────────────
+  // ── writer(id) path ──────────────────────────────────────────
 
-  it('createWriter() path also triggers eager invalidation', async () => {
+  it('writer(id) path also triggers eager invalidation', async () => {
     await graph.materialize();
 
     mockWriterFirstCommit(persistence);
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    let writer;
-    try {
-      writer = await graph.createWriter();
-    } finally {
-      consoleWarnSpy.mockRestore();
-    }
+    const writer = await graph.writer('fresh-writer');
 
     await writer.commitPatch((/** @type {any} */ p) => p.addNode('test:node'));
 

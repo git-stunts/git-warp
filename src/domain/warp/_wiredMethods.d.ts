@@ -639,7 +639,6 @@ declare module '../WarpRuntime.js' {
     getWriterPatches(writerId: string, stopAtSha?: string | null): Promise<Array<{ patch: PatchV2; sha: string }>>;
     _onPatchCommitted(writerId: string, opts?: { patch?: PatchV2; sha?: string }): Promise<void>;
     writer(writerId?: string): Promise<Writer>;
-    createWriter(opts?: { persist?: 'config' | 'none'; alias?: string }): Promise<Writer>;
     _ensureFreshState(): Promise<void>;
     discoverWriters(): Promise<string[]>;
     discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, { ticks: number[]; tipSha: string | null; tickShas: Record<number, string> }> }>;

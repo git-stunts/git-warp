@@ -10,6 +10,7 @@ import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
+import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const PROPERTY_TEST_SEED = 4242;
@@ -49,6 +50,7 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
     versionVector: createVersionVector(),
     getCurrentState: () => null,
     expectedParentSha: null,
+    blobStorage: new InMemoryBlobStorageAdapter(),
   }));
 
   for (let i = 0; i < contentIds.length; i++) {

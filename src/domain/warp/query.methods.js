@@ -813,3 +813,79 @@ export async function getEdgeContent(from, to, label) {
   }
   return await this._persistence.readBlob(oid);
 }
+
+/**
+ * Gets the content blob for a node as a stream, or null if none is attached.
+ *
+ * Returns an async iterable of Uint8Array chunks for incremental
+ * consumption. Use `getContent()` when you want the full buffer.
+ *
+ * @this {import('../WarpRuntime.js').default}
+ * @param {string} nodeId - The node ID to get content for
+ * @returns {Promise<AsyncIterable<Uint8Array>|null>} Async iterable of content chunks, or null
+ */
+export async function getContentStream(nodeId) {
+  await this._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+  const registers = getNodeContentRegisters(s, nodeId);
+  if (!registers) {
+    return null;
+  }
+  const { value: oid } = registers.contentRegister;
+  if (this._blobStorage && typeof this._blobStorage.retrieveStream === 'function') {
+    return this._blobStorage.retrieveStream(oid);
+  }
+  // Fallback: wrap buffered read as single-chunk async iterable
+  const buf = await this._persistence.readBlob(oid);
+  return singleChunkAsyncIterable(buf);
+}
+
+/**
+ * Gets the content blob for an edge as a stream, or null if none is attached.
+ *
+ * Returns an async iterable of Uint8Array chunks for incremental
+ * consumption. Use `getEdgeContent()` when you want the full buffer.
+ *
+ * @this {import('../WarpRuntime.js').default}
+ * @param {string} from - Source node ID
+ * @param {string} to - Target node ID
+ * @param {string} label - Edge label
+ * @returns {Promise<AsyncIterable<Uint8Array>|null>} Async iterable of content chunks, or null
+ */
+export async function getEdgeContentStream(from, to, label) {
+  await this._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+  const registers = getEdgeContentRegisters(s, from, to, label);
+  if (!registers) {
+    return null;
+  }
+  const { value: oid } = registers.contentRegister;
+  if (this._blobStorage && typeof this._blobStorage.retrieveStream === 'function') {
+    return this._blobStorage.retrieveStream(oid);
+  }
+  const buf = await this._persistence.readBlob(oid);
+  return singleChunkAsyncIterable(buf);
+}
+
+/**
+ * Wraps a single buffer as an async iterable yielding one chunk.
+ *
+ * @param {Uint8Array} buf
+ * @returns {AsyncIterable<Uint8Array>}
+ */
+function singleChunkAsyncIterable(buf) {
+  return {
+    [Symbol.asyncIterator]() {
+      let done = false;
+      return {
+        next() {
+          if (done) {
+            return Promise.resolve({ value: undefined, done: true });
+          }
+          done = true;
+          return Promise.resolve({ value: buf, done: false });
+        },
+      };
+    },
+  };
+}

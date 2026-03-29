@@ -67,6 +67,7 @@ import {
 } from './src/domain/errors/index.js';
 import WriterError from './src/domain/errors/WriterError.js';
 import BlobStoragePort from './src/ports/BlobStoragePort.js';
+import InMemoryBlobStorageAdapter from './src/domain/utils/defaultBlobStorage.js';
 import CryptoPort from './src/ports/CryptoPort.js';
 import HttpServerPort from './src/ports/HttpServerPort.js';
 import NodeCryptoAdapter from './src/infrastructure/adapters/NodeCryptoAdapter.js';
@@ -145,8 +146,6 @@ import {
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.js';
 
-const TraversalService = CommitDagTraversalService;
-
 export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
@@ -157,7 +156,6 @@ export {
   HealthCheckService,
   HealthStatus,
   CommitDagTraversalService,
-  TraversalService,
   BisectService,
   GraphPersistencePort,
   IndexStoragePort,
@@ -177,6 +175,7 @@ export {
 
   // Port contracts
   BlobStoragePort,
+  InMemoryBlobStorageAdapter,
   CryptoPort,
   HttpServerPort,
 

@@ -30,7 +30,7 @@ const roadmap = readFileSync(
 describe('release policy shape', () => {
   it('keeps package and jsr versions aligned on the release branch', () => {
     expect(packageJson.version).toBe(jsrJson.version);
-    expect(packageJson.version).toBe('15.0.1');
+    expect(packageJson.version).toBe('16.0.0');
   });
 
   it('does not require a README release feed anymore', () => {
@@ -46,9 +46,9 @@ describe('release policy shape', () => {
   });
 
   it('keeps the roadmap header honest about the current release and correction patch', () => {
-    expect(roadmap).toContain('**Current release on `main`:** v15.0.0');
-    expect(roadmap).toContain('**Next intended release:** v15.0.1');
-    expect(roadmap).toContain('`OG-010` is complete');
+    expect(roadmap).toContain('**Current release on `main`:** v16.0.0');
+    expect(roadmap).toContain('**Next intended release:** v16.0.1');
+    expect(roadmap).toContain('v16.0.0 release');
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {

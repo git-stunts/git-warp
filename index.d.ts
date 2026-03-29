@@ -244,12 +244,16 @@ export interface TraverseFacadeOptions {
   labelFilter?: string | string[];
 }
 
+/** Edge weight function for weighted traversal algorithms. */
 export type EdgeWeightFn = (from: string, to: string, label: string) => number | Promise<number>;
+/** Node weight function for weighted traversal algorithms. */
 export type NodeWeightFn = (nodeId: string) => number | Promise<number>;
+/** Selector for weighted cost traversal mode — supply either an edge or node weight function, not both. */
 export type WeightedCostSelector =
   | { weightFn?: EdgeWeightFn; nodeWeightFn?: never }
   | { nodeWeightFn?: NodeWeightFn; weightFn?: never };
 
+/** @deprecated Traversal facade that delegates to GraphTraversal. Use GraphTraversal directly. */
 export interface LogicalTraversal {
   bfs(start: string, options?: TraverseFacadeOptions): Promise<string[]>;
   dfs(start: string, options?: TraverseFacadeOptions): Promise<string[]>;
@@ -434,6 +438,7 @@ export interface NodeInfo {
   parents: string[];
 }
 
+/** Abstract port for Git persistence operations (commits, refs, blobs, trees). */
 export abstract class GraphPersistencePort {
   /** The empty tree SHA */
   abstract get emptyTree(): string;
@@ -482,6 +487,7 @@ export const LogLevel: {
   readonly SILENT: 4;
 };
 
+/** Numeric log level value (0=debug, 1=info, 2=warn, 3=error, 4=silent). */
 export type LogLevelValue = 0 | 1 | 2 | 3 | 4;
 
 /**
@@ -554,9 +560,24 @@ export abstract class SeekCachePort {
  */
 export abstract class BlobStoragePort {
   /** Stores content and returns a storage identifier (e.g. CAS tree OID). */
-  abstract store(content: Uint8Array | string, options?: { slug?: string }): Promise<string>;
+  abstract store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
   /** Retrieves content by its storage identifier. */
   abstract retrieve(oid: string): Promise<Uint8Array>;
+  /** Stores content from a streaming source and returns a storage identifier. */
+  abstract storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  /** Retrieves content as an async iterable of chunks. */
+  abstract retrieveStream(oid: string): AsyncIterable<Uint8Array>;
+}
+
+/**
+ * In-memory blob storage adapter for browser and test paths.
+ * Content-addressed Map-based storage implementing BlobStoragePort.
+ */
+export class InMemoryBlobStorageAdapter extends BlobStoragePort {
+  store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  retrieve(oid: string): Promise<Uint8Array>;
+  storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  retrieveStream(oid: string): AsyncIterable<Uint8Array>;
 }
 
 /**
@@ -1082,10 +1103,6 @@ export class CommitDagTraversalService {
   }): Promise<{ path: string[]; totalCost: number; nodesExplored: number }>;
 }
 
-/**
- * @deprecated Use CommitDagTraversalService instead.
- */
-export { CommitDagTraversalService as TraversalService };
 
 /**
  * Binary search over WARP graph history.
@@ -1357,29 +1374,35 @@ export interface Lens {
  */
 export type ObserverConfig = Lens;
 
+/** Observer source pinned to the live materialized frontier. */
 export interface LiveObserverSource {
   kind: 'live';
   ceiling?: number | null;
 }
 
+/** Observer source pinned to an explicit coordinate (writer-tip frontier + ceiling). */
 export interface CoordinateObserverSource {
   kind: 'coordinate';
   frontier: Map<string, string> | Record<string, string>;
   ceiling?: number | null;
 }
 
+/** Observer source pinned to a single strand's visible patch universe. */
 export interface StrandObserverSource {
   kind: 'strand';
   strandId: string;
   ceiling?: number | null;
 }
 
+/** Union of observer source types for worldline creation. */
 export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | StrandObserverSource;
 
+/** Options for creating a worldline handle. */
 export interface WorldlineOptions {
   source?: WorldlineSource;
 }
 
+/** Options for creating an observer. */
 export interface ObserverOptions {
   source?: WorldlineSource;
 }
@@ -1592,11 +1615,13 @@ export interface TemporalQuery {
   ): Promise<boolean>;
 }
 
+/** Options for content attachment metadata (mime type, size hint). */
 export interface ContentAttachmentOptions {
   mime?: string | null;
   size?: number | null;
 }
 
+/** Structured content metadata returned by getContentMeta/getEdgeContentMeta. */
 export interface ContentMeta {
   oid: string;
   mime: string | null;
@@ -1648,11 +1673,11 @@ export class PatchBuilderV2 {
   /** Sets a property on an edge. */
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
   /** Attaches content to a node (writes blob + sets _content property). */
-  attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
   /** Clears content from a node (sets _content metadata registers to null). */
   clearContent(nodeId: string): PatchBuilderV2;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
-  attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
   /** Builds the PatchV2 object without committing. */
@@ -1686,11 +1711,11 @@ export class PatchSession {
   /** Sets a property on an edge. */
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
   /** Attaches content to a node (writes blob + sets _content property). */
-  attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
   /** Clears content from a node (sets _content metadata registers to null). */
   clearContent(nodeId: string): this;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
-  attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): this;
   /** Builds the PatchV2 object without committing. */
@@ -2043,6 +2068,18 @@ declare class WarpCoreBase {
    * Returns raw bytes; use `new TextDecoder().decode(result)` for text.
    */
   getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+
+  /**
+   * Gets the content blob for a node as a stream, or null if none is attached.
+   * Returns an async iterable of Uint8Array chunks for incremental consumption.
+   */
+  getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+
+  /**
+   * Gets the content blob for an edge as a stream, or null if none is attached.
+   * Returns an async iterable of Uint8Array chunks for incremental consumption.
+   */
+  getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
 
   /**
    * Checks if a node exists in the materialized state.
@@ -2414,13 +2451,6 @@ declare class WarpCoreBase {
 
   /**
    * Creates a new Writer with a fresh canonical ID.
-   * @deprecated Use writer() or writer(id) instead.
-   */
-  createWriter(opts?: {
-    persist?: 'config' | 'none';
-    alias?: string;
-  }): Promise<Writer>;
-
   /** Checks GC thresholds and runs GC if needed. */
   maybeRunGC(): MaybeGCResult;
 
@@ -2475,12 +2505,6 @@ export declare class WarpApp {
   /** Gets or creates a Writer, optionally resolving from git config. */
   writer(writerId?: Parameters<WarpCore['writer']>[0]): ReturnType<WarpCore['writer']>;
 
-  /**
-   * Creates a new Writer with a fresh canonical ID.
-   * @deprecated Use writer() or writer(id) instead.
-   */
-  createWriter(opts?: Parameters<WarpCore['createWriter']>[0]): ReturnType<WarpCore['createWriter']>;
-
   /** Creates a new PatchBuilderV2 for adding operations. */
   createPatch(): ReturnType<WarpCore['createPatch']>;
 
@@ -2523,6 +2547,25 @@ export declare class WarpApp {
     pattern: Parameters<WarpCore['watch']>[0],
     options: Parameters<WarpCore['watch']>[1],
   ): ReturnType<WarpCore['watch']>;
+
+  // ── Content attachment reads ──────────────────────────────────────
+
+  /** Gets the content blob for a node, or null if none is attached. */
+  getContent(nodeId: string): Promise<Uint8Array | null>;
+  /** Gets the content blob for a node as a stream, or null if none is attached. */
+  getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+  /** Gets the content blob OID for a node, or null if none is attached. */
+  getContentOid(nodeId: string): Promise<string | null>;
+  /** Gets structured content metadata for a node attachment, or null if none is attached. */
+  getContentMeta(nodeId: string): Promise<ContentMeta | null>;
+  /** Gets the content blob for an edge, or null if none is attached. */
+  getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+  /** Gets the content blob for an edge as a stream, or null if none is attached. */
+  getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
+  /** Gets the content blob OID for an edge, or null if none is attached. */
+  getEdgeContentOid(from: string, to: string, label: string): Promise<string | null>;
+  /** Gets structured content metadata for an edge attachment, or null if none is attached. */
+  getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null>;
 
   /** Creates a durable strand descriptor. */
   createStrand(options?: Parameters<WarpCore['createStrand']>[0]): ReturnType<WarpCore['createStrand']>;
@@ -2755,10 +2798,14 @@ export const TICK_RECEIPT_RESULT_TYPES: readonly TickReceiptResult[];
 // Conflict Analyzer
 // ============================================================================
 
+/** Kind of conflict detected between concurrent patches. */
 export type ConflictKind = 'supersession' | 'eventual_override' | 'redundancy';
+/** Level of evidence detail in conflict analysis results. */
 export type ConflictEvidenceLevel = 'summary' | 'standard' | 'full';
+/** Causal relationship between conflicting patches. */
 export type ConflictCausalRelation = 'concurrent' | 'ordered' | 'replay_equivalent' | 'reducer_collapsed';
 
+/** Selector identifying the entity targeted by conflict analysis. */
 export interface ConflictTargetSelector {
   targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
   entityId?: string;
@@ -2768,6 +2815,7 @@ export interface ConflictTargetSelector {
   label?: string;
 }
 
+/** Anchor point (commit SHA + Lamport ceiling) for conflict analysis. */
 export interface ConflictAnchor {
   patchSha: string;
   writerId: string;
@@ -2778,6 +2826,7 @@ export interface ConflictAnchor {
   receiptOpIndex?: number;
 }
 
+/** Resolved target entity with node/edge identity for conflict analysis. */
 export interface ConflictTarget {
   targetKind: 'node' | 'edge' | 'node_property' | 'edge_property';
   targetDigest: string;
@@ -2789,6 +2838,7 @@ export interface ConflictTarget {
   edgeKey?: string;
 }
 
+/** A writer that participated in a conflict with its contributing patch. */
 export interface ConflictParticipant {
   anchor: ConflictAnchor;
   effectDigest: string;
@@ -2798,6 +2848,7 @@ export interface ConflictParticipant {
   notes?: string[];
 }
 
+/** How a conflict was resolved by the CRDT reducer. */
 export interface ConflictResolution {
   reducerId: string;
   basis: { code: string; reason?: string };
@@ -2809,6 +2860,7 @@ export interface ConflictResolution {
   };
 }
 
+/** Single conflict trace: two participants, their causal relation, and resolution. */
 export interface ConflictTrace {
   conflictId: string;
   kind: ConflictKind;
@@ -2828,6 +2880,7 @@ export interface ConflictTrace {
   };
 }
 
+/** Diagnostic summary for a single entity's conflict history. */
 export interface ConflictDiagnostic {
   code: string;
   severity: 'warning' | 'error';
@@ -2835,6 +2888,7 @@ export interface ConflictDiagnostic {
   data?: Record<string, unknown>;
 }
 
+/** Full conflict analysis result for a materialized coordinate. */
 export interface ConflictAnalysis {
   analysisVersion: string;
   resolvedCoordinate: {
@@ -2862,6 +2916,7 @@ export interface ConflictAnalysis {
   conflicts: ConflictTrace[];
 }
 
+/** Options for creating a new strand descriptor. */
 export interface StrandCreateOptions {
   strandId?: string;
   lamportCeiling?: number | null;
@@ -2870,11 +2925,13 @@ export interface StrandCreateOptions {
   leaseExpiresAt?: string | null;
 }
 
+/** Options for braiding read-only overlays onto a strand. */
 export interface StrandBraidOptions {
   braidedStrandIds?: string[];
   writable?: boolean | null;
 }
 
+/** Descriptor for a braided read-only overlay on a strand. */
 export interface StrandReadOverlayDescriptor {
   strandId: string;
   overlayId: string;
@@ -2883,6 +2940,7 @@ export interface StrandReadOverlayDescriptor {
   patchCount: number;
 }
 
+/** Descriptor for a queued intent on a strand. */
 export interface StrandIntentDescriptor {
   intentId: string;
   enqueuedAt: string;
@@ -2892,6 +2950,7 @@ export interface StrandIntentDescriptor {
   contentBlobOids: string[];
 }
 
+/** Counterfactual produced by ticking a strand (rejected patches). */
 export interface StrandTickCounterfactual {
   intentId: string;
   reason: string;
@@ -2900,6 +2959,7 @@ export interface StrandTickCounterfactual {
   writes: string[];
 }
 
+/** Record of a strand tick: accepted patches and counterfactuals. */
 export interface StrandTickRecord {
   tickId: string;
   strandId: string;
@@ -2913,6 +2973,7 @@ export interface StrandTickRecord {
   overlayPatchShas: string[];
 }
 
+/** Durable descriptor for a speculative strand with base observation and overlay. */
 export interface StrandDescriptor {
   schemaVersion: number;
   strandId: string;
@@ -3077,18 +3138,21 @@ export interface WarpStateV5 {
   edgeBirthEvent: Map<string, unknown>;
 }
 
+/** Compact projection of materialized state: node IDs, edge tuples, and properties. */
 export interface VisibleStateProjectionV5 {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
   props: Array<{ node: string; key: string; value: unknown }>;
 }
 
+/** Neighbor entry from visible state: target node, edge label, and direction. */
 export interface VisibleStateNeighborV5 {
   nodeId: string;
   label: string;
   direction: 'outgoing' | 'incoming';
 }
 
+/** Edge-local view from visible state: endpoints, label, and properties. */
 export interface VisibleEdgeViewV5 {
   from: string;
   to: string;
@@ -3096,6 +3160,7 @@ export interface VisibleEdgeViewV5 {
   props: Record<string, unknown>;
 }
 
+/** Node-local view from visible state: properties, neighbors, and content metadata. */
 export interface VisibleNodeViewV5 {
   nodeId: string;
   props: Record<string, unknown>;
@@ -3104,6 +3169,7 @@ export interface VisibleNodeViewV5 {
   content: ContentMeta | null;
 }
 
+/** Read-only accessor over materialized V5 state with entity-local inspection. */
 export interface VisibleStateReaderV5 {
   project(): VisibleStateProjectionV5;
   hasNode(nodeId: string): boolean;
@@ -3121,6 +3187,7 @@ export interface VisibleStateReaderV5 {
   inspectNode(nodeId: string): VisibleNodeViewV5 | null;
 }
 
+/** Compact summary of visible state: entity and property counts. */
 export interface VisibleStateSummaryV5 {
   nodeCount: number;
   edgeCount: number;
@@ -3128,12 +3195,14 @@ export interface VisibleStateSummaryV5 {
   edgePropertyCount: number;
 }
 
+/** Single node property value in a visible state comparison. */
 export interface VisibleStateNodePropertyValueV5 {
   node: string;
   key: string;
   value: unknown;
 }
 
+/** Node property change between two visible states. */
 export interface VisibleStateNodePropertyChangeV5 {
   node: string;
   key: string;
@@ -3141,6 +3210,7 @@ export interface VisibleStateNodePropertyChangeV5 {
   rightValue: unknown;
 }
 
+/** Single edge property value in a visible state comparison. */
 export interface VisibleStateEdgePropertyValueV5 {
   from: string;
   to: string;
@@ -3149,6 +3219,7 @@ export interface VisibleStateEdgePropertyValueV5 {
   value: unknown;
 }
 
+/** Edge property change between two visible states. */
 export interface VisibleStateEdgePropertyChangeV5 {
   from: string;
   to: string;
@@ -3158,6 +3229,7 @@ export interface VisibleStateEdgePropertyChangeV5 {
   rightValue: unknown;
 }
 
+/** Per-node detail in a visible state comparison: property and neighbor deltas. */
 export interface VisibleStateComparisonTargetV5 {
   targetId: string | null;
   leftExists: boolean;
@@ -3181,6 +3253,7 @@ export interface VisibleStateComparisonTargetV5 {
   contentChanged: boolean;
 }
 
+/** Full visible state comparison between two materialized states. */
 export interface VisibleStateComparisonV5 {
   comparisonVersion: string;
   changed: boolean;
@@ -3213,23 +3286,28 @@ export interface VisibleStateComparisonV5 {
   target?: VisibleStateComparisonTargetV5;
 }
 
+/** Prefix-based filter for scoping visible state to node ID families. */
 export interface VisibleStateScopePrefixFilterV1 {
   include?: string[];
   exclude?: string[];
 }
 
+/** Scope configuration for filtering visible state comparison or transfer. */
 export interface VisibleStateScopeV1 {
   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1;
 }
 
+/** Selector identifying source or target coordinate for comparison. */
 export type CoordinateComparisonSelectorV1 =
   | { kind: 'live'; ceiling?: number | null }
   | { kind: 'strand'; strandId: string; ceiling?: number | null }
   | { kind: 'strand_base'; strandId: string; ceiling?: number | null }
   | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null };
 
+/** Selector for coordinate transfer planning (same shape as comparison selector). */
 export type CoordinateTransferPlanSelectorV1 = CoordinateComparisonSelectorV1;
 
+/** Resolved side of a coordinate comparison with frontier, patches, and state. */
 export interface CoordinateComparisonResolvedSideV1 {
   coordinateKind: 'frontier' | 'strand' | 'strand_base';
   patchFrontier: Record<string, string>;
@@ -3253,6 +3331,7 @@ export interface CoordinateComparisonResolvedSideV1 {
   };
 }
 
+/** Patch-level divergence between two coordinates: shared vs side-only counts. */
 export interface CoordinateComparisonPatchDivergenceV1 {
   sharedCount: number;
   leftOnlyCount: number;
@@ -3271,11 +3350,13 @@ export interface CoordinateComparisonPatchDivergenceV1 {
   };
 }
 
+/** Unresolved-to-resolved side pair for a coordinate comparison. */
 export interface CoordinateComparisonSideV1 {
   requested: Record<string, unknown>;
   resolved: CoordinateComparisonResolvedSideV1;
 }
 
+/** Full coordinate comparison result with side digests and visible state diff. */
 export interface CoordinateComparisonV1 {
   comparisonVersion: string;
   comparisonDigest: string;
@@ -3286,6 +3367,7 @@ export interface CoordinateComparisonV1 {
   visibleState: VisibleStateComparisonV5;
 }
 
+/** Canonical fact payload for a coordinate comparison. */
 export interface CoordinateComparisonFactV1 {
   comparisonVersion: string;
   scope?: VisibleStateScopeV1;
@@ -3295,6 +3377,7 @@ export interface CoordinateComparisonFactV1 {
   visibleState: VisibleStateComparisonV5;
 }
 
+/** Exported coordinate comparison fact with canonical JSON and digest. */
 export interface CoordinateComparisonFactExportV1 {
   exportVersion: string;
   factKind: 'coordinate-comparison';
@@ -3303,6 +3386,7 @@ export interface CoordinateComparisonFactExportV1 {
   fact: CoordinateComparisonFactV1;
 }
 
+/** Summary of candidate transfer operations between two visible states. */
 export interface VisibleStateTransferPlanSummaryV1 {
   opCount: number;
   addNodeCount: number;
@@ -3319,6 +3403,7 @@ export interface VisibleStateTransferPlanSummaryV1 {
   clearEdgeContentCount: number;
 }
 
+/** Single candidate transfer operation (add/remove/set/attach/clear). */
 export type VisibleStateTransferOperationV1 =
   | { op: 'add_node'; nodeId: string }
   | { op: 'remove_node'; nodeId: string }
@@ -3331,6 +3416,7 @@ export type VisibleStateTransferOperationV1 =
   | { op: 'attach_edge_content'; from: string; to: string; label: string; content: Uint8Array; contentOid: string; mime?: string | null; size?: number | null }
   | { op: 'clear_edge_content'; from: string; to: string; label: string };
 
+/** Canonical fact form of a transfer operation (without inline content bytes). */
 export type VisibleStateTransferOperationFactV1 =
   | { op: 'add_node'; nodeId: string }
   | { op: 'remove_node'; nodeId: string }
@@ -3343,8 +3429,10 @@ export type VisibleStateTransferOperationFactV1 =
   | { op: 'attach_edge_content'; from: string; to: string; label: string; contentOid: string; mime?: string | null; size?: number | null }
   | { op: 'clear_edge_content'; from: string; to: string; label: string };
 
+/** Side label for a transfer plan (same shape as comparison side). */
 export type CoordinateTransferPlanSideV1 = CoordinateComparisonSideV1;
 
+/** Full coordinate transfer plan with candidate operations and digests. */
 export interface CoordinateTransferPlanV1 {
   transferVersion: string;
   transferDigest: string;
@@ -3357,6 +3445,7 @@ export interface CoordinateTransferPlanV1 {
   ops: VisibleStateTransferOperationV1[];
 }
 
+/** Canonical fact payload for a coordinate transfer plan. */
 export interface CoordinateTransferPlanFactV1 {
   transferVersion: string;
   comparisonDigest: string;
@@ -3368,6 +3457,7 @@ export interface CoordinateTransferPlanFactV1 {
   ops: VisibleStateTransferOperationFactV1[];
 }
 
+/** Exported coordinate transfer plan fact with canonical JSON and digest. */
 export interface CoordinateTransferPlanFactExportV1 {
   exportVersion: string;
   factKind: 'coordinate-transfer-plan';
@@ -3683,4 +3773,5 @@ export function deserializeWormhole(json: {
   payload: PatchEntry[];
 }): WormholeEdge;
 
+/** Default package export — the curated product-facing WARP surface. */
 export default WarpApp;

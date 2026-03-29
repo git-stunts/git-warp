@@ -30,4 +30,27 @@ export default class BlobStoragePort {
   async retrieve(_oid) {
     throw new Error('BlobStoragePort.retrieve() not implemented');
   }
+
+  /**
+   * Stores content from a streaming source and returns a storage identifier.
+   *
+   * @param {AsyncIterable<Uint8Array>} _source - Async iterable of content chunks
+   * @param {{ slug?: string, mime?: string|null, size?: number|null }} [_options] - Optional storage metadata
+   * @returns {Promise<string>} Storage identifier for retrieval
+   * @abstract
+   */
+  async storeStream(_source, _options) {
+    throw new Error('BlobStoragePort.storeStream() not implemented');
+  }
+
+  /**
+   * Retrieves content as an async iterable of chunks.
+   *
+   * @param {string} _oid - Storage identifier returned by store() or storeStream()
+   * @returns {AsyncIterable<Uint8Array>} Async iterable of content chunks
+   * @abstract
+   */
+  retrieveStream(_oid) {
+    throw new Error('BlobStoragePort.retrieveStream() not implemented');
+  }
 }

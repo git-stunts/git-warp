@@ -1,4 +1,14 @@
 import WarpRuntime from './WarpRuntime.js';
+import {
+  getContent as _getContent,
+  getContentStream as _getContentStream,
+  getContentOid as _getContentOid,
+  getContentMeta as _getContentMeta,
+  getEdgeContent as _getEdgeContent,
+  getEdgeContentStream as _getEdgeContentStream,
+  getEdgeContentOid as _getEdgeContentOid,
+  getEdgeContentMeta as _getEdgeContentMeta,
+} from './warp/query.methods.js';
 import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.js';
 import {
   buildCoordinateComparisonFact,
@@ -84,6 +94,57 @@ export default class WarpCore {
     Object.setPrototypeOf(runtime, WarpCore.prototype);
     return /** @type {WarpCore} */ (/** @type {unknown} */ (runtime));
   }
+
+  // ── Content attachment reads ──────────────────────────────────────────
+  // Imported from query.methods.js and called with WarpRuntime-typed this.
+  // WarpCore is a WarpRuntime at runtime (via Object.setPrototypeOf in _adopt).
+
+  /** @private @returns {WarpRuntime} */
+  _asRuntime() {
+    return /** @type {WarpRuntime} */ (/** @type {unknown} */ (this));
+  }
+
+  /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
+  async getContent(nodeId) {
+    return await _getContent.call(this._asRuntime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  async getContentStream(nodeId) {
+    return await _getContentStream.call(this._asRuntime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<string|null>} */
+  async getContentOid(nodeId) {
+    return await _getContentOid.call(this._asRuntime(), nodeId);
+  }
+
+  /** @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  async getContentMeta(nodeId) {
+    return await _getContentMeta.call(this._asRuntime(), nodeId);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
+  async getEdgeContent(from, to, label) {
+    return await _getEdgeContent.call(this._asRuntime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  async getEdgeContentStream(from, to, label) {
+    return await _getEdgeContentStream.call(this._asRuntime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
+  async getEdgeContentOid(from, to, label) {
+    return await _getEdgeContentOid.call(this._asRuntime(), from, to, label);
+  }
+
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  async getEdgeContentMeta(from, to, label) {
+    return await _getEdgeContentMeta.call(this._asRuntime(), from, to, label);
+  }
+
+  // ── Strands ─────────────────────────────────────────────────────────
 
   /**
    * Creates a durable strand descriptor pinned to the current frontier.
