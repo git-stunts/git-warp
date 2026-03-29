@@ -1,6 +1,6 @@
 # OG-010 — IBM Design Thinking Pass Over Public APIs And README
 
-Status: ACTIVE
+Status: DONE
 
 ## Problem
 
