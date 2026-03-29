@@ -159,7 +159,7 @@ discoverable:
 
 - `BACKLOG/`
 - `docs/design/`
-- `docs/retrospectives/`
+- `docs/archive/retrospectives/`
 
 They are not first-use product docs, but they are important project artifacts.
 

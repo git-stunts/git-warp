@@ -7,7 +7,7 @@ Promoted to: `docs/design/read-api-doc-consistency.md`
 Closed by:
 
 - `test/unit/scripts/read-api-doc-consistency.test.js`
-- `docs/retrospectives/2026-03-27-read-api-doc-consistency.md`
+- `docs/archive/retrospectives/2026-03-27-read-api-doc-consistency.md`
 
 ## Problem
 

@@ -49,5 +49,5 @@ One deliberate scope boundary remains:
 ## Verification
 
 - `npx vitest run test/unit/scripts/markdownlint-config.test.js`
-- `npx markdownlint README.md docs/design/markdown-wrapping-policy.md docs/retrospectives/2026-03-27-markdown-wrapping-policy.md`
+- `npx markdownlint README.md docs/design/markdown-wrapping-policy.md docs/archive/retrospectives/2026-03-27-markdown-wrapping-policy.md`
 - `node scripts/lint-markdown-code-samples.js README.md`

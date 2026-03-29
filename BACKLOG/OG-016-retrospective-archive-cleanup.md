@@ -1,13 +1,13 @@
 # OG-016 — Archive retrospective clutter
 
-Status: QUEUED
+Status: DONE
 
 Legend: Observer Geometry
 
 ## Problem
 
 The `docs/` tree contains dozens of retrospective files
-(`docs/retrospectives/2026-03-28-...`, design doc retros, etc.) that are
+(`docs/archive/retrospectives/2026-03-28-...`, design doc retros, etc.) that are
 valuable for the team but clutter the documentation surface visible to
 external contributors and evaluators.
 

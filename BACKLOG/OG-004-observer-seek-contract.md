@@ -31,4 +31,4 @@ Phase A landed on 2026-03-27:
 See also:
 
 - `docs/design/worldline-observer-api-phasing.md`
-- `docs/retrospectives/2026-03-27-observer-seek-phase-a.md`
+- `docs/archive/retrospectives/2026-03-27-observer-seek-phase-a.md`

@@ -35,4 +35,4 @@ belongs to later slices rather than this initial noun-introduction item.
 See also:
 
 - `docs/design/worldline-observer-api-phasing.md`
-- `docs/retrospectives/2026-03-27-worldline-minimal-phase-b.md`
+- `docs/archive/retrospectives/2026-03-27-worldline-minimal-phase-b.md`

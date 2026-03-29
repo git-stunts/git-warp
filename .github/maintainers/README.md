@@ -22,5 +22,5 @@ evaluating or using the product API.
   Active and promoted work tracked as repo-operating artifacts.
 - [Design notes](../../docs/design/)
   Governing design docs for promoted backlog items and active cycles.
-- [Retrospectives](../../docs/retrospectives/)
+- [Retrospectives](../../docs/archive/retrospectives/)
   Slice close-out records and design-alignment audits.

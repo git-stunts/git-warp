@@ -7,7 +7,7 @@ Promoted to: `docs/design/snapshot-hash-stability-coverage.md`
 Closed by:
 
 - `test/unit/domain/WarpRuntime.snapshotHashStability.test.js`
-- `docs/retrospectives/2026-03-27-snapshot-hash-stability-coverage.md`
+- `docs/archive/retrospectives/2026-03-27-snapshot-hash-stability-coverage.md`
 
 ## Problem
 

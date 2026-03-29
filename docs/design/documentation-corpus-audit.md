@@ -92,7 +92,7 @@ These should move under `docs/archive/` instead of disappearing.
 The following directories stay in-repo and stay discoverable:
 
 - `docs/design/`
-- `docs/retrospectives/`
+- `docs/archive/retrospectives/`
 
 But they should not be mistaken for first-use product docs.
 
@@ -164,7 +164,7 @@ The target live structure should move toward explicit homes for:
 ### Process and historical design docs
 
 - `docs/design/`
-- `docs/retrospectives/`
+- `docs/archive/retrospectives/`
 - `docs/ROADMAP/COMPLETED.md`
 - `docs/audits/`
 - `docs/checklists/`

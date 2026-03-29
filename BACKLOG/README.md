@@ -32,6 +32,6 @@ Workflow:
 | QUEUED | OG-013 | Design out-of-core materialization and streaming reads | [OG-013-out-of-core-materialization-and-streaming-reads.md](OG-013-out-of-core-materialization-and-streaming-reads.md) |
 | DONE | OG-014 | Mandatory CAS blob storage with streaming I/O | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
 | DONE | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |
-| QUEUED | OG-016 | Archive retrospective clutter | [OG-016-retrospective-archive-cleanup.md](OG-016-retrospective-archive-cleanup.md) |
+| DONE | OG-016 | Archive retrospective clutter | [OG-016-retrospective-archive-cleanup.md](OG-016-retrospective-archive-cleanup.md) |
 | QUEUED | OG-017 | Break up the `index.d.ts` monolith | [OG-017-modular-type-declarations.md](OG-017-modular-type-declarations.md) |
 | QUEUED | OG-018 | Browser guide and storage adapter documentation | [OG-018-browser-guide.md](OG-018-browser-guide.md) |

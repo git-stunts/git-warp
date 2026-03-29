@@ -8,7 +8,7 @@ Closed by:
 
 - `test/unit/benchmark/detachedReadBenchmark.fixture.test.js`
 - `test/benchmark/DetachedReadBoundary.benchmark.js`
-- `docs/retrospectives/2026-03-27-detached-read-benchmarks.md`
+- `docs/archive/retrospectives/2026-03-27-detached-read-benchmarks.md`
 
 ## Problem
 
