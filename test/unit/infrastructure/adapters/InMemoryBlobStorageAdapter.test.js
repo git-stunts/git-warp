@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-// The adapter does not exist yet — this import will fail (red phase).
-import InMemoryBlobStorageAdapter from '../../../../src/infrastructure/adapters/InMemoryBlobStorageAdapter.js';
+import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.js';
 import BlobStoragePort from '../../../../src/ports/BlobStoragePort.js';
 
 // ---------------------------------------------------------------------------

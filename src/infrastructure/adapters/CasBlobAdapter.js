@@ -18,7 +18,7 @@ import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { Readable } from 'node:stream';
 
-/** @typedef {{ readManifest: Function, restore: Function, store: Function, createTree: Function }} CasStore */
+/** @typedef {{ readManifest: Function, restore: Function, restoreStream?: Function, store: Function, createTree: Function }} CasStore */
 
 /**
  * Error codes from `@git-stunts/git-cas` that indicate the OID is not
@@ -162,4 +162,126 @@ export default class CasBlobAdapter extends BlobStoragePort {
       return blob;
     }
   }
+
+  /**
+   * Stores content from a streaming source via git-cas.
+   *
+   * The source async iterable is piped directly to CAS without
+   * intermediate buffering.
+   *
+   * @override
+   * @param {AsyncIterable<Uint8Array>} source
+   * @param {{ slug?: string, mime?: string|null, size?: number|null }} [options]
+   * @returns {Promise<string>}
+   */
+  async storeStream(source, options) {
+    const cas = await this._getCas();
+    const readable = Readable.from(source);
+
+    /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Uint8Array }} */
+    const storeOpts = {
+      source: readable,
+      slug: options?.slug || `blob-${Date.now().toString(36)}`,
+      filename: 'content',
+    };
+    if (this._encryptionKey) {
+      storeOpts.encryptionKey = this._encryptionKey;
+    }
+
+    const manifest = await cas.store(storeOpts);
+    return await cas.createTree({ manifest });
+  }
+
+  /**
+   * Retrieves content as an async iterable of chunks. Uses
+   * `cas.restoreStream()` when available, falling back to
+   * buffered `cas.restore()` wrapped as a single-chunk yield.
+   *
+   * Falls back to a single-chunk yield from `persistence.readBlob()`
+   * for legacy raw Git blobs written before CAS migration.
+   *
+   * @override
+   * @param {string} oid
+   * @returns {AsyncIterable<Uint8Array>}
+   */
+  retrieveStream(oid) {
+    const self = this;
+    return /** @type {AsyncIterable<Uint8Array>} */ ({
+      [Symbol.asyncIterator]() {
+        /** @type {AsyncIterator<Uint8Array>|null} */
+        let inner = null;
+        let initialized = false;
+        return {
+          async next() {
+            if (!initialized) {
+              initialized = true;
+              inner = await self._resolveStreamIterator(oid);
+            }
+            return await /** @type {AsyncIterator<Uint8Array>} */ (inner).next();
+          },
+        };
+      },
+    });
+  }
+
+  /**
+   * Resolves the inner async iterator for retrieveStream().
+   *
+   * @private
+   * @param {string} oid
+   * @returns {Promise<AsyncIterator<Uint8Array>>}
+   */
+  async _resolveStreamIterator(oid) {
+    const cas = await this._getCas();
+
+    try {
+      const manifest = await cas.readManifest({ treeOid: oid });
+      /** @type {{ manifest: *, encryptionKey?: Uint8Array }} */
+      const restoreOpts = { manifest };
+      if (this._encryptionKey) {
+        restoreOpts.encryptionKey = this._encryptionKey;
+      }
+
+      if (typeof cas.restoreStream === 'function') {
+        const stream = cas.restoreStream(restoreOpts);
+        return stream[Symbol.asyncIterator]();
+      }
+
+      // Fallback: buffered restore as single chunk
+      const { buffer } = await cas.restore(restoreOpts);
+      return singleChunkIterator(buffer);
+    } catch (err) {
+      if (!isLegacyBlobError(err)) {
+        throw err;
+      }
+      const blob = await this._persistence.readBlob(oid);
+      if (blob === null || blob === undefined) {
+        throw new PersistenceError(
+          `Missing Git object: ${oid}`,
+          PersistenceError.E_MISSING_OBJECT,
+          { context: { oid } },
+        );
+      }
+      return singleChunkIterator(blob);
+    }
+  }
+}
+
+/**
+ * Creates a single-element async iterator from a buffer.
+ *
+ * @param {Uint8Array} buf
+ * @returns {AsyncIterator<Uint8Array>}
+ */
+function singleChunkIterator(buf) {
+  let done = false;
+  return {
+    next() {
+      if (done) {
+        return Promise.resolve({ value: undefined, done: true });
+      }
+      done = true;
+      return Promise.resolve({ value: buf, done: false });
+    },
+  };
 }

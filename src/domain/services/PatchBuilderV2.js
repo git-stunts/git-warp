@@ -36,6 +36,7 @@ import { lowerCanonicalOp } from './OpNormalizer.js';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 import WriterError from '../errors/WriterError.js';
+import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -596,24 +597,44 @@ export class PatchBuilderV2 {
    * this patch) for `getContent()` to find it later. `attachContent()`
    * only sets the `_content` property — it does not create the node.
    *
+   * Accepts streaming input (AsyncIterable, ReadableStream) as well as
+   * buffered input (Uint8Array, string). Streaming inputs are piped
+   * directly to blob storage without intermediate buffering.
+   *
    * @param {string} nodeId - The node ID to attach content to
-   * @param {Uint8Array|string} content - The content to attach
+   * @param {AsyncIterable<Uint8Array>|ReadableStream<Uint8Array>|Uint8Array|string} content - The content to attach
    * @param {{ mime?: string|null, size?: number|null }} [metadata] - Optional metadata hint
    * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
    */
   async attachContent(nodeId, content, metadata = undefined) {
     this._assertNotCommitted();
-    // Validate identifiers before writing blob to avoid orphaned blobs
     _assertNoReservedBytes(nodeId, 'nodeId');
     _assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertNodeExistsForContent(nodeId);
-    const normalizedMeta = normalizeContentMetadata(content, metadata);
-    const oid = this._blobStorage
-      ? await this._blobStorage.store(content, { slug: `${this._graphName}/${nodeId}`, mime: normalizedMeta.mime, size: normalizedMeta.size })
-      : await this._persistence.writeBlob(content);
+    if (!this._blobStorage) {
+      throw new WriterError(
+        'E_NO_BLOB_STORAGE',
+        'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter',
+      );
+    }
+    const slug = `${this._graphName}/${nodeId}`;
+    let oid;
+    let mime;
+    let size;
+    if (isStreamingInput(content)) {
+      mime = metadata?.mime ?? null;
+      size = metadata?.size ?? null;
+      const source = normalizeToAsyncIterable(content);
+      oid = await this._blobStorage.storeStream(source, { slug, mime, size });
+    } else {
+      const normalizedMeta = normalizeContentMetadata(content, metadata);
+      mime = normalizedMeta.mime;
+      size = normalizedMeta.size;
+      oid = await this._blobStorage.store(content, { slug, mime, size });
+    }
     this.setProperty(nodeId, CONTENT_PROPERTY_KEY, oid);
-    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, normalizedMeta.size);
-    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, normalizedMeta.mime);
+    this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, size);
+    this.setProperty(nodeId, CONTENT_MIME_PROPERTY_KEY, mime);
     this._contentBlobs.push(oid);
     return this;
   }
@@ -641,31 +662,50 @@ export class PatchBuilderV2 {
   }
 
   /**
-   * Attaches content to an edge by writing the blob to the Git object store
+   * Attaches content to an edge by writing the blob via blob storage
    * and storing the blob OID as the `_content` edge property.
+   *
+   * Accepts streaming input (AsyncIterable, ReadableStream) as well as
+   * buffered input (Uint8Array, string).
    *
    * @param {string} from - Source node ID
    * @param {string} to - Target node ID
    * @param {string} label - Edge label
-   * @param {Uint8Array|string} content - The content to attach
+   * @param {AsyncIterable<Uint8Array>|ReadableStream<Uint8Array>|Uint8Array|string} content - The content to attach
    * @param {{ mime?: string|null, size?: number|null }} [metadata] - Optional metadata hint
    * @returns {Promise<PatchBuilderV2>} This builder instance for method chaining
    */
   async attachEdgeContent(from, to, label, content, metadata = undefined) {
     this._assertNotCommitted();
-    // Validate identifiers before writing blob to avoid orphaned blobs
     _assertNoReservedBytes(from, 'from');
     _assertNoReservedBytes(to, 'to');
     _assertNoReservedBytes(label, 'label');
     _assertNoReservedBytes(CONTENT_PROPERTY_KEY, 'key');
     this._assertEdgeExists(from, to, label);
-    const normalizedMeta = normalizeContentMetadata(content, metadata);
-    const oid = this._blobStorage
-      ? await this._blobStorage.store(content, { slug: `${this._graphName}/${from}/${to}/${label}`, mime: normalizedMeta.mime, size: normalizedMeta.size })
-      : await this._persistence.writeBlob(content);
+    if (!this._blobStorage) {
+      throw new WriterError(
+        'E_NO_BLOB_STORAGE',
+        'Cannot attach content without blob storage — inject blobStorage via open() or use InMemoryBlobStorageAdapter',
+      );
+    }
+    const slug = `${this._graphName}/${from}/${to}/${label}`;
+    let oid;
+    let mime;
+    let size;
+    if (isStreamingInput(content)) {
+      mime = metadata?.mime ?? null;
+      size = metadata?.size ?? null;
+      const source = normalizeToAsyncIterable(content);
+      oid = await this._blobStorage.storeStream(source, { slug, mime, size });
+    } else {
+      const normalizedMeta = normalizeContentMetadata(content, metadata);
+      mime = normalizedMeta.mime;
+      size = normalizedMeta.size;
+      oid = await this._blobStorage.store(content, { slug, mime, size });
+    }
     this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, oid);
-    this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, normalizedMeta.size);
-    this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, normalizedMeta.mime);
+    this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, size);
+    this.setEdgeProperty(from, to, label, CONTENT_MIME_PROPERTY_KEY, mime);
     this._contentBlobs.push(oid);
     return this;
   }
