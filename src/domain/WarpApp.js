@@ -78,14 +78,6 @@ export default class WarpApp {
   }
 
   /**
-   * @param {{ persist?: 'config' | 'none', alias?: string }} [opts]
-   * @returns {Promise<import('./warp/Writer.js').Writer>}
-   */
-  async createWriter(opts) {
-    return await this._runtime().createWriter(opts);
-  }
-
-  /**
    * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
    */
   async createPatch() {

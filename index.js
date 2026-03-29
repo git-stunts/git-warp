@@ -146,8 +146,6 @@ import {
   exportCoordinateTransferPlanFact,
 } from './src/domain/services/CoordinateFactExport.js';
 
-const TraversalService = CommitDagTraversalService;
-
 export {
   GitGraphAdapter,
   InMemoryGraphAdapter,
@@ -158,7 +156,6 @@ export {
   HealthCheckService,
   HealthStatus,
   CommitDagTraversalService,
-  TraversalService,
   BisectService,
   GraphPersistencePort,
   IndexStoragePort,

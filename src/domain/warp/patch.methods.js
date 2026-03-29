@@ -16,7 +16,7 @@ import { vvIncrement, vvClone } from '../crdt/VersionVector.js';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../utils/RefLayout.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 import { Writer } from './Writer.js';
-import { generateWriterId, resolveWriterId } from '../utils/WriterId.js';
+import { resolveWriterId } from '../utils/WriterId.js';
 import EncryptionError from '../errors/EncryptionError.js';
 import PersistenceError from '../errors/PersistenceError.js';
 
@@ -338,65 +338,6 @@ export async function writer(writerId) {
     getCurrentState: () => this._cachedState,
     onDeleteWithData: this._onDeleteWithData,
     onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(resolvedWriterId, opts)),
-    codec: this._codec,
-    logger: this._logger || undefined,
-    blobStorage: this._blobStorage || undefined,
-    patchBlobStorage: this._patchBlobStorage || undefined,
-  });
-}
-
-/**
- * Creates a new Writer with a fresh canonical ID.
- *
- * This always generates a new unique writer ID, regardless of any
- * existing configuration. Use this when you need a guaranteed fresh
- * identity (e.g., spawning a new writer process).
- *
- * @deprecated Use `writer()` to resolve a stable ID from git config, or `writer(id)` with an explicit ID.
- * @this {import('../WarpRuntime.js').default}
- * @param {{ persist?: 'config'|'none', alias?: string }} [opts]
- * @returns {Promise<Writer>} A Writer instance with new canonical ID
- * @throws {Error} If config operations fail (when persist:'config')
- *
- * @example
- * // Create ephemeral writer (not persisted)
- * const writer = await graph.createWriter();
- *
- * @example
- * // Create and persist to git config
- * const writer = await graph.createWriter({ persist: 'config' });
- */
-export async function createWriter(opts = {}) {
-  if (this._logger) {
-    this._logger.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
-  } else {
-    // eslint-disable-next-line no-console
-    console.warn('[warp] createWriter() is deprecated. Use writer() or writer(id) instead.');
-  }
-
-  const { persist = 'none', alias } = opts;
-
-  // Generate new canonical writerId
-  const freshWriterId = generateWriterId();
-
-  // Optionally persist to git config
-  if (persist === 'config') {
-    const configKey = alias
-      ? `warp.writerId.${alias}`
-      : `warp.writerId.${this._graphName}`;
-    await /** @type {import('../../ports/ConfigPort.js').default} */ (/** @type {unknown} */ (this._persistence)).configSet(configKey, freshWriterId);
-  }
-
-  /** @type {CorePersistence} */
-  const writerPersistence = this._persistence;
-  return new Writer({
-    persistence: writerPersistence,
-    graphName: this._graphName,
-    writerId: freshWriterId,
-    versionVector: this._versionVector,
-    getCurrentState: () => this._cachedState,
-    onDeleteWithData: this._onDeleteWithData,
-    onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ commitOpts) => this._onPatchCommitted(freshWriterId, commitOpts)),
     codec: this._codec,
     logger: this._logger || undefined,
     blobStorage: this._blobStorage || undefined,

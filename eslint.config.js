@@ -196,7 +196,6 @@ export default tseslint.config(
   // ── Relaxed complexity for algorithm-heavy modules ─────────────────────────
   {
     files: [
-      "src/domain/services/TraversalService.js",
       "src/domain/services/IndexRebuildService.js",
     ],
     rules: {

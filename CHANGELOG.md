@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CAS blob storage is now mandatory for content attachments** — `attachContent()` and `attachEdgeContent()` always route through `BlobStoragePort`. The raw `persistence.writeBlob()` fallback has been removed. `WarpRuntime.open()` auto-constructs `CasBlobAdapter` for Git-backed persistence (when `plumbing` is available) or `InMemoryBlobStorageAdapter` otherwise.
 - **Content blob tree entries use tree mode** — patch commit trees and checkpoint trees now reference content blobs as `040000 tree` entries (matching CAS tree OIDs) instead of `100644 blob` entries.
 
+### Removed
+
+- **`TraversalService`** — deprecated alias removed. Use `CommitDagTraversalService` directly.
+- **`createWriter()`** — deprecated method removed from `WarpApp` and `WarpCore`. Use `writer()` or `writer(id)` instead.
+
 ## [15.0.0] — 2026-03-28
 
 ## [15.0.1] — 2026-03-28

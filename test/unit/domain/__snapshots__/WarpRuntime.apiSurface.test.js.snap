@@ -212,11 +212,6 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
-  "createWriter": {
-    "configurable": true,
-    "enumerable": false,
-    "type": "method",
-  },
   "discoverTicks": {
     "configurable": true,
     "enumerable": false,
@@ -570,7 +565,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `113`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `112`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
@@ -616,7 +611,6 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "createStrandPatch",
   "createSyncRequest",
   "createWormhole",
-  "createWriter",
   "discoverTicks",
   "discoverWriters",
   "dropStrand",

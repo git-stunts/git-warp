@@ -132,9 +132,6 @@
         "name": {
           "type": "string",
           "readonly": true
-        },
-        "traverse": {
-          "type": "LogicalTraversal"
         }
       }
     },
@@ -636,11 +633,6 @@
     "TraversalError": {
       "kind": "class"
     },
-    "TraversalService": {
-      "kind": "class",
-      "deprecated": true,
-      "alias": "CommitDagTraversalService"
-    },
     "WarpApp": {
       "kind": "class",
       "default": true
@@ -1112,18 +1104,6 @@
           ],
           "returns": "Promise<Writer>"
         },
-        "createWriter": {
-          "async": true,
-          "deprecated": true,
-          "params": [
-            {
-              "name": "opts",
-              "type": "{ persist?: 'config' | 'none'; alias?: string }",
-              "optional": true
-            }
-          ],
-          "returns": "Promise<Writer>"
-        },
         "syncCoverage": {
           "async": true,
           "params": [],
@@ -1186,9 +1166,6 @@
           "type": "TemporalQuery",
           "readonly": true,
           "getter": true
-        },
-        "traverse": {
-          "type": "LogicalTraversal"
         },
         "setSeekCache": {
           "params": [
@@ -1600,9 +1577,6 @@
     },
     "LogLevelValue": {
       "kind": "type"
-    },
-    "LogicalTraversal": {
-      "kind": "interface"
     },
     "MaybeGCResult": {
       "kind": "interface"
