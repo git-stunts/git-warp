@@ -3790,4 +3790,5 @@ export function deserializeWormhole(json: {
   payload: PatchEntry[];
 }): WormholeEdge;
 
+/** Default package export — the curated product-facing WARP surface. */
 export default WarpApp;
