@@ -1,6 +1,6 @@
 # OG-015 — Raise JSR documentation quality score
 
-Status: ACTIVE
+Status: DONE
 
 Legend: Observer Geometry
 
