@@ -253,6 +253,81 @@ export type WeightedCostSelector =
   | { weightFn?: EdgeWeightFn; nodeWeightFn?: never }
   | { nodeWeightFn?: NodeWeightFn; weightFn?: never };
 
+/** @deprecated Traversal facade that delegates to GraphTraversal. Use GraphTraversal directly. */
+export interface LogicalTraversal {
+  bfs(start: string, options?: TraverseFacadeOptions): Promise<string[]>;
+  dfs(start: string, options?: TraverseFacadeOptions): Promise<string[]>;
+  shortestPath(from: string, to: string, options?: TraverseFacadeOptions): Promise<{ found: boolean; path: string[]; length: number }>;
+  connectedComponent(start: string, options?: {
+    maxDepth?: number;
+    labelFilter?: string | string[];
+  }): Promise<string[]>;
+  isReachable(from: string, to: string, options?: TraverseFacadeOptions & {
+    signal?: AbortSignal;
+  }): Promise<{ reachable: boolean }>;
+  weightedShortestPath(from: string, to: string, options?: WeightedCostSelector & {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ path: string[]; totalCost: number }>;
+  aStarSearch(from: string, to: string, options?: WeightedCostSelector & {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    heuristicFn?: (nodeId: string, goalId: string) => number;
+    signal?: AbortSignal;
+  }): Promise<{ path: string[]; totalCost: number; nodesExplored: number }>;
+  bidirectionalAStar(from: string, to: string, options?: WeightedCostSelector & {
+    labelFilter?: string | string[];
+    forwardHeuristic?: (nodeId: string, goalId: string) => number;
+    backwardHeuristic?: (nodeId: string, goalId: string) => number;
+    signal?: AbortSignal;
+  }): Promise<{ path: string[]; totalCost: number; nodesExplored: number }>;
+  topologicalSort(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    throwOnCycle?: boolean;
+    signal?: AbortSignal;
+  }): Promise<{ sorted: string[]; hasCycle: boolean }>;
+  commonAncestors(nodes: string[], options?: {
+    maxDepth?: number;
+    labelFilter?: string | string[];
+    maxResults?: number;
+    signal?: AbortSignal;
+  }): Promise<{ ancestors: string[] }>;
+  weightedLongestPath(from: string, to: string, options?: WeightedCostSelector & {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ path: string[]; totalCost: number }>;
+  levels(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ levels: Map<string, number>; maxLevel: number }>;
+  transitiveReduction(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    signal?: AbortSignal;
+  }): Promise<{ edges: Array<{ from: string; to: string; label: string }>; removed: number }>;
+  transitiveClosure(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    maxEdges?: number;
+    signal?: AbortSignal;
+  }): Promise<{ edges: Array<{ from: string; to: string }> }>;
+  transitiveClosureStream(start: string | string[], options?: {
+    dir?: 'out' | 'in' | 'both';
+    labelFilter?: string | string[];
+    maxEdges?: number;
+    signal?: AbortSignal;
+  }): AsyncGenerator<{ from: string; to: string }, void, unknown>;
+  rootAncestors(start: string, options?: {
+    labelFilter?: string | string[];
+    maxDepth?: number;
+    signal?: AbortSignal;
+  }): Promise<{ roots: string[] }>;
+}
+
 /**
  * Options for BFS/DFS traversal.
  */
@@ -1350,6 +1425,8 @@ export class Observer {
   /** Pinned snapshot hash (null only for internal delegate-mode instances) */
   readonly stateHash: string | null;
 
+  /** Logical graph traversal helpers scoped to this observer */
+  traverse: LogicalTraversal;
 
   /** Checks if a node exists and is visible to this observer */
   hasNode(nodeId: string): Promise<boolean>;
@@ -1377,6 +1454,8 @@ export class Worldline {
   /** Pinned source for this worldline handle */
   readonly source: WorldlineSource;
 
+  /** Full-aperture traversal helpers over this pinned source. */
+  traverse: LogicalTraversal;
 
   /** Returns a new worldline handle pinned to a different source */
   seek(options?: WorldlineOptions): Promise<Worldline>;
@@ -2048,6 +2127,10 @@ declare class WarpCoreBase {
   materializeAt(checkpointSha: string): Promise<WarpStateV5>;
 
   /**
+   * Logical graph traversal helpers.
+   */
+  traverse: LogicalTraversal;
+
   /**
    * Creates a fluent query builder over the currently visible materialized state.
    *
@@ -2366,6 +2449,8 @@ declare class WarpCoreBase {
   /** Gets or creates a Writer, optionally resolving from git config. */
   writer(writerId?: string): Promise<Writer>;
 
+  /**
+   * Creates a new Writer with a fresh canonical ID.
   /** Checks GC thresholds and runs GC if needed. */
   maybeRunGC(): MaybeGCResult;
 

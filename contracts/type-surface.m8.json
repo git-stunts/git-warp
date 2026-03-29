@@ -132,6 +132,9 @@
         "name": {
           "type": "string",
           "readonly": true
+        },
+        "traverse": {
+          "type": "LogicalTraversal"
         }
       }
     },
@@ -1167,6 +1170,9 @@
           "readonly": true,
           "getter": true
         },
+        "traverse": {
+          "type": "LogicalTraversal"
+        },
         "setSeekCache": {
           "params": [
             {
@@ -1577,6 +1583,9 @@
     },
     "LogLevelValue": {
       "kind": "type"
+    },
+    "LogicalTraversal": {
+      "kind": "interface"
     },
     "MaybeGCResult": {
       "kind": "interface"
