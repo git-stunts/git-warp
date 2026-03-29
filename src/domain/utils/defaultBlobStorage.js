@@ -23,7 +23,7 @@ const _encoder = new TextEncoder();
  */
 async function contentHash(bytes) {
   if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
-    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', /** @type {ArrayBuffer} */ (bytes.buffer));
     return hexEncode(new Uint8Array(digest));
   }
   // FNV-1a 64-bit (as two 32-bit halves) — not cryptographic, just deterministic

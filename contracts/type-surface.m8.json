@@ -15,6 +15,9 @@
     "BlobStoragePort": {
       "kind": "class"
     },
+    "InMemoryBlobStorageAdapter": {
+      "kind": "class"
+    },
     "BunHttpAdapter": {
       "kind": "class"
     },

@@ -1,4 +1,14 @@
 import WarpCore from './WarpCore.js';
+import {
+  getContent as _getContent,
+  getContentStream as _getContentStream,
+  getContentOid as _getContentOid,
+  getContentMeta as _getContentMeta,
+  getEdgeContent as _getEdgeContent,
+  getEdgeContentStream as _getEdgeContentStream,
+  getEdgeContentOid as _getEdgeContentOid,
+  getEdgeContentMeta as _getEdgeContentMeta,
+} from './warp/query.methods.js';
 
 /**
  * Curated product-facing WARP surface.
@@ -168,77 +178,48 @@ export default class WarpApp {
   }
 
   // ── Content attachment reads ──────────────────────────────────────────
+  // Content methods are wired onto WarpRuntime.prototype dynamically by
+  // wireWarpMethods (from query.methods.js). tsc cannot see them on the
+  // static class shape, so we access via a cast to the runtime prototype.
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<Uint8Array|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
   async getContent(nodeId) {
-    return await this._runtime().getContent(nodeId);
+    return await _getContent.call(this._runtime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getContentStream(nodeId) {
-    return await this._runtime().getContentStream(nodeId);
+    return await _getContentStream.call(this._runtime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<string|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<string|null>} */
   async getContentOid(nodeId) {
-    return await this._runtime().getContentOid(nodeId);
+    return await _getContentOid.call(this._runtime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getContentMeta(nodeId) {
-    return await this._runtime().getContentMeta(nodeId);
+    return await _getContentMeta.call(this._runtime(), nodeId);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<Uint8Array|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
   async getEdgeContent(from, to, label) {
-    return await this._runtime().getEdgeContent(from, to, label);
+    return await _getEdgeContent.call(this._runtime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getEdgeContentStream(from, to, label) {
-    return await this._runtime().getEdgeContentStream(from, to, label);
+    return await _getEdgeContentStream.call(this._runtime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<string|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
   async getEdgeContentOid(from, to, label) {
-    return await this._runtime().getEdgeContentOid(from, to, label);
+    return await _getEdgeContentOid.call(this._runtime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getEdgeContentMeta(from, to, label) {
-    return await this._runtime().getEdgeContentMeta(from, to, label);
+    return await _getEdgeContentMeta.call(this._runtime(), from, to, label);
   }
 
   // ── Strands ─────────────────────────────────────────────────────────

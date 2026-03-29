@@ -131,14 +131,14 @@ is no longer the only option.
 
 Current contract:
 
-```javascript
+```text
 store(content, options)       → Promise<string>
 retrieve(oid)                 → Promise<Uint8Array>
 ```
 
 New contract:
 
-```javascript
+```text
 store(source, options)        → Promise<string>
 retrieve(oid)                 → Promise<Uint8Array>
 storeStream(source, options)  → Promise<string>
@@ -154,7 +154,7 @@ retrieveStream(oid)           → AsyncIterable<Uint8Array>
 
 `attachContent()` and `attachEdgeContent()` accept a union type:
 
-```javascript
+```text
 AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string
 ```
 

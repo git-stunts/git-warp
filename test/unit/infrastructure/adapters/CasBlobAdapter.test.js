@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock @git-stunts/git-cas (dynamic import used by _initCas)
 const mockReadManifest = vi.fn();
 const mockRestore = vi.fn();
+const mockRestoreStream = vi.fn();
 const mockStore = vi.fn();
 const mockCreateTree = vi.fn();
 
@@ -14,6 +15,7 @@ class MockContentAddressableStore {
     lastConstructorArgs = opts;
     this.readManifest = mockReadManifest;
     this.restore = mockRestore;
+    this.restoreStream = mockRestoreStream;
     this.store = mockStore;
     this.createTree = mockCreateTree;
   }
@@ -376,29 +378,15 @@ describe('CasBlobAdapter', () => {
       const chunk2 = new TextEncoder().encode('world');
 
       mockReadManifest.mockResolvedValue(manifest);
-
-      // Mock restoreStream on the CAS instance
-      const mockRestoreStream = vi.fn().mockReturnValue((async function* () {
+      mockRestoreStream.mockReturnValue((async function* () {
         yield chunk1;
         yield chunk2;
       })());
-
-      // We need the CAS instance to have restoreStream — capture via store first
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
 
       const adapter = new CasBlobAdapter({
         plumbing: makePlumbing(),
         persistence: makePersistence(),
       });
-
-      // Prime CAS initialization
-      await adapter.store('init');
-
-      // Attach restoreStream to the mock CAS
-      const casInstance = lastConstructorArgs;
-      // The CAS instance is the MockContentAddressableStore — attach method
-      MockContentAddressableStore.prototype.restoreStream = mockRestoreStream;
 
       const stream = adapter.retrieveStream('tree-oid-abc');
       const chunks = [];
@@ -407,7 +395,6 @@ describe('CasBlobAdapter', () => {
       }
 
       expect(chunks).toHaveLength(2);
-      const combined = new Uint8Array([...chunk1, ...chunk2]);
       const result = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
       let offset = 0;
       for (const c of chunks) {
@@ -415,9 +402,6 @@ describe('CasBlobAdapter', () => {
         offset += c.byteLength;
       }
       expect(new TextDecoder().decode(result)).toBe('hello world');
-
-      // Cleanup prototype
-      delete MockContentAddressableStore.prototype.restoreStream;
     });
 
     it('falls back to single-chunk yield for legacy raw Git blobs', async () => {
@@ -446,8 +430,7 @@ describe('CasBlobAdapter', () => {
     it('passes encryptionKey to CAS restoreStream when configured', async () => {
       const manifest = { chunks: ['chunk1'] };
       mockReadManifest.mockResolvedValue(manifest);
-
-      const mockRestoreStream = vi.fn().mockReturnValue((async function* () {
+      mockRestoreStream.mockReturnValue((async function* () {
         yield new Uint8Array([1]);
       })());
 
@@ -458,20 +441,12 @@ describe('CasBlobAdapter', () => {
         encryptionKey: encKey,
       });
 
-      // Prime CAS
-      mockStore.mockResolvedValue({});
-      mockCreateTree.mockResolvedValue('tree-oid');
-      await adapter.store('init');
-      MockContentAddressableStore.prototype.restoreStream = mockRestoreStream;
-
       const stream = adapter.retrieveStream('tree-oid');
       for await (const _ of stream) { /* drain */ }
 
       expect(mockRestoreStream).toHaveBeenCalledWith(
         expect.objectContaining({ manifest, encryptionKey: encKey }),
       );
-
-      delete MockContentAddressableStore.prototype.restoreStream;
     });
 
     it('throws E_MISSING_OBJECT when legacy fallback readBlob returns null', async () => {

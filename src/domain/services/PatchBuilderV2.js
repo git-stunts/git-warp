@@ -627,10 +627,11 @@ export class PatchBuilderV2 {
       const source = normalizeToAsyncIterable(content);
       oid = await this._blobStorage.storeStream(source, { slug, mime, size });
     } else {
-      const normalizedMeta = normalizeContentMetadata(content, metadata);
+      const buffered = /** @type {Uint8Array|string} */ (content);
+      const normalizedMeta = normalizeContentMetadata(buffered, metadata);
       mime = normalizedMeta.mime;
       size = normalizedMeta.size;
-      oid = await this._blobStorage.store(content, { slug, mime, size });
+      oid = await this._blobStorage.store(buffered, { slug, mime, size });
     }
     this.setProperty(nodeId, CONTENT_PROPERTY_KEY, oid);
     this.setProperty(nodeId, CONTENT_SIZE_PROPERTY_KEY, size);
@@ -698,10 +699,11 @@ export class PatchBuilderV2 {
       const source = normalizeToAsyncIterable(content);
       oid = await this._blobStorage.storeStream(source, { slug, mime, size });
     } else {
-      const normalizedMeta = normalizeContentMetadata(content, metadata);
+      const buffered = /** @type {Uint8Array|string} */ (content);
+      const normalizedMeta = normalizeContentMetadata(buffered, metadata);
       mime = normalizedMeta.mime;
       size = normalizedMeta.size;
-      oid = await this._blobStorage.store(content, { slug, mime, size });
+      oid = await this._blobStorage.store(buffered, { slug, mime, size });
     }
     this.setEdgeProperty(from, to, label, CONTENT_PROPERTY_KEY, oid);
     this.setEdgeProperty(from, to, label, CONTENT_SIZE_PROPERTY_KEY, size);

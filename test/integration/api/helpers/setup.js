@@ -40,6 +40,11 @@ export async function createTestRepo(label = 'api-test') {
      */
     const blobStorage = new CasBlobAdapter({ plumbing, persistence });
 
+    /**
+     * @param {string} graphName
+     * @param {string} writerId
+     * @param {Object} [opts]
+     */
     async function openGraph(graphName, writerId, opts = {}) {
       return WarpRuntime.open({
         blobStorage,

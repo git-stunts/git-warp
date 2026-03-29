@@ -12,6 +12,7 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
  * These tests should all FAIL against the current code (red phase).
  */
 
+/** @returns {any} */
 function makeMockPersistence({ hasPlumbing = false } = {}) {
   const persistence = {
     readRef: vi.fn().mockResolvedValue(null),

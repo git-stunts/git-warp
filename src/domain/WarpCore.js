@@ -1,4 +1,14 @@
 import WarpRuntime from './WarpRuntime.js';
+import {
+  getContent as _getContent,
+  getContentStream as _getContentStream,
+  getContentOid as _getContentOid,
+  getContentMeta as _getContentMeta,
+  getEdgeContent as _getEdgeContent,
+  getEdgeContentStream as _getEdgeContentStream,
+  getEdgeContentOid as _getEdgeContentOid,
+  getEdgeContentMeta as _getEdgeContentMeta,
+} from './warp/query.methods.js';
 import { toInternalStrandShape, toPublicStrandShape } from './utils/strandPublicShape.js';
 import {
   buildCoordinateComparisonFact,
@@ -86,67 +96,47 @@ export default class WarpCore {
   }
 
   // ── Content attachment reads ──────────────────────────────────────────
+  // Imported from query.methods.js and called with WarpRuntime-typed this.
+  // WarpCore is a WarpRuntime at runtime (via Object.setPrototypeOf in _adopt).
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<Uint8Array|null>}
-   */
+  /** @private @returns {WarpRuntime} */
+  _asRuntime() {
+    return /** @type {WarpRuntime} */ (/** @type {unknown} */ (this));
+  }
+
+  /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
   async getContent(nodeId) {
-    return await WarpRuntime.prototype.getContent.call(this, nodeId);
+    return await _getContent.call(this._asRuntime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getContentStream(nodeId) {
-    return await WarpRuntime.prototype.getContentStream.call(this, nodeId);
+    return await _getContentStream.call(this._asRuntime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<string|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<string|null>} */
   async getContentOid(nodeId) {
-    return await WarpRuntime.prototype.getContentOid.call(this, nodeId);
+    return await _getContentOid.call(this._asRuntime(), nodeId);
   }
 
-  /**
-   * @param {string} nodeId
-   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
-   */
+  /** @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getContentMeta(nodeId) {
-    return await WarpRuntime.prototype.getContentMeta.call(this, nodeId);
+    return await _getContentMeta.call(this._asRuntime(), nodeId);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<Uint8Array|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
   async getEdgeContent(from, to, label) {
-    return await WarpRuntime.prototype.getEdgeContent.call(this, from, to, label);
+    return await _getEdgeContent.call(this._asRuntime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getEdgeContentStream(from, to, label) {
-    return await WarpRuntime.prototype.getEdgeContentStream.call(this, from, to, label);
+    return await _getEdgeContentStream.call(this._asRuntime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<string|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
   async getEdgeContentOid(from, to, label) {
-    return await WarpRuntime.prototype.getEdgeContentOid.call(this, from, to, label);
+    return await _getEdgeContentOid.call(this._asRuntime(), from, to, label);
   }
 
   /**
@@ -156,7 +146,7 @@ export default class WarpCore {
    * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
    */
   async getEdgeContentMeta(from, to, label) {
-    return await WarpRuntime.prototype.getEdgeContentMeta.call(this, from, to, label);
+    return await _getEdgeContentMeta.call(this._asRuntime(), from, to, label);
   }
 
   // ── Strands ─────────────────────────────────────────────────────────
