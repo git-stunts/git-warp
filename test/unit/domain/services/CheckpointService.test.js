@@ -718,8 +718,8 @@ describe('CheckpointService', () => {
 
         const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
         expect(treeEntries).toEqual([
-          `100644 blob ${sharedOid}\t_content_${sharedOid}`,
-          `100644 blob ${edgeOid}\t_content_${edgeOid}`,
+          `040000 tree ${sharedOid}\t_content_${sharedOid}`,
+          `040000 tree ${edgeOid}\t_content_${edgeOid}`,
           expect.stringContaining('\tappliedVV.cbor'),
           expect.stringContaining('\tfrontier.cbor'),
           expect.stringContaining('\tstate.cbor'),
@@ -771,8 +771,8 @@ describe('CheckpointService', () => {
         const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
         const contentEntries = treeEntries.filter((/** @type {string} */ entry) => entry.includes('\t_content_'));
         expect(contentEntries).toHaveLength(300);
-        expect(contentEntries[0]).toBe(`100644 blob ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
-        expect(contentEntries[299]).toBe(`100644 blob ${makeSequentialOid(299)}\t_content_${makeSequentialOid(299)}`);
+        expect(contentEntries[0]).toBe(`040000 tree ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
+        expect(contentEntries[299]).toBe(`040000 tree ${makeSequentialOid(299)}\t_content_${makeSequentialOid(299)}`);
       });
     });
 

@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import Plumbing from '@git-stunts/plumbing';
 import GitGraphAdapter from '../../../../src/infrastructure/adapters/GitGraphAdapter.js';
+import CasBlobAdapter from '../../../../src/infrastructure/adapters/CasBlobAdapter.js';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.js';
 
@@ -37,8 +38,11 @@ export async function createTestRepo(label = 'api-test') {
      * @param {Object} [opts={}] - Additional options forwarded to WarpRuntime.open
      * @returns {Promise<Object>} Opened WarpRuntime instance
      */
+    const blobStorage = new CasBlobAdapter({ plumbing, persistence });
+
     async function openGraph(graphName, writerId, opts = {}) {
       return WarpRuntime.open({
+        blobStorage,
         ...opts,
         persistence,
         graphName,

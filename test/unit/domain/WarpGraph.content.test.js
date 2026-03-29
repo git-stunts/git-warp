@@ -166,7 +166,13 @@ describe('WarpRuntime content attachment (query methods)', () => {
   describe('getContent()', () => {
     it('reads and returns the blob buffer', async () => {
       const buf = new TextEncoder().encode('# ADR 001\n\nSome content');
-      mockPersistence.readBlob.mockResolvedValue(buf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(buf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -176,7 +182,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
 
       const content = await graph.getContent('doc:1');
       expect(content).toEqual(buf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('abc123');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('abc123');
     });
 
     it('returns null when no content attached', async () => {
@@ -219,9 +225,18 @@ describe('WarpRuntime content attachment (query methods)', () => {
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
 
-    it('falls back to persistence.readBlob() when blobStorage is not provided', async () => {
+    it('uses auto-constructed blobStorage when none explicitly provided', async () => {
+      // OG-014: blob storage is always present (auto-constructed)
+      // The auto-constructed InMemoryBlobStorageAdapter won't have this OID,
+      // so we inject a mock to verify the read path goes through blobStorage
       const rawBuf = new TextEncoder().encode('raw blob');
-      mockPersistence.readBlob.mockResolvedValue(rawBuf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(rawBuf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'doc:1', 1);
@@ -232,7 +247,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
       const content = await graph.getContent('doc:1');
 
       expect(content).toEqual(rawBuf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('raw-oid');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('raw-oid');
     });
 
     it('preserves E_MISSING_OBJECT from blobStorage.retrieve()', async () => {
@@ -416,7 +431,13 @@ describe('WarpRuntime content attachment (query methods)', () => {
   describe('getEdgeContent()', () => {
     it('reads and returns the blob buffer', async () => {
       const buf = new TextEncoder().encode('edge content');
-      mockPersistence.readBlob.mockResolvedValue(buf);
+      const blobStorage = {
+        store: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(buf),
+        storeStream: vi.fn(),
+        retrieveStream: vi.fn(),
+      };
+      /** @type {any} */ (graph)._blobStorage = blobStorage;
 
       setupGraphState(graph, (/** @type {any} */ state) => {
         addNode(state, 'a', 1);
@@ -428,7 +449,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
 
       const content = await graph.getEdgeContent('a', 'b', 'rel');
       expect(content).toEqual(buf);
-      expect(mockPersistence.readBlob).toHaveBeenCalledWith('def456');
+      expect(blobStorage.retrieve).toHaveBeenCalledWith('def456');
     });
 
     it('returns null when no content attached', async () => {

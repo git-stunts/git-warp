@@ -257,6 +257,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "getContentStream": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "getEdgeContent": {
     "configurable": true,
     "enumerable": false,
@@ -268,6 +273,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "type": "method",
   },
   "getEdgeContentOid": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "getEdgeContentStream": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -560,7 +570,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `111`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `113`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
@@ -615,9 +625,11 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "getContent",
   "getContentMeta",
   "getContentOid",
+  "getContentStream",
   "getEdgeContent",
   "getEdgeContentMeta",
   "getEdgeContentOid",
+  "getEdgeContentStream",
   "getEdgeProps",
   "getEdges",
   "getFrontier",

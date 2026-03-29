@@ -930,10 +930,13 @@ export class PatchBuilderV2 {
 
       // 7. Create tree with the patch blob + any content blobs (deduplicated)
       // Format for mktree: "mode type oid\tpath"
+      // Content blobs stored via CAS are tree OIDs; use 040000 tree mode.
+      // Content blobs stored directly (legacy) are blob OIDs; use 100644 blob mode.
       const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
       const uniqueBlobs = [...new Set(this._contentBlobs)];
+      const contentMode = this._blobStorage ? '040000 tree' : '100644 blob';
       for (const blobOid of uniqueBlobs) {
-        treeEntries.push(`100644 blob ${blobOid}\t_content_${blobOid}`);
+        treeEntries.push(`${contentMode} ${blobOid}\t_content_${blobOid}`);
       }
       const treeOid = await this._persistence.writeTree(treeEntries);
 

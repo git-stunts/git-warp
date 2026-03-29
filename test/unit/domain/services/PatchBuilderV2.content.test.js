@@ -704,7 +704,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const treeEntries = persistence.writeTree.mock.calls[0][0];
       expect(treeEntries).toHaveLength(2);
       expect(treeEntries[0]).toBe(`100644 blob ${patchBlobOid}\tpatch.cbor`);
-      expect(treeEntries[1]).toBe(`100644 blob ${contentOid}\t_content_${contentOid}`);
+      expect(treeEntries[1]).toBe(`040000 tree ${contentOid}\t_content_${contentOid}`);
     });
 
     it('creates single-entry tree when no content blobs', async () => {
@@ -759,8 +759,8 @@ describe('PatchBuilderV2 content attachment', () => {
       const treeEntries = persistence.writeTree.mock.calls[0][0];
       expect(treeEntries).toHaveLength(3);
       expect(treeEntries[0]).toContain('patch.cbor');
-      expect(treeEntries[1]).toBe(`100644 blob ${contentA}\t_content_${contentA}`);
-      expect(treeEntries[2]).toBe(`100644 blob ${contentB}\t_content_${contentB}`);
+      expect(treeEntries[1]).toBe(`040000 tree ${contentA}\t_content_${contentA}`);
+      expect(treeEntries[2]).toBe(`040000 tree ${contentB}\t_content_${contentB}`);
     });
 
     it('deduplicates tree entries when same content is attached to multiple nodes', async () => {
@@ -790,7 +790,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const treeEntries = persistence.writeTree.mock.calls[0][0];
       expect(treeEntries).toHaveLength(2);
       expect(treeEntries[0]).toContain('patch.cbor');
-      expect(treeEntries[1]).toBe(`100644 blob ${sharedOid}\t_content_${sharedOid}`);
+      expect(treeEntries[1]).toBe(`040000 tree ${sharedOid}\t_content_${sharedOid}`);
     });
   });
 });

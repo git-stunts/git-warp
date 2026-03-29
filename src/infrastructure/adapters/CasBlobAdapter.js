@@ -143,7 +143,10 @@ export default class CasBlobAdapter extends BlobStoragePort {
         restoreOpts.encryptionKey = this._encryptionKey;
       }
       const { buffer } = await cas.restore(restoreOpts);
-      return buffer;
+      // Normalize Buffer to Uint8Array for domain boundary compliance
+      return buffer instanceof Uint8Array && buffer.constructor !== Uint8Array
+        ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+        : buffer;
     } catch (err) {
       // Fallback: OID may be a raw Git blob (pre-CAS content).
       // Only fall through for "not a manifest" errors (missing tree, bad format).
