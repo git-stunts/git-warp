@@ -31,4 +31,4 @@ Workflow:
 | DONE | OG-012 | Audit and reconcile the documentation corpus before v15 | [OG-012-documentation-corpus-audit.md](OG-012-documentation-corpus-audit.md) |
 | QUEUED | OG-013 | Design out-of-core materialization and streaming reads | [OG-013-out-of-core-materialization-and-streaming-reads.md](OG-013-out-of-core-materialization-and-streaming-reads.md) |
 | DONE | OG-014 | Mandatory CAS blob storage with streaming I/O | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
-| QUEUED | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |
+| ACTIVE | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |
