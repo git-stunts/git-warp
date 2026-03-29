@@ -10,6 +10,7 @@
 
 import BlobStoragePort from '../../ports/BlobStoragePort.js';
 import { hexEncode } from './bytes.js';
+import { collectAsyncIterable } from './streamUtils.js';
 
 const _encoder = new TextEncoder();
 
@@ -23,10 +24,13 @@ const _encoder = new TextEncoder();
  */
 async function contentHash(bytes) {
   if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
-    const digest = await globalThis.crypto.subtle.digest('SHA-256', /** @type {ArrayBuffer} */ (bytes.buffer));
+    const buf = /** @type {ArrayBuffer} */ (bytes.buffer).slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', buf);
     return hexEncode(new Uint8Array(digest));
   }
-  // FNV-1a 64-bit (as two 32-bit halves) — not cryptographic, just deterministic
+  // FNV-1a 64-bit (as two 32-bit halves) — not cryptographic, just deterministic.
+  // Produces 16-char hex OIDs (shorter than SHA). Acceptable because
+  // InMemoryBlobStorageAdapter OIDs never leave the process boundary.
   let h1 = 0x811c9dc5;
   let h2 = 0xcbf29ce4;
   for (let i = 0; i < bytes.length; i++) {
@@ -37,31 +41,6 @@ async function contentHash(bytes) {
   }
   return (h1 >>> 0).toString(16).padStart(8, '0')
     + (h2 >>> 0).toString(16).padStart(8, '0');
-}
-
-/**
- * Collects an async iterable into a single Uint8Array.
- *
- * @param {AsyncIterable<Uint8Array>} source
- * @returns {Promise<Uint8Array>}
- */
-async function collectAsyncIterable(source) {
-  const chunks = [];
-  let totalLength = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    totalLength += chunk.byteLength;
-  }
-  if (chunks.length === 1) {
-    return chunks[0];
-  }
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
 }
 
 export default class InMemoryBlobStorageAdapter extends BlobStoragePort {

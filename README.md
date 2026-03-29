@@ -2,8 +2,9 @@
   <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp.svg" alt="git-warp logo" />
   <h1><code>git-warp</code>: a causal, multi-writer graph database for the Git substrate</h1>
   <p>Distributed, conflict-free graph storage that lives orthogonally to your source tree.</p>
-  [![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
 </div>
+
+[![CI](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/git-warp/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![npm version](https://badge.fury.io/js/%40git-stunts%2Fgit-warp.svg)](https://www.npmjs.com/package/@git-stunts/git-warp)
 
 ## Choose the right tool
 

@@ -222,6 +222,9 @@ export default class CasBlobAdapter extends BlobStoragePort {
             }
             return await /** @type {AsyncIterator<Uint8Array>} */ (inner).next();
           },
+          return() {
+            return Promise.resolve({ value: undefined, done: true });
+          },
         };
       },
     });
@@ -285,6 +288,10 @@ function singleChunkIterator(buf) {
       }
       done = true;
       return Promise.resolve({ value: buf, done: false });
+    },
+    return() {
+      done = true;
+      return Promise.resolve({ value: undefined, done: true });
     },
   };
 }

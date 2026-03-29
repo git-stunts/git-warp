@@ -178,9 +178,7 @@ export default class WarpApp {
   }
 
   // ── Content attachment reads ──────────────────────────────────────────
-  // Content methods are wired onto WarpRuntime.prototype dynamically by
-  // wireWarpMethods (from query.methods.js). tsc cannot see them on the
-  // static class shape, so we access via a cast to the runtime prototype.
+  // Imported from query.methods.js and called with the runtime as this binding.
 
   /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
   async getContent(nodeId) {

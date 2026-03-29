@@ -15,7 +15,7 @@ import WarpError from './WarpError.js';
  * | `WRITER_REF_ADVANCED` | Writer ref moved since beginPatch() |
  * | `WRITER_CAS_CONFLICT` | Compare-and-swap failure during commit |
  * | `PERSIST_WRITE_FAILED` | Git persistence operation failed |
- * | `E_NO_BLOB_STORAGE` | Content attachment attempted without blob storage |
+ * | `NO_BLOB_STORAGE` | Content attachment attempted without blob storage |
  * | `WRITER_ERROR` | Generic/default writer error |
  *
  * @class WriterError

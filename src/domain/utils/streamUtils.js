@@ -40,6 +40,10 @@ function isReadableStream(value) {
  * @returns {boolean}
  */
 export function isStreamingInput(content) {
+  // Buffered types are never streaming, even if a polyfill adds Symbol.asyncIterator
+  if (content instanceof Uint8Array || typeof content === 'string') {
+    return false;
+  }
   return isAsyncIterable(content) || isReadableStream(content);
 }
 
@@ -125,4 +129,29 @@ function readableStreamToAsyncIterable(stream) {
       };
     },
   };
+}
+
+/**
+ * Collects an async iterable into a single Uint8Array.
+ *
+ * @param {AsyncIterable<Uint8Array>} source
+ * @returns {Promise<Uint8Array>}
+ */
+export async function collectAsyncIterable(source) {
+  const chunks = [];
+  let totalLength = 0;
+  for await (const chunk of source) {
+    chunks.push(chunk);
+    totalLength += chunk.byteLength;
+  }
+  if (chunks.length === 1) {
+    return chunks[0];
+  }
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
 }

@@ -603,7 +603,7 @@ describe('PatchBuilderV2 content attachment', () => {
       }));
     });
 
-    it('throws E_NO_BLOB_STORAGE when blobStorage is not provided', async () => {
+    it('throws NO_BLOB_STORAGE when blobStorage is not provided', async () => {
       const state = createMockState();
       orsetAdd(state.nodeAlive, 'node:1', createDot('w1', 1));
       const persistence = createMockPersistence();

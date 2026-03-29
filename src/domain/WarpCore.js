@@ -139,12 +139,7 @@ export default class WarpCore {
     return await _getEdgeContentOid.call(this._asRuntime(), from, to, label);
   }
 
-  /**
-   * @param {string} from
-   * @param {string} to
-   * @param {string} label
-   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
-   */
+  /** @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getEdgeContentMeta(from, to, label) {
     return await _getEdgeContentMeta.call(this._asRuntime(), from, to, label);
   }
