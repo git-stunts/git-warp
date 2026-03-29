@@ -46,9 +46,9 @@ describe('release policy shape', () => {
   });
 
   it('keeps the roadmap header honest about the current release and correction patch', () => {
-    expect(roadmap).toContain('**Current release on `main`:** v15.0.0');
-    expect(roadmap).toContain('**Next intended release:** v15.0.1');
-    expect(roadmap).toContain('`OG-010` is complete');
+    expect(roadmap).toContain('**Current release on `main`:** v15.0.1');
+    expect(roadmap).toContain('**Next intended release:** v16.0.0');
+    expect(roadmap).toContain('OG-014 streaming CAS blob storage');
   });
 
   it('keeps publish artifacts slim instead of shipping the full repo corpus', () => {

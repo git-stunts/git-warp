@@ -1,6 +1,6 @@
 # OG-014 — Mandatory CAS blob storage with streaming I/O
 
-Status: ACTIVE
+Status: DONE
 
 Legend: Observer Geometry
 

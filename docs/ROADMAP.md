@@ -1,8 +1,8 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current release on `main`:** v15.0.0
-> **Next intended release:** v15.0.1
-> **Last reconciled:** 2026-03-28 (after publishing `v15.0.0` and then cleaning the npm/JSR artifact surface, packaged README links, and repo topology on `main`. `OG-010` is complete; `v15.0.1` is the release-correction patch.)
+> **Current release on `main`:** v15.0.1
+> **Next intended release:** v16.0.0
+> **Last reconciled:** 2026-03-29 (OG-014 streaming CAS blob storage landed on `main`. Breaking changes: mandatory CAS, streaming I/O, tree-mode content anchors.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
 ---

@@ -1,6 +1,6 @@
 # Streaming CAS Blob Storage
 
-Status: PROPOSED
+Status: IMPLEMENTED
 
 Legend: Observer Geometry
 

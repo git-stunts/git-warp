@@ -554,9 +554,24 @@ export abstract class SeekCachePort {
  */
 export abstract class BlobStoragePort {
   /** Stores content and returns a storage identifier (e.g. CAS tree OID). */
-  abstract store(content: Uint8Array | string, options?: { slug?: string }): Promise<string>;
+  abstract store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
   /** Retrieves content by its storage identifier. */
   abstract retrieve(oid: string): Promise<Uint8Array>;
+  /** Stores content from a streaming source and returns a storage identifier. */
+  abstract storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  /** Retrieves content as an async iterable of chunks. */
+  abstract retrieveStream(oid: string): AsyncIterable<Uint8Array>;
+}
+
+/**
+ * In-memory blob storage adapter for browser and test paths.
+ * Content-addressed Map-based storage implementing BlobStoragePort.
+ */
+export class InMemoryBlobStorageAdapter extends BlobStoragePort {
+  store(content: Uint8Array | string, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  retrieve(oid: string): Promise<Uint8Array>;
+  storeStream(source: AsyncIterable<Uint8Array>, options?: { slug?: string; mime?: string | null; size?: number | null }): Promise<string>;
+  retrieveStream(oid: string): AsyncIterable<Uint8Array>;
 }
 
 /**
@@ -1648,11 +1663,11 @@ export class PatchBuilderV2 {
   /** Sets a property on an edge. */
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): PatchBuilderV2;
   /** Attaches content to a node (writes blob + sets _content property). */
-  attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
   /** Clears content from a node (sets _content metadata registers to null). */
   clearContent(nodeId: string): PatchBuilderV2;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
-  attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
+  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<PatchBuilderV2>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): PatchBuilderV2;
   /** Builds the PatchV2 object without committing. */
@@ -1686,11 +1701,11 @@ export class PatchSession {
   /** Sets a property on an edge. */
   setEdgeProperty(from: string, to: string, label: string, key: string, value: unknown): this;
   /** Attaches content to a node (writes blob + sets _content property). */
-  attachContent(nodeId: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  attachContent(nodeId: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
   /** Clears content from a node (sets _content metadata registers to null). */
   clearContent(nodeId: string): this;
   /** Attaches content to an edge (writes blob + sets _content edge property). */
-  attachEdgeContent(from: string, to: string, label: string, content: Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
+  attachEdgeContent(from: string, to: string, label: string, content: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array> | Uint8Array | string, metadata?: ContentAttachmentOptions): Promise<this>;
   /** Clears content from an edge (sets _content metadata registers to null). */
   clearEdgeContent(from: string, to: string, label: string): this;
   /** Builds the PatchV2 object without committing. */
@@ -2043,6 +2058,18 @@ declare class WarpCoreBase {
    * Returns raw bytes; use `new TextDecoder().decode(result)` for text.
    */
   getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+
+  /**
+   * Gets the content blob for a node as a stream, or null if none is attached.
+   * Returns an async iterable of Uint8Array chunks for incremental consumption.
+   */
+  getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+
+  /**
+   * Gets the content blob for an edge as a stream, or null if none is attached.
+   * Returns an async iterable of Uint8Array chunks for incremental consumption.
+   */
+  getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
 
   /**
    * Checks if a node exists in the materialized state.
@@ -2523,6 +2550,25 @@ export declare class WarpApp {
     pattern: Parameters<WarpCore['watch']>[0],
     options: Parameters<WarpCore['watch']>[1],
   ): ReturnType<WarpCore['watch']>;
+
+  // ── Content attachment reads ──────────────────────────────────────
+
+  /** Gets the content blob for a node, or null if none is attached. */
+  getContent(nodeId: string): Promise<Uint8Array | null>;
+  /** Gets the content blob for a node as a stream, or null if none is attached. */
+  getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
+  /** Gets the content blob OID for a node, or null if none is attached. */
+  getContentOid(nodeId: string): Promise<string | null>;
+  /** Gets structured content metadata for a node attachment, or null if none is attached. */
+  getContentMeta(nodeId: string): Promise<ContentMeta | null>;
+  /** Gets the content blob for an edge, or null if none is attached. */
+  getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
+  /** Gets the content blob for an edge as a stream, or null if none is attached. */
+  getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
+  /** Gets the content blob OID for an edge, or null if none is attached. */
+  getEdgeContentOid(from: string, to: string, label: string): Promise<string | null>;
+  /** Gets structured content metadata for an edge attachment, or null if none is attached. */
+  getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta | null>;
 
   /** Creates a durable strand descriptor. */
   createStrand(options?: Parameters<WarpCore['createStrand']>[0]): ReturnType<WarpCore['createStrand']>;

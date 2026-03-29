@@ -167,6 +167,82 @@ export default class WarpApp {
     return this._runtime().watch(pattern, options);
   }
 
+  // ── Content attachment reads ──────────────────────────────────────────
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<Uint8Array|null>}
+   */
+  async getContent(nodeId) {
+    return await this._runtime().getContent(nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
+   */
+  async getContentStream(nodeId) {
+    return await this._runtime().getContentStream(nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<string|null>}
+   */
+  async getContentOid(nodeId) {
+    return await this._runtime().getContentOid(nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
+   */
+  async getContentMeta(nodeId) {
+    return await this._runtime().getContentMeta(nodeId);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<Uint8Array|null>}
+   */
+  async getEdgeContent(from, to, label) {
+    return await this._runtime().getEdgeContent(from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
+   */
+  async getEdgeContentStream(from, to, label) {
+    return await this._runtime().getEdgeContentStream(from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<string|null>}
+   */
+  async getEdgeContentOid(from, to, label) {
+    return await this._runtime().getEdgeContentOid(from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
+   */
+  async getEdgeContentMeta(from, to, label) {
+    return await this._runtime().getEdgeContentMeta(from, to, label);
+  }
+
+  // ── Strands ─────────────────────────────────────────────────────────
+
   /**
    * @param {Parameters<WarpCore['createStrand']>[0]} [options]
    * @returns {ReturnType<WarpCore['createStrand']>}

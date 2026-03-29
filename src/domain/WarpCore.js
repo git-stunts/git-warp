@@ -85,6 +85,82 @@ export default class WarpCore {
     return /** @type {WarpCore} */ (/** @type {unknown} */ (runtime));
   }
 
+  // ── Content attachment reads ──────────────────────────────────────────
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<Uint8Array|null>}
+   */
+  async getContent(nodeId) {
+    return await WarpRuntime.prototype.getContent.call(this, nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
+   */
+  async getContentStream(nodeId) {
+    return await WarpRuntime.prototype.getContentStream.call(this, nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<string|null>}
+   */
+  async getContentOid(nodeId) {
+    return await WarpRuntime.prototype.getContentOid.call(this, nodeId);
+  }
+
+  /**
+   * @param {string} nodeId
+   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
+   */
+  async getContentMeta(nodeId) {
+    return await WarpRuntime.prototype.getContentMeta.call(this, nodeId);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<Uint8Array|null>}
+   */
+  async getEdgeContent(from, to, label) {
+    return await WarpRuntime.prototype.getEdgeContent.call(this, from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<AsyncIterable<Uint8Array>|null>}
+   */
+  async getEdgeContentStream(from, to, label) {
+    return await WarpRuntime.prototype.getEdgeContentStream.call(this, from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<string|null>}
+   */
+  async getEdgeContentOid(from, to, label) {
+    return await WarpRuntime.prototype.getEdgeContentOid.call(this, from, to, label);
+  }
+
+  /**
+   * @param {string} from
+   * @param {string} to
+   * @param {string} label
+   * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>}
+   */
+  async getEdgeContentMeta(from, to, label) {
+    return await WarpRuntime.prototype.getEdgeContentMeta.call(this, from, to, label);
+  }
+
+  // ── Strands ─────────────────────────────────────────────────────────
+
   /**
    * Creates a durable strand descriptor pinned to the current frontier.
    *

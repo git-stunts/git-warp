@@ -1,6 +1,6 @@
 # BACKLOG — Observer Geometry
 
-Last updated: 2026-03-28
+Last updated: 2026-03-29
 
 This directory holds promotable pre-design items for the current Observer
 Geometry tranche.
@@ -30,5 +30,5 @@ Workflow:
 | QUEUED | OG-011 | Publish a public API catalog and browser documentation playground | [OG-011-public-api-catalog-and-playground.md](OG-011-public-api-catalog-and-playground.md) |
 | DONE | OG-012 | Audit and reconcile the documentation corpus before v15 | [OG-012-documentation-corpus-audit.md](OG-012-documentation-corpus-audit.md) |
 | QUEUED | OG-013 | Design out-of-core materialization and streaming reads | [OG-013-out-of-core-materialization-and-streaming-reads.md](OG-013-out-of-core-materialization-and-streaming-reads.md) |
-| ACTIVE | OG-014 | Mandatory CAS blob storage with streaming I/O | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
+| DONE | OG-014 | Mandatory CAS blob storage with streaming I/O | [OG-014-streaming-content-attachments.md](OG-014-streaming-content-attachments.md) |
 | QUEUED | OG-015 | Raise JSR documentation quality score | [OG-015-jsr-documentation-quality.md](OG-015-jsr-documentation-quality.md) |
