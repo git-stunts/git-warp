@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp.svg" alt="git-warp logo" />
+  <img src="https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg" alt="git-warp logo" />
   <h1><code>git-warp</code>: a causal, multi-writer graph database for the Git substrate</h1>
   <p>Distributed, conflict-free graph storage that lives orthogonally to your source tree.</p>
 </div>
