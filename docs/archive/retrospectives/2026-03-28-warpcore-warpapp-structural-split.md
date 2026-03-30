@@ -36,9 +36,9 @@ Code/artifacts added or updated:
 - [README.md](../../../README.md)
 - [GUIDE.md](../../GUIDE.md)
 - [type-surface.m8.json](../../../contracts/type-surface.m8.json)
-- [WarpApp.facade.test.js](../../../test/unit/domain/WarpApp.facade.test.js)
-- [index.exports.test.js](../../../test/unit/domain/index.exports.test.js)
-- [public-api-facade-split.test.js](../../../test/unit/scripts/public-api-facade-split.test.js)
+- WarpApp.facade.test.js (deleted)
+- index.exports.test.js (deleted)
+- public-api-facade-split.test.js (deleted)
 
 ## Design Alignment Audit
 
