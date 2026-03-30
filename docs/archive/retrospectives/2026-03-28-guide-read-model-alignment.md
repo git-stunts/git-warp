@@ -8,10 +8,10 @@ Cycle: OG-010
 
 ## Governing Design Inputs
 
-- [OG-010-public-api-design-thinking](../../BACKLOG/OG-010-public-api-design-thinking.md)
-- [public-api-design-thinking](../design/public-api-design-thinking.md)
-- [public-api-stratification](../design/public-api-stratification.md)
-- [guide-read-model-alignment](../design/guide-read-model-alignment.md)
+- OG-010-public-api-design-thinking (deleted)
+- public-api-design-thinking (deleted)
+- public-api-stratification (deleted)
+- guide-read-model-alignment (deleted)
 
 ## What Landed
 

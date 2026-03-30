@@ -8,10 +8,10 @@ Cycle: OG-010
 
 ## Governing Design Inputs
 
-- [OG-010-public-api-design-thinking](../../BACKLOG/OG-010-public-api-design-thinking.md)
-- [public-api-design-thinking](../design/public-api-design-thinking.md)
-- [public-api-stratification](../design/public-api-stratification.md)
-- [strand-public-noun-cut](../design/strand-public-noun-cut.md)
+- OG-010-public-api-design-thinking (deleted)
+- public-api-design-thinking (deleted)
+- public-api-stratification (deleted)
+- strand-public-noun-cut (deleted)
 
 ## What Landed
 

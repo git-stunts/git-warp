@@ -8,7 +8,7 @@
 ## What Landed
 
 - Made the repo's Markdown wrapping policy explicit in
-  [.markdownlint.jsonc](../../.markdownlint.jsonc) by setting `MD013` to
+  [.markdownlint.jsonc](../../../.markdownlint.jsonc) by setting `MD013` to
   `false`.
 - Kept `MD040` enabled so fenced code blocks still require language labels.
 - Reflowed the README front matter so the source reflects the intended no-hard-wrap prose policy.

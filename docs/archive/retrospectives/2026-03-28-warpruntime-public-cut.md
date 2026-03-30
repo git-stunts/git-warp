@@ -2,11 +2,11 @@
 
 ## Governing Design Inputs
 
-- [public-api-design-thinking.md](../design/public-api-design-thinking.md)
-- [product-vs-core-api-boundary.md](../design/product-vs-core-api-boundary.md)
-- [public-api-stratification.md](../design/public-api-stratification.md)
-- [warpcore-warpapp-structural-split.md](../design/warpcore-warpapp-structural-split.md)
-- [warpruntime-public-cut.md](../design/warpruntime-public-cut.md)
+- public-api-design-thinking.md (deleted)
+- product-vs-core-api-boundary.md (deleted)
+- public-api-stratification.md (deleted)
+- warpcore-warpapp-structural-split.md (deleted)
+- warpruntime-public-cut.md (deleted)
 
 ## What Landed
 

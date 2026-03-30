@@ -8,12 +8,12 @@ Cycle: OG-010
 
 ## Governing Design Inputs
 
-- [IBM Design Thinking — `git-warp` Public API And README](../design/public-api-design-thinking.md)
-- [Public API stratification](../design/public-api-stratification.md)
-- [Product API vs Core API boundary](../design/product-vs-core-api-boundary.md)
-- [IBM Design Thinking: sponsor use cases for `git-warp`](../design/git-warp-sponsor-use-cases.md)
-- [WarpApp And WarpCore structural split](../design/warpcore-warpapp-structural-split.md)
-- [OG-010 backlog item](../../BACKLOG/OG-010-public-api-design-thinking.md)
+- IBM Design Thinking — `git-warp` Public API And README (deleted)
+- Public API stratification (deleted)
+- Product API vs Core API boundary (deleted)
+- IBM Design Thinking: sponsor use cases for `git-warp` (deleted)
+- WarpApp And WarpCore structural split (deleted)
+- OG-010 backlog item (deleted)
 
 ## What Landed
 
@@ -29,16 +29,16 @@ This slice made the product/core split structural:
 
 Code/artifacts added or updated:
 
-- [WarpApp.js](../../src/domain/WarpApp.js)
-- [WarpCore.js](../../src/domain/WarpCore.js)
-- [index.js](../../index.js)
-- [index.d.ts](../../index.d.ts)
-- [README.md](../../README.md)
-- [GUIDE.md](../../docs/GUIDE.md)
-- [type-surface.m8.json](../../contracts/type-surface.m8.json)
-- [WarpApp.facade.test.js](../../test/unit/domain/WarpApp.facade.test.js)
-- [index.exports.test.js](../../test/unit/domain/index.exports.test.js)
-- [public-api-facade-split.test.js](../../test/unit/scripts/public-api-facade-split.test.js)
+- [WarpApp.js](../../../src/domain/WarpApp.js)
+- [WarpCore.js](../../../src/domain/WarpCore.js)
+- [index.js](../../../index.js)
+- [index.d.ts](../../../index.d.ts)
+- [README.md](../../../README.md)
+- [GUIDE.md](../../GUIDE.md)
+- [type-surface.m8.json](../../../contracts/type-surface.m8.json)
+- [WarpApp.facade.test.js](../../../test/unit/domain/WarpApp.facade.test.js)
+- [index.exports.test.js](../../../test/unit/domain/index.exports.test.js)
+- [public-api-facade-split.test.js](../../../test/unit/scripts/public-api-facade-split.test.js)
 
 ## Design Alignment Audit
 

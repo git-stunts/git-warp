@@ -2,10 +2,10 @@
 
 ## Governing Design Docs
 
-- [public-api-design-thinking.md](../design/public-api-design-thinking.md)
-- [public-api-stratification.md](../design/public-api-stratification.md)
-- [worldline-direct-read-surface.md](../design/worldline-direct-read-surface.md)
-- [worldline-observer-api-phasing.md](../design/worldline-observer-api-phasing.md)
+- public-api-design-thinking.md (deleted)
+- public-api-stratification.md (deleted)
+- worldline-direct-read-surface.md (deleted)
+- worldline-observer-api-phasing.md (deleted)
 
 ## What Landed
 

@@ -2,10 +2,10 @@
 
 ## Governing Design Docs
 
-- [public-api-design-thinking.md](../design/public-api-design-thinking.md)
-- [public-api-stratification.md](../design/public-api-stratification.md)
-- [public-api-cost-signaling.md](../design/public-api-cost-signaling.md)
-- [observer-public-noun-cut.md](../design/observer-public-noun-cut.md)
+- public-api-design-thinking.md (deleted)
+- public-api-stratification.md (deleted)
+- public-api-cost-signaling.md (deleted)
+- observer-public-noun-cut.md (deleted)
 
 ## What Landed
 

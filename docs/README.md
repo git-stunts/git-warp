@@ -58,7 +58,7 @@ when you need that level of detail.
 
 - [Design Notes](design/)
   Governing design docs for promoted backlog items and active cycles.
-- [Retrospectives](retrospectives/)
+- [Retrospectives](archive/retrospectives/)
   Slice close-out documents with design alignment audits.
 - [Completed Roadmap](ROADMAP/COMPLETED.md)
   Archived milestone history.

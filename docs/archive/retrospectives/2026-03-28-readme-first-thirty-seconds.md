@@ -2,8 +2,8 @@
 
 ## Governing design docs and backlog
 
-- [OG-010 — IBM Design Thinking Pass Over Public APIs And README](../../BACKLOG/OG-010-public-api-design-thinking.md)
-- [README first 30 seconds](../design/readme-first-thirty-seconds.md)
+- OG-010 — IBM Design Thinking Pass Over Public APIs And README (deleted)
+- README first 30 seconds (deleted)
 
 ## What landed
 

@@ -8,11 +8,11 @@ Cycle: OG-010
 
 ## Governing Design Inputs
 
-- [OG-010 public API design thinking](../design/public-api-design-thinking.md)
-- [Public API stratification](../design/public-api-stratification.md)
-- [Product API vs Core API boundary](../design/product-vs-core-api-boundary.md)
-- [IBM Design Thinking: sponsor use cases for `git-warp`](../design/git-warp-sponsor-use-cases.md)
-- [OG-010 backlog item](../../BACKLOG/OG-010-public-api-design-thinking.md)
+- OG-010 public API design thinking (deleted)
+- Public API stratification (deleted)
+- Product API vs Core API boundary (deleted)
+- IBM Design Thinking: sponsor use cases for `git-warp` (deleted)
+- OG-010 backlog item (deleted)
 
 ## What Landed
 
