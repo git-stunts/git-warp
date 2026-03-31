@@ -1,12 +1,13 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import jsdoc from "eslint-plugin-jsdoc";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// ── Base: recommended + strict-type-checked for src/ and bin/ ────────────────
-// Every rule is "error". Zero warnings. Zero tolerance.
+// ── Base: recommended + strict-type-checked + JSDoc for src/ and bin/ ────────
+// Every rule is "error". Zero warnings. Zero tolerance. Maximum pain.
 
 export default tseslint.config(
   // ── Global ignores ─────────────────────────────────────────────────────────
@@ -21,6 +22,10 @@ export default tseslint.config(
 
   // ── All JS files: recommended baseline ─────────────────────────────────────
   js.configs.recommended,
+
+  // NOTE: strictTypeChecked and stylisticTypeChecked presets are applied
+  // only to src/ and bin/ files via the parser/rules block below, not globally.
+  // Global application crashes on files without type info (benchmarks, etc.).
 
   // ── Source + CLI: typed linting (the nuclear option) ────────────────────────
   {
@@ -54,6 +59,7 @@ export default tseslint.config(
     },
     plugins: {
       "@typescript-eslint": tseslint.plugin,
+      jsdoc,
     },
     rules: {
       // ── THE RULES THAT WOULD HAVE CAUGHT THE BUG ────────────────────────
@@ -65,8 +71,17 @@ export default tseslint.config(
       // Turn off base rule that conflicts with TS version
       "require-await": "off",
 
-      // ── IRONCLAD M9: ban explicit `any` keyword in type annotations ────
+      // ── IRONCLAD: ban explicit `any` in type annotations ────────────────
       "@typescript-eslint/no-explicit-any": "error",
+
+      // ── TYPE-AWARE BRUTALITY ────────────────────────────────────────────
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "@typescript-eslint/only-throw-error": "error",
 
       // ── More typed rules ─────────────────────────────────────────────────
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
@@ -79,10 +94,29 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
       "@typescript-eslint/return-await": ["error", "always"],
 
-      // ── Complexity & structure ───────────────────────────────────────────
-      "complexity": ["error", 10],
+      // ── JSDoc BRUTALITY ─────────────────────────────────────────────────
+      "jsdoc/require-jsdoc": ["error", {
+        require: { FunctionDeclaration: true, MethodDefinition: true, ArrowFunctionExpression: true },
+      }],
+      "jsdoc/require-description": "error",
+      "jsdoc/valid-types": "error",
+
+      // ── CUSTOM ERROR TIER: no raw Errors ────────────────────────────────
+      "no-restricted-syntax": ["error",
+        {
+          "selector": "NewExpression[callee.name='Error']",
+          "message": "Zero-slop policy: Do not throw raw Errors. Create and instantiate a custom Error class extending Error.",
+        },
+        {
+          "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
+          "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
+        },
+      ],
+
+      // ── Complexity & structure (MAXIMUM PAIN) ───────────────────────────
+      "complexity": ["error", 5],
       "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", 50],
+      "max-lines-per-function": ["error", 30],
       "max-params": ["error", 3],
       "max-nested-callbacks": ["error", 3],
 
@@ -147,12 +181,6 @@ export default tseslint.config(
       // ── Classes ──────────────────────────────────────────────────────────
       "no-constructor-return": "error",
       "no-useless-constructor": "error",
-      "no-restricted-syntax": ["error",
-        {
-          "selector": "MethodDefinition[kind='constructor'] > FunctionExpression > AssignmentPattern[left.type='ObjectPattern'][right.type='ObjectExpression'][right.properties.length=0]",
-          "message": "Avoid `constructor({ ... } = {})`. Accept an `options` parameter and destructure inside the constructor body so optionality stays explicit in JSDoc and type checking.",
-        },
-      ],
 
       // ── Modules ──────────────────────────────────────────────────────────
       "no-duplicate-imports": "error",

@@ -1,13 +1,30 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
+    /* =======================================
+       THE BASELINE STRICTNESS (JS MODE)
+       ======================================= */
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,
     "strict": true,
+    "alwaysStrict": true,
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "forceConsistentCasingInFileNames": true,
+
+    /* =======================================
+       THE "MAXIMUM PAIN" PEDANTIC FLAGS
+       ======================================= */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   }
 }
