@@ -55,13 +55,11 @@ function _displaySha(sha) {
  *
  * @param {{code?: unknown, expectedSha?: unknown, actualSha?: unknown}} casError - The CAS error object
  * @param {Error|undefined} cause - The original error cause
- * @param {string} graphName - The graph name for ref building
- * @param {string} writerId - The writer ID for ref building
- * @param {string|null} expectedOldHead - The expected old head SHA
+ * @param {{ graphName: string, writerId: string, expectedOldHead: string|null }} ctx - Commit context
  * @returns {WriterError} A WRITER_REF_ADVANCED error
  */
-// eslint-disable-next-line max-params -- internal helper carrying commit context
-function _buildCasConflictError(casError, cause, graphName, writerId, expectedOldHead) {
+function _buildCasConflictError(casError, cause, ctx) {
+  const { graphName, writerId, expectedOldHead } = ctx;
   const writerRef = buildWriterRef(graphName, writerId);
   const expectedSha = typeof casError.expectedSha === 'string' ? casError.expectedSha : expectedOldHead;
   const actualSha = typeof casError.actualSha === 'string' ? casError.actualSha : null;
@@ -78,17 +76,14 @@ function _buildCasConflictError(casError, cause, graphName, writerId, expectedOl
  * Classifies a commit error into the appropriate WriterError code.
  *
  * @param {unknown} err - The caught error
- * @param {string} graphName - The graph name
- * @param {string} writerId - The writer ID
- * @param {string|null} expectedOldHead - The expected old head SHA
+ * @param {{ graphName: string, writerId: string, expectedOldHead: string|null }} ctx - Commit context
  * @returns {WriterError} A classified WriterError
  */
-// eslint-disable-next-line max-params -- internal helper carrying commit context
-function _classifyCommitError(err, graphName, writerId, expectedOldHead) {
+function _classifyCommitError(err, ctx) {
   const { errMsg, cause } = _extractErrorInfo(err);
   const casError = _extractCasError(err);
   if (casError !== null && casError.code === 'WRITER_CAS_CONFLICT') {
-    return _buildCasConflictError(casError, cause, graphName, writerId, expectedOldHead);
+    return _buildCasConflictError(casError, cause, ctx);
   }
   if (errMsg.includes('Concurrent commit detected') || errMsg.includes('has advanced')) {
     return new WriterError('WRITER_REF_ADVANCED', errMsg, cause);
@@ -220,7 +215,7 @@ export class PatchSession {
    * @returns {this} This session for chaining
    * @throws {WriterError} SESSION_COMMITTED if already committed
    */
-  // eslint-disable-next-line max-params -- direct delegate matching PatchBuilderV2 signature
+
   setEdgeProperty(from, to, label, key, value) {
     this._ensureNotCommitted();
     this._builder.setEdgeProperty(from, to, label, key, value);
@@ -266,7 +261,7 @@ export class PatchSession {
    * @returns {Promise<this>} This session for chaining
    * @throws {WriterError} SESSION_COMMITTED if already committed
    */
-  // eslint-disable-next-line max-params -- direct delegate matching PatchBuilderV2 signature
+
   async attachEdgeContent(from, to, label, content, metadata = undefined) {
     this._ensureNotCommitted();
     await this._builder.attachEdgeContent(from, to, label, content, metadata);
@@ -317,7 +312,7 @@ export class PatchSession {
       this._committed = true;
       return sha;
     } catch (err) {
-      throw _classifyCommitError(err, this._graphName, this._writerId, this._expectedOldHead);
+      throw _classifyCommitError(err, { graphName: this._graphName, writerId: this._writerId, expectedOldHead: this._expectedOldHead });
     }
   }
 
