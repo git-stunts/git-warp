@@ -157,50 +157,6 @@ export default class WarpCore {
     }
   }
 
-  /**
-   * Emits an effect by writing an `effect:*` graph entity, then
-   * optionally delivering through the host pipeline if configured.
-   *
-   * The effect node is causal substrate truth. The pipeline delivery
-   * is host-domain externalization on top.
-   *
-   * @param {string} kind - Effect kind (generic string, app-defined)
-   * @param {unknown} payload - Opaque effect payload (JSON-serialized if non-null)
-   * @param {{ effectId?: string }} [options]
-   * @returns {Promise<{ effectId: string, delivered: import('./types/DeliveryObservation.js').DeliveryObservation[] }>}
-   */
-  async emit(kind, payload, options) {
-    const rt = this._asRuntime();
-    const effectId = (options && options.effectId) || `effect:${rt._clock.now()}-${++WarpCore._emitCounter}`;
-
-    // Write graph entity
-    const pb = await rt.createPatch();
-    pb.addNode(effectId);
-    pb.setProperty(effectId, 'kind', kind);
-    pb.setProperty(effectId, 'timestamp', rt._clock.now());
-    pb.setProperty(effectId, 'writer', rt._writerId);
-    if (payload !== null && payload !== undefined) {
-      pb.setProperty(effectId, 'payload', JSON.stringify(payload));
-    } else {
-      pb.setProperty(effectId, 'payload', null);
-    }
-    await pb.commit();
-
-    // Host pipeline delivery (optional)
-    /** @type {import('./types/DeliveryObservation.js').DeliveryObservation[]} */
-    let delivered = [];
-    const pipeline = rt._effectPipeline;
-    if (pipeline) {
-      const result = await pipeline.emit(kind, payload, {
-        writer: rt._writerId,
-      });
-      const obs = result.observations;
-      delivered = Array.isArray(obs) ? obs : [obs];
-    }
-
-    return { effectId, delivered };
-  }
-
   // ── Content attachment reads ──────────────────────────────────────────
   // Imported from query.methods.js and called with WarpRuntime-typed this.
   // WarpCore is a WarpRuntime at runtime (via Object.setPrototypeOf in _adopt).
@@ -561,8 +517,5 @@ export default class WarpCore {
     );
   }
 }
-
-/** @type {number} */
-WarpCore._emitCounter = 0;
 
 Object.setPrototypeOf(WarpCore.prototype, WarpRuntime.prototype);

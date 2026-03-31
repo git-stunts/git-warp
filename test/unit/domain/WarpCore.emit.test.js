@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   WarpCore,
   InMemoryGraphAdapter,
-  NoOpEffectSink,
-  LIVE_LENS,
-  REPLAY_LENS,
 } from '../../../index.js';
+import { EFFECT_NODE_PREFIX } from '../../../src/domain/services/KeyCodec.js';
 
 /**
  * @param {Record<string, unknown>} [extra]
@@ -20,160 +18,182 @@ async function openCore(extra = {}) {
   });
 }
 
-describe('WarpCore.emit() — graph entity behavior', () => {
+describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
   // -----------------------------------------------------------------------
-  // Core: emit writes a graph node
+  // Core: emitEffect writes a graph node inside a patch
   // -----------------------------------------------------------------------
-  describe('writes effect:* graph entities', () => {
-    it('creates an effect: node in the graph', async () => {
+  describe('writes effect graph entities', () => {
+    it('creates a node with the effect prefix', async () => {
       const core = await openCore();
-      const result = await core.emit('notification', { text: 'hello' });
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('notification', { text: 'hello' });
+      });
 
-      expect(result).not.toBeNull();
-      expect(result.effectId).toMatch(/^effect:/);
+      expect(effectId.startsWith(EFFECT_NODE_PREFIX)).toBe(true);
 
-      // The node exists in materialized state
       await core.materialize();
       const nodes = await core.getNodes();
-      expect(nodes).toContain(result.effectId);
+      expect(nodes).toContain(effectId);
     });
 
     it('sets kind property on the effect node', async () => {
       const core = await openCore();
-      const result = await core.emit('diagnostic', null);
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('diagnostic', null);
+      });
 
       await core.materialize();
-      const props = await core.getNodeProps(result.effectId);
+      const props = await core.getNodeProps(effectId);
       expect(props.kind).toBe('diagnostic');
     });
 
-    it('sets timestamp property on the effect node', async () => {
+    it('sets writer property from the patch writerId', async () => {
       const core = await openCore();
-      const result = await core.emit('test', null);
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('test', null);
+      });
 
       await core.materialize();
-      const props = await core.getNodeProps(result.effectId);
-      expect(typeof props.timestamp).toBe('number');
-      expect(props.timestamp).toBeGreaterThan(0);
+      const props = await core.getNodeProps(effectId);
+      expect(props.writer).toBe('writer-1');
     });
 
-    it('JSON-serializes complex payloads', async () => {
+    it('canonically serializes complex payloads', async () => {
       const core = await openCore();
-      const result = await core.emit('export', { format: 'csv', rows: 100 });
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('export', { format: 'csv', rows: 100 });
+      });
 
       await core.materialize();
-      const props = await core.getNodeProps(result.effectId);
+      const props = await core.getNodeProps(effectId);
       const parsed = JSON.parse(/** @type {string} */ (props.payload));
       expect(parsed).toEqual({ format: 'csv', rows: 100 });
     });
 
-    it('stores null payload as null property', async () => {
+    it('does not set payload property for null payload', async () => {
       const core = await openCore();
-      const result = await core.emit('ping', null);
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('ping', null);
+      });
 
       await core.materialize();
-      const props = await core.getNodeProps(result.effectId);
-      expect(props.payload).toBeNull();
-    });
-
-    it('sets writer property from the graph writerId', async () => {
-      const core = await openCore();
-      const result = await core.emit('test', null);
-
-      await core.materialize();
-      const props = await core.getNodeProps(result.effectId);
-      expect(props.writer).toBe('writer-1');
+      const props = await core.getNodeProps(effectId);
+      expect(props.payload).toBeUndefined();
     });
 
     it('generates unique effect IDs across multiple emits', async () => {
       const core = await openCore();
-      const r1 = await core.emit('a', null);
-      const r2 = await core.emit('b', null);
-      const r3 = await core.emit('c', null);
+      /** @type {string[]} */
+      const ids = [];
+      await core.patch((p) => {
+        ids.push(p.emitEffect('a', null));
+        ids.push(p.emitEffect('b', null));
+        ids.push(p.emitEffect('c', null));
+      });
 
-      expect(r1.effectId).not.toBe(r2.effectId);
-      expect(r2.effectId).not.toBe(r3.effectId);
+      expect(new Set(ids).size).toBe(3);
     });
-  });
 
-  // -----------------------------------------------------------------------
-  // Provenance: effects have graph provenance
-  // -----------------------------------------------------------------------
-  describe('provenance', () => {
-    it('effect node is traceable via patchesFor', async () => {
+    it('allows a custom effectId', async () => {
       const core = await openCore();
-      const result = await core.emit('audit-event', { action: 'login' });
-
-      await core.materialize();
-      const patches = await core.patchesFor(result.effectId);
-      expect(patches.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // Pipeline integration: emit also delivers if pipeline configured
-  // -----------------------------------------------------------------------
-  describe('host pipeline delivery', () => {
-    it('delivers through the pipeline when configured', async () => {
-      const core = await openCore({
-        effectSinks: [new NoOpEffectSink()],
-        externalizationPolicy: LIVE_LENS,
+      const customId = `${EFFECT_NODE_PREFIX}my-custom-id`;
+      await core.patch((p) => {
+        p.emitEffect('test', null, { effectId: customId });
       });
 
-      const result = await core.emit('notification', { text: 'hi' });
-
-      expect(result.effectId).toMatch(/^effect:/);
-      expect(result.delivered).toBeDefined();
-      expect(result.delivered.length).toBeGreaterThanOrEqual(1);
-      expect(result.delivered[0].outcome).toBe('delivered');
-    });
-
-    it('suppresses delivery in replay mode but still writes graph node', async () => {
-      const core = await openCore({
-        effectSinks: [new NoOpEffectSink()],
-        externalizationPolicy: REPLAY_LENS,
-      });
-
-      const result = await core.emit('notification', null);
-
-      // Graph node was written (deterministic)
       await core.materialize();
       const nodes = await core.getNodes();
-      expect(nodes).toContain(result.effectId);
-
-      // Delivery was suppressed
-      expect(result.delivered[0].outcome).toBe('suppressed');
+      expect(nodes).toContain(customId);
     });
 
-    it('returns empty delivered array when no pipeline configured', async () => {
+    it('rejects empty kind', async () => {
       const core = await openCore();
-      const result = await core.emit('test', null);
-
-      expect(result.effectId).toMatch(/^effect:/);
-      expect(result.delivered).toEqual([]);
+      await expect(
+        core.patch((p) => {
+          p.emitEffect('', null);
+        }),
+      ).rejects.toThrow('emitEffect: kind must be a non-empty string');
     });
   });
 
   // -----------------------------------------------------------------------
-  // Time travel: effects are visible at historical coordinates
+  // Same-patch causality: effect shares provenance with its cause
   // -----------------------------------------------------------------------
-  describe('time travel', () => {
-    it('effect nodes are visible when seeking to their coordinate', async () => {
+  describe('same-patch causality', () => {
+    it('effect and its cause share the same patch', async () => {
       const core = await openCore();
-
-      // Write some data first
-      await core.patch((p) => {
+      /** @type {string} */
+      let effectId = '';
+      const patchSha = await core.patch((p) => {
         p.addNode('user:alice');
+        p.setProperty('user:alice', 'name', 'Alice');
+        effectId = p.emitEffect('user-created', { userId: 'user:alice' });
       });
 
-      // Emit an effect
-      const result = await core.emit('event', { msg: 'something happened' });
-
-      // Materialize at current frontier — effect exists
       await core.materialize();
-      const allNodes = await core.getNodes();
-      expect(allNodes).toContain(result.effectId);
-      expect(allNodes).toContain('user:alice');
+
+      const nodes = await core.getNodes();
+      expect(nodes).toContain('user:alice');
+      expect(nodes).toContain(effectId);
+
+      const causePatches = await core.patchesFor('user:alice');
+      const effectPatches = await core.patchesFor(effectId);
+      expect(causePatches).toContain(patchSha);
+      expect(effectPatches).toContain(patchSha);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // No wall-clock time — determinism
+  // -----------------------------------------------------------------------
+  describe('determinism', () => {
+    it('does not set a timestamp property', async () => {
+      const core = await openCore();
+      /** @type {string} */
+      let effectId = '';
+      await core.patch((p) => {
+        effectId = p.emitEffect('test', null);
+      });
+
+      await core.materialize();
+      const props = await core.getNodeProps(effectId);
+      expect(props.timestamp).toBeUndefined();
+    });
+
+    it('canonical payload serialization is deterministic across instances', async () => {
+      const core1 = await openCore();
+      const core2 = await WarpCore.open({
+        persistence: new InMemoryGraphAdapter(),
+        graphName: 'emit-test-2',
+        writerId: 'writer-1',
+      });
+
+      const payload = { z: 1, a: 2, m: { b: 3, a: 4 } };
+      const sharedId = `${EFFECT_NODE_PREFIX}determinism-check`;
+
+      await core1.patch((p) => {
+        p.emitEffect('test', payload, { effectId: sharedId });
+      });
+      await core2.patch((p) => {
+        p.emitEffect('test', payload, { effectId: sharedId });
+      });
+
+      await core1.materialize();
+      await core2.materialize();
+
+      const props1 = await core1.getNodeProps(sharedId);
+      const props2 = await core2.getNodeProps(sharedId);
+      expect(props1.payload).toBe(props2.payload);
     });
   });
 });

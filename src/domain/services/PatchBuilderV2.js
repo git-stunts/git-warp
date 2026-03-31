@@ -31,12 +31,15 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
+  EFFECT_NODE_PREFIX,
 } from './KeyCodec.js';
 import { lowerCanonicalOp } from './OpNormalizer.js';
 import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 import WriterError from '../errors/WriterError.js';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';
+import { canonicalStringify } from '../utils/canonicalStringify.js';
+import PatchError from '../errors/PatchError.js';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -520,6 +523,49 @@ export class PatchBuilderV2 {
    *   .setProperty('user:alice', 'email', 'alice@example.com')
    *   .setProperty('user:alice', 'age', 30);
    */
+  /**
+   * Emits an effect entity in this patch.
+   *
+   * Sugar for addNode('effect:...') + setProperty calls. The effect
+   * shares the same patch commit as the rewrite that caused it —
+   * same Lamport timestamp, same provenance, same causal position.
+   *
+   * No wall-clock time. Causal ordering comes from the patch's
+   * Lamport timestamp. Wall-clock time is non-deterministic and
+   * has no place in substrate truth.
+   *
+   * @param {string} kind - Effect kind (generic string, app-defined)
+   * @param {unknown} [payload] - Opaque payload (JSON-serialized if non-null)
+   * @param {{ effectId?: string }} [options]
+   * @returns {string} The effect node ID
+   *
+   * @example
+   * await core.patch(p => {
+   *   p.addNode('user:alice');
+   *   p.emitEffect('user-created', { userId: 'user:alice' });
+   * });
+   */
+  emitEffect(kind, payload, options) {
+    this._assertNotCommitted();
+    if (typeof kind !== 'string' || kind.length === 0) {
+      throw new PatchError('emitEffect: kind must be a non-empty string', {
+        code: 'E_EFFECT_INVALID_KIND',
+        context: { kind },
+      });
+    }
+
+    const effectId = (options && options.effectId)
+      || `${EFFECT_NODE_PREFIX}${this._writerId}-${this._lamport}-${this._ops.length}`;
+
+    this.addNode(effectId);
+    this.setProperty(effectId, 'kind', kind);
+    this.setProperty(effectId, 'writer', this._writerId);
+    if (payload !== null && payload !== undefined) {
+      this.setProperty(effectId, 'payload', canonicalStringify(payload));
+    }
+    return effectId;
+  }
+
   setProperty(nodeId, key, value) {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');

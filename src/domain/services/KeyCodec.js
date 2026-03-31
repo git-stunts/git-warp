@@ -40,6 +40,13 @@ export const CONTENT_MIME_PROPERTY_KEY = '_content.mime';
 export const CONTENT_SIZE_PROPERTY_KEY = '_content.size';
 
 /**
+ * Reserved node ID prefix for substrate-internal effect entities.
+ * Observers match this prefix to discover effect nodes.
+ * @const {string}
+ */
+export const EFFECT_NODE_PREFIX = '@warp/effect:';
+
+/**
  * Encodes an edge key to a string for Map storage.
  *
  * @param {string} from - Source node ID

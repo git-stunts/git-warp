@@ -1977,23 +1977,6 @@ declare class WarpCoreBase {
   /** Updates the externalization policy on the attached pipeline. */
   set externalizationPolicy(newLens: ExternalizationPolicy);
 
-  /**
-   * Emits an effect by writing an `effect:*` graph entity, then
-   * optionally delivering through the host pipeline if configured.
-   *
-   * The effect node is causal substrate truth. Pipeline delivery is
-   * host-domain externalization on top.
-   */
-  emit(
-    kind: string,
-    payload: unknown,
-    options?: {
-      effectId?: string;
-    },
-  ): Promise<{
-    effectId: string;
-    delivered: DeliveryObservation[];
-  }>;
 
   /**
    * Creates a new PatchBuilderV2 for adding operations.
