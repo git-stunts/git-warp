@@ -180,17 +180,36 @@ lifecycle. Different concerns, different families.
 
 ## Integration with WarpCore
 
-WarpCore gains an optional `effectPipeline` that can be injected at
-`open()` time or configured after construction:
+WarpCore gains an optional effect pipeline, configured via `open()`:
 
 ```js
+// Option A: inject a pre-built pipeline
 const core = await WarpCore.open({ ..., effectPipeline });
-// or
+
+// Option B: pass sinks + lens, let open() build the pipeline
+const core = await WarpCore.open({
+  ...,
+  effectSinks: [new ConsoleEffectSink({ logger })],
+  deliveryLens: LIVE_LENS,
+});
+
+// Option C: configure after construction
 core.effectPipeline = new EffectPipeline({ sink, lens, clock });
 ```
 
+Once configured, WarpCore exposes:
+
+```js
+core.emit(kind, payload, options?)   // → { emission, observations }
+core.effectPipeline                  // → EffectPipeline | null
+core.effectEmissions                 // → readonly EffectEmission[]
+core.deliveryObservations            // → readonly DeliveryObservation[]
+core.deliveryLens                    // → DeliveryLens | null
+core.deliveryLens = REPLAY_LENS     // switch lens (e.g., entering replay)
+```
+
 This is opt-in. Existing code that doesn't configure an effect pipeline
-is unaffected.
+is unaffected — `emit()` is a no-op, getters return null/empty.
 
 ## Protocol / Versioning
 
@@ -260,8 +279,6 @@ test/
 - **Durable persistence** — storing effect/delivery records in Git
   (ChunkEffectSink writes to filesystem, not Git objects)
 - **Streaming** — async iterator over emission/observation logs
-- **WarpCore.emit()** convenience — v1 injects the pipeline manually;
-  a future slice could wire `emit()` directly on WarpCore
 - **Audit chain** — effect-specific audit receipts (parallel to
   AuditReceiptService for TickReceipts)
 - **Sink capability declarations** — sinks advertising what delivery

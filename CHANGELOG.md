@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ConsoleEffectSink`** — console logging sink adapter that suppresses output during replay/inspect (infrastructure).
 - **`ChunkEffectSink`** — rotating append-only NDJSON file sink for local forensic streams, replay-safe (infrastructure).
 - **Design doc:** `docs/design/effect-emission-v1.md` — full model description, replay rules, and integration guidance.
+- **`WarpCore.emit(kind, payload, options?)`** — convenience method for emitting effects through the configured pipeline. No-op (returns null) when no pipeline is configured.
+- **`WarpCore.effectPipeline` get/set** — attach or access the effect pipeline.
+- **`WarpCore.effectEmissions` / `WarpCore.deliveryObservations`** — read-only getters for the pipeline's accumulated logs.
+- **`WarpCore.deliveryLens` get/set** — read or switch the active delivery lens (e.g., switch to `REPLAY_LENS` when entering replay mode).
+- **`WarpCore.open()` accepts `effectPipeline`, `effectSinks`, and `deliveryLens`** — opt-in effect pipeline configuration. `effectSinks` + `deliveryLens` auto-constructs a `MultiplexSink`-backed pipeline.
 
 ### Fixed
 

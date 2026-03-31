@@ -1936,6 +1936,12 @@ declare class WarpCoreBase {
     blobStorage?: BlobStoragePort;
     /** Patch blob storage — when set, patch CBOR is encrypted via this port. */
     patchBlobStorage?: BlobStoragePort;
+    /** Pre-built effect pipeline (takes priority over effectSinks + deliveryLens). */
+    effectPipeline?: EffectPipeline;
+    /** Effect sinks — auto-constructs an EffectPipeline with a MultiplexSink. */
+    effectSinks?: EffectSinkPort[];
+    /** Delivery lens for auto-constructed pipeline (defaults to LIVE_LENS). */
+    deliveryLens?: DeliveryLens;
   }): Promise<WarpCore>;
 
   /**
@@ -1953,6 +1959,42 @@ declare class WarpCoreBase {
 
   /** Attaches (or detaches, with null) a persistent seek cache. */
   setSeekCache(cache: SeekCachePort | null): void;
+
+  // ── Effect pipeline ──────────────────────────────────────────────────
+
+  /** Returns the attached effect pipeline, or null if none is configured. */
+  get effectPipeline(): EffectPipeline | null;
+  /** Attaches (or replaces) the effect pipeline after construction. */
+  set effectPipeline(pipeline: EffectPipeline | null);
+
+  /** Returns all effect emissions from the pipeline, or an empty array. */
+  readonly effectEmissions: readonly EffectEmission[];
+  /** Returns all delivery observations from the pipeline, or an empty array. */
+  readonly deliveryObservations: readonly DeliveryObservation[];
+
+  /** Returns the current delivery lens, or null if no pipeline is configured. */
+  get deliveryLens(): DeliveryLens | null;
+  /** Updates the delivery lens on the attached pipeline. */
+  set deliveryLens(newLens: DeliveryLens);
+
+  /**
+   * Emits an effect through the configured pipeline.
+   * Returns null if no pipeline is configured (no-op).
+   */
+  emit(
+    kind: string,
+    payload: unknown,
+    options?: {
+      writer?: string | null;
+      coordinate?: {
+        frontier?: Record<string, string> | null;
+        ceiling?: number | null;
+      };
+    },
+  ): Promise<{
+    emission: EffectEmission;
+    observations: DeliveryObservation | DeliveryObservation[];
+  } | null>;
 
   /**
    * Creates a new PatchBuilderV2 for adding operations.

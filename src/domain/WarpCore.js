@@ -95,6 +95,89 @@ export default class WarpCore {
     return /** @type {WarpCore} */ (/** @type {unknown} */ (runtime));
   }
 
+  // ── Effect pipeline ──────────────────────────────────────────────────
+
+  /**
+   * Returns the attached effect pipeline, or null if none is configured.
+   *
+   * @returns {import('./services/EffectPipeline.js').EffectPipeline|null}
+   */
+  get effectPipeline() {
+    return this._asRuntime()._effectPipeline;
+  }
+
+  /**
+   * Attaches an effect pipeline after construction.
+   *
+   * @param {import('./services/EffectPipeline.js').EffectPipeline|null} pipeline
+   */
+  set effectPipeline(pipeline) {
+    this._asRuntime()._effectPipeline = pipeline;
+  }
+
+  /**
+   * Returns all effect emissions from the pipeline, or an empty array.
+   *
+   * @returns {ReadonlyArray<import('./types/EffectEmission.js').EffectEmission>}
+   */
+  get effectEmissions() {
+    const p = this._asRuntime()._effectPipeline;
+    return p ? p.emissions : [];
+  }
+
+  /**
+   * Returns all delivery observations from the pipeline, or an empty array.
+   *
+   * @returns {ReadonlyArray<import('./types/DeliveryObservation.js').DeliveryObservation>}
+   */
+  get deliveryObservations() {
+    const p = this._asRuntime()._effectPipeline;
+    return p ? p.observations : [];
+  }
+
+  /**
+   * Returns the current delivery lens, or null if no pipeline is configured.
+   *
+   * @returns {import('./types/DeliveryLens.js').DeliveryLens|null}
+   */
+  get deliveryLens() {
+    const p = this._asRuntime()._effectPipeline;
+    return p ? p.lens : null;
+  }
+
+  /**
+   * Updates the delivery lens on the attached pipeline.
+   *
+   * @param {import('./types/DeliveryLens.js').DeliveryLens} newLens
+   */
+  set deliveryLens(newLens) {
+    const p = this._asRuntime()._effectPipeline;
+    if (p) {
+      p.lens = newLens;
+    }
+  }
+
+  /**
+   * Emits an effect through the configured pipeline.
+   *
+   * Returns null if no pipeline is configured (no-op).
+   *
+   * @param {string} kind - Effect kind (generic string)
+   * @param {unknown} payload - Opaque effect payload
+   * @param {{
+   *   writer?: string | null,
+   *   coordinate?: { frontier?: Record<string, string> | null, ceiling?: number | null }
+   * }} [options]
+   * @returns {Promise<{ emission: import('./types/EffectEmission.js').EffectEmission, observations: import('./types/DeliveryObservation.js').DeliveryObservation | import('./types/DeliveryObservation.js').DeliveryObservation[] } | null>}
+   */
+  async emit(kind, payload, options) {
+    const p = this._asRuntime()._effectPipeline;
+    if (!p) {
+      return null;
+    }
+    return await p.emit(kind, payload, options);
+  }
+
   // ── Content attachment reads ──────────────────────────────────────────
   // Imported from query.methods.js and called with WarpRuntime-typed this.
   // WarpCore is a WarpRuntime at runtime (via Object.setPrototypeOf in _adopt).

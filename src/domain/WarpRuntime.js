@@ -301,6 +301,9 @@ export default class WarpRuntime {
 
     /** @type {boolean} */
     this._indexDegraded = false;
+
+    /** @type {import('./services/EffectPipeline.js').EffectPipeline|null} */
+    this._effectPipeline = null;
   }
 
   /**
@@ -373,7 +376,7 @@ export default class WarpRuntime {
    */
   // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust, effectPipeline, effectSinks, deliveryLens }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -431,6 +434,23 @@ export default class WarpRuntime {
         logger: graph._logger || undefined,
       });
       await graph._auditService.init();
+    }
+
+    // Wire effect pipeline if provided (explicit pipeline wins over sinks+lens)
+    if (effectPipeline) {
+      graph._effectPipeline = effectPipeline;
+    } else if (effectSinks && effectSinks.length > 0) {
+      const { MultiplexSink } = await import('./services/MultiplexSink.js');
+      const { EffectPipeline } = await import('./services/EffectPipeline.js');
+      const mux = new MultiplexSink();
+      for (const sink of effectSinks) {
+        mux.addSink(sink);
+      }
+      graph._effectPipeline = new EffectPipeline({
+        sink: mux,
+        lens: deliveryLens || (await import('./types/DeliveryLens.js')).LIVE_LENS,
+        clock: graph._clock,
+      });
     }
 
     return graph;
