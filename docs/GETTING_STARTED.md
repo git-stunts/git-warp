@@ -136,16 +136,16 @@ const findingBeforeTriage = await beforeTriage.getNodeProps('finding:oauth-state
 
 ## Add a filtered read aperture
 
-A `Lens` defines what is visible. An `Observer` applies that lens over a worldline.
+An `Aperture` defines what is visible. An `Observer` applies that aperture over a worldline.
 
 ```javascript
-const externalLens = {
+const externalAperture = {
   match: ['finding:*', 'service:*'],
   redact: ['exploitSteps', 'internalNotes'],
 };
 
-const externalView = await worldline.observer('external-review', externalLens);
-// externalView is an Observer handle scoped by the lens above
+const externalView = await worldline.observer('external-review', externalAperture);
+// externalView is an Observer handle scoped by the aperture above
 ```
 
 ## Sync the graph through Git

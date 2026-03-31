@@ -46,5 +46,5 @@
 
 - Accept this as a deliberate refinement of the public read model.
 - Continue OG-010 to decide whether further API shaping is needed, especially
-  around inspection grouping and the unresolved `Strand` / `Lens` naming
+  around inspection grouping and the unresolved `Strand` / `Aperture` naming
   questions.

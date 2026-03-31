@@ -34,7 +34,7 @@ The public API should make these interactions feel natural:
 
 - write/speculate through `WarpApp` and speculative-lane primitives
 - pin read history through `Worldline`
-- shape read visibility through `Lens` and `Observer`
+- shape read visibility through `Aperture` and `Observer`
 - coordinate normal multi-writer app behavior without first learning replay
   internals
 - ask read questions through query/traversal surfaces scoped to a worldline or
@@ -57,7 +57,7 @@ An app developer should be able to infer:
 
 - `WarpApp` is the product-facing root and `WarpCore` is the plumbing/runtime root
 - `Worldline` is the pinned read-history primitive
-- `Lens` is the aperture definition
+- `Aperture` is the aperture definition
 - `Observer` is the filtered product-read primitive
 - whole-state inspection APIs are not the normal first tool for product reads
 
@@ -66,7 +66,7 @@ An app developer should be able to infer:
 A coding agent should be able to infer:
 
 - start from `worldline()` when building stable read flows
-- create a `Lens` when the app has a read aperture
+- create an `Aperture` when the app has a read aperture
 - create `observer(...)` from that lens
 - use `query()` or `traverse` on that read handle before considering state
   enumeration
@@ -99,7 +99,7 @@ These are the nouns and entrypoints we want consumers to reach for first.
   - filtered product reads
   - scoped query/traversal
   - app-facing visibility aperture
-- `Lens`
+- `Aperture`
   - explicit aperture definition
   - match/expose/redact policy
   - reusable observer input
@@ -201,7 +201,7 @@ The README should teach in this order:
    - `WarpApp`
    - `WarpCore`
    - `Worldline`
-   - `Lens`
+   - `Aperture`
    - `Observer`
    - `Strand`
    - braid, when product behavior needs co-present lanes

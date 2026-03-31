@@ -69,7 +69,7 @@ keeping the real warning aimed at app-local graph reconstruction.
 
 - no runtime warnings in this slice
 - no renaming of `Strand`
-- no introduction of `Lens` as a public noun here
+- no introduction of `Aperture` as a public noun here
 - no application-specific query helpers
 
 ## Acceptance Criteria

@@ -33,7 +33,7 @@ making three things explicit:
 
 Status: aligned
 
-The new notes classify `Worldline`, `Lens`, `Observer`, speculative lanes, and
+The new notes classify `Worldline`, `Aperture`, `Observer`, speculative lanes, and
 braid as the primary product-facing WARP story, while keeping provenance,
 materialization, receipts, BTRs, and playback coordination in the core/tooling
 stratum.

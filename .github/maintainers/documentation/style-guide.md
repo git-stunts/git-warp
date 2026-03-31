@@ -30,7 +30,7 @@ maintainers.
 - Use progressive disclosure: define a noun before using it heavily.
 - Use sentence case for headings.
 - Use code font for exported nouns and API names such as `WarpApp`,
-  `WarpCore`, `Worldline`, `Lens`, `Observer`, and `Strand`.
+  `WarpCore`, `Worldline`, `Aperture`, `Observer`, and `Strand`.
 - Keep one page focused on one job.
 - Make cost explicit when a surface is advanced, inspection-oriented, or
   substrate-level.
@@ -130,7 +130,7 @@ This is the intended documentation layout for the live corpus.
 - `docs/getting-started/`
   First-use onboarding and early tutorial flow.
 - `docs/app/`
-  Product-facing docs for `WarpApp`, `Worldline`, `Lens`, `Observer`, `Strand`,
+  Product-facing docs for `WarpApp`, `Worldline`, `Aperture`, `Observer`, `Strand`,
   braid patterns, and app-shaped usage.
 - `docs/core/`
   Advanced substrate docs for `WarpCore`, materialization, receipts,

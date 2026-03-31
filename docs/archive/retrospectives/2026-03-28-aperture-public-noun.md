@@ -1,4 +1,4 @@
-# Retrospective: Lens Public Noun
+# Retrospective: Aperture Public Noun
 
 Date: 2026-03-28
 
@@ -11,16 +11,16 @@ Cycle: OG-010
 - OG-010-public-api-design-thinking (deleted)
 - public-api-design-thinking (deleted)
 - public-api-stratification (deleted)
-- lens-public-noun (deleted)
+- aperture-public-noun (deleted)
 
 ## What Landed
 
-- `Lens` is now a first-class public type noun.
+- `Aperture` is now a first-class public type noun.
 - `ObserverConfig` remains exported as a compatibility alias.
-- Public signatures now speak in terms of `Lens` for observer creation and
+- Public signatures now speak in terms of `Aperture` for observer creation and
   translation-cost APIs.
 - README and Guide now teach `Observer` as a projection over a `Worldline`
-  through a lens.
+  through an aperture.
 - The noun is pinned by a script-level public API test and the consumer
   typecheck fixture.
 
@@ -33,7 +33,7 @@ Cycle: OG-010
 
 ## Drift
 
-- Runtime code still does not expose a concrete `Lens` class or factory, only a
+- Runtime code still does not expose a concrete `Aperture` class or factory, only a
   type-level noun. That is intentional for now.
 
 ## Why The Drift Happened
@@ -44,5 +44,5 @@ Cycle: OG-010
 ## Resolution
 
 - Accept the type/documentation-level noun cut for v15.
-- Revisit only if real consumers prove they need runtime helpers for lens
+- Revisit only if real consumers prove they need runtime helpers for aperture
   construction or reuse.

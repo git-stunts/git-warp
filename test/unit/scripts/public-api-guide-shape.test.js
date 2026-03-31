@@ -11,8 +11,8 @@ describe('Guide builder-shape', () => {
   it('starts with the state model before diving into methods', () => {
     expect(guide).toContain('## Mental model');
     expect(guide).toContain('A `Worldline` is a pinned read coordinate.');
-    expect(guide).toContain('A `Lens` defines what is visible.');
-    expect(guide).toContain('An `Observer` is a filtered read-only view through that lens.');
+    expect(guide).toContain('An `Aperture` defines what is visible.');
+    expect(guide).toContain('An `Observer` is a filtered read-only view through that aperture.');
     expect(guide).toContain('A `Strand` is a speculative write lane');
   });
 

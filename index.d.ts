@@ -1360,7 +1360,7 @@ export const CONTENT_PROPERTY_KEY: '_content';
  * A lens describes which nodes are visible and which properties are exposed or
  * redacted within that projection.
  */
-export interface Lens {
+export interface Aperture {
   /** Glob pattern or array of patterns for visible nodes (e.g. 'user:*' or ['user:*', 'team:*']) */
   match: string | string[];
   /** Property keys to include (whitelist). If omitted, all non-redacted properties are visible. */
@@ -1370,9 +1370,9 @@ export interface Lens {
 }
 
 /**
- * Legacy compatibility alias for Lens.
+ * Legacy compatibility alias for Aperture.
  */
-export type ObserverConfig = Lens;
+export type ObserverConfig = Aperture;
 
 /** Observer source pinned to the live materialized frontier. */
 export interface LiveObserverSource {
@@ -1501,8 +1501,8 @@ export class Worldline {
   materialize(options?: { receipts?: false }): Promise<WarpStateV5>;
 
   /** Creates an observer pinned to the worldline source when a filtered aperture is needed. */
-  observer(config: Lens): Promise<Observer>;
-  observer(name: string, config: Lens): Promise<Observer>;
+  observer(config: Aperture): Promise<Observer>;
+  observer(name: string, config: Aperture): Promise<Observer>;
 }
 
 /**
@@ -1530,13 +1530,13 @@ export interface TranslationCostResult {
 /**
  * Computes the directed MDL translation cost from observer A to observer B.
  *
- * @param configA - Lens for observer A
- * @param configB - Lens for observer B
+ * @param configA - Aperture for observer A
+ * @param configB - Aperture for observer B
  * @param state - WarpStateV5 materialized state
  */
 export function computeTranslationCost(
-  configA: Lens,
-  configB: Lens,
+  configA: Aperture,
+  configB: Aperture,
   state: WarpStateV5
 ): TranslationCostResult;
 
@@ -2196,8 +2196,8 @@ declare class WarpCoreBase {
   * property visibility controlled by `expose` and `redact` lists.
   * Edges are only visible when both endpoints pass the match filter.
   */
-  observer(config: Lens, options?: ObserverOptions): Promise<Observer>;
-  observer(name: string, config: Lens, options?: ObserverOptions): Promise<Observer>;
+  observer(config: Aperture, options?: ObserverOptions): Promise<Observer>;
+  observer(name: string, config: Aperture, options?: ObserverOptions): Promise<Observer>;
 
   /**
    * Computes the directed MDL translation cost from observer A to observer B.
@@ -2206,7 +2206,7 @@ declare class WarpCoreBase {
    * A's view to B's view. It is asymmetric: cost(A->B) != cost(B->A).
    *
    */
-  translationCost(configA: Lens, configB: Lens): Promise<TranslationCostResult>;
+  translationCost(configA: Aperture, configB: Aperture): Promise<TranslationCostResult>;
 
   /**
    * Advanced substrate replay primitive over the live frontier.
@@ -2572,10 +2572,10 @@ export declare class WarpApp {
   worldline(options?: Parameters<WarpCore['worldline']>[0]): ReturnType<WarpCore['worldline']>;
 
   /** Creates a read-only observer over the current pinned read source. */
-  observer(config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
-  observer(name: string, config: Lens, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+  observer(config: Aperture, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
+  observer(name: string, config: Aperture, options?: ObserverOptions): ReturnType<WarpCore['observer']>;
 
-  /** Computes the directed MDL translation cost from one lens to another. */
+  /** Computes the directed MDL translation cost from one aperture to another. */
   translationCost(
     configA: Parameters<WarpCore['translationCost']>[0],
     configB: Parameters<WarpCore['translationCost']>[1],

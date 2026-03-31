@@ -11,7 +11,7 @@ Cycle: OG-010
 `git-warp` now has a stronger read model than it used to:
 
 - `Worldline`
-- `Lens`
+- `Aperture`
 - `Observer`
 - detached immutable snapshots
 - pinned strand reads
@@ -75,7 +75,7 @@ first-class.
 
 ### 3. Aperture-shaped observation
 
-- `Lens`
+- `Aperture`
 - `Observer`
 
 This is how apps define:
@@ -273,7 +273,7 @@ The strongest current direction is:
 My current bias is:
 
 - the split should be structural, not prose-only
-- `Worldline`, `Lens`, `Observer`, speculative lanes, and braid belong to the
+- `Worldline`, `Aperture`, `Observer`, speculative lanes, and braid belong to the
   product-facing stratum
 - `PlaybackHead`, provenance, coordinate replay, and settlement/comparison
   mechanics belong to the core-facing stratum

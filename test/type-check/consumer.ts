@@ -90,7 +90,7 @@ import WarpApp, {
 import type {
   WarpStateV5,
   TickReceipt,
-  Lens,
+  Aperture,
   ObserverConfig,
   PingResult,
   RepositoryHealth,
@@ -225,8 +225,8 @@ const queryResultV1: QueryResultV1 = {
 };
 const weightedCostSelector: WeightedCostSelector = { weightFn: (_from, _to, _label) => 1 };
 const translationCostBreakdown: TranslationCostBreakdown = { nodeLoss: 0, edgeLoss: 0, propLoss: 0 };
-const publicLens: Lens = { match: 'user:*', redact: ['ssn'] };
-const legacyObserverConfig: ObserverConfig = publicLens;
+const publicAperture: Aperture = { match: 'user:*', redact: ['ssn'] };
+const legacyObserverConfig: ObserverConfig = publicAperture;
 const propSet: PropSet = { key: 'node\0name', nodeId: 'user:alice', propKey: 'name', oldValue: 'A', newValue: 'B' };
 const propRemoved: PropRemoved = { key: 'node\0age', nodeId: 'user:alice', propKey: 'age', oldValue: 42 };
 const valueRef: ValueRef = Math.random() > -1 ? { type: 'inline', value: 'x' } : { type: 'blob', oid: 'abc123' };
@@ -239,7 +239,7 @@ const _typeCoverageTuple: [
   QueryResultV1,
   WeightedCostSelector,
   TranslationCostBreakdown,
-  Lens,
+  Aperture,
   PropSet,
   PropRemoved,
   ValueRef,

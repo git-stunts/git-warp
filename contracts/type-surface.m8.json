@@ -904,11 +904,11 @@
           "params": [
             {
               "name": "nameOrConfig",
-              "type": "string | Lens"
+              "type": "string | Aperture"
             },
             {
               "name": "configOrOptions",
-              "type": "Lens | ObserverOptions"
+              "type": "Aperture | ObserverOptions"
             }
           ],
           "returns": "Promise<Observer>"
@@ -918,11 +918,11 @@
           "params": [
             {
               "name": "configA",
-              "type": "Lens"
+              "type": "Aperture"
             },
             {
               "name": "configB",
-              "type": "Lens"
+              "type": "Aperture"
             }
           ],
           "returns": "Promise<TranslationCostResult>"
@@ -1644,7 +1644,7 @@
     "NodeWeightFn": {
       "kind": "type"
     },
-    "Lens": {
+    "Aperture": {
       "kind": "interface"
     },
     "ObserverConfig": {

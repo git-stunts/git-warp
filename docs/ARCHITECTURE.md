@@ -51,7 +51,7 @@ It makes these operations feel normal:
 - writing patches
 - syncing
 - creating pinned reads with `Worldline`
-- shaping reads with `Lens` and `Observer`
+- shaping reads with `Aperture` and `Observer`
 - working with speculative lanes through `Strand`
 
 `WarpApp` is intentionally opinionated. It prefers the nouns that make WARP desirable to application builders.
@@ -110,17 +110,17 @@ A worldline can pin:
 
 That makes read position explicit instead of treating the runtime itself as the read coordinate.
 
-### Lenses and observers
+### Apertures and observers
 
-`Lens` defines the aperture. It says which nodes are visible and which properties are exposed or redacted.
+`Aperture` defines the aperture. It says which nodes are visible and which properties are exposed or redacted.
 
-`Observer` is the read-only projection over a worldline through that lens.
+`Observer` is the read-only projection over a worldline through that aperture.
 
 This is the product-facing read model:
 
 1. start from `WarpApp`
 2. pin a `Worldline`
-3. optionally shape it with a `Lens`
+3. optionally shape it with an `Aperture`
 4. read through an `Observer`
 
 ### Strands and braid

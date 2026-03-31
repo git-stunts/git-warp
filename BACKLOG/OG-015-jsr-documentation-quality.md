@@ -20,7 +20,7 @@ split into:
 - `WarpApp`
 - `WarpCore`
 - `Worldline`
-- `Lens`
+- `Aperture`
 - `Observer`
 - `Strand`
 
@@ -37,7 +37,7 @@ Improving symbol docs would:
 - increase discoverability for builders reading the API from their editor
 - make JSR-generated reference pages more useful
 - reduce the need to jump from code completion into source files
-- keep the public noun cuts (`WarpApp`, `WarpCore`, `Strand`, `Lens`, etc.)
+- keep the public noun cuts (`WarpApp`, `WarpCore`, `Strand`, `Aperture`, etc.)
   legible at the type level
 - reinforce the builder-first documentation posture established in `v15`
 
@@ -67,7 +67,7 @@ Likely shape:
   - `WarpCore`
   - `Worldline`
   - `Observer`
-  - `Lens`
+  - `Aperture`
   - `Strand`
   - writer / patch APIs
   - query / traversal result shapes

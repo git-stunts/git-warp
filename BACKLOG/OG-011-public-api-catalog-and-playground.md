@@ -36,7 +36,7 @@ without forcing readers into the source tree.
   - `WarpApp`
   - `WarpCore`
   - `Worldline`
-  - `Lens`
+  - `Aperture`
   - `Observer`
   - speculative lanes / braid / playback coordination primitives as they
     stabilize

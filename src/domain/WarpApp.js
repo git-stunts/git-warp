@@ -124,8 +124,8 @@ export default class WarpApp {
   }
 
   /**
-   * @param {string | import('../../index.js').Lens} nameOrConfig
-   * @param {import('../../index.js').Lens | import('../../index.js').ObserverOptions} [configOrOptions]
+   * @param {string | import('../../index.js').Aperture} nameOrConfig
+   * @param {import('../../index.js').Aperture | import('../../index.js').ObserverOptions} [configOrOptions]
    * @param {import('../../index.js').ObserverOptions} [maybeOptions]
    * @returns {Promise<import('../../index.js').Observer>}
    */
@@ -133,7 +133,7 @@ export default class WarpApp {
     if (typeof nameOrConfig === 'string') {
       return await this._runtime().observer(
         nameOrConfig,
-        /** @type {import('../../index.js').Lens} */ (configOrOptions),
+        /** @type {import('../../index.js').Aperture} */ (configOrOptions),
         maybeOptions,
       );
     }

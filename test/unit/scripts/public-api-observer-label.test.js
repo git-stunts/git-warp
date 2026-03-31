@@ -9,9 +9,9 @@ const indexDts = readFileSync(
 
 describe('public observer label optionality', () => {
   it('declares both labeled and unlabeled observer overloads', () => {
-    expect(indexDts).toContain('observer(config: Lens): Promise<Observer>;');
-    expect(indexDts).toContain('observer(name: string, config: Lens): Promise<Observer>;');
-    expect(indexDts).toContain('observer(config: Lens, options?: ObserverOptions): Promise<Observer>;');
-    expect(indexDts).toContain('observer(name: string, config: Lens, options?: ObserverOptions): Promise<Observer>;');
+    expect(indexDts).toContain('observer(config: Aperture): Promise<Observer>;');
+    expect(indexDts).toContain('observer(name: string, config: Aperture): Promise<Observer>;');
+    expect(indexDts).toContain('observer(config: Aperture, options?: ObserverOptions): Promise<Observer>;');
+    expect(indexDts).toContain('observer(name: string, config: Aperture, options?: ObserverOptions): Promise<Observer>;');
   });
 });

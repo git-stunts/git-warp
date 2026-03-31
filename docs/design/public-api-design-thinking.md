@@ -126,7 +126,7 @@ The public surface should teach these rules plainly:
 - application code does not own generic traversal strategy if `git-warp`
   already can answer the read question
 - application code should reach first for product nouns such as `Worldline`,
-  `Lens`, `Observer`, speculative lanes, and braid
+  `Aperture`, `Observer`, speculative lanes, and braid
 - whole-graph enumeration is for inspection, debugging, migration, and bounded
   tooling, not normal product hot paths
 - multi-lane stepping and playback coordination belong to a tooling/core

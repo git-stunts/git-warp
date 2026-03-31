@@ -67,7 +67,7 @@ Add focused script tests that verify:
 
 This slice is complete when:
 
-1. `ARCHITECTURE.md` teaches `WarpApp`, `WarpCore`, `Worldline`, `Lens`, `Observer`, and `Strand`
+1. `ARCHITECTURE.md` teaches `WarpApp`, `WarpCore`, `Worldline`, `Aperture`, `Observer`, and `Strand`
 2. `docs/CLI_GUIDE.md` uses current API/setup examples and current command families
 3. the docs index reflects those reconciled docs as part of the live corpus
 4. focused doc-shape tests pass

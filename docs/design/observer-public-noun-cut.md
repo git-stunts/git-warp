@@ -70,7 +70,7 @@ This slice includes:
 This slice does not attempt to:
 
 - rewrite every historical RFC or retrospective in the repository
-- introduce `Lens` as a public noun in the same change
+- introduce `Aperture` as a public noun in the same change
 - rename `Strand` or `WarpRuntime`
 
 ## Tests As Spec

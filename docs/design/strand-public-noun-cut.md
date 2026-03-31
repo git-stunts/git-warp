@@ -12,7 +12,7 @@ Cycle: OG-010
 
 - `WarpGraph` -> `WarpApp` / `WarpCore`
 - `ObserverView` -> `Observer`
-- `ObserverConfig` -> `Lens`
+- `ObserverConfig` -> `Aperture`
 
 The remaining public noun mismatch is `Strand`.
 

@@ -22,7 +22,7 @@ public surface:
 
 - `WarpApp` / `WarpCore`
 - `Worldline`
-- `Lens`
+- `Aperture`
 - `Observer`
 - `Strand`
 

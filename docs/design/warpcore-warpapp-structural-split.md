@@ -52,7 +52,7 @@ It should make these operations feel normal:
 - sync
 - subscribe/watch
 - create pinned reads through `Worldline`
-- shape reads through `Lens` and `Observer`
+- shape reads through `Aperture` and `Observer`
 - work with speculative lanes and braid
 
 It should not expose low-level whole-state inspection or direct replay helpers

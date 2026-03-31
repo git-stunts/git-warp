@@ -106,8 +106,8 @@ Focused docs:
 | **Patch** | A WARP patch is a Git commit under `refs/warp/...` containing a CBOR-encoded operation log plus metadata. |
 | **Tick** | One logical replay step: the application of one patch into visible state. |
 | **Worldline** | A pinned read-history handle over live truth, an explicit coordinate, or a strand. |
-| **Lens** | The aperture definition that shapes what an observer can see. |
-| **Observer** | A filtered, read-only projection over a worldline through a lens. |
+| **Aperture** | The aperture definition that shapes what an observer can see. |
+| **Observer** | A filtered, read-only projection over a worldline through an aperture. |
 | **Strand** | A speculative write lane branched from a base observation. |
 | **Braid** | A read-only composition that lets one strand see one or more support strands without collapsing them together. |
 

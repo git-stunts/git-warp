@@ -15,8 +15,8 @@ The most important thing to understand is state before methods.
 
 - `WarpApp` is the root you build on.
 - A `Worldline` is a pinned read coordinate.
-- A `Lens` defines what is visible.
-- An `Observer` is a filtered read-only view through that lens.
+- An `Aperture` defines what is visible.
+- An `Observer` is a filtered read-only view through that aperture.
 - A `Strand` is a speculative write lane branched from an observation.
 
 If you understand those nouns, the rest of the API becomes much easier to reason about.
@@ -117,12 +117,12 @@ const task = await worldline.getNodeProps('task:auth');
 Add an observer when the caller should not see everything.
 
 ```javascript
-const userLens = {
+const userAperture = {
   match: ['user:*', 'task:*'],
   redact: ['email', 'ssn'],
 };
 
-const view = await worldline.observer('public-users', userLens);
+const view = await worldline.observer('public-users', userAperture);
 const users = await view.query().match('user:*').run();
 // users = {
 //   stateHash: 'abc123...',

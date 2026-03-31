@@ -79,7 +79,7 @@ Examples:
 - patch/write
 - sync
 - `Worldline`
-- `Lens`
+- `Aperture`
 - `Observer`
 - speculative lanes / strands
 - braid where relevant to product behavior
@@ -226,7 +226,7 @@ through Wesley-generated types later, the public nouns we foreground here
 should be good candidates for cross-host use:
 
 - `Worldline`
-- `Lens`
+- `Aperture`
 - `Observer`
 - speculative lane / `Strand`
 - braid
@@ -239,7 +239,7 @@ concerns, not the main conceptual surface we expect other hosts to copy.
 
 ### Hill 1 — App Builder
 
-As an application developer, I can build a real app using `Worldline`, `Lens`,
+As an application developer, I can build a real app using `Worldline`, `Aperture`,
 `Observer`, and speculative lanes without needing to understand replay
 internals first.
 
@@ -259,7 +259,7 @@ honestly without those APIs pretending to be ordinary app-read helpers.
 - If a new app developer opens the repo, do they discover the WARP value story
   before the plumbing story?
 - If an agent scans the public type surface, does it infer `Worldline` /
-  `Lens` / `Observer` before `materialize()` / `getNodes()`?
+  `Aperture` / `Observer` before `materialize()` / `getNodes()`?
 - If TTD needs coordinate replay and receipt inspection, are those APIs still
   available without going through undocumented internals?
 - Does the API structure reflect the split between product value and substrate

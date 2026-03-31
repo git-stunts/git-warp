@@ -1080,7 +1080,7 @@ immutable snapshot and does not retarget the caller runtime. Use them when you
 want raw replay output for `projectStateV5()`, `createStateReaderV5()`, or
 lower-level inspection rather than an application-facing read handle.
 
-#### Lens Shape
+#### Aperture Shape
 
 | Field | Type | Description |
 |---|---|---|

@@ -1,4 +1,4 @@
-# Lens As A First-Class Public Noun
+# Aperture As A First-Class Public Noun
 
 Status: IMPLEMENTING
 
@@ -21,19 +21,19 @@ The public stack is cleaner if the projection itself has a first-class noun.
 
 ## Decision
 
-Expose `Lens` as the primary public noun for observer aperture definitions.
+Expose `Aperture` as the primary public noun for observer aperture definitions.
 
 For v15:
 
-- `Lens` becomes the preferred public type name
+- `Aperture` becomes the preferred public type name
 - `ObserverConfig` remains exported as a compatibility alias
-- `observer(...)` and translation-cost APIs should speak in terms of `Lens`
-- README and Guide should teach `Observer` plus `Lens`, not just
+- `observer(...)` and translation-cost APIs should speak in terms of `Aperture`
+- README and Guide should teach `Observer` plus `Aperture`, not just
   `Observer` plus an unnamed config object
 
-## Why `Lens`
+## Why `Aperture`
 
-`Lens` is the best available noun for this specific layer because it captures:
+`Aperture` is the best available noun for this specific layer because it captures:
 
 - visibility aperture
 - projection
@@ -45,7 +45,7 @@ for both human readers and coding agents scanning the public type surface.
 
 ## Non-goals
 
-- do not add runtime ceremony just to manufacture a `Lens` object
+- do not add runtime ceremony just to manufacture an `Aperture` object
 - do not remove `ObserverConfig` outright in this slice
 - do not attempt the much larger `Strand` -> `Strand` rename here
 
@@ -53,6 +53,6 @@ for both human readers and coding agents scanning the public type surface.
 
 After this slice:
 
-- a new consumer can discover `Lens` directly from the public surface
-- `Observer` reads as a projection over a `Worldline` through a `Lens`
+- a new consumer can discover `Aperture` directly from the public surface
+- `Observer` reads as a projection over a `Worldline` through an `Aperture`
 - the v15 noun set becomes more coherent without destabilizing runtime behavior

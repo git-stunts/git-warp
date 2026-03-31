@@ -19,7 +19,7 @@ describe('architecture doc shape', () => {
 
   it('teaches the current read and speculative-lane nouns', () => {
     expect(architecture).toContain('`Worldline`');
-    expect(architecture).toContain('`Lens`');
+    expect(architecture).toContain('`Aperture`');
     expect(architecture).toContain('`Observer`');
     expect(architecture).toContain('`Strand`');
     expect(architecture).not.toContain('# WarpGraph Architecture');
