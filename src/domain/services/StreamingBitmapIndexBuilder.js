@@ -3,6 +3,7 @@ import defaultCrypto from '../utils/defaultCrypto.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import ShardCorruptionError from '../errors/ShardCorruptionError.js';
 import ShardValidationError from '../errors/ShardValidationError.js';
+import IndexError from '../errors/IndexError.js';
 import nullLogger from '../utils/nullLogger.js';
 import { checkAborted } from '../utils/cancellation.js';
 import { getRoaringBitmap32 } from '../utils/roaring.js';
@@ -66,6 +67,29 @@ const BITMAP_BASE_OVERHEAD = 64;
  *
  * const treeOid = await builder.finalize();
  */
+/**
+ * Validates constructor options for StreamingBitmapIndexBuilder.
+ *
+ * @param {import('../../ports/IndexStoragePort.js').default} storage
+ * @param {number} maxMemoryBytes
+ * @returns {import('../../ports/IndexStoragePort.js').default} The validated storage adapter
+ */
+function validateBuilderOptions(storage, maxMemoryBytes) {
+  if (storage === null || storage === undefined) {
+    throw new IndexError('StreamingBitmapIndexBuilder requires a storage adapter', {
+      code: 'E_INDEX_INVALID_OPTIONS',
+      context: { field: 'storage' },
+    });
+  }
+  if (typeof maxMemoryBytes !== 'number' || maxMemoryBytes <= 0) {
+    throw new IndexError('maxMemoryBytes must be a positive number', {
+      code: 'E_INDEX_INVALID_OPTIONS',
+      context: { field: 'maxMemoryBytes', value: maxMemoryBytes },
+    });
+  }
+  return /** @type {import('../../ports/IndexStoragePort.js').default} */ (storage);
+}
+
 export default class StreamingBitmapIndexBuilder {
   /** @type {import('../../ports/CryptoPort.js').default} */
   _crypto;
@@ -223,7 +247,7 @@ export default class StreamingBitmapIndexBuilder {
       if (!bitmapShards[type][prefix]) {
         bitmapShards[type][prefix] = {};
       }
-      bitmapShards[type][prefix][sha] = serializeBitmap(bitmap);
+      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
     return bitmapShards;
   }

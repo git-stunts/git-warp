@@ -172,6 +172,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "buildPatchDivergence": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "compareCoordinates": {
     "configurable": true,
     "enumerable": false,
@@ -565,7 +570,7 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `112`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `113`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
@@ -603,6 +608,7 @@ exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
   "analyzeConflicts",
   "applySyncResponse",
   "braidStrand",
+  "buildPatchDivergence",
   "compareCoordinates",
   "compareStrand",
   "createCheckpoint",

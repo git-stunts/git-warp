@@ -456,11 +456,17 @@ export default class SyncController {
     const { isDirectPeer, targetUrl } = resolveSyncTarget(remote, path, hasPathOverride);
     let attempt = 0;
     const trustGate = resolveSyncTrustGate(this._host, this._trustGate, { trust });
+    /**
+     *
+     */
     const emit = (/** @type {string} */ type, /** @type {Record<string, unknown>} */ payload = {}) => {
       if (typeof onStatus === 'function') {
         onStatus(/** @type {{type: string, attempt: number}} */ ({ type, attempt, ...payload }));
       }
     };
+    /**
+     *
+     */
     const shouldRetry = (/** @type {unknown} */ err) => {
       if (isDirectPeer) { return false; }
       if (err instanceof SyncError) {
@@ -468,6 +474,9 @@ export default class SyncController {
       }
       return err instanceof TimeoutError;
     };
+    /**
+     *
+     */
     const executeAttempt = async () => {
       checkAborted(signal, 'syncWith');
       attempt += 1;
@@ -579,6 +588,9 @@ export default class SyncController {
         jitter: 'decorrelated',
         signal,
         shouldRetry,
+        /**
+         *
+         */
         onRetry: (/** @type {Error} */ error, /** @type {number} */ attemptNumber, /** @type {number} */ delayMs) => {
           if (typeof onStatus === 'function') {
             onStatus(/** @type {{type: string, attempt: number, delayMs: number, error: Error}} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error }));
