@@ -28,7 +28,7 @@ async function openCore(extra = {}) {
 
 describe('WarpCore — effect pipeline integration', () => {
   // -----------------------------------------------------------------------
-  // No pipeline configured (backward compatible)
+  // No pipeline configured
   // -----------------------------------------------------------------------
   describe('no pipeline configured', () => {
     it('effectPipeline is null by default', async () => {
@@ -51,10 +51,11 @@ describe('WarpCore — effect pipeline integration', () => {
       expect(core.externalizationPolicy).toBeNull();
     });
 
-    it('emit() is a no-op and returns null', async () => {
+    it('emit() still writes a graph entity even without pipeline', async () => {
       const core = await openCore();
       const result = await core.emit('test', { data: 1 });
-      expect(result).toBeNull();
+      expect(result.effectId).toMatch(/^effect:/);
+      expect(result.delivered).toEqual([]);
     });
   });
 
@@ -80,7 +81,7 @@ describe('WarpCore — effect pipeline integration', () => {
   // effectSinks + externalizationPolicy auto-construction
   // -----------------------------------------------------------------------
   describe('effectSinks + externalizationPolicy options', () => {
-    it('auto-constructs an EffectPipeline from sinks and lens', async () => {
+    it('auto-constructs an EffectPipeline from sinks and policy', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: LIVE_LENS,
@@ -100,15 +101,15 @@ describe('WarpCore — effect pipeline integration', () => {
       });
 
       const result = await core.emit('test', null);
-      expect(result.observations).toHaveLength(2);
+      expect(result.delivered).toHaveLength(2);
     });
   });
 
   // -----------------------------------------------------------------------
-  // core.emit()
+  // core.emit() — graph entity + pipeline delivery
   // -----------------------------------------------------------------------
   describe('emit()', () => {
-    it('emits an effect and returns emission + observations', async () => {
+    it('writes a graph entity and delivers through pipeline', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: LIVE_LENS,
@@ -116,34 +117,17 @@ describe('WarpCore — effect pipeline integration', () => {
 
       const result = await core.emit('notification', { text: 'hello' });
 
-      expect(result.emission.kind).toBe('notification');
-      expect(result.emission.payload).toEqual({ text: 'hello' });
-      expect(result.observations).toHaveLength(1);
-      expect(result.observations[0].outcome).toBe('delivered');
-    });
-
-    it('passes writer and coordinate options through', async () => {
-      const core = await openCore({
-        effectSinks: [new NoOpEffectSink()],
-        externalizationPolicy: LIVE_LENS,
-      });
-
-      const result = await core.emit('export', { format: 'csv' }, {
-        writer: 'alice',
-        coordinate: { frontier: { alice: 'abc' }, ceiling: 5 },
-      });
-
-      expect(result.emission.writer).toBe('alice');
-      expect(result.emission.coordinate.frontier).toEqual({ alice: 'abc' });
-      expect(result.emission.coordinate.ceiling).toBe(5);
+      expect(result.effectId).toMatch(/^effect:/);
+      expect(result.delivered).toHaveLength(1);
+      expect(result.delivered[0].outcome).toBe('delivered');
     });
   });
 
   // -----------------------------------------------------------------------
-  // Emission and observation getters
+  // Emission and observation getters (host pipeline logs)
   // -----------------------------------------------------------------------
   describe('effectEmissions / deliveryObservations getters', () => {
-    it('accumulates emissions across multiple emit() calls', async () => {
+    it('pipeline accumulates emissions across multiple emit() calls', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: LIVE_LENS,
@@ -159,7 +143,7 @@ describe('WarpCore — effect pipeline integration', () => {
       ]);
     });
 
-    it('accumulates delivery observations', async () => {
+    it('pipeline accumulates delivery observations', async () => {
       const core = await openCore({
         effectSinks: [
           new NoOpEffectSink({ id: 'sink-1' }),
@@ -175,10 +159,10 @@ describe('WarpCore — effect pipeline integration', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Delivery lens get/set
+  // ExternalizationPolicy get/set
   // -----------------------------------------------------------------------
   describe('externalizationPolicy get/set', () => {
-    it('exposes the current delivery lens', async () => {
+    it('exposes the current policy', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: LIVE_LENS,
@@ -187,7 +171,7 @@ describe('WarpCore — effect pipeline integration', () => {
       expect(core.externalizationPolicy).toBe(LIVE_LENS);
     });
 
-    it('allows switching the delivery lens', async () => {
+    it('allows switching the policy', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: LIVE_LENS,
@@ -197,7 +181,7 @@ describe('WarpCore — effect pipeline integration', () => {
       expect(core.externalizationPolicy).toBe(REPLAY_LENS);
 
       const result = await core.emit('test', null);
-      expect(result.observations[0].outcome).toBe('suppressed');
+      expect(result.delivered[0].outcome).toBe('suppressed');
     });
   });
 
@@ -205,7 +189,7 @@ describe('WarpCore — effect pipeline integration', () => {
   // Replay scenario
   // -----------------------------------------------------------------------
   describe('replay scenario', () => {
-    it('emissions still appear during replay, sinks record suppression', async () => {
+    it('graph entity still written during replay, delivery suppressed', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
         externalizationPolicy: REPLAY_LENS,
@@ -213,14 +197,13 @@ describe('WarpCore — effect pipeline integration', () => {
 
       const result = await core.emit('notification', { msg: 'hi' });
 
-      // Emission exists (deterministic)
-      expect(result.emission.kind).toBe('notification');
-      expect(result.emission.payload).toEqual({ msg: 'hi' });
+      // Graph entity exists
+      expect(result.effectId).toMatch(/^effect:/);
 
-      // But delivery was suppressed
-      expect(result.observations[0].outcome).toBe('suppressed');
-      expect(result.observations[0].reason).toContain('replay');
-      expect(result.observations[0].lens.mode).toBe('replay');
+      // Delivery was suppressed
+      expect(result.delivered[0].outcome).toBe('suppressed');
+      expect(result.delivered[0].reason).toContain('replay');
+      expect(result.delivered[0].lens.mode).toBe('replay');
     });
 
     it('switching from live to replay mid-session changes delivery behavior', async () => {
@@ -230,14 +213,14 @@ describe('WarpCore — effect pipeline integration', () => {
       });
 
       const r1 = await core.emit('before', null);
-      expect(r1.observations[0].outcome).toBe('delivered');
+      expect(r1.delivered[0].outcome).toBe('delivered');
 
       core.externalizationPolicy = REPLAY_LENS;
 
       const r2 = await core.emit('after', null);
-      expect(r2.observations[0].outcome).toBe('suppressed');
+      expect(r2.delivered[0].outcome).toBe('suppressed');
 
-      // Both emissions exist in the log
+      // Both emissions in pipeline log
       expect(core.effectEmissions).toHaveLength(2);
     });
   });
@@ -261,7 +244,8 @@ describe('WarpCore — effect pipeline integration', () => {
       expect(core.effectPipeline).toBeInstanceOf(EffectPipeline);
 
       const result = await core.emit('late-bind', null);
-      expect(result.emission.kind).toBe('late-bind');
+      expect(result.effectId).toMatch(/^effect:/);
+      expect(result.delivered).toHaveLength(1);
     });
   });
 });

@@ -71,7 +71,7 @@ describe('release policy shape', () => {
       'utf8',
     );
 
-    expect(readme).toContain('https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp.svg');
+    expect(readme).toContain('https://raw.githubusercontent.com/git-stunts/git-warp/main/docs/images/git-warp-alt.svg');
     expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/GETTING_STARTED.md');
     expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/GUIDE.md');
     expect(readme).toContain('https://github.com/git-stunts/git-warp/blob/main/docs/API_REFERENCE.md');
