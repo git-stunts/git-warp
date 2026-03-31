@@ -1,12 +1,12 @@
 /**
- * DeliveryLens — execution/delivery context that shapes how effects
+ * ExternalizationPolicy — execution/delivery context that shapes how effects
  * may or may not be externalized.
  *
  * Not the same as an Observer lens (which shapes what you can *see*).
- * A delivery lens shapes what the system is *allowed to do* with
+ * An externalization policy shapes what the system is *allowed to do* with
  * outbound effects.
  *
- * @module DeliveryLens
+ * @module ExternalizationPolicy
  * @see docs/design/effect-emission-v1.md
  */
 
@@ -79,7 +79,7 @@ export function validateOutcome(value) {
 // ============================================================================
 
 /**
- * @typedef {Object} DeliveryLens
+ * @typedef {Object} ExternalizationPolicy
  * @property {'live' | 'replay' | 'inspect'} mode - Execution mode
  * @property {boolean} suppressExternal - Whether external delivery is blocked
  */
@@ -89,14 +89,14 @@ export function validateOutcome(value) {
 // ============================================================================
 
 /**
- * Creates an immutable DeliveryLens.
+ * Creates an immutable ExternalizationPolicy.
  *
  * @param {{ mode: string, suppressExternal: boolean }} params
- * @returns {Readonly<DeliveryLens>}
+ * @returns {Readonly<ExternalizationPolicy>}
  */
-export function createDeliveryLens(params) {
+export function createExternalizationPolicy(params) {
   if (params === null || params === undefined || typeof params !== 'object') {
-    throw new Error('DeliveryLens params must be an object');
+    throw new Error('ExternalizationPolicy params must be an object');
   }
   validateMode(params.mode);
   validateSuppressExternal(params.suppressExternal);
@@ -112,19 +112,19 @@ export function createDeliveryLens(params) {
 // ============================================================================
 
 /** Live execution — effects are delivered normally. */
-export const LIVE_LENS = createDeliveryLens({
+export const LIVE_LENS = createExternalizationPolicy({
   mode: 'live',
   suppressExternal: false,
 });
 
 /** Replay execution — external delivery is suppressed. */
-export const REPLAY_LENS = createDeliveryLens({
+export const REPLAY_LENS = createExternalizationPolicy({
   mode: 'replay',
   suppressExternal: true,
 });
 
 /** Inspect execution — dry-run, external delivery is suppressed. */
-export const INSPECT_LENS = createDeliveryLens({
+export const INSPECT_LENS = createExternalizationPolicy({
   mode: 'inspect',
   suppressExternal: true,
 });

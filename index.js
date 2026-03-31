@@ -143,11 +143,11 @@ import {
   canonicalObservationJson,
 } from './src/domain/types/DeliveryObservation.js';
 import {
-  createDeliveryLens,
+  createExternalizationPolicy,
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from './src/domain/types/DeliveryLens.js';
+} from './src/domain/types/ExternalizationPolicy.js';
 import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
 import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
 import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
@@ -305,7 +305,7 @@ export {
   canonicalEmissionJson,
   createDeliveryObservation,
   canonicalObservationJson,
-  createDeliveryLens,
+  createExternalizationPolicy,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
   LIVE_LENS,

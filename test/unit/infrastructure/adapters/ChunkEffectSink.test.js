@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ChunkEffectSink } from '../../../../src/infrastructure/adapters/ChunkEffectSink.js';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/DeliveryLens.js';
+import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

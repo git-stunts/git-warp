@@ -11,7 +11,7 @@ import { createDeliveryObservation } from '../../domain/types/DeliveryObservatio
 
 /**
  * @typedef {import('../../domain/types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/DeliveryLens.js').DeliveryLens} DeliveryLens
+ * @typedef {import('../../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
  */
 
 export class NoOpEffectSink extends EffectSinkPort {
@@ -30,7 +30,7 @@ export class NoOpEffectSink extends EffectSinkPort {
 
   /**
    * @param {EffectEmission} emission
-   * @param {DeliveryLens} lens
+   * @param {ExternalizationPolicy} lens
    * @returns {Promise<import('../../domain/types/DeliveryObservation.js').DeliveryObservation>}
    */
   deliver(emission, lens) {

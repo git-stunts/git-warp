@@ -1423,7 +1423,7 @@
     "canonicalObservationJson": {
       "kind": "function"
     },
-    "createDeliveryLens": {
+    "createExternalizationPolicy": {
       "kind": "function"
     },
     "DELIVERY_MODES": {
@@ -1848,7 +1848,7 @@
     "WormholeEdge": {
       "kind": "interface"
     },
-    "DeliveryLens": {
+    "ExternalizationPolicy": {
       "kind": "interface"
     },
     "DeliveryOutcome": {

@@ -5,7 +5,7 @@ import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from '../../../../src/domain/types/DeliveryLens.js';
+} from '../../../../src/domain/types/ExternalizationPolicy.js';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 import { createDeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.js';
 
@@ -95,7 +95,7 @@ describe('EffectPipeline', () => {
   // -----------------------------------------------------------------------
   // Delivery lens behavior
   // -----------------------------------------------------------------------
-  describe('delivery lens', () => {
+  describe('externalization policy', () => {
     it('passes the current lens to sinks', async () => {
       const { pipeline, sink } = setup(LIVE_LENS);
       await pipeline.emit('test', null);

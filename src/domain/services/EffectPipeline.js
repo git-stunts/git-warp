@@ -2,7 +2,7 @@
  * EffectPipeline — orchestrates effect emission, delivery through
  * sinks, and collection of delivery observations.
  *
- * Holds a sink (typically a MultiplexSink), a DeliveryLens, and a
+ * Holds a sink (typically a MultiplexSink), an ExternalizationPolicy, and a
  * clock. Provides `emit()` to produce EffectEmissions and collect
  * DeliveryObservations.
  *
@@ -14,7 +14,7 @@ import { createEffectEmission } from '../types/EffectEmission.js';
 
 /**
  * @typedef {import('../types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../types/DeliveryLens.js').DeliveryLens} DeliveryLens
+ * @typedef {import('../types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
  * @typedef {import('../types/DeliveryObservation.js').DeliveryObservation} DeliveryObservation
  * @typedef {import('../../ports/EffectSinkPort.js').default} EffectSinkPort
  */
@@ -53,14 +53,14 @@ export class EffectPipeline {
   /**
    * @param {{
    *   sink: EffectSinkPort,
-   *   lens: Readonly<DeliveryLens>,
+   *   lens: Readonly<ExternalizationPolicy>,
    *   clock: { now: () => number }
    * }} options
    */
   constructor({ sink, lens, clock }) {
     /** @type {EffectSinkPort} */
     this._sink = sink;
-    /** @type {Readonly<DeliveryLens>} */
+    /** @type {Readonly<ExternalizationPolicy>} */
     this._lens = lens;
     /** @type {{ now: () => number }} */
     this._clock = clock;
@@ -70,12 +70,12 @@ export class EffectPipeline {
     this._observations = [];
   }
 
-  /** @returns {Readonly<DeliveryLens>} */
+  /** @returns {Readonly<ExternalizationPolicy>} */
   get lens() {
     return this._lens;
   }
 
-  /** @param {Readonly<DeliveryLens>} newLens */
+  /** @param {Readonly<ExternalizationPolicy>} newLens */
   set lens(newLens) {
     this._lens = newLens;
   }

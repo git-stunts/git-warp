@@ -12,7 +12,7 @@ import EffectSinkPort from '../../ports/EffectSinkPort.js';
 
 /**
  * @typedef {import('../types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../types/DeliveryLens.js').DeliveryLens} DeliveryLens
+ * @typedef {import('../types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
  * @typedef {import('../types/DeliveryObservation.js').DeliveryObservation} DeliveryObservation
  */
 
@@ -70,7 +70,7 @@ export class MultiplexSink extends EffectSinkPort {
    * Delivers an emission to all child sinks and collects observations.
    *
    * @param {EffectEmission} emission
-   * @param {DeliveryLens} lens
+   * @param {ExternalizationPolicy} lens
    * @returns {Promise<DeliveryObservation[]>}
    */
   async deliver(emission, lens) {

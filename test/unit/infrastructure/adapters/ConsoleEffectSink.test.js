@@ -5,7 +5,7 @@ import {
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from '../../../../src/domain/types/DeliveryLens.js';
+} from '../../../../src/domain/types/ExternalizationPolicy.js';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
 /** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `DeliveryLens` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
+- **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
 - **`EffectSinkPort`** — abstract port for effect delivery sinks, following the hexagonal architecture pattern.
 - **`MultiplexSink`** — domain service that fans out one emission to multiple child sinks (composite pattern over `EffectSinkPort`).
 - **`EffectPipeline`** — domain service that orchestrates emit → deliver → collect, maintaining inspectable emission and observation logs.
@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`WarpCore.emit(kind, payload, options?)`** — convenience method for emitting effects through the configured pipeline. No-op (returns null) when no pipeline is configured.
 - **`WarpCore.effectPipeline` get/set** — attach or access the effect pipeline.
 - **`WarpCore.effectEmissions` / `WarpCore.deliveryObservations`** — read-only getters for the pipeline's accumulated logs.
-- **`WarpCore.deliveryLens` get/set** — read or switch the active delivery lens (e.g., switch to `REPLAY_LENS` when entering replay mode).
-- **`WarpCore.open()` accepts `effectPipeline`, `effectSinks`, and `deliveryLens`** — opt-in effect pipeline configuration. `effectSinks` + `deliveryLens` auto-constructs a `MultiplexSink`-backed pipeline.
+- **`WarpCore.externalizationPolicy` get/set** — read or switch the active externalization policy (e.g., switch to `REPLAY_LENS` when entering replay mode).
+- **`WarpCore.open()` accepts `effectPipeline`, `effectSinks`, and `externalizationPolicy`** — opt-in effect pipeline configuration. `effectSinks` + `externalizationPolicy` auto-constructs a `MultiplexSink`-backed pipeline.
 
 ### Fixed
 

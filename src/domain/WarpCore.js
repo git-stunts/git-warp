@@ -136,21 +136,21 @@ export default class WarpCore {
   }
 
   /**
-   * Returns the current delivery lens, or null if no pipeline is configured.
+   * Returns the current externalization policy, or null if no pipeline is configured.
    *
-   * @returns {import('./types/DeliveryLens.js').DeliveryLens|null}
+   * @returns {import('./types/ExternalizationPolicy.js').ExternalizationPolicy|null}
    */
-  get deliveryLens() {
+  get externalizationPolicy() {
     const p = this._asRuntime()._effectPipeline;
     return p ? p.lens : null;
   }
 
   /**
-   * Updates the delivery lens on the attached pipeline.
+   * Updates the externalization policy on the attached pipeline.
    *
-   * @param {import('./types/DeliveryLens.js').DeliveryLens} newLens
+   * @param {import('./types/ExternalizationPolicy.js').ExternalizationPolicy} newLens
    */
-  set deliveryLens(newLens) {
+  set externalizationPolicy(newLens) {
     const p = this._asRuntime()._effectPipeline;
     if (p) {
       p.lens = newLens;

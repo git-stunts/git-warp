@@ -1936,12 +1936,12 @@ declare class WarpCoreBase {
     blobStorage?: BlobStoragePort;
     /** Patch blob storage — when set, patch CBOR is encrypted via this port. */
     patchBlobStorage?: BlobStoragePort;
-    /** Pre-built effect pipeline (takes priority over effectSinks + deliveryLens). */
+    /** Pre-built effect pipeline (takes priority over effectSinks + externalizationPolicy). */
     effectPipeline?: EffectPipeline;
     /** Effect sinks — auto-constructs an EffectPipeline with a MultiplexSink. */
     effectSinks?: EffectSinkPort[];
-    /** Delivery lens for auto-constructed pipeline (defaults to LIVE_LENS). */
-    deliveryLens?: DeliveryLens;
+    /** Externalization policy for auto-constructed pipeline (defaults to LIVE_LENS). */
+    externalizationPolicy?: ExternalizationPolicy;
   }): Promise<WarpCore>;
 
   /**
@@ -1972,10 +1972,10 @@ declare class WarpCoreBase {
   /** Returns all delivery observations from the pipeline, or an empty array. */
   readonly deliveryObservations: readonly DeliveryObservation[];
 
-  /** Returns the current delivery lens, or null if no pipeline is configured. */
-  get deliveryLens(): DeliveryLens | null;
-  /** Updates the delivery lens on the attached pipeline. */
-  set deliveryLens(newLens: DeliveryLens);
+  /** Returns the current externalization policy, or null if no pipeline is configured. */
+  get externalizationPolicy(): ExternalizationPolicy | null;
+  /** Updates the externalization policy on the attached pipeline. */
+  set externalizationPolicy(newLens: ExternalizationPolicy);
 
   /**
    * Emits an effect through the configured pipeline.
@@ -3820,7 +3820,7 @@ export function deserializeWormhole(json: {
 // ============================================================================
 
 /** Execution/delivery context that shapes outbound effect behavior. */
-export interface DeliveryLens {
+export interface ExternalizationPolicy {
   /** Execution mode. */
   readonly mode: 'live' | 'replay' | 'inspect';
   /** Whether external delivery should be blocked. */
@@ -3844,18 +3844,18 @@ export type DeliveryOutcome = 'delivered' | 'suppressed' | 'failed' | 'skipped';
 /** Delivery mode discriminant. */
 export type DeliveryMode = 'live' | 'replay' | 'inspect';
 
-/** Creates an immutable DeliveryLens. */
-export function createDeliveryLens(params: {
+/** Creates an immutable ExternalizationPolicy. */
+export function createExternalizationPolicy(params: {
   mode: DeliveryMode;
   suppressExternal: boolean;
-}): Readonly<DeliveryLens>;
+}): Readonly<ExternalizationPolicy>;
 
 /** Live execution lens — effects are delivered normally. */
-export const LIVE_LENS: Readonly<DeliveryLens>;
+export const LIVE_LENS: Readonly<ExternalizationPolicy>;
 /** Replay execution lens — external delivery is suppressed. */
-export const REPLAY_LENS: Readonly<DeliveryLens>;
+export const REPLAY_LENS: Readonly<ExternalizationPolicy>;
 /** Inspect execution lens — dry-run, external delivery is suppressed. */
-export const INSPECT_LENS: Readonly<DeliveryLens>;
+export const INSPECT_LENS: Readonly<ExternalizationPolicy>;
 
 /** Causal coordinate at which an effect was emitted. */
 export interface EffectCoordinate {
@@ -3910,7 +3910,7 @@ export interface DeliveryObservation {
   /** Wall-clock milliseconds. */
   readonly timestamp: number;
   /** Execution context at delivery time. */
-  readonly lens: Readonly<DeliveryLens>;
+  readonly lens: Readonly<ExternalizationPolicy>;
 }
 
 /** Creates an immutable DeliveryObservation. */
@@ -3936,10 +3936,10 @@ export function canonicalObservationJson(
 export class EffectSinkPort {
   /** Unique identifier for this sink. */
   get id(): string;
-  /** Delivers an effect emission under the given delivery lens. */
+  /** Delivers an effect emission under the given externalization policy. */
   deliver(
     emission: EffectEmission,
-    lens: DeliveryLens,
+    lens: ExternalizationPolicy,
   ): Promise<DeliveryObservation>;
 }
 
@@ -3955,7 +3955,7 @@ export class MultiplexSink extends EffectSinkPort {
   removeSink(id: string): boolean;
   deliver(
     emission: EffectEmission,
-    lens: DeliveryLens,
+    lens: ExternalizationPolicy,
   ): Promise<DeliveryObservation[]>;
 }
 
@@ -3965,11 +3965,11 @@ export class MultiplexSink extends EffectSinkPort {
 export class EffectPipeline {
   constructor(options: {
     sink: EffectSinkPort;
-    lens: Readonly<DeliveryLens>;
+    lens: Readonly<ExternalizationPolicy>;
     clock: { now: () => number };
   });
-  get lens(): Readonly<DeliveryLens>;
-  set lens(newLens: Readonly<DeliveryLens>);
+  get lens(): Readonly<ExternalizationPolicy>;
+  set lens(newLens: Readonly<ExternalizationPolicy>);
   get emissions(): readonly EffectEmission[];
   get observations(): readonly DeliveryObservation[];
   emit(

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { NoOpEffectSink } from '../../../../src/infrastructure/adapters/NoOpEffectSink.js';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/DeliveryLens.js';
+import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
 /** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */

@@ -1,0 +1,3571 @@
+ ▐▛███▜▌   Claude Code v2.1.86
+▝▜█████▛▘  Opus 4.6 (1M context) · Claude Max
+  ▘▘ ▝▝    ~/git/git-stunts/git-warp
+
+❯ take a look at this repo, give it a sniff. we're gonna be doing a big thing   
+here.                                                                           
+
+⏺ Bash(claude-think --recent --json 2>/dev/null | head -80)
+  ⎿  {"command":"recent","event":"cli.start","ts":"2026-03-31T02:49:31.965Z
+     "}
+     {"count":null,"event":"recent.start","query":null,"ts":"2026-03-31T02:
+     … +424 lines (ctrl+o to expand)
+
+⏺ Bash(git log --oneline -20)
+  ⎿  c9eada7 fix: remove remaining broken links to deleted test files
+     170cc6a fix: broken markdown links in archived retrospectives and docs
+      index
+     … +17 lines (ctrl+o to expand)
+
+  Searched for 3 patterns, read 6 files (ctrl+o to expand)
+
+⏺ Bash(npm run lint 2>&1 | tail -5)
+  ⎿  > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+  ⎿  (timeout 30s)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Bash(npm run test:local 2>&1 | tail -15)
+  ⎿   ✓ test/unit/scripts/public-api-lens-noun.test.js (3 tests) 3ms
+      ✓ test/unit/domain/utils/nullLogger.test.js (6 tests) 2ms
+      ✓ test/unit/scripts/public-api-readme-shape.test.js (4 tests) 9ms
+     … +17 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ Lint clean, 5037 tests passing across 302 files, v16.0.0 on main. Here's the
+  sniff:
+
+  Health: solid. Zero lint errors, zero test failures, 28s local test run. The
+  codebase is well-maintained — milestones M10-M14 all done, standalone waves
+  progressing cleanly.
+
+  Architecture: mature hexagonal. Domain/ports/adapters boundaries are clean
+  (the HEX_AUDIT confirmed no violations). CRDT primitives, patch builder, join
+  reducer, checkpoint service — all well-separated. The WarpServeService sitting
+   in domain while needing I/O is logged as a known smell.
+
+  Active plan: The CLAUDE.md references a conflict-analyzer-v1.md plan, but that
+   file doesn't exist. Either it was moved, renamed, or hasn't been created yet.
+   Worth clarifying.
+
+  Open work surface:
+  - M13.T3 (wire-format migration) — deferred, blocked on ADR 3 gates
+  - Standalone Wave 2 — CI/tooling batch (B88, B119, B123, B128, B12, B43)
+  - Standalone Wave 3 — type surface (B96, B98, B54, B28)
+  - P4 — one remaining large-graph item (B152, async generator traversal API)
+  - P5 — features/viz (B155 levels layout, B156 structural diff)
+  - P7 — git-cas modernization fully complete
+
+  Code smell journal has 3 items — all in GraphTraversal around redundant
+  adjacency materialization. B154 already fixed the worst one.
+
+  Cool ideas file is rich — the multi-writer convergence demo ("Da Cone"),
+  streaming traversal generators, structural diff via transitive reduction,
+  writer-isolated bisect, encrypted store improvements.
+
+  Codebase is clean and ready. What's the big thing?
+
+✻ Worked for 1m 26s
+
+❯ You are working in /Users/james/git/git-stunts/git-warp.                      
+                                                                                
+Read these first, in order:                                                     
+1. /Users/james/git/xyph/design/effect-emission-alignment.md                    
+2. /Users/james/git/xyph/design/substrate-alignment.md                          
+3. /Users/james/git/git-stunts/git-warp/README.md                               
+                                                                                
+Then inspect the existing substrate APIs and code paths related to:             
+- WarpCore                                                                      
+- materialize(... receipts ...)                                                 
+- TickReceipt or equivalent receipt/envelope types                              
+- worldlines                                                                    
+- observers                                                                     
+- lenses                                                                        
+- replay / provenance / inspection surfaces                                     
+- any existing sink, emission, or adapter abstractions                          
+                                                                                
+Goal:                                                                           
+Implement the generic substrate support needed for outbound effect emission and 
+ delivery observation so that application-layer systems like XYPH do not invent 
+ their own private replay/output model.                                         
+                                                                                
+Non-goals:                                                                      
+- Do not add XYPH-specific ontology or workflow semantics to git-warp.          
+- Do not build a generic untyped “Object bus”.                                  
+- Do not collapse effect emission, delivery observation, and diagnostics into   
+one vague concept.                                                              
+                                                                                
+Doctrine to preserve:                                                           
+- git-warp owns substrate facts.                                                
+- Applications own product meaning and policy.                                  
+- Replay/time-travel must remain deterministic.                                 
+- External delivery may be suppressed during replay, but that suppression must  
+itself be observable.                                                           
+- Observer is first-class, but observer alone is not the whole side-effect      
+policy. Delivery context should reflect a broader execution/delivery lens.      
+                                                                                
+Deliverables, in this order:                                                    
+1. Create or update a repo-local design note in this repo that explains the     
+model before code changes.                                                      
+2. Add failing tests that define the behavior.                                  
+3. Implement the slice.                                                         
+4. Run the repo’s canonical build/test commands and bring them green.           
+5. Summarize what landed, what remains, and what warp-ttd/XYPH can depend on.   
+                                                                                
+Target model:                                                                   
+- A substrate-level effect-emission receipt family.                             
+- A separate substrate-level delivery-observation receipt family.               
+- Delivery observations must at least distinguish delivered, suppressed, and    
+failed.                                                                         
+- Receipt/envelope context should make execution/delivery lens explicit.        
+- Replay should still surface effect emissions deterministically even when live 
+ delivery is suppressed.                                                        
+- A typed fan-out or multiplex sink mechanism for external adapters.            
+- A durable rotating append-only chunk sink as one adapter/sink, not as the     
+whole architecture.                                                             
+- Export should be modeled as another sink/adapter, not as a separate           
+special-case path.                                                              
+                                                                                
+Quality bar:                                                                    
+- Keep the API typed and explicit.                                              
+- Keep the substrate generic and app-agnostic.                                  
+- Make the replay and provenance story inspectable, not implicit.               
+- Prefer additive changes that fit the repo’s current architecture over a       
+sweeping rewrite.                                                               
+                                                                                
+Implementation guidance:                                                        
+- If there is already a receipt/envelope pattern, extend it rather than         
+inventing a second parallel one.                                                
+- If there is already a host/app/core boundary, keep effect/delivery facts at   
+the substrate layer and keep app policy out.                                    
+- If there is any protocol/versioning compatibility concern, document it in the 
+ design note and tests.                                                         
+                                                                                
+When finished, report:                                                          
+- the new local design doc path                                                 
+- the main receipt/types added or changed                                       
+- the tests added                                                               
+- the exact build/test commands you ran                                         
+- any follow-on contract that warp-ttd will need                                
+                                                                                
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ Good. Now let me explore the existing substrate APIs — WarpCore, receipts,
+  observers, lenses, and any existing sink/emission patterns.
+
+⏺ Explore(Explore WarpCore and receipt types)
+  ⎿  Done (31 tool uses · 145.3k tokens · 1m 58s)
+  (ctrl+o to expand)
+
+⏺ Now let me check the port pattern and a few more implementation details.
+
+  Read 3 files (ctrl+o to expand)
+
+⏺ Let me check a few more things — the port pattern and the WarpApp
+  observer/worldline wiring.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Now I have the full picture. Let me check the index.d.ts for Lens, Observer,
+  Worldline, and DeliveryLens types to understand what's already on the public
+  surface.
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ Good — no existing effect/delivery/sink types. This is greenfield. I have
+  enough context now. Let me plan and execute.
+⏺ Write(docs/design/effect-emission-v1.md)
+  ⎿  Wrote 268 lines to docs/design/effect-emission-v1.md
+       1 # Effect Emission & Delivery Observation — Substrate Slice v1
+       2 
+       3 **Status:** Design
+       4 **Author:** git-warp maintainers
+       5 **Date:** 2026-03-30
+       6 **Cross-repo context:** `xyph/design/effect-emission-alignment.m
+         d`, `xyph/design/substrate-alignment.md`
+       7 
+       8 ---
+       9 
+      10 ## Problem
+     … +258 lines (ctrl+o to expand)
+
+⏺ Now I'll write all the failing tests. Let me check the existing test structure
+   first for conventions.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Good — I see the test patterns. Now let me write all the test files.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Write(test/unit/domain/types/EffectEmission.test.js)
+  ⎿  Wrote 180 lines to test/unit/domain/types/EffectEmission.test.js
+       1 import { describe, it, expect } from 'vitest';
+       2 import {
+       3   createEffectEmission,
+       4   canonicalEmissionJson,
+       5   DELIVERY_MODES,
+       6   DELIVERY_OUTCOMES,
+       7 } from '../../../../src/domain/types/EffectEmission.js';
+       8 
+       9 /** @type {any} */
+      10 const create = createEffectEmission;
+     … +170 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/domain/types/DeliveryObservation.test.js)
+  ⎿  Wrote 167 lines to test/unit/domain/types/DeliveryObservation.test.js
+       1 import { describe, it, expect } from 'vitest';
+       2 import {
+       3   createDeliveryObservation,
+       4   canonicalObservationJson,
+       5 } from '../../../../src/domain/types/DeliveryObservation.js';
+       6 
+       7 /** @type {any} */
+       8 const create = createDeliveryObservation;
+       9 
+      10 describe('DeliveryObservation', () => {
+     … +157 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/domain/types/DeliveryLens.test.js)
+  ⎿  Wrote 72 lines to test/unit/domain/types/DeliveryLens.test.js
+       1 import { describe, it, expect } from 'vitest';
+       2 import {
+       3   createDeliveryLens,
+       4   LIVE_LENS,
+       5   REPLAY_LENS,
+       6   INSPECT_LENS,
+       7 } from '../../../../src/domain/types/DeliveryLens.js';
+       8 
+       9 /** @type {any} */
+      10 const create = createDeliveryLens;
+     … +62 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/domain/services/MultiplexSink.test.js)
+  ⎿  Wrote 170 lines to test/unit/domain/services/MultiplexSink.test.js
+       1 import { describe, it, expect } from 'vitest';
+       2 import { MultiplexSink } from '../../../../src/domain/services/M
+         ultiplexSink.js';
+       3 import { createEffectEmission } from '../../../../src/domain/typ
+         es/EffectEmission.js';
+       4 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/t
+         ypes/DeliveryLens.js';
+       5 import EffectSinkPort from '../../../../src/ports/EffectSinkPort
+         .js';
+       6 
+       7 /** @returns {import('../../../../src/domain/types/EffectEmissio
+         n.js').EffectEmission} */
+       8 function makeEmission(id = 'em-1') {
+       9   return createEffectEmission({
+      10     id,
+     … +160 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/domain/services/EffectPipeline.test.js)
+  ⎿  Wrote 208 lines to test/unit/domain/services/EffectPipeline.test.js
+       1 import { describe, it, expect, vi } from 'vitest';
+       2 import { EffectPipeline } from '../../../../src/domain/services/
+         EffectPipeline.js';
+       3 import { MultiplexSink } from '../../../../src/domain/services/M
+         ultiplexSink.js';
+       4 import {
+       5   LIVE_LENS,
+       6   REPLAY_LENS,
+       7   INSPECT_LENS,
+       8 } from '../../../../src/domain/types/DeliveryLens.js';
+       9 import EffectSinkPort from '../../../../src/ports/EffectSinkPort
+         .js';
+      10 import { createDeliveryObservation } from '../../../../src/domai
+         n/types/DeliveryObservation.js';
+     … +198 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/ports/EffectSinkPort.test.js)
+  ⎿  Wrote 14 lines to test/unit/ports/EffectSinkPort.test.js
+       1 import { describe, it, expect } from 'vitest';
+       2 import EffectSinkPort from '../../../src/ports/EffectSinkPort.js
+         ';
+       3 
+       4 describe('EffectSinkPort', () => {
+       5   it('throws on unimplemented id getter', () => {
+       6     const port = new EffectSinkPort();
+       7     expect(() => port.id).toThrow('not implemented');
+       8   });
+       9 
+      10   it('throws on unimplemented deliver()', async () => {
+     … +4 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/infrastructure/adapters/NoOpEffectSink.test.js)
+  ⎿  Wrote 51 lines to test/unit/infrastructure/adapters/NoOpEffectSink.test.js
+
+       1 import { describe, it, expect } from 'vitest';
+       2 import { NoOpEffectSink } from '../../../../src/infrastructure/a
+         dapters/NoOpEffectSink.js';
+       3 import { createEffectEmission } from '../../../../src/domain/typ
+         es/EffectEmission.js';
+       4 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/t
+         ypes/DeliveryLens.js';
+       5 import EffectSinkPort from '../../../../src/ports/EffectSinkPort
+         .js';
+       6 
+       7 /** @returns {import('../../../../src/domain/types/EffectEmissio
+         n.js').EffectEmission} */
+       8 function makeEmission(id = 'em-1') {
+       9   return createEffectEmission({
+      10     id,
+     … +41 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/infrastructure/adapters/ConsoleEffectSink.test.js)
+  ⎿  Wrote 60 lines to
+     test/unit/infrastructure/adapters/ConsoleEffectSink.test.js
+      1 import { describe, it, expect, vi } from 'vitest';
+      2 import { ConsoleEffectSink } from '../../../../src/infrastructure
+        /adapters/ConsoleEffectSink.js';
+      3 import { createEffectEmission } from '../../../../src/domain/type
+        s/EffectEmission.js';
+      4 import {
+      5   LIVE_LENS,
+      6   REPLAY_LENS,
+      7   INSPECT_LENS,
+      8 } from '../../../../src/domain/types/DeliveryLens.js';
+      9 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.
+        js';
+     … +50 lines (ctrl+o to expand)
+
+⏺ Write(test/unit/infrastructure/adapters/ChunkEffectSink.test.js)
+  ⎿  Wrote 103 lines to
+     test/unit/infrastructure/adapters/ChunkEffectSink.test.js
+       1 import { describe, it, expect, vi, beforeEach, afterEach } from 
+         'vitest';
+       2 import { ChunkEffectSink } from '../../../../src/infrastructure/
+         adapters/ChunkEffectSink.js';
+       3 import { createEffectEmission } from '../../../../src/domain/typ
+         es/EffectEmission.js';
+       4 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/t
+         ypes/DeliveryLens.js';
+       5 import EffectSinkPort from '../../../../src/ports/EffectSinkPort
+         .js';
+       6 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises
+         ';
+       7 import { tmpdir } from 'node:os';
+       8 import { join } from 'node:path';
+       9 
+      10 /** @returns {import('../../../../src/domain/types/EffectEmissio
+         n.js').EffectEmission} */
+     … +93 lines (ctrl+o to expand)
+
+⏺ Now implementing all the source files. Let me do types, port, services, and
+  adapters.
+
+⏺ Write(src/domain/types/DeliveryLens.js)
+  ⎿  Wrote 130 lines to src/domain/types/DeliveryLens.js
+       1 /**
+       2  * DeliveryLens — execution/delivery context that shapes how eff
+         ects
+       3  * may or may not be externalized.
+       4  *
+       5  * Not the same as an Observer lens (which shapes what you can *
+         see*).
+       6  * A delivery lens shapes what the system is *allowed to do* wit
+         h
+       7  * outbound effects.
+       8  *
+       9  * @module DeliveryLens
+      10  * @see docs/design/effect-emission-v1.md
+     … +120 lines (ctrl+o to expand)
+⏺ Write(src/domain/types/EffectEmission.js)
+  ⎿  Wrote 143 lines to src/domain/types/EffectEmission.js
+       1 /**
+       2  * EffectEmission — immutable substrate fact recording that an o
+         utbound
+       3  * effect candidate was produced at a causal coordinate.
+       4  *
+       5  * This is a type definition + factory. Effect emissions are gen
+         eric —
+       6  * the `kind` and `payload` are opaque to the substrate. Applica
+         tions
+       7  * (XYPH, warp-ttd) assign product meaning.
+       8  *
+       9  * @module EffectEmission
+      10  * @see docs/design/effect-emission-v1.md
+     … +133 lines (ctrl+o to expand)
+
+⏺ Write(src/domain/types/DeliveryObservation.js)
+  ⎿  Wrote 158 lines to src/domain/types/DeliveryObservation.js
+       1 /**
+       2  * DeliveryObservation — immutable substrate fact recording how 
+         a sink
+       3  * handled an emitted effect under a given delivery lens.
+       4  *
+       5  * @module DeliveryObservation
+       6  * @see docs/design/effect-emission-v1.md
+       7  */
+       8 
+       9 import { validateOutcome } from './DeliveryLens.js';
+      10 import { DELIVERY_MODES } from './DeliveryLens.js';
+     … +148 lines (ctrl+o to expand)
+
+⏺ Write(src/ports/EffectSinkPort.js)
+  ⎿  Wrote 34 lines to src/ports/EffectSinkPort.js
+       1 /**
+       2  * Port interface for effect delivery sinks.
+       3  *
+       4  * Each sink has a unique `id` and a `deliver()` method that acc
+         epts
+       5  * an EffectEmission and a DeliveryLens. The sink decides its be
+         havior
+       6  * based on the lens (e.g., suppress delivery during replay) and
+       7  * returns a DeliveryObservation recording the outcome.
+       8  *
+       9  * @abstract
+      10  * @see docs/design/effect-emission-v1.md
+     … +24 lines (ctrl+o to expand)
+
+⏺ Write(src/domain/services/MultiplexSink.js)
+  ⎿  Wrote 85 lines to src/domain/services/MultiplexSink.js
+      1 /**
+      2  * MultiplexSink — fans out one EffectEmission to multiple child 
+        sinks.
+      3  *
+      4  * Implements EffectSinkPort itself (composite pattern), so calle
+        rs
+      5  * don't need to know whether they're talking to one sink or many
+        .
+      6  *
+      7  * @module MultiplexSink
+      8  * @see docs/design/effect-emission-v1.md
+      9  */
+     … +75 lines (ctrl+o to expand)
+
+⏺ Write(src/domain/services/EffectPipeline.js)
+  ⎿  Wrote 121 lines to src/domain/services/EffectPipeline.js
+       1 /**
+       2  * EffectPipeline — orchestrates effect emission, delivery throu
+         gh
+       3  * sinks, and collection of delivery observations.
+       4  *
+       5  * Holds a sink (typically a MultiplexSink), a DeliveryLens, and
+          a
+       6  * clock. Provides `emit()` to produce EffectEmissions and colle
+         ct
+       7  * DeliveryObservations.
+       8  *
+       9  * @module EffectPipeline
+      10  * @see docs/design/effect-emission-v1.md
+     … +111 lines (ctrl+o to expand)
+
+⏺ Now the infrastructure adapters.
+
+⏺ Write(src/infrastructure/adapters/NoOpEffectSink.js)
+  ⎿  Wrote 55 lines to src/infrastructure/adapters/NoOpEffectSink.js
+       1 /**
+       2  * NoOpEffectSink — null/test sink that swallows effects.
+       3  *
+       4  * Returns 'delivered' in live mode, 'suppressed' in replay/insp
+         ect.
+       5  *
+       6  * @module NoOpEffectSink
+       7  */
+       8 
+       9 import EffectSinkPort from '../../ports/EffectSinkPort.js';
+      10 import { createDeliveryObservation } from '../../domain/types/De
+         liveryObservation.js';
+     … +45 lines (ctrl+o to expand)
+
+⏺ Write(src/infrastructure/adapters/ConsoleEffectSink.js)
+  ⎿  Wrote 65 lines to src/infrastructure/adapters/ConsoleEffectSink.js
+       1 /**
+       2  * ConsoleEffectSink — logs effect emissions to a logger.
+       3  *
+       4  * Suppresses output during replay/inspect (when suppressExterna
+         l is true).
+       5  *
+       6  * @module ConsoleEffectSink
+       7  */
+       8 
+       9 import EffectSinkPort from '../../ports/EffectSinkPort.js';
+      10 import { createDeliveryObservation } from '../../domain/types/De
+         liveryObservation.js';
+     … +55 lines (ctrl+o to expand)
+
+⏺ Write(src/infrastructure/adapters/ChunkEffectSink.js)
+  ⎿  Wrote 119 lines to src/infrastructure/adapters/ChunkEffectSink.js
+       1 /**
+       2  * ChunkEffectSink — rotating append-only NDJSON file sink.
+       3  *
+       4  * Writes effect emissions as newline-delimited JSON to files in
+          a
+       5  * directory. Rotates to a new file when the byte budget is exce
+         eded.
+       6  *
+       7  * This sink is replay-safe: it writes to the local forensic log
+       8  * regardless of delivery lens. Local diagnostic output is never
+       9  * suppressed — only external adapters respect suppressExternal.
+      10  *
+     … +109 lines (ctrl+o to expand)
+
+⏺ Bash(npx vitest run test/unit/domain/types/EffectEmission.test.js
+      test/unit/domain/types/DeliveryObservation.test.js
+      test/unit/domain/types/DeliveryLens.test.js test…)
+  ⎿   RUN  v4.0.18 /Users/james/git/git-stunts/git-warp
+
+      ✓ test/unit/domain/types/DeliveryLens.test.js (8 tests) 3ms
+     … +19 lines (ctrl+o to expand)
+
+⏺ All 82 new tests pass. Now run the full suite and lint.
+
+⏺ Bash(npm run lint 2>&1)
+  ⎿  Error: Exit code 1
+
+     > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+
+
+     /Users/james/git/git-stunts/git-warp/src/domain/services/EffectPipeline.js
+       32:17  error  Date.now() is banned in domain code. Use ClockPort / 
+     ClockAdapter instead  no-restricted-syntax
+       49:41  error  Date.now() is banned in domain code. Use ClockPort / 
+     ClockAdapter instead  no-restricted-syntax
+       95:3   error  Async method 'emit' has a complexity of 11. Maximum allowed
+      is 10          complexity
+     … +16 lines (ctrl+o to see all)
+
+⏺ Bash(npm run test:local 2>&1 | tail -20)
+  ⎿  Cancelled: parallel tool call Bash(npm run lint 2>&1) errored
+
+⏺ 8 lint errors. Let me fix them all.
+
+⏺ Update(src/domain/types/DeliveryObservation.js)
+  ⎿  Added 1 line, removed 2 lines
+       6   * @see docs/design/effect-emission-v1.md
+       7   */
+       8  
+       9 -import { validateOutcome } from './DeliveryLens.js';           
+      10 -import { DELIVERY_MODES } from './DeliveryLens.js';            
+       9 +import { validateOutcome, DELIVERY_MODES } from './DeliveryLens
+         +.js';                                                          
+      10  
+      11  const modeSet = new Set(DELIVERY_MODES);
+      12  
+
+⏺ Update(src/infrastructure/adapters/ChunkEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      13  
+      14  import EffectSinkPort from '../../ports/EffectSinkPort.js';
+      15  import { createDeliveryObservation } from '../../domain/types/D
+          eliveryObservation.js';
+      16 -import { appendFile, stat, writeFile } from 'node:fs/promises';
+      16 +import { appendFile, writeFile } from 'node:fs/promises';      
+      17  import { join } from 'node:path';
+      18  
+      19  /**
+
+⏺ Update(src/infrastructure/adapters/ChunkEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      112      const ts = Date.now();
+      113      this._currentFile = join(
+      114        this._dir,
+      115 -      `effects-${ts}-${String(this._chunkIndex).padStart(4, '0
+          -')}.ndjson`,                                                  
+      115 +      `effects-${ts}-${String(this._chunkIndex).padStart(4, '0
+          +')}.ndjson`,  // eslint-disable-line prefer-template -- templa
+          +te would be less readable here                                
+      116      );
+      117      this._currentBytes = 0;
+      118    }
+
+⏺ Wait, prefer-template — let me just fix it properly with a template literal
+  instead.
+
+⏺ Update(src/infrastructure/adapters/ChunkEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      112      const ts = Date.now();
+      113      this._currentFile = join(
+      114        this._dir,
+      115 -      `effects-${ts}-${String(this._chunkIndex).padStart(4, '0
+          -')}.ndjson`,  // eslint-disable-line prefer-template -- templa
+          -te would be less readable here                                
+      115 +      `effects-${ts}-${String(this._chunkIndex).padStart(4, '0
+          +')}.ndjson`,                                                  
+      116      );
+      117      this._currentBytes = 0;
+      118    }
+
+⏺ Wait, that template literal already uses template syntax. Let me re-read the
+  actual lint error location — it said line 86 originally. Let me re-read the
+  file.
+
+  Read 1 file (ctrl+o to expand)
+⏺ Update(src/infrastructure/adapters/ChunkEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      83        this._rotate();
+      84      }
+      85  
+      86 -    const line = JSON.stringify(emission) + '\n';              
+      86 +    const line = `${JSON.stringify(emission)}\n`;              
+      87      const lineBytes = Buffer.byteLength(line, 'utf8');
+      88  
+      89      // Rotate if adding this line would exceed the budget
+
+⏺ Now fix the Date.now() calls in domain code and the complexity issue in
+  EffectPipeline. Also fix the require-await in the two adapter sinks.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Write(src/domain/services/EffectPipeline.js)
+  ⎿  Added 36 lines, removed 13 lines
+      23  let _counter = 0;
+      24  
+      25  /**
+      26 - * Generates a unique emission ID.                             
+      26 + * Generates a unique emission ID using the provided clock.    
+      27   *
+      28 + * @param {{ now: () => number }} clock                        
+      29   * @returns {string}
+      30   */
+      30 -function generateId() {                                        
+      31 +function generateId(clock) {                                   
+      32    _counter += 1;
+      32 -  return `eff-${Date.now()}-${_counter}`;                      
+      33 +  return `eff-${clock.now()}-${_counter}`;                     
+      34  }
+      35  
+      36 +/**                                                            
+      37 + * Builds the coordinate from optional emit() options.         
+      38 + *                                                             
+      39 + * @param {{ writer?: string | null, coordinate?: { frontier?: 
+         +Record<string, string> | null, ceiling?: number | null } }} [op
+         +tions]                                                         
+      40 + * @returns {{ writer: string | null, coordinate: { frontier: R
+         +ecord<string, string> | null, ceiling: number | null } }}      
+      41 + */                                                            
+      42 +function resolveEmitOptions(options) {                         
+      43 +  return {                                                     
+      44 +    writer: (options && options.writer) ?? null,               
+      45 +    coordinate: {                                              
+      46 +      frontier: (options && options.coordinate && options.coord
+         +inate.frontier) ?? null,                                       
+      47 +      ceiling: (options && options.coordinate && options.coordi
+         +nate.ceiling) ?? null,                                         
+      48 +    },                                                         
+      49 +  };                                                           
+      50 +}                                                              
+      51 +                                                               
+      52  export class EffectPipeline {
+      53    /**
+      54     * @param {{
+      55     *   sink: EffectSinkPort,
+      56     *   lens: Readonly<DeliveryLens>,
+      40 -   *   clock?: { now: () => number }                           
+      57 +   *   clock: { now: () => number }                            
+      58     * }} options
+      59     */
+      60    constructor({ sink, lens, clock }) {
+     ...
+      63      /** @type {Readonly<DeliveryLens>} */
+      64      this._lens = lens;
+      65      /** @type {{ now: () => number }} */
+      49 -    this._clock = clock || { now: () => Date.now() };          
+      66 +    this._clock = clock;                                       
+      67      /** @type {EffectEmission[]} */
+      68      this._emissions = [];
+      69      /** @type {DeliveryObservation[]} */
+     ...
+      110     * @returns {Promise<{ emission: EffectEmission, observation
+           s: DeliveryObservation | DeliveryObservation[] }>}
+      111     */
+      112    async emit(kind, payload, options) {
+      113 +    const resolved = resolveEmitOptions(options);             
+      114      const emission = createEffectEmission({
+       97 -      id: generateId(),                                       
+      115 +      id: generateId(this._clock),                            
+      116        kind,
+      117        payload,
+      118        timestamp: this._clock.now(),
+      101 -      writer: (options && options.writer) ?? null,            
+      102 -      coordinate: {                                           
+      103 -        frontier: (options && options.coordinate && options.co
+          -ordinate.frontier) ?? null,                                   
+      104 -        ceiling: (options && options.coordinate && options.coo
+          -rdinate.ceiling) ?? null,                                     
+      105 -      },                                                      
+      119 +      writer: resolved.writer,                                
+      120 +      coordinate: resolved.coordinate,                        
+      121      });
+      122  
+      123      this._emissions.push(emission);
+      124  
+      125      const observations = await this._sink.deliver(emission, th
+           is._lens);
+      126 +    this._recordObservations(observations);                   
+      127 +                                                              
+      128 +    return { emission, observations };                        
+      129 +  }                                                           
+      130 +                                                              
+      131 +  /**                                                         
+      132 +   * @param {DeliveryObservation | DeliveryObservation[]} obse
+          +rvations                                                      
+      133 +   * @returns {void}                                          
+      134 +   */                                                         
+      135 +  _recordObservations(observations) {                         
+      136      if (Array.isArray(observations)) {
+      137        for (const obs of observations) {
+      138          this._observations.push(obs);
+     ...
+      140      } else {
+      141        this._observations.push(observations);
+      142      }
+      118 -                                                              
+      119 -    return { emission, observations };                        
+      143    }
+      144  }
+
+⏺ Now fix the require-await in the adapter sinks — they need to return promises,
+   so I'll use Promise.resolve().
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ The adapters are infra code so Date.now() is fine, but async without await is
+  the issue. I'll remove async and return the value directly (it's already
+  synchronous and the port returns Promise, so callers will wrap it).
+
+  Actually, the port signature says async deliver(). Subclasses that don't use
+  await get flagged. The cleanest fix: wrap the return in Promise.resolve() or
+  just drop async and let JS auto-wrap.
+
+  Let me check — in the port, deliver() is declared async. Subclasses override
+  it. The @typescript-eslint/require-await rule wants either an await in the
+  body or for it not to be async. Since removing async still returns a
+  promise-compatible value (a plain object), I'll just remove async.
+
+⏺ Update(src/infrastructure/adapters/NoOpEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      33     * @param {DeliveryLens} lens
+      34     * @returns {Promise<import('../../domain/types/DeliveryObser
+          vation.js').DeliveryObservation>}
+      35     */
+      36 -  async deliver(emission, lens) {                              
+      36 +  deliver(emission, lens) {                                    
+      37      if (lens.suppressExternal) {
+      38        return createDeliveryObservation({
+      39          emissionId: emission.id,
+
+⏺ Update(src/infrastructure/adapters/ConsoleEffectSink.js)
+  ⎿  Added 1 line, removed 1 line
+      34     * @param {DeliveryLens} lens
+      35     * @returns {Promise<import('../../domain/types/DeliveryObser
+          vation.js').DeliveryObservation>}
+      36     */
+      37 -  async deliver(emission, lens) {                              
+      37 +  deliver(emission, lens) {                                    
+      38      if (lens.suppressExternal) {
+      39        return createDeliveryObservation({
+      40          emissionId: emission.id,
+
+⏺ Wait — the port says async deliver() returns Promise<...>. If subclasses drop
+  async, they return the raw object, not a Promise. That breaks the contract.
+  Let me use Promise.resolve() wrapping instead.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Actually, createDeliveryObservation returns a plain object, not a Promise. The
+   caller (MultiplexSink.deliver()) does await sink.deliver() which would
+  resolve fine since await nonPromise just wraps it. But the JSDoc return type
+  says Promise<...>. Let me check if existing infra adapters have a similar
+  pattern.
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ It's off in tests but on for source. The cleanest solution for sync adapter
+  methods returning Promises: use Promise.resolve().
+
+⏺ Write(src/infrastructure/adapters/NoOpEffectSink.js)
+  ⎿  Added 16 lines, removed 12 lines
+      35     */
+      36    deliver(emission, lens) {
+      37      if (lens.suppressExternal) {
+      38 -      return createDeliveryObservation({                       
+      38 +      return Promise.resolve(                                  
+      39 +        createDeliveryObservation({                            
+      40 +          emissionId: emission.id,                             
+      41 +          sinkId: this._id,                                    
+      42 +          outcome: 'suppressed',                               
+      43 +          reason: `suppressed by ${lens.mode} lens`,           
+      44 +          timestamp: Date.now(),                               
+      45 +          lens,                                                
+      46 +        }),                                                    
+      47 +      );                                                       
+      48 +    }                                                          
+      49 +    return Promise.resolve(                                    
+      50 +      createDeliveryObservation({                              
+      51          emissionId: emission.id,
+      52          sinkId: this._id,
+      41 -        outcome: 'suppressed',                                 
+      42 -        reason: `suppressed by ${lens.mode} lens`,             
+      53 +        outcome: 'delivered',                                  
+      54          timestamp: Date.now(),
+      55          lens,
+      45 -      });                                                      
+      46 -    }                                                          
+      47 -    return createDeliveryObservation({                         
+      48 -      emissionId: emission.id,                                 
+      49 -      sinkId: this._id,                                        
+      50 -      outcome: 'delivered',                                    
+      51 -      timestamp: Date.now(),                                   
+      52 -      lens,                                                    
+      53 -    });                                                        
+      56 +      }),                                                      
+      57 +    );                                                         
+      58    }
+      59  }
+
+⏺ Write(src/infrastructure/adapters/ConsoleEffectSink.js)
+  ⎿  Added 19 lines, removed 15 lines
+      36     */
+      37    deliver(emission, lens) {
+      38      if (lens.suppressExternal) {
+      39 -      return createDeliveryObservation({                       
+      40 -        emissionId: emission.id,                               
+      41 -        sinkId: this._id,                                      
+      42 -        outcome: 'suppressed',                                 
+      43 -        reason: `suppressed by ${lens.mode} lens`,             
+      44 -        timestamp: Date.now(),                                 
+      45 -        lens,                                                  
+      46 -      });                                                      
+      39 +      return Promise.resolve(                                  
+      40 +        createDeliveryObservation({                            
+      41 +          emissionId: emission.id,                             
+      42 +          sinkId: this._id,                                    
+      43 +          outcome: 'suppressed',                               
+      44 +          reason: `suppressed by ${lens.mode} lens`,           
+      45 +          timestamp: Date.now(),                               
+      46 +          lens,                                                
+      47 +        }),                                                    
+      48 +      );                                                       
+      49      }
+      50  
+      51      if (this._logger) {
+     ...
+      56        );
+      57      }
+      58  
+      57 -    return createDeliveryObservation({                         
+      58 -      emissionId: emission.id,                                 
+      59 -      sinkId: this._id,                                        
+      60 -      outcome: 'delivered',                                    
+      61 -      timestamp: Date.now(),                                   
+      62 -      lens,                                                    
+      63 -    });                                                        
+      59 +    return Promise.resolve(                                    
+      60 +      createDeliveryObservation({                              
+      61 +        emissionId: emission.id,                               
+      62 +        sinkId: this._id,                                      
+      63 +        outcome: 'delivered',                                  
+      64 +        timestamp: Date.now(),                                 
+      65 +        lens,                                                  
+      66 +      }),                                                      
+      67 +    );                                                         
+      68    }
+      69  }
+
+⏺ Now re-run lint.
+
+⏺ Bash(npm run lint 2>&1)
+  ⎿  > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+  ⎿  (timeout 30s)
+
+⏺ Lint clean. Now full test suite.
+
+⏺ Bash(npm run test:local 2>&1 | tail -15)
+  ⎿   ✓ test/unit/scripts/public-api-guide-shape.test.js (5 tests) 5ms
+      ✓ test/unit/ports/ClockPort.test.js (3 tests) 2ms
+      ✓ test/unit/scripts/public-api-getting-started-shape.test.js (3 tests
+     … +17 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ 311 files, 5119 tests, all green. Lint clean.
+
+⏺ Now I need to update exports, index.d.ts, and CHANGELOG. Let me check what the
+   existing export pattern looks like.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Update(index.js)
+  ⎿  Added 22 lines
+      129  } from './src/domain/services/WormholeService.js';
+      130  
+      131  import BisectService from './src/domain/services/BisectService
+           .js';
+      132 +import EffectSinkPort from './src/ports/EffectSinkPort.js';   
+      133 +import { MultiplexSink } from './src/domain/services/Multiplex
+          +Sink.js';                                                     
+      134 +import { EffectPipeline } from './src/domain/services/EffectPi
+          +peline.js';                                                   
+      135 +import {                                                      
+      136 +  createEffectEmission,                                       
+      137 +  canonicalEmissionJson,                                      
+      138 +  DELIVERY_MODES,                                             
+      139 +  DELIVERY_OUTCOMES,                                          
+      140 +} from './src/domain/types/EffectEmission.js';                
+      141 +import {                                                      
+      142 +  createDeliveryObservation,                                  
+      143 +  canonicalObservationJson,                                   
+      144 +} from './src/domain/types/DeliveryObservation.js';           
+      145 +import {                                                      
+      146 +  createDeliveryLens,                                         
+      147 +  LIVE_LENS,                                                  
+      148 +  REPLAY_LENS,                                                
+      149 +  INSPECT_LENS,                                               
+      150 +} from './src/domain/types/DeliveryLens.js';                  
+      151 +import { NoOpEffectSink } from './src/infrastructure/adapters/
+          +NoOpEffectSink.js';                                           
+      152 +import { ConsoleEffectSink } from './src/infrastructure/adapte
+          +rs/ConsoleEffectSink.js';                                     
+      153 +import { ChunkEffectSink } from './src/infrastructure/adapters
+          +/ChunkEffectSink.js';                                         
+      154  import { PatchBuilderV2 } from './src/domain/services/PatchBui
+           lderV2.js';
+      155  import { PatchSession } from './src/domain/warp/PatchSession.j
+           s';
+      156  import { Writer } from './src/domain/warp/Writer.js';
+
+⏺ Update(index.js)
+  ⎿  Added 18 lines
+      296    replayWormhole,
+      297    serializeWormhole,
+      298    deserializeWormhole,
+      299 +                                                              
+      300 +  // Effect emission & delivery observation                   
+      301 +  EffectSinkPort,                                             
+      302 +  MultiplexSink,                                              
+      303 +  EffectPipeline,                                             
+      304 +  createEffectEmission,                                       
+      305 +  canonicalEmissionJson,                                      
+      306 +  createDeliveryObservation,                                  
+      307 +  canonicalObservationJson,                                   
+      308 +  createDeliveryLens,                                         
+      309 +  DELIVERY_MODES,                                             
+      310 +  DELIVERY_OUTCOMES,                                          
+      311 +  LIVE_LENS,                                                  
+      312 +  REPLAY_LENS,                                                
+      313 +  INSPECT_LENS,                                               
+      314 +  NoOpEffectSink,                                             
+      315 +  ConsoleEffectSink,                                          
+      316 +  ChunkEffectSink,                                            
+      317  };
+      318  
+      319  // WarpApp is the primary product-facing API for v15.
+
+⏺ Now update index.d.ts with the type declarations. Let me find where the
+  TickReceipt types are declared to place the new ones nearby.
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ Good, I'll add the new types right after the TickReceipt section. Let me find
+  the end of the file to also check where exports are.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(index.d.ts)
+  ⎿  Added 194 lines
+      3773    payload: PatchEntry[];
+      3774  }): WormholeEdge;
+      3775  
+      3776 +// ==========================================================
+           +==================                                           
+      3777 +// Effect Emission & Delivery Observation                    
+      3778 +// ==========================================================
+           +==================                                           
+      3779 +                                                             
+      3780 +/** Execution/delivery context that shapes outbound effect be
+           +havior. */                                                   
+      3781 +export interface DeliveryLens {                              
+      3782 +  /** Execution mode. */                                     
+      3783 +  readonly mode: 'live' | 'replay' | 'inspect';              
+      3784 +  /** Whether external delivery should be blocked. */        
+      3785 +  readonly suppressExternal: boolean;                        
+      3786 +}                                                            
+      3787 +                                                             
+      3788 +/** Valid delivery modes. */                                 
+      3789 +export const DELIVERY_MODES: readonly ['live', 'replay', 'ins
+           +pect'];                                                      
+      3790 +                                                             
+      3791 +/** Valid delivery outcomes. */                              
+      3792 +export const DELIVERY_OUTCOMES: readonly [                   
+      3793 +  'delivered',                                               
+      3794 +  'suppressed',                                              
+      3795 +  'failed',                                                  
+      3796 +  'skipped',                                                 
+      3797 +];                                                           
+      3798 +                                                             
+      3799 +/** Delivery outcome discriminant. */                        
+      3800 +export type DeliveryOutcome = 'delivered' | 'suppressed' | 'f
+           +ailed' | 'skipped';                                          
+      3801 +                                                             
+      3802 +/** Delivery mode discriminant. */                           
+      3803 +export type DeliveryMode = 'live' | 'replay' | 'inspect';    
+      3804 +                                                             
+      3805 +/** Creates an immutable DeliveryLens. */                    
+      3806 +export function createDeliveryLens(params: {                 
+      3807 +  mode: DeliveryMode;                                        
+      3808 +  suppressExternal: boolean;                                 
+      3809 +}): Readonly<DeliveryLens>;                                  
+      3810 +                                                             
+      3811 +/** Live execution lens — effects are delivered normally. */ 
+      3812 +export const LIVE_LENS: Readonly<DeliveryLens>;              
+      3813 +/** Replay execution lens — external delivery is suppressed. 
+           +*/                                                           
+      3814 +export const REPLAY_LENS: Readonly<DeliveryLens>;            
+      3815 +/** Inspect execution lens — dry-run, external delivery is su
+           +ppressed. */                                                 
+      3816 +export const INSPECT_LENS: Readonly<DeliveryLens>;           
+      3817 +                                                             
+      3818 +/** Causal coordinate at which an effect was emitted. */     
+      3819 +export interface EffectCoordinate {                          
+      3820 +  /** Writer tip SHAs at emission time. */                   
+      3821 +  readonly frontier: Record<string, string> | null;          
+      3822 +  /** Lamport ceiling (if capped). */                        
+      3823 +  readonly ceiling: number | null;                           
+      3824 +}                                                            
+      3825 +                                                             
+      3826 +/** Immutable substrate fact: an outbound effect candidate wa
+           +s produced. */                                               
+      3827 +export interface EffectEmission {                            
+      3828 +  /** Unique emission ID. */                                 
+      3829 +  readonly id: string;                                       
+      3830 +  /** Effect kind — generic string, app chooses meaning. */  
+      3831 +  readonly kind: string;                                     
+      3832 +  /** Opaque effect payload — substrate does not interpret it
+           +. */                                                         
+      3833 +  readonly payload: unknown;                                 
+      3834 +  /** Wall-clock milliseconds. */                            
+      3835 +  readonly timestamp: number;                                
+      3836 +  /** Writer ID (null if not writer-scoped). */              
+      3837 +  readonly writer: string | null;                            
+      3838 +  /** Causal position where this effect was produced. */     
+      3839 +  readonly coordinate: Readonly<EffectCoordinate>;           
+      3840 +}                                                            
+      3841 +                                                             
+      3842 +/** Creates an immutable EffectEmission. */                  
+      3843 +export function createEffectEmission(params: {               
+      3844 +  id: string;                                                
+      3845 +  kind: string;                                              
+      3846 +  payload: unknown;                                          
+      3847 +  timestamp: number;                                         
+      3848 +  writer: string | null;                                     
+      3849 +  coordinate: {                                              
+      3850 +    frontier: Record<string, string> | null;                 
+      3851 +    ceiling: number | null;                                  
+      3852 +  };                                                         
+      3853 +}): Readonly<EffectEmission>;                                
+      3854 +                                                             
+      3855 +/** Produces a deterministic JSON string for an EffectEmissio
+           +n. */                                                        
+      3856 +export function canonicalEmissionJson(emission: EffectEmissio
+           +n): string;                                                  
+      3857 +                                                             
+      3858 +/** Immutable substrate fact: a sink handled an emitted effec
+           +t. */                                                        
+      3859 +export interface DeliveryObservation {                       
+      3860 +  /** Links to the EffectEmission. */                        
+      3861 +  readonly emissionId: string;                               
+      3862 +  /** Which sink/adapter handled it. */                      
+      3863 +  readonly sinkId: string;                                   
+      3864 +  /** Delivery outcome. */                                   
+      3865 +  readonly outcome: DeliveryOutcome;                         
+      3866 +  /** Why (e.g., "replay mode", "transport unavailable"). */ 
+      3867 +  readonly reason?: string;                                  
+      3868 +  /** Wall-clock milliseconds. */                            
+      3869 +  readonly timestamp: number;                                
+      3870 +  /** Execution context at delivery time. */                 
+      3871 +  readonly lens: Readonly<DeliveryLens>;                     
+      3872 +}                                                            
+      3873 +                                                             
+      3874 +/** Creates an immutable DeliveryObservation. */             
+      3875 +export function createDeliveryObservation(params: {          
+      3876 +  emissionId: string;                                        
+      3877 +  sinkId: string;                                            
+      3878 +  outcome: DeliveryOutcome;                                  
+      3879 +  reason?: string;                                           
+      3880 +  timestamp: number;                                         
+      3881 +  lens: { mode: DeliveryMode; suppressExternal: boolean };   
+      3882 +}): Readonly<DeliveryObservation>;                           
+      3883 +                                                             
+      3884 +/** Produces a deterministic JSON string for a DeliveryObserv
+           +ation. */                                                    
+      3885 +export function canonicalObservationJson(                    
+      3886 +  observation: DeliveryObservation,                          
+      3887 +): string;                                                   
+      3888 +                                                             
+      3889 +/**                                                          
+      3890 + * Abstract port for effect delivery sinks.                  
+      3891 + *                                                           
+      3892 + * Each sink has a unique `id` and a `deliver()` method.     
+      3893 + */                                                          
+      3894 +export class EffectSinkPort {                                
+      3895 +  /** Unique identifier for this sink. */                    
+      3896 +  get id(): string;                                          
+      3897 +  /** Delivers an effect emission under the given delivery le
+           +ns. */                                                       
+      3898 +  deliver(                                                   
+      3899 +    emission: EffectEmission,                                
+      3900 +    lens: DeliveryLens,                                      
+      3901 +  ): Promise<DeliveryObservation>;                           
+      3902 +}                                                            
+      3903 +                                                             
+      3904 +/**                                                          
+      3905 + * Fans out one EffectEmission to multiple child sinks.      
+      3906 + * Implements EffectSinkPort (composite pattern).            
+      3907 + */                                                          
+      3908 +export class MultiplexSink extends EffectSinkPort {          
+      3909 +  constructor(options?: { id?: string });                    
+      3910 +  get id(): string;                                          
+      3911 +  get sinks(): readonly EffectSinkPort[];                    
+      3912 +  addSink(sink: EffectSinkPort): void;                       
+      3913 +  removeSink(id: string): boolean;                           
+      3914 +  deliver(                                                   
+      3915 +    emission: EffectEmission,                                
+      3916 +    lens: DeliveryLens,                                      
+      3917 +  ): Promise<DeliveryObservation[]>;                         
+      3918 +}                                                            
+      3919 +                                                             
+      3920 +/**                                                          
+      3921 + * Orchestrates effect emission, delivery, and observation co
+           +llection.                                                    
+      3922 + */                                                          
+      3923 +export class EffectPipeline {                                
+      3924 +  constructor(options: {                                     
+      3925 +    sink: EffectSinkPort;                                    
+      3926 +    lens: Readonly<DeliveryLens>;                            
+      3927 +    clock: { now: () => number };                            
+      3928 +  });                                                        
+      3929 +  get lens(): Readonly<DeliveryLens>;                        
+      3930 +  set lens(newLens: Readonly<DeliveryLens>);                 
+      3931 +  get emissions(): readonly EffectEmission[];                
+      3932 +  get observations(): readonly DeliveryObservation[];        
+      3933 +  emit(                                                      
+      3934 +    kind: string,                                            
+      3935 +    payload: unknown,                                        
+      3936 +    options?: {                                              
+      3937 +      writer?: string | null;                                
+      3938 +      coordinate?: {                                         
+      3939 +        frontier?: Record<string, string> | null;            
+      3940 +        ceiling?: number | null;                             
+      3941 +      };                                                     
+      3942 +    },                                                       
+      3943 +  ): Promise<{                                               
+      3944 +    emission: EffectEmission;                                
+      3945 +    observations: DeliveryObservation | DeliveryObservation[]
+           +;                                                            
+      3946 +  }>;                                                        
+      3947 +}                                                            
+      3948 +                                                             
+      3949 +/** Null/test sink — swallows effects. */                    
+      3950 +export class NoOpEffectSink extends EffectSinkPort {         
+      3951 +  constructor(options?: { id?: string });                    
+      3952 +  get id(): string;                                          
+      3953 +}                                                            
+      3954 +                                                             
+      3955 +/** Console logging sink — logs via a logger, suppresses in r
+           +eplay/inspect. */                                            
+      3956 +export class ConsoleEffectSink extends EffectSinkPort {      
+      3957 +  constructor(options?: {                                    
+      3958 +    logger?: { info: (...args: unknown[]) => void };         
+      3959 +    id?: string;                                             
+      3960 +  });                                                        
+      3961 +  get id(): string;                                          
+      3962 +}                                                            
+      3963 +                                                             
+      3964 +/** Rotating append-only NDJSON file sink for local forensic 
+           +streams. */                                                  
+      3965 +export class ChunkEffectSink extends EffectSinkPort {        
+      3966 +  constructor(options: { dir: string; id?: string; maxBytes?:
+           + number });                                                  
+      3967 +  get id(): string;                                          
+      3968 +}                                                            
+      3969 +                                                             
+      3970  /** Default package export — the curated product-facing WARP 
+            surface. */
+      3971  export default WarpApp;
+
+⏺ Now update CHANGELOG.
+
+⏺ Update(CHANGELOG.md)
+  ⎿  Added 11 lines
+       7  
+       8  ## [Unreleased]
+       9  
+      10 +### Added                                                      
+      11 +                                                               
+      12 +- **Effect emission & delivery observation substrate slice** — 
+         +new receipt families for outbound effects and their delivery li
+         +fecycle. `EffectEmission` records that the system produced an o
+         +utbound effect candidate at a causal coordinate. `DeliveryObser
+         +vation` records how a sink handled that emission (delivered, su
+         +ppressed, failed, skipped). `DeliveryLens` provides execution c
+         +ontext (live/replay/inspect) that shapes delivery behavior. Pre
+         +set lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover
+         + common modes.                                                 
+      13 +- **`EffectSinkPort`** — abstract port for effect delivery sink
+         +s, following the hexagonal architecture pattern.               
+      14 +- **`MultiplexSink`** — domain service that fans out one emissi
+         +on to multiple child sinks (composite pattern over `EffectSinkP
+         +ort`).                                                         
+      15 +- **`EffectPipeline`** — domain service that orchestrates emit 
+         +→ deliver → collect, maintaining inspectable emission and obser
+         +vation logs.                                                   
+      16 +- **`NoOpEffectSink`** — null/test sink adapter (infrastructure
+         +).                                                             
+      17 +- **`ConsoleEffectSink`** — console logging sink adapter that s
+         +uppresses output during replay/inspect (infrastructure).       
+      18 +- **`ChunkEffectSink`** — rotating append-only NDJSON file sink
+         + for local forensic streams, replay-safe (infrastructure).     
+      19 +- **Design doc:** `docs/design/effect-emission-v1.md` — full mo
+         +del description, replay rules, and integration guidance.       
+      20 +                                                               
+      21  ### Fixed
+      22  
+      23  - Broken markdown links in archived retrospective files and `do
+          cs/README.md` — design docs that were intentionally deleted now
+           appear as plain text references, and the retrospectives path i
+          n the documentation index points to the correct `archive/retros
+          pectives/` location.
+
+⏺ Now let me check the type-surface manifest and export tests to see if they
+  need updating.
+
+⏺ Bash(npm run lint 2>&1 && npx vitest run test/unit/index.exports.test.js 2>&1
+      | tail -10)
+  ⎿  > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+     … +10 lines (ctrl+o to expand)
+  ⎿  (timeout 30s)
+
+⏺ Now check if there's a type-surface manifest that tracks exports.
+
+⏺ Bash(npx vitest run test/unit/scripts/ 2>&1 | tail -20)
+  ⎿   ✓ test/unit/scripts/public-api-advanced-guide-shape.test.js (3 tests)
+      4ms
+      ✓ test/unit/scripts/public-api-readme-shape.test.js (4 tests) 2ms
+     … +26 lines (ctrl+o to expand)
+
+⏺ Let me check the type-surface manifest for any drift.
+
+⏺ Bash(node scripts/check-dts-surface.js 2>&1 | tail -5)
+  ⎿    index.d.ts exports: 247
+       Errors:   16
+       Warnings: 22
+     … +2 lines (ctrl+o to expand)
+
+⏺ Bash(node scripts/check-dts-surface.js 2>&1 | head -40)
+  ⎿  ERROR: index.js export "EffectSinkPort" missing from runtime exports m
+     anifest
+     ERROR: index.js export "MultiplexSink" missing from runtime exports ma
+     … +35 lines (ctrl+o to expand)
+
+⏺ Need to update the type-surface manifest. Let me find it.
+
+  Searched for 3 patterns, read 1 file (ctrl+o to expand)
+
+⏺ I need to add entries for the new exports and type-only exports. Let me add
+  them in alphabetical order.
+
+⏺ Update(contracts/type-surface.m8.json)
+  ⎿  Added 48 lines
+      1401      "verifyBTR": {
+      1402        "kind": "function",
+      1403        "async": true
+      1404 +    },                                                       
+      1405 +    "EffectSinkPort": {                                      
+      1406 +      "kind": "class"                                        
+      1407 +    },                                                       
+      1408 +    "MultiplexSink": {                                       
+      1409 +      "kind": "class"                                        
+      1410 +    },                                                       
+      1411 +    "EffectPipeline": {                                      
+      1412 +      "kind": "class"                                        
+      1413 +    },                                                       
+      1414 +    "createEffectEmission": {                                
+      1415 +      "kind": "function"                                     
+      1416 +    },                                                       
+      1417 +    "canonicalEmissionJson": {                               
+      1418 +      "kind": "function"                                     
+      1419 +    },                                                       
+      1420 +    "createDeliveryObservation": {                           
+      1421 +      "kind": "function"                                     
+      1422 +    },                                                       
+      1423 +    "canonicalObservationJson": {                            
+      1424 +      "kind": "function"                                     
+      1425 +    },                                                       
+      1426 +    "createDeliveryLens": {                                  
+      1427 +      "kind": "function"                                     
+      1428 +    },                                                       
+      1429 +    "DELIVERY_MODES": {                                      
+      1430 +      "kind": "const"                                        
+      1431 +    },                                                       
+      1432 +    "DELIVERY_OUTCOMES": {                                   
+      1433 +      "kind": "const"                                        
+      1434 +    },                                                       
+      1435 +    "LIVE_LENS": {                                           
+      1436 +      "kind": "const"                                        
+      1437 +    },                                                       
+      1438 +    "REPLAY_LENS": {                                         
+      1439 +      "kind": "const"                                        
+      1440 +    },                                                       
+      1441 +    "INSPECT_LENS": {                                        
+      1442 +      "kind": "const"                                        
+      1443 +    },                                                       
+      1444 +    "NoOpEffectSink": {                                      
+      1445 +      "kind": "class"                                        
+      1446 +    },                                                       
+      1447 +    "ConsoleEffectSink": {                                   
+      1448 +      "kind": "class"                                        
+      1449 +    },                                                       
+      1450 +    "ChunkEffectSink": {                                     
+      1451 +      "kind": "class"                                        
+      1452      }
+      1453    },
+      1454    "typeExports": {
+
+⏺ Now add the type-only exports to the typeExports section.
+
+⏺ Update(contracts/type-surface.m8.json)
+  ⎿  Added 18 lines
+      1847      },
+      1848      "WormholeEdge": {
+      1849        "kind": "interface"
+      1850 +    },                                                       
+      1851 +    "DeliveryLens": {                                        
+      1852 +      "kind": "interface"                                    
+      1853 +    },                                                       
+      1854 +    "DeliveryOutcome": {                                     
+      1855 +      "kind": "type"                                         
+      1856 +    },                                                       
+      1857 +    "DeliveryMode": {                                        
+      1858 +      "kind": "type"                                         
+      1859 +    },                                                       
+      1860 +    "EffectCoordinate": {                                    
+      1861 +      "kind": "interface"                                    
+      1862 +    },                                                       
+      1863 +    "EffectEmission": {                                      
+      1864 +      "kind": "interface"                                    
+      1865 +    },                                                       
+      1866 +    "DeliveryObservation": {                                 
+      1867 +      "kind": "interface"                                    
+      1868      }
+      1869    }
+      1870  }
+
+⏺ Bash(node scripts/check-dts-surface.js 2>&1 | tail -10)
+  ⎿  Declaration surface check:
+       Manifest entries:   247
+         Runtime-backed:   109
+     … +7 lines (ctrl+o to expand)
+
+⏺ Now run the full test suite and lint one more time.
+
+⏺ Bash(npm run lint 2>&1 && npm run test:local 2>&1 | tail -10)
+  ⎿  > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+     … +10 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ 311 files, 5119 tests, all green. Lint clean. DTS surface clean.
+
+⏺ Now commit per the repo rules.
+
+⏺ Bash(git status)
+  ⎿  On branch main
+     Your branch is up to date with 'origin/main'.
+     … +22 lines (ctrl+o to expand)
+
+⏺ Bash(git add -A && git commit -m "$(cat <<'EOF'
+      feat: add effect emission and delivery observation substrate slice…)
+  ⎿  [main f12daf5] feat: add effect emission and delivery observation subs
+     trate slice
+      23 files changed, 2544 insertions(+)
+     … +17 lines (ctrl+o to expand)
+⏺ Now let me capture a thought and summarize.
+
+⏺ Bash(claude-think "Landed the effect emission substrate slice in git-warp. Key
+       design decisions: (1) EffectEmission and DeliveryObservation are parallel
+       receipt fami…)
+  ⎿  {
+       "event": "capture.local_save.start",
+       "ts": "2026-03-31T03:07:10.477Z"
+     … +25 lines (ctrl+o to expand)
+
+⏺ ---
+  Summary
+
+  What landed
+
+  Design doc: docs/design/effect-emission-v1.md
+
+  New types (3 receipt families):
+
+  Type: EffectEmission
+  File: src/domain/types/EffectEmission.js
+  Purpose: "The system produced an outbound effect at this coordinate"
+  ────────────────────────────────────────
+  Type: DeliveryObservation
+  File: src/domain/types/DeliveryObservation.js
+  Purpose: "Sink X handled emission Y with outcome Z under lens L"
+  ────────────────────────────────────────
+  Type: DeliveryLens
+  File: src/domain/types/DeliveryLens.js
+  Purpose: Execution context: live, replay, inspect + suppressExternal
+
+  New port:
+  - EffectSinkPort (src/ports/EffectSinkPort.js) — abstract hexagonal port for
+  delivery sinks
+
+  New domain services:
+  - MultiplexSink (src/domain/services/MultiplexSink.js) — fan-out composite
+  over child sinks
+  - EffectPipeline (src/domain/services/EffectPipeline.js) — orchestrates emit →
+   deliver → collect, maintains inspectable logs
+
+  New infrastructure adapters:
+  - NoOpEffectSink — null/test sink
+  - ConsoleEffectSink — logger-backed, suppresses in replay/inspect
+  - ChunkEffectSink — rotating append-only NDJSON file sink (replay-safe —
+  always writes)
+
+  Preset lenses: LIVE_LENS, REPLAY_LENS, INSPECT_LENS
+
+  Tests: 82 new tests across 9 files (5119 total, 311 files)
+
+  Build commands run:
+  - npm run lint — clean
+  - npm run test:local — 5119 pass
+  - node scripts/check-dts-surface.js — 247 exports, 0 errors
+
+  What remains
+
+  - Git persistence of effect/delivery records (v1 is in-memory)
+  - WarpCore.emit() convenience method (v1 requires manual pipeline injection)
+  - Audit chain for effects (parallel to AuditReceiptService)
+  - Streaming over emission/observation logs
+  - Sink capability declarations
+
+  What warp-ttd can depend on
+
+  warp-ttd should import these from @git-stunts/git-warp:
+
+  import {
+    EffectEmission, DeliveryObservation, DeliveryLens,
+    EffectSinkPort, MultiplexSink, EffectPipeline,
+    LIVE_LENS, REPLAY_LENS, INSPECT_LENS,
+    createEffectEmission, createDeliveryObservation, createDeliveryLens,
+    DELIVERY_MODES, DELIVERY_OUTCOMES,
+  } from '@git-stunts/git-warp';
+
+  The contract: construct an EffectPipeline with a MultiplexSink and the
+  appropriate DeliveryLens. Call pipeline.emit(kind, payload). Inspect
+  pipeline.emissions and pipeline.observations for the full effect/delivery log.
+   During replay, set pipeline.lens = REPLAY_LENS — emissions still appear
+  deterministically, but external sinks record outcome: 'suppressed' instead of
+  delivering.
+
+✻ Cooked for 16m 20s
+
+! pwd                                                                           
+  ⎿  /Users/james/git/git-stunts/git-warp
+
+❯ Outline the steps that will be necessary to build this vision and complete    
+the mission                                                                     
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Here's the full mission map. Two design docs define two convergent programs —
+  effect emission alignment and substrate alignment — that together make
+  git-warp the honest substrate for XYPH and warp-ttd. The slice we just landed
+  was the first concrete deliverable. What follows is everything else.
+
+  ---
+  The Full Mission — Step by Step
+
+  Phase 0: Effect Emission v1 (DONE)
+
+  What landed: in-memory EffectEmission, DeliveryObservation, DeliveryLens,
+  EffectSinkPort, MultiplexSink, EffectPipeline, three adapter sinks, 82 tests,
+  design doc.
+
+  ---
+  Phase 1: Effect Emission v2 — Hardening & Persistence
+
+  Repo: git-warp
+
+  1. WarpCore.emit() convenience — Wire the EffectPipeline into WarpCore so
+  callers don't manually construct the pipeline. WarpCore.open({ effectSinks: 
+  [...], deliveryLens }) auto-constructs the pipeline. core.emit(kind, payload)
+  is the surface.
+  2. Git persistence for effect records — Effect emissions and delivery
+  observations become durable substrate facts stored as Git commits (analogous
+  to AuditReceiptService for TickReceipts). This means effect history survives
+  process restart and is replicable via sync.
+  3. Effect audit chain — Tamper-evident chained audit commits for effect
+  emissions, parallel to the existing TickReceipt audit chain. Provides the same
+   integrity guarantees.
+  4. ChunkEffectSink line-budget rotation — The design doc mentions "rotation by
+   byte budget and optionally line budget." Byte rotation landed; add line-count
+   rotation.
+  5. Streaming over logs — pipeline.emissionStream() and
+  pipeline.observationStream() returning AsyncGenerator for large-scale
+  consumers.
+  6. Sink capability declarations — Sinks advertise which delivery modes they
+  support (['live'], ['live', 'replay'], etc.) so the pipeline can skip sinks
+  that don't apply, rather than relying on each sink to self-suppress.
+
+  ---
+  Phase 2: warp-ttd Effect/Delivery Inspection
+
+  Repo: warp-ttd
+
+  7. Design doc — warp-ttd design note for protocol additions, adapter
+  capability expectations, and replay-safe suppression visibility.
+  8. Protocol envelopes — Extend the warp-ttd protocol with two new envelope
+  families:
+    - EffectEmissionSummary — what effect was emitted, at which coordinate
+    - DeliveryObservationSummary — which sink, what outcome, why
+  9. Adapter capability — warp-ttd adapters declare whether they can read
+  effect/delivery payloads. Version-gated so older git-warp instances without
+  the slice don't break.
+  10. TUI columns — TUI gets columns/panels for:
+    - Emission kind, payload summary, coordinate
+    - Per-sink delivery outcome (delivered/suppressed/failed/skipped)
+    - Suppression reason (e.g., "replay mode")
+    - Active delivery lens (live/replay/inspect)
+  11. Playback/session lens visibility — The TUI shows whether the current
+  session is live vs replay, and what the active delivery lens is, alongside the
+   existing observer/aperture display.
+
+  ---
+  Phase 3: Observer/Worldline Read Alignment (Substrate Alignment Stage 1)
+
+  Repo: git-warp
+
+  12. Multiple independent read handles — Today WarpGraph is a mutable session
+  handle with one active materialized state. Expose a clean way to hold multiple
+   independent read handles over different coordinates or pinned strands without
+   re-materializing the shared cache.
+  13. Observer-first read path as the promoted default — The guide and examples
+  should lead with "choose a worldline → choose a lens → read through that
+  observer" rather than "materialize, query, build a snapshot." API ergonomics
+  pass to make this natural.
+  14. Coordinate-pinned observers without live handle — Observers that bind to
+  an explicit snapshot and never touch the live graph. These are the read
+  handles higher layers use for historical inspection and speculative previews.
+
+  Repo: XYPH (first adoption)
+
+  15. Replace one targeted XYPH read path — Pick one focused XYPH surface (not
+  the landing page aggregate) and replace its GraphContext → GraphSnapshot path
+  with a worldline + observer read. Validate that it works end-to-end without
+  the omnibus reconstruction.
+
+  ---
+  Phase 4: Working-Set Intent and Tick Model (Substrate Alignment Stage 2)
+
+  Repo: git-warp
+
+  16. Intent queueing against strands — queueStrandIntent() and
+  listStrandIntents() already exist. Harden the intent model: validate footprint
+   declarations on intents, expose overlap/conflict detection before tick.
+  17. Deterministic tick admission with footprint rejection — tickStrand()
+  already drains intents. Add explicit footprint-overlap rejection: if two
+  intents touch the same entity, the deterministic scheduler rejects the loser.
+  The rejection must appear as a counterfactual in the receipt.
+  18. Counterfactual recording in receipts — StrandTickRecord already has
+  counterfactuals. Ensure the counterfactual entries carry enough provenance for
+   downstream inspection (which intent was rejected, what it would have done,
+  why it lost).
+  19. Effect emission during tick — When a tick admits an intent that produces
+  an outbound effect, the effect emission should be recorded as part of the
+  tick's receipt envelope, not as a side channel. This connects the two receipt
+  families.
+
+  ---
+  Phase 5: Transfer/Collapse Primitive (Substrate Alignment Stage 3)
+
+  Repo: git-warp
+
+  20. planStrandTransfer() → executeTransfer() — Transfer planning exists. Add
+  the actual execution primitive that promotes a speculative strand into the
+  target canonical worldline while preserving causal provenance and full receipt
+   truth.
+  21. Transfer receipt — The transfer itself produces a receipt: which strand
+  was promoted, what the base was, what changed, what effects were emitted
+  during the transfer.
+  22. Multi-strand comparison before transfer — Before promoting, the system
+  should be able to compare multiple candidate strands against each other, not
+  just one strand vs base/live. This supports speculative search across
+  candidate futures.
+
+  ---
+  Phase 6: XYPH Refactor Off Omnibus Read Model (Substrate Alignment Stage 4)
+
+  Repo: XYPH
+
+  23. Narrow GraphContext — Stop using GraphContext as the single wide read
+  model. Decompose into focused readers that use observer-backed worldline reads
+   for their specific node families.
+  24. Replace broad GraphSnapshot with observer reads — Most surfaces don't need
+   every node family. Replace the omnibus snapshot with targeted observer
+  queries. Keep broad projections only where landing-page aggregates genuinely
+  need them.
+  25. Lower outbound actions to substrate emissions — Replace XYPH's
+  application-local adapter calls and logging with pipeline.emit('notification',
+   ...), pipeline.emit('export', ...), etc. XYPH keeps the domain meaning;
+  git-warp keeps the substrate receipt.
+  26. Stop inventing private replay-suppression — XYPH's replay paths should use
+   REPLAY_LENS and INSPECT_LENS from git-warp instead of application-level
+  suppression flags.
+
+  ---
+  Phase 7: Cross-Stack Verification
+
+  All repos
+
+  27. End-to-end replay test — A scenario that writes effects in live mode,
+  replays them in replay mode, and verifies:
+    - Same emissions appear deterministically
+    - External sinks show suppressed instead of delivered
+    - warp-ttd can inspect both the emission and the suppression decision
+    - XYPH surfaces explain what happened without private replay logic
+  28. Documentation alignment — Each repo's design docs reference the canonical
+  split:
+    - git-warp owns substrate facts (effects, delivery, receipts)
+    - warp-ttd inspects them (protocol, TUI)
+    - XYPH interprets them (policy, governance, product meaning)
+
+  ---
+  Release Cadence
+
+  Each phase follows the same loop:
+
+  1. Design the substrate slice in docs
+  2. Implement and test it in git-warp
+  3. Publish a git-warp release
+  4. Update downstream (warp-ttd, XYPH) to adopt
+  5. Verify one downstream surface works against the new substrate
+
+  Phases 1-2 can run concurrently (git-warp hardening + warp-ttd inspection are
+  independent). Phases 3-5 are sequential (each builds on the previous substrate
+   primitive). Phase 6 is incremental and can overlap with Phase 5 as git-warp
+  primitives land.
+
+  ---
+  What's load-bearing vs nice-to-have
+
+  Must-haves for the vision to work:
+  - Phases 1-3 (effect persistence, warp-ttd inspection, observer-first reads)
+  - Phase 6 steps 25-26 (XYPH stops inventing private replay)
+
+  Important but can be deferred:
+  - Phase 4-5 (intent/tick/transfer — already partially built, needed for
+  speculative lanes)
+  - Phase 6 steps 23-24 (GraphContext narrowing — incremental, can happen
+  gradually)
+
+  Nice-to-have:
+  - Sink capability declarations, streaming log APIs, line-budget rotation
+
+  Where do you want to start?
+
+✻ Cogitated for 1m 16s
+
+❯ Can you use Think to remember this plan/                                      
+
+⏺ Bash(claude-think "FULL MISSION PLAN — Effect Emission & Substrate Alignment
+      across git-warp / warp-ttd / XYPH…)
+  ⎿  {
+       "entryId": "entry:1774928351000-17026385-d42f-4985-8eeb-8d2fbaa4a4f5
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Done. The full 7-phase mission plan is captured in Think so it'll be available
+   at the start of future conversations.
+
+✻ Sautéed for 33s
+
+❯ OK now, show me the phases of the plan, and in between each phase, tell me    
+what, if anything, git-warp will be able to do RE: interactions with the        
+warp-ttd or xyph. Make these parts stand out please.                            
+
+⏺ Phase 0: Effect Emission v1 ✅ DONE
+
+  In-memory EffectEmission, DeliveryObservation, DeliveryLens, EffectSinkPort,
+  MultiplexSink, EffectPipeline, three adapter sinks. 82 tests.
+
+  ---
+  ▎ 🔓 After Phase 0, git-warp can:
+
+  ▎ For warp-ttd: Nothing yet. The pipeline is in-memory and there's no protocol
+   envelope for it. warp-ttd would have to manually construct an EffectPipeline 
+  and poll .emissions / .observations — possible but not ergonomic, and nothing 
+  survives process restart.
+
+  ▎ For XYPH: XYPH could start using EffectPipeline today as a structured 
+  replacement for ad-hoc adapter calls. It would get replay-safe suppression via
+   REPLAY_LENS and inspectable logs. But there's no persistence, no WarpCore 
+  integration, and XYPH would still need to wire the pipeline manually.
+
+  ---
+  Phase 1: Effect Emission v2 — Hardening & Persistence
+
+  Repo: git-warp
+
+  1. WarpCore.open({ effectSinks, deliveryLens }) auto-wires the pipeline
+  2. Git persistence for effect/delivery records (durable substrate facts)
+  3. Effect audit chain (tamper-evident, parallel to TickReceipt chain)
+  4. ChunkEffectSink line-budget rotation
+  5. Streaming over emission/observation logs (AsyncGenerator)
+  6. Sink capability declarations
+
+  ---
+  ▎ 🔓 After Phase 1, git-warp can:
+
+  ▎ For warp-ttd: Effect and delivery records are now durable Git objects that 
+  replicate via sync. warp-ttd can read them from the Git store the same way it 
+  reads TickReceipts — no ephemeral in-memory polling required. The audit chain 
+  provides tamper-evident provenance. But warp-ttd still has no protocol for 
+  these facts — it would need to read them raw.
+
+  ▎ For XYPH: core.emit('notification', payload) just works after 
+  WarpCore.open(). Effect history survives restart. XYPH can replace its private
+   adapter folklore with substrate emissions today and get replay suppression, 
+  forensic chunk logs, and audit integrity for free. The missing piece: XYPH 
+  still reads the graph through the omnibus GraphContext → GraphSnapshot path.
+
+  ---
+  Phase 2: warp-ttd Effect/Delivery Inspection
+
+  Repo: warp-ttd (can run concurrently with Phase 1)
+
+  7. Design doc for protocol additions
+  8. Protocol envelopes: EffectEmissionSummary, DeliveryObservationSummary
+  9. Adapter capability declarations (version-gated)
+  10. TUI columns: emission kind, sink outcome, suppression reason, active lens
+  11. Playback/session lens visibility alongside observer/aperture display
+
+  ---
+  ▎ 🔓 After Phases 1+2, git-warp can:
+
+  ▎ For warp-ttd: The debugger can now show the full effect lifecycle: what was 
+  emitted, which sinks handled it, whether delivery was suppressed and why, what
+   lens was active. During replay playback, the TUI shows "this effect existed →
+   this adapter would have delivered it → suppressed by replay lens" instead of 
+  silent nothing. This is the first time the debugger has honest visibility into
+   outbound behavior.
+
+  ▎ For XYPH: Same as after Phase 1 — XYPH emits effects through the substrate, 
+  and now the debugger can inspect those emissions. An XYPH developer using 
+  warp-ttd can see exactly what outbound actions their code produced, which ones
+   were suppressed during time-travel, and why. No more inferring adapter 
+  behavior from missing side effects.
+
+  ---
+  Phase 3: Observer/Worldline Read Alignment
+
+  Repo: git-warp (Substrate Alignment Stage 1)
+
+  12. Multiple independent read handles over different coordinates
+  13. Observer-first read path as the promoted default
+  14. Coordinate-pinned observers without live handle
+
+  Repo: XYPH (first adoption)
+
+  15. Replace one targeted XYPH read path with worldline + observer
+
+  ---
+  ▎ 🔓 After Phase 3, git-warp can:
+
+  ▎ For warp-ttd: The debugger can hold multiple simultaneous read projections 
+  over different coordinates — e.g., "show me this graph at tick 50 through lens
+   A" alongside "show me the same graph at tick 80 through lens B." Side-by-side
+   historical comparison becomes a substrate capability, not a debugger hack.
+
+  ▎ For XYPH: This is the first structural relief from the omnibus read model. 
+  At least one XYPH surface now reads through a worldline + observer instead of 
+  reconstructing a GraphSnapshot. The pattern is proven end-to-end: choose 
+  coordinate → choose lens → read through projected handle. The remaining 
+  GraphContext surfaces can migrate incrementally.
+
+  ---
+  Phase 4: Working-Set Intent and Tick Model
+
+  Repo: git-warp (Substrate Alignment Stage 2)
+
+  16. Harden intent model — footprint declarations, overlap/conflict detection
+  17. Deterministic tick admission with footprint rejection as counterfactuals
+  18. Counterfactual recording with full provenance
+  19. Effect emission during tick — recorded in the tick receipt envelope
+
+  ---
+  ▎ 🔓 After Phase 4, git-warp can:
+
+  ▎ For warp-ttd: The debugger can now show why an intent was rejected: two 
+  intents touched the same entity, the deterministic scheduler picked a winner, 
+  and the loser appears as a counterfactual with full provenance. The TUI can 
+  display "Intent A was admitted, Intent B was rejected because it conflicts on 
+  node X, here's what B would have done." Effects emitted during ticks appear in
+   the same receipt — no separate side channel to correlate.
+
+  ▎ For XYPH: XYPH can express speculative proposals as substrate intents 
+  instead of application-level "what if" logic. The substrate handles conflict 
+  detection, deterministic admission, and counterfactual recording. XYPH decides
+   whether a proposal is lawful; git-warp decides how it's admitted or rejected.
+   Speculative search across candidate futures becomes a substrate operation.
+
+  ---
+  Phase 5: Transfer/Collapse Primitive
+
+  Repo: git-warp (Substrate Alignment Stage 3)
+
+  20. executeTransfer() — promote a speculative strand into canonical truth
+  21. Transfer receipt with full causal provenance
+  22. Multi-strand comparison before transfer
+
+  ---
+  ▎ 🔓 After Phase 5, git-warp can:
+
+  ▎ For warp-ttd: The debugger can show the full lifecycle of a speculative 
+  lane: created → intents queued → tick admitted/rejected → compared against 
+  alternatives → promoted into canonical truth. The transfer receipt captures 
+  what changed and what effects were emitted. Time-travel can replay the entire 
+  promotion decision.
+
+  ▎ For XYPH: The substrate now provides the complete speculative-lane 
+  lifecycle. XYPH can wrap the transfer in review, attestation, or settlement 
+  policy — but the move itself is a substrate fact. "Promote this speculative 
+  case resolution into the canonical worldline" is a single substrate call with 
+  a receipt, not a hand-rolled application transaction.
+
+  ---
+  Phase 6: XYPH Refactor Off Omnibus Read Model
+
+  Repo: XYPH (Substrate Alignment Stage 4)
+
+  23. Narrow GraphContext — decompose into focused readers
+  24. Replace broad GraphSnapshot with targeted observer queries
+  25. Lower all outbound actions to substrate emissions
+  26. Stop inventing private replay-suppression — use REPLAY_LENS / INSPECT_LENS
+
+  ---
+  ▎ 🔓 After Phase 6, git-warp can:
+
+  ▎ For warp-ttd: No new git-warp capabilities — this phase is XYPH-internal. 
+  But the debugging experience improves dramatically because XYPH's behavior is 
+  now fully substrate-legible. Every read goes through an observer, every 
+  outbound action is a substrate emission, every speculative proposal is a 
+  substrate intent. The debugger sees the complete picture without XYPH-specific
+   instrumentation.
+
+  ▎ For XYPH: The omnibus read model is gone. XYPH is a policy/governance layer 
+  over honest substrate facts. It decides what's lawful, what's governed, what's
+   human-bound — but it doesn't reconstruct the graph into a private 
+  pseudo-database, doesn't invent replay suppression, and doesn't maintain a 
+  parallel effect ontology. The substrate boundary is clean.
+
+  ---
+  Phase 7: Cross-Stack Verification
+
+  27. End-to-end replay test: write effects live → replay → verify deterministic
+   emissions + suppression + debugger visibility
+  28. Documentation alignment across all three repos
+
+  ---
+  ▎ 🔓 After Phase 7:
+
+  ▎ The vision is complete. One honest story across the stack:
+  ▎ - git-warp owns substrate facts (worldlines, effects, delivery, receipts, 
+  intents, transfers)
+  ▎ - warp-ttd inspects them (protocol envelopes, TUI, replay visibility)
+  ▎ - XYPH interprets them (policy, governance, product meaning)
+
+  ▎ Replay is deterministic. Suppression is observable. The debugger doesn't 
+  guess. The application doesn't fake it.
+
+✻ Cogitated for 53s
+
+❯ OK use Think to view the most recent thoughts and see the other half of this, 
+ written by Claude in warp-ttd                                                  
+
+⏺ Bash(claude-think --recent --json 2>/dev/null | head -200)
+  ⎿  {"command":"recent","event":"cli.start","ts":"2026-03-31T03:45:42.671Z
+     "}
+     {"count":null,"event":"recent.start","query":null,"ts":"2026-03-31T03:
+     … +423 lines (ctrl+o to expand)
+
+⏺ Bash(claude-think --recent --json 2>/dev/null | python3 -c "
+      import sys, json…)
+  ⎿  --- Entry 0 (id: 962f09d79930) ---
+     Let me think about what I can do independently vs what's blocked on gi
+     t-warp.
+     … +423 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Here's the other half. The warp-ttd Claude has already been working on Phase 2
+   in parallel.
+
+  What warp-ttd has already shipped (from thought entry 1):
+
+  - Design doc 0009 — effect emission & delivery observation protocol
+  - Protocol types: EffectEmissionSummary, DeliveryObservationSummary,
+  ExecutionContext, DeliveryOutcome, ExecutionMode
+  - New capabilities: read:effect-emissions, read:delivery-observations,
+  read:execution-context
+  - Adapter interface: 3 new methods (effectEmissions, deliveryObservations,
+  executionContext)
+  - Echo fixture: contrived data (delivered diagnostic, suppressed notification
+  in replay)
+  - git-warp adapter: provisional empty implementation (returns empty arrays
+  honestly — awaits substrate support from us)
+  - 10 new tests pinning behavior and envelope shapes
+  - Wesley schema: schemas/warp-ttd-protocol.graphql with registry IDs 20-22
+
+  What warp-ttd can do independently (from thought entry 0):
+
+  - TUI columns for effect/delivery display — fixture data, no real substrate
+  needed
+  - Playback/session lens visibility — same, fixture data
+  - CLI --json support for the new envelopes
+  - More fixture scenarios (multiple sinks, failed delivery, skipped delivery)
+
+  What's blocked on git-warp (from thought entry 0):
+
+  - GitWarpAdapter actually returning real effect/delivery data → needs our
+  Phase 1 (WarpCore.emit(), Git persistence)
+  - Integration tests against real repos with effect data → needs the substrate
+  to produce effects
+  - Phase 3+ (observer/worldline read alignment) → entirely git-warp work
+
+  ---
+  So the two halves line up cleanly:
+
+  ┌───────────────────────────┬──────────────┬─────────────────────────────┐
+  │           Phase           │  git-warp    │       warp-ttd status       │
+  │                           │    status    │                             │
+  ├───────────────────────────┼──────────────┼─────────────────────────────┤
+  │ 0 — Effect types &        │ ✅ Done      │                             │
+  │ pipeline                  │ (this        │ N/A                         │
+  │                           │ session)     │                             │
+  ├───────────────────────────┼──────────────┼─────────────────────────────┤
+  │ 1 — Persistence &         │ Next up for  │ Blocked on us               │
+  │ WarpCore wiring           │ us           │                             │
+  ├───────────────────────────┼──────────────┼─────────────────────────────┤
+  │ 2 — Protocol & TUI        │              │ ✅ Protocol shipped,        │
+  │ inspection                │ N/A          │ TUI/CLI still TODO but      │
+  │                           │              │ unblocked (uses fixtures)   │
+  ├───────────────────────────┼──────────────┼─────────────────────────────┤
+  │ 3 — Observer/worldline    │ Not started  │ Not started (depends on 3)  │
+  │ reads                     │              │                             │
+  ├───────────────────────────┼──────────────┼─────────────────────────────┤
+  │ 4-7 — Intent model,       │ Not started  │ Not started                 │
+  │ transfer, XYPH refactor   │              │                             │
+  └───────────────────────────┴──────────────┴─────────────────────────────┘
+
+  The critical handoff: when we ship Phase 1 (WarpCore.emit + Git persistence),
+  warp-ttd's GitWarpAdapter can switch from returning empty arrays to returning
+  real substrate data. That's the moment the two sides connect for real.
+
+✻ Crunched for 37s
+
+❯ OK let's follow our normal workflow as we go, but let's aim to reach the      
+first "sync point".                                                             
+
+⏺ The first sync point is: warp-ttd's GitWarpAdapter can return real 
+  effect/delivery data instead of empty arrays. That requires WarpCore to expose
+   the pipeline so the adapter can read emissions, observations, and the
+  delivery lens.
+
+  Let me scope what's needed vs what can wait.
+
+⏺ Explore(Explore WarpCore.open and WarpRuntime.open)
+  ⎿  Done (13 tool uses · 82.0k tokens · 44s)
+  (ctrl+o to expand)
+
+⏺ Good. Now I have the full picture. The minimum sync point needs:
+
+  1. WarpCore.open() accepts effectPipeline (or effectSinks + deliveryLens for
+  auto-construction)
+  2. WarpCore exposes effectPipeline, effectEmissions, deliveryObservations,
+  deliveryLens getters
+  3. WarpCore.emit() convenience method
+
+  Let me update the design doc first, then write failing tests, then implement.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Good — the design doc already describes the WarpCore integration. Now let me
+  update it to reflect this is no longer "future" — it's what we're building
+  now. Then tests, then implement.
+
+⏺ Update(docs/design/effect-emission-v1.md)
+  ⎿  Added 23 lines, removed 4 lines
+      180  
+      181  ## Integration with WarpCore
+      182  
+      183 -WarpCore gains an optional `effectPipeline` that can be inject
+          -ed at                                                         
+      184 -`open()` time or configured after construction:               
+      183 +WarpCore gains an optional effect pipeline, configured via `op
+          +en()`:                                                        
+      184  
+      185  ```js
+      186 +// Option A: inject a pre-built pipeline                      
+      187  const core = await WarpCore.open({ ..., effectPipeline });
+      188 -// or                                                         
+      188 +                                                              
+      189 +// Option B: pass sinks + lens, let open() build the pipeline 
+      190 +const core = await WarpCore.open({                            
+      191 +  ...,                                                        
+      192 +  effectSinks: [new ConsoleEffectSink({ logger })],           
+      193 +  deliveryLens: LIVE_LENS,                                    
+      194 +});                                                           
+      195 +                                                              
+      196 +// Option C: configure after construction                     
+      197  core.effectPipeline = new EffectPipeline({ sink, lens, clock }
+           );
+      198  ```
+      199  
+      200 +Once configured, WarpCore exposes:                            
+      201 +                                                              
+      202 +```js                                                         
+      203 +core.emit(kind, payload, options?)   // → { emission, observat
+          +ions }                                                        
+      204 +core.effectPipeline                  // → EffectPipeline | nul
+          +l                                                             
+      205 +core.effectEmissions                 // → readonly EffectEmiss
+          +ion[]                                                         
+      206 +core.deliveryObservations            // → readonly DeliveryObs
+          +ervation[]                                                    
+      207 +core.deliveryLens                    // → DeliveryLens | null 
+      208 +core.deliveryLens = REPLAY_LENS     // switch lens (e.g., ente
+          +ring replay)                                                  
+      209 +```                                                           
+      210 +                                                              
+      211  This is opt-in. Existing code that doesn't configure an effect
+            pipeline
+      193 -is unaffected.                                                
+      212 +is unaffected — `emit()` is a no-op, getters return null/empty
+          +.                                                             
+      213  
+      214  ## Protocol / Versioning
+      215  
+
+⏺ Update(docs/design/effect-emission-v1.md)  ⎿  Removed 2 lines
+      279  - **Durable persistence** — storing effect/delivery records in
+            Git
+      280    (ChunkEffectSink writes to filesystem, not Git objects)
+      281  - **Streaming** — async iterator over emission/observation log
+           s
+      282 -- **WarpCore.emit()** convenience — v1 injects the pipeline ma
+          -nually;                                                       
+      283 -  a future slice could wire `emit()` directly on WarpCore     
+      282  - **Audit chain** — effect-specific audit receipts (parallel t
+           o
+      283    AuditReceiptService for TickReceipts)
+      284  - **Sink capability declarations** — sinks advertising what de
+           livery
+
+⏺ Now write the failing tests for WarpCore integration.
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ Let me look at how WarpCore tests are structured — the facade test is probably
+   the best reference.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Good pattern. Now let me write the WarpCore effect pipeline integration tests.
+
+⏺ Write(test/unit/domain/WarpCore.effectPipeline.test.js)
+  ⎿  Wrote 267 lines to test/unit/domain/WarpCore.effectPipeline.test.js
+       1 import { describe, it, expect, vi } from 'vitest';
+       2 import {
+       3   WarpCore,
+       4   InMemoryGraphAdapter,
+       5   EffectPipeline,
+       6   MultiplexSink,
+       7   NoOpEffectSink,
+       8   ConsoleEffectSink,
+       9   LIVE_LENS,
+      10   REPLAY_LENS,
+     … +257 lines (ctrl+o to expand)
+
+⏺ Let me verify the tests fail as expected (red phase).
+
+⏺ Bash(npx vitest run test/unit/domain/WarpCore.effectPipeline.test.js 2>&1 |
+      tail -30)
+  ⎿      233|       expect(r1.observations[0].outcome).toBe('delivered');
+         234| 
+     … +20 lines (ctrl+o to expand)
+
+⏺ All 17 tests fail as expected — WarpCore has no effect pipeline integration
+  yet. Now implement.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Now I understand the full pattern. The cleanest approach: add _effectPipeline
+  to WarpRuntime constructor, pass it through open(), and add WarpCore-level
+  convenience methods. Let me implement.
+
+⏺ Update(src/domain/WarpRuntime.js)
+  ⎿  Added 3 lines
+      301  
+      302      /** @type {boolean} */
+      303      this._indexDegraded = false;
+      304 +                                                              
+      305 +    /** @type {import('./services/EffectPipeline.js').EffectPi
+          +peline|null} */                                               
+      306 +    this._effectPipeline = null;                              
+      307    }
+      308  
+      309    /**
+
+⏺ Now update WarpRuntime.open() to accept effect pipeline options and wire them
+  up after construction.
+
+⏺ Update(src/domain/WarpRuntime.js)
+  ⎿  Added 1 line, removed 1 line
+      376     */
+      377    // TODO(OG): split open() validation/bootstrapping; legacy h
+           otspot kept explicit until the API redesign cycle.
+      378    // eslint-disable-next-line max-lines-per-function, complexi
+           ty
+      379 -  static async open({ persistence, graphName, writerId, gcPoli
+          -cy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize
+          -, onDeleteWithData, logger, clock, crypto, codec, seekCache, a
+          -udit, blobStorage, patchBlobStorage, trust }) {               
+      379 +  static async open({ persistence, graphName, writerId, gcPoli
+          +cy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize
+          +, onDeleteWithData, logger, clock, crypto, codec, seekCache, a
+          +udit, blobStorage, patchBlobStorage, trust, effectPipeline, ef
+          +fectSinks, deliveryLens }) {                                  
+      380      // Validate inputs
+      381      validateGraphName(graphName);
+      382      validateWriterId(writerId);
+
+⏺ Now add the effect pipeline wiring after the audit service initialization.
+
+⏺ Update(src/domain/WarpRuntime.js)
+  ⎿  Added 17 lines
+      436        await graph._auditService.init();
+      437      }
+      438  
+      439 +    // Wire effect pipeline if provided (explicit pipeline win
+          +s over sinks+lens)                                            
+      440 +    if (effectPipeline) {                                     
+      441 +      graph._effectPipeline = effectPipeline;                 
+      442 +    } else if (effectSinks && effectSinks.length > 0) {       
+      443 +      const { MultiplexSink } = await import('./services/Multi
+          +plexSink.js');                                                
+      444 +      const { EffectPipeline } = await import('./services/Effe
+          +ctPipeline.js');                                              
+      445 +      const mux = new MultiplexSink();                        
+      446 +      for (const sink of effectSinks) {                       
+      447 +        mux.addSink(sink);                                    
+      448 +      }                                                       
+      449 +      graph._effectPipeline = new EffectPipeline({            
+      450 +        sink: mux,                                            
+      451 +        lens: deliveryLens || (await import('./types/DeliveryL
+          +ens.js')).LIVE_LENS,                                          
+      452 +        clock: graph._clock,                                  
+      453 +      });                                                     
+      454 +    }                                                         
+      455 +                                                              
+      456      return graph;
+      457    }
+      458  
+
+⏺ Now add the WarpCore methods. Let me add them to WarpCore.js.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ I'll add the effect pipeline methods right after _asRuntime() and before the
+  content reads.
+
+⏺ Update(src/domain/WarpCore.js)
+  ⎿  Added 83 lines
+       95      return /** @type {WarpCore} */ (/** @type {unknown} */ (ru
+           ntime));
+       96    }
+       97  
+       98 +  // ── Effect pipeline ──────────────────────────────────────
+          +────────────                                                  
+       99 +                                                              
+      100 +  /**                                                         
+      101 +   * Returns the attached effect pipeline, or null if none is 
+          +configured.                                                   
+      102 +   *                                                          
+      103 +   * @returns {import('./services/EffectPipeline.js').EffectPi
+          +peline|null}                                                  
+      104 +   */                                                         
+      105 +  get effectPipeline() {                                      
+      106 +    return this._asRuntime()._effectPipeline;                 
+      107 +  }                                                           
+      108 +                                                              
+      109 +  /**                                                         
+      110 +   * Attaches an effect pipeline after construction.          
+      111 +   *                                                          
+      112 +   * @param {import('./services/EffectPipeline.js').EffectPipe
+          +line|null} pipeline                                           
+      113 +   */                                                         
+      114 +  set effectPipeline(pipeline) {                              
+      115 +    this._asRuntime()._effectPipeline = pipeline;             
+      116 +  }                                                           
+      117 +                                                              
+      118 +  /**                                                         
+      119 +   * Returns all effect emissions from the pipeline, or an emp
+          +ty array.                                                     
+      120 +   *                                                          
+      121 +   * @returns {ReadonlyArray<import('./types/EffectEmission.js
+          +').EffectEmission>}                                           
+      122 +   */                                                         
+      123 +  get effectEmissions() {                                     
+      124 +    const p = this._asRuntime()._effectPipeline;              
+      125 +    return p ? p.emissions : [];                              
+      126 +  }                                                           
+      127 +                                                              
+      128 +  /**                                                         
+      129 +   * Returns all delivery observations from the pipeline, or a
+          +n empty array.                                                
+      130 +   *                                                          
+      131 +   * @returns {ReadonlyArray<import('./types/DeliveryObservati
+          +on.js').DeliveryObservation>}                                 
+      132 +   */                                                         
+      133 +  get deliveryObservations() {                                
+      134 +    const p = this._asRuntime()._effectPipeline;              
+      135 +    return p ? p.observations : [];                           
+      136 +  }                                                           
+      137 +                                                              
+      138 +  /**                                                         
+      139 +   * Returns the current delivery lens, or null if no pipeline
+          + is configured.                                               
+      140 +   *                                                          
+      141 +   * @returns {import('./types/DeliveryLens.js').DeliveryLens|
+          +null}                                                         
+      142 +   */                                                         
+      143 +  get deliveryLens() {                                        
+      144 +    const p = this._asRuntime()._effectPipeline;              
+      145 +    return p ? p.lens : null;                                 
+      146 +  }                                                           
+      147 +                                                              
+      148 +  /**                                                         
+      149 +   * Updates the delivery lens on the attached pipeline.      
+      150 +   *                                                          
+      151 +   * @param {import('./types/DeliveryLens.js').DeliveryLens} n
+          +ewLens                                                        
+      152 +   */                                                         
+      153 +  set deliveryLens(newLens) {                                 
+      154 +    const p = this._asRuntime()._effectPipeline;              
+      155 +    if (p) {                                                  
+      156 +      p.lens = newLens;                                       
+      157 +    }                                                         
+      158 +  }                                                           
+      159 +                                                              
+      160 +  /**                                                         
+      161 +   * Emits an effect through the configured pipeline.         
+      162 +   *                                                          
+      163 +   * Returns null if no pipeline is configured (no-op).       
+      164 +   *                                                          
+      165 +   * @param {string} kind - Effect kind (generic string)      
+      166 +   * @param {unknown} payload - Opaque effect payload         
+      167 +   * @param {{                                                
+      168 +   *   writer?: string | null,                                
+      169 +   *   coordinate?: { frontier?: Record<string, string> | null
+          +, ceiling?: number | null }                                   
+      170 +   * }} [options]                                             
+      171 +   * @returns {Promise<{ emission: import('./types/EffectEmiss
+          +ion.js').EffectEmission, observations: import('./types/Deliver
+          +yObservation.js').DeliveryObservation | import('./types/Delive
+          +ryObservation.js').DeliveryObservation[] } | null>}           
+      172 +   */                                                         
+      173 +  async emit(kind, payload, options) {                        
+      174 +    const p = this._asRuntime()._effectPipeline;              
+      175 +    if (!p) {                                                 
+      176 +      return null;                                            
+      177 +    }                                                         
+      178 +    return await p.emit(kind, payload, options);              
+      179 +  }                                                           
+      180 +                                                              
+      181    // ── Content attachment reads ─────────────────────────────
+           ─────────────
+      182    // Imported from query.methods.js and called with WarpRuntim
+           e-typed this.
+      183    // WarpCore is a WarpRuntime at runtime (via Object.setProto
+           typeOf in _adopt).
+
+⏺ Now run the tests.
+
+⏺ Bash(npx vitest run test/unit/domain/WarpCore.effectPipeline.test.js 2>&1 |
+      tail -15)
+  ⎿   RUN  v4.0.18 /Users/james/git/git-stunts/git-warp
+
+      ✓ test/unit/domain/WarpCore.effectPipeline.test.js (17 tests) 7ms
+     … +6 lines (ctrl+o to expand)
+
+⏺ All 17 green. Now lint + full suite.
+
+⏺ Bash(npm run lint 2>&1)
+  ⎿  > @git-stunts/git-warp@16.0.0 lint
+     > eslint .
+  ⎿  (timeout 30s)
+
+⏺ Bash(npm run test:local 2>&1 | tail -10)
+  ⎿   ✓ test/unit/scripts/cli-help-shape.test.js (2 tests) 2ms
+      ✓ test/unit/scripts/public-api-observer-label.test.js (1 test) 1ms
+      ✓ test/unit/scripts/markdownlint-config.test.js (2 tests) 1ms
+     … +7 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ 312 files, 5136 tests, all green. Lint clean.
+
+  Now update index.d.ts with the new WarpCore methods and the open options.
+
+  Searched for 3 patterns, read 1 file (ctrl+o to expand)
+
+⏺ Update(index.d.ts)
+  ⎿  Added 6 lines
+      1936      blobStorage?: BlobStoragePort;
+      1937      /** Patch blob storage — when set, patch CBOR is encrypte
+            d via this port. */
+      1938      patchBlobStorage?: BlobStoragePort;
+      1939 +    /** Pre-built effect pipeline (takes priority over effect
+           +Sinks + deliveryLens). */                                    
+      1940 +    effectPipeline?: EffectPipeline;                         
+      1941 +    /** Effect sinks — auto-constructs an EffectPipeline with
+           + a MultiplexSink. */                                         
+      1942 +    effectSinks?: EffectSinkPort[];                          
+      1943 +    /** Delivery lens for auto-constructed pipeline (defaults
+           + to LIVE_LENS). */                                           
+      1944 +    deliveryLens?: DeliveryLens;                             
+      1945    }): Promise<WarpCore>;
+      1946  
+      1947    /**
+
+⏺ Now add the effect methods to WarpCore. Let me find where WarpCore's methods
+  are declared.
+  Read 1 file (ctrl+o to expand)
+
+⏺ I need to add the effect methods to WarpCoreBase (so both WarpCore and
+  WarpApp.core() surface them). Let me find the right place.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ I'll add the effect methods right after the seekCache methods.
+
+⏺ Update(index.d.ts)
+  ⎿  Added 36 lines
+      1960    /** Attaches (or detaches, with null) a persistent seek cac
+            he. */
+      1961    setSeekCache(cache: SeekCachePort | null): void;
+      1962  
+      1963 +  // ── Effect pipeline ─────────────────────────────────────
+           +─────────────                                                
+      1964 +                                                             
+      1965 +  /** Returns the attached effect pipeline, or null if none i
+           +s configured. */                                             
+      1966 +  get effectPipeline(): EffectPipeline | null;               
+      1967 +  /** Attaches (or replaces) the effect pipeline after constr
+           +uction. */                                                   
+      1968 +  set effectPipeline(pipeline: EffectPipeline | null);       
+      1969 +                                                             
+      1970 +  /** Returns all effect emissions from the pipeline, or an e
+           +mpty array. */                                               
+      1971 +  readonly effectEmissions: readonly EffectEmission[];       
+      1972 +  /** Returns all delivery observations from the pipeline, or
+           + an empty array. */                                          
+      1973 +  readonly deliveryObservations: readonly DeliveryObservation
+           +[];                                                          
+      1974 +                                                             
+      1975 +  /** Returns the current delivery lens, or null if no pipeli
+           +ne is configured. */                                         
+      1976 +  get deliveryLens(): DeliveryLens | null;                   
+      1977 +  /** Updates the delivery lens on the attached pipeline. */ 
+      1978 +  set deliveryLens(newLens: DeliveryLens);                   
+      1979 +                                                             
+      1980    /**
+      1981 +   * Emits an effect through the configured pipeline.        
+      1982 +   * Returns null if no pipeline is configured (no-op).      
+      1983 +   */                                                        
+      1984 +  emit(                                                      
+      1985 +    kind: string,                                            
+      1986 +    payload: unknown,                                        
+      1987 +    options?: {                                              
+      1988 +      writer?: string | null;                                
+      1989 +      coordinate?: {                                         
+      1990 +        frontier?: Record<string, string> | null;            
+      1991 +        ceiling?: number | null;                             
+      1992 +      };                                                     
+      1993 +    },                                                       
+      1994 +  ): Promise<{                                               
+      1995 +    emission: EffectEmission;                                
+      1996 +    observations: DeliveryObservation | DeliveryObservation[]
+           +;                                                            
+      1997 +  } | null>;                                                 
+      1998 +                                                             
+      1999 +  /**                                                        
+      2000     * Creates a new PatchBuilderV2 for adding operations.
+      2001     */
+      2002    createPatch(): Promise<PatchBuilderV2>;
+
+⏺ Update CHANGELOG.
+
+⏺ Update(CHANGELOG.md)
+  ⎿  Added 5 lines
+      17  - **`ConsoleEffectSink`** — console logging sink adapter that s
+          uppresses output during replay/inspect (infrastructure).
+      18  - **`ChunkEffectSink`** — rotating append-only NDJSON file sink
+           for local forensic streams, replay-safe (infrastructure).
+      19  - **Design doc:** `docs/design/effect-emission-v1.md` — full mo
+          del description, replay rules, and integration guidance.
+      20 +- **`WarpCore.emit(kind, payload, options?)`** — convenience me
+         +thod for emitting effects through the configured pipeline. No-o
+         +p (returns null) when no pipeline is configured.               
+      21 +- **`WarpCore.effectPipeline` get/set** — attach or access the 
+         +effect pipeline.                                               
+      22 +- **`WarpCore.effectEmissions` / `WarpCore.deliveryObservations
+         +`** — read-only getters for the pipeline's accumulated logs.   
+      23 +- **`WarpCore.deliveryLens` get/set** — read or switch the acti
+         +ve delivery lens (e.g., switch to `REPLAY_LENS` when entering r
+         +eplay mode).                                                   
+      24 +- **`WarpCore.open()` accepts `effectPipeline`, `effectSinks`, 
+         +and `deliveryLens`** — opt-in effect pipeline configuration. `e
+         +ffectSinks` + `deliveryLens` auto-constructs a `MultiplexSink`-
+         +backed pipeline.                                               
+      25  
+      26  ### Fixed
+      27  
+
+⏺ Run the surface check and full suite one more time.
+
+⏺ Bash(node scripts/check-dts-surface.js 2>&1 | tail -5 && npm run lint 2>&1 &&
+      npm run test:local 2>&1 | tail -8)
+  ⎿    index.d.ts exports: 247
+       Errors:   0
+       Warnings: 0
+     … +14 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+⏺ All clean. Commit.
+
+⏺ Bash(git add -A && git commit -m "$(cat <<'EOF'
+      feat: wire effect pipeline into WarpCore open/emit surface…)
+  ⎿  [main 555ff6a] feat: wire effect pipeline into WarpCore open/emit surf
+     ace
+      6 files changed, 441 insertions(+), 7 deletions(-)
+      create mode 100644 test/unit/domain/WarpCore.effectPipeline.test.js
+
+⏺ That's the sync point. Let me capture this in Think.
+
+⏺ Bash(claude-think "SYNC POINT REACHED — git-warp ↔ warp-ttd effect pipeline
+      integration (2026-03-30)…)
+  ⎿  {
+       "entryId": "entry:1774929158646-217bc5bb-0724-4ce3-bfbf-34e10bf54953
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ ---
+  The sync point is reached. Here's where we stand:
+
+  Two commits on main:
+
+  ┌─────────┬────────────────────────────────────────────────────────────────┐
+  │   SHA   │                              What                              │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ f12daf5 │ Effect emission substrate slice — types, port, services,       │
+  │         │ adapters (82 tests)                                            │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ 555ff6a │ WarpCore.open/emit surface wiring (17 tests)                   │
+  └─────────┴────────────────────────────────────────────────────────────────┘
+
+  What warp-ttd's GitWarpAdapter can now do:
+
+  const core = await WarpCore.open({
+    persistence,
+    graphName,
+    writerId,
+    effectSinks: [new NoOpEffectSink()],
+    deliveryLens: LIVE_LENS,
+  });
+
+  // Emit effects during normal operation
+  await core.emit('notification', { text: 'hello' });
+
+  // Read back — these are what the adapter maps to protocol shapes
+  core.effectEmissions      // → EffectEmissionSummary[]
+  core.deliveryObservations // → DeliveryObservationSummary[]
+  core.deliveryLens         // → ExecutionContext
+
+  // Switch to replay mode
+  core.deliveryLens = REPLAY_LENS;
+
+  The three adapter methods in warp-ttd (effectEmissions(),
+  deliveryObservations(), executionContext()) now have real data to return
+  instead of empty arrays. The mapping from git-warp types to warp-ttd protocol
+  types is straightforward — the shapes were designed to align.
+
+  What's not yet done but can be deferred:
+  - Git persistence of effect records (in-memory only for now)
+  - Effect audit chain
+  - Streaming APIs
+  - Sink capability declarations
+
+  Want to cut a release so warp-ttd can pin against it, or keep going on the
+  main branch?
+
+✻ Worked for 6m 12s
+
+❯ What? The effect records must be causal entities---part of the graph. Use the 
+ WARP graph for as much as you can. It gives us provenance and causuality.      
+Or... is it the design/policy that the graph is not polluted with internal      
+nodes etc? what's up.                                                           
+
+⏺ Bash(claude-think "James just pushed back hard on the in-memory-only effect
+      records. His instinct: effect emissions should be causal entities IN the
+      WARP graph, not…)
+  ⎿  {
+       "entryId": "entry:1774929648694-64230296-e10b-4883-bbe0-568d18b67dd6
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ You're right to challenge this. Let me lay out the tension honestly.
+
+  The case for graph entities (your instinct):
+  Effects as WARP graph nodes get provenance, causal ordering, replication,
+  time-travel, and materializeSlice() — for free. That's the entire point of the
+   substrate. An in-memory log is throwaway folklore that vanishes on restart
+  and can't be inspected causally.
+
+  The reason I didn't do it:
+  Namespace pollution. If effect:em-001 lives in the same graph as user:alice,
+  every query, traversal, and observer sees infrastructure noise unless
+  explicitly filtered. I was trying to keep application data and substrate
+  metadata in separate lanes.
+
+  But that's what lenses are for. An application observer uses match: 'user:*'
+  and never sees effect nodes. A debugger observer uses match: '*' or match: 
+  'effect:*' and sees everything. The filtering machinery already exists.
+
+  Where the line should be:
+
+  ┌───────────────┬────────────────────────────────┬────────────────────────┐
+  │    Concept    │         In the graph?          │          Why           │
+  ├───────────────┼────────────────────────────────┼────────────────────────┤
+  │ Effect        │ Yes — it's a substrate fact    │ Provenance, causality, │
+  │ emission      │ about what the system produced │  replication,          │
+  │               │                                │ time-travel            │
+  ├───────────────┼────────────────────────────────┼────────────────────────┤
+  │               │ Probably not — it's            │                        │
+  │ Delivery      │ adapter-level metadata about   │ Varies per runtime,    │
+  │ observation   │ how infrastructure handled the │ not causal graph truth │
+  │               │  emission                      │                        │
+  ├───────────────┼────────────────────────────────┼────────────────────────┤
+  │ Diagnostic    │ No — operational noise         │ ChunkEffectSink is the │
+  │ stream        │                                │  right home            │
+  └───────────────┴────────────────────────────────┴────────────────────────┘
+
+  So the model should be: emit() writes an effect node to the graph via
+  createPatch(). The emission IS a patch. Delivery observations stay in-memory
+  (or in the chunk sink) because they describe what happened outside the graph.
+
+  The concern I want to flag before building this: every emit() would be a Git
+  commit (patch). If an application emits effects at high frequency, that's a
+  lot of commits. The existing write path (createPatch → commit) is O(1)
+  append-only, so it's not slow, but it's not zero-cost either. Worth thinking
+  about whether effects should be batched into the caller's patch or get their
+  own.
+
+  What's your read — should effect emissions be their own patches, or should
+  they piggyback on the caller's current patch (if one is open)?
+
+✻ Brewed for 53s
+
+❯ OK here's the thing... Nothing is allowed to happen during materialization    
+like that. The ONLY thing that's allowed to cause effects is graph rewrites.    
+
+⏺ Bash(claude-think "KEY INSIGHT FROM JAMES: Effects are caused by graph
+      rewrites, not by materialization. Materialization is a READ operation — it
+       replays patches and…)
+  ⎿  {
+       "entryId": "entry:1774929834989-ce6a647d-aa5b-4853-a4c8-1c38eac0f3fc
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ That clarifies the whole model. Let me make sure I've got it right:
+
+  The causal chain:
+  1. Application writes a patch that includes effect nodes (effect:em-001 with
+  properties kind, payload, etc.)
+  2. Patch commits to the graph — the effect is now a durable substrate fact
+  3. Materialization replays the patch — the effect node becomes visible in
+  state
+  4. Something downstream notices the new effect node and delivers through sinks
+  5. During replay, the effect node still appears (deterministic), but delivery
+  is suppressed
+
+  What this means:
+  - Effect emissions are graph nodes, not ephemeral in-memory records
+  - Writing an effect is just a regular graph rewrite —
+  patch.addNode('effect:...')
+  - The "pipeline" is a post-materialization delivery mechanism, not the source
+  of truth
+  - The graph IS the effect log — you query it, traverse it, slice it,
+  time-travel it
+  - Delivery observations stay out of the graph (they're runtime/infrastructure
+  metadata about what happened after materialization)
+
+  What's still valid from what I built:
+  - DeliveryLens, DeliveryObservation, EffectSinkPort, MultiplexSink, all sink
+  adapters — these are the delivery side
+  - The type shapes (EffectEmission fields) become property schemas for effect
+  nodes
+
+  What changes:
+  - EffectPipeline.emit() is not the creation path — patch.addNode() is
+  - The pipeline becomes a materialization observer that reacts to new effect:*
+  nodes
+  - WarpCore.emit() could be sugar: write an effect node + trigger delivery
+
+  Open question: when does delivery fire?
+  - Live mode: immediately after the writer commits a patch containing effect
+  nodes (the writer knows what they just wrote)
+  - Replay/sync: after materialization reveals effect nodes from other writers
+
+  Is that the right model, or am I still off?
+
+✻ Churned for 49s
+
+❯ What if: Effects are delivered by being connected to an emitter node via the  
+delivered_to edge?                                                              
+
+⏺ Bash(claude-think "WHOA. James just proposed something elegant.…)
+  ⎿  {
+       "entryId": "entry:1774930106838-a2ddea8a-3245-4c8b-aa40-a812c6876f20
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ That's a much better model. Everything is graph truth.
+
+  The graph structure:
+
+  [effect:em-001]  ──delivered_to──▶  [sink:console]
+       │                                  { outcome: 'delivered', timestamp: ...
+   }
+       │
+       └──────────delivered_to──▶  [sink:webhook]
+                                      { outcome: 'suppressed', reason: 'replay
+  mode' }
+
+  - Effect nodes (effect:*) — the emission, written by the application's patch
+  - Sink nodes (sink:*) — registered sinks, written once at pipeline setup
+  - delivered_to edges — the delivery observation, written by the pipeline after
+   delivery attempt
+
+  Suppression is visible: the edge exists with outcome: 'suppressed'. Not
+  "missing" — explicitly recorded. Query it, time-travel it, slice it.
+
+  Two things I want to flag:
+
+  1. Sink nodes need to exist as graph entities. The pipeline would
+  auto-register them (sink:console, sink:chunk, etc.) when configured. Edges
+  require both endpoints alive.
+  2. Circularity guard. The delivery pipeline writes delivered_to edges (graph
+  rewrites). Those rewrites must not themselves trigger the pipeline. The guard:
+   the pipeline only reacts to effect:* nodes, not to delivered_to edges or
+  sink:* nodes. Or more precisely — it only delivers effects that don't yet have
+   a delivered_to edge to a given sink.
+
+  Open question: should the pipeline auto-register sink nodes on open(), or
+  should sink registration be an explicit step the application performs?
+
+✻ Cogitated for 55s
+
+❯ They're part of the graph. They materialize. When they appear, they register. 
+ When they disappear, they unregister. Guess what that invovles? An edge. To    
+the regitry.                                                                    
+
+⏺ Bash(claude-think "IT'S GRAPHS ALL THE WAY DOWN.…)
+  ⎿  {
+       "entryId": "entry:1774930282055-e2bf0ba1-c497-45a9-8d4a-103f61f8036f
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ The whole thing is the graph.
+
+  [registry:effects]
+         ▲ registered_to        ▲ registered_to
+         │                      │
+  [sink:console]          [sink:webhook]
+         ▲ delivered_to          ▲ delivered_to
+         │ { outcome: 'delivered' }  │ { outcome: 'suppressed', reason: 'replay'
+   }
+         │                      │
+  [effect:em-001]          [effect:em-001]
+    kind: 'notification'
+    payload: ...
+
+  - Registration = sink:X --registered_to--> registry:effects edge exists in
+  materialized state
+  - Unregistration = that edge is tombstoned
+  - Delivery = effect:Y --delivered_to--> sink:X edge with outcome properties
+  - Suppression = same edge, outcome: 'suppressed', reason as property
+  - Discovery = query the graph after materialization
+
+  No imperative addSink() / removeSink(). Materialization IS the truth. A sink
+  appears when its registration edge materializes. It disappears when the edge
+  is tombstoned.
+
+  What stays valid from what I built:
+  - EffectSinkPort — the adapter that does actual external I/O (console, file,
+  webhook)
+  - ConsoleEffectSink, ChunkEffectSink, NoOpEffectSink — concrete adapters
+  - DeliveryLens / LIVE_LENS / REPLAY_LENS — governs whether the bridge calls
+  the real adapter or just writes outcome: 'suppressed'
+  - The type shapes (field names for effect nodes, edge properties)
+
+  What gets replaced:
+  - EffectPipeline → a graph-aware delivery service that reads the materialized
+  state, discovers sinks, finds undelivered effects, calls adapters, writes
+  delivered_to edges
+  - MultiplexSink → gone; fan-out is graph discovery (all registered_to edges
+  from the registry)
+  - WarpCore.emit() → becomes sugar for "write an effect:* node in a patch"
+  - In-memory emission/observation logs → gone; query the graph
+
+  Two things before I start rebuilding:
+
+  1. Bootstrap — who creates registry:effects? I'd say auto-created on first
+  open() that has effect configuration, same pattern as auto-constructing blob
+  storage.
+  2. Reserved namespace — effect:, sink:, registry: become substrate-reserved
+  prefixes. Applications must not use them for their own nodes. Should we
+  enforce this with validation in PatchBuilderV2.addNode()?
+
+  Does this model match what you're seeing, or should I adjust before reworking
+  the code?
+
+✻ Crunched for 54s
+❯ OK so here's the other missing pieces. There's structure: nodes + edges. And  
+there are Observers + Lenses.                                                   
+                                                                                
+Every tick, a new WARP graph is produced based on the previous WARP graph state 
+ + the tick's patches. That becomes the frontier in the worldline. (Think:      
+linkned list of WARP graph states). NOTE: NOTHING about the graph structure     
+causes anything to happen. It's just structure.                                 
+                                                                                
+Observers, that are not part of the WARP graph, but exist outside of it,        
+operate on Worldlines. They view Worldlines through Lenses. Do you see where    
+this is going?                                                                  
+
+⏺ Bash(claude-think "I SEE IT NOW.…)
+  ⎿  {
+       "entryId": "entry:1774930668060-4fe52800-63cb-4806-a6b9-f6e34dafaa77
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ The graph is inert. Structure doesn't cause anything. Observers do.
+
+  The complete model:
+
+  1. Graph structure is inert. Effect nodes, sink nodes, registry edges,
+  delivered_to edges — all just structure. The graph never acts. It just IS.
+  2. Observers act on worldlines. An observer watching through a lens sees new
+  effect nodes appear after each tick. The observer — not the graph — decides to
+   call the external adapter. The observer — not the graph — writes back the
+  delivered_to edge recording what happened.
+  3. The delivery "pipeline" is an observer. It watches the worldline through a
+  lens matching effect:* nodes, reacts to new ones by calling sink adapters, and
+   writes back edges. During replay, it sees the same effect nodes
+  (deterministic) but doesn't externalize — it writes outcome: 'suppressed'
+  instead.
+  4. The debugger is another observer. It watches the same worldline through a
+  wider lens, sees both the effect nodes AND the delivered_to edges, and
+  displays them. It never acts on the external world.
+
+  Paper IV, concretized:
+  - The delivery observer is a functor from the history category to a trace
+  space (the sequence of delivery actions)
+  - The debugger observer is a different functor over the same history,
+  producing a different trace (the inspection display)
+  - Both observe the same inert structure through different lenses
+
+  What this means for the implementation:
+
+  The current Observer in git-warp is a passive read-only projection. What we
+  need is a reactive observer — one that can subscribe to worldline changes,
+  react, and write back. That's the piece that doesn't exist yet.
+
+  Or does it? The subscribe() / watch() mechanism on WarpRuntime already
+  notifies on state changes. An observer that subscribes, queries for new
+  effect:* nodes, delivers, and writes delivered_to edges — that's application
+  code using existing primitives.
+
+  Is the missing substrate piece a reactive observer type that formalizes this
+  pattern? Or is it enough to document the convention and let application code
+  wire it with existing subscribe + query + patch?
+
+✻ Sautéed for 49s
+
+❯ The missing piece are the Lenses. Those are reactive or not. During replay    
+(time travel) you can swap the lens out. At least, that's one way to do it.     
+                                                                                
+Let's read ~/git/aion-og-1/dist/observer_geometry_1.txt and                     
+~/git/aion-og-4/dist/observer_geometry_4.txt before we get too deep in it.      
+Let's sanity check ourselves.                                                   
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Bash(claude-think "SANITY CHECK AGAINST THE PAPERS.…)
+  ⎿  {
+       "entryId": "entry:1774930869054-b16eab6d-de52-4cd0-b497-a9de697783bf
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ OK. The papers clarify everything.
+
+  OG-I defines the structural observer as:
+
+  S = (O, ℬ_S, M_S, K_S, E_S)
+
+  - O — projection (what is seen)
+  - ℬ_S — native basis (what distinctions are expressible)
+  - M_S — observational state space (memory)
+  - K_S — update rule: M_S × Tr_S → M_S (how observations accumulate)
+  - E_S — emission map: M_S → Tr̂_S (what is externally available after
+  accumulation)
+
+  The emission map E_S is already part of the observer definition. An observer
+  doesn't just passively see — it accumulates state and emits. That's the
+  theory. Effects aren't graph operations and they aren't pipeline side-effects.
+   They're observer emissions.
+
+  So the correct architecture is:
+
+  1. Graph is inert. Effect nodes, sink nodes, delivered_to edges — all just
+  structure. The graph never acts.
+  2. Observer watches a worldline through a lens. The lens defines the
+  projection O — what nodes/edges are visible, what properties are exposed.
+  3. Observer accumulates state (K_S). "These effect nodes are new since my last
+   observation."
+  4. Observer emits (E_S). "Call the webhook. Write to the chunk log. Record the
+   delivery edge."
+  5. Swap the lens for replay. Same observer structure, different projection.
+  The replay lens still sees effect:* nodes (they're in the graph,
+  deterministic), but the emission map behavior changes — it records suppression
+   instead of externalizing.
+
+  What this means for the existing Lens type:
+
+  The current Lens is { match, expose, redact } — pure visibility aperture. It
+  needs to grow to include emission/delivery policy. Or rather: there's a
+  composed concept that pairs a visibility lens with a delivery mode. That's
+  what DeliveryLens was trying to be — but it shouldn't be a separate concept.
+  It should be part of the lens the observer is using.
+
+  What I got right: the types (EffectEmission shape, DeliveryObservation shape,
+  delivery outcomes). The sink adapters (ConsoleEffectSink, ChunkEffectSink).
+  The concept of delivery modes (live/replay/inspect).
+
+  What I got wrong: the EffectPipeline as an imperative in-memory service that
+  bypasses the graph. The in-memory emission logs. The separation of
+  DeliveryLens from Lens.
+
+  Before I start reworking — does this read right to you? The key question is
+  whether the emission policy belongs in the lens (making it part of what shapes
+   the observer's view + behavior), or whether it's a separate axis of observer
+  configuration alongside the lens.
+
+✻ Sautéed for 1m 12s
+
+❯ OK so to be completely honest with you, the "Lens" idea, I'm just making up   
+right now right here. In optics math, there's lenses. I felt inspired by those. 
+ Spitball with me, here. Are Lenses necessary?                                  
+
+⏺ Bash(claude-think "James is being honest — the Lens concept as a
+      reactive/emission-bearing thing is a live design idea, not settled theory.
+       He's drawing from optics…)
+  ⎿  {
+       "entryId": "entry:1774931111540-ea8a056b-4fe0-4bc2-a9a6-b5d8a57a84bf
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Let me spitball.
+
+  Do we need Lenses at all, as a separate concept from Observers?
+
+  Look at OG-I. The observer is S = (O, ℬ_S, M_S, K_S, E_S). The projection O —
+  what gets seen — is part of the observer, not a separate thing the observer
+  "looks through." The paper doesn't have lenses. It has observers with
+  projections.
+
+  Right now in git-warp, Lens is { match, expose, redact }. That's not really a
+  "lens" — it's a filter config. A parameter you hand to an observer
+  constructor. It could just as easily be called ApertureConfig or
+  ProjectionSpec.
+
+  So: are Lenses necessary?
+
+  I don't think they are as a separate entity. The observer does all the
+  interesting work. The "lens" is just its projection parameter.
+
+  But here's where optics gets interesting. In the math, a lens is (get, set) —
+  a bidirectional accessor. Get reads a piece of structure. Set writes back into
+   it. That bidirectionality is the whole point.
+
+  If we take that literally:
+
+  Lens = {
+    get: WorldlineState → ProjectedView,    // what you see
+    set: ProjectedView → Patch              // what you write back
+  }
+
+  - A read-only lens has get but no set. Passive. The current git-warp Lens.
+  - A read-write lens has both get and set. Reactive. The observer sees new
+  effect nodes (get) and writes delivered_to edges back (set).
+  - A replay lens has get and a modified set that records suppression instead of
+   externalizing.
+
+  Swapping the lens swaps both the aperture AND the write-back behavior in one
+  move. That's clean. But it also means the lens is doing most of what the
+  observer does.
+
+  The tension: if the lens carries both projection and write-back, what's left
+  for the observer? Just the accumulation state M_S and update rule K_S? At that
+   point, the observer IS a lens plus memory.
+
+  My honest take: I think there are two clean options, and the question is which
+   one feels right for git-warp.
+
+  Option A: Observers are the only first-class concept. Lenses are just a filter
+   config ({ match, expose, redact }) — a parameter. All behavior (projection,
+  accumulation, emission) lives on the observer. To change replay behavior, you
+  reconfigure the observer or swap to a different one.
+
+  Option B: Lenses are bidirectional projections (optics-style) and observers 
+  use them. A lens is (get, set) — it defines what you see AND what you can
+  write back. The observer holds a lens, accumulation state, and drives the
+  tick-by-tick loop. Swapping the lens on a live observer changes its behavior
+  without losing its accumulated state.
+
+  Option B is more interesting theoretically. Option A is simpler and closer to
+  what exists.
+
+  Which way does your gut pull?
+
+✻ Cooked for 1m 9s
+
+❯ I want to be careful about bidirectional projections because determinism. I   
+wouldn't want something non-causal to swap out your lens, then you replay or    
+time-travel, some some side effect of your observer having the wrong lens       
+breaks determinism because the graph isn't modified by an observer's side       
+effect? Nah. No that's not OK.                                                  
+                                                                                
+Observers are "OBSERVERS", not "Participants". This whole gig breaks down if    
+they write to the causal graph since... they aren't part of the causal graph,   
+they exist outside of the graph, at the Worldline-level.                        
+                                                                                
+So... Yeah, I agree that it would be cool if they were bidirectional            
+projections, in a way, but it would require the Observers themselves to reside  
+without a WARP graph, which would make their interactions with Worldlines be    
+super weird.                                                                    
+                                                                                
+Or am I missing something/thinking about this wrong?                            
+
+⏺ Bash(claude-think "James just identified a critical invariant: OBSERVERS DO
+      NOT WRITE TO THE CAUSAL GRAPH. They exist OUTSIDE the graph, at the
+      Worldline level. If a…)
+  ⎿  {
+       "entryId": "entry:1774931561177-d3b65d81-f118-46b6-8ee5-af5d9d68c38e
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ No, you're thinking about this right. Let me trace it through to make sure I
+  am too.
+
+  The invariant: If an observer writes to the causal graph, the graph state
+  depends on who is watching. Two replicas with different observers produce
+  different graph states. Determinism is dead. Observers must be read-only.
+
+  So delivered_to edges written by an observer are out. They'd make the graph
+  non-deterministic. Full stop.
+
+  This means there are two distinct layers:
+
+  ┌───────────────┬─────────────────┬────────────────────┬─────────────────┐
+  │     Layer     │ What lives here │     Who writes     │ Deterministic?  │
+  ├───────────────┼─────────────────┼────────────────────┼─────────────────┤
+  │ Graph         │ Effect nodes,   │ Writers            │                 │
+  │ (causal)      │ application     │ (participants)     │ Yes — always    │
+  │               │ data            │                    │                 │
+  ├───────────────┼─────────────────┼────────────────────┼─────────────────┤
+  │ Observer      │ Delivery        │                    │ No — depends on │
+  │ emission      │ observations,   │ Observers          │  observer       │
+  │ trace         │ suppression     │ (non-participants) │ config          │
+  │ (non-causal)  │ records         │                    │                 │
+  └───────────────┴─────────────────┴────────────────────┴─────────────────┘
+
+  The graph contains effect:* nodes because a writer (participant) put them
+  there as part of a patch. That's a causal act. The effect is substrate truth.
+
+  The observer sees the effect node appear in the worldline and emits externally
+   — calls a webhook, logs to console, writes to a chunk file. That emission is
+  the E_S from OG-I. It goes to Tr̂_S (accumulated trace space) — which is
+  outside the graph. It's the observer's output, not the graph's state.
+
+  Which means my original in-memory design was actually right for the 
+  delivery/emission tracking. The EffectPipeline's in-memory log IS Tr̂_S — the
+  observer's emission trace. It's local, ephemeral, per-observer. It can be
+  persisted to files (ChunkEffectSink) but it's NOT graph state. It shouldn't
+  be.
+
+  What was wrong: I wasn't putting effect nodes in the graph. The effects
+  themselves should be graph entities (written by application writers). The
+  delivery tracking stays external (observer emission traces).
+
+  For replay: swap the observer's lens (or mode). The effect nodes still appear
+  in the graph (deterministic). The observer still sees them. But the observer's
+   emission behavior changes — it records "suppressed" in its local trace
+  instead of calling the webhook. The graph is unchanged. Determinism is
+  preserved.
+
+  Now — back to your question about Lenses. If observers are strictly read-only
+  and non-causal, then a Lens is just the projection config: what the observer
+  sees. No bidirectionality. No write-back. The "reactive" behavior (delivery,
+  suppression) is the observer's emission map E_S, not the lens.
+
+  A lens is a what-to-see config. An observer is a what-to-do-about-it actor.
+  They compose but they're different things. You don't need Lenses as a
+  first-class concept — they're observer configuration. Unless there's a reason
+  to make them independently identifiable and reusable?
+
+✻ Cogitated for 1m 18s
+
+❯ Hold up. I just realized, we should read ~/git/aion-papers-1_to_5.txt and     
+make sure we didn't miss something critical about observers.                    
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+⏺ This is Paper IV (WARP IV / "Echo and the WARP Core"). Let me read the key
+  observer sections directly.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Bash(claude-think "OK, I've now read the full observer definition from Paper
+      IV (WARP IV). Here's what the papers actually say:…)
+  ⎿  {
+       "entryId": "entry:1774931757553-4ca5637a-ca63-45b3-9021-85bfb61bae03
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ OK. The papers settle it.
+
+  Paper IV defines an observer as a functor O : Hist(U,R) → Tr. It maps
+  histories to traces. That's it. No write-back. No side effects. Observers
+  describe.
+
+  OG-I's emission map E_S : M_S → Tr̂_S emits accumulated structural descriptions
+   — not side effects. It's "what description is externally available after
+  accumulation." Still a read operation. Still descriptive.
+
+  Observers never act. Observers never write. Observers describe.
+
+  So the architecture has three clean layers:
+
+  ┌─────────────┬───────────────────────────────────────┬───────────────────┐
+  │    Layer    │             What it does              │  Deterministic?   │
+  ├─────────────┼───────────────────────────────────────┼───────────────────┤
+  │             │ Inert structure. Nodes, edges,        │                   │
+  │ Graph       │ properties. Written by participants   │ Yes — always      │
+  │             │ (writers).                            │                   │
+  ├─────────────┼───────────────────────────────────────┼───────────────────┤
+  │             │ Read-only projection O + accumulation │ Yes — same input, │
+  │ Observer    │  K_S + description E_S. Produces      │  same output      │
+  │             │ traces.                               │                   │
+  ├─────────────┼───────────────────────────────────────┼───────────────────┤
+  │             │ Consumes observer descriptions.       │                   │
+  │ Application │ Decides what to do. Calls webhooks,   │ No — governed by  │
+  │             │ writes logs, suppresses during        │ policy            │
+  │             │ replay.                               │                   │
+  └─────────────┴───────────────────────────────────────┴───────────────────┘
+
+  For effect delivery:
+  1. A writer (participant) writes effect:* nodes to the graph. Causal act.
+  2. An observer sees the effect node, accumulates it, emits a structural
+  description: "effect em-001 of kind notification exists."
+  3. Application logic receives that description and decides: call the webhook?
+  Log it? Suppress it because we're in replay mode?
+  4. If the application wants to record delivery back in the graph, a writer
+  writes another patch. That's the application's choice, not the observer's.
+
+  For replay:
+  - Same graph → same observer output → same description.
+  - Different application policy: don't externalize.
+  - The suppression decision is application-level, not observer-level or
+  graph-level.
+
+  What this means for git-warp's "Lens":
+  The papers have no "Lens" concept. The projection O is part of the observer
+  definition. In git-warp, Lens = { match, expose, redact } is just the config
+  that parameterizes O. It's not a separate first-class entity. It's an observer
+   parameter.
+
+  What this means for DeliveryLens:
+  The name is misleading. It's not a lens in the observer sense. It's
+  application-level delivery policy — { mode: 'live'|'replay', suppressExternal:
+   boolean }. It governs what the application does with observer descriptions.
+  It should probably be called DeliveryPolicy or ExecutionMode, not
+  DeliveryLens.
+
+  What's right in what I built:
+  - The EffectPipeline is application-level logic that bridges observer outputs
+  to external effects — correct layer
+  - DeliveryLens (despite the name) is application policy — correct layer
+  - The in-memory logs are application state, not graph state — correct layer
+  - The sink adapters (ConsoleEffectSink, ChunkEffectSink) are external I/O —
+  correct layer
+
+  What's missing:
+  - Effect nodes in the graph (written by writers, not by the pipeline)
+  - An observer that watches for effect nodes and produces descriptions the
+  pipeline can consume
+
+  Does this read right against the theory?
+
+✻ Churned for 1m 17s
+
+❯ Yeah 100%. That's why I was like... Hang on. Observers can't write lol. But   
+I'm glad we found it. Anyway, yeah, I guess I was thinking about the Optics     
+lens... /Users/james/git/aion-paper-07/optics/warp-optic.tex                    
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Bash(claude-think "NOW I see where the Lens idea comes from.…)
+  ⎿  {
+       "entryId": "entry:1774931966516-37fa81f0-7ab4-4a48-9017-d64ca0bb8992
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ There it is. Section 8:
+
+  ▎ Lens: candidate noun for observer policy
+
+  And the critical distinction from section 5:
+
+  ▎ Observer is not the full optic. Observer is closer to the projection half of
+   an optic than to the full optic itself.
+
+  So the optics lens (get, set) maps onto WARP as:
+
+  ┌────────────────────┬──────────┬────────────────────────────────────────┐
+  │     Optic side     │  WARP    │              What it does              │
+  │                    │  actor   │                                        │
+  ├────────────────────┼──────────┼────────────────────────────────────────┤
+  │ get (projection)   │ Observer │ Read-only. Projects worldline → view.  │
+  │                    │          │ Deterministic.                         │
+  ├────────────────────┼──────────┼────────────────────────────────────────┤
+  │ set (update +      │ Writer   │ Causal. Rewrites focused region → next │
+  │ reassembly)        │          │  whole. Changes the graph.             │
+  └────────────────────┴──────────┴────────────────────────────────────────┘
+
+  The lens is the structural declaration that connects them — "this optic
+  focuses on effect:* nodes." The observer reads through it. The writer writes
+  through it. Different actors, same shape. The lens isn't an actor — it's a
+  contract.
+
+  For replay: swap the lens. Same observer, different lens. The new lens has the
+   same get projection (you still see effect nodes) but its set side is either a
+   no-op or writes outcome: 'suppressed' instead of outcome: 'delivered'. The
+  observer doesn't change. The writer's behavior changes because the lens
+  changed.
+
+  But — the paper also says this isn't formalized yet (section 10: "explicit
+  optic laws for WARP rewrites" are listed as not yet formalized). And the paper
+   calls Lens a "candidate noun" — it's forward-looking.
+
+  For what we're building right now, I think the honest position is:
+
+  1. The current Lens = { match, expose, redact } is fine as the observer's
+  projection config (the get side)
+  2. The full optics lens (get + set + witness + reassembly) is real theory but
+  above what we need to implement today
+  3. DeliveryLens should probably be renamed to something that doesn't collide
+  with this concept — DeliveryPolicy or ExecutionMode
+  4. The effect emission architecture is: writers write effect nodes → observers
+   see them → application logic delivers → writers optionally record delivery
+
+  Does the optics lens concept change what we should build now, or does it
+  clarify the naming and leave the implementation where it is?
+
+✻ Brewed for 57s
+
+❯ What do you think about WARP Optics? It's just something I've been squishing  
+around for the past few days, that's why it's all plastic in my head and I'm    
+waffling here...                                                                
+
+⏺ Bash(claude-think "James is asking me what I genuinely think about the WARP
+      Optics idea. Let me give him an honest assessment.…)
+  ⎿  {
+       "entryId": "entry:1774932221562-15f0ef76-c970-42de-a18a-82b5782d2c4a
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Honest take:
+
+  What's genuinely good about it:
+
+  The profunctor parametricity is the real gem. One declared rewrite shape,
+  interpreted through different profunctors, gives you execution, footprint
+  derivation, witness extraction, conflict analysis, debugger explanation, and
+  Wesley compilation — all from the same structural declaration. That's not a
+  cute analogy. That's a real multiplier. And it explains why footprint-based
+  admission works: independent optic focuses compose. The admission rule has a
+  categorical foundation you didn't have to invent — it fell out of existing
+  mathematics.
+
+  The witness/receipt split is also clarifying. TickReceipt ⊇ Witness. The
+  witness is the semantic minimum to invert. The receipt is the operational
+  envelope. git-warp currently conflates these. Separating them would be a real
+  improvement even without the full optic machinery.
+
+  What I'd push back on:
+
+  The optic laws aren't formalized yet, and that matters. Without GetPut/PutGet
+  equivalents for graph rewriting, you have a compelling structural analogy but
+  not a proven correspondence. Graph rewriting is gnarlier than record update —
+  state changes non-trivially between ticks, footprints interact, the scheduler
+  selects batches. Whether the optic laws hold under those dynamics is an open
+  question the paper honestly flags.
+
+  The coend residual is doing heavy conceptual lifting, but I don't yet see what
+   it buys practically. The paper says the receipt is NOT the coend object —
+  it's a concrete representative. OK, but what presentations get identified by
+  the quotient? What two "different-looking" internal residuals should be
+  treated as equivalent? That feels like where the real theorem lives, and it's
+  not proved yet.
+
+  Where I think it should land:
+
+  Not as implementation driver — not yet. The current system already works
+  correctly. The optic frame would mostly reorganize existing concepts rather
+  than add capabilities.
+
+  But as design vocabulary — absolutely. The noun mapping is better than what
+  git-warp has. Use it when designing new features to check structural
+  soundness. And critically: the profunctor-parametric interpretation is exactly
+   the story Wesley needs. When Wesley compiles schemas into types + footprints,
+   "compile the rewrite shape once, interpret it through multiple profunctors"
+  is the mechanism that makes the compile-once-interpret-many architecture work.
+
+  So it's the right theory for the horizon. The implementation catches up to it
+  when Wesley can compile rewrite shapes and needs multiple interpretations of
+  the same declared optic. Until then, it's a design-time reasoning tool and a
+  naming guide.
+
+  The fact that it's plastic in your head is the right state for it. It doesn't
+  need to harden into code yet. It needs to harden into laws.
+
+✻ Sautéed for 58s
+❯ OK well, actually, you are correct about the Wesley thing. And guess what? We 
+ are building that out today. This effort, that we're working on, it to get the 
+ warp-ttd to talk to git-warp. But the warp-ttd ALSO talks to Echo. And the     
+idea is the git-warp + Echo + Wesley = binary compatibility via                 
+Wesley-generated codecs = Continuum has a dual runtime model: high-performance  
+real-time via Echo, or offline-first, eventual storage via git-warp. Two        
+runtimes, one system.                                                           
+
+⏺ Bash(claude-think "THERE IT IS. The full picture.…)
+  ⎿  {
+       "entryId": "entry:1774932634111-6ee7e71c-0ad0-4051-850b-ee4d94414cc7
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Now I see the full picture.
+
+  The profunctor p in p a b → p s t is literally the runtime selector:
+
+  ┌──────────────────────┬────────────────────┬─────────────────────────────┐
+  │     Profunctor       │      Runtime       │        What it does         │
+  │    instantiation     │                    │                             │
+  ├──────────────────────┼────────────────────┼─────────────────────────────┤
+  │ p = execute          │ Echo (Rust)        │ High-performance parallel   │
+  │                      │                    │ rewrite                     │
+  ├──────────────────────┼────────────────────┼─────────────────────────────┤
+  │ p = merge            │ git-warp           │ CRDT patch into Git store   │
+  │                      │ (TypeScript)       │                             │
+  ├──────────────────────┼────────────────────┼─────────────────────────────┤
+  │ p = explain          │ warp-ttd           │ Debugger trace              │
+  ├──────────────────────┼────────────────────┼─────────────────────────────┤
+  │ p = conflict-cost    │ analyzer           │ Rulial distance estimate    │
+  └──────────────────────┴────────────────────┴─────────────────────────────┘
+
+  Same declared rewrite shape. Same schema. Same binary codec
+  (Wesley-generated). Different runtime. That's Continuum's dual-runtime model:
+  Echo for real-time throughput, git-warp for offline-first durability, same
+  system.
+
+  And the effect emission work we're doing is laying protocol types that need to
+   survive that unification. The EffectEmission and DeliveryObservation shapes I
+   defined aren't just TypeScript types — they're precursors to Wesley schema
+  definitions that will generate both TypeScript AND Rust implementations with
+  binary-compatible wire format.
+
+  Which means the types need to be clean, explicit, schema-friendly, and 
+  runtime-agnostic. No TypeScript-isms that don't translate to Rust. No implicit
+   behavior that a Wesley-generated codec can't serialize.
+
+  Does this change what we should build right now? I don't think it changes the
+  direction — effect nodes in the graph, observers read them, application logic
+  delivers, writers record. But it raises the bar on the type definitions: they
+  need to be Wesley-ready even if Wesley doesn't compile them yet.
+
+  Should we pause the implementation work and update the design doc to capture
+  this full context (dual-runtime, Wesley codecs, the optic connection), or keep
+   shipping and let the doc catch up?
+
+✻ Cooked for 38s
+
+❯ The idea is that we would eventually be declaring graph entities in GraphQL   
+(or Wesley's WARP GraphQL-like syntax), but not only that... That's how you     
+would also write your graph rewrites (GraphQL mutations)... As for what we are  
+writing right now today? Honestly, Claude, I'm glad you're here with me because 
+ I'm not sure. We could probably just have ignored the whole Optics thing, but  
+you see why it's on my mind, huh?                                               
+
+⏺ Bash(claude-think "James is being incredibly honest here. He's saying: I have
+      this huge vision (Continuum, Wesley, dual-runtime, optics), it's all
+      connected, it's al…)
+  ⎿  {
+       "entryId": "entry:1774932995262-012a4297-55a5-4ab9-b74e-0a07738abc81
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Yeah, I see exactly why it's on your mind. Every implementation decision we
+  made today bumped into it:
+
+  - "Should effects be graph entities?" → "What IS the graph vs what's outside
+  it?"
+  - "Should observers write delivered_to edges?" → "Wait, observers are
+  projections — they can't write"
+  - "Should lenses be bidirectional?" → "That's an optic, not a lens"
+  - "What IS a lens?" → "...let me check my optics paper"
+
+  The attractor pulled us in every time. We couldn't ignore it because it kept
+  being the answer to our questions.
+
+  But here's what I think about where we actually are:
+
+  We shipped working code. The in-memory pipeline connects warp-ttd to git-warp.
+   The types are clean and explicit. The sync point functions.
+
+  The design conversation revealed that the right architecture is: effects as
+  graph entities, observers read them, application logic delivers, writers
+  record. That's a different (better) model than what we implemented. But it's
+  also a bigger piece of work that intersects with the intent/tick model, the
+  observer formalization, and eventually Wesley.
+
+  I think what we built today is correct scaffolding. It gets the plumbing
+  connected between warp-ttd and git-warp. The types (EffectEmission,
+  DeliveryObservation, delivery outcomes) will survive into the real
+  architecture — they become the property schemas for effect nodes. The sink
+  adapters survive. The delivery policy concept survives.
+
+  What changes later is where the truth lives (graph entities vs in-memory) and
+  who drives delivery (observer + application bridge vs imperative pipeline).
+
+  So: do you want to capture what we learned in the design doc and ship the
+  scaffolding as-is, or do you want to rework toward graph-entity effects before
+   moving on?
+
+✻ Sautéed for 43s
+
+❯ Hold up. I see a problem. Warp TTD doesn't need US to emit shit. It needs to  
+have its own observer that emits whatever it wants, right? We just need to      
+provide the substrate here...                                                   
+
+⏺ Bash(claude-think "OH. James just cut through all the complexity.…)
+  ⎿  {
+       "entryId": "entry:1774933185046-770178db-ca4d-45f0-8578-d7048ee5baa5
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ ...you're right.
+
+  warp-ttd IS an observer. It creates its own observer over the worldline,
+  watches for whatever it cares about, and produces its own traces. It doesn't
+  need git-warp to have a pipeline, or emit things, or track delivery. It just
+  needs the graph and the observer machinery.
+
+  Which already exists.
+
+  warp-ttd can right now:
+  1. WarpCore.open() — connect to a graph
+  2. Create a worldline / observer with match: 'effect:*'
+  3. Query, traverse, subscribe
+  4. Produce whatever TUI traces it wants
+
+  The EffectPipeline, MultiplexSink, all the sink adapters — that's
+  application-level convenience for XYPH or whoever wants managed outbound
+  delivery. It's not substrate. It's not what makes warp-ttd work.
+
+  The only thing the substrate needs to provide for this to work is:
+
+  1. The graph (already exists)
+  2. Observers and worldlines (already exist)
+  3. A convention for how effect nodes are structured (node ID prefix, property
+  names) so that observers know what to look for
+
+  We were building application-level delivery infrastructure and calling it
+  substrate. The actual substrate work might just be documenting the convention
+  for effect node structure.
+
+  So... the code we shipped today isn't wrong, but it's in the wrong layer. It's
+   useful application tooling. It's not what makes the warp-ttd sync point work.
+   The sync point might already be here — we just need to agree on the node
+  convention and let warp-ttd observe.
+
+  What's your read — is the convention definition (effect node schema) the real
+  deliverable here, or am I still missing something?
+
+✻ Crunched for 42s
+
+❯ Yeah, thanks for thinkign through that with me. Sometimes you gotta get in    
+the bath to talk to the rubber ducky.                                           
+
+⏺ Bash(claude-think "Great session. Let me capture the key outcomes.…)
+  ⎿  {
+       "entryId": "entry:1774933419028-cba3d369-d284-47c5-bee6-711e63c4eb7e
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ Ha. Well, the rubber duck earned its keep today.
+
+  We started at "build effect emission substrate" and ended at "the substrate
+  already exists — it's the graph + observers. What we built is application
+  tooling, not substrate." That's a significantly better understanding even if
+  the code we shipped didn't change.
+
+  Summary of where we landed:
+
+  - The code is real and useful — XYPH can use it for managed outbound delivery
+  - It's application-level, not substrate-level
+  - warp-ttd doesn't need it — warp-ttd is its own observer
+  - The actual substrate sync point is the existing observer/worldline/query
+  machinery
+  - The optics paper is the right theoretical frame but doesn't need to drive
+  implementation yet
+  - "Lens" as a noun is reserved for the full optic when that hardens; for now
+  it's just observer projection config
+
+  Good bath.
+
+✻ Worked for 35s
+
+❯ 1. Would you consider that "application-level code" or more like "host-domain 
+ code that git-warp provides because it's basic infra that any WARP app would   
+need?" ie should we keep it here, then let the warp-ttd or whatever extract it  
+and eventually delete it from here, or what's the deal brah.                    
+                                                                                
+2. Can you please please please record what we leanred today in a Markdown      
+document or a .tex document if you wanna get fancy with the math (would         
+appreciate it, honestly)? These notes help my thinking moving forward. I        
+especially want you to capture the the profunctor and, heck, if you wanna just  
+use your imagination for a sec, let's think of cool ways WARP Optics could be   
+used in git-warp or in the Continuum system.                                    
+                                                                                
+3. In general, what o you think about the idea that Continuum is Echo +         
+git-warp = ? How nuts is that? Have you ever seen anything like it before? What 
+ does it MEEEEEANNN                                                             
+
+⏺ Bash(claude-think "James is asking three things:…)
+  ⎿  {
+       "entryId": "entry:1774933700009-63bda89d-e7fa-4437-aa02-20b2966e6398
+     ",
+     … +15 lines (ctrl+o to expand)
+
+⏺ On #1: Keep it here. It's host-domain infrastructure — like how Express ships
+  body-parser. It's not substrate (graph/observers/worldlines), but it's basic
+  infra any WARP app needs for managed outbound delivery. "Batteries included"
+  layer. If warp-ttd or XYPH eventually grows its own opinion about delivery,
+  they can ignore it. But the types, the sink port, the pipeline pattern — any
+  WARP app will reinvent those if we don't provide them.
+
+  On #2: Let me write that properly.
+
+⏺ Write(docs/design/observer-optics-and-effect-architecture.tex)
+  ⎿  Wrote 399 lines to docs/design/observer-optics-and-effect-architecture.tex
+
+       1 \documentclass[11pt]{article}
+       2 \usepackage[margin=1in]{geometry}
+       3 \usepackage{amsmath,amssymb,amsthm,mathtools}
+       4 \usepackage{booktabs}
+       5 \usepackage{enumitem}
+       6 \usepackage{hyperref}
+       7 
+       8 \newcommand{\WARP}{\textsc{Warp}}
+       9 \newcommand{\Hist}{\mathsf{Hist}}
+      10 \newcommand{\Tr}{\mathbf{Tr}}
+     … +389 lines (ctrl+o to expand)
+
+⏺ Now let me commit this and answer #3.
+
+⏺ Bash(git add -A && git commit -m "$(cat <<'EOF'
+      docs: add observer geometry and optics design notes…)
+  ⎿  [main fe28b18] docs: add observer geometry and optics design notes
+      1 file changed, 399 insertions(+)
+      create mode 100644 docs/design/observer-optics-and-effect-architectur
+     e.tex
+
+⏺ On #3: What do I think about Continuum = Echo + git-warp?
+
+  Have I seen anything like it? Pieces of it exist separately:
+
+  - Game engines (Unreal, Unity) have authoritative server simulation +
+  client-side prediction/rollback. That's the closest to dual-runtime. But
+  they're imperative, no formal provenance, no observer geometry, no schema
+  compiler generating both sides.
+  - CRDTs + real-time engines exist independently but nobody has unified them
+  under a shared type system with binary-compatible codecs from one schema.
+  - Digital twins pair a sim with a persistent store, but without formal
+  observer geometry or the ability to time-travel debug across both.
+  - Blockchain L1/L2 separates consensus (slow, durable) from execution (fast,
+  speculative), but it's consensus-based, not CRDT-based, and there's no
+  profunctor story.
+
+  None of them have:
+  - A schema compiler that generates type-safe code for BOTH runtimes from one
+  declaration
+  - Formal observer geometry quantifying the cost of translating between runtime
+   traces
+  - Profunctor-parametric rewrite shapes that compile to execution OR merge OR
+  explanation
+  - Provenance payloads that survive cross-runtime transitions
+  - A time-travel debugger that can inspect a unified worldline where some ticks
+   ran in Rust and others merged in TypeScript
+
+  What does it MEAN? I think it means the distinction between "real-time
+  simulation" and "durable collaborative storage" becomes a deployment choice,
+  not an architectural one. You write your schema once. Wesley compiles it. You
+  run the same logic in Echo when you need throughput, in git-warp when you need
+   durability and offline sync. The data moves between them because the codec is
+   shared. The debugger sees one worldline because the observer geometry is the
+  same.
+
+  That's not a framework. That's a runtime model. The only thing I've seen that
+  even gestures at this level of unification is Wolfram's Ruliad concept — but
+  Wolfram doesn't have an implementation, doesn't have a dual-runtime story, and
+   doesn't have Wesley.
+
+  How nuts is it? Honestly — it's the kind of thing that either turns out to be
+  the right abstraction for a whole class of problems nobody knew how to unify,
+  or it turns out to be too abstract to survive contact with production
+  workloads. The theory is sound (the papers prove what they claim). The
+  question is whether the profunctor optic overhead — the abstraction tax — pays
+   for itself in real systems. My bet is it does, because the "compile once,
+  interpret many" payoff compounds with every new interpretation you add.
+
+✻ Cooked for 2m 50s

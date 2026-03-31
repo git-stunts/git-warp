@@ -46,9 +46,9 @@ describe('WarpCore — effect pipeline integration', () => {
       expect(core.deliveryObservations).toEqual([]);
     });
 
-    it('deliveryLens returns null', async () => {
+    it('externalizationPolicy returns null', async () => {
       const core = await openCore();
-      expect(core.deliveryLens).toBeNull();
+      expect(core.externalizationPolicy).toBeNull();
     });
 
     it('emit() is a no-op and returns null', async () => {
@@ -77,17 +77,17 @@ describe('WarpCore — effect pipeline integration', () => {
   });
 
   // -----------------------------------------------------------------------
-  // effectSinks + deliveryLens auto-construction
+  // effectSinks + externalizationPolicy auto-construction
   // -----------------------------------------------------------------------
-  describe('effectSinks + deliveryLens options', () => {
+  describe('effectSinks + externalizationPolicy options', () => {
     it('auto-constructs an EffectPipeline from sinks and lens', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       expect(core.effectPipeline).toBeInstanceOf(EffectPipeline);
-      expect(core.deliveryLens).toBe(LIVE_LENS);
+      expect(core.externalizationPolicy).toBe(LIVE_LENS);
     });
 
     it('registers all provided sinks in the multiplex', async () => {
@@ -96,7 +96,7 @@ describe('WarpCore — effect pipeline integration', () => {
 
       const core = await openCore({
         effectSinks: [s1, s2],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       const result = await core.emit('test', null);
@@ -111,7 +111,7 @@ describe('WarpCore — effect pipeline integration', () => {
     it('emits an effect and returns emission + observations', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       const result = await core.emit('notification', { text: 'hello' });
@@ -125,7 +125,7 @@ describe('WarpCore — effect pipeline integration', () => {
     it('passes writer and coordinate options through', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       const result = await core.emit('export', { format: 'csv' }, {
@@ -146,7 +146,7 @@ describe('WarpCore — effect pipeline integration', () => {
     it('accumulates emissions across multiple emit() calls', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       await core.emit('a', 1);
@@ -165,7 +165,7 @@ describe('WarpCore — effect pipeline integration', () => {
           new NoOpEffectSink({ id: 'sink-1' }),
           new NoOpEffectSink({ id: 'sink-2' }),
         ],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       await core.emit('test', null);
@@ -177,24 +177,24 @@ describe('WarpCore — effect pipeline integration', () => {
   // -----------------------------------------------------------------------
   // Delivery lens get/set
   // -----------------------------------------------------------------------
-  describe('deliveryLens get/set', () => {
+  describe('externalizationPolicy get/set', () => {
     it('exposes the current delivery lens', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
-      expect(core.deliveryLens).toBe(LIVE_LENS);
+      expect(core.externalizationPolicy).toBe(LIVE_LENS);
     });
 
     it('allows switching the delivery lens', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
-      core.deliveryLens = REPLAY_LENS;
-      expect(core.deliveryLens).toBe(REPLAY_LENS);
+      core.externalizationPolicy = REPLAY_LENS;
+      expect(core.externalizationPolicy).toBe(REPLAY_LENS);
 
       const result = await core.emit('test', null);
       expect(result.observations[0].outcome).toBe('suppressed');
@@ -208,7 +208,7 @@ describe('WarpCore — effect pipeline integration', () => {
     it('emissions still appear during replay, sinks record suppression', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: REPLAY_LENS,
+        externalizationPolicy: REPLAY_LENS,
       });
 
       const result = await core.emit('notification', { msg: 'hi' });
@@ -226,13 +226,13 @@ describe('WarpCore — effect pipeline integration', () => {
     it('switching from live to replay mid-session changes delivery behavior', async () => {
       const core = await openCore({
         effectSinks: [new NoOpEffectSink()],
-        deliveryLens: LIVE_LENS,
+        externalizationPolicy: LIVE_LENS,
       });
 
       const r1 = await core.emit('before', null);
       expect(r1.observations[0].outcome).toBe('delivered');
 
-      core.deliveryLens = REPLAY_LENS;
+      core.externalizationPolicy = REPLAY_LENS;
 
       const r2 = await core.emit('after', null);
       expect(r2.observations[0].outcome).toBe('suppressed');

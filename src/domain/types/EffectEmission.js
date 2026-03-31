@@ -10,7 +10,7 @@
  * @see docs/design/effect-emission-v1.md
  */
 
-import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './DeliveryLens.js';
+import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './ExternalizationPolicy.js';
 
 // Re-export constants for convenience (tests import from here too)
 export { DELIVERY_MODES, DELIVERY_OUTCOMES };

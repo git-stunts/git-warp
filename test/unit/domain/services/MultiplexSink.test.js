@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MultiplexSink } from '../../../../src/domain/services/MultiplexSink.js';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
-import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/DeliveryLens.js';
+import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.js';
 
 /** @returns {import('../../../../src/domain/types/EffectEmission.js').EffectEmission} */
@@ -157,7 +157,7 @@ describe('MultiplexSink', () => {
     expect(outcomes).toContain('failed');
   });
 
-  it('passes the delivery lens to each child sink', async () => {
+  it('passes the externalization policy to each child sink', async () => {
     const mux = new MultiplexSink();
     const stub = new StubSink('spy');
     mux.addSink(stub);

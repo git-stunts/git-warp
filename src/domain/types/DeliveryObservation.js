@@ -6,7 +6,7 @@
  * @see docs/design/effect-emission-v1.md
  */
 
-import { validateOutcome, DELIVERY_MODES } from './DeliveryLens.js';
+import { validateOutcome, DELIVERY_MODES } from './ExternalizationPolicy.js';
 
 const modeSet = new Set(DELIVERY_MODES);
 
@@ -15,7 +15,7 @@ const modeSet = new Set(DELIVERY_MODES);
 // ============================================================================
 
 /**
- * @typedef {import('./DeliveryLens.js').DeliveryLens} DeliveryLens
+ * @typedef {import('./ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
  */
 
 /**
@@ -25,7 +25,7 @@ const modeSet = new Set(DELIVERY_MODES);
  * @property {'delivered' | 'suppressed' | 'failed' | 'skipped'} outcome
  * @property {string | undefined} reason - Why (e.g., "replay mode")
  * @property {number} timestamp - Wall-clock milliseconds
- * @property {Readonly<DeliveryLens>} lens - Execution context at delivery time
+ * @property {Readonly<ExternalizationPolicy>} lens - Execution context at delivery time
  */
 
 // ============================================================================
@@ -108,7 +108,7 @@ export function createDeliveryObservation({
     suppressExternal: lens.suppressExternal,
   });
 
-  /** @type {{ emissionId: string, sinkId: string, outcome: 'delivered' | 'suppressed' | 'failed' | 'skipped', timestamp: number, lens: Readonly<DeliveryLens>, reason?: string }} */
+  /** @type {{ emissionId: string, sinkId: string, outcome: 'delivered' | 'suppressed' | 'failed' | 'skipped', timestamp: number, lens: Readonly<ExternalizationPolicy>, reason?: string }} */
   const obs = {
     emissionId,
     sinkId,

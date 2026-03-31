@@ -347,7 +347,7 @@ tooling for \texttt{git-warp}:
 
 \begin{itemize}[leftmargin=2em]
 \item \textbf{Types}: \texttt{EffectEmission}, \texttt{DeliveryObservation},
-  \texttt{DeliveryLens} (application-level delivery policy).
+  \texttt{ExternalizationPolicy} (application-level delivery policy).
 \item \textbf{Port}: \texttt{EffectSinkPort} (hexagonal adapter interface
   for external delivery).
 \item \textbf{Services}: \texttt{EffectPipeline} (orchestration),
@@ -356,7 +356,7 @@ tooling for \texttt{git-warp}:
   \texttt{ChunkEffectSink}, \texttt{NoOpEffectSink}.
 \item \textbf{WarpCore integration}: \texttt{emit()},
   \texttt{effectEmissions}, \texttt{deliveryObservations},
-  \texttt{deliveryLens} get/set, \texttt{open()} options.
+  \texttt{externalizationPolicy} get/set, \texttt{open()} options.
 \end{itemize}
 
 This is \emph{host-domain infrastructure}---basic tooling any \WARP{}

@@ -2,7 +2,7 @@
  * Port interface for effect delivery sinks.
  *
  * Each sink has a unique `id` and a `deliver()` method that accepts
- * an EffectEmission and a DeliveryLens. The sink decides its behavior
+ * an EffectEmission and an ExternalizationPolicy. The sink decides its behavior
  * based on the lens (e.g., suppress delivery during replay) and
  * returns a DeliveryObservation recording the outcome.
  *
@@ -24,7 +24,7 @@ export default class EffectSinkPort {
    * Delivers an effect emission under the given delivery lens.
    *
    * @param {import('../domain/types/EffectEmission.js').EffectEmission} _emission
-   * @param {import('../domain/types/DeliveryLens.js').DeliveryLens} _lens
+   * @param {import('../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} _lens
    * @returns {Promise<import('../domain/types/DeliveryObservation.js').DeliveryObservation>}
    * @abstract
    */

@@ -58,7 +58,7 @@ Fields:
 
 A **DeliveryObservation** is a substrate fact:
 
-> Sink X handled emission Y with outcome Z under delivery lens L.
+> Sink X handled emission Y with outcome Z under externalization policy L.
 
 Fields:
 
@@ -69,13 +69,13 @@ Fields:
 | `outcome`    | `DeliveryOutcome` | `'delivered'`, `'suppressed'`, `'failed'`, `'skipped'` |
 | `reason`     | `string \| undefined` | Why (e.g., "replay mode", "transport unavailable") |
 | `timestamp`  | `number`          | Wall-clock milliseconds                            |
-| `lens`       | `DeliveryLens`    | The execution context at delivery time             |
+| `lens`       | `ExternalizationPolicy`    | The execution context at delivery time             |
 
 ### 3. Delivery Lens
 
-A **DeliveryLens** is the execution/delivery context that shapes how
+A **ExternalizationPolicy** is the execution/delivery context that shapes how
 effects may or may not be externalized. It is not the same as an
-Observer lens (which shapes what you can *see*). A delivery lens shapes
+Observer lens (which shapes what you can *see*). An externalization policy shapes
 what the system is *allowed to do* with outbound effects.
 
 | Field              | Type                               | Description                                 |
@@ -83,7 +83,7 @@ what the system is *allowed to do* with outbound effects.
 | `mode`             | `'live' \| 'replay' \| 'inspect'` | Execution mode                              |
 | `suppressExternal` | `boolean`                          | Whether external delivery should be blocked |
 
-Sinks inspect the delivery lens and decide their behavior:
+Sinks inspect the externalization policy and decide their behavior:
 
 - **live + !suppress** → deliver normally
 - **replay + suppress** → record suppression as a DeliveryObservation
@@ -132,14 +132,14 @@ The multiplex sink's own `deliver()` returns an array of observations
 ### 6. Effect Pipeline
 
 The **EffectPipeline** is a domain service that ties it all together.
-It holds a sink (typically a MultiplexSink), a DeliveryLens, and a
+It holds a sink (typically a MultiplexSink), an ExternalizationPolicy, and a
 clock. It provides:
 
 ```js
 class EffectPipeline {
   constructor({ sink, lens, clock })
   async emit(kind, payload, options?)  // → { emission, observations }
-  get lens()           // current delivery lens
+  get lens()           // current externalization policy
   set lens(newLens)    // update (e.g., switch to replay mode)
   get emissions()      // → readonly emission log
   get observations()   // → readonly observation log
@@ -156,7 +156,7 @@ are inspectable.
 ## Replay Rules
 
 1. Replay still produces EffectEmissions deterministically.
-2. The DeliveryLens during replay has `mode: 'replay'` and
+2. The ExternalizationPolicy during replay has `mode: 'replay'` and
    `suppressExternal: true`.
 3. Sinks that respect the lens record `outcome: 'suppressed'` instead
    of actually delivering.
@@ -190,7 +190,7 @@ const core = await WarpCore.open({ ..., effectPipeline });
 const core = await WarpCore.open({
   ...,
   effectSinks: [new ConsoleEffectSink({ logger })],
-  deliveryLens: LIVE_LENS,
+  externalizationPolicy: LIVE_LENS,
 });
 
 // Option C: configure after construction
@@ -204,8 +204,8 @@ core.emit(kind, payload, options?)   // → { emission, observations }
 core.effectPipeline                  // → EffectPipeline | null
 core.effectEmissions                 // → readonly EffectEmission[]
 core.deliveryObservations            // → readonly DeliveryObservation[]
-core.deliveryLens                    // → DeliveryLens | null
-core.deliveryLens = REPLAY_LENS     // switch lens (e.g., entering replay)
+core.externalizationPolicy                    // → ExternalizationPolicy | null
+core.externalizationPolicy = REPLAY_LENS     // switch lens (e.g., entering replay)
 ```
 
 This is opt-in. Existing code that doesn't configure an effect pipeline
@@ -218,7 +218,7 @@ is unaffected — `emit()` is a no-op, getters return null/empty.
   persisted to Git. Future versions may add Git persistence.
 - The `kind` field on emissions is an opaque string. git-warp does not
   define a registry of kinds — applications do.
-- DeliveryLens modes are a closed enum (`'live'`, `'replay'`,
+- ExternalizationPolicy modes are a closed enum (`'live'`, `'replay'`,
   `'inspect'`). Adding new modes is a minor version bump.
 - DeliveryOutcome values are a closed enum (`'delivered'`,
   `'suppressed'`, `'failed'`, `'skipped'`). Adding new outcomes is a
@@ -232,7 +232,7 @@ src/
     types/
       EffectEmission.js          # EffectEmission, EffectCoordinate factories
       DeliveryObservation.js     # DeliveryObservation factory
-      DeliveryLens.js            # DeliveryLens factory + mode/outcome constants
+      ExternalizationPolicy.js            # ExternalizationPolicy factory + mode/outcome constants
     services/
       EffectPipeline.js          # Orchestrates emit → deliver → collect
       MultiplexSink.js           # Fan-out composite sink
@@ -249,7 +249,7 @@ test/
       types/
         EffectEmission.test.js
         DeliveryObservation.test.js
-        DeliveryLens.test.js
+        ExternalizationPolicy.test.js
       services/
         EffectPipeline.test.js
         MultiplexSink.test.js

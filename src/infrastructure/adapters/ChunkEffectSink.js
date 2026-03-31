@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 /**
  * @typedef {import('../../domain/types/EffectEmission.js').EffectEmission} EffectEmission
- * @typedef {import('../../domain/types/DeliveryLens.js').DeliveryLens} DeliveryLens
+ * @typedef {import('../../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} ExternalizationPolicy
  */
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
@@ -49,7 +49,7 @@ export class ChunkEffectSink extends EffectSinkPort {
 
   /**
    * @param {EffectEmission} emission
-   * @param {DeliveryLens} lens
+   * @param {ExternalizationPolicy} lens
    * @returns {Promise<import('../../domain/types/DeliveryObservation.js').DeliveryObservation>}
    */
   async deliver(emission, lens) {

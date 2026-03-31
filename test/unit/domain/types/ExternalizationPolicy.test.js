@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createDeliveryLens,
+  createExternalizationPolicy,
   LIVE_LENS,
   REPLAY_LENS,
   INSPECT_LENS,
-} from '../../../../src/domain/types/DeliveryLens.js';
+} from '../../../../src/domain/types/ExternalizationPolicy.js';
 
 /** @type {any} */
-const create = createDeliveryLens;
+const create = createExternalizationPolicy;
 
-describe('DeliveryLens', () => {
+describe('ExternalizationPolicy', () => {
   // -----------------------------------------------------------------------
   // Preset lenses
   // -----------------------------------------------------------------------
@@ -36,7 +36,7 @@ describe('DeliveryLens', () => {
   // -----------------------------------------------------------------------
   // Factory
   // -----------------------------------------------------------------------
-  describe('createDeliveryLens', () => {
+  describe('createExternalizationPolicy', () => {
     it('creates a custom lens', () => {
       const lens = create({ mode: 'live', suppressExternal: true });
       expect(lens.mode).toBe('live');
