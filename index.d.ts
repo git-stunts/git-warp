@@ -3773,5 +3773,199 @@ export function deserializeWormhole(json: {
   payload: PatchEntry[];
 }): WormholeEdge;
 
+// ============================================================================
+// Effect Emission & Delivery Observation
+// ============================================================================
+
+/** Execution/delivery context that shapes outbound effect behavior. */
+export interface DeliveryLens {
+  /** Execution mode. */
+  readonly mode: 'live' | 'replay' | 'inspect';
+  /** Whether external delivery should be blocked. */
+  readonly suppressExternal: boolean;
+}
+
+/** Valid delivery modes. */
+export const DELIVERY_MODES: readonly ['live', 'replay', 'inspect'];
+
+/** Valid delivery outcomes. */
+export const DELIVERY_OUTCOMES: readonly [
+  'delivered',
+  'suppressed',
+  'failed',
+  'skipped',
+];
+
+/** Delivery outcome discriminant. */
+export type DeliveryOutcome = 'delivered' | 'suppressed' | 'failed' | 'skipped';
+
+/** Delivery mode discriminant. */
+export type DeliveryMode = 'live' | 'replay' | 'inspect';
+
+/** Creates an immutable DeliveryLens. */
+export function createDeliveryLens(params: {
+  mode: DeliveryMode;
+  suppressExternal: boolean;
+}): Readonly<DeliveryLens>;
+
+/** Live execution lens — effects are delivered normally. */
+export const LIVE_LENS: Readonly<DeliveryLens>;
+/** Replay execution lens — external delivery is suppressed. */
+export const REPLAY_LENS: Readonly<DeliveryLens>;
+/** Inspect execution lens — dry-run, external delivery is suppressed. */
+export const INSPECT_LENS: Readonly<DeliveryLens>;
+
+/** Causal coordinate at which an effect was emitted. */
+export interface EffectCoordinate {
+  /** Writer tip SHAs at emission time. */
+  readonly frontier: Record<string, string> | null;
+  /** Lamport ceiling (if capped). */
+  readonly ceiling: number | null;
+}
+
+/** Immutable substrate fact: an outbound effect candidate was produced. */
+export interface EffectEmission {
+  /** Unique emission ID. */
+  readonly id: string;
+  /** Effect kind — generic string, app chooses meaning. */
+  readonly kind: string;
+  /** Opaque effect payload — substrate does not interpret it. */
+  readonly payload: unknown;
+  /** Wall-clock milliseconds. */
+  readonly timestamp: number;
+  /** Writer ID (null if not writer-scoped). */
+  readonly writer: string | null;
+  /** Causal position where this effect was produced. */
+  readonly coordinate: Readonly<EffectCoordinate>;
+}
+
+/** Creates an immutable EffectEmission. */
+export function createEffectEmission(params: {
+  id: string;
+  kind: string;
+  payload: unknown;
+  timestamp: number;
+  writer: string | null;
+  coordinate: {
+    frontier: Record<string, string> | null;
+    ceiling: number | null;
+  };
+}): Readonly<EffectEmission>;
+
+/** Produces a deterministic JSON string for an EffectEmission. */
+export function canonicalEmissionJson(emission: EffectEmission): string;
+
+/** Immutable substrate fact: a sink handled an emitted effect. */
+export interface DeliveryObservation {
+  /** Links to the EffectEmission. */
+  readonly emissionId: string;
+  /** Which sink/adapter handled it. */
+  readonly sinkId: string;
+  /** Delivery outcome. */
+  readonly outcome: DeliveryOutcome;
+  /** Why (e.g., "replay mode", "transport unavailable"). */
+  readonly reason?: string;
+  /** Wall-clock milliseconds. */
+  readonly timestamp: number;
+  /** Execution context at delivery time. */
+  readonly lens: Readonly<DeliveryLens>;
+}
+
+/** Creates an immutable DeliveryObservation. */
+export function createDeliveryObservation(params: {
+  emissionId: string;
+  sinkId: string;
+  outcome: DeliveryOutcome;
+  reason?: string;
+  timestamp: number;
+  lens: { mode: DeliveryMode; suppressExternal: boolean };
+}): Readonly<DeliveryObservation>;
+
+/** Produces a deterministic JSON string for a DeliveryObservation. */
+export function canonicalObservationJson(
+  observation: DeliveryObservation,
+): string;
+
+/**
+ * Abstract port for effect delivery sinks.
+ *
+ * Each sink has a unique `id` and a `deliver()` method.
+ */
+export class EffectSinkPort {
+  /** Unique identifier for this sink. */
+  get id(): string;
+  /** Delivers an effect emission under the given delivery lens. */
+  deliver(
+    emission: EffectEmission,
+    lens: DeliveryLens,
+  ): Promise<DeliveryObservation>;
+}
+
+/**
+ * Fans out one EffectEmission to multiple child sinks.
+ * Implements EffectSinkPort (composite pattern).
+ */
+export class MultiplexSink extends EffectSinkPort {
+  constructor(options?: { id?: string });
+  get id(): string;
+  get sinks(): readonly EffectSinkPort[];
+  addSink(sink: EffectSinkPort): void;
+  removeSink(id: string): boolean;
+  deliver(
+    emission: EffectEmission,
+    lens: DeliveryLens,
+  ): Promise<DeliveryObservation[]>;
+}
+
+/**
+ * Orchestrates effect emission, delivery, and observation collection.
+ */
+export class EffectPipeline {
+  constructor(options: {
+    sink: EffectSinkPort;
+    lens: Readonly<DeliveryLens>;
+    clock: { now: () => number };
+  });
+  get lens(): Readonly<DeliveryLens>;
+  set lens(newLens: Readonly<DeliveryLens>);
+  get emissions(): readonly EffectEmission[];
+  get observations(): readonly DeliveryObservation[];
+  emit(
+    kind: string,
+    payload: unknown,
+    options?: {
+      writer?: string | null;
+      coordinate?: {
+        frontier?: Record<string, string> | null;
+        ceiling?: number | null;
+      };
+    },
+  ): Promise<{
+    emission: EffectEmission;
+    observations: DeliveryObservation | DeliveryObservation[];
+  }>;
+}
+
+/** Null/test sink — swallows effects. */
+export class NoOpEffectSink extends EffectSinkPort {
+  constructor(options?: { id?: string });
+  get id(): string;
+}
+
+/** Console logging sink — logs via a logger, suppresses in replay/inspect. */
+export class ConsoleEffectSink extends EffectSinkPort {
+  constructor(options?: {
+    logger?: { info: (...args: unknown[]) => void };
+    id?: string;
+  });
+  get id(): string;
+}
+
+/** Rotating append-only NDJSON file sink for local forensic streams. */
+export class ChunkEffectSink extends EffectSinkPort {
+  constructor(options: { dir: string; id?: string; maxBytes?: number });
+  get id(): string;
+}
+
 /** Default package export — the curated product-facing WARP surface. */
 export default WarpApp;

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `DeliveryLens` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
+- **`EffectSinkPort`** — abstract port for effect delivery sinks, following the hexagonal architecture pattern.
+- **`MultiplexSink`** — domain service that fans out one emission to multiple child sinks (composite pattern over `EffectSinkPort`).
+- **`EffectPipeline`** — domain service that orchestrates emit → deliver → collect, maintaining inspectable emission and observation logs.
+- **`NoOpEffectSink`** — null/test sink adapter (infrastructure).
+- **`ConsoleEffectSink`** — console logging sink adapter that suppresses output during replay/inspect (infrastructure).
+- **`ChunkEffectSink`** — rotating append-only NDJSON file sink for local forensic streams, replay-safe (infrastructure).
+- **Design doc:** `docs/design/effect-emission-v1.md` — full model description, replay rules, and integration guidance.
+
 ### Fixed
 
 - Broken markdown links in archived retrospective files and `docs/README.md` — design docs that were intentionally deleted now appear as plain text references, and the retrospectives path in the documentation index points to the correct `archive/retrospectives/` location.

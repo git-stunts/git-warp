@@ -129,6 +129,28 @@ import {
 } from './src/domain/services/WormholeService.js';
 
 import BisectService from './src/domain/services/BisectService.js';
+import EffectSinkPort from './src/ports/EffectSinkPort.js';
+import { MultiplexSink } from './src/domain/services/MultiplexSink.js';
+import { EffectPipeline } from './src/domain/services/EffectPipeline.js';
+import {
+  createEffectEmission,
+  canonicalEmissionJson,
+  DELIVERY_MODES,
+  DELIVERY_OUTCOMES,
+} from './src/domain/types/EffectEmission.js';
+import {
+  createDeliveryObservation,
+  canonicalObservationJson,
+} from './src/domain/types/DeliveryObservation.js';
+import {
+  createDeliveryLens,
+  LIVE_LENS,
+  REPLAY_LENS,
+  INSPECT_LENS,
+} from './src/domain/types/DeliveryLens.js';
+import { NoOpEffectSink } from './src/infrastructure/adapters/NoOpEffectSink.js';
+import { ConsoleEffectSink } from './src/infrastructure/adapters/ConsoleEffectSink.js';
+import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.js';
 import { PatchBuilderV2 } from './src/domain/services/PatchBuilderV2.js';
 import { PatchSession } from './src/domain/warp/PatchSession.js';
 import { Writer } from './src/domain/warp/Writer.js';
@@ -274,6 +296,24 @@ export {
   replayWormhole,
   serializeWormhole,
   deserializeWormhole,
+
+  // Effect emission & delivery observation
+  EffectSinkPort,
+  MultiplexSink,
+  EffectPipeline,
+  createEffectEmission,
+  canonicalEmissionJson,
+  createDeliveryObservation,
+  canonicalObservationJson,
+  createDeliveryLens,
+  DELIVERY_MODES,
+  DELIVERY_OUTCOMES,
+  LIVE_LENS,
+  REPLAY_LENS,
+  INSPECT_LENS,
+  NoOpEffectSink,
+  ConsoleEffectSink,
+  ChunkEffectSink,
 };
 
 // WarpApp is the primary product-facing API for v15.

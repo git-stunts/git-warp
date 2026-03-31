@@ -1401,6 +1401,54 @@
     "verifyBTR": {
       "kind": "function",
       "async": true
+    },
+    "EffectSinkPort": {
+      "kind": "class"
+    },
+    "MultiplexSink": {
+      "kind": "class"
+    },
+    "EffectPipeline": {
+      "kind": "class"
+    },
+    "createEffectEmission": {
+      "kind": "function"
+    },
+    "canonicalEmissionJson": {
+      "kind": "function"
+    },
+    "createDeliveryObservation": {
+      "kind": "function"
+    },
+    "canonicalObservationJson": {
+      "kind": "function"
+    },
+    "createDeliveryLens": {
+      "kind": "function"
+    },
+    "DELIVERY_MODES": {
+      "kind": "const"
+    },
+    "DELIVERY_OUTCOMES": {
+      "kind": "const"
+    },
+    "LIVE_LENS": {
+      "kind": "const"
+    },
+    "REPLAY_LENS": {
+      "kind": "const"
+    },
+    "INSPECT_LENS": {
+      "kind": "const"
+    },
+    "NoOpEffectSink": {
+      "kind": "class"
+    },
+    "ConsoleEffectSink": {
+      "kind": "class"
+    },
+    "ChunkEffectSink": {
+      "kind": "class"
     }
   },
   "typeExports": {
@@ -1798,6 +1846,24 @@
       "kind": "type"
     },
     "WormholeEdge": {
+      "kind": "interface"
+    },
+    "DeliveryLens": {
+      "kind": "interface"
+    },
+    "DeliveryOutcome": {
+      "kind": "type"
+    },
+    "DeliveryMode": {
+      "kind": "type"
+    },
+    "EffectCoordinate": {
+      "kind": "interface"
+    },
+    "EffectEmission": {
+      "kind": "interface"
+    },
+    "DeliveryObservation": {
       "kind": "interface"
     }
   }

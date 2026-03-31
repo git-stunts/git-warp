@@ -1,0 +1,143 @@
+/**
+ * EffectEmission — immutable substrate fact recording that an outbound
+ * effect candidate was produced at a causal coordinate.
+ *
+ * This is a type definition + factory. Effect emissions are generic —
+ * the `kind` and `payload` are opaque to the substrate. Applications
+ * (XYPH, warp-ttd) assign product meaning.
+ *
+ * @module EffectEmission
+ * @see docs/design/effect-emission-v1.md
+ */
+
+import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './DeliveryLens.js';
+
+// Re-export constants for convenience (tests import from here too)
+export { DELIVERY_MODES, DELIVERY_OUTCOMES };
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * @typedef {Object} EffectCoordinate
+ * @property {Record<string, string> | null} frontier - Writer tip SHAs at emission time
+ * @property {number | null} ceiling - Lamport ceiling (if capped)
+ */
+
+/**
+ * @typedef {Object} EffectEmission
+ * @property {string} id - Unique emission ID
+ * @property {string} kind - Effect kind (generic string, app chooses meaning)
+ * @property {unknown} payload - Opaque effect payload
+ * @property {number} timestamp - Wall-clock milliseconds
+ * @property {string | null} writer - Writer ID (null if not writer-scoped)
+ * @property {Readonly<EffectCoordinate>} coordinate - Causal position
+ */
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @returns {void}
+ */
+function requireNonEmptyString(value, name) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${name} must be a non-empty string`);
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {void}
+ */
+function validateTimestamp(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error('timestamp must be a non-negative finite number');
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {void}
+ */
+function validateCoordinate(value) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    throw new Error('coordinate must be an object');
+  }
+}
+
+// ============================================================================
+// Factory
+// ============================================================================
+
+/**
+ * Creates an immutable EffectEmission.
+ *
+ * @param {{
+ *   id: string,
+ *   kind: string,
+ *   payload: unknown,
+ *   timestamp: number,
+ *   writer: string | null,
+ *   coordinate: { frontier: Record<string, string> | null, ceiling: number | null }
+ * }} params
+ * @returns {Readonly<EffectEmission>}
+ */
+export function createEffectEmission({ id, kind, payload, timestamp, writer, coordinate }) {
+  requireNonEmptyString(id, 'id');
+  requireNonEmptyString(kind, 'kind');
+  validateTimestamp(timestamp);
+  validateCoordinate(coordinate);
+
+  const frozenCoordinate = Object.freeze({
+    frontier: coordinate.frontier
+      ? Object.freeze({ ...coordinate.frontier })
+      : null,
+    ceiling: coordinate.ceiling ?? null,
+  });
+
+  return Object.freeze({
+    id,
+    kind,
+    payload,
+    timestamp,
+    writer: writer ?? null,
+    coordinate: frozenCoordinate,
+  });
+}
+
+// ============================================================================
+// Canonical JSON
+// ============================================================================
+
+/**
+ * @param {string} _key
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+function sortedReplacer(_key, value) {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    /** @type {{ [x: string]: unknown }} */
+    const sorted = {};
+    const obj = /** @type {{ [x: string]: unknown }} */ (value);
+    for (const k of Object.keys(obj).sort()) {
+      sorted[k] = obj[k];
+    }
+    return sorted;
+  }
+  return value;
+}
+
+/**
+ * Produces a deterministic JSON string for an EffectEmission.
+ *
+ * @param {EffectEmission} emission
+ * @returns {string}
+ */
+export function canonicalEmissionJson(emission) {
+  return JSON.stringify(emission, sortedReplacer);
+}
