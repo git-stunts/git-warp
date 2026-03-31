@@ -43,15 +43,25 @@ function uint8ArrayToHex(bytes) {
  */
 function hexToUint8Array(hex) {
   if (typeof hex !== 'string' || hex.length % 2 !== 0) {
-    throw new RangeError(`Invalid hex string (length ${hex?.length})`);
+    throw new RangeError(`Invalid hex string (length ${typeof hex === 'string' ? hex.length : 'N/A'})`);
   }
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    const byte = parseInt(hex.substring(i, i + 2), 16);
+  return parseHexPairs(hex);
+}
+
+/**
+ * Parses hex string pairs into a Uint8Array.
+ * @param {string} hex - A validated even-length hex string
+ * @returns {Uint8Array}
+ */
+function parseHexPairs(hex) {
+  const HEX_PAIR_STEP = 2;
+  const bytes = new Uint8Array(hex.length / HEX_PAIR_STEP);
+  for (let i = 0; i < hex.length; i += HEX_PAIR_STEP) {
+    const byte = parseInt(hex.substring(i, i + HEX_PAIR_STEP), 16);
     if (Number.isNaN(byte)) {
-      throw new RangeError(`Invalid hex byte at offset ${i}: ${hex.substring(i, i + 2)}`);
+      throw new RangeError(`Invalid hex byte at offset ${i}: ${hex.substring(i, i + HEX_PAIR_STEP)}`);
     }
-    bytes[i / 2] = byte;
+    bytes[i / HEX_PAIR_STEP] = byte;
   }
   return bytes;
 }
@@ -157,11 +167,7 @@ export async function createBTR(initialState, payload, options) {
   // eslint-disable-next-line no-restricted-syntax -- wall-clock default for BTR timestamp
   const { key, timestamp = new Date().toISOString(), crypto, codec } = options;
 
-  // Validate HMAC key is not empty/falsy
-  if (!key || (typeof key === 'string' && key.length === 0) ||
-      (ArrayBuffer.isView(key) && key.byteLength === 0)) {
-    throw new Error('Invalid HMAC key: key must not be empty');
-  }
+  validateHmacKey(key);
 
   const h_in = await computeStateHashV5(initialState, { crypto, codec });
   const U_0 = serializeFullStateV5(initialState, { codec });
@@ -175,6 +181,23 @@ export async function createBTR(initialState, payload, options) {
   return { ...fields, kappa };
 }
 
+/**
+ * Validates that an HMAC key is non-empty.
+ * @param {string|Uint8Array} key - The HMAC key to validate
+ * @throws {Error} If the key is empty or falsy
+ */
+function validateHmacKey(key) {
+  if (key === null || key === undefined) {
+    throw new Error('Invalid HMAC key: key must not be empty');
+  }
+  if (typeof key === 'string' && key.length === 0) {
+    throw new Error('Invalid HMAC key: key must not be empty');
+  }
+  if (ArrayBuffer.isView(key) && key.byteLength === 0) {
+    throw new Error('Invalid HMAC key: key must not be empty');
+  }
+}
+
 const REQUIRED_FIELDS = ['version', 'h_in', 'h_out', 'U_0', 'P', 't', 'kappa'];
 
 /**
@@ -185,17 +208,30 @@ const REQUIRED_FIELDS = ['version', 'h_in', 'h_out', 'U_0', 'P', 't', 'kappa'];
  * @private
  */
 function validateBTRStructure(btr) {
-  if (!btr || typeof btr !== 'object') {
+  if (btr === null || btr === undefined || typeof btr !== 'object') {
     return 'BTR must be an object';
   }
   const rec = /** @type {Record<string, unknown>} */ (btr);
-  for (const field of REQUIRED_FIELDS) {
-    if (!(field in rec)) {
-      return `Missing required field: ${field}`;
-    }
+  const missingField = findMissingField(rec);
+  if (missingField !== null) {
+    return `Missing required field: ${missingField}`;
   }
   if (rec.version !== BTR_VERSION) {
-    return `Unsupported BTR version: ${rec.version} (expected ${BTR_VERSION})`;
+    return `Unsupported BTR version: ${String(rec.version)} (expected ${BTR_VERSION})`;
+  }
+  return null;
+}
+
+/**
+ * Finds the first missing required field in a BTR record.
+ * @param {Record<string, unknown>} rec
+ * @returns {string|null} The missing field name, or null if all present
+ */
+function findMissingField(rec) {
+  for (const field of REQUIRED_FIELDS) {
+    if (!(field in rec)) {
+      return field;
+    }
   }
   return null;
 }
@@ -271,13 +307,37 @@ export async function verifyBTR(btr, key, options = {}) {
   const { crypto, codec } = options;
 
   const structureError = validateBTRStructure(btr);
-  if (structureError) {
+  if (structureError !== null) {
     return { valid: false, reason: structureError };
   }
 
+  const hmacResult = await verifyHmacSafe(btr, key, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto), codec });
+  if (hmacResult !== null) {
+    return hmacResult;
+  }
+
+  if (options.verifyReplay === true) {
+    const replayError = await verifyReplayHash(btr, { crypto, codec });
+    if (replayError !== null) {
+      return { valid: false, reason: replayError };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Wraps verifyHmac with error handling, returning a failure result or null on success.
+ * @param {BTR} btr
+ * @param {string|Uint8Array} key
+ * @param {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} deps
+ * @returns {Promise<VerificationResult|null>} Failure result, or null if HMAC is valid
+ */
+async function verifyHmacSafe(btr, key, deps) {
+  /** @type {boolean} */
   let hmacValid;
   try {
-    hmacValid = await verifyHmac(btr, key, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto), codec });
+    hmacValid = await verifyHmac(btr, key, deps);
   } catch (err) {
     if (err instanceof RangeError) {
       return { valid: false, reason: `Invalid hex in authentication tag: ${err.message}` };
@@ -287,15 +347,7 @@ export async function verifyBTR(btr, key, options = {}) {
   if (!hmacValid) {
     return { valid: false, reason: 'Authentication tag mismatch' };
   }
-
-  if (options.verifyReplay) {
-    const replayError = await verifyReplayHash(btr, { crypto, codec });
-    if (replayError) {
-      return { valid: false, reason: replayError };
-    }
-  }
-
-  return { valid: true };
+  return null;
 }
 
 /**
@@ -381,11 +433,9 @@ export function deserializeBTR(bytes, { codec } = {}) {
   const c = codec || defaultCodec;
   const obj = /** @type {Record<string, unknown>} */ (c.decode(bytes));
 
-  // Validate structure (reuse module-level constant for consistency with validateBTRStructure)
-  for (const field of REQUIRED_FIELDS) {
-    if (!(field in obj)) {
-      throw new Error(`Invalid BTR: missing field ${field}`);
-    }
+  const missingField = findMissingField(obj);
+  if (missingField !== null) {
+    throw new Error(`Invalid BTR: missing field ${missingField}`);
   }
 
   return /** @type {BTR} */ ({

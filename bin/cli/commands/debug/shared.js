@@ -11,7 +11,9 @@ import { notFoundError } from '../../infrastructure.js';
 /** @typedef {import('../../../../src/domain/WarpCore.js').default & import('../../../../src/domain/WarpRuntime.js').default} WarpCoreRuntime */
 
 /**
- * @param {CliOptions} options
+ * Opens a graph with debug context including cursor state for exploratory analysis.
+ *
+ * @param {CliOptions} options - CLI options including repo path and graph name
  * @returns {Promise<{graph: WarpGraphInstance, graphName: string, persistence: import('../../types.js').Persistence, activeCursor: import('../../types.js').CursorBlob|null}>}
  */
 export async function openDebugContext(options) {
@@ -26,8 +28,10 @@ export async function openDebugContext(options) {
 }
 
 /**
- * @param {number|null} explicitLamportCeiling
- * @param {import('../../types.js').CursorBlob|null} activeCursor
+ * Resolves the effective lamport ceiling from an explicit value or cursor state.
+ *
+ * @param {number|null} explicitLamportCeiling - User-supplied ceiling, if any
+ * @param {import('../../types.js').CursorBlob|null} activeCursor - Active cursor blob, if any
  * @returns {number|null}
  */
 export function resolveLamportCeiling(explicitLamportCeiling, activeCursor) {
@@ -52,34 +56,61 @@ export async function materializeForDebug(graph, options) {
     collectReceipts,
     strandId = null,
   } = options;
-  if (strandId) {
-    if (collectReceipts) {
-      return lamportCeiling === null
-        ? await debugGraph.materializeStrand(strandId, { receipts: true })
-        : await debugGraph.materializeStrand(strandId, { receipts: true, ceiling: lamportCeiling });
-    }
-    return lamportCeiling === null
-      ? await debugGraph.materializeStrand(strandId)
-      : await debugGraph.materializeStrand(strandId, { ceiling: lamportCeiling });
+  if (strandId !== null && strandId !== undefined && strandId.length > 0) {
+    return await materializeStrandForDebug(debugGraph, strandId, { lamportCeiling, collectReceipts });
   }
-
-  if (collectReceipts) {
-    if (lamportCeiling === null) {
-      return await debugGraph.materialize({ receipts: true });
-    }
-    return await debugGraph.materialize({ receipts: true, ceiling: lamportCeiling });
-  }
-
-  if (lamportCeiling === null) {
-    return await debugGraph.materialize();
-  }
-  return await debugGraph.materialize({ ceiling: lamportCeiling });
+  return await materializeGraphForDebug(debugGraph, { lamportCeiling, collectReceipts });
 }
 
 /**
- * @param {WarpGraphInstance} graph
- * @param {string} strandId
- * @param {number|null} lamportCeiling
+ * Materializes a single strand with optional ceiling and receipt collection.
+ *
+ * @param {WarpCoreRuntime} debugGraph - Cast graph with internal API access
+ * @param {string} strandId - Strand identifier to materialize
+ * @param {{ lamportCeiling: number|null, collectReceipts: boolean }} opts
+ * @returns {Promise<unknown>}
+ */
+async function materializeStrandForDebug(debugGraph, strandId, opts) {
+  /** @type {Record<string, unknown>} */
+  const matOpts = {};
+  if (opts.collectReceipts) {
+    matOpts.receipts = true;
+  }
+  if (opts.lamportCeiling !== null) {
+    matOpts.ceiling = opts.lamportCeiling;
+  }
+  return Object.keys(matOpts).length > 0
+    ? await debugGraph.materializeStrand(strandId, matOpts)
+    : await debugGraph.materializeStrand(strandId);
+}
+
+/**
+ * Materializes the full graph with optional ceiling and receipt collection.
+ *
+ * @param {WarpCoreRuntime} debugGraph - Cast graph with internal API access
+ * @param {{ lamportCeiling: number|null, collectReceipts: boolean }} opts
+ * @returns {Promise<unknown>}
+ */
+async function materializeGraphForDebug(debugGraph, opts) {
+  /** @type {Record<string, unknown>} */
+  const matOpts = {};
+  if (opts.collectReceipts) {
+    matOpts.receipts = true;
+  }
+  if (opts.lamportCeiling !== null) {
+    matOpts.ceiling = opts.lamportCeiling;
+  }
+  return Object.keys(matOpts).length > 0
+    ? await debugGraph.materialize(matOpts)
+    : await debugGraph.materialize();
+}
+
+/**
+ * Retrieves decoded patch entries for a specific strand, optionally capped by lamport ceiling.
+ *
+ * @param {WarpGraphInstance} graph - Open graph instance
+ * @param {string} strandId - Strand identifier to fetch patches for
+ * @param {number|null} lamportCeiling - Maximum lamport tick to include, or null for all
  * @returns {Promise<Array<{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}>>}
  */
 export async function getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling) {
@@ -95,7 +126,9 @@ export async function getStrandPatchEntriesForDebug(graph, strandId, lamportCeil
 }
 
 /**
- * @param {import('../../../../index.js').StrandDescriptor} strand
+ * Produces a serializable summary of a strand's context for debug output.
+ *
+ * @param {import('../../../../index.js').StrandDescriptor} strand - Full strand descriptor
  * @returns {{
  *   strandId: string,
  *   baseLamportCeiling: number|null,
@@ -125,8 +158,10 @@ export function summarizeStrandContextForDebug(strand) {
 }
 
 /**
- * @param {WarpGraphInstance} graph
- * @param {string} strandId
+ * Loads and summarizes a strand's debug context, throwing if the strand is not found.
+ *
+ * @param {WarpGraphInstance} graph - Open graph instance
+ * @param {string} strandId - Strand identifier to load
  * @returns {Promise<ReturnType<typeof summarizeStrandContextForDebug>>}
  */
 export async function loadStrandContextForDebug(graph, strandId) {
@@ -152,8 +187,10 @@ export function compareStrings(a, b) {
 }
 
 /**
- * @param {number} a
- * @param {number} b
+ * Numeric comparator for deterministic sorting.
+ *
+ * @param {number} a - First number
+ * @param {number} b - Second number
  * @returns {number}
  */
 export function compareNumbers(a, b) {
@@ -161,92 +198,142 @@ export function compareNumbers(a, b) {
 }
 
 /**
- * @param {Array<Record<string, unknown> & { type: string }>|undefined} ops
- * @returns {string[]}
+ * Adds a string field from an op to the set if it is a non-empty string.
+ *
+ * @param {Set<string>} ids - Accumulator set
+ * @param {unknown} value - Field value to check
+ */
+function addIfNonEmptyString(ids, value) {
+  if (typeof value === 'string' && value.length > 0) {
+    ids.add(value);
+  }
+}
+
+/**
+ * Collects unique node/edge endpoint IDs referenced by patch operations.
+ *
+ * @param {Array<Record<string, unknown> & { type: string }>|undefined} ops - Raw patch operations
+ * @returns {string[]} Sorted unique identifiers
  */
 export function collectTouchedIds(ops) {
   if (!Array.isArray(ops) || ops.length === 0) {
     return [];
   }
 
+  /** @type {Set<string>} */
   const ids = new Set();
   for (const op of ops) {
-    if (typeof op.node === 'string' && op.node.length > 0) {
-      ids.add(op.node);
-    }
-    if (typeof op.from === 'string' && op.from.length > 0) {
-      ids.add(op.from);
-    }
-    if (typeof op.to === 'string' && op.to.length > 0) {
-      ids.add(op.to);
-    }
+    addIfNonEmptyString(ids, op.node);
+    addIfNonEmptyString(ids, op.from);
+    addIfNonEmptyString(ids, op.to);
   }
 
-  return [...ids].sort(compareStrings);
+  return /** @type {string[]} */ ([...ids].sort(compareStrings));
+}
+
+/**
+ * Returns the lamport value from a patch, defaulting to zero if absent.
+ *
+ * @param {{ lamport?: number }} patch - Patch with optional lamport
+ * @returns {number}
+ */
+function patchLamport(patch) {
+  return patch.lamport ?? 0;
+}
+
+/**
+ * Returns the writer value from a patch, defaulting to empty string if absent.
+ *
+ * @param {{ writer?: string }} patch - Patch with optional writer
+ * @returns {string}
+ */
+function patchWriter(patch) {
+  return patch.writer ?? '';
+}
+
+/**
+ * Compares two patch entries by lamport, then writer, then SHA for deterministic ordering.
+ *
+ * @param {{patch: {writer?: string, lamport?: number}, sha: string}} a - First entry
+ * @param {{patch: {writer?: string, lamport?: number}, sha: string}} b - Second entry
+ * @returns {number}
+ */
+function comparePatchEntries(a, b) {
+  return compareNumbers(patchLamport(a.patch), patchLamport(b.patch))
+    || compareStrings(patchWriter(a.patch), patchWriter(b.patch))
+    || compareStrings(a.sha, b.sha);
 }
 
 /**
  * Deterministic causal sort for patch entries.
  *
- * @param {Array<{patch: {writer?: string, lamport?: number}, sha: string}>} entries
+ * @param {Array<{patch: {writer?: string, lamport?: number}, sha: string}>} entries - Unsorted patch entries
  * @returns {Array<{patch: {writer?: string, lamport?: number}, sha: string}>}
  */
 export function sortPatchEntriesCausally(entries) {
-  return [...entries].sort((a, b) => {
-    const lamportCmp = compareNumbers(a.patch.lamport ?? 0, b.patch.lamport ?? 0);
-    if (lamportCmp !== 0) {
-      return lamportCmp;
-    }
-    const writerCmp = compareStrings(a.patch.writer ?? '', b.patch.writer ?? '');
-    if (writerCmp !== 0) {
-      return writerCmp;
-    }
-    return compareStrings(a.sha, b.sha);
-  });
+  return [...entries].sort(comparePatchEntries);
+}
+
+/** @typedef {{ writer?: string, lamport?: number, schema?: number, ops?: Array<Record<string, unknown> & { type: string }>, reads?: string[], writes?: string[] }} DebugPatch */
+
+/**
+ * Safely copies a string array or returns an empty array.
+ *
+ * @param {unknown} arr - Value to copy if it is an array
+ * @returns {string[]}
+ */
+function copyStringArray(arr) {
+  if (!Array.isArray(arr)) {
+    return [];
+  }
+  /** @type {string[]} */
+  const result = [];
+  for (const item of /** @type {string[]} */ (arr)) {
+    result.push(item);
+  }
+  return result;
 }
 
 /**
- * @param {Array<{patch: {
- *   writer?: string,
- *   lamport?: number,
- *   schema?: number,
- *   ops?: Array<Record<string, unknown> & { type: string }>,
- *   reads?: string[],
- *   writes?: string[]
- * }, sha: string}>} entries
- * @returns {Array<{
- *   sha: string,
-  *   writer: string,
- *   lamport: number,
- *   schema: number|undefined,
- *   opCount: number,
- *   opSummary: Record<string, number>,
- *   reads: string[],
- *   writes: string[],
- *   targets: string[]
- * }>}
+ * Summarizes a single patch entry into a compact debug-friendly shape.
+ *
+ * @param {{ patch: DebugPatch, sha: string }} entry - Raw patch entry
+ * @returns {{ sha: string, writer: string, lamport: number, schema: number|undefined, opCount: number, opSummary: Record<string, number>, reads: string[], writes: string[], targets: string[] }}
  */
-export function summarizePatchEntries(entries) {
-  return entries.map(({ patch, sha }) => ({
+function summarizeSinglePatch({ patch, sha }) {
+  const ops = Array.isArray(patch.ops) ? patch.ops : [];
+  return {
     sha,
     writer: patch.writer ?? '',
     lamport: patch.lamport ?? 0,
     schema: patch.schema,
-    opCount: Array.isArray(patch.ops) ? patch.ops.length : 0,
-    opSummary: Array.isArray(patch.ops) ? summarizeOps(patch.ops) : {},
-    reads: Array.isArray(patch.reads) ? [...patch.reads] : [],
-    writes: Array.isArray(patch.writes) ? [...patch.writes] : [],
+    opCount: ops.length,
+    opSummary: ops.length > 0 ? summarizeOps(ops) : {},
+    reads: copyStringArray(patch.reads),
+    writes: copyStringArray(patch.writes),
     targets: collectTouchedIds(patch.ops),
-  }));
+  };
 }
 
 /**
- * @param {string} sha
- * @param {string|null} prefix
+ * Transforms raw patch entries into compact summaries for debug display.
+ *
+ * @param {Array<{patch: DebugPatch, sha: string}>} entries - Raw patch entries
+ * @returns {Array<{ sha: string, writer: string, lamport: number, schema: number|undefined, opCount: number, opSummary: Record<string, number>, reads: string[], writes: string[], targets: string[] }>}
+ */
+export function summarizePatchEntries(entries) {
+  return entries.map(summarizeSinglePatch);
+}
+
+/**
+ * Returns true if the SHA matches a given prefix, or if no prefix is provided.
+ *
+ * @param {string} sha - Full commit SHA
+ * @param {string|null} prefix - SHA prefix to match against, or null for all
  * @returns {boolean}
  */
 export function matchesShaPrefix(sha, prefix) {
-  if (!prefix) {
+  if (prefix === null || prefix === undefined || prefix.length === 0) {
     return true;
   }
   return sha === prefix || sha.startsWith(prefix);

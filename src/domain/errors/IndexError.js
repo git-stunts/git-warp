@@ -18,6 +18,7 @@ import WarpError from './WarpError.js';
  */
 export default class IndexError extends WarpError {
   /**
+   * Constructs an IndexError with an optional error code and debugging context.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

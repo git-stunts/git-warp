@@ -39,6 +39,24 @@ import {
 // ── Color control ────────────────────────────────────────────────────────────
 
 /**
+ * Returns true if FORCE_COLOR is set to a non-empty, non-zero value.
+ *
+ * @returns {boolean}
+ */
+function isForceColorEnabled() {
+  return process.env.FORCE_COLOR !== undefined && process.env.FORCE_COLOR !== '' && process.env.FORCE_COLOR !== '0';
+}
+
+/**
+ * Returns true if the environment signals color should be suppressed.
+ *
+ * @returns {boolean}
+ */
+function isColorSuppressed() {
+  return process.env.NO_COLOR !== undefined || !process.stdout.isTTY || process.env.CI !== undefined;
+}
+
+/**
  * Determines whether ANSI color codes should be stripped from output.
  *
  * Precedence: FORCE_COLOR=0 (strip) > FORCE_COLOR!='' (keep) > NO_COLOR > !isTTY > CI.
@@ -48,40 +66,51 @@ export function shouldStripColor() {
   if (process.env.FORCE_COLOR === '0') {
     return true;
   }
-  if (process.env.FORCE_COLOR !== undefined && process.env.FORCE_COLOR !== '') {
+  if (isForceColorEnabled()) {
     return false;
   }
-  if (process.env.NO_COLOR !== undefined) {
-    return true;
-  }
-  if (!process.stdout.isTTY) {
-    return true;
-  }
-  if (process.env.CI !== undefined) {
-    return true;
-  }
-  return false;
+  return isColorSuppressed();
 }
 
 // ── Text renderer map ────────────────────────────────────────────────────────
 
-/** @param {import('./text.js').PatchShowPayload & Partial<import('./text.js').PatchListPayload>} payload */
+/**
+ * Routes patch rendering to show or list based on payload shape.
+ *
+ * @param {import('./text.js').PatchShowPayload & Partial<import('./text.js').PatchListPayload>} payload
+ */
 function renderPatch(payload) {
-  if (payload.ops) {
+  if (payload.ops !== undefined && payload.ops !== null) {
     return renderPatchShow(payload);
   }
   return renderPatchList(/** @type {import('./text.js').PatchListPayload} */ (payload));
 }
 
-/** @param {{ graph: string, tree?: string, orphanCount?: number, orphans?: string[] }} payload */
+/**
+ * Returns true if the payload has orphan data worth displaying.
+ *
+ * @param {{ orphanCount?: number, orphans?: string[] }} payload - Tree payload to check
+ * @returns {boolean}
+ */
+function hasOrphans(payload) {
+  return payload.orphanCount !== undefined && payload.orphanCount !== null
+    && payload.orphanCount > 0
+    && payload.orphans !== undefined && payload.orphans !== null;
+}
+
+/**
+ * Renders a tree command payload as plain text.
+ *
+ * @param {{ graph: string, tree?: string, orphanCount?: number, orphans?: string[] }} payload - Tree command result
+ */
 function renderTree(payload) {
   const lines = [`Graph: ${payload.graph}`];
-  if (payload.tree) {
+  if (payload.tree !== undefined && payload.tree !== null && payload.tree.length > 0) {
     lines.push(payload.tree);
   }
-  if (payload.orphanCount && payload.orphanCount > 0 && payload.orphans) {
+  if (hasOrphans(payload)) {
     lines.push('');
-    lines.push(`Orphans (${payload.orphanCount}): ${payload.orphans.join(', ')}`);
+    lines.push(`Orphans (${/** @type {number} */ (payload.orphanCount)}): ${/** @type {string[]} */ (payload.orphans).join(', ')}`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -105,7 +134,7 @@ const TEXT_RENDERERS = new Map(/** @type {[string, function(unknown): string][]}
   ['install-hooks', renderInstallHooks],
 ]));
 
-/** @type {Map<string, function(unknown): string>} */
+/** View-mode renderers keyed by command name. @type {Map<string, function(unknown): string>} */
 const VIEW_RENDERERS = new Map(/** @type {[string, function(unknown): string][]} */ ([
   ['info', renderInfoView],
   ['check', renderCheckView],
@@ -130,30 +159,39 @@ function writeHtmlExport(filePath, svgContent) {
 // ── SVG / HTML file export ───────────────────────────────────────────────────
 
 /**
+ * Writes SVG or HTML content to a file path, logging the result to stderr.
+ *
+ * @param {{ _renderedSvg?: string }} payload - Payload with optional pre-rendered SVG
+ * @param {string} filePath - Destination file path
+ * @param {'svg'|'html'} format - Export format
+ */
+function writeExportFile(payload, filePath, format) {
+  if (payload._renderedSvg === undefined || payload._renderedSvg === null || payload._renderedSvg.length === 0) {
+    process.stderr.write(`No graph data — skipping ${format.toUpperCase()} export.\n`);
+    return;
+  }
+  if (format === 'html') {
+    writeHtmlExport(filePath, payload._renderedSvg);
+  } else {
+    fs.writeFileSync(filePath, payload._renderedSvg);
+  }
+  process.stderr.write(`${format.toUpperCase()} written to ${filePath}\n`);
+}
+
+/**
  * Handles svg:PATH and html:PATH view modes for commands that carry _renderedSvg.
- * @param {{ _renderedSvg?: string }} payload
- * @param {string} view
+ *
+ * @param {{ _renderedSvg?: string }} payload - Payload with optional pre-rendered SVG
+ * @param {string} view - View mode string (e.g. "svg:/path" or "html:/path")
  * @returns {boolean} true if handled
  */
 function handleFileExport(payload, view) {
   if (typeof view === 'string' && view.startsWith('svg:')) {
-    const svgPath = view.slice(4);
-    if (!payload._renderedSvg) {
-      process.stderr.write('No graph data — skipping SVG export.\n');
-    } else {
-      fs.writeFileSync(svgPath, payload._renderedSvg);
-      process.stderr.write(`SVG written to ${svgPath}\n`);
-    }
+    writeExportFile(payload, view.slice(4), 'svg');
     return true;
   }
   if (typeof view === 'string' && view.startsWith('html:')) {
-    const htmlPath = view.slice(5);
-    if (!payload._renderedSvg) {
-      process.stderr.write('No graph data — skipping HTML export.\n');
-    } else {
-      writeHtmlExport(htmlPath, payload._renderedSvg);
-      process.stderr.write(`HTML written to ${htmlPath}\n`);
-    }
+    writeExportFile(payload, view.slice(5), 'html');
     return true;
   }
   return false;
@@ -173,44 +211,71 @@ function writeText(text, strip) {
 // ── Main dispatcher ──────────────────────────────────────────────────────────
 
 /**
+ * Writes a serialized JSON payload to stdout in the specified format.
+ *
+ * @param {Record<string, unknown>} payload - Command result payload
+ * @param {string} format - Either 'json' or 'ndjson'
+ */
+function writeJsonOutput(payload, format) {
+  const stringify = format === 'ndjson' ? compactStringify : stableStringify;
+  process.stdout.write(`${stringify(sanitizePayload(payload))}\n`);
+}
+
+/**
+ * Renders a payload using plain text format and writes to stdout.
+ *
+ * @param {Record<string, unknown>} payload - Command result payload
+ * @param {string} command - CLI command name for renderer lookup
+ */
+function writeTextOutput(payload, command) {
+  const renderer = TEXT_RENDERERS.get(command);
+  if (renderer !== undefined) {
+    writeText(renderer(payload), shouldStripColor());
+  } else {
+    process.stdout.write(`${stableStringify(sanitizePayload(payload))}\n`);
+  }
+}
+
+/**
+ * Returns true if the payload represents an error result.
+ *
+ * @param {Record<string, unknown>} payload - Payload to inspect
+ * @returns {boolean}
+ */
+function isErrorPayload(payload) {
+  return payload !== null && payload !== undefined && 'error' in payload && payload.error !== undefined;
+}
+
+/**
+ * Returns true if the view option is actively set (non-null, non-false).
+ *
+ * @param {string|null|boolean} view - View option from CLI
+ * @returns {boolean}
+ */
+function isViewActive(view) {
+  return view !== null && view !== undefined && view !== false;
+}
+
+/**
  * Writes a command result to stdout/stderr in the requested format.
  *
  * @param {Record<string, unknown>} payload - Command result payload
- * @param {{format: string, command: string, view: string|null|boolean}} options
+ * @param {{format: string, command: string, view: string|null|boolean}} options - Output options
  */
 export function present(payload, { format, command, view }) {
-  // Error payloads always go to stderr as plain text
-  if (payload?.error) {
+  if (isErrorPayload(payload)) {
     process.stderr.write(renderError(/** @type {import('./text.js').ErrorPayload} */ (payload)));
     return;
   }
-
-  // JSON: sanitize + pretty-print
-  if (format === 'json') {
-    process.stdout.write(`${stableStringify(sanitizePayload(payload))}\n`);
+  if (format === 'json' || format === 'ndjson') {
+    writeJsonOutput(payload, format);
     return;
   }
-
-  // NDJSON: sanitize + compact single line
-  if (format === 'ndjson') {
-    process.stdout.write(`${compactStringify(sanitizePayload(payload))}\n`);
-    return;
-  }
-
-  // Text with view mode
-  if (view) {
+  if (isViewActive(view)) {
     presentView(payload, command, view);
     return;
   }
-
-  // Plain text
-  const renderer = TEXT_RENDERERS.get(command);
-  if (renderer) {
-    writeText(renderer(payload), shouldStripColor());
-  } else {
-    // Fallback for unknown commands
-    process.stdout.write(`${stableStringify(sanitizePayload(payload))}\n`);
-  }
+  writeTextOutput(payload, command);
 }
 
 /**

@@ -23,6 +23,7 @@ import WarpError from './WarpError.js';
  */
 export default class WormholeError extends WarpError {
   /**
+   * Constructs a WormholeError with an optional error code and debugging context.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

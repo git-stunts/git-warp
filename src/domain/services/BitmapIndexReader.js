@@ -1,4 +1,4 @@
-import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../errors/index.js';
+import { IndexError, ShardLoadError, ShardCorruptionError, ShardValidationError } from '../errors/index.js';
 import defaultCrypto from '../utils/defaultCrypto.js';
 import nullLogger from '../utils/nullLogger.js';
 import LRUCache from '../utils/LRUCache.js';
@@ -11,6 +11,9 @@ import { base64Decode } from '../utils/bytes.js';
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
 /** @typedef {import('../../ports/LoggerPort.js').default} LoggerPort */
 /** @typedef {import('../../ports/CryptoPort.js').default} CryptoPort */
+/** @typedef {Record<string, string | number>} JsonShard */
+/** @typedef {import('../utils/roaring.js').RoaringBitmapSubset} BitmapShard */
+/** @typedef {JsonShard | BitmapShard} LoadedShard */
 
 /**
  * Supported shard format versions for backward compatibility.
@@ -25,6 +28,34 @@ const SUPPORTED_SHARD_VERSIONS = [1, 2];
  * @const {number}
  */
 const DEFAULT_MAX_CACHED_SHARDS = 100;
+const LARGE_ID_CACHE_WARNING_THRESHOLD = 1_000_000;
+const ESTIMATED_ID_CACHE_ENTRY_BYTES = 40;
+
+/**
+ * Checks whether a value is a non-empty string.
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Checks whether a shard path points at a metadata shard.
+ * @param {string} path
+ * @returns {boolean}
+ */
+function isMetaShardPath(path) {
+  return path.startsWith('meta_') && path.endsWith('.json');
+}
+
+/**
+ * Creates an empty bitmap shard instance.
+ * @returns {BitmapShard}
+ */
+function createEmptyBitmapShard() {
+  return new (getRoaringBitmap32())();
+}
 
 /**
  * Computes a SHA-256 checksum of the given data.
@@ -86,17 +117,21 @@ export default class BitmapIndexReader {
    * @param {{ storage: IndexStoragePort, strict?: boolean, logger?: import('../../ports/LoggerPort.js').default, maxCachedShards?: number, crypto?: import('../../ports/CryptoPort.js').default }} options
    */
   constructor({ storage, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto }) {
-    if (!storage) {
-      throw new Error('BitmapIndexReader requires a storage adapter');
+    if (storage === null || storage === undefined) {
+      throw new IndexError('BitmapIndexReader requires a storage adapter', {
+        code: 'E_INDEX_STORAGE_REQUIRED',
+      });
     }
     this.storage = /** @type {IndexStorage} */ (storage);
     this.strict = strict;
     this.logger = logger;
     this.maxCachedShards = maxCachedShards;
     /** @type {import('../../ports/CryptoPort.js').default} */
-    this._crypto = crypto || defaultCrypto;
-    this.shardOids = new Map(); // path -> OID
-    this.loadedShards = new LRUCache(maxCachedShards); // path -> Data
+    this._crypto = crypto ?? defaultCrypto;
+    /** @type {Map<string, string>} */
+    this.shardOids = new Map();
+    /** @type {LRUCache<string, LoadedShard>} */
+    this.loadedShards = new LRUCache(maxCachedShards);
     /** @type {string[]|null} */
     this._idToShaCache = null; // Lazy-built reverse mapping
   }
@@ -198,35 +233,43 @@ export default class BitmapIndexReader {
     const shard = /** @type {Record<string, string>} */ (await this._getOrLoadShard(shardPath, 'json'));
 
     const encoded = shard[sha];
-    if (!encoded) {
+    if (!isNonEmptyString(encoded)) {
       return [];
     }
+    const ids = this._deserializeBitmapIds(encoded, shardPath);
+    const idToSha = await this._buildIdToShaMapping();
+    return ids.filter((id) => typeof idToSha[id] === 'string').map((id) => /** @type {string} */ (idToSha[id]));
+  }
 
-    // Decode base64 bitmap and extract IDs
+  /**
+   * Deserializes base64-encoded bitmap data into numeric ids.
+   * @param {string} encoded
+   * @param {string} shardPath
+   * @returns {number[]}
+   * @private
+   */
+  _deserializeBitmapIds(encoded, shardPath) {
     const buffer = base64Decode(encoded);
-    let ids;
     try {
       const RoaringBitmap32 = getRoaringBitmap32();
       const bitmap = RoaringBitmap32.deserialize(buffer, true);
-      ids = bitmap.toArray();
+      return bitmap.toArray();
     } catch (err) {
+      const oid = this.shardOids.get(shardPath);
+      const shardOid = isNonEmptyString(oid) ? oid : shardPath;
       const corruptionError = new ShardCorruptionError('Failed to deserialize bitmap', {
         shardPath,
-        oid: this.shardOids.get(shardPath),
+        oid: shardOid,
         reason: 'bitmap_deserialize_error',
         context: { originalError: err instanceof Error ? err.message : String(err) },
       });
       this._handleShardError(corruptionError, {
         path: shardPath,
-        oid: this.shardOids.get(shardPath),
+        oid: shardOid,
         format: 'json',
       });
       return [];
     }
-
-    // Convert IDs to SHAs
-    const idToSha = await this._buildIdToShaMapping();
-    return ids.map(id => idToSha[id]).filter(Boolean);
   }
 
   /**
@@ -235,33 +278,50 @@ export default class BitmapIndexReader {
    * @private
    */
   async _buildIdToShaMapping() {
-    if (this._idToShaCache) {
+    if (this._idToShaCache !== null) {
       return this._idToShaCache;
     }
+    const idToShaCache = [];
+    this._idToShaCache = idToShaCache;
+    await this._populateIdToShaCache(idToShaCache);
+    this._warnLargeIdCache(idToShaCache.length);
+    return idToShaCache;
+  }
 
-    this._idToShaCache = [];
-
+  /**
+   * Populates the reverse id-to-sha cache from all metadata shards.
+   * @param {string[]} idToShaCache
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _populateIdToShaCache(idToShaCache) {
     for (const [path] of this.shardOids) {
-      if (path.startsWith('meta_') && path.endsWith('.json')) {
-        // Meta shards always map SHA→numeric ID (built by BitmapIndexBuilder)
-        const shard = /** @type {Record<string, number>} */ (await this._getOrLoadShard(path, 'json'));
-        for (const [sha, id] of Object.entries(shard)) {
-          this._idToShaCache[id] = sha;
-        }
+      if (!isMetaShardPath(path)) {
+        continue;
+      }
+      const shard = /** @type {Record<string, number>} */ (await this._getOrLoadShard(path, 'json'));
+      for (const [sha, id] of Object.entries(shard)) {
+        idToShaCache[id] = sha;
       }
     }
+  }
 
-    const entryCount = this._idToShaCache.length;
-    if (entryCount > 1_000_000) {
-      this.logger.warn('ID-to-SHA cache has high memory usage', {
-        operation: '_buildIdToShaMapping',
-        entryCount,
-        estimatedMemoryBytes: entryCount * 40,
-        message: `Cache contains ${entryCount} entries (~40 bytes per entry). Consider pagination or streaming for very large graphs.`,
-      });
+  /**
+   * Logs a warning when the id-to-sha cache grows unusually large.
+   * @param {number} entryCount
+   * @returns {void}
+   * @private
+   */
+  _warnLargeIdCache(entryCount) {
+    if (entryCount <= LARGE_ID_CACHE_WARNING_THRESHOLD) {
+      return;
     }
-
-    return this._idToShaCache;
+    this.logger.warn('ID-to-SHA cache has high memory usage', {
+      operation: '_buildIdToShaMapping',
+      entryCount,
+      estimatedMemoryBytes: entryCount * ESTIMATED_ID_CACHE_ENTRY_BYTES,
+      message: `Cache contains ${entryCount} entries (~${ESTIMATED_ID_CACHE_ENTRY_BYTES} bytes per entry). Consider pagination or streaming for very large graphs.`,
+    });
   }
 
   /**
@@ -276,40 +336,90 @@ export default class BitmapIndexReader {
    * @private
    */
   async _validateShard(envelope, path, oid) {
-    if (!envelope || typeof envelope !== 'object') {
+    this._assertShardEnvelopeObject(envelope, path, oid);
+    const data = this._getShardEnvelopeData(envelope, path, oid);
+    const version = this._getShardEnvelopeVersion(envelope, path);
+    await this._assertShardChecksum(data, version, envelope.checksum, path);
+    return data;
+  }
+
+  /**
+   * Ensures the shard envelope is an object before deeper validation.
+   * @param {{ data?: JsonShard, version?: number, checksum?: string }} envelope
+   * @param {string} path
+   * @param {string} oid
+   * @returns {void}
+   * @private
+   */
+  _assertShardEnvelopeObject(envelope, path, oid) {
+    if (envelope === null || typeof envelope !== 'object') {
       throw new ShardCorruptionError('Invalid shard format', {
         shardPath: path,
         oid,
         reason: 'not_an_object',
       });
     }
-    // Validate data field exists and is an object
-    if (typeof envelope.data !== 'object' || envelope.data === null || Array.isArray(envelope.data)) {
+  }
+
+  /**
+   * Extracts and validates the `data` portion of a shard envelope.
+   * @param {{ data?: JsonShard }} envelope
+   * @param {string} path
+   * @param {string} oid
+   * @returns {JsonShard}
+   * @private
+   */
+  _getShardEnvelopeData(envelope, path, oid) {
+    const { data } = envelope;
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
       throw new ShardCorruptionError('Invalid or missing data field', {
         shardPath: path,
         oid,
         reason: 'missing_or_invalid_data',
       });
     }
-    if (!SUPPORTED_SHARD_VERSIONS.includes(/** @type {number} */ (envelope.version))) {
+    return data;
+  }
+
+  /**
+   * Extracts and validates the shard format version.
+   * @param {{ version?: number }} envelope
+   * @param {string} path
+   * @returns {number}
+   * @private
+   */
+  _getShardEnvelopeVersion(envelope, path) {
+    const { version } = envelope;
+    if (typeof version !== 'number' || !SUPPORTED_SHARD_VERSIONS.includes(version)) {
       throw new ShardValidationError('Unsupported version', {
         shardPath: path,
         expected: SUPPORTED_SHARD_VERSIONS,
-        actual: envelope.version,
+        actual: version,
         field: 'version',
       });
     }
-    // Use version-appropriate checksum computation for backward compatibility
-    const actualChecksum = await computeChecksum(envelope.data, /** @type {number} */ (envelope.version), this._crypto);
-    if (envelope.checksum !== actualChecksum) {
+    return version;
+  }
+
+  /**
+   * Verifies the stored shard checksum against the recomputed checksum.
+   * @param {JsonShard} data
+   * @param {number} version
+   * @param {string | undefined} expectedChecksum
+   * @param {string} path
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _assertShardChecksum(data, version, expectedChecksum, path) {
+    const actualChecksum = await computeChecksum(data, version, this._crypto);
+    if (expectedChecksum !== actualChecksum) {
       throw new ShardValidationError('Checksum mismatch', {
         shardPath: path,
-        expected: envelope.checksum,
+        expected: expectedChecksum,
         actual: actualChecksum,
         field: 'checksum',
       });
     }
-    return envelope.data;
   }
 
   /**
@@ -324,25 +434,43 @@ export default class BitmapIndexReader {
     if (this.strict) {
       throw err;
     }
-    /** @type {string|undefined} */
-    const field = err instanceof ShardValidationError ? err.field : undefined;
-    /** @type {unknown} */
-    const expected = err instanceof ShardValidationError ? err.expected : undefined;
-    /** @type {unknown} */
-    const actual = err instanceof ShardValidationError ? err.actual : undefined;
+    const details = this._getShardValidationDetails(err);
     this.logger.warn('Shard validation warning', {
       operation: 'loadShard',
       shardPath: path,
       oid,
       error: err.message,
       code: err.code,
-      field,
-      expected,
-      actual,
+      field: details.field,
+      expected: details.expected,
+      actual: details.actual,
     });
-    const emptyShard = format === 'json' ? {} : new (getRoaringBitmap32())();
+    const emptyShard = this._createEmptyShard(format);
     this.loadedShards.set(path, emptyShard);
     return emptyShard;
+  }
+
+  /**
+   * Extracts optional validation metadata from a shard error.
+   * @param {ShardCorruptionError|ShardValidationError} err
+   * @returns {{ field?: string, expected?: unknown, actual?: unknown }}
+   * @private
+   */
+  _getShardValidationDetails(err) {
+    if (err instanceof ShardValidationError) {
+      return { field: err.field, expected: err.expected, actual: err.actual };
+    }
+    return {};
+  }
+
+  /**
+   * Creates an empty shard matching the requested format.
+   * @param {string} format
+   * @returns {LoadedShard}
+   * @private
+   */
+  _createEmptyShard(format) {
+    return format === 'json' ? {} : createEmptyBitmapShard();
   }
 
   /**
@@ -356,7 +484,9 @@ export default class BitmapIndexReader {
    * @private
    */
   async _parseAndValidateShard(buffer, path, oid) {
-    const envelope = JSON.parse(new TextDecoder().decode(buffer));
+    const envelope = /** @type {{ data?: JsonShard, version?: number, checksum?: string }} */ (
+      /** @type {unknown} */ (JSON.parse(new TextDecoder().decode(buffer)))
+    );
     return await this._validateShard(envelope, path, oid);
   }
 
@@ -432,14 +562,14 @@ export default class BitmapIndexReader {
    * @private
    */
   async _getOrLoadShard(path, format) {
-    if (this.loadedShards.has(path)) {
-      return this.loadedShards.get(path);
+    const cachedShard = this.loadedShards.get(path);
+    if (cachedShard !== undefined) {
+      return cachedShard;
     }
 
     const oid = this.shardOids.get(path);
-    const emptyShard = format === 'json' ? {} : new (getRoaringBitmap32())();
-    if (!oid) {
-      return emptyShard;
+    if (!isNonEmptyString(oid)) {
+      return this._createEmptyShard(format);
     }
 
     const buffer = await this._loadShardBuffer(path, oid);

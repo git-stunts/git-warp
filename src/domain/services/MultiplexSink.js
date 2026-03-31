@@ -17,18 +17,27 @@ import EffectSinkPort from '../../ports/EffectSinkPort.js';
  * @typedef {import('../types/DeliveryObservation.js').DeliveryObservation} DeliveryObservation
  */
 
+/** Default sink ID for MultiplexSink. */
+export const MULTIPLEX_SINK_ID = 'multiplex';
+
 export class MultiplexSink extends EffectSinkPort {
   /**
+   * Constructs a multiplex sink with an optional custom identifier.
+   *
    * @param {{ id?: string }} [options]
    */
   constructor(options) {
     super();
-    this._id = (options && options.id) || 'multiplex';
+    this._id = (options !== null && options !== undefined && options.id !== undefined && options.id !== '') ? options.id : MULTIPLEX_SINK_ID;
     /** @type {EffectSinkPort[]} */
     this._sinks = [];
   }
 
-  /** @returns {string} */
+  /**
+   * Returns the unique identifier for this multiplex sink.
+   *
+   * @returns {string}
+   */
   get id() {
     return this._id;
   }

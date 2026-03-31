@@ -13,6 +13,10 @@
 
 import EffectSinkPort from '../../ports/EffectSinkPort.js';
 import { createDeliveryObservation } from '../../domain/types/DeliveryObservation.js';
+import {
+  OUTCOME_DELIVERED,
+  OUTCOME_FAILED,
+} from '../../domain/types/ExternalizationPolicy.js';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -23,8 +27,48 @@ import { join } from 'node:path';
 
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
 
+/** Default sink ID for ChunkEffectSink. */
+export const CHUNK_SINK_ID = 'chunk';
+
+/** Filename prefix for chunk NDJSON files. */
+const CHUNK_FILE_PREFIX = 'effects-';
+
+/** File extension for chunk NDJSON files. */
+const CHUNK_FILE_EXT = '.ndjson';
+
+/** Zero-pad width for chunk index in filenames. */
+const CHUNK_INDEX_PAD_WIDTH = 4;
+
+/**
+ * Resolves an optional sink ID, falling back to the default chunk sink ID.
+ *
+ * @param {{ id?: string }} [options]
+ * @returns {string}
+ */
+function resolveSinkId(options) {
+  if (options !== null && options !== undefined && options.id !== undefined && options.id !== '') {
+    return options.id;
+  }
+  return CHUNK_SINK_ID;
+}
+
+/**
+ * Resolves an optional max-bytes value, falling back to the default.
+ *
+ * @param {{ maxBytes?: number }} [options]
+ * @returns {number}
+ */
+function resolveMaxBytes(options) {
+  if (options !== null && options !== undefined && options.maxBytes !== undefined && options.maxBytes !== 0) {
+    return options.maxBytes;
+  }
+  return DEFAULT_MAX_BYTES;
+}
+
 export class ChunkEffectSink extends EffectSinkPort {
   /**
+   * Constructs a chunk sink that writes NDJSON files to the given directory, rotating when the byte budget is exceeded.
+   *
    * @param {{
    *   dir: string,
    *   id?: string,
@@ -33,21 +77,27 @@ export class ChunkEffectSink extends EffectSinkPort {
    */
   constructor(options) {
     super();
-    this._id = (options && options.id) || 'chunk';
+    this._id = resolveSinkId(options);
     this._dir = options.dir;
-    this._maxBytes = (options && options.maxBytes) || DEFAULT_MAX_BYTES;
+    this._maxBytes = resolveMaxBytes(options);
     /** @type {string | null} */
     this._currentFile = null;
     this._currentBytes = 0;
     this._chunkIndex = 0;
   }
 
-  /** @returns {string} */
+  /**
+   * Returns the unique identifier for this chunk sink.
+   *
+   * @returns {string}
+   */
   get id() {
     return this._id;
   }
 
   /**
+   * Writes the emission as NDJSON to the current chunk file, rotating if needed. Returns a 'delivered' or 'failed' observation.
+   *
    * @param {EffectEmission} emission
    * @param {ExternalizationPolicy} lens
    * @returns {Promise<import('../../domain/types/DeliveryObservation.js').DeliveryObservation>}
@@ -58,7 +108,7 @@ export class ChunkEffectSink extends EffectSinkPort {
       return createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
-        outcome: 'delivered',
+        outcome: OUTCOME_DELIVERED,
         timestamp: Date.now(),
         lens,
       });
@@ -66,7 +116,7 @@ export class ChunkEffectSink extends EffectSinkPort {
       return createDeliveryObservation({
         emissionId: emission.id,
         sinkId: this._id,
-        outcome: 'failed',
+        outcome: OUTCOME_FAILED,
         reason: err instanceof Error ? err.message : String(err),
         timestamp: Date.now(),
         lens,
@@ -75,6 +125,8 @@ export class ChunkEffectSink extends EffectSinkPort {
   }
 
   /**
+   * Serializes the emission to NDJSON and appends it to the current chunk file, rotating to a new file if the byte budget would be exceeded.
+   *
    * @param {EffectEmission} emission
    * @returns {Promise<void>}
    */
@@ -112,7 +164,7 @@ export class ChunkEffectSink extends EffectSinkPort {
     const ts = Date.now();
     this._currentFile = join(
       this._dir,
-      `effects-${ts}-${String(this._chunkIndex).padStart(4, '0')}.ndjson`,
+      `${CHUNK_FILE_PREFIX}${ts}-${String(this._chunkIndex).padStart(CHUNK_INDEX_PAD_WIDTH, '0')}${CHUNK_FILE_EXT}`,
     );
     this._currentBytes = 0;
   }

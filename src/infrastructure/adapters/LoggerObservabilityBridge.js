@@ -15,6 +15,7 @@
 
 export default class LoggerObservabilityBridge {
   /**
+   * Creates a bridge that forwards CAS observability events to the given logger.
    * @param {LoggerPort} logger
    */
   constructor(logger) {
@@ -52,6 +53,7 @@ export default class LoggerObservabilityBridge {
   span(name) {
     const start = performance.now();
     return {
+      /** Ends the span and logs duration as a debug metric. @param {Record<string, unknown>} [meta] */
       end: (meta) => {
         const durationMs = performance.now() - start;
         this._logger.debug(`cas:span:${name}`, { ...meta, durationMs });

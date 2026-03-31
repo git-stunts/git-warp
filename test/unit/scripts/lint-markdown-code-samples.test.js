@@ -118,7 +118,7 @@ describe('extractMarkdownCodeSamples', () => {
 
 describe('resolveRepoScriptTarget', () => {
   it('uses the repository TypeScript target from tsconfig.base.json', () => {
-    expect(resolveRepoScriptTarget()).toBe(ts.ScriptTarget.ES2022);
+    expect(resolveRepoScriptTarget()).toBe(ts.ScriptTarget.ESNext);
   });
 });
 

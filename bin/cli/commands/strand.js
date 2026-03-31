@@ -29,6 +29,10 @@ const STRAND_SUBCOMMANDS = Object.freeze({
   [dropSubcommand.STRAND_SUBCOMMAND.name]: dropSubcommand,
 });
 
+/**
+ * Builds the usage help text for the strand subcommand listing all available subcommands.
+ * @returns {string}
+ */
 function buildStrandUsage() {
   const subcommandLines = Object.values(STRAND_SUBCOMMANDS)
     .map(({ STRAND_SUBCOMMAND }) => `  ${STRAND_SUBCOMMAND.name.padEnd(12)} ${STRAND_SUBCOMMAND.summary}`);
@@ -39,6 +43,7 @@ function buildStrandUsage() {
 }
 
 /**
+ * Dispatches to the appropriate strand subcommand handler based on the first positional argument.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -46,7 +51,7 @@ export default async function handleStrand({ options, args }) {
   const subcommandName = args[0];
   const rest = args.slice(1);
 
-  if (!subcommandName) {
+  if (subcommandName === undefined || subcommandName.length === 0) {
     throw usageError(buildStrandUsage());
   }
 

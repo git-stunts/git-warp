@@ -37,6 +37,8 @@ const modeSet = new Set(DELIVERY_MODES);
 // ============================================================================
 
 /**
+ * Asserts that a value is a non-empty string, throwing if it is not.
+ *
  * @param {unknown} value
  * @param {string} name
  * @returns {void}
@@ -48,6 +50,8 @@ function requireNonEmptyString(value, name) {
 }
 
 /**
+ * Asserts that a value is a non-negative finite number suitable for a wall-clock timestamp.
+ *
  * @param {unknown} value
  * @returns {void}
  */
@@ -58,6 +62,8 @@ function validateTimestamp(value) {
 }
 
 /**
+ * Asserts that a lens is a valid ExternalizationPolicy shape with a recognized mode and boolean suppressExternal.
+ *
  * @param {unknown} lens
  * @returns {void}
  */
@@ -66,6 +72,16 @@ function validateLens(lens) {
     throw new Error('lens must be an object');
   }
   const l = /** @type {Record<string, unknown>} */ (lens);
+  validateLensFields(l);
+}
+
+/**
+ * Validates the individual fields of a lens object after the object guard has passed.
+ *
+ * @param {Record<string, unknown>} l
+ * @returns {void}
+ */
+function validateLensFields(l) {
   if (typeof l.mode !== 'string' || !modeSet.has(l.mode)) {
     throw new Error(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,
@@ -81,7 +97,20 @@ function validateLens(lens) {
 // ============================================================================
 
 /**
- * Creates an immutable DeliveryObservation.
+ * Freezes a lens into an immutable ExternalizationPolicy snapshot.
+ *
+ * @param {{ mode: string, suppressExternal: boolean }} lens
+ * @returns {Readonly<ExternalizationPolicy>}
+ */
+function freezeLens(lens) {
+  return Object.freeze({
+    mode: /** @type {'live' | 'replay' | 'inspect'} */ (lens.mode),
+    suppressExternal: lens.suppressExternal,
+  });
+}
+
+/**
+ * Creates an immutable DeliveryObservation from validated parameters.
  *
  * @param {{
  *   emissionId: string,
@@ -107,18 +136,13 @@ export function createDeliveryObservation({
   validateTimestamp(timestamp);
   validateLens(lens);
 
-  const frozenLens = Object.freeze({
-    mode: /** @type {'live' | 'replay' | 'inspect'} */ (lens.mode),
-    suppressExternal: lens.suppressExternal,
-  });
-
   /** @type {{ emissionId: string, sinkId: string, outcome: 'delivered' | 'suppressed' | 'failed' | 'skipped', timestamp: number, lens: Readonly<ExternalizationPolicy>, reason?: string }} */
   const obs = {
     emissionId,
     sinkId,
     outcome: /** @type {'delivered' | 'suppressed' | 'failed' | 'skipped'} */ (outcome),
     timestamp,
-    lens: frozenLens,
+    lens: freezeLens(lens),
   };
 
   if (reason !== undefined) {
@@ -133,6 +157,8 @@ export function createDeliveryObservation({
 // ============================================================================
 
 /**
+ * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
+ *
  * @param {string} _key
  * @param {unknown} value
  * @returns {unknown}

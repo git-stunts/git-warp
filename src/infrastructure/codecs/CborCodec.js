@@ -190,27 +190,34 @@ function sortMapToObject(map) {
  * @private
  */
 function sortKeys(value) {
-  // Nullish values pass through
+  // Nullish values and primitives pass through
   if (value === null || value === undefined) {
     return value;
   }
+  if (typeof value !== 'object') {
+    return value;
+  }
 
-  // Arrays: recursively sort elements
+  return _sortComposite(value);
+}
+
+/**
+ * Sorts keys for composite values (arrays, plain objects, Maps).
+ *
+ * @param {object} value - A non-null object, array, or Map
+ * @returns {unknown} The sorted composite structure
+ * @private
+ */
+function _sortComposite(value) {
   if (Array.isArray(value)) {
     return value.map(sortKeys);
   }
-
-  // Plain objects: sort keys and recursively process values
   if (isPlainObject(value)) {
     return sortPlainObject(/** @type {Record<string, unknown>} */ (value));
   }
-
-  // Map instances: convert to sorted object
   if (value instanceof Map) {
     return sortMapToObject(value);
   }
-
-  // Primitive values (number, string, boolean, bigint) and other objects pass through
   return value;
 }
 
@@ -374,16 +381,18 @@ export function decode(buffer) {
  */
 export class CborCodec extends CodecPort {
   /**
-   * @param {unknown} data
-   * @returns {Uint8Array}
+   * Encodes data to canonical CBOR bytes with sorted keys.
+   * @param {unknown} data - The data to encode
+   * @returns {Uint8Array} CBOR-encoded bytes
    */
   encode(data) {
     return encode(data);
   }
 
   /**
-   * @param {Uint8Array} buffer
-   * @returns {unknown}
+   * Decodes CBOR bytes to a JavaScript value.
+   * @param {Uint8Array} buffer - CBOR-encoded bytes to decode
+   * @returns {unknown} The decoded JavaScript value
    */
   decode(buffer) {
     return decode(buffer);

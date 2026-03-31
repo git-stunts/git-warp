@@ -30,6 +30,8 @@ const ED25519_PUBLIC_KEY_LENGTH = 32;
 const ED25519_SPKI_PREFIX_HEX = '302a300506032b6570032100';
 
 /**
+ * Decodes and validates a base64-encoded Ed25519 public key.
+ *
  * @param {string} publicKeyBase64
  * @returns {Uint8Array}
  */

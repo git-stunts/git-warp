@@ -8,48 +8,73 @@ import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, c
 /** @typedef {import('../types.js').Persistence} Persistence */
 /** @typedef {import('../types.js').WarpGraphInstance} WarpGraphInstance */
 
-/** @param {Persistence} persistence */
+/**
+ * Performs a health check on the graph persistence.
+ *
+ * @param {Persistence} persistence - The persistence adapter
+ * @returns {Promise<import('../../../src/domain/services/HealthCheckService.js').HealthReport>}
+ */
 async function getHealth(persistence) {
   const clock = ClockAdapter.global();
-  const healthService = new HealthCheckService({ persistence: /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence)), clock });
+  const corePersistence = /** @type {import('../../../src/domain/types/WarpPersistence.js').CorePersistence} */ (/** @type {unknown} */ (persistence));
+  const healthService = new HealthCheckService({ persistence: corePersistence, clock });
   return await healthService.getHealth();
 }
 
-/** @param {WarpGraphInstance} graph */
+/**
+ * Collects garbage collection metrics for the graph.
+ *
+ * @param {WarpGraphInstance} graph - The graph instance
+ * @returns {Promise<import('../../../src/domain/services/GCMetrics.js').GCMetrics>}
+ */
 async function getGcMetrics(graph) {
   await graph.materialize();
   return graph.getGCMetrics();
 }
 
-/** @param {WarpGraphInstance} graph */
+/**
+ * Collects current head SHAs for all writers in the graph.
+ *
+ * @param {WarpGraphInstance} graph - The graph instance
+ * @returns {Promise<Array<{writerId: string, sha: string}>>}
+ */
 async function collectWriterHeads(graph) {
   const frontier = await graph.getFrontier();
-  return [...frontier.entries()]
+  const heads = [...frontier.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([writerId, sha]) => ({ writerId, sha }));
+  return heads;
 }
 
 /**
- * @param {Persistence} persistence
- * @param {string} graphName
+ * Loads checkpoint information for a graph.
+ *
+ * @param {Persistence} persistence - The persistence adapter
+ * @param {string} graphName - Name of the graph
+ * @returns {Promise<{ref: string, sha: string|null, date: string|null, ageSeconds: number|null}>}
  */
 async function loadCheckpointInfo(persistence, graphName) {
   const checkpointRef = buildCheckpointRef(graphName);
-  const checkpointSha = await persistence.readRef(checkpointRef);
+  const checkpointSha = (await persistence.readRef(checkpointRef)) ?? '';
   const checkpointDate = await readCheckpointDate(persistence, checkpointSha);
   const checkpointAgeSeconds = computeAgeSeconds(checkpointDate);
 
   return {
     ref: checkpointRef,
-    sha: checkpointSha || null,
+    sha: checkpointSha !== '' ? checkpointSha : null,
     date: checkpointDate,
     ageSeconds: checkpointAgeSeconds,
   };
 }
 
-/** @param {string|null} checkpointDate */
+/**
+ * Computes the age in seconds for a ISO date string.
+ *
+ * @param {string|null} checkpointDate - ISO date string
+ * @returns {number|null} Age in seconds or null if invalid
+ */
 function computeAgeSeconds(checkpointDate) {
-  if (!checkpointDate) {
+  if (checkpointDate === null || checkpointDate === undefined || checkpointDate === '') {
     return null;
   }
   const parsed = Date.parse(checkpointDate);
@@ -60,28 +85,34 @@ function computeAgeSeconds(checkpointDate) {
 }
 
 /**
- * @param {Persistence} persistence
- * @param {string} graphName
- * @param {Array<{writerId: string, sha: string}>} writerHeads
+ * Loads coverage information for a graph.
+ *
+ * @param {Persistence} persistence - The persistence adapter
+ * @param {string} graphName - Name of the graph
+ * @param {Array<{writerId: string, sha: string}>} writerHeads - Current writer heads
+ * @returns {Promise<{ref: string, sha: string|null, missingWriters: string[]}>}
  */
 async function loadCoverageInfo(persistence, graphName, writerHeads) {
   const coverageRef = buildCoverageRef(graphName);
-  const coverageSha = await persistence.readRef(coverageRef);
-  const missingWriters = coverageSha
+  const coverageSha = (await persistence.readRef(coverageRef)) ?? '';
+  const missingWriters = coverageSha !== ''
     ? await findMissingWriters(persistence, writerHeads, coverageSha)
     : [];
 
   return {
     ref: coverageRef,
-    sha: coverageSha || null,
+    sha: coverageSha !== '' ? coverageSha : null,
     missingWriters: missingWriters.sort(),
   };
 }
 
 /**
- * @param {Persistence} persistence
- * @param {Array<{writerId: string, sha: string}>} writerHeads
- * @param {string} coverageSha
+ * Identifies writers whose heads are not reachable from the coverage commit.
+ *
+ * @param {Persistence} persistence - The persistence adapter
+ * @param {Array<{writerId: string, sha: string}>} writerHeads - Current writer heads
+ * @param {string} coverageSha - SHA of the coverage commit
+ * @returns {Promise<string[]>} List of writer IDs missing from coverage
  */
 async function findMissingWriters(persistence, writerHeads, coverageSha) {
   const missing = [];
@@ -95,7 +126,10 @@ async function findMissingWriters(persistence, writerHeads, coverageSha) {
 }
 
 /**
- * @param {{repo: string, graphName: string, health: *, checkpoint: *, writerHeads: Array<{writerId: string, sha: string}>, coverage: *, gcMetrics: *, hook: *|null, status: *|null}} params
+ * Builds the structured payload for the check command result.
+ *
+ * @param {{repo: string, graphName: string, health: unknown, checkpoint: unknown, writerHeads: Array<{writerId: string, sha: string}>, coverage: unknown, gcMetrics: unknown, hook: unknown|null, status: unknown|null}} params
+ * @returns {Record<string, unknown>}
  */
 function buildCheckPayload({
   repo,
@@ -113,18 +147,20 @@ function buildCheckPayload({
     graph: graphName,
     health,
     checkpoint,
-    writers: {
-      count: writerHeads.length,
-      heads: writerHeads,
-    },
+    writers: { count: writerHeads.length, heads: writerHeads },
     coverage,
     gc: gcMetrics,
-    hook: hook || null,
-    status: status || null,
+    hook: hook ?? null,
+    status: status ?? null,
   };
 }
 
-/** @param {string} repoPath */
+/**
+ * Returns the status of WARP git hooks for a repository.
+ *
+ * @param {string} repoPath - Path to the git repository
+ * @returns {import('../shared.js').HookStatus|null}
+ */
 function getHookStatusForCheck(repoPath) {
   try {
     const installer = createHookInstaller();
@@ -136,10 +172,11 @@ function getHookStatusForCheck(repoPath) {
 
 /**
  * Handles the `check` command: reports graph health, GC, and hook status.
+ *
  * @param {{options: CliOptions}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
-export default async function handleCheck({ options }) {
+export async function handleCheck({ options }) {
   const { graph, graphName, persistence } = await openGraph(options);
   const cursorInfo = await applyCursorCeiling(graph, persistence, graphName);
   emitCursorWarning(cursorInfo, null);
@@ -166,3 +203,5 @@ export default async function handleCheck({ options }) {
     exitCode: EXIT_CODES.OK,
   };
 }
+
+export default handleCheck;

@@ -41,7 +41,7 @@ export const pathSchema = z.object({
   from: val.from ?? null,
   to: val.to ?? null,
   dir: val.dir,
-  labels: Array.isArray(val.label) ? val.label : val.label ? [val.label] : [],
+  labels: Array.isArray(val.label) ? val.label : (val.label !== undefined && val.label.length > 0) ? [val.label] : [],
   maxDepth: val['max-depth'],
 }));
 
@@ -55,7 +55,7 @@ export const querySchema = z.object({
   select: z.string().optional(),
 }).strict().transform((val) => ({
   match: val.match ?? null,
-  whereProp: Array.isArray(val['where-prop']) ? val['where-prop'] : val['where-prop'] ? [val['where-prop']] : [],
+  whereProp: Array.isArray(val['where-prop']) ? val['where-prop'] : (val['where-prop'] !== undefined && val['where-prop'].length > 0) ? [val['where-prop']] : [],
   select: val.select,
 }));
 

@@ -42,7 +42,7 @@ export function migrateV4toV5(v4State, migrationWriterId) {
     const idx = propKey.indexOf('\0');
     const nodeId = propKey.slice(0, idx);
     const nodeReg = v4State.nodeAlive.get(nodeId);
-    if (nodeReg?.value) {
+    if (nodeReg?.value === true) {
       v5State.prop.set(propKey, reg);
     }
   }

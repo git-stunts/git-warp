@@ -37,6 +37,7 @@ const defaultCrypto = {
     if (!_createHash) {
       throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return _createHash(algorithm).update(data).digest('hex');
   },
   // eslint-disable-next-line @typescript-eslint/require-await -- async matches CryptoPort contract
@@ -44,6 +45,7 @@ const defaultCrypto = {
     if (!_createHmac) {
       throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const result = _createHmac(algorithm, key).update(data).digest();
     return new Uint8Array(result);
   },
@@ -51,6 +53,7 @@ const defaultCrypto = {
     if (!_timingSafeEqual) {
       throw new Error('No crypto available. Inject a CryptoPort explicitly.');
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return _timingSafeEqual(a, b);
   },
 };

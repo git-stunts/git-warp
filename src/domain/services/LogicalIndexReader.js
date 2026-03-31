@@ -26,7 +26,7 @@ import { getRoaringBitmap32 } from '../utils/roaring.js';
 function expandBitmap(bitmap, label, ctx) {
   for (const neighborGid of bitmap.toArray()) {
     const neighborId = ctx.g2n.get(neighborGid);
-    if (neighborId) {
+    if (neighborId !== undefined) {
       ctx.out.push({ neighborId, label });
     }
   }
@@ -58,9 +58,29 @@ function resolveAllLabels(byOwner, ctx) {
  */
 
 /**
+ * Returns true if the shard path represents a meta file (meta_XX.cbor).
+ *
+ * @param {string} path - Shard file path
+ * @returns {boolean}
+ */
+function isMetaShard(path) {
+  return path.startsWith('meta_') && path.endsWith('.cbor');
+}
+
+/**
+ * Returns true if the shard path represents an edge file (fwd_XX.cbor or rev_XX.cbor).
+ *
+ * @param {string} path - Shard file path
+ * @returns {boolean}
+ */
+function isEdgeShard(path) {
+  return path.endsWith('.cbor') && (path.startsWith('fwd_') || path.startsWith('rev_'));
+}
+
+/**
  * Classifies loaded path/buf pairs into meta, labels, and edge buckets.
  *
- * @param {ShardItem[]} items
+ * @param {ShardItem[]} items - Array of shard path/buffer pairs to classify
  * @returns {{ meta: ShardItem[], labels: Uint8Array|null, edges: ShardItem[] }}
  */
 function classifyShards(items) {
@@ -73,11 +93,11 @@ function classifyShards(items) {
 
   for (const item of items) {
     const { path } = item;
-    if (path.startsWith('meta_') && path.endsWith('.cbor')) {
+    if (isMetaShard(path)) {
       meta.push(item);
     } else if (path === 'labels.cbor') {
       labels = item.buf;
-    } else if (path.endsWith('.cbor') && (path.startsWith('fwd_') || path.startsWith('rev_'))) {
+    } else if (isEdgeShard(path)) {
       edges.push(item);
     }
   }
@@ -85,11 +105,125 @@ function classifyShards(items) {
   return { meta, labels, edges };
 }
 
+/**
+ * Checks whether a node is alive in the bitmap index.
+ *
+ * @param {Map<string, number>} n2g - Node-to-global-ID mapping
+ * @param {Map<string, Bitmap>} alive - Shard-key to alive bitmap mapping
+ * @param {string} nodeId - Node identifier to check
+ * @returns {boolean}
+ */
+function checkAlive(n2g, alive, nodeId) {
+  const gid = n2g.get(nodeId);
+  if (gid === undefined) {
+    return false;
+  }
+  const bitmap = alive.get(computeShardKey(nodeId));
+  return bitmap !== undefined ? bitmap.has(gid) : false;
+}
+
+/**
+ * Resolves filtered edges for a specific node and direction.
+ *
+ * @param {Map<string, Bitmap>} store - Forward or reverse edge store
+ * @param {{ gid: number, dir: string, filterLabelIds: number[], i2l: Map<number, string>, g2n: Map<number, string> }} ctx
+ * @returns {Array<{neighborId: string, label: string}>}
+ */
+function resolveFilteredEdges(store, ctx) {
+  /** @type {import('../../ports/NeighborProviderPort.js').NeighborEdge[]} */
+  const out = [];
+  for (const labelId of ctx.filterLabelIds) {
+    const bitmap = store.get(`${ctx.dir}:${labelId}:${ctx.gid}`);
+    if (bitmap !== undefined) {
+      expandBitmap(bitmap, ctx.i2l.get(labelId) ?? '', { g2n: ctx.g2n, out });
+    }
+  }
+  return out;
+}
+
+/**
+ * @typedef {{
+ *   n2g: Map<string, number>,
+ *   g2n: Map<number, string>,
+ *   alive: Map<string, Bitmap>,
+ *   lr: Map<string, number>,
+ *   i2l: Map<number, string>,
+ *   fwd: Map<string, Bitmap>,
+ *   rev: Map<string, Bitmap>,
+ *   byOwnerFwd: Map<number, Array<{labelId: number, bitmap: Bitmap}>>,
+ *   byOwnerRev: Map<number, Array<{labelId: number, bitmap: Bitmap}>>
+ * }} IndexMaps
+ */
+
+/**
+ * Builds a LogicalIndex object from decoded shard maps.
+ *
+ * @param {IndexMaps} maps - Decoded index data maps
+ * @returns {LogicalIndex}
+ */
+function buildLogicalIndex(maps) {
+  const { n2g, g2n, alive, lr, i2l, fwd, rev, byOwnerFwd, byOwnerRev } = maps;
+  return {
+    /** Maps a node ID to its global numeric identifier. @param {string} nodeId */
+    getGlobalId: (nodeId) => n2g.get(nodeId),
+    /** Maps a global numeric identifier back to its node ID. @param {number} globalId */
+    getNodeId: (globalId) => g2n.get(globalId),
+    /** Returns the label-to-numeric-ID registry. */
+    getLabelRegistry: () => lr,
+    /** Checks whether a node is alive in the bitmap index. @param {string} nodeId */
+    isAlive: (nodeId) => checkAlive(n2g, alive, nodeId),
+    /** Retrieves edges for a node in the given direction.
+     * @param {string} nodeId @param {'in'|'out'} direction @param {number[]} [filterLabelIds] */
+    getEdges(nodeId, direction, filterLabelIds) {
+      return resolveEdgesForNode(
+        { n2g, i2l, g2n, fwd, rev, byOwnerFwd, byOwnerRev },
+        { nodeId, direction, filterLabelIds },
+      );
+    },
+  };
+}
+
+/**
+ * Selects the appropriate edge stores for the given direction.
+ *
+ * @param {IndexMaps} maps - Index data maps
+ * @param {string} dir - 'fwd' or 'rev'
+ * @returns {{ store: Map<string, Bitmap>, byOwner: Map<number, Array<{labelId: number, bitmap: Bitmap}>> }}
+ */
+function selectEdgeStores(maps, dir) {
+  return {
+    store: dir === 'fwd' ? maps.fwd : maps.rev,
+    byOwner: dir === 'fwd' ? maps.byOwnerFwd : maps.byOwnerRev,
+  };
+}
+
+/**
+ * Resolves edges for a specific node and direction from index maps.
+ *
+ * @param {IndexMaps} maps - Index data maps
+ * @param {{ nodeId: string, direction: 'in'|'out', filterLabelIds?: number[] }} query - Edge query parameters
+ * @returns {Array<{neighborId: string, label: string}>}
+ */
+function resolveEdgesForNode(maps, query) {
+  const gid = maps.n2g.get(query.nodeId);
+  if (gid === undefined) {
+    return [];
+  }
+  const dir = query.direction === 'out' ? 'fwd' : 'rev';
+  const { store, byOwner } = selectEdgeStores(maps, dir);
+  if (query.filterLabelIds === undefined || query.filterLabelIds === null) {
+    return resolveAllLabels(byOwner, { gid, i2l: maps.i2l, g2n: maps.g2n });
+  }
+  return resolveFilteredEdges(store, { gid, dir, filterLabelIds: query.filterLabelIds, i2l: maps.i2l, g2n: maps.g2n });
+}
+
 /** @typedef {typeof import('roaring').RoaringBitmap32} RoaringCtor */
 
 export default class LogicalIndexReader {
   /**
-   * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
+   * Constructs a LogicalIndexReader with an optional CBOR codec override.
+   *
+   * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options] - Reader options
    */
   constructor(options = undefined) {
     const { codec } = options || {};
@@ -147,52 +281,22 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * Returns a LogicalIndex interface object.
+   * Returns a LogicalIndex interface object backed by the decoded shard data.
    *
    * @returns {LogicalIndex}
    */
   toLogicalIndex() {
-    const { _nodeToGlobal: n2g, _globalToNode: g2n, _aliveBitmaps: alive,
-      _labelRegistry: lr, _idToLabel: i2l, _edgeFwd: fwd, _edgeRev: rev,
-      _edgeByOwnerFwd: byOwnerFwd, _edgeByOwnerRev: byOwnerRev } = this;
-
-    return {
-      getGlobalId: (nodeId) => n2g.get(nodeId),
-      getNodeId: (globalId) => g2n.get(globalId),
-      getLabelRegistry: () => lr,
-
-      isAlive(nodeId) {
-        const gid = n2g.get(nodeId);
-        if (gid === undefined) {
-          return false;
-        }
-        const bitmap = alive.get(computeShardKey(nodeId));
-        return bitmap ? bitmap.has(gid) : false;
-      },
-
-      getEdges(nodeId, direction, filterLabelIds) {
-        const gid = n2g.get(nodeId);
-        if (gid === undefined) {
-          return [];
-        }
-        const dir = direction === 'out' ? 'fwd' : 'rev';
-
-        if (!filterLabelIds) {
-          const byOwner = dir === 'fwd' ? byOwnerFwd : byOwnerRev;
-          return resolveAllLabels(byOwner, { gid, i2l, g2n });
-        }
-        const store = dir === 'fwd' ? fwd : rev;
-        /** @type {import('../../ports/NeighborProviderPort.js').NeighborEdge[]} */
-        const out = [];
-        for (const labelId of filterLabelIds) {
-          const bitmap = store.get(`${dir}:${labelId}:${gid}`);
-          if (bitmap) {
-            expandBitmap(bitmap, i2l.get(labelId) ?? '', { g2n, out });
-          }
-        }
-        return out;
-      },
-    };
+    return buildLogicalIndex({
+      n2g: this._nodeToGlobal,
+      g2n: this._globalToNode,
+      alive: this._aliveBitmaps,
+      lr: this._labelRegistry,
+      i2l: this._idToLabel,
+      fwd: this._edgeFwd,
+      rev: this._edgeRev,
+      byOwnerFwd: this._edgeByOwnerFwd,
+      byOwnerRev: this._edgeByOwnerRev,
+    });
   }
 
   // ── Private ─────────────────────────────────────────────────────────────────
@@ -219,15 +323,16 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * @param {string} path
-   * @param {Uint8Array} buf
-   * @param {RoaringCtor} Ctor
+   * Decodes a meta shard and populates node-to-global and alive bitmap maps.
+   *
+   * @param {string} path - Shard file path (e.g. meta_ab.cbor)
+   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
   _decodeMeta(path, buf, Ctor) {
-    const shardKey = path.slice(5, 7);
-    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (this._codec.decode(buf));
-
+    /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */
+    const meta = /** @type {*} */ (this._codec.decode(buf));
     const entries = Array.isArray(meta.nodeToGlobal)
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);
@@ -235,17 +340,27 @@ export default class LogicalIndexReader {
       this._nodeToGlobal.set(nodeId, /** @type {number} */ (globalId));
       this._globalToNode.set(/** @type {number} */ (globalId), nodeId);
     }
+    this._loadAliveBitmap(path.slice(5, 7), meta.alive, Ctor);
+  }
 
-    if (meta.alive && meta.alive.length > 0) {
-      this._aliveBitmaps.set(
-        shardKey,
-        Ctor.deserialize(toBytes(meta.alive), true)
-      );
+  /**
+   * Loads an alive bitmap from decoded meta data if present and non-empty.
+   *
+   * @param {string} shardKey - Two-character hex shard key
+   * @param {Uint8Array|ArrayLike<number>} aliveData - Serialized bitmap data
+   * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
+   * @private
+   */
+  _loadAliveBitmap(shardKey, aliveData, Ctor) {
+    if (aliveData !== null && aliveData !== undefined && aliveData.length > 0) {
+      this._aliveBitmaps.set(shardKey, Ctor.deserialize(toBytes(aliveData), true));
     }
   }
 
   /**
-   * @param {Uint8Array} buf
+   * Decodes a label registry shard from CBOR into the label maps.
+   *
+   * @param {Uint8Array} buf - Raw CBOR bytes
    * @private
    */
   _decodeLabels(buf) {
@@ -275,9 +390,11 @@ export default class LogicalIndexReader {
   }
 
   /**
+   * Decodes a forward or reverse edge shard and populates the edge stores.
+   *
    * @param {string} dir - 'fwd' or 'rev'
-   * @param {Uint8Array} buf
-   * @param {RoaringCtor} Ctor
+   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
   _decodeEdgeShard(dir, buf, Ctor) {

@@ -42,6 +42,8 @@ export { DELIVERY_MODES, DELIVERY_OUTCOMES };
 // ============================================================================
 
 /**
+ * Asserts that a value is a non-empty string, throwing if it is not.
+ *
  * @param {unknown} value
  * @param {string} name
  * @returns {void}
@@ -53,6 +55,8 @@ function requireNonEmptyString(value, name) {
 }
 
 /**
+ * Asserts that a value is a non-negative finite number suitable for a wall-clock timestamp.
+ *
  * @param {unknown} value
  * @returns {void}
  */
@@ -63,6 +67,8 @@ function validateTimestamp(value) {
 }
 
 /**
+ * Asserts that a value is a non-null object suitable for use as an effect coordinate.
+ *
  * @param {unknown} value
  * @returns {void}
  */
@@ -117,6 +123,8 @@ export function createEffectEmission({ id, kind, payload, timestamp, writer, coo
 // ============================================================================
 
 /**
+ * JSON.stringify replacer that sorts object keys alphabetically for deterministic output.
+ *
  * @param {string} _key
  * @param {unknown} value
  * @returns {unknown}

@@ -197,6 +197,7 @@ export function buildReceiptRecord(fields) {
  */
 export class AuditReceiptService {
   /**
+   * Constructs an AuditReceiptService for the given writer audit chain.
    * @param {{ persistence: import('../../ports/RefPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/CommitPort.js').default, graphName: string, writerId: string, codec: import('../../ports/CodecPort.js').default, crypto: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, codec, crypto, logger }) {
@@ -234,7 +235,7 @@ export class AuditReceiptService {
   async init() {
     try {
       const tip = await this._persistence.readRef(this._auditRef);
-      if (tip) {
+      if (tip !== null && tip !== undefined && tip.length > 0) {
         this._prevAuditCommit = tip;
         this._expectedOldRef = tip;
         // We don't know the tick counter from a cold start without walking the chain.
@@ -330,7 +331,7 @@ export class AuditReceiptService {
 
     // Determine prevAuditCommit
     const oidLen = patchSha.length;
-    const prevAuditCommit = this._prevAuditCommit || '0'.repeat(oidLen);
+    const prevAuditCommit = (this._prevAuditCommit !== null && this._prevAuditCommit.length > 0) ? this._prevAuditCommit : '0'.repeat(oidLen);
 
     // Build receipt record
     const receipt = buildReceiptRecord({
@@ -385,7 +386,7 @@ export class AuditReceiptService {
     });
 
     // Determine parents
-    const parents = this._prevAuditCommit ? [this._prevAuditCommit] : [];
+    const parents = (this._prevAuditCommit !== null && this._prevAuditCommit.length > 0) ? [this._prevAuditCommit] : [];
 
     // Create commit
     const commitSha = await this._persistence.commitNodeWithTree({

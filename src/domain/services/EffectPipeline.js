@@ -20,6 +20,9 @@ import { createEffectEmission } from '../types/EffectEmission.js';
  * @typedef {import('../../ports/EffectSinkPort.js').default} EffectSinkPort
  */
 
+/** Prefix for auto-generated emission IDs. */
+const EMISSION_ID_PREFIX = 'eff-';
+
 /** @type {number} */
 let _counter = 0;
 
@@ -31,27 +34,53 @@ let _counter = 0;
  */
 function generateId(clock) {
   _counter += 1;
-  return `eff-${clock.now()}-${_counter}`;
+  return `${EMISSION_ID_PREFIX}${clock.now()}-${_counter}`;
+}
+
+/** @type {{ frontier: Record<string, string> | null, ceiling: number | null }} */
+const NULL_COORDINATE = { frontier: null, ceiling: null };
+
+/**
+ * Extracts the writer from emit options, defaulting to null.
+ *
+ * @param {{ writer?: string | null }} [options]
+ * @returns {string | null}
+ */
+function resolveWriter(options) {
+  return options?.writer ?? null;
 }
 
 /**
- * Builds the coordinate from optional emit() options.
+ * Normalizes a raw coordinate object, defaulting undefined fields to null.
  *
- * @param {{ writer?: string | null, coordinate?: { frontier?: Record<string, string> | null, ceiling?: number | null } }} [options]
- * @returns {{ writer: string | null, coordinate: { frontier: Record<string, string> | null, ceiling: number | null } }}
+ * @param {{ frontier?: Record<string, string> | null, ceiling?: number | null }} coord
+ * @returns {{ frontier: Record<string, string> | null, ceiling: number | null }}
  */
-function resolveEmitOptions(options) {
+function normalizeCoordinate(coord) {
   return {
-    writer: (options && options.writer) ?? null,
-    coordinate: {
-      frontier: (options && options.coordinate && options.coordinate.frontier) ?? null,
-      ceiling: (options && options.coordinate && options.coordinate.ceiling) ?? null,
-    },
+    frontier: coord.frontier ?? null,
+    ceiling: coord.ceiling ?? null,
   };
+}
+
+/**
+ * Extracts the coordinate from emit options, defaulting to null frontier and ceiling.
+ *
+ * @param {{ coordinate?: { frontier?: Record<string, string> | null, ceiling?: number | null } }} [options]
+ * @returns {{ frontier: Record<string, string> | null, ceiling: number | null }}
+ */
+function resolveCoordinate(options) {
+  const coord = options?.coordinate ?? null;
+  if (coord === null) {
+    return NULL_COORDINATE;
+  }
+  return normalizeCoordinate(coord);
 }
 
 export class EffectPipeline {
   /**
+   * Constructs a pipeline bound to a delivery sink, an externalization lens, and a clock source.
+   *
    * @param {{
    *   sink: EffectSinkPort,
    *   lens: Readonly<ExternalizationPolicy>,
@@ -71,12 +100,20 @@ export class EffectPipeline {
     this._observations = [];
   }
 
-  /** @returns {Readonly<ExternalizationPolicy>} */
+  /**
+   * Returns the current externalization policy governing delivery behavior.
+   *
+   * @returns {Readonly<ExternalizationPolicy>}
+   */
   get lens() {
     return this._lens;
   }
 
-  /** @param {Readonly<ExternalizationPolicy>} newLens */
+  /**
+   * Replaces the externalization policy for subsequent deliveries.
+   *
+   * @param {Readonly<ExternalizationPolicy>} newLens
+   */
   set lens(newLens) {
     this._lens = newLens;
   }
@@ -111,14 +148,13 @@ export class EffectPipeline {
    * @returns {Promise<{ emission: EffectEmission, observations: DeliveryObservation | DeliveryObservation[] }>}
    */
   async emit(kind, payload, options) {
-    const resolved = resolveEmitOptions(options);
     const emission = createEffectEmission({
       id: generateId(this._clock),
       kind,
       payload,
       timestamp: this._clock.now(),
-      writer: resolved.writer,
-      coordinate: resolved.coordinate,
+      writer: resolveWriter(options),
+      coordinate: resolveCoordinate(options),
     });
 
     this._emissions.push(emission);
@@ -130,6 +166,8 @@ export class EffectPipeline {
   }
 
   /**
+   * Appends one or more delivery observations to the internal observation log.
+   *
    * @param {DeliveryObservation | DeliveryObservation[]} observations
    * @returns {void}
    */

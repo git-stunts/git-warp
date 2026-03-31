@@ -137,7 +137,7 @@ export const CANONICAL_KNOWN_OPS = new Set([
  * @returns {boolean} True if the op type is in RAW_KNOWN_OPS
  */
 export function isKnownRawOp(op) {
-  return Boolean(op && typeof op.type === 'string' && RAW_KNOWN_OPS.has(op.type));
+  return op !== null && op !== undefined && typeof op.type === 'string' && RAW_KNOWN_OPS.has(op.type);
 }
 
 /**
@@ -148,7 +148,7 @@ export function isKnownRawOp(op) {
  * @returns {boolean} True if the op type is in CANONICAL_KNOWN_OPS
  */
 export function isKnownCanonicalOp(op) {
-  return Boolean(op && typeof op.type === 'string' && CANONICAL_KNOWN_OPS.has(op.type));
+  return op !== null && op !== undefined && typeof op.type === 'string' && CANONICAL_KNOWN_OPS.has(op.type);
 }
 
 /**
@@ -203,7 +203,7 @@ function requireIterable(op, field) {
  */
 function requireDot(op) {
   const { dot } = op;
-  if (!dot || typeof dot !== 'object') {
+  if (dot === null || dot === undefined || typeof dot !== 'object') {
     throw new PatchError(
       `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,
       { context: { opType: op.type, field: 'dot', actual: typeof dot } },
@@ -232,7 +232,7 @@ function requireDot(op) {
  * @param {Record<string, unknown>} op
  */
 function validateOp(op) {
-  if (!op || typeof op.type !== 'string') {
+  if (op === null || op === undefined || typeof op.type !== 'string') {
     throw new PatchError(
       `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op.type}`,
       { context: { actual: op === null || op === undefined ? String(op) : typeof op.type } },
@@ -300,9 +300,9 @@ export function applyOpV2(state, op, eventId) {
       // Track the EventId at which this edge incarnation was born.
       // On re-add after remove, the greater EventId replaces the old one,
       // allowing the query layer to filter out stale properties.
-      if (state.edgeBirthEvent) {
+      if (state.edgeBirthEvent !== null && state.edgeBirthEvent !== undefined) {
         const prev = state.edgeBirthEvent.get(edgeKey);
-        if (!prev || compareEventIds(eventId, prev) > 0) {
+        if (prev === undefined || compareEventIds(eventId, prev) > 0) {
           state.edgeBirthEvent.set(edgeKey, eventId);
         }
       }
@@ -428,7 +428,7 @@ function nodeRemoveOutcome(orset, op) {
       break;
     }
   }
-  const target = op.node || '*';
+  const target = (typeof op.node === 'string' && op.node.length > 0) ? op.node : '*';
   return { target, result: effective ? 'applied' : 'redundant' };
 }
 
@@ -484,7 +484,10 @@ function edgeRemoveOutcome(orset, op) {
     }
   }
   // Construct target from op fields if available
-  const target = (op.from && op.to && op.label)
+  const hasEdgeFields = typeof op.from === 'string' && op.from.length > 0
+    && typeof op.to === 'string' && op.to.length > 0
+    && typeof op.label === 'string' && op.label.length > 0;
+  const target = hasEdgeFields
     ? encodeEdgeKey(op.from, op.to, op.label)
     : '*';
   return { target, result: effective ? 'applied' : 'redundant' };
@@ -563,7 +566,7 @@ function edgePropSetOutcome(propMap, op, eventId) {
  * @param {number} lamport
  */
 function foldPatchDot(frontier, writer, lamport) {
-  const current = frontier.get(writer) || 0;
+  const current = frontier.get(writer) ?? 0;
   if (lamport > current) {
     frontier.set(writer, lamport);
   }
@@ -577,7 +580,7 @@ function foldPatchDot(frontier, writer, lamport) {
 function updateFrontierFromPatch(state, patch) {
   const contextVV = patch.context instanceof Map
     ? patch.context
-    : vvDeserialize(patch.context || {});
+    : vvDeserialize(patch.context ?? {});
   state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
   foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
 }
@@ -610,6 +613,7 @@ export function applyFast(state, patch, patchSha) {
  * @returns {Map<string, string>} dot → elementId
  */
 function buildDotToElement(orset, targetDots) {
+  /** @type {Map<string, string>} */
   const dotToElement = new Map();
   let remaining = targetDots.size;
   for (const [element, dots] of orset.entries) {
@@ -637,6 +641,7 @@ function buildDotToElement(orset, targetDots) {
  * @returns {Set<string>} element IDs that were alive and own at least one observed dot
  */
 function aliveElementsForDots(orset, observedDots) {
+  /** @type {Set<string>} */
   const result = new Set();
   const dotToElement = buildDotToElement(orset, observedDots);
   for (const d of observedDots) {
@@ -692,13 +697,15 @@ function snapshotBeforeOp(state, op) {
     case 'NodePropSet': {
       const pk = encodePropKey(op.node, op.key);
       const reg = state.prop.get(pk);
-      return { prevPropValue: reg ? reg.value : undefined, propKey: pk };
+      return { prevPropValue: reg !== null && reg !== undefined ? reg.value : undefined, propKey: pk };
     }
     case 'EdgePropSet': {
       const epk = encodeEdgePropKey(op.from, op.to, op.label, op.key);
       const ereg = state.prop.get(epk);
-      return { prevPropValue: ereg ? ereg.value : undefined, propKey: epk };
+      return { prevPropValue: ereg !== null && ereg !== undefined ? ereg.value : undefined, propKey: epk };
     }
+    case 'BlobValue':
+      return {};
     default:
       return {};
   }
@@ -715,7 +722,7 @@ function snapshotBeforeOp(state, op) {
 function accumulateOpDiff(diff, state, op, before) {
   switch (op.type) {
     case 'NodeAdd': {
-      if (!before.nodeWasAlive && orsetContains(state.nodeAlive, op.node)) {
+      if (before.nodeWasAlive !== true && orsetContains(state.nodeAlive, op.node)) {
         diff.nodesAdded.push(op.node);
       }
       break;
@@ -725,7 +732,7 @@ function accumulateOpDiff(diff, state, op, before) {
       break;
     }
     case 'EdgeAdd': {
-      if (!before.edgeWasAlive && orsetContains(state.edgeAlive, /** @type {string} */ (before.edgeKey))) {
+      if (before.edgeWasAlive !== true && orsetContains(state.edgeAlive, /** @type {string} */ (before.edgeKey))) {
         const { from, to, label } = op;
         diff.edgesAdded.push({ from, to, label });
       }
@@ -738,7 +745,7 @@ function accumulateOpDiff(diff, state, op, before) {
     case 'PropSet':
     case 'NodePropSet': {
       const reg = state.prop.get(/** @type {string} */ (before.propKey));
-      const newVal = reg ? reg.value : undefined;
+      const newVal = reg !== null && reg !== undefined ? reg.value : undefined;
       if (newVal !== before.prevPropValue) {
         diff.propsChanged.push({
           nodeId: op.node,
@@ -751,7 +758,7 @@ function accumulateOpDiff(diff, state, op, before) {
     }
     case 'EdgePropSet': {
       const ereg = state.prop.get(/** @type {string} */ (before.propKey));
-      const eNewVal = ereg ? ereg.value : undefined;
+      const eNewVal = ereg !== null && ereg !== undefined ? ereg.value : undefined;
       if (eNewVal !== before.prevPropValue) {
         diff.propsChanged.push({
           nodeId: encodeEdgeKey(op.from, op.to, op.label),
@@ -762,6 +769,8 @@ function accumulateOpDiff(diff, state, op, before) {
       }
       break;
     }
+    case 'BlobValue':
+      break;
     default:
       break;
   }
@@ -868,10 +877,14 @@ export function applyWithReceipt(state, patch, patchSha) {
       case 'EdgePropSet':
         outcome = edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string, value: unknown}} */ (canonOp), eventId);
         break;
+      case 'BlobValue': {
+        const blobOp = /** @type {Record<string, string>} */ (canonOp);
+        const blobTarget = (typeof blobOp.oid === 'string' && blobOp.oid.length > 0) ? blobOp.oid : '*';
+        outcome = { target: blobTarget, result: 'applied' };
+        break;
+      }
       default: {
-        // Unknown or BlobValue — always applied
-        const anyOp = /** @type {Record<string, string>} */ (canonOp);
-        outcome = { target: anyOp.node || anyOp.oid || '*', result: 'applied' };
+        outcome = { target: '*', result: 'applied' };
         break;
       }
     }
@@ -879,14 +892,15 @@ export function applyWithReceipt(state, patch, patchSha) {
     // Apply the op (mutates state)
     applyOpV2(state, canonOp, eventId);
 
-    const receiptOp = /** @type {Record<string, string>} */ (RECEIPT_OP_TYPE)[canonOp.type] || canonOp.type;
+    const mappedOp = /** @type {Record<string, string>} */ (RECEIPT_OP_TYPE)[canonOp.type];
+    const receiptOp = (typeof mappedOp === 'string' && mappedOp.length > 0) ? mappedOp : canonOp.type;
     // Skip unknown/forward-compatible op types that aren't valid receipt ops
     if (!VALID_RECEIPT_OPS.has(receiptOp)) {
       continue;
     }
     /** @type {import('../types/TickReceipt.js').OpOutcome} */
     const entry = { op: receiptOp, target: outcome.target, result: /** @type {'applied'|'superseded'|'redundant'} */ (outcome.result) };
-    if (outcome.reason) {
+    if (typeof outcome.reason === 'string' && outcome.reason.length > 0) {
       entry.reason = outcome.reason;
     }
     opResults.push(entry);
@@ -928,7 +942,7 @@ export function applyWithReceipt(state, patch, patchSha) {
  *          returns {state, receipt} object when collectReceipts is true
  */
 export function join(state, patch, patchSha, collectReceipts) {
-  return collectReceipts
+  return collectReceipts === true
     ? applyWithReceipt(state, patch, patchSha)
     : applyFast(state, patch, patchSha);
 }
@@ -1045,7 +1059,7 @@ export function reduceV5(patches, initialState, options) {
   const state = initialState ? cloneStateV5(initialState) : createEmptyStateV5();
 
   // ZERO-COST: only check options when provided and truthy
-  if (options && options.receipts) {
+  if (options !== null && options !== undefined && options.receipts === true) {
     const receipts = [];
     for (const { patch, sha } of patches) {
       const result = applyWithReceipt(state, patch, sha);
@@ -1054,7 +1068,7 @@ export function reduceV5(patches, initialState, options) {
     return { state, receipts };
   }
 
-  if (options && options.trackDiff) {
+  if (options !== null && options !== undefined && options.trackDiff === true) {
     let merged = createEmptyDiff();
     for (const { patch, sha } of patches) {
       const { diff } = applyWithDiff(state, patch, sha);
@@ -1090,6 +1104,6 @@ export function cloneStateV5(state) {
     edgeAlive: orsetClone(state.edgeAlive),
     prop: new Map(state.prop),
     observedFrontier: vvClone(state.observedFrontier),
-    edgeBirthEvent: new Map(state.edgeBirthEvent || []),
+    edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
   };
 }

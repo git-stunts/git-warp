@@ -52,9 +52,9 @@ async function getGraphInfo(persistence, graphName, {
     const checkpointSha = await persistence.readRef(checkpointRef);
 
     /** @type {{ref: string, sha: string|null, date?: string|null}} */
-    const checkpoint = { ref: checkpointRef, sha: checkpointSha || null };
+    const checkpoint = { ref: checkpointRef, sha: (checkpointSha !== null && checkpointSha !== undefined && checkpointSha.length > 0) ? checkpointSha : null };
 
-    if (includeCheckpointDate && checkpointSha) {
+    if (includeCheckpointDate && typeof checkpointSha === 'string' && checkpointSha.length > 0) {
       const checkpointDate = await readCheckpointDate(persistence, checkpointSha);
       checkpoint.date = checkpointDate;
     }
@@ -64,7 +64,7 @@ async function getGraphInfo(persistence, graphName, {
     if (includeRefs) {
       const coverageRef = buildCoverageRef(graphName);
       const coverageSha = await persistence.readRef(coverageRef);
-      info.coverage = { ref: coverageRef, sha: coverageSha || null };
+      info.coverage = { ref: coverageRef, sha: (coverageSha !== null && coverageSha !== undefined && coverageSha.length > 0) ? coverageSha : null };
     }
   }
 
@@ -96,12 +96,12 @@ export default async function handleInfo({ options }) {
   const { persistence } = await createPersistence(options.repo);
   const graphNames = await listGraphNames(persistence);
 
-  if (options.graph && !graphNames.includes(options.graph)) {
+  if (typeof options.graph === 'string' && options.graph.length > 0 && !graphNames.includes(options.graph)) {
     throw notFoundError(`Graph not found: ${options.graph}`);
   }
 
   const detailGraphs = new Set();
-  if (options.graph) {
+  if (typeof options.graph === 'string' && options.graph.length > 0) {
     detailGraphs.add(options.graph);
   } else if (graphNames.length === 1) {
     detailGraphs.add(graphNames[0]);

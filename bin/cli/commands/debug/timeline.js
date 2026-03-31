@@ -12,6 +12,8 @@ import {
 } from './shared.js';
 
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
+/** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
+/** @typedef {import('../../types.js').CursorBlob} CursorBlob */
 /** @typedef {{patch: import('../../../../src/domain/types/WarpTypesV2.js').PatchV2, sha: string}} PatchEntry */
 
 export const DEBUG_TOPIC = Object.freeze({
@@ -28,6 +30,21 @@ const DEBUG_TIMELINE_OPTIONS = {
   limit: { type: 'string' },
 };
 
+/**
+ * Validates that lamport-floor is not greater than lamport-ceiling.
+ *
+ * @param {Record<string, unknown>} val
+ * @returns {boolean}
+ */
+const validateLamportRange = (val) => {
+  const floor = val['lamport-floor'];
+  const ceiling = val['lamport-ceiling'];
+  if (floor === undefined || ceiling === undefined) {
+    return true;
+  }
+  return Number(floor) <= Number(ceiling);
+};
+
 const debugTimelineSchema = z.object({
   'strand': z.string().optional(),
   'entity-id': z.string().optional(),
@@ -35,12 +52,7 @@ const debugTimelineSchema = z.object({
   'lamport-floor': z.coerce.number().int().nonnegative().optional(),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().positive().optional(),
-}).strict().refine((val) => {
-  if (val['lamport-floor'] === undefined || val['lamport-ceiling'] === undefined) {
-    return true;
-  }
-  return val['lamport-floor'] <= val['lamport-ceiling'];
-}, {
+}).strict().refine(validateLamportRange, {
   message: '--lamport-floor must be less than or equal to --lamport-ceiling',
   path: ['lamport-floor'],
 }).transform((val) => ({
@@ -53,57 +65,65 @@ const debugTimelineSchema = z.object({
 }));
 
 /**
- * @param {{graph: import('../../types.js').WarpGraphInstance, writerId: string}} params
+ * Loads all patches for a specific writer.
+ *
+ * @param {{graph: WarpGraphInstance, writerId: string}} params
  * @returns {Promise<PatchEntry[]>}
  */
 async function loadWriterTimeline({ graph, writerId }) {
-  const patches = /** @type {PatchEntry[]} */ (await graph.getWriterPatches(writerId));
-  return patches;
+  return /** @type {PatchEntry[]} */ (await graph.getWriterPatches(writerId));
 }
 
 /**
- * @param {{graph: import('../../types.js').WarpGraphInstance, entityId: string}} params
+ * Loads all patches that affected a specific entity.
+ *
+ * @param {{graph: WarpGraphInstance, entityId: string}} params
  * @returns {Promise<PatchEntry[]>}
  */
 async function loadEntityTimeline({ graph, entityId }) {
   const shas = await graph.patchesFor(entityId);
-  return /** @type {PatchEntry[]} */ (await Promise.all(
+  const patches = await Promise.all(
     shas.map(async (sha) => ({
       sha,
       patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (await graph.loadPatchBySha(sha)),
     })),
-  ));
+  );
+  return /** @type {PatchEntry[]} */ (patches);
 }
 
 /**
+ * Resolves timeline entries for a non-strand coordinate.
+ *
  * @param {{
- *   graph: import('../../types.js').WarpGraphInstance,
+ *   graph: WarpGraphInstance,
  *   entityId: string|null,
  *   writerId: string|null
  * }} params
  * @returns {Promise<PatchEntry[]>}
  */
 async function loadTimelineEntries({ graph, entityId, writerId }) {
-  if (entityId) {
+  if (entityId !== null && entityId !== undefined && entityId !== '') {
     const entries = await loadEntityTimeline({ graph, entityId });
-    if (!writerId) {
-      return entries;
+    if (writerId !== null && writerId !== undefined && writerId !== '') {
+      return entries.filter(({ patch }) => patch.writer === writerId);
     }
-    return entries.filter(({ patch }) => patch.writer === writerId);
+    return entries;
   }
 
-  if (writerId) {
+  if (writerId !== null && writerId !== undefined && writerId !== '') {
     return await loadWriterTimeline({ graph, writerId });
   }
 
-  const writerIds = await graph.discoverWriters();
-  const arrays = await Promise.all(writerIds.map(async (id) => await loadWriterTimeline({ graph, writerId: id })));
+  const ids = await graph.discoverWriters();
+  const arrays = await Promise.all(ids.map(async (id) => await loadWriterTimeline({ graph, writerId: id })));
   return arrays.flat();
 }
 
 /**
+ * Loads timeline entries visible from a specific strand at a ceiling.
+ *
  * @param {{
- *   graph: import('../../types.js').WarpGraphInstance,
+ *   graph: WarpGraphInstance,
  *   strandId: string,
  *   lamportCeiling: number|null,
  *   entityId: string|null,
@@ -113,48 +133,43 @@ async function loadTimelineEntries({ graph, entityId, writerId }) {
  */
 async function loadStrandTimelineEntries({ graph, strandId, lamportCeiling, entityId, writerId }) {
   let entries;
-  if (entityId) {
-    const shas = await graph.patchesForStrand(
-      strandId,
-      entityId,
-      lamportCeiling === null ? undefined : { ceiling: lamportCeiling },
-    );
+  if (entityId !== null && entityId !== undefined && entityId !== '') {
+    const c = (lamportCeiling !== null && lamportCeiling !== undefined) ? { ceiling: lamportCeiling } : undefined;
+    const shas = await graph.patchesForStrand(strandId, entityId, c);
     entries = /** @type {PatchEntry[]} */ (await Promise.all(
       shas.map(async (sha) => ({
         sha,
-        patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (
-          await graph.loadPatchBySha(sha)
-        ),
+        patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (await graph.loadPatchBySha(sha)),
       })),
     ));
   } else {
     entries = await getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling);
   }
-  if (writerId) {
-    entries = entries.filter(({ patch }) => patch.writer === writerId);
+  if (writerId !== null && writerId !== undefined && writerId !== '') {
+    return entries.filter(({ patch }) => patch.writer === writerId);
   }
   return entries;
 }
 
 /**
+ * Filters patch entries by lamport range.
+ *
  * @param {PatchEntry[]} entries
  * @param {{lamportFloor: number|null, lamportCeiling: number|null}} filters
  * @returns {PatchEntry[]}
  */
 function filterTimelineEntries(entries, filters) {
   return entries.filter(({ patch }) => {
-    const lamport = patch.lamport ?? 0;
-    if (filters.lamportFloor !== null && lamport < filters.lamportFloor) {
-      return false;
-    }
-    if (filters.lamportCeiling !== null && lamport > filters.lamportCeiling) {
-      return false;
-    }
+    const lamp = patch.lamport ?? 0;
+    if (filters.lamportFloor !== null && lamp < filters.lamportFloor) { return false; }
+    if (filters.lamportCeiling !== null && lamp > filters.lamportCeiling) { return false; }
     return true;
   });
 }
 
 /**
+ * Limits the number of entries returned.
+ *
  * @param {PatchEntry[]} entries
  * @param {number|null} limit
  * @returns {PatchEntry[]}
@@ -167,41 +182,42 @@ function limitTimelineEntries(entries, limit) {
 }
 
 /**
- * @param {{graph: import('../../types.js').WarpGraphInstance, writerId: string}} params
+ * Asserts that a writer ID is known by the graph.
+ *
+ * @param {{graph: WarpGraphInstance, writerId: string}} params
  * @returns {Promise<void>}
  */
 async function ensureKnownWriter({ graph, writerId }) {
-  const knownWriters = await graph.discoverWriters();
-  if (!knownWriters.includes(writerId)) {
-    if (knownWriters.length > 0) {
-      throw notFoundError(`Unknown writer: ${writerId}\nKnown writers: ${knownWriters.join(', ')}`);
-    }
-    throw notFoundError(`Unknown writer: ${writerId}`);
-  }
+  const known = await graph.discoverWriters();
+  if (known.includes(writerId)) { return; }
+  const msg = known.length > 0 ? `Unknown writer: ${writerId}\nKnown writers: ${known.join(', ')}` : `Unknown writer: ${writerId}`;
+  throw notFoundError(msg);
 }
 
 /**
- * @param {number|null} explicitLamportCeiling
- * @param {import('../../types.js').CursorBlob|null} activeCursor
+ * Resolves the semantic source of the timeline coordinate.
+ *
+ * @param {number|null} ceil
+ * @param {CursorBlob|null} cursor
  * @returns {'explicit'|'cursor'|'frontier'}
  */
-function resolveCoordinateSource(explicitLamportCeiling, activeCursor) {
-  if (explicitLamportCeiling !== null) {
-    return 'explicit';
-  }
-  return activeCursor ? 'cursor' : 'frontier';
+function resolveCoordinateSource(ceil, cursor) {
+  if (ceil !== null) { return 'explicit'; }
+  return cursor ? 'cursor' : 'frontier';
 }
 
 /**
+ * Dispatches timeline resolution based on strand presence.
+ *
  * @param {{
- *   graph: import('../../types.js').WarpGraphInstance,
- *   values: ReturnType<typeof debugTimelineSchema.parse>,
+ *   graph: WarpGraphInstance,
+ *   values: { strandId: string|null, entityId: string|null, writerId: string|null, lamportCeiling: number|null },
  *   lamportCeiling: number|null
  * }} params
  * @returns {Promise<PatchEntry[]>}
  */
 async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
-  if (values.strandId) {
+  if (values.strandId !== null && values.strandId !== undefined && values.strandId !== '') {
     return await loadStrandTimelineEntries({
       graph,
       strandId: values.strandId,
@@ -219,6 +235,35 @@ async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
 }
 
 /**
+ * Prepares the payload for the debug timeline result.
+ *
+ * @param {{ graphName: string, coordinateSource: string, values: any, strand: any, filteredEntries: PatchEntry[], returnedEntries: PatchEntry[], lamportCeiling: number|null }} params
+ * @returns {Record<string, unknown>}
+ * @private
+ */
+function buildDebugTimelinePayload({ graphName, coordinateSource, values, strand, filteredEntries, returnedEntries, lamportCeiling }) {
+  return {
+    graph: graphName,
+    debugTopic: 'timeline',
+    coordinateSource,
+    ...(values.strandId ? { strandId: values.strandId } : {}),
+    ...(strand ? { strand } : {}),
+    filters: {
+      entityId: values.entityId,
+      writerId: values.writerId,
+      lamportFloor: values.lamportFloor,
+      lamportCeiling,
+    },
+    totalEntries: filteredEntries.length,
+    returnedEntries: returnedEntries.length,
+    truncated: returnedEntries.length < filteredEntries.length,
+    entries: summarizePatchEntries(returnedEntries),
+  };
+}
+
+/**
+ * Handles the 'debug timeline' CLI command.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -227,42 +272,24 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugTimelineSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const coordinateSource = resolveCoordinateSource(values.lamportCeiling, activeCursor);
-  const strand = values.strandId
-    ? await loadStrandContextForDebug(graph, values.strandId)
-    : null;
   const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
 
   if (entries.length === 0 && values.writerId && !values.strandId) {
     await ensureKnownWriter({ graph, writerId: values.writerId });
   }
 
-  const filteredEntries = /** @type {PatchEntry[]} */ (sortPatchEntriesCausally(
+  const f = sortPatchEntriesCausally(
     /** @type {Array<{patch: {writer?: string, lamport?: number}, sha: string}>} */ (filterTimelineEntries(entries, {
       lamportFloor: values.lamportFloor,
       lamportCeiling,
     })),
-  ));
+  );
+  const filteredEntries = /** @type {PatchEntry[]} */ (f);
   const returnedEntries = limitTimelineEntries(filteredEntries, values.limit);
+  const strand = (values.strandId) ? await loadStrandContextForDebug(graph, values.strandId) : null;
 
   return {
-    payload: {
-      graph: graphName,
-      debugTopic: 'timeline',
-      coordinateSource,
-      ...(values.strandId ? { strandId: values.strandId } : {}),
-      ...(strand ? { strand } : {}),
-      filters: {
-        entityId: values.entityId,
-        writerId: values.writerId,
-        lamportFloor: values.lamportFloor,
-        lamportCeiling,
-      },
-      totalEntries: filteredEntries.length,
-      returnedEntries: returnedEntries.length,
-      truncated: returnedEntries.length < filteredEntries.length,
-      entries: summarizePatchEntries(returnedEntries),
-    },
+    payload: buildDebugTimelinePayload({ graphName, coordinateSource: resolveCoordinateSource(values.lamportCeiling, activeCursor), values, strand, filteredEntries, returnedEntries, lamportCeiling }),
     exitCode: EXIT_CODES.OK,
   };
 }

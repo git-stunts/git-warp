@@ -16,8 +16,9 @@ import IndexError from './IndexError.js';
  */
 export default class ShardIdOverflowError extends IndexError {
   /**
-   * @param {string} message
-   * @param {{ shardKey: string, nextLocalId: number }} context
+   * Creates a ShardIdOverflowError for when a shard exceeds 2^24 local IDs.
+   * @param {string} message - Human-readable error message
+   * @param {{ shardKey: string, nextLocalId: number }} context - Shard overflow context
    */
   constructor(message, { shardKey, nextLocalId }) {
     super(message, {

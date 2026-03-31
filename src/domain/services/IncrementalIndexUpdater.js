@@ -27,6 +27,30 @@ import { ShardIdOverflowError } from '../errors/index.js';
 const MAX_LOCAL_ID = 1 << 24;
 
 /**
+ * Creates a null-prototype object typed as a string-keyed record.
+ *
+ * @template T
+ * @returns {Record<string, T>}
+ */
+function createNullProto() {
+  // Object.create(null) returns `any`; isolate it behind a typed return.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return Object.create(null);
+}
+
+/**
+ * Creates a null-prototype record pre-populated with props from source.
+ *
+ * @param {Record<string, unknown>} source
+ * @returns {Record<string, unknown>}
+ */
+function mergeIntoNullProto(source) {
+  /** @type {Record<string, unknown>} */
+  const base = createNullProto();
+  return Object.assign(base, source);
+}
+
+/**
  * @typedef {Object} MetaShard
  * @property {Array<[string, number]>} nodeToGlobal
  * @property {number} nextLocalId
@@ -176,6 +200,7 @@ export default class IncrementalIndexUpdater {
    * @private
    */
   _collectDirtyShardKeys(diff) {
+    /** @type {Set<string>} */
     const keys = new Set();
     for (const nid of diff.nodesAdded) {
       keys.add(computeShardKey(nid));
@@ -295,7 +320,7 @@ export default class IncrementalIndexUpdater {
         // Remove deadGid from each target's reverse bitmap
         for (const targetGid of targets) {
           const targetNodeId = this._findNodeIdByGlobal(targetGid, metaCache, loadShard);
-          if (targetNodeId) {
+          if (targetNodeId !== undefined) {
             const targetShard = computeShardKey(targetNodeId);
             const revData = this._getOrLoadEdgeShard(revCache, 'rev', targetShard, loadShard);
             const targetGidStr = String(targetGid);
@@ -329,7 +354,7 @@ export default class IncrementalIndexUpdater {
         // Remove deadGid from each source's forward bitmap
         for (const sourceGid of sources) {
           const sourceNodeId = this._findNodeIdByGlobal(sourceGid, metaCache, loadShard);
-          if (sourceNodeId) {
+          if (sourceNodeId !== undefined) {
             const sourceShard = computeShardKey(sourceNodeId);
             const fwdDataPeer = this._getOrLoadEdgeShard(fwdCache, 'fwd', sourceShard, loadShard);
             const sourceGidStr = String(sourceGid);
@@ -397,6 +422,8 @@ export default class IncrementalIndexUpdater {
   // ── Edge operations ───────────────────────────────────────────────────────
 
   /**
+   * Adds forward and reverse bitmap entries for a new edge.
+   *
    * @param {{from: string, to: string, label: string}} edge
    * @param {Record<string, number>} labels
    * @param {Map<string, MetaShard>} metaCache
@@ -425,6 +452,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Removes forward and reverse bitmap entries for a deleted edge.
+   *
    * @param {{from: string, to: string, label: string}} edge
    * @param {Record<string, number>} labels
    * @param {Map<string, MetaShard>} metaCache
@@ -460,6 +489,8 @@ export default class IncrementalIndexUpdater {
   // ── Edge bitmap helpers ───────────────────────────────────────────────────
 
   /**
+   * Adds a target globalId to an edge bitmap entry for the given owner.
+   *
    * @param {Map<string, EdgeShardData>} cache
    * @param {{ shardKey: string, bucket: string, owner: number, target: number, dir: string }} opts
    * @param {(path: string) => Uint8Array|undefined} loadShard
@@ -475,6 +506,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Removes a target globalId from an edge bitmap entry for the given owner.
+   *
    * @param {Map<string, EdgeShardData>} cache
    * @param {{ shardKey: string, bucket: string, owner: number, target: number, dir: string }} opts
    * @param {(path: string) => Uint8Array|undefined} loadShard
@@ -547,10 +580,11 @@ export default class IncrementalIndexUpdater {
       const shard = /** @type {Map<string, Record<string, unknown>>} */ (shardMap.get(shardKey));
       let nodeProps = shard.get(prop.nodeId);
       if (!nodeProps) {
-        nodeProps = Object.create(null);
-        shard.set(prop.nodeId, /** @type {Record<string, unknown>} */ (nodeProps));
+        const fresh = /** @type {Record<string, unknown>} */ (createNullProto());
+        nodeProps = fresh;
+        shard.set(prop.nodeId, fresh);
       } else if (Object.getPrototypeOf(nodeProps) !== null) {
-        const safeProps = Object.assign(Object.create(null), nodeProps);
+        const safeProps = mergeIntoNullProto(nodeProps);
         shard.set(prop.nodeId, safeProps);
         nodeProps = safeProps;
       }
@@ -565,6 +599,8 @@ export default class IncrementalIndexUpdater {
   // ── Meta shard I/O ────────────────────────────────────────────────────────
 
   /**
+   * Returns a cached MetaShard or loads it from disk.
+   *
    * @param {string} shardKey
    * @param {Map<string, MetaShard>} cache
    * @param {(path: string) => Uint8Array|undefined} loadShard
@@ -582,6 +618,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Deserializes a meta shard from CBOR, building O(1) lookup maps.
+   *
    * @param {string} shardKey
    * @param {(path: string) => Uint8Array|undefined} loadShard
    * @returns {MetaShard}
@@ -603,7 +641,7 @@ export default class IncrementalIndexUpdater {
     const entries = Array.isArray(raw.nodeToGlobal)
       ? raw.nodeToGlobal
       : Object.entries(raw.nodeToGlobal);
-    const alive = raw.alive && raw.alive.length > 0
+    const alive = raw.alive !== undefined && raw.alive !== null && raw.alive.length > 0
       ? RoaringBitmap32.deserialize(toBytes(raw.alive), true)
       : new RoaringBitmap32();
 
@@ -641,6 +679,8 @@ export default class IncrementalIndexUpdater {
   // ── Edge shard I/O ────────────────────────────────────────────────────────
 
   /**
+   * Returns a cached edge shard or loads it from disk.
+   *
    * @param {Map<string, EdgeShardData>} cache
    * @param {string} dir
    * @param {string} shardKey
@@ -660,6 +700,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Deserializes an edge shard from CBOR for the given direction and key.
+   *
    * @param {string} dir
    * @param {string} shardKey
    * @param {(path: string) => Uint8Array|undefined} loadShard
@@ -696,6 +738,8 @@ export default class IncrementalIndexUpdater {
   // ── Labels I/O ────────────────────────────────────────────────────────────
 
   /**
+   * Loads and deserializes the label-to-ID registry from CBOR.
+   *
    * @param {(path: string) => Uint8Array|undefined} loadShard
    * @returns {Record<string, number>}
    * @private
@@ -703,11 +747,10 @@ export default class IncrementalIndexUpdater {
   _loadLabels(loadShard) {
     const buf = loadShard('labels.cbor');
     if (!buf) {
-      return Object.create(null);
+      return /** @type {Record<string, number>} */ (createNullProto());
     }
     const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (this._codec.decode(buf));
-    /** @type {Record<string, number>} */
-    const labels = Object.create(null);
+    const labels = /** @type {Record<string, number>} */ (createNullProto());
     const entries = Array.isArray(decoded) ? decoded : Object.entries(decoded);
     for (const [label, id] of entries) {
       labels[label] = id;
@@ -716,6 +759,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Serializes the label registry to sorted CBOR entries.
+   *
    * @param {Record<string, number>} labels
    * @returns {Uint8Array}
    * @private
@@ -728,6 +773,8 @@ export default class IncrementalIndexUpdater {
   // ── Props I/O ─────────────────────────────────────────────────────────────
 
   /**
+   * Loads and deserializes the property shard for a given shard key.
+   *
    * @param {string} shardKey
    * @param {(path: string) => Uint8Array|undefined} loadShard
    * @returns {Map<string, Record<string, unknown>>}
@@ -740,13 +787,11 @@ export default class IncrementalIndexUpdater {
     if (!buf) {
       return map;
     }
-    const decoded = this._codec.decode(buf);
+    const decoded = /** @type {Array<[string, Record<string, unknown>]>} */ (this._codec.decode(buf));
     if (Array.isArray(decoded)) {
       for (const [nodeId, props] of decoded) {
-        const safeProps = Object.assign(
-          Object.create(null),
-          (props && typeof props === 'object') ? props : {},
-        );
+        const source = (props !== null && props !== undefined && typeof props === 'object') ? props : {};
+        const safeProps = mergeIntoNullProto(/** @type {Record<string, unknown>} */ (source));
         map.set(nodeId, safeProps);
       }
     }
@@ -754,6 +799,8 @@ export default class IncrementalIndexUpdater {
   }
 
   /**
+   * Serializes a property shard map to CBOR.
+   *
    * @param {Map<string, Record<string, unknown>>} shard
    * @returns {Uint8Array}
    * @private
@@ -789,6 +836,7 @@ export default class IncrementalIndexUpdater {
    * @private
    */
   _collectReaddedEdgeKeys(adjacency, readdedNodes) {
+    /** @type {Set<string>} */
     const keys = new Set();
     for (const nodeId of readdedNodes) {
       const incident = adjacency.get(nodeId);

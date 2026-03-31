@@ -289,6 +289,12 @@ export default tseslint.config(
       "src/domain/services/IncrementalIndexUpdater.js",
       "src/domain/services/WormholeService.js",
       "src/domain/services/WarpServeService.js",
+      "src/domain/services/StrandService.js",
+      "src/domain/services/MigrationService.js",
+      "src/domain/services/BoundaryTransitionRecord.js",
+      "src/domain/services/IndexStalenessChecker.js",
+      "bin/cli/commands/strand.js",
+      "bin/cli/schemas.js",
     ],
     rules: {
       "complexity": ["error", 35],

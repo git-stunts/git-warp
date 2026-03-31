@@ -21,7 +21,7 @@ const patchSchema = z.object({
  * @returns {Promise<Array<{sha: string, writer: string, patch: {schema?: number, lamport: number, ops?: Array<Record<string, unknown>>, context?: Record<string, unknown>}}>>}
  */
 async function collectPatches(graph, writerFilter) {
-  const writers = writerFilter ? [writerFilter] : await graph.discoverWriters();
+  const writers = (writerFilter !== null && writerFilter !== undefined && writerFilter.length > 0) ? [writerFilter] : await graph.discoverWriters();
   const all = [];
   for (const writerId of writers) {
     const patches = await graph.getWriterPatches(writerId);
@@ -50,18 +50,20 @@ export default async function handlePatch({ options, args }) {
   if (subaction === 'list') {
     return await handlePatchList({ options, args: rest });
   }
-  if (!subaction) {
+  if (subaction === undefined || subaction === null || subaction.length === 0) {
     throw usageError('Usage: warp-graph patch <show|list> [options]\n  show <sha>   Decode and display a single patch\n  list         List all patches');
   }
   throw usageError(`Unknown patch subaction: ${subaction}. Use: show, list`);
 }
 
 /**
+ * Decodes and displays a single patch by SHA prefix.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
 async function handlePatchShow({ options, args }) {
-  if (!args[0]) {
+  if (args[0] === undefined || args[0] === null || args[0].length === 0) {
     throw usageError('Usage: warp-graph patch show <sha>');
   }
   const targetSha = args[0];
@@ -87,13 +89,15 @@ async function handlePatchShow({ options, args }) {
 }
 
 /**
+ * Lists all patches, optionally filtered by writer.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
 async function handlePatchList({ options, args }) {
   const { values } = parseCommandArgs(args, PATCH_OPTIONS, patchSchema);
   const { graph, graphName } = await openGraph(options);
-  const writerFilter = values.writer || null;
+  const writerFilter = (values.writer !== undefined && values.writer !== null && values.writer.length > 0) ? values.writer : null;
   const allPatches = await collectPatches(graph, writerFilter);
 
   const limit = values.limit ?? allPatches.length;
@@ -103,7 +107,7 @@ async function handlePatchList({ options, args }) {
     writer: p.writer,
     lamport: p.patch.lamport,
     opCount: Array.isArray(p.patch.ops) ? p.patch.ops.length : 0,
-    nodeIds: extractNodeIds(p.patch.ops || []),
+    nodeIds: extractNodeIds(Array.isArray(p.patch.ops) ? p.patch.ops : []),
   }));
 
   const payload = {
@@ -119,24 +123,26 @@ async function handlePatchList({ options, args }) {
 
 /**
  * Extracts unique node IDs touched by a patch's operations.
- * @param {Array<Record<string, unknown>>} ops
- * @returns {string[]}
+ *
+ * @param {Array<Record<string, unknown>>} ops - Raw patch operation objects
+ * @returns {string[]} Sorted array of unique node identifiers
  */
 function extractNodeIds(ops) {
   if (!Array.isArray(ops)) {
     return [];
   }
+  /** @type {Set<string>} */
   const ids = new Set();
   for (const op of ops) {
-    if (op.node) {
+    if (typeof op.node === 'string' && op.node.length > 0) {
       ids.add(op.node);
     }
-    if (op.from) {
+    if (typeof op.from === 'string' && op.from.length > 0) {
       ids.add(op.from);
     }
-    if (op.to) {
+    if (typeof op.to === 'string' && op.to.length > 0) {
       ids.add(op.to);
     }
   }
-  return [...ids].sort();
+  return /** @type {string[]} */ ([...ids].sort());
 }

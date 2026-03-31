@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port interface for effect delivery sinks.
  *
@@ -14,17 +16,17 @@
  */
 export default class EffectSinkPort {
   /**
-   * Unique identifier for this sink.
+   * Unique identifier for this sink. Subclasses must override this getter.
    *
    * @type {string}
    * @abstract
    */
   get id() {
-    throw new Error('EffectSinkPort.id not implemented');
+    throw new WarpError('EffectSinkPort.id not implemented', 'E_PORT_NOT_IMPLEMENTED');
   }
 
   /**
-   * Delivers an effect emission under the given delivery lens.
+   * Delivers an effect emission under the given delivery lens. Subclasses must override this method.
    *
    * @param {import('../domain/types/EffectEmission.js').EffectEmission} _emission
    * @param {import('../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} _lens
@@ -32,6 +34,6 @@ export default class EffectSinkPort {
    * @abstract
    */
   async deliver(_emission, _lens) {
-    throw new Error('EffectSinkPort.deliver() not implemented');
+    throw new WarpError('EffectSinkPort.deliver() not implemented', 'E_PORT_NOT_IMPLEMENTED');
   }
 }

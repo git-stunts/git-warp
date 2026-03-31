@@ -33,6 +33,7 @@ const createStrandSchema = z.object({
 }));
 
 /**
+ * Handles the strand create subcommand by parsing arguments and creating a new strand descriptor.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

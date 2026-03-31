@@ -12,6 +12,90 @@
 import WriterError from '../errors/WriterError.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 
+/** @type {string} */
+const NONE_DISPLAY = '(none)';
+
+/**
+ * Extracts the error message and cause from an unknown error value.
+ *
+ * @param {unknown} err - The caught error
+ * @returns {{ errMsg: string, cause: Error|undefined }} Extracted message and cause
+ */
+function _extractErrorInfo(err) {
+  const errMsg = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? err : undefined;
+  return { errMsg, cause };
+}
+
+/**
+ * Extracts the CAS error object from an unknown error if applicable.
+ *
+ * @param {unknown} err - The caught error
+ * @returns {{code?: unknown, expectedSha?: unknown, actualSha?: unknown}|null} The CAS error or null
+ */
+function _extractCasError(err) {
+  if (err !== null && err !== undefined && typeof err === 'object') {
+    return /** @type {{code?: unknown, expectedSha?: unknown, actualSha?: unknown}} */ (err);
+  }
+  return null;
+}
+
+/**
+ * Formats a nullable SHA for display in error messages.
+ *
+ * @param {string|null} sha - The SHA to format
+ * @returns {string} The SHA or "(none)" if null/empty
+ */
+function _displaySha(sha) {
+  return (sha !== null && sha.length > 0) ? sha : NONE_DISPLAY;
+}
+
+/**
+ * Builds a CAS conflict WriterError with ref details.
+ *
+ * @param {{code?: unknown, expectedSha?: unknown, actualSha?: unknown}} casError - The CAS error object
+ * @param {Error|undefined} cause - The original error cause
+ * @param {string} graphName - The graph name for ref building
+ * @param {string} writerId - The writer ID for ref building
+ * @param {string|null} expectedOldHead - The expected old head SHA
+ * @returns {WriterError} A WRITER_REF_ADVANCED error
+ */
+// eslint-disable-next-line max-params -- internal helper carrying commit context
+function _buildCasConflictError(casError, cause, graphName, writerId, expectedOldHead) {
+  const writerRef = buildWriterRef(graphName, writerId);
+  const expectedSha = typeof casError.expectedSha === 'string' ? casError.expectedSha : expectedOldHead;
+  const actualSha = typeof casError.actualSha === 'string' ? casError.actualSha : null;
+  return new WriterError(
+    'WRITER_REF_ADVANCED',
+    `Writer ref ${writerRef} has advanced since beginPatch(). ` +
+    `Expected ${_displaySha(expectedSha)}, found ${_displaySha(actualSha)}. ` +
+    'Call beginPatch() again to retry.',
+    cause
+  );
+}
+
+/**
+ * Classifies a commit error into the appropriate WriterError code.
+ *
+ * @param {unknown} err - The caught error
+ * @param {string} graphName - The graph name
+ * @param {string} writerId - The writer ID
+ * @param {string|null} expectedOldHead - The expected old head SHA
+ * @returns {WriterError} A classified WriterError
+ */
+// eslint-disable-next-line max-params -- internal helper carrying commit context
+function _classifyCommitError(err, graphName, writerId, expectedOldHead) {
+  const { errMsg, cause } = _extractErrorInfo(err);
+  const casError = _extractCasError(err);
+  if (casError !== null && casError.code === 'WRITER_CAS_CONFLICT') {
+    return _buildCasConflictError(casError, cause, graphName, writerId, expectedOldHead);
+  }
+  if (errMsg.includes('Concurrent commit detected') || errMsg.includes('has advanced')) {
+    return new WriterError('WRITER_REF_ADVANCED', errMsg, cause);
+  }
+  return new WriterError('PERSIST_WRITE_FAILED', `Failed to persist patch: ${errMsg}`, cause);
+}
+
 /**
  * Fluent patch session for building and committing graph mutations.
  */
@@ -224,43 +308,27 @@ export class PatchSession {
    * @example
    * const sha = await patch.commit();
    */
-  // eslint-disable-next-line complexity -- maps multiple commit-failure modes into stable WriterError codes
   async commit() {
     this._ensureNotCommitted();
-
-    // Validate not empty
-    if (this._builder.ops.length === 0) {
-      throw new WriterError('EMPTY_PATCH', 'Cannot commit empty patch: no operations added');
-    }
+    this._ensureNotEmpty();
 
     try {
-      // Delegate to PatchBuilderV2.commit() which handles the git operations
       const sha = await this._builder.commit();
       this._committed = true;
       return sha;
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const cause = err instanceof Error ? err : undefined;
-      const casError = /** @type {{code?: unknown, expectedSha?: unknown, actualSha?: unknown}|null} */ (
-        (err && typeof err === 'object') ? err : null
-      );
-      if (casError?.code === 'WRITER_CAS_CONFLICT') {
-        const writerRef = buildWriterRef(this._graphName, this._writerId);
-        const expectedSha = typeof casError.expectedSha === 'string' ? casError.expectedSha : this._expectedOldHead;
-        const actualSha = typeof casError.actualSha === 'string' ? casError.actualSha : null;
-        throw new WriterError(
-          'WRITER_REF_ADVANCED',
-          `Writer ref ${writerRef} has advanced since beginPatch(). ` +
-          `Expected ${expectedSha || '(none)'}, found ${actualSha || '(none)'}. ` +
-          'Call beginPatch() again to retry.',
-          cause
-        );
-      }
-      if (errMsg.includes('Concurrent commit detected') ||
-          errMsg.includes('has advanced')) {
-        throw new WriterError('WRITER_REF_ADVANCED', errMsg, cause);
-      }
-      throw new WriterError('PERSIST_WRITE_FAILED', `Failed to persist patch: ${errMsg}`, cause);
+      throw _classifyCommitError(err, this._graphName, this._writerId, this._expectedOldHead);
+    }
+  }
+
+  /**
+   * Ensures the patch has at least one operation.
+   * @throws {WriterError} EMPTY_PATCH if no operations were added
+   * @private
+   */
+  _ensureNotEmpty() {
+    if (this._builder.ops.length === 0) {
+      throw new WriterError('EMPTY_PATCH', 'Cannot commit empty patch: no operations added');
     }
   }
 

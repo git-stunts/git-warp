@@ -1,3 +1,8 @@
+import WarpError from '../domain/errors/WarpError.js';
+
+/** @type {string} */
+const E_NOT_IMPLEMENTED = 'E_NOT_IMPLEMENTED';
+
 /**
  * Port interface for structured logging operations.
  *
@@ -19,7 +24,7 @@ export default class LoggerPort {
    * @abstract
    */
   debug(_message, _context) {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', E_NOT_IMPLEMENTED);
   }
 
   /**
@@ -30,7 +35,7 @@ export default class LoggerPort {
    * @abstract
    */
   info(_message, _context) {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', E_NOT_IMPLEMENTED);
   }
 
   /**
@@ -41,7 +46,7 @@ export default class LoggerPort {
    * @abstract
    */
   warn(_message, _context) {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', E_NOT_IMPLEMENTED);
   }
 
   /**
@@ -52,7 +57,7 @@ export default class LoggerPort {
    * @abstract
    */
   error(_message, _context) {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', E_NOT_IMPLEMENTED);
   }
 
   /**
@@ -63,6 +68,6 @@ export default class LoggerPort {
    * @abstract
    */
   child(_context) {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', E_NOT_IMPLEMENTED);
   }
 }

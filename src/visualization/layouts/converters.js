@@ -37,18 +37,13 @@ export function queryResultToGraphData(payload, edges) {
 }
 
 /**
- * Converts a path result payload into graph data.
- * Builds a linear chain of nodes with labelled edges.
+ * Builds a linear chain of edges from consecutive path elements.
  *
- * @param {{ path?: string[], edges?: string[] } | null} payload - Path result
- * @returns {GraphData}
+ * @param {string[]} pathArr - Ordered node IDs forming the path
+ * @param {string[]} edgeLabels - Labels for each edge in the path
+ * @returns {GraphDataEdge[]} Edges connecting consecutive path nodes
  */
-export function pathResultToGraphData(payload) {
-  const pathArr = payload?.path ?? [];
-  const edgeLabels = payload?.edges ?? [];
-
-  const nodes = pathArr.map((id) => ({ id, label: id }));
-
+function buildPathEdges(pathArr, edgeLabels) {
   /** @type {GraphDataEdge[]} */
   const edges = [];
   for (let i = 0; i < pathArr.length - 1; i++) {
@@ -58,7 +53,21 @@ export function pathResultToGraphData(payload) {
       label: edgeLabels[i],
     });
   }
+  return edges;
+}
 
+/**
+ * Converts a path result payload into graph data.
+ * Builds a linear chain of nodes with labelled edges.
+ *
+ * @param {{ path?: string[], edges?: string[] } | null} payload - Path result
+ * @returns {GraphData}
+ */
+export function pathResultToGraphData(payload) {
+  const pathArr = payload?.path ?? [];
+  const edgeLabels = payload?.edges ?? [];
+  const nodes = pathArr.map((id) => ({ id, label: id }));
+  const edges = buildPathEdges(pathArr, edgeLabels);
   return { nodes, edges };
 }
 

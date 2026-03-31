@@ -67,27 +67,64 @@ const BITMAP_BASE_OVERHEAD = 64;
  * const treeOid = await builder.finalize();
  */
 export default class StreamingBitmapIndexBuilder {
+  /** @type {import('../../ports/CryptoPort.js').default} */
+  _crypto;
+
+  /** @type {import('../../ports/CodecPort.js').default} */
+  _codec;
+
+  /** @type {IndexStorage} */
+  storage;
+
+  /** @type {number} */
+  maxMemoryBytes;
+
+  /** @type {((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined} */
+  onFlush;
+
+  /** @type {import('../../ports/LoggerPort.js').default} */
+  logger;
+
+  /** @type {Map<string, number>} */
+  shaToId;
+
+  /** @type {string[]} */
+  idToSha;
+
+  /** @type {Map<string, import('../utils/roaring.js').RoaringBitmapSubset>} */
+  bitmaps;
+
+  /** @type {number} */
+  estimatedBitmapBytes;
+
+  /** @type {Map<string, string[]>} */
+  flushedChunks;
+
+  /** @type {number} */
+  totalFlushedBytes;
+
+  /** @type {number} */
+  flushCount;
+
+  /** @type {typeof import('roaring').RoaringBitmap32} */
+  _RoaringBitmap32;
+
   /**
    * Creates a new StreamingBitmapIndexBuilder instance.
    *
    * @param {{ storage: import('../../ports/IndexStoragePort.js').default, maxMemoryBytes?: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger?: import('../../ports/LoggerPort.js').default, crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} options - Configuration options
    */
   constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = nullLogger, crypto, codec }) {
-    if (!storage) {
-      throw new Error('StreamingBitmapIndexBuilder requires a storage adapter');
-    }
-    if (maxMemoryBytes <= 0) {
-      throw new Error('maxMemoryBytes must be a positive number');
-    }
+    const validatedStorage = validateBuilderOptions(storage, maxMemoryBytes);
 
     /** @type {import('../../ports/CryptoPort.js').default} */
-    this._crypto = crypto || defaultCrypto;
+    this._crypto = crypto ?? defaultCrypto;
 
     /** @type {import('../../ports/CodecPort.js').default} */
-    this._codec = codec || defaultCodec;
+    this._codec = codec ?? defaultCodec;
 
     /** @type {IndexStorage} */
-    this.storage = /** @type {IndexStorage} */ (storage);
+    this.storage = validatedStorage;
 
     /** @type {number} */
     this.maxMemoryBytes = maxMemoryBytes;
@@ -179,14 +216,14 @@ export default class StreamingBitmapIndexBuilder {
     /** @type {Record<string, Record<string, Record<string, string>>>} */
     const bitmapShards = { fwd: {}, rev: {} };
     for (const [key, bitmap] of this.bitmaps) {
-      const type = key.substring(0, 3);
+      const type = /** @type {BitmapShardType} */ (key.substring(0, 3));
       const sha = key.substring(4);
       const prefix = sha.substring(0, 2);
 
       if (!bitmapShards[type][prefix]) {
         bitmapShards[type][prefix] = {};
       }
-      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+      bitmapShards[type][prefix][sha] = serializeBitmap(bitmap);
     }
     return bitmapShards;
   }
@@ -271,14 +308,7 @@ export default class StreamingBitmapIndexBuilder {
       flushCount: this.flushCount,
     });
 
-    // Invoke callback if provided
-    if (this.onFlush) {
-      this.onFlush({
-        flushedBytes,
-        totalFlushedBytes: this.totalFlushedBytes,
-        flushCount: this.flushCount,
-      });
-    }
+    this._notifyFlush(flushedBytes);
   }
 
   /**
@@ -462,6 +492,23 @@ export default class StreamingBitmapIndexBuilder {
       nodeCount: this.shaToId.size,
       bitmapCount: this.bitmaps.size,
     };
+  }
+
+  /**
+   * Invokes the optional flush callback with the current cumulative counters.
+   *
+   * @param {number} flushedBytes
+   * @returns {void}
+   * @private
+   */
+  _notifyFlush(flushedBytes) {
+    if (this.onFlush !== undefined) {
+      this.onFlush({
+        flushedBytes,
+        totalFlushedBytes: this.totalFlushedBytes,
+        flushCount: this.flushCount,
+      });
+    }
   }
 
   /**

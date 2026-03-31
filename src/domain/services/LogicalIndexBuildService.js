@@ -17,7 +17,8 @@ import { nodeVisibleV5, edgeVisibleV5 } from './StateSerializerV5.js';
 
 export default class LogicalIndexBuildService {
   /**
-   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
+   * Creates a LogicalIndexBuildService with optional codec and logger.
+   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options] - Service dependencies
    */
   constructor(options = undefined) {
     const { codec, logger } = options || {};

@@ -31,6 +31,22 @@ export const DELIVERY_OUTCOMES = Object.freeze([
   'skipped',
 ]);
 
+/** @type {'delivered'} */
+export const OUTCOME_DELIVERED = 'delivered';
+/** @type {'suppressed'} */
+export const OUTCOME_SUPPRESSED = 'suppressed';
+/** @type {'failed'} */
+export const OUTCOME_FAILED = 'failed';
+/** @type {'skipped'} */
+export const OUTCOME_SKIPPED = 'skipped';
+
+/** @type {'live'} */
+export const MODE_LIVE = 'live';
+/** @type {'replay'} */
+export const MODE_REPLAY = 'replay';
+/** @type {'inspect'} */
+export const MODE_INSPECT = 'inspect';
+
 const modeSet = new Set(DELIVERY_MODES);
 const outcomeSet = new Set(DELIVERY_OUTCOMES);
 
@@ -39,6 +55,8 @@ const outcomeSet = new Set(DELIVERY_OUTCOMES);
 // ============================================================================
 
 /**
+ * Asserts that a mode value is one of the recognized delivery modes (live, replay, inspect).
+ *
  * @param {unknown} mode
  * @returns {void}
  */
@@ -51,6 +69,8 @@ function validateMode(mode) {
 }
 
 /**
+ * Asserts that suppressExternal is a boolean value.
+ *
  * @param {unknown} value
  * @returns {void}
  */
@@ -113,18 +133,18 @@ export function createExternalizationPolicy(params) {
 
 /** Live execution — effects are delivered normally. */
 export const LIVE_LENS = createExternalizationPolicy({
-  mode: 'live',
+  mode: MODE_LIVE,
   suppressExternal: false,
 });
 
 /** Replay execution — external delivery is suppressed. */
 export const REPLAY_LENS = createExternalizationPolicy({
-  mode: 'replay',
+  mode: MODE_REPLAY,
   suppressExternal: true,
 });
 
 /** Inspect execution — dry-run, external delivery is suppressed. */
 export const INSPECT_LENS = createExternalizationPolicy({
-  mode: 'inspect',
+  mode: MODE_INSPECT,
   suppressExternal: true,
 });

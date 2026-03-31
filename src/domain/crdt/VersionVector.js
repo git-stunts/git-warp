@@ -1,4 +1,5 @@
 import { createDot } from './Dot.js';
+import CrdtError from '../errors/CrdtError.js';
 
 /**
  * @fileoverview VersionVector - Causality Tracking via Join-Semilattice
@@ -89,7 +90,7 @@ export function createVersionVector() {
  * @returns {import('./Dot.js').Dot} The new dot representing this operation
  */
 export function vvIncrement(vv, writerId) {
-  const current = vv.get(writerId) || 0;
+  const current = vv.get(writerId) ?? 0;
   const newCounter = current + 1;
   vv.set(writerId, newCounter);
   return createDot(writerId, newCounter);
@@ -112,7 +113,7 @@ export function vvMerge(a, b) {
   const result = new Map(a);
 
   for (const [writerId, counter] of b) {
-    const existing = result.get(writerId) || 0;
+    const existing = result.get(writerId) ?? 0;
     result.set(writerId, Math.max(existing, counter));
   }
 
@@ -129,7 +130,7 @@ export function vvMerge(a, b) {
  */
 export function vvDescends(a, b) {
   for (const [writerId, counter] of b) {
-    const aCounter = a.get(writerId) || 0;
+    const aCounter = a.get(writerId) ?? 0;
     if (aCounter < counter) {
       return false;
     }
@@ -146,7 +147,7 @@ export function vvDescends(a, b) {
  * @returns {boolean}
  */
 export function vvContains(vv, dot) {
-  const counter = vv.get(dot.writerId) || 0;
+  const counter = vv.get(dot.writerId) ?? 0;
   return dot.counter <= counter;
 }
 
@@ -171,13 +172,32 @@ export function vvSerialize(vv) {
       // appear in a VersionVector. They carry no causal information and would
       // be elided on deserialization, breaking round-trip equality.
       if (val === 0) {
-        throw new Error(`vvSerialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`);
+        throw new CrdtError(`vvSerialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
+          code: 'E_CRDT_ZERO_COUNTER',
+          context: { writerId: key },
+        });
       }
       obj[key] = val;
     }
   }
 
   return obj;
+}
+
+/**
+ * Validates a counter value.
+ * @param {string} writerId
+ * @param {number} counter
+ * @throws {CrdtError}
+ * @private
+ */
+function _validateCounter(writerId, counter) {
+  if (typeof counter !== 'number' || !Number.isInteger(counter) || counter < 0) {
+    throw new CrdtError(`Invalid counter for writerId "${writerId}": ${counter}`, {
+      code: 'E_CRDT_INVALID_COUNTER',
+      context: { writerId, counter },
+    });
+  }
 }
 
 /**
@@ -189,15 +209,14 @@ export function vvSerialize(vv) {
  *
  * @param {Object<string, number>} obj
  * @returns {VersionVector}
- * @throws {Error} If any counter value is not a non-negative integer
+ * @throws {CrdtError} If any counter value is not a non-negative integer
  */
 export function vvDeserialize(obj) {
+  /** @type {VersionVector} */
   const vv = new Map();
 
   for (const [writerId, counter] of Object.entries(obj)) {
-    if (typeof counter !== 'number' || !Number.isInteger(counter) || counter < 0) {
-      throw new Error(`Invalid counter for writerId "${writerId}": ${counter}`);
-    }
+    _validateCounter(writerId, counter);
     if (counter > 0) {
       vv.set(writerId, counter);
     }

@@ -16,7 +16,7 @@ const treeSchema = z.object({
   'max-depth': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val) => ({
   edgeLabel: val.edge ?? null,
-  props: Array.isArray(val.prop) ? val.prop : val.prop ? [val.prop] : [],
+  props: Array.isArray(val.prop) ? val.prop : val.prop !== undefined ? [val.prop] : [],
   maxDepth: val['max-depth'],
 }));
 
@@ -33,15 +33,15 @@ function buildChildMap(edges, labelFilter) {
   const hasParent = new Set();
 
   for (const edge of edges) {
-    if (labelFilter && edge.label !== labelFilter) {
+    if (labelFilter !== null && edge.label !== labelFilter) {
       continue;
     }
     if (!children.has(edge.from)) {
       children.set(edge.from, []);
     }
     const fromChildren = children.get(edge.from);
-    if (fromChildren) {
-      fromChildren.push({ id: edge.to, label: edge.label || '' });
+    if (fromChildren !== undefined) {
+      fromChildren.push({ id: edge.to, label: edge.label ?? '' });
     }
     hasParent.add(edge.to);
   }
@@ -61,7 +61,7 @@ function findRoots(nodeIds, edges, labelFilter) {
   const hasChild = new Set();
 
   for (const edge of edges) {
-    if (labelFilter && edge.label !== labelFilter) {
+    if (labelFilter !== null && edge.label !== labelFilter) {
       continue;
     }
     hasParent.add(edge.to);
@@ -85,7 +85,7 @@ function findRoots(nodeIds, edges, labelFilter) {
  * @returns {string}
  */
 function formatAnnotation(nodeProps, propKeys) {
-  if (propKeys.length === 0 || !nodeProps) {
+  if (propKeys.length === 0 || nodeProps === undefined || nodeProps === null) {
     return '';
   }
   const parts = [];
@@ -113,7 +113,7 @@ function formatAnnotation(nodeProps, propKeys) {
  */
 function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, visited, depth, maxDepth, lines }) {
   const connector = depth === 0 ? '' : (isLast ? '\u2514\u2500\u2500 ' : '\u251C\u2500\u2500 ');
-  const annotation = formatAnnotation(propsMap.get(nodeId) || {}, propKeys);
+  const annotation = formatAnnotation(propsMap.get(nodeId) ?? {}, propKeys);
   lines.push(`${prefix}${connector}${nodeId}${annotation}`);
 
   if (visited.has(nodeId)) {
@@ -124,13 +124,13 @@ function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, 
 
   if (maxDepth !== undefined && depth >= maxDepth) {
     const kids = childMap.get(nodeId);
-    if (kids && kids.length > 0) {
+    if (kids !== undefined && kids.length > 0) {
       lines.push(`${prefix}${isLast ? '    ' : '\u2502   '}  ... (${kids.length} children)`);
     }
     return;
   }
 
-  const kids = childMap.get(nodeId) || [];
+  const kids = childMap.get(nodeId) ?? [];
   const childPrefix = depth === 0 ? '' : `${prefix}${isLast ? '    ' : '\u2502   '}`;
   for (let i = 0; i < kids.length; i++) {
     renderTreeNode({
@@ -149,9 +149,30 @@ function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, 
 }
 
 /**
- * Handles the `tree` command: ASCII tree output from graph edges.
- * @param {{options: CliOptions, args: string[]}} params
- * @returns {Promise<{payload: unknown, exitCode: number}>}
+ * Collects all reachable node IDs via DFS from the given roots.
+ * @param {string[]} roots - Starting node IDs.
+ * @param {Map<string, Array<{id: string, label: string}>>} childMap - Parent-to-children adjacency map.
+ * @param {Set<string>} reachable - Accumulator set for reachable IDs.
+ */
+function collectReachable(roots, childMap, reachable) {
+  const stack = [...roots];
+  while (stack.length > 0) {
+    const id = /** @type {string} */ (stack.pop());
+    if (reachable.has(id)) {
+      continue;
+    }
+    reachable.add(id);
+    const kids = childMap.get(id) ?? [];
+    for (const kid of kids) {
+      stack.push(kid.id);
+    }
+  }
+}
+
+/**
+ * Handles the `tree` command: renders an ASCII tree from graph edges.
+ * @param {{options: CliOptions, args: string[]}} params - CLI options and raw argument tokens.
+ * @returns {Promise<{payload: unknown, exitCode: number}>} The tree payload and exit code.
  */
 export default async function handleTree({ options, args }) {
   const { values, positionals } = parseCommandArgs(
@@ -163,15 +184,15 @@ export default async function handleTree({ options, args }) {
 
   const queryResult = await graph.query().run();
   const edges = await graph.getEdges();
-  const rootArg = positionals[0] || null;
+  const rootArg = positionals[0] ?? null;
 
   const nodeIds = queryResult.nodes.map((/** @type {{id: string}} */ n) => n.id);
-  const propsMap = new Map(queryResult.nodes.map((/** @type {{id: string, props?: Record<string, unknown>}} */ n) => [n.id, n.props || {}]));
+  const propsMap = new Map(queryResult.nodes.map((/** @type {{id: string, props?: Record<string, unknown>}} */ n) => [n.id, n.props ?? {}]));
   const childMap = buildChildMap(edges, values.edgeLabel);
 
-  const roots = rootArg ? [rootArg] : findRoots(nodeIds, edges, values.edgeLabel);
+  const roots = rootArg !== null ? [rootArg] : findRoots(nodeIds, edges, values.edgeLabel);
 
-  if (rootArg && !nodeIds.includes(rootArg)) {
+  if (rootArg !== null && !nodeIds.includes(rootArg)) {
     throw usageError(`Node not found: ${rootArg}`);
   }
 
@@ -206,25 +227,4 @@ export default async function handleTree({ options, args }) {
   };
 
   return { payload, exitCode: EXIT_CODES.OK };
-}
-
-/**
- * Collects all reachable node IDs via DFS.
- * @param {string[]} roots
- * @param {Map<string, Array<{id: string, label: string}>>} childMap
- * @param {Set<string>} reachable
- */
-function collectReachable(roots, childMap, reachable) {
-  const stack = [...roots];
-  while (stack.length > 0) {
-    const id = /** @type {string} */ (stack.pop());
-    if (reachable.has(id)) {
-      continue;
-    }
-    reachable.add(id);
-    const kids = childMap.get(id) || [];
-    for (const kid of kids) {
-      stack.push(kid.id);
-    }
-  }
 }

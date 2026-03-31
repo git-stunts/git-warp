@@ -1,3 +1,4 @@
+import WarpError from '../domain/errors/WarpError.js';
 import CommitPort from './CommitPort.js';
 import BlobPort from './BlobPort.js';
 import TreePort from './TreePort.js';
@@ -27,9 +28,13 @@ import RefPort from './RefPort.js';
  */
 class GraphPersistencePort {}
 
+/** @type {string} */
+const E_PORT_COLLISION = 'E_PORT_COLLISION';
+
 /** @type {Array<typeof CommitPort | typeof BlobPort | typeof TreePort | typeof RefPort>} */
 const focusedPorts = [CommitPort, BlobPort, TreePort, RefPort];
-const seen = new Map();
+/** @type {Map<string, typeof CommitPort | typeof BlobPort | typeof TreePort | typeof RefPort>} */
+const seenNames = new Map();
 
 for (const Port of focusedPorts) {
   const allDescriptors = Object.getOwnPropertyDescriptors(Port.prototype);
@@ -39,13 +44,15 @@ for (const Port of focusedPorts) {
   );
 
   for (const [name, descriptor] of Object.entries(descriptors)) {
-    if (seen.has(name)) {
-      throw new Error(
+    if (seenNames.has(name)) {
+      const existingPort = seenNames.get(name);
+      throw new WarpError(
         `GraphPersistencePort composition collision: "${name}" defined by both ` +
-          `${seen.get(name).name} and ${Port.name}`,
+          `${existingPort.name} and ${Port.name}`,
+        E_PORT_COLLISION,
       );
     }
-    seen.set(name, Port);
+    seenNames.set(name, Port);
     Object.defineProperty(GraphPersistencePort.prototype, name, descriptor);
   }
 }

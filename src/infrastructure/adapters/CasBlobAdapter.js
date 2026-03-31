@@ -18,7 +18,37 @@ import { createLazyCas } from './lazyCasInit.js';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.js';
 import { Readable } from 'node:stream';
 
-/** @typedef {{ readManifest: Function, restore: Function, restoreStream?: Function, store: Function, createTree: Function }} CasStore */
+/**
+ * @typedef {object} CasManifest
+ * @property {*} [entries]
+ */
+
+/**
+ * @typedef {object} CasStore
+ * @property {(opts: { treeOid: string }) => Promise<CasManifest>} readManifest
+ * @property {(opts: { manifest: CasManifest, encryptionKey?: Uint8Array }) => Promise<{ buffer: Uint8Array }>} restore
+ * @property {((opts: { manifest: CasManifest, encryptionKey?: Uint8Array }) => AsyncIterable<Uint8Array>)|undefined} [restoreStream]
+ * @property {(opts: { source: *, slug: string, filename: string, encryptionKey?: Uint8Array }) => Promise<CasManifest>} store
+ * @property {(opts: { manifest: CasManifest }) => Promise<string>} createTree
+ */
+
+/**
+ * @typedef {object} BlobPersistence
+ * @property {(oid: string) => Promise<Uint8Array|null|undefined>} readBlob
+ */
+
+/**
+ * Normalizes a Buffer or Uint8Array subclass to a plain Uint8Array.
+ *
+ * @param {Uint8Array} buffer
+ * @returns {Uint8Array}
+ */
+function normalizeToUint8Array(buffer) {
+  if (buffer instanceof Uint8Array && buffer.constructor !== Uint8Array) {
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  }
+  return buffer;
+}
 
 /**
  * Error codes from `@git-stunts/git-cas` that indicate the OID is not
@@ -53,6 +83,16 @@ function isLegacyBlobError(err) {
     }
   }
   const msg = err instanceof Error ? err.message : '';
+  return hasLegacyBlobMessage(msg);
+}
+
+/**
+ * Checks whether a message string matches known legacy blob error patterns.
+ *
+ * @param {string} msg
+ * @returns {boolean}
+ */
+function hasLegacyBlobMessage(msg) {
   return msg.includes('not a tree')
     || msg.includes('bad object')
     || msg.includes('does not exist');
@@ -60,11 +100,15 @@ function isLegacyBlobError(err) {
 
 export default class CasBlobAdapter extends BlobStoragePort {
   /**
-   * @param {{ plumbing: *, persistence: *, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
+   * Creates a CasBlobAdapter backed by git-cas.
+   *
+   * @param {{ plumbing: unknown, persistence: BlobPersistence, encryptionKey?: Uint8Array, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor({ plumbing, persistence, encryptionKey, logger }) {
     super();
+    /** @type {unknown} */
     this._plumbing = plumbing;
+    /** @type {BlobPersistence} */
     this._persistence = persistence;
     this._encryptionKey = encryptionKey;
     this._logger = logger;
@@ -72,14 +116,18 @@ export default class CasBlobAdapter extends BlobStoragePort {
   }
 
   /**
+   * Lazily initializes the git-cas ContentAddressableStore.
+   *
    * @private
    * @returns {Promise<CasStore>}
    */
   async _initCas() {
-    const { default: ContentAddressableStore, CborCodec } = await import(
+    /** @type {{ default: new (opts: unknown) => CasStore, CborCodec: new () => unknown }} */
+    const casModule = await import(
       /* webpackIgnore: true */ '@git-stunts/git-cas'
     );
-    /** @type {{ plumbing: *, codec: *, chunking: { strategy: 'cdc' }, observability?: * }} */
+    const { default: ContentAddressableStore, CborCodec } = casModule;
+    /** @type {{ plumbing: unknown, codec: unknown, chunking: { strategy: string }, observability?: unknown }} */
     const opts = {
       plumbing: this._plumbing,
       codec: new CborCodec(),
@@ -113,7 +161,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
     /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Uint8Array }} */
     const storeOpts = {
       source,
-      slug: options?.slug || `blob-${Date.now().toString(36)}`,
+      slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
     };
     if (this._encryptionKey) {
@@ -136,34 +184,63 @@ export default class CasBlobAdapter extends BlobStoragePort {
     const cas = await this._getCas();
 
     try {
-      const manifest = await cas.readManifest({ treeOid: oid });
-      /** @type {{ manifest: *, encryptionKey?: Uint8Array }} */
-      const restoreOpts = { manifest };
-      if (this._encryptionKey) {
-        restoreOpts.encryptionKey = this._encryptionKey;
-      }
-      const { buffer } = await cas.restore(restoreOpts);
-      // Normalize Buffer to Uint8Array for domain boundary compliance
-      return buffer instanceof Uint8Array && buffer.constructor !== Uint8Array
-        ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-        : buffer;
+      return await this._restoreFromCas(cas, oid);
     } catch (err) {
-      // Fallback: OID may be a raw Git blob (pre-CAS content).
-      // Only fall through for "not a manifest" errors (missing tree, bad format).
-      // Rethrow corruption, decryption, and I/O errors.
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      const blob = await this._persistence.readBlob(oid);
-      if (blob === null || blob === undefined) {
-        throw new PersistenceError(
-          `Missing Git object: ${oid}`,
-          PersistenceError.E_MISSING_OBJECT,
-          { context: { oid } },
-        );
-      }
-      return blob;
+      return await this._fallbackReadBlob(oid);
     }
+  }
+
+  /**
+   * Restores content from a CAS manifest, normalizing Buffer to Uint8Array.
+   *
+   * @private
+   * @param {CasStore} cas
+   * @param {string} oid
+   * @returns {Promise<Uint8Array>}
+   */
+  async _restoreFromCas(cas, oid) {
+    const manifest = await cas.readManifest({ treeOid: oid });
+    const restoreOpts = this._buildRestoreOpts(manifest);
+    const { buffer } = await cas.restore(restoreOpts);
+    return normalizeToUint8Array(buffer);
+  }
+
+  /**
+   * Falls back to reading a raw Git blob for pre-CAS content.
+   *
+   * @private
+   * @param {string} oid
+   * @returns {Promise<Uint8Array>}
+   */
+  async _fallbackReadBlob(oid) {
+    const blob = /** @type {Uint8Array|null|undefined} */ (await this._persistence.readBlob(oid));
+    if (blob === null || blob === undefined) {
+      throw new PersistenceError(
+        `Missing Git object: ${oid}`,
+        PersistenceError.E_MISSING_OBJECT,
+        { context: { oid } },
+      );
+    }
+    return blob;
+  }
+
+  /**
+   * Builds restore options with optional encryption key.
+   *
+   * @private
+   * @param {CasManifest} manifest
+   * @returns {{ manifest: CasManifest, encryptionKey?: Uint8Array }}
+   */
+  _buildRestoreOpts(manifest) {
+    /** @type {{ manifest: CasManifest, encryptionKey?: Uint8Array }} */
+    const opts = { manifest };
+    if (this._encryptionKey) {
+      opts.encryptionKey = this._encryptionKey;
+    }
+    return opts;
   }
 
   /**
@@ -184,7 +261,7 @@ export default class CasBlobAdapter extends BlobStoragePort {
     /** @type {{ source: *, slug: string, filename: string, encryptionKey?: Uint8Array }} */
     const storeOpts = {
       source: readable,
-      slug: options?.slug || `blob-${Date.now().toString(36)}`,
+      slug: options?.slug ?? `blob-${Date.now().toString(36)}`,
       filename: 'content',
     };
     if (this._encryptionKey) {
@@ -241,35 +318,35 @@ export default class CasBlobAdapter extends BlobStoragePort {
     const cas = await this._getCas();
 
     try {
-      const manifest = await cas.readManifest({ treeOid: oid });
-      /** @type {{ manifest: *, encryptionKey?: Uint8Array }} */
-      const restoreOpts = { manifest };
-      if (this._encryptionKey) {
-        restoreOpts.encryptionKey = this._encryptionKey;
-      }
-
-      if (typeof cas.restoreStream === 'function') {
-        const stream = cas.restoreStream(restoreOpts);
-        return stream[Symbol.asyncIterator]();
-      }
-
-      // Fallback: buffered restore as single chunk
-      const { buffer } = await cas.restore(restoreOpts);
-      return singleChunkIterator(buffer);
+      return await this._streamFromCas(cas, oid);
     } catch (err) {
       if (!isLegacyBlobError(err)) {
         throw err;
       }
-      const blob = await this._persistence.readBlob(oid);
-      if (blob === null || blob === undefined) {
-        throw new PersistenceError(
-          `Missing Git object: ${oid}`,
-          PersistenceError.E_MISSING_OBJECT,
-          { context: { oid } },
-        );
-      }
+      const blob = await this._fallbackReadBlob(oid);
       return singleChunkIterator(blob);
     }
+  }
+
+  /**
+   * Attempts to stream content from a CAS manifest.
+   *
+   * @private
+   * @param {CasStore} cas
+   * @param {string} oid
+   * @returns {Promise<AsyncIterator<Uint8Array>>}
+   */
+  async _streamFromCas(cas, oid) {
+    const manifest = await cas.readManifest({ treeOid: oid });
+    const restoreOpts = this._buildRestoreOpts(manifest);
+
+    if (typeof cas.restoreStream === 'function') {
+      const stream = cas.restoreStream(restoreOpts);
+      return /** @type {AsyncIterable<Uint8Array>} */ (stream)[Symbol.asyncIterator]();
+    }
+
+    const { buffer } = await cas.restore(restoreOpts);
+    return singleChunkIterator(buffer);
   }
 }
 

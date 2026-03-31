@@ -7,6 +7,48 @@
  * Git commit pointing to the empty tree.
  */
 
+import WarpError from '../errors/WarpError.js';
+
+/** @type {string} */
+const E_INVALID_SHA = 'E_INVALID_SHA';
+/** @type {string} */
+const E_INVALID_MESSAGE = 'E_INVALID_MESSAGE';
+/** @type {string} */
+const E_INVALID_PARENTS = 'E_INVALID_PARENTS';
+
+/**
+ * Validates that sha is a non-empty string.
+ * @param {unknown} sha - The sha to validate
+ * @throws {WarpError} If sha is missing or not a string
+ */
+function _validateSha(sha) {
+  if (typeof sha !== 'string' || sha.length === 0) {
+    throw new WarpError('GraphNode requires a valid sha string', E_INVALID_SHA);
+  }
+}
+
+/**
+ * Validates that message is a non-empty string.
+ * @param {unknown} message - The message to validate
+ * @throws {WarpError} If message is missing or not a string
+ */
+function _validateMessage(message) {
+  if (typeof message !== 'string' || message.length === 0) {
+    throw new WarpError('GraphNode requires a valid message string', E_INVALID_MESSAGE);
+  }
+}
+
+/**
+ * Validates that parents is an array.
+ * @param {unknown} parents - The parents to validate
+ * @throws {WarpError} If parents is not an array
+ */
+function _validateParents(parents) {
+  if (!Array.isArray(parents)) {
+    throw new WarpError('GraphNode parents must be an array', E_INVALID_PARENTS);
+  }
+}
+
 /**
  * Immutable domain entity representing a node in the graph.
  *
@@ -44,15 +86,9 @@ export default class GraphNode {
    * @throws {Error} If parents is not an array
    */
   constructor({ sha, message, author, date, parents = [] }) {
-    if (!sha || typeof sha !== 'string') {
-      throw new Error('GraphNode requires a valid sha string');
-    }
-    if (!message || typeof message !== 'string') {
-      throw new Error('GraphNode requires a valid message string');
-    }
-    if (!Array.isArray(parents)) {
-      throw new Error('GraphNode parents must be an array');
-    }
+    _validateSha(sha);
+    _validateMessage(message);
+    _validateParents(parents);
 
     this.sha = sha;
     this.message = message;
