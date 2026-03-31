@@ -1,13 +1,15 @@
 /**
- * EffectEmission — immutable substrate fact recording that an outbound
- * effect candidate was produced at a causal coordinate.
+ * EffectEmission — host-domain read model / event shape for an
+ * outbound effect candidate.
  *
- * This is a type definition + factory. Effect emissions are generic —
- * the `kind` and `payload` are opaque to the substrate. Applications
- * (XYPH, warp-ttd) assign product meaning.
+ * This is a host-side trace object, NOT causal substrate truth.
+ * The source of truth for effects is `effect:*` graph entities
+ * written by participants. This type mirrors that graph-level
+ * entity schema for use in the host-domain effect pipeline.
  *
  * @module EffectEmission
- * @see docs/design/effect-emission-v1.md
+ * @see docs/design/effect-entity-convention.md
+ * @see docs/design/layer-boundary.md
  */
 
 import { DELIVERY_MODES, DELIVERY_OUTCOMES } from './ExternalizationPolicy.js';

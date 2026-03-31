@@ -1,13 +1,14 @@
 /**
- * EffectPipeline — orchestrates effect emission, delivery through
- * sinks, and collection of delivery observations.
+ * EffectPipeline — host-domain infrastructure for managed outbound
+ * delivery.
  *
- * Holds a sink (typically a MultiplexSink), an ExternalizationPolicy, and a
- * clock. Provides `emit()` to produce EffectEmissions and collect
- * DeliveryObservations.
+ * Orchestrates emission through sinks and collects delivery
+ * observations. This is NOT substrate — it operates entirely
+ * outside the graph. The graph provides effect entities (written by
+ * participants); the pipeline externalizes them.
  *
  * @module EffectPipeline
- * @see docs/design/effect-emission-v1.md
+ * @see docs/design/layer-boundary.md
  */
 
 import { createEffectEmission } from '../types/EffectEmission.js';

@@ -1,11 +1,12 @@
 /**
- * MultiplexSink — fans out one EffectEmission to multiple child sinks.
+ * MultiplexSink — host-domain fan-out over multiple child sinks.
  *
- * Implements EffectSinkPort itself (composite pattern), so callers
- * don't need to know whether they're talking to one sink or many.
+ * Implements EffectSinkPort (composite pattern). This is host-domain
+ * infrastructure, not substrate. Fan-out is driven by application
+ * configuration, not by graph structure.
  *
  * @module MultiplexSink
- * @see docs/design/effect-emission-v1.md
+ * @see docs/design/layer-boundary.md
  */
 
 import EffectSinkPort from '../../ports/EffectSinkPort.js';

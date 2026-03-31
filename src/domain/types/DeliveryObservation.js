@@ -1,9 +1,13 @@
 /**
- * DeliveryObservation — immutable substrate fact recording how a sink
- * handled an emitted effect under a given delivery lens.
+ * DeliveryObservation — host-domain trace record of how a sink
+ * handled an emitted effect under a given externalization policy.
+ *
+ * This is host-domain infrastructure, NOT causal substrate truth.
+ * Delivery observations live in the pipeline's in-memory trace or
+ * in chunk sink files — not in the graph.
  *
  * @module DeliveryObservation
- * @see docs/design/effect-emission-v1.md
+ * @see docs/design/layer-boundary.md
  */
 
 import { validateOutcome, DELIVERY_MODES } from './ExternalizationPolicy.js';
