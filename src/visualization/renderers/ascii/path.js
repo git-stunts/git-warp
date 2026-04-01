@@ -21,7 +21,7 @@ const BOX_PADDING = 4;
  * @returns {string} Formatted node ID with brackets
  */
 function formatNode(nodeId, maxLen = 20) {
-  if (!nodeId || typeof nodeId !== 'string') {
+  if (nodeId === undefined || nodeId === null || typeof nodeId !== 'string' || nodeId === '') {
     return '[?]';
   }
   const truncated = nodeId.length > maxLen
@@ -36,7 +36,7 @@ function formatNode(nodeId, maxLen = 20) {
  * @returns {string} Arrow string like " ---> " or " --label--> "
  */
 function createArrow(label) {
-  if (label && typeof label === 'string') {
+  if (label !== undefined && label !== null && typeof label === 'string' && label !== '') {
     return ` ${ARROW.line}${ARROW.line}${label}${ARROW.line}${ARROW.line}${ARROW.right} `;
   }
   return ` ${ARROW.line}${ARROW.line}${ARROW.line}${ARROW.right} `;
@@ -76,7 +76,7 @@ function createPathSegment({ nodeId, index, pathLength, edges }) {
  * @returns {string[]} Array of line strings
  */
 function buildPathLines(path, edges, maxWidth) {
-  if (!path || path.length === 0) {
+  if (path.length === 0) {
     return [];
   }
 
@@ -185,7 +185,7 @@ function renderFoundPath(payload, terminalWidth = DEFAULT_TERMINAL_WIDTH) {
   }
 
   return createBox(lines.join('\n'), {
-    title: `PATH: ${path[0] || '?'} ${ARROW.right} ${path[path.length - 1] || '?'}`,
+    title: `PATH: ${path[0] !== undefined && path[0] !== '' ? path[0] : '?'} ${ARROW.right} ${path[path.length - 1] !== undefined && path[path.length - 1] !== '' ? path[path.length - 1] : '?'}`,
     titleAlignment: 'center',
     borderColor: 'green',
   });
@@ -198,12 +198,12 @@ function renderFoundPath(payload, terminalWidth = DEFAULT_TERMINAL_WIDTH) {
  * @returns {string} Formatted ASCII output
  */
 export function renderPathView(payload, options = {}) {
-  if (!payload) {
+  if (payload === null || payload === undefined) {
     return `${colors.error('No data available')}\n`;
   }
 
   const { from, to, found, path, length } = payload;
-  const terminalWidth = options.terminalWidth || DEFAULT_TERMINAL_WIDTH;
+  const terminalWidth = typeof options.terminalWidth === 'number' && options.terminalWidth > 0 ? options.terminalWidth : DEFAULT_TERMINAL_WIDTH;
 
   // Handle "no path found" case
   if (!found) {
@@ -211,7 +211,7 @@ export function renderPathView(payload, options = {}) {
   }
 
   // Handle "already at destination" case (from === to, length === 0)
-  if (length === 0 && path && path.length === 1) {
+  if (length === 0 && path.length === 1) {
     return `${renderSameNode(path[0])}\n`;
   }
 

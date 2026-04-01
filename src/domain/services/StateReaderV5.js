@@ -74,8 +74,10 @@ function visibleEdgeRegister(register, birthEvent) {
 }
 
 /**
- * @param {VisibleEdgeRef} edge
- * @returns {string}
+ * Encodes a visible edge reference into a composite key string.
+ *
+ * @param {VisibleEdgeRef} edge - the edge reference to encode
+ * @returns {string} the encoded edge key
  */
 function edgeKeyFromRef(edge) {
   return encodeEdgeKey(edge.from, edge.to, edge.label);
@@ -121,8 +123,10 @@ function getEdgeContentRegisters(state, edge) {
 
   const birthEvent = state.edgeBirthEvent?.get(edgeKey);
   /**
-   * @param {string} propKey
-   * @returns {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null}
+   * Reads an edge property register filtered by the edge birth event.
+   *
+   * @param {string} propKey - the property key to look up
+   * @returns {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null} the register or null
    */
   function getRegister(propKey) {
     return visibleEdgeRegister(
@@ -143,9 +147,11 @@ function getEdgeContentRegisters(state, edge) {
 }
 
 /**
- * @param {import('../utils/EventId.js').EventId|null|undefined} contentEventId
- * @param {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null|undefined} register
- * @returns {unknown}
+ * Reads the value of an attachment sibling if it shares the same lineage.
+ *
+ * @param {import('../utils/EventId.js').EventId|null|undefined} contentEventId - event ID of the content register
+ * @param {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null|undefined} register - the sibling register
+ * @returns {unknown} the sibling value, or null if lineage mismatch
  */
 function readAttachmentSiblingValue(contentEventId, register) {
   if (!isSameAttachmentLineage(contentEventId, register?.eventId)) {
@@ -155,16 +161,20 @@ function readAttachmentSiblingValue(contentEventId, register) {
 }
 
 /**
- * @param {unknown} value
- * @returns {string|null}
+ * Coerces a value to a MIME string or returns null.
+ *
+ * @param {unknown} value - the value to coerce
+ * @returns {string|null} the MIME string or null
  */
 function coerceMime(value) {
   return typeof value === 'string' ? value : null;
 }
 
 /**
- * @param {unknown} value
- * @returns {number|null}
+ * Coerces a value to a non-negative integer size or returns null.
+ *
+ * @param {unknown} value - the value to coerce
+ * @returns {number|null} the size or null
  */
 function coerceSize(value) {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
@@ -187,32 +197,40 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
 }
 
 /**
- * @param {Record<string, unknown>} bag
- * @returns {Record<string, unknown>}
+ * Shallow-clones a property bag.
+ *
+ * @param {Record<string, unknown>} bag - the property bag
+ * @returns {Record<string, unknown>} a shallow copy
  */
 function cloneBag(bag) {
   return { ...bag };
 }
 
 /**
- * @param {ContentMeta|null|undefined} meta
- * @returns {ContentMeta|null}
+ * Shallow-clones content metadata or returns null.
+ *
+ * @param {ContentMeta|null|undefined} meta - the metadata to clone
+ * @returns {ContentMeta|null} a copy or null
  */
 function cloneMeta(meta) {
   return meta ? { ...meta } : null;
 }
 
 /**
- * @param {NeighborEntry[]} entries
- * @returns {NeighborEntry[]}
+ * Shallow-clones an array of neighbor entries.
+ *
+ * @param {NeighborEntry[]} entries - the neighbor entries to clone
+ * @returns {NeighborEntry[]} cloned entries
  */
 function cloneNeighbors(entries) {
   return entries.map((entry) => ({ ...entry }));
 }
 
 /**
- * @param {string[]} nodeIds
- * @returns {Map<string, Record<string, unknown>>}
+ * Creates a map of node ID to empty property bags for population.
+ *
+ * @param {string[]} nodeIds - the visible node IDs
+ * @returns {Map<string, Record<string, unknown>>} node property index
  */
 function createNodePropIndex(nodeIds) {
   return new Map(
@@ -221,8 +239,10 @@ function createNodePropIndex(nodeIds) {
 }
 
 /**
- * @param {VisibleEdgeRef[]} edges
- * @returns {Map<string, Record<string, unknown>>}
+ * Creates a map of edge key to empty property bags for population.
+ *
+ * @param {VisibleEdgeRef[]} edges - the visible edge references
+ * @returns {Map<string, Record<string, unknown>>} edge property index
  */
 function createEdgePropIndex(edges) {
   return new Map(
@@ -231,9 +251,11 @@ function createEdgePropIndex(edges) {
 }
 
 /**
- * @param {string[]} nodeIds
- * @param {VisibleEdgeRef[]} edges
- * @returns {{ outgoingByNode: StateReaderContext['outgoingByNode'], incomingByNode: StateReaderContext['incomingByNode'] }}
+ * Builds outgoing and incoming neighbor indexes from visible nodes and edges.
+ *
+ * @param {string[]} nodeIds - the visible node IDs
+ * @param {VisibleEdgeRef[]} edges - the visible edge references
+ * @returns {{ outgoingByNode: StateReaderContext['outgoingByNode'], incomingByNode: StateReaderContext['incomingByNode'] }} neighbor maps
  */
 function createNeighborIndex(nodeIds, edges) {
   const outgoingByNode = new Map(
@@ -258,8 +280,10 @@ function createNeighborIndex(nodeIds, edges) {
 }
 
 /**
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {{ visibleNodeIds: Set<string>, nodePropsById: Map<string, Record<string, unknown>>, edgePropsByKey: Map<string, Record<string, unknown>> }} indexes
+ * Populates node and edge property indexes from materialized state registers.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {{ visibleNodeIds: Set<string>, nodePropsById: Map<string, Record<string, unknown>>, edgePropsByKey: Map<string, Record<string, unknown>> }} indexes - the indexes to populate
  * @returns {void}
  */
 function populateVisibleProps(state, indexes) {
@@ -278,7 +302,7 @@ function populateVisibleProps(state, indexes) {
     const edgeKey = edgeKeyFromRef(edge);
     const props = edgePropsByKey.get(edgeKey);
     const birthEvent = state.edgeBirthEvent?.get(edgeKey);
-    if (!props || (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0)) {
+    if (props === undefined || (birthEvent !== undefined && register.eventId !== null && register.eventId !== undefined && compareEventIds(register.eventId, birthEvent) < 0)) {
       continue;
     }
     props[decoded.propKey] = register.value;
@@ -286,9 +310,11 @@ function populateVisibleProps(state, indexes) {
 }
 
 /**
- * @param {VisibleEdgeRef[]} edges
- * @param {Map<string, Record<string, unknown>>} edgePropsByKey
- * @returns {VisibleEdgeView[]}
+ * Creates visible edge views with cloned property bags.
+ *
+ * @param {VisibleEdgeRef[]} edges - the visible edge references
+ * @param {Map<string, Record<string, unknown>>} edgePropsByKey - the edge property index
+ * @returns {VisibleEdgeView[]} edge views with props
  */
 function createVisibleEdges(edges, edgePropsByKey) {
   return edges.map((edge) => ({
@@ -298,9 +324,11 @@ function createVisibleEdges(edges, edgePropsByKey) {
 }
 
 /**
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {string[]} nodeIds
- * @returns {Map<string, ContentMeta|null>}
+ * Builds a content metadata index for all visible nodes.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {string[]} nodeIds - the visible node IDs
+ * @returns {Map<string, ContentMeta|null>} node content metadata index
  */
 function createNodeContentMetaIndex(state, nodeIds) {
   return new Map(
@@ -317,9 +345,11 @@ function createNodeContentMetaIndex(state, nodeIds) {
 }
 
 /**
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {VisibleEdgeRef[]} edges
- * @returns {Map<string, ContentMeta|null>}
+ * Builds a content metadata index for all visible edges.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state - the materialized state
+ * @param {VisibleEdgeRef[]} edges - the visible edge references
+ * @returns {Map<string, ContentMeta|null>} edge content metadata index
  */
 function createEdgeContentMetaIndex(state, edges) {
   return new Map(
@@ -336,8 +366,10 @@ function createEdgeContentMetaIndex(state, edges) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @returns {{ nodes: string[], edges: Array<{ from: string, to: string, label: string }>, props: Array<{ node: string, key: string, value: unknown }> }}
+ * Deep-clones the state projection for safe external consumption.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @returns {{ nodes: string[], edges: Array<{ from: string, to: string, label: string }>, props: Array<{ node: string, key: string, value: unknown }> }} cloned projection
  */
 function cloneProjection(context) {
   return {
@@ -348,34 +380,42 @@ function cloneProjection(context) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @returns {boolean}
+ * Checks whether a node is visible in the current state.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {string} nodeId - the node ID to check
+ * @returns {boolean} true if the node is visible
  */
 function hasVisibleNode(context, nodeId) {
   return context.visibleNodeIds.has(nodeId);
 }
 
 /**
- * @param {StateReaderContext} context
- * @returns {string[]}
+ * Returns a copy of all visible node IDs.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @returns {string[]} visible node IDs
  */
 function getVisibleNodes(context) {
   return [...context.projection.nodes];
 }
 
 /**
- * @param {StateReaderContext} context
- * @returns {VisibleEdgeView[]}
+ * Returns cloned visible edge views with properties.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @returns {VisibleEdgeView[]} visible edges
  */
 function getVisibleEdges(context) {
   return context.edges.map((edge) => ({ ...edge, props: cloneBag(edge.props) }));
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @returns {Record<string, unknown>|null}
+ * Returns cloned properties for a visible node, or null if not visible.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {string} nodeId - the node ID
+ * @returns {Record<string, unknown>|null} properties or null
  */
 function getVisibleNodeProps(context, nodeId) {
   if (!hasVisibleNode(context, nodeId)) {
@@ -385,9 +425,11 @@ function getVisibleNodeProps(context, nodeId) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {VisibleEdgeRef} edge
- * @returns {Record<string, unknown>|null}
+ * Returns cloned properties for a visible edge, or null if not found.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {VisibleEdgeRef} edge - the edge reference
+ * @returns {Record<string, unknown>|null} properties or null
  */
 function getVisibleEdgeProps(context, edge) {
   const props = context.edgePropsByKey.get(edgeKeyFromRef(edge));
@@ -395,10 +437,12 @@ function getVisibleEdgeProps(context, edge) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @param {{ direction?: 'outgoing'|'incoming'|'both', edgeLabel?: string }} [options]
- * @returns {NeighborEntry[]}
+ * Returns visible neighbors for a node, optionally filtered by direction and label.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {string} nodeId - the node ID
+ * @param {{ direction?: 'outgoing'|'incoming'|'both', edgeLabel?: string }} [options] - filter options
+ * @returns {NeighborEntry[]} neighbor entries
  */
 function getVisibleNeighbors(context, nodeId, options = {}) {
   if (!hasVisibleNode(context, nodeId)) {
@@ -423,9 +467,11 @@ function getVisibleNeighbors(context, nodeId, options = {}) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @returns {ContentMeta|null}
+ * Returns cloned content metadata for a visible node, or null.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {string} nodeId - the node ID
+ * @returns {ContentMeta|null} content metadata or null
  */
 function getVisibleNodeContentMeta(context, nodeId) {
   if (!hasVisibleNode(context, nodeId)) {
@@ -435,18 +481,22 @@ function getVisibleNodeContentMeta(context, nodeId) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {VisibleEdgeRef} edge
- * @returns {ContentMeta|null}
+ * Returns cloned content metadata for a visible edge, or null.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {VisibleEdgeRef} edge - the edge reference
+ * @returns {ContentMeta|null} content metadata or null
  */
 function getVisibleEdgeContentMeta(context, edge) {
   return cloneMeta(context.edgeContentMetaByKey.get(edgeKeyFromRef(edge)));
 }
 
 /**
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @returns {{ nodeId: string, props: Record<string, unknown>, outgoing: NeighborEntry[], incoming: NeighborEntry[], content: ContentMeta|null }|null}
+ * Inspects a visible node, returning its props, neighbors, and content metadata.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @param {string} nodeId - the node ID to inspect
+ * @returns {{ nodeId: string, props: Record<string, unknown>, outgoing: NeighborEntry[], incoming: NeighborEntry[], content: ContentMeta|null }|null} inspection result or null
  */
 function inspectVisibleNode(context, nodeId) {
   if (!hasVisibleNode(context, nodeId)) {
@@ -462,8 +512,10 @@ function inspectVisibleNode(context, nodeId) {
 }
 
 /**
- * @param {StateReaderContext} context
- * @returns {import('../../../index.js').VisibleStateReaderV5}
+ * Assembles the frozen reader API from a pre-built context.
+ *
+ * @param {StateReaderContext} context - the reader context
+ * @returns {import('../../../index.js').VisibleStateReaderV5} frozen reader
  */
 function buildReaderApi(context) {
   /** @type {import('../../../index.js').VisibleStateReaderV5} */
@@ -503,8 +555,10 @@ function buildReaderApi(context) {
 }
 
 /**
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @returns {StateReaderContext}
+ * Builds the full reader context from materialized state, including all indexes.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state - the materialized state
+ * @returns {StateReaderContext} the reader context
  */
 function buildReaderContext(state) {
   const projection = projectStateV5(state);

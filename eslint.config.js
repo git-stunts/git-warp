@@ -290,6 +290,10 @@ export default tseslint.config(
       "src/domain/services/IncrementalIndexUpdater.js",
       "src/domain/services/WormholeService.js",
       "src/domain/services/WarpServeService.js",
+      "src/domain/services/StateReaderV5.js",
+      "src/domain/services/SyncAuthService.js",
+      "src/infrastructure/adapters/GitGraphAdapter.js",
+      "src/visualization/renderers/ascii/path.js",
       "src/domain/services/StrandService.js",
     ],
     rules: {

@@ -44,6 +44,7 @@
  */
 
 import { retry } from '@git-stunts/alfred';
+import AdapterValidationError from '../../domain/errors/AdapterValidationError.js';
 import PersistenceError from '../../domain/errors/PersistenceError.js';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
@@ -96,8 +97,8 @@ const TRANSIENT_ERROR_PATTERNS = [
  * @returns {boolean} True if the error is transient
  */
 function isTransientError(error) {
-  const message = (error.message || '').toLowerCase();
-  const stderr = (error.details?.stderr || '').toLowerCase();
+  const message = (error.message !== undefined ? error.message : '').toLowerCase();
+  const stderr = (error.details?.stderr !== undefined ? error.details.stderr : '').toLowerCase();
   const searchText = `${message} ${stderr}`;
   return TRANSIENT_ERROR_PATTERNS.some(pattern => searchText.includes(pattern));
 }
@@ -140,7 +141,8 @@ function isDanglingObjectError(err) {
   if (getExitCode(err) !== 128) {
     return false;
   }
-  const stderr = (err.details?.stderr || '').toLowerCase();
+  const stderrRaw = err.details?.stderr;
+  const stderr = (stderrRaw !== undefined && stderrRaw !== null ? stderrRaw : '').toLowerCase();
   return (
     stderr.includes('bad object') ||
     stderr.includes('not a valid object name') ||
@@ -180,9 +182,10 @@ const REF_IO_PATTERNS = [
  * @returns {string}
  */
 function errorSearchText(err) {
-  const message = (err.message || '').toLowerCase();
-  const stderr = (err.details?.stderr || '').toLowerCase();
-  return `${message} ${stderr}`;
+  const msg = err.message !== undefined ? err.message : '';
+  const stderrRaw = err.details?.stderr;
+  const stderr = stderrRaw !== undefined && stderrRaw !== null ? stderrRaw : '';
+  return `${msg} ${stderr}`.toLowerCase();
 }
 
 /**
@@ -193,8 +196,10 @@ function errorSearchText(err) {
  * @returns {string}
  */
 function gitDiagnosticText(err) {
-  const stderr = String(err?.details?.stderr || '');
-  const stdout = String(err?.details?.stdout || '');
+  const stderrRaw = err?.details?.stderr;
+  const stdoutRaw = err?.details?.stdout;
+  const stderr = stderrRaw !== undefined && stderrRaw !== null ? String(stderrRaw) : '';
+  const stdout = stdoutRaw !== undefined && stdoutRaw !== null ? String(stdoutRaw) : '';
   return `${stderr} ${stdout}`.trim().toLowerCase();
 }
 
@@ -255,21 +260,21 @@ function isRefIoError(err) {
 function wrapGitError(err, hint = {}) {
   if (isMissingObjectError(err)) {
     return new PersistenceError(
-      hint.oid ? `Missing Git object: ${hint.oid}` : err.message,
+      hint.oid !== undefined && hint.oid !== '' ? `Missing Git object: ${hint.oid}` : err.message,
       PersistenceError.E_MISSING_OBJECT,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
   }
   if (isRefNotFoundError(err)) {
     return new PersistenceError(
-      hint.ref ? `Ref not found: ${hint.ref}` : err.message,
+      hint.ref !== undefined && hint.ref !== '' ? `Ref not found: ${hint.ref}` : err.message,
       PersistenceError.E_REF_NOT_FOUND,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
   }
   if (isRefIoError(err)) {
     return new PersistenceError(
-      hint.ref ? `Ref I/O error: ${hint.ref}` : err.message,
+      hint.ref !== undefined && hint.ref !== '' ? `Ref I/O error: ${hint.ref}` : err.message,
       PersistenceError.E_REF_IO,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
@@ -354,8 +359,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   constructor({ plumbing, retryOptions = {} }) {
     super();
-    if (!plumbing) {
-      throw new Error('plumbing is required');
+    if (plumbing === undefined || plumbing === null) {
+      throw new AdapterValidationError('plumbing is required');
     }
     this.plumbing = plumbing;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
@@ -498,7 +503,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
 
     const [commitSha, author, date, parentsStr, ...messageParts] = parts;
     const message = messageParts.join('\x00'); // In case message contained NUL (shouldn't happen)
-    const parents = parentsStr ? parentsStr.split(' ').filter(p => p) : [];
+    const parents = parentsStr !== undefined && parentsStr !== '' ? parentsStr.split(' ').filter(p => p !== '') : [];
 
     return {
       sha: commitSha.trim(),
@@ -537,7 +542,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateRef(ref);
     this._validateLimit(limit);
     const args = ['log', `-${limit}`];
-    if (format) {
+    if (format !== undefined && format !== '') {
       args.push(`--format=${format}`);
     }
     args.push(ref);
@@ -562,7 +567,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateLimit(limit);
     // -z flag ensures NUL-terminated output and ignores i18n.logOutputEncoding config
     const args = ['log', '-z', `-${limit}`];
-    if (format) {
+    if (format !== undefined && format !== '') {
       // Strip NUL (\x00) bytes from the caller-supplied format string.
       // Why: Git's -z flag uses NUL as the record terminator in its output.
       // If a format string contains literal NUL bytes (e.g. from %x00 expansion
@@ -664,7 +669,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     // NUL-separated records: "mode type oid\tpath\0"
     const records = output.split('\0');
     for (const record of records) {
-      if (!record) {
+      if (record === '') {
         continue;
       }
       // Format: "mode type oid\tpath"
@@ -771,8 +776,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateRef(ref);
     this._validateOid(newOid);
     // null means "ref must not exist" → use zero OID (always 40 chars for SHA-1)
-    const oldArg = expectedOid || '0'.repeat(40);
-    if (expectedOid) {
+    const oldArg = expectedOid !== null && expectedOid !== undefined && expectedOid !== '' ? expectedOid : '0'.repeat(40);
+    if (expectedOid !== null && expectedOid !== undefined) {
       this._validateOid(expectedOid);
     }
     // Direct call — CAS failures are semantically expected and must NOT be retried.
@@ -861,7 +866,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateRef(prefix);
     const limit = options?.limit;
     const args = ['for-each-ref', '--format=%(refname)'];
-    if (limit) {
+    if (limit !== undefined && limit !== 0) {
       this._validateLimit(limit);
       args.push(`--count=${limit}`);
     }
@@ -873,7 +878,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       throw wrapGitError(/** @type {GitError} */ (err), { ref: prefix });
     }
     // Parse output - one ref per line, filter empty lines
-    return output.split('\n').filter(line => line.trim());
+    return output.split('\n').filter(line => line.trim() !== '');
   }
 
   /**
@@ -973,7 +978,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async configSet(key, value) {
     this._validateConfigKey(key);
     if (typeof value !== 'string') {
-      throw new Error('Config value must be a string');
+      throw new AdapterValidationError('Config value must be a string');
     }
     await this._executeWithRetry({
       args: ['config', key, value]
@@ -1019,8 +1024,9 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     // Fallback for wrapped errors where exit code is embedded in message.
     // This is intentionally conservative - only matches the exact pattern
     // from git config failures to avoid false positives from unrelated errors.
-    const msg = (err.message || '').toLowerCase();
-    const stderr = (err.details?.stderr || '').toLowerCase();
+    const msg = (err.message !== undefined ? err.message : '').toLowerCase();
+    const stderrVal = err.details?.stderr;
+    const stderr = (stderrVal !== undefined && stderrVal !== null ? stderrVal : '').toLowerCase();
     return msg.includes('exit code 1') || stderr.includes('exit code 1');
   }
 }
