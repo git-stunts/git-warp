@@ -96,8 +96,8 @@ const TRANSIENT_ERROR_PATTERNS = [
  * @returns {boolean} True if the error is transient
  */
 function isTransientError(error) {
-  const message = (typeof error.message === 'string' ? error.message : '').toLowerCase();
-  const stderr = (typeof error.details?.stderr === 'string' ? error.details.stderr : '').toLowerCase();
+  const message = (error.message || '').toLowerCase();
+  const stderr = (error.details?.stderr || '').toLowerCase();
   const searchText = `${message} ${stderr}`;
   return TRANSIENT_ERROR_PATTERNS.some(pattern => searchText.includes(pattern));
 }
@@ -119,30 +119,14 @@ const DEFAULT_RETRY_OPTIONS = {
 };
 
 /**
- * Extracts the exit code from the details sub-object of a Git error.
- * @param {GitError} err - The error object
- * @returns {number|undefined} The exit code from details, if present
- */
-function getDetailsCode(err) {
-  return err?.details?.code;
-}
-
-/**
  * Extracts the exit code from a Git command error.
  * Checks multiple possible locations where the exit code may be stored.
  * @param {GitError} err - The error object
  * @returns {number|undefined} The exit code if found
  */
 function getExitCode(err) {
-  return getDetailsCode(err) ?? err?.exitCode ?? err?.code;
+  return err?.details?.code ?? err?.exitCode ?? err?.code;
 }
-
-/** @type {string[]} Stderr patterns indicating a dangling/missing Git object. */
-const DANGLING_OBJECT_PATTERNS = [
-  'bad object',
-  'not a valid object name',
-  'does not point to a valid object',
-];
 
 /**
  * Checks if a Git error indicates a dangling or missing object.
@@ -156,8 +140,12 @@ function isDanglingObjectError(err) {
   if (getExitCode(err) !== 128) {
     return false;
   }
-  const stderr = (typeof err.details?.stderr === 'string' ? err.details.stderr : '').toLowerCase();
-  return DANGLING_OBJECT_PATTERNS.some(p => stderr.includes(p));
+  const stderr = (err.details?.stderr || '').toLowerCase();
+  return (
+    stderr.includes('bad object') ||
+    stderr.includes('not a valid object name') ||
+    stderr.includes('does not point to a valid object')
+  );
 }
 
 /** @type {string[]} Stderr/message patterns indicating a missing Git object. */
@@ -192,27 +180,9 @@ const REF_IO_PATTERNS = [
  * @returns {string}
  */
 function errorSearchText(err) {
-  const message = (typeof err.message === 'string' ? err.message : '').toLowerCase();
-  const stderr = (typeof err.details?.stderr === 'string' ? err.details.stderr : '').toLowerCase();
+  const message = (err.message || '').toLowerCase();
+  const stderr = (err.details?.stderr || '').toLowerCase();
   return `${message} ${stderr}`;
-}
-
-/**
- * Extracts the stderr string from a Git error, defaulting to empty.
- * @param {GitError} err - The Git error
- * @returns {string} The stderr text or empty string
- */
-function extractStderr(err) {
-  return typeof err?.details?.stderr === 'string' ? err.details.stderr : '';
-}
-
-/**
- * Extracts the stdout string from a Git error, defaulting to empty.
- * @param {GitError} err - The Git error
- * @returns {string} The stdout text or empty string
- */
-function extractStdout(err) {
-  return typeof err?.details?.stdout === 'string' ? err.details.stdout : '';
 }
 
 /**
@@ -223,7 +193,9 @@ function extractStdout(err) {
  * @returns {string}
  */
 function gitDiagnosticText(err) {
-  return `${extractStderr(err)} ${extractStdout(err)}`.trim().toLowerCase();
+  const stderr = String(err?.details?.stderr || '');
+  const stdout = String(err?.details?.stdout || '');
+  return `${stderr} ${stdout}`.trim().toLowerCase();
 }
 
 /**
@@ -273,19 +245,6 @@ function isRefIoError(err) {
 }
 
 /**
- * Builds a PersistenceError message, preferring the hint value over the raw error message.
- * @param {string|undefined} hintValue - The hint value (oid or ref)
- * @param {string} prefix - The message prefix (e.g. "Missing Git object")
- * @param {string} fallback - The fallback message from the raw error
- * @returns {string} The constructed message
- */
-function buildPersistenceMessage(hintValue, prefix, fallback) {
-  return typeof hintValue === 'string' && hintValue.length > 0
-    ? `${prefix}: ${hintValue}`
-    : fallback;
-}
-
-/**
  * Wraps a raw Git error in a typed PersistenceError when the failure
  * matches a known pattern. Returns the original error unchanged if
  * no pattern matches.
@@ -296,51 +255,26 @@ function buildPersistenceMessage(hintValue, prefix, fallback) {
 function wrapGitError(err, hint = {}) {
   if (isMissingObjectError(err)) {
     return new PersistenceError(
-      buildPersistenceMessage(hint.oid, 'Missing Git object', err.message),
+      hint.oid ? `Missing Git object: ${hint.oid}` : err.message,
       PersistenceError.E_MISSING_OBJECT,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
   }
   if (isRefNotFoundError(err)) {
     return new PersistenceError(
-      buildPersistenceMessage(hint.ref, 'Ref not found', err.message),
+      hint.ref ? `Ref not found: ${hint.ref}` : err.message,
       PersistenceError.E_REF_NOT_FOUND,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
   }
   if (isRefIoError(err)) {
     return new PersistenceError(
-      buildPersistenceMessage(hint.ref, 'Ref I/O error', err.message),
+      hint.ref ? `Ref I/O error: ${hint.ref}` : err.message,
       PersistenceError.E_REF_IO,
       { cause: /** @type {Error} */ (err), context: { ...hint } },
     );
   }
   return err;
-}
-
-/**
- * Parses NUL-separated ls-tree output into a path-to-OID map.
- * @param {string} output - Raw NUL-separated ls-tree output
- * @returns {Record<string, string>} Map of file path to blob OID
- */
-function parseTreeOidRecords(output) {
-  /** @type {Record<string, string>} */
-  const oids = {};
-  const records = output.split('\0');
-  for (const record of records) {
-    if (record.length === 0) {
-      continue;
-    }
-    const tabIndex = record.indexOf('\t');
-    if (tabIndex === -1) {
-      continue;
-    }
-    const meta = record.slice(0, tabIndex);
-    const path = record.slice(tabIndex + 1);
-    const [, , oid] = meta.split(' ');
-    oids[path] = oid;
-  }
-  return oids;
 }
 
 /**
@@ -420,8 +354,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   constructor({ plumbing, retryOptions = {} }) {
     super();
-    if (plumbing === undefined || plumbing === null) {
-      throw new PersistenceError('plumbing is required', 'E_MISSING_OBJECT');
+    if (!plumbing) {
+      throw new Error('plumbing is required');
     }
     this.plumbing = plumbing;
     this._retryOptions = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions };
@@ -539,37 +473,22 @@ export default class GitGraphAdapter extends GraphPersistencePort {
    */
   async getNodeInfo(sha) {
     this._validateOid(sha);
-    const output = await this._fetchNodeInfo(sha);
-    return this._parseNodeInfo(output, sha);
-  }
-
-  /**
-   * Fetches raw commit metadata from Git for a given SHA.
-   * @param {string} sha - The commit SHA to retrieve
-   * @returns {Promise<string>} Raw NUL-separated commit metadata
-   * @private
-   */
-  async _fetchNodeInfo(sha) {
+    // Format: SHA, author, date, parents (space-separated), then message
+    // Using %x00 to separate fields for reliable parsing
     const format = '%H%x00%an <%ae>%x00%aI%x00%P%x00%B';
+    let output;
     try {
-      return await this._executeWithRetry({
+      output = await this._executeWithRetry({
         args: ['show', '-s', `--format=${format}`, sha]
       });
     } catch (err) {
       throw wrapGitError(/** @type {GitError} */ (err), { oid: sha });
     }
-  }
 
-  /**
-   * Parses NUL-separated commit metadata into a structured object.
-   * @param {string} output - Raw NUL-separated output from git show
-   * @param {string} sha - The original SHA (for error context)
-   * @returns {{sha: string, message: string, author: string, date: string, parents: string[]}}
-   * @private
-   */
-  _parseNodeInfo(output, sha) {
     const parts = output.split('\x00');
     if (parts.length < 5) {
+      // Object exists but output is malformed — semantically closest to
+      // E_MISSING_OBJECT since the commit is unusable for data extraction.
       throw new PersistenceError(
         `Invalid commit format for SHA ${sha}`,
         PersistenceError.E_MISSING_OBJECT,
@@ -578,14 +497,14 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     }
 
     const [commitSha, author, date, parentsStr, ...messageParts] = parts;
-    const message = messageParts.join('\x00');
-    const parents = parentsStr.length > 0 ? parentsStr.split(' ').filter(p => p.length > 0) : [];
+    const message = messageParts.join('\x00'); // In case message contained NUL (shouldn't happen)
+    const parents = parentsStr ? parentsStr.split(' ').filter(p => p) : [];
 
     return {
-      sha: commitSha.trim(),
+      sha: (commitSha ?? '').trim(),
       message,
-      author: author.trim(),
-      date: date.trim(),
+      author: (author ?? '').trim(),
+      date: (date ?? '').trim(),
       parents,
     };
   }
@@ -618,7 +537,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateRef(ref);
     this._validateLimit(limit);
     const args = ['log', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
+    if (format) {
       args.push(`--format=${format}`);
     }
     args.push(ref);
@@ -643,7 +562,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateLimit(limit);
     // -z flag ensures NUL-terminated output and ignores i18n.logOutputEncoding config
     const args = ['log', '-z', `-${limit}`];
-    if (typeof format === 'string' && format.length > 0) {
+    if (format) {
       // Strip NUL (\x00) bytes from the caller-supplied format string.
       // Why: Git's -z flag uses NUL as the record terminator in its output.
       // If a format string contains literal NUL bytes (e.g. from %x00 expansion
@@ -716,7 +635,11 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         batch.map(([, oid]) => this.readBlob(oid))
       );
       for (let j = 0; j < batch.length; j++) {
-        files[batch[j][0]] = results[j];
+        const entry = batch[j];
+        const result = results[j];
+        if (entry !== undefined && entry !== null && result !== undefined && result !== null) {
+          files[entry[0]] = result;
+        }
       }
     }
     return files;
@@ -739,7 +662,26 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     } catch (err) {
       throw wrapGitError(/** @type {GitError} */ (err), { oid: treeOid });
     }
-    return parseTreeOidRecords(output);
+
+    /** @type {Record<string, string>} */
+    const oids = {};
+    // NUL-separated records: "mode type oid\tpath\0"
+    const records = output.split('\0');
+    for (const record of records) {
+      if (!record) {
+        continue;
+      }
+      // Format: "mode type oid\tpath"
+      const tabIndex = record.indexOf('\t');
+      if (tabIndex === -1) {
+        continue;
+      }
+      const meta = record.slice(0, tabIndex);
+      const path = record.slice(tabIndex + 1);
+      const [, , oid] = meta.split(' ');
+      oids[path] = oid ?? '';
+    }
+    return oids;
   }
 
   /**
@@ -832,7 +774,11 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async compareAndSwapRef(ref, newOid, expectedOid) {
     this._validateRef(ref);
     this._validateOid(newOid);
-    const oldArg = this._resolveCasOldArg(expectedOid);
+    // null means "ref must not exist" → use zero OID (always 40 chars for SHA-1)
+    const oldArg = expectedOid || '0'.repeat(40);
+    if (expectedOid) {
+      this._validateOid(expectedOid);
+    }
     // Direct call — CAS failures are semantically expected and must NOT be retried.
     try {
       await this.plumbing.execute({
@@ -841,21 +787,6 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     } catch (err) {
       throw wrapGitError(/** @type {GitError} */ (err), { ref, oid: newOid });
     }
-  }
-
-  /**
-   * Resolves the old-arg for a CAS ref update. Returns the validated expectedOid
-   * when present, or the 40-char zero OID when null (meaning "ref must not exist").
-   * @param {string|null} expectedOid - The expected current OID or null
-   * @returns {string} The OID string to pass to git update-ref
-   * @private
-   */
-  _resolveCasOldArg(expectedOid) {
-    if (typeof expectedOid === 'string' && expectedOid.length > 0) {
-      this._validateOid(expectedOid);
-      return expectedOid;
-    }
-    return '0'.repeat(40);
   }
 
   /**
@@ -934,7 +865,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     this._validateRef(prefix);
     const limit = options?.limit;
     const args = ['for-each-ref', '--format=%(refname)'];
-    if (typeof limit === 'number' && limit > 0) {
+    if (limit) {
       this._validateLimit(limit);
       args.push(`--count=${limit}`);
     }
@@ -1046,7 +977,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
   async configSet(key, value) {
     this._validateConfigKey(key);
     if (typeof value !== 'string') {
-      throw new PersistenceError('Config value must be a string', 'E_MISSING_OBJECT');
+      throw new Error('Config value must be a string');
     }
     await this._executeWithRetry({
       args: ['config', key, value]
@@ -1092,7 +1023,8 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     // Fallback for wrapped errors where exit code is embedded in message.
     // This is intentionally conservative - only matches the exact pattern
     // from git config failures to avoid false positives from unrelated errors.
-    const combined = errorSearchText(err);
-    return combined.includes('exit code 1');
+    const msg = (err.message || '').toLowerCase();
+    const stderr = (err.details?.stderr || '').toLowerCase();
+    return msg.includes('exit code 1') || stderr.includes('exit code 1');
   }
 }

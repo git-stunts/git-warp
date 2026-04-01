@@ -577,12 +577,12 @@ export function makeNodeWeightFn(weights, defaultWeight = 1) {
  * enforce cross-provider equivalence.
  *
  * @param {Object} params
- * @param {GraphFixture} params.fixture
+ * @param {GraphFixture} [params.fixture]
  * @param {Array<{name: string, provider: import('../../src/ports/NeighborProviderPort.js').default}>} params.providers
  * @param {(engine: import('../../src/domain/services/GraphTraversal.js').default) => Promise<unknown>} params.run
  * @param {(result: unknown) => void} params.assert
  */
-export async function runCrossProvider({ fixture, providers, run, assert }) {
+export async function runCrossProvider({ providers, run, assert }) {
   const results = [];
   for (const { name, provider } of providers) {
     const { default: GraphTraversal } = await import('../../src/domain/services/GraphTraversal.js');
@@ -598,30 +598,32 @@ export async function runCrossProvider({ fixture, providers, run, assert }) {
   // Enforce provider-to-provider equivalence before running per-provider assertions.
   if (results.length > 1) {
     const baseline = results[0];
-    for (const current of results.slice(1)) {
-      const baselineErrored = Boolean(baseline.error);
-      const currentErrored = Boolean(current.error);
-      if (baselineErrored !== currentErrored) {
-        throw new Error(
-          `Provider mismatch: '${baseline.name}' ${baselineErrored ? 'threw' : 'returned'} but '${current.name}' ${currentErrored ? 'threw' : 'returned'}`
-        );
-      }
-      if (baselineErrored && currentErrored) {
-        const baseErr = normalizeError(baseline.error);
-        const curErr = normalizeError(current.error);
-        if (baseErr.name !== curErr.name || baseErr.message !== curErr.message) {
+    if (baseline != null) {
+      for (const current of results.slice(1)) {
+        const baselineErrored = Boolean(baseline.error);
+        const currentErrored = Boolean(current.error);
+        if (baselineErrored !== currentErrored) {
           throw new Error(
-            `Provider mismatch: '${baseline.name}' and '${current.name}' threw different errors`
+            `Provider mismatch: '${baseline.name}' ${baselineErrored ? 'threw' : 'returned'} but '${current.name}' ${currentErrored ? 'threw' : 'returned'}`
           );
         }
-        continue;
-      }
-      try {
-        deepStrictEqual(current.result, baseline.result);
-      } catch {
-        throw new Error(
-          `Provider mismatch: '${baseline.name}' and '${current.name}' returned different results`
-        );
+        if (baselineErrored && currentErrored) {
+          const baseErr = normalizeError(baseline.error);
+          const curErr = normalizeError(current.error);
+          if (baseErr.name !== curErr.name || baseErr.message !== curErr.message) {
+            throw new Error(
+              `Provider mismatch: '${baseline.name}' and '${current.name}' threw different errors`
+            );
+          }
+          continue;
+        }
+        try {
+          deepStrictEqual(current.result, baseline.result);
+        } catch {
+          throw new Error(
+            `Provider mismatch: '${baseline.name}' and '${current.name}' returned different results`
+          );
+        }
       }
     }
   }

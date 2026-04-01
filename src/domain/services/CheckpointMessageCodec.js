@@ -28,21 +28,6 @@ import {
   validateKindDiscriminator,
 } from './TrailerValidation.js';
 
-/**
- * @typedef {{ encode: (msg: {title: string, trailers: Record<string, string>}) => string, decode: (msg: string) => {title: string, trailers: Record<string, string>} }} TrailerCodecLike
- */
-
-/**
- * Returns the trailer codec with a locally-resolved type shape.
- *
- * @returns {TrailerCodecLike}
- */
-function resolveCodec() {
-  /** @type {unknown} */
-  const raw = getCodec();
-  return /** @type {TrailerCodecLike} */ (raw);
-}
-
 // -----------------------------------------------------------------------------
 // Encoder
 // -----------------------------------------------------------------------------
@@ -70,23 +55,29 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
   validateOid(indexOid, 'indexOid');
   validateSchema(schema);
 
-  const codec = resolveCodec();
+  /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
+  const codec = /** @type {*} */ (getCodec());
+  const tk = /** @type {{kind: string, graph: string, stateHash: string, frontierOid: string, indexOid: string, schema: string, checkpointVersion: string}} */ (TRAILER_KEYS);
+  const mt = /** @type {{checkpoint: string}} */ (MESSAGE_TITLES);
   /** @type {Record<string, string>} */
   const trailers = {
-    [TRAILER_KEYS['kind']]: 'checkpoint',
-    [TRAILER_KEYS['graph']]: graph,
-    [TRAILER_KEYS['stateHash']]: stateHash,
-    [TRAILER_KEYS['frontierOid']]: frontierOid,
-    [TRAILER_KEYS['indexOid']]: indexOid,
-    [TRAILER_KEYS['schema']]: String(schema),
+    [tk.kind]: 'checkpoint',
+    [tk.graph]: graph,
+    [tk.stateHash]: stateHash,
+    [tk.frontierOid]: frontierOid,
+    [tk.indexOid]: indexOid,
+    [tk.schema]: String(schema),
   };
 
   // Add checkpoint version marker for V5 format (schema:2, schema:3, schema:4)
   if (schema === 2 || schema === 3 || schema === 4) {
-    trailers[TRAILER_KEYS['checkpointVersion']] = 'v5';
+    trailers[tk.checkpointVersion] = 'v5';
   }
 
-  return codec.encode({ title: MESSAGE_TITLES['checkpoint'], trailers });
+  return codec.encode({
+    title: mt.checkpoint,
+    trailers,
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -104,8 +95,10 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
  * const { kind, graph, stateHash, frontierOid, indexOid, schema } = decodeCheckpointMessage(message);
  */
 export function decodeCheckpointMessage(message) {
-  const codec = resolveCodec();
-  const { trailers } = codec.decode(message);
+  /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
+  const codec = /** @type {*} */ (getCodec());
+  const decoded = codec.decode(message);
+  const { trailers } = decoded;
 
   validateKindDiscriminator(trailers, 'checkpoint');
   const graph = requireTrailer(trailers, 'graph', 'checkpoint');
@@ -119,10 +112,8 @@ export function decodeCheckpointMessage(message) {
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'checkpoint');
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)
-  /** @type {string|undefined} */
-  const rawCpv = trailers[/** @type {string} */ (TRAILER_KEYS['checkpointVersion'])];
-  /** @type {string|null} */
-  const checkpointVersion = rawCpv !== undefined && rawCpv !== '' ? rawCpv : null;
+  const cpvKey = /** @type {{checkpointVersion: string}} */ (TRAILER_KEYS).checkpointVersion;
+  const checkpointVersion = trailers[cpvKey] || null;
 
   return {
     kind: 'checkpoint',

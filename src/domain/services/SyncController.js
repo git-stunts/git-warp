@@ -108,7 +108,7 @@ function normalizeSyncPath(path) {
 function resolveSyncTarget(remote, path, hasPathOverride) {
   const isDirectPeer = remote !== null && remote !== undefined &&
     typeof remote === 'object' &&
-    typeof (/** @type {Record<string, unknown>} */ (remote))['processSyncRequest'] === 'function';
+    typeof /** @type {{processSyncRequest?: unknown}} */ (/** @type {unknown} */ (remote)).processSyncRequest === 'function';
   if (isDirectPeer) {
     return { isDirectPeer: true, targetUrl: null };
   }
@@ -335,7 +335,7 @@ export default class SyncController {
       localFrontier,
       persistence,
       this._host._graphName,
-      { codec: this._host._codec, logger: this._host._logger || undefined, patchBlobStorage: this._host._patchBlobStorage || undefined }
+      /** @type {*} */ ({ codec: this._host._codec, logger: this._host._logger || undefined, patchBlobStorage: this._host._patchBlobStorage || undefined })
     );
   }
 
@@ -462,7 +462,7 @@ export default class SyncController {
     const hasPathOverride = Object.prototype.hasOwnProperty.call(options, 'path');
     const { isDirectPeer, targetUrl } = resolveSyncTarget(remote, path, hasPathOverride);
     let attempt = 0;
-    const trustGate = resolveSyncTrustGate(this._host, this._trustGate, { trust });
+    const trustGate = resolveSyncTrustGate(this._host, this._trustGate, /** @type {*} */ ({ trust }));
     /**
      * Emits a status event to the onStatus callback if provided.
      */
@@ -579,8 +579,8 @@ export default class SyncController {
       }
 
       const result = trustGate === this._trustGate
-        ? await this.applySyncResponse(response)
-        : await this._applySyncResponseWithGate(response, trustGate);
+        ? await this.applySyncResponse(/** @type {*} */ (response))
+        : await this._applySyncResponseWithGate(/** @type {*} */ (response), trustGate);
       emit('applied', { applied: result.applied });
 
       const durationMs = this._host._clock.now() - attemptStart;
@@ -590,7 +590,7 @@ export default class SyncController {
     };
 
     try {
-      const syncResult = await retry(executeAttempt, {
+      const syncResult = await retry(executeAttempt, /** @type {*} */ ({
         retries,
         delay: baseDelayMs,
         maxDelay: maxDelayMs,
@@ -606,7 +606,7 @@ export default class SyncController {
             onStatus(/** @type {{type: string, attempt: number, delayMs: number, error: Error}} */ ({ type: 'retrying', attempt: attemptNumber, delayMs, error }));
           }
         },
-      });
+      }));
 
       this._host._logTiming('syncWith', t0, { metrics: `${syncResult.applied} patches applied` });
 
@@ -661,17 +661,17 @@ export default class SyncController {
     }
 
     const authConfig = auth
-      ? { ...auth, crypto: this._host._crypto, logger: this._host._logger || undefined }
+      ? { ...auth, crypto: this._host._crypto, ...(this._host._logger ? { logger: this._host._logger } : {}) }
       : undefined;
 
-    const httpServer = new HttpSyncServer({
+    const httpServer = new HttpSyncServer(/** @type {*} */ ({
       httpPort,
       graph: /** @type {{ processSyncRequest: (req: import('./SyncProtocol.js').SyncRequest) => Promise<unknown> }} */ (/** @type {unknown} */ (this._host)),
       path,
       host,
       maxRequestBytes,
-      auth: authConfig,
-    });
+      ...(authConfig !== undefined ? { auth: authConfig } : {}),
+    }));
 
     return await httpServer.listen(port);
   }

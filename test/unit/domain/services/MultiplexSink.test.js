@@ -50,6 +50,7 @@ class FailingSink extends EffectSinkPort {
     return 'failing';
   }
 
+  /** @param {unknown} emission @param {unknown} lens */
   async deliver(emission, lens) {
     const { createDeliveryObservation } = await import(
       '../../../../src/domain/types/DeliveryObservation.js'
@@ -108,7 +109,7 @@ describe('MultiplexSink', () => {
     mux.addSink(new StubSink('b'));
     mux.removeSink('a');
     expect(mux.sinks).toHaveLength(1);
-    expect(mux.sinks[0].id).toBe('b');
+    expect(/** @type {*} */ (mux.sinks[0]).id).toBe('b');
   });
 
   it('returns false when removing nonexistent sink', () => {
@@ -130,8 +131,8 @@ describe('MultiplexSink', () => {
     const observations = await mux.deliver(emission, LIVE_LENS);
 
     expect(observations).toHaveLength(2);
-    expect(observations[0].sinkId).toBe('a');
-    expect(observations[1].sinkId).toBe('b');
+    expect(/** @type {*} */ (observations[0]).sinkId).toBe('a');
+    expect(/** @type {*} */ (observations[1]).sinkId).toBe('b');
     expect(s1.calls).toHaveLength(1);
     expect(s2.calls).toHaveLength(1);
   });
@@ -165,6 +166,6 @@ describe('MultiplexSink', () => {
     const emission = makeEmission();
     await mux.deliver(emission, REPLAY_LENS);
 
-    expect(stub.calls[0].lens).toBe(REPLAY_LENS);
+    expect(/** @type {*} */ (stub.calls[0]).lens).toBe(REPLAY_LENS);
   });
 });

@@ -58,8 +58,8 @@ describe('Cross-mode determinism (RG-T5)', () => {
     expect(warnResult.trust.untrustedWriters).toEqual(enforceResult.trust.untrustedWriters);
 
     for (let i = 0; i < warnResult.trust.explanations.length; i++) {
-      const w = warnResult.trust.explanations[i];
-      const e = enforceResult.trust.explanations[i];
+      const w = /** @type {NonNullable<typeof warnResult.trust.explanations[0]>} */ (warnResult.trust.explanations[i]);
+      const e = /** @type {NonNullable<typeof enforceResult.trust.explanations[0]>} */ (enforceResult.trust.explanations[i]);
       expect(w.writerId).toBe(e.writerId);
       expect(w.trusted).toBe(e.trusted);
       expect(w.reasonCode).toBe(e.reasonCode);

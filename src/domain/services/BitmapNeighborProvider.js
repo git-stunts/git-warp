@@ -47,11 +47,14 @@ function sortEdges(edges) {
  */
 function dedupSorted(edges) {
   if (edges.length <= 1) { return edges; }
-  const result = [edges[0]];
+  const first = edges[0];
+  if (first === undefined || first === null) { return edges; }
+  const result = [first];
   for (let i = 1; i < edges.length; i++) {
     const prev = result[result.length - 1];
-    if (edges[i].neighborId !== prev.neighborId || edges[i].label !== prev.label) {
-      result.push(edges[i]);
+    const curr = edges[i];
+    if (prev !== undefined && prev !== null && curr !== undefined && curr !== null && (curr.neighborId !== prev.neighborId || curr.label !== prev.label)) {
+      result.push(curr);
     }
   }
   return result;

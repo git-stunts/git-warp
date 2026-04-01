@@ -43,11 +43,10 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
     // First call: throw E_TRUST_CAS_CONFLICT with context pointing to a new tip.
     // Second call: succeed normally.
     let appendCallCount = 0;
-    const origAppendRecord = service.appendRecord.bind(service);
     const newTipRecordId = 'aaaa'.repeat(16);
 
     vi.spyOn(service, 'appendRecord').mockImplementation(
-      async (graphName, record, options) => {
+      async (_graphName, record, _options) => {
         appendCallCount++;
         if (appendCallCount === 1) {
           throw new TrustError(
@@ -63,7 +62,7 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
           );
         }
         // Second call: succeed — verify the record was rebuilt with new prev
-        expect(record['prev']).toBe(newTipRecordId);
+        expect(/** @type {*} */ (record).prev).toBe(newTipRecordId);
         return { commitSha: 'commit-success', ref: 'refs/warp/test-graph/trust/records' };
       },
     );
@@ -143,7 +142,7 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
 
       // Subsequent calls succeed
       const sha = `commit-ok-${callNum}`;
-      committed.push({ sha, recordPrev: record['prev'] });
+      committed.push({ sha, recordPrev: /** @type {*} */ (record).prev });
       return { commitSha: sha, ref: 'refs/warp/test-graph/trust/records' };
     });
 
@@ -182,7 +181,6 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
     // The first call to appendRecord from each will see a CAS conflict because
     // the other "won" the race. We simulate this by intercepting _persistRecord.
 
-    const ref = 'refs/warp/test-graph/trust/records';
     const origCAS = persistence.compareAndSwapRef.bind(persistence);
     let casFailCount = 0;
 
@@ -218,10 +216,10 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
 
     // resign must recompute recordId since prev changed (content-addressed).
     // Since we skip signature verify, no need to re-sign.
-    const resign = async (/** @type {Record<string, unknown>} */ record) => {
+    const resign = async (/** @type {*} */ record) => {
       const rebuilt = { ...record };
-      delete rebuilt['recordId'];
-      delete rebuilt['signature'];
+      delete rebuilt.recordId;
+      delete rebuilt.signature;
       const newRecordId = await computeRecordId(rebuilt);
       return {
         ...rebuilt,
@@ -250,11 +248,14 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
     expect(records.length).toBeGreaterThanOrEqual(2);
 
     // First record must have prev=null (genesis)
-    expect(records[0]['prev']).toBeNull();
+    const firstRecord = /** @type {NonNullable<typeof records[0]>} */ (records[0]);
+    expect(/** @type {*} */ (firstRecord).prev).toBeNull();
 
     // Every subsequent record's prev must equal the previous record's recordId
     for (let i = 1; i < records.length; i++) {
-      expect(records[i]['prev']).toBe(records[i - 1]['recordId']);
+      const curr = /** @type {*} */ (records[i]);
+      const prev = /** @type {*} */ (records[i - 1]);
+      expect(curr.prev).toBe(prev.recordId);
     }
   });
 });

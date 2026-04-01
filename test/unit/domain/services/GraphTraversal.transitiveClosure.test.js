@@ -138,8 +138,8 @@ describe('GraphTraversal.transitiveClosure()', () => {
       const { edges } = await engine.transitiveClosure({ start: 'A' });
 
       for (let i = 1; i < edges.length; i++) {
-        const prev = edges[i - 1];
-        const curr = edges[i];
+        const prev = edges[i - 1] ?? { from: '', to: '' };
+        const curr = edges[i] ?? { from: '', to: '' };
         const cmp = prev.from < curr.from ? -1 : prev.from > curr.from ? 1 :
           prev.to < curr.to ? -1 : prev.to > curr.to ? 1 : 0;
         expect(cmp).toBeLessThanOrEqual(0);
