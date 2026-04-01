@@ -166,7 +166,7 @@ function checkContentType(headers) {
  */
 function safeParseUrl(url, headers, defaultHost) {
   const rawUrl = url.length > 0 ? url : '/';
-  const hostHeader = String(headers['host'] ?? '');
+  const hostHeader = String(/** @type {{ host?: string }} */ (headers).host ?? '');
   const host = hostHeader.length > 0 ? hostHeader : defaultHost;
   try {
     return new URL(rawUrl, `http://${host}`);
@@ -254,15 +254,35 @@ function parseBody(body) {
  */
 function initAuth(auth, allowedWriters) {
   if (auth) {
-    return { auth: new SyncAuthService({ ...auth, allowedWriters }), authMode: auth.mode };
+    return {
+      auth: new SyncAuthService(buildAuthConfig(auth, allowedWriters)),
+      authMode: auth.mode,
+    };
   }
   return { auth: null, authMode: null };
 }
 
 /**
+ * Builds the SyncAuthService config, filtering out undefined optional fields.
+ * @param {z.infer<typeof authSchema>} auth
+ * @param {string[]} [allowedWriters]
+ * @returns {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }}
+ * @private
+ */
+function buildAuthConfig(auth, allowedWriters) {
+  /** @type {{ keys: Record<string, string>, mode?: 'enforce' | 'log-only', crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }} */
+  const cfg = { keys: auth.keys, mode: auth.mode };
+  if (auth.crypto !== undefined) { cfg.crypto = auth.crypto; }
+  if (auth.logger !== undefined) { cfg.logger = auth.logger; }
+  if (auth.wallClockMs !== undefined) { cfg.wallClockMs = auth.wallClockMs; }
+  if (allowedWriters !== undefined) { cfg.allowedWriters = allowedWriters; }
+  return cfg;
+}
+
+/**
  * Waits for the HTTP server to begin listening.
  *
- * @param {{ listen: (port: number, host: string, cb: (err?: Error) => void) => void }} server
+ * @param {import('../../ports/HttpServerPort.js').HttpServerHandle} server
  * @param {number} port
  * @param {string} host
  * @returns {Promise<void>}
@@ -360,7 +380,7 @@ export default class HttpSyncServer {
    * In log-only mode both checks record metrics/logs but always return
    * null so the request proceeds.
    *
-   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} request
+   * @param {{ method: string, url: string, headers: Record<string, string>, body?: Uint8Array }} request
    * @param {Record<string, unknown>} parsed - Parsed sync request body
    * @returns {Promise<{ status: number, headers: Record<string, string>, body: string }|null>}
    * @private
@@ -381,7 +401,7 @@ export default class HttpSyncServer {
   /**
    * Verifies the request signature via SyncAuthService.
    *
-   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} request
+   * @param {{ method: string, url: string, headers: Record<string, string>, body?: Uint8Array }} request
    * @returns {Promise<{ status: number, headers: Record<string, string>, body: string }|null>}
    * @private
    */
@@ -427,8 +447,13 @@ export default class HttpSyncServer {
    * @private
    */
   async _handleRequest(request) {
-    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} */
-    const req = { ...request, headers: /** @type {Record<string, string>} */ (request.headers) };
+    /** @type {{ method: string, url: string, headers: Record<string, string>, body?: Uint8Array }} */
+    const req = {
+      method: request.method,
+      url: request.url,
+      headers: /** @type {Record<string, string>} */ (request.headers),
+      ...(request.body !== undefined ? { body: request.body } : {}),
+    };
     const preflightError = this._preflight(req);
     if (preflightError !== null) {
       return preflightError;
@@ -450,7 +475,7 @@ export default class HttpSyncServer {
   /**
    * Runs content-type, route, and body-size validation.
    *
-   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} req
+   * @param {{ method: string, url: string, headers: Record<string, string>, body?: Uint8Array }} req
    * @returns {{ status: number, headers: Record<string, string>, body: string }|null}
    * @private
    */

@@ -89,7 +89,7 @@ describe('B65 — Sync divergence logging', () => {
 
     // Logger should have been called with divergence context
     expect(logger.warn).toHaveBeenCalledTimes(1);
-    const [message, context] = logger.warn.mock.calls[0];
+    const [message, context] = /** @type {any[]} */ (logger.warn.mock.calls[0]);
     expect(message).toContain('divergence');
     expect(context.code).toBe('E_SYNC_DIVERGENCE');
     expect(context.graphName).toBe('events');
@@ -167,7 +167,7 @@ describe('B65 — Sync divergence logging', () => {
 
     // w1 skipped (diverged), w2 returned
     expect(response.patches).toHaveLength(1);
-    expect(response.patches[0].writerId).toBe('w2');
+    expect(response.patches[0]?.writerId).toBe('w2');
     expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 });

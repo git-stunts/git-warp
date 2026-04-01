@@ -145,10 +145,10 @@ export async function fork({ from, at, forkName, forkWriterId }) {
       writerId: resolvedForkWriterId,
       gcPolicy: this._gcPolicy,
       adjacencyCacheSize: this._adjacencyCache?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
-      checkpointPolicy: this._checkpointPolicy || undefined,
+      ...(this._checkpointPolicy ? { checkpointPolicy: this._checkpointPolicy } : {}),
       autoMaterialize: this._autoMaterialize,
       onDeleteWithData: this._onDeleteWithData,
-      logger: this._logger || undefined,
+      ...(this._logger ? { logger: this._logger } : {}),
       clock: this._clock,
       crypto: this._crypto,
       codec: this._codec,
@@ -238,10 +238,11 @@ export async function _isAncestor(ancestorSha, descendantSha) {
     return true;
   }
 
+  /** @type {string | null} */
   let cur = descendantSha;
   const MAX_WALK = 100_000;
   let steps = 0;
-  while (cur) {
+  while (cur !== null) {
     if (++steps > MAX_WALK) {
       throw new Error(`_isAncestor: exceeded ${MAX_WALK} steps — possible cycle`);
     }

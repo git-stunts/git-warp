@@ -35,7 +35,7 @@ function validateWarpState(state) {
     throw new Error('Invalid state: must be a valid WarpStateV5 object');
   }
   const s = /** @type {Record<string, unknown>} */ (state);
-  if (isNullish(s['nodeAlive']) || isNullish(s['edgeAlive'])) {
+  if (isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).nodeAlive) || isNullish(/** @type {{ nodeAlive?: unknown, edgeAlive?: unknown }} */ (s).edgeAlive)) {
     throw new Error('Invalid state: must be a valid WarpStateV5 object');
   }
 }
@@ -61,7 +61,7 @@ export default class WarpStateIndexBuilder {
   constructor(options = undefined) {
     const { crypto } = options || {};
     /** @type {BitmapIndexBuilder} */
-    this._builder = new BitmapIndexBuilder({ crypto });
+    this._builder = new BitmapIndexBuilder(crypto !== undefined ? { crypto } : {});
   }
 
   /**
@@ -161,7 +161,7 @@ export default class WarpStateIndexBuilder {
  * const { tree, stats } = await buildWarpStateIndex(state);
  */
 export async function buildWarpStateIndex(state, { crypto } = {}) {
-  const indexBuilder = new WarpStateIndexBuilder({ crypto });
+  const indexBuilder = new WarpStateIndexBuilder(crypto !== undefined ? { crypto } : {});
   const { stats } = indexBuilder.buildFromState(state);
   const tree = await indexBuilder.serialize();
   return { tree, stats };

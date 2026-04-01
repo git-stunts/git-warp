@@ -36,7 +36,7 @@ function formatNode(nodeId, maxLen = 20) {
  * @returns {string} Arrow string like " ---> " or " --label--> "
  */
 function createArrow(label) {
-  if (label !== undefined && label !== null && label !== '' && typeof label === 'string') {
+  if (label && typeof label === 'string') {
     return ` ${ARROW.line}${ARROW.line}${label}${ARROW.line}${ARROW.line}${ARROW.right} `;
   }
   return ` ${ARROW.line}${ARROW.line}${ARROW.line}${ARROW.right} `;
@@ -75,88 +75,42 @@ function createPathSegment({ nodeId, index, pathLength, edges }) {
  * @param {number} maxWidth - Maximum line width
  * @returns {string[]} Array of line strings
  */
-/**
- * @typedef {Object} LineAccumulator
- * @property {string[]} lines - Completed lines
- * @property {string} currentLine - Line being built
- * @property {number} currentWidth - Width of line being built
- * @property {number} maxWidth - Maximum line width
- */
-
-/**
- * Appends a segment to the current line or starts a new line if it overflows.
- *
- * @param {LineAccumulator} state - Mutable accumulator
- * @param {{ segment: string, width: number }} seg - Segment text and visual width
- */
-function appendSegment(state, seg) {
-  if (!segmentFits(state.currentWidth, seg.width, state.maxWidth)) {
-    state.lines.push(state.currentLine);
-    state.currentLine = `  ${seg.segment}`;
-    state.currentWidth = 2 + seg.width;
-  } else {
-    state.currentLine += seg.segment;
-    state.currentWidth += seg.width;
-  }
-}
-
-/**
- * Checks whether a path array is empty or missing.
- *
- * @param {string[] | null | undefined} path - The path to check
- * @returns {boolean} True if the path has no nodes
- */
-function isEmptyPath(path) {
-  return path === null || path === undefined || path.length === 0;
-}
-
-/**
- * Accumulates path segments into wrapped lines.
- *
- * @param {string[]} path - Array of node IDs (length >= 2)
- * @param {string[] | undefined} edges - Optional edge labels
- * @param {number} maxWidth - Maximum line width
- * @returns {string[]} Array of line strings
- */
-function accumulatePathLines(path, edges, maxWidth) {
-  /** @type {LineAccumulator} */
-  const state = { lines: [], currentLine: '', currentWidth: 0, maxWidth };
-
-  for (let i = 0; i < path.length; i++) {
-    appendSegment(state, createPathSegment({
-      nodeId: path[i],
-      index: i,
-      pathLength: path.length,
-      edges,
-    }));
-  }
-
-  if (state.currentLine !== '') {
-    state.lines.push(state.currentLine);
-  }
-
-  return state.lines;
-}
-
-/**
- * Builds path segments that fit within the terminal width.
- * Wraps long paths to multiple lines.
- *
- * @param {string[]} path - Array of node IDs
- * @param {string[] | undefined} edges - Optional array of edge labels (one fewer than nodes)
- * @param {number} maxWidth - Maximum line width
- * @returns {string[]} Array of line strings
- */
 function buildPathLines(path, edges, maxWidth) {
-  if (isEmptyPath(path)) {
+  if (!path || path.length === 0) {
     return [];
   }
 
   if (path.length === 1) {
-    return [colors.primary(formatNode(path[0]))];
+    return [colors.primary(formatNode(/** @type {string} */ (path[0])))];
   }
 
-  return accumulatePathLines(path, edges, maxWidth);
+  const lines = [];
+  let currentLine = '';
+  let currentWidth = 0;
+
+  for (let i = 0; i < path.length; i++) {
+    const { segment, width } = createPathSegment({
+      nodeId: /** @type {string} */ (path[i]),
+      index: i,
+      pathLength: path.length,
+      ...(edges !== undefined ? { edges } : {}),
+    });
+
+    if (!segmentFits(currentWidth, width, maxWidth)) {
+      lines.push(currentLine);
+      currentLine = `  ${segment}`;
+      currentWidth = 2 + width;
+    } else {
+      currentLine += segment;
+      currentWidth += width;
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
 }
 
 /**
@@ -205,64 +159,33 @@ function renderSameNode(nodeId) {
 }
 
 /**
- * Builds the title for a found-path box from start and end nodes.
- *
- * @param {string[]} path - Array of node IDs
- * @returns {string} Box title string
- */
-function buildFoundPathTitle(path) {
-  const startLabel = (path.length > 0 && path[0] !== '') ? path[0] : '?';
-  const endLabel = (path.length > 0 && path[path.length - 1] !== '') ? path[path.length - 1] : '?';
-  return `PATH: ${startLabel} ${ARROW.right} ${endLabel}`;
-}
-
-/**
- * Returns a display label for a graph name, defaulting to 'unknown'.
- *
- * @param {string} graph - The graph name
- * @returns {string} The graph name or 'unknown' if empty/nullish
- */
-function graphDisplayLabel(graph) {
-  return (graph !== null && graph !== undefined && graph !== '') ? graph : 'unknown';
-}
-
-/**
- * Builds the content lines for a found-path box.
- *
- * @param {{ graph: string, path: string[], length: number, edges?: string[] }} params - Path data
- * @param {number} maxWidth - Maximum line width for path wrapping
- * @returns {string[]} Content lines
- */
-function buildFoundPathContent({ graph, path, length, edges }, maxWidth) {
-  const hopLabel = length === 1 ? 'hop' : 'hops';
-  const pathLines = buildPathLines(path, edges, maxWidth);
-
-  const lines = [
-    `  Graph:  ${colors.muted(graphDisplayLabel(graph))}`,
-    `  Length: ${colors.success(String(length))} ${hopLabel}`,
-    '',
-  ];
-
-  for (const line of pathLines) {
-    lines.push(`  ${line}`);
-  }
-
-  return lines;
-}
-
-/**
  * Renders a found path.
- *
  * @param {{ graph: string, from: string, to: string, path: string[], length: number, edges?: string[] }} payload - Path payload
  * @param {number} [terminalWidth] - Terminal width for wrapping
  * @returns {string} Formatted ASCII output
  */
 function renderFoundPath(payload, terminalWidth = DEFAULT_TERMINAL_WIDTH) {
+  const { graph, path, length, edges } = payload;
+
+  // Calculate available width for path (account for box borders and padding)
   const maxWidth = Math.max(40, terminalWidth - BOX_PADDING - 4);
-  const lines = buildFoundPathContent(payload, maxWidth);
+
+  const hopLabel = length === 1 ? 'hop' : 'hops';
+  const pathLines = buildPathLines(path, edges, maxWidth);
+
+  const lines = [
+    `  Graph:  ${colors.muted(graph || 'unknown')}`,
+    `  Length: ${colors.success(String(length))} ${hopLabel}`,
+    '',
+  ];
+
+  // Add path visualization
+  for (const line of pathLines) {
+    lines.push(`  ${line}`);
+  }
 
   return createBox(lines.join('\n'), {
-    title: buildFoundPathTitle(payload.path),
+    title: `PATH: ${path[0] || '?'} ${ARROW.right} ${path[path.length - 1] || '?'}`,
     titleAlignment: 'center',
     borderColor: 'green',
   });
@@ -274,59 +197,26 @@ function renderFoundPath(payload, terminalWidth = DEFAULT_TERMINAL_WIDTH) {
  * @param {{ terminalWidth?: number }} [options] - Rendering options
  * @returns {string} Formatted ASCII output
  */
-/**
- * Determines the terminal width from options, falling back to the default.
- *
- * @param {{ terminalWidth?: number }} options - Rendering options
- * @returns {number} Resolved terminal width
- */
-function resolveTerminalWidth(options) {
-  const w = options.terminalWidth;
-  return (w !== undefined && w !== null && w !== 0 && !Number.isNaN(w)) ? w : DEFAULT_TERMINAL_WIDTH;
-}
-
-/**
- * Checks whether the payload represents a same-node (zero-length) path.
- *
- * @param {string[]} path - The path array
- * @param {number} length - The hop length
- * @returns {boolean} True if this is the "already at destination" case
- */
-function isSameNodePath(path, length) {
-  return length === 0 && path !== null && path !== undefined && path.length === 1;
-}
-
-/**
- * Checks whether a payload is missing or nullish.
- *
- * @param {unknown} payload - The payload to check
- * @returns {boolean} True if payload is null or undefined
- */
-function isNullishPayload(payload) {
-  return payload === null || payload === undefined;
-}
-
-/**
- * Renders the path view.
- *
- * @param {{ graph: string, from: string, to: string, found: boolean, path: string[], length: number, edges?: string[] }} payload - The path command payload
- * @param {{ terminalWidth?: number }} [options] - Rendering options
- * @returns {string} Formatted ASCII output
- */
 export function renderPathView(payload, options = {}) {
-  if (isNullishPayload(payload)) {
+  if (!payload) {
     return `${colors.error('No data available')}\n`;
   }
 
-  if (!payload.found) {
-    return `${renderNoPath(payload.from, payload.to)}\n`;
+  const { from, to, found, path, length } = payload;
+  const terminalWidth = options.terminalWidth || DEFAULT_TERMINAL_WIDTH;
+
+  // Handle "no path found" case
+  if (!found) {
+    return `${renderNoPath(from, to)}\n`;
   }
 
-  if (isSameNodePath(payload.path, payload.length)) {
-    return `${renderSameNode(payload.path[0])}\n`;
+  // Handle "already at destination" case (from === to, length === 0)
+  if (length === 0 && path && path.length === 1) {
+    return `${renderSameNode(/** @type {string} */ (path[0]))}\n`;
   }
 
-  return `${renderFoundPath(payload, resolveTerminalWidth(options))}\n`;
+  // Render the found path
+  return `${renderFoundPath(payload, terminalWidth)}\n`;
 }
 
 export default { renderPathView };

@@ -30,8 +30,6 @@ function canonicalStringify(value) {
 function createMockPort() {
   /** @type {any} */
   let handler;
-  let listenCallback;
-  let closeCallback;
   const addressValue = { port: 9999 };
 
   return {
@@ -43,11 +41,9 @@ function createMockPort() {
             if (typeof _host === 'function') {
               cb = _host;
             }
-            listenCallback = cb;
             if (cb) cb(null);
           },
           close(/** @type {any} */ cb) {
-            closeCallback = cb;
             if (cb) cb(null);
           },
           address() {

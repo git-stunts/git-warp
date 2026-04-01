@@ -28,9 +28,9 @@ export function createRng(seed) {
     return min + Math.floor(next() * (max - min));
   }
 
-  /** @template T @param {T[]} arr */
+  /** @template T @param {T[]} arr @returns {T} */
   function pick(arr) {
-    return arr[nextInt(0, arr.length)];
+    return /** @type {T} */ (arr[nextInt(0, arr.length)]);
   }
 
   /** @template T @param {T[]} arr */
@@ -38,7 +38,9 @@ export function createRng(seed) {
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
       const j = nextInt(0, i + 1);
-      [copy[i], copy[j]] = [copy[j], copy[i]];
+      const tmp = /** @type {T} */ (copy[i]);
+      copy[i] = /** @type {T} */ (copy[j]);
+      copy[j] = tmp;
     }
     return copy;
   }

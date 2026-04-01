@@ -33,7 +33,7 @@ export const verifyAuditSchema = z.object({
 
 /**
  * Coerce an optional label field (string | string[]) into a string array.
- * @param {{ label?: string | string[] }} val
+ * @param {{ label?: string | string[] | undefined }} val
  * @returns {string[]}
  */
 function normalizeLabels(val) {
@@ -48,11 +48,11 @@ function normalizeLabels(val) {
 
 /**
  * @typedef {{
- *   from?: string,
- *   to?: string,
- *   dir?: 'out' | 'in' | 'both',
- *   label?: string | string[],
- *   'max-depth'?: number,
+ *   from?: string | undefined,
+ *   to?: string | undefined,
+ *   dir?: 'out' | 'in' | 'both' | undefined,
+ *   label?: string | string[] | undefined,
+ *   'max-depth'?: number | undefined,
  * }} PathInput
  */
 
@@ -64,9 +64,9 @@ function transformPath(val) {
   return {
     from: val.from ?? null,
     to: val.to ?? null,
-    dir: val.dir,
+    ...(val.dir !== undefined ? { dir: val.dir } : {}),
     labels: normalizeLabels(val),
-    maxDepth: val['max-depth'],
+    ...(val['max-depth'] !== undefined ? { maxDepth: val['max-depth'] } : {}),
   };
 }
 
@@ -76,7 +76,7 @@ export const pathSchema = z.object({
   dir: z.enum(['out', 'in', 'both']).optional(),
   label: z.union([z.string(), z.array(z.string())]).optional(),
   'max-depth': z.coerce.number().int().nonnegative().refine(n => Number.isFinite(n), { message: 'must be a finite number' }).optional(),
-}).strict().transform(transformPath);
+}).strict().transform((val) => transformPath(val));
 
 // ============================================================================
 // Query
@@ -118,12 +118,12 @@ export const doctorSchema = z.object({
 
 /**
  * @typedef {{
- *   tick?: string,
+ *   tick?: string | undefined,
  *   latest: boolean,
- *   save?: string,
- *   load?: string,
+ *   save?: string | undefined,
+ *   load?: string | undefined,
  *   list: boolean,
- *   drop?: string,
+ *   drop?: string | undefined,
  *   'clear-cache': boolean,
  *   'no-persistent-cache': boolean,
  *   diff: boolean,
@@ -260,7 +260,7 @@ export const seekSchema = z.object({
   'no-persistent-cache': z.boolean().default(false),
   diff: z.boolean().default(false),
   'diff-limit': z.coerce.number().int({ message: '--diff-limit must be a positive integer' }).positive({ message: '--diff-limit must be a positive integer' }).refine(n => Number.isFinite(n), { message: '--diff-limit must be a finite number' }).default(2000),
-}).strict().superRefine(refineSeekActions).transform(transformSeek);
+}).strict().superRefine(refineSeekActions).transform((val) => transformSeek(val));
 
 // ============================================================================
 // Bisect
@@ -280,7 +280,7 @@ export const verifyIndexSchema = z.object({
   seed: z.coerce.number().int().min(-2147483648).max(2147483647).refine(n => Number.isFinite(n), { message: 'must be a finite number' }).optional(),
   'sample-rate': z.coerce.number().gt(0, '--sample-rate must be greater than 0').max(1).refine(n => Number.isFinite(n), { message: 'must be a finite number' }).optional().default(0.1),
 }).strict().transform((val) => ({
-  seed: val.seed,
+  ...(val.seed !== undefined ? { seed: val.seed } : {}),
   sampleRate: val['sample-rate'],
 }));
 

@@ -39,7 +39,7 @@ describe('BitmapIndexBuilder Integrity Tests', () => {
       expect(Object.keys(tree1).sort()).toEqual(Object.keys(tree2).sort());
 
       for (const key of Object.keys(tree1)) {
-        expect(tree1[key].toString()).toBe(tree2[key].toString());
+        expect(/** @type {Uint8Array} */ (tree1[key]).toString()).toBe(/** @type {Uint8Array} */ (tree2[key]).toString());
       }
     });
 

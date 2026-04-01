@@ -86,10 +86,10 @@ export async function createCheckpoint() {
       state,
       frontier,
       parents,
-      provenanceIndex: this._provenanceIndex || undefined,
+      ...(this._provenanceIndex ? { provenanceIndex: this._provenanceIndex } : {}),
       crypto: this._crypto,
       codec: this._codec,
-      indexTree: indexTree || undefined,
+      ...(indexTree ? { indexTree } : {}),
     });
 
     // 6. Update checkpoint ref
@@ -211,8 +211,9 @@ export async function _loadPatchesSince(checkpoint) {
 
     // Validate ancestry once at the writer tip; chain-order patches are then
     // transitively valid between checkpointSha and tipSha.
-    if (patches.length > 0) {
-      const tipSha = patches[patches.length - 1].sha;
+    const lastPatch = patches[patches.length - 1];
+    if (lastPatch !== undefined) {
+      const tipSha = lastPatch.sha;
       await this._validatePatchAgainstCheckpoint(writerId, tipSha, checkpoint);
     }
 

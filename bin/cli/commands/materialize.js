@@ -85,7 +85,7 @@ export default async function handleMaterialize({ options }) {
         persistence,
         graphName: name,
         writerId: options.writer,
-        ceiling,
+        ...(ceiling !== undefined ? { ceiling } : {}),
       });
       results.push(result);
     } catch (error) {

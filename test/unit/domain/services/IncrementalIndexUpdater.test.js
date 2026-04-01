@@ -8,7 +8,6 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { orsetGetDots, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.js';
-import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.js';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,13 +52,6 @@ function buildTree(state) {
 /** @param {Record<string, Uint8Array>} tree */
 function readIndex(tree) {
   return new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
-}
-
-/** @param {Record<string, Uint8Array>} tree @param {string} shardKey */
-function decodeMeta(tree, shardKey) {
-  const buf = tree[`meta_${shardKey}.cbor`];
-  if (!buf) return null;
-  return defaultCodec.decode(buf);
 }
 
 /** @param {Record<string, Uint8Array>} tree @param {string} shardKey */
@@ -318,7 +310,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree = buildTree(state);
 
       // Tamper with the meta shard: push nextLocalId to the limit
-      const metaBuf = tree[`meta_${shardKey}.cbor`];
+      const metaBuf = /** @type {Uint8Array} */ (tree[`meta_${shardKey}.cbor`]);
       const meta = /** @type {{nextLocalId: number, nodeToGlobal: Array<[string, number]>, alive: Uint8Array}} */ (defaultCodec.decode(metaBuf));
       meta.nextLocalId = (1 << 24);
       tree[`meta_${shardKey}.cbor`] = new Uint8Array(defaultCodec.encode(meta));

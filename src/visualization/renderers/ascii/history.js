@@ -170,9 +170,17 @@ function renderEntryLines(displayEntries, lamportWidth, extra = {}) {
   /** @type {string[]} */
   const lines = [];
   for (let i = 0; i < displayEntries.length; i++) {
+    const entry = /** @type {PatchEntry} */ (displayEntries[i]);
     const isLast = i === displayEntries.length - 1;
-    const writerStr = extra.useWriterId === true ? displayEntries[i].writerId : undefined;
-    lines.push(renderEntryLine({ entry: displayEntries[i], isLast, lamportWidth, writerStr, maxWriterIdLen: extra.maxWriterIdLen }));
+    /** @type {{ entry: PatchEntry, isLast: boolean, lamportWidth: number, writerStr?: string, maxWriterIdLen?: number }} */
+    const lineArgs = { entry, isLast, lamportWidth };
+    if (extra.useWriterId === true) {
+      lineArgs.writerStr = entry.writerId;
+    }
+    if (extra.maxWriterIdLen !== undefined) {
+      lineArgs.maxWriterIdLen = extra.maxWriterIdLen;
+    }
+    lines.push(renderEntryLine(lineArgs));
   }
   return lines;
 }

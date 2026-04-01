@@ -127,7 +127,7 @@ export default class WebCryptoAdapter extends CryptoPort {
     if (a.length !== b.length) { return false; }
     let result = 0;
     for (let i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i];
+      result |= /** @type {number} */ (a[i]) ^ /** @type {number} */ (b[i]);
     }
     return result === 0;
   }

@@ -123,8 +123,8 @@ export function describeAdapterConformance(name, factory) {
           nodes.push(node);
         }
         expect(nodes.length).toBe(2);
-        expect(nodes[0].sha).toBe(b);
-        expect(nodes[1].sha).toBe(a);
+        expect(nodes[0]?.sha).toBe(b);
+        expect(nodes[1]?.sha).toBe(a);
       });
     });
 

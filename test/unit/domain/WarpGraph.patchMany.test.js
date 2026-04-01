@@ -63,8 +63,8 @@ describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
 
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(1);
-      expect(edges[0].from).toBe('n:1');
-      expect(edges[0].to).toBe('n:2');
+      expect(edges[0]?.from).toBe('n:1');
+      expect(edges[0]?.to).toBe('n:2');
     } finally {
       await repo.cleanup();
     }

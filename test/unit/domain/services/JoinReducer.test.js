@@ -19,7 +19,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createVersionVector, vvMerge } from '../../../../src/domain/crdt/VersionVector.js';
+import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 
 // Helper functions to create V2 operations
@@ -772,8 +772,8 @@ describe('JoinReducer', () => {
       expect(result.receipt).toBeDefined();
       expect(result.receipt.patchSha).toBe('bece1111ee22');
       expect(result.receipt.ops).toHaveLength(1);
-      expect(result.receipt.ops[0].op).toBe('NodeAdd');
-      expect(result.receipt.ops[0].result).toBe('applied');
+      expect(result.receipt.ops[0]?.op).toBe('NodeAdd');
+      expect(result.receipt.ops[0]?.result).toBe('applied');
       expect(orsetContains(state.nodeAlive, 'n1')).toBe(true);
       expect(state.observedFrontier.get('w1')).toBe(1);
     });

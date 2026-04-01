@@ -98,7 +98,7 @@ describe('PropertyIndex', () => {
     const tree = builder.serialize();
 
     // Verify raw CBOR shards are decodable
-    for (const [path, buf] of Object.entries(tree)) {
+    for (const [, buf] of Object.entries(tree)) {
       const decoded = defaultCodec.decode(buf);
       expect(typeof decoded).toBe('object');
     }
@@ -168,8 +168,8 @@ describe('PropertyIndex', () => {
     expect(Object.keys(tree1).sort()).toEqual(Object.keys(tree2).sort());
 
     for (const path of Object.keys(tree1)) {
-      const decoded1 = defaultCodec.decode(tree1[path]);
-      const decoded2 = defaultCodec.decode(tree2[path]);
+      const decoded1 = defaultCodec.decode(/** @type {Uint8Array} */ (tree1[path]));
+      const decoded2 = defaultCodec.decode(/** @type {Uint8Array} */ (tree2[path]));
       expect(decoded1).toEqual(decoded2);
     }
   });

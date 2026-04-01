@@ -14,7 +14,7 @@ vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal
 });
 
 const { applySyncResponse: applySyncResponseMock } =
-  /** @type {Record<string, import('vitest').Mock>} */ (
+  /** @type {{ applySyncResponse: import('vitest').Mock }} */ (
     /** @type {unknown} */ (
       await import('../../../../src/domain/services/SyncProtocol.js')
     )
@@ -98,9 +98,9 @@ function createTrustEvaluator(trustedWriters) {
 
 /**
  * Sets up applySyncResponseMock to return a plausible result.
- * @param {Record<string, unknown>} host
+ * @param {Record<string, unknown>} _host
  */
-function stubApplySuccess(host) {
+function stubApplySuccess(_host) {
   const newState = createEmptyStateV5();
   const newFrontier = createFrontier();
   updateFrontier(newFrontier, 'applied-writer', 'sha-applied');

@@ -321,7 +321,7 @@ describe('BunHttpAdapter', () => {
 
       const response = await mockServer._fetch(mockReq);
 
-      const portReq = /** @type {any} */ (handler.mock.calls[0][0]);
+      const portReq = /** @type {any} */ (/** @type {any[]} */ (handler.mock.calls[0])[0]);
       expect(portReq.method).toBe('POST');
       expect(portReq.body).toBeInstanceOf(Uint8Array);
       expect(portReq.body.length).toBe(15);
@@ -464,7 +464,7 @@ describe('BunHttpAdapter', () => {
       const text = await response.text();
       expect(text).toBe('Internal Server Error');
       expect(logger.error).toHaveBeenCalledOnce();
-      expect(logger.error.mock.calls[0][0]).toBe(
+      expect(/** @type {any[]} */ (logger.error.mock.calls[0])[0]).toBe(
         'BunHttpAdapter dispatch error',
       );
     });

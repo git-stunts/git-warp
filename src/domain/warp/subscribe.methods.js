@@ -54,7 +54,11 @@ export function subscribe({ onChange, onError, replay = false }) {
     throw new Error('onChange must be a function');
   }
 
-  const subscriber = { onChange, onError, pendingReplay: replay && !this._cachedState };
+  const subscriber = {
+    onChange,
+    ...(onError !== undefined ? { onError } : {}),
+    pendingReplay: replay && !this._cachedState,
+  };
   this._subscribers.push(subscriber);
 
   // Immediate replay if requested and cached state is available
@@ -185,7 +189,10 @@ export function watch(pattern, { onChange, onError, poll }) {
   };
 
   // Reuse subscription infrastructure
-  const subscription = this.subscribe({ onChange: filteredOnChange, onError });
+  const subscription = this.subscribe({
+    onChange: filteredOnChange,
+    ...(onError !== undefined ? { onError } : {}),
+  });
 
   // Polling: periodically check frontier and auto-materialize if changed
   /** @type {ReturnType<typeof setInterval>|null} */

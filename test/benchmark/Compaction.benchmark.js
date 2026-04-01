@@ -59,7 +59,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
 
   // Add entries
   for (let i = 0; i < entryCount; i++) {
-    const writer = writers[i % writers.length];
+    const writer = /** @type {string} */ (writers[i % writers.length]);
     const counter = (writerCounters.get(writer) || 0) + 1;
     writerCounters.set(writer, counter);
 
@@ -77,7 +77,7 @@ function createPopulatedORSet(entryCount, tombstoneRatio = TOMBSTONE_RATIO) {
   // Deterministically select entries to tombstone (every nth)
   const step = Math.floor(entryCount / tombstoneCount) || 1;
   for (let i = 0; i < entryCount && toTombstone.size < tombstoneCount; i += step) {
-    toTombstone.add(addedEntries[i].dot);
+    toTombstone.add(/** @type {{element: string, dot: string}} */ (addedEntries[i]).dot);
   }
 
   // Apply tombstones

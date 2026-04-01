@@ -1098,8 +1098,6 @@ describe('CommitDagTraversalService', () => {
         }),
         getParents: vi.fn(async () => []),
       };
-      const _tieBreakService = new CommitDagTraversalService(/** @type {any} */ ({ indexReader: tieBreakReader }));
-
       // Weight provider: START->A is 1, START->B is 2, A->END is 2, B->END is 1
       const weightProvider = (/** @type {string} */ from, /** @type {string} */ to) => {
         if (from === 'START' && to === 'A') return 1;
@@ -1171,7 +1169,7 @@ describe('CommitDagTraversalService', () => {
         getChildren: vi.fn(async (/** @type {string} */ sha) => {
           const match = sha.match(/^N(\d+)$/);
           if (!match) return [];
-          const idx = parseInt(match[1], 10);
+          const idx = parseInt(match[1] ?? '0', 10);
           if (idx < length - 1) {
             return [`N${idx + 1}`];
           }
@@ -1180,7 +1178,7 @@ describe('CommitDagTraversalService', () => {
         getParents: vi.fn(async (/** @type {string} */ sha) => {
           const match = sha.match(/^N(\d+)$/);
           if (!match) return [];
-          const idx = parseInt(match[1], 10);
+          const idx = parseInt(match[1] ?? '0', 10);
           if (idx > 0) {
             return [`N${idx - 1}`];
           }

@@ -40,7 +40,7 @@ const PROP_VALUES = ['Alice', 'Bob', 42, true, null, 'active', 'red', 0, ''];
 
 /** @template T @param {() => number} nextFn @param {T[]} arr @returns {T} */
 function pick(nextFn, arr) {
-  return arr[Math.floor(nextFn() * arr.length)];
+  return /** @type {T} */ (arr[Math.floor(nextFn() * arr.length)]);
 }
 
 /** @param {number} seed @param {number} lamport @returns {string} */
@@ -139,7 +139,7 @@ function generatePatches(seed) {
     // Update tracking state so future removals are meaningful
     for (let i = 0; i < ops.length; i++) {
       const eventId = createEventId(lamport, writer, sha, i);
-      applyOpV2(trackState, ops[i], eventId);
+      applyOpV2(trackState, /** @type {typeof ops[0]} */ (ops[i]), eventId);
     }
   }
 
@@ -356,7 +356,7 @@ describe('MaterializedView equivalence', () => {
     expect(Object.keys(result.tree).sort()).toEqual(Object.keys(tree).sort());
     for (const path of Object.keys(tree)) {
       expect(
-        Buffer.compare(result.tree[path], tree[path]),
+        Buffer.compare(/** @type {Uint8Array} */ (result.tree[path]), /** @type {Uint8Array} */ (tree[path])),
         `shard ${path} changed on empty diff`,
       ).toBe(0);
     }

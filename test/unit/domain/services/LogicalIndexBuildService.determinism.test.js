@@ -59,7 +59,7 @@ function extractNodeMappings(tree) {
  * @param {Record<string, Uint8Array>} tree
  */
 function extractLabelRegistry(tree) {
-  return defaultCodec.decode(tree['labels.cbor']);
+  return defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor']));
 }
 
 /**
@@ -142,7 +142,7 @@ describe('LogicalIndexBuildService determinism', () => {
 
     const service = new LogicalIndexBuildService();
     const { tree } = service.build(state);
-    const buf = tree['meta_aa.cbor'];
+    const buf = /** @type {Uint8Array} */ (tree['meta_aa.cbor']);
     expect(buf).toBeDefined();
     const meta = /** @type {{ nodeToGlobal: Array<[string, number]> }} */ (defaultCodec.decode(buf));
     const nodeIds = meta.nodeToGlobal.map((/** @type {[string, number]} */ pair) => pair[0]);
