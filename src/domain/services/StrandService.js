@@ -278,7 +278,11 @@ function frontierRecordsEqual(left, right) {
     return false;
   }
   return leftEntries.every(([leftKey, leftValue], index) => {
-    const [rightKey, rightValue] = rightEntries[index];
+    const rightEntry = rightEntries[index];
+    if (rightEntry === null || rightEntry === undefined) {
+      return false;
+    }
+    const [rightKey, rightValue] = rightEntry;
     return leftKey === rightKey && leftValue === rightValue;
   });
 }
@@ -423,8 +427,9 @@ function normalizeIntentQueue(value) {
     };
   }
   const record = /** @type {Record<string, unknown>} */ (value);
-  const nextIntentSeq = Number.isInteger(record['nextIntentSeq']) && /** @type {number} */ (record['nextIntentSeq']) > 0
-    ? /** @type {number} */ (record['nextIntentSeq'])
+  const rawSeq = record['nextIntentSeq'];
+  const nextIntentSeq = Number.isInteger(rawSeq) && /** @type {number} */ (rawSeq) > 0
+    ? /** @type {number} */ (rawSeq)
     : 1;
   return {
     nextIntentSeq,
@@ -471,6 +476,8 @@ function normalizeLastTick(lastTick) {
   if (!lastTick) {
     return null;
   }
+  const rawTickIndex = lastTick['tickIndex'];
+  const rawDrained = lastTick['drainedIntentCount'];
   return {
     tickId: normalizeOptionalString(
       /** @type {string|null|undefined} */ (lastTick['tickId']),
@@ -480,13 +487,13 @@ function normalizeLastTick(lastTick) {
       /** @type {string|null|undefined} */ (lastTick['strandId']),
       'strandId',
     ) ?? '',
-    tickIndex: Number.isInteger(lastTick['tickIndex']) ? /** @type {number} */ (lastTick['tickIndex']) : 0,
+    tickIndex: Number.isInteger(rawTickIndex) ? /** @type {number} */ (rawTickIndex) : 0,
     createdAt: normalizeOptionalString(
       /** @type {string|null|undefined} */ (lastTick['createdAt']),
       'createdAt',
     ) ?? '',
-    drainedIntentCount: Number.isInteger(lastTick['drainedIntentCount'])
-      ? /** @type {number} */ (lastTick['drainedIntentCount'])
+    drainedIntentCount: Number.isInteger(rawDrained)
+      ? /** @type {number} */ (rawDrained)
       : 0,
     admittedIntentIds: normalizeStringArray(lastTick['admittedIntentIds'], 'admittedIntentIds[]'),
     rejected: normalizeRejectedCounterfactuals(lastTick['rejected']),
@@ -516,11 +523,13 @@ function normalizeEvolution(value) {
     };
   }
   const record = /** @type {Record<string, unknown>} */ (value);
-  const tickCount = Number.isInteger(record['tickCount']) && /** @type {number} */ (record['tickCount']) >= 0
-    ? /** @type {number} */ (record['tickCount'])
+  const rawTickCount = record['tickCount'];
+  const tickCount = Number.isInteger(rawTickCount) && /** @type {number} */ (rawTickCount) >= 0
+    ? /** @type {number} */ (rawTickCount)
     : 0;
-  const lastTick = record['lastTick'] !== null && record['lastTick'] !== undefined && typeof record['lastTick'] === 'object' && !Array.isArray(record['lastTick'])
-    ? /** @type {Record<string, unknown>} */ (record['lastTick'])
+  const rawLastTick = record['lastTick'];
+  const lastTick = rawLastTick !== null && rawLastTick !== undefined && typeof rawLastTick === 'object' && !Array.isArray(rawLastTick)
+    ? /** @type {Record<string, unknown>} */ (rawLastTick)
     : null;
   return {
     tickCount,
@@ -566,6 +575,9 @@ function readOverlaysEqual(left, right) {
     left.length === right.length &&
     left.every((overlay, index) => {
       const candidate = right[index];
+      if (candidate === null || candidate === undefined) {
+        return false;
+      }
       return (
         overlay.strandId === candidate.strandId &&
         overlay.overlayId === candidate.overlayId &&
@@ -768,24 +780,26 @@ function freezePublicStateWithReceipts(state, receipts) {
  */
 async function openDetachedReadGraph(graph) {
   const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
-  return await GraphClass.open({
+  /** @type {Parameters<typeof GraphClass.open>[0]} */
+  const opts = {
     persistence: graph._persistence,
     graphName: graph._graphName,
     writerId: graph._writerId,
-    gcPolicy: graph._gcPolicy,
-    checkpointPolicy: graph._checkpointPolicy || undefined,
     autoMaterialize: false,
     onDeleteWithData: graph._onDeleteWithData,
-    logger: graph._logger || undefined,
     clock: graph._clock,
-    crypto: graph._crypto,
-    codec: graph._codec,
-    seekCache: graph._seekCache || undefined,
     audit: false,
-    blobStorage: graph._blobStorage || undefined,
-    patchBlobStorage: graph._patchBlobStorage || undefined,
     trust: graph._trustConfig,
-  });
+  };
+  if (graph._gcPolicy !== undefined && graph._gcPolicy !== null) { opts.gcPolicy = graph._gcPolicy; }
+  if (graph._checkpointPolicy !== undefined && graph._checkpointPolicy !== null) { opts.checkpointPolicy = graph._checkpointPolicy; }
+  if (graph._logger !== undefined && graph._logger !== null) { opts.logger = graph._logger; }
+  if (graph._crypto !== undefined && graph._crypto !== null) { opts.crypto = graph._crypto; }
+  if (graph._codec !== undefined && graph._codec !== null) { opts.codec = graph._codec; }
+  if (graph._seekCache !== undefined && graph._seekCache !== null) { opts.seekCache = graph._seekCache; }
+  if (graph._blobStorage !== undefined && graph._blobStorage !== null) { opts.blobStorage = graph._blobStorage; }
+  if (graph._patchBlobStorage !== undefined && graph._patchBlobStorage !== null) { opts.patchBlobStorage = graph._patchBlobStorage; }
+  return await GraphClass.open(opts);
 }
 
 /**
@@ -1078,7 +1092,8 @@ export default class StrandService {
     const nextLamport = maxPatchLamport(allPatches) + 1;
     const expectedParentSha = descriptor.overlay.headPatchSha ?? null;
 
-    return new PatchBuilderV2({
+    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
+    const pbOpts = {
       persistence: this._graph._persistence,
       graphName: this._graph._graphName,
       writerId: descriptor.overlay.overlayId,
@@ -1098,14 +1113,15 @@ export default class StrandService {
        *
        * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result - Committed patch result.
        */
-      onCommitSuccess: async ({ patch, sha }) => {
+      onCommitSuccess: async (/** @type {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} */ { patch, sha }) => {
         await this._syncOverlayDescriptor(descriptor, { patch, sha });
       },
       codec: this._graph._codec,
-      logger: this._graph._logger || undefined,
-      blobStorage: this._graph._blobStorage || undefined,
-      patchBlobStorage: this._graph._patchBlobStorage || undefined,
-    });
+    };
+    if (this._graph._logger) { pbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage) { pbOpts.blobStorage = this._graph._blobStorage; }
+    if (this._graph._patchBlobStorage) { pbOpts.patchBlobStorage = this._graph._patchBlobStorage; }
+    return new PatchBuilderV2(pbOpts);
   }
 
   /**
@@ -1284,7 +1300,8 @@ export default class StrandService {
       collectReceipts: false,
       ceiling: null,
     });
-    const builder = new PatchBuilderV2({
+    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
+    const intentPbOpts = {
       persistence: this._graph._persistence,
       graphName: this._graph._graphName,
       writerId: descriptor.overlay.overlayId,
@@ -1299,10 +1316,11 @@ export default class StrandService {
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       onDeleteWithData: this._graph._onDeleteWithData,
       codec: this._graph._codec,
-      logger: this._graph._logger || undefined,
-      blobStorage: this._graph._blobStorage || undefined,
-      patchBlobStorage: this._graph._patchBlobStorage || undefined,
-    });
+    };
+    if (this._graph._logger) { intentPbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage) { intentPbOpts.blobStorage = this._graph._blobStorage; }
+    if (this._graph._patchBlobStorage) { intentPbOpts.patchBlobStorage = this._graph._patchBlobStorage; }
+    const builder = new PatchBuilderV2(intentPbOpts);
     await build(builder);
     const patch = builder.build();
     if (!Array.isArray(patch.ops) || patch.ops.length === 0) {

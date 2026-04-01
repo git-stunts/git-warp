@@ -116,9 +116,20 @@ export default class IndexRebuildService {
     try {
       let treeOid;
       if (maxMemoryBytes !== undefined) {
-        treeOid = await this._rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier });
+        /** @type {Parameters<typeof this._rebuildStreaming>[1]} */
+        const streamOpts = { limit, maxMemoryBytes };
+        if (onFlush) { streamOpts.onFlush = onFlush; }
+        if (onProgress) { streamOpts.onProgress = onProgress; }
+        if (signal) { streamOpts.signal = signal; }
+        if (frontier) { streamOpts.frontier = frontier; }
+        treeOid = await this._rebuildStreaming(ref, streamOpts);
       } else {
-        treeOid = await this._rebuildInMemory(ref, { limit, onProgress, signal, frontier });
+        /** @type {Parameters<typeof this._rebuildInMemory>[1]} */
+        const memOpts = { limit };
+        if (onProgress) { memOpts.onProgress = onProgress; }
+        if (signal) { memOpts.signal = signal; }
+        if (frontier) { memOpts.frontier = frontier; }
+        treeOid = await this._rebuildInMemory(ref, memOpts);
       }
 
       const durationMs = performance.now() - startTime;
@@ -163,7 +174,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildInMemory(ref, { limit, onProgress, signal, frontier }) {
-    const builder = new BitmapIndexBuilder({ crypto: this._crypto });
+    const builder = new BitmapIndexBuilder(this._crypto ? { crypto: this._crypto } : {});
     let processedNodes = 0;
 
     for await (const node of this.graphService.iterateNodes({ ref, limit })) {
@@ -181,7 +192,7 @@ export default class IndexRebuildService {
       }
     }
 
-    return await this._persistIndex(builder, { frontier });
+    return await this._persistIndex(builder, frontier ? { frontier } : {});
   }
 
   /**
@@ -212,12 +223,11 @@ export default class IndexRebuildService {
    * @private
    */
   async _rebuildStreaming(ref, { limit, maxMemoryBytes, onFlush, onProgress, signal, frontier }) {
-    const builder = new StreamingBitmapIndexBuilder({
-      storage: this.storage,
-      maxMemoryBytes,
-      onFlush,
-      crypto: this._crypto,
-    });
+    /** @type {ConstructorParameters<typeof StreamingBitmapIndexBuilder>[0]} */
+    const streamOpts = { storage: this.storage, maxMemoryBytes };
+    if (onFlush) { streamOpts.onFlush = onFlush; }
+    if (this._crypto) { streamOpts.crypto = this._crypto; }
+    const builder = new StreamingBitmapIndexBuilder(streamOpts);
 
     let processedNodes = 0;
 
@@ -240,7 +250,11 @@ export default class IndexRebuildService {
       }
     }
 
-    return await builder.finalize({ signal, frontier });
+    /** @type {{ signal?: AbortSignal, frontier?: Map<string, string> }} */
+    const finalizeOpts = {};
+    if (signal) { finalizeOpts.signal = signal; }
+    if (frontier) { finalizeOpts.frontier = frontier; }
+    return await builder.finalize(finalizeOpts);
   }
 
   /**
@@ -263,7 +277,7 @@ export default class IndexRebuildService {
    * @private
    */
   async _persistIndex(builder, { frontier } = {}) {
-    const treeStructure = await builder.serialize({ frontier });
+    const treeStructure = await builder.serialize(frontier ? { frontier } : {});
     const flatEntries = [];
     for (const [path, buffer] of Object.entries(treeStructure)) {
       const oid = await /** @type {import('../../ports/BlobPort.js').default} */ (/** @type {unknown} */ (this.storage)).writeBlob(buffer);
@@ -333,7 +347,7 @@ export default class IndexRebuildService {
       strict,
     });
 
-    if (autoRebuild && (rebuildRef === undefined || rebuildRef === '')) {
+    if (autoRebuild && (rebuildRef === undefined || rebuildRef.length === 0)) {
       throw new Error('rebuildRef is required when autoRebuild is true');
     }
 
@@ -343,7 +357,7 @@ export default class IndexRebuildService {
 
     // Staleness check
     if (currentFrontier) {
-      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {import('../../ports/IndexStoragePort.js').default & import('../../ports/BlobPort.js').default} */ (this.storage), { codec: this._codec });
+      const indexFrontier = await loadIndexFrontier(shardOids, /** @type {import('../../ports/IndexStoragePort.js').default & import('../../ports/BlobPort.js').default} */ (this.storage), this._codec ? { codec: this._codec } : {});
       if (indexFrontier) {
         const result = checkStaleness(indexFrontier, currentFrontier);
         if (result.stale) {
@@ -352,7 +366,7 @@ export default class IndexRebuildService {
             reason: result.reason,
             hint: 'Rebuild the index or pass autoRebuild: true',
           });
-          if (autoRebuild && rebuildRef !== undefined && rebuildRef !== '') {
+          if (autoRebuild && rebuildRef !== undefined && rebuildRef.length > 0) {
             const newTreeOid = await this.rebuild(rebuildRef, { frontier: currentFrontier });
             return await this.load(newTreeOid, { strict });
           }
@@ -364,7 +378,10 @@ export default class IndexRebuildService {
       }
     }
 
-    const reader = new BitmapIndexReader({ storage: this.storage, strict, logger: this.logger.child({ component: 'BitmapIndexReader' }), crypto: this._crypto });
+    /** @type {ConstructorParameters<typeof BitmapIndexReader>[0]} */
+    const readerOpts = { storage: this.storage, strict, logger: this.logger.child({ component: 'BitmapIndexReader' }) };
+    if (this._crypto) { readerOpts.crypto = this._crypto; }
+    const reader = new BitmapIndexReader(readerOpts);
     reader.setup(shardOids);
 
     const durationMs = performance.now() - startTime;

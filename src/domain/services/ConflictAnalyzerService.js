@@ -639,7 +639,7 @@ function normalizeLamportCeiling(lamportCeiling) {
       context: { lamportCeiling },
     });
   }
-  return lamportCeiling;
+  return /** @type {number} */ (lamportCeiling);
 }
 
 /**
@@ -697,7 +697,10 @@ function validateTargetByKind(target) {
     /** Validates that edge property targets include from, to, label, and propertyKey. */
     edge_property: () => validateTargetFields(target, ['from', 'to', 'label', 'propertyKey'], 'edge_property selector requires from, to, label, and propertyKey'),
   };
-  validators[targetKind]();
+  const validator = validators[targetKind];
+  if (validator !== null && validator !== undefined) {
+    validator();
+  }
 }
 
 /**
@@ -966,8 +969,9 @@ function normalizeEffectPayload(_target, opType, canonOp) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node target identity or null.
  */
 function buildNodeTargetIdentity(canonOp, receiptTarget) {
-  const entityId = typeof canonOp['node'] === 'string' && canonOp['node'].length > 0
-    ? canonOp['node']
+  const nodeVal = canonOp['node'];
+  const entityId = typeof nodeVal === 'string' && nodeVal.length > 0
+    ? nodeVal
     : (receiptTarget !== '*' ? receiptTarget : null);
   return entityId !== null ? { targetKind: 'node', entityId } : null;
 }
@@ -994,17 +998,20 @@ function buildEdgeTargetIdentity(canonOp, receiptTarget) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge target or null if fields are missing.
  */
 function buildEdgeTargetFromOp(canonOp) {
+  const fromVal = canonOp['from'];
+  const toVal = canonOp['to'];
+  const labelVal = canonOp['label'];
   if (
-    typeof canonOp['from'] === 'string' &&
-    typeof canonOp['to'] === 'string' &&
-    typeof canonOp['label'] === 'string'
+    typeof fromVal === 'string' &&
+    typeof toVal === 'string' &&
+    typeof labelVal === 'string'
   ) {
     return {
       targetKind: 'edge',
-      from: canonOp['from'],
-      to: canonOp['to'],
-      label: canonOp['label'],
-      edgeKey: `${canonOp['from']}\0${canonOp['to']}\0${canonOp['label']}`,
+      from: fromVal,
+      to: toVal,
+      label: labelVal,
+      edgeKey: `${fromVal}\0${toVal}\0${labelVal}`,
     };
   }
   return null;
@@ -1040,13 +1047,15 @@ function buildEdgeTargetFromReceipt(receiptTarget) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node-property target or null.
  */
 function buildNodePropertyTargetIdentity(canonOp) {
-  if (typeof canonOp['node'] !== 'string' || typeof canonOp['key'] !== 'string') {
+  const nodeVal = canonOp['node'];
+  const keyVal = canonOp['key'];
+  if (typeof nodeVal !== 'string' || typeof keyVal !== 'string') {
     return null;
   }
   return {
     targetKind: 'node_property',
-    entityId: canonOp['node'],
-    propertyKey: canonOp['key'],
+    entityId: nodeVal,
+    propertyKey: keyVal,
   };
 }
 
@@ -1057,21 +1066,25 @@ function buildNodePropertyTargetIdentity(canonOp) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge-property target or null.
  */
 function buildEdgePropertyTargetIdentity(canonOp) {
+  const fromVal = canonOp['from'];
+  const toVal = canonOp['to'];
+  const labelVal = canonOp['label'];
+  const keyVal = canonOp['key'];
   if (
-    typeof canonOp['from'] !== 'string' ||
-    typeof canonOp['to'] !== 'string' ||
-    typeof canonOp['label'] !== 'string' ||
-    typeof canonOp['key'] !== 'string'
+    typeof fromVal !== 'string' ||
+    typeof toVal !== 'string' ||
+    typeof labelVal !== 'string' ||
+    typeof keyVal !== 'string'
   ) {
     return null;
   }
   return {
     targetKind: 'edge_property',
-    from: canonOp['from'],
-    to: canonOp['to'],
-    label: canonOp['label'],
-    edgeKey: `${canonOp['from']}\0${canonOp['to']}\0${canonOp['label']}`,
-    propertyKey: canonOp['key'],
+    from: fromVal,
+    to: toVal,
+    label: labelVal,
+    edgeKey: `${fromVal}\0${toVal}\0${labelVal}`,
+    propertyKey: keyVal,
   };
 }
 
@@ -1105,6 +1118,21 @@ function buildTargetIdentity(canonOp, receiptTarget) {
 }
 
 /**
+ * Builds the options object for buildResolution, conditionally including a reason.
+ *
+ * @param {{ kind: 'supersession'|'eventual_override'|'redundancy', code: string, winner: OpRecord, loser: OpRecord }} params - Resolution parameters.
+ * @returns {{ winner: OpRecord, loser: OpRecord, kind: 'supersession'|'eventual_override'|'redundancy', winnerMode: 'immediate', code: string, reason?: string }} Resolution options.
+ */
+function buildResolutionOpts({ kind, code, winner, loser }) {
+  /** @type {{ winner: OpRecord, loser: OpRecord, kind: 'supersession'|'eventual_override'|'redundancy', winnerMode: 'immediate', code: string, reason?: string }} */
+  const opts = { winner, loser, kind, winnerMode: 'immediate', code };
+  if (typeof loser.receiptReason === 'string') {
+    opts.reason = loser.receiptReason;
+  }
+  return opts;
+}
+
+/**
  * Constructs a ConflictResolution describing how the reducer chose the winner over the loser.
  *
  * @param {{
@@ -1128,12 +1156,16 @@ function buildResolution({
   const comparatorType = kind === 'redundancy' ? 'effect_digest' : 'event_id';
   const basis = buildResolutionBasis(code, reason);
   const comparator = buildResolutionComparator(comparatorType, winner, loser);
-  return {
+  /** @type {ConflictResolution} */
+  const resolution = {
     reducerId: CONFLICT_REDUCER_ID,
     basis,
     winnerMode,
-    comparator,
   };
+  if (comparator !== null && comparator !== undefined) {
+    resolution.comparator = comparator;
+  }
+  return resolution;
 }
 
 /**
@@ -1144,10 +1176,12 @@ function buildResolution({
  * @returns {{ code: string, reason?: string }} The basis object.
  */
 function buildResolutionBasis(code, reason) {
-  return {
-    code,
-    ...(typeof reason === 'string' && reason.length > 0 ? { reason } : {}),
-  };
+  /** @type {{ code: string, reason?: string }} */
+  const basis = { code };
+  if (typeof reason === 'string' && reason.length > 0) {
+    basis.reason = reason;
+  }
+  return basis;
 }
 
 /**
@@ -1326,7 +1360,9 @@ function attachReceipts(patchFrames) {
     )
   );
   for (let i = 0; i < patchFrames.length; i++) {
-    patchFrames[i].receipt = reduced.receipts[i];
+    const frame = /** @type {PatchFrame} */ (patchFrames[i]);
+    const receipt = /** @type {TickReceipt} */ (reduced.receipts[i]);
+    frame.receipt = receipt;
   }
 }
 
@@ -1371,6 +1407,9 @@ function buildScanWindow({ patchFrames, maxPatches, lamportCeiling, diagnostics 
  */
 function emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamportCeiling }) {
   const lastScanned = scannedFrames[scannedFrames.length - 1];
+  if (lastScanned === null || lastScanned === undefined) {
+    return;
+  }
   pushDiagnostic(diagnostics, {
     code: 'budget_truncated',
     message: `Conflict analysis truncated to ${String(maxPatches)} patches at ceiling ${describeLamportCeiling(lamportCeiling)}`,
@@ -1476,7 +1515,8 @@ async function analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, 
  * @returns {Promise<{ record: OpRecord|null, nextReceiptOpIndex: number }|null>} Result or null to skip.
  */
 async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics }) {
-  const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(frame.patch.ops[opIndex])));
+  const rawOp = /** @type {import('../types/WarpTypesV2.js').RawOpV2 | {type: string}} */ (frame.patch.ops[opIndex]);
+  const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(rawOp)));
   const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp['type'])];
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) {
     return null;
@@ -1590,7 +1630,8 @@ async function buildOpRecord(service, {
  */
 function assembleOpRecord({ frame, opIndex, receiptOpIndex, receiptOpType, receiptOutcome, target, effectDigest }) {
   const { patch, sha, context, patchOrder } = frame;
-  return {
+  /** @type {OpRecord} */
+  const record = {
     target,
     targetKey: target.targetDigest,
     patchSha: sha,
@@ -1600,12 +1641,15 @@ function assembleOpRecord({ frame, opIndex, receiptOpIndex, receiptOpType, recei
     receiptOpIndex,
     opType: receiptOpType,
     receiptResult: receiptOutcome.result,
-    receiptReason: receiptOutcome.reason,
     effectDigest,
     eventId: createEventId(patch.lamport, patch.writer, sha, opIndex),
     context,
     patchOrder,
   };
+  if (typeof receiptOutcome.reason === 'string') {
+    record.receiptReason = receiptOutcome.reason;
+  }
+  return record;
 }
 
 /**
@@ -1701,19 +1745,13 @@ function maybeAddSupersessionCandidate({ collector, record, currentPropertyWinne
   if (!isPropertySetRecord(record) || record.receiptResult !== 'superseded' || currentPropertyWinner === null) {
     return;
   }
+  const resOpts = buildResolutionOpts({ kind: 'supersession', code: 'receipt_superseded', winner: currentPropertyWinner, loser: record });
   collector.candidates.push({
     kind: 'supersession',
     target: record.target,
     winner: currentPropertyWinner,
     loser: record,
-    resolution: buildResolution({
-      winner: currentPropertyWinner,
-      loser: record,
-      kind: 'supersession',
-      winnerMode: 'immediate',
-      code: 'receipt_superseded',
-      reason: record.receiptReason,
-    }),
+    resolution: buildResolution(resOpts),
     noteCodes: normalizeNoteCodes([
       CLASSIFICATION_NOTES.RECEIPT_SUPERSEDED,
       CLASSIFICATION_NOTES.SAME_TARGET,
@@ -1742,14 +1780,7 @@ function maybeAddRedundancyCandidate({ collector, record, priorEquivalent }) {
     target: record.target,
     winner: priorEquivalent,
     loser: record,
-    resolution: buildResolution({
-      winner: priorEquivalent,
-      loser: record,
-      kind: 'redundancy',
-      winnerMode: 'immediate',
-      code: 'receipt_redundant',
-      reason: record.receiptReason,
-    }),
+    resolution: buildResolution(buildResolutionOpts({ kind: 'redundancy', code: 'receipt_redundant', winner: priorEquivalent, loser: record })),
     noteCodes: normalizeNoteCodes([
       CLASSIFICATION_NOTES.RECEIPT_REDUNDANT,
       CLASSIFICATION_NOTES.SAME_TARGET,

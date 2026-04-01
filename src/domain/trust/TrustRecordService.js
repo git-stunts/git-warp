@@ -154,7 +154,7 @@ export class TrustRecordService {
         if (info.parents.length === 0) {
           break;
         }
-        current = info.parents[0];
+        current = info.parents[0] ?? '';
       }
 
       return { ok: true, records };
@@ -185,6 +185,9 @@ export class TrustRecordService {
 
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
+      if (record === null || record === undefined) {
+        continue;
+      }
 
       // Schema validation
       const parsed = TrustRecordSchema.safeParse(record);
@@ -210,7 +213,8 @@ export class TrustRecordService {
           errors.push({ index: i, error: `Genesis record must have prev=null, got ${JSON.stringify(record['prev'])}` });
         }
       } else {
-        const expectedPrev = records[i - 1]['recordId'];
+        const prevRecord = records[i - 1];
+        const expectedPrev = prevRecord !== null && prevRecord !== undefined ? prevRecord['recordId'] : null;
         if (record['prev'] !== expectedPrev) {
           errors.push({
             index: i,

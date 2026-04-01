@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { reduceV5 as _reduceV5, createEmptyStateV5 } from '../../src/domain/services/JoinReducer.js';
+import { reduceV5 as _reduceV5 } from '../../src/domain/services/JoinReducer.js';
 import {
   createPatchV2 as _createPatchV2,
   createNodeAddV2 as _createNodeAddV2,
@@ -25,7 +25,7 @@ import {
 const reduceV5 = _reduceV5;
 import { createInlineValue } from '../../src/domain/types/WarpTypes.js';
 import { createDot, encodeDot } from '../../src/domain/crdt/Dot.js';
-import { createVersionVector, vvIncrement } from '../../src/domain/crdt/VersionVector.js';
+import { createVersionVector } from '../../src/domain/crdt/VersionVector.js';
 import { orsetElements } from '../../src/domain/crdt/ORSet.js';
 import {
   TestClock,
@@ -81,7 +81,7 @@ function generateV5Patches(patchCount, options = {}) {
 
   for (let i = 0; i < patchCount; i++) {
     const writerIdx = i % writerCount;
-    const writer = writers[writerIdx];
+    const writer = /** @type {string} */ (writers[writerIdx]);
     const lamport = Math.floor(i / writerCount) + 1;
     const sha = randomHex(16, rng);
 
@@ -107,8 +107,8 @@ function generateV5Patches(patchCount, options = {}) {
         if (nodePool.length >= 2) {
           nextCounter++;
           const dot = createDot(writer, nextCounter);
-          const from = nodePool[Math.floor(rng.next() * nodePool.length)].id;
-          const to = nodePool[Math.floor(rng.next() * nodePool.length)].id;
+          const from = /** @type {{id: string, dot: string}} */ (nodePool[Math.floor(rng.next() * nodePool.length)]).id;
+          const to = /** @type {{id: string, dot: string}} */ (nodePool[Math.floor(rng.next() * nodePool.length)]).id;
           ops.push(createEdgeAddV2(from, to, 'link', dot));
         } else {
           // Fall back to NodeAdd if not enough nodes
@@ -120,7 +120,7 @@ function generateV5Patches(patchCount, options = {}) {
       } else if (opType < 80) {
         // 20% - PropSet
         if (nodePool.length > 0) {
-          const targetNode = nodePool[Math.floor(rng.next() * nodePool.length)].id;
+          const targetNode = /** @type {{id: string, dot: string}} */ (nodePool[Math.floor(rng.next() * nodePool.length)]).id;
           ops.push(createPropSetV2(targetNode, `prop-${j}`, createInlineValue(i * opsPerPatch + j)));
         } else {
           // Add node first if pool empty
@@ -133,7 +133,7 @@ function generateV5Patches(patchCount, options = {}) {
         // 10% - NodeRemove (with observed dots)
         if (nodePool.length > 0) {
           const targetIdx = Math.floor(rng.next() * nodePool.length);
-          const target = nodePool[targetIdx];
+          const target = /** @type {{id: string, dot: string}} */ (nodePool[targetIdx]);
           ops.push({ type: 'NodeRemove', observedDots: new Set([target.dot]) });
           // Remove from pool
           nodePool.splice(targetIdx, 1);
