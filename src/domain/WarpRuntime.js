@@ -38,6 +38,23 @@ import * as comparisonMethods from './warp/comparison.methods.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
+/**
+ * Strips keys whose value is `undefined` from an object.
+ * @template {Record<string, unknown>} T
+ * @param {T} obj
+ * @returns {T}
+ */
+function stripUndefined(obj) {
+  /** @type {Record<string, unknown>} */
+  const out = {};
+  for (const key of Object.keys(obj)) {
+    if (obj[key] !== undefined) {
+      out[key] = obj[key];
+    }
+  }
+  return /** @type {T} */ (out);
+}
+
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 
 /**
@@ -52,90 +69,36 @@ const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
  */
 async function autoConstructBlobStorage(persistence) {
   const p = /** @type {{ plumbing?: unknown }} */ (persistence);
-  if (p.plumbing !== null && p.plumbing !== undefined) {
+  if (p.plumbing) {
     const { default: CasBlobAdapter } = await import(
       /* webpackIgnore: true */ '../infrastructure/adapters/CasBlobAdapter.js'
     );
-    return new CasBlobAdapter({ plumbing: p.plumbing, persistence });
+    return new CasBlobAdapter({ plumbing: p.plumbing, persistence: /** @type {import('../infrastructure/adapters/CasBlobAdapter.js').BlobPersistence} */ (persistence) });
   }
-  return new InMemoryBlobStorageAdapter();
-}
-
-import WarpError from './errors/WarpError.js';
-
-/**
- * Constructs an EffectPipeline from an array of sinks and an optional externalization lens.
- *
- * @param {Array<import('../ports/EffectSinkPort.js').default>} sinks - Effect sinks to multiplex
- * @param {import('./types/ExternalizationPolicy.js').ExternalizationPolicy|undefined} lens - Optional externalization lens
- * @param {import('../ports/ClockPort.js').default} clock - Clock for the pipeline
- * @returns {Promise<import('./services/EffectPipeline.js').EffectPipeline>} Constructed pipeline
- */
-async function buildEffectPipeline(sinks, lens, clock) {
-  const multMod = /** @type {{ MultiplexSink: typeof import('./services/MultiplexSink.js').MultiplexSink }} */ (
-    /** @type {unknown} */ (await import('./services/MultiplexSink.js'))
-  );
-  const effMod = /** @type {{ EffectPipeline: typeof import('./services/EffectPipeline.js').EffectPipeline }} */ (
-    /** @type {unknown} */ (await import('./services/EffectPipeline.js'))
-  );
-  const mux = new multMod.MultiplexSink();
-  for (const sink of sinks) {
-    mux.addSink(sink);
-  }
-  /** @type {import('./types/ExternalizationPolicy.js').ExternalizationPolicy} */
-  let resolvedLens;
-  if (lens !== null && lens !== undefined) {
-    resolvedLens = lens;
-  } else {
-    const mod = /** @type {{ LIVE_LENS: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} */ (
-      /** @type {unknown} */ (await import('./types/ExternalizationPolicy.js'))
-    );
-    resolvedLens = mod.LIVE_LENS;
-  }
-  return new effMod.EffectPipeline({ sink: mux, lens: resolvedLens, clock });
-}
-
-const VALID_TRUST_MODES = /** @type {const} */ (['off', 'log-only', 'enforce']);
-
-/**
- * Validates and returns the trust mode from a raw config.
- * @param {string} mode - Candidate trust mode value
- * @returns {'off'|'log-only'|'enforce'} Validated trust mode
- */
-function validateTrustMode(mode) {
-  if (!VALID_TRUST_MODES.includes(/** @type {'off'|'log-only'|'enforce'} */ (mode))) {
-    throw new WarpError('trust.mode must be one of: off, log-only, enforce', 'E_TRUST_CONFIG');
-  }
-  return /** @type {'off'|'log-only'|'enforce'} */ (mode);
+  return /** @type {import('../ports/BlobStoragePort.js').default} */ (new InMemoryBlobStorageAdapter());
 }
 
 /**
- * Validates and returns the trust pin from a raw config.
- * @param {string|null|undefined} pin - Candidate pin value
- * @returns {string|null} Validated pin
- */
-function validateTrustPin(pin) {
-  if (pin !== undefined && pin !== null && typeof pin !== 'string') {
-    throw new WarpError('trust.pin must be a string', 'E_TRUST_CONFIG');
-  }
-  return pin ?? null;
-}
-
-/**
- * Normalizes a trust configuration into a canonical shape with defaults.
- * @param {{ mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null} trust - Raw trust config
- * @returns {{ mode: 'off'|'log-only'|'enforce', pin: string|null }} Normalized trust config
+ * @param {{ mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null} trust
+ * @returns {{ mode: 'off'|'log-only'|'enforce', pin: string|null }}
  */
 function normalizeTrustConfig(trust) {
-  if (trust === null || trust === undefined) {
+  if (!trust) {
     return { mode: 'off', pin: null };
   }
   if (typeof trust !== 'object') {
-    throw new WarpError('trust must be an object', 'E_TRUST_CONFIG');
+    throw new Error('trust must be an object');
+  }
+  const mode = trust.mode ?? 'off';
+  if (!['off', 'log-only', 'enforce'].includes(mode)) {
+    throw new Error('trust.mode must be one of: off, log-only, enforce');
+  }
+  if (trust.pin !== undefined && trust.pin !== null && typeof trust.pin !== 'string') {
+    throw new Error('trust.pin must be a string');
   }
   return {
-    mode: validateTrustMode(trust.mode ?? 'off'),
-    pin: validateTrustPin(trust.pin),
+    mode,
+    pin: trust.pin ?? null,
   };
 }
 
@@ -152,9 +115,8 @@ function normalizeTrustConfig(trust) {
  */
 export default class WarpRuntime {
   /**
-   * Constructs a WarpRuntime instance with injected dependencies and configuration.
    * @private
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown> | undefined, adjacencyCacheSize?: number | undefined, checkpointPolicy?: {every: number} | undefined, autoMaterialize?: boolean | undefined, onDeleteWithData?: 'reject'|'cascade'|'warn' | undefined, logger?: import('../ports/LoggerPort.js').default | undefined, clock?: import('../ports/ClockPort.js').default | undefined, crypto?: import('../ports/CryptoPort.js').default | undefined, codec?: import('../ports/CodecPort.js').default | undefined, seekCache?: import('../ports/SeekCachePort.js').default | undefined, audit?: boolean | undefined, blobStorage?: import('../ports/BlobStoragePort.js').default | undefined, patchBlobStorage?: import('../ports/BlobStoragePort.js').default | undefined, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } | undefined }} options
    */
   // TODO(OG): split constructor responsibilities; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
@@ -295,25 +257,51 @@ export default class WarpRuntime {
     /** @type {{ mode: 'off'|'log-only'|'enforce', pin: string|null }} */
     this._trustConfig = normalizeTrustConfig(trust);
 
-    /** Lazily creates a SyncTrustGate from trust config, or returns null when trust is off. @type {((override?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null) => SyncTrustGate|null)} */
+    /** @type {((override?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null) => SyncTrustGate|null)} */
     this._createSyncTrustGate = (override) => {
       const config = normalizeTrustConfig(override ?? this._trustConfig);
       if (config.mode === 'off') {
         return null;
       }
-      return this._buildTrustGate(config);
+
+      const verifier = new AuditVerifierService({
+        persistence: this._persistence,
+        codec: this._codec,
+        ...(this._logger ? { logger: this._logger } : {}),
+      });
+
+      return new SyncTrustGate({
+        trustMode: config.mode,
+        ...(this._logger ? { logger: this._logger } : {}),
+        trustEvaluator: {
+          evaluateWriters: async (writerIds) => {
+            const assessment = await verifier.evaluateTrust(this._graphName, {
+              ...(config.pin ? { pin: config.pin } : {}),
+              mode: config.mode === 'enforce' ? 'enforce' : 'warn',
+              writerIds,
+            });
+            return {
+              trusted: new Set(
+                assessment.trust.explanations
+                  .filter((explanation) => explanation.trusted)
+                  .map((explanation) => explanation.writerId),
+              ),
+            };
+          },
+        },
+      });
     };
 
-    const trustGate = this._createSyncTrustGate() || undefined;
+    const trustGate = this._createSyncTrustGate();
     /** @type {SyncController} */
     this._syncController = new SyncController(this, {
-      trustGate,
+      ...(trustGate ? { trustGate } : {}),
     });
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
       codec: this._codec,
-      logger: this._logger || undefined,
+      ...(this._logger ? { logger: this._logger } : {}),
     });
 
     /** @type {import('./services/BitmapNeighborProvider.js').LogicalIndex|null} */
@@ -366,71 +354,12 @@ export default class WarpRuntime {
       return;
     }
     const elapsed = Math.round(this._clock.now() - t0);
-    this._emitTimingMessage(op, { elapsed, metrics, error });
-  }
-
-  /**
-   * Emits a formatted timing log message for a completed or failed operation.
-   * @param {string} op - Operation name
-   * @param {{ elapsed: number, metrics?: string, error?: Error }} detail - Timing details
-   * @private
-   */
-  _emitTimingMessage(op, { elapsed, metrics, error }) {
     if (error) {
-      /** @type {import('../ports/LoggerPort.js').default} */ (this._logger).info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
+      this._logger.info(`[warp] ${op} failed in ${elapsed}ms`, { error: error.message });
     } else {
-      const suffix = (typeof metrics === 'string' && metrics.length > 0) ? ` (${metrics})` : '';
-      /** @type {import('../ports/LoggerPort.js').default} */ (this._logger).info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
+      const suffix = metrics ? ` (${metrics})` : '';
+      this._logger.info(`[warp] ${op} completed in ${elapsed}ms${suffix}`);
     }
-  }
-
-  /**
-   * Builds a SyncTrustGate from a resolved trust configuration.
-   *
-   * @param {{ mode: 'off'|'log-only'|'enforce', pin: string|null }} config - Normalized trust config
-   * @returns {SyncTrustGate} Constructed trust gate
-   * @private
-   */
-  _buildTrustGate(config) {
-    const verifier = new AuditVerifierService({
-      persistence: this._persistence,
-      codec: this._codec,
-      logger: this._logger || undefined,
-    });
-
-    return new SyncTrustGate({
-      trustMode: config.mode,
-      logger: this._logger || undefined,
-      trustEvaluator: {
-        /** Evaluates writer trust by delegating to the AuditVerifierService. */
-        evaluateWriters: async (writerIds) => {
-          const pin = (typeof config.pin === 'string' && config.pin.length > 0) ? config.pin : undefined;
-          const assessment = await verifier.evaluateTrust(this._graphName, {
-            pin,
-            mode: config.mode === 'enforce' ? 'enforce' : 'warn',
-            writerIds,
-          });
-          return this._extractTrustedWriters(assessment);
-        },
-      },
-    });
-  }
-
-  /**
-   * Extracts trusted writer IDs from a trust assessment result.
-   *
-   * @param {{ trust: { explanations: Array<{ trusted: boolean, writerId: string }> } }} assessment - Trust evaluation result
-   * @returns {{ trusted: Set<string> }} Set of trusted writer IDs
-   * @private
-   */
-  _extractTrustedWriters(assessment) {
-    return {
-      trusted: new Set(
-        assessment.trust.explanations
-          .filter((explanation) => explanation.trusted)
-          .map((explanation) => explanation.writerId),
-      ),
-    };
   }
 
   /**
@@ -451,9 +380,9 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: import('../ports/EffectSinkPort.js').default[], externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
-   * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
+   * @throws {Error} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
    * @example
    * const graph = await WarpRuntime.open({
@@ -469,8 +398,8 @@ export default class WarpRuntime {
     validateGraphName(graphName);
     validateWriterId(writerId);
 
-    if (persistence === null || persistence === undefined) {
-      throw new WarpError('persistence is required', 'E_INVALID_ARG');
+    if (!persistence) {
+      throw new Error('persistence is required');
     }
 
     // Validate checkpointPolicy
@@ -506,7 +435,7 @@ export default class WarpRuntime {
     // Auto-construct blob storage when none provided (OG-014: CAS is mandatory)
     const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
 
-    const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage: resolvedBlobStorage, patchBlobStorage, trust });
+    const graph = new WarpRuntime(stripUndefined({ persistence, graphName, writerId, gcPolicy, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage: resolvedBlobStorage, patchBlobStorage, trust }));
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
@@ -519,16 +448,26 @@ export default class WarpRuntime {
         writerId,
         codec: graph._codec,
         crypto: graph._crypto,
-        logger: graph._logger || undefined,
+        ...(graph._logger ? { logger: graph._logger } : {}),
       });
       await graph._auditService.init();
     }
 
     // Wire effect pipeline if provided (explicit pipeline wins over sinks+lens)
-    if (effectPipeline !== null && effectPipeline !== undefined) {
+    if (effectPipeline) {
       graph._effectPipeline = effectPipeline;
-    } else if (effectSinks !== null && effectSinks !== undefined && effectSinks.length > 0) {
-      graph._effectPipeline = await buildEffectPipeline(effectSinks, externalizationPolicy, graph._clock);
+    } else if (effectSinks && effectSinks.length > 0) {
+      const { MultiplexSink } = await import('./services/MultiplexSink.js');
+      const { EffectPipeline } = await import('./services/EffectPipeline.js');
+      const mux = new MultiplexSink();
+      for (const sink of effectSinks) {
+        mux.addSink(sink);
+      }
+      graph._effectPipeline = new EffectPipeline({
+        sink: mux,
+        lens: externalizationPolicy || (await import('./types/ExternalizationPolicy.js')).LIVE_LENS,
+        clock: graph._clock,
+      });
     }
 
     return graph;
@@ -601,7 +540,6 @@ export default class WarpRuntime {
   get temporal() {
     if (!this._temporalQuery) {
       this._temporalQuery = new TemporalQuery({
-        /** Loads and causally sorts all patches from every discovered writer. */
         loadAllPatches: async () => {
           const writerIds = await this.discoverWriters();
           const allPatches = [];
@@ -611,7 +549,6 @@ export default class WarpRuntime {
           }
           return this._sortPatchesCausally(allPatches);
         },
-        /** Loads the latest checkpoint state and its max Lamport timestamp. */
         loadCheckpoint: async () => {
           const ck = await this._loadLatestCheckpoint();
           if (!ck) { return null; }
@@ -668,12 +605,8 @@ const syncDelegates = /** @type {const} */ ([
 for (const method of syncDelegates) {
   Object.defineProperty(WarpRuntime.prototype, method, {
     // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
-    value: /** Delegates to the corresponding SyncController method. @param {*[]} args - Forwarded arguments @returns {unknown} Forwarded result */ function (...args) {
-      /** @type {unknown} */
-      const raw = this;
-      const self = /** @type {WarpRuntime} */ (raw);
-      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._syncController));
-      return /** @type {unknown} */ (ctrl[method](...args));
+    value: /** @this {WarpRuntime} @param {*[]} args */ function (...args) {
+      return this._syncController[method](...args);
     },
     writable: true,
     configurable: true,

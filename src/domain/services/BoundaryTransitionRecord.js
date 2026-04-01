@@ -32,7 +32,7 @@ import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from
 function uint8ArrayToHex(bytes) {
   let hex = '';
   for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0');
+    hex += (bytes[i] ?? 0).toString(16).padStart(2, '0');
   }
   return hex;
 }
@@ -72,6 +72,21 @@ function parseHexPairs(hex) {
  * SHA-256 provides 256-bit security with wide hardware support.
  * @const {string}
  */
+/**
+ * Builds a deps object including only defined values.
+ * Avoids explicit `undefined` in optional properties under exactOptionalPropertyTypes.
+ *
+ * @param {{ crypto?: import('../../ports/CryptoPort.js').default|null|undefined, codec?: import('../../ports/CodecPort.js').default|null|undefined }} parts
+ * @returns {{ crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }}
+ */
+function buildDeps(parts) {
+  /** @type {{ crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */
+  const deps = {};
+  if (parts.crypto !== undefined && parts.crypto !== null) { deps.crypto = parts.crypto; }
+  if (parts.codec !== undefined && parts.codec !== null) { deps.codec = parts.codec; }
+  return deps;
+}
+
 const HMAC_ALGORITHM = 'sha256';
 
 /**
@@ -170,14 +185,17 @@ export async function createBTR(initialState, payload, options) {
 
   validateHmacKey(key);
 
-  const h_in = await computeStateHashV5(initialState, { crypto, codec });
-  const U_0 = serializeFullStateV5(initialState, { codec });
+  const deps = buildDeps({ crypto, codec });
+  const codecDeps = buildDeps({ codec });
+
+  const h_in = await computeStateHashV5(initialState, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (deps));
+  const U_0 = serializeFullStateV5(initialState, codecDeps);
   const finalState = payload.replay(initialState);
-  const h_out = await computeStateHashV5(finalState, { crypto, codec });
+  const h_out = await computeStateHashV5(finalState, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (deps));
   const P = payload.toJSON();
 
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
-  const kappa = await computeHmac(fields, key, { crypto, codec });
+  const kappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (deps));
 
   return { ...fields, kappa };
 }
@@ -236,8 +254,9 @@ function validateBTRFields(rec) {
   if (missingField !== null) {
     return `Missing required field: ${missingField}`;
   }
-  if (rec['version'] !== BTR_VERSION) {
-    return `Unsupported BTR version: ${String(rec['version'])} (expected ${BTR_VERSION})`;
+  const recVersion = /** @type {{ version?: unknown }} */ (rec).version;
+  if (recVersion !== BTR_VERSION) {
+    return `Unsupported BTR version: ${String(recVersion)} (expected ${BTR_VERSION})`;
   }
   return null;
 }
@@ -274,7 +293,7 @@ async function verifyHmac(btr, key, { crypto, codec }) {
     P: btr.P,
     t: btr.t,
   };
-  const expectedKappa = await computeHmac(fields, key, { crypto, codec });
+  const expectedKappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (buildDeps({ crypto, codec })));
 
   // Convert hex strings to byte arrays for timing-safe comparison
   const actualBuf = hexToUint8Array(btr.kappa);
@@ -296,9 +315,9 @@ async function verifyHmac(btr, key, { crypto, codec }) {
  * @returns {Promise<string|null>} Error message if replay mismatch, null if valid
  * @private
  */
-async function verifyReplayHash(btr, { crypto, codec } = {}) {
+async function verifyReplayHash(btr, deps = {}) {
   try {
-    const result = await replayBTR(btr, { crypto, codec });
+    const result = await replayBTR(btr, deps);
     if (result.h_out !== btr.h_out) {
       return `Replay produced different h_out: expected ${btr.h_out}, got ${result.h_out}`;
     }
@@ -329,7 +348,8 @@ export async function verifyBTR(btr, key, options = {}) {
     return { valid: false, reason: structureError };
   }
 
-  const hmacResult = await verifyHmacSafe(btr, key, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (options.crypto), codec: options.codec });
+  const hmacDeps = /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (buildDeps({ crypto: options.crypto, codec: options.codec }));
+  const hmacResult = await verifyHmacSafe(btr, key, hmacDeps);
   if (hmacResult !== null) {
     return hmacResult;
   }
@@ -346,7 +366,8 @@ export async function verifyBTR(btr, key, options = {}) {
  */
 async function verifyReplayIfRequested(btr, options) {
   if (options.verifyReplay === true) {
-    const replayError = await verifyReplayHash(btr, { crypto: options.crypto, codec: options.codec });
+    const replayDeps = buildDeps({ crypto: options.crypto, codec: options.codec });
+    const replayError = await verifyReplayHash(btr, replayDeps);
     if (replayError !== null) {
       return { valid: false, reason: replayError };
     }
@@ -390,10 +411,12 @@ async function verifyHmacSafe(btr, key, deps) {
  *   The final state and its hash
  * @throws {Error} If replay fails
  */
-export async function replayBTR(btr, { crypto, codec } = {}) {
+export async function replayBTR(btr, deps = {}) {
+  const { crypto, codec } = deps;
   // Deserialize initial state from U_0
   // Note: U_0 is the full serialized state (via serializeFullStateV5)
-  const initialState = deserializeInitialState(btr.U_0, { codec });
+  const codecDeps = buildDeps({ codec });
+  const initialState = deserializeInitialState(btr.U_0, codecDeps);
 
   // Reconstruct payload
   const payload = ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (btr.P));
@@ -402,7 +425,8 @@ export async function replayBTR(btr, { crypto, codec } = {}) {
   const finalState = payload.replay(initialState);
 
   // Compute h_out
-  const h_out = await computeStateHashV5(finalState, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto), codec });
+  const allDeps = /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (buildDeps({ crypto, codec }));
+  const h_out = await computeStateHashV5(finalState, allDeps);
 
   return { state: finalState, h_out };
 }
@@ -418,12 +442,12 @@ export async function replayBTR(btr, { crypto, codec } = {}) {
  * the correct h_out hash.
  *
  * @param {Uint8Array} U_0 - Serialized full state
- * @param {{ codec?: import('../../ports/CodecPort.js').default }} options
+ * @param {{ codec?: import('../../ports/CodecPort.js').default }} deps
  * @returns {import('./JoinReducer.js').WarpStateV5} The deserialized state
  * @private
  */
-function deserializeInitialState(U_0, { codec } = {}) {
-  return deserializeFullStateV5(U_0, { codec });
+function deserializeInitialState(U_0, deps = {}) {
+  return deserializeFullStateV5(U_0, deps);
 }
 
 /**
@@ -466,14 +490,15 @@ export function deserializeBTR(bytes, { codec } = {}) {
     throw new CryptoError(`Invalid BTR: missing field ${missingField}`, { code: 'E_BTR_INVALID' });
   }
 
+  const typed = /** @type {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string, kappa: string }} */ (obj);
   return /** @type {BTR} */ ({
-    version: obj['version'],
-    h_in: obj['h_in'],
-    h_out: obj['h_out'],
-    U_0: obj['U_0'],
-    P: obj['P'],
-    t: obj['t'],
-    kappa: obj['kappa'],
+    version: typed.version,
+    h_in: typed.h_in,
+    h_out: typed.h_out,
+    U_0: typed.U_0,
+    P: typed.P,
+    t: typed.t,
+    kappa: typed.kappa,
   });
 }
 

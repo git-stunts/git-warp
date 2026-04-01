@@ -44,6 +44,7 @@ class MinHeap {
     if (this._heap.length === 1) { return /** @type {{item: T, priority: number}} */ (this._heap.pop()).item; }
 
     const min = this._heap[0];
+    if (min === undefined) { return undefined; }
     this._heap[0] = /** @type {{item: T, priority: number}} */ (this._heap.pop());
     this._bubbleDown(0);
     return min.item;
@@ -73,7 +74,8 @@ class MinHeap {
    * @returns {number} The minimum priority value, or Infinity if empty
    */
   peekPriority() {
-    return this._heap.length > 0 ? this._heap[0].priority : Infinity;
+    const first = this._heap[0];
+    return first !== undefined ? first.priority : Infinity;
   }
 
   /**
@@ -87,6 +89,7 @@ class MinHeap {
   _compare(idxA, idxB) {
     const a = this._heap[idxA];
     const b = this._heap[idxB];
+    if (a === undefined || b === undefined) { return 0; }
     if (a.priority !== b.priority) {
       return a.priority - b.priority;
     }
@@ -107,28 +110,29 @@ class MinHeap {
     while (current > 0) {
       const parentIndex = Math.floor((current - 1) / 2);
       if (this._compare(parentIndex, current) <= 0) { break; }
-      [this._heap[parentIndex], this._heap[current]] = [this._heap[current], this._heap[parentIndex]];
+      const tmp = /** @type {{item: T, priority: number}} */ (this._heap[parentIndex]);
+      this._heap[parentIndex] = /** @type {{item: T, priority: number}} */ (this._heap[current]);
+      this._heap[current] = tmp;
       current = parentIndex;
     }
   }
 
   /**
-   * Finds the index of the smallest element among a parent and its children.
+   * Finds the index of the smallest among parent, left child, and right child.
    *
    * @private
-   * @param {number} parentIdx - Index of the parent node
-   * @param {number} heapLength - Current length of the heap array
-   * @returns {number} Index of the smallest element
+   * @param {number} current - Parent index
+   * @returns {number} Index of the smallest entry
    */
-  _smallestChild(parentIdx, heapLength) {
-    const leftChild = 2 * parentIdx + 1;
-    const rightChild = 2 * parentIdx + 2;
-    let smallest = parentIdx;
-
-    if (leftChild < heapLength && this._compare(leftChild, smallest) < 0) {
+  _smallestChild(current) {
+    const { length } = this._heap;
+    const leftChild = 2 * current + 1;
+    const rightChild = 2 * current + 2;
+    let smallest = current;
+    if (leftChild < length && this._compare(leftChild, smallest) < 0) {
       smallest = leftChild;
     }
-    if (rightChild < heapLength && this._compare(rightChild, smallest) < 0) {
+    if (rightChild < length && this._compare(rightChild, smallest) < 0) {
       smallest = rightChild;
     }
     return smallest;
@@ -141,13 +145,14 @@ class MinHeap {
    * @param {number} pos - Starting index
    */
   _bubbleDown(pos) {
-    const {length} = this._heap;
     let current = pos;
     while (true) {
-      const smallest = this._smallestChild(current, length);
+      const smallest = this._smallestChild(current);
       if (smallest === current) { break; }
 
-      [this._heap[current], this._heap[smallest]] = [this._heap[smallest], this._heap[current]];
+      const tmp = /** @type {{item: T, priority: number}} */ (this._heap[current]);
+      this._heap[current] = /** @type {{item: T, priority: number}} */ (this._heap[smallest]);
+      this._heap[smallest] = tmp;
       current = smallest;
     }
   }
