@@ -13,7 +13,6 @@ import {
   applyFast,
   applyWithReceipt,
   applyWithDiff,
-  cloneStateV5,
   reduceV5 as _reduceV5,
   CANONICAL_KNOWN_OPS,
   OP_STRATEGIES,
@@ -23,7 +22,6 @@ const reduceV5 = _reduceV5;
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,11 +61,12 @@ function blobValue(oid) {
 }
 
 /**
- * Creates a patch object.
+ * Creates a patch object compatible with PatchLike.
  * @param {string} writer
  * @param {number} lamport
- * @param {object[]} ops
+ * @param {import('../../../../src/domain/services/JoinReducer.js').OpLike[]} ops
  * @param {Record<string, number>} [context]
+ * @returns {import('../../../../src/domain/services/JoinReducer.js').PatchLike}
  */
 function makePatch(writer, lamport, ops, context = {}) {
   return { writer, lamport, ops, context };
@@ -76,6 +75,9 @@ function makePatch(writer, lamport, ops, context = {}) {
 /**
  * Deep-compares two WarpStateV5 objects for structural equality.
  * Checks all five fields: nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent.
+ * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} a
+ * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} b
+ * @param {string} [label]
  */
 function assertStatesEqual(a, b, label = '') {
   const prefix = label !== '' ? `${label}: ` : '';
@@ -165,9 +167,10 @@ describe('OP_STRATEGIES registry', () => {
   it('every strategy has all five required methods', () => {
     const requiredMethods = ['mutate', 'outcome', 'snapshot', 'accumulate', 'validate'];
     for (const [opType, strategy] of OP_STRATEGIES) {
+      const s = /** @type {Record<string, unknown>} */ (strategy);
       for (const method of requiredMethods) {
         expect(
-          typeof strategy[method],
+          typeof s[method],
           `OP_STRATEGIES['${opType}'].${method} must be a function`,
         ).toBe('function');
       }
@@ -190,7 +193,6 @@ describe('cross-path state equivalence', () => {
   const dot1 = createDot('alice', 1);
   const dot2 = createDot('alice', 2);
   const dot3 = createDot('bob', 1);
-  const dot4 = createDot('bob', 2);
 
   it('single NodeAdd produces identical state across all three paths', () => {
     const patch = makePatch('alice', 1, [nodeAdd('user:alice', dot1)]);
