@@ -77,8 +77,9 @@ export function buildState(records, options = {}) {
   for (const record of records) {
     const parsed = TrustRecordSchema.safeParse(record);
     if (!parsed.success) {
+      const rec = /** @type {{ recordId?: string }} */ (record);
       ctx.errors.push({
-        recordId: typeof record.recordId === 'string' ? record.recordId : '(unknown)',
+        recordId: typeof rec.recordId === 'string' ? rec.recordId : '(unknown)',
         error: `Schema validation failed: ${parsed.error.message}`,
       });
       continue;
@@ -143,11 +144,16 @@ function processRecord(rec, ctx) {
 function validateRecordCryptography(rec, activeKeys, options) {
   const { signatureVerifier, computeKeyFingerprint } = options;
 
+  /** @type {{ publicKey?: string, keyId?: string, writerId?: string, reasonCode?: string }} */
+  const subj = rec.subject;
+
   if (computeKeyFingerprint && rec.recordType === 'KEY_ADD') {
     try {
-      const expected = computeKeyFingerprint(rec.subject.publicKey);
-      if (expected !== rec.subject.keyId) {
-        return `KEY_ADD fingerprint mismatch: declared ${rec.subject.keyId}, computed ${expected}`;
+      const pk = subj.publicKey ?? '';
+      const expected = computeKeyFingerprint(pk);
+      const kid = subj.keyId ?? '';
+      if (expected !== kid) {
+        return `KEY_ADD fingerprint mismatch: declared ${kid}, computed ${expected}`;
       }
     } catch (err) {
       return `KEY_ADD fingerprint validation failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -161,10 +167,10 @@ function validateRecordCryptography(rec, activeKeys, options) {
   let issuerPublicKey = null;
   if (
     rec.recordType === 'KEY_ADD' &&
-    rec.issuerKeyId === rec.subject.keyId &&
-    typeof rec.subject.publicKey === 'string'
+    rec.issuerKeyId === subj.keyId &&
+    typeof subj.publicKey === 'string'
   ) {
-    issuerPublicKey = rec.subject.publicKey;
+    issuerPublicKey = subj.publicKey;
   } else {
     const found = activeKeys.get(rec.issuerKeyId);
     issuerPublicKey = typeof found?.publicKey === 'string' && found.publicKey.length > 0
@@ -196,7 +202,9 @@ function validateRecordCryptography(rec, activeKeys, options) {
  * @param {Array<{recordId: string, error: string}>} errors
  */
 function handleKeyAdd(rec, activeKeys, revokedKeys, errors) {
-  const { keyId, publicKey } = rec.subject;
+  const s = /** @type {{ keyId?: string, publicKey?: string }} */ (rec.subject);
+  const keyId = s.keyId ?? '';
+  const publicKey = s.publicKey ?? '';
 
   if (revokedKeys.has(keyId)) {
     errors.push({
@@ -226,7 +234,9 @@ function handleKeyAdd(rec, activeKeys, revokedKeys, errors) {
  * @param {Array<{recordId: string, error: string}>} errors
  */
 function handleKeyRevoke(rec, activeKeys, revokedKeys, errors) {
-  const { keyId, reasonCode } = rec.subject;
+  const s = /** @type {{ keyId?: string, reasonCode?: string }} */ (rec.subject);
+  const keyId = s.keyId ?? '';
+  const reasonCode = s.reasonCode ?? '';
 
   if (revokedKeys.has(keyId)) {
     errors.push({
@@ -263,7 +273,9 @@ function handleKeyRevoke(rec, activeKeys, revokedKeys, errors) {
  * @param {Array<{recordId: string, error: string}>} errors
  */
 function handleBindAdd(rec, activeKeys, revokedKeys, writerBindings, errors) {
-  const { writerId, keyId } = rec.subject;
+  const s = /** @type {{ writerId?: string, keyId?: string }} */ (rec.subject);
+  const writerId = s.writerId ?? '';
+  const keyId = s.keyId ?? '';
   const bindingKey = `${writerId}\0${keyId}`;
 
   if (revokedKeys.has(keyId)) {
@@ -294,7 +306,10 @@ function handleBindAdd(rec, activeKeys, revokedKeys, writerBindings, errors) {
  * @param {Array<{recordId: string, error: string}>} errors
  */
 function handleBindRevoke(rec, writerBindings, revokedBindings, errors) {
-  const { writerId, keyId, reasonCode } = rec.subject;
+  const s = /** @type {{ writerId?: string, keyId?: string, reasonCode?: string }} */ (rec.subject);
+  const writerId = s.writerId ?? '';
+  const keyId = s.keyId ?? '';
+  const reasonCode = s.reasonCode ?? '';
   const bindingKey = `${writerId}\0${keyId}`;
 
   const binding = writerBindings.get(bindingKey);

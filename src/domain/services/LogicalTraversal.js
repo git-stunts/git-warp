@@ -17,6 +17,26 @@ import { orsetElements } from '../crdt/ORSet.js';
 const DEFAULT_MAX_DEPTH = 1000;
 
 /**
+ * Strips keys whose value is `undefined` from an object so that
+ * `exactOptionalPropertyTypes` doesn't complain about explicit `undefined`
+ * being assigned to optional-but-not-undefined-typed properties.
+ *
+ * @template {Record<string, unknown>} T
+ * @param {T} obj
+ * @returns {T}
+ */
+function stripUndefined(obj) {
+  /** @type {Record<string, unknown>} */
+  const out = {};
+  for (const key of Object.keys(obj)) {
+    if (obj[key] !== undefined) {
+      out[key] = obj[key];
+    }
+  }
+  return /** @type {T} */ (out);
+}
+
+/**
  * Validates and normalizes an edge direction parameter.
  *
  * @param {string|undefined} direction - The direction to validate ('out', 'in', or 'both')
@@ -146,13 +166,13 @@ export default class LogicalTraversal {
    */
   async bfs(start, options = {}) {
     const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
-    const { nodes } = await engine.bfs({
+    const { nodes } = await engine.bfs(stripUndefined({
       start,
       direction,
       options: opts,
       maxDepth: depthLimit,
       maxNodes: Infinity,
-    });
+    }));
     return await Promise.resolve(nodes);
   }
 
@@ -166,13 +186,13 @@ export default class LogicalTraversal {
    */
   async dfs(start, options = {}) {
     const { engine, direction, options: opts, depthLimit } = await this._prepare(start, options);
-    const { nodes } = await engine.dfs({
+    const { nodes } = await engine.dfs(stripUndefined({
       start,
       direction,
       options: opts,
       maxDepth: depthLimit,
       maxNodes: Infinity,
-    });
+    }));
     return await Promise.resolve(nodes);
   }
 
@@ -189,14 +209,14 @@ export default class LogicalTraversal {
    */
   async shortestPath(from, to, options = {}) {
     const { engine, direction, options: opts, depthLimit } = await this._prepare(from, options);
-    const { found, path, length } = await engine.shortestPath({
+    const { found, path, length } = await engine.shortestPath(stripUndefined({
       start: from,
       goal: to,
       direction,
       options: opts,
       maxDepth: depthLimit,
       maxNodes: Infinity,
-    });
+    }));
     return await Promise.resolve({ found, path, length });
   }
 
@@ -224,7 +244,7 @@ export default class LogicalTraversal {
    */
   async isReachable(from, to, options = {}) {
     const { engine, direction, options: opts, depthLimit } = await this._prepareEngine(options);
-    const { reachable } = await engine.isReachable({
+    const { reachable } = await engine.isReachable(stripUndefined({
       start: from,
       goal: to,
       direction,
@@ -232,7 +252,7 @@ export default class LogicalTraversal {
       maxDepth: depthLimit,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { reachable };
   }
 
@@ -248,7 +268,7 @@ export default class LogicalTraversal {
    */
   async weightedShortestPath(from, to, options = {}) {
     const { engine, direction, options: opts } = await this._prepare(from, options);
-    const { path, totalCost } = await engine.weightedShortestPath({
+    const { path, totalCost } = await engine.weightedShortestPath(stripUndefined({
       start: from,
       goal: to,
       direction,
@@ -257,7 +277,7 @@ export default class LogicalTraversal {
       nodeWeightFn: options.nodeWeightFn,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { path, totalCost };
   }
 
@@ -273,7 +293,7 @@ export default class LogicalTraversal {
    */
   async aStarSearch(from, to, options = {}) {
     const { engine, direction, options: opts } = await this._prepare(from, options);
-    const { path, totalCost, nodesExplored } = await engine.aStarSearch({
+    const { path, totalCost, nodesExplored } = await engine.aStarSearch(stripUndefined({
       start: from,
       goal: to,
       direction,
@@ -283,7 +303,7 @@ export default class LogicalTraversal {
       heuristicFn: options.heuristicFn,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { path, totalCost, nodesExplored };
   }
 
@@ -309,7 +329,7 @@ export default class LogicalTraversal {
       });
     }
 
-    const { path, totalCost, nodesExplored } = await engine.bidirectionalAStar({
+    const { path, totalCost, nodesExplored } = await engine.bidirectionalAStar(stripUndefined({
       start: from,
       goal: to,
       options: opts,
@@ -319,7 +339,7 @@ export default class LogicalTraversal {
       backwardHeuristic: options.backwardHeuristic,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { path, totalCost, nodesExplored };
   }
 
@@ -346,14 +366,14 @@ export default class LogicalTraversal {
       }
     }
 
-    const { sorted, hasCycle } = await engine.topologicalSort({
+    const { sorted, hasCycle } = await engine.topologicalSort(stripUndefined({
       start,
       direction,
       options: opts,
       maxNodes: Infinity,
       throwOnCycle: options.throwOnCycle,
       signal: options.signal,
-    });
+    }));
     return { sorted, hasCycle };
   }
 
@@ -380,13 +400,13 @@ export default class LogicalTraversal {
       }
     }
 
-    const { ancestors } = await engine.commonAncestors({
+    const { ancestors } = await engine.commonAncestors(stripUndefined({
       nodes,
       options: opts,
       maxDepth: depthLimit,
       maxResults: options.maxResults,
       signal: options.signal,
-    });
+    }));
     return { ancestors };
   }
 
@@ -405,7 +425,7 @@ export default class LogicalTraversal {
    */
   async weightedLongestPath(from, to, options = {}) {
     const { engine, direction, options: opts } = await this._prepare(from, options);
-    const { path, totalCost } = await engine.weightedLongestPath({
+    const { path, totalCost } = await engine.weightedLongestPath(stripUndefined({
       start: from,
       goal: to,
       direction,
@@ -414,7 +434,7 @@ export default class LogicalTraversal {
       nodeWeightFn: options.nodeWeightFn,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { path, totalCost };
   }
 
@@ -440,13 +460,13 @@ export default class LogicalTraversal {
       }
     }
 
-    const { levels, maxLevel } = await engine.levels({
+    const { levels, maxLevel } = await engine.levels(stripUndefined({
       start,
       direction,
       options: opts,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { levels, maxLevel };
   }
 
@@ -472,13 +492,13 @@ export default class LogicalTraversal {
       }
     }
 
-    const { edges, removed } = await engine.transitiveReduction({
+    const { edges, removed } = await engine.transitiveReduction(stripUndefined({
       start,
       direction,
       options: opts,
       maxNodes: Infinity,
       signal: options.signal,
-    });
+    }));
     return { edges, removed };
   }
 
@@ -504,14 +524,14 @@ export default class LogicalTraversal {
       }
     }
 
-    const { edges } = await engine.transitiveClosure({
+    const { edges } = await engine.transitiveClosure(stripUndefined({
       start,
       direction,
       options: opts,
       maxNodes: Infinity,
       maxEdges: options.maxEdges,
       signal: options.signal,
-    });
+    }));
     return { edges };
   }
 
@@ -537,14 +557,14 @@ export default class LogicalTraversal {
       }
     }
 
-    yield* engine.transitiveClosureStream({
+    yield* engine.transitiveClosureStream(stripUndefined({
       start,
       direction,
       options: opts,
       maxNodes: Infinity,
       maxEdges: options.maxEdges,
       signal: options.signal,
-    });
+    }));
   }
 
   /**
@@ -558,13 +578,13 @@ export default class LogicalTraversal {
   async rootAncestors(start, options = {}) {
     const { engine, options: opts, depthLimit } = await this._prepare(start, options);
 
-    const { roots } = await engine.rootAncestors({
+    const { roots } = await engine.rootAncestors(stripUndefined({
       start,
       options: opts,
       maxNodes: Infinity,
       maxDepth: options.maxDepth ?? depthLimit,
       signal: options.signal,
-    });
+    }));
     return { roots };
   }
 }

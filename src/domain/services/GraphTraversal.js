@@ -69,6 +69,25 @@ import { checkAborted } from '../utils/cancellation.js';
  * @property {number} edgesTraversed
  */
 
+/**
+ * Strips keys whose value is `undefined` from an object so that
+ * `exactOptionalPropertyTypes` doesn't complain about explicit `undefined`.
+ *
+ * @template {Record<string, unknown>} T
+ * @param {T} obj
+ * @returns {T}
+ */
+function stripUndefined(obj) {
+  /** @type {Record<string, unknown>} */
+  const out = {};
+  for (const key of Object.keys(obj)) {
+    if (obj[key] !== undefined) {
+      out[key] = obj[key];
+    }
+  }
+  return /** @type {T} */ (out);
+}
+
 const DEFAULT_MAX_NODES = 100000;
 const DEFAULT_MAX_DEPTH = 1000;
 
@@ -235,7 +254,7 @@ export default class GraphTraversal {
    *
    * Deterministic: nodes at equal depth are visited in lexicographic nodeId order.
    *
-   * @param {{ start: string, direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal, hooks?: TraversalHooks }} params
+   * @param {{ start: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined, hooks?: TraversalHooks | undefined }} params
    * @returns {Promise<{nodes: string[], stats: TraversalStats}>}
    */
   async bfs({
@@ -295,7 +314,7 @@ export default class GraphTraversal {
    *
    * Deterministic: leftmost-first via reverse-push of sorted neighbors.
    *
-   * @param {{ start: string, direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal, hooks?: TraversalHooks }} params
+   * @param {{ start: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined, hooks?: TraversalHooks | undefined }} params
    * @returns {Promise<{nodes: string[], stats: TraversalStats}>}
    */
   async dfs({
@@ -330,8 +349,9 @@ export default class GraphTraversal {
         if (hooks?.onExpand) { hooks.onExpand(nodeId, neighbors); }
         // Reverse-push so first neighbor (lex smallest) is popped first
         for (let i = neighbors.length - 1; i >= 0; i -= 1) {
-          if (!visited.has(neighbors[i].neighborId)) {
-            stack.push({ nodeId: neighbors[i].neighborId, depth: depth + 1 });
+          const nb = neighbors[i];
+          if (nb !== undefined && !visited.has(nb.neighborId)) {
+            stack.push({ nodeId: nb.neighborId, depth: depth + 1 });
           }
         }
       }
@@ -345,7 +365,7 @@ export default class GraphTraversal {
   /**
    * Unweighted shortest path (BFS-based).
    *
-   * @param {{ start: string, goal: string, direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{found: boolean, path: string[], length: number, stats: TraversalStats}>}
    */
   async shortestPath({
@@ -401,7 +421,7 @@ export default class GraphTraversal {
   /**
    * Reachability check — BFS with early termination.
    *
-   * @param {{ start: string, goal: string, direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{reachable: boolean, stats: TraversalStats}>}
    */
   async isReachable({
@@ -452,7 +472,7 @@ export default class GraphTraversal {
    * Tie-breaking: equal-priority by lexicographic nodeId. Equal-cost
    * predecessor update: when altCost === bestCost && candidatePredecessor < currentPredecessor.
    *
-   * @param {{ start: string, goal: string, direction?: Direction, options?: NeighborOptions, weightFn?: (from: string, to: string, label: string) => number | Promise<number>, nodeWeightFn?: (nodeId: string) => number | Promise<number>, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, weightFn?: ((from: string, to: string, label: string) => number | Promise<number>) | undefined, nodeWeightFn?: ((nodeId: string) => number | Promise<number>) | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{path: string[], totalCost: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'NO_PATH' if unreachable
    * @throws {TraversalError} code 'E_WEIGHT_FN_CONFLICT' if both weightFn and nodeWeightFn provided
@@ -513,7 +533,7 @@ export default class GraphTraversal {
   /**
    * A* search with heuristic guidance.
    *
-   * @param {{ start: string, goal: string, direction?: Direction, options?: NeighborOptions, weightFn?: (from: string, to: string, label: string) => number | Promise<number>, nodeWeightFn?: (nodeId: string) => number | Promise<number>, heuristicFn?: (nodeId: string, goalId: string) => number, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, weightFn?: ((from: string, to: string, label: string) => number | Promise<number>) | undefined, nodeWeightFn?: ((nodeId: string) => number | Promise<number>) | undefined, heuristicFn?: ((nodeId: string, goalId: string) => number) | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'NO_PATH' if unreachable
    * @throws {TraversalError} code 'E_WEIGHT_FN_CONFLICT' if both weightFn and nodeWeightFn provided
@@ -586,7 +606,7 @@ export default class GraphTraversal {
    * bidirectional algorithm — forward always means outgoing, backward always
    * means incoming.
    *
-   * @param {{ start: string, goal: string, options?: NeighborOptions, weightFn?: (from: string, to: string, label: string) => number | Promise<number>, nodeWeightFn?: (nodeId: string) => number | Promise<number>, forwardHeuristic?: (nodeId: string, goalId: string) => number, backwardHeuristic?: (nodeId: string, goalId: string) => number, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, options?: NeighborOptions | undefined, weightFn?: ((from: string, to: string, label: string) => number | Promise<number>) | undefined, nodeWeightFn?: ((nodeId: string) => number | Promise<number>) | undefined, forwardHeuristic?: ((nodeId: string, goalId: string) => number) | undefined, backwardHeuristic?: ((nodeId: string, goalId: string) => number) | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{path: string[], totalCost: number, nodesExplored: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'NO_PATH' if unreachable
    * @throws {TraversalError} code 'E_WEIGHT_FN_CONFLICT' if both weightFn and nodeWeightFn provided
@@ -636,24 +656,24 @@ export default class GraphTraversal {
       if (Math.min(fwdF, bwdF) >= mu) { break; }
 
       if (fwdF <= bwdF) {
-        const r = await this._biAStarExpand({
+        const r = await this._biAStarExpand(stripUndefined({
           heap: fwdHeap, visited: fwdVisited, gScore: fwdG, predMap: fwdPrev,
           otherVisited: bwdVisited, otherG: bwdG,
           weightFn: effectiveWeightFn, heuristicFn: forwardHeuristic,
           target: goal, directionForNeighbors: 'out', options,
           mu, meeting, rs,
-        });
+        }));
         explored += r.explored;
         mu = r.mu;
         meeting = r.meeting;
       } else {
-        const r = await this._biAStarExpand({
+        const r = await this._biAStarExpand(stripUndefined({
           heap: bwdHeap, visited: bwdVisited, gScore: bwdG, predMap: bwdNext,
           otherVisited: fwdVisited, otherG: fwdG,
           weightFn: effectiveWeightFn, heuristicFn: backwardHeuristic,
           target: start, directionForNeighbors: 'in', options,
           mu, meeting, rs,
-        });
+        }));
         explored += r.explored;
         mu = r.mu;
         meeting = r.meeting;
@@ -674,7 +694,7 @@ export default class GraphTraversal {
   /**
    * Expand one node in bidirectional A*.
    * @private
-   * @param {{ heap: MinHeap<string>, visited: Set<string>, gScore: Map<string, number>, predMap: Map<string, string>, otherVisited: Set<string>, otherG: Map<string, number>, weightFn: (from: string, to: string, label: string) => number | Promise<number>, heuristicFn: (nodeId: string, goalId: string) => number, target: string, directionForNeighbors: Direction, options?: NeighborOptions, mu: number, meeting: string|null, rs: RunStats }} p
+   * @param {{ heap: MinHeap<string>, visited: Set<string>, gScore: Map<string, number>, predMap: Map<string, string>, otherVisited: Set<string>, otherG: Map<string, number>, weightFn: (from: string, to: string, label: string) => number | Promise<number>, heuristicFn: (nodeId: string, goalId: string) => number, target: string, directionForNeighbors: Direction, options?: NeighborOptions | undefined, mu: number, meeting: string|null, rs: RunStats }} p
    * @returns {Promise<{explored: number, mu: number, meeting: string|null}>}
    */
   async _biAStarExpand({
@@ -735,11 +755,11 @@ export default class GraphTraversal {
   /**
    * Connected component — delegates to BFS with direction 'both'.
    *
-   * @param {{ start: string, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{nodes: string[], stats: TraversalStats}>}
    */
   async connectedComponent({ start, options, maxNodes, maxDepth, signal }) {
-    return await this.bfs({ start, direction: 'both', options, maxNodes, maxDepth, signal });
+    return await this.bfs(stripUndefined({ start, direction: 'both', options, maxNodes, maxDepth, signal }));
   }
 
   /**
@@ -747,7 +767,7 @@ export default class GraphTraversal {
    *
    * Deterministic: zero-indegree nodes dequeued in lexicographic nodeId order.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, throwOnCycle?: boolean, signal?: AbortSignal, _returnAdjList?: boolean, _lightweight?: boolean }} params
+   * @param {{ start: string | string[], direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, throwOnCycle?: boolean | undefined, signal?: AbortSignal | undefined, _returnAdjList?: boolean | undefined, _lightweight?: boolean | undefined }} params
    * @returns {Promise<{sorted: string[], hasCycle: boolean, stats: TraversalStats, _neighborEdgeMap?: Map<string, NeighborEdge[]>}>}
    * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if throwOnCycle is true and cycle found
    */
@@ -865,7 +885,7 @@ export default class GraphTraversal {
       sorted,
       hasCycle,
       stats: this._stats(sorted.length, rs),
-      _neighborEdgeMap: _returnAdjList ? neighborEdgeMap : undefined,
+      ...(_returnAdjList ? { _neighborEdgeMap: neighborEdgeMap } : {}),
     };
   }
 
@@ -882,7 +902,7 @@ export default class GraphTraversal {
    * `[A, B, C]`, then B and C may appear in the result because A's BFS
    * reaches them and their own BFS includes themselves at depth 0.
    *
-   * @param {{ nodes: string[], options?: NeighborOptions, maxDepth?: number, maxResults?: number, signal?: AbortSignal }} params
+   * @param {{ nodes: string[], options?: NeighborOptions | undefined, maxDepth?: number | undefined, maxResults?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{ancestors: string[], stats: TraversalStats}>}
    */
   async commonAncestors({
@@ -909,13 +929,13 @@ export default class GraphTraversal {
 
     for (const nodeId of nodes) {
       checkAborted(signal, 'commonAncestors');
-      const { nodes: ancestors, stats } = await this.bfs({
+      const { nodes: ancestors, stats } = await this.bfs(stripUndefined({
         start: nodeId,
         direction: 'in',
         options,
         maxDepth,
         signal,
-      });
+      }));
       totalStats.nodesVisited += stats.nodesVisited;
       totalStats.edgesTraversed += stats.edgesTraversed;
       totalStats.cacheHits += stats.cacheHits;
@@ -944,7 +964,7 @@ export default class GraphTraversal {
    *
    * Only valid on DAGs. Throws ERR_GRAPH_HAS_CYCLES if graph has cycles.
    *
-   * @param {{ start: string, goal: string, direction?: Direction, options?: NeighborOptions, weightFn?: (from: string, to: string, label: string) => number | Promise<number>, nodeWeightFn?: (nodeId: string) => number | Promise<number>, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, goal: string, direction?: Direction | undefined, options?: NeighborOptions | undefined, weightFn?: ((from: string, to: string, label: string) => number | Promise<number>) | undefined, nodeWeightFn?: ((nodeId: string) => number | Promise<number>) | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{path: string[], totalCost: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
    * @throws {TraversalError} code 'NO_PATH' if unreachable
@@ -961,7 +981,7 @@ export default class GraphTraversal {
     // Run topo sort first — will throw on cycles.
     // Request the neighbor edge map so the DP phase can reuse it
     // instead of re-fetching neighbors from the provider.
-    const { sorted, _neighborEdgeMap } = await this.topologicalSort({
+    const { sorted, _neighborEdgeMap } = await this.topologicalSort(stripUndefined({
       start,
       direction,
       options,
@@ -969,7 +989,7 @@ export default class GraphTraversal {
       throwOnCycle: true,
       signal,
       _returnAdjList: true,
-    });
+    }));
 
     const rs = this._newRunStats();
 
@@ -1018,7 +1038,7 @@ export default class GraphTraversal {
    * Each node's level is its longest-path distance from any root.
    * Roots (in-degree 0 within the reachable subgraph) get level 0.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string | string[], direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{levels: Map<string, number>, maxLevel: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
    * @throws {TraversalError} code 'INVALID_START' if start node missing
@@ -1030,14 +1050,14 @@ export default class GraphTraversal {
   }) {
     // Topo sort with cycle detection. The DP pass re-fetches neighbors
     // instead of holding the full reachable edge set in memory.
-    const { sorted } = await this.topologicalSort({
+    const { sorted } = await this.topologicalSort(stripUndefined({
       start,
       direction,
       options,
       maxNodes,
       throwOnCycle: true,
       signal,
-    });
+    }));
 
     const rs = this._newRunStats();
 
@@ -1077,7 +1097,7 @@ export default class GraphTraversal {
    *
    * Works on cyclic graphs — uses BFS reachability.
    *
-   * @param {{ start: string, options?: NeighborOptions, maxNodes?: number, maxDepth?: number, signal?: AbortSignal }} params
+   * @param {{ start: string, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxDepth?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{roots: string[], stats: TraversalStats}>}
    * @throws {TraversalError} code 'INVALID_START' if start node missing
    */
@@ -1088,14 +1108,14 @@ export default class GraphTraversal {
     signal,
   }) {
     // BFS backward from start
-    const { nodes: visited, stats: bfsStats } = await this.bfs({
+    const { nodes: visited, stats: bfsStats } = await this.bfs(stripUndefined({
       start,
       direction: 'in',
       options,
       maxNodes,
       maxDepth,
       signal,
-    });
+    }));
 
     const rs = this._newRunStats();
 
@@ -1132,7 +1152,7 @@ export default class GraphTraversal {
    * to find which direct successors are also reachable via longer paths.
    * Those direct edges are redundant and removed.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, signal?: AbortSignal }} params
+   * @param {{ start: string | string[], direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{edges: Array<{from: string, to: string, label: string}>, removed: number, stats: TraversalStats}>}
    * @throws {TraversalError} code 'ERR_GRAPH_HAS_CYCLES' if graph has cycles
    * @throws {TraversalError} code 'INVALID_START' if start node missing
@@ -1144,14 +1164,14 @@ export default class GraphTraversal {
   }) {
     // Topo sort with cycle detection. Successor edges are fetched on demand
     // and memoized locally instead of retaining the full topo discovery cache.
-    const { sorted } = await this.topologicalSort({
+    const { sorted } = await this.topologicalSort(stripUndefined({
       start,
       direction,
       options,
       maxNodes,
       throwOnCycle: true,
       signal,
-    });
+    }));
 
     const rs = this._newRunStats();
     /** @type {Map<string, NeighborEdge[]>} */
@@ -1256,7 +1276,7 @@ export default class GraphTraversal {
   /**
    * Discovers the reachable node set used by transitive closure variants.
    *
-   * @param {{ start: string | string[], direction: Direction, options?: NeighborOptions, maxNodes: number, signal?: AbortSignal, rs: RunStats, opName: string }} params
+   * @param {{ start: string | string[], direction: Direction, options?: NeighborOptions | undefined, maxNodes: number, signal?: AbortSignal | undefined, rs: RunStats, opName: string }} params
    * @returns {Promise<{ nodeList: string[], nodesVisited: number }>}
    * @private
    */
@@ -1313,7 +1333,7 @@ export default class GraphTraversal {
    * Uses O(V) working memory per source node by collecting only that node's
    * reachable targets before yielding them in sorted order.
    *
-   * @param {{ nodeList: string[], direction: Direction, options?: NeighborOptions, maxEdges: number, signal?: AbortSignal, rs: RunStats, opName: string }} params
+   * @param {{ nodeList: string[], direction: Direction, options?: NeighborOptions | undefined, maxEdges: number, signal?: AbortSignal | undefined, rs: RunStats, opName: string }} params
    * @yields {{from: string, to: string}}
    * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
    * @private
@@ -1375,7 +1395,7 @@ export default class GraphTraversal {
    * Works on cyclic graphs. Output order is deterministic: sorted by `from`
    * node, then by `to` node within each source.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
+   * @param {{ start: string | string[], direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxEdges?: number | undefined, signal?: AbortSignal | undefined }} params
    * @yields {{from: string, to: string}}
    * @throws {TraversalError} code 'INVALID_START' if start node missing
    * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
@@ -1389,7 +1409,7 @@ export default class GraphTraversal {
     signal,
   }) {
     const rs = this._newRunStats();
-    const prepared = await this._prepareTransitiveClosure({
+    const prepared = await this._prepareTransitiveClosure(stripUndefined({
       start,
       direction,
       options,
@@ -1397,9 +1417,9 @@ export default class GraphTraversal {
       signal,
       rs,
       opName: 'transitiveClosureStream',
-    });
+    }));
 
-    yield* this._streamTransitiveClosureEdges({
+    yield* this._streamTransitiveClosureEdges(stripUndefined({
       nodeList: prepared.nodeList,
       direction,
       options,
@@ -1407,7 +1427,7 @@ export default class GraphTraversal {
       signal,
       rs,
       opName: 'transitiveClosureStream',
-    });
+    }));
   }
 
   /**
@@ -1416,7 +1436,7 @@ export default class GraphTraversal {
    * For each node, BFS finds all reachable nodes and emits an edge for
    * each pair. Works on cyclic graphs.
    *
-   * @param {{ start: string | string[], direction?: Direction, options?: NeighborOptions, maxNodes?: number, maxEdges?: number, signal?: AbortSignal }} params
+   * @param {{ start: string | string[], direction?: Direction | undefined, options?: NeighborOptions | undefined, maxNodes?: number | undefined, maxEdges?: number | undefined, signal?: AbortSignal | undefined }} params
    * @returns {Promise<{edges: Array<{from: string, to: string}>, stats: TraversalStats}>}
    * @throws {TraversalError} code 'INVALID_START' if start node missing
    * @throws {TraversalError} code 'E_MAX_EDGES_EXCEEDED' if closure exceeds maxEdges
@@ -1428,7 +1448,7 @@ export default class GraphTraversal {
     signal,
   }) {
     const rs = this._newRunStats();
-    const { nodeList, nodesVisited } = await this._prepareTransitiveClosure({
+    const { nodeList, nodesVisited } = await this._prepareTransitiveClosure(stripUndefined({
       start,
       direction,
       options,
@@ -1436,11 +1456,11 @@ export default class GraphTraversal {
       signal,
       rs,
       opName: 'transitiveClosure',
-    });
+    }));
 
     /** @type {Array<{from: string, to: string}>} */
     const edges = [];
-    for await (const edge of this._streamTransitiveClosureEdges({
+    for await (const edge of this._streamTransitiveClosureEdges(stripUndefined({
       nodeList,
       direction,
       options,
@@ -1448,7 +1468,7 @@ export default class GraphTraversal {
       signal,
       rs,
       opName: 'transitiveClosure',
-    })) {
+    }))) {
       edges.push(edge);
     }
 

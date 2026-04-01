@@ -301,6 +301,7 @@ export default class Observer {
    * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
    */
   constructor({ name, config, graph, snapshot, source }) {
+    this._preInitFields();
     this._initIdentity(name, config);
     this._initBacking(graph, snapshot, source);
 
@@ -310,6 +311,34 @@ export default class Observer {
      * @type {LogicalTraversal}
      */
     this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
+    // Reference: LogicalTraversal calls _materializeGraph() on the cast-to-WarpRuntime object.
+    void this._materializeGraph;
+  }
+
+  /**
+   * Pre-initializes all instance fields so TSC can infer definite assignment
+   * even though final values are set in _initIdentity and _initBacking.
+   * @private
+   */
+  _preInitFields() {
+    /** @type {string} */
+    this._name = 'observer';
+    /** @type {string|string[]} */
+    this._matchPattern = '*';
+    /** @type {string[]|undefined} */
+    this._expose = undefined;
+    /** @type {string[]|undefined} */
+    this._redact = undefined;
+    /** @type {import('../WarpRuntime.js').default|null} */
+    this._graph = null;
+    /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
+    this._snapshot = null;
+    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
+    this._source = null;
+    /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
+    this._stateReader = null;
+    /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
+    this._snapshotAdjacency = null;
   }
 
   /**
@@ -354,7 +383,7 @@ export default class Observer {
    * @returns {string}
    */
   get name() {
-    return this._name;
+    return this._name ?? 'observer';
   }
 
   /**
@@ -389,6 +418,15 @@ export default class Observer {
   }
 
   /**
+   * Returns the match pattern, guaranteed non-undefined.
+   * @returns {string|string[]}
+   * @private
+   */
+  _getPattern() {
+    return this._matchPattern ?? '*';
+  }
+
+  /**
    * Builds a config snapshot from the current observer's filter state.
    * @returns {{ match: string|string[], expose?: string[], redact?: string[] }}
    * @private
@@ -396,7 +434,7 @@ export default class Observer {
   _buildConfigSnapshot() {
     /** @type {{ match: string|string[], expose?: string[], redact?: string[] }} */
     const config = {
-      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : this._matchPattern,
+      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : (this._matchPattern ?? '*'),
     };
     if (this._expose) { config.expose = [...this._expose]; }
     if (this._redact) { config.redact = [...this._redact]; }
@@ -422,7 +460,7 @@ export default class Observer {
       throw new Error('observer seek requires a non-null source');
     }
 
-    return await graph.observer(this._name, config, { source: nextSource });
+    return await graph.observer(this.name, config, { source: nextSource });
   }
 
   // ===========================================================================
@@ -443,7 +481,7 @@ export default class Observer {
   async _materializeGraph() {
     if (this._snapshot) {
       if (!this._snapshotAdjacency) {
-        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._matchPattern);
+        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._getPattern());
       }
       return {
         state: this._snapshot.state,
@@ -461,10 +499,10 @@ export default class Observer {
 
     if (materialized.provider) {
       const visibleNodes = orsetElements(state.nodeAlive)
-        .filter((id) => matchGlob(this._matchPattern, id));
+        .filter((id) => matchGlob(this._getPattern(), id));
       adjacency = await buildAdjacencyViaProvider(materialized.provider, visibleNodes);
     } else {
-      adjacency = buildAdjacencyFromEdges(state, this._matchPattern);
+      adjacency = buildAdjacencyFromEdges(state, this._getPattern());
     }
 
     return { state, stateHash, adjacency };
@@ -481,7 +519,7 @@ export default class Observer {
    * @returns {Promise<boolean>} True if the node exists and matches the observer pattern
    */
   async hasNode(nodeId) {
-    if (!matchGlob(this._matchPattern, nodeId)) {
+    if (!matchGlob(this._getPattern(), nodeId)) {
       return false;
     }
     if (this._stateReader) {
@@ -499,7 +537,7 @@ export default class Observer {
     const allNodes = this._stateReader
       ? this._stateReader.getNodes()
       : await this._requireGraph().getNodes();
-    return allNodes.filter((id) => matchGlob(this._matchPattern, id));
+    return allNodes.filter((id) => matchGlob(this._getPattern(), id));
   }
 
   /**
@@ -512,7 +550,7 @@ export default class Observer {
    * @returns {Promise<Record<string, unknown>|null>} Filtered properties object, or null
    */
   async getNodeProps(nodeId) {
-    if (!matchGlob(this._matchPattern, nodeId)) {
+    if (!matchGlob(this._getPattern(), nodeId)) {
       return null;
     }
     const propsRecord = this._stateReader
@@ -541,7 +579,7 @@ export default class Observer {
       : await this._requireGraph().getEdges();
     return allEdges
       .filter(
-        (e) => matchGlob(this._matchPattern, e.from) && matchGlob(this._matchPattern, e.to)
+        (e) => matchGlob(this._getPattern(), e.from) && matchGlob(this._getPattern(), e.to)
       )
       .map((e) => {
         const filtered = filterProps(e.props, this._expose, this._redact);

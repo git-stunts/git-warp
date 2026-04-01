@@ -37,7 +37,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       expect(edgeRemoves).toHaveLength(3);
       expect(nodeRemoves).toHaveLength(1);
-      expect(nodeRemoves[0].node).toBe('A');
+      expect(/** @type {{ node: string }} */ (nodeRemoves[0]).node).toBe('A');
 
       // Verify EdgeRemove ops target the correct edges
       const removedEdges = edgeRemoves.map(op => `${op.from}->${op.to}[${op.label}]`).sort();
@@ -75,7 +75,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       // Cascade delete node A
       await (await graph.createPatch()).removeNode('A').commit();
-      const state = /** @type {any} */ (await graph.materialize());
+      /** @type {any} */ (await graph.materialize());
 
       // Node A should be gone
       expect(await graph.hasNode('A')).toBe(false);
@@ -116,8 +116,9 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       const ops = builder.ops;
       expect(ops).toHaveLength(1);
-      expect(ops[0].type).toBe('NodeRemove');
-      expect(/** @type {any} */ (ops[0]).node).toBe('lonely');
+      const op0 = /** @type {{ type: string, node: string }} */ (ops[0]);
+      expect(op0.type).toBe('NodeRemove');
+      expect(op0.node).toBe('lonely');
     } finally {
       await repo.cleanup();
     }
@@ -205,9 +206,10 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       // Self-loop should produce exactly 1 EdgeRemove (not 2), because
       // findAttachedData collects unique edge keys and the self-loop is one edge
       expect(edgeRemoves).toHaveLength(1);
-      expect(edgeRemoves[0].from).toBe('A');
-      expect(edgeRemoves[0].to).toBe('A');
-      expect(edgeRemoves[0].label).toBe('self');
+      const selfEdge = /** @type {{ from: string, to: string, label: string }} */ (edgeRemoves[0]);
+      expect(selfEdge.from).toBe('A');
+      expect(selfEdge.to).toBe('A');
+      expect(selfEdge.label).toBe('self');
       expect(nodeRemoves).toHaveLength(1);
 
       // Commit and verify materialized state
@@ -249,18 +251,20 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
 
       // Load and verify the committed patches
       const patches = await graph.getWriterPatches('w1');
-      const lastPatch = patches[patches.length - 1].patch;
+      const lastEntry = /** @type {{ patch: { ops: Array<Record<string, unknown>> } }} */ (patches[patches.length - 1]);
+      const lastPatch = lastEntry.patch;
 
       // The cascade patch should contain EdgeRemove + NodeRemove
-      const edgeRemoves = lastPatch.ops.filter(op => op.type === 'EdgeRemove');
-      const nodeRemoves = lastPatch.ops.filter(op => op.type === 'NodeRemove');
+      const edgeRemoves = lastPatch.ops.filter(op => op['type'] === 'EdgeRemove');
+      const nodeRemoves = lastPatch.ops.filter(op => op['type'] === 'NodeRemove');
 
       expect(edgeRemoves).toHaveLength(1);
-      expect(edgeRemoves[0].from).toBe('X');
-      expect(edgeRemoves[0].to).toBe('Y');
-      expect(edgeRemoves[0].label).toBe('link');
+      const er0 = /** @type {{ from: string, to: string, label: string }} */ (edgeRemoves[0]);
+      expect(er0.from).toBe('X');
+      expect(er0.to).toBe('Y');
+      expect(er0.label).toBe('link');
       expect(nodeRemoves).toHaveLength(1);
-      expect(nodeRemoves[0].node).toBe('X');
+      expect(/** @type {{ node: string }} */ (nodeRemoves[0]).node).toBe('X');
     } finally {
       await repo.cleanup();
     }
@@ -301,8 +305,9 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       // Only C->D should remain
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(1);
-      expect(edges[0].from).toBe('C');
-      expect(edges[0].to).toBe('D');
+      const edge0 = /** @type {{ from: string, to: string }} */ (edges[0]);
+      expect(edge0.from).toBe('C');
+      expect(edge0.to).toBe('D');
     } finally {
       await repo.cleanup();
     }
@@ -334,7 +339,7 @@ describe('Cascade delete mode (HS/DELGUARD/3)', { timeout: 15000 }, () => {
       const ops = builder.ops;
       // Should only have NodeRemove, no EdgeRemove
       expect(ops).toHaveLength(1);
-      expect(ops[0].type).toBe('NodeRemove');
+      expect(/** @type {{ type: string }} */ (ops[0]).type).toBe('NodeRemove');
     } finally {
       await repo.cleanup();
     }

@@ -30,7 +30,7 @@ export default class EffectSinkPort {
    *
    * @param {import('../domain/types/EffectEmission.js').EffectEmission} _emission
    * @param {import('../domain/types/ExternalizationPolicy.js').ExternalizationPolicy} _lens
-   * @returns {Promise<import('../domain/types/DeliveryObservation.js').DeliveryObservation>}
+   * @returns {Promise<import('../domain/types/DeliveryObservation.js').DeliveryObservation | import('../domain/types/DeliveryObservation.js').DeliveryObservation[]>}
    * @abstract
    */
   async deliver(_emission, _lens) {
