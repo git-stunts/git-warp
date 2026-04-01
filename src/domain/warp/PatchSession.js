@@ -215,7 +215,6 @@ export class PatchSession {
    * @returns {this} This session for chaining
    * @throws {WriterError} SESSION_COMMITTED if already committed
    */
-
   setEdgeProperty(from, to, label, key, value) {
     this._ensureNotCommitted();
     this._builder.setEdgeProperty(from, to, label, key, value);
@@ -261,7 +260,6 @@ export class PatchSession {
    * @returns {Promise<this>} This session for chaining
    * @throws {WriterError} SESSION_COMMITTED if already committed
    */
-
   async attachEdgeContent(from, to, label, content, metadata = undefined) {
     this._ensureNotCommitted();
     await this._builder.attachEdgeContent(from, to, label, content, metadata);
