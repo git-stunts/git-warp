@@ -31,11 +31,11 @@ function extractTraversalSteps(args) {
   const remaining = [];
 
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+    const arg = /** @type {string} */ (args[i]);
     if (arg === '--outgoing' || arg === '--incoming') {
       const next = args[i + 1];
       const label = (next !== undefined && next !== null && next !== '' && !next.startsWith('-')) ? next : undefined;
-      steps.push({ type: arg.slice(2), label });
+      steps.push({ type: arg.slice(2), ...(label !== undefined ? { label } : {}) });
       if (label !== undefined) {
         i += 1;
       }
@@ -181,7 +181,7 @@ function buildQueryPayload(graphName, result, edges) {
     const entry = { ...node };
     const nodeEdges = edgeMap.get(node.id);
     if (nodeEdges) {
-      entry.edges = nodeEdges;
+      entry['edges'] = nodeEdges;
     }
     return entry;
   });
@@ -240,9 +240,9 @@ export default async function handleQuery({ options, args }) {
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
       if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
-        payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+        payload['_renderedSvg'] = renderSvg(positioned, { title: `${graphName} query` });
       } else {
-        payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
+        payload['_renderedAscii'] = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
       }
     }
 

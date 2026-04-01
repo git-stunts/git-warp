@@ -97,12 +97,12 @@ export default async function handleVerifyAudit({ options, args }) {
         ...(trustPin !== undefined ? { pin: trustPin } : {}),
         mode: trustMode,
       });
-      /** @type {any} */ (payload).trustAssessment = trustAssessment;
+      /** @type {Record<string, unknown>} */ (payload)['trustAssessment'] = trustAssessment;
     } catch (err) {
       if (trustMode === 'enforce') {
         throw err;
       }
-      /** @type {any} */ (payload).trustAssessment = {
+      /** @type {Record<string, unknown>} */ (payload)['trustAssessment'] = {
         trustSchemaVersion: 1,
         mode: 'signed_evidence_v1',
         trustVerdict: 'error',

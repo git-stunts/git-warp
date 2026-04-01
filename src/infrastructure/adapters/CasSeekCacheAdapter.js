@@ -124,7 +124,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     if (this._logger !== null && this._logger !== undefined) {
       opts.observability = new LoggerObservabilityBridge(this._logger);
     }
-    return /** @type {CasStore} */ (/** @type {unknown} */ (new ContentAddressableStore(/** @type {*} */ (opts))));
+    return /** @type {CasStore} */ (/** @type {unknown} */ (new ContentAddressableStore(/** @type {ConstructorParameters<typeof ContentAddressableStore>[0]} */ (/** @type {unknown} */ (opts)))));
   }
 
   // ---------------------------------------------------------------------------

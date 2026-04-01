@@ -550,7 +550,7 @@ export default class QueryBuilder {
     }
     assertLabel(label);
     const depth = normalizeDepth(options?.depth);
-    this._operations.push({ type: 'outgoing', label, depth });
+    this._operations.push({ type: 'outgoing', ...(label !== undefined ? { label } : {}), depth });
     return this;
   }
 
@@ -575,7 +575,7 @@ export default class QueryBuilder {
     }
     assertLabel(label);
     const depth = normalizeDepth(options?.depth);
-    this._operations.push({ type: 'incoming', label, depth });
+    this._operations.push({ type: 'incoming', ...(label !== undefined ? { label } : {}), depth });
     return this;
   }
 
@@ -815,11 +815,12 @@ export default class QueryBuilder {
 
       for (const propsRecord of propsList) {
         for (const { segments, values } of propsByAgg.values()) {
+          const firstSeg = /** @type {string} */ (segments[0]);
           /** @type {unknown} */
-          let value = propsRecord[segments[0]];
+          let value = propsRecord[firstSeg];
           for (let i = 1; i < segments.length; i++) {
             if (value !== null && value !== undefined && typeof value === 'object') {
-              value = /** @type {Record<string, unknown>} */ (value)[segments[i]];
+              value = /** @type {Record<string, unknown>} */ (value)[/** @type {string} */ (segments[i])];
             } else {
               value = undefined;
               break;

@@ -272,8 +272,7 @@ function buildConflictAnalyzeOptions(spec, lamportCeiling) {
  */
 export async function handleDebugTopic({ options, args }) {
   const { values } = parseCommandArgs(args, DEBUG_CONFLICT_OPTIONS, debugConflictsSchema);
-  /** @type {{ strandId: string|null, entityId: string|null, target: { targetKind: "node"|"edge"|"node_property"|"edge_property", entityId?: string, propertyKey?: string, from?: string, to?: string, label?: string }|null, kinds: string[], writerId: string|null, lamportCeiling: number|null, evidence: "full"|"summary"|"standard", maxPatches: number|null }} */
-  const spec = /** @type {*} */ (values);
+  const spec = /** @type {{ strandId: string|null, entityId: string|null, target: { targetKind: "node"|"edge"|"node_property"|"edge_property", entityId?: string, propertyKey?: string, from?: string, to?: string, label?: string }|null, kinds: string[], writerId: string|null, lamportCeiling: number|null, evidence: "full"|"summary"|"standard", maxPatches: number|null }} */ (/** @type {unknown} */ (values));
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(spec.lamportCeiling, activeCursor);
   const analysis = await graph.analyzeConflicts(buildConflictAnalyzeOptions(spec, lamportCeiling));

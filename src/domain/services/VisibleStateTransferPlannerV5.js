@@ -397,7 +397,7 @@ const DIRECT_SUMMARY_FIELDS = /** @type {Partial<Record<VisibleStateTransferOper
  * @returns {void}
  */
 function countNodePropertyOp(summary, op) {
-  if (op.value === null) {
+  if ('value' in op && op.value === null) {
     summary.clearNodePropertyCount += 1;
   } else {
     summary.setNodePropertyCount += 1;
@@ -411,7 +411,7 @@ function countNodePropertyOp(summary, op) {
  * @returns {void}
  */
 function countEdgePropertyOp(summary, op) {
-  if (op.value === null) {
+  if ('value' in op && op.value === null) {
     summary.clearEdgePropertyCount += 1;
   } else {
     summary.setEdgePropertyCount += 1;

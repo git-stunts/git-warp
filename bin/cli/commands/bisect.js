@@ -58,20 +58,20 @@ function runTestCommand(testCmd, sha, graphName) {
  * @returns {{payload: unknown, exitCode: number}} CLI response
  */
 function mapBisectResult(result) {
-  if (result.result === 'range-error') {
+  if (result['result'] === 'range-error') {
     return {
-      payload: { error: { code: 'E_BISECT_RANGE', message: result.message } },
+      payload: { error: { code: 'E_BISECT_RANGE', message: result['message'] } },
       exitCode: EXIT_CODES.NOT_FOUND,
     };
   }
 
   const payload = {
     result: 'found',
-    firstBadPatch: result.firstBadPatch,
-    writerId: result.writerId,
-    lamport: result.lamport,
-    steps: result.steps,
-    totalCandidates: result.totalCandidates,
+    firstBadPatch: result['firstBadPatch'],
+    writerId: result['writerId'],
+    lamport: result['lamport'],
+    steps: result['steps'],
+    totalCandidates: result['totalCandidates'],
   };
 
   return { payload, exitCode: EXIT_CODES.OK };

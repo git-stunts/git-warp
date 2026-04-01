@@ -309,7 +309,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
 
     // Logger.warn must have been called
     expect(logger.warn).toHaveBeenCalled();
-    const [warnMsg, warnCtx] = logger.warn.mock.calls[0];
+    const [warnMsg, warnCtx] = logger.warn.mock.calls[0] ?? [];
     expect(warnMsg).toContain('divergence');
     expect(warnCtx.code).toBe('E_SYNC_DIVERGENCE');
     expect(warnCtx.writerId).toBe('w1');

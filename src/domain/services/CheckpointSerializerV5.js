@@ -95,7 +95,6 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
-// eslint-disable-next-line complexity
 export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   const codec = codecOpt ?? defaultCodec;
   if (buffer === null || buffer === undefined) {
@@ -106,14 +105,14 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
     return createEmptyStateV5();
   }
   // Accept both 'full-v5' and missing version (backward compat with pre-versioned data)
-  if (obj.version !== undefined && obj.version !== 'full-v5') {
-    throw new Error(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`);
+  if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
+    throw new Error(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`);
   }
   return {
-    nodeAlive: orsetDeserialize(obj.nodeAlive ?? {}),
-    edgeAlive: orsetDeserialize(obj.edgeAlive ?? {}),
-    prop: deserializeProps(/** @type {[string, unknown][]} */ (obj.prop)),
-    observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (obj.observedFrontier ?? {})),
+    nodeAlive: orsetDeserialize(obj['nodeAlive'] ?? {}),
+    edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
+    prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
+    observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
     edgeBirthEvent: /** @type {Map<string, import('../utils/EventId.js').EventId>} */ (deserializeEdgeBirthEvent(obj)),
   };
 }
@@ -220,7 +219,7 @@ function deserializeProps(propArray) {
 function deserializeEdgeBirthEvent(obj) {
   /** @type {Map<string, import('../utils/EventId.js').EventId>} */
   const edgeBirthEvent = new Map();
-  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
+  const birthData = obj['edgeBirthEvent'] ?? obj['edgeBirthLamport'];
   if (!Array.isArray(birthData)) {
     return edgeBirthEvent;
   }

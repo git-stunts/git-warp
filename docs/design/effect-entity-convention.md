@@ -39,7 +39,7 @@ and tools that agree on this schema.
 
 Effect entities use the `effect:` node ID prefix.
 
-```
+```text
 effect:<unique-id>
 ```
 

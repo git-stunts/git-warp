@@ -189,14 +189,20 @@ export default class BitmapIndexBuilder {
       const sha = key.substring(4);
       const prefix = sha.substring(0, 2);
 
-      if (bitmapShards[type][prefix] === undefined) {
-        bitmapShards[type][prefix] = {};
+      const typeShard = bitmapShards[type];
+      if (typeShard === undefined) { continue; }
+      if (typeShard[prefix] === undefined) {
+        typeShard[prefix] = {};
       }
-      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+      const prefixShard = typeShard[prefix];
+      if (prefixShard === undefined) { continue; }
+      prefixShard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
 
     for (const type of ['fwd', 'rev']) {
-      for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
+      const shardGroup = bitmapShards[type];
+      if (shardGroup === undefined) { continue; }
+      for (const [prefix, shardData] of Object.entries(shardGroup)) {
         tree[`shards_${type}_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(shardData, this._crypto)));
       }
     }

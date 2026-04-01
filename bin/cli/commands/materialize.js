@@ -63,12 +63,12 @@ export default async function handleMaterialize({ options }) {
     };
   }
 
-  const targets = options.graph !== undefined && options.graph !== ''
-    ? [options.graph]
-    : graphNames;
+  const graphOpt = options.graph;
+  const hasGraphOpt = typeof graphOpt === 'string' && graphOpt !== '';
+  const targets = hasGraphOpt ? [graphOpt] : graphNames;
 
-  if (options.graph !== undefined && options.graph !== '' && !graphNames.includes(options.graph)) {
-    throw notFoundError(`Graph not found: ${options.graph}`);
+  if (hasGraphOpt && !graphNames.includes(graphOpt)) {
+    throw notFoundError(`Graph not found: ${graphOpt}`);
   }
 
   const results = [];

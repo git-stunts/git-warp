@@ -102,9 +102,11 @@ async function checkSingleRef(entry, ctx) {
  */
 export async function checkRefsConsistent(ctx) {
   try {
-    const allRefs = ctx.writerHeads.map((h) => ({
-      ref: h.ref, sha: h.sha, label: `writer ${h.writerId}`,
-    }));
+    const allRefs = ctx.writerHeads
+      .filter((h) => typeof h.sha === 'string' && h.sha.length > 0)
+      .map((h) => ({
+        ref: h.ref, sha: /** @type {string} */ (h.sha), label: `writer ${h.writerId}`,
+      }));
     return await checkAllRefs(allRefs, ctx);
   } catch (err) {
     return [internalError('refs-consistent', err)];
@@ -422,10 +424,11 @@ export async function checkAuditConsistent(ctx) {
 async function collectWriterDates(ctx) {
   const dates = [];
   for (const head of ctx.writerHeads) {
-    if (typeof head.sha !== 'string' || head.sha.length === 0) {
+    const headSha = head.sha;
+    if (typeof headSha !== 'string' || headSha.length === 0) {
       continue;
     }
-    const entry = await parseWriterDate(ctx.persistence, head);
+    const entry = await parseWriterDate(ctx.persistence, { writerId: head.writerId, sha: headSha });
     if (entry !== null) {
       dates.push(entry);
     }

@@ -184,11 +184,11 @@ WarpCore gains an optional effect pipeline, configured via `open()`:
 
 ```js
 // Option A: inject a pre-built pipeline
-const core = await WarpCore.open({ ..., effectPipeline });
+const core = await WarpCore.open({ /* ... */ effectPipeline });
 
 // Option B: pass sinks + lens, let open() build the pipeline
-const core = await WarpCore.open({
-  ...,
+const core2 = await WarpCore.open({
+  /* ... */
   effectSinks: [new ConsoleEffectSink({ logger })],
   externalizationPolicy: LIVE_LENS,
 });
@@ -200,7 +200,7 @@ core.effectPipeline = new EffectPipeline({ sink, lens, clock });
 Once configured, WarpCore exposes:
 
 ```js
-core.emit(kind, payload, options?)   // → { emission, observations }
+core.emit(kind, payload, options)    // → { emission, observations }
 core.effectPipeline                  // → EffectPipeline | null
 core.effectEmissions                 // → readonly EffectEmission[]
 core.deliveryObservations            // → readonly DeliveryObservation[]
@@ -226,7 +226,7 @@ is unaffected — `emit()` is a no-op, getters return null/empty.
 
 ## File Layout
 
-```
+```text
 src/
   domain/
     types/

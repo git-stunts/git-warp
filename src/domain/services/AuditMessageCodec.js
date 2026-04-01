@@ -39,8 +39,7 @@ export function encodeAuditMessage({ graph, writer, dataCommit, opsDigest }) {
   validateOid(dataCommit, 'dataCommit');
   validateSha256(opsDigest, 'opsDigest');
 
-  /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */ (/** @type {unknown} */ (getCodec()));
   const tk = /** @type {{dataCommit: string, graph: string, kind: string, opsDigest: string, schema: string, writer: string}} */ (TRAILER_KEYS);
   const mt = /** @type {{audit: string}} */ (MESSAGE_TITLES);
   return codec.encode({
@@ -68,8 +67,7 @@ export function encodeAuditMessage({ graph, writer, dataCommit, opsDigest }) {
  * @throws {Error} If the message is not a valid audit message
  */
 export function decodeAuditMessage(message) {
-  /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */ (/** @type {unknown} */ (getCodec()));
   const decoded = codec.decode(message);
   const { trailers } = decoded;
 

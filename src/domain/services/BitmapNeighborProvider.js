@@ -233,7 +233,7 @@ export default class BitmapNeighborProvider extends NeighborProviderPort {
     let labelIds;
     if (options?.labels) {
       labelIds = this._resolveLabelIds(logical, options.labels);
-      if (labelIds.length === 0) { return []; }
+      if (labelIds === undefined || labelIds.length === 0) { return []; }
     }
 
     if (direction === 'both') {

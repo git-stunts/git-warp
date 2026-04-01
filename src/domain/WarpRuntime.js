@@ -668,7 +668,11 @@ function wireSyncDelegate(methodName) {
       const selfUnknown = this;
       /** @type {Record<string, Record<string, (...a: unknown[]) => unknown>>} */
       const typed = /** @type {Record<string, Record<string, (...a: unknown[]) => unknown>>} */ (selfUnknown);
-      return typed._syncController[methodName](...args);
+      const ctrl = typed['_syncController'];
+      if (ctrl === undefined || ctrl === null) { throw new Error('_syncController not initialized'); }
+      const fn = ctrl[methodName];
+      if (typeof fn !== 'function') { throw new Error(`${methodName} is not a function`); }
+      return fn(...args);
     },
     writable: true,
     configurable: true,

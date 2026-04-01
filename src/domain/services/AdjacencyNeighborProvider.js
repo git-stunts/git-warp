@@ -73,8 +73,8 @@ function mergeSorted(a, b) {
   while (state.i < a.length && state.j < b.length) {
     mergeNextPair(ctx);
   }
-  for (let k = state.i; k < a.length; k++) { result.push(a[k]); }
-  for (let k = state.j; k < b.length; k++) { result.push(b[k]); }
+  for (let k = state.i; k < a.length; k++) { result.push(/** @type {{neighborId: string, label: string}} */ (a[k])); }
+  for (let k = state.j; k < b.length; k++) { result.push(/** @type {{neighborId: string, label: string}} */ (b[k])); }
   return result;
 }
 
@@ -88,8 +88,10 @@ function mergeSorted(a, b) {
  * @param {MergeContext} ctx - Merge context with result, inputs, and cursors
  */
 function mergeNextPair(ctx) {
-  const cmp = edgeCmp(ctx.a[ctx.state.i], ctx.b[ctx.state.j]);
-  ctx.result.push(cmp <= 0 ? ctx.a[ctx.state.i] : ctx.b[ctx.state.j]);
+  const ai = /** @type {{neighborId: string, label: string}} */ (ctx.a[ctx.state.i]);
+  const bj = /** @type {{neighborId: string, label: string}} */ (ctx.b[ctx.state.j]);
+  const cmp = edgeCmp(ai, bj);
+  ctx.result.push(cmp <= 0 ? ai : bj);
   if (cmp <= 0) { ctx.state.i++; }
   if (cmp >= 0) { ctx.state.j++; }
 }
