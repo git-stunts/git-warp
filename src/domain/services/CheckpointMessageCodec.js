@@ -57,25 +57,23 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
 
   /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
   const codec = /** @type {*} */ (getCodec());
-  const tk = /** @type {{kind: string, graph: string, stateHash: string, frontierOid: string, indexOid: string, schema: string, checkpointVersion: string}} */ (TRAILER_KEYS);
-  const mt = /** @type {{checkpoint: string}} */ (MESSAGE_TITLES);
   /** @type {Record<string, string>} */
   const trailers = {
-    [tk.kind]: 'checkpoint',
-    [tk.graph]: graph,
-    [tk.stateHash]: stateHash,
-    [tk.frontierOid]: frontierOid,
-    [tk.indexOid]: indexOid,
-    [tk.schema]: String(schema),
+    [TRAILER_KEYS.kind]: 'checkpoint',
+    [TRAILER_KEYS.graph]: graph,
+    [TRAILER_KEYS.stateHash]: stateHash,
+    [TRAILER_KEYS.frontierOid]: frontierOid,
+    [TRAILER_KEYS.indexOid]: indexOid,
+    [TRAILER_KEYS.schema]: String(schema),
   };
 
   // Add checkpoint version marker for V5 format (schema:2, schema:3, schema:4)
   if (schema === 2 || schema === 3 || schema === 4) {
-    trailers[tk.checkpointVersion] = 'v5';
+    trailers[TRAILER_KEYS.checkpointVersion] = 'v5';
   }
 
   return codec.encode({
-    title: mt.checkpoint,
+    title: MESSAGE_TITLES.checkpoint,
     trailers,
   });
 }
@@ -97,23 +95,30 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
 export function decodeCheckpointMessage(message) {
   /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
   const codec = /** @type {*} */ (getCodec());
-  const decoded = codec.decode(message);
-  const { trailers } = decoded;
+  const { trailers: rawTrailers } = codec.decode(message);
+  const trailers = /** @type {Record<string, string>} */ (rawTrailers);
 
   validateKindDiscriminator(trailers, 'checkpoint');
+  /** @type {string} */
   const graph = requireTrailer(trailers, 'graph', 'checkpoint');
   validateGraphName(graph);
+  /** @type {string} */
   const stateHash = requireTrailer(trailers, 'stateHash', 'checkpoint');
   validateSha256(stateHash, 'stateHash');
+  /** @type {string} */
   const frontierOid = requireTrailer(trailers, 'frontierOid', 'checkpoint');
   validateOid(frontierOid, 'frontierOid');
+  /** @type {string} */
   const indexOid = requireTrailer(trailers, 'indexOid', 'checkpoint');
   validateOid(indexOid, 'indexOid');
+  /** @type {number} */
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'checkpoint');
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)
-  const cpvKey = /** @type {{checkpointVersion: string}} */ (TRAILER_KEYS).checkpointVersion;
-  const checkpointVersion = trailers[cpvKey] || null;
+  /** @type {string|undefined} */
+  const cpVersion = /** @type {string|undefined} */ (trailers['eg-checkpoint']);
+  /** @type {string|null} */
+  const checkpointVersion = (cpVersion !== undefined && cpVersion !== '') ? cpVersion : null;
 
   return {
     kind: 'checkpoint',
