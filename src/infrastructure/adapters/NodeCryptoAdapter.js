@@ -14,6 +14,7 @@ import {
  */
 export default class NodeCryptoAdapter extends CryptoPort {
   /**
+   * Computes a hex-encoded digest of the given data using Node's crypto module.
    * @param {string} algorithm
    * @param {string|Uint8Array} data
    * @returns {Promise<string>}
@@ -24,6 +25,7 @@ export default class NodeCryptoAdapter extends CryptoPort {
   }
 
   /**
+   * Computes an HMAC signature for the given data using Node's crypto module.
    * @param {string} algorithm
    * @param {string|Uint8Array} key
    * @param {string|Uint8Array} data
@@ -36,6 +38,7 @@ export default class NodeCryptoAdapter extends CryptoPort {
   }
 
   /**
+   * Performs constant-time comparison of two byte arrays using Node's native implementation.
    * @param {Uint8Array} a
    * @param {Uint8Array} b
    * @returns {boolean}

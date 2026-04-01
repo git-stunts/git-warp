@@ -66,22 +66,78 @@ function renderTruncationIndicator(truncated, hiddenCount) {
 }
 
 /**
+ * Returns the short SHA prefix from an entry.
+ * @param {PatchEntry} entry - Patch entry
+ * @returns {string} 7-char SHA prefix or empty string
+ */
+function shortShaOf(entry) {
+  const sha = entry.sha ?? '';
+  return sha.length > 0 ? sha.slice(0, 7) : '';
+}
+
+/**
+ * Checks if a writer string is present and non-empty.
+ * @param {string|undefined} writerStr - Writer string to check
+ * @returns {boolean} True if present and non-empty
+ */
+function hasWriter(writerStr) {
+  return writerStr !== null && writerStr !== undefined && writerStr.length > 0;
+}
+
+/**
+ * Formats a single-writer entry line (no writer column).
+ * @param {{ connector: string, lamportStr: string, shortSha: string, opSummaryStr: string }} parts
+ * @returns {string} Formatted line
+ */
+function formatSingleWriterLine({ connector, lamportStr, shortSha, opSummaryStr }) {
+  return `  ${connector}${TIMELINE.dot} ${colors.muted(`L${lamportStr}`)} ${colors.primary(shortSha)}  ${opSummaryStr}`;
+}
+
+/**
+ * Formats a multi-writer entry line (with writer column).
+ * @param {{ connector: string, lamportStr: string, shortSha: string, opSummaryStr: string, writerStr: string, maxWriterIdLen: number }} parts
+ * @returns {string} Formatted line
+ */
+function formatMultiWriterLine({ connector, lamportStr, shortSha, opSummaryStr, writerStr, maxWriterIdLen }) {
+  const paddedWriter = padRight(writerStr, maxWriterIdLen);
+  return `  ${connector}${TIMELINE.dot} ${colors.muted(`L${lamportStr}`)} ${colors.primary(paddedWriter)}:${colors.muted(shortSha)} ${opSummaryStr}`;
+}
+
+/**
+ * Selects the timeline connector symbol.
+ * @param {boolean} isLast - Whether this is the last entry
+ * @returns {string} Connector symbol
+ */
+function connectorFor(isLast) {
+  return isLast ? TIMELINE.end : TIMELINE.connector;
+}
+
+/**
+ * Selects the column width based on writer presence.
+ * @param {string|undefined} writerStr - Writer string
+ * @returns {number} Column width
+ */
+function opColumnWidth(writerStr) {
+  return hasWriter(writerStr) ? 30 : 40;
+}
+
+/**
  * Renders a single patch entry line.
  * @param {{ entry: PatchEntry, isLast: boolean, lamportWidth: number, writerStr?: string, maxWriterIdLen?: number }} params - Entry parameters
  * @returns {string} Formatted entry line
  */
-function renderEntryLine({ entry, isLast, lamportWidth, writerStr, maxWriterIdLen }) {
-  const connector = isLast ? TIMELINE.end : TIMELINE.connector;
-  const shortSha = (entry.sha || '').slice(0, 7);
-  const lamportStr = padLeft(String(entry.lamport ?? 0), lamportWidth);
-  const opSummary = ensureOpSummary(entry);
-  const opSummaryStr = formatOpSummary(opSummary, writerStr ? 30 : 40);
+function renderEntryLine(/** @type {{ entry: PatchEntry, isLast: boolean, lamportWidth: number, writerStr?: string, maxWriterIdLen?: number }} */ params) {
+  const { entry, isLast, lamportWidth, writerStr, maxWriterIdLen } = params;
 
-  if (writerStr) {
-    const paddedWriter = padRight(writerStr, maxWriterIdLen ?? 6);
-    return `  ${connector}${TIMELINE.dot} ${colors.muted(`L${lamportStr}`)} ${colors.primary(paddedWriter)}:${colors.muted(shortSha)} ${opSummaryStr}`;
+  const connector = connectorFor(isLast);
+  const shortSha = shortShaOf(entry);
+  const lamportStr = padLeft(String(entry.lamport ?? 0), lamportWidth);
+  const opSummaryStr = formatOpSummary(ensureOpSummary(entry), opColumnWidth(writerStr));
+
+  if (hasWriter(writerStr)) {
+    return formatMultiWriterLine({ connector, lamportStr, shortSha, opSummaryStr, writerStr: /** @type {string} */ (writerStr), maxWriterIdLen: maxWriterIdLen ?? 6 });
   }
-  return `  ${connector}${TIMELINE.dot} ${colors.muted(`L${lamportStr}`)} ${colors.primary(shortSha)}  ${opSummaryStr}`;
+  return formatSingleWriterLine({ connector, lamportStr, shortSha, opSummaryStr });
 }
 
 /**
@@ -101,6 +157,34 @@ function renderSingleWriterHeader(writer) {
 function renderSingleWriterFooter(totalCount) {
   const label = totalCount === 1 ? 'patch' : 'patches';
   return ['', colors.muted(`  Total: ${totalCount} ${label}`)];
+}
+
+/**
+ * Renders timeline entry lines for a set of display entries.
+ * @param {PatchEntry[]} displayEntries - Entries to render
+ * @param {number} lamportWidth - Width for lamport padding
+ * @param {{ useWriterId?: boolean, maxWriterIdLen?: number }} [extra] - Optional writer info
+ * @returns {string[]} Rendered lines
+ */
+function renderEntryLines(displayEntries, lamportWidth, extra = {}) {
+  /** @type {string[]} */
+  const lines = [];
+  for (let i = 0; i < displayEntries.length; i++) {
+    const isLast = i === displayEntries.length - 1;
+    const writerStr = extra.useWriterId === true ? displayEntries[i].writerId : undefined;
+    lines.push(renderEntryLine({ entry: displayEntries[i], isLast, lamportWidth, writerStr, maxWriterIdLen: extra.maxWriterIdLen }));
+  }
+  return lines;
+}
+
+/**
+ * Computes lamport display width from entries.
+ * @param {PatchEntry[]} displayEntries - Entries to measure
+ * @returns {number} Width for lamport padding
+ */
+function computeLamportWidth(displayEntries) {
+  const maxLamport = Math.max(...displayEntries.map((e) => e.lamport ?? 0));
+  return String(maxLamport).length;
 }
 
 /**
@@ -125,18 +209,46 @@ function renderSingleWriterTimeline(payload, options) {
     lines.push(colors.muted('  (no patches)'));
     return lines;
   }
-  const maxLamport = Math.max(...displayEntries.map((e) => e.lamport ?? 0));
-  const lamportWidth = String(maxLamport).length;
 
   lines.push(...renderTruncationIndicator(truncated, hiddenCount));
-
-  for (let i = 0; i < displayEntries.length; i++) {
-    const isLast = i === displayEntries.length - 1;
-    lines.push(renderEntryLine({ entry: displayEntries[i], isLast, lamportWidth }));
-  }
-
+  lines.push(...renderEntryLines(displayEntries, computeLamportWidth(displayEntries)));
   lines.push(...renderSingleWriterFooter(entries.length));
   return lines;
+}
+
+/**
+ * Compares two patch entries by lamport then writerId.
+ * @param {PatchEntry} a - First entry
+ * @param {PatchEntry} b - Second entry
+ * @returns {number} Sort order
+ */
+/**
+ * Gets a lamport value with default of zero.
+ * @param {PatchEntry} entry - Patch entry
+ * @returns {number} Lamport value
+ */
+function lamportOf(entry) {
+  return entry.lamport ?? 0;
+}
+
+/**
+ * Gets a writerId with default of empty string.
+ * @param {PatchEntry} entry - Patch entry
+ * @returns {string} Writer ID
+ */
+function writerIdOf(entry) {
+  return entry.writerId ?? '';
+}
+
+/**
+ * Compares two patch entries by lamport then writerId.
+ * @param {PatchEntry} a - First entry
+ * @param {PatchEntry} b - Second entry
+ * @returns {number} Sort order
+ */
+function comparePatchEntries(a, b) {
+  const lamportDiff = lamportOf(a) - lamportOf(b);
+  return lamportDiff !== 0 ? lamportDiff : writerIdOf(a).localeCompare(writerIdOf(b));
 }
 
 /**
@@ -151,7 +263,7 @@ function mergeWriterEntries(writers) {
       allEntries.push({ ...entry, writerId });
     }
   }
-  allEntries.sort((a, b) => (a.lamport ?? 0) - (b.lamport ?? 0) || (a.writerId ?? '').localeCompare(b.writerId ?? ''));
+  allEntries.sort(comparePatchEntries);
   return allEntries;
 }
 
@@ -181,87 +293,130 @@ function renderMultiWriterFooter(totalCount, writerCount) {
 }
 
 /**
+ * Renders the body of the multi-writer timeline after pagination.
+ * @param {{ displayEntries: PatchEntry[], truncated: boolean, hiddenCount: number }} paginated
+ * @param {string[]} writerIds - All writer IDs
+ * @param {number} totalCount - Total entries before pagination
+ * @returns {string[]} Rendered lines
+ */
+function renderMultiWriterBody(paginated, writerIds, totalCount) {
+  const { displayEntries, truncated, hiddenCount } = paginated;
+  const lamportWidth = computeLamportWidth(displayEntries);
+  const maxWriterIdLen = Math.max(...writerIds.map((id) => id.length), 6);
+
+  /** @type {string[]} */
+  const lines = [];
+  lines.push(...renderTruncationIndicator(truncated, hiddenCount));
+  lines.push(...renderEntryLines(displayEntries, lamportWidth, { useWriterId: true, maxWriterIdLen }));
+  lines.push(...renderMultiWriterFooter(totalCount, writerIds.length));
+  return lines;
+}
+
+/**
+ * Returns the muted placeholder for empty multi-writer timelines, or null.
+ * @param {string[]} writerIds - Writer IDs
+ * @param {PatchEntry[]} allEntries - Merged entries
+ * @returns {string|null} Placeholder line or null if entries exist
+ */
+function multiWriterEmptyMessage(writerIds, allEntries) {
+  if (writerIds.length === 0) {
+    return colors.muted('  (no writers)');
+  }
+  if (allEntries.length === 0) {
+    return colors.muted('  (no patches)');
+  }
+  return null;
+}
+
+/**
  * Renders multi-writer timeline view with parallel columns.
  * @param {{ writers: Record<string, PatchEntry[]>, graph: string }} payload - History payload with allWriters data
  * @param {{ pageSize?: number, showAll?: boolean }} options - Rendering options
  * @returns {string[]} Lines for the timeline
  */
 function renderMultiWriterTimeline(payload, options) {
+  /** @type {{ writers: Record<string, PatchEntry[]>, graph: string }} */
   const { writers, graph } = payload;
-  const { pageSize = DEFAULT_PAGE_SIZE, showAll = false } = options;
+  /** @type {number} */
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+  /** @type {boolean} */
+  const showAll = options.showAll ?? false;
   const writerIds = Object.keys(writers);
-
   const lines = renderMultiWriterHeader(graph, writerIds.length);
-
-  if (writerIds.length === 0) {
-    lines.push(colors.muted('  (no writers)'));
-    return lines;
-  }
-
   const allEntries = mergeWriterEntries(writers);
 
-  if (allEntries.length === 0) {
+  const emptyMsg = multiWriterEmptyMessage(writerIds, allEntries);
+  if (emptyMsg !== null) {
+    lines.push(emptyMsg);
+    return lines;
+  }
+
+  const paginated = paginateEntries(allEntries, pageSize, showAll);
+  if (paginated.displayEntries.length === 0) {
     lines.push(colors.muted('  (no patches)'));
     return lines;
   }
 
-  const { displayEntries, truncated, hiddenCount } = paginateEntries(allEntries, pageSize, showAll);
-  if (displayEntries.length === 0) {
-    lines.push(colors.muted('  (no patches)'));
-    return lines;
-  }
-  const maxLamport = Math.max(...displayEntries.map((e) => e.lamport ?? 0));
-  const lamportWidth = String(maxLamport).length;
-  const maxWriterIdLen = Math.max(...writerIds.map((id) => id.length), 6);
-
-  lines.push(...renderTruncationIndicator(truncated, hiddenCount));
-
-  for (let i = 0; i < displayEntries.length; i++) {
-    const entry = displayEntries[i];
-    const isLast = i === displayEntries.length - 1;
-    lines.push(renderEntryLine({
-      entry,
-      isLast,
-      lamportWidth,
-      writerStr: entry.writerId,
-      maxWriterIdLen,
-    }));
-  }
-
-  lines.push(...renderMultiWriterFooter(allEntries.length, writerIds.length));
+  lines.push(...renderMultiWriterBody(paginated, writerIds, allEntries.length));
   return lines;
 }
 
 /**
- * Renders the history view with ASCII timeline.
- * @param {{ graph: string, writer?: string, nodeFilter?: string | null, entries?: PatchEntry[], writers?: Record<string, PatchEntry[]> }} payload - History payload from handleHistory
- * @param {{ pageSize?: number, showAll?: boolean }} [options] - Rendering options
- * @returns {string} Formatted ASCII output
+ * Determines if the payload represents multi-writer history.
+ * @param {{ writers?: Record<string, PatchEntry[]> }} payload
+ * @returns {boolean} True if multi-writer
  */
-export function renderHistoryView(payload, options = {}) {
-  if (!payload) {
-    return `${colors.error('No data available')}\n`;
-  }
+function isMultiWriterPayload(payload) {
+  return payload.writers !== null && payload.writers !== undefined && typeof payload.writers === 'object';
+}
 
-  const isMultiWriter = payload.writers && typeof payload.writers === 'object';
-  const contentLines = isMultiWriter
-    ? renderMultiWriterTimeline(/** @type {{ writers: Record<string, PatchEntry[]>, graph: string }} */ (payload), options)
-    : renderSingleWriterTimeline(/** @type {{ entries: PatchEntry[], writer: string }} */ (payload), options);
-
-  // Add node filter indicator if present
-  if (payload.nodeFilter) {
-    contentLines.splice(1, 0, colors.muted(`  Filter: node=${payload.nodeFilter}`));
-  }
-
+/**
+ * Wraps content lines in a PATCH HISTORY box.
+ * @param {string[]} contentLines - Content lines to box
+ * @returns {string} Boxed output
+ */
+function wrapInHistoryBox(contentLines) {
   const content = contentLines.join('\n');
-
   const box = createBox(content, {
     title: 'PATCH HISTORY',
     titleAlignment: 'center',
     borderColor: 'cyan',
   });
-
   return `${box}\n`;
+}
+
+/**
+ * Inserts a node filter indicator line if applicable.
+ * @param {string[]} contentLines - Lines to modify in-place
+ * @param {string | null | undefined} nodeFilter - Filter value
+ * @returns {void}
+ */
+function insertNodeFilterLine(contentLines, nodeFilter) {
+  const filter = nodeFilter ?? '';
+  if (filter.length > 0) {
+    contentLines.splice(1, 0, colors.muted(`  Filter: node=${filter}`));
+  }
+}
+
+/**
+ * Renders the history view with ASCII timeline.
+ * @param {{ graph: string, writer?: string, nodeFilter?: string | null, entries?: PatchEntry[], writers?: Record<string, PatchEntry[]> } | null | undefined} payload - History payload from handleHistory
+ * @param {{ pageSize?: number, showAll?: boolean }} [options] - Rendering options
+ * @returns {string} Formatted ASCII output
+ */
+export function renderHistoryView(payload, options = {}) {
+  if (payload === null || payload === undefined) {
+    return `${colors.error('No data available')}\n`;
+  }
+
+  /** @type {{ graph: string, writer?: string, nodeFilter?: string | null, entries?: PatchEntry[], writers?: Record<string, PatchEntry[]> }} */
+  const data = payload;
+  const contentLines = isMultiWriterPayload(data)
+    ? renderMultiWriterTimeline(/** @type {{ writers: Record<string, PatchEntry[]>, graph: string }} */ (data), options)
+    : renderSingleWriterTimeline(/** @type {{ entries: PatchEntry[], writer: string }} */ (data), options);
+
+  insertNodeFilterLine(contentLines, data.nodeFilter);
+  return wrapInHistoryBox(contentLines);
 }
 
 export { summarizeOps, formatOpSummary, OP_DISPLAY, EMPTY_OP_SUMMARY };

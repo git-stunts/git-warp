@@ -10,6 +10,7 @@
 
 import { z } from 'zod';
 import SyncAuthService from './SyncAuthService.js';
+import SyncError from '../errors/SyncError.js';
 import { validateSyncRequest } from './SyncPayloadSchema.js';
 
 const DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024;
@@ -61,17 +62,35 @@ const optionsSchema = z.object({
  * @returns {unknown} The canonicalized value with sorted object keys
  * @private
  */
+/**
+ * Sorts object keys and recursively canonicalizes values.
+ *
+ * @param {object} obj - Non-null object to sort
+ * @returns {{ [x: string]: unknown }} Object with sorted keys
+ * @private
+ */
+function sortObjectKeys(obj) {
+  /** @type {{ [x: string]: unknown }} */
+  const sorted = {};
+  for (const key of Object.keys(obj).sort()) {
+    sorted[key] = canonicalizeJson(/** @type {{ [x: string]: unknown }} */ (obj)[key]);
+  }
+  return sorted;
+}
+
+/**
+ * Recursively sorts object keys for deterministic JSON output.
+ *
+ * @param {unknown} value - Any JSON-serializable value
+ * @returns {unknown} The canonicalized value with sorted object keys
+ * @private
+ */
 function canonicalizeJson(value) {
   if (Array.isArray(value)) {
-    return value.map(canonicalizeJson);
+    return /** @type {unknown} */ (value.map(canonicalizeJson));
   }
-  if (value && typeof value === 'object') {
-    /** @type {{ [x: string]: unknown }} */
-    const sorted = {};
-    for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalizeJson(/** @type {{ [x: string]: unknown }} */ (value)[key]);
-    }
-    return sorted;
+  if (value !== null && value !== undefined && typeof value === 'object') {
+    return /** @type {unknown} */ (sortObjectKeys(value));
   }
   return value;
 }
@@ -129,11 +148,31 @@ function jsonResponse(data) {
  * @private
  */
 function checkContentType(headers) {
-  const contentType = ((headers && headers['content-type']) || '').toLowerCase();
-  if (contentType && !contentType.startsWith('application/json')) {
+  const contentType = String(headers['content-type'] ?? '').toLowerCase();
+  if (contentType.length > 0 && !contentType.startsWith('application/json')) {
     return errorResponse(400, 'Expected application/json');
   }
   return null;
+}
+
+/**
+ * Safely parses a request URL with fallback host.
+ *
+ * @param {string} url - Raw URL string
+ * @param {{ [x: string]: string }} headers - Request headers
+ * @param {string} defaultHost - Fallback host
+ * @returns {URL|null} Parsed URL or null on failure
+ * @private
+ */
+function safeParseUrl(url, headers, defaultHost) {
+  const rawUrl = url.length > 0 ? url : '/';
+  const hostHeader = String(headers.host ?? '');
+  const host = hostHeader.length > 0 ? hostHeader : defaultHost;
+  try {
+    return new URL(rawUrl, `http://${host}`);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -147,10 +186,8 @@ function checkContentType(headers) {
  * @private
  */
 function validateRoute(request, expectedPath, defaultHost) {
-  let requestUrl;
-  try {
-    requestUrl = new URL(request.url || '/', `http://${(request.headers && request.headers.host) || defaultHost}`);
-  } catch {
+  const requestUrl = safeParseUrl(request.url, request.headers, defaultHost);
+  if (requestUrl === null) {
     return errorResponse(400, 'Invalid URL');
   }
 
@@ -191,9 +228,10 @@ function checkBodySize(body, maxBytes) {
 function parseBody(body) {
   const bodyStr = body ? new TextDecoder().decode(body) : '';
 
+  /** @type {unknown} */
   let parsed;
   try {
-    parsed = bodyStr ? JSON.parse(bodyStr) : null;
+    parsed = bodyStr.length > 0 ? /** @type {unknown} */ (JSON.parse(bodyStr)) : null;
   } catch {
     return { error: errorResponse(400, 'Invalid JSON'), parsed: null };
   }
@@ -221,8 +259,74 @@ function initAuth(auth, allowedWriters) {
   return { auth: null, authMode: null };
 }
 
+/**
+ * Waits for the HTTP server to begin listening.
+ *
+ * @param {{ listen: (port: number, host: string, cb: (err?: Error) => void) => void }} server
+ * @param {number} port
+ * @param {string} host
+ * @returns {Promise<void>}
+ * @private
+ */
+function _waitForListen(server, port, host) {
+  return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+    server.listen(port, host, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  }));
+}
+
+/**
+ * Builds the listen result with URL and close handle.
+ *
+ * @param {{ server: { address: () => ({ port: number }|string|null), close: (cb: (err?: Error) => void) => void }, port: number, host: string, path: string }} opts
+ * @returns {{ url: string, close: () => Promise<void> }}
+ * @private
+ */
+function _buildListenResult(opts) {
+  const { server, port, host, path } = opts;
+  const address = server.address();
+  const actualPort = typeof address === 'object' && address !== null ? address.port : port;
+  const url = `http://${host}:${actualPort}${path}`;
+
+  /** Closes the server gracefully. @returns {Promise<void>} Resolves when the server is closed. */
+  const close = () =>
+    /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+      server.close((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    }));
+
+  return { url, close };
+}
+
+/**
+ * Extracts writer IDs from the frontier field of a parsed sync request.
+ *
+ * @param {Record<string, unknown>} parsed - Parsed sync request body
+ * @returns {string[]} Writer IDs, or empty array if no frontier
+ * @private
+ */
+function _extractFrontierWriters(parsed) {
+  const { frontier } = parsed;
+  if (frontier === null || frontier === undefined || typeof frontier !== 'object') {
+    return [];
+  }
+  return Object.keys(/** @type {Record<string, string>} */ (frontier));
+}
+
 export default class HttpSyncServer {
   /**
+   * Creates an HttpSyncServer with validated options.
+   *
    * @param {{ httpPort: import('../../ports/HttpServerPort.js').default, graph: { processSyncRequest: (req: import('./SyncProtocol.js').SyncRequest) => Promise<unknown> }, path?: string, host?: string, maxRequestBytes?: number, auth?: { keys: Record<string, string>, mode?: 'enforce'|'log-only', crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number }, allowedWriters?: string[] }} options
    */
   constructor(options) {
@@ -233,7 +337,7 @@ export default class HttpSyncServer {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const messages = err.issues.map((i) => i.message).join('; ');
-        throw new Error(`HttpSyncServer config: ${messages}`);
+        throw new SyncError(`HttpSyncServer config: ${messages}`, { code: 'E_SYNC_PROTOCOL' });
       }
       throw err;
     }
@@ -262,33 +366,56 @@ export default class HttpSyncServer {
    * @private
    */
   async _authorize(request, parsed) {
-    if (!this._auth) {
+    if (this._auth === null) {
       return null;
     }
 
-    // Signature verification (uses raw request headers + body hash)
-    const authResult = await this._auth.verify(request);
+    const sigError = await this._verifySignature(request);
+    if (sigError !== null) {
+      return sigError;
+    }
+
+    return this._checkWriterWhitelist(parsed);
+  }
+
+  /**
+   * Verifies the request signature via SyncAuthService.
+   *
+   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} request
+   * @returns {Promise<{ status: number, headers: Record<string, string>, body: string }|null>}
+   * @private
+   */
+  async _verifySignature(request) {
+    /** @type {SyncAuthService} */
+    const auth = /** @type {SyncAuthService} */ (this._auth);
+    const authResult = await auth.verify(request);
     if (!authResult.ok) {
       if (this._authMode === 'enforce') {
         return errorResponse(authResult.status, authResult.reason);
       }
-      this._auth.recordLogOnlyPassthrough();
+      auth.recordLogOnlyPassthrough();
     }
+    return null;
+  }
 
-    // Writer whitelist: for sync-requests, extract writer IDs from frontier
-    // keys (the writers the peer claims to have). Sync-requests don't carry
-    // patches — the server generates the response. For sync-responses with
-    // patches, trust-gate should be on patch authors (handled client-side).
-    if (parsed.frontier && typeof parsed.frontier === 'object') {
-      const writerIds = Object.keys(/** @type {Record<string, string>} */ (parsed.frontier));
-      if (writerIds.length > 0) {
-        const writerResult = this._auth.enforceWriters(writerIds);
-        if (!writerResult.ok) {
-          return errorResponse(writerResult.status, writerResult.reason);
-        }
-      }
+  /**
+   * Checks writer IDs from the request frontier against the whitelist.
+   *
+   * @param {Record<string, unknown>} parsed - Parsed sync request body
+   * @returns {{ status: number, headers: Record<string, string>, body: string }|null}
+   * @private
+   */
+  _checkWriterWhitelist(parsed) {
+    /** @type {SyncAuthService} */
+    const auth = /** @type {SyncAuthService} */ (this._auth);
+    const writerIds = _extractFrontierWriters(parsed);
+    if (writerIds.length === 0) {
+      return null;
     }
-
+    const writerResult = auth.enforceWriters(writerIds);
+    if (!writerResult.ok) {
+      return errorResponse(writerResult.status, writerResult.reason);
+    }
     return null;
   }
 
@@ -302,36 +429,57 @@ export default class HttpSyncServer {
   async _handleRequest(request) {
     /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} */
     const req = { ...request, headers: /** @type {Record<string, string>} */ (request.headers) };
-    const contentTypeError = checkContentType(req.headers);
-    if (contentTypeError) {
-      return contentTypeError;
-    }
-
-    const routeError = validateRoute(req, this._path, this._host);
-    if (routeError) {
-      return routeError;
-    }
-
-    const sizeError = checkBodySize(req.body, this._maxRequestBytes);
-    if (sizeError) {
-      return sizeError;
+    const preflightError = this._preflight(req);
+    if (preflightError !== null) {
+      return preflightError;
     }
 
     const { error, parsed } = parseBody(req.body);
-    if (error) {
+    if (error !== null) {
       return error;
     }
 
     const authError = await this._authorize(req, parsed);
-    if (authError) {
+    if (authError !== null) {
       return authError;
     }
 
+    return await this._executeSyncRequest(parsed);
+  }
+
+  /**
+   * Runs content-type, route, and body-size validation.
+   *
+   * @param {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array | undefined }} req
+   * @returns {{ status: number, headers: Record<string, string>, body: string }|null}
+   * @private
+   */
+  _preflight(req) {
+    const contentTypeError = checkContentType(req.headers);
+    if (contentTypeError !== null) {
+      return contentTypeError;
+    }
+    const routeError = validateRoute(req, this._path, this._host);
+    if (routeError !== null) {
+      return routeError;
+    }
+    return checkBodySize(req.body, this._maxRequestBytes);
+  }
+
+  /**
+   * Forwards the parsed sync request to the graph and wraps errors.
+   *
+   * @param {import('./SyncProtocol.js').SyncRequest} parsed
+   * @returns {Promise<{ status: number, headers: Record<string, string>, body: string }>}
+   * @private
+   */
+  async _executeSyncRequest(parsed) {
     try {
       const response = await this._graph.processSyncRequest(parsed);
       return jsonResponse(response);
     } catch (/** @type {unknown} */ err) {
-      return errorResponse(500, err instanceof Error ? err.message : 'Sync failed');
+      const msg = err instanceof Error ? err.message : 'Sync failed';
+      return errorResponse(500, msg);
     }
   }
 
@@ -344,7 +492,7 @@ export default class HttpSyncServer {
    */
   async listen(port) {
     if (typeof port !== 'number') {
-      throw new Error('listen() requires a numeric port');
+      throw new SyncError('listen() requires a numeric port', { code: 'E_SYNC_PROTOCOL' });
     }
 
     const server = this._httpPort.createServer(
@@ -353,32 +501,8 @@ export default class HttpSyncServer {
     );
     this._server = server;
 
-    await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-      server.listen(port, this._host, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    }));
+    await _waitForListen(server, port, this._host);
 
-    const address = server.address();
-    const actualPort = typeof address === 'object' && address ? address.port : port;
-    const url = `http://${this._host}:${actualPort}${this._path}`;
-
-    return {
-      url,
-      close: () =>
-        /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-          server.close((err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        })),
-    };
+    return _buildListenResult({ server, port, host: this._host, path: this._path });
   }
 }

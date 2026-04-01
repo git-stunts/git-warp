@@ -18,6 +18,7 @@ import { matchGlob } from '../utils/matchGlob.js';
 /** @typedef {import('../../../index.js').WorldlineSource} WorldlineSource */
 
 /**
+ * Clones an observer worldline source descriptor, producing an independent copy.
  * @param {{
  *   kind: 'live',
  *   ceiling?: number|null
@@ -48,31 +49,97 @@ import { matchGlob } from '../utils/matchGlob.js';
  * } | null}
  */
 function cloneObserverSource(source) {
-  if (!source) {
+  if (source === null || source === undefined) {
     return null;
   }
+  return cloneNonNullSource(source);
+}
 
-  if (source.kind === 'live') {
-    return 'ceiling' in source
-      ? { kind: 'live', ceiling: source.ceiling ?? null }
-      : { kind: 'live' };
-  }
+/**
+ * Clones a live source descriptor.
+ * @param {{ ceiling?: number|null }} source
+ * @returns {{ kind: 'live', ceiling?: number|null }}
+ */
+function cloneLiveSource(source) {
+  return 'ceiling' in source
+    ? { kind: 'live', ceiling: source.ceiling ?? null }
+    : { kind: 'live' };
+}
 
-  if (source.kind === 'coordinate') {
-    return {
-      kind: 'coordinate',
-      frontier: source.frontier instanceof Map
-        ? new Map(source.frontier)
-        : { ...source.frontier },
-      ceiling: source.ceiling ?? null,
-    };
-  }
-
+/**
+ * Clones a coordinate source descriptor, deep-copying the frontier.
+ * @param {{ frontier?: Map<string, string>|Record<string, string>, ceiling?: number|null }} source
+ * @returns {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling: number|null }}
+ */
+function cloneCoordinateSource(source) {
   return {
-    kind: 'strand',
-    strandId: source.strandId,
+    kind: 'coordinate',
+    frontier: source.frontier instanceof Map
+      ? new Map(source.frontier)
+      : { .../** @type {Record<string, string>} */ (source.frontier) },
     ceiling: source.ceiling ?? null,
   };
+}
+
+/**
+ * Clones a non-null observer source descriptor.
+ * @param {{
+ *   kind: 'live' | 'coordinate' | 'strand',
+ *   ceiling?: number|null,
+ *   frontier?: Map<string, string>|Record<string, string>,
+ *   strandId?: string
+ * }} source
+ * @returns {{
+ *   kind: 'live',
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'coordinate',
+ *   frontier: Map<string, string>|Record<string, string>,
+ *   ceiling?: number|null
+ * } | {
+ *   kind: 'strand',
+ *   strandId: string,
+ *   ceiling?: number|null
+ * }}
+ */
+function cloneNonNullSource(source) {
+  if (source.kind === 'live') {
+    return cloneLiveSource(source);
+  }
+  if (source.kind === 'coordinate') {
+    return cloneCoordinateSource(source);
+  }
+  return {
+    kind: 'strand',
+    strandId: /** @type {string} */ (source.strandId),
+    ceiling: source.ceiling ?? null,
+  };
+}
+
+/**
+ * Creates a Set from a non-empty string array, or null if empty/undefined.
+ * @param {string[]|undefined} list
+ * @returns {Set<string>|null}
+ */
+function toFilterSet(list) {
+  return Array.isArray(list) && list.length > 0 ? new Set(list) : null;
+}
+
+/**
+ * Checks whether a property key passes the expose/redact filter.
+ * @param {string} key
+ * @param {Set<string>|null} redactSet
+ * @param {Set<string>|null} exposeSet
+ * @returns {boolean}
+ */
+function isKeyVisible(key, redactSet, exposeSet) {
+  if (redactSet !== null && redactSet.has(key)) {
+    return false;
+  }
+  if (exposeSet !== null && !exposeSet.has(key)) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -88,21 +155,15 @@ function cloneObserverSource(source) {
  * @returns {Record<string, unknown>} Filtered properties object
  */
 function filterProps(propsRecord, expose, redact) {
-  const redactSet = redact && redact.length > 0 ? new Set(redact) : null;
-  const exposeSet = expose && expose.length > 0 ? new Set(expose) : null;
+  const redactSet = toFilterSet(redact);
+  const exposeSet = toFilterSet(expose);
 
   /** @type {Record<string, unknown>} */
   const filtered = {};
   for (const [key, value] of Object.entries(propsRecord)) {
-    // Redact takes precedence
-    if (redactSet && redactSet.has(key)) {
-      continue;
+    if (isKeyVisible(key, redactSet, exposeSet)) {
+      filtered[key] = value;
     }
-    // If expose is specified, only include listed keys
-    if (exposeSet && !exposeSet.has(key)) {
-      continue;
-    }
-    filtered[key] = value;
   }
   return filtered;
 }
@@ -124,6 +185,31 @@ function sortNeighbors(list) {
 }
 
 /**
+ * Checks whether both edge endpoints are alive and match the glob pattern.
+ * @param {{ state: import('./JoinReducer.js').WarpStateV5, pattern: string|string[] }} ctx
+ * @param {string} from
+ * @param {string} to
+ * @returns {boolean}
+ */
+function isVisibleEdge(ctx, from, to) {
+  return orsetContains(ctx.state.nodeAlive, from) &&
+    orsetContains(ctx.state.nodeAlive, to) &&
+    matchGlob(ctx.pattern, from) &&
+    matchGlob(ctx.pattern, to);
+}
+
+/**
+ * Pushes a neighbor entry into an adjacency map, creating the list if needed.
+ * @param {Map<string, NeighborEntry[]>} map
+ * @param {string} key
+ * @param {NeighborEntry} entry
+ */
+function pushAdjacencyEntry(map, key, entry) {
+  if (!map.has(key)) { map.set(key, []); }
+  /** @type {NeighborEntry[]} */ (map.get(key)).push(entry);
+}
+
+/**
  * Builds filtered adjacency maps by scanning all edges in the OR-Set.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state
@@ -133,22 +219,17 @@ function sortNeighbors(list) {
 function buildAdjacencyFromEdges(state, pattern) {
   const outgoing = /** @type {Map<string, NeighborEntry[]>} */ (new Map());
   const incoming = /** @type {Map<string, NeighborEntry[]>} */ (new Map());
+  const ctx = { state, pattern };
 
   for (const edgeKey of orsetElements(state.edgeAlive)) {
     const { from, to, label } = decodeEdgeKey(edgeKey);
 
-    if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
-      continue;
-    }
-    if (!matchGlob(pattern, from) || !matchGlob(pattern, to)) {
+    if (!isVisibleEdge(ctx, from, to)) {
       continue;
     }
 
-    if (!outgoing.has(from)) { outgoing.set(from, []); }
-    if (!incoming.has(to)) { incoming.set(to, []); }
-
-    /** @type {NeighborEntry[]} */ (outgoing.get(from)).push({ neighborId: to, label });
-    /** @type {NeighborEntry[]} */ (incoming.get(to)).push({ neighborId: from, label });
+    pushAdjacencyEntry(outgoing, from, { neighborId: to, label });
+    pushAdjacencyEntry(incoming, to, { neighborId: from, label });
   }
 
   for (const list of outgoing.values()) { sortNeighbors(list); }
@@ -220,44 +301,52 @@ export default class Observer {
    * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('./JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
    */
   constructor({ name, config, graph, snapshot, source }) {
-    /** @type {string} */
-    this._name = name ?? 'observer';
-
-    /** @type {string|string[]} */
-    this._matchPattern = Array.isArray(config.match)
-      ? [...config.match]
-      : config.match;
-
-    /** @type {string[]|undefined} */
-    this._expose = config.expose ? [...config.expose] : undefined;
-
-    /** @type {string[]|undefined} */
-    this._redact = config.redact ? [...config.redact] : undefined;
-
-    /** @type {import('../WarpRuntime.js').default|null} */
-    this._graph = graph || null;
-
-    /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
-    this._snapshot = snapshot || null;
-
-    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
-    this._source = cloneObserverSource(source || { kind: 'live' });
-
-    /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
-    this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
-
-    /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
-    this._snapshotAdjacency = null;
+    this._initIdentity(name, config);
+    this._initBacking(graph, snapshot, source);
 
     /**
-     * Cast safety: LogicalTraversal requires the following methods from the
-     * graph-like object it wraps:
-     *   - hasNode(nodeId): Promise<boolean>          (line ~96 in LogicalTraversal)
-     *   - _materializeGraph(): Promise<{adjacency}>  (line ~94 in LogicalTraversal)
-     * Observer implements both: hasNode() at line ~242, _materializeGraph() at line ~214.
+     * Cast safety: LogicalTraversal requires hasNode() and _materializeGraph(),
+     * both of which Observer implements.
+     * @type {LogicalTraversal}
      */
-    /** @type {LogicalTraversal} */
     this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
+  }
+
+  /**
+   * Initializes observer identity and filter configuration.
+   * @param {string} name
+   * @param {{ match: string|string[], expose?: string[], redact?: string[] }} config
+   * @private
+   */
+  _initIdentity(name, config) {
+    /** @type {string} */
+    this._name = name ?? 'observer';
+    /** @type {string|string[]} */
+    this._matchPattern = Array.isArray(config.match) ? [...config.match] : config.match;
+    /** @type {string[]|undefined} */
+    this._expose = config.expose ? [...config.expose] : undefined;
+    /** @type {string[]|undefined} */
+    this._redact = config.redact ? [...config.redact] : undefined;
+  }
+
+  /**
+   * Initializes the backing graph, snapshot, and source state.
+   * @param {import('../WarpRuntime.js').default|undefined} graph
+   * @param {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|undefined} snapshot
+   * @param {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | undefined} source
+   * @private
+   */
+  _initBacking(graph, snapshot, source) {
+    /** @type {import('../WarpRuntime.js').default|null} */
+    this._graph = graph || null;
+    /** @type {{ state: import('./JoinReducer.js').WarpStateV5, stateHash: string }|null} */
+    this._snapshot = snapshot || null;
+    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
+    this._source = cloneObserverSource(source || { kind: 'live' });
+    /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
+    this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
+    /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
+    this._snapshotAdjacency = null;
   }
 
   /**
@@ -300,6 +389,21 @@ export default class Observer {
   }
 
   /**
+   * Builds a config snapshot from the current observer's filter state.
+   * @returns {{ match: string|string[], expose?: string[], redact?: string[] }}
+   * @private
+   */
+  _buildConfigSnapshot() {
+    /** @type {{ match: string|string[], expose?: string[], redact?: string[] }} */
+    const config = {
+      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : this._matchPattern,
+    };
+    if (this._expose) { config.expose = [...this._expose]; }
+    if (this._redact) { config.redact = [...this._redact]; }
+    return config;
+  }
+
+  /**
    * Creates a new observer over the same aperture at a different source.
    *
    * When no explicit source is supplied, seek targets current live truth.
@@ -309,18 +413,12 @@ export default class Observer {
    */
   async seek(options = undefined) {
     const graph = this._requireGraph();
-    const config = {
-      match: Array.isArray(this._matchPattern)
-        ? [...this._matchPattern]
-        : this._matchPattern,
-      ...(this._expose ? { expose: [...this._expose] } : {}),
-      ...(this._redact ? { redact: [...this._redact] } : {}),
-    };
+    const config = this._buildConfigSnapshot();
     /** @type {WorldlineSource|null} */
     const nextSource = options?.source
       ? cloneObserverSource(/** @type {WorldlineSource} */ (options.source))
       : { kind: 'live' };
-    if (!nextSource) {
+    if (nextSource === null) {
       throw new Error('observer seek requires a non-null source');
     }
 

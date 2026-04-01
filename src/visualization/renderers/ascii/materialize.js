@@ -67,8 +67,8 @@ function renderNoOpState(graph) {
   const lines = [
     `  ${colors.success('\u2713')} Already materialized (no new patches)`,
     '',
-    `  ${padRight('Nodes:', STAT_LABEL_WIDTH)} ${formatNumber(graph.nodes || 0)}`,
-    `  ${padRight('Edges:', STAT_LABEL_WIDTH)} ${formatNumber(graph.edges || 0)}`,
+    `  ${padRight('Nodes:', STAT_LABEL_WIDTH)} ${formatNumber(graph.nodes ?? 0)}`,
+    `  ${padRight('Edges:', STAT_LABEL_WIDTH)} ${formatNumber(graph.edges ?? 0)}`,
   ];
   if (typeof graph.properties === 'number') {
     lines.push(`  ${padRight('Properties:', STAT_LABEL_WIDTH)} ${formatNumber(graph.properties)}`);
@@ -83,7 +83,7 @@ function renderNoOpState(graph) {
  */
 function renderEmptyState(graph) {
   const lines = [`  ${colors.muted('Empty graph (0 patches)')}`, ''];
-  if (graph.checkpoint) {
+  if (graph.checkpoint !== undefined && graph.checkpoint !== null && graph.checkpoint !== '') {
     lines.push(`  Checkpoint: ${formatSha(graph.checkpoint)} ${colors.success('\u2713')}`);
   }
   return lines;
@@ -112,19 +112,32 @@ function renderWriterSection(writers) {
 }
 
 /**
+ * Format a single statistic line with bar chart.
+ * @param {string} label - Stat label
+ * @param {number} value - Stat value
+ * @param {number} maxValue - Max value for scaling
+ * @returns {string} Formatted stat line
+ */
+function formatStatLine(label, value, maxValue) {
+  return `  ${padRight(label, STAT_LABEL_WIDTH)} ${statBar(value, maxValue)} ${formatNumber(value)}`;
+}
+
+/**
  * Render statistics section with bar charts.
  * @param {GraphResult} graph - Graph data
  * @param {MaxValues} maxValues - Max values for scaling
  * @returns {string[]} Statistics lines
  */
 function renderStatsSection(graph, { maxNodes, maxEdges, maxProps }) {
+  const nodeCount = graph.nodes ?? 0;
+  const edgeCount = graph.edges ?? 0;
   const lines = [
     `  ${colors.dim('Statistics:')}`,
-    `  ${padRight('Nodes:', STAT_LABEL_WIDTH)} ${statBar(graph.nodes || 0, maxNodes)} ${formatNumber(graph.nodes || 0)}`,
-    `  ${padRight('Edges:', STAT_LABEL_WIDTH)} ${statBar(graph.edges || 0, maxEdges)} ${formatNumber(graph.edges || 0)}`,
+    formatStatLine('Nodes:', nodeCount, maxNodes),
+    formatStatLine('Edges:', edgeCount, maxEdges),
   ];
   if (typeof graph.properties === 'number') {
-    lines.push(`  ${padRight('Properties:', STAT_LABEL_WIDTH)} ${statBar(graph.properties, maxProps)} ${formatNumber(graph.properties)}`);
+    lines.push(formatStatLine('Properties:', graph.properties, maxProps));
   }
   lines.push('');
   return lines;
@@ -136,10 +149,37 @@ function renderStatsSection(graph, { maxNodes, maxEdges, maxProps }) {
  * @returns {string[]} Checkpoint lines
  */
 function renderCheckpointInfo(checkpoint) {
-  if (checkpoint) {
+  if (checkpoint !== null && checkpoint !== undefined && checkpoint !== '') {
     return [`  Checkpoint: ${formatSha(checkpoint)} ${colors.success('\u2713 created')}`];
   }
   return [`  Checkpoint: ${colors.warning('none')}`];
+}
+
+/**
+ * Check whether a graph error string is present and non-empty.
+ * @param {string | undefined} error - Error string from graph result
+ * @returns {error is string} True if error is a non-empty string
+ */
+function hasError(error) {
+  return error !== undefined && error !== null && error !== '';
+}
+
+/**
+ * Detect an early-exit state (error, no-op, or empty) and return its lines.
+ * @param {GraphResult} graph - Graph result from materialize
+ * @returns {string[] | null} Lines if early exit applies, null otherwise
+ */
+function detectEarlyExit(graph) {
+  if (hasError(graph.error)) {
+    return renderErrorState(graph.error);
+  }
+  if (graph.noOp === true) {
+    return renderNoOpState(graph);
+  }
+  if (graph.patchCount === 0) {
+    return renderEmptyState(graph);
+  }
+  return null;
 }
 
 /**
@@ -151,14 +191,9 @@ function renderCheckpointInfo(checkpoint) {
 function renderGraphResult(graph, maxValues) {
   const lines = [...renderGraphHeader(graph.graph)];
 
-  if (graph.error) {
-    return [...lines, ...renderErrorState(graph.error)];
-  }
-  if (graph.noOp) {
-    return [...lines, ...renderNoOpState(graph)];
-  }
-  if (graph.patchCount === 0) {
-    return [...lines, ...renderEmptyState(graph)];
+  const earlyLines = detectEarlyExit(graph);
+  if (earlyLines !== null) {
+    return [...lines, ...earlyLines];
   }
 
   lines.push(...renderWriterSection(graph.writers));
@@ -173,11 +208,11 @@ function renderGraphResult(graph, maxValues) {
  * @returns {MaxValues} Max values object
  */
 function calculateMaxValues(graphs) {
-  const successfulGraphs = graphs.filter((g) => !g.error);
+  const successfulGraphs = graphs.filter((g) => g.error === undefined);
   return {
-    maxNodes: Math.max(...successfulGraphs.map((g) => g.nodes || 0), 1),
-    maxEdges: Math.max(...successfulGraphs.map((g) => g.edges || 0), 1),
-    maxProps: Math.max(...successfulGraphs.map((g) => g.properties || 0), 1),
+    maxNodes: Math.max(...successfulGraphs.map((g) => g.nodes ?? 0), 1),
+    maxEdges: Math.max(...successfulGraphs.map((g) => g.edges ?? 0), 1),
+    maxProps: Math.max(...successfulGraphs.map((g) => g.properties ?? 0), 1),
   };
 }
 
@@ -216,22 +251,11 @@ function getBorderColor(successCount, errorCount) {
 }
 
 /**
- * Render the materialize view dashboard.
- * @param {{ graphs: GraphResult[] }} payload - The materialize command payload
- * @returns {string} Formatted dashboard string
+ * Render the body content for a non-empty set of graph results.
+ * @param {GraphResult[]} graphs - Array of graph results
+ * @returns {string} Box-wrapped dashboard content
  */
-export function renderMaterializeView(payload) {
-  if (!payload || !payload.graphs) {
-    return `${colors.error('No data available')}\n`;
-  }
-
-  const { graphs } = payload;
-
-  if (graphs.length === 0) {
-    const content = colors.muted('No WARP graphs found in this repository.');
-    return `${createBox(content, { title: 'MATERIALIZE', titleAlignment: 'center', borderColor: 'cyan' })}\n`;
-  }
-
+function renderGraphsDashboard(graphs) {
   const maxValues = calculateMaxValues(graphs);
   const lines = [];
   const separator = colors.muted(`  ${'\u2500'.repeat(50)}`);
@@ -243,17 +267,35 @@ export function renderMaterializeView(payload) {
     lines.push(...renderGraphResult(graphs[i], maxValues));
   }
 
-  const successCount = graphs.filter((g) => !g.error).length;
+  const successCount = graphs.filter((g) => g.error === undefined).length;
   const errorCount = graphs.length - successCount;
   lines.push('', buildSummaryLine(successCount, errorCount));
 
-  const box = createBox(lines.join('\n'), {
+  return createBox(lines.join('\n'), {
     title: 'MATERIALIZE',
     titleAlignment: 'center',
     borderColor: getBorderColor(successCount, errorCount),
   });
+}
 
-  return `${box}\n`;
+/**
+ * Render the materialize view dashboard.
+ * @param {{ graphs: GraphResult[] }} payload - The materialize command payload
+ * @returns {string} Formatted dashboard string
+ */
+export function renderMaterializeView(payload) {
+  if (payload === null || payload === undefined || !Array.isArray(payload.graphs)) {
+    return `${colors.error('No data available')}\n`;
+  }
+
+  const { graphs } = payload;
+
+  if (graphs.length === 0) {
+    const content = colors.muted('No WARP graphs found in this repository.');
+    return `${createBox(content, { title: 'MATERIALIZE', titleAlignment: 'center', borderColor: 'cyan' })}\n`;
+  }
+
+  return `${renderGraphsDashboard(graphs)}\n`;
 }
 
 export default { renderMaterializeView };

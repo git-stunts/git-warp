@@ -21,7 +21,7 @@ export const EXIT_CODES = {
  * @returns {string|undefined}
  */
 export function getEnvVar(name) {
-  if (typeof process !== 'undefined' && process.env) {
+  if (typeof process !== 'undefined' && process.env !== null && process.env !== undefined) {
     return process.env[name];
   }
   if (typeof Deno !== 'undefined') {
@@ -196,6 +196,7 @@ Bisect options:
  */
 export class CliError extends Error {
   /**
+   * Constructs a CLI error with a human-readable message and optional metadata.
    * @param {string} message - Human-readable error message
    * @param {{ code?: string, exitCode?: number, cause?: Error }} [options]
    */
@@ -212,12 +213,18 @@ export class CliError extends Error {
   }
 }
 
-/** @param {string} message */
+/**
+ * Creates a CliError tagged as a usage error with exit code USAGE.
+ * @param {string} message
+ */
 export function usageError(message) {
   return new CliError(message, { code: 'E_USAGE', exitCode: EXIT_CODES.USAGE });
 }
 
-/** @param {string} message */
+/**
+ * Creates a CliError tagged as a not-found error with exit code NOT_FOUND.
+ * @param {string} message
+ */
 export function notFoundError(message) {
   return new CliError(message, { code: 'E_NOT_FOUND', exitCode: EXIT_CODES.NOT_FOUND });
 }
@@ -253,7 +260,7 @@ function preprocessView(argv) {
     return argv;
   }
   const next = argv[idx + 1];
-  const needsDefault = !next || next.startsWith('-') || KNOWN_COMMANDS.includes(next);
+  const needsDefault = next === undefined || next === '' || next.startsWith('-') || KNOWN_COMMANDS.includes(next);
   if (needsDefault) {
     return [...argv.slice(0, idx + 1), 'ascii', ...argv.slice(idx + 1)];
   }
@@ -278,7 +285,7 @@ const BASE_BOOL_FLAGS = new Set(['--json', '--ndjson', '--help', '-h']);
  * @returns {boolean}
  */
 function isViewValue(next) {
-  if (!next || next.startsWith('-') || KNOWN_COMMANDS.includes(next)) {
+  if (next === undefined || next === '' || next.startsWith('-') || KNOWN_COMMANDS.includes(next)) {
     return false;
   }
   return true;
@@ -436,5 +443,5 @@ export function parseCommandArgs(args, config, schema, { allowPositionals = fals
     throw usageError(msg);
   }
 
-  return { values: result.data, positionals: parsed.positionals || [] };
+  return { values: result.data, positionals: parsed.positionals.length > 0 ? parsed.positionals : [] };
 }

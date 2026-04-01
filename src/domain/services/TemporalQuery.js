@@ -40,12 +40,32 @@ import { orsetContains } from '../crdt/ORSet.js';
  * @returns {unknown} The unwrapped value
  * @private
  */
+/**
+ * Checks if a value is a non-null object.
+ *
+ * @param {unknown} value - Value to check
+ * @returns {boolean} True if non-null object
+ * @private
+ */
+function isNonNullObject(value) {
+  return value !== null && value !== undefined && typeof value === 'object';
+}
+
+/**
+ * Unwraps a property value from its CRDT envelope.
+ *
+ * InlineValue objects `{ type: 'inline', value: ... }` are unwrapped
+ * to their inner value. All other values pass through unchanged.
+ *
+ * @param {unknown} value - Property value (potentially InlineValue-wrapped)
+ * @returns {unknown} The unwrapped value
+ * @private
+ */
 function unwrapValue(value) {
-  if (value && typeof value === 'object' && 'type' in value) {
+  if (isNonNullObject(value) && 'type' in /** @type {object} */ (value)) {
+    /** @type {Record<string, unknown>} */
     const rec = /** @type {Record<string, unknown>} */ (value);
-    if (rec.type === 'inline') {
-      return rec.value;
-    }
+    return /** @type {unknown} */ (rec.type === 'inline' ? rec.value : value);
   }
   return value;
 }
@@ -132,6 +152,95 @@ function evaluateEventuallyCheckpointBoundary({
 }
 
 /**
+ * Attempts to resume from a checkpoint for temporal replay.
+ *
+ * @param {() => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null>} loadCheckpoint
+ * @param {Array<{patch: {lamport: number, [k: string]: unknown}, sha: string}>} allPatches
+ * @param {number} since
+ * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
+ * @private
+ */
+async function _tryCheckpointStart(loadCheckpoint, allPatches, since) {
+  const ck = /** @type {{ state: import('./JoinReducer.js').WarpStateV5, maxLamport: number } | null} */ (await loadCheckpoint());
+  const usable = ck !== null && ck.maxLamport <= since;
+  if (!usable) {
+    return { state: createEmptyStateV5(), startIdx: 0, checkpointMaxLamport: null };
+  }
+  const idx = allPatches.findIndex(({ patch }) => patch.lamport > ck.maxLamport);
+  const startIdx = idx < 0 ? allPatches.length : idx;
+  return { state: cloneStateV5(ck.state), startIdx, checkpointMaxLamport: ck.maxLamport };
+}
+
+/**
+ * @typedef {{ state: import('./JoinReducer.js').WarpStateV5, allPatches: Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>, startIdx: number, since: number, nodeId: string, predicate: (snapshot: {id: string, exists: boolean, props: Record<string, unknown>}) => boolean }} ReplayParams
+ */
+
+/**
+ * Extracts the lamport timestamp from a patch safely.
+ *
+ * @param {import('../types/WarpTypesV2.js').PatchV2} patch - The patch
+ * @returns {number} The lamport value
+ * @private
+ */
+function patchLamport(patch) {
+  return /** @type {{ lamport: number }} */ (patch).lamport;
+}
+
+/**
+ * Replays patches for the `always` operator, checking the predicate at each tick.
+ *
+ * @param {ReplayParams & { nodeEverExisted: boolean }} opts
+ * @returns {boolean} True if predicate held at every tick
+ * @private
+ */
+function _replayAlways(opts) {
+  const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
+  let seen = opts.nodeEverExisted;
+  for (let i = startIdx; i < allPatches.length; i++) {
+    const { patch, sha } = allPatches[i];
+    joinPatch(state, patch, sha);
+
+    if (patchLamport(patch) < since) {
+      continue;
+    }
+
+    const snapshot = extractNodeSnapshot(state, nodeId);
+    if (snapshot.exists) {
+      seen = true;
+      if (!predicate(snapshot)) {
+        return false;
+      }
+    }
+  }
+  return seen;
+}
+
+/**
+ * Replays patches for the `eventually` operator, short-circuiting on first match.
+ *
+ * @param {ReplayParams} opts
+ * @returns {boolean} True if predicate held at any tick
+ * @private
+ */
+function _replayEventually(opts) {
+  const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
+  for (let i = startIdx; i < allPatches.length; i++) {
+    const { patch, sha } = allPatches[i];
+    joinPatch(state, patch, sha);
+
+    if (patchLamport(patch) < since) {
+      continue;
+    }
+
+    const snapshot = extractNodeSnapshot(state, nodeId);
+    if (snapshot.exists && predicate(snapshot)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * TemporalQuery provides temporal logic operators over graph history.
  *
  * Constructed by WarpRuntime and exposed via `graph.temporal`.
@@ -139,6 +248,8 @@ function evaluateEventuallyCheckpointBoundary({
  */
 export class TemporalQuery {
   /**
+   * Creates a TemporalQuery with patch-loading and optional checkpoint functions.
+   *
    * @param {{ loadAllPatches: () => Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>, loadCheckpoint?: () => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null> }} options
    */
   constructor({ loadAllPatches, loadCheckpoint }) {
@@ -176,36 +287,13 @@ export class TemporalQuery {
 
     const { state, startIdx, checkpointMaxLamport } = await this._resolveStart(allPatches, since);
     const boundary = evaluateAlwaysCheckpointBoundary({
-      state,
-      nodeId,
-      predicate,
-      checkpointMaxLamport,
-      since,
+      state, nodeId, predicate, checkpointMaxLamport, since,
     });
     if (boundary.shouldReturn) {
       return boundary.returnValue;
     }
-    let { nodeEverExisted } = boundary;
 
-    for (let i = startIdx; i < allPatches.length; i++) {
-      const { patch, sha } = allPatches[i];
-      joinPatch(state, patch, sha);
-
-      if (patch.lamport < since) {
-        continue;
-      }
-
-      const snapshot = extractNodeSnapshot(state, nodeId);
-
-      if (snapshot.exists) {
-        nodeEverExisted = true;
-        if (!predicate(snapshot)) {
-          return false;
-        }
-      }
-    }
-
-    return nodeEverExisted;
+    return _replayAlways({ state, allPatches, startIdx, since, nodeId, predicate, nodeEverExisted: boundary.nodeEverExisted });
   }
 
   /**
@@ -235,31 +323,12 @@ export class TemporalQuery {
     const { state, startIdx, checkpointMaxLamport } = await this._resolveStart(allPatches, since);
 
     if (evaluateEventuallyCheckpointBoundary({
-      state,
-      nodeId,
-      predicate,
-      checkpointMaxLamport,
-      since,
+      state, nodeId, predicate, checkpointMaxLamport, since,
     })) {
       return true;
     }
 
-    for (let i = startIdx; i < allPatches.length; i++) {
-      const { patch, sha } = allPatches[i];
-      joinPatch(state, patch, sha);
-
-      if (patch.lamport < since) {
-        continue;
-      }
-
-      const snapshot = extractNodeSnapshot(state, nodeId);
-
-      if (snapshot.exists && predicate(snapshot)) {
-        return true;
-      }
-    }
-
-    return false;
+    return _replayEventually({ state, allPatches, startIdx, since, nodeId, predicate });
   }
 
   /**
@@ -285,16 +354,8 @@ export class TemporalQuery {
    * @private
    */
   async _resolveStart(allPatches, since) {
-    if (since > 0 && this._loadCheckpoint) {
-      const ck = /** @type {{ state: import('./JoinReducer.js').WarpStateV5, maxLamport: number } | null} */ (await this._loadCheckpoint());
-      if (ck && ck.state && ck.maxLamport <= since) {
-        const idx = allPatches.findIndex(
-          ({ patch }) => patch.lamport > ck.maxLamport,
-        );
-        const startIdx = idx < 0 ? allPatches.length : idx;
-        // Replay mutates state in-place; isolate checkpoint provider caches from query runs.
-        return { state: cloneStateV5(ck.state), startIdx, checkpointMaxLamport: ck.maxLamport };
-      }
+    if (since > 0 && this._loadCheckpoint !== null) {
+      return await _tryCheckpointStart(this._loadCheckpoint, allPatches, since);
     }
     return { state: createEmptyStateV5(), startIdx: 0, checkpointMaxLamport: null };
   }

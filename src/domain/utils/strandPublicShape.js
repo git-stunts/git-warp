@@ -21,14 +21,25 @@ const TO_INTERNAL_KIND = new Map([
 ]);
 
 /**
+ * Returns true if a value is a primitive, null, or a non-plain-object type that
+ * should not be recursively transformed.
  * @param {unknown} value
  * @returns {boolean}
  */
 function isNonTransformable(value) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return true;
+  }
+  return isKnownNonPlainObject(value);
+}
+
+/**
+ * Returns true if an object is a known non-plain-object type.
+ * @param {object} value
+ * @returns {boolean}
+ */
+function isKnownNonPlainObject(value) {
   return (
-    value === null ||
-    value === undefined ||
-    typeof value !== 'object' ||
     value instanceof Map ||
     value instanceof Set ||
     value instanceof Uint8Array ||
@@ -38,6 +49,7 @@ function isNonTransformable(value) {
 }
 
 /**
+ * Replaces a kind/coordinateKind string value using the provided mapping.
  * @param {string} key
  * @param {unknown} entry
  * @param {Map<string, string>} kindMap
@@ -51,6 +63,7 @@ function maybeTransformKindEntry(key, entry, kindMap) {
 }
 
 /**
+ * Recursively transforms object keys and kind values using the provided mappings.
  * @param {unknown} value
  * @param {Map<string, string>} keyMap
  * @param {Map<string, string>} kindMap

@@ -126,23 +126,30 @@ export function lwwSet(eventId, value) {
  * @returns {LWWRegister<T> | null} Register with greater EventId, or null if both null/undefined
  */
 export function lwwMax(a, b) {
-  // Null/undefined values are handled defensively for forward compatibility.
-  // Current callers always provide non-null values, but the LWW register
-  // contract permits null as a valid tombstone value.
-  if ((a === null || a === undefined) && (b === null || b === undefined)) {
-    return null;
+  const resolvedA = lwwCoalesce(a);
+  const resolvedB = lwwCoalesce(b);
+
+  if (resolvedA === null) {
+    return resolvedB;
   }
-  if (a === null || a === undefined) {
-    return /** @type {LWWRegister<T>} */ (b);
-  }
-  if (b === null || b === undefined) {
-    return a;
+  if (resolvedB === null) {
+    return resolvedA;
   }
 
   // Compare EventIds - return the one with greater EventId
   // On equal EventIds, return first argument (deterministic)
-  const cmp = compareEventIds(a.eventId, b.eventId);
-  return cmp >= 0 ? a : b;
+  const cmp = compareEventIds(resolvedA.eventId, resolvedB.eventId);
+  return cmp >= 0 ? resolvedA : resolvedB;
+}
+
+/**
+ * Normalizes a nullable/undefined register to either a valid register or null.
+ * @template T
+ * @param {LWWRegister<T> | null | undefined} reg
+ * @returns {LWWRegister<T> | null}
+ */
+function lwwCoalesce(reg) {
+  return reg !== null && reg !== undefined ? reg : null;
 }
 
 /**

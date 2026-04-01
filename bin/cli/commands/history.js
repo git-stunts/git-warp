@@ -10,27 +10,65 @@ const HISTORY_OPTIONS = {
   node: { type: 'string' },
 };
 
-/** @param {string[]} args */
+/**
+ * Parses --node filter from history command arguments.
+ * @param {string[]} args
+ */
 function parseHistoryArgs(args) {
   const { values } = parseCommandArgs(args, HISTORY_OPTIONS, historySchema);
   return { node: values.node ?? null };
 }
 
 /**
+ * Returns true if a single op references the given nodeId.
+ * @param {{node?: string, from?: string, to?: string}} op
+ * @param {string} nodeId
+ * @returns {boolean}
+ */
+function opReferencesNode(op, nodeId) {
+  return op.node === nodeId || op.from === nodeId || op.to === nodeId;
+}
+
+/**
+ * Checks whether any operation in the patch references the given nodeId.
  * @param {{ops?: Array<{node?: string, from?: string, to?: string}>}} patch
  * @param {string} nodeId
  */
 function patchTouchesNode(patch, nodeId) {
   const ops = Array.isArray(patch?.ops) ? patch.ops : [];
-  for (const op of ops) {
-    if (op.node === nodeId) {
-      return true;
-    }
-    if (op.from === nodeId || op.to === nodeId) {
-      return true;
-    }
+  return ops.some((op) => opReferencesNode(op, nodeId));
+}
+
+/**
+ * Throws a not-found error when no patches exist for the given writer.
+ * @param {string} writerId
+ * @param {string[]} knownWriters
+ */
+function throwNoPatchesError(writerId, knownWriters) {
+  if (knownWriters.length > 0) {
+    throw notFoundError(
+      `No patches found for writer: ${writerId}\nKnown writers: ${knownWriters.join(', ')}\nUse: warp-graph history --writer <id>`
+    );
   }
-  return false;
+  throw notFoundError(`No patches found for writer: ${writerId}`);
+}
+
+/**
+ * Formats raw patch entries into output-ready history entries.
+ * @param {PatchEntry[]} patches
+ * @param {string|null} nodeFilter
+ * @returns {Array<{sha: string, schema: number|undefined, lamport: number, opCount: number, opSummary: string|undefined}>}
+ */
+function formatEntries(patches, nodeFilter) {
+  return patches
+    .filter((/** @type {PatchEntry} */ { patch }) => nodeFilter === null || patchTouchesNode(patch, nodeFilter))
+    .map((/** @type {PatchEntry} */ { patch, sha }) => ({
+      sha,
+      schema: patch.schema,
+      lamport: patch.lamport,
+      opCount: Array.isArray(patch.ops) ? patch.ops.length : 0,
+      opSummary: Array.isArray(patch.ops) ? summarizeOps(patch.ops) : undefined,
+    }));
 }
 
 /**
@@ -50,31 +88,10 @@ export default async function handleHistory({ options, args }) {
     patches = patches.filter((/** @type {PatchEntry} */ { patch }) => patch.lamport <= /** @type {number} */ (cursorInfo.tick));
   }
   if (patches.length === 0) {
-    const knownWriters = await graph.discoverWriters();
-    if (knownWriters.length > 0) {
-      throw notFoundError(
-        `No patches found for writer: ${writerId}\nKnown writers: ${knownWriters.join(', ')}\nUse: warp-graph history --writer <id>`
-      );
-    }
-    throw notFoundError(`No patches found for writer: ${writerId}`);
+    throwNoPatchesError(writerId, await graph.discoverWriters());
   }
 
-  const entries = patches
-    .filter((/** @type {PatchEntry} */ { patch }) => !historyOptions.node || patchTouchesNode(patch, historyOptions.node))
-    .map((/** @type {PatchEntry} */ { patch, sha }) => ({
-      sha,
-      schema: patch.schema,
-      lamport: patch.lamport,
-      opCount: Array.isArray(patch.ops) ? patch.ops.length : 0,
-      opSummary: Array.isArray(patch.ops) ? summarizeOps(patch.ops) : undefined,
-    }));
-
-  const payload = {
-    graph: graphName,
-    writer: writerId,
-    nodeFilter: historyOptions.node,
-    entries,
-  };
-
+  const entries = formatEntries(patches, historyOptions.node);
+  const payload = { graph: graphName, writer: writerId, nodeFilter: historyOptions.node, entries };
   return { payload, exitCode: EXIT_CODES.OK };
 }

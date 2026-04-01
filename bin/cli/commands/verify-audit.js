@@ -13,7 +13,7 @@ import { createPersistence, resolveGraphName } from '../shared.js';
  */
 function detectTrustWarning() {
   const sources = [];
-  if (getEnvVar('WARP_TRUSTED_ROOT')) {
+  if (typeof getEnvVar('WARP_TRUSTED_ROOT') === 'string' && getEnvVar('WARP_TRUSTED_ROOT').length > 0) {
     sources.push('env');
   }
   if (sources.length === 0) {
@@ -33,7 +33,10 @@ const VERIFY_AUDIT_OPTIONS = {
   'trust-pin': { type: 'string' },
 };
 
-/** @param {string[]} args */
+/**
+ * Parses verify-audit command arguments via Zod schema validation.
+ * @param {string[]} args
+ */
 export function parseVerifyAuditArgs(args) {
   const { values } = parseCommandArgs(args, VERIFY_AUDIT_OPTIONS, verifyAuditSchema);
   return {
@@ -45,6 +48,7 @@ export function parseVerifyAuditArgs(args) {
 }
 
 /**
+ * Handles the verify-audit command: verifies audit receipt chain integrity.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

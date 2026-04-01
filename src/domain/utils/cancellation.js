@@ -7,6 +7,15 @@
 import OperationAbortedError from '../errors/OperationAbortedError.js';
 
 /**
+ * Resolves an optional operation name to a non-empty string.
+ * @param {string} [operation]
+ * @returns {string}
+ */
+function resolveOperationName(operation) {
+  return typeof operation === 'string' && operation.length > 0 ? operation : 'unknown';
+}
+
+/**
  * Checks if an abort signal has been aborted and throws if so.
  *
  * @param {AbortSignal} [signal] - The abort signal to check
@@ -14,8 +23,9 @@ import OperationAbortedError from '../errors/OperationAbortedError.js';
  * @throws {OperationAbortedError} If signal is aborted
  */
 export function checkAborted(signal, operation) {
-  if (signal?.aborted) {
-    throw new OperationAbortedError(operation || 'unknown', { context: { operation } });
+  if (signal !== null && signal !== undefined && signal.aborted) {
+    const opName = resolveOperationName(operation);
+    throw new OperationAbortedError(opName, { context: { operation: opName } });
   }
 }
 

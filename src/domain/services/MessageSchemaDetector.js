@@ -66,7 +66,7 @@ export function detectSchemaVersion(ops) {
     return SCHEMA_V2;
   }
   for (const op of ops) {
-    if (!op || typeof op !== 'object') {
+    if (op === null || op === undefined || typeof op !== 'object') {
       continue;
     }
     // Canonical EdgePropSet always implies schema 3
@@ -114,7 +114,7 @@ export function assertOpsCompatible(ops, maxSchema) {
     return;
   }
   for (const op of ops) {
-    if (!op || typeof op !== 'object') {
+    if (op === null || op === undefined || typeof op !== 'object') {
       continue;
     }
     if (
@@ -160,9 +160,14 @@ export function detectMessageKind(message) {
   }
 
   try {
-    const codec = getCodec();
+    /** @type {{ decode: (msg: string) => { trailers: Record<string, string> } }} */
+    const codec = /** @type {{ decode: (msg: string) => { trailers: Record<string, string> } }} */ (
+      /** @type {unknown} */ (getCodec())
+    );
     const decoded = codec.decode(message);
-    const kind = decoded.trailers[TRAILER_KEYS.kind];
+    const trailerKey = /** @type {string} */ (TRAILER_KEYS.kind);
+    /** @type {string|undefined} */
+    const kind = decoded.trailers[trailerKey];
 
     if (kind === 'patch' || kind === 'checkpoint' || kind === 'anchor' || kind === 'audit') {
       return kind;

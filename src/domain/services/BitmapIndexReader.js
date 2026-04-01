@@ -117,11 +117,7 @@ export default class BitmapIndexReader {
    * @param {{ storage: IndexStoragePort, strict?: boolean, logger?: import('../../ports/LoggerPort.js').default, maxCachedShards?: number, crypto?: import('../../ports/CryptoPort.js').default }} options
    */
   constructor({ storage, strict = true, logger = nullLogger, maxCachedShards = DEFAULT_MAX_CACHED_SHARDS, crypto }) {
-    if (storage === null || storage === undefined) {
-      throw new IndexError('BitmapIndexReader requires a storage adapter', {
-        code: 'E_INDEX_STORAGE_REQUIRED',
-      });
-    }
+    BitmapIndexReader._assertStorage(storage);
     this.storage = /** @type {IndexStorage} */ (storage);
     this.strict = strict;
     this.logger = logger;
@@ -134,6 +130,20 @@ export default class BitmapIndexReader {
     this.loadedShards = new LRUCache(maxCachedShards);
     /** @type {string[]|null} */
     this._idToShaCache = null; // Lazy-built reverse mapping
+  }
+
+  /**
+   * Validates that a storage adapter was provided.
+   * @param {IndexStoragePort|null|undefined} storage
+   * @throws {IndexError} If storage is null or undefined
+   * @private
+   */
+  static _assertStorage(storage) {
+    if (storage === null || storage === undefined) {
+      throw new IndexError('BitmapIndexReader requires a storage adapter', {
+        code: 'E_INDEX_STORAGE_REQUIRED',
+      });
+    }
   }
 
   /**
@@ -281,6 +291,7 @@ export default class BitmapIndexReader {
     if (this._idToShaCache !== null) {
       return this._idToShaCache;
     }
+    /** @type {string[]} */
     const idToShaCache = [];
     this._idToShaCache = idToShaCache;
     await this._populateIdToShaCache(idToShaCache);
@@ -339,7 +350,7 @@ export default class BitmapIndexReader {
     this._assertShardEnvelopeObject(envelope, path, oid);
     const data = this._getShardEnvelopeData(envelope, path, oid);
     const version = this._getShardEnvelopeVersion(envelope, path);
-    await this._assertShardChecksum(data, version, envelope.checksum, path);
+    await this._assertShardChecksum({ data, version, expectedChecksum: envelope.checksum, path });
     return data;
   }
 
@@ -403,14 +414,11 @@ export default class BitmapIndexReader {
 
   /**
    * Verifies the stored shard checksum against the recomputed checksum.
-   * @param {JsonShard} data
-   * @param {number} version
-   * @param {string | undefined} expectedChecksum
-   * @param {string} path
+   * @param {{ data: JsonShard, version: number, expectedChecksum: string | undefined, path: string }} opts
    * @returns {Promise<void>}
    * @private
    */
-  async _assertShardChecksum(data, version, expectedChecksum, path) {
+  async _assertShardChecksum({ data, version, expectedChecksum, path }) {
     const actualChecksum = await computeChecksum(data, version, this._crypto);
     if (expectedChecksum !== actualChecksum) {
       throw new ShardValidationError('Checksum mismatch', {
@@ -484,9 +492,9 @@ export default class BitmapIndexReader {
    * @private
    */
   async _parseAndValidateShard(buffer, path, oid) {
-    const envelope = /** @type {{ data?: JsonShard, version?: number, checksum?: string }} */ (
-      /** @type {unknown} */ (JSON.parse(new TextDecoder().decode(buffer)))
-    );
+    /** @type {unknown} */
+    const parsed = JSON.parse(new TextDecoder().decode(buffer));
+    const envelope = /** @type {{ data?: JsonShard, version?: number, checksum?: string }} */ (parsed);
     return await this._validateShard(envelope, path, oid);
   }
 

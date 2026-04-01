@@ -73,6 +73,7 @@ export function serializeFrontier(frontier, { codec } = /** @type {{codec?: impo
 export function deserializeFrontier(buffer, { codec } = /** @type {{codec?: import('../../ports/CodecPort.js').default}} */ ({})) {
   const c = codec || defaultCodec;
   const obj = /** @type {Record<string, string>} */ (c.decode(buffer));
+  /** @type {Frontier} */
   const frontier = new Map();
   for (const [writerId, patchSha] of Object.entries(obj)) {
     frontier.set(writerId, patchSha);

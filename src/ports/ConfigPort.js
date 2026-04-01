@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for Git config operations.
  *
@@ -12,10 +14,10 @@ export default class ConfigPort {
    * Reads a git config value.
    * @param {string} _key - The config key to read (e.g., 'warp.writerId.events')
    * @returns {Promise<string|null>} The config value, or null if not set
-   * @throws {Error} If not implemented by a concrete adapter
+   * @throws {WarpError} If not implemented by a concrete adapter
    */
   async configGet(_key) {
-    throw new Error('ConfigPort.configGet() not implemented');
+    throw new WarpError('ConfigPort.configGet() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -23,9 +25,9 @@ export default class ConfigPort {
    * @param {string} _key - The config key to set (e.g., 'warp.writerId.events')
    * @param {string} _value - The value to set
    * @returns {Promise<void>}
-   * @throws {Error} If not implemented by a concrete adapter
+   * @throws {WarpError} If not implemented by a concrete adapter
    */
   async configSet(_key, _value) {
-    throw new Error('ConfigPort.configSet() not implemented');
+    throw new WarpError('ConfigPort.configSet() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

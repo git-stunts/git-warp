@@ -15,6 +15,7 @@ const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
 const SET_MUTATORS = new Set(['add', 'delete', 'clear']);
 
 /**
+ * Build a TypeError for attempts to mutate a read-only collection snapshot.
  * @param {'Map'|'Set'} kind
  * @param {string} method
  * @returns {TypeError}
@@ -24,6 +25,7 @@ function createReadonlyMutationError(kind, method) {
 }
 
 /**
+ * Wrap a Map or Set in a Proxy that throws on any mutation attempt.
  * @template {Map<unknown, unknown>|Set<unknown>} T
  * @param {T} target
  * @param {Set<string>} mutators
@@ -39,8 +41,8 @@ function createReadonlyCollectionProxy(target, mutators, kind) {
         };
       }
 
-      const value = Reflect.get(innerTarget, prop, innerTarget);
-      return typeof value === 'function' ? value.bind(innerTarget) : value;
+      const val = /** @type {unknown} */ (Reflect.get(innerTarget, prop, innerTarget));
+      return /** @type {unknown} */ (typeof val === 'function' ? /** @type {Function} */ (val).bind(innerTarget) : val);
     },
     set() {
       throw createReadonlyMutationError(kind, 'set');
@@ -57,6 +59,7 @@ function createReadonlyCollectionProxy(target, mutators, kind) {
 }
 
 /**
+ * Deep-clone a Map into a read-only snapshot with immutable entries.
  * @template T
  * @param {Map<unknown, unknown>} value
  * @param {WeakMap<object, unknown>} seen
@@ -76,6 +79,7 @@ function cloneImmutableMap(value, seen) {
 }
 
 /**
+ * Deep-clone a Set into a read-only snapshot with immutable entries.
  * @template T
  * @param {Set<unknown>} value
  * @param {WeakMap<object, unknown>} seen
@@ -92,6 +96,7 @@ function cloneImmutableSet(value, seen) {
 }
 
 /**
+ * Deep-clone an array into a frozen snapshot with immutable entries.
  * @template T
  * @param {unknown[]} value
  * @param {WeakMap<object, unknown>} seen
@@ -107,46 +112,45 @@ function cloneImmutableArray(value, seen) {
 }
 
 /**
+ * Deep-clone a plain object into a frozen snapshot with immutable properties.
  * @template T
  * @param {object} value
  * @param {WeakMap<object, unknown>} seen
  * @returns {T}
  */
 function cloneImmutableObject(value, seen) {
-  const cloned = Object.create(Object.getPrototypeOf(value) || Object.prototype);
+  /** @type {unknown} */
+  const rawProto = Object.getPrototypeOf(value);
+  const proto = /** @type {object | null} */ (rawProto);
+  /** @type {unknown} */
+  const rawCloned = Object.create(proto ?? Object.prototype);
+  const cloned = /** @type {Record<string | symbol, unknown>} */ (rawCloned);
   seen.set(value, cloned);
 
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (!descriptor) {
+    if (descriptor === undefined) {
       continue;
     }
 
     if ('value' in descriptor) {
-      descriptor.value = cloneImmutableValue(descriptor.value, seen);
+      /** @type {PropertyDescriptor} */ (descriptor).value = cloneImmutableValue(/** @type {unknown} */ (descriptor.value), seen);
     }
 
     Object.defineProperty(cloned, key, descriptor);
   }
 
-  return /** @type {T} */ (Object.freeze(cloned));
+  return /** @type {T} */ (/** @type {unknown} */ (Object.freeze(cloned)));
 }
 
 /**
+ * Dispatch an object value to the appropriate collection-specific cloner.
  * @template T
- * @param {T} value
- * @param {WeakMap<object, unknown>} seen
+ * @param {T & object} value - Non-null object value
+ * @param {WeakMap<object, unknown>} seen - Cycle-detection cache
  * @returns {T}
  */
-function cloneImmutableValue(value, seen) {
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  if (seen.has(value)) {
-    return /** @type {T} */ (seen.get(value));
-  }
-
+function cloneImmutableObjectValue(value, seen) {
   if (value instanceof Map) {
     return cloneImmutableMap(value, seen);
   }
@@ -163,6 +167,26 @@ function cloneImmutableValue(value, seen) {
 }
 
 /**
+ * Recursively clone a value into a deeply frozen immutable snapshot.
+ * @template T
+ * @param {T} value
+ * @param {WeakMap<object, unknown>} seen
+ * @returns {T}
+ */
+function cloneImmutableValue(value, seen) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return /** @type {T} */ (seen.get(value));
+  }
+
+  return cloneImmutableObjectValue(value, seen);
+}
+
+/**
+ * Create a deeply frozen immutable clone of the given value.
  * @template T
  * @param {T} value
  * @returns {T}
@@ -172,6 +196,7 @@ export function createImmutableValue(value) {
 }
 
 /**
+ * Create a deeply frozen immutable clone of a WarpStateV5 instance.
  * @param {WarpStateV5} state
  * @returns {WarpStateV5}
  */

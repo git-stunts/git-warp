@@ -1,4 +1,5 @@
 import CryptoPort from '../../ports/CryptoPort.js';
+import WarpError from '../../domain/errors/WarpError.js';
 
 /**
  * Map of common algorithm names to Web Crypto API algorithm identifiers.
@@ -23,8 +24,8 @@ const ALGO_MAP = /** @type {Record<string, string>} */ ({
  */
 function toWebCryptoAlgo(algorithm) {
   const mapped = ALGO_MAP[algorithm.toLowerCase()];
-  if (!mapped) {
-    throw new Error(`WebCryptoAdapter: unsupported algorithm "${algorithm}"`);
+  if (mapped === undefined || mapped === '') {
+    throw new WarpError(`WebCryptoAdapter: unsupported algorithm "${algorithm}"`, 'E_UNSUPPORTED_ALGORITHM');
   }
   return mapped;
 }
@@ -42,7 +43,7 @@ function toUint8Array(data) {
     const buf = /** @type {Buffer} */ (data);
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
-  throw new Error('WebCryptoAdapter: data must be string, Buffer, or Uint8Array');
+  throw new WarpError('WebCryptoAdapter: data must be string, Buffer, or Uint8Array', 'E_INVALID_DATA');
 }
 
 /**
@@ -79,6 +80,7 @@ export default class WebCryptoAdapter extends CryptoPort {
   }
 
   /**
+   * Computes a hex-encoded digest of the given data using the specified hash algorithm.
    * @param {string} algorithm
    * @param {string|Uint8Array} data
    * @returns {Promise<string>}
@@ -92,6 +94,7 @@ export default class WebCryptoAdapter extends CryptoPort {
   }
 
   /**
+   * Computes an HMAC signature for the given data using the specified algorithm and key.
    * @param {string} algorithm
    * @param {string|Uint8Array} key
    * @param {string|Uint8Array} data

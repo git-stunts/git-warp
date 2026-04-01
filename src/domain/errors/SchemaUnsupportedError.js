@@ -12,6 +12,7 @@ import WarpError from './WarpError.js';
  */
 export default class SchemaUnsupportedError extends WarpError {
   /**
+   * Creates a SchemaUnsupportedError with an optional context object.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */
