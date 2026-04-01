@@ -1,5 +1,8 @@
 # ROADMAP — @git-stunts/git-warp
 
+> **MIGRATED:** All incomplete items have been migrated to individual files in `BACKLOG/`.
+> Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
+
 > **Current release on `main`:** v16.0.0
 > **Next intended release:** v16.0.1
 > **Last reconciled:** 2026-03-29 (v16.0.0 release. OG-014 streaming CAS blob storage, OG-015 JSR docs, deprecated TraversalService and createWriter removed.)

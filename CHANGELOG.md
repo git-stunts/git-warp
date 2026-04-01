@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Backlog restructured** — migrated all incomplete ROADMAP items to individual `BACKLOG/B{number}.md` files. Dropped milestone structure in favor of flat backlog. Completed OG-items moved to `BACKLOG/done/`. `docs/ROADMAP.md` retained for reference with migration notice.
+
 - **Zero-error TypeScript campaign complete** — eliminated all 1,707 `tsc --noEmit` errors across 271 files. Mechanical TS4111 bracket-access sweep (614), null guards for `noUncheckedIndexedAccess`, conditional spreads for `exactOptionalPropertyTypes`, unused variable removal. All 8 pre-push IRONCLAD gates now pass.
 - **JoinReducer OpStrategy registry** — replaced five triplicated switch statements over 8 canonical op types with a frozen `Map<string, OpStrategy>` registry. Each strategy defines `mutate`, `outcome`, `snapshot`, `accumulate`, `validate`. Adding a new op type without all five methods is a hard error at module load time. Cross-path equivalence tests verify `applyFast`, `applyWithReceipt`, and `applyWithDiff` produce identical CRDT state.
 - **ESLint `dot-notation` disabled** — conflicts with `noPropertyAccessFromIndexSignature` tsconfig flag. The TypeScript flag provides type safety; the ESLint rule is purely stylistic.
