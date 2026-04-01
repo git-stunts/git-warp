@@ -35,7 +35,7 @@ import { detectMessageKind, decodePatchMessage } from './WarpMessageCodec.js';
  * @private
  */
 function validateSha(sha, paramName) {
-  if (!sha || typeof sha !== 'string') {
+  if (sha === null || sha === undefined || typeof sha !== 'string') {
     throw new WormholeError(`${paramName} is required and must be a string`, {
       code: 'E_WORMHOLE_SHA_NOT_FOUND',
       context: { [paramName]: sha },
@@ -98,10 +98,10 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     });
   }
 
-  /** @type {Uint8Array} */
+  /** @type {Uint8Array|null} */
   let patchBuffer;
   if (patchMeta.encrypted) {
-    if (!patchBlobStorage) {
+    if (patchBlobStorage === undefined || patchBlobStorage === null) {
       throw new EncryptionError(
         'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
       );
@@ -110,7 +110,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
   } else {
     patchBuffer = await persistence.readBlob(patchMeta.patchOid);
   }
-  if (!patchBuffer) {
+  if (patchBuffer === null || patchBuffer === undefined) {
     throw new PersistenceError(
       `Patch blob not found: ${patchMeta.patchOid}`,
       PersistenceError.E_MISSING_OBJECT,
@@ -123,7 +123,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     patch,
     sha,
     writerId: patchMeta.writer,
-    parentSha: parents && parents.length > 0 ? (parents[0] ?? null) : null,
+    parentSha: parents.length > 0 ? parents[0] : null,
   };
 }
 
@@ -165,12 +165,12 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
   await verifyShaExists(persistence, fromSha, 'fromSha');
   await verifyShaExists(persistence, toSha, 'toSha');
 
-  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
+  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage });
 
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
 
-  const writerId = patches.length > 0 ? (patches[0]?.writerId ?? '') : '';
+  const writerId = patches.length > 0 ? patches[0].writerId : /** @type {string} */ ('');
   // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
   const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
 
@@ -194,7 +194,7 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
   let writerId = null;
 
   while (currentSha) {
-    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
+    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec, patchBlobStorage });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 
@@ -202,7 +202,7 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
       break;
     }
 
-    if (!result.parentSha) {
+    if (result.parentSha === null || result.parentSha === undefined) {
       throw new WormholeError(`'${fromSha}' is not an ancestor of '${toSha}'`, {
         code: 'E_WORMHOLE_INVALID_RANGE',
         context: { fromSha, toSha },
@@ -255,8 +255,7 @@ export async function composeWormholes(first, second, options = {}) {
 
   // If persistence is provided, validate that wormholes are consecutive
   if (options.persistence) {
-    const secondFirstInfo = await options.persistence.getNodeInfo(second.fromSha);
-    const parents = secondFirstInfo.parents || [];
+    const { parents } = await options.persistence.getNodeInfo(second.fromSha);
 
     if (!parents.includes(first.toSha)) {
       throw new WormholeError('Wormholes are not consecutive', {
@@ -320,14 +319,7 @@ export function serializeWormhole(wormhole) {
  * @throws {WormholeError} If the JSON structure is invalid
  */
 export function deserializeWormhole(json) {
-  // Validate required fields
-  if (!json || typeof json !== 'object') {
-    throw new WormholeError('Invalid wormhole JSON: expected object', {
-      code: 'E_INVALID_WORMHOLE_JSON',
-    });
-  }
-
-  const /** @type {Record<string, unknown>} */ typedJson = /** @type {Record<string, unknown>} */ (json);
+  const typedJson = json;
   const requiredFields = ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload'];
   for (const field of requiredFields) {
     if (typedJson[field] === undefined) {
@@ -347,22 +339,19 @@ export function deserializeWormhole(json) {
     }
   }
 
-  const asParsed = /** @type {{ patchCount: unknown, fromSha: unknown, toSha: unknown, writerId: unknown, payload: unknown }} */ (/** @type {unknown} */ (typedJson));
-  if (typeof asParsed.patchCount !== 'number' || asParsed.patchCount < 0) {
+  if (typeof typedJson.patchCount !== 'number' || typedJson.patchCount < 0) {
     throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
       code: 'E_INVALID_WORMHOLE_JSON',
-      context: { patchCount: asParsed.patchCount },
+      context: { patchCount: typedJson.patchCount },
     });
   }
 
-  // After validation, narrow to the concrete shape
-  const validated = /** @type {{ fromSha: string, toSha: string, writerId: string, patchCount: number, payload: unknown }} */ (/** @type {unknown} */ (asParsed));
   return {
-    fromSha: validated.fromSha,
-    toSha: validated.toSha,
-    writerId: validated.writerId,
-    patchCount: validated.patchCount,
-    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (validated.payload)),
+    fromSha: /** @type {string} */ (typedJson.fromSha),
+    toSha: /** @type {string} */ (typedJson.toSha),
+    writerId: /** @type {string} */ (typedJson.writerId),
+    patchCount: /** @type {number} */ (typedJson.patchCount),
+    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (typedJson.payload)),
   };
 }
 
