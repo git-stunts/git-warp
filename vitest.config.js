@@ -15,6 +15,7 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       'test/runtime/deno/**',
+      '.claude/**',
     ],
     testTimeout: 60000, // 60s timeout for benchmark tests
     server: {

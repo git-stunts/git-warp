@@ -98,10 +98,10 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     });
   }
 
-  /** @type {Uint8Array|null} */
+  /** @type {Uint8Array} */
   let patchBuffer;
   if (patchMeta.encrypted) {
-    if (patchBlobStorage === undefined || patchBlobStorage === null) {
+    if (!patchBlobStorage) {
       throw new EncryptionError(
         'This graph contains encrypted patches; provide patchBlobStorage with an encryption key',
       );
@@ -123,7 +123,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     patch,
     sha,
     writerId: patchMeta.writer,
-    parentSha: parents.length > 0 ? /** @type {string} */ (parents[0]) : null,
+    parentSha: parents !== null && parents !== undefined && parents.length > 0 ? (parents[0] ?? null) : null,
   };
 }
 
@@ -170,8 +170,7 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
 
-  const firstPatch = patches[0];
-  const writerId = patches.length > 0 && firstPatch !== undefined ? firstPatch.writerId : /** @type {string} */ ('');
+  const writerId = patches.length > 0 ? /** @type {string} */ (patches[0]?.writerId) : /** @type {string} */ ('');
   // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
   const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
 
@@ -194,12 +193,8 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
   let currentSha = toSha;
   let writerId = null;
 
-  while (currentSha) {
-    const result = await processCommit({
-      persistence, sha: currentSha, graphName, expectedWriter: writerId,
-      ...(codec !== undefined ? { codec } : {}),
-      ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}),
-    });
+  while (currentSha !== null && currentSha !== undefined) {
+    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 
@@ -259,10 +254,11 @@ export async function composeWormholes(first, second, options = {}) {
   }
 
   // If persistence is provided, validate that wormholes are consecutive
-  if (options.persistence) {
-    const { parents } = await options.persistence.getNodeInfo(second.fromSha);
+  if (options.persistence !== undefined && options.persistence !== null) {
+    const secondFirstInfo = await options.persistence.getNodeInfo(second.fromSha);
+    const parents = secondFirstInfo.parents ?? [];
 
-    if (!parents.includes(first.toSha)) {
+    if (!Array.isArray(parents) || !parents.includes(first.toSha)) {
       throw new WormholeError('Wormholes are not consecutive', {
         code: 'E_WORMHOLE_INVALID_RANGE',
         context: {
@@ -324,7 +320,14 @@ export function serializeWormhole(wormhole) {
  * @throws {WormholeError} If the JSON structure is invalid
  */
 export function deserializeWormhole(json) {
-  const typedJson = json;
+  // Validate required fields
+  if (json === null || json === undefined || typeof json !== 'object') {
+    throw new WormholeError('Invalid wormhole JSON: expected object', {
+      code: 'E_INVALID_WORMHOLE_JSON',
+    });
+  }
+
+  const /** @type {Record<string, unknown>} */ typedJson = /** @type {Record<string, unknown>} */ (json);
   const requiredFields = ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload'];
   for (const field of requiredFields) {
     if (typedJson[field] === undefined) {
