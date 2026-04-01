@@ -16,8 +16,8 @@ import { pathToFileURL } from 'node:url';
 // @ts-expect-error - no declaration file for @git-stunts/plumbing
 import GitPlumbing, { ShellRunnerFactory } from '@git-stunts/plumbing';
 
-const projectRoot = process.env.PROJECT_ROOT || resolve(import.meta.dirname, '../../..');
-const repoPath = process.env.REPO_PATH;
+const projectRoot = process.env['PROJECT_ROOT'] || resolve(import.meta.dirname, '../../..');
+const repoPath = process.env['REPO_PATH'];
 
 const warpGraphUrl = pathToFileURL(resolve(projectRoot, 'src/domain/WarpRuntime.js')).href;
 const adapterUrl = pathToFileURL(resolve(projectRoot, 'src/infrastructure/adapters/GitGraphAdapter.js')).href;

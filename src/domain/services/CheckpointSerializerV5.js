@@ -206,8 +206,8 @@ function serializeEdgeBirthArray(edgeBirthEvent) {
  * @throws {SchemaUnsupportedError} If the version is present but not 'full-v5'
  */
 function validateCheckpointVersion(obj) {
-  if (obj.version !== undefined && obj.version !== 'full-v5') {
-    const ver = /** @type {string} */ (obj.version);
+  if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
+    const ver = /** @type {string} */ (obj['version']);
     throw new SchemaUnsupportedError(
       `Unsupported full state version: expected 'full-v5', got '${ver}'`
     );
@@ -222,10 +222,10 @@ function validateCheckpointVersion(obj) {
  */
 function buildDeserializedState(obj) {
   return {
-    nodeAlive: orsetDeserialize(fallbackToEmpty(obj.nodeAlive)),
-    edgeAlive: orsetDeserialize(fallbackToEmpty(obj.edgeAlive)),
-    prop: deserializeProps(/** @type {[string, unknown][]} */ (obj.prop)),
-    observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (fallbackToEmpty(obj.observedFrontier))),
+    nodeAlive: orsetDeserialize(fallbackToEmpty(obj['nodeAlive'])),
+    edgeAlive: orsetDeserialize(fallbackToEmpty(obj['edgeAlive'])),
+    prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
+    observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (fallbackToEmpty(obj['observedFrontier']))),
     edgeBirthEvent: /** @type {Map<string, import('../utils/EventId.js').EventId>} */ (deserializeEdgeBirthEvent(obj)),
   };
 }
@@ -287,10 +287,10 @@ function deserializeEdgeBirthEvent(obj) {
  * @returns {unknown} The birth data array, or undefined if absent
  */
 function resolveBirthData(obj) {
-  if (obj.edgeBirthEvent !== undefined) {
-    return obj.edgeBirthEvent;
+  if (obj['edgeBirthEvent'] !== undefined) {
+    return obj['edgeBirthEvent'];
   }
-  return obj.edgeBirthLamport;
+  return obj['edgeBirthLamport'];
 }
 
 /**

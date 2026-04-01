@@ -122,8 +122,8 @@ function normalizePrefixFilter(value, field) {
   const raw = assertPlainObject(value, field);
   rejectUnknownKeys(raw, ['include', 'exclude'], field);
 
-  const include = normalizePrefixList(raw.include, `${field}.include`);
-  const exclude = normalizePrefixList(raw.exclude, `${field}.exclude`);
+  const include = normalizePrefixList(raw['include'], `${field}.include`);
+  const exclude = normalizePrefixList(raw['exclude'], `${field}.exclude`);
   if (include.length === 0 && exclude.length === 0) {
     return null;
   }
@@ -149,7 +149,7 @@ export function normalizeVisibleStateScopeV1(scope, field = 'scope') {
   const raw = assertPlainObject(scope, `${field} must be an object when provided`);
   rejectUnknownKeys(raw, ['nodeIdPrefixes'], field);
 
-  const nodeIdPrefixes = normalizePrefixFilter(raw.nodeIdPrefixes, `${field}.nodeIdPrefixes`);
+  const nodeIdPrefixes = normalizePrefixFilter(raw['nodeIdPrefixes'], `${field}.nodeIdPrefixes`);
   if (nodeIdPrefixes === null) {
     return null;
   }
@@ -386,7 +386,7 @@ export function scopeMaterializedStateV5(state, scope) {
  * @returns {boolean}
  */
 function nodeOpAffectsScope(op, scope) {
-  return typeof op.node === 'string' && nodeIdInVisibleStateScope(op.node, scope);
+  return typeof op['node'] === 'string' && nodeIdInVisibleStateScope(op['node'], scope);
 }
 
 /**
@@ -397,13 +397,13 @@ function nodeOpAffectsScope(op, scope) {
  * @returns {boolean}
  */
 function edgeOpAffectsScope(op, scope) {
-  return typeof op.from === 'string'
-    && typeof op.to === 'string'
+  return typeof op['from'] === 'string'
+    && typeof op['to'] === 'string'
     && edgeInVisibleStateScope(
       {
-        from: op.from,
-        to: op.to,
-        label: typeof op.label === 'string' ? op.label : '',
+        from: op['from'],
+        to: op['to'],
+        label: typeof op['label'] === 'string' ? op['label'] : '',
       },
       scope,
     );

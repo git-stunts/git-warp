@@ -79,7 +79,7 @@ describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
 
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.explanations[0].reasonCode).toBe(
-      TRUST_REASON_CODES.WRITER_BOUND_KEY_REVOKED,
+      TRUST_REASON_CODES['WRITER_BOUND_KEY_REVOKED'],
     );
   });
 });

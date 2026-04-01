@@ -279,8 +279,8 @@ describe('AuditVerifierService — broken chain', () => {
     if (commit1) {
       const tree = await persistence.readTree(commit1.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.tickStart = 5;
-      receipt.tickEnd = 5;
+      receipt['tickStart'] = 5;
+      receipt['tickEnd'] = 5;
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTreeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -367,7 +367,7 @@ describe('AuditVerifierService — data mismatch', () => {
         graph: 'events',
         writer: 'alice',
         dataCommit: 'b'.repeat(40),
-        opsDigest: receipt.opsDigest,
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -389,7 +389,7 @@ describe('AuditVerifierService — data mismatch', () => {
       commit.message = encodeAuditMessage({
         graph: 'events',
         writer: 'alice',
-        dataCommit: receipt.dataCommit,
+        dataCommit: receipt['dataCommit'],
         opsDigest: 'f'.repeat(64),
       });
     }
@@ -412,8 +412,8 @@ describe('AuditVerifierService — data mismatch', () => {
       commit.message = encodeAuditMessage({
         graph: 'events',
         writer: 'bob',
-        dataCommit: receipt.dataCommit,
-        opsDigest: receipt.opsDigest,
+        dataCommit: receipt['dataCommit'],
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -435,8 +435,8 @@ describe('AuditVerifierService — data mismatch', () => {
       commit.message = encodeAuditMessage({
         graph: 'other',
         writer: 'alice',
-        dataCommit: receipt.dataCommit,
-        opsDigest: receipt.opsDigest,
+        dataCommit: receipt['dataCommit'],
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -488,7 +488,7 @@ describe('AuditVerifierService — OID format', () => {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
       // Tamper: uppercase the dataCommit
-      receipt.dataCommit = 'A'.repeat(40);
+      receipt['dataCommit'] = 'A'.repeat(40);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -512,7 +512,7 @@ describe('AuditVerifierService — OID format', () => {
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'g'.repeat(40);
+      receipt['dataCommit'] = 'g'.repeat(40);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -534,7 +534,7 @@ describe('AuditVerifierService — OID format', () => {
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'a'.repeat(32);
+      receipt['dataCommit'] = 'a'.repeat(32);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -667,7 +667,7 @@ describe('AuditVerifierService — writer/graph consistency', () => {
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.writerId = 'mallory';
+      receipt['writerId'] = 'mallory';
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -721,7 +721,7 @@ describe('AuditVerifierService — schema validation', () => {
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.version = 99;
+      receipt['version'] = 99;
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -757,8 +757,8 @@ describe('AuditVerifierService — OID length mismatch', () => {
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'a'.repeat(64);
-      receipt.prevAuditCommit = receipt.prevAuditCommit.padEnd(64, '0');
+      receipt['dataCommit'] = 'a'.repeat(64);
+      receipt['prevAuditCommit'] = receipt['prevAuditCommit'].padEnd(64, '0');
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -780,7 +780,7 @@ describe('AuditVerifierService — OID length mismatch', () => {
       const tree = await persistence.readTree(commit.treeOid);
       const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
       // dataCommit is 40 chars, make prevAuditCommit 64 chars
-      receipt.prevAuditCommit = '0'.repeat(64);
+      receipt['prevAuditCommit'] = '0'.repeat(64);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);

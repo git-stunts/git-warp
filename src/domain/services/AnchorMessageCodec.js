@@ -43,11 +43,11 @@ export function encodeAnchorMessage({ graph, schema = 2 }) {
   /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
   const codec = /** @type {unknown} */ (getCodec());
   return codec.encode({
-    title: MESSAGE_TITLES.anchor,
+    title: MESSAGE_TITLES['anchor'],
     trailers: {
-      [TRAILER_KEYS.kind]: 'anchor',
-      [TRAILER_KEYS.graph]: graph,
-      [TRAILER_KEYS.schema]: String(schema),
+      [TRAILER_KEYS['kind']]: 'anchor',
+      [TRAILER_KEYS['graph']]: graph,
+      [TRAILER_KEYS['schema']]: String(schema),
     },
   });
 }

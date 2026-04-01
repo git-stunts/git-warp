@@ -44,7 +44,7 @@ import {
  * @returns {boolean}
  */
 function isForceColorEnabled() {
-  return process.env.FORCE_COLOR !== undefined && process.env.FORCE_COLOR !== '' && process.env.FORCE_COLOR !== '0';
+  return process.env['FORCE_COLOR'] !== undefined && process.env['FORCE_COLOR'] !== '' && process.env['FORCE_COLOR'] !== '0';
 }
 
 /**
@@ -53,7 +53,7 @@ function isForceColorEnabled() {
  * @returns {boolean}
  */
 function isColorSuppressed() {
-  return process.env.NO_COLOR !== undefined || !process.stdout.isTTY || process.env.CI !== undefined;
+  return process.env['NO_COLOR'] !== undefined || !process.stdout.isTTY || process.env['CI'] !== undefined;
 }
 
 /**
@@ -63,7 +63,7 @@ function isColorSuppressed() {
  * @returns {boolean}
  */
 export function shouldStripColor() {
-  if (process.env.FORCE_COLOR === '0') {
+  if (process.env['FORCE_COLOR'] === '0') {
     return true;
   }
   if (isForceColorEnabled()) {
@@ -243,7 +243,7 @@ function writeTextOutput(payload, command) {
  * @returns {boolean}
  */
 function isErrorPayload(payload) {
-  return payload !== null && payload !== undefined && 'error' in payload && payload.error !== undefined;
+  return payload !== null && payload !== undefined && 'error' in payload && payload['error'] !== undefined;
 }
 
 /**
@@ -294,7 +294,7 @@ function presentView(payload, command, view) {
 
   // query is special: uses pre-rendered _renderedAscii
   if (command === 'query') {
-    const ascii = typeof payload._renderedAscii === 'string' ? payload._renderedAscii : '';
+    const ascii = typeof payload['_renderedAscii'] === 'string' ? payload['_renderedAscii'] : '';
     writeText(`${ascii}\n`, strip);
     return;
   }

@@ -113,10 +113,10 @@ function requireNonEmptyString(value, label) {
 function serializeNodeContentOp(op) {
   return {
     op: op.op,
-    nodeId: op.nodeId,
-    contentOid: op.contentOid,
-    mime: op.mime ?? null,
-    size: op.size ?? null,
+    nodeId: op['nodeId'],
+    contentOid: op['contentOid'],
+    mime: op['mime'] ?? null,
+    size: op['size'] ?? null,
   };
 }
 
@@ -129,12 +129,12 @@ function serializeNodeContentOp(op) {
 function serializeEdgeContentOp(op) {
   return {
     op: op.op,
-    from: op.from,
-    to: op.to,
-    label: op.label,
-    contentOid: op.contentOid,
-    mime: op.mime ?? null,
-    size: op.size ?? null,
+    from: op['from'],
+    to: op['to'],
+    label: op['label'],
+    contentOid: op['contentOid'],
+    mime: op['mime'] ?? null,
+    size: op['size'] ?? null,
   };
 }
 

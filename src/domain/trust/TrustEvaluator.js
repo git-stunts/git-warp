@@ -39,7 +39,7 @@ import { deriveTrustVerdict } from './verdict.js';
 export function evaluateWriters(writerIds, trustState, policy) {
   const policyResult = TrustPolicySchema.safeParse(policy);
   if (!policyResult.success) {
-    return buildErrorAssessment(writerIds, TRUST_REASON_CODES.TRUST_POLICY_INVALID);
+    return buildErrorAssessment(writerIds, TRUST_REASON_CODES['TRUST_POLICY_INVALID']);
   }
 
   if (trustState.errors.length > 0) {
@@ -97,13 +97,13 @@ function buildTrustStateErrorAssessment(writerIds, trustState) {
       ? sortedWriters.map((writerId) => Object.freeze({
         writerId,
         trusted: false,
-        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
+        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
         reason: `Trust evidence invalid: ${firstError}`,
       }))
       : [Object.freeze({
         writerId: '*',
         trusted: false,
-        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
+        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
         reason: `Trust evidence invalid: ${firstError}`,
       })],
     evidenceSummary: buildEvidenceSummary(trustState),
@@ -146,14 +146,14 @@ function evaluateSingleWriter(writerId, trustState) {
       return {
         writerId,
         trusted: false,
-        reasonCode: TRUST_REASON_CODES.BINDING_REVOKED,
+        reasonCode: TRUST_REASON_CODES['BINDING_REVOKED'],
         reason: `Writer '${writerId}' has no active bindings (all revoked)`,
       };
     }
     return {
       writerId,
       trusted: false,
-      reasonCode: TRUST_REASON_CODES.WRITER_HAS_NO_ACTIVE_BINDING,
+      reasonCode: TRUST_REASON_CODES['WRITER_HAS_NO_ACTIVE_BINDING'],
       reason: `Writer '${writerId}' has no active bindings`,
     };
   }
@@ -164,7 +164,7 @@ function evaluateSingleWriter(writerId, trustState) {
       return {
         writerId,
         trusted: true,
-        reasonCode: TRUST_REASON_CODES.WRITER_BOUND_TO_ACTIVE_KEY,
+        reasonCode: TRUST_REASON_CODES['WRITER_BOUND_TO_ACTIVE_KEY'],
         reason: `Writer '${writerId}' is bound to active key ${keyId}`,
       };
     }
@@ -174,7 +174,7 @@ function evaluateSingleWriter(writerId, trustState) {
   return {
     writerId,
     trusted: false,
-    reasonCode: TRUST_REASON_CODES.WRITER_BOUND_KEY_REVOKED,
+    reasonCode: TRUST_REASON_CODES['WRITER_BOUND_KEY_REVOKED'],
     reason: `Writer '${writerId}' is bound only to revoked keys`,
   };
 }

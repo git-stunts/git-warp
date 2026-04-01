@@ -76,7 +76,7 @@ describe('LogicalBitmapIndexBuilder', () => {
 
     // The 'all' bitmap for A (by globalA) should contain B's globalId
     const RoaringBitmap32 = getRoaringBitmap32();
-    const allBucket = fwdShard.all;
+    const allBucket = fwdShard['all'];
     expect(allBucket).toBeDefined();
     const bitmapBytes = allBucket[String(globalA)];
     expect(bitmapBytes).toBeDefined();
@@ -89,12 +89,12 @@ describe('LogicalBitmapIndexBuilder', () => {
   });
 
   it('proto pollution safety (F10): builds without mutating Object.prototype', () => {
-    const beforeProto = (/** @type {Record<string, unknown>} */ ({})).polluted;
+    const beforeProto = (/** @type {Record<string, unknown>} */ ({}))['polluted'];
     const beforeConstructor = ({}).constructor;
 
     buildFromFixture(F10_PROTO_POLLUTION);
 
-    expect((/** @type {Record<string, unknown>} */ ({})).polluted).toBe(beforeProto);
+    expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBe(beforeProto);
     expect(({}).constructor).toBe(beforeConstructor);
   });
 
@@ -106,8 +106,8 @@ describe('LogicalBitmapIndexBuilder', () => {
     expect(tree['receipt.cbor']).toBeDefined();
 
     const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-    expect(receipt.nodeCount).toBe(0);
-    expect(receipt.labelCount).toBe(0);
+    expect(receipt['nodeCount']).toBe(0);
+    expect(receipt['labelCount']).toBe(0);
   });
 
   it('receipt has deterministic fields and no timestamps', () => {
@@ -136,8 +136,8 @@ describe('LogicalBitmapIndexBuilder', () => {
         expect(meta).toHaveProperty('alive');
 
         // nodeToGlobal is array of [nodeId, globalId] pairs
-        expect(Array.isArray(meta.nodeToGlobal)).toBe(true);
-        for (const [nodeId, globalId] of meta.nodeToGlobal) {
+        expect(Array.isArray(meta['nodeToGlobal'])).toBe(true);
+        for (const [nodeId, globalId] of meta['nodeToGlobal']) {
           expect(typeof nodeId).toBe('string');
           expect(typeof globalId).toBe('number');
         }

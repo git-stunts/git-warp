@@ -940,19 +940,19 @@ function normalizeEffectPayload(_target, opType, canonOp) {
   /** @type {Record<string, () => Record<string, unknown>>} */
   const effectFactories = {
     /** Extracts the dot from a NodeAdd operation. */
-    NodeAdd: () => ({ dot: canonOp.dot ?? null }),
+    NodeAdd: () => ({ dot: canonOp['dot'] ?? null }),
     /** Extracts observed dots from a NodeTombstone operation. */
-    NodeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    NodeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
     /** Extracts the dot from an EdgeAdd operation. */
-    EdgeAdd: () => ({ dot: canonOp.dot ?? null }),
+    EdgeAdd: () => ({ dot: canonOp['dot'] ?? null }),
     /** Extracts observed dots from an EdgeTombstone operation. */
-    EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
     /** Extracts the value from a NodePropSet operation. */
-    NodePropSet: () => ({ value: canonOp.value ?? null }),
+    NodePropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the value from an EdgePropSet operation. */
-    EdgePropSet: () => ({ value: canonOp.value ?? null }),
+    EdgePropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the oid from a BlobValue operation. */
-    BlobValue: () => ({ oid: canonOp.oid ?? null }),
+    BlobValue: () => ({ oid: canonOp['oid'] ?? null }),
   };
   const factory = effectFactories[opType];
   return factory !== undefined ? factory() : null;
@@ -966,8 +966,8 @@ function normalizeEffectPayload(_target, opType, canonOp) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node target identity or null.
  */
 function buildNodeTargetIdentity(canonOp, receiptTarget) {
-  const entityId = typeof canonOp.node === 'string' && canonOp.node.length > 0
-    ? canonOp.node
+  const entityId = typeof canonOp['node'] === 'string' && canonOp['node'].length > 0
+    ? canonOp['node']
     : (receiptTarget !== '*' ? receiptTarget : null);
   return entityId !== null ? { targetKind: 'node', entityId } : null;
 }
@@ -995,16 +995,16 @@ function buildEdgeTargetIdentity(canonOp, receiptTarget) {
  */
 function buildEdgeTargetFromOp(canonOp) {
   if (
-    typeof canonOp.from === 'string' &&
-    typeof canonOp.to === 'string' &&
-    typeof canonOp.label === 'string'
+    typeof canonOp['from'] === 'string' &&
+    typeof canonOp['to'] === 'string' &&
+    typeof canonOp['label'] === 'string'
   ) {
     return {
       targetKind: 'edge',
-      from: canonOp.from,
-      to: canonOp.to,
-      label: canonOp.label,
-      edgeKey: `${canonOp.from}\0${canonOp.to}\0${canonOp.label}`,
+      from: canonOp['from'],
+      to: canonOp['to'],
+      label: canonOp['label'],
+      edgeKey: `${canonOp['from']}\0${canonOp['to']}\0${canonOp['label']}`,
     };
   }
   return null;
@@ -1040,13 +1040,13 @@ function buildEdgeTargetFromReceipt(receiptTarget) {
  * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node-property target or null.
  */
 function buildNodePropertyTargetIdentity(canonOp) {
-  if (typeof canonOp.node !== 'string' || typeof canonOp.key !== 'string') {
+  if (typeof canonOp['node'] !== 'string' || typeof canonOp['key'] !== 'string') {
     return null;
   }
   return {
     targetKind: 'node_property',
-    entityId: canonOp.node,
-    propertyKey: canonOp.key,
+    entityId: canonOp['node'],
+    propertyKey: canonOp['key'],
   };
 }
 
@@ -1058,20 +1058,20 @@ function buildNodePropertyTargetIdentity(canonOp) {
  */
 function buildEdgePropertyTargetIdentity(canonOp) {
   if (
-    typeof canonOp.from !== 'string' ||
-    typeof canonOp.to !== 'string' ||
-    typeof canonOp.label !== 'string' ||
-    typeof canonOp.key !== 'string'
+    typeof canonOp['from'] !== 'string' ||
+    typeof canonOp['to'] !== 'string' ||
+    typeof canonOp['label'] !== 'string' ||
+    typeof canonOp['key'] !== 'string'
   ) {
     return null;
   }
   return {
     targetKind: 'edge_property',
-    from: canonOp.from,
-    to: canonOp.to,
-    label: canonOp.label,
-    edgeKey: `${canonOp.from}\0${canonOp.to}\0${canonOp.label}`,
-    propertyKey: canonOp.key,
+    from: canonOp['from'],
+    to: canonOp['to'],
+    label: canonOp['label'],
+    edgeKey: `${canonOp['from']}\0${canonOp['to']}\0${canonOp['label']}`,
+    propertyKey: canonOp['key'],
   };
 }
 
@@ -1100,7 +1100,7 @@ function buildTargetIdentity(canonOp, receiptTarget) {
     /** Builds target identity for EdgePropSet ops. */
     EdgePropSet: () => buildEdgePropertyTargetIdentity(canonOp),
   };
-  const builder = targetBuilders[/** @type {string} */ (canonOp.type)];
+  const builder = targetBuilders[/** @type {string} */ (canonOp['type'])];
   return builder !== undefined ? builder() : null;
 }
 
@@ -1477,7 +1477,7 @@ async function analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, 
  */
 async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics }) {
   const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(frame.patch.ops[opIndex])));
-  const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp.type)];
+  const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp['type'])];
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) {
     return null;
   }

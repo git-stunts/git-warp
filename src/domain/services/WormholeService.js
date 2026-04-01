@@ -347,19 +347,19 @@ export function deserializeWormhole(json) {
     }
   }
 
-  if (typeof typedJson.patchCount !== 'number' || typedJson.patchCount < 0) {
+  if (typeof typedJson['patchCount'] !== 'number' || typedJson['patchCount'] < 0) {
     throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
       code: 'E_INVALID_WORMHOLE_JSON',
-      context: { patchCount: typedJson.patchCount },
+      context: { patchCount: typedJson['patchCount'] },
     });
   }
 
   return {
-    fromSha: /** @type {string} */ (typedJson.fromSha),
-    toSha: /** @type {string} */ (typedJson.toSha),
-    writerId: /** @type {string} */ (typedJson.writerId),
-    patchCount: /** @type {number} */ (typedJson.patchCount),
-    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (typedJson.payload)),
+    fromSha: /** @type {string} */ (typedJson['fromSha']),
+    toSha: /** @type {string} */ (typedJson['toSha']),
+    writerId: /** @type {string} */ (typedJson['writerId']),
+    patchCount: /** @type {number} */ (typedJson['patchCount']),
+    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (typedJson['payload'])),
   };
 }
 

@@ -21,12 +21,12 @@ function createMockLogger() {
   };
 
   const createLogger = (parentCalls = calls) => ({
-    debug: vi.fn((msg, ctx) => parentCalls.debug.push({ msg, ctx })),
-    info: vi.fn((msg, ctx) => parentCalls.info.push({ msg, ctx })),
-    warn: vi.fn((msg, ctx) => parentCalls.warn.push({ msg, ctx })),
-    error: vi.fn((msg, ctx) => parentCalls.error.push({ msg, ctx })),
+    debug: vi.fn((msg, ctx) => parentCalls['debug'].push({ msg, ctx })),
+    info: vi.fn((msg, ctx) => parentCalls['info'].push({ msg, ctx })),
+    warn: vi.fn((msg, ctx) => parentCalls['warn'].push({ msg, ctx })),
+    error: vi.fn((msg, ctx) => parentCalls['error'].push({ msg, ctx })),
     child: vi.fn((ctx) => {
-      parentCalls.child.push({ ctx });
+      parentCalls['child'].push({ ctx });
       return createLogger(parentCalls);
     }),
     _calls: parentCalls,

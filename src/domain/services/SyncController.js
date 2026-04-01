@@ -108,7 +108,7 @@ function normalizeSyncPath(path) {
 function resolveSyncTarget(remote, path, hasPathOverride) {
   const isDirectPeer = remote !== null && remote !== undefined &&
     typeof remote === 'object' &&
-    typeof (/** @type {Record<string, unknown>} */ (remote)).processSyncRequest === 'function';
+    typeof (/** @type {Record<string, unknown>} */ (remote))['processSyncRequest'] === 'function';
   if (isDirectPeer) {
     return { isDirectPeer: true, targetUrl: null };
   }

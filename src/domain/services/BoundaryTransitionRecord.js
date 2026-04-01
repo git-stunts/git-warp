@@ -236,8 +236,8 @@ function validateBTRFields(rec) {
   if (missingField !== null) {
     return `Missing required field: ${missingField}`;
   }
-  if (rec.version !== BTR_VERSION) {
-    return `Unsupported BTR version: ${String(rec.version)} (expected ${BTR_VERSION})`;
+  if (rec['version'] !== BTR_VERSION) {
+    return `Unsupported BTR version: ${String(rec['version'])} (expected ${BTR_VERSION})`;
   }
   return null;
 }
@@ -467,13 +467,13 @@ export function deserializeBTR(bytes, { codec } = {}) {
   }
 
   return /** @type {BTR} */ ({
-    version: obj.version,
-    h_in: obj.h_in,
-    h_out: obj.h_out,
-    U_0: obj.U_0,
-    P: obj.P,
-    t: obj.t,
-    kappa: obj.kappa,
+    version: obj['version'],
+    h_in: obj['h_in'],
+    h_out: obj['h_out'],
+    U_0: obj['U_0'],
+    P: obj['P'],
+    t: obj['t'],
+    kappa: obj['kappa'],
   });
 }
 

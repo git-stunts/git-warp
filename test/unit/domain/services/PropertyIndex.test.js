@@ -126,7 +126,7 @@ describe('PropertyIndex', () => {
 
     const props = await reader.getNodeProps('__proto__');
     expect(props).toEqual({ polluted: true });
-    expect((/** @type {Record<string, unknown>} */ ({})).polluted).toBeUndefined();
+    expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBeUndefined();
   });
 
   it('throws a descriptive error when a shard OID is missing', async () => {

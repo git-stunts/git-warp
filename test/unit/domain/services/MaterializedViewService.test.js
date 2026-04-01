@@ -63,7 +63,7 @@ describe('MaterializedViewService', () => {
       expect(logicalIndex.isAlive('Z')).toBe(false);
 
       // receipt has nodeCount
-      expect(receipt.nodeCount).toBe(3);
+      expect(receipt['nodeCount']).toBe(3);
     });
 
     it('builds a working propertyReader from state', async () => {

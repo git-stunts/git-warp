@@ -215,8 +215,8 @@ function sortNeighbors(arr) {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('MaterializedView equivalence', () => {
-  const seedCount = process.env.WARP_FUZZ_SEEDS
-    ? parseInt(process.env.WARP_FUZZ_SEEDS, 10)
+  const seedCount = process.env['WARP_FUZZ_SEEDS']
+    ? parseInt(process.env['WARP_FUZZ_SEEDS'], 10)
     : 20;
 
   const seeds = Array.from({ length: seedCount }, (_, i) => i + 1);

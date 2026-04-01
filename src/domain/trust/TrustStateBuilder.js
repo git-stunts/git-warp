@@ -78,7 +78,7 @@ export function buildState(records, options = {}) {
     const parsed = TrustRecordSchema.safeParse(record);
     if (!parsed.success) {
       ctx.errors.push({
-        recordId: typeof record.recordId === 'string' ? record.recordId : '(unknown)',
+        recordId: typeof record['recordId'] === 'string' ? record['recordId'] : '(unknown)',
         error: `Schema validation failed: ${parsed.error.message}`,
       });
       continue;
@@ -145,9 +145,9 @@ function validateRecordCryptography(rec, activeKeys, options) {
 
   if (computeKeyFingerprint && rec.recordType === 'KEY_ADD') {
     try {
-      const expected = computeKeyFingerprint(rec.subject.publicKey);
-      if (expected !== rec.subject.keyId) {
-        return `KEY_ADD fingerprint mismatch: declared ${rec.subject.keyId}, computed ${expected}`;
+      const expected = computeKeyFingerprint(rec.subject['publicKey']);
+      if (expected !== rec.subject['keyId']) {
+        return `KEY_ADD fingerprint mismatch: declared ${rec.subject['keyId']}, computed ${expected}`;
       }
     } catch (err) {
       return `KEY_ADD fingerprint validation failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -161,10 +161,10 @@ function validateRecordCryptography(rec, activeKeys, options) {
   let issuerPublicKey = null;
   if (
     rec.recordType === 'KEY_ADD' &&
-    rec.issuerKeyId === rec.subject.keyId &&
-    typeof rec.subject.publicKey === 'string'
+    rec.issuerKeyId === rec.subject['keyId'] &&
+    typeof rec.subject['publicKey'] === 'string'
   ) {
-    issuerPublicKey = rec.subject.publicKey;
+    issuerPublicKey = rec.subject['publicKey'];
   } else {
     const found = activeKeys.get(rec.issuerKeyId);
     issuerPublicKey = typeof found?.publicKey === 'string' && found.publicKey.length > 0

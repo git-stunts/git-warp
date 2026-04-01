@@ -189,7 +189,7 @@ function contractSuite(providerName, makeProvider) {
         expect(out[0].neighborId).toBe('__proto__');
 
         // Object.prototype not mutated
-        expect((/** @type {Record<string, unknown>} */ ({})).polluted).toBeUndefined();
+        expect((/** @type {Record<string, unknown>} */ ({}))['polluted']).toBeUndefined();
         expect(({}).constructor).toBe(Object);
       });
     });

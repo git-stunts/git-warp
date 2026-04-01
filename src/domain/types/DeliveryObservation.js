@@ -82,12 +82,12 @@ function validateLens(lens) {
  * @returns {void}
  */
 function validateLensFields(l) {
-  if (typeof l.mode !== 'string' || !modeSet.has(l.mode)) {
+  if (typeof l['mode'] !== 'string' || !modeSet.has(l['mode'])) {
     throw new Error(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,
     );
   }
-  if (typeof l.suppressExternal !== 'boolean') {
+  if (typeof l['suppressExternal'] !== 'boolean') {
     throw new Error('lens.suppressExternal must be a boolean');
   }
 }

@@ -43,14 +43,14 @@ export function encodeAuditMessage({ graph, writer, dataCommit, opsDigest }) {
   const rawEnc = getCodec();
   const codec = /** @type {{encode: (msg: {title: string, trailers: Record<string, string>}) => string, decode: (msg: string) => {trailers: Record<string, string>}}} */ (rawEnc);
   return codec.encode({
-    title: MESSAGE_TITLES.audit,
+    title: MESSAGE_TITLES['audit'],
     trailers: {
-      [TRAILER_KEYS.dataCommit]: dataCommit,
-      [TRAILER_KEYS.graph]: graph,
-      [TRAILER_KEYS.kind]: 'audit',
-      [TRAILER_KEYS.opsDigest]: opsDigest,
-      [TRAILER_KEYS.schema]: '1',
-      [TRAILER_KEYS.writer]: writer,
+      [TRAILER_KEYS['dataCommit']]: dataCommit,
+      [TRAILER_KEYS['graph']]: graph,
+      [TRAILER_KEYS['kind']]: 'audit',
+      [TRAILER_KEYS['opsDigest']]: opsDigest,
+      [TRAILER_KEYS['schema']]: '1',
+      [TRAILER_KEYS['writer']]: writer,
     },
   });
 }

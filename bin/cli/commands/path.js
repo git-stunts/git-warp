@@ -103,7 +103,7 @@ async function attachRenderedSvg(payload, view, graphName) {
   }
   const graphData = pathResultToGraphData(payload);
   const positioned = await layoutGraph(graphData, { type: 'path' });
-  payload._renderedSvg = renderSvg(positioned, { title: `${graphName} path` });
+  payload['_renderedSvg'] = renderSvg(positioned, { title: `${graphName} path` });
 }
 
 /**

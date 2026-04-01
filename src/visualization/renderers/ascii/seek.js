@@ -105,8 +105,8 @@ function buildReceiptLines(tickReceipt) {
  * @returns {Record<string, number>} Op summary map
  */
 function extractOpSummary(rec) {
-  if (rec.opSummary !== null && rec.opSummary !== undefined && typeof rec.opSummary === 'object') {
-    return /** @type {Record<string, number>} */ (rec.opSummary);
+  if (rec['opSummary'] !== null && rec['opSummary'] !== undefined && typeof rec['opSummary'] === 'object') {
+    return /** @type {Record<string, number>} */ (rec['opSummary']);
   }
   return /** @type {Record<string, number>} */ (rec);
 }
@@ -121,7 +121,7 @@ function formatReceiptEntry(pair) {
   const [writerId, entry] = pair;
   /** @type {Record<string, unknown>} */
   const rec = /** @type {Record<string, unknown>} */ (entry);
-  const sha = typeof rec.sha === 'string' ? rec.sha : null;
+  const sha = typeof rec['sha'] === 'string' ? rec['sha'] : null;
   const opSummary = extractOpSummary(rec);
   const name = padRight(formatWriterName(writerId, NAME_W), NAME_W);
   const shaStr = typeof sha === 'string' && sha.length > 0 ? `  ${formatSha(sha)}` : '';

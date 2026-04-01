@@ -517,7 +517,7 @@ function normalizeSelector(selector, field) {
  * @returns {string}
  */
 function extractSelectorKind(raw) {
-  return typeof raw?.kind === 'string' ? raw.kind : '';
+  return typeof raw?.['kind'] === 'string' ? raw['kind'] : '';
 }
 
 /**
@@ -528,7 +528,7 @@ function extractSelectorKind(raw) {
  * @returns {Record<string, unknown>}
  */
 function normalizeLiveSelector(raw, field) {
-  return { kind: 'live', ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`) };
+  return { kind: 'live', ceiling: normalizeLamportCeiling(raw['ceiling'], `${field}.ceiling`) };
 }
 
 /**
@@ -542,8 +542,8 @@ function normalizeLiveSelector(raw, field) {
 function normalizeStrandSelector(raw, kind, field) {
   return {
     kind,
-    strandId: normalizeRequiredString(raw.strandId, `${field}.strandId`),
-    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+    strandId: normalizeRequiredString(raw['strandId'], `${field}.strandId`),
+    ceiling: normalizeLamportCeiling(raw['ceiling'], `${field}.ceiling`),
   };
 }
 
@@ -555,11 +555,11 @@ function normalizeStrandSelector(raw, kind, field) {
  * @returns {Record<string, unknown>}
  */
 function normalizeCoordinateSelector(raw, field) {
-  const f = /** @type {Map<string, string>|Record<string, string>} */ (raw.frontier);
+  const f = /** @type {Map<string, string>|Record<string, string>} */ (raw['frontier']);
   return {
     kind: 'coordinate',
     frontier: normalizeFrontierRecord(f, `${field}.frontier`),
-    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+    ceiling: normalizeLamportCeiling(raw['ceiling'], `${field}.ceiling`),
   };
 }
 
@@ -790,7 +790,7 @@ async function resolveComparisonSide(selector, scope = null) {
  * @returns {value is { kind: 'strand', strandId: unknown }}
  */
 function isStrandObject(value) {
-  return value !== null && typeof value === 'object' && /** @type {Record<string, unknown>} */ (value).kind === 'strand';
+  return value !== null && typeof value === 'object' && /** @type {Record<string, unknown>} */ (value)['kind'] === 'strand';
 }
 
 /**
@@ -811,7 +811,7 @@ function normalizeAgainstSelector(normalizedStrandId, against, againstCeiling) {
   }
   if (isStrandObject(against)) {
     const obj = /** @type {Record<string, unknown>} */ (against);
-    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'against.strandId'), ceiling: againstCeiling };
+    return { kind: 'strand', strandId: normalizeRequiredString(obj['strandId'], 'against.strandId'), ceiling: againstCeiling };
   }
   throw new QueryError('against must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }
@@ -884,7 +884,7 @@ function normalizeIntoSelector(normalizedStrandId, into, intoCeiling) {
   }
   if (isStrandObject(into)) {
     const obj = /** @type {Record<string, unknown>} */ (into);
-    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'into.strandId'), ceiling: intoCeiling };
+    return { kind: 'strand', strandId: normalizeRequiredString(obj['strandId'], 'into.strandId'), ceiling: intoCeiling };
   }
   throw new QueryError('into must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }

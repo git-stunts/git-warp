@@ -73,20 +73,20 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
   const codec = resolveCodec();
   /** @type {Record<string, string>} */
   const trailers = {
-    [TRAILER_KEYS.kind]: 'checkpoint',
-    [TRAILER_KEYS.graph]: graph,
-    [TRAILER_KEYS.stateHash]: stateHash,
-    [TRAILER_KEYS.frontierOid]: frontierOid,
-    [TRAILER_KEYS.indexOid]: indexOid,
-    [TRAILER_KEYS.schema]: String(schema),
+    [TRAILER_KEYS['kind']]: 'checkpoint',
+    [TRAILER_KEYS['graph']]: graph,
+    [TRAILER_KEYS['stateHash']]: stateHash,
+    [TRAILER_KEYS['frontierOid']]: frontierOid,
+    [TRAILER_KEYS['indexOid']]: indexOid,
+    [TRAILER_KEYS['schema']]: String(schema),
   };
 
   // Add checkpoint version marker for V5 format (schema:2, schema:3, schema:4)
   if (schema === 2 || schema === 3 || schema === 4) {
-    trailers[TRAILER_KEYS.checkpointVersion] = 'v5';
+    trailers[TRAILER_KEYS['checkpointVersion']] = 'v5';
   }
 
-  return codec.encode({ title: MESSAGE_TITLES.checkpoint, trailers });
+  return codec.encode({ title: MESSAGE_TITLES['checkpoint'], trailers });
 }
 
 // -----------------------------------------------------------------------------
@@ -120,7 +120,7 @@ export function decodeCheckpointMessage(message) {
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)
   /** @type {string|undefined} */
-  const rawCpv = trailers[/** @type {string} */ (TRAILER_KEYS.checkpointVersion)];
+  const rawCpv = trailers[/** @type {string} */ (TRAILER_KEYS['checkpointVersion'])];
   /** @type {string|null} */
   const checkpointVersion = rawCpv !== undefined && rawCpv !== '' ? rawCpv : null;
 

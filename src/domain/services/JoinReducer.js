@@ -171,8 +171,8 @@ export function isKnownOp(op) {
 function requireString(op, field) {
   if (typeof op[field] !== 'string') {
     throw new PatchError(
-      `${op.type} op requires '${field}' to be a string, got ${typeof op[field]}`,
-      { context: { opType: op.type, field, actual: typeof op[field] } },
+      `${op['type']} op requires '${field}' to be a string, got ${typeof op[field]}`,
+      { context: { opType: op['type'], field, actual: typeof op[field] } },
     );
   }
 }
@@ -191,8 +191,8 @@ function requireIterable(op, field) {
     typeof /** @type {Iterable<unknown>} */ (val)[Symbol.iterator] !== 'function'
   ) {
     throw new PatchError(
-      `${op.type} op requires '${field}' to be iterable, got ${typeof val}`,
-      { context: { opType: op.type, field, actual: typeof val } },
+      `${op['type']} op requires '${field}' to be iterable, got ${typeof val}`,
+      { context: { opType: op['type'], field, actual: typeof val } },
     );
   }
 }
@@ -205,21 +205,21 @@ function requireDot(op) {
   const { dot } = op;
   if (dot === null || dot === undefined || typeof dot !== 'object') {
     throw new PatchError(
-      `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,
-      { context: { opType: op.type, field: 'dot', actual: typeof dot } },
+      `${op['type']} op requires 'dot' to be an object, got ${typeof dot}`,
+      { context: { opType: op['type'], field: 'dot', actual: typeof dot } },
     );
   }
   const d = /** @type {Record<string, unknown>} */ (dot);
-  if (typeof d.writerId !== 'string') {
+  if (typeof d['writerId'] !== 'string') {
     throw new PatchError(
-      `${op.type} op requires 'dot.writerId' to be a string, got ${typeof d.writerId}`,
-      { context: { opType: op.type, field: 'dot.writerId', actual: typeof d.writerId } },
+      `${op['type']} op requires 'dot.writerId' to be a string, got ${typeof d['writerId']}`,
+      { context: { opType: op['type'], field: 'dot.writerId', actual: typeof d['writerId'] } },
     );
   }
-  if (typeof d.counter !== 'number') {
+  if (typeof d['counter'] !== 'number') {
     throw new PatchError(
-      `${op.type} op requires 'dot.counter' to be a number, got ${typeof d.counter}`,
-      { context: { opType: op.type, field: 'dot.counter', actual: typeof d.counter } },
+      `${op['type']} op requires 'dot.counter' to be a number, got ${typeof d['counter']}`,
+      { context: { opType: op['type'], field: 'dot.counter', actual: typeof d['counter'] } },
     );
   }
 }
@@ -232,14 +232,14 @@ function requireDot(op) {
  * @param {Record<string, unknown>} op
  */
 function validateOp(op) {
-  if (op === null || op === undefined || typeof op.type !== 'string') {
+  if (op === null || op === undefined || typeof op['type'] !== 'string') {
     throw new PatchError(
-      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op.type}`,
-      { context: { actual: op === null || op === undefined ? String(op) : typeof op.type } },
+      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op['type']}`,
+      { context: { actual: op === null || op === undefined ? String(op) : typeof op['type'] } },
     );
   }
 
-  switch (op.type) {
+  switch (op['type']) {
     case 'NodeAdd':
       requireString(op, 'node');
       requireDot(op);
@@ -879,7 +879,7 @@ export function applyWithReceipt(state, patch, patchSha) {
         break;
       case 'BlobValue': {
         const blobOp = /** @type {Record<string, string>} */ (canonOp);
-        const blobTarget = (typeof blobOp.oid === 'string' && blobOp.oid.length > 0) ? blobOp.oid : '*';
+        const blobTarget = (typeof blobOp['oid'] === 'string' && blobOp['oid'].length > 0) ? blobOp['oid'] : '*';
         outcome = { target: blobTarget, result: 'applied' };
         break;
       }

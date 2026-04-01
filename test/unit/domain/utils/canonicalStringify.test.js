@@ -116,7 +116,7 @@ describe('canonicalStringify', () => {
     it('throws on circular object references', () => {
       /** @type {Record<string, unknown>} */
       const obj = { a: 1 };
-      obj.self = obj;
+      obj['self'] = obj;
       expect(() => canonicalStringify(obj)).toThrow(TypeError);
     });
 

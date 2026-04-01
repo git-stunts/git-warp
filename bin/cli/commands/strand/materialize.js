@@ -29,9 +29,9 @@ const materializeStrandSchema = z.object({
 function buildMaterializePayload(graphName, strand, materialized) {
   const mat = /** @type {Record<string, unknown>} */ (materialized);
   const state = /** @type {{ nodeAlive: unknown, edgeAlive: unknown, prop: Map<string, unknown> }} */ (
-    'state' in mat ? mat.state : mat
+    'state' in mat ? mat['state'] : mat
   );
-  const receipts = 'state' in mat ? /** @type {unknown[]|undefined} */ (mat.receipts) : undefined;
+  const receipts = 'state' in mat ? /** @type {unknown[]|undefined} */ (mat['receipts']) : undefined;
 
   return {
     payload: {

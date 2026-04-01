@@ -74,10 +74,10 @@ async function materializeStrandForDebug(debugGraph, strandId, opts) {
   /** @type {Record<string, unknown>} */
   const matOpts = {};
   if (opts.collectReceipts) {
-    matOpts.receipts = true;
+    matOpts['receipts'] = true;
   }
   if (opts.lamportCeiling !== null) {
-    matOpts.ceiling = opts.lamportCeiling;
+    matOpts['ceiling'] = opts.lamportCeiling;
   }
   return Object.keys(matOpts).length > 0
     ? await debugGraph.materializeStrand(strandId, matOpts)
@@ -95,10 +95,10 @@ async function materializeGraphForDebug(debugGraph, opts) {
   /** @type {Record<string, unknown>} */
   const matOpts = {};
   if (opts.collectReceipts) {
-    matOpts.receipts = true;
+    matOpts['receipts'] = true;
   }
   if (opts.lamportCeiling !== null) {
-    matOpts.ceiling = opts.lamportCeiling;
+    matOpts['ceiling'] = opts.lamportCeiling;
   }
   return Object.keys(matOpts).length > 0
     ? await debugGraph.materialize(matOpts)
@@ -223,9 +223,9 @@ export function collectTouchedIds(ops) {
   /** @type {Set<string>} */
   const ids = new Set();
   for (const op of ops) {
-    addIfNonEmptyString(ids, op.node);
-    addIfNonEmptyString(ids, op.from);
-    addIfNonEmptyString(ids, op.to);
+    addIfNonEmptyString(ids, op['node']);
+    addIfNonEmptyString(ids, op['from']);
+    addIfNonEmptyString(ids, op['to']);
   }
 
   return /** @type {string[]} */ ([...ids].sort(compareStrings));

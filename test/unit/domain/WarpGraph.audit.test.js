@@ -190,11 +190,11 @@ describe('WarpRuntime — audit mode', () => {
     // Decode and verify
     const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
     const receipt = /** @type {Record<string, unknown>} */ (decode(tree['receipt.cbor']));
-    expect(receipt.version).toBe(1);
-    expect(receipt.graphName).toBe('events');
-    expect(receipt.writerId).toBe('alice');
-    expect(typeof receipt.timestamp).toBe('number');
-    expect(Number.isInteger(receipt.timestamp)).toBe(true);
+    expect(receipt['version']).toBe(1);
+    expect(receipt['graphName']).toBe('events');
+    expect(receipt['writerId']).toBe('alice');
+    expect(typeof receipt['timestamp']).toBe('number');
+    expect(Number.isInteger(receipt['timestamp'])).toBe(true);
   });
 
   it('graph state is correct regardless of audit mode', async () => {

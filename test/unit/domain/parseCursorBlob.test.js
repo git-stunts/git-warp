@@ -19,7 +19,7 @@ describe('parseCursorBlob', () => {
 
   it('preserves extra fields', () => {
     const result = parseCursorBlob(buf('{"tick":3,"mode":"lamport","extra":"ok"}'), 'test');
-    expect(result.extra).toBe('ok');
+    expect(result['extra']).toBe('ok');
   });
 
   it('throws on invalid JSON', () => {

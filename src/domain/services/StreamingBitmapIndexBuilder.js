@@ -316,7 +316,7 @@ export default class StreamingBitmapIndexBuilder {
       const type = key.substring(0, 3);
       const sha = key.substring(4);
       const prefix = sha.substring(0, 2);
-      const bucket = type === 'fwd' ? bitmapShards.fwd : bitmapShards.rev;
+      const bucket = type === 'fwd' ? bitmapShards['fwd'] : bitmapShards['rev'];
 
       if (!bucket[prefix]) {
         bucket[prefix] = {};

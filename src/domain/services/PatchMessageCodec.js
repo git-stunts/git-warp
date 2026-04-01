@@ -70,18 +70,18 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
   const codec = resolveCodec();
   /** @type {Record<string, string>} */
   const trailers = {
-    [TRAILER_KEYS.kind]: 'patch',
-    [TRAILER_KEYS.graph]: graph,
-    [TRAILER_KEYS.writer]: writer,
-    [TRAILER_KEYS.lamport]: String(lamport),
-    [TRAILER_KEYS.patchOid]: patchOid,
-    [TRAILER_KEYS.schema]: String(schema),
+    [TRAILER_KEYS['kind']]: 'patch',
+    [TRAILER_KEYS['graph']]: graph,
+    [TRAILER_KEYS['writer']]: writer,
+    [TRAILER_KEYS['lamport']]: String(lamport),
+    [TRAILER_KEYS['patchOid']]: patchOid,
+    [TRAILER_KEYS['schema']]: String(schema),
   };
   if (encrypted) {
-    trailers[TRAILER_KEYS.encrypted] = 'true';
+    trailers[TRAILER_KEYS['encrypted']] = 'true';
   }
   return codec.encode({
-    title: MESSAGE_TITLES.patch,
+    title: MESSAGE_TITLES['patch'],
     trailers,
   });
 }
@@ -115,7 +115,7 @@ export function decodePatchMessage(message) {
   validateOid(patchOid, 'patchOid');
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'patch');
 
-  const encrypted = trailers[TRAILER_KEYS.encrypted] === 'true';
+  const encrypted = trailers[TRAILER_KEYS['encrypted']] === 'true';
 
   return {
     kind: 'patch',

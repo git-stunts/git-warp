@@ -337,11 +337,11 @@ function normalizeReadOverlays(value) {
     .map((entry) => {
       const overlay = /** @type {Record<string, unknown>} */ (entry);
       return {
-        strandId: /** @type {string} */ (overlay.strandId),
-        overlayId: /** @type {string} */ (overlay.overlayId),
-        kind: /** @type {string} */ (overlay.kind),
-        headPatchSha: /** @type {string|null} */ (overlay.headPatchSha ?? null),
-        patchCount: /** @type {number} */ (overlay.patchCount),
+        strandId: /** @type {string} */ (overlay['strandId']),
+        overlayId: /** @type {string} */ (overlay['overlayId']),
+        kind: /** @type {string} */ (overlay['kind']),
+        headPatchSha: /** @type {string|null} */ (overlay['headPatchSha'] ?? null),
+        patchCount: /** @type {number} */ (overlay['patchCount']),
       };
     })
     .sort((left, right) => compareStrings(left.strandId, right.strandId));
@@ -388,11 +388,11 @@ function normalizeQueuedIntents(value) {
     const { patch: rawPatch } = candidate;
     const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2|undefined} */ (rawPatch);
     const intentId = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (candidate.intentId),
+      /** @type {string|null|undefined} */ (candidate['intentId']),
       'intentId',
     ) ?? '';
     const enqueuedAt = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (candidate.enqueuedAt),
+      /** @type {string|null|undefined} */ (candidate['enqueuedAt']),
       'enqueuedAt',
     ) ?? '';
     if (patch === undefined || intentId.length === 0 || enqueuedAt.length === 0) {
@@ -402,9 +402,9 @@ function normalizeQueuedIntents(value) {
       intentId,
       enqueuedAt,
       patch,
-      reads: normalizeStringArray(candidate.reads ?? patch.reads, 'reads[]'),
-      writes: normalizeStringArray(candidate.writes ?? patch.writes, 'writes[]'),
-      contentBlobOids: normalizeStringArray(candidate.contentBlobOids, 'contentBlobOids[]'),
+      reads: normalizeStringArray(candidate['reads'] ?? patch.reads, 'reads[]'),
+      writes: normalizeStringArray(candidate['writes'] ?? patch.writes, 'writes[]'),
+      contentBlobOids: normalizeStringArray(candidate['contentBlobOids'], 'contentBlobOids[]'),
     }];
   }).sort((left, right) => compareStrings(left.intentId, right.intentId));
 }
@@ -423,12 +423,12 @@ function normalizeIntentQueue(value) {
     };
   }
   const record = /** @type {Record<string, unknown>} */ (value);
-  const nextIntentSeq = Number.isInteger(record.nextIntentSeq) && /** @type {number} */ (record.nextIntentSeq) > 0
-    ? /** @type {number} */ (record.nextIntentSeq)
+  const nextIntentSeq = Number.isInteger(record['nextIntentSeq']) && /** @type {number} */ (record['nextIntentSeq']) > 0
+    ? /** @type {number} */ (record['nextIntentSeq'])
     : 1;
   return {
     nextIntentSeq,
-    intents: normalizeQueuedIntents(record.intents),
+    intents: normalizeQueuedIntents(record['intents']),
   };
 }
 
@@ -447,16 +447,16 @@ function normalizeRejectedCounterfactuals(value) {
     const candidate = /** @type {Record<string, unknown>} */ (rawEntry);
     return {
       intentId: normalizeOptionalString(
-        /** @type {string|null|undefined} */ (candidate.intentId),
+        /** @type {string|null|undefined} */ (candidate['intentId']),
         'intentId',
       ) ?? '',
       reason: normalizeOptionalString(
-        /** @type {string|null|undefined} */ (candidate.reason),
+        /** @type {string|null|undefined} */ (candidate['reason']),
         'reason',
       ) ?? '',
-      conflictsWith: normalizeStringArray(candidate.conflictsWith, 'conflictsWith[]'),
-      reads: normalizeStringArray(candidate.reads, 'reads[]'),
-      writes: normalizeStringArray(candidate.writes, 'writes[]'),
+      conflictsWith: normalizeStringArray(candidate['conflictsWith'], 'conflictsWith[]'),
+      reads: normalizeStringArray(candidate['reads'], 'reads[]'),
+      writes: normalizeStringArray(candidate['writes'], 'writes[]'),
     };
   });
 }
@@ -473,32 +473,32 @@ function normalizeLastTick(lastTick) {
   }
   return {
     tickId: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.tickId),
+      /** @type {string|null|undefined} */ (lastTick['tickId']),
       'tickId',
     ) ?? '',
     strandId: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.strandId),
+      /** @type {string|null|undefined} */ (lastTick['strandId']),
       'strandId',
     ) ?? '',
-    tickIndex: Number.isInteger(lastTick.tickIndex) ? /** @type {number} */ (lastTick.tickIndex) : 0,
+    tickIndex: Number.isInteger(lastTick['tickIndex']) ? /** @type {number} */ (lastTick['tickIndex']) : 0,
     createdAt: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.createdAt),
+      /** @type {string|null|undefined} */ (lastTick['createdAt']),
       'createdAt',
     ) ?? '',
-    drainedIntentCount: Number.isInteger(lastTick.drainedIntentCount)
-      ? /** @type {number} */ (lastTick.drainedIntentCount)
+    drainedIntentCount: Number.isInteger(lastTick['drainedIntentCount'])
+      ? /** @type {number} */ (lastTick['drainedIntentCount'])
       : 0,
-    admittedIntentIds: normalizeStringArray(lastTick.admittedIntentIds, 'admittedIntentIds[]'),
-    rejected: normalizeRejectedCounterfactuals(lastTick.rejected),
+    admittedIntentIds: normalizeStringArray(lastTick['admittedIntentIds'], 'admittedIntentIds[]'),
+    rejected: normalizeRejectedCounterfactuals(lastTick['rejected']),
     baseOverlayHeadPatchSha: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.baseOverlayHeadPatchSha),
+      /** @type {string|null|undefined} */ (lastTick['baseOverlayHeadPatchSha']),
       'baseOverlayHeadPatchSha',
     ),
     overlayHeadPatchSha: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick.overlayHeadPatchSha),
+      /** @type {string|null|undefined} */ (lastTick['overlayHeadPatchSha']),
       'overlayHeadPatchSha',
     ),
-    overlayPatchShas: normalizeStringArray(lastTick.overlayPatchShas, 'overlayPatchShas[]'),
+    overlayPatchShas: normalizeStringArray(lastTick['overlayPatchShas'], 'overlayPatchShas[]'),
   };
 }
 
@@ -516,11 +516,11 @@ function normalizeEvolution(value) {
     };
   }
   const record = /** @type {Record<string, unknown>} */ (value);
-  const tickCount = Number.isInteger(record.tickCount) && /** @type {number} */ (record.tickCount) >= 0
-    ? /** @type {number} */ (record.tickCount)
+  const tickCount = Number.isInteger(record['tickCount']) && /** @type {number} */ (record['tickCount']) >= 0
+    ? /** @type {number} */ (record['tickCount'])
     : 0;
-  const lastTick = record.lastTick !== null && record.lastTick !== undefined && typeof record.lastTick === 'object' && !Array.isArray(record.lastTick)
-    ? /** @type {Record<string, unknown>} */ (record.lastTick)
+  const lastTick = record['lastTick'] !== null && record['lastTick'] !== undefined && typeof record['lastTick'] === 'object' && !Array.isArray(record['lastTick'])
+    ? /** @type {Record<string, unknown>} */ (record['lastTick'])
     : null;
   return {
     tickCount,
@@ -601,8 +601,8 @@ function overlayMetadataMatches(descriptor, expected) {
  * @returns {StrandDescriptor}
  */
 function buildNormalizedStrandDescriptor(descriptor, braidedReadOverlays, writable) {
-  const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
-  const evolution = normalizeEvolution(descriptor.evolution);
+  const intentQueue = normalizeIntentQueue(descriptor['intentQueue']);
+  const evolution = normalizeEvolution(descriptor['evolution']);
   return {
     ...descriptor,
     overlay: {

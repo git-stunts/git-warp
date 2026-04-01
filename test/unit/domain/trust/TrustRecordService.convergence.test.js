@@ -63,7 +63,7 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
           );
         }
         // Second call: succeed — verify the record was rebuilt with new prev
-        expect(record.prev).toBe(newTipRecordId);
+        expect(record['prev']).toBe(newTipRecordId);
         return { commitSha: 'commit-success', ref: 'refs/warp/test-graph/trust/records' };
       },
     );
@@ -143,7 +143,7 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
 
       // Subsequent calls succeed
       const sha = `commit-ok-${callNum}`;
-      committed.push({ sha, recordPrev: record.prev });
+      committed.push({ sha, recordPrev: record['prev'] });
       return { commitSha: sha, ref: 'refs/warp/test-graph/trust/records' };
     });
 
@@ -220,8 +220,8 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
     // Since we skip signature verify, no need to re-sign.
     const resign = async (/** @type {Record<string, unknown>} */ record) => {
       const rebuilt = { ...record };
-      delete rebuilt.recordId;
-      delete rebuilt.signature;
+      delete rebuilt['recordId'];
+      delete rebuilt['signature'];
       const newRecordId = await computeRecordId(rebuilt);
       return {
         ...rebuilt,
@@ -250,11 +250,11 @@ describe('Invariant 3 — CAS convergence (appendRecordWithRetry)', () => {
     expect(records.length).toBeGreaterThanOrEqual(2);
 
     // First record must have prev=null (genesis)
-    expect(records[0].prev).toBeNull();
+    expect(records[0]['prev']).toBeNull();
 
     // Every subsequent record's prev must equal the previous record's recordId
     for (let i = 1; i < records.length; i++) {
-      expect(records[i].prev).toBe(records[i - 1].recordId);
+      expect(records[i]['prev']).toBe(records[i - 1]['recordId']);
     }
   });
 });

@@ -67,7 +67,7 @@ export function parsePositiveIntTrailer(trailers, key, kind) {
  */
 export function validateKindDiscriminator(trailers, expected) {
   /** @type {string|undefined} */
-  const kind = trailers[String(KEYS.kind)];
+  const kind = trailers[String(KEYS['kind'])];
   if (kind !== expected) {
     throw new MessageCodecError(`Invalid ${expected} message: eg-kind must be '${expected}', got '${kind}'`, { code: 'E_WRONG_KIND' });
   }

@@ -550,8 +550,8 @@ export default class IncrementalIndexUpdater {
       }
     }
 
-    if (!data.all) { data.all = {}; }
-    data.all[ownerStr] = merged.serialize(true);
+    if (!data['all']) { data['all'] = {}; }
+    data['all'][ownerStr] = merged.serialize(true);
   }
 
   // ── Property operations ───────────────────────────────────────────────────

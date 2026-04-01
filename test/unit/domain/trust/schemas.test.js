@@ -83,7 +83,7 @@ describe('TrustRecordSchema — subject transforms propagate', () => {
     const result = TrustRecordSchema.safeParse(record);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.subject.writerId).toBe('alice');
+      expect(result.data.subject['writerId']).toBe('alice');
     }
   });
 
@@ -105,7 +105,7 @@ describe('TrustRecordSchema — subject transforms propagate', () => {
     const result = TrustRecordSchema.safeParse(record);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.subject.writerId).toBe('bob');
+      expect(result.data.subject['writerId']).toBe('bob');
     }
   });
 });

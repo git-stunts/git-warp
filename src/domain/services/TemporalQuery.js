@@ -65,7 +65,7 @@ function unwrapValue(value) {
   if (isNonNullObject(value) && 'type' in /** @type {object} */ (value)) {
     /** @type {Record<string, unknown>} */
     const rec = /** @type {Record<string, unknown>} */ (value);
-    return /** @type {unknown} */ (rec.type === 'inline' ? rec.value : value);
+    return /** @type {unknown} */ (rec['type'] === 'inline' ? rec['value'] : value);
   }
   return value;
 }

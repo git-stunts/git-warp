@@ -48,7 +48,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
-      expect(props.kind).toBe('diagnostic');
+      expect(props['kind']).toBe('diagnostic');
     });
 
     it('sets writer property from the patch writerId', async () => {
@@ -61,7 +61,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
-      expect(props.writer).toBe('writer-1');
+      expect(props['writer']).toBe('writer-1');
     });
 
     it('canonically serializes complex payloads', async () => {
@@ -74,7 +74,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
-      const parsed = JSON.parse(/** @type {string} */ (props.payload));
+      const parsed = JSON.parse(/** @type {string} */ (props['payload']));
       expect(parsed).toEqual({ format: 'csv', rows: 100 });
     });
 
@@ -88,7 +88,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
-      expect(props.payload).toBeUndefined();
+      expect(props['payload']).toBeUndefined();
     });
 
     it('generates unique effect IDs across multiple emits', async () => {
@@ -167,7 +167,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
-      expect(props.timestamp).toBeUndefined();
+      expect(props['timestamp']).toBeUndefined();
     });
 
     it('canonical payload serialization is deterministic across instances', async () => {
@@ -193,7 +193,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       const props1 = await core1.getNodeProps(sharedId);
       const props2 = await core2.getNodeProps(sharedId);
-      expect(props1.payload).toBe(props2.payload);
+      expect(props1['payload']).toBe(props2['payload']);
     });
   });
 });

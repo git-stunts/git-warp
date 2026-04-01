@@ -590,7 +590,7 @@ describe('IncrementalIndexUpdater', () => {
       const propsMap = decodeProps(tree2, shardKey);
       if (!propsMap) { throw new Error('expected propsMap'); }
       const aProps = /** @type {Record<string, unknown>} */ (propsMap.get('A'));
-      expect(aProps.name).toBe('Bob');
+      expect(aProps['name']).toBe('Bob');
     });
   });
 
@@ -626,8 +626,8 @@ describe('IncrementalIndexUpdater', () => {
       // Should be safe — no prototype poisoning
       if (!propsMap) { throw new Error('expected propsMap'); }
       const proto = /** @type {Record<string, unknown>} */ (propsMap.get('__proto__'));
-      expect(proto.x).toBe(1);
-      expect(/** @type {Record<string, unknown>} */ ({}).x).toBeUndefined();
+      expect(proto['x']).toBe(1);
+      expect(/** @type {Record<string, unknown>} */ ({})['x']).toBeUndefined();
     });
 
     it('normalizes legacy prop bags before writing arbitrary keys', () => {
@@ -663,9 +663,9 @@ describe('IncrementalIndexUpdater', () => {
       if (!propsMap) { throw new Error('expected propsMap'); }
       const aProps = /** @type {Record<string, unknown>} */ (propsMap.get('A'));
 
-      expect(aProps.name).toBe('Alice');
+      expect(aProps['name']).toBe('Alice');
       expect(Reflect.get(Object.getPrototypeOf(aProps), 'polluted')).toBeUndefined();
-      expect(/** @type {Record<string, unknown>} */ ({}).polluted).toBeUndefined();
+      expect(/** @type {Record<string, unknown>} */ ({})['polluted']).toBeUndefined();
     });
   });
 
@@ -743,7 +743,7 @@ describe('IncrementalIndexUpdater', () => {
       // Verify property reader
       const cProps = await result.propertyReader.getNodeProps('C');
       if (!cProps) { throw new Error('expected cProps'); }
-      expect(cProps.role).toBe('dev');
+      expect(cProps['role']).toBe('dev');
     });
   });
 });

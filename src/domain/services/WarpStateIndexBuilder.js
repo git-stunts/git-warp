@@ -35,7 +35,7 @@ function validateWarpState(state) {
     throw new Error('Invalid state: must be a valid WarpStateV5 object');
   }
   const s = /** @type {Record<string, unknown>} */ (state);
-  if (isNullish(s.nodeAlive) || isNullish(s.edgeAlive)) {
+  if (isNullish(s['nodeAlive']) || isNullish(s['edgeAlive'])) {
     throw new Error('Invalid state: must be a valid WarpStateV5 object');
   }
 }

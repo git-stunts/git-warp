@@ -96,13 +96,13 @@ function validateStringArray(value, message) {
  * @returns {void}
  */
 function validateTopLevelFields(obj, label) {
-  invariant(obj.schemaVersion === 1, `Corrupted ${label}: unsupported schemaVersion`);
-  assertNonEmptyString(obj.strandId, `Corrupted ${label}: missing strandId`);
-  assertNonEmptyString(obj.graphName, `Corrupted ${label}: missing graphName`);
-  assertNonEmptyString(obj.createdAt, `Corrupted ${label}: missing createdAt`);
-  assertNonEmptyString(obj.updatedAt, `Corrupted ${label}: missing updatedAt`);
-  validateNullableString(obj.owner, `Corrupted ${label}: owner must be string|null`);
-  validateNullableString(obj.scope, `Corrupted ${label}: scope must be string|null`);
+  invariant(obj['schemaVersion'] === 1, `Corrupted ${label}: unsupported schemaVersion`);
+  assertNonEmptyString(obj['strandId'], `Corrupted ${label}: missing strandId`);
+  assertNonEmptyString(obj['graphName'], `Corrupted ${label}: missing graphName`);
+  assertNonEmptyString(obj['createdAt'], `Corrupted ${label}: missing createdAt`);
+  assertNonEmptyString(obj['updatedAt'], `Corrupted ${label}: missing updatedAt`);
+  validateNullableString(obj['owner'], `Corrupted ${label}: owner must be string|null`);
+  validateNullableString(obj['scope'], `Corrupted ${label}: scope must be string|null`);
 }
 
 /**
@@ -112,10 +112,10 @@ function validateTopLevelFields(obj, label) {
  * @returns {void}
  */
 function validateLease(obj, label) {
-  invariant(isPlainObject(obj.lease), `Corrupted ${label}: missing lease object`);
+  invariant(isPlainObject(obj['lease']), `Corrupted ${label}: missing lease object`);
   const { lease: rawLease } = obj;
   const lease = /** @type {Record<string, unknown>} */ (rawLease);
-  validateNullableString(lease.expiresAt, `Corrupted ${label}: lease.expiresAt must be string|null`);
+  validateNullableString(lease['expiresAt'], `Corrupted ${label}: lease.expiresAt must be string|null`);
 }
 
 /**
@@ -126,15 +126,15 @@ function validateLease(obj, label) {
  */
 function validateBaseObservationFields(baseObservation, label) {
   assertNonEmptyString(
-    baseObservation.coordinateVersion,
+    baseObservation['coordinateVersion'],
     `Corrupted ${label}: missing baseObservation.coordinateVersion`,
   );
   invariant(
-    isStringRecord(baseObservation.frontier),
+    isStringRecord(baseObservation['frontier']),
     `Corrupted ${label}: baseObservation.frontier must be a string record`,
   );
   assertNonEmptyString(
-    baseObservation.frontierDigest,
+    baseObservation['frontierDigest'],
     `Corrupted ${label}: missing baseObservation.frontierDigest`,
   );
 }
@@ -146,7 +146,7 @@ function validateBaseObservationFields(baseObservation, label) {
  * @returns {void}
  */
 function validateBaseObservation(obj, label) {
-  invariant(isPlainObject(obj.baseObservation), `Corrupted ${label}: missing baseObservation object`);
+  invariant(isPlainObject(obj['baseObservation']), `Corrupted ${label}: missing baseObservation object`);
   const { baseObservation: rawBaseObs } = obj;
   const baseObservation = /** @type {Record<string, unknown>} */ (rawBaseObs);
   validateBaseObservationFields(baseObservation, label);
@@ -167,15 +167,15 @@ function validateBaseObservation(obj, label) {
  * @returns {void}
  */
 function validateOverlay(obj, label) {
-  invariant(isPlainObject(obj.overlay), `Corrupted ${label}: missing overlay object`);
+  invariant(isPlainObject(obj['overlay']), `Corrupted ${label}: missing overlay object`);
   const { overlay: rawOverlay } = obj;
   const overlay = /** @type {Record<string, unknown>} */ (rawOverlay);
-  assertNonEmptyString(overlay.overlayId, `Corrupted ${label}: missing overlay.overlayId`);
-  assertNonEmptyString(overlay.kind, `Corrupted ${label}: missing overlay.kind`);
-  validateNullableString(overlay.headPatchSha, `Corrupted ${label}: overlay.headPatchSha must be string|null`);
-  validateNonNegativeInteger(overlay.patchCount, `Corrupted ${label}: overlay.patchCount must be a non-negative integer`);
+  assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: missing overlay.overlayId`);
+  assertNonEmptyString(overlay['kind'], `Corrupted ${label}: missing overlay.kind`);
+  validateNullableString(overlay['headPatchSha'], `Corrupted ${label}: overlay.headPatchSha must be string|null`);
+  validateNonNegativeInteger(overlay['patchCount'], `Corrupted ${label}: overlay.patchCount must be a non-negative integer`);
   invariant(
-    overlay.writable === undefined || typeof overlay.writable === 'boolean',
+    overlay['writable'] === undefined || typeof overlay['writable'] === 'boolean',
     `Corrupted ${label}: overlay.writable must be boolean when provided`,
   );
 }
@@ -188,7 +188,7 @@ function validateOverlay(obj, label) {
  */
 function validateMaterialization(obj, label) {
   invariant(
-    isPlainObject(obj.materialization) && obj.materialization.cacheAuthority === 'derived',
+    isPlainObject(obj['materialization']) && obj['materialization']['cacheAuthority'] === 'derived',
     `Corrupted ${label}: invalid materialization metadata`,
   );
 }
@@ -200,11 +200,11 @@ function validateMaterialization(obj, label) {
  * @returns {void}
  */
 function validateBraidOverlayEntry(overlay, label) {
-  assertNonEmptyString(overlay.strandId, `Corrupted ${label}: braid.readOverlays[].strandId must be a string`);
-  assertNonEmptyString(overlay.overlayId, `Corrupted ${label}: braid.readOverlays[].overlayId must be a string`);
-  assertNonEmptyString(overlay.kind, `Corrupted ${label}: braid.readOverlays[].kind must be a string`);
-  validateNullableString(overlay.headPatchSha, `Corrupted ${label}: braid.readOverlays[].headPatchSha must be string|null`);
-  validateNonNegativeInteger(overlay.patchCount, `Corrupted ${label}: braid.readOverlays[].patchCount must be a non-negative integer`);
+  assertNonEmptyString(overlay['strandId'], `Corrupted ${label}: braid.readOverlays[].strandId must be a string`);
+  assertNonEmptyString(overlay['overlayId'], `Corrupted ${label}: braid.readOverlays[].overlayId must be a string`);
+  assertNonEmptyString(overlay['kind'], `Corrupted ${label}: braid.readOverlays[].kind must be a string`);
+  validateNullableString(overlay['headPatchSha'], `Corrupted ${label}: braid.readOverlays[].headPatchSha must be string|null`);
+  validateNonNegativeInteger(overlay['patchCount'], `Corrupted ${label}: braid.readOverlays[].patchCount must be a non-negative integer`);
 }
 
 /**
@@ -214,10 +214,10 @@ function validateBraidOverlayEntry(overlay, label) {
  * @returns {void}
  */
 function validateBraid(obj, label) {
-  if (obj.braid === undefined) {
+  if (obj['braid'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj.braid), `Corrupted ${label}: braid must be an object when provided`);
+  invariant(isPlainObject(obj['braid']), `Corrupted ${label}: braid must be an object when provided`);
   const { braid: rawBraid } = obj;
   const braid = /** @type {Record<string, unknown>} */ (rawBraid);
   const { readOverlays } = braid;
@@ -238,17 +238,17 @@ function validateBraid(obj, label) {
  * @returns {void}
  */
 function validateIntentEntry(intent, label) {
-  assertNonEmptyString(intent.intentId, `Corrupted ${label}: intentQueue.intents[].intentId must be a string`);
-  assertNonEmptyString(intent.enqueuedAt, `Corrupted ${label}: intentQueue.intents[].enqueuedAt must be a string`);
-  invariant(isPlainObject(intent.patch), `Corrupted ${label}: intentQueue.intents[].patch must be an object`);
-  if (intent.reads !== undefined) {
-    validateStringArray(intent.reads, `Corrupted ${label}: intentQueue.intents[].reads must be a string array when provided`);
+  assertNonEmptyString(intent['intentId'], `Corrupted ${label}: intentQueue.intents[].intentId must be a string`);
+  assertNonEmptyString(intent['enqueuedAt'], `Corrupted ${label}: intentQueue.intents[].enqueuedAt must be a string`);
+  invariant(isPlainObject(intent['patch']), `Corrupted ${label}: intentQueue.intents[].patch must be an object`);
+  if (intent['reads'] !== undefined) {
+    validateStringArray(intent['reads'], `Corrupted ${label}: intentQueue.intents[].reads must be a string array when provided`);
   }
-  if (intent.writes !== undefined) {
-    validateStringArray(intent.writes, `Corrupted ${label}: intentQueue.intents[].writes must be a string array when provided`);
+  if (intent['writes'] !== undefined) {
+    validateStringArray(intent['writes'], `Corrupted ${label}: intentQueue.intents[].writes must be a string array when provided`);
   }
-  if (intent.contentBlobOids !== undefined) {
-    validateStringArray(intent.contentBlobOids, `Corrupted ${label}: intentQueue.intents[].contentBlobOids must be a string array when provided`);
+  if (intent['contentBlobOids'] !== undefined) {
+    validateStringArray(intent['contentBlobOids'], `Corrupted ${label}: intentQueue.intents[].contentBlobOids must be a string array when provided`);
   }
 }
 
@@ -259,19 +259,19 @@ function validateIntentEntry(intent, label) {
  * @returns {void}
  */
 function validateIntentQueue(obj, label) {
-  if (obj.intentQueue === undefined) {
+  if (obj['intentQueue'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj.intentQueue), `Corrupted ${label}: intentQueue must be an object when provided`);
-  const queue = /** @type {Record<string, unknown>} */ (obj.intentQueue);
+  invariant(isPlainObject(obj['intentQueue']), `Corrupted ${label}: intentQueue must be an object when provided`);
+  const queue = /** @type {Record<string, unknown>} */ (obj['intentQueue']);
   invariant(
-    typeof queue.nextIntentSeq === 'number' &&
-      Number.isInteger(queue.nextIntentSeq) &&
-      queue.nextIntentSeq > 0,
+    typeof queue['nextIntentSeq'] === 'number' &&
+      Number.isInteger(queue['nextIntentSeq']) &&
+      queue['nextIntentSeq'] > 0,
     `Corrupted ${label}: intentQueue.nextIntentSeq must be a positive integer`,
   );
-  invariant(Array.isArray(queue.intents), `Corrupted ${label}: intentQueue.intents must be an array`);
-  for (const rawIntent of /** @type {unknown[]} */ (queue.intents)) {
+  invariant(Array.isArray(queue['intents']), `Corrupted ${label}: intentQueue.intents must be an array`);
+  for (const rawIntent of /** @type {unknown[]} */ (queue['intents'])) {
     invariant(isPlainObject(rawIntent), `Corrupted ${label}: intentQueue.intents entries must be objects`);
     validateIntentEntry(/** @type {Record<string, unknown>} */ (rawIntent), label);
   }
@@ -284,11 +284,11 @@ function validateIntentQueue(obj, label) {
  * @returns {void}
  */
 function validateRejectedCounterfactual(rejected, label) {
-  assertNonEmptyString(rejected.intentId, `Corrupted ${label}: evolution.lastTick.rejected[].intentId must be a string`);
-  assertNonEmptyString(rejected.reason, `Corrupted ${label}: evolution.lastTick.rejected[].reason must be a string`);
-  validateStringArray(rejected.conflictsWith, `Corrupted ${label}: evolution.lastTick.rejected[].conflictsWith must be a string array`);
-  validateStringArray(rejected.reads, `Corrupted ${label}: evolution.lastTick.rejected[].reads must be a string array`);
-  validateStringArray(rejected.writes, `Corrupted ${label}: evolution.lastTick.rejected[].writes must be a string array`);
+  assertNonEmptyString(rejected['intentId'], `Corrupted ${label}: evolution.lastTick.rejected[].intentId must be a string`);
+  assertNonEmptyString(rejected['reason'], `Corrupted ${label}: evolution.lastTick.rejected[].reason must be a string`);
+  validateStringArray(rejected['conflictsWith'], `Corrupted ${label}: evolution.lastTick.rejected[].conflictsWith must be a string array`);
+  validateStringArray(rejected['reads'], `Corrupted ${label}: evolution.lastTick.rejected[].reads must be a string array`);
+  validateStringArray(rejected['writes'], `Corrupted ${label}: evolution.lastTick.rejected[].writes must be a string array`);
 }
 
 /**
@@ -298,14 +298,14 @@ function validateRejectedCounterfactual(rejected, label) {
  * @returns {void}
  */
 function validateLastTickFields(lastTick, label) {
-  assertNonEmptyString(lastTick.tickId, `Corrupted ${label}: evolution.lastTick.tickId must be a string`);
-  validateNonNegativeInteger(lastTick.tickIndex, `Corrupted ${label}: evolution.lastTick.tickIndex must be a non-negative integer`);
-  assertNonEmptyString(lastTick.createdAt, `Corrupted ${label}: evolution.lastTick.createdAt must be a string`);
-  validateNonNegativeInteger(lastTick.drainedIntentCount, `Corrupted ${label}: evolution.lastTick.drainedIntentCount must be a non-negative integer`);
-  validateStringArray(lastTick.admittedIntentIds, `Corrupted ${label}: evolution.lastTick.admittedIntentIds must be a string array`);
-  validateStringArray(lastTick.overlayPatchShas, `Corrupted ${label}: evolution.lastTick.overlayPatchShas must be a string array`);
-  validateNullableString(lastTick.baseOverlayHeadPatchSha, `Corrupted ${label}: evolution.lastTick.baseOverlayHeadPatchSha must be string|null`);
-  validateNullableString(lastTick.overlayHeadPatchSha, `Corrupted ${label}: evolution.lastTick.overlayHeadPatchSha must be string|null`);
+  assertNonEmptyString(lastTick['tickId'], `Corrupted ${label}: evolution.lastTick.tickId must be a string`);
+  validateNonNegativeInteger(lastTick['tickIndex'], `Corrupted ${label}: evolution.lastTick.tickIndex must be a non-negative integer`);
+  assertNonEmptyString(lastTick['createdAt'], `Corrupted ${label}: evolution.lastTick.createdAt must be a string`);
+  validateNonNegativeInteger(lastTick['drainedIntentCount'], `Corrupted ${label}: evolution.lastTick.drainedIntentCount must be a non-negative integer`);
+  validateStringArray(lastTick['admittedIntentIds'], `Corrupted ${label}: evolution.lastTick.admittedIntentIds must be a string array`);
+  validateStringArray(lastTick['overlayPatchShas'], `Corrupted ${label}: evolution.lastTick.overlayPatchShas must be a string array`);
+  validateNullableString(lastTick['baseOverlayHeadPatchSha'], `Corrupted ${label}: evolution.lastTick.baseOverlayHeadPatchSha must be string|null`);
+  validateNullableString(lastTick['overlayHeadPatchSha'], `Corrupted ${label}: evolution.lastTick.overlayHeadPatchSha must be string|null`);
 }
 
 /**
@@ -316,8 +316,8 @@ function validateLastTickFields(lastTick, label) {
  */
 function validateLastTick(lastTick, label) {
   validateLastTickFields(lastTick, label);
-  invariant(Array.isArray(lastTick.rejected), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
-  for (const rawRejected of /** @type {unknown[]} */ (lastTick.rejected)) {
+  invariant(Array.isArray(lastTick['rejected']), `Corrupted ${label}: evolution.lastTick.rejected must be an array`);
+  for (const rawRejected of /** @type {unknown[]} */ (lastTick['rejected'])) {
     invariant(isPlainObject(rawRejected), `Corrupted ${label}: evolution.lastTick.rejected entries must be objects`);
     validateRejectedCounterfactual(/** @type {Record<string, unknown>} */ (rawRejected), label);
   }
@@ -330,18 +330,18 @@ function validateLastTick(lastTick, label) {
  * @returns {void}
  */
 function validateEvolution(obj, label) {
-  if (obj.evolution === undefined) {
+  if (obj['evolution'] === undefined) {
     return;
   }
-  invariant(isPlainObject(obj.evolution), `Corrupted ${label}: evolution must be an object when provided`);
+  invariant(isPlainObject(obj['evolution']), `Corrupted ${label}: evolution must be an object when provided`);
   const { evolution: rawEvolution } = obj;
   const evolution = /** @type {Record<string, unknown>} */ (rawEvolution);
-  validateNonNegativeInteger(evolution.tickCount, `Corrupted ${label}: evolution.tickCount must be a non-negative integer`);
-  if (evolution.lastTick === undefined || evolution.lastTick === null) {
+  validateNonNegativeInteger(evolution['tickCount'], `Corrupted ${label}: evolution.tickCount must be a non-negative integer`);
+  if (evolution['lastTick'] === undefined || evolution['lastTick'] === null) {
     return;
   }
-  invariant(isPlainObject(evolution.lastTick), `Corrupted ${label}: evolution.lastTick must be an object when provided`);
-  validateLastTick(/** @type {Record<string, unknown>} */ (evolution.lastTick), label);
+  invariant(isPlainObject(evolution['lastTick']), `Corrupted ${label}: evolution.lastTick must be an object when provided`);
+  validateLastTick(/** @type {Record<string, unknown>} */ (evolution['lastTick']), label);
 }
 
 /**

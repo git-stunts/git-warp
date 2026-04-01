@@ -180,9 +180,9 @@ function buildTargetSelector(val) {
     targetKind: val['target-kind'],
     entityId: val['entity-id'],
     propertyKey: val['property-key'],
-    from: val.from,
-    to: val.to,
-    label: val.label,
+    from: val['from'],
+    to: val['to'],
+    label: val['label'],
   };
 }
 
@@ -203,13 +203,13 @@ function orNull(value) {
  */
 function transformConflictValues(val) {
   return {
-    strandId: orNull(/** @type {string|undefined} */ (val.strand)),
+    strandId: orNull(/** @type {string|undefined} */ (val['strand'])),
     entityId: orNull(/** @type {string|undefined} */ (val['entity-id'])),
     target: buildTargetSelector(val),
-    kinds: normalizeKinds(/** @type {string|string[]|undefined} */ (val.kind)),
+    kinds: normalizeKinds(/** @type {string|string[]|undefined} */ (val['kind'])),
     writerId: orNull(/** @type {string|undefined} */ (val['writer-id'])),
     lamportCeiling: orNull(/** @type {number|undefined} */ (val['lamport-ceiling'])),
-    evidence: /** @type {string|undefined} */ (val.evidence) ?? 'standard',
+    evidence: /** @type {string|undefined} */ (val['evidence']) ?? 'standard',
     maxPatches: orNull(/** @type {number|undefined} */ (val['max-patches'])),
   };
 }

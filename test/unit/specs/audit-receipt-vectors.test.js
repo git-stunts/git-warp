@@ -82,12 +82,12 @@ function receiptCborHex(receipt) {
  */
 function buildTrailerBlock(receipt) {
   return [
-    `eg-data-commit: ${receipt.dataCommit}`,
-    `eg-graph: ${receipt.graphName}`,
+    `eg-data-commit: ${receipt['dataCommit']}`,
+    `eg-graph: ${receipt['graphName']}`,
     `eg-kind: audit`,
-    `eg-ops-digest: ${receipt.opsDigest}`,
+    `eg-ops-digest: ${receipt['opsDigest']}`,
     `eg-schema: 1`,
-    `eg-writer: ${receipt.writerId}`,
+    `eg-writer: ${receipt['writerId']}`,
   ].join('\n');
 }
 
@@ -99,78 +99,78 @@ function buildTrailerBlock(receipt) {
  */
 function validateReceipt(receipt) {
   // version
-  if (receipt.version === undefined) {
+  if (receipt['version'] === undefined) {
     return 'missing required field: version';
   }
-  if (receipt.version === 0) {
+  if (receipt['version'] === 0) {
     return 'invalid version: must be >= 1';
   }
-  if (receipt.version > 1) {
+  if (receipt['version'] > 1) {
     return 'unsupported version';
   }
 
   // graphName
-  if (receipt.graphName === undefined) {
+  if (receipt['graphName'] === undefined) {
     return 'missing required field: graphName';
   }
 
   // writerId
-  if (receipt.writerId === undefined) {
+  if (receipt['writerId'] === undefined) {
     return 'missing required field: writerId';
   }
 
   // dataCommit
-  if (receipt.dataCommit === undefined) {
+  if (receipt['dataCommit'] === undefined) {
     return 'missing required field: dataCommit';
   }
-  if (!/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(receipt.dataCommit)) {
+  if (!/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(receipt['dataCommit'])) {
     return 'invalid OID format: dataCommit';
   }
 
   // tickStart, tickEnd
-  if (receipt.tickStart === undefined) {
+  if (receipt['tickStart'] === undefined) {
     return 'missing required field: tickStart';
   }
-  if (receipt.tickEnd === undefined) {
+  if (receipt['tickEnd'] === undefined) {
     return 'missing required field: tickEnd';
   }
-  if (receipt.tickStart > receipt.tickEnd) {
+  if (receipt['tickStart'] > receipt['tickEnd']) {
     return 'tickStart must be <= tickEnd';
   }
-  if (receipt.version === 1 && receipt.tickStart !== receipt.tickEnd) {
+  if (receipt['version'] === 1 && receipt['tickStart'] !== receipt['tickEnd']) {
     return 'v1 requires tickStart == tickEnd';
   }
 
   // opsDigest
-  if (receipt.opsDigest === undefined) {
+  if (receipt['opsDigest'] === undefined) {
     return 'missing required field: opsDigest';
   }
 
   // prevAuditCommit
-  if (receipt.prevAuditCommit === undefined) {
+  if (receipt['prevAuditCommit'] === undefined) {
     return 'missing required field: prevAuditCommit';
   }
 
   // OID length consistency
-  const oidLen = receipt.dataCommit.length;
+  const oidLen = receipt['dataCommit'].length;
   if (oidLen !== 40 && oidLen !== 64) {
     return 'invalid OID length';
   }
-  if (receipt.prevAuditCommit.length !== oidLen) {
+  if (receipt['prevAuditCommit'].length !== oidLen) {
     return 'OID length mismatch';
   }
 
   // Non-genesis with zero-hash sentinel
   const zeroHash = '0'.repeat(oidLen);
-  if (receipt.prevAuditCommit === zeroHash && receipt.tickStart > 1) {
+  if (receipt['prevAuditCommit'] === zeroHash && receipt['tickStart'] > 1) {
     return 'non-genesis receipt cannot use zero-hash sentinel';
   }
 
   // timestamp
-  if (receipt.timestamp === undefined) {
+  if (receipt['timestamp'] === undefined) {
     return 'missing required field: timestamp';
   }
-  if (!Number.isInteger(receipt.timestamp) || receipt.timestamp < 0) {
+  if (!Number.isInteger(receipt['timestamp']) || receipt['timestamp'] < 0) {
     return 'invalid timestamp: must be a non-negative integer';
   }
 

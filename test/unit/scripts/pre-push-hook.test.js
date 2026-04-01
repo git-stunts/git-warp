@@ -105,11 +105,11 @@ function runPrePushHook(options = {}) {
   };
 
   if (quick) {
-    env.WARP_QUICK_PUSH = '1';
+    env['WARP_QUICK_PUSH'] = '1';
   }
 
   if (failCommand) {
-    env.WARP_FAIL_NPM_CMD = failCommand;
+    env['WARP_FAIL_NPM_CMD'] = failCommand;
   }
 
   const result = spawnSync('sh', [hookPath], {

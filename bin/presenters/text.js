@@ -496,7 +496,7 @@ function formatOpSummaryPlain(summary) {
     // Coalesce PropSet + NodePropSet into one bucket
     /** @type {number | undefined} */
     const n = opType === 'prop'
-      ? ((summary?.PropSet ?? 0) + (summary?.NodePropSet ?? 0)) || undefined
+      ? ((summary?.['PropSet'] ?? 0) + (summary?.['NodePropSet'] ?? 0)) || undefined
       : /** @type {number | undefined} */ (summary?.[opType]);
     if (typeof n === 'number' && Number.isFinite(n) && n > 0) {
       parts.push(`${symbol}${n}${label}`);
@@ -530,9 +530,9 @@ function appendReceiptSummary(baseLine, payload) {
   for (const [writerId, entry] of entries) {
     /** @type {Record<string, unknown>} */
     const rec = /** @type {Record<string, unknown>} */ (entry);
-    const sha = typeof rec.sha === 'string' ? rec.sha.slice(0, 7) : '';
-    const opSummary = rec.opSummary !== null && rec.opSummary !== undefined && typeof rec.opSummary === 'object'
-      ? /** @type {Record<string, number>} */ (rec.opSummary)
+    const sha = typeof rec['sha'] === 'string' ? rec['sha'].slice(0, 7) : '';
+    const opSummary = rec['opSummary'] !== null && rec['opSummary'] !== undefined && typeof rec['opSummary'] === 'object'
+      ? /** @type {Record<string, number>} */ (rec['opSummary'])
       : /** @type {Record<string, number>} */ (rec);
     receiptLines.push(`    ${writerId.padEnd(maxWriterLen)}  ${sha.padEnd(7)}  ${formatOpSummaryPlain(opSummary)}`);
   }

@@ -204,14 +204,14 @@ function normalizePayloadFrontier(payload) {
     return null;
   }
   const p = /** @type {Record<string, unknown>} */ (payload);
-  if (!(p.frontier instanceof Map)) {
+  if (!(p['frontier'] instanceof Map)) {
     return null;
   }
-  const normalized = normalizeFrontier(p.frontier);
+  const normalized = normalizeFrontier(p['frontier']);
   if (normalized === null) {
     return 'Invalid frontier: Map contains non-string entries';
   }
-  p.frontier = normalized;
+  p['frontier'] = normalized;
   return null;
 }
 

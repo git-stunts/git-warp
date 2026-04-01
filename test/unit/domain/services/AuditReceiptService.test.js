@@ -179,7 +179,7 @@ describe('AuditReceiptService — buildReceiptRecord', () => {
     const f = validFields();
     f.dataCommit = 'A'.repeat(40);
     const receipt = buildReceiptRecord(f);
-    expect(receipt.dataCommit).toBe('a'.repeat(40));
+    expect(receipt['dataCommit']).toBe('a'.repeat(40));
   });
 
   it('rejects version !== 1', () => {
@@ -319,10 +319,10 @@ describe('AuditReceiptService — commit flow', () => {
 
     // Decode the CBOR and verify structure
     const receipt = /** @type {Record<string, unknown>} */ (defaultCodec.decode(tree['receipt.cbor']));
-    expect(receipt.version).toBe(1);
-    expect(receipt.graphName).toBe('events');
-    expect(receipt.writerId).toBe('alice');
-    expect(receipt.dataCommit).toBe('a'.repeat(40));
+    expect(receipt['version']).toBe(1);
+    expect(receipt['graphName']).toBe('events');
+    expect(receipt['writerId']).toBe('alice');
+    expect(receipt['dataCommit']).toBe('a'.repeat(40));
   });
 });
 

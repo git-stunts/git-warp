@@ -78,11 +78,11 @@ function createMockHost(overrides = {}) {
     ...overrides,
   };
   // Wire default _setMaterializedState after spread so it can reference `host`
-  if (!host._setMaterializedState) {
-    host._setMaterializedState = vi.fn(async (/** @type {unknown} */ state) => {
-      host._cachedState = state;
-      host._stateDirty = false;
-      host._materializedGraph = { state, stateHash: 'mock-hash', adjacency: {} };
+  if (!host['_setMaterializedState']) {
+    host['_setMaterializedState'] = vi.fn(async (/** @type {unknown} */ state) => {
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
+      host['_materializedGraph'] = { state, stateHash: 'mock-hash', adjacency: {} };
     });
   }
   return host;
@@ -111,7 +111,7 @@ describe('SyncController', () => {
 
       expect(frontier).toBeInstanceOf(Map);
       expect(frontier.size).toBe(0);
-      expect(host.discoverWriters).toHaveBeenCalledOnce();
+      expect(host['discoverWriters']).toHaveBeenCalledOnce();
     });
 
     it('calls readRef for each discovered writer', async () => {
@@ -131,7 +131,7 @@ describe('SyncController', () => {
       expect(frontier.size).toBe(2);
       expect(frontier.get('alice')).toBe('sha-alice');
       expect(frontier.get('bob')).toBe('sha-bob');
-      expect(/** @type {*} */ (host._persistence).readRef).toHaveBeenCalledTimes(2);
+      expect(/** @type {*} */ (host['_persistence']).readRef).toHaveBeenCalledTimes(2);
     });
 
     it('skips writers with null tip SHA', async () => {
@@ -304,10 +304,10 @@ describe('SyncController', () => {
       const result = await ctrl.applySyncResponse(response);
 
       expect(result.applied).toBe(3);
-      expect(host._cachedState).toBe(newState);
-      expect(host._lastFrontier).toBe(newFrontier);
-      expect(host._patchesSinceGC).toBe(5);
-      expect(host._stateDirty).toBe(false);
+      expect(host['_cachedState']).toBe(newState);
+      expect(host['_lastFrontier']).toBe(newFrontier);
+      expect(host['_patchesSinceGC']).toBe(5);
+      expect(host['_stateDirty']).toBe(false);
       expect(applySyncResponseMock).toHaveBeenCalledWith(
         response,
         fakeState,
@@ -337,7 +337,7 @@ describe('SyncController', () => {
       const calledFrontier = applySyncResponseMock.mock.calls[0][2];
       expect(calledFrontier).toBeInstanceOf(Map);
       expect(calledFrontier.size).toBe(0);
-      expect(host._lastFrontier).toBe(newFrontier);
+      expect(host['_lastFrontier']).toBe(newFrontier);
     });
 
     it('passes _lastFrontier (not observedFrontier) to applySyncResponseImpl', async () => {
@@ -383,10 +383,10 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
-      expect(/** @type {import('vitest').Mock} */ (host._setMaterializedState)).toHaveBeenCalledOnce();
-      expect(/** @type {import('vitest').Mock} */ (host._setMaterializedState)).toHaveBeenCalledWith(newState);
+      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
+      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledWith(newState);
       // _materializedGraph should be rebuilt (not null)
-      expect(host._materializedGraph).not.toBeNull();
+      expect(host['_materializedGraph']).not.toBeNull();
     });
 
     it('does not advance frontier/counters when _setMaterializedState rejects', async () => {
@@ -410,8 +410,8 @@ describe('SyncController', () => {
 
       await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] }))
         .rejects.toThrow('install failed');
-      expect(host._lastFrontier).toBe(previousFrontier);
-      expect(host._patchesSinceGC).toBe(5);
+      expect(host['_lastFrontier']).toBe(previousFrontier);
+      expect(host['_patchesSinceGC']).toBe(5);
     });
 
     it('surfaces skippedWriters from response (B105)', async () => {
@@ -511,9 +511,9 @@ describe('SyncController', () => {
       expect(processSyncRequestMock).toHaveBeenCalledWith(
         request,
         expect.any(Map),
-        host._persistence,
+        host['_persistence'],
         'test-graph',
-        expect.objectContaining({ codec: host._codec }),
+        expect.objectContaining({ codec: host['_codec'] }),
       );
     });
   });
@@ -558,7 +558,7 @@ describe('SyncController', () => {
       expect(result.applied).toBe(2);
       expect(result.attempts).toBe(1);
       expect(remotePeer.processSyncRequest).toHaveBeenCalledOnce();
-      expect(host._cachedState).toBe(newState);
+      expect(host['_cachedState']).toBe(newState);
     });
 
     it('calls host.materialize() when _cachedState is null before apply', async () => {
@@ -585,14 +585,14 @@ describe('SyncController', () => {
         _lastFrontier: null,
         discoverWriters: vi.fn().mockResolvedValue([]),
         materialize: vi.fn().mockImplementation(async function () {
-          host._cachedState = materializedState;
+          host['_cachedState'] = materializedState;
         }),
       });
       const ctrl = new SyncController(/** @type {*} */ (host));
 
       await ctrl.syncWith(/** @type {*} */ (remotePeer));
 
-      expect(host.materialize).toHaveBeenCalledOnce();
+      expect(host['materialize']).toHaveBeenCalledOnce();
     });
 
     it('returns state when materialize option is true', async () => {
@@ -803,7 +803,7 @@ describe('SyncController', () => {
       });
       const newFrontier = new Map([['alice', 'sha-a']]);
       applySyncResponseMock.mockReturnValue({
-        state: host._cachedState,
+        state: host['_cachedState'],
         frontier: newFrontier,
         applied: 5,
       });
@@ -908,7 +908,7 @@ describe('SyncController', () => {
         hash: vi.fn().mockResolvedValue('abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
         hmac: vi.fn().mockResolvedValue('hmac-signature-hex'),
       };
-      host._crypto = mockCrypto;
+      host['_crypto'] = mockCrypto;
 
       const validResponse = {
         type: 'sync-response',
@@ -920,7 +920,7 @@ describe('SyncController', () => {
         json: () => Promise.resolve(validResponse),
       });
       applySyncResponseMock.mockReturnValue({
-        state: host._cachedState,
+        state: host['_cachedState'],
         frontier: new Map(),
         applied: 0,
       });

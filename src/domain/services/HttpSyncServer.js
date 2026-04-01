@@ -166,7 +166,7 @@ function checkContentType(headers) {
  */
 function safeParseUrl(url, headers, defaultHost) {
   const rawUrl = url.length > 0 ? url : '/';
-  const hostHeader = String(headers.host ?? '');
+  const hostHeader = String(headers['host'] ?? '');
   const host = hostHeader.length > 0 ? hostHeader : defaultHost;
   try {
     return new URL(rawUrl, `http://${host}`);

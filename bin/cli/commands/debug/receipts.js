@@ -50,14 +50,14 @@ function orNull(value) {
  */
 function transformReceiptValues(val) {
   return {
-    strandId: orNull(/** @type {string|undefined} */ (val.strand)),
+    strandId: orNull(/** @type {string|undefined} */ (val['strand'])),
     writerId: orNull(/** @type {string|undefined} */ (val['writer-id'])),
-    patch: orNull(/** @type {string|undefined} */ (val.patch)),
-    target: orNull(/** @type {string|undefined} */ (val.target)),
-    results: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val.result)),
-    opTypes: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val.op)),
+    patch: orNull(/** @type {string|undefined} */ (val['patch'])),
+    target: orNull(/** @type {string|undefined} */ (val['target'])),
+    results: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val['result'])),
+    opTypes: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val['op'])),
     lamportCeiling: orNull(/** @type {number|undefined} */ (val['lamport-ceiling'])),
-    limit: orNull(/** @type {number|undefined} */ (val.limit)),
+    limit: orNull(/** @type {number|undefined} */ (val['limit'])),
   };
 }
 

@@ -57,7 +57,7 @@ function _parseIndexBlob(buf) {
   if (
     typeof parsed === 'object' &&
     parsed !== null &&
-    /** @type {Record<string, unknown>} */ (parsed).schemaVersion === INDEX_SCHEMA_VERSION
+    /** @type {Record<string, unknown>} */ (parsed)['schemaVersion'] === INDEX_SCHEMA_VERSION
   ) {
     return /** @type {CacheIndex} */ (parsed);
   }
