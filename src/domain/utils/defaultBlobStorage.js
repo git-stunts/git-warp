@@ -23,7 +23,7 @@ const _encoder = new TextEncoder();
  * @returns {Promise<string>} hex digest
  */
 async function contentHash(bytes) {
-  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
+  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle !== undefined && globalThis.crypto.subtle !== null) {
     const buf = /** @type {ArrayBuffer} */ (bytes.buffer).slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const digest = await globalThis.crypto.subtle.digest('SHA-256', buf);
     return hexEncode(new Uint8Array(digest));
@@ -43,7 +43,11 @@ async function contentHash(bytes) {
     + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
+/**
+ * In-memory content-addressed blob storage for browser and test environments.
+ */
 export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
+  /** Creates an empty in-memory blob store. */
   constructor() {
     super();
     /** @type {Map<string, Uint8Array>} */

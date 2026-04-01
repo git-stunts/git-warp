@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for Git ref operations.
  *
@@ -16,7 +18,7 @@ export default class RefPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async updateRef(_ref, _oid) {
-    throw new Error('RefPort.updateRef() not implemented');
+    throw new WarpError('RefPort.updateRef() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -26,7 +28,7 @@ export default class RefPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async readRef(_ref) {
-    throw new Error('RefPort.readRef() not implemented');
+    throw new WarpError('RefPort.readRef() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -36,7 +38,7 @@ export default class RefPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async deleteRef(_ref) {
-    throw new Error('RefPort.deleteRef() not implemented');
+    throw new WarpError('RefPort.deleteRef() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -47,7 +49,7 @@ export default class RefPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async listRefs(_prefix, _options) {
-    throw new Error('RefPort.listRefs() not implemented');
+    throw new WarpError('RefPort.listRefs() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -64,6 +66,6 @@ export default class RefPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async compareAndSwapRef(_ref, _newOid, _expectedOid) {
-    throw new Error('RefPort.compareAndSwapRef() not implemented');
+    throw new WarpError('RefPort.compareAndSwapRef() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

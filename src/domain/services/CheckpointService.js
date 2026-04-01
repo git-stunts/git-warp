@@ -27,6 +27,8 @@ import { createVersionVector } from '../crdt/VersionVector.js';
 import { cloneStateV5, reduceV5 } from './JoinReducer.js';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from './KeyCodec.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
+import PatchError from '../errors/PatchError.js';
+import SchemaUnsupportedError from '../errors/SchemaUnsupportedError.js';
 
 // ============================================================================
 // Checkpoint Schema Constants
@@ -168,6 +170,7 @@ function collectContentAnchorEntries(propMap) {
   /** @type {Set<string>} */
   let batch = new Set();
 
+  /** Sorts and merges the current batch into the accumulated OID list. */
   const flushBatch = () => {
     if (batch.size === 0) {
       return;
@@ -309,12 +312,12 @@ export async function createV5({
   );
 
   // Add provenance index if present
-  if (provenanceIndexBlobOid) {
+  if (provenanceIndexBlobOid !== null) {
     treeEntries.push(`100644 blob ${provenanceIndexBlobOid}\tprovenanceIndex.cbor`);
   }
 
   // Add index subtree if present (schema 4)
-  if (indexSubtreeOid) {
+  if (indexSubtreeOid !== null) {
     treeEntries.push(`040000 tree ${indexSubtreeOid}\tindex`);
   }
 
@@ -373,7 +376,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
 
   // 2. Reject unsupported schemas - migration required for schema:1
   if (decoded.schema !== 2 && decoded.schema !== 3 && decoded.schema !== 4) {
-    throw new Error(
+    throw new SchemaUnsupportedError(
       `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
         `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`
     );
@@ -387,16 +390,16 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
 
   // 4. Read frontier.cbor blob
   const frontierOid = treeOids['frontier.cbor'];
-  if (!frontierOid) {
-    throw new Error(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
+  if (frontierOid === undefined || frontierOid === '') {
+    throw new PatchError(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
   }
   const frontierBuffer = await persistence.readBlob(frontierOid);
   const frontier = deserializeFrontier(frontierBuffer, { codec: /** @type {import('../../ports/CodecPort.js').default} */ (codec) });
 
   // 5. Read state.cbor blob and deserialize as V5 full state
   const stateOid = treeOids['state.cbor'];
-  if (!stateOid) {
-    throw new Error(`Checkpoint ${checkpointSha} missing state.cbor in tree`);
+  if (stateOid === undefined || stateOid === '') {
+    throw new PatchError(`Checkpoint ${checkpointSha} missing state.cbor in tree`);
   }
   const stateBuffer = await persistence.readBlob(stateOid);
 
@@ -406,7 +409,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
   // Load appliedVV if present
   let appliedVV = null;
   const appliedVVOid = treeOids['appliedVV.cbor'];
-  if (appliedVVOid) {
+  if (appliedVVOid !== undefined && appliedVVOid !== '') {
     const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
     appliedVV = deserializeAppliedVV(appliedVVBuffer, { codec });
   }
@@ -414,7 +417,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
   // Load provenanceIndex if present (HG/IO/2)
   let provenanceIndex = null;
   const provenanceIndexOid = treeOids['provenanceIndex.cbor'];
-  if (provenanceIndexOid) {
+  if (provenanceIndexOid !== undefined && provenanceIndexOid !== '') {
     const provenanceIndexBuffer = await persistence.readBlob(provenanceIndexOid);
     provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, { codec });
   }
@@ -471,7 +474,7 @@ export async function materializeIncremental({
 
     // If writer wasn't in checkpoint frontier, load all their patches up to targetSha
     // If writer was in checkpoint, load patches from checkpoint SHA to target SHA
-    const patches = await patchLoader(writerId, cpSha || null, targetSha);
+    const patches = await patchLoader(writerId, cpSha !== undefined ? cpSha : null, targetSha);
     allPatches.push(...patches);
   }
 
@@ -514,6 +517,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
 
   const nodeAlive = createORSet();
   const edgeAlive = createORSet();
+  /** @type {Map<string, {eventId: {lamport: number, writerId: string, patchSha: string, opIndex: number}, value: unknown}>} */
   const prop = new Map();
   const observedFrontier = createVersionVector();
 
@@ -539,6 +543,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
 
   // Reconstruct edgeBirthEvent: synthetic birth at lamport 0
   // so checkpoint-loaded props pass the visibility filter
+  /** @type {Map<string, {lamport: number, writerId: string, patchSha: string, opIndex: number}>} */
   const edgeBirthEvent = new Map();
   for (const edge of edges) {
     const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);

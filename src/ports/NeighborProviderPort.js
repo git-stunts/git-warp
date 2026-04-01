@@ -8,6 +8,8 @@
  * @abstract
  */
 
+import WarpError from '../domain/errors/WarpError.js';
+
 /** @typedef {'out' | 'in' | 'both'} Direction */
 /** @typedef {{ labels?: Set<string> }} NeighborOptions */
 /** @typedef {{ neighborId: string, label: string }} NeighborEdge */
@@ -27,7 +29,7 @@ export default class NeighborProviderPort {
    * @throws {Error} If not implemented by a concrete provider
    */
   async getNeighbors(_nodeId, _direction, _options) {
-    throw new Error('NeighborProviderPort.getNeighbors() not implemented');
+    throw new WarpError('NeighborProviderPort.getNeighbors() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -40,7 +42,7 @@ export default class NeighborProviderPort {
    * @throws {Error} If not implemented by a concrete provider
    */
   async hasNode(_nodeId) {
-    throw new Error('NeighborProviderPort.hasNode() not implemented');
+    throw new WarpError('NeighborProviderPort.hasNode() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**

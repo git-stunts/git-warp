@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for cryptographic operations.
  *
@@ -12,7 +14,7 @@ export default class CryptoPort {
    * @returns {Promise<string>} Hex-encoded digest
    */
   async hash(_algorithm, _data) {
-    throw new Error('CryptoPort.hash() not implemented');
+    throw new WarpError('CryptoPort.hash() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -23,7 +25,7 @@ export default class CryptoPort {
    * @returns {Promise<Uint8Array>} Raw HMAC digest
    */
   async hmac(_algorithm, _key, _data) {
-    throw new Error('CryptoPort.hmac() not implemented');
+    throw new WarpError('CryptoPort.hmac() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -33,6 +35,6 @@ export default class CryptoPort {
    * @returns {boolean} True if buffers are equal
    */
   timingSafeEqual(_a, _b) {
-    throw new Error('CryptoPort.timingSafeEqual() not implemented');
+    throw new WarpError('CryptoPort.timingSafeEqual() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

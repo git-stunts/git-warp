@@ -1,7 +1,7 @@
 import { renderGraphView } from '../../../src/visualization/renderers/ascii/graph.js';
 import { renderSvg } from '../../../src/visualization/renderers/svg/index.js';
 import { layoutGraph, queryResultToGraphData } from '../../../src/visualization/layouts/index.js';
-import { EXIT_CODES, usageError, parseCommandArgs } from '../infrastructure.js';
+import { EXIT_CODES, CliError, usageError, parseCommandArgs } from '../infrastructure.js';
 import { openGraph, applyCursorCeiling, emitCursorWarning } from '../shared.js';
 import { querySchema } from '../schemas.js';
 
@@ -34,9 +34,9 @@ function extractTraversalSteps(args) {
     const arg = args[i];
     if (arg === '--outgoing' || arg === '--incoming') {
       const next = args[i + 1];
-      const label = next && !next.startsWith('-') ? next : undefined;
+      const label = (typeof next === 'string' && next.length > 0 && !next.startsWith('-')) ? next : undefined;
       steps.push({ type: arg.slice(2), label });
-      if (label) {
+      if (typeof label === 'string' && label.length > 0) {
         i += 1;
       }
     } else {
@@ -47,16 +47,22 @@ function extractTraversalSteps(args) {
   return { steps, remaining };
 }
 
-/** @param {string} value */
+/**
+ * Parses a --where-prop key=value string into a filter step.
+ * @param {string} value - Raw key=value string from CLI args
+ */
 function parseWhereProp(value) {
   const [key, ...rest] = value.split('=');
-  if (!key || rest.length === 0) {
+  if (typeof key !== 'string' || key.length === 0 || rest.length === 0) {
     throw usageError('Expected --where-prop key=value');
   }
   return { type: 'where-prop', key, value: rest.join('=') };
 }
 
-/** @param {string} value */
+/**
+ * Splits a comma-separated select fields string into an array of trimmed field names.
+ * @param {string} value - Comma-separated field names from --select
+ */
 function parseSelectFields(value) {
   if (value === '') {
     return [];
@@ -64,7 +70,10 @@ function parseSelectFields(value) {
   return value.split(',').map((field) => field.trim()).filter(Boolean);
 }
 
-/** @param {string[]} args */
+/**
+ * Parses raw CLI args into a structured query specification.
+ * @param {string[]} args - Raw CLI arguments after base flag extraction
+ */
 function parseQueryArgs(args) {
   // Extract traversal steps first (optional-value semantics)
   const { steps, remaining } = extractTraversalSteps(args);
@@ -86,8 +95,9 @@ function parseQueryArgs(args) {
 }
 
 /**
- * @param {QueryBuilderLike} builder
- * @param {Array<{type: string, label?: string, key?: string, value?: string}>} steps
+ * Applies all traversal and filter steps to a query builder in sequence.
+ * @param {QueryBuilderLike} builder - Initial query builder
+ * @param {Array<{type: string, label?: string, key?: string, value?: string}>} steps - Traversal/filter steps
  */
 function applyQuerySteps(builder, steps) {
   let current = builder;
@@ -98,8 +108,9 @@ function applyQuerySteps(builder, steps) {
 }
 
 /**
- * @param {QueryBuilderLike} builder
- * @param {{type: string, label?: string, key?: string, value?: string}} step
+ * Applies a single traversal or filter step to a query builder.
+ * @param {QueryBuilderLike} builder - Current query builder
+ * @param {{type: string, label?: string, key?: string, value?: string}} step - Step to apply
  */
 function applyQueryStep(builder, step) {
   if (step.type === 'outgoing') {
@@ -115,9 +126,10 @@ function applyQueryStep(builder, step) {
 }
 
 /**
- * @param {{props?: Record<string, unknown>}} node
- * @param {string} key
- * @param {string} value
+ * Tests whether a node's properties match a key-value filter.
+ * @param {{props?: Record<string, unknown>}} node - Node with optional props
+ * @param {string} key - Property key to check
+ * @param {string} value - Expected property value (string comparison)
  */
 function matchesPropFilter(node, key, value) {
   const props = node.props || {};
@@ -145,19 +157,20 @@ function buildEdgeMap(edges) {
     const fromEntry = edgeMap.get(edge.from);
     const toEntry = edgeMap.get(edge.to);
     if (fromEntry) {
-      fromEntry.outgoing.push({ label: edge.label || '', to: edge.to });
+      fromEntry.outgoing.push({ label: (typeof edge.label === 'string' && edge.label.length > 0) ? edge.label : '', to: edge.to });
     }
     if (toEntry) {
-      toEntry.incoming.push({ label: edge.label || '', from: edge.from });
+      toEntry.incoming.push({ label: (typeof edge.label === 'string' && edge.label.length > 0) ? edge.label : '', from: edge.from });
     }
   }
   return edgeMap;
 }
 
 /**
- * @param {string} graphName
- * @param {{nodes: Array<{id: string, props?: Record<string, unknown>}>, stateHash?: string}} result
- * @param {Array<{from: string, to: string, label?: string}>} edges
+ * Assembles the JSON payload for a query result, enriching nodes with edge data.
+ * @param {string} graphName - Name of the WARP graph
+ * @param {{nodes: Array<{id: string, props?: Record<string, unknown>}>, stateHash?: string}} result - Query result
+ * @param {Array<{from: string, to: string, label?: string}>} edges - All graph edges
  * @returns {{graph: string, stateHash: string|undefined, nodes: Array<{id: string, props?: Record<string, unknown>} & Record<string, unknown>>, [k: string]: unknown}}
  */
 function buildQueryPayload(graphName, result, edges) {
@@ -180,12 +193,19 @@ function buildQueryPayload(graphName, result, edges) {
   };
 }
 
-/** @param {unknown} error */
+/**
+ * Maps domain query errors to CLI usage errors, re-throwing otherwise.
+ * @param {unknown} error - Caught error from query execution
+ * @returns {never} Always throws
+ */
 function mapQueryError(error) {
-  if (error instanceof Error && /** @type {{code?: string}} */ (error).code?.startsWith('E_QUERY')) {
+  if (error instanceof Error && /** @type {{code?: string}} */ (error).code?.startsWith('E_QUERY') === true) {
     throw usageError(error.message);
   }
-  throw error;
+  if (error instanceof Error) {
+    throw error;
+  }
+  throw new CliError(String(error));
 }
 
 /**
@@ -215,10 +235,10 @@ export default async function handleQuery({ options, args }) {
     const edges = await graph.getEdges();
     const payload = buildQueryPayload(graphName, result, edges);
 
-    if (options.view) {
+    if (options.view === true || (typeof options.view === 'string' && options.view.length > 0)) {
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
-      if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
+      if (typeof options.view === 'string' && options.view.length > 0 && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
         payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
       } else {
         payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
@@ -230,6 +250,6 @@ export default async function handleQuery({ options, args }) {
       exitCode: EXIT_CODES.OK,
     };
   } catch (error) {
-    throw mapQueryError(error);
+    return mapQueryError(error);
   }
 }

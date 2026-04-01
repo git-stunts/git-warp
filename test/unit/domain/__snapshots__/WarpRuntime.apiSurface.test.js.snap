@@ -7,6 +7,11 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "_buildTrustGate": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_buildView": {
     "configurable": true,
     "enumerable": false,
@@ -17,7 +22,17 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
     "enumerable": false,
     "type": "method",
   },
+  "_emitTimingMessage": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
   "_ensureFreshState": {
+    "configurable": true,
+    "enumerable": false,
+    "type": "method",
+  },
+  "_extractTrustedWriters": {
     "configurable": true,
     "enumerable": false,
     "type": "method",
@@ -570,14 +585,17 @@ exports[`WarpRuntime API surface > all prototype methods have correct property d
 }
 `;
 
-exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `113`;
+exports[`WarpRuntime API surface > prototype method count matches snapshot 1`] = `116`;
 
 exports[`WarpRuntime API surface > prototype methods match snapshot 1`] = `
 [
   "_buildAdjacency",
+  "_buildTrustGate",
   "_buildView",
   "_computeBackwardCone",
+  "_emitTimingMessage",
   "_ensureFreshState",
+  "_extractTrustedWriters",
   "_frontierEquals",
   "_hasSchema1Patches",
   "_isAncestor",

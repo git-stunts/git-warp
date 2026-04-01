@@ -85,7 +85,8 @@ export function evaluateWriters(writerIds, trustState, policy) {
  */
 function buildTrustStateErrorAssessment(writerIds, trustState) {
   const sortedWriters = [...writerIds].sort();
-  const firstError = trustState.errors[0]?.error || 'Invalid trust evidence';
+  const rawError = trustState.errors[0]?.error;
+  const firstError = (rawError !== undefined && rawError !== null && rawError !== '') ? rawError : 'Invalid trust evidence';
   const trust = {
     status: /** @type {'configured'|'pinned'|'error'|'not_configured'} */ ('error'),
     source: 'ref',

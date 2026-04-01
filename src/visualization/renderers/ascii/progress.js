@@ -1,6 +1,36 @@
 import chalk from 'chalk';
 
 /**
+ * Applies color to a bar string based on percentage thresholds.
+ * Green >= 80%, yellow >= 50%, red < 50%.
+ * @param {string} bar - The raw bar string
+ * @param {number} pct - The percentage value
+ * @returns {string} Colored bar string
+ */
+function colorizeBar(bar, pct) {
+  if (pct >= 80) {
+    return chalk.green(bar);
+  }
+  if (pct >= 50) {
+    return chalk.yellow(bar);
+  }
+  return chalk.red(bar);
+}
+
+/**
+ * Resolves progress bar display options with defaults.
+ * @param {{ filled?: string, empty?: string, showPercent?: boolean }} opts
+ * @returns {{ filled: string, empty: string, showPercent: boolean }}
+ */
+function resolveBarOptions(opts) {
+  return {
+    filled: opts.filled ?? '█',
+    empty: opts.empty ?? '░',
+    showPercent: opts.showPercent ?? true,
+  };
+}
+
+/**
  * Renders a colored progress bar string.
  *
  * Color thresholds: green >= 80%, yellow >= 50%, red < 50%.
@@ -12,16 +42,11 @@ import chalk from 'chalk';
  */
 export function progressBar(percent, width = 20, options = {}) {
   const clampedPercent = Math.max(0, Math.min(100, percent));
-  const { filled = '█', empty = '░', showPercent = true } = options;
+  const { filled, empty, showPercent } = resolveBarOptions(options);
   const filledCount = Math.round((clampedPercent / 100) * width);
   const emptyCount = width - filledCount;
 
-  let bar = filled.repeat(filledCount) + empty.repeat(emptyCount);
-
-  // Color based on value
-  if (clampedPercent >= 80) {bar = chalk.green(bar);}
-  else if (clampedPercent >= 50) {bar = chalk.yellow(bar);}
-  else {bar = chalk.red(bar);}
+  const bar = colorizeBar(filled.repeat(filledCount) + empty.repeat(emptyCount), clampedPercent);
 
   return showPercent ? `${bar} ${clampedPercent}%` : bar;
 }

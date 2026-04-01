@@ -21,6 +21,7 @@ import WarpError from './WarpError.js';
  */
 export default class StrandError extends WarpError {
   /**
+   * Creates a StrandError with an optional error code and context.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */
