@@ -164,22 +164,27 @@ export function isKnownOp(op) {
 }
 
 /**
+ * @typedef {{ type: string, [key: string]: unknown }} OpLikeRecord
+ * @typedef {{ type: string, writerId: string, counter: number, [key: string]: unknown }} DotLikeRecord
+ */
+
+/**
  * Asserts that `op[field]` is a string. Throws PatchError if not.
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  * @param {string} field
  */
 function requireString(op, field) {
   if (typeof op[field] !== 'string') {
     throw new PatchError(
-      `${op['type']} op requires '${field}' to be a string, got ${typeof op[field]}`,
-      { context: { opType: op['type'], field, actual: typeof op[field] } },
+      `${op.type} op requires '${field}' to be a string, got ${typeof op[field]}`,
+      { context: { opType: op.type, field, actual: typeof op[field] } },
     );
   }
 }
 
 /**
  * Asserts that `op[field]` is iterable (Array, Set, or any Symbol.iterator).
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  * @param {string} field
  */
 function requireIterable(op, field) {
@@ -191,35 +196,35 @@ function requireIterable(op, field) {
     typeof /** @type {Iterable<unknown>} */ (val)[Symbol.iterator] !== 'function'
   ) {
     throw new PatchError(
-      `${op['type']} op requires '${field}' to be iterable, got ${typeof val}`,
-      { context: { opType: op['type'], field, actual: typeof val } },
+      `${op.type} op requires '${field}' to be iterable, got ${typeof val}`,
+      { context: { opType: op.type, field, actual: typeof val } },
     );
   }
 }
 
 /**
  * Asserts that `op.dot` is an object with writerId (string) and counter (number).
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  */
 function requireDot(op) {
   const { dot } = op;
   if (dot === null || dot === undefined || typeof dot !== 'object') {
     throw new PatchError(
-      `${op['type']} op requires 'dot' to be an object, got ${typeof dot}`,
-      { context: { opType: op['type'], field: 'dot', actual: typeof dot } },
+      `${op.type} op requires 'dot' to be an object, got ${typeof dot}`,
+      { context: { opType: op.type, field: 'dot', actual: typeof dot } },
     );
   }
-  const d = /** @type {Record<string, unknown>} */ (dot);
-  if (typeof d['writerId'] !== 'string') {
+  const d = /** @type {DotLikeRecord} */ (dot);
+  if (typeof d.writerId !== 'string') {
     throw new PatchError(
-      `${op['type']} op requires 'dot.writerId' to be a string, got ${typeof d['writerId']}`,
-      { context: { opType: op['type'], field: 'dot.writerId', actual: typeof d['writerId'] } },
+      `${op.type} op requires 'dot.writerId' to be a string, got ${typeof d.writerId}`,
+      { context: { opType: op.type, field: 'dot.writerId', actual: typeof d.writerId } },
     );
   }
-  if (typeof d['counter'] !== 'number') {
+  if (typeof d.counter !== 'number') {
     throw new PatchError(
-      `${op['type']} op requires 'dot.counter' to be a number, got ${typeof d['counter']}`,
-      { context: { opType: op['type'], field: 'dot.counter', actual: typeof d['counter'] } },
+      `${op.type} op requires 'dot.counter' to be a number, got ${typeof d.counter}`,
+      { context: { opType: op.type, field: 'dot.counter', actual: typeof d.counter } },
     );
   }
 }
@@ -229,17 +234,17 @@ function requireDot(op) {
  * Throws PatchError for malformed ops. Unknown/BlobValue types pass through
  * for forward compatibility.
  *
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  */
 function validateOp(op) {
-  if (op === null || op === undefined || typeof op['type'] !== 'string') {
+  if (op === null || op === undefined || typeof op.type !== 'string') {
     throw new PatchError(
-      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op['type']}`,
-      { context: { actual: op === null || op === undefined ? String(op) : typeof op['type'] } },
+      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op.type}`,
+      { context: { actual: op === null || op === undefined ? String(op) : typeof op.type } },
     );
   }
 
-  switch (op['type']) {
+  switch (op.type) {
     case 'NodeAdd':
       requireString(op, 'node');
       requireDot(op);
@@ -286,7 +291,7 @@ function validateOp(op) {
  * @param {import('../utils/EventId.js').EventId} eventId - The event ID for LWW ordering
  */
 export function applyOpV2(state, op, eventId) {
-  validateOp(/** @type {Record<string, unknown>} */ (op));
+  validateOp(/** @type {OpLikeRecord} */ (op));
   switch (op.type) {
     case 'NodeAdd':
       orsetAdd(state.nodeAlive, /** @type {string} */ (op.node), /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
@@ -488,7 +493,7 @@ function edgeRemoveOutcome(orset, op) {
     && typeof op.to === 'string' && op.to.length > 0
     && typeof op.label === 'string' && op.label.length > 0;
   const target = hasEdgeFields
-    ? encodeEdgeKey(op.from, op.to, op.label)
+    ? encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label))
     : '*';
   return { target, result: effective ? 'applied' : 'redundant' };
 }
@@ -595,8 +600,10 @@ function updateFrontierFromPatch(state, patch) {
  */
 export function applyFast(state, patch, patchSha) {
   for (let i = 0; i < patch.ops.length; i++) {
+    const op = patch.ops[i];
+    if (op === undefined) { continue; }
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    applyOpV2(state, normalizeRawOp(patch.ops[i]), eventId);
+    applyOpV2(state, normalizeRawOp(op), eventId);
   }
   updateFrontierFromPatch(state, patch);
   return state;
@@ -824,8 +831,10 @@ export function applyWithDiff(state, patch, patchSha) {
   const diff = createEmptyDiff();
 
   for (let i = 0; i < patch.ops.length; i++) {
-    const canonOp = /** @type {import('../types/WarpTypesV2.js').CanonicalOpV2} */ (normalizeRawOp(patch.ops[i]));
-    validateOp(/** @type {Record<string, unknown>} */ (canonOp));
+    const rawOp = patch.ops[i];
+    if (rawOp === undefined) { continue; }
+    const canonOp = /** @type {import('../types/WarpTypesV2.js').CanonicalOpV2} */ (normalizeRawOp(rawOp));
+    validateOp(/** @type {OpLikeRecord} */ (canonOp));
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
     const before = snapshotBeforeOp(state, canonOp);
     applyOpV2(state, canonOp, eventId);
@@ -848,8 +857,10 @@ export function applyWithReceipt(state, patch, patchSha) {
   /** @type {import('../types/TickReceipt.js').OpOutcome[]} */
   const opResults = [];
   for (let i = 0; i < patch.ops.length; i++) {
-    const canonOp = /** @type {import('../types/WarpTypesV2.js').OpV2} */ (normalizeRawOp(patch.ops[i]));
-    validateOp(/** @type {Record<string, unknown>} */ (canonOp));
+    const rawOp = patch.ops[i];
+    if (rawOp === undefined) { continue; }
+    const canonOp = /** @type {import('../types/WarpTypesV2.js').OpV2} */ (normalizeRawOp(rawOp));
+    validateOp(/** @type {OpLikeRecord} */ (canonOp));
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
 
     // Determine outcome BEFORE applying the op (state is pre-op)
@@ -878,8 +889,9 @@ export function applyWithReceipt(state, patch, patchSha) {
         outcome = edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string, value: unknown}} */ (canonOp), eventId);
         break;
       case 'BlobValue': {
-        const blobOp = /** @type {Record<string, string>} */ (canonOp);
-        const blobTarget = (typeof blobOp['oid'] === 'string' && blobOp['oid'].length > 0) ? blobOp['oid'] : '*';
+        const blobOp = /** @type {{ oid?: string }} */ (canonOp);
+        const blobOid = blobOp.oid;
+        const blobTarget = (typeof blobOid === 'string' && blobOid.length > 0) ? blobOid : '*';
         outcome = { target: blobTarget, result: 'applied' };
         break;
       }

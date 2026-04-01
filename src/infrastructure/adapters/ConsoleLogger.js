@@ -91,7 +91,7 @@ export default class ConsoleLogger extends LoggerPort {
    * @returns {void}
    */
   debug(message, context) {
-    this._log({ level: LogLevel.DEBUG, levelName: 'DEBUG', message, context });
+    this._log({ level: LogLevel.DEBUG, levelName: 'DEBUG', message, ...(context !== undefined ? { context } : {}) });
   }
 
   /**
@@ -101,7 +101,7 @@ export default class ConsoleLogger extends LoggerPort {
    * @returns {void}
    */
   info(message, context) {
-    this._log({ level: LogLevel.INFO, levelName: 'INFO', message, context });
+    this._log({ level: LogLevel.INFO, levelName: 'INFO', message, ...(context !== undefined ? { context } : {}) });
   }
 
   /**
@@ -111,7 +111,7 @@ export default class ConsoleLogger extends LoggerPort {
    * @returns {void}
    */
   warn(message, context) {
-    this._log({ level: LogLevel.WARN, levelName: 'WARN', message, context });
+    this._log({ level: LogLevel.WARN, levelName: 'WARN', message, ...(context !== undefined ? { context } : {}) });
   }
 
   /**
@@ -121,7 +121,7 @@ export default class ConsoleLogger extends LoggerPort {
    * @returns {void}
    */
   error(message, context) {
-    this._log({ level: LogLevel.ERROR, levelName: 'ERROR', message, context });
+    this._log({ level: LogLevel.ERROR, levelName: 'ERROR', message, ...(context !== undefined ? { context } : {}) });
   }
 
   /**

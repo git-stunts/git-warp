@@ -49,9 +49,9 @@ export async function createPatch() {
     onDeleteWithData: this._onDeleteWithData,
     onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} opts - Commit result */ (opts) => this._onPatchCommitted(this._writerId, opts),
     codec: this._codec,
-    logger: this._logger ?? undefined,
-    blobStorage: this._blobStorage ?? undefined,
-    patchBlobStorage: this._patchBlobStorage ?? undefined,
+    ...(this._logger !== null && this._logger !== undefined ? { logger: this._logger } : {}),
+    ...(this._blobStorage !== null && this._blobStorage !== undefined ? { blobStorage: this._blobStorage } : {}),
+    ...(this._patchBlobStorage !== null && this._patchBlobStorage !== undefined ? { patchBlobStorage: this._patchBlobStorage } : {}),
   });
 }
 
@@ -203,7 +203,7 @@ export async function _loadPatchChainFromSha(tipSha, stopAtSha = null) {
     patches.push({ patch: decoded, sha: currentSha });
 
     if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-      currentSha = nodeInfo.parents[0];
+      currentSha = nodeInfo.parents[0] ?? '';
     } else {
       break;
     }
@@ -339,9 +339,9 @@ export async function writer(writerId) {
     onDeleteWithData: this._onDeleteWithData,
     onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ (/** Post-commit callback for the writer. @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} opts - Commit result */ (opts) => this._onPatchCommitted(resolvedWriterId, opts)),
     codec: this._codec,
-    logger: this._logger ?? undefined,
-    blobStorage: this._blobStorage ?? undefined,
-    patchBlobStorage: this._patchBlobStorage ?? undefined,
+    ...(this._logger !== null && this._logger !== undefined ? { logger: this._logger } : {}),
+    ...(this._blobStorage !== null && this._blobStorage !== undefined ? { blobStorage: this._blobStorage } : {}),
+    ...(this._patchBlobStorage !== null && this._patchBlobStorage !== undefined ? { patchBlobStorage: this._patchBlobStorage } : {}),
   });
 }
 
@@ -479,7 +479,7 @@ export async function discoverTicks() {
         lastLamport = patchMeta.lamport;
 
         if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-          currentSha = nodeInfo.parents[0];
+          currentSha = nodeInfo.parents[0] ?? '';
         } else {
           break;
         }
@@ -494,7 +494,7 @@ export async function discoverTicks() {
   }
 
   const ticks = [...globalTickSet].sort((a, b) => a - b);
-  const maxTick = ticks.length > 0 ? ticks[ticks.length - 1] : 0;
+  const maxTick = ticks.length > 0 ? (ticks[ticks.length - 1] ?? 0) : 0;
 
   return { ticks, maxTick, perWriter };
 }

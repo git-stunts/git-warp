@@ -155,8 +155,9 @@ export default class DagTraversal {
         const neighbors = await this._getNeighbors(current.sha, direction);
         // Push in reverse order so first neighbor is processed first
         for (let i = neighbors.length - 1; i >= 0; i--) {
-          if (!visited.has(neighbors[i])) {
-            stack.push({ sha: neighbors[i], depth: current.depth + 1, parent: current.sha });
+          const neighbor = neighbors[i];
+          if (neighbor !== undefined && !visited.has(neighbor)) {
+            stack.push({ sha: neighbor, depth: current.depth + 1, parent: current.sha });
           }
         }
       }
@@ -172,7 +173,7 @@ export default class DagTraversal {
    * @yields {TraversalNode} Ancestor nodes in BFS order
    */
   async *ancestors({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
-    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'reverse', signal });
+    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'reverse', ...(signal !== undefined ? { signal } : {}) });
   }
 
   /**
@@ -182,7 +183,7 @@ export default class DagTraversal {
    * @yields {TraversalNode} Descendant nodes in BFS order
    */
   async *descendants({ sha, maxNodes = DEFAULT_MAX_NODES, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
-    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'forward', signal });
+    yield* this.bfs({ start: sha, maxNodes, maxDepth, direction: 'forward', ...(signal !== undefined ? { signal } : {}) });
   }
 
   /**
@@ -196,14 +197,14 @@ export default class DagTraversal {
    */
   async isReachable({ from, to, maxDepth = DEFAULT_MAX_DEPTH, signal }) {
     if (this._pathFinder) {
-      const result = await this._pathFinder.findPath({ from, to, maxDepth, signal });
+      const result = await this._pathFinder.findPath({ from, to, maxDepth, ...(signal !== undefined ? { signal } : {}) });
       return result.found;
     }
     // Fallback: BFS-based reachability
     if (from === to) {
       return true;
     }
-    for await (const node of this.bfs({ start: from, maxDepth, direction: 'forward', signal })) {
+    for await (const node of this.bfs({ start: from, maxDepth, direction: 'forward', ...(signal !== undefined ? { signal } : {}) })) {
       if (node.sha === to) {
         return true;
       }

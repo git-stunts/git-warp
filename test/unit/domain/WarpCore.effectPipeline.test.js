@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   WarpCore,
   InMemoryGraphAdapter,
@@ -36,7 +36,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const mux = new MultiplexSink();
       mux.addSink(new NoOpEffectSink());
       const pipeline = new EffectPipeline({
-        sink: mux,
+        sink: /** @type {import('../../../index.js').EffectSinkPort} */ (/** @type {unknown} */ (mux)),
         lens: LIVE_LENS,
         clock: { now: () => 42 },
       });
@@ -62,7 +62,7 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const mux = new MultiplexSink();
       mux.addSink(new NoOpEffectSink());
       core.effectPipeline = new EffectPipeline({
-        sink: mux,
+        sink: /** @type {import('../../../index.js').EffectSinkPort} */ (/** @type {unknown} */ (mux)),
         lens: LIVE_LENS,
         clock: { now: () => 99 },
       });
@@ -150,7 +150,8 @@ describe('WarpCore — effect pipeline (host-domain infra)', () => {
       const pipeline = /** @type {EffectPipeline} */ (core.effectPipeline);
       const result = await pipeline.emit('test', null);
 
-      expect(result.observations[0].outcome).toBe('suppressed');
+      const obs = Array.isArray(result.observations) ? result.observations[0] : result.observations;
+      expect(obs?.outcome).toBe('suppressed');
     });
   });
 });

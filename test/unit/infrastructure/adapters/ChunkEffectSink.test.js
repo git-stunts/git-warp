@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ChunkEffectSink } from '../../../../src/infrastructure/adapters/ChunkEffectSink.js';
 import { createEffectEmission } from '../../../../src/domain/types/EffectEmission.js';
 import { LIVE_LENS, REPLAY_LENS } from '../../../../src/domain/types/ExternalizationPolicy.js';
@@ -55,11 +55,12 @@ describe('ChunkEffectSink', () => {
     const files = await readdir(dir);
     expect(files.length).toBeGreaterThanOrEqual(1);
 
-    const content = await readFile(join(dir, files[0]), 'utf8');
+    const firstFile = files[0]; if (!firstFile) { throw new Error('expected file'); }
+    const content = await readFile(join(dir, firstFile), 'utf8');
     const lines = content.trim().split('\n');
     expect(lines.length).toBeGreaterThanOrEqual(1);
 
-    const parsed = JSON.parse(lines[0]);
+    const parsed = JSON.parse(lines[0] ?? '');
     expect(parsed.id).toBe('em-1');
     expect(parsed.kind).toBe('test');
   });
@@ -72,7 +73,8 @@ describe('ChunkEffectSink', () => {
     const files = await readdir(dir);
     expect(files).toHaveLength(1);
 
-    const content = await readFile(join(dir, files[0]), 'utf8');
+    const firstChunk = files[0]; if (!firstChunk) { throw new Error('expected file'); }
+    const content = await readFile(join(dir, firstChunk), 'utf8');
     const lines = content.trim().split('\n');
     expect(lines).toHaveLength(2);
   });

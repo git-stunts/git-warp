@@ -188,7 +188,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt, patchBlo
  *
  * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default} persistence - Git persistence layer
  *   (uses CommitPort.getNodeInfo()/showNode() + BlobPort.readBlob() methods)
- * @param {string} graphName - Graph name (used in error messages, not for lookups)
+ * @param {string} _graphName - Graph name (used in error messages, not for lookups)
  * @param {string} writerId - Writer ID (used in error messages, not for lookups)
  * @param {string|null} fromSha - Start SHA (exclusive). Pass null to load ALL patches
  *   for this writer from the beginning of their chain.
@@ -212,20 +212,23 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt, patchBlo
  * // Load ALL patches for a new writer
  * const patches = await loadPatchRange(persistence, 'events', 'new-writer', null, tipSha);
  */
-export async function loadPatchRange(persistence, graphName, writerId, fromSha, toSha, { codec, patchBlobStorage } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} */ ({})) {
+export async function loadPatchRange(persistence, _graphName, writerId, fromSha, toSha, { codec, patchBlobStorage } = /** @type {{ codec?: import('../../ports/CodecPort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} */ ({})) {
   const patches = [];
+  /** @type {string | null} */
   let cur = toSha;
 
-  while (cur && cur !== fromSha) {
+  while (cur !== null && cur !== fromSha) {
     // Load commit info to get parent
     const commitInfo = await persistence.getNodeInfo(cur);
 
     // Load patch from commit
-    const patch = await loadPatchFromCommit(persistence, cur, { codec, patchBlobStorage });
+    const patch = await loadPatchFromCommit(persistence, cur, { ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
     patches.unshift({ patch, sha: cur }); // Prepend for chronological order
 
     // Move to parent (first parent in linear chain)
-    cur = commitInfo.parents?.[0] ?? null;
+    /** @type {string | null} */
+    const nextParent = commitInfo.parents?.[0] ?? null;
+    cur = nextParent;
   }
 
   // If fromSha was specified but we didn't reach it, we have divergence
@@ -475,7 +478,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
         writerId,
         range.from,
         range.to,
-        { codec, patchBlobStorage }
+        { ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) }
       );
 
       for (const { patch, sha } of writerPatches) {
@@ -603,7 +606,9 @@ export function applySyncResponse(response, state, frontier) {
     // Update frontier to the last SHA for this writer
     if (writerPatches.length > 0) {
       const lastPatch = writerPatches[writerPatches.length - 1];
-      updateFrontier(newFrontier, writerId, lastPatch.sha);
+      if (lastPatch !== undefined) {
+        updateFrontier(newFrontier, writerId, lastPatch.sha);
+      }
     }
   }
 

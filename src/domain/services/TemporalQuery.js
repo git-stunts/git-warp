@@ -63,9 +63,8 @@ function isNonNullObject(value) {
  */
 function unwrapValue(value) {
   if (isNonNullObject(value) && 'type' in /** @type {object} */ (value)) {
-    /** @type {Record<string, unknown>} */
-    const rec = /** @type {Record<string, unknown>} */ (value);
-    return /** @type {unknown} */ (rec['type'] === 'inline' ? rec['value'] : value);
+    const rec = /** @type {{ type: string, value?: unknown }} */ (value);
+    return /** @type {unknown} */ (rec.type === 'inline' ? rec.value : value);
   }
   return value;
 }
@@ -196,8 +195,7 @@ function patchLamport(patch) {
 function _replayAlways(opts) {
   const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
   let seen = opts.nodeEverExisted;
-  for (let i = startIdx; i < allPatches.length; i++) {
-    const { patch, sha } = allPatches[i];
+  for (const { patch, sha } of allPatches.slice(startIdx)) {
     joinPatch(state, patch, sha);
 
     if (patchLamport(patch) < since) {
@@ -224,8 +222,7 @@ function _replayAlways(opts) {
  */
 function _replayEventually(opts) {
   const { state, allPatches, startIdx, since, nodeId, predicate } = opts;
-  for (let i = startIdx; i < allPatches.length; i++) {
-    const { patch, sha } = allPatches[i];
+  for (const { patch, sha } of allPatches.slice(startIdx)) {
     joinPatch(state, patch, sha);
 
     if (patchLamport(patch) < since) {

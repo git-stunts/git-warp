@@ -99,14 +99,18 @@ function buildReceiptLines(tickReceipt) {
 }
 
 /**
+ * @typedef {{ opSummary?: Record<string, number>, sha?: string, [key: string]: unknown }} ReceiptEntry
+ */
+
+/**
  * Extracts the op summary record from a receipt entry.
  *
- * @param {Record<string, unknown>} rec - Receipt record
+ * @param {ReceiptEntry} rec - Receipt record
  * @returns {Record<string, number>} Op summary map
  */
 function extractOpSummary(rec) {
-  if (rec['opSummary'] !== null && rec['opSummary'] !== undefined && typeof rec['opSummary'] === 'object') {
-    return /** @type {Record<string, number>} */ (rec['opSummary']);
+  if (rec.opSummary !== null && rec.opSummary !== undefined && typeof rec.opSummary === 'object') {
+    return rec.opSummary;
   }
   return /** @type {Record<string, number>} */ (rec);
 }
@@ -119,9 +123,8 @@ function extractOpSummary(rec) {
  */
 function formatReceiptEntry(pair) {
   const [writerId, entry] = pair;
-  /** @type {Record<string, unknown>} */
-  const rec = /** @type {Record<string, unknown>} */ (entry);
-  const sha = typeof rec['sha'] === 'string' ? rec['sha'] : null;
+  const rec = /** @type {ReceiptEntry} */ (entry);
+  const sha = typeof rec.sha === 'string' ? rec.sha : null;
   const opSummary = extractOpSummary(rec);
   const name = padRight(formatWriterName(writerId, NAME_W), NAME_W);
   const shaStr = typeof sha === 'string' && sha.length > 0 ? `  ${formatSha(sha)}` : '';
@@ -237,6 +240,7 @@ function buildLane(patchSet, points, currentTick) {
   let lane = '';
   for (let i = 0; i < points.length; i++) {
     const t = points[i];
+    if (t === undefined) { continue; }
     const incl = t <= currentTick;
 
     if (i > 0) {
@@ -260,7 +264,7 @@ function buildLane(patchSet, points, currentTick) {
  */
 function findMaxIncludedTick(ticks, currentTick) {
   const included = ticks.filter((t) => t <= currentTick);
-  return included.length > 0 ? included[included.length - 1] : null;
+  return included.length > 0 ? (included[included.length - 1] ?? null) : null;
 }
 
 /**
@@ -465,7 +469,7 @@ function numOrZero(n) {
 /**
  * Builds a truncation hint line when entries exceed the display or data limit.
  *
- * @param {{totalEntries: number, shown: number, maxLines: number, truncated?: boolean, totalChanges?: number, shownChanges?: number}} opts - Truncation context
+ * @param {{totalEntries: number, shown: number, maxLines: number, truncated?: boolean | undefined, totalChanges?: number | undefined, shownChanges?: number | undefined}} opts - Truncation context
  * @returns {string|null} Hint string or null if no truncation occurred
  */
 function buildTruncationHint(opts) {
