@@ -115,8 +115,8 @@ export async function materialize(options) {
   try {
     // When ceiling is active, delegate to ceiling-aware path (with its own cache)
     if (ceiling !== null) {
-      const result = await this._materializeWithCeiling(ceiling, !!collectReceipts, t0);
-      if (collectReceipts) {
+      const result = await this._materializeWithCeiling(ceiling, collectReceipts === true, t0);
+      if (collectReceipts === true) {
         const withReceipts = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (result);
         return freezePublicStateWithReceipts(withReceipts.state, withReceipts.receipts);
       }
@@ -133,7 +133,7 @@ export async function materialize(options) {
     /** @type {import('../types/PatchDiff.js').PatchDiff|undefined} */
     let diff;
     let patchCount = 0;
-    const wantDiff = !collectReceipts && !!this._cachedIndexTree;
+    const wantDiff = collectReceipts !== true && this._cachedIndexTree !== null && this._cachedIndexTree !== undefined;
 
     // If checkpoint exists, use incremental materialization
     if (checkpoint?.schema === 2 || checkpoint?.schema === 3 || checkpoint?.schema === 4) {
@@ -145,7 +145,7 @@ export async function materialize(options) {
         await scanFrontierForMaxLamport(this, checkpoint.frontier);
       }
       scanPatchesForMaxLamport(this, patches);
-      if (collectReceipts) {
+      if (collectReceipts === true) {
         const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state, { receipts: true }));
         state = result.state;
         receipts = result.receipts;
@@ -174,7 +174,7 @@ export async function materialize(options) {
       if (writerIds.length === 0) {
         state = createEmptyStateV5();
         this._provenanceIndex = new ProvenanceIndex();
-        if (collectReceipts) {
+        if (collectReceipts === true) {
           receipts = [];
         }
       } else {
@@ -191,14 +191,14 @@ export async function materialize(options) {
         if (allPatches.length === 0) {
           state = createEmptyStateV5();
           this._provenanceIndex = new ProvenanceIndex();
-          if (collectReceipts) {
+          if (collectReceipts === true) {
             receipts = [];
           }
         } else {
           // Update max observed Lamport from all loaded patches.
           scanPatchesForMaxLamport(this, allPatches);
           // 5. Reduce all patches to state
-          if (collectReceipts) {
+          if (collectReceipts === true) {
             const result = /** @type {{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, { receipts: true }));
             state = result.state;
             receipts = result.receipts;
@@ -243,7 +243,7 @@ export async function materialize(options) {
     // Notify subscribers if state changed since last notification
     // Also handles deferred replay for subscribers added with replay: true before cached state
     if (this._subscribers.length > 0) {
-      const hasPendingReplay = this._subscribers.some(s => s.pendingReplay);
+      const hasPendingReplay = this._subscribers.some(s => s.pendingReplay === true);
       const stateDelta = diffStates(this._lastNotifiedState, state);
       if (!isEmptyDiff(stateDelta) || hasPendingReplay) {
         this._notifySubscribers(stateDelta, state);
@@ -254,7 +254,7 @@ export async function materialize(options) {
 
     this._logTiming('materialize', t0, { metrics: `${patchCount} patches` });
 
-    if (collectReceipts) {
+    if (collectReceipts === true) {
       return freezePublicStateWithReceipts(
         /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (state),
         /** @type {import('../types/TickReceipt.js').TickReceipt[]} */ (receipts),
@@ -283,7 +283,7 @@ export async function _materializeGraph() {
     ? /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (materialized)
     : (this._cachedState
       || /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (materialized));
-  if (!state) {
+  if (state === undefined || state === null) {
     return /** @type {object} */ (this._materializedGraph);
   }
   if (!this._materializedGraph || this._materializedGraph.state !== state) {

@@ -107,6 +107,8 @@ export function _resolveCeiling(options) {
 }
 
 /**
+ * Normalizes a frontier input to a sorted Map of writerId-to-tipSha pairs.
+ *
  * @param {Map<string, string>|Record<string, string>} frontierInput
  * @returns {Map<string, string>}
  */
@@ -116,7 +118,7 @@ function normalizeFrontierInput(frontierInput) {
 
   if (frontierInput instanceof Map) {
     entries = [...frontierInput.entries()];
-  } else if (frontierInput && typeof frontierInput === 'object' && !Array.isArray(frontierInput)) {
+  } else if (typeof frontierInput === 'object' && frontierInput !== null && !Array.isArray(frontierInput)) {
     entries = Object.entries(frontierInput);
   } else {
     throw new QueryError('frontier must be a Map or string record', {
@@ -141,6 +143,8 @@ function normalizeFrontierInput(frontierInput) {
 }
 
 /**
+ * Validates and normalizes an explicit Lamport ceiling value.
+ *
  * @param {number|null} ceiling
  * @returns {number|null}
  */
@@ -158,6 +162,8 @@ function normalizeExplicitCeiling(ceiling) {
 }
 
 /**
+ * Checks whether two frontier maps are structurally equal.
+ *
  * @param {Map<string, string>|null} a
  * @param {Map<string, string>} b
  * @returns {boolean}
@@ -175,6 +181,8 @@ function frontiersEqual(a, b) {
 }
 
 /**
+ * Attempts to read a materialized state from the seek cache for a coordinate.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
@@ -205,13 +213,13 @@ async function tryReadCoordinateCache(graph, frontier, ceiling, t0) {
     await graph._setMaterializedState(state);
     graph._cachedCeiling = ceiling;
     graph._cachedFrontier = new Map(frontier);
-    if (cached.indexTreeOid) {
+    if (typeof cached.indexTreeOid === 'string' && cached.indexTreeOid.length > 0) {
       await graph._restoreIndexFromCache(cached.indexTreeOid);
     }
     graph._logTiming('materialize', t0, { metrics: `cache hit (coordinate ceiling=${ceiling})` });
     return { state, cacheKey };
   } catch {
-    if (cacheKey) {
+    if (typeof cacheKey === 'string' && cacheKey.length > 0) {
       try { await graph._seekCache.delete(cacheKey); } catch { /* best-effort */ }
     }
     return { state: null, cacheKey };
@@ -219,6 +227,8 @@ async function tryReadCoordinateCache(graph, frontier, ceiling, t0) {
 }
 
 /**
+ * Collects all patch entries for writers in a frontier, filtered by optional ceiling.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @param {Map<string, string>} frontier
  * @param {number|null} ceiling
@@ -228,7 +238,7 @@ async function collectPatchesForFrontier(graph, frontier, ceiling) {
   const allPatches = [];
   for (const writerId of frontier.keys()) {
     const tipSha = frontier.get(writerId);
-    if (!tipSha) {
+    if (typeof tipSha !== 'string' || tipSha.length === 0) {
       continue;
     }
     const writerPatches = await graph._loadPatchChainFromSha(tipSha);
@@ -250,7 +260,9 @@ async function collectPatchesForFrontier(graph, frontier, ceiling) {
  * @private
  */
 export function _buildAdjacency(state) {
+  /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const outgoing = new Map();
+  /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const incoming = new Map();
 
   for (const edgeKey of orsetElements(state.edgeAlive)) {
@@ -267,11 +279,16 @@ export function _buildAdjacency(state) {
       incoming.set(to, []);
     }
 
-    outgoing.get(from).push({ neighborId: to, label });
-    incoming.get(to).push({ neighborId: from, label });
+    /** @type {Array<{neighborId: string, label: string}>} */ (outgoing.get(from)).push({ neighborId: to, label });
+    /** @type {Array<{neighborId: string, label: string}>} */ (incoming.get(to)).push({ neighborId: from, label });
   }
 
-  const sortNeighbors = (/** @type {Array<{neighborId: string, label: string}>} */ list) => {
+  /**
+   * Sorts a neighbor list by neighborId then label for deterministic output.
+   *
+   * @param {Array<{neighborId: string, label: string}>} list
+   */
+  const sortNeighbors = (list) => {
     list.sort((/** @type {{neighborId: string, label: string}} */ a, /** @type {{neighborId: string, label: string}} */ b) => {
       if (a.neighborId !== b.neighborId) {
         return a.neighborId < b.neighborId ? -1 : 1;
@@ -396,7 +413,7 @@ export function _buildView(state, stateHash, diff) {
  * @returns {Promise<WarpStateV5|{state: WarpStateV5, receipts: TickReceipt[]}>}
  */
 export async function materializeCoordinate(options) {
-  if (!options || typeof options !== 'object') {
+  if (options === null || options === undefined || typeof options !== 'object') {
     throw new QueryError('materializeCoordinate() requires an options object', {
       code: 'E_QUERY_COORDINATE_INVALID',
     });
@@ -404,7 +421,7 @@ export async function materializeCoordinate(options) {
 
   const frontier = normalizeFrontierInput(options.frontier);
   const ceiling = normalizeExplicitCeiling(options.ceiling ?? null);
-  const collectReceipts = !!options.receipts;
+  const collectReceipts = options.receipts === true;
   const detached = await openDetachedReadGraph(this);
 
   return await detached._materializeWithCoordinate(
@@ -527,7 +544,7 @@ export async function _materializeWithCoordinate(frontier, ceiling, collectRecei
 
   if (this._seekCache && !collectReceipts && allPatches.length > 0 && ceiling !== null) {
     try {
-      if (!cacheKey) {
+      if (cacheKey === null || cacheKey === undefined) {
         cacheKey = await buildSeekCacheKey(ceiling, frontier);
       }
       const buf = serializeFullStateV5(state, { codec: this._codec });
@@ -632,13 +649,21 @@ export async function materializeAt(checkpointSha) {
   for (const writerId of writerIds) {
     const writerRef = buildWriterRef(this._graphName, writerId);
     const tipSha = await this._persistence.readRef(writerRef);
-    if (tipSha) {
+    if (typeof tipSha === 'string' && tipSha.length > 0) {
       updateFrontier(targetFrontier, writerId, tipSha);
     }
   }
 
   // 3. Create a patch loader function for incremental materialization
-  const patchLoader = async (/** @type {string} */ writerId, /** @type {string|null} */ fromSha, /** @type {string} */ toSha) => {
+  /**
+   * Loads patches between two SHAs in a writer's chain.
+   *
+   * @param {string} writerId - Writer identifier (unused, required by interface)
+   * @param {string|null} fromSha - Starting SHA (exclusive) or null for full chain
+   * @param {string} toSha - Ending SHA (inclusive)
+   * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+   */
+  const patchLoader = async (writerId, fromSha, toSha) => {
     void writerId;
     return await this._loadPatchChainFromSha(toSha, fromSha);
   };
@@ -666,8 +691,12 @@ export async function materializeAt(checkpointSha) {
  * @returns {{ passed: number, failed: number, errors: Array<{nodeId: string, direction: string, expected: string[], actual: string[]}> }}
  */
 export function verifyIndex(options) {
-  if (!this._logicalIndex || !this._cachedState || !this._viewService) {
-    throw new Error('Cannot verify index: graph not materialized or index not built');
+  if (this._logicalIndex === null || this._logicalIndex === undefined ||
+      this._cachedState === null || this._cachedState === undefined ||
+      this._viewService === null || this._viewService === undefined) {
+    throw new QueryError('Cannot verify index: graph not materialized or index not built', {
+      code: 'E_QUERY_NO_STATE',
+    });
   }
   return this._viewService.verifyIndex({
     state: this._cachedState,

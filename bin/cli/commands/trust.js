@@ -21,6 +21,7 @@ const TRUST_OPTIONS = {
 };
 
 /**
+ * Parses trust command CLI arguments into mode and trust pin values.
  * @param {string[]} args
  * @returns {{ mode: string|null, trustPin: string|null }}
  */
@@ -35,11 +36,11 @@ export function parseTrustArgs(args) {
  * @returns {{pin: string|null, source: string, sourceDetail: string|null, status: 'configured'|'pinned'}}
  */
 function resolveTrustPin(cliPin) {
-  if (cliPin) {
+  if (typeof cliPin === 'string' && cliPin.length > 0) {
     return { pin: cliPin, source: 'cli_pin', sourceDetail: cliPin, status: 'pinned' };
   }
   const envPin = getEnvVar('WARP_TRUST_PIN');
-  if (envPin) {
+  if (typeof envPin === 'string' && envPin.length > 0) {
     return { pin: envPin, source: 'env_pin', sourceDetail: envPin, status: 'pinned' };
   }
   return { pin: null, source: 'ref', sourceDetail: null, status: 'configured' };
@@ -61,6 +62,7 @@ async function discoverWriterIds(persistence, graphName) {
 }
 
 /**
+ * Handles the `git warp trust` command: evaluates writer trust against signed evidence.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

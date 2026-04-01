@@ -42,6 +42,7 @@ const IMPACT_ORDER = /** @type {const} */ ({
 });
 
 /**
+ * Handles the `git warp doctor` command: runs structural health checks and returns findings.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: DoctorPayload, exitCode: number}>}
  */
@@ -81,7 +82,7 @@ function assemblePayload({ repo, graph, policy, findings, checksRun, startMs }) 
   }
   const priorityActions = [
     ...new Set(
-      findings.filter((f) => f.status !== 'ok' && f.fix).map((f) => /** @type {string} */ (f.fix)),
+      findings.filter((f) => f.status !== 'ok' && typeof f.fix === 'string' && f.fix.length > 0).map((f) => /** @type {string} */ (f.fix)),
     ),
   ];
 
@@ -99,6 +100,7 @@ function assemblePayload({ repo, graph, policy, findings, checksRun, startMs }) 
 }
 
 /**
+ * Collects writer heads by listing refs and reading their SHAs.
  * @param {import('../../types.js').Persistence} persistence
  * @param {string} graphName
  * @returns {Promise<Array<{writerId: string, sha: string|null, ref: string}>>}
@@ -125,6 +127,35 @@ async function collectWriterHeads(persistence, graphName) {
 }
 
 /**
+ * Executes a single check and returns its findings.
+ * @param {{ id: string, fn: (ctx: import('./types.js').DoctorContext) => Promise<DoctorFinding|DoctorFinding[]|null> }} check
+ * @param {import('./types.js').DoctorContext} ctx
+ * @returns {Promise<DoctorFinding[]>}
+ */
+async function executeCheck(check, ctx) {
+  let checkDuration;
+  try {
+    const checkStart = Date.now();
+    const result = await check.fn(ctx);
+    checkDuration = Date.now() - checkStart;
+    const resultArray = normalizeResult(result);
+    for (const f of resultArray) {
+      f.durationMs = checkDuration;
+    }
+    return resultArray;
+  } catch (err) {
+    return [{
+      id: check.id,
+      status: /** @type {const} */ ('fail'),
+      code: CODES.CHECK_INTERNAL_ERROR,
+      impact: /** @type {const} */ ('data_integrity'),
+      message: `Internal error in ${check.id}: ${err instanceof Error ? err.message : String(err)}`,
+      durationMs: checkDuration ?? 0,
+    }];
+  }
+}
+
+/**
  * Runs all checks with global deadline enforcement.
  * @param {import('./types.js').DoctorContext} ctx
  * @param {number} startMs
@@ -144,40 +175,18 @@ async function runChecks(ctx, startMs) {
         impact: 'operability',
         message: `Check skipped: global deadline exceeded (${elapsed}ms >= ${ctx.policy.globalDeadlineMs}ms)`,
       });
-      checksRun++;
-      continue;
+    } else {
+      const checkFindings = await executeCheck(check, ctx);
+      findings.push(...checkFindings);
     }
-
-    let checkDuration;
-    try {
-      const checkStart = Date.now();
-      const result = await check.fn(ctx);
-      checkDuration = Date.now() - checkStart;
-      checksRun++;
-
-      const resultArray = normalizeResult(result);
-      for (const f of resultArray) {
-        f.durationMs = checkDuration;
-        findings.push(f);
-      }
-    } catch (err) {
-      checkDuration = checkDuration ?? 0;
-      checksRun++;
-      findings.push({
-        id: check.id,
-        status: 'fail',
-        code: CODES.CHECK_INTERNAL_ERROR,
-        impact: 'data_integrity',
-        message: `Internal error in ${check.id}: ${err instanceof Error ? err.message : String(err)}`,
-        durationMs: checkDuration,
-      });
-    }
+    checksRun++;
   }
 
   return { findings, checksRun };
 }
 
 /**
+ * Normalizes a check result into an array of findings.
  * @param {DoctorFinding|DoctorFinding[]|null} result
  * @returns {DoctorFinding[]}
  */
@@ -192,6 +201,7 @@ function normalizeResult(result) {
 }
 
 /**
+ * Derives the overall health status from fail and warn counts.
  * @param {number} fail
  * @param {number} warn
  * @returns {'ok'|'degraded'|'failed'}
@@ -207,6 +217,7 @@ function deriveHealth(fail, warn) {
 }
 
 /**
+ * Computes the CLI exit code from the health status and strict mode flag.
  * @param {'ok'|'degraded'|'failed'} health
  * @param {boolean} strict
  * @returns {number}
@@ -222,16 +233,35 @@ function computeExitCode(health, strict) {
 }
 
 /**
+ * Returns the numeric sort key for a finding's status.
+ * @param {DoctorFinding} finding
+ * @returns {number}
+ */
+function statusSortKey(finding) {
+  return STATUS_ORDER[finding.status] ?? 9;
+}
+
+/**
+ * Returns the numeric sort key for a finding's impact.
+ * @param {DoctorFinding} finding
+ * @returns {number}
+ */
+function impactSortKey(finding) {
+  return IMPACT_ORDER[finding.impact] ?? 9;
+}
+
+/**
+ * Comparator for sorting findings by status (fail first), then impact, then id.
  * @param {DoctorFinding} a
  * @param {DoctorFinding} b
  * @returns {number}
  */
 function compareFinding(a, b) {
-  const statusDiff = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+  const statusDiff = statusSortKey(a) - statusSortKey(b);
   if (statusDiff !== 0) {
     return statusDiff;
   }
-  const impactDiff = (IMPACT_ORDER[a.impact] ?? 9) - (IMPACT_ORDER[b.impact] ?? 9);
+  const impactDiff = impactSortKey(a) - impactSortKey(b);
   if (impactDiff !== 0) {
     return impactDiff;
   }

@@ -18,6 +18,7 @@ import WarpError from './WarpError.js';
  */
 export default class TraversalError extends WarpError {
   /**
+   * Creates a TraversalError with an optional error code and context.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

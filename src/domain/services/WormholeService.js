@@ -35,7 +35,7 @@ import { detectMessageKind, decodePatchMessage } from './WarpMessageCodec.js';
  * @private
  */
 function validateSha(sha, paramName) {
-  if (!sha || typeof sha !== 'string') {
+  if (sha === null || sha === undefined || typeof sha !== 'string') {
     throw new WormholeError(`${paramName} is required and must be a string`, {
       code: 'E_WORMHOLE_SHA_NOT_FOUND',
       context: { [paramName]: sha },
@@ -110,7 +110,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
   } else {
     patchBuffer = await persistence.readBlob(patchMeta.patchOid);
   }
-  if (!patchBuffer) {
+  if (patchBuffer === null || patchBuffer === undefined) {
     throw new PersistenceError(
       `Patch blob not found: ${patchMeta.patchOid}`,
       PersistenceError.E_MISSING_OBJECT,
@@ -123,7 +123,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     patch,
     sha,
     writerId: patchMeta.writer,
-    parentSha: parents && parents.length > 0 ? parents[0] : null,
+    parentSha: parents !== null && parents !== undefined && parents.length > 0 ? parents[0] : null,
   };
 }
 
@@ -193,7 +193,7 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
   let currentSha = toSha;
   let writerId = null;
 
-  while (currentSha) {
+  while (currentSha !== null && currentSha !== undefined) {
     const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec, patchBlobStorage });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
@@ -202,7 +202,7 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
       break;
     }
 
-    if (!result.parentSha) {
+    if (result.parentSha === null || result.parentSha === undefined) {
       throw new WormholeError(`'${fromSha}' is not an ancestor of '${toSha}'`, {
         code: 'E_WORMHOLE_INVALID_RANGE',
         context: { fromSha, toSha },
@@ -254,11 +254,11 @@ export async function composeWormholes(first, second, options = {}) {
   }
 
   // If persistence is provided, validate that wormholes are consecutive
-  if (options.persistence) {
+  if (options.persistence !== undefined && options.persistence !== null) {
     const secondFirstInfo = await options.persistence.getNodeInfo(second.fromSha);
-    const parents = secondFirstInfo.parents || [];
+    const parents = secondFirstInfo.parents ?? [];
 
-    if (!parents.includes(first.toSha)) {
+    if (!Array.isArray(parents) || !parents.includes(first.toSha)) {
       throw new WormholeError('Wormholes are not consecutive', {
         code: 'E_WORMHOLE_INVALID_RANGE',
         context: {
@@ -321,7 +321,7 @@ export function serializeWormhole(wormhole) {
  */
 export function deserializeWormhole(json) {
   // Validate required fields
-  if (!json || typeof json !== 'object') {
+  if (json === null || json === undefined || typeof json !== 'object') {
     throw new WormholeError('Invalid wormhole JSON: expected object', {
       code: 'E_INVALID_WORMHOLE_JSON',
     });

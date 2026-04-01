@@ -113,6 +113,28 @@ class MinHeap {
   }
 
   /**
+   * Finds the index of the smallest element among a parent and its children.
+   *
+   * @private
+   * @param {number} parentIdx - Index of the parent node
+   * @param {number} heapLength - Current length of the heap array
+   * @returns {number} Index of the smallest element
+   */
+  _smallestChild(parentIdx, heapLength) {
+    const leftChild = 2 * parentIdx + 1;
+    const rightChild = 2 * parentIdx + 2;
+    let smallest = parentIdx;
+
+    if (leftChild < heapLength && this._compare(leftChild, smallest) < 0) {
+      smallest = leftChild;
+    }
+    if (rightChild < heapLength && this._compare(rightChild, smallest) < 0) {
+      smallest = rightChild;
+    }
+    return smallest;
+  }
+
+  /**
    * Restore heap property by bubbling down from index.
    *
    * @private
@@ -122,16 +144,7 @@ class MinHeap {
     const {length} = this._heap;
     let current = pos;
     while (true) {
-      const leftChild = 2 * current + 1;
-      const rightChild = 2 * current + 2;
-      let smallest = current;
-
-      if (leftChild < length && this._compare(leftChild, smallest) < 0) {
-        smallest = leftChild;
-      }
-      if (rightChild < length && this._compare(rightChild, smallest) < 0) {
-        smallest = rightChild;
-      }
+      const smallest = this._smallestChild(current, length);
       if (smallest === current) { break; }
 
       [this._heap[current], this._heap[smallest]] = [this._heap[smallest], this._heap[current]];
