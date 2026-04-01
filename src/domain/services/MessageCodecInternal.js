@@ -66,19 +66,29 @@ const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 // Codec Instance
 // -----------------------------------------------------------------------------
 
+/**
+ * Minimal shape of the TrailerCodec returned by getCodec().
+ * @typedef {Object} TrailerCodecShape
+ * @property {(message: string) => Record<string, string>} parse - Parse trailers from a commit message
+ * @property {(title: string, trailers: Record<string, string>, body?: string) => string} format - Format a commit message with trailers
+ */
+
 // Lazy singleton codec instance
-/** @type {TrailerCodec|null} */
+/** @type {TrailerCodecShape|null} */
 let _codec = null;
 
 /**
  * Returns the lazy singleton TrailerCodec instance.
- * @returns {TrailerCodec}
+ * @returns {TrailerCodecShape}
  */
 export function getCodec() {
-  if (!_codec) {
-    const service = new TrailerCodecService();
-    _codec = new TrailerCodec({ service });
+  if (_codec !== null) {
+    return _codec;
   }
+  const ServiceCtor = /** @type {unknown} */ (TrailerCodecService);
+  const CodecCtor = /** @type {unknown} */ (TrailerCodec);
+  const service = new (/** @type {new () => object} */ (ServiceCtor))();
+  _codec = /** @type {TrailerCodecShape} */ (new (/** @type {new (opts: {service: object}) => object} */ (CodecCtor))({ service }));
   return _codec;
 }
 

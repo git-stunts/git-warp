@@ -33,6 +33,7 @@ const MAX_CAS_ATTEMPTS = 3;
 
 export class TrustRecordService {
   /**
+   * Manages the append-only chain of signed trust records.
    * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, codec: import('../../ports/CodecPort.js').default }} options
    */
   constructor({ persistence, codec }) {
@@ -79,7 +80,7 @@ export class TrustRecordService {
     }
 
     // 3. Signature envelope check (structural, not cryptographic)
-    if (!options.skipSignatureVerify) {
+    if (options.skipSignatureVerify !== true) {
       this._verifySignatureEnvelope(record);
     }
 
@@ -111,7 +112,7 @@ export class TrustRecordService {
     let tip = options.tip ?? null;
 
     try {
-      if (!tip) {
+      if (tip === null || tip === undefined) {
         try {
           tip = await this._persistence.readRef(ref);
         } catch (err) {
@@ -127,7 +128,7 @@ export class TrustRecordService {
             ),
           };
         }
-        if (!tip) {
+        if (tip === null || tip === undefined) {
           return { ok: true, records: [] };
         }
       }
@@ -141,7 +142,7 @@ export class TrustRecordService {
           await this._persistence.getCommitTree(current),
         );
         const blobOid = entries['record.cbor'];
-        if (!blobOid) {
+        if (blobOid === null || blobOid === undefined) {
           break;
         }
         const record = /** @type {Record<string, unknown>} */ (this._codec.decode(
@@ -288,7 +289,9 @@ export class TrustRecordService {
    */
   _verifySignatureEnvelope(record) {
     const sig = /** @type {Record<string, unknown>|undefined} */ (record.signature);
-    if (!sig || !sig.sig || !sig.alg) {
+    const sigField = /** @type {string|undefined} */ (sig?.sig);
+    const algField = /** @type {string|undefined} */ (sig?.alg);
+    if (sig === null || sig === undefined || sigField === undefined || algField === undefined) {
       throw new TrustError(
         'Trust record missing or malformed signature',
         { code: 'E_TRUST_SIGNATURE_MISSING' },
@@ -309,14 +312,14 @@ export class TrustRecordService {
     } catch {
       return { tipSha: null, recordId: null };
     }
-    if (!tipSha) {
+    if (tipSha === null || tipSha === undefined) {
       return { tipSha: null, recordId: null };
     }
 
     const treeOid = await this._persistence.getCommitTree(tipSha);
     const entries = await this._persistence.readTreeOids(treeOid);
     const blobOid = entries['record.cbor'];
-    if (!blobOid) {
+    if (blobOid === null || blobOid === undefined) {
       return { tipSha, recordId: null };
     }
 
@@ -348,9 +351,9 @@ export class TrustRecordService {
     // Create tree with single entry (mktree format)
     const treeOid = await this._persistence.writeTree([`100644 blob ${blobOid}\trecord.cbor`]);
 
-    const parents = parentSha ? [parentSha] : [];
-    const rType = typeof record.recordType === 'string' ? record.recordType : '';
-    const rId = typeof record.recordId === 'string' ? record.recordId.slice(0, 12) : '';
+    const parents = parentSha !== null && parentSha !== undefined ? [parentSha] : [];
+    const rType = typeof record.recordType === 'string' ? String(record.recordType) : '';
+    const rId = typeof record.recordId === 'string' ? String(record.recordId).slice(0, 12) : '';
     const message = `trust: ${rType} ${rId}`;
 
     const commitSha = await this._persistence.commitNodeWithTree({

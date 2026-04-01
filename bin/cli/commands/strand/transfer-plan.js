@@ -16,29 +16,30 @@ const TRANSFER_PLAN_OPTIONS = {
   'into-lamport-ceiling': { type: 'string' },
 };
 
+/**
+ * Parses the raw `into` string into a typed target descriptor.
+ * @param {string} rawInto - Trimmed target string (base, live, or strand:<id>)
+ * @param {import('zod').RefinementCtx} ctx - Zod refinement context for error reporting
+ * @returns {'base'|'live'|{ kind: 'strand', strandId: string }|typeof z.NEVER}
+ */
+function parseIntoTarget(rawInto, ctx) {
+  if (rawInto === 'base' || rawInto === 'live') {
+    return rawInto;
+  }
+  if (rawInto.startsWith('strand:') && rawInto.length > 'strand:'.length) {
+    return { kind: /** @type {const} */ ('strand'), strandId: rawInto.slice('strand:'.length) };
+  }
+  ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['into'], message: 'into must be base, live, or strand:<id>' });
+  return z.NEVER;
+}
+
 const transferPlanSchema = z.object({
   into: z.string().default('live'),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   'into-lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val, ctx) => {
   const rawInto = val.into.trim();
-  /** @type {'base'|'live'|{ kind: 'strand', strandId: string }} */
-  let into;
-  if (rawInto === 'base' || rawInto === 'live') {
-    into = rawInto;
-  } else if (rawInto.startsWith('strand:') && rawInto.length > 'strand:'.length) {
-    into = {
-      kind: /** @type {const} */ ('strand'),
-      strandId: rawInto.slice('strand:'.length),
-    };
-  } else {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['into'],
-      message: 'into must be base, live, or strand:<id>',
-    });
-    return z.NEVER;
-  }
+  const into = parseIntoTarget(rawInto, ctx);
 
   return {
     intoRaw: rawInto,
@@ -55,6 +56,7 @@ const transferPlanSchema = z.object({
 });
 
 /**
+ * Plans a deterministic transfer from one strand into a target.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

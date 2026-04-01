@@ -20,6 +20,8 @@
  * @property {() => { address: string, port: number, family: string } | null} address
  */
 
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for HTTP server creation.
  *
@@ -38,6 +40,6 @@ export default class HttpServerPort {
    * @returns {HttpServerHandle} Server with listen(port, [host], cb(err)), close(cb), and address()
    */
   createServer(_requestHandler) {
-    throw new Error('HttpServerPort.createServer() not implemented');
+    throw new WarpError('HttpServerPort.createServer() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

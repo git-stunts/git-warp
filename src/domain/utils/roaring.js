@@ -109,7 +109,7 @@ function loadRoaring() {
  * @private
  */
 function adaptWasmApi(wasmMod) {
-  wasmMod.RoaringBitmap32.isNativelyInstalled = () => false;
+  wasmMod.RoaringBitmap32.isNativelyInstalled = /** WASM is never native. @returns {boolean} */ () => false;
   return wasmMod;
 }
 
@@ -138,8 +138,9 @@ async function tryNativeImport(errors) {
 async function tryCjsRequire(errors) {
   try {
     const { createRequire } = await import('node:module');
-    const req = createRequire(import.meta.url);
-    return /** @type {RoaringModule} */ (req('roaring'));
+    const req = /** @type {(id: string) => unknown} */ (/** @type {unknown} */ (createRequire(import.meta.url)));
+    const mod = /** @type {RoaringModule} */ (req('roaring'));
+    return mod;
   } catch (err) {
     errors.push(err instanceof Error ? err : new Error(String(err)));
     return null;
@@ -173,7 +174,7 @@ async function tryWasmFallback(errors) {
  * @private
  */
 function unwrapDefault(mod) {
-  if (mod.default && mod.default.RoaringBitmap32) {
+  if (mod.default !== null && mod.default !== undefined && typeof mod.default.RoaringBitmap32 === 'function') {
     return /** @type {RoaringModule} */ (mod.default);
   }
   return mod;
@@ -193,22 +194,31 @@ function unwrapDefault(mod) {
  * @returns {Promise<void>}
  */
 export async function initRoaring(mod) {
-  if (mod) {
+  if (mod !== null && mod !== undefined) {
     roaringModule = unwrapDefault(mod);
     nativeAvailability = NOT_CHECKED;
     initError = null;
     return;
   }
-  if (roaringModule) {
+  if (roaringModule !== null) {
     return;
   }
+  await _loadFallbackChain();
+}
+
+/**
+ * Attempts each roaring tier in order, throwing AggregateError if all fail.
+ * @returns {Promise<void>}
+ * @private
+ */
+async function _loadFallbackChain() {
   /** @type {Error[]} */
   const loadErrors = [];
   roaringModule =
     (await tryNativeImport(loadErrors)) ??
     (await tryCjsRequire(loadErrors)) ??
     (await tryWasmFallback(loadErrors));
-  if (!roaringModule) {
+  if (roaringModule === null) {
     throw new AggregateError(
       loadErrors,
       'Failed to load roaring via import(), require(), and roaring-wasm',

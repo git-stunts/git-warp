@@ -76,6 +76,7 @@ export function subscribe({ onChange, onError, replay = false }) {
   }
 
   return {
+    /** Removes this subscriber from the notification list. */
     unsubscribe: () => {
       const index = this._subscribers.indexOf(subscriber);
       if (index !== -1) {
@@ -131,7 +132,8 @@ export function subscribe({ onChange, onError, replay = false }) {
  * unsubscribe();
  */
 export function watch(pattern, { onChange, onError, poll }) {
-  const isValidPattern = (/** @type {string|string[]} */ p) => typeof p === 'string' || (Array.isArray(p) && p.length > 0 && p.every(i => typeof i === 'string'));
+  /** Checks whether a pattern is a non-empty string or array of strings. @param {string|string[]} p @returns {boolean} */
+  const isValidPattern = (p) => typeof p === 'string' || (Array.isArray(p) && p.length > 0 && p.every(i => typeof i === 'string'));
   if (!isValidPattern(pattern)) {
     throw new Error('pattern must be a non-empty string or non-empty array of strings');
   }
@@ -145,11 +147,14 @@ export function watch(pattern, { onChange, onError, poll }) {
   }
 
   // Pattern matching logic
-  /** @type {(nodeId: string) => boolean} */
+  /** Tests whether a node ID matches the subscription pattern. @param {string} nodeId @returns {boolean} */
   const matchesPattern = (nodeId) => matchGlob(pattern, nodeId);
 
-  // Filtered onChange that only passes matching changes
-  const filteredOnChange = (/** @type {import('../services/StateDiff.js').StateDiffResult} */ diff) => {
+  /**
+   * Filtered onChange that only passes matching changes.
+   * @param {import('../services/StateDiff.js').StateDiffResult} diff
+   */
+  const filteredOnChange = (diff) => {
     const filteredDiff = {
       nodes: {
         added: diff.nodes.added.filter(matchesPattern),
@@ -214,6 +219,7 @@ export function watch(pattern, { onChange, onError, poll }) {
   }
 
   return {
+    /** Stops polling and removes the filtered subscriber. */
     unsubscribe: () => {
       if (pollIntervalId !== null) {
         clearInterval(pollIntervalId);
@@ -223,6 +229,13 @@ export function watch(pattern, { onChange, onError, poll }) {
     },
   };
 }
+
+/**
+ * @typedef {Object} Subscriber
+ * @property {(diff: import('../services/StateDiff.js').StateDiffResult) => void} onChange
+ * @property {((error: unknown) => void)|undefined} [onError]
+ * @property {boolean} pendingReplay
+ */
 
 /**
  * Notifies all subscribers of state changes.
@@ -235,7 +248,7 @@ export function watch(pattern, { onChange, onError, poll }) {
  * @private
  */
 export function _notifySubscribers(diff, currentState) {
-  for (const subscriber of [...this._subscribers]) {
+  for (const subscriber of /** @type {Subscriber[]} */ ([...this._subscribers])) {
     try {
       // Handle deferred replay: on first notification, send full state diff instead
       if (subscriber.pendingReplay) {
@@ -252,7 +265,7 @@ export function _notifySubscribers(diff, currentState) {
         subscriber.onChange(diff);
       }
     } catch (err) {
-      if (subscriber.onError) {
+      if (typeof subscriber.onError === 'function') {
         try {
           subscriber.onError(err);
         } catch {

@@ -38,28 +38,20 @@ class CachedValue {
     if (typeof compute !== 'function') {
       throw new Error('CachedValue compute must be a function');
     }
-
     /** @type {import('../../ports/ClockPort.js').default} */
     this._clock = clock;
-
     /** @type {number} */
     this._ttlMs = ttlMs;
-
     /** @type {() => T | Promise<T>} */
     this._compute = compute;
-
     /** @type {T|null} */
     this._value = null;
-
     /** @type {Promise<T>|null} */
     this._inflight = null;
-
     /** @type {number} */
     this._generation = 0;
-
     /** @type {number} */
     this._cachedAt = 0;
-
     /** @type {string|null} */
     this._cachedAtIso = null;
   }
@@ -73,34 +65,35 @@ class CachedValue {
     if (this._isValid()) {
       return /** @type {T} */ (this._value);
     }
-
     if (this._inflight) {
       return await this._inflight;
     }
+    this._inflight = this._computeAndCache(this._generation);
+    return await this._inflight;
+  }
 
-    const generation = this._generation;
-
-    this._inflight = Promise.resolve(this._compute()).then(
-      (value) => {
-        // Ignore stale in-flight completion if cache was invalidated mid-flight.
-        if (generation !== this._generation) {
-          return value;
-        }
+  /**
+   * Runs the compute function and caches the result if the generation is still current.
+   * @param {number} generation - The generation at the time compute was initiated
+   * @returns {Promise<T>}
+   * @private
+   */
+  async _computeAndCache(generation) {
+    try {
+      const value = await this._compute();
+      if (generation === this._generation) {
         this._value = value;
         this._cachedAt = this._clock.now();
         this._cachedAtIso = this._clock.timestamp();
         this._inflight = null;
-        return value;
-      },
-      (err) => {
-        if (generation === this._generation) {
-          this._inflight = null;
-        }
-        throw err;
-      },
-    );
-
-    return await this._inflight;
+      }
+      return value;
+    } catch (err) {
+      if (generation === this._generation) {
+        this._inflight = null;
+      }
+      throw err;
+    }
   }
 
   /**

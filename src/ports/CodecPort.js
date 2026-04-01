@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for serialization/deserialization operations.
  *
@@ -11,7 +13,7 @@ export default class CodecPort {
    * @returns {Uint8Array} Encoded bytes
    */
   encode(_data) {
-    throw new Error('CodecPort.encode() not implemented');
+    throw new WarpError('CodecPort.encode() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -20,6 +22,6 @@ export default class CodecPort {
    * @returns {unknown} Decoded value
    */
   decode(_bytes) {
-    throw new Error('CodecPort.decode() not implemented');
+    throw new WarpError('CodecPort.decode() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

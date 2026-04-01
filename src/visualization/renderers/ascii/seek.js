@@ -54,7 +54,12 @@ const DOT_MID = '\u00B7'; // ·
 /** Open circle used for excluded-zone patch markers. */
 const CIRCLE_OPEN = '\u25CB'; // ○
 
-/** @param {number} n @returns {string} */
+/**
+ * Formats a numeric delta as a signed string (e.g. ` (+3)` or ` (-1)`).
+ *
+ * @param {number} n - Delta value
+ * @returns {string} Formatted delta or empty string for zero/invalid
+ */
 function formatDelta(n) {
   if (typeof n !== 'number' || !Number.isFinite(n) || n === 0) {
     return '';
@@ -64,39 +69,63 @@ function formatDelta(n) {
 }
 
 /**
- * @param {number} n
- * @param {string} singular
- * @param {string} plural
- * @returns {string}
+ * Returns the singular or plural form based on count.
+ *
+ * @param {number} n - Count to check
+ * @param {string} singular - Singular form
+ * @param {string} plural - Plural form
+ * @returns {string} Appropriate form for the count
  */
 function pluralize(n, singular, plural) {
   return n === 1 ? singular : plural;
 }
 
-/** @param {Record<string, unknown> | undefined} tickReceipt @returns {string[]} */
+/**
+ * Builds formatted receipt lines for each writer entry in a tick receipt.
+ *
+ * @param {Record<string, unknown> | undefined} tickReceipt - Per-writer receipt data
+ * @returns {string[]} Formatted receipt lines
+ */
 function buildReceiptLines(tickReceipt) {
-  if (!tickReceipt || typeof tickReceipt !== 'object') {
+  if (tickReceipt === null || tickReceipt === undefined || typeof tickReceipt !== 'object') {
     return [];
   }
 
   const entries = Object.entries(tickReceipt)
-    .filter(([writerId, entry]) => writerId && entry && typeof entry === 'object')
+    .filter(([writerId, entry]) => writerId.length > 0 && entry !== null && entry !== undefined && typeof entry === 'object')
     .sort(([a], [b]) => a.localeCompare(b));
 
-  const lines = [];
-  for (const [writerId, entry] of entries) {
-    /** @type {Record<string, unknown>} */
-    const rec = /** @type {Record<string, unknown>} */ (entry);
-    const sha = typeof rec.sha === 'string' ? rec.sha : null;
-    const opSummary = rec.opSummary && typeof rec.opSummary === 'object'
-      ? /** @type {Record<string, number>} */ (rec.opSummary)
-      : /** @type {Record<string, number>} */ (rec);
-    const name = padRight(formatWriterName(writerId, NAME_W), NAME_W);
-    const shaStr = sha ? `  ${formatSha(sha)}` : '';
-    lines.push(`    ${name}${shaStr}  ${formatOpSummary(opSummary, 40)}`);
-  }
+  return entries.map((pair) => formatReceiptEntry(pair));
+}
 
-  return lines;
+/**
+ * Extracts the op summary record from a receipt entry.
+ *
+ * @param {Record<string, unknown>} rec - Receipt record
+ * @returns {Record<string, number>} Op summary map
+ */
+function extractOpSummary(rec) {
+  if (rec.opSummary !== null && rec.opSummary !== undefined && typeof rec.opSummary === 'object') {
+    return /** @type {Record<string, number>} */ (rec.opSummary);
+  }
+  return /** @type {Record<string, number>} */ (rec);
+}
+
+/**
+ * Formats a single receipt entry as a display line.
+ *
+ * @param {[string, unknown]} pair - Writer ID and receipt entry
+ * @returns {string} Formatted receipt line
+ */
+function formatReceiptEntry(pair) {
+  const [writerId, entry] = pair;
+  /** @type {Record<string, unknown>} */
+  const rec = /** @type {Record<string, unknown>} */ (entry);
+  const sha = typeof rec.sha === 'string' ? rec.sha : null;
+  const opSummary = extractOpSummary(rec);
+  const name = padRight(formatWriterName(writerId, NAME_W), NAME_W);
+  const shaStr = typeof sha === 'string' && sha.length > 0 ? `  ${formatSha(sha)}` : '';
+  return `    ${name}${shaStr}  ${formatOpSummary(opSummary, 40)}`;
 }
 
 // ============================================================================
@@ -223,6 +252,34 @@ function buildLane(patchSet, points, currentTick) {
 }
 
 /**
+ * Finds the highest included tick for a writer up to currentTick.
+ *
+ * @param {number[]} ticks - Writer's tick array
+ * @param {number} currentTick - Current seek cursor tick
+ * @returns {number|null} Highest included tick or null if none
+ */
+function findMaxIncludedTick(ticks, currentTick) {
+  const included = ticks.filter((t) => t <= currentTick);
+  return included.length > 0 ? included[included.length - 1] : null;
+}
+
+/**
+ * Resolves the SHA to display for a writer at the current tick position.
+ *
+ * @param {WriterInfo} writerInfo - Writer tick/SHA info
+ * @param {number} currentTick - Current seek cursor tick
+ * @returns {string|undefined} SHA string or undefined if none available
+ */
+function resolveWriterSha(writerInfo, currentTick) {
+  const { tickShas, tipSha } = writerInfo;
+  const maxIncl = findMaxIncludedTick(writerInfo.ticks, currentTick);
+  if (maxIncl !== null && tickShas !== null && tickShas !== undefined) {
+    return /** @type {string|undefined} */ (/** @type {unknown} */ (tickShas[maxIncl])) ?? tipSha;
+  }
+  return tipSha;
+}
+
+/**
  * Builds one writer's horizontal swimlane row.
  *
  * Each tick position in the window gets a marker character:
@@ -239,18 +296,11 @@ function buildLane(patchSet, points, currentTick) {
  */
 function buildWriterSwimRow({ writerId, writerInfo, win, currentTick }) {
   const patchSet = new Set(writerInfo.ticks);
-  const tickShas = writerInfo.tickShas || {};
   const lane = buildLane(patchSet, win.points, currentTick);
-
-  // SHA of the highest included patch
-  const included = writerInfo.ticks.filter((t) => t <= currentTick);
-  const maxIncl = included.length > 0 ? included[included.length - 1] : null;
-  const sha = maxIncl !== null
-    ? (tickShas[maxIncl] || writerInfo.tipSha)
-    : writerInfo.tipSha;
+  const sha = resolveWriterSha(writerInfo, currentTick);
 
   const name = padRight(formatWriterName(writerId, NAME_W), NAME_W);
-  const shaStr = sha ? `  ${formatSha(sha)}` : '';
+  const shaStr = typeof sha === 'string' && sha.length > 0 ? `  ${formatSha(sha)}` : '';
 
   return `    ${name}  ${lane}${shaStr}`;
 }
@@ -292,17 +342,29 @@ function buildTickPoints(ticks, tick) {
 const MAX_DIFF_LINES = 20;
 
 /**
- * Builds the state summary, receipt, and structural diff footer lines.
- * @param {SeekPayload} payload
- * @returns {string[]}
+ * Builds the state summary line showing node/edge/patch counts with deltas.
+ *
+ * @param {SeekPayload} payload - Seek payload
+ * @returns {string} Formatted state summary line
  */
-function buildFooterLines(payload) {
-  const { tick, nodes, edges, patchCount, diff, tickReceipt } = payload;
-  const lines = [];
-  lines.push('');
+function buildStateSummaryLine(payload) {
+  const { nodes, edges, patchCount, diff } = payload;
   const nodesStr = `${nodes} ${pluralize(nodes, 'node', 'nodes')}${formatDelta(diff?.nodes ?? 0)}`;
   const edgesStr = `${edges} ${pluralize(edges, 'edge', 'edges')}${formatDelta(diff?.edges ?? 0)}`;
-  lines.push(`  ${colors.bold('State:')} ${nodesStr}, ${edgesStr}, ${patchCount} ${pluralize(patchCount, 'patch', 'patches')}`);
+  return `  ${colors.bold('State:')} ${nodesStr}, ${edgesStr}, ${patchCount} ${pluralize(patchCount, 'patch', 'patches')}`;
+}
+
+/**
+ * Builds the state summary, receipt, and structural diff footer lines.
+ *
+ * @param {SeekPayload} payload - Seek payload containing state, receipt, and diff info
+ * @returns {string[]} Formatted footer lines
+ */
+function buildFooterLines(payload) {
+  const { tick, tickReceipt } = payload;
+  const lines = [];
+  lines.push('');
+  lines.push(buildStateSummaryLine(payload));
 
   const receiptLines = buildReceiptLines(tickReceipt);
   if (receiptLines.length > 0) {
@@ -320,7 +382,12 @@ function buildFooterLines(payload) {
   return lines;
 }
 
-/** @param {SeekPayload} payload @returns {string[]} */
+/**
+ * Assembles the full seek body: graph info header, swimlane grid, and footer.
+ *
+ * @param {SeekPayload} payload - Seek payload from CLI handler
+ * @returns {string[]} Lines for the seek body (before boxen wrap)
+ */
 function buildSeekBodyLines(payload) {
   const { graph, tick, maxTick, ticks, perWriter } = payload;
   const lines = [];
@@ -352,71 +419,132 @@ function buildSeekBodyLines(payload) {
 }
 
 /**
+ * Builds a hint for view-truncated + data-truncated case.
+ *
+ * @param {number} shown - Number of entries shown
+ * @param {number} totalChanges - Total changes available
+ * @returns {string} Hint message
+ */
+function buildViewAndDataTruncHint(shown, totalChanges) {
+  const remaining = Math.max(0, totalChanges - shown);
+  return `... and ${remaining} more changes (${totalChanges} total, use --diff-limit to increase)`;
+}
+
+/**
+ * Builds a hint for data-only truncation (all entries fit the view).
+ *
+ * @param {number} totalChanges - Total changes available
+ * @param {number} shownChanges - Changes shown from data source
+ * @returns {string} Hint message
+ */
+function buildDataOnlyTruncHint(totalChanges, shownChanges) {
+  return `... and ${Math.max(0, totalChanges - shownChanges)} more changes (use --diff-limit to increase)`;
+}
+
+/**
+ * Builds a hint for view-only truncation (data is complete but too many entries).
+ *
+ * @param {number} totalEntries - Total entries
+ * @param {number} maxLines - Display limit
+ * @returns {string} Hint message
+ */
+function buildViewOnlyTruncHint(totalEntries, maxLines) {
+  return `... and ${Math.max(0, totalEntries - maxLines)} more changes`;
+}
+
+/**
+ * Safely resolves an optional number to a default of zero.
+ *
+ * @param {number|undefined} n - Optional number
+ * @returns {number} The number or zero
+ */
+function numOrZero(n) {
+  return n ?? 0;
+}
+
+/**
  * Builds a truncation hint line when entries exceed the display or data limit.
- * @param {{totalEntries: number, shown: number, maxLines: number, truncated?: boolean, totalChanges?: number, shownChanges?: number}} opts
- * @returns {string|null}
+ *
+ * @param {{totalEntries: number, shown: number, maxLines: number, truncated?: boolean, totalChanges?: number, shownChanges?: number}} opts - Truncation context
+ * @returns {string|null} Hint string or null if no truncation occurred
  */
 function buildTruncationHint(opts) {
-  const { totalEntries, shown, maxLines, truncated, totalChanges, shownChanges } = opts;
-  if (totalEntries > maxLines && truncated) {
-    const remaining = Math.max(0, (totalChanges || 0) - shown);
-    return `... and ${remaining} more changes (${totalChanges} total, use --diff-limit to increase)`;
+  const viewTruncated = opts.totalEntries > opts.maxLines;
+  const dataTruncated = opts.truncated === true;
+  if (viewTruncated && dataTruncated) {
+    return buildViewAndDataTruncHint(opts.shown, numOrZero(opts.totalChanges));
   }
-  if (totalEntries > maxLines) {
-    return `... and ${Math.max(0, totalEntries - maxLines)} more changes`;
+  if (viewTruncated) {
+    return buildViewOnlyTruncHint(opts.totalEntries, opts.maxLines);
   }
-  if (truncated) {
-    return `... and ${Math.max(0, (totalChanges || 0) - (shownChanges || 0))} more changes (use --diff-limit to increase)`;
+  if (dataTruncated) {
+    return buildDataOnlyTruncHint(numOrZero(opts.totalChanges), numOrZero(opts.shownChanges));
   }
   return null;
 }
 
 /**
- * @param {SeekPayload} payload
- * @param {number} maxLines
- * @returns {string[]}
+ * Builds the baseline label string for a structural diff header.
+ *
+ * @param {string|undefined} diffBaseline - Baseline type ('tick' or other)
+ * @param {number|null|undefined} baselineTick - Baseline tick number
+ * @returns {string} Human-readable baseline label
+ */
+function buildBaselineLabel(diffBaseline, baselineTick) {
+  return diffBaseline === 'tick'
+    ? `baseline: tick ${baselineTick ?? 0}`
+    : 'baseline: empty';
+}
+
+/**
+ * Appends indented diff entry lines and optional truncation hint.
+ *
+ * @param {{ lines: string[], entries: string[], maxLines: number, payload: SeekPayload }} opts - Diff rendering context
+ */
+function appendDiffEntries(opts) {
+  const { lines, entries, maxLines, payload } = opts;
+  const { truncated, totalChanges, shownChanges } = payload;
+  const shown = Math.min(entries.length, maxLines);
+  for (let i = 0; i < shown; i++) {
+    lines.push(`    ${entries[i]}`);
+  }
+  const hint = buildTruncationHint({ totalEntries: entries.length, shown, maxLines, truncated, totalChanges, shownChanges });
+  if (typeof hint === 'string' && hint.length > 0) {
+    lines.push(`    ${colors.muted(hint)}`);
+  }
+}
+
+/**
+ * Renders structural diff lines with truncation support.
+ *
+ * @param {SeekPayload} payload - Seek payload containing structuralDiff
+ * @param {number} maxLines - Maximum number of diff entries to display
+ * @returns {string[]} Formatted diff lines or empty array if no diff
  */
 function buildStructuralDiffLines(payload, maxLines) {
-  const { structuralDiff, diffBaseline, baselineTick, truncated, totalChanges, shownChanges } = payload;
-  if (!structuralDiff) {
+  const { structuralDiff, diffBaseline, baselineTick } = payload;
+  if (structuralDiff === null || structuralDiff === undefined) {
     return [];
   }
 
   const lines = [];
-  const baselineLabel = diffBaseline === 'tick'
-    ? `baseline: tick ${baselineTick}`
-    : 'baseline: empty';
-
+  const baselineLabel = buildBaselineLabel(diffBaseline, baselineTick);
   lines.push(`  ${colors.bold(`Changes (${baselineLabel}):`)}`);
 
-  let shown = 0;
   const entries = collectDiffEntries(structuralDiff);
-
-  for (const entry of entries) {
-    if (shown >= maxLines) {
-      break;
-    }
-    lines.push(`    ${entry}`);
-    shown++;
-  }
-
-  const hint = buildTruncationHint({ totalEntries: entries.length, shown, maxLines, truncated, totalChanges, shownChanges });
-  if (hint) {
-    lines.push(`    ${colors.muted(hint)}`);
-  }
+  appendDiffEntries({ lines, entries, maxLines, payload });
 
   return lines;
 }
 
 /**
- * Collects formatted diff entries from a structural diff result.
+ * Collects formatted node and edge add/remove entries from a structural diff.
  *
- * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff
- * @returns {string[]} Formatted entries with +/-/~ prefixes
+ * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @returns {string[]} Formatted entries with +/- prefixes
  */
-function collectDiffEntries(diff) {
+function collectNodeEdgeEntries(diff) {
   const entries = [];
-
   for (const nodeId of diff.nodes.added) {
     entries.push(colors.success(`+ node ${nodeId}`));
   }
@@ -429,6 +557,17 @@ function collectDiffEntries(diff) {
   for (const edge of diff.edges.removed) {
     entries.push(colors.error(`- edge ${edge.from} -[${edge.label}]-> ${edge.to}`));
   }
+  return entries;
+}
+
+/**
+ * Collects formatted property change entries from a structural diff.
+ *
+ * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @returns {string[]} Formatted entries with ~/- prefixes
+ */
+function collectPropEntries(diff) {
+  const entries = [];
   for (const prop of diff.props.set) {
     const old = prop.oldValue !== undefined ? formatPropValue(prop.oldValue) : null;
     const arrow = old !== null ? `${old} -> ${formatPropValue(prop.newValue)}` : formatPropValue(prop.newValue);
@@ -437,27 +576,56 @@ function collectDiffEntries(diff) {
   for (const prop of diff.props.removed) {
     entries.push(colors.error(`- ${prop.nodeId}.${prop.propKey}: ${formatPropValue(prop.oldValue)}`));
   }
-
   return entries;
 }
 
 /**
+ * Collects formatted diff entries from a structural diff result.
+ *
+ * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @returns {string[]} Formatted entries with +/-/~ prefixes
+ */
+function collectDiffEntries(diff) {
+  return [...collectNodeEdgeEntries(diff), ...collectPropEntries(diff)];
+}
+
+/**
+ * Truncates a string to 40 characters with ellipsis if needed.
+ *
+ * @param {string} s - String to truncate
+ * @returns {string} Truncated string
+ */
+function truncateDisplay(s) {
+  return s.length > 40 ? `${s.slice(0, 37)}...` : s;
+}
+
+/**
+ * Converts a non-string value to a display string.
+ *
+ * @param {unknown} value - Value to stringify
+ * @returns {string} String representation
+ */
+function stringifyNonString(value) {
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return JSON.stringify(value) ?? '';
+}
+
+/**
  * Formats a property value for display (truncated if too long).
- * @param {unknown} value
- * @returns {string}
+ *
+ * @param {unknown} value - Property value to format
+ * @returns {string} Human-readable, possibly truncated representation
  */
 function formatPropValue(value) {
   if (value === undefined) {
     return 'undefined';
   }
   if (typeof value === 'string') {
-    const s = `"${value}"`;
-    return s.length > 40 ? `${s.slice(0, 37)}...` : s;
+    return truncateDisplay(`"${value}"`);
   }
-  const s = typeof value === 'number' || typeof value === 'boolean'
-    ? String(value)
-    : JSON.stringify(value) ?? '';
-  return s.length > 40 ? `${s.slice(0, 37)}...` : s;
+  return truncateDisplay(stringifyNonString(value));
 }
 
 // ============================================================================

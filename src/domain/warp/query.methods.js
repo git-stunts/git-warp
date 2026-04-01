@@ -49,6 +49,8 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
  */
 
 /**
+ * Deep-clones an observer source descriptor for defensive copies.
+ *
  * @param {ObserverOptions['source']|{
  *   kind: 'strand',
  *   strandId: string,
@@ -85,6 +87,8 @@ function cloneObserverSource(source) {
 }
 
 /**
+ * Opens a detached WarpRuntime clone for observer snapshot isolation.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @returns {Promise<import('../WarpRuntime.js').default>}
  */
@@ -111,6 +115,8 @@ async function openDetachedObserverGraph(graph) {
 }
 
 /**
+ * Snapshots the current materialized state with a cloned copy and hash.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
  */
@@ -123,6 +129,8 @@ async function snapshotCurrentMaterialized(graph) {
 }
 
 /**
+ * Clones and hashes a returned state for snapshot isolation.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @param {import('../services/JoinReducer.js').WarpStateV5} state
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
@@ -139,6 +147,8 @@ async function snapshotReturnedState(graph, state) {
 }
 
 /**
+ * Resolves a materialized snapshot for the given observer source kind.
+ *
  * @param {import('../WarpRuntime.js').default} graph
  * @param {ObserverOptions|undefined} options
  * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
@@ -212,7 +222,7 @@ export async function getNodeProps(nodeId) {
   await this._ensureFreshState();
 
   // ── Indexed fast path (positive results only; stale index falls through) ──
-  if (this._propertyReader && this._logicalIndex?.isAlive(nodeId)) {
+  if (this._propertyReader !== null && this._propertyReader !== undefined && this._logicalIndex?.isAlive(nodeId) === true) {
     try {
       const record = await this._propertyReader.getNodeProps(nodeId);
       if (record !== null) {
@@ -232,7 +242,7 @@ export async function getNodeProps(nodeId) {
   }
 
   /** @type {Record<string, unknown>} */
-  const props = Object.create(null);
+  const props = {};
   for (const [propKey, register] of s.prop) {
     const decoded = decodePropKey(propKey);
     if (decoded.nodeId === nodeId) {
@@ -270,14 +280,14 @@ export async function getEdgeProps(from, to, label) {
   const birthEvent = s.edgeBirthEvent?.get(edgeKey);
 
   /** @type {Record<string, unknown>} */
-  const props = Object.create(null);
+  const props = {};
   for (const [propKey, register] of s.prop) {
     if (!isEdgePropKey(propKey)) {
       continue;
     }
     const decoded = decodeEdgePropKey(propKey);
     if (decoded.from === from && decoded.to === to && decoded.label === label) {
-      if (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0) {
+      if (birthEvent !== null && birthEvent !== undefined && register.eventId !== null && register.eventId !== undefined && compareEventIds(register.eventId, birthEvent) < 0) {
         continue;
       }
       props[decoded.propKey] = register.value;
@@ -313,9 +323,9 @@ export async function neighbors(nodeId, direction = 'both', edgeLabel = undefine
 
   // ── Indexed fast path (only when node is in index; stale falls through) ──
   const provider = this._materializedGraph?.provider;
-  if (provider && this._logicalIndex?.isAlive(nodeId)) {
+  if (provider !== null && provider !== undefined && this._logicalIndex?.isAlive(nodeId) === true) {
     try {
-      const opts = edgeLabel ? { labels: new Set([edgeLabel]) } : undefined;
+      const opts = typeof edgeLabel === 'string' && edgeLabel.length > 0 ? { labels: new Set([edgeLabel]) } : undefined;
       return await _indexedNeighbors(provider, nodeId, direction, opts);
     } catch {
       // Fall through to linear scan on index/provider failures.
@@ -422,6 +432,7 @@ export async function getEdges() {
   await this._ensureFreshState();
   const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
 
+  /** @type {Map<string, Record<string, unknown>>} */
   const edgePropsByKey = new Map();
   for (const [propKey, register] of s.prop) {
     if (!isEdgePropKey(propKey)) {
@@ -431,14 +442,16 @@ export async function getEdges() {
     const ek = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
 
     const birthEvent = s.edgeBirthEvent?.get(ek);
-    if (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0) {
+    if (birthEvent !== null && birthEvent !== undefined && register.eventId !== null && register.eventId !== undefined && compareEventIds(register.eventId, birthEvent) < 0) {
       continue;
     }
 
     let bag = edgePropsByKey.get(ek);
-    if (!bag) {
-      bag = Object.create(null);
-      edgePropsByKey.set(ek, bag);
+    if (bag === null || bag === undefined) {
+      /** @type {Record<string, unknown>} */
+      const newBag = {};
+      edgePropsByKey.set(ek, newBag);
+      bag = newBag;
     }
     bag[decoded.propKey] = register.value;
   }
@@ -448,7 +461,7 @@ export async function getEdges() {
     const { from, to, label } = decodeEdgeKey(edgeKey);
     if (orsetContains(s.nodeAlive, from) &&
         orsetContains(s.nodeAlive, to)) {
-      const props = edgePropsByKey.get(edgeKey) || Object.create(null);
+      const props = edgePropsByKey.get(edgeKey) ?? /** @type {Record<string, unknown>} */ ({});
       edges.push({ from, to, label, props });
     }
   }
@@ -495,6 +508,8 @@ export function worldline(options = undefined) {
 const DEFAULT_OBSERVER_NAME = 'observer';
 
 /**
+ * Normalizes the overloaded observer() argument list into a uniform shape.
+ *
  * @param {string|{ match: string|string[], expose?: string[], redact?: string[] }} nameOrConfig
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }|ObserverOptions|undefined} configOrOptions
  * @param {ObserverOptions|undefined} maybeOptions
@@ -529,8 +544,8 @@ function normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions) {
  */
 export async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions = undefined) {
   const { name, config, options } = normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions);
-  /** @param {unknown} m */
-  const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** @param {unknown} i */ i => typeof i === 'string'));
+  /** Validates that a match value is a non-empty string or non-empty string array. @param {unknown} m - Match value to validate @returns {boolean} True if valid */
+  const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** Checks that an element is a string. @param {unknown} i - Array element @returns {boolean} True if string */ i => typeof i === 'string'));
   if (!config || !isValidMatch(config.match)) {
     throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
   }

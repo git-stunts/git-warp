@@ -16,6 +16,8 @@
  */
 
 import GraphPersistencePort from '../../ports/GraphPersistencePort.js';
+import PersistenceError from '../../domain/errors/PersistenceError.js';
+import WarpError from '../../domain/errors/WarpError.js';
 import { validateOid, validateRef, validateLimit, validateConfigKey } from './adapterValidation.js';
 
 // ── Browser-safe byte helpers ────────────────────────────────────────
@@ -63,7 +65,7 @@ function toBytes(data) {
   if (typeof data === 'string') {
     return _encoder.encode(data);
   }
-  throw new Error('Expected string or Uint8Array');
+  throw new WarpError('Expected string or Uint8Array', 'E_INVALID_INPUT');
 }
 
 // ── Lazy node:crypto for default hash ────────────────────────────────
@@ -110,16 +112,30 @@ async function probeNodeCrypto() {
  * @returns {string} 40-hex SHA
  */
 function defaultHash(data) {
-  if (!_nodeCreateHash) {
-    throw new Error(
+  if (_nodeCreateHash === null) {
+    throw new WarpError(
       'No hash function available. Pass { hash } to InMemoryGraphAdapter constructor.',
+      'E_NO_HASH',
     );
   }
-  return _nodeCreateHash('sha1').update(data).digest('hex');
+  const createHash = /** @type {(algorithm: string) => {update: (d: Uint8Array) => {digest: (enc: string) => string}}} */ (_nodeCreateHash);
+  return createHash('sha1').update(data).digest('hex');
 }
 
 /** Well-known SHA for Git's empty tree. */
 const EMPTY_TREE_OID = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+/**
+ * Eagerly kicks off the async crypto probe when no custom hash is provided.
+ * @param {((data: Uint8Array) => string)|undefined} hash - Custom hash if provided
+ * @returns {Promise<Function|null>} Resolves when crypto is ready
+ */
+function _initCryptoReady(hash) {
+  if (hash !== null && hash !== undefined) {
+    return Promise.resolve(null);
+  }
+  return probeNodeCrypto();
+}
 
 // ── SHA helpers ─────────────────────────────────────────────────────────
 
@@ -175,6 +191,120 @@ function hashCommit(hash, { treeOid, parents, message, author, date }) {
   return hash(concatBytes([header, bodyBytes]));
 }
 
+/**
+ * Parses a single mktree-formatted line into mode, path, and oid.
+ * @param {string} line - A line in `"<mode> <type> <oid>\t<path>"` format
+ * @returns {{mode: string, path: string, oid: string}}
+ */
+function _parseMktreeEntry(line) {
+  const tabIdx = line.indexOf('\t');
+  if (tabIdx === -1) {
+    throw new PersistenceError(
+      `Invalid mktree entry (missing tab): ${line}`,
+      PersistenceError.E_MISSING_OBJECT,
+    );
+  }
+  const meta = line.slice(0, tabIdx);
+  const path = line.slice(tabIdx + 1);
+  const [mode, , oid] = meta.split(' ');
+  return { mode, path, oid };
+}
+
+/**
+ * Default clock backed by Date.now for timestamp generation.
+ * @type {{ now: () => number }}
+ */
+const _defaultClock = { /** Returns the current epoch milliseconds. @returns {number} */ now: () => Date.now() };
+
+/**
+ * Returns the author string, falling back to a default if absent.
+ * @param {string|undefined} author
+ * @returns {string}
+ */
+function _resolveAuthor(author) {
+  return typeof author === 'string' && author.length > 0 ? author : 'InMemory <inmemory@test>';
+}
+
+/**
+ * Returns the clock, falling back to the default if absent.
+ * @param {{ now: () => number }|undefined} clock
+ * @returns {{ now: () => number }}
+ */
+function _resolveClock(clock) {
+  return clock !== null && clock !== undefined ? clock : _defaultClock;
+}
+
+/**
+ * Returns the hash function, falling back to the default if absent.
+ * @param {((data: Uint8Array) => string)|undefined} hash
+ * @returns {(data: Uint8Array) => string}
+ */
+function _resolveHash(hash) {
+  return hash !== null && hash !== undefined ? hash : defaultHash;
+}
+
+/**
+ * Resolves constructor options, applying defaults for missing fields.
+ * @param {{ author?: string, clock?: { now: () => number }, hash?: (data: Uint8Array) => string }|undefined} options
+ * @returns {{ author: string, clock: { now: () => number }, hash: (data: Uint8Array) => string }}
+ */
+function _resolveOptions(options) {
+  const opts = options !== null && options !== undefined ? options : {};
+  return {
+    author: _resolveAuthor(opts.author),
+    clock: _resolveClock(opts.clock),
+    hash: _resolveHash(opts.hash),
+  };
+}
+
+/**
+ * Applies an optional limit to a sorted array of strings.
+ * @param {string[]} sorted
+ * @param {number|undefined} limit
+ * @returns {string[]}
+ */
+function _applyLimit(sorted, limit) {
+  if (typeof limit === 'number' && limit > 0) {
+    validateLimit(limit);
+    return sorted.slice(0, limit);
+  }
+  return sorted;
+}
+
+/**
+ * Validates expectedOid if it is a non-empty string.
+ * @param {string|null} expectedOid
+ * @returns {void}
+ */
+function _validateExpectedOid(expectedOid) {
+  if (typeof expectedOid === 'string' && expectedOid.length > 0) {
+    validateOid(expectedOid);
+  }
+}
+
+/**
+ * Formats a nullable OID for display in error messages.
+ * @param {string|null} oid
+ * @returns {string}
+ */
+function _displayOid(oid) {
+  return typeof oid === 'string' && oid.length > 0 ? oid : '(none)';
+}
+
+/**
+ * Builds a PersistenceError for a CAS mismatch.
+ * @param {string} ref
+ * @param {string|null} expectedOid
+ * @param {string|null} current
+ * @returns {PersistenceError}
+ */
+function _casMismatchError(ref, expectedOid, current) {
+  return new PersistenceError(
+    `CAS mismatch on ${ref}: expected ${_displayOid(expectedOid)}, got ${_displayOid(current)}`,
+    PersistenceError.E_REF_IO,
+  );
+}
+
 // ── Adapter ─────────────────────────────────────────────────────────────
 
 /**
@@ -191,21 +321,17 @@ function hashCommit(hash, { treeOid, parents, message, author, date }) {
  */
 export default class InMemoryGraphAdapter extends GraphPersistencePort {
   /**
+   * Creates a new in-memory graph adapter with optional author, clock, and hash overrides.
    * @param {{ author?: string, clock?: { now: () => number }, hash?: (data: Uint8Array) => string }} [options]
    */
   constructor(options = undefined) {
-    const { author, clock, hash } = options || {};
     super();
-    this._author = author || 'InMemory <inmemory@test>';
-    this._clock = clock || { now: () => Date.now() };
-    this._hash = hash || defaultHash;
-    // Eagerly kick off the async probe so node:crypto is resolved by the
-    // time the first hash call arrives. The probe is a no-op on repeat calls.
-    if (!hash) {
-      this._cryptoReady = probeNodeCrypto();
-    } else {
-      this._cryptoReady = Promise.resolve(null);
-    }
+    const resolved = _resolveOptions(options);
+    this._author = resolved.author;
+    this._clock = resolved.clock;
+    this._hash = resolved.hash;
+    const rawHash = options !== null && options !== undefined ? options.hash : undefined;
+    this._cryptoReady = _initCryptoReady(rawHash);
 
     /** @type {Map<string, {treeOid: string, parents: string[], message: string, author: string, date: string}>} */
     this._commits = new Map();
@@ -221,7 +347,8 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
 
   // ── TreePort ────────────────────────────────────────────────────────
 
-  /** @type {string} */
+  /** Returns the well-known Git empty tree SHA.
+   * @type {string} */
   get emptyTree() {
     return EMPTY_TREE_OID;
   }
@@ -233,22 +360,14 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    */
   async writeTree(entries) {
     await this._cryptoReady;
-    const parsed = entries.map(line => {
-      const tabIdx = line.indexOf('\t');
-      if (tabIdx === -1) {
-        throw new Error(`Invalid mktree entry (missing tab): ${line}`);
-      }
-      const meta = line.slice(0, tabIdx);
-      const path = line.slice(tabIdx + 1);
-      const [mode, , oid] = meta.split(' ');
-      return { mode, path, oid };
-    });
+    const parsed = entries.map(line => _parseMktreeEntry(line));
     const oid = hashTree(this._hash, parsed);
     this._trees.set(oid, parsed);
     return oid;
   }
 
   /**
+   * Reads all entry OIDs from a stored tree object.
    * @param {string} treeOid
    * @returns {Promise<Record<string, string>>}
    */
@@ -258,8 +377,8 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
       return {};
     }
     const entries = this._trees.get(treeOid);
-    if (!entries) {
-      throw new Error(`Tree not found: ${treeOid}`);
+    if (entries === undefined) {
+      throw new PersistenceError(`Tree not found: ${treeOid}`, PersistenceError.E_MISSING_OBJECT);
     }
     /** @type {Record<string, string>} */
     const result = {};
@@ -270,6 +389,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Reads all blobs from a tree, returning a path-to-content map.
    * @param {string} treeOid
    * @returns {Promise<Record<string, Uint8Array>>}
    */
@@ -286,6 +406,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // ── BlobPort ────────────────────────────────────────────────────────
 
   /**
+   * Writes a blob and returns its content-addressed OID.
    * @param {Uint8Array|string} content
    * @returns {Promise<string>}
    */
@@ -298,14 +419,15 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Reads a blob by its content-addressed OID.
    * @param {string} oid
    * @returns {Promise<Uint8Array>}
    */
   async readBlob(oid) {
     validateOid(oid);
     const buf = this._blobs.get(oid);
-    if (!buf) {
-      throw new Error(`Blob not found: ${oid}`);
+    if (buf === undefined) {
+      throw new PersistenceError(`Blob not found: ${oid}`, PersistenceError.E_MISSING_OBJECT);
     }
     return buf;
   }
@@ -313,6 +435,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // ── CommitPort ──────────────────────────────────────────────────────
 
   /**
+   * Creates a commit pointing to the empty tree.
    * @param {{ message: string, parents?: string[], sign?: boolean }} options
    * @returns {Promise<string>}
    */
@@ -324,6 +447,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Creates a commit pointing to the specified tree OID.
    * @param {{ treeOid: string, parents?: string[], message: string, sign?: boolean }} options
    * @returns {Promise<string>}
    */
@@ -336,27 +460,29 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Returns the commit message for a given SHA.
    * @param {string} sha
    * @returns {Promise<string>}
    */
   async showNode(sha) {
     validateOid(sha);
     const commit = this._commits.get(sha);
-    if (!commit) {
-      throw new Error(`Commit not found: ${sha}`);
+    if (commit === undefined) {
+      throw new PersistenceError(`Commit not found: ${sha}`, PersistenceError.E_MISSING_OBJECT);
     }
     return commit.message;
   }
 
   /**
+   * Returns full commit metadata for a given SHA.
    * @param {string} sha
    * @returns {Promise<{sha: string, message: string, author: string, date: string, parents: string[]}>}
    */
   async getNodeInfo(sha) {
     validateOid(sha);
     const commit = this._commits.get(sha);
-    if (!commit) {
-      throw new Error(`Commit not found: ${sha}`);
+    if (commit === undefined) {
+      throw new PersistenceError(`Commit not found: ${sha}`, PersistenceError.E_MISSING_OBJECT);
     }
     return {
       sha,
@@ -368,19 +494,21 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Returns the tree OID associated with a commit.
    * @param {string} sha
    * @returns {Promise<string>}
    */
   async getCommitTree(sha) {
     validateOid(sha);
     const commit = this._commits.get(sha);
-    if (!commit) {
-      throw new Error(`Commit not found: ${sha}`);
+    if (commit === undefined) {
+      throw new PersistenceError(`Commit not found: ${sha}`, PersistenceError.E_MISSING_OBJECT);
     }
     return commit.treeOid;
   }
 
   /**
+   * Checks whether a commit exists in the store.
    * @param {string} sha
    * @returns {Promise<boolean>}
    */
@@ -390,34 +518,21 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Counts all reachable commits from a ref by walking the DAG.
    * @param {string} ref
    * @returns {Promise<number>}
    */
   async countNodes(ref) {
     validateRef(ref);
     const tip = this._resolveRef(ref);
-    if (!tip) {
-      throw new Error(`Ref not found: ${ref}`);
+    if (tip === null) {
+      throw new PersistenceError(`Ref not found: ${ref}`, PersistenceError.E_REF_NOT_FOUND);
     }
-    const visited = new Set();
-    const stack = [tip];
-    while (stack.length > 0) {
-      const sha = /** @type {string} */ (stack.pop());
-      if (visited.has(sha)) {
-        continue;
-      }
-      visited.add(sha);
-      const commit = this._commits.get(sha);
-      if (commit) {
-        for (const p of commit.parents) {
-          stack.push(p);
-        }
-      }
-    }
-    return visited.size;
+    return this._countReachable(tip);
   }
 
   /**
+   * Returns formatted commit log output from a ref, newest first.
    * @param {{ ref: string, limit?: number, format?: string }} options
    * @returns {Promise<string>}
    */
@@ -427,13 +542,14 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     const records = this._walkLog(ref, limit);
     // Format param is accepted for port compatibility but always uses
     // the GitLogParser-compatible layout (SHA\nauthor\ndate\nparents\nmessage).
-    if (!_format) {
+    if (typeof _format !== 'string' || _format.length === 0) {
       return records.map(c => `commit ${c.sha}\nAuthor: ${c.author}\nDate:   ${c.date}\n\n    ${c.message}\n`).join('\n');
     }
     return records.map(c => this._formatCommitRecord(c)).join('\0') + (records.length > 0 ? '\0' : '');
   }
 
   /**
+   * Returns a readable stream of formatted commit log output.
    * @param {{ ref: string, limit?: number, format?: string }} options
    * @returns {Promise<import('node:stream').Readable>}
    */
@@ -447,6 +563,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Returns a successful health-check response with zero latency.
    * @returns {Promise<{ok: boolean, latencyMs: number}>}
    */
   async ping() {
@@ -456,6 +573,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // ── RefPort ─────────────────────────────────────────────────────────
 
   /**
+   * Sets a ref to point at the given OID.
    * @param {string} ref
    * @param {string} oid
    * @returns {Promise<void>}
@@ -467,15 +585,17 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Resolves a ref to its OID, or null if not found.
    * @param {string} ref
    * @returns {Promise<string|null>}
    */
   async readRef(ref) {
     validateRef(ref);
-    return this._refs.get(ref) || null;
+    return this._refs.get(ref) ?? null;
   }
 
   /**
+   * Deletes a ref from the in-memory store.
    * @param {string} ref
    * @returns {Promise<void>}
    */
@@ -495,43 +615,30 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   async compareAndSwapRef(ref, newOid, expectedOid) {
     validateRef(ref);
     validateOid(newOid);
-    if (expectedOid) {
-      validateOid(expectedOid);
-    }
-    const current = this._refs.get(ref) || null;
+    _validateExpectedOid(expectedOid);
+    const current = this._refs.get(ref) ?? null;
     if (current !== expectedOid) {
-      throw new Error(
-        `CAS mismatch on ${ref}: expected ${expectedOid || '(none)'}, got ${current || '(none)'}`,
-      );
+      throw _casMismatchError(ref, expectedOid, current);
     }
     this._refs.set(ref, newOid);
   }
 
   /**
+   * Lists all refs matching a prefix, sorted lexicographically.
    * @param {string} prefix
    * @param {{ limit?: number }} [options]
    * @returns {Promise<string[]>}
    */
   async listRefs(prefix, options) {
     validateRef(prefix);
-    const result = [];
-    for (const key of this._refs.keys()) {
-      if (key.startsWith(prefix)) {
-        result.push(key);
-      }
-    }
-    const sorted = result.sort();
-    const limit = options?.limit;
-    if (limit) {
-      validateLimit(limit);
-      return sorted.slice(0, limit);
-    }
-    return sorted;
+    const sorted = this._filterRefsByPrefix(prefix);
+    return _applyLimit(sorted, options?.limit);
   }
 
   // ── ConfigPort ──────────────────────────────────────────────────────
 
   /**
+   * Reads a config value by key, or null if not set.
    * @param {string} key
    * @returns {Promise<string|null>}
    */
@@ -541,6 +648,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   }
 
   /**
+   * Stores a config key-value pair.
    * @param {string} key
    * @param {string} value
    * @returns {Promise<void>}
@@ -548,7 +656,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   async configSet(key, value) {
     validateConfigKey(key);
     if (typeof value !== 'string') {
-      throw new Error('Config value must be a string');
+      throw new WarpError('Config value must be a string', 'E_INVALID_INPUT');
     }
     this._config.set(key, value);
   }
@@ -556,6 +664,22 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
   // ── Private helpers ─────────────────────────────────────────────────
 
   /**
+   * Returns all refs whose names start with the given prefix, sorted.
+   * @param {string} prefix
+   * @returns {string[]}
+   */
+  _filterRefsByPrefix(prefix) {
+    const result = [];
+    for (const key of this._refs.keys()) {
+      if (key.startsWith(prefix)) {
+        result.push(key);
+      }
+    }
+    return result.sort();
+  }
+
+  /**
+   * Internal helper that hashes and stores a new commit object.
    * @param {string} treeOid
    * @param {string[]} parents
    * @param {string} message
@@ -605,13 +729,49 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
    */
   _walkLog(ref, limit) {
     const tip = this._resolveRef(ref);
-    if (!tip) {
+    if (tip === null) {
       return [];
     }
+    const all = this._collectCommits(tip);
+    all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    return all.slice(0, limit);
+  }
+
+  /**
+   * Counts all commits reachable from a starting SHA via BFS.
+   * @param {string} startSha
+   * @returns {number}
+   */
+  _countReachable(startSha) {
+    const visited = new Set();
+    const stack = [startSha];
+    while (stack.length > 0) {
+      const sha = /** @type {string} */ (stack.pop());
+      if (visited.has(sha)) {
+        continue;
+      }
+      visited.add(sha);
+      const commit = this._commits.get(sha);
+      if (commit !== undefined) {
+        for (const p of commit.parents) {
+          stack.push(p);
+        }
+      }
+    }
+    return visited.size;
+  }
+
+  /**
+   * Collects all commits reachable from a starting SHA via BFS.
+   * @param {string} startSha
+   * @returns {Array<{sha: string, message: string, author: string, date: string, parents: string[]}>}
+   */
+  _collectCommits(startSha) {
     /** @type {Array<{sha: string, message: string, author: string, date: string, parents: string[]}>} */
     const all = [];
+    /** @type {Set<string>} */
     const visited = new Set();
-    const queue = [tip];
+    const queue = [startSha];
     let head = 0;
     while (head < queue.length) {
       const sha = /** @type {string} */ (queue[head++]);
@@ -619,20 +779,28 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
         continue;
       }
       visited.add(sha);
-      const commit = this._commits.get(sha);
-      if (!commit) {
-        continue;
-      }
-      all.push({ sha, ...commit });
-      for (const p of commit.parents) {
-        if (!visited.has(p)) {
-          queue.push(p);
-        }
+      this._enqueueCommit(sha, { all, visited, queue });
+    }
+    return all;
+  }
+
+  /**
+   * Processes a single commit SHA: pushes its record and enqueues parents.
+   * @param {string} sha
+   * @param {{ all: Array<{sha: string, message: string, author: string, date: string, parents: string[]}>, visited: Set<string>, queue: string[] }} ctx
+   * @returns {void}
+   */
+  _enqueueCommit(sha, ctx) {
+    const commit = this._commits.get(sha);
+    if (commit === undefined) {
+      return;
+    }
+    ctx.all.push({ sha, ...commit });
+    for (const p of commit.parents) {
+      if (!ctx.visited.has(p)) {
+        ctx.queue.push(p);
       }
     }
-    // Sort by date descending (reverse chronological), matching git log
-    all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-    return all.slice(0, limit);
   }
 
   /**

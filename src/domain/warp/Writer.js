@@ -28,6 +28,21 @@ import WriterError from '../errors/WriterError.js';
 export { WriterError };
 
 /**
+ * Asserts that a Lamport timestamp is a valid positive finite integer.
+ * @param {unknown} lamport - The value to validate
+ * @param {string} commitSha - SHA for error reporting
+ * @throws {WriterError} E_LAMPORT_CORRUPT if invalid
+ */
+function _assertValidLamport(lamport, commitSha) {
+  if (typeof lamport !== 'number' || !Number.isFinite(lamport) || lamport < 1) {
+    throw new WriterError(
+      'E_LAMPORT_CORRUPT',
+      `Malformed Lamport timestamp in commit ${commitSha}: ${JSON.stringify(lamport)}`,
+    );
+  }
+}
+
+/**
  * Writer class for creating and committing patches to a WARP graph.
  *
  * @class Writer
@@ -40,40 +55,41 @@ export class Writer {
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     validateWriterId(writerId);
+    this._initFields({
+      persistence, graphName, writerId, versionVector,
+      getCurrentState, onCommitSuccess, onDeleteWithData,
+      codec, logger, blobStorage, patchBlobStorage,
+    });
+  }
 
-    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} Wider than Writer's own calls; satisfies PatchBuilderV2 constructor. */
-    this._persistence = persistence;
-
+  /**
+   * Assigns all Writer instance fields from the validated constructor options.
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} opts
+   * @private
+   */
+  _initFields(opts) {
+    /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
+    this._persistence = opts.persistence;
     /** @type {string} */
-    this._graphName = graphName;
-
+    this._graphName = opts.graphName;
     /** @type {string} */
-    this._writerId = writerId;
-
+    this._writerId = opts.writerId;
     /** @type {import('../crdt/VersionVector.js').VersionVector} */
-    this._versionVector = versionVector;
-
+    this._versionVector = opts.versionVector;
     /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */
-    this._getCurrentState = getCurrentState;
-
+    this._getCurrentState = opts.getCurrentState;
     /** @type {((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|undefined} */
-    this._onCommitSuccess = onCommitSuccess;
-
+    this._onCommitSuccess = opts.onCommitSuccess;
     /** @type {'reject'|'cascade'|'warn'} */
-    this._onDeleteWithData = onDeleteWithData;
-
+    this._onDeleteWithData = opts.onDeleteWithData;
     /** @type {import('../../ports/CodecPort.js').default|undefined} */
-    this._codec = codec || defaultCodec;
-
+    this._codec = opts.codec ?? defaultCodec;
     /** @type {import('../../ports/LoggerPort.js').default} */
-    this._logger = logger || nullLogger;
-
+    this._logger = opts.logger ?? nullLogger;
     /** @type {import('../../ports/BlobStoragePort.js').default|null} */
-    this._blobStorage = blobStorage || null;
-
+    this._blobStorage = opts.blobStorage ?? null;
     /** @type {import('../../ports/BlobStoragePort.js').default|null} */
-    this._patchBlobStorage = patchBlobStorage || null;
-
+    this._patchBlobStorage = opts.patchBlobStorage ?? null;
     /** @type {boolean} */
     this._commitInProgress = false;
   }
@@ -120,28 +136,10 @@ export class Writer {
    * await patch.commit();
    */
   async beginPatch() {
-    // Read current writer head and capture for CAS
     const writerRef = buildWriterRef(this._graphName, this._writerId);
     const expectedOldHead = await this._persistence.readRef(writerRef);
+    const lamport = await this._resolveNextLamport(expectedOldHead);
 
-    // Calculate next lamport
-    let lamport = 1;
-    if (expectedOldHead) {
-      const commitMessage = await this._persistence.showNode(expectedOldHead);
-      const kind = detectMessageKind(commitMessage);
-      if (kind === 'patch') {
-        const patchInfo = decodePatchMessage(commitMessage);
-        if (typeof patchInfo.lamport !== 'number' || !Number.isFinite(patchInfo.lamport) || patchInfo.lamport < 1) {
-          throw new WriterError(
-            'E_LAMPORT_CORRUPT',
-            `Malformed Lamport timestamp in commit ${expectedOldHead}: ${JSON.stringify(patchInfo.lamport)}`,
-          );
-        }
-        lamport = patchInfo.lamport + 1;
-      }
-    }
-
-    // Create internal PatchBuilderV2
     const builder = new PatchBuilderV2({
       persistence: this._persistence,
       graphName: this._graphName,
@@ -154,11 +152,10 @@ export class Writer {
       onDeleteWithData: this._onDeleteWithData,
       codec: this._codec,
       logger: this._logger,
-      blobStorage: this._blobStorage || undefined,
-      patchBlobStorage: this._patchBlobStorage || undefined,
+      blobStorage: this._blobStorage ?? undefined,
+      patchBlobStorage: this._patchBlobStorage ?? undefined,
     });
 
-    // Return PatchSession wrapping the builder
     return new PatchSession({
       builder,
       persistence: this._persistence,
@@ -166,6 +163,25 @@ export class Writer {
       writerId: this._writerId,
       expectedOldHead,
     });
+  }
+
+  /**
+   * Reads the previous commit's Lamport timestamp and returns the next value.
+   * @param {string|null} headSha - Current writer tip SHA, or null if no commits yet
+   * @returns {Promise<number>} The next Lamport timestamp (1-based)
+   * @private
+   */
+  async _resolveNextLamport(headSha) {
+    if (headSha === null || headSha === undefined) {
+      return 1;
+    }
+    const commitMessage = await this._persistence.showNode(headSha);
+    if (detectMessageKind(commitMessage) !== 'patch') {
+      return 1;
+    }
+    const { lamport } = decodePatchMessage(commitMessage);
+    _assertValidLamport(lamport, headSha);
+    return lamport + 1;
   }
 
   /**
@@ -185,7 +201,7 @@ export class Writer {
    * });
    */
   async commitPatch(build) {
-    if (this._commitInProgress) {
+    if (this._commitInProgress === true) {
       throw new WriterError(
         'COMMIT_IN_PROGRESS',
         'commitPatch() is not reentrant. Use beginPatch() for nested or concurrent patches.',

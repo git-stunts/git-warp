@@ -34,6 +34,7 @@ import WarpError from './WarpError.js';
  */
 export default class QueryError extends WarpError {
   /**
+   * Constructs a QueryError with optional code and context overrides.
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

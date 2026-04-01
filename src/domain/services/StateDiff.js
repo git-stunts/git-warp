@@ -50,14 +50,21 @@ import { decodeEdgeKey, decodePropKey, isEdgePropKey } from './KeyCodec.js';
  * @returns {number}
  */
 function compareEdges(a, b) {
-  if (a.from !== b.from) {
-    return a.from < b.from ? -1 : 1;
+  return compareField(a.from, b.from) || compareField(a.to, b.to) || compareField(a.label, b.label);
+}
+
+/**
+ * Compares two string values for deterministic ordering.
+ * @param {string} x
+ * @param {string} y
+ * @returns {number}
+ */
+function compareField(x, y) {
+  if (x < y) {
+    return -1;
   }
-  if (a.to !== b.to) {
-    return a.to < b.to ? -1 : 1;
-  }
-  if (a.label !== b.label) {
-    return a.label < b.label ? -1 : 1;
+  if (x > y) {
+    return 1;
   }
   return 0;
 }
@@ -129,25 +136,38 @@ function deepEqual(a, b) {
   if (a === b) {
     return true;
   }
-  if (a === null || b === null) {
+  if (!isNonNullObject(a) || !isNonNullObject(b)) {
     return false;
   }
-  if (typeof a !== typeof b) {
-    return false;
-  }
-  if (typeof a !== 'object') {
-    return false;
-  }
-  if (Array.isArray(a) !== Array.isArray(b)) {
-    return false;
-  }
+  return deepEqualObjects(a, b);
+}
+
+/**
+ * Compares two non-null objects or arrays for deep equality.
+ * @param {object} a - First value (known non-null object)
+ * @param {object} b - Second value (known non-null object)
+ * @returns {boolean}
+ */
+function deepEqualObjects(a, b) {
   if (Array.isArray(a)) {
-    return arraysEqual(a, /** @type {unknown[]} */ (b));
+    return Array.isArray(b) && arraysEqual(a, b);
+  }
+  if (Array.isArray(b)) {
+    return false;
   }
   return objectsEqual(
     /** @type {Record<string, unknown>} */ (a),
     /** @type {Record<string, unknown>} */ (b),
   );
+}
+
+/**
+ * Returns true if the value is a non-null object (not a primitive).
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isNonNullObject(value) {
+  return value !== null && typeof value === 'object';
 }
 
 /**
@@ -210,34 +230,79 @@ function diffNodesAndEdges(before, after) {
  * @returns {{propsSet: PropSet[], propsRemoved: PropRemoved[]}}
  */
 function diffProps(before, after) {
+  /** @type {PropSet[]} */
   const propsSet = [];
+  /** @type {PropRemoved[]} */
   const propsRemoved = [];
+  /** @type {Map<string, unknown>} */
   const beforeProps = before ? before.prop : new Map();
+  /** @type {Map<string, unknown>} */
   const afterProps = after.prop;
   const allPropKeys = new Set([...beforeProps.keys(), ...afterProps.keys()]);
 
   for (const key of allPropKeys) {
-    // Skip edge properties (out of scope per spec)
     if (isEdgePropKey(key)) {
       continue;
     }
-
-    const beforeReg = beforeProps.get(key);
-    const afterReg = afterProps.get(key);
-    const beforeValue = lwwValue(beforeReg);
-    const afterValue = lwwValue(afterReg);
-    const { nodeId, propKey } = decodePropKey(key);
-
-    if (afterReg !== undefined && beforeReg === undefined) {
-      propsSet.push({ key, nodeId, propKey, oldValue: undefined, newValue: afterValue });
-    } else if (afterReg === undefined && beforeReg !== undefined) {
-      propsRemoved.push({ key, nodeId, propKey, oldValue: beforeValue });
-    } else if (afterReg !== undefined && !deepEqual(beforeValue, afterValue)) {
-      propsSet.push({ key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue });
-    }
+    accumulatePropChange(key, { beforeProps, afterProps, propsSet, propsRemoved });
   }
 
   return { propsSet, propsRemoved };
+}
+
+/**
+ * Classifies a property change and appends it to the appropriate accumulator.
+ * @param {string} key - Encoded property key
+ * @param {{ beforeProps: Map<string, unknown>, afterProps: Map<string, unknown>, propsSet: PropSet[], propsRemoved: PropRemoved[] }} ctx - Diff context and accumulators
+ */
+function accumulatePropChange(key, ctx) {
+  const change = classifyPropChange(key, ctx.beforeProps, ctx.afterProps);
+  if (change === undefined) {
+    return;
+  }
+  if ('newValue' in change) {
+    ctx.propsSet.push(change);
+  } else {
+    ctx.propsRemoved.push(change);
+  }
+}
+
+/**
+ * Classifies a single property key as added, removed, changed, or unchanged.
+ * @param {string} key - Encoded property key
+ * @param {Map<string, unknown>} beforeProps - Previous properties
+ * @param {Map<string, unknown>} afterProps - Current properties
+ * @returns {PropSet | PropRemoved | undefined} The change, or undefined if unchanged
+ */
+function classifyPropChange(key, beforeProps, afterProps) {
+  const beforeReg = beforeProps.get(key);
+  const afterReg = afterProps.get(key);
+  const { nodeId, propKey } = decodePropKey(key);
+
+  if (afterReg !== undefined && beforeReg === undefined) {
+    return { key, nodeId, propKey, oldValue: undefined, newValue: /** @type {unknown} */ (lwwValue(afterReg)) };
+  }
+  if (afterReg === undefined && beforeReg !== undefined) {
+    return { key, nodeId, propKey, oldValue: /** @type {unknown} */ (lwwValue(beforeReg)) };
+  }
+  return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
+}
+
+/**
+ * Returns a PropSet if both registers exist and their values differ, otherwise undefined.
+ * @param {{ key: string, nodeId: string, propKey: string, beforeReg: unknown, afterReg: unknown }} opts - Property comparison options
+ * @returns {PropSet | undefined}
+ */
+function classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg }) {
+  if (afterReg === undefined) {
+    return undefined;
+  }
+  const beforeValue = /** @type {unknown} */ (lwwValue(beforeReg));
+  const afterValue = /** @type {unknown} */ (lwwValue(afterReg));
+  if (!deepEqual(beforeValue, afterValue)) {
+    return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
+  }
+  return undefined;
 }
 
 /**
@@ -273,14 +338,25 @@ export function diffStates(before, after) {
  * @returns {boolean}
  */
 export function isEmptyDiff(diff) {
-  return (
-    diff.nodes.added.length === 0 &&
-    diff.nodes.removed.length === 0 &&
-    diff.edges.added.length === 0 &&
-    diff.edges.removed.length === 0 &&
-    diff.props.set.length === 0 &&
-    diff.props.removed.length === 0
-  );
+  return isEmptyPair(diff.nodes) && isEmptyPair(diff.edges) && isEmptySetRemoved(diff.props);
+}
+
+/**
+ * Returns true if an added/removed pair contains no entries.
+ * @param {{ added: unknown[], removed: unknown[] }} pair
+ * @returns {boolean}
+ */
+function isEmptyPair(pair) {
+  return pair.added.length === 0 && pair.removed.length === 0;
+}
+
+/**
+ * Returns true if a set/removed pair contains no entries.
+ * @param {{ set: unknown[], removed: unknown[] }} pair
+ * @returns {boolean}
+ */
+function isEmptySetRemoved(pair) {
+  return pair.set.length === 0 && pair.removed.length === 0;
 }
 
 /**

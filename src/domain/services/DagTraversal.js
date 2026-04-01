@@ -42,7 +42,7 @@ export default class DagTraversal {
    * @param {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor({ indexReader, logger = nullLogger }) {
-    if (!indexReader) {
+    if (indexReader === null || indexReader === undefined) {
       throw new Error('DagTraversal requires an indexReader');
     }
     this._indexReader = indexReader;

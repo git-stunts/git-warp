@@ -44,14 +44,14 @@ export async function createPatch() {
     writerId: this._writerId,
     lamport,
     versionVector: this._versionVector,
-    getCurrentState: () => this._cachedState,
+    getCurrentState: /** Returns the cached CRDT state. @returns {import('../services/JoinReducer.js').WarpStateV5|null} */ () => this._cachedState,
     expectedParentSha: parentSha,
     onDeleteWithData: this._onDeleteWithData,
-    onCommitSuccess: (/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(this._writerId, opts),
+    onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} opts - Commit result */ (opts) => this._onPatchCommitted(this._writerId, opts),
     codec: this._codec,
-    logger: this._logger || undefined,
-    blobStorage: this._blobStorage || undefined,
-    patchBlobStorage: this._patchBlobStorage || undefined,
+    logger: this._logger ?? undefined,
+    blobStorage: this._blobStorage ?? undefined,
+    patchBlobStorage: this._patchBlobStorage ?? undefined,
   });
 }
 
@@ -140,7 +140,7 @@ export async function _nextLamport() {
 
   let ownTick = 0;
 
-  if (currentRefSha) {
+  if (typeof currentRefSha === 'string' && currentRefSha.length > 0) {
     // Read the current patch commit to get its lamport timestamp
     const commitMessage = await this._persistence.showNode(currentRefSha);
     const kind = detectMessageKind(commitMessage);
@@ -181,7 +181,7 @@ export async function _nextLamport() {
  * @returns {Promise<Array<{patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}>>}
  */
 export async function _loadPatchChainFromSha(tipSha, stopAtSha = null) {
-  if (!tipSha || typeof tipSha !== 'string') {
+  if (typeof tipSha !== 'string' || tipSha.length === 0) {
     return [];
   }
 
@@ -202,7 +202,7 @@ export async function _loadPatchChainFromSha(tipSha, stopAtSha = null) {
 
     patches.push({ patch: decoded, sha: currentSha });
 
-    if (nodeInfo.parents && nodeInfo.parents.length > 0) {
+    if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
       currentSha = nodeInfo.parents[0];
     } else {
       break;
@@ -227,7 +227,7 @@ export async function _loadWriterPatches(writerId, stopAtSha = null) {
   const writerRef = buildWriterRef(this._graphName, writerId);
   const tipSha = await this._persistence.readRef(writerRef);
 
-  if (!tipSha) {
+  if (typeof tipSha !== 'string' || tipSha.length === 0) {
     return [];
   }
 
@@ -264,7 +264,7 @@ export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}
   this._patchesSinceCheckpoint++;
   // Eager re-materialize: apply the just-committed patch to cached state
   // Only when the cache is clean — applying a patch to stale state would be incorrect
-  if (this._cachedState && !this._stateDirty && committed && sha) {
+  if (this._cachedState && !this._stateDirty && committed && typeof sha === 'string' && sha.length > 0) {
     let tickReceipt = null;
     /** @type {import('../types/PatchDiff.js').PatchDiff|null} */
     let diff = null;
@@ -317,8 +317,8 @@ export async function writer(writerId) {
   // Build config adapters for resolveWriterId
   /** @type {import('../../ports/ConfigPort.js').default} */
   const config = /** @type {import('../../ports/ConfigPort.js').default} */ (/** @type {unknown} */ (this._persistence));
-  const configGet = async (/** @type {string} */ key) => await config.configGet(key);
-  const configSet = async (/** @type {string} */ key, /** @type {string} */ value) => await config.configSet(key, value);
+  const configGet = /** Reads a git config key. @param {string} key - Config key @returns {Promise<string|null>} Value or null */ async (key) => await config.configGet(key);
+  const configSet = /** Writes a git config key. @param {string} key - Config key @param {string} value - Config value @returns {Promise<void>} */ async (key, value) => await config.configSet(key, value);
 
   // Resolve the writer ID
   const resolvedWriterId = await resolveWriterId({
@@ -335,13 +335,13 @@ export async function writer(writerId) {
     graphName: this._graphName,
     writerId: resolvedWriterId,
     versionVector: this._versionVector,
-    getCurrentState: () => this._cachedState,
+    getCurrentState: /** Returns the cached CRDT state for this graph. @returns {import('../services/JoinReducer.js').WarpStateV5|null} */ () => this._cachedState,
     onDeleteWithData: this._onDeleteWithData,
-    onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((/** @type {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} */ opts) => this._onPatchCommitted(resolvedWriterId, opts)),
+    onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ (/** Post-commit callback for the writer. @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} opts - Commit result */ (opts) => this._onPatchCommitted(resolvedWriterId, opts)),
     codec: this._codec,
-    logger: this._logger || undefined,
-    blobStorage: this._blobStorage || undefined,
-    patchBlobStorage: this._patchBlobStorage || undefined,
+    logger: this._logger ?? undefined,
+    blobStorage: this._blobStorage ?? undefined,
+    patchBlobStorage: this._patchBlobStorage ?? undefined,
   });
 }
 
@@ -391,7 +391,7 @@ export async function _readPatchBlob(patchMeta) {
     return await this._patchBlobStorage.retrieve(patchMeta.patchOid);
   }
   const blob = await this._persistence.readBlob(patchMeta.patchOid);
-  if (!blob) {
+  if (blob === null || blob === undefined) {
     throw new PersistenceError(
       `Patch blob not found: ${patchMeta.patchOid}`,
       PersistenceError.E_MISSING_OBJECT,
@@ -414,7 +414,7 @@ export async function discoverWriters() {
   const writerIds = [];
   for (const refPath of refs) {
     const writerId = parseWriterIdFromRef(refPath);
-    if (writerId) {
+    if (typeof writerId === 'string' && writerId.length > 0) {
       writerIds.push(writerId);
     }
   }
@@ -446,6 +446,7 @@ export async function discoverTicks() {
   const writerIds = await this.discoverWriters();
   /** @type {Set<number>} */
   const globalTickSet = new Set();
+  /** @type {Map<string, {ticks: number[], tipSha: string|null, tickShas: Record<number, string>}>} */
   const perWriter = new Map();
 
   for (const writerId of writerIds) {
@@ -455,7 +456,7 @@ export async function discoverTicks() {
     /** @type {Record<number, string>} */
     const tickShas = {};
 
-    if (tipSha) {
+    if (typeof tipSha === 'string' && tipSha.length > 0) {
       let currentSha = tipSha;
       let lastLamport = Infinity;
 
@@ -477,7 +478,7 @@ export async function discoverTicks() {
         }
         lastLamport = patchMeta.lamport;
 
-        if (nodeInfo.parents && nodeInfo.parents.length > 0) {
+        if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
           currentSha = nodeInfo.parents[0];
         } else {
           break;
@@ -487,7 +488,7 @@ export async function discoverTicks() {
 
     perWriter.set(writerId, {
       ticks: writerTicks.reverse(),
-      tipSha: tipSha || null,
+      tipSha: typeof tipSha === 'string' && tipSha.length > 0 ? tipSha : null,
       tickShas,
     });
   }
@@ -514,7 +515,7 @@ export function join(otherState) {
     });
   }
 
-  if (!otherState || !otherState.nodeAlive || !otherState.edgeAlive) {
+  if (otherState === null || otherState === undefined || !('nodeAlive' in otherState) || !('edgeAlive' in otherState)) {
     throw new Error('Invalid state: must be a valid WarpStateV5 object');
   }
 

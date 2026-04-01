@@ -33,6 +33,7 @@ const debugCoordinateSchema = z.object({
 }));
 
 /**
+ * Determines how the observation coordinate was resolved.
  * @param {{ explicitLamportCeiling: number|null, activeCursor: {tick: number, mode?: string}|null }} params
  * @returns {'explicit'|'cursor'|'frontier'}
  */
@@ -47,6 +48,7 @@ function resolveCoordinateSource({ explicitLamportCeiling, activeCursor }) {
 }
 
 /**
+ * Builds a per-writer summary of visible vs total patches at the given tick.
  * @param {{tick: number, perWriter: Map<string, import('../../types.js').WriterTickInfo>}} params
  * @returns {Record<string, { tipSha: string|null, totalPatchCount: number, visiblePatchCount: number }>}
  */
@@ -63,6 +65,7 @@ function summarizePerWriterCoordinate({ tick, perWriter }) {
 }
 
 /**
+ * Materializes state at the resolved coordinate and collects summary metrics.
  * @param {{
  *   graph: import('../../types.js').WarpGraphInstance,
  *   lamportCeiling: number|null,
@@ -113,6 +116,7 @@ async function buildResolvedCoordinate({ graph, lamportCeiling, maxTick, tickCou
 }
 
 /**
+ * Handles the 'coordinate' debug topic — resolves and displays the observation coordinate.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -129,14 +133,21 @@ export async function handleDebugTopic({ options, args }) {
 
   const { ticks, maxTick, perWriter } = await graph.discoverTicks();
   const resolvedCoordinate = await buildResolvedCoordinate({
-    graph,
-    lamportCeiling,
-    maxTick,
-    tickCount: ticks.length,
-    perWriter,
+    graph, lamportCeiling, maxTick, tickCount: ticks.length, perWriter,
   });
   const tickReceipt = await buildTickReceipt({ tick: resolvedCoordinate.tick, perWriter, graph });
 
+  return buildCoordinatePayload({
+    graphName, coordinateSource, values, activeCursor, resolvedCoordinate, tickReceipt,
+  });
+}
+
+/**
+ * Assembles the final coordinate payload for CLI output.
+ * @param {{ graphName: string, coordinateSource: string, values: { lamportCeiling: number|null }, activeCursor: {tick: number, mode?: string}|null, resolvedCoordinate: Record<string, unknown>, tickReceipt: unknown }} params
+ * @returns {{ payload: unknown, exitCode: number }}
+ */
+function buildCoordinatePayload({ graphName, coordinateSource, values, activeCursor, resolvedCoordinate, tickReceipt }) {
   return {
     payload: {
       graph: graphName,

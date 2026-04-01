@@ -14,6 +14,7 @@ const SHOW_OPTIONS = /** @type {Record<string, { type: string, short?: string, d
 const showStrandSchema = z.object({}).strict();
 
 /**
+ * Shows a single strand descriptor by ID.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

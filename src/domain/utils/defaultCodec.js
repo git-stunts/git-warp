@@ -24,25 +24,52 @@ const encoder = new Encoder({
  * @returns {unknown} The value with sorted keys
  */
 function sortKeys(value) {
-  if (value === null || value === undefined) { return value; }
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return value;
+  }
+  return sortContainer(value);
+}
+
+/**
+ * Sorts keys in an Array, Map, or plain object container.
+ * @param {object} value - A non-null object value
+ * @returns {unknown} The value with sorted keys
+ */
+function sortContainer(value) {
   if (Array.isArray(value)) { return value.map(sortKeys); }
-  if (value instanceof Map) {
-    /** @type {Record<string, unknown>} */
-    const sorted = {};
-    for (const key of Array.from(value.keys()).sort()) {
-      sorted[key] = sortKeys(value.get(key));
-    }
-    return sorted;
+  if (value instanceof Map) { return sortMapKeys(value); }
+  return sortObjectKeys(/** @type {Record<string, unknown>} */ (value));
+}
+
+/**
+ * Sorts keys of a Map and recursively sorts nested values.
+ * @param {Map<string, unknown>} map
+ * @returns {Record<string, unknown>}
+ */
+function sortMapKeys(map) {
+  /** @type {Record<string, unknown>} */
+  const sorted = {};
+  for (const key of Array.from(map.keys()).sort()) {
+    sorted[String(key)] = sortKeys(map.get(key));
   }
-  if (typeof value === 'object' && (/** @type {Record<string, unknown>} */ (value).constructor === Object || /** @type {Record<string, unknown>} */ (value).constructor === undefined)) {
-    /** @type {Record<string, unknown>} */
-    const sorted = {};
-    for (const key of Object.keys(value).sort()) {
-      sorted[key] = sortKeys(/** @type {Record<string, unknown>} */ (value)[key]);
-    }
-    return sorted;
+  return sorted;
+}
+
+/**
+ * Sorts keys of a plain object and recursively sorts nested values.
+ * @param {Record<string, unknown>} obj
+ * @returns {Record<string, unknown>}
+ */
+function sortObjectKeys(obj) {
+  if (obj.constructor !== Object && obj.constructor !== undefined) {
+    return obj;
   }
-  return value;
+  /** @type {Record<string, unknown>} */
+  const sorted = {};
+  for (const key of Object.keys(obj).sort()) {
+    sorted[key] = sortKeys(obj[key]);
+  }
+  return sorted;
 }
 
 /** @type {import('../../ports/CodecPort.js').default} */
@@ -51,7 +78,7 @@ const defaultCodec = {
     return encoder.encode(sortKeys(data));
   },
   decode(buffer) {
-    return cborDecode(buffer);
+    return /** @type {unknown} */ (cborDecode(buffer));
   },
 };
 
