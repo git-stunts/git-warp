@@ -289,7 +289,7 @@ export default class SyncAuthService {
     });
 
     const expectedBuf = await this._crypto.hmac(HMAC_ALGO, secret, canonical);
-    const receivedHex = request.headers['x-warp-signature'];
+    const receivedHex = request.headers['x-warp-signature'] ?? '';
 
     /** @type {Uint8Array} */
     let receivedBuf;

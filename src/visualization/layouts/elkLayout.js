@@ -35,7 +35,7 @@ let elkPromise = null;
 function getElk() {
   if (!elkPromise) {
     elkPromise = import('elkjs/lib/elk.bundled.js').then(
-      (mod) => /** @type {ElkEngine} */ (new /** @type {{ new(): ElkEngine }} */ (mod.default)()),
+      (mod) => /** @type {ElkEngine} */ (new /** @type {{ new(): ElkEngine }} */ (/** @type {unknown} */ (mod.default))()),
     );
   }
   return /** @type {Promise<ElkEngine>} */ (elkPromise);
@@ -62,12 +62,13 @@ export async function runLayout(elkGraph) {
 /**
  * Extracts the first label text from a labels array, or returns the fallback.
  * @param {Array<{ text: string }> | undefined} labels
- * @param {string} fallback
- * @returns {string}
+ * @param {string | undefined} fallback
+ * @returns {string | undefined}
  */
 function firstLabel(labels, fallback) {
   if (labels !== undefined && labels !== null && labels.length > 0) {
-    return labels[0].text;
+    const first = labels[0];
+    if (first !== undefined) { return first.text; }
   }
   return fallback;
 }
@@ -80,7 +81,7 @@ function firstLabel(labels, fallback) {
  */
 function firstOrDefault(arr, fallback) {
   if (arr !== undefined && arr !== null && arr.length > 0) {
-    return arr[0];
+    return arr[0] ?? fallback;
   }
   return fallback;
 }
@@ -97,7 +98,7 @@ function mapChildToNode(c) {
     y: c.y ?? 0,
     width: c.width ?? DEFAULT_WIDTH,
     height: c.height ?? DEFAULT_HEIGHT,
-    label: firstLabel(c.labels, c.id),
+    label: /** @type {string} */ (firstLabel(c.labels, c.id)),
   };
 }
 
@@ -107,11 +108,12 @@ function mapChildToNode(c) {
  * @returns {PosEdge}
  */
 function mapResultEdge(e) {
+  const label = firstLabel(e.labels, undefined);
   return {
     id: e.id,
     source: firstOrDefault(e.sources, ''),
     target: firstOrDefault(e.targets, ''),
-    label: firstLabel(e.labels, undefined),
+    ...(label !== undefined ? { label } : {}),
     sections: /** @type {LayoutSection[]} */ (e.sections ?? []),
   };
 }
@@ -179,7 +181,7 @@ function mapFallbackChild(c, xPos) {
     y: FALLBACK_Y,
     width: c.width ?? DEFAULT_WIDTH,
     height: c.height ?? DEFAULT_HEIGHT,
-    label: firstLabel(c.labels, c.id),
+    label: /** @type {string} */ (firstLabel(c.labels, c.id)),
   };
 }
 
@@ -189,11 +191,12 @@ function mapFallbackChild(c, xPos) {
  * @returns {PosEdge}
  */
 function mapFallbackEdge(e) {
+  const label = firstLabel(e.labels, undefined);
   return {
     id: e.id,
     source: firstOrDefault(e.sources, ''),
     target: firstOrDefault(e.targets, ''),
-    label: firstLabel(e.labels, undefined),
+    ...(label !== undefined ? { label } : {}),
     sections: [],
   };
 }

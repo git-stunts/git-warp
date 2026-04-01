@@ -62,7 +62,7 @@ export function parseExportBlock(blockBody) {
     const withoutTypeKeyword = trimmed.replace(/^type\s+/, '');
     // Handle `Foo as Bar` — the exported name is Bar
     const asParts = withoutTypeKeyword.split(/\s+as\s+/);
-    const exportedName = (asParts.length > 1 ? asParts[1] : asParts[0]).trim();
+    const exportedName = (asParts.length > 1 ? asParts[1] ?? '' : asParts[0] ?? '').trim();
     if (exportedName) {
       names.add(exportedName);
     }
@@ -78,7 +78,7 @@ export function parseExportBlock(blockBody) {
 function collectExportBlocks(src) {
   const names = new Set();
   for (const m of src.matchAll(/export\s*\{([^}]+)\}/g)) {
-    for (const name of parseExportBlock(m[1])) {
+    for (const name of parseExportBlock(m[1] ?? '')) {
       names.add(name);
     }
   }
@@ -94,15 +94,15 @@ export function extractJsExports(src) {
   const names = collectExportBlocks(src);
   // Match standalone `export const Foo` / `export function Foo` / `export class Foo`
   for (const m of src.matchAll(/export\s+(?:const|function|class)\s+(\w+)/g)) {
-    names.add(m[1]);
+    names.add(m[1] ?? '');
   }
   // Match `export default class Foo` / `export default function Foo`
   for (const m of src.matchAll(/export\s+default\s+(?:class|function)\s+(\w+)/g)) {
-    names.add(m[1]);
+    names.add(m[1] ?? '');
   }
   // Match `export default Foo` (standalone identifier)
   for (const m of src.matchAll(/export\s+default\s+([A-Z_$][\w$]*)/g)) {
-    names.add(m[1]);
+    names.add(m[1] ?? '');
   }
   return names;
 }

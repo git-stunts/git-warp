@@ -607,9 +607,12 @@ describe('ORSet', () => {
 
       const serialized = orsetSerialize(set);
 
-      expect(serialized.entries[0][0]).toBe('a');
-      expect(serialized.entries[1][0]).toBe('b');
-      expect(serialized.entries[2][0]).toBe('c');
+      const e0 = serialized.entries[0]; if (e0 === undefined) { throw new Error('missing'); }
+      const e1 = serialized.entries[1]; if (e1 === undefined) { throw new Error('missing'); }
+      const e2 = serialized.entries[2]; if (e2 === undefined) { throw new Error('missing'); }
+      expect(e0[0]).toBe('a');
+      expect(e1[0]).toBe('b');
+      expect(e2[0]).toBe('c');
     });
 
     it('sorts dots within entries', () => {
@@ -623,7 +626,8 @@ describe('ORSet', () => {
       const serialized = orsetSerialize(set);
 
       // writer1:1 < writer2:1 (lexicographic by writerId)
-      expect(serialized.entries[0][1]).toEqual(['writer1:1', 'writer2:1']);
+      const entry0 = serialized.entries[0]; if (entry0 === undefined) { throw new Error('missing'); }
+      expect(entry0[1]).toEqual(['writer1:1', 'writer2:1']);
     });
 
     it('sorts tombstones', () => {

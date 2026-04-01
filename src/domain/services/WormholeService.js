@@ -123,7 +123,7 @@ async function processCommit({ persistence, sha, graphName, expectedWriter, code
     patch,
     sha,
     writerId: patchMeta.writer,
-    parentSha: parents && parents.length > 0 ? parents[0] : null,
+    parentSha: parents && parents.length > 0 ? (parents[0] ?? null) : null,
   };
 }
 
@@ -165,12 +165,12 @@ export async function createWormhole({ persistence, graphName, fromSha, toSha, c
   await verifyShaExists(persistence, fromSha, 'fromSha');
   await verifyShaExists(persistence, toSha, 'toSha');
 
-  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, codec, patchBlobStorage });
+  const patches = await collectPatchRange({ persistence, graphName, fromSha, toSha, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
 
   // Reverse to get oldest-first order (as required by ProvenancePayload)
   patches.reverse();
 
-  const writerId = patches.length > 0 ? patches[0].writerId : /** @type {string} */ ('');
+  const writerId = patches.length > 0 ? (patches[0]?.writerId ?? '') : '';
   // Strip writerId to match ProvenancePayload's PatchEntry typedef ({patch, sha})
   const payload = new ProvenancePayload(patches.map(({ patch, sha }) => ({ patch, sha })));
 
@@ -194,7 +194,7 @@ async function collectPatchRange({ persistence, graphName, fromSha, toSha, codec
   let writerId = null;
 
   while (currentSha) {
-    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, codec, patchBlobStorage });
+    const result = await processCommit({ persistence, sha: currentSha, graphName, expectedWriter: writerId, ...(codec !== undefined ? { codec } : {}), ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}) });
     writerId = result.writerId;
     patches.push({ patch: result.patch, sha: result.sha, writerId: result.writerId });
 
@@ -347,19 +347,22 @@ export function deserializeWormhole(json) {
     }
   }
 
-  if (typeof typedJson.patchCount !== 'number' || typedJson.patchCount < 0) {
+  const asParsed = /** @type {{ patchCount: unknown, fromSha: unknown, toSha: unknown, writerId: unknown, payload: unknown }} */ (/** @type {unknown} */ (typedJson));
+  if (typeof asParsed.patchCount !== 'number' || asParsed.patchCount < 0) {
     throw new WormholeError('Invalid wormhole JSON: patchCount must be a non-negative number', {
       code: 'E_INVALID_WORMHOLE_JSON',
-      context: { patchCount: typedJson.patchCount },
+      context: { patchCount: asParsed.patchCount },
     });
   }
 
+  // After validation, narrow to the concrete shape
+  const validated = /** @type {{ fromSha: string, toSha: string, writerId: string, patchCount: number, payload: unknown }} */ (/** @type {unknown} */ (asParsed));
   return {
-    fromSha: /** @type {string} */ (typedJson.fromSha),
-    toSha: /** @type {string} */ (typedJson.toSha),
-    writerId: /** @type {string} */ (typedJson.writerId),
-    patchCount: /** @type {number} */ (typedJson.patchCount),
-    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (typedJson.payload)),
+    fromSha: validated.fromSha,
+    toSha: validated.toSha,
+    writerId: validated.writerId,
+    patchCount: validated.patchCount,
+    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (validated.payload)),
   };
 }
 

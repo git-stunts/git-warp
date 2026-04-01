@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { create, createV5, loadCheckpoint, materializeIncremental, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/CheckpointService.js';
-import { createFrontier, updateFrontier, serializeFrontier, deserializeFrontier } from '../../../../src/domain/services/Frontier.js';
+import { create, createV5, loadCheckpoint, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/CheckpointService.js';
+import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.js';
 import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
 import {
   serializeFullStateV5,
@@ -426,7 +426,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeBlob.mockImplementation((/** @type {any} */ buffer) => {
           writtenBlobs.push(buffer);
           const names = ['state', 'frontier', 'appliedvv'];
-          return Promise.resolve(makeOid(names[writtenBlobs.length - 1]));
+          return Promise.resolve(makeOid(names[writtenBlobs.length - 1] ?? 'unknown'));
         });
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockImplementation((/** @type {any} */ { message }) => {
@@ -579,7 +579,7 @@ describe('CheckpointService', () => {
         mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
         mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
 
-        const result = await createV5({
+        await createV5({
           persistence: mockPersistence,
           graphName: 'test',
           state,
@@ -1138,7 +1138,6 @@ describe('CheckpointService', () => {
         graphName: 'test',
         state,
         frontier,
-        codec: undefined,
         crypto,
         indexTree,
       });

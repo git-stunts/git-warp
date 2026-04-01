@@ -27,11 +27,11 @@ const materializeStrandSchema = z.object({
  * @returns {{payload: unknown, exitCode: number}}
  */
 function buildMaterializePayload(graphName, strand, materialized) {
-  const mat = /** @type {Record<string, unknown>} */ (materialized);
+  const mat = /** @type {{ state?: { nodeAlive: unknown, edgeAlive: unknown, prop: Map<string, unknown> }, receipts?: unknown[] }} */ (materialized);
   const state = /** @type {{ nodeAlive: unknown, edgeAlive: unknown, prop: Map<string, unknown> }} */ (
-    'state' in mat ? mat.state : mat
+    mat.state !== undefined ? mat.state : mat
   );
-  const receipts = 'state' in mat ? /** @type {unknown[]|undefined} */ (mat.receipts) : undefined;
+  const receipts = mat.state !== undefined ? mat.receipts : undefined;
 
   return {
     payload: {
@@ -41,8 +41,8 @@ function buildMaterializePayload(graphName, strand, materialized) {
       state,
       receipts,
       summary: {
-        nodeCount: orsetElements(state.nodeAlive).length,
-        edgeCount: orsetElements(state.edgeAlive).length,
+        nodeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').ORSet} */ (state.nodeAlive)).length,
+        edgeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').ORSet} */ (state.edgeAlive)).length,
         propertyCount: state.prop.size,
         receiptCount: receipts?.length ?? 0,
       },
@@ -62,7 +62,7 @@ export async function handleStrandSubcommand({ options, args }) {
     throw usageError('Usage: warp-graph strand materialize <id> [--receipts]');
   }
 
-  const strandId = positionals[0];
+  const strandId = /** @type {string} */ (positionals[0]);
   const { graph, graphName } = await openGraph(options);
   const strand = await graph.getStrand(strandId);
   if (!strand) {

@@ -159,20 +159,23 @@ export default class BitmapIndexBuilder {
 
     // Serialize bitmaps (sharded by prefix, per-node within shard)
     // Keys are constructed as '${type}_${sha}' by _addToBitmap (e.g., 'fwd_abc123', 'rev_def456')
-    /** @type {Record<string, Record<string, Record<string, string>>>} */
+    /** @type {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }} */
     const bitmapShards = { fwd: {}, rev: {} };
     for (const [key, bitmap] of this.bitmaps) {
       const [type, sha] = [key.substring(0, 3), key.substring(4)];
       const prefix = sha.substring(0, 2);
 
-      if (!bitmapShards[type][prefix]) {
-        bitmapShards[type][prefix] = {};
+      const typeShard = type === 'fwd' ? bitmapShards.fwd : bitmapShards.rev;
+      if (!typeShard[prefix]) {
+        typeShard[prefix] = {};
       }
       // Encode bitmap as base64 for JSON storage
-      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+      /** @type {Record<string, string>} */
+      const prefixShard = (typeShard[prefix] ?? {});
+      prefixShard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
 
-    for (const type of ['fwd', 'rev']) {
+    for (const type of /** @type {const} */ (['fwd', 'rev'])) {
       for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
         tree[`shards_${type}_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(shardData, this._crypto)));
       }

@@ -139,7 +139,7 @@ function deepEqual(a, b) {
   if (!isNonNullObject(a) || !isNonNullObject(b)) {
     return false;
   }
-  return deepEqualObjects(a, b);
+  return deepEqualObjects(/** @type {object} */ (a), /** @type {object} */ (b));
 }
 
 /**
@@ -280,10 +280,10 @@ function classifyPropChange(key, beforeProps, afterProps) {
   const { nodeId, propKey } = decodePropKey(key);
 
   if (afterReg !== undefined && beforeReg === undefined) {
-    return { key, nodeId, propKey, oldValue: undefined, newValue: /** @type {unknown} */ (lwwValue(afterReg)) };
+    return { key, nodeId, propKey, oldValue: undefined, newValue: /** @type {unknown} */ (lwwValue(/** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (afterReg))) };
   }
   if (afterReg === undefined && beforeReg !== undefined) {
-    return { key, nodeId, propKey, oldValue: /** @type {unknown} */ (lwwValue(beforeReg)) };
+    return { key, nodeId, propKey, oldValue: /** @type {unknown} */ (lwwValue(/** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (beforeReg))) };
   }
   return classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg });
 }
@@ -297,8 +297,8 @@ function classifyPropUpdate({ key, nodeId, propKey, beforeReg, afterReg }) {
   if (afterReg === undefined) {
     return undefined;
   }
-  const beforeValue = /** @type {unknown} */ (lwwValue(beforeReg));
-  const afterValue = /** @type {unknown} */ (lwwValue(afterReg));
+  const beforeValue = /** @type {unknown} */ (lwwValue(/** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (beforeReg)));
+  const afterValue = /** @type {unknown} */ (lwwValue(/** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (afterReg)));
   if (!deepEqual(beforeValue, afterValue)) {
     return { key, nodeId, propKey, oldValue: beforeValue, newValue: afterValue };
   }

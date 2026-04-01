@@ -176,13 +176,14 @@ function buildTargetSelector(val) {
   if (val['target-kind'] === undefined) {
     return null;
   }
+  const typed = /** @type {{ from?: string, to?: string, label?: string, 'target-kind': string, 'entity-id'?: string, 'property-key'?: string }} */ (val);
   return {
-    targetKind: val['target-kind'],
-    entityId: val['entity-id'],
-    propertyKey: val['property-key'],
-    from: val.from,
-    to: val.to,
-    label: val.label,
+    targetKind: typed['target-kind'],
+    entityId: typed['entity-id'],
+    propertyKey: typed['property-key'],
+    from: typed.from,
+    to: typed.to,
+    label: typed.label,
   };
 }
 
@@ -202,15 +203,16 @@ function orNull(value) {
  * @returns {{strandId: string|null, entityId: string|null, target: object|null, kinds: string[], writerId: string|null, lamportCeiling: number|null, evidence: string, maxPatches: number|null}}
  */
 function transformConflictValues(val) {
+  const typed = /** @type {{ strand?: string, 'entity-id'?: string, kind?: string|string[], 'writer-id'?: string, 'lamport-ceiling'?: number, evidence?: string, 'max-patches'?: number }} */ (val);
   return {
-    strandId: orNull(/** @type {string|undefined} */ (val.strand)),
-    entityId: orNull(/** @type {string|undefined} */ (val['entity-id'])),
+    strandId: orNull(typed.strand),
+    entityId: orNull(typed['entity-id']),
     target: buildTargetSelector(val),
-    kinds: normalizeKinds(/** @type {string|string[]|undefined} */ (val.kind)),
-    writerId: orNull(/** @type {string|undefined} */ (val['writer-id'])),
-    lamportCeiling: orNull(/** @type {number|undefined} */ (val['lamport-ceiling'])),
-    evidence: /** @type {string|undefined} */ (val.evidence) ?? 'standard',
-    maxPatches: orNull(/** @type {number|undefined} */ (val['max-patches'])),
+    kinds: normalizeKinds(typed.kind),
+    writerId: orNull(typed['writer-id']),
+    lamportCeiling: orNull(typed['lamport-ceiling']),
+    evidence: typed.evidence ?? 'standard',
+    maxPatches: orNull(typed['max-patches']),
   };
 }
 
@@ -233,30 +235,33 @@ const debugConflictsSchema = z.object({
 }).strict().superRefine((val, ctx) => validateConflictSelectorShape(val, ctx)).transform(transformConflictValues);
 
 /**
- * Convert a nullable value to undefined for optional API fields.
- * @param {unknown} value - Value that may be null.
- * @returns {unknown}
+ * Spreads a key-value pair only if the value is not null.
+ * @template T
+ * @param {string} key - Property name
+ * @param {T|null} value - Nullable value
+ * @returns {Record<string, T>}
  */
-function nullToUndefined(value) {
-  return value === null ? undefined : value;
+function spreadNonNull(key, value) {
+  if (value === null) { return {}; }
+  return { [key]: value };
 }
 
 /**
  * Build ConflictAnalyzeOptions from the parsed CLI spec and resolved lamport ceiling.
- * @param {ReturnType<typeof debugConflictsSchema.parse>} spec - Parsed conflict filter spec.
+ * @param {{ strandId: string|null, entityId: string|null, target: { targetKind: "node"|"edge"|"node_property"|"edge_property", entityId?: string, propertyKey?: string, from?: string, to?: string, label?: string }|null, kinds: string[], writerId: string|null, evidence: "full"|"summary"|"standard", maxPatches: number|null }} spec - Parsed conflict filter spec.
  * @param {number|null} lamportCeiling - Resolved lamport ceiling.
  * @returns {import('../../../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalyzeOptions}
  */
 function buildConflictAnalyzeOptions(spec, lamportCeiling) {
   return {
-    strandId: nullToUndefined(spec.strandId),
-    at: lamportCeiling === null ? undefined : { lamportCeiling },
-    entityId: nullToUndefined(spec.entityId),
-    target: nullToUndefined(spec.target),
-    kind: spec.kinds.length === 0 ? undefined : spec.kinds,
-    writerId: nullToUndefined(spec.writerId),
+    ...spreadNonNull('strandId', spec.strandId),
+    ...(lamportCeiling !== null ? { at: { lamportCeiling } } : {}),
+    ...spreadNonNull('entityId', spec.entityId),
+    ...spreadNonNull('target', spec.target),
+    ...(spec.kinds.length > 0 ? { kind: spec.kinds } : {}),
+    ...spreadNonNull('writerId', spec.writerId),
     evidence: spec.evidence,
-    scanBudget: spec.maxPatches === null ? undefined : { maxPatches: spec.maxPatches },
+    ...(spec.maxPatches !== null ? { scanBudget: { maxPatches: spec.maxPatches } } : {}),
   };
 }
 
@@ -267,15 +272,17 @@ function buildConflictAnalyzeOptions(spec, lamportCeiling) {
  */
 export async function handleDebugTopic({ options, args }) {
   const { values } = parseCommandArgs(args, DEBUG_CONFLICT_OPTIONS, debugConflictsSchema);
+  /** @type {{ strandId: string|null, entityId: string|null, target: { targetKind: "node"|"edge"|"node_property"|"edge_property", entityId?: string, propertyKey?: string, from?: string, to?: string, label?: string }|null, kinds: string[], writerId: string|null, lamportCeiling: number|null, evidence: "full"|"summary"|"standard", maxPatches: number|null }} */
+  const spec = /** @type {*} */ (values);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
-  const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const analysis = await graph.analyzeConflicts(buildConflictAnalyzeOptions(values, lamportCeiling));
+  const lamportCeiling = resolveLamportCeiling(spec.lamportCeiling, activeCursor);
+  const analysis = await graph.analyzeConflicts(buildConflictAnalyzeOptions(spec, lamportCeiling));
 
   return {
     payload: {
       graph: graphName,
       debugTopic: 'conflicts',
-      ...(values.strandId !== null ? { strandId: values.strandId } : {}),
+      ...(spec.strandId !== null ? { strandId: spec.strandId } : {}),
       ...analysis,
     },
     exitCode: EXIT_CODES.OK,
