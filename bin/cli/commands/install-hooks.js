@@ -11,13 +11,19 @@ const INSTALL_HOOKS_OPTIONS = {
   force: { type: 'boolean', default: false },
 };
 
-/** @param {string[]} args */
+/**
+ * Parses CLI arguments for the install-hooks command.
+ *
+ * @param {string[]} args
+ */
 function parseInstallHooksArgs(args) {
   const { values } = parseCommandArgs(args, INSTALL_HOOKS_OPTIONS, installHooksSchema);
   return values;
 }
 
 /**
+ * Decides which installation strategy to use based on the existing hook state.
+ *
  * @param {{kind: string, version?: string, appended?: boolean}} classification
  * @param {{force: boolean}} hookOptions
  */
@@ -37,7 +43,11 @@ async function resolveStrategy(classification, hookOptions) {
   return await promptForForeignStrategy();
 }
 
-/** @param {{kind: string, version?: string, appended?: boolean}} classification */
+/**
+ * Prompts the user to upgrade an existing warp-managed hook.
+ *
+ * @param {{kind: string, version?: string, appended?: boolean}} classification
+ */
 async function promptForOursStrategy(classification) {
   const installer = createHookInstaller();
   if (classification.version === installer._version) {
@@ -57,6 +67,11 @@ async function promptForOursStrategy(classification) {
   return 'skip';
 }
 
+/**
+ * Prompts the user to choose how to handle a foreign (non-warp) hook.
+ *
+ * @returns {Promise<string>} Strategy: 'append', 'replace', or 'skip'
+ */
 async function promptForForeignStrategy() {
   if (!isInteractive()) {
     throw usageError('Existing hook found. Use --force or run interactively.');
@@ -77,7 +92,11 @@ async function promptForForeignStrategy() {
   return 'skip';
 }
 
-/** @param {string} hookPath */
+/**
+ * Reads the content of a hook file, returning null if it does not exist.
+ *
+ * @param {string} hookPath
+ */
 function readHookContent(hookPath) {
   try {
     return fs.readFileSync(hookPath, 'utf8');
@@ -90,7 +109,29 @@ function readHookContent(hookPath) {
 }
 
 /**
+ * Builds the response payload for a no-op strategy (up-to-date or skip).
+ *
+ * @param {string} strategy - Either 'up-to-date' or 'skip'
+ * @param {{ hookPath: string }} status
+ * @param {{ _version: string }} installer
+ * @returns {{ payload: unknown, exitCode: number }|null} Response or null if strategy is not a no-op
+ */
+function buildNoOpResponse(strategy, status, installer) {
+  if (strategy === 'up-to-date') {
+    return {
+      payload: { action: 'up-to-date', hookPath: status.hookPath, version: installer._version },
+      exitCode: EXIT_CODES.OK,
+    };
+  }
+  if (strategy === 'skip') {
+    return { payload: { action: 'skipped' }, exitCode: EXIT_CODES.OK };
+  }
+  return null;
+}
+
+/**
  * Handles the `install-hooks` command.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -102,27 +143,11 @@ export default async function handleInstallHooks({ options, args }) {
   const classification = classifyExistingHook(content);
   const strategy = await resolveStrategy(classification, hookOptions);
 
-  if (strategy === 'up-to-date') {
-    return {
-      payload: {
-        action: 'up-to-date',
-        hookPath: status.hookPath,
-        version: installer._version,
-      },
-      exitCode: EXIT_CODES.OK,
-    };
-  }
-
-  if (strategy === 'skip') {
-    return {
-      payload: { action: 'skipped' },
-      exitCode: EXIT_CODES.OK,
-    };
+  const noOp = buildNoOpResponse(strategy, status, installer);
+  if (noOp !== null) {
+    return noOp;
   }
 
   const result = installer.install(options.repo, { strategy });
-  return {
-    payload: result,
-    exitCode: EXIT_CODES.OK,
-  };
+  return { payload: result, exitCode: EXIT_CODES.OK };
 }

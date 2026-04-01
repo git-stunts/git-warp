@@ -72,7 +72,7 @@ export async function patchesFor(entityId) {
  */
 export async function materializeSlice(nodeId, options) {
   const t0 = this._clock.now();
-  const collectReceipts = options && options.receipts;
+  const collectReceipts = options?.receipts === true;
 
   try {
     // Ensure fresh state before accessing provenance index

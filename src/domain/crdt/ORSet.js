@@ -116,9 +116,7 @@ export function createORSet() {
  * @param {import('./Dot.js').Dot} dot - The dot representing this add operation
  */
 export function orsetAdd(set, element, dot) {
-  if (!dot || typeof dot.writerId !== 'string' || !Number.isInteger(dot.counter)) {
-    throw new Error(`orsetAdd: invalid dot -- expected {writerId: string, counter: integer}, got ${JSON.stringify(dot)}`);
-  }
+  assertValidDot(dot);
   const encoded = encodeDot(dot);
 
   let dots = set.entries.get(element);
@@ -128,6 +126,18 @@ export function orsetAdd(set, element, dot) {
   }
 
   dots.add(encoded);
+}
+
+/**
+ * Throws if the dot is not a well-formed {writerId: string, counter: integer}.
+ *
+ * @param {import('./Dot.js').Dot} dot
+ * @throws {Error} If the dot is null, undefined, or structurally invalid
+ */
+function assertValidDot(dot) {
+  if (dot === null || dot === undefined || typeof dot.writerId !== 'string' || !Number.isInteger(dot.counter)) {
+    throw new Error(`orsetAdd: invalid dot -- expected {writerId: string, counter: integer}, got ${JSON.stringify(dot)}`);
+  }
 }
 
 /**
@@ -195,9 +205,10 @@ export function orsetElements(set) {
 export function orsetGetDots(set, element) {
   const dots = set.entries.get(element);
   if (!dots) {
-    return new Set();
+    return /** @type {Set<string>} */ (new Set());
   }
 
+  /** @type {Set<string>} */
   const result = new Set();
   for (const encodedDot of dots) {
     if (!set.tombstones.has(encodedDot)) {
@@ -223,35 +234,54 @@ export function orsetGetDots(set, element) {
  */
 export function orsetJoin(a, b) {
   const result = createORSet();
+  copyEntries(a.entries, result.entries);
+  mergeEntries(b.entries, result.entries);
+  unionSets(a.tombstones, result.tombstones);
+  unionSets(b.tombstones, result.tombstones);
+  return result;
+}
 
-  // Copy entries from a into result — each dot set is shallow-copied so the
-  // caller cannot mutate the original through the result.
-  for (const [element, dots] of a.entries) {
-    result.entries.set(element, new Set(dots));
+/**
+ * Copies all entries by cloning each dot set into the target map.
+ *
+ * @param {Map<string, Set<string>>} source
+ * @param {Map<string, Set<string>>} target
+ */
+function copyEntries(source, target) {
+  for (const [element, dots] of source) {
+    target.set(element, new Set(dots));
   }
+}
 
-  // Merge entries from b — if the element already exists (from a), add into
-  // the cloned set; otherwise clone b's dot set the same way for consistency.
-  for (const [element, dots] of b.entries) {
-    const existing = result.entries.get(element);
-    if (existing) {
+/**
+ * Merges entries from source into target, unioning dot sets for existing elements.
+ *
+ * @param {Map<string, Set<string>>} source
+ * @param {Map<string, Set<string>>} target
+ */
+function mergeEntries(source, target) {
+  for (const [element, dots] of source) {
+    const existing = target.get(element);
+    if (existing !== undefined) {
       for (const dot of dots) {
         existing.add(dot);
       }
     } else {
-      result.entries.set(element, new Set(dots));
+      target.set(element, new Set(dots));
     }
   }
+}
 
-  // Union tombstones from both sides
-  for (const dot of a.tombstones) {
-    result.tombstones.add(dot);
+/**
+ * Adds all values from source into target set.
+ *
+ * @param {Set<string>} source
+ * @param {Set<string>} target
+ */
+function unionSets(source, target) {
+  for (const item of source) {
+    target.add(item);
   }
-  for (const dot of b.tombstones) {
-    result.tombstones.add(dot);
-  }
-
-  return result;
 }
 
 /**
@@ -295,24 +325,41 @@ export function orsetJoin(a, b) {
  *   All replicas are known to have observed at least this causal context.
  */
 export function orsetCompact(set, includedVV) {
-  // Collect deletions in temp arrays to avoid mutation-during-iteration (J8)
+  const toDelete = collectCompactableDots(set, includedVV);
+  applyCompaction(set, toDelete);
+}
+
+/**
+ * Identifies dots eligible for compaction: tombstoned AND within the stable frontier.
+ *
+ * @param {ORSet} set
+ * @param {import('./VersionVector.js').VersionVector} includedVV
+ * @returns {Array<{element: string, dot: string}>}
+ */
+function collectCompactableDots(set, includedVV) {
   /** @type {Array<{element: string, dot: string}>} */
   const toDelete = [];
-
   for (const [element, dots] of set.entries) {
     for (const encodedDot of dots) {
       const dot = decodeDot(encodedDot);
-      // Only compact if: (1) dot is tombstoned AND (2) dot <= includedVV
       if (set.tombstones.has(encodedDot) && vvContains(includedVV, dot)) {
         toDelete.push({ element, dot: encodedDot });
       }
     }
   }
+  return toDelete;
+}
 
-  // Apply deletions
+/**
+ * Applies compaction by removing identified dots from entries and tombstones.
+ *
+ * @param {ORSet} set
+ * @param {Array<{element: string, dot: string}>} toDelete
+ */
+function applyCompaction(set, toDelete) {
   for (const { element, dot: encodedDot } of toDelete) {
     const dots = set.entries.get(element);
-    if (dots) {
+    if (dots !== undefined) {
       dots.delete(encodedDot);
       if (dots.size === 0) {
         set.entries.delete(element);
@@ -348,41 +395,42 @@ export function orsetClone(set) {
  * @returns {{entries: Array<[string, string[]]>, tombstones: string[]}}
  */
 export function orsetSerialize(set) {
-  // Serialize entries: convert Map to array of [element, sortedDots].
-  // Pre-decode dots before sorting to avoid O(N log N) decodeDot calls
-  // during comparisons.
-  /** @type {Array<[string, string[]]>} */
-  const entriesArray = [];
-  for (const [element, dots] of set.entries) {
-    /** @type {Array<{encoded: string, decoded: import('./Dot.js').Dot}>} */
-    const pairs = [];
-    for (const encoded of dots) {
-      pairs.push({ encoded, decoded: decodeDot(encoded) });
-    }
-    pairs.sort((a, b) => compareDots(a.decoded, b.decoded));
-    entriesArray.push([element, pairs.map((p) => p.encoded)]);
-  }
-
-  // Sort entries by element (stringified for consistency)
-  entriesArray.sort((a, b) => {
-    const keyA = String(a[0]);
-    const keyB = String(b[0]);
-    return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
-  });
-
-  // Serialize tombstones: pre-decode then sort
-  /** @type {Array<{encoded: string, decoded: import('./Dot.js').Dot}>} */
-  const tombPairs = [];
-  for (const encoded of set.tombstones) {
-    tombPairs.push({ encoded, decoded: decodeDot(encoded) });
-  }
-  tombPairs.sort((a, b) => compareDots(a.decoded, b.decoded));
-  const sortedTombstones = tombPairs.map((p) => p.encoded);
-
   return {
-    entries: entriesArray,
-    tombstones: sortedTombstones,
+    entries: serializeEntries(set.entries),
+    tombstones: sortEncodedDots(set.tombstones),
   };
+}
+
+/**
+ * Sorts encoded dots by their decoded (writerId, counter) order.
+ *
+ * @param {Set<string>|Iterable<string>} encodedDots
+ * @returns {string[]} Sorted encoded dot strings
+ */
+function sortEncodedDots(encodedDots) {
+  /** @type {Array<{encoded: string, decoded: import('./Dot.js').Dot}>} */
+  const pairs = [];
+  for (const encoded of encodedDots) {
+    pairs.push({ encoded, decoded: decodeDot(encoded) });
+  }
+  pairs.sort((a, b) => compareDots(a.decoded, b.decoded));
+  return pairs.map((p) => p.encoded);
+}
+
+/**
+ * Serializes OR-Set entries as sorted [element, sortedDots[]] pairs.
+ *
+ * @param {Map<string, Set<string>>} entries
+ * @returns {Array<[string, string[]]>}
+ */
+function serializeEntries(entries) {
+  /** @type {Array<[string, string[]]>} */
+  const result = [];
+  for (const [element, dots] of entries) {
+    result.push([element, sortEncodedDots(dots)]);
+  }
+  result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return result;
 }
 
 /**
@@ -393,22 +441,39 @@ export function orsetSerialize(set) {
  */
 export function orsetDeserialize(obj) {
   const set = createORSet();
-
-  // Deserialize entries
-  if (obj.entries && Array.isArray(obj.entries)) {
-    for (const [element, dots] of obj.entries) {
-      if (Array.isArray(dots)) {
-        set.entries.set(element, new Set(dots));
-      }
-    }
-  }
-
-  // Deserialize tombstones
-  if (obj.tombstones && Array.isArray(obj.tombstones)) {
-    for (const dot of obj.tombstones) {
-      set.tombstones.add(dot);
-    }
-  }
-
+  deserializeEntriesInto(obj.entries, set.entries);
+  deserializeTombstonesInto(obj.tombstones, set.tombstones);
   return set;
+}
+
+/**
+ * Populates an entries map from a serialized entries array.
+ *
+ * @param {Array<[string, string[]]>|undefined} entries
+ * @param {Map<string, Set<string>>} target
+ */
+function deserializeEntriesInto(entries, target) {
+  if (!Array.isArray(entries)) {
+    return;
+  }
+  for (const [element, dots] of entries) {
+    if (Array.isArray(dots)) {
+      target.set(element, new Set(dots));
+    }
+  }
+}
+
+/**
+ * Populates a tombstone set from a serialized tombstones array.
+ *
+ * @param {string[]|undefined} tombstones
+ * @param {Set<string>} target
+ */
+function deserializeTombstonesInto(tombstones, target) {
+  if (!Array.isArray(tombstones)) {
+    return;
+  }
+  for (const dot of tombstones) {
+    target.add(dot);
+  }
 }

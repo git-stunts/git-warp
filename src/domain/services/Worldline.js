@@ -32,31 +32,45 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
  */
 
 /**
+ * Deep-clones a worldline source descriptor, normalizing null/undefined to live.
+ *
  * @param {WorldlineSource|{ kind: 'strand', strandId: string, ceiling?: number|null }|undefined|null} source
  * @returns {WorldlineSource}
  */
 function cloneWorldlineSource(source) {
-  const value = source || { kind: 'live' };
+  const value = source ?? { kind: 'live' };
 
   if (value.kind === 'live') {
-    return 'ceiling' in value
-      ? { kind: 'live', ceiling: value.ceiling ?? null }
-      : { kind: 'live' };
+    return cloneLiveSource(value);
   }
-
   if (value.kind === 'coordinate') {
-    return {
-      kind: 'coordinate',
-      frontier: value.frontier instanceof Map
-        ? new Map(value.frontier)
-        : { ...value.frontier },
-      ceiling: value.ceiling ?? null,
-    };
+    return cloneCoordinateSource(value);
   }
+  return { kind: 'strand', strandId: value.strandId, ceiling: value.ceiling ?? null };
+}
 
+/**
+ * Clones a live source, preserving ceiling only if present.
+ *
+ * @param {{ kind: 'live', ceiling?: number|null }} value
+ * @returns {WorldlineSource}
+ */
+function cloneLiveSource(value) {
+  return 'ceiling' in value
+    ? { kind: 'live', ceiling: value.ceiling ?? null }
+    : { kind: 'live' };
+}
+
+/**
+ * Clones a coordinate source, deep-copying the frontier.
+ *
+ * @param {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null }} value
+ * @returns {WorldlineSource}
+ */
+function cloneCoordinateSource(value) {
   return {
-    kind: 'strand',
-    strandId: value.strandId,
+    kind: 'coordinate',
+    frontier: value.frontier instanceof Map ? new Map(value.frontier) : { ...value.frontier },
     ceiling: value.ceiling ?? null,
   };
 }
@@ -69,27 +83,61 @@ function cloneWorldlineSource(source) {
  */
 async function openDetachedReadGraph(graph) {
   const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
-  return await GraphClass.open({
+  return await GraphClass.open(buildDetachedOpenOptions(graph));
+}
+
+/**
+ * Builds the open() options for a detached read-only graph clone.
+ *
+ * @param {WarpRuntime} graph
+ * @returns {Record<string, unknown>}
+ */
+function buildDetachedOpenOptions(graph) {
+  return {
     persistence: graph._persistence,
     graphName: graph._graphName,
     writerId: graph._writerId,
     gcPolicy: graph._gcPolicy,
-    checkpointPolicy: graph._checkpointPolicy || undefined,
     autoMaterialize: false,
     onDeleteWithData: graph._onDeleteWithData,
-    logger: graph._logger || undefined,
     clock: graph._clock,
     crypto: graph._crypto,
     codec: graph._codec,
-    seekCache: graph._seekCache || undefined,
     audit: false,
-    blobStorage: graph._blobStorage || undefined,
-    patchBlobStorage: graph._patchBlobStorage || undefined,
     trust: graph._trustConfig,
-  });
+    ...nullableOpenFields(graph),
+  };
 }
 
 /**
+ * Collects optional nullable fields, converting null to undefined for .open() compatibility.
+ *
+ * @param {WarpRuntime} graph
+ * @returns {{ checkpointPolicy?: unknown, logger?: unknown, seekCache?: unknown, blobStorage?: unknown, patchBlobStorage?: unknown }}
+ */
+function nullableOpenFields(graph) {
+  return {
+    checkpointPolicy: orUndefined(graph._checkpointPolicy),
+    logger: orUndefined(graph._logger),
+    seekCache: orUndefined(graph._seekCache),
+    blobStorage: orUndefined(graph._blobStorage),
+    patchBlobStorage: orUndefined(graph._patchBlobStorage),
+  };
+}
+
+/**
+ * Returns the value if non-null, otherwise undefined.
+ *
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+function orUndefined(value) {
+  return value !== null && value !== undefined ? value : undefined;
+}
+
+/**
+ * Materializes a live worldline source with optional receipt collection.
+ *
  * @param {WarpRuntime} graph
  * @param {{ kind: 'live', ceiling?: number|null }} source
  * @param {boolean} collectReceipts
@@ -108,6 +156,8 @@ async function materializeLiveSource(graph, source, collectReceipts) {
 }
 
 /**
+ * Materializes a coordinate worldline source with optional receipt collection.
+ *
  * @param {WarpRuntime} graph
  * @param {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
@@ -128,6 +178,8 @@ async function materializeCoordinateSource(graph, source, collectReceipts) {
 }
 
 /**
+ * Materializes a strand worldline source with optional receipt collection.
+ *
  * @param {WarpRuntime} graph
  * @param {{ kind: 'strand', strandId: string, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null }} source
  * @param {boolean} collectReceipts
@@ -157,6 +209,8 @@ async function materializeStrandSource(graph, source, collectReceipts) {
 }
 
 /**
+ * Dispatches materialization to the handler for the source's kind.
+ *
  * @param {WarpRuntime} graph
  * @param {WorldlineSource} source
  * @param {boolean} collectReceipts
@@ -179,6 +233,8 @@ async function materializeSource(graph, source, collectReceipts) {
  */
 export default class Worldline {
   /**
+   * Creates a Worldline pinned to the given graph and source descriptor.
+   *
    * @param {{ graph: WarpRuntime, source?: WorldlineSource }} options
    */
   constructor({ graph, source }) {
@@ -233,7 +289,7 @@ export default class Worldline {
    */
   async materialize(options = undefined) {
     const detached = await openDetachedReadGraph(this._graph);
-    const collectReceipts = !!options?.receipts;
+    const collectReceipts = options?.receipts === true;
     return await materializeSource(detached, this._source, collectReceipts);
   }
 

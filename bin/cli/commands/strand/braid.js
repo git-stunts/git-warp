@@ -33,6 +33,8 @@ const braidStrandSchema = z.object({
 }));
 
 /**
+ * Handles the strand braid subcommand — pins read-only braid overlays onto a target strand.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

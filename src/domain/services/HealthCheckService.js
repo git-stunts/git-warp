@@ -59,6 +59,11 @@ export default class HealthCheckService {
     this._healthCache = new CachedValue({
       clock,
       ttlMs: cacheTtlMs,
+      /**
+       * Delegates to the internal health computation method.
+       *
+       * @returns {Promise<{status: 'healthy'|'degraded'|'unhealthy', components: {repository: RepositoryHealth, index: IndexHealth}}>} Computed health result
+       */
       compute: () => this._computeHealth(),
     });
   }
@@ -128,7 +133,7 @@ export default class HealthCheckService {
     const { value, cachedAt, fromCache } = await this._healthCache.getWithMetadata();
     const result = /** @type {HealthResult} */ (value);
 
-    if (cachedAt) {
+    if (typeof cachedAt === 'string' && cachedAt.length > 0) {
       return { ...result, cachedAt };
     }
 

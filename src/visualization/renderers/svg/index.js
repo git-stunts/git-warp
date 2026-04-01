@@ -16,7 +16,11 @@ const PALETTE = {
   arrowFill: '#a6adc8',
 };
 
-/** @param {string} str @returns {string} */
+/**
+ * Escapes special XML characters for safe embedding in SVG markup.
+ *
+ * @param {string} str @returns {string}
+ */
 function escapeXml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -25,6 +29,11 @@ function escapeXml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Renders the SVG defs block containing the arrowhead marker.
+ *
+ * @returns {string} SVG defs markup
+ */
 function renderDefs() {
   return [
     '<defs>',
@@ -36,6 +45,11 @@ function renderDefs() {
   ].join('\n');
 }
 
+/**
+ * Renders the SVG style block with node and edge styling.
+ *
+ * @returns {string} SVG style markup
+ */
 function renderStyle() {
   return [
     '<style>',
@@ -47,7 +61,11 @@ function renderStyle() {
   ].join('\n');
 }
 
-/** @param {{ id: string, x: number, y: number, width: number, height: number, label?: string }} node @returns {string} */
+/**
+ * Renders a single graph node as an SVG group with a rect and centered label.
+ *
+ * @param {{ id: string, x: number, y: number, width: number, height: number, label?: string }} node @returns {string}
+ */
 function renderNode(node) {
   const { x, y, width, height } = node;
   const label = escapeXml(node.label ?? node.id);
@@ -61,7 +79,11 @@ function renderNode(node) {
   ].join('\n');
 }
 
-/** @param {{ startPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }>, endPoint?: { x: number, y: number } }} section @returns {Array<{ x: number, y: number }>} */
+/**
+ * Extracts ordered coordinate points from an ELK edge section.
+ *
+ * @param {{ startPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }>, endPoint?: { x: number, y: number } }} section @returns {Array<{ x: number, y: number }>}
+ */
 function sectionToPoints(section) {
   const pts = [];
   if (section.startPoint) {
@@ -76,44 +98,103 @@ function sectionToPoints(section) {
   return pts;
 }
 
-/** @param {{ sections?: Array<{ startPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }>, endPoint?: { x: number, y: number } }>, label?: string }} edge @returns {string} */
-function renderEdge(edge) {
-  const { sections } = edge;
-  if (!sections || sections.length === 0) {
-    return '';
-  }
-
+/**
+ * Collects all coordinate points from an edge's sections into a flat array.
+ *
+ * @param {Array<{ startPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }>, endPoint?: { x: number, y: number } }>} sections
+ * @returns {Array<{ x: number, y: number }>}
+ */
+function collectEdgePoints(sections) {
   const allPoints = [];
   for (const s of sections) {
     allPoints.push(...sectionToPoints(s));
   }
+  return allPoints;
+}
 
+/**
+ * Renders an optional label positioned at the midpoint of an edge path.
+ *
+ * @param {string|undefined} label
+ * @param {Array<{ x: number, y: number }>} allPoints
+ * @returns {string} SVG text element or empty string
+ */
+function renderEdgeLabel(label, allPoints) {
+  if (typeof label !== 'string' || label.length === 0) {
+    return '';
+  }
+  const midIdx = Math.floor((allPoints.length - 1) / 2);
+  const a = allPoints[midIdx];
+  const b = allPoints[Math.min(midIdx + 1, allPoints.length - 1)];
+  const midX = (a.x + b.x) / 2;
+  const midY = (a.y + b.y) / 2;
+  return `  <text class="edge-label" x="${midX}" y="${midY - 6}">${escapeXml(label)}</text>`;
+}
+
+/**
+ * Renders an edge as an SVG polyline with an optional label.
+ *
+ * @param {{ sections?: Array<{ startPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }>, endPoint?: { x: number, y: number } }>, label?: string }} edge @returns {string}
+ */
+function renderEdge(edge) {
+  const { sections } = edge;
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return '';
+  }
+
+  const allPoints = collectEdgePoints(sections);
   if (allPoints.length < 2) {
     return '';
   }
 
-  const pointsStr = allPoints
-    .map((p) => `${p.x},${p.y}`)
-    .join(' ');
-
-  const lines = [
-    '<g class="edge">',
-    `  <polyline points="${pointsStr}"/>`,
-  ];
-
-  if (edge.label) {
-    const midIdx = Math.floor((allPoints.length - 1) / 2);
-    const a = allPoints[midIdx];
-    const b = allPoints[Math.min(midIdx + 1, allPoints.length - 1)];
-    const midX = (a.x + b.x) / 2;
-    const midY = (a.y + b.y) / 2;
-    lines.push(
-      `  <text class="edge-label" x="${midX}" y="${midY - 6}">${escapeXml(edge.label)}</text>`,
-    );
+  const pointsStr = allPoints.map((p) => `${p.x},${p.y}`).join(' ');
+  const labelMarkup = renderEdgeLabel(edge.label, allPoints);
+  const parts = ['<g class="edge">', `  <polyline points="${pointsStr}"/>`];
+  if (labelMarkup.length > 0) {
+    parts.push(labelMarkup);
   }
+  parts.push('</g>');
+  return parts.join('\n');
+}
 
-  lines.push('</g>');
-  return lines.join('\n');
+/**
+ * Renders all edges, filtering out empty results.
+ *
+ * @param {Array<{ sections?: Array<{ startPoint?: { x: number, y: number }, endPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }> }>, label?: string }>} edges
+ * @returns {string[]} Array of SVG edge markup strings
+ */
+function renderAllEdges(edges) {
+  const result = [];
+  for (const edge of edges) {
+    const rendered = renderEdge(edge);
+    if (rendered.length > 0) {
+      result.push(rendered);
+    }
+  }
+  return result;
+}
+
+/**
+ * Renders the inner content of the SVG (background, defs, styled nodes/edges).
+ *
+ * @param {Array<{ id: string, x: number, y: number, width: number, height: number, label?: string }>} nodes
+ * @param {Array<{ sections?: Array<{ startPoint?: { x: number, y: number }, endPoint?: { x: number, y: number }, bendPoints?: Array<{ x: number, y: number }> }>, label?: string }>} edges
+ * @param {{ title?: string }} options
+ * @returns {string[]} Array of SVG markup lines
+ */
+function renderSvgBody(nodes, edges, options) {
+  const parts = [];
+  if (typeof options.title === 'string' && options.title.length > 0) {
+    parts.push(`<title>${escapeXml(options.title)}</title>`);
+  }
+  parts.push(`<rect width="100%" height="100%" fill="${PALETTE.bg}"/>`);
+  parts.push(renderDefs());
+  parts.push(renderStyle());
+  parts.push(`<g transform="translate(${PADDING},${PADDING})">`);
+  parts.push(...renderAllEdges(edges));
+  parts.push(...nodes.map(renderNode));
+  parts.push('</g>');
+  return parts;
 }
 
 /**
@@ -124,40 +205,27 @@ function renderEdge(edge) {
  * @returns {string} Complete SVG markup
  */
 export function renderSvg(positionedGraph, options = {}) {
-  const { nodes = [], edges = [] } = positionedGraph;
-  const w = (positionedGraph.width ?? 400) + PADDING * 2;
-  const h = (positionedGraph.height ?? 300) + PADDING * 2;
+  const nodes = positionedGraph.nodes ?? [];
+  const edges = positionedGraph.edges ?? [];
+  const dims = computeSvgDimensions(positionedGraph);
+  const header = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dims.w} ${dims.h}" width="${dims.w}" height="${dims.h}">`;
+  return [header, ...renderSvgBody(nodes, edges, options), '</svg>'].join('\n');
+}
 
-  const parts = [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`,
-  ];
+/** @type {number} */
+const DEFAULT_WIDTH = 400;
+/** @type {number} */
+const DEFAULT_HEIGHT = 300;
 
-  if (options.title) {
-    parts.push(`<title>${escapeXml(options.title)}</title>`);
-  }
-
-  parts.push(`<rect width="100%" height="100%" fill="${PALETTE.bg}"/>`);
-  parts.push(renderDefs());
-  parts.push(renderStyle());
-
-  // Translate content to account for padding
-  parts.push(`<g transform="translate(${PADDING},${PADDING})">`);
-
-  // Edges first (behind nodes)
-  for (const edge of edges) {
-    const rendered = renderEdge(edge);
-    if (rendered) {
-      parts.push(rendered);
-    }
-  }
-
-  // Nodes on top
-  for (const node of nodes) {
-    parts.push(renderNode(node));
-  }
-
-  parts.push('</g>');
-  parts.push('</svg>');
-
-  return parts.join('\n');
+/**
+ * Computes the total SVG canvas dimensions including padding.
+ *
+ * @param {{ width?: number, height?: number }} graph
+ * @returns {{ w: number, h: number }}
+ */
+function computeSvgDimensions(graph) {
+  return {
+    w: (graph.width ?? DEFAULT_WIDTH) + PADDING * 2,
+    h: (graph.height ?? DEFAULT_HEIGHT) + PADDING * 2,
+  };
 }

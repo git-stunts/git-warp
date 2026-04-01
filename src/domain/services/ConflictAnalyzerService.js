@@ -280,9 +280,9 @@ const CLASSIFICATION_NOTES = Object.freeze({
 /**
  * Lexicographic compare using explicit byte/hex-safe ordering.
  *
- * @param {string} a
- * @param {string} b
- * @returns {number}
+ * @param {string} a - First string to compare.
+ * @param {string} b - Second string to compare.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function compareStrings(a, b) {
   if (a === b) {
@@ -292,51 +292,89 @@ function compareStrings(a, b) {
 }
 
 /**
- * @param {number} a
- * @param {number} b
- * @returns {number}
+ * Numeric comparison returning standard sort-compatible result.
+ *
+ * @param {number} a - First number to compare.
+ * @param {number} b - Second number to compare.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function compareNumbers(a, b) {
   return a === b ? 0 : (a < b ? -1 : 1);
 }
 
 /**
- * @param {ConflictAnchor} anchor
- * @returns {string}
+ * Serializes a conflict anchor into a deterministic padded string for sorting.
+ *
+ * @param {ConflictAnchor} anchor - The anchor to serialize.
+ * @returns {string} Deterministic string representation.
  */
 function anchorString(anchor) {
   return `${anchor.writerId}:${String(anchor.lamport).padStart(16, '0')}:${anchor.patchSha}:${String(anchor.opIndex).padStart(8, '0')}`;
 }
 
 /**
- * @param {ConflictAnchor} a
- * @param {ConflictAnchor} b
- * @returns {number}
+ * Compares two conflict anchors using their deterministic string representations.
+ *
+ * @param {ConflictAnchor} a - First anchor to compare.
+ * @param {ConflictAnchor} b - Second anchor to compare.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function compareAnchors(a, b) {
   return compareStrings(anchorString(a), anchorString(b));
 }
 
 /**
- * @param {PatchFrame} a
- * @param {PatchFrame} b
- * @returns {number}
+ * Compares two patch frames in reverse-causal order (highest lamport first).
+ *
+ * @param {PatchFrame} a - First patch frame.
+ * @param {PatchFrame} b - Second patch frame.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function comparePatchFramesReverseCausal(a, b) {
-  const lamportCmp = compareNumbers(b.patch.lamport || 0, a.patch.lamport || 0);
-  if (lamportCmp !== 0) {
-    return lamportCmp;
-  }
-  const writerCmp = compareStrings(b.patch.writer || '', a.patch.writer || '');
-  if (writerCmp !== 0) {
-    return writerCmp;
-  }
-  return compareStrings(b.sha, a.sha);
+  return compareByLamportThenWriterThenSha(b, a);
 }
 
 /**
- * @param {Map<string, string>} frontier
- * @returns {Record<string, string>}
+ * Compares two patch frames by lamport, then writer, then SHA in ascending order.
+ *
+ * @param {PatchFrame} first - The frame to rank higher on tie-break.
+ * @param {PatchFrame} second - The frame to rank lower on tie-break.
+ * @returns {number} Negative, zero, or positive for ordering.
+ */
+function compareByLamportThenWriterThenSha(first, second) {
+  const lamportCmp = compareNumbers(safeLamport(first), safeLamport(second));
+  if (lamportCmp !== 0) {
+    return lamportCmp;
+  }
+  const writerCmp = compareStrings(safeWriter(first), safeWriter(second));
+  return writerCmp !== 0 ? writerCmp : compareStrings(first.sha, second.sha);
+}
+
+/**
+ * Extracts the lamport clock from a patch frame, defaulting to zero if absent.
+ *
+ * @param {PatchFrame} frame - The patch frame.
+ * @returns {number} The lamport clock value.
+ */
+function safeLamport(frame) {
+  return frame.patch.lamport ?? 0;
+}
+
+/**
+ * Extracts the writer ID from a patch frame, defaulting to empty string if absent.
+ *
+ * @param {PatchFrame} frame - The patch frame.
+ * @returns {string} The writer ID.
+ */
+function safeWriter(frame) {
+  return frame.patch.writer ?? '';
+}
+
+/**
+ * Converts a frontier map into a plain record for serialization.
+ *
+ * @param {Map<string, string>} frontier - Writer-to-SHA frontier map.
+ * @returns {Record<string, string>} Sorted key-value record.
  */
 function frontierToRecord(frontier) {
   /** @type {Record<string, string>} */
@@ -348,19 +386,31 @@ function frontierToRecord(frontier) {
 }
 
 /**
- * @param {Map<string, number>|Record<string, number>|undefined|null} context
- * @returns {Map<string, number>}
+ * Normalizes a context value into a Map of writer clocks, coercing from plain objects or nulls.
+ *
+ * @param {Map<string, number>|Record<string, number>|undefined|null} context - Raw context input.
+ * @returns {Map<string, number>} Normalized writer-clock map.
  */
 function normalizeContext(context) {
   if (context instanceof Map) {
     return new Map(context);
   }
-  if (!context || typeof context !== 'object') {
+  if (context === null || context === undefined || typeof context !== 'object') {
     return new Map();
   }
+  return buildContextMapFromEntries(context);
+}
 
+/**
+ * Builds a context map from a plain object by filtering valid non-negative integer entries.
+ *
+ * @param {Record<string, number>} obj - Plain object with writer clock entries.
+ * @returns {Map<string, number>} Filtered writer-clock map.
+ */
+function buildContextMapFromEntries(obj) {
+  /** @type {Map<string, number>} */
   const map = new Map();
-  for (const [writerId, value] of Object.entries(context)) {
+  for (const [writerId, value] of Object.entries(obj)) {
     if (Number.isInteger(value) && value >= 0) {
       map.set(writerId, value);
     }
@@ -369,30 +419,39 @@ function normalizeContext(context) {
 }
 
 /**
- * @param {OpRecord} winner
- * @param {OpRecord} loser
- * @returns {'concurrent'|'ordered'|'replay_equivalent'|'reducer_collapsed'|undefined}
+ * Determines the causal relationship between a winning and losing op record.
+ *
+ * @param {OpRecord} winner - The winning operation record.
+ * @param {OpRecord} loser - The losing operation record.
+ * @returns {'concurrent'|'ordered'|'replay_equivalent'|'reducer_collapsed'|undefined} Causal relation.
  */
 function inferCausalRelation(winner, loser) {
   if (winner.effectDigest === loser.effectDigest) {
     return 'replay_equivalent';
   }
-
-  if ((winner.context.get(loser.writerId) ?? -1) >= loser.lamport) {
-    return 'ordered';
-  }
-
-  if ((loser.context.get(winner.writerId) ?? -1) >= winner.lamport) {
-    return 'ordered';
-  }
-
-  return 'concurrent';
+  return isCausallyOrdered(winner, loser) ? 'ordered' : 'concurrent';
 }
 
 /**
- * @param {ConflictTarget} target
- * @param {string} entityId
- * @returns {boolean}
+ * Checks whether either record causally observes the other via version vector comparison.
+ *
+ * @param {OpRecord} winner - The winning operation record.
+ * @param {OpRecord} loser - The losing operation record.
+ * @returns {boolean} True if one record causally precedes the other.
+ */
+function isCausallyOrdered(winner, loser) {
+  if ((winner.context.get(loser.writerId) ?? -1) >= loser.lamport) {
+    return true;
+  }
+  return (loser.context.get(winner.writerId) ?? -1) >= winner.lamport;
+}
+
+/**
+ * Checks whether a conflict target references the given entity by id, source, or destination.
+ *
+ * @param {ConflictTarget} target - The conflict target to inspect.
+ * @param {string} entityId - The entity identifier to match.
+ * @returns {boolean} True if the target touches the entity.
  */
 function targetTouchesEntity(target, entityId) {
   if (target.entityId === entityId) {
@@ -402,17 +461,30 @@ function targetTouchesEntity(target, entityId) {
 }
 
 /**
- * @param {ConflictTarget} target
- * @param {ConflictAnalyzeOptions['target']} selector
- * @returns {boolean}
+ * Tests whether a conflict target matches a user-supplied target selector filter.
+ *
+ * @param {ConflictTarget} target - The conflict target to test.
+ * @param {ConflictAnalyzeOptions['target']} selector - The filter selector, or undefined to match all.
+ * @returns {boolean} True if the target satisfies all selector constraints.
  */
 function matchesTargetSelector(target, selector) {
-  if (!selector) {
+  if (selector === undefined || selector === null) {
     return true;
   }
   if (target.targetKind !== selector.targetKind) {
     return false;
   }
+  return targetSelectorFieldsMatch(target, selector);
+}
+
+/**
+ * Checks that every specified selector field matches the target.
+ *
+ * @param {ConflictTarget} target - The conflict target.
+ * @param {NonNullable<ConflictAnalyzeOptions['target']>} selector - The selector with fields to check.
+ * @returns {boolean} True if all specified fields match.
+ */
+function targetSelectorFieldsMatch(target, selector) {
   for (const field of TARGET_SELECTOR_FIELDS) {
     const selectorValue = selector[field];
     if (selectorValue !== undefined && target[field] !== selectorValue) {
@@ -423,9 +495,11 @@ function matchesTargetSelector(target, selector) {
 }
 
 /**
- * @param {ConflictTrace} trace
- * @param {string} writerId
- * @returns {boolean}
+ * Checks whether a conflict trace involves the specified writer as winner or loser.
+ *
+ * @param {ConflictTrace} trace - The conflict trace to inspect.
+ * @param {string} writerId - The writer identifier to match.
+ * @returns {boolean} True if the writer participated in the conflict.
  */
 function traceTouchesWriter(trace, writerId) {
   if (trace.winner.anchor.writerId === writerId) {
@@ -435,12 +509,14 @@ function traceTouchesWriter(trace, writerId) {
 }
 
 /**
+ * Computes a SHA-256 digest of the canonical JSON serialization of a payload, with caching.
+ *
  * @param {{
  *   digestCache: Map<string, string>,
  *   crypto: import('../../ports/CryptoPort.js').default,
  *   payload: unknown
- * }} options
- * @returns {Promise<string>}
+ * }} options - Cache, crypto port, and payload to hash.
+ * @returns {Promise<string>} Hex-encoded SHA-256 digest.
  */
 async function hashPayload({ digestCache, crypto, payload }) {
   const canonical = canonicalStringify(payload);
@@ -453,22 +529,26 @@ async function hashPayload({ digestCache, crypto, payload }) {
 }
 
 /**
- * @param {ConflictTarget} target
- * @param {string} effectDigest
- * @returns {string}
+ * Builds a composite key from a target digest and effect digest for deduplication lookups.
+ *
+ * @param {ConflictTarget} target - The conflict target.
+ * @param {string} effectDigest - The digest of the effect payload.
+ * @returns {string} Composite lookup key.
  */
 function effectKey(target, effectDigest) {
   return `${target.targetDigest}:${effectDigest}`;
 }
 
 /**
+ * Builds a deterministic group key for deduplicating conflict candidates by target, kind, winner, and resolution.
+ *
  * @param {{
  *   target: ConflictTarget,
  *   kind: string,
  *   winner: OpRecord,
  *   resolution: ConflictResolution
- * }} options
- * @returns {string}
+ * }} options - Components of the group key.
+ * @returns {string} Pipe-delimited group key.
  */
 function candidateGroupKey({ target, kind, winner, resolution }) {
   return [
@@ -487,10 +567,12 @@ function candidateGroupKey({ target, kind, winner, resolution }) {
 }
 
 /**
- * @param {ConflictTarget} target
- * @param {string} opType
- * @param {Record<string, unknown>} payload
- * @returns {Record<string, unknown>}
+ * Wraps a normalized effect payload with target and op-type metadata for hashing.
+ *
+ * @param {ConflictTarget} target - The conflict target.
+ * @param {string} opType - The operation type name.
+ * @param {Record<string, unknown>} payload - The normalized effect payload.
+ * @returns {Record<string, unknown>} Wrapped effect record.
  */
 function buildEffectPayload(target, opType, payload) {
   return {
@@ -502,25 +584,31 @@ function buildEffectPayload(target, opType, payload) {
 }
 
 /**
- * @param {Record<string, unknown>} raw
- * @returns {Record<string, unknown>}
+ * Shallow-clones a raw object to avoid mutation of shared references.
+ *
+ * @param {Record<string, unknown>} raw - The object to clone.
+ * @returns {Record<string, unknown>} A shallow copy.
  */
 function cloneObject(raw) {
   return /** @type {Record<string, unknown>} */ ({ ...raw });
 }
 
 /**
- * @param {number|null} lamportCeiling
- * @returns {string}
+ * Returns a human-readable description of a lamport ceiling, using 'head' for null.
+ *
+ * @param {number|null} lamportCeiling - The ceiling value, or null for head.
+ * @returns {string} Human-readable ceiling label.
  */
 function describeLamportCeiling(lamportCeiling) {
   return lamportCeiling === null ? 'head' : String(lamportCeiling);
 }
 
 /**
- * @param {string} field
- * @param {unknown} value
- * @returns {string|null}
+ * Validates and normalizes an optional string field, returning null for absent values.
+ *
+ * @param {string} field - The field name for error messages.
+ * @param {unknown} value - The raw value to normalize.
+ * @returns {string|null} The validated string or null.
  */
 function normalizeOptionalString(field, value) {
   if (value === undefined || value === null) {
@@ -536,18 +624,16 @@ function normalizeOptionalString(field, value) {
 }
 
 /**
- * @param {unknown} lamportCeiling
- * @returns {number|null}
+ * Validates and normalizes a lamport ceiling to a non-negative integer or null.
+ *
+ * @param {unknown} lamportCeiling - The raw ceiling value.
+ * @returns {number|null} Validated ceiling or null for unbounded.
  */
 function normalizeLamportCeiling(lamportCeiling) {
   if (lamportCeiling === undefined || lamportCeiling === null) {
     return null;
   }
-  if (
-    typeof lamportCeiling !== 'number' ||
-    !Number.isInteger(lamportCeiling) ||
-    lamportCeiling < 0
-  ) {
+  if (!isValidLamportCeiling(lamportCeiling)) {
     throw new QueryError('analyzeConflicts(): at.lamportCeiling must be a non-negative integer or null', {
       code: 'invalid_coordinate',
       context: { lamportCeiling },
@@ -557,8 +643,20 @@ function normalizeLamportCeiling(lamportCeiling) {
 }
 
 /**
- * @param {ConflictAnalyzeOptions['target']} target
- * @returns {ConflictAnalyzeOptions['target']|null}
+ * Checks whether a value is a valid lamport ceiling (non-negative integer).
+ *
+ * @param {unknown} value - The value to check.
+ * @returns {boolean} True if the value is a valid ceiling.
+ */
+function isValidLamportCeiling(value) {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * Validates and normalizes a target filter, delegating to per-kind validators.
+ *
+ * @param {ConflictAnalyzeOptions['target']} target - The raw target filter.
+ * @returns {ConflictAnalyzeOptions['target']|null} Validated target or null.
  */
 function normalizeTargetFilter(target) {
   if (target === undefined || target === null) {
@@ -570,6 +668,17 @@ function normalizeTargetFilter(target) {
       context: { target },
     });
   }
+  validateTargetByKind(target);
+  return target;
+}
+
+/**
+ * Dispatches target validation to the appropriate kind-specific validator.
+ *
+ * @param {NonNullable<ConflictAnalyzeOptions['target']>} target - The target to validate.
+ * @returns {void}
+ */
+function validateTargetByKind(target) {
   const { targetKind } = target;
   if (!VALID_TARGET_KINDS.has(targetKind)) {
     throw new QueryError('analyzeConflicts(): target.targetKind is unsupported', {
@@ -577,20 +686,26 @@ function normalizeTargetFilter(target) {
       context: { targetKind },
     });
   }
+  /** @type {Record<string, () => void>} */
   const validators = {
+    /** Validates that node targets include entityId. */
     node: () => validateTargetFields(target, ['entityId'], 'node target selector requires entityId'),
+    /** Validates that edge targets include from, to, and label. */
     edge: () => validateTargetFields(target, ['from', 'to', 'label'], 'edge target selector requires from, to, and label'),
+    /** Validates that node property targets include entityId and propertyKey. */
     node_property: () => validateTargetFields(target, ['entityId', 'propertyKey'], 'node_property selector requires entityId and propertyKey'),
+    /** Validates that edge property targets include from, to, label, and propertyKey. */
     edge_property: () => validateTargetFields(target, ['from', 'to', 'label', 'propertyKey'], 'edge_property selector requires from, to, label, and propertyKey'),
   };
   validators[targetKind]();
-  return target;
 }
 
 /**
- * @param {ConflictAnalyzeOptions['target']} target
- * @param {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} fields
- * @param {string} message
+ * Validates that specified fields are non-empty strings on a target selector.
+ *
+ * @param {ConflictAnalyzeOptions['target']} target - The target to validate.
+ * @param {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} fields - Required field names.
+ * @param {string} message - Error message if validation fails.
  * @returns {void}
  */
 function validateTargetFields(target, fields, message) {
@@ -604,8 +719,10 @@ function validateTargetFields(target, fields, message) {
 }
 
 /**
- * @param {ConflictAnalyzeOptions['kind']} kind
- * @returns {string[]|null}
+ * Validates and normalizes a conflict kind filter into a sorted deduplicated array.
+ *
+ * @param {ConflictAnalyzeOptions['kind']} kind - The raw kind filter.
+ * @returns {string[]|null} Normalized array of valid kinds or null.
  */
 function normalizeKinds(kind) {
   if (kind === undefined) {
@@ -618,6 +735,18 @@ function normalizeKinds(kind) {
       context: { kind },
     });
   }
+  validateKindValues(values, kind);
+  return [...new Set(values)].sort(compareStrings);
+}
+
+/**
+ * Validates that all kind values are recognized strings.
+ *
+ * @param {string[]} values - The kind values to check.
+ * @param {ConflictAnalyzeOptions['kind']} kind - The original kind input for error context.
+ * @returns {void}
+ */
+function validateKindValues(values, kind) {
   for (const value of values) {
     if (typeof value !== 'string' || !VALID_KINDS.has(value)) {
       throw new QueryError('analyzeConflicts(): kind filter contains an unsupported value', {
@@ -626,12 +755,13 @@ function normalizeKinds(kind) {
       });
     }
   }
-  return [...new Set(values)].sort(compareStrings);
 }
 
 /**
- * @param {unknown} evidence
- * @returns {'summary'|'standard'|'full'}
+ * Validates and normalizes the evidence level to one of the three valid tiers.
+ *
+ * @param {unknown} evidence - The raw evidence level.
+ * @returns {'summary'|'standard'|'full'} Validated evidence level.
  */
 function normalizeEvidence(evidence) {
   const normalized = evidence === undefined || evidence === null ? 'standard' : evidence;
@@ -645,8 +775,10 @@ function normalizeEvidence(evidence) {
 }
 
 /**
- * @param {unknown} maxPatches
- * @returns {number|null}
+ * Validates and normalizes the scan budget maxPatches to a positive integer or null.
+ *
+ * @param {unknown} maxPatches - The raw maxPatches value.
+ * @returns {number|null} Validated positive integer or null for unbounded.
  */
 function normalizeMaxPatches(maxPatches) {
   if (maxPatches === undefined) {
@@ -666,8 +798,10 @@ function normalizeMaxPatches(maxPatches) {
 }
 
 /**
- * @param {ConflictAnalyzeOptions|undefined} options
- * @returns {NormalizedConflictAnalyzeOptions}
+ * Normalizes raw analysis options into a validated internal representation with defaults applied.
+ *
+ * @param {ConflictAnalyzeOptions|undefined} options - Raw user-supplied options.
+ * @returns {NormalizedConflictAnalyzeOptions} Fully normalized options.
  */
 function normalizeOptions(options) {
   const raw = options ?? {};
@@ -685,6 +819,8 @@ function normalizeOptions(options) {
 }
 
 /**
+ * Builds the resolved coordinate metadata describing the analysis scope and budget.
+ *
  * @param {{
  *   frontier: Map<string, string>,
  *   lamportCeiling: number|null,
@@ -702,8 +838,8 @@ function normalizeOptions(options) {
  *       braidedStrandIds: string[]
  *     }
  *   }
- * }} options
- * @returns {ConflictResolvedCoordinate}
+ * }} options - Coordinate construction parameters.
+ * @returns {ConflictResolvedCoordinate} The resolved coordinate.
  */
 function buildResolvedCoordinate({
   frontier,
@@ -723,18 +859,20 @@ function buildResolvedCoordinate({
       maxPatches,
     },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
-    ...(strand ? { strand } : {}),
+    ...(strand !== undefined && strand !== null ? { strand } : {}),
   };
 }
 
 /**
+ * Builds strand metadata for the resolved coordinate from a strand descriptor.
+ *
  * @param {{
  *   strandId: string,
  *   baseObservation: { lamportCeiling: number|null },
  *   overlay: { headPatchSha: string|null, patchCount: number, writable: boolean },
  *   braid: { readOverlays: Array<{ strandId: string }> }
- * }} descriptor
- * @returns {NonNullable<ConflictResolvedCoordinate['strand']>}
+ * }} descriptor - The strand descriptor to extract metadata from.
+ * @returns {NonNullable<ConflictResolvedCoordinate['strand']>} Strand metadata.
  */
 function buildResolvedStrandMetadata(descriptor) {
   return {
@@ -753,13 +891,15 @@ function buildResolvedStrandMetadata(descriptor) {
 }
 
 /**
- * @param {ConflictDiagnostic[]} diagnostics
+ * Appends a diagnostic entry to the diagnostics array with optional severity and data.
+ *
+ * @param {ConflictDiagnostic[]} diagnostics - The diagnostics accumulator.
  * @param {{
  *   code: string,
  *   message: string,
  *   severity?: 'warning'|'error',
  *   data?: Record<string, unknown>
- * }} options
+ * }} options - Diagnostic properties.
  */
 function pushDiagnostic(diagnostics, {
   code,
@@ -771,60 +911,89 @@ function pushDiagnostic(diagnostics, {
     code,
     severity,
     message,
-    ...(data ? { data } : {}),
+    ...(data !== undefined && data !== null ? { data } : {}),
   });
 }
 
 /**
- * @param {unknown} observedDots
- * @returns {string[]}
+ * Normalizes observed dots into a sorted array of strings, handling absent or iterable inputs.
+ *
+ * @param {unknown} observedDots - Raw observed dots value.
+ * @returns {string[]} Sorted array of dot strings.
  */
 function normalizeObservedDots(observedDots) {
-  if (!observedDots) {
+  if (observedDots === null || observedDots === undefined) {
     return [];
   }
   return [.../** @type {Iterable<string>} */ (observedDots)].sort(compareStrings);
 }
 
 /**
- * @param {ConflictTarget} _target
- * @param {string} opType
- * @param {Record<string, unknown>} canonOp
- * @returns {Record<string, unknown>|null}
+ * Extracts the normalized effect payload for a given op type, returning null for unrecognized types.
+ *
+ * @param {ConflictTarget} _target - The conflict target (unused but kept for signature consistency).
+ * @param {string} opType - The receipt operation type name.
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @returns {Record<string, unknown>|null} Normalized effect payload or null.
  */
 function normalizeEffectPayload(_target, opType, canonOp) {
   /** @type {Record<string, () => Record<string, unknown>>} */
   const effectFactories = {
+    /** Extracts the dot from a NodeAdd operation. */
     NodeAdd: () => ({ dot: canonOp.dot ?? null }),
+    /** Extracts observed dots from a NodeTombstone operation. */
     NodeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    /** Extracts the dot from an EdgeAdd operation. */
     EdgeAdd: () => ({ dot: canonOp.dot ?? null }),
+    /** Extracts observed dots from an EdgeTombstone operation. */
     EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp.observedDots) }),
+    /** Extracts the value from a NodePropSet operation. */
     NodePropSet: () => ({ value: canonOp.value ?? null }),
+    /** Extracts the value from an EdgePropSet operation. */
     EdgePropSet: () => ({ value: canonOp.value ?? null }),
+    /** Extracts the oid from a BlobValue operation. */
     BlobValue: () => ({ oid: canonOp.oid ?? null }),
   };
   const factory = effectFactories[opType];
-  return factory ? factory() : null;
+  return factory !== undefined ? factory() : null;
 }
 
 /**
- * @param {Record<string, unknown>} canonOp
- * @param {string} receiptTarget
- * @returns {Omit<ConflictTarget, 'targetDigest'>|null}
+ * Builds a node-level target identity from the canonical op or receipt target fallback.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @param {string} receiptTarget - The receipt target string for fallback identification.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node target identity or null.
  */
 function buildNodeTargetIdentity(canonOp, receiptTarget) {
   const entityId = typeof canonOp.node === 'string' && canonOp.node.length > 0
     ? canonOp.node
     : (receiptTarget !== '*' ? receiptTarget : null);
-  return entityId ? { targetKind: 'node', entityId } : null;
+  return entityId !== null ? { targetKind: 'node', entityId } : null;
 }
 
 /**
- * @param {Record<string, unknown>} canonOp
- * @param {string} receiptTarget
- * @returns {Omit<ConflictTarget, 'targetDigest'>|null}
+ * Builds an edge-level target identity from canonical op fields or by decoding the receipt target.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @param {string} receiptTarget - The receipt target string for fallback decoding.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge target identity or null.
  */
 function buildEdgeTargetIdentity(canonOp, receiptTarget) {
+  const fromOp = buildEdgeTargetFromOp(canonOp);
+  if (fromOp !== null) {
+    return fromOp;
+  }
+  return buildEdgeTargetFromReceipt(receiptTarget);
+}
+
+/**
+ * Attempts to build an edge target identity directly from canonical op fields.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge target or null if fields are missing.
+ */
+function buildEdgeTargetFromOp(canonOp) {
   if (
     typeof canonOp.from === 'string' &&
     typeof canonOp.to === 'string' &&
@@ -838,6 +1007,16 @@ function buildEdgeTargetIdentity(canonOp, receiptTarget) {
       edgeKey: `${canonOp.from}\0${canonOp.to}\0${canonOp.label}`,
     };
   }
+  return null;
+}
+
+/**
+ * Attempts to build an edge target identity by decoding the receipt target string.
+ *
+ * @param {string} receiptTarget - The receipt target string to decode.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge target or null if decoding fails.
+ */
+function buildEdgeTargetFromReceipt(receiptTarget) {
   if (receiptTarget === '*') {
     return null;
   }
@@ -855,8 +1034,10 @@ function buildEdgeTargetIdentity(canonOp, receiptTarget) {
 }
 
 /**
- * @param {Record<string, unknown>} canonOp
- * @returns {Omit<ConflictTarget, 'targetDigest'>|null}
+ * Builds a node-property target identity from the canonical operation fields.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Node-property target or null.
  */
 function buildNodePropertyTargetIdentity(canonOp) {
   if (typeof canonOp.node !== 'string' || typeof canonOp.key !== 'string') {
@@ -870,8 +1051,10 @@ function buildNodePropertyTargetIdentity(canonOp) {
 }
 
 /**
- * @param {Record<string, unknown>} canonOp
- * @returns {Omit<ConflictTarget, 'targetDigest'>|null}
+ * Builds an edge-property target identity from the canonical operation fields.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Edge-property target or null.
  */
 function buildEdgePropertyTargetIdentity(canonOp) {
   if (
@@ -893,25 +1076,37 @@ function buildEdgePropertyTargetIdentity(canonOp) {
 }
 
 /**
- * @param {Record<string, unknown>} canonOp
- * @param {string} receiptTarget
- * @returns {Omit<ConflictTarget, 'targetDigest'>|null}
+ * Dispatches to the appropriate target identity builder based on the canonical op type.
+ *
+ * @param {Record<string, unknown>} canonOp - The canonical operation record.
+ * @param {string} receiptTarget - The receipt target string for fallback.
+ * @returns {Omit<ConflictTarget, 'targetDigest'>|null} Target identity or null.
  */
 function buildTargetIdentity(canonOp, receiptTarget) {
+  /** @type {Record<string, () => Omit<ConflictTarget, 'targetDigest'>|null>} */
   const targetBuilders = {
+    /** Builds target identity for NodeAdd ops. */
     NodeAdd: () => buildNodeTargetIdentity(canonOp, receiptTarget),
+    /** Builds target identity for NodeRemove ops. */
     NodeRemove: () => buildNodeTargetIdentity(canonOp, receiptTarget),
+    /** Builds target identity for EdgeAdd ops. */
     EdgeAdd: () => buildEdgeTargetIdentity(canonOp, receiptTarget),
+    /** Builds target identity for EdgeRemove ops. */
     EdgeRemove: () => buildEdgeTargetIdentity(canonOp, receiptTarget),
+    /** Builds target identity for PropSet ops. */
     PropSet: () => buildNodePropertyTargetIdentity(canonOp),
+    /** Builds target identity for NodePropSet ops. */
     NodePropSet: () => buildNodePropertyTargetIdentity(canonOp),
+    /** Builds target identity for EdgePropSet ops. */
     EdgePropSet: () => buildEdgePropertyTargetIdentity(canonOp),
   };
-  const builder = /** @type {Record<string, () => Omit<ConflictTarget, 'targetDigest'>|null>} */ (targetBuilders)[/** @type {string} */ (canonOp.type)];
-  return builder ? builder() : null;
+  const builder = targetBuilders[/** @type {string} */ (canonOp.type)];
+  return builder !== undefined ? builder() : null;
 }
 
 /**
+ * Constructs a ConflictResolution describing how the reducer chose the winner over the loser.
+ *
  * @param {{
  *   winner: OpRecord,
  *   loser: OpRecord,
@@ -919,8 +1114,8 @@ function buildTargetIdentity(canonOp, receiptTarget) {
  *   winnerMode: 'immediate'|'eventual',
  *   code: string,
  *   reason?: string
- * }} options
- * @returns {ConflictResolution}
+ * }} options - Resolution construction parameters.
+ * @returns {ConflictResolution} The resolution record.
  */
 function buildResolution({
   winner,
@@ -931,74 +1126,105 @@ function buildResolution({
   reason,
 }) {
   const comparatorType = kind === 'redundancy' ? 'effect_digest' : 'event_id';
+  const basis = buildResolutionBasis(code, reason);
+  const comparator = buildResolutionComparator(comparatorType, winner, loser);
   return {
     reducerId: CONFLICT_REDUCER_ID,
-    basis: {
-      code,
-      ...(reason ? { reason } : {}),
-    },
+    basis,
     winnerMode,
-    comparator: {
-      type: comparatorType,
-      ...(comparatorType === 'event_id'
-        ? {
-            winnerEventId: {
-              lamport: winner.eventId.lamport,
-              writerId: winner.eventId.writerId,
-              patchSha: winner.eventId.patchSha,
-              opIndex: winner.eventId.opIndex,
-            },
-            loserEventId: {
-              lamport: loser.eventId.lamport,
-              writerId: loser.eventId.writerId,
-              patchSha: loser.eventId.patchSha,
-              opIndex: loser.eventId.opIndex,
-            },
-          }
-        : {}),
+    comparator,
+  };
+}
+
+/**
+ * Builds the basis object for a conflict resolution, optionally including a reason.
+ *
+ * @param {string} code - The resolution basis code.
+ * @param {string|undefined} reason - Optional human-readable reason.
+ * @returns {{ code: string, reason?: string }} The basis object.
+ */
+function buildResolutionBasis(code, reason) {
+  return {
+    code,
+    ...(typeof reason === 'string' && reason.length > 0 ? { reason } : {}),
+  };
+}
+
+/**
+ * Builds the comparator object for a conflict resolution, including event IDs when applicable.
+ *
+ * @param {'event_id'|'effect_digest'} comparatorType - The type of comparison used.
+ * @param {OpRecord} winner - The winning operation record.
+ * @param {OpRecord} loser - The losing operation record.
+ * @returns {ConflictResolution['comparator']} The comparator object.
+ */
+function buildResolutionComparator(comparatorType, winner, loser) {
+  if (comparatorType !== 'event_id') {
+    return { type: comparatorType };
+  }
+  return {
+    type: comparatorType,
+    winnerEventId: {
+      lamport: winner.eventId.lamport,
+      writerId: winner.eventId.writerId,
+      patchSha: winner.eventId.patchSha,
+      opIndex: winner.eventId.opIndex,
+    },
+    loserEventId: {
+      lamport: loser.eventId.lamport,
+      writerId: loser.eventId.writerId,
+      patchSha: loser.eventId.patchSha,
+      opIndex: loser.eventId.opIndex,
     },
   };
 }
 
 /**
- * @param {string[]} noteCodes
- * @returns {string[]}
+ * Deduplicates and sorts an array of classification note codes.
+ *
+ * @param {string[]} noteCodes - Raw note codes, possibly with duplicates.
+ * @returns {string[]} Sorted deduplicated note codes.
  */
 function normalizeNoteCodes(noteCodes) {
   return [...new Set(noteCodes)].sort(compareStrings);
 }
 
 /**
- * @param {ConflictAnalyzeOptions['target']|null|undefined} selector
- * @returns {Record<string, unknown>|null}
+ * Normalizes a target selector into a plain record for inclusion in snapshot hashes.
+ *
+ * @param {ConflictAnalyzeOptions['target']|null|undefined} selector - The target selector.
+ * @returns {Record<string, unknown>|null} Plain record or null.
  */
 function normalizeTargetSelector(selector) {
-  if (!selector) {
+  if (selector === undefined || selector === null) {
     return null;
   }
   /** @type {Record<string, unknown>} */
   const result = { targetKind: selector.targetKind };
-  if (selector.entityId !== undefined) {
-    result.entityId = selector.entityId;
-  }
-  if (selector.propertyKey !== undefined) {
-    result.propertyKey = selector.propertyKey;
-  }
-  if (selector.from !== undefined) {
-    result.from = selector.from;
-  }
-  if (selector.to !== undefined) {
-    result.to = selector.to;
-  }
-  if (selector.label !== undefined) {
-    result.label = selector.label;
-  }
+  copyDefinedSelectorFields(result, selector);
   return result;
 }
 
 /**
- * @param {NormalizedConflictAnalyzeOptions} normalized
- * @returns {Record<string, unknown>}
+ * Copies defined selector fields into the result record for snapshot hashing.
+ *
+ * @param {Record<string, unknown>} result - The target record to populate.
+ * @param {NonNullable<ConflictAnalyzeOptions['target']>} selector - The source selector.
+ * @returns {void}
+ */
+function copyDefinedSelectorFields(result, selector) {
+  for (const field of TARGET_SELECTOR_FIELDS) {
+    if (selector[field] !== undefined) {
+      result[field] = selector[field];
+    }
+  }
+}
+
+/**
+ * Builds the filter record from normalized options for inclusion in snapshot hashes.
+ *
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized analysis options.
+ * @returns {Record<string, unknown>} Filter record for hashing.
  */
 function snapshotFilterRecord(normalized) {
   return {
@@ -1010,16 +1236,20 @@ function snapshotFilterRecord(normalized) {
 }
 
 /**
- * @param {ConflictDiagnostic[]} diagnostics
- * @returns {string[]}
+ * Extracts sorted diagnostic codes from a diagnostics array for inclusion in hashes.
+ *
+ * @param {ConflictDiagnostic[]} diagnostics - The diagnostics to extract codes from.
+ * @returns {string[]} Sorted diagnostic code strings.
  */
 function diagnosticCodes(diagnostics) {
   return diagnostics.map((diagnostic) => diagnostic.code).sort(compareStrings);
 }
 
 /**
- * @param {Array<{ patch: PatchV2, sha: string }>} entries
- * @returns {PatchFrame[]}
+ * Converts raw patch entries into ordered PatchFrame objects with receipt placeholders.
+ *
+ * @param {Array<{ patch: PatchV2, sha: string }>} entries - Raw patch entries.
+ * @returns {PatchFrame[]} Ordered patch frames.
  */
 function buildPatchFrames(entries) {
   /** @type {PatchFrame[]} */
@@ -1031,9 +1261,11 @@ function buildPatchFrames(entries) {
 }
 
 /**
- * @param {WarpRuntime} graph
- * @param {number|null} lamportCeiling
- * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>}
+ * Loads all writer patches up to a lamport ceiling and converts them to patch frames.
+ *
+ * @param {WarpRuntime} graph - The warp runtime instance.
+ * @param {number|null} lamportCeiling - Maximum lamport clock value, or null for unbounded.
+ * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>} Frontier and frames.
  */
 async function loadFrontierPatchFrames(graph, lamportCeiling) {
   const frontier = await graph.getFrontier();
@@ -1054,9 +1286,11 @@ async function loadFrontierPatchFrames(graph, lamportCeiling) {
 }
 
 /**
- * @param {{ patch: PatchV2, sha: string }} entry
- * @param {number} patchOrder
- * @returns {PatchFrame}
+ * Constructs a single PatchFrame from a raw entry and its position in the sequence.
+ *
+ * @param {{ patch: PatchV2, sha: string }} entry - Raw patch entry.
+ * @param {number} patchOrder - Zero-based position in the patch sequence.
+ * @returns {PatchFrame} The constructed patch frame.
  */
 function buildPatchFrame(entry, patchOrder) {
   return {
@@ -1069,14 +1303,18 @@ function buildPatchFrame(entry, patchOrder) {
 }
 
 /**
- * @returns {TickReceipt}
+ * Creates a placeholder empty receipt for use before reducer replay.
+ *
+ * @returns {TickReceipt} An empty receipt with default values.
  */
 function emptyReceipt() {
   return /** @type {TickReceipt} */ ({ patchSha: '', writer: '', lamport: 0, ops: [] });
 }
 
 /**
- * @param {PatchFrame[]} patchFrames
+ * Replays all patches through the reducer and attaches the resulting receipts to each frame.
+ *
+ * @param {PatchFrame[]} patchFrames - The frames to attach receipts to (mutated in place).
  * @returns {void}
  */
 function attachReceipts(patchFrames) {
@@ -1093,13 +1331,15 @@ function attachReceipts(patchFrames) {
 }
 
 /**
+ * Builds a scan window by sorting frames in reverse-causal order and applying the budget limit.
+ *
  * @param {{
  *   patchFrames: PatchFrame[],
  *   maxPatches: number|null,
  *   lamportCeiling: number|null,
  *   diagnostics: ConflictDiagnostic[]
- * }} options
- * @returns {ScanWindow}
+ * }} options - Scan window construction parameters.
+ * @returns {ScanWindow} The constructed scan window.
  */
 function buildScanWindow({ patchFrames, maxPatches, lamportCeiling, diagnostics }) {
   const reverseCausalFrames = [...patchFrames].sort(comparePatchFramesReverseCausal);
@@ -1108,17 +1348,7 @@ function buildScanWindow({ patchFrames, maxPatches, lamportCeiling, diagnostics 
     : reverseCausalFrames.slice(0, maxPatches);
   const truncated = maxPatches !== null && reverseCausalFrames.length > maxPatches;
   if (truncated) {
-    const lastScanned = scannedFrames[scannedFrames.length - 1];
-    pushDiagnostic(diagnostics, {
-      code: 'budget_truncated',
-      message: `Conflict analysis truncated to ${maxPatches} patches at ceiling ${describeLamportCeiling(lamportCeiling)}`,
-      severity: 'warning',
-      data: {
-        traversalOrder: CONFLICT_TRAVERSAL_ORDER,
-        scannedPatchCount: scannedFrames.length,
-        lastScannedAnchor: buildTraversalAnchor(lastScanned),
-      },
-    });
+    emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamportCeiling });
   }
   return {
     reverseCausalFrames,
@@ -1129,8 +1359,35 @@ function buildScanWindow({ patchFrames, maxPatches, lamportCeiling, diagnostics 
 }
 
 /**
- * @param {PatchFrame} frame
- * @returns {ConflictAnchor}
+ * Emits a diagnostic warning when the scan window was truncated by budget limits.
+ *
+ * @param {{
+ *   diagnostics: ConflictDiagnostic[],
+ *   scannedFrames: PatchFrame[],
+ *   maxPatches: number|null,
+ *   lamportCeiling: number|null
+ * }} options - Truncation diagnostic parameters.
+ * @returns {void}
+ */
+function emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamportCeiling }) {
+  const lastScanned = scannedFrames[scannedFrames.length - 1];
+  pushDiagnostic(diagnostics, {
+    code: 'budget_truncated',
+    message: `Conflict analysis truncated to ${String(maxPatches)} patches at ceiling ${describeLamportCeiling(lamportCeiling)}`,
+    severity: 'warning',
+    data: {
+      traversalOrder: CONFLICT_TRAVERSAL_ORDER,
+      scannedPatchCount: scannedFrames.length,
+      lastScannedAnchor: buildTraversalAnchor(lastScanned),
+    },
+  });
+}
+
+/**
+ * Builds a traversal anchor from a patch frame for diagnostic output.
+ *
+ * @param {PatchFrame} frame - The patch frame to extract an anchor from.
+ * @returns {ConflictAnchor} The traversal anchor.
  */
 function buildTraversalAnchor(frame) {
   return {
@@ -1142,7 +1399,9 @@ function buildTraversalAnchor(frame) {
 }
 
 /**
- * @returns {ConflictCollector}
+ * Creates an empty conflict collector to accumulate candidates during analysis.
+ *
+ * @returns {ConflictCollector} A fresh empty collector.
  */
 function createCollector() {
   return {
@@ -1154,13 +1413,15 @@ function createCollector() {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Walks all patch frames to collect conflict candidates and eventual overrides.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   patchFrames: PatchFrame[],
  *   scannedPatchShas: Set<string>,
  *   diagnostics: ConflictDiagnostic[]
- * }} options
- * @returns {Promise<ConflictCollector>}
+ * }} options - Collection parameters.
+ * @returns {Promise<ConflictCollector>} The populated conflict collector.
  */
 async function collectConflictData(service, { patchFrames, scannedPatchShas, diagnostics }) {
   const collector = createCollector();
@@ -1172,56 +1433,94 @@ async function collectConflictData(service, { patchFrames, scannedPatchShas, dia
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Analyzes all operations in a single patch frame to identify conflict candidates.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   frame: PatchFrame,
  *   scannedPatchShas: Set<string>,
  *   diagnostics: ConflictDiagnostic[],
  *   collector: ConflictCollector
- * }} options
+ * }} options - Per-frame analysis parameters.
  * @returns {Promise<void>}
  */
 async function analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, collector }) {
   const { patch, receipt, sha } = frame;
   let receiptOpIndex = 0;
   for (let opIndex = 0; opIndex < patch.ops.length; opIndex++) {
-    const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(patch.ops[opIndex])));
-    const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp.type)];
-    if (!receiptOpType) {
-      continue;
-    }
-    const receiptOutcome = receipt.ops[receiptOpIndex++];
-    if (!receiptOutcome) {
-      pushMissingReceiptDiagnostic({ diagnostics, frame, opIndex });
-      continue;
-    }
-    const record = await buildOpRecord(service, {
-      frame,
-      opIndex,
-      receiptOpIndex: receiptOpIndex - 1,
-      canonOp,
-      receiptOutcome,
-      receiptOpType,
-      diagnostics,
+    const result = await analyzeOneOp(service, {
+      frame, opIndex, receiptOpIndex, receipt, diagnostics,
     });
-    if (!record) {
+    if (result === null) {
       continue;
     }
-    const currentPropertyWinner = collector.propertyWinnerByTarget.get(record.targetKey) || null;
-    const priorEquivalent = collector.equivalentWinnerByTargetEffect.get(effectKey(record.target, record.effectDigest)) || null;
-    if (scannedPatchShas.has(sha)) {
-      addImmediateCandidates({ collector, record, currentPropertyWinner, priorEquivalent });
+    receiptOpIndex = result.nextReceiptOpIndex;
+    if (result.record === null) {
+      continue;
     }
-    trackAppliedRecord({ collector, record });
+    processAnalyzedRecord({ collector, record: result.record, sha, scannedPatchShas });
   }
 }
 
 /**
+ * Analyzes a single operation within a frame, returning the built record and updated receipt index.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
+ * @param {{
+ *   frame: PatchFrame,
+ *   opIndex: number,
+ *   receiptOpIndex: number,
+ *   receipt: TickReceipt,
+ *   diagnostics: ConflictDiagnostic[]
+ * }} options - Single-op analysis parameters.
+ * @returns {Promise<{ record: OpRecord|null, nextReceiptOpIndex: number }|null>} Result or null to skip.
+ */
+async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics }) {
+  const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(frame.patch.ops[opIndex])));
+  const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp.type)];
+  if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) {
+    return null;
+  }
+  const receiptOutcome = receipt.ops[receiptOpIndex];
+  if (receiptOutcome === undefined || receiptOutcome === null) {
+    pushMissingReceiptDiagnostic({ diagnostics, frame, opIndex });
+    return { record: null, nextReceiptOpIndex: receiptOpIndex + 1 };
+  }
+  const record = await buildOpRecord(service, {
+    frame, opIndex, receiptOpIndex, canonOp, receiptOutcome, receiptOpType, diagnostics,
+  });
+  return { record, nextReceiptOpIndex: receiptOpIndex + 1 };
+}
+
+/**
+ * Processes an analyzed record by checking for immediate candidates and tracking applied records.
+ *
+ * @param {{
+ *   collector: ConflictCollector,
+ *   record: OpRecord,
+ *   sha: string,
+ *   scannedPatchShas: Set<string>
+ * }} options - Processing parameters.
+ * @returns {void}
+ */
+function processAnalyzedRecord({ collector, record, sha, scannedPatchShas }) {
+  const currentPropertyWinner = collector.propertyWinnerByTarget.get(record.targetKey) ?? null;
+  const eKey = effectKey(record.target, record.effectDigest);
+  const priorEquivalent = collector.equivalentWinnerByTargetEffect.get(eKey) ?? null;
+  if (scannedPatchShas.has(sha)) {
+    addImmediateCandidates({ collector, record, currentPropertyWinner, priorEquivalent });
+  }
+  trackAppliedRecord({ collector, record });
+}
+
+/**
+ * Pushes a diagnostic warning when a receipt outcome is missing for an operation.
+ *
  * @param {{
  *   diagnostics: ConflictDiagnostic[],
  *   frame: PatchFrame,
  *   opIndex: number
- * }} options
+ * }} options - Diagnostic parameters.
  * @returns {void}
  */
 function pushMissingReceiptDiagnostic({ diagnostics, frame, opIndex }) {
@@ -1239,7 +1538,9 @@ function pushMissingReceiptDiagnostic({ diagnostics, frame, opIndex }) {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Builds a full OpRecord from a canonical op, its receipt outcome, and frame context.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   frame: PatchFrame,
  *   opIndex: number,
@@ -1248,8 +1549,8 @@ function pushMissingReceiptDiagnostic({ diagnostics, frame, opIndex }) {
  *   receiptOutcome: { result: 'applied'|'superseded'|'redundant', reason?: string, target: string },
  *   receiptOpType: string,
  *   diagnostics: ConflictDiagnostic[]
- * }} options
- * @returns {Promise<OpRecord|null>}
+ * }} options - Record construction parameters.
+ * @returns {Promise<OpRecord|null>} The built record or null if identity/digest is unavailable.
  */
 async function buildOpRecord(service, {
   frame,
@@ -1260,29 +1561,35 @@ async function buildOpRecord(service, {
   receiptOpType,
   diagnostics,
 }) {
-  const { patch, sha, context, patchOrder } = frame;
   const target = await buildConflictTarget(service, { canonOp, receiptTarget: receiptOutcome.target });
-  if (!target) {
-    pushRecordDiagnostic({
-      diagnostics,
-      code: 'anchor_incomplete',
-      messagePrefix: 'Target identity unavailable',
-      frame,
-      opIndex,
-    });
+  if (target === null) {
+    pushRecordDiagnostic({ diagnostics, code: 'anchor_incomplete', messagePrefix: 'Target identity unavailable', frame, opIndex });
     return null;
   }
   const effectDigest = await buildEffectDigest(service, { target, receiptOpType, canonOp });
-  if (!effectDigest) {
-    pushRecordDiagnostic({
-      diagnostics,
-      code: 'digest_unavailable',
-      messagePrefix: 'Effect payload unavailable',
-      frame,
-      opIndex,
-    });
+  if (typeof effectDigest !== 'string' || effectDigest.length === 0) {
+    pushRecordDiagnostic({ diagnostics, code: 'digest_unavailable', messagePrefix: 'Effect payload unavailable', frame, opIndex });
     return null;
   }
+  return assembleOpRecord({ frame, opIndex, receiptOpIndex, receiptOpType, receiptOutcome, target, effectDigest });
+}
+
+/**
+ * Assembles the final OpRecord object from validated components.
+ *
+ * @param {{
+ *   frame: PatchFrame,
+ *   opIndex: number,
+ *   receiptOpIndex: number,
+ *   receiptOpType: string,
+ *   receiptOutcome: { result: 'applied'|'superseded'|'redundant', reason?: string, target: string },
+ *   target: ConflictTarget,
+ *   effectDigest: string
+ * }} options - Validated record components.
+ * @returns {OpRecord} The assembled operation record.
+ */
+function assembleOpRecord({ frame, opIndex, receiptOpIndex, receiptOpType, receiptOutcome, target, effectDigest }) {
+  const { patch, sha, context, patchOrder } = frame;
   return {
     target,
     targetKey: target.targetDigest,
@@ -1302,13 +1609,15 @@ async function buildOpRecord(service, {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
- * @param {{ canonOp: Record<string, unknown>, receiptTarget: string }} options
- * @returns {Promise<ConflictTarget|null>}
+ * Builds a ConflictTarget by computing a target identity and hashing it for the digest.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
+ * @param {{ canonOp: Record<string, unknown>, receiptTarget: string }} options - Target inputs.
+ * @returns {Promise<ConflictTarget|null>} The conflict target or null.
  */
 async function buildConflictTarget(service, { canonOp, receiptTarget }) {
   const targetIdentity = buildTargetIdentity(canonOp, receiptTarget);
-  if (!targetIdentity) {
+  if (targetIdentity === null || targetIdentity === undefined) {
     return null;
   }
   return {
@@ -1318,30 +1627,34 @@ async function buildConflictTarget(service, { canonOp, receiptTarget }) {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Computes the effect digest by normalizing the effect payload and hashing it.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   target: ConflictTarget,
  *   receiptOpType: string,
  *   canonOp: Record<string, unknown>
- * }} options
- * @returns {Promise<string|null>}
+ * }} options - Effect digest inputs.
+ * @returns {Promise<string|null>} The hex digest or null if normalization fails.
  */
 async function buildEffectDigest(service, { target, receiptOpType, canonOp }) {
   const effectPayload = normalizeEffectPayload(target, receiptOpType, canonOp);
-  if (!effectPayload) {
+  if (effectPayload === null || effectPayload === undefined) {
     return null;
   }
   return await service._hash(buildEffectPayload(target, receiptOpType, effectPayload));
 }
 
 /**
+ * Pushes a diagnostic for a record that could not be fully constructed.
+ *
  * @param {{
  *   diagnostics: ConflictDiagnostic[],
  *   code: string,
  *   messagePrefix: string,
  *   frame: PatchFrame,
  *   opIndex: number
- * }} options
+ * }} options - Diagnostic parameters.
  * @returns {void}
  */
 function pushRecordDiagnostic({ diagnostics, code, messagePrefix, frame, opIndex }) {
@@ -1359,12 +1672,14 @@ function pushRecordDiagnostic({ diagnostics, code, messagePrefix, frame, opIndex
 }
 
 /**
+ * Adds immediate supersession and redundancy candidates for a record within the scan window.
+ *
  * @param {{
  *   collector: ConflictCollector,
  *   record: OpRecord,
  *   currentPropertyWinner: OpRecord|null,
  *   priorEquivalent: OpRecord|null
- * }} options
+ * }} options - Candidate identification parameters.
  * @returns {void}
  */
 function addImmediateCandidates({ collector, record, currentPropertyWinner, priorEquivalent }) {
@@ -1373,15 +1688,17 @@ function addImmediateCandidates({ collector, record, currentPropertyWinner, prio
 }
 
 /**
+ * Adds a supersession candidate if the record was superseded by the current property winner.
+ *
  * @param {{
  *   collector: ConflictCollector,
  *   record: OpRecord,
  *   currentPropertyWinner: OpRecord|null
- * }} options
+ * }} options - Supersession check parameters.
  * @returns {void}
  */
 function maybeAddSupersessionCandidate({ collector, record, currentPropertyWinner }) {
-  if (!isPropertySetRecord(record) || record.receiptResult !== 'superseded' || !currentPropertyWinner) {
+  if (!isPropertySetRecord(record) || record.receiptResult !== 'superseded' || currentPropertyWinner === null) {
     return;
   }
   collector.candidates.push({
@@ -1407,15 +1724,17 @@ function maybeAddSupersessionCandidate({ collector, record, currentPropertyWinne
 }
 
 /**
+ * Adds a redundancy candidate if the record was redundant with a prior equivalent effect.
+ *
  * @param {{
  *   collector: ConflictCollector,
  *   record: OpRecord,
  *   priorEquivalent: OpRecord|null
- * }} options
+ * }} options - Redundancy check parameters.
  * @returns {void}
  */
 function maybeAddRedundancyCandidate({ collector, record, priorEquivalent }) {
-  if (record.receiptResult !== 'redundant' || !priorEquivalent) {
+  if (record.receiptResult !== 'redundant' || priorEquivalent === null) {
     return;
   }
   collector.candidates.push({
@@ -1440,9 +1759,11 @@ function maybeAddRedundancyCandidate({ collector, record, priorEquivalent }) {
 }
 
 /**
- * @param {OpRecord} winner
- * @param {OpRecord} loser
- * @returns {string}
+ * Infers a classification note describing the causal relation between winner and loser.
+ *
+ * @param {OpRecord} winner - The winning operation record.
+ * @param {OpRecord} loser - The losing operation record.
+ * @returns {string} The appropriate classification note code.
  */
 function inferRelationNote(winner, loser) {
   return inferCausalRelation(winner, loser) === 'concurrent'
@@ -1451,18 +1772,22 @@ function inferRelationNote(winner, loser) {
 }
 
 /**
- * @param {OpRecord} record
- * @returns {boolean}
+ * Checks whether an operation record is a property-set type (node or edge).
+ *
+ * @param {OpRecord} record - The record to check.
+ * @returns {boolean} True if the record is a NodePropSet or EdgePropSet.
  */
 function isPropertySetRecord(record) {
   return record.opType === 'NodePropSet' || record.opType === 'EdgePropSet';
 }
 
 /**
+ * Tracks an applied record in the collector for property winner and equivalent effect lookups.
+ *
  * @param {{
  *   collector: ConflictCollector,
  *   record: OpRecord
- * }} options
+ * }} options - Tracking parameters.
  * @returns {void}
  */
 function trackAppliedRecord({ collector, record }) {
@@ -1473,63 +1798,82 @@ function trackAppliedRecord({ collector, record }) {
   if (!isPropertySetRecord(record)) {
     return;
   }
-  const history = collector.propertyAppliedHistory.get(record.targetKey) || [];
+  const history = collector.propertyAppliedHistory.get(record.targetKey) ?? [];
   history.push(record);
   collector.propertyAppliedHistory.set(record.targetKey, history);
   collector.propertyWinnerByTarget.set(record.targetKey, record);
 }
 
 /**
+ * Scans applied property history to find eventual-override candidates across different writers.
+ *
  * @param {{
  *   collector: ConflictCollector,
  *   scannedPatchShas: Set<string>
- * }} options
+ * }} options - Eventual override scan parameters.
  * @returns {void}
  */
 function addEventualOverrideCandidates({ collector, scannedPatchShas }) {
   for (const [targetDigest, history] of collector.propertyAppliedHistory) {
     const finalWinner = collector.propertyWinnerByTarget.get(targetDigest);
-    if (!finalWinner) {
+    if (finalWinner === undefined) {
       continue;
     }
-    for (const loser of history) {
-      if (!isEventualOverrideLoser({ loser, finalWinner, scannedPatchShas })) {
-        continue;
-      }
-      const relation = inferCausalRelation(finalWinner, loser);
-      collector.candidates.push({
-        kind: 'eventual_override',
-        target: finalWinner.target,
-        winner: finalWinner,
-        loser,
-        resolution: buildResolution({
-          winner: finalWinner,
-          loser,
-          kind: 'eventual_override',
-          winnerMode: 'eventual',
-          code: 'effective_state_override',
-        }),
-        noteCodes: normalizeNoteCodes([
-          CLASSIFICATION_NOTES.SAME_TARGET,
-          CLASSIFICATION_NOTES.DIFFERENT_WRITER,
-          CLASSIFICATION_NOTES.DIGEST_DIFFERS,
-          CLASSIFICATION_NOTES.EFFECTIVE_THEN_LOST,
-          relation === 'concurrent'
-            ? CLASSIFICATION_NOTES.CONCURRENT_TO_WINNER
-            : CLASSIFICATION_NOTES.ORDERED_BEFORE_WINNER,
-        ]),
-      });
-    }
+    emitEventualOverridesForTarget({ collector, history, finalWinner, scannedPatchShas });
   }
 }
 
 /**
+ * Emits eventual override candidates for a single target's applied history.
+ *
+ * @param {{
+ *   collector: ConflictCollector,
+ *   history: OpRecord[],
+ *   finalWinner: OpRecord,
+ *   scannedPatchShas: Set<string>
+ * }} options - Per-target override parameters.
+ * @returns {void}
+ */
+function emitEventualOverridesForTarget({ collector, history, finalWinner, scannedPatchShas }) {
+  for (const loser of history) {
+    if (!isEventualOverrideLoser({ loser, finalWinner, scannedPatchShas })) {
+      continue;
+    }
+    const relation = inferCausalRelation(finalWinner, loser);
+    collector.candidates.push({
+      kind: 'eventual_override',
+      target: finalWinner.target,
+      winner: finalWinner,
+      loser,
+      resolution: buildResolution({
+        winner: finalWinner,
+        loser,
+        kind: 'eventual_override',
+        winnerMode: 'eventual',
+        code: 'effective_state_override',
+      }),
+      noteCodes: normalizeNoteCodes([
+        CLASSIFICATION_NOTES.SAME_TARGET,
+        CLASSIFICATION_NOTES.DIFFERENT_WRITER,
+        CLASSIFICATION_NOTES.DIGEST_DIFFERS,
+        CLASSIFICATION_NOTES.EFFECTIVE_THEN_LOST,
+        relation === 'concurrent'
+          ? CLASSIFICATION_NOTES.CONCURRENT_TO_WINNER
+          : CLASSIFICATION_NOTES.ORDERED_BEFORE_WINNER,
+      ]),
+    });
+  }
+}
+
+/**
+ * Determines whether a record qualifies as an eventual-override loser relative to the final winner.
+ *
  * @param {{
  *   loser: OpRecord,
  *   finalWinner: OpRecord,
  *   scannedPatchShas: Set<string>
- * }} options
- * @returns {boolean}
+ * }} options - Qualification check parameters.
+ * @returns {boolean} True if the record is an eventual-override loser.
  */
 function isEventualOverrideLoser({ loser, finalWinner, scannedPatchShas }) {
   if (sameRecord(loser, finalWinner)) {
@@ -1545,17 +1889,21 @@ function isEventualOverrideLoser({ loser, finalWinner, scannedPatchShas }) {
 }
 
 /**
- * @param {OpRecord} a
- * @param {OpRecord} b
- * @returns {boolean}
+ * Checks whether two op records refer to the same patch and operation index.
+ *
+ * @param {OpRecord} a - First record.
+ * @param {OpRecord} b - Second record.
+ * @returns {boolean} True if they are the same record.
  */
 function sameRecord(a, b) {
   return a.patchSha === b.patchSha && a.opIndex === b.opIndex;
 }
 
 /**
- * @param {ConflictCandidate[]} candidates
- * @returns {Map<string, GroupedConflict>}
+ * Groups conflict candidates by their deterministic group key to merge co-occurring losers.
+ *
+ * @param {ConflictCandidate[]} candidates - The raw conflict candidates to group.
+ * @returns {Map<string, GroupedConflict>} Grouped conflicts keyed by group key.
  */
 function groupCandidates(candidates) {
   /** @type {Map<string, GroupedConflict>} */
@@ -1587,13 +1935,15 @@ function groupCandidates(candidates) {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Transforms grouped conflicts into sorted, finalized ConflictTrace records.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   grouped: Iterable<GroupedConflict>,
  *   evidence: 'summary'|'standard'|'full',
  *   resolvedCoordinate: ConflictResolvedCoordinate
- * }} options
- * @returns {Promise<ConflictTrace[]>}
+ * }} options - Trace construction parameters.
+ * @returns {Promise<ConflictTrace[]>} Sorted conflict traces.
  */
 async function buildConflictTraces(service, { grouped, evidence, resolvedCoordinate }) {
   /** @type {ConflictTrace[]} */
@@ -1606,9 +1956,11 @@ async function buildConflictTraces(service, { grouped, evidence, resolvedCoordin
 }
 
 /**
- * @param {ConflictTrace} a
- * @param {ConflictTrace} b
- * @returns {number}
+ * Compares two conflict traces for deterministic ordering by kind, target, winner, then id.
+ *
+ * @param {ConflictTrace} a - First trace.
+ * @param {ConflictTrace} b - Second trace.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function compareConflictTraces(a, b) {
   const kindCmp = compareStrings(a.kind, b.kind);
@@ -1624,13 +1976,15 @@ function compareConflictTraces(a, b) {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Builds a single ConflictTrace from a grouped conflict, computing IDs and fingerprints.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   group: GroupedConflict,
  *   evidence: 'summary'|'standard'|'full',
  *   resolvedCoordinate: ConflictResolvedCoordinate
- * }} options
- * @returns {Promise<ConflictTrace>}
+ * }} options - Trace construction parameters.
+ * @returns {Promise<ConflictTrace>} The finalized conflict trace.
  */
 async function buildConflictTrace(service, { group, evidence, resolvedCoordinate }) {
   const winner = buildWinner(group.winner);
@@ -1651,8 +2005,10 @@ async function buildConflictTrace(service, { group, evidence, resolvedCoordinate
 }
 
 /**
- * @param {OpRecord} winner
- * @returns {ConflictWinner}
+ * Wraps a winning OpRecord into the ConflictWinner shape with anchor and digest.
+ *
+ * @param {OpRecord} winner - The winning operation record.
+ * @returns {ConflictWinner} The conflict winner.
  */
 function buildWinner(winner) {
   return {
@@ -1662,9 +2018,11 @@ function buildWinner(winner) {
 }
 
 /**
- * @param {GroupedConflict} group
- * @param {'summary'|'standard'|'full'} evidence
- * @returns {ConflictParticipant[]}
+ * Builds the sorted array of ConflictParticipant losers from a grouped conflict.
+ *
+ * @param {GroupedConflict} group - The grouped conflict containing losers.
+ * @param {'summary'|'standard'|'full'} evidence - The evidence level for detail inclusion.
+ * @returns {ConflictParticipant[]} Sorted loser participants.
  */
 function buildLosers(group, evidence) {
   return group.losers
@@ -1673,20 +2031,22 @@ function buildLosers(group, evidence) {
 }
 
 /**
+ * Builds a ConflictParticipant for a single loser with causal relation and optional notes.
+ *
  * @param {{
  *   winner: OpRecord,
  *   loser: OpRecord,
  *   kind: 'supersession'|'eventual_override'|'redundancy',
  *   evidence: 'summary'|'standard'|'full'
- * }} options
- * @returns {ConflictParticipant}
+ * }} options - Participant construction parameters.
+ * @returns {ConflictParticipant} The loser participant.
  */
 function buildLoserParticipant({ winner, loser, kind, evidence }) {
   const relation = inferCausalRelation(winner, loser);
   const participant = {
     anchor: buildRecordAnchor(loser),
     effectDigest: loser.effectDigest,
-    ...(relation ? { causalRelationToWinner: relation } : {}),
+    ...(relation !== undefined ? { causalRelationToWinner: relation } : {}),
     structurallyDistinctAlternative: loser.effectDigest !== winner.effectDigest,
     replayableFromAnchors: true,
   };
@@ -1700,8 +2060,10 @@ function buildLoserParticipant({ winner, loser, kind, evidence }) {
 }
 
 /**
- * @param {OpRecord} record
- * @returns {ConflictAnchor}
+ * Converts an OpRecord into a ConflictAnchor with receipt cross-references.
+ *
+ * @param {OpRecord} record - The operation record.
+ * @returns {ConflictAnchor} The record anchor.
  */
 function buildRecordAnchor(record) {
   return {
@@ -1716,17 +2078,35 @@ function buildRecordAnchor(record) {
 }
 
 /**
+ * Builds detailed classification notes for a loser participant at full evidence level.
+ *
  * @param {{
  *   winner: OpRecord,
  *   loser: OpRecord,
  *   kind: 'supersession'|'eventual_override'|'redundancy',
  *   relation: ConflictParticipant['causalRelationToWinner']
- * }} options
- * @returns {string[]}
+ * }} options - Note construction parameters.
+ * @returns {string[]} Sorted deduplicated classification notes.
  */
 function buildLoserNotes({ winner, loser, kind, relation }) {
   /** @type {string[]} */
   const notes = [CLASSIFICATION_NOTES.SAME_TARGET];
+  appendKindNotes(notes, kind);
+  appendRelationNotes(notes, relation);
+  if (loser.writerId !== winner.writerId) {
+    notes.push(CLASSIFICATION_NOTES.DIFFERENT_WRITER);
+  }
+  return normalizeNoteCodes(notes);
+}
+
+/**
+ * Appends kind-specific classification notes to the notes array.
+ *
+ * @param {string[]} notes - The notes array to append to.
+ * @param {'supersession'|'eventual_override'|'redundancy'} kind - The conflict kind.
+ * @returns {void}
+ */
+function appendKindNotes(notes, kind) {
   if (kind === 'supersession') {
     notes.push(CLASSIFICATION_NOTES.RECEIPT_SUPERSEDED);
   }
@@ -1736,22 +2116,30 @@ function buildLoserNotes({ winner, loser, kind, relation }) {
   if (kind === 'eventual_override') {
     notes.push(CLASSIFICATION_NOTES.EFFECTIVE_THEN_LOST, CLASSIFICATION_NOTES.DIGEST_DIFFERS);
   }
+}
+
+/**
+ * Appends causal-relation classification notes to the notes array.
+ *
+ * @param {string[]} notes - The notes array to append to.
+ * @param {ConflictParticipant['causalRelationToWinner']} relation - The causal relation.
+ * @returns {void}
+ */
+function appendRelationNotes(notes, relation) {
   if (relation === 'concurrent') {
     notes.push(CLASSIFICATION_NOTES.CONCURRENT_TO_WINNER);
   }
   if (relation === 'ordered') {
     notes.push(CLASSIFICATION_NOTES.ORDERED_BEFORE_WINNER);
   }
-  if (loser.writerId !== winner.writerId) {
-    notes.push(CLASSIFICATION_NOTES.DIFFERENT_WRITER);
-  }
-  return normalizeNoteCodes(notes);
 }
 
 /**
- * @param {GroupedConflict} group
- * @param {ConflictParticipant[]} losers
- * @returns {Record<string, unknown>}
+ * Builds the input for the why-fingerprint hash from a grouped conflict and its losers.
+ *
+ * @param {GroupedConflict} group - The grouped conflict.
+ * @param {ConflictParticipant[]} losers - The built loser participants.
+ * @returns {Record<string, unknown>} Hash input record.
  */
 function buildWhyFingerprintInput(group, losers) {
   return {
@@ -1765,13 +2153,15 @@ function buildWhyFingerprintInput(group, losers) {
 }
 
 /**
+ * Builds the input for the conflict ID hash including coordinate and anchor information.
+ *
  * @param {{
  *   group: GroupedConflict,
  *   winner: ConflictWinner,
  *   losers: ConflictParticipant[],
  *   resolvedCoordinate: ConflictResolvedCoordinate
- * }} options
- * @returns {Record<string, unknown>}
+ * }} options - Conflict ID input parameters.
+ * @returns {Record<string, unknown>} Hash input record.
  */
 function buildConflictIdInput({ group, winner, losers, resolvedCoordinate }) {
   return {
@@ -1786,9 +2176,11 @@ function buildConflictIdInput({ group, winner, losers, resolvedCoordinate }) {
 }
 
 /**
- * @param {GroupedConflict} group
- * @param {'summary'|'standard'|'full'} evidence
- * @returns {ConflictTrace['evidence']}
+ * Builds the evidence section of a conflict trace with patch and receipt references.
+ *
+ * @param {GroupedConflict} group - The grouped conflict.
+ * @param {'summary'|'standard'|'full'} evidence - The evidence level.
+ * @returns {ConflictTrace['evidence']} The evidence record.
  */
 function buildTraceEvidence(group, evidence) {
   return {
@@ -1802,8 +2194,10 @@ function buildTraceEvidence(group, evidence) {
 }
 
 /**
- * @param {OpRecord} record
- * @returns {{ patchSha: string, lamport: number, opIndex: number }}
+ * Builds a receipt reference from an operation record for inclusion in trace evidence.
+ *
+ * @param {OpRecord} record - The operation record.
+ * @returns {{ patchSha: string, lamport: number, opIndex: number }} Receipt reference.
  */
 function buildReceiptRef(record) {
   return {
@@ -1814,51 +2208,106 @@ function buildReceiptRef(record) {
 }
 
 /**
- * @param {{ patchSha: string, opIndex: number }} a
- * @param {{ patchSha: string, opIndex: number }} b
- * @returns {number}
+ * Compares two receipt references for deterministic sorting by patch SHA and op index.
+ *
+ * @param {{ patchSha: string, opIndex: number }} a - First receipt reference.
+ * @param {{ patchSha: string, opIndex: number }} b - Second receipt reference.
+ * @returns {number} Negative, zero, or positive for ordering.
  */
 function compareReceiptRefs(a, b) {
   return compareStrings(`${a.patchSha}:${a.opIndex}`, `${b.patchSha}:${b.opIndex}`);
 }
 
 /**
- * @param {ConflictTrace} trace
- * @param {NormalizedConflictAnalyzeOptions} normalized
- * @returns {boolean}
+ * Tests whether a conflict trace passes all user-supplied filters (kind, entity, target, writer).
+ *
+ * @param {ConflictTrace} trace - The trace to test.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized filter options.
+ * @returns {boolean} True if the trace passes all filters.
  */
 function matchesFilters(trace, normalized) {
-  if (normalized.kinds && !normalized.kinds.includes(trace.kind)) {
-    return false;
-  }
-  if (normalized.entityId && !targetTouchesEntity(trace.target, normalized.entityId)) {
-    return false;
-  }
-  if (normalized.target && !matchesTargetSelector(trace.target, normalized.target)) {
-    return false;
-  }
-  return !normalized.writerId || traceTouchesWriter(trace, normalized.writerId);
+  return matchesKindFilter(trace, normalized)
+    && matchesEntityFilter(trace, normalized)
+    && matchesTargetFilter(trace, normalized)
+    && matchesWriterFilter(trace, normalized);
 }
 
 /**
- * @param {ConflictTrace[]} traces
- * @param {NormalizedConflictAnalyzeOptions} normalized
- * @returns {ConflictTrace[]}
+ * Checks whether a trace passes the kind filter.
+ *
+ * @param {ConflictTrace} trace - The trace to test.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @returns {boolean} True if the trace passes.
+ */
+function matchesKindFilter(trace, normalized) {
+  return normalized.kinds === null || normalized.kinds.includes(trace.kind);
+}
+
+/**
+ * Checks whether a trace passes the entity filter.
+ *
+ * @param {ConflictTrace} trace - The trace to test.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @returns {boolean} True if the trace passes.
+ */
+function matchesEntityFilter(trace, normalized) {
+  if (typeof normalized.entityId !== 'string' || normalized.entityId.length === 0) {
+    return true;
+  }
+  return targetTouchesEntity(trace.target, normalized.entityId);
+}
+
+/**
+ * Checks whether a trace passes the target selector filter.
+ *
+ * @param {ConflictTrace} trace - The trace to test.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @returns {boolean} True if the trace passes.
+ */
+function matchesTargetFilter(trace, normalized) {
+  if (normalized.target === null || normalized.target === undefined) {
+    return true;
+  }
+  return matchesTargetSelector(trace.target, normalized.target);
+}
+
+/**
+ * Checks whether a trace passes the writer filter.
+ *
+ * @param {ConflictTrace} trace - The trace to test.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @returns {boolean} True if the trace passes.
+ */
+function matchesWriterFilter(trace, normalized) {
+  if (typeof normalized.writerId !== 'string' || normalized.writerId.length === 0) {
+    return true;
+  }
+  return traceTouchesWriter(trace, normalized.writerId);
+}
+
+/**
+ * Filters an array of conflict traces against the normalized analysis options.
+ *
+ * @param {ConflictTrace[]} traces - The traces to filter.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized filter options.
+ * @returns {ConflictTrace[]} Traces that match all filters.
  */
 function filterTraces(traces, normalized) {
   return traces.filter((trace) => matchesFilters(trace, normalized));
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Computes a snapshot hash over the entire analysis result for integrity verification.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
  *   normalized: NormalizedConflictAnalyzeOptions,
  *   truncated: boolean,
  *   diagnostics: ConflictDiagnostic[],
  *   traces: ConflictTrace[]
- * }} options
- * @returns {Promise<string>}
+ * }} options - Snapshot hash inputs.
+ * @returns {Promise<string>} Hex-encoded snapshot hash.
  */
 async function buildAnalysisSnapshotHash(service, {
   resolvedCoordinate,
@@ -1878,12 +2327,14 @@ async function buildAnalysisSnapshotHash(service, {
 }
 
 /**
- * @param {ConflictAnalyzerService} service
+ * Computes a snapshot hash for an analysis that found zero conflicts.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
  *   normalized: NormalizedConflictAnalyzeOptions
- * }} options
- * @returns {Promise<string>}
+ * }} options - Empty snapshot inputs.
+ * @returns {Promise<string>} Hex-encoded snapshot hash.
  */
 async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized }) {
   return await service._hash({
@@ -1897,33 +2348,56 @@ async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized 
 }
 
 /**
- * @param {ConflictAnalyzerService} service
- * @param {NormalizedConflictAnalyzeOptions} normalized
- * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>}
+ * Resolves the analysis context by loading patch frames from either a strand or the frontier.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options.
+ * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
  */
 async function resolveAnalysisContext(service, normalized) {
-  if (normalized.strandId) {
-    const strands = new StrandService({ graph: service._graph });
-    const descriptor = await strands.getOrThrow(normalized.strandId);
-    const entries = await strands.getPatchEntries(normalized.strandId, {
-      ceiling: normalized.lamportCeiling,
-    });
-    const frontier = new Map(
-      Object.entries(descriptor.baseObservation.frontier).sort(([a], [b]) => compareStrings(a, b)),
-    );
-    return {
-      patchFrames: buildPatchFrames(entries),
-      resolvedCoordinate: buildResolvedCoordinate({
-        coordinateKind: 'strand',
-        frontier,
-        lamportCeiling: normalized.lamportCeiling,
-        maxPatches: normalized.maxPatches,
-        frontierDigest: descriptor.baseObservation.frontierDigest,
-        strand: buildResolvedStrandMetadata(descriptor),
-      }),
-    };
+  if (typeof normalized.strandId === 'string' && normalized.strandId.length > 0) {
+    return await resolveStrandContext(service, normalized);
   }
+  return await resolveFrontierContext(service, normalized);
+}
 
+/**
+ * Resolves the analysis context from a strand, loading its patches and building the coordinate.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options with strandId.
+ * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
+ */
+async function resolveStrandContext(service, normalized) {
+  const strands = new StrandService({ graph: service._graph });
+  const descriptor = await strands.getOrThrow(/** @type {string} */ (normalized.strandId));
+  const entries = await strands.getPatchEntries(/** @type {string} */ (normalized.strandId), {
+    ceiling: normalized.lamportCeiling,
+  });
+  const frontier = new Map(
+    Object.entries(descriptor.baseObservation.frontier).sort(([a], [b]) => compareStrings(a, b)),
+  );
+  return {
+    patchFrames: buildPatchFrames(entries),
+    resolvedCoordinate: buildResolvedCoordinate({
+      coordinateKind: 'strand',
+      frontier,
+      lamportCeiling: normalized.lamportCeiling,
+      maxPatches: normalized.maxPatches,
+      frontierDigest: descriptor.baseObservation.frontierDigest,
+      strand: buildResolvedStrandMetadata(descriptor),
+    }),
+  };
+}
+
+/**
+ * Resolves the analysis context from the frontier, loading all writer patches.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service.
+ * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options.
+ * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
+ */
+async function resolveFrontierContext(service, normalized) {
   const { frontier, patchFrames } = await loadFrontierPatchFrames(
     service._graph,
     normalized.lamportCeiling,
@@ -1942,13 +2416,15 @@ async function resolveAnalysisContext(service, normalized) {
 }
 
 /**
+ * Assembles the final ConflictAnalysis result object from its component parts.
+ *
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
  *   analysisSnapshotHash: string,
  *   diagnostics: ConflictDiagnostic[],
  *   conflicts: ConflictTrace[]
- * }} options
- * @returns {ConflictAnalysis}
+ * }} options - Result components.
+ * @returns {ConflictAnalysis} The assembled analysis result.
  */
 function buildConflictAnalysisResult({
   resolvedCoordinate,
@@ -1970,16 +2446,21 @@ function buildConflictAnalysisResult({
  */
 export class ConflictAnalyzerService {
   /**
-   * @param {{ graph: WarpRuntime }} options
+   * Initializes the analyzer with a warp runtime graph instance.
+   *
+   * @param {{ graph: WarpRuntime }} options - Construction options with graph dependency.
    */
   constructor({ graph }) {
     this._graph = graph;
+    /** @type {Map<string, string>} */
     this._digestCache = new Map();
   }
 
   /**
-   * @param {unknown} payload
-   * @returns {Promise<string>}
+   * Computes a cached SHA-256 digest of the canonical serialization of a payload.
+   *
+   * @param {unknown} payload - The value to hash.
+   * @returns {Promise<string>} Hex-encoded digest.
    */
   async _hash(payload) {
     return await hashPayload({
@@ -1990,8 +2471,10 @@ export class ConflictAnalyzerService {
   }
 
   /**
-   * @param {ConflictAnalyzeOptions} [options]
-   * @returns {Promise<ConflictAnalysis>}
+   * Performs a full conflict analysis over the patch history, returning all detected traces.
+   *
+   * @param {ConflictAnalyzeOptions} [options] - Optional analysis filters and budget.
+   * @returns {Promise<ConflictAnalysis>} The complete analysis result.
    */
   async analyze(options) {
     const normalized = normalizeOptions(options);
@@ -1999,45 +2482,60 @@ export class ConflictAnalyzerService {
     const diagnostics = [];
     const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, normalized);
     if (patchFrames.length === 0) {
-      return buildConflictAnalysisResult({
-        resolvedCoordinate,
-        analysisSnapshotHash: await buildEmptySnapshotHash(this, { resolvedCoordinate, normalized }),
-        diagnostics,
-        conflicts: [],
-      });
+      return await buildEmptyAnalysis(this, { resolvedCoordinate, normalized, diagnostics });
     }
-    attachReceipts(patchFrames);
-    const scanWindow = buildScanWindow({
-      patchFrames,
-      maxPatches: normalized.maxPatches,
-      lamportCeiling: normalized.lamportCeiling,
-      diagnostics,
-    });
-    const collector = await collectConflictData(this, {
-      patchFrames,
-      scannedPatchShas: scanWindow.scannedPatchShas,
-      diagnostics,
-    });
-    const traces = await buildConflictTraces(this, {
-      grouped: groupCandidates(collector.candidates).values(),
-      evidence: normalized.evidence,
-      resolvedCoordinate,
-    });
-    const conflicts = filterTraces(traces, normalized);
-    const analysisSnapshotHash = await buildAnalysisSnapshotHash(this, {
-      resolvedCoordinate,
-      normalized,
-      truncated: scanWindow.truncated,
-      diagnostics,
-      traces: conflicts,
-    });
-    return buildConflictAnalysisResult({
-      resolvedCoordinate,
-      analysisSnapshotHash,
-      diagnostics,
-      conflicts,
-    });
+    return await runFullAnalysis(this, { patchFrames, resolvedCoordinate, normalized, diagnostics });
   }
+}
+
+/**
+ * Builds the analysis result for the trivial case of zero patch frames.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service.
+ * @param {{
+ *   resolvedCoordinate: ConflictResolvedCoordinate,
+ *   normalized: NormalizedConflictAnalyzeOptions,
+ *   diagnostics: ConflictDiagnostic[]
+ * }} options - Empty analysis parameters.
+ * @returns {Promise<ConflictAnalysis>} The empty analysis result.
+ */
+async function buildEmptyAnalysis(service, { resolvedCoordinate, normalized, diagnostics }) {
+  return buildConflictAnalysisResult({
+    resolvedCoordinate,
+    analysisSnapshotHash: await buildEmptySnapshotHash(service, { resolvedCoordinate, normalized }),
+    diagnostics,
+    conflicts: [],
+  });
+}
+
+/**
+ * Executes the full analysis pipeline: attach receipts, scan, collect, trace, filter, and hash.
+ *
+ * @param {ConflictAnalyzerService} service - The analyzer service.
+ * @param {{
+ *   patchFrames: PatchFrame[],
+ *   resolvedCoordinate: ConflictResolvedCoordinate,
+ *   normalized: NormalizedConflictAnalyzeOptions,
+ *   diagnostics: ConflictDiagnostic[]
+ * }} options - Full analysis parameters.
+ * @returns {Promise<ConflictAnalysis>} The complete analysis result.
+ */
+async function runFullAnalysis(service, { patchFrames, resolvedCoordinate, normalized, diagnostics }) {
+  attachReceipts(patchFrames);
+  const scanWindow = buildScanWindow({
+    patchFrames, maxPatches: normalized.maxPatches, lamportCeiling: normalized.lamportCeiling, diagnostics,
+  });
+  const collector = await collectConflictData(service, {
+    patchFrames, scannedPatchShas: scanWindow.scannedPatchShas, diagnostics,
+  });
+  const traces = await buildConflictTraces(service, {
+    grouped: groupCandidates(collector.candidates).values(), evidence: normalized.evidence, resolvedCoordinate,
+  });
+  const conflicts = filterTraces(traces, normalized);
+  const analysisSnapshotHash = await buildAnalysisSnapshotHash(service, {
+    resolvedCoordinate, normalized, truncated: scanWindow.truncated, diagnostics, traces: conflicts,
+  });
+  return buildConflictAnalysisResult({ resolvedCoordinate, analysisSnapshotHash, diagnostics, conflicts });
 }
 
 export default ConflictAnalyzerService;

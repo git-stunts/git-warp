@@ -97,27 +97,41 @@ export function validateGraphName(name) {
   if (typeof name !== 'string') {
     throw new Error(`Invalid graph name: expected string, got ${typeof name}`);
   }
-
   if (name.length === 0) {
     throw new Error('Invalid graph name: cannot be empty');
   }
+  rejectForbiddenGraphChars(name);
+  rejectReservedSegments(name);
+}
 
+/**
+ * Throws if the graph name contains any forbidden character sequences.
+ *
+ * @param {string} name
+ * @throws {Error} If the name contains path traversal, semicolons, spaces, or null bytes
+ */
+function rejectForbiddenGraphChars(name) {
   if (PATH_TRAVERSAL_PATTERN.test(name)) {
     throw new Error(`Invalid graph name: contains path traversal sequence '..': ${name}`);
   }
-
   if (name.includes(';')) {
     throw new Error(`Invalid graph name: contains semicolon: ${name}`);
   }
-
   if (name.includes(' ')) {
     throw new Error(`Invalid graph name: contains space: ${name}`);
   }
-
   if (name.includes('\0')) {
     throw new Error(`Invalid graph name: contains null byte: ${name}`);
   }
+}
 
+/**
+ * Throws if any slash-delimited segment of the name is a reserved ref-layout keyword.
+ *
+ * @param {string} name
+ * @throws {Error} If a segment matches a reserved keyword
+ */
+function rejectReservedSegments(name) {
   const segments = name.split('/');
   for (const seg of segments) {
     if (RESERVED_GRAPH_NAME_SEGMENTS.has(seg)) {
@@ -151,38 +165,46 @@ export function validateWriterId(id) {
   if (typeof id !== 'string') {
     throw new Error(`Invalid writer ID: expected string, got ${typeof id}`);
   }
-
   if (id.length === 0) {
     throw new Error('Invalid writer ID: cannot be empty');
   }
-
   if (id.length > MAX_WRITER_ID_LENGTH) {
     throw new Error(
       `Invalid writer ID: exceeds maximum length of ${MAX_WRITER_ID_LENGTH} characters: ${id.length}`
     );
   }
+  rejectForbiddenWriterChars(id);
+}
 
-  // Check for path traversal before pattern check for clearer error message
+/**
+ * Throws if the writer ID contains forbidden characters or fails the ref-safe pattern.
+ *
+ * @param {string} id
+ * @throws {Error} If the ID contains path traversal, slashes, null bytes, whitespace, or non-ASCII chars
+ */
+function rejectForbiddenWriterChars(id) {
   if (PATH_TRAVERSAL_PATTERN.test(id)) {
     throw new Error(`Invalid writer ID: contains path traversal sequence '..': ${id}`);
   }
-
-  // Check for forward slash before pattern check for clearer error message
   if (id.includes('/')) {
     throw new Error(`Invalid writer ID: contains forward slash: ${id}`);
   }
+  rejectControlAndNonAscii(id);
+}
 
-  // Check for null byte
+/**
+ * Throws if the writer ID contains null bytes, whitespace, or non-ASCII ref-unsafe chars.
+ *
+ * @param {string} id
+ * @throws {Error} On null bytes, whitespace, or characters outside [A-Za-z0-9._-]
+ */
+function rejectControlAndNonAscii(id) {
   if (id.includes('\0')) {
     throw new Error(`Invalid writer ID: contains null byte: ${id}`);
   }
-
-  // Check for whitespace (space, tab, newline, etc.)
   if (/\s/.test(id)) {
     throw new Error(`Invalid writer ID: contains whitespace: ${id}`);
   }
-
-  // Check overall pattern for ref-safe characters
   if (!WRITER_ID_PATTERN.test(id)) {
     throw new Error(`Invalid writer ID: contains invalid characters (only [A-Za-z0-9._-] allowed): ${id}`);
   }
@@ -514,37 +536,45 @@ export function parseWriterIdFromRef(refPath) {
   if (typeof refPath !== 'string') {
     return null;
   }
+  const parts = splitWarpRefParts(refPath);
+  if (parts === null) {
+    return null;
+  }
+  return extractValidWriterId(parts);
+}
 
-  // Match pattern: refs/warp/<graph>/writers/<writerId>
+/**
+ * Splits a ref path into its segment parts after stripping the warp prefix.
+ * Returns null if the ref is not under refs/warp/ or has too few segments.
+ *
+ * @param {string} refPath
+ * @returns {string[]|null}
+ */
+function splitWarpRefParts(refPath) {
   const prefix = `${REF_PREFIX}/`;
   if (!refPath.startsWith(prefix)) {
     return null;
   }
-
-  const rest = refPath.slice(prefix.length);
-  const parts = rest.split('/');
-
-  // We expect: <graph>/writers/<writerId>
-  // So parts should be: [graphName, 'writers', writerId]
+  const parts = refPath.slice(prefix.length).split('/');
   if (parts.length < 3) {
     return null;
   }
+  return parts;
+}
 
-  // Find the 'writers' segment
+/**
+ * Extracts and validates the writer ID from parsed ref parts.
+ * Expects the pattern [...graphSegments, 'writers', writerId].
+ *
+ * @param {string[]} parts
+ * @returns {string|null}
+ */
+function extractValidWriterId(parts) {
   const writersIndex = parts.indexOf('writers');
-  if (writersIndex === -1 || writersIndex === 0) {
+  if (writersIndex < 1 || writersIndex !== parts.length - 2) {
     return null;
   }
-
-  // The writer ID is everything after 'writers'
-  // (should be exactly one segment for valid writer IDs)
-  if (writersIndex !== parts.length - 2) {
-    return null;
-  }
-
   const writerId = parts[parts.length - 1];
-
-  // Validate the extracted writer ID
   try {
     validateWriterId(writerId);
     return writerId;

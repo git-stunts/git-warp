@@ -97,21 +97,23 @@ class ProvenanceIndex {
    * @returns {ProvenanceIndex} This index for chaining
    */
   addPatch(patchSha, reads, writes) {
-    // Index all reads
-    if (reads && reads.length > 0) {
-      for (const entityId of reads) {
-        this.#addEntry(entityId, patchSha);
-      }
-    }
-
-    // Index all writes
-    if (writes && writes.length > 0) {
-      for (const entityId of writes) {
-        this.#addEntry(entityId, patchSha);
-      }
-    }
-
+    this.#indexEntityList(reads, patchSha);
+    this.#indexEntityList(writes, patchSha);
     return this;
+  }
+
+  /**
+   * Indexes all entities from a list against a patch SHA.
+   *
+   * @param {string[]|undefined} entities - Array of nodeIds/edgeKeys, or undefined
+   * @param {string} patchSha - The patch SHA to associate
+   */
+  #indexEntityList(entities, patchSha) {
+    if (entities !== undefined && entities !== null && entities.length > 0) {
+      for (const entityId of entities) {
+        this.#addEntry(entityId, patchSha);
+      }
+    }
   }
 
   /**
@@ -257,6 +259,7 @@ class ProvenanceIndex {
    * @returns {Map<string, Set<string>>} The built index
    */
   static #buildIndex(entries) {
+    /** @type {Map<string, Set<string>>} */
     const index = new Map();
     for (const [entityId, shas] of entries) {
       index.set(entityId, new Set(shas));
@@ -273,19 +276,26 @@ class ProvenanceIndex {
    * @throws {Error} If the buffer contains an unsupported version
    */
   static deserialize(buffer, { codec } = {}) {
-    const c = codec || defaultCodec;
+    const c = codec ?? defaultCodec;
     /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */
     const obj = /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */ (c.decode(buffer));
+    ProvenanceIndex.#validateSerialized(obj);
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries));
+  }
 
+  /**
+   * Validates the shape of a deserialized or parsed ProvenanceIndex payload.
+   *
+   * @param {{ version?: number, entries?: Array<[string, string[]]> }} obj
+   * @throws {Error} If version is unsupported or entries are missing/invalid
+   */
+  static #validateSerialized(obj) {
     if (obj.version !== 1) {
       throw new Error(`Unsupported ProvenanceIndex version: ${obj.version}`);
     }
-
-    if (!obj.entries || !Array.isArray(obj.entries)) {
+    if (!Array.isArray(obj.entries)) {
       throw new Error('Missing or invalid ProvenanceIndex entries');
     }
-
-    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries));
   }
 
   /**
@@ -305,15 +315,8 @@ class ProvenanceIndex {
    * @throws {Error} If the JSON contains an unsupported version
    */
   static fromJSON(json) {
-    if (json.version !== 1) {
-      throw new Error(`Unsupported ProvenanceIndex version: ${json.version}`);
-    }
-
-    if (!json.entries || !Array.isArray(json.entries)) {
-      throw new Error('Missing or invalid ProvenanceIndex entries');
-    }
-
-    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(json.entries || []));
+    ProvenanceIndex.#validateSerialized(json);
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(json.entries));
   }
 
   /**

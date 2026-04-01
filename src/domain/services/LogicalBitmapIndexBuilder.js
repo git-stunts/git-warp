@@ -24,6 +24,8 @@ const MAX_LOCAL_ID = 1 << 24;
 
 export default class LogicalBitmapIndexBuilder {
   /**
+   * Creates a LogicalBitmapIndexBuilder with optional codec injection.
+   *
    * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
    */
   constructor(options = undefined) {
@@ -272,6 +274,8 @@ export default class LogicalBitmapIndexBuilder {
   }
 
   /**
+   * Serializes forward or reverse edge bitmaps into the output tree, grouped by shard.
+   *
    * @param {Record<string, Uint8Array>} tree
    * @param {string} direction - 'fwd' or 'rev'
    * @param {Map<string, import('../utils/roaring.js').RoaringBitmapSubset>} bitmaps
@@ -306,6 +310,8 @@ export default class LogicalBitmapIndexBuilder {
   }
 
   /**
+   * Adds a target ID to a Roaring bitmap in the given store, creating it if needed.
+   *
    * @param {Map<string, import('../utils/roaring.js').RoaringBitmapSubset>} store
    * @param {{ shardKey: string, bucket: string, owner: number, target: number }} opts
    * @private

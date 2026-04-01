@@ -23,6 +23,11 @@ const DEBUG_TOPICS = Object.freeze({
   [timelineTopic.DEBUG_TOPIC.name]: timelineTopic,
 });
 
+/**
+ * Builds the usage text for the debug command listing all available topics.
+ *
+ * @returns {string} Formatted usage text
+ */
 function buildDebugUsage() {
   const topicLines = Object.values(DEBUG_TOPICS)
     .map(({ DEBUG_TOPIC }) => `  ${DEBUG_TOPIC.name.padEnd(12)} ${DEBUG_TOPIC.summary}`);
@@ -33,6 +38,8 @@ function buildDebugUsage() {
 }
 
 /**
+ * Routes debug subcommands to their respective topic handlers.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -40,7 +47,7 @@ export default async function handleDebug({ options, args }) {
   const topicName = args[0];
   const rest = args.slice(1);
 
-  if (!topicName) {
+  if (topicName === undefined || topicName === null || topicName.length === 0) {
     throw usageError(buildDebugUsage());
   }
 

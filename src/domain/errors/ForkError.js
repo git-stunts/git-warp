@@ -25,6 +25,8 @@ import WarpError from './WarpError.js';
  */
 export default class ForkError extends WarpError {
   /**
+   * Constructs a ForkError with the default code FORK_ERROR.
+   *
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

@@ -22,6 +22,8 @@ import WarpError from './WarpError.js';
  */
 export default class TrustError extends WarpError {
   /**
+   * Constructs a TrustError with the default code TRUST_ERROR.
+   *
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */
