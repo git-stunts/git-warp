@@ -501,10 +501,10 @@ export default class GitGraphAdapter extends GraphPersistencePort {
     const parents = parentsStr ? parentsStr.split(' ').filter(p => p) : [];
 
     return {
-      sha: commitSha.trim(),
+      sha: (commitSha ?? '').trim(),
       message,
-      author: author.trim(),
-      date: date.trim(),
+      author: (author ?? '').trim(),
+      date: (date ?? '').trim(),
       parents,
     };
   }
@@ -635,7 +635,11 @@ export default class GitGraphAdapter extends GraphPersistencePort {
         batch.map(([, oid]) => this.readBlob(oid))
       );
       for (let j = 0; j < batch.length; j++) {
-        files[batch[j][0]] = results[j];
+        const entry = batch[j];
+        const result = results[j];
+        if (entry !== undefined && entry !== null && result !== undefined && result !== null) {
+          files[entry[0]] = result;
+        }
       }
     }
     return files;
@@ -675,7 +679,7 @@ export default class GitGraphAdapter extends GraphPersistencePort {
       const meta = record.slice(0, tabIndex);
       const path = record.slice(tabIndex + 1);
       const [, , oid] = meta.split(' ');
-      oids[path] = oid;
+      oids[path] = oid ?? '';
     }
     return oids;
   }

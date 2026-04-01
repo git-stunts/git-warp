@@ -25,8 +25,8 @@ describe('BisectService', { timeout: 30000 }, () => {
 
       const bisect = new BisectService({ graph });
       const result = await bisect.run({
-        good: shas[0],    // A
-        bad: shas[4],     // E
+        good: /** @type {string} */ (shas[0]),    // A
+        bad: /** @type {string} */ (shas[4]),     // E
         writerId: 'w1',
         testFn: async (state) => {
           // "good" means 'bug' node is NOT alive
@@ -181,8 +181,8 @@ describe('BisectService', { timeout: 30000 }, () => {
 
       const bisect = new BisectService({ graph });
       const result = await bisect.run({
-        good: shas[0],
-        bad: shas[3],
+        good: /** @type {string} */ (shas[0]),
+        bad: /** @type {string} */ (shas[3]),
         writerId: 'w1',
         testFn: async (state, sha) => {
           observedShas.push(sha);
@@ -219,8 +219,8 @@ describe('BisectService', { timeout: 30000 }, () => {
 
       const bisect = new BisectService({ graph });
       const result = await bisect.run({
-        good: shas[0],
-        bad: shas[3],
+        good: /** @type {string} */ (shas[0]),
+        bad: /** @type {string} */ (shas[3]),
         writerId: 'w1',
         testFn: async () => false, // every state is "bad"
       });
@@ -251,8 +251,8 @@ describe('BisectService', { timeout: 30000 }, () => {
       const bisect = new BisectService({ graph });
 
       await expect(bisect.run({
-        good: shas[0],
-        bad: shas[2],
+        good: /** @type {string} */ (shas[0]),
+        bad: /** @type {string} */ (shas[2]),
         writerId: 'w1',
         testFn: async () => { throw testError; },
       })).rejects.toThrow(testError);

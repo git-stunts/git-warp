@@ -68,19 +68,33 @@ function mergeSorted(a, b) {
   let i = 0;
   let j = 0;
   while (i < a.length && j < b.length) {
-    const cmp = edgeCmp(a[i], b[j]);
+    const ai = a[i];
+    const bj = b[j];
+    if (ai === undefined || ai === null || bj === undefined || bj === null) { break; }
+    const cmp = edgeCmp(ai, bj);
     if (cmp < 0) {
-      result.push(a[i++]);
+      result.push(ai);
+      i++;
     } else if (cmp > 0) {
-      result.push(b[j++]);
+      result.push(bj);
+      j++;
     } else {
       // Duplicate — take one, skip both
-      result.push(a[i++]);
+      result.push(ai);
+      i++;
       j++;
     }
   }
-  while (i < a.length) { result.push(a[i++]); }
-  while (j < b.length) { result.push(b[j++]); }
+  while (i < a.length) {
+    const ai = a[i];
+    if (ai !== undefined && ai !== null) { result.push(ai); }
+    i++;
+  }
+  while (j < b.length) {
+    const bj = b[j];
+    if (bj !== undefined && bj !== null) { result.push(bj); }
+    j++;
+  }
   return result;
 }
 

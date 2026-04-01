@@ -159,7 +159,7 @@ describe('StreamingBitmapIndexBuilder', () => {
       expect(treeOid).toBe('tree-oid');
       expect(mockStorage.writeTree).toHaveBeenCalled();
 
-      const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('meta_'))).toBe(true);
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_fwd_'))).toBe(true);
       expect(treeEntries.some((/** @type {any} */ e) => e.includes('shards_rev_'))).toBe(true);
@@ -342,13 +342,13 @@ describe('StreamingBitmapIndexBuilder memory guard', () => {
       await builder.registerNode(sha);
     }
     for (const [parent, child] of edges) {
-      await builder.addEdge(parent, child);
+      await builder.addEdge(/** @type {string} */ (parent), /** @type {string} */ (child));
     }
 
     await builder.finalize();
 
     // Verify all nodes are in meta shards
-    const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+    const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
     const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
     expect(metaEntries.length).toBeGreaterThan(0);
 
@@ -409,7 +409,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
 
       // Verify tree was created with merged shards
       expect(mockStorage.writeTree).toHaveBeenCalled();
-      const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
 
       // Should have meta shards for SHA→ID mappings
       const metaEntries = treeEntries.filter((/** @type {any} */ e) => e.includes('meta_'));
@@ -543,7 +543,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
 
       // The final tree should reference a merged shard
       expect(mockStorage.writeTree).toHaveBeenCalled();
-      const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
       const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
       expect(fwdAaShard).toBeDefined();
 
@@ -620,7 +620,7 @@ describe('StreamingBitmapIndexBuilder extreme stress tests', () => {
       await builder.finalize();
 
       // Extract the merged 'aa' shard (now wrapped in envelope)
-      const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+      const treeEntries = /** @type {*} */ (mockStorage.writeTree.mock.calls[0])[0];
       const fwdAaShard = treeEntries.find((/** @type {any} */ e) => e.includes('shards_fwd_aa'));
       expect(fwdAaShard).toBeDefined();
 

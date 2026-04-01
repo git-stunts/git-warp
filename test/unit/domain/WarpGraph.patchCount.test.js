@@ -39,30 +39,14 @@ function buildPatchChain(/** @type {any} */ persistence, /** @type {any} */ writ
     shas.push(fakeSha(`${writer}${i}`));
   }
 
-  for (let i = 0; i < count; i++) {
-    const sha = shas[i];
-    const lamport = i + 1;
-    const patch = createPatch(writer, lamport, `n:${writer}:${lamport}`);
-    const patchCbor = encode(patch);
-    const patchOid = fakeSha(`blob-${writer}-${lamport}`);
-
-    const message = encodePatchMessage({
-      graph: 'test',
-      writer,
-      lamport,
-      patchOid,
-      schema: 2,
-    });
-
-    const parents = i < count - 1 ? [shas[i + 1]] : [];
-
+  {
     // getNodeInfo returns commit info (message + parents)
     persistence.getNodeInfo.mockImplementation((/** @type {any} */ querySha) => {
       // Find the matching SHA among all configured commits
       for (let j = 0; j < count; j++) {
         if (querySha === shas[j]) {
           const l = j + 1;
-          const p = createPatch(writer, l, `n:${writer}:${l}`);
+          createPatch(writer, l, `n:${writer}:${l}`);
           const po = fakeSha(`blob-${writer}-${l}`);
           const m = encodePatchMessage({
             graph: 'test',
