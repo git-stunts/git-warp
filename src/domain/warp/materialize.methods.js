@@ -78,6 +78,25 @@ function freezePublicStateWithReceipts(state, receipts) {
 
 
 /**
+ * Triggers an auto-checkpoint when the checkpoint policy threshold is exceeded.
+ * Guard prevents recursion since createCheckpoint() calls materialize() internally.
+ *
+ * @param {import('../WarpRuntime.js').default} graph
+ * @param {number} patchCount
+ * @returns {Promise<void>}
+ */
+async function _maybeAutoCheckpoint(graph, patchCount) {
+  if (graph._checkpointPolicy && !graph._checkpointing && patchCount >= graph._checkpointPolicy.every) {
+    try {
+      await graph.createCheckpoint();
+      graph._patchesSinceCheckpoint = 0;
+    } catch {
+      // Checkpoint failure does not break materialize — continue silently
+    }
+  }
+}
+
+/**
  * Materializes the current graph state.
  *
  * Discovers all writers, collects all patches from each writer's ref chain,
@@ -108,7 +127,7 @@ function freezePublicStateWithReceipts(state, receipts) {
 export async function materialize(options) {
   const t0 = this._clock.now();
   // ZERO-COST: only resolve receipts flag when options provided
-  const collectReceipts = options && options.receipts;
+  const collectReceipts = options?.receipts;
   // Resolve ceiling: explicit option > instance-level seek ceiling > null (latest)
   const ceiling = this._resolveCeiling(options);
 
@@ -227,16 +246,7 @@ export async function materialize(options) {
     this._lastFrontier = await this.getFrontier();
     this._patchesSinceCheckpoint = patchCount;
 
-    // Auto-checkpoint if policy is set and threshold exceeded.
-    // Guard prevents recursion: createCheckpoint() calls materialize() internally.
-    if (this._checkpointPolicy && !this._checkpointing && patchCount >= this._checkpointPolicy.every) {
-      try {
-        await this.createCheckpoint();
-        this._patchesSinceCheckpoint = 0;
-      } catch {
-        // Checkpoint failure does not break materialize — continue silently
-      }
-    }
+    await _maybeAutoCheckpoint(this, patchCount);
 
     this._maybeRunGC(state);
 

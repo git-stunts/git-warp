@@ -30,17 +30,17 @@ async function main() {
     return;
   }
 
-  if (options.json && options.view) {
+  if (options.json && options.view !== null) {
     throw usageError('--json and --view are mutually exclusive');
   }
-  if (options.ndjson && options.view) {
+  if (options.ndjson && options.view !== null) {
     throw usageError('--ndjson and --view are mutually exclusive');
   }
   if (options.json && options.ndjson) {
     throw usageError('--json and --ndjson are mutually exclusive');
   }
 
-  if (!command) {
+  if (command === undefined || command === null || command === '') {
     process.stderr.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.USAGE;
     return;
@@ -51,18 +51,18 @@ async function main() {
     throw usageError(`Unknown command: ${command}`);
   }
 
-  if (options.view && !VIEW_SUPPORTED_COMMANDS.includes(command)) {
+  if (options.view !== null && !VIEW_SUPPORTED_COMMANDS.includes(command)) {
     throw usageError(`--view is not supported for '${command}'. Supported commands: ${VIEW_SUPPORTED_COMMANDS.join(', ')}`);
   }
 
-  const result = await /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<unknown>} */ (handler)({
+  const result = await /** @type {(opts: {command: string, args: string[], options: Record<string, unknown>}) => Promise<Record<string, unknown>|undefined>} */ (handler)({
     command,
     args: commandArgs,
     options,
   });
 
   /** @type {{payload: unknown, exitCode: number}} */
-  const normalized = result && typeof result === 'object' && 'payload' in /** @type {Record<string, unknown>} */ (result)
+  const normalized = result !== undefined && result !== null && typeof result === 'object' && 'payload' in result
     ? /** @type {{payload: unknown, exitCode: number}} */ (result)
     : { payload: result, exitCode: EXIT_CODES.OK };
 
@@ -74,12 +74,13 @@ async function main() {
   // Long-running commands may return a `close` function.
   // Wait for SIGINT/SIGTERM instead of exiting immediately.
   const closeKey = 'close';
-  const close = result && typeof result === 'object' && closeKey in /** @type {Record<string, unknown>} */ (result)
-    ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result)[closeKey])
+  const close = result !== undefined && result !== null && typeof result === 'object' && closeKey in result
+    ? /** @type {() => Promise<void>} */ (result[closeKey])
     : null;
 
   if (close) {
     let closing = false;
+    /** Gracefully shuts down the long-running command and exits. */
     const shutdown = async () => {
       if (closing) { return; }
       closing = true;
@@ -102,8 +103,9 @@ main().catch((error) => {
   /** @type {{error: {code: string, message: string, cause?: unknown}}} */
   const payload = { error: { code, message } };
 
-  if (error && error.cause) {
-    payload.error.cause = error.cause instanceof Error ? error.cause.message : error.cause;
+  if (error instanceof Error && /** @type {{ cause?: unknown }} */ (error).cause !== undefined) {
+    const cause = /** @type {{ cause?: unknown }} */ (error).cause;
+    payload.error.cause = cause instanceof Error ? cause.message : cause;
   }
 
   if (hasJsonFlag || hasNdjsonFlag) {
