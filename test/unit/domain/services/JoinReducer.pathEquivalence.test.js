@@ -123,9 +123,11 @@ function assertStatesEqual(a, b, label = '') {
   ).toEqual([...b.prop.keys()].sort());
   for (const [key, reg] of a.prop) {
     const otherReg = b.prop.get(key);
-    expect(otherReg, `${prefix}prop['${key}']`).toBeDefined();
-    expect(reg.value, `${prefix}prop['${key}'].value`).toEqual(/** @type {any} */ (otherReg).value);
-    expect(reg.eventId, `${prefix}prop['${key}'].eventId`).toEqual(/** @type {any} */ (otherReg).eventId);
+    if (otherReg === undefined) {
+      expect.unreachable(`${prefix}prop['${key}'] missing in second state`);
+    }
+    expect(reg.value, `${prefix}prop['${key}'].value`).toEqual(otherReg.value);
+    expect(reg.eventId, `${prefix}prop['${key}'].eventId`).toEqual(otherReg.eventId);
   }
 
   // observedFrontier: same version vector
