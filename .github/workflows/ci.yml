@@ -33,6 +33,8 @@ jobs:
         run: npm run typecheck:consumer
       - name: 'Gate 4: ESLint (typed rules + no-explicit-any + no-unsafe-*)'
         run: npm run lint
+      - name: 'Gate 4b: Lint ratchet (zero-error invariant)'
+        run: npm run lint:ratchet
       - name: 'Gate 5: Declaration surface validator (manifest vs index.d.ts vs index.js)'
         run: npm run typecheck:surface
       - name: 'Gate 6: Markdown lint (fenced code blocks require language)'

@@ -20,7 +20,7 @@ import { Readable } from 'node:stream';
 
 /**
  * @typedef {object} CasManifest
- * @property {*} [entries]
+ * @property {Record<string, unknown>} [entries]
  */
 
 /**

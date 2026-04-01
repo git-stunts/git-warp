@@ -41,7 +41,7 @@ export function encodeAnchorMessage({ graph, schema = 2 }) {
   validateSchema(schema);
 
   /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {unknown} */ (getCodec());
   return codec.encode({
     title: MESSAGE_TITLES.anchor,
     trailers: {
@@ -68,7 +68,7 @@ export function encodeAnchorMessage({ graph, schema = 2 }) {
  */
 export function decodeAnchorMessage(message) {
   /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {unknown} */ (getCodec());
   const decoded = codec.decode(message);
   const { trailers } = decoded;
 

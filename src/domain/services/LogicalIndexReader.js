@@ -332,7 +332,7 @@ export default class LogicalIndexReader {
    */
   _decodeMeta(path, buf, Ctor) {
     /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */
-    const meta = /** @type {*} */ (this._codec.decode(buf));
+    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (/** @type {unknown} */ (this._codec.decode(buf)));
     const entries = Array.isArray(meta.nodeToGlobal)
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);
