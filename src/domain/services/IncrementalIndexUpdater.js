@@ -285,11 +285,11 @@ export default class IncrementalIndexUpdater {
    * @param {Map<string, MetaShard>} metaCache
    * @param {Map<string, EdgeShardData>} fwdCache
    * @param {Map<string, EdgeShardData>} revCache
-   * @param {Record<string, number>} labels
+   * @param {Record<string, number>} _labels
    * @param {(path: string) => Uint8Array|undefined} loadShard
    * @private
    */
-  _purgeNodeEdges(deadNodeId, metaCache, fwdCache, revCache, labels, loadShard) {
+  _purgeNodeEdges(deadNodeId, metaCache, fwdCache, revCache, _labels, loadShard) {
     const deadMeta = this._getOrLoadMeta(computeShardKey(deadNodeId), metaCache, loadShard);
     const deadGid = this._findGlobalId(deadMeta, deadNodeId);
     if (deadGid === undefined) {
@@ -550,8 +550,9 @@ export default class IncrementalIndexUpdater {
       }
     }
 
-    if (!data['all']) { data['all'] = {}; }
-    data['all'][ownerStr] = merged.serialize(true);
+    const allKey = 'all';
+    if (!data[allKey]) { data[allKey] = {}; }
+    data[allKey][ownerStr] = merged.serialize(true);
   }
 
   // ── Property operations ───────────────────────────────────────────────────

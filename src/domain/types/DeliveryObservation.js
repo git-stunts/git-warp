@@ -27,7 +27,7 @@ const modeSet = new Set(DELIVERY_MODES);
  * @property {string} emissionId - Links to the EffectEmission
  * @property {string} sinkId - Which sink/adapter handled it
  * @property {'delivered' | 'suppressed' | 'failed' | 'skipped'} outcome
- * @property {string | undefined} reason - Why (e.g., "replay mode")
+ * @property {string} [reason] - Why (e.g., "replay mode")
  * @property {number} timestamp - Wall-clock milliseconds
  * @property {Readonly<ExternalizationPolicy>} lens - Execution context at delivery time
  */
@@ -82,12 +82,14 @@ function validateLens(lens) {
  * @returns {void}
  */
 function validateLensFields(l) {
-  if (typeof l['mode'] !== 'string' || !modeSet.has(l['mode'])) {
+  const modeKey = 'mode';
+  const suppressKey = 'suppressExternal';
+  if (typeof l[modeKey] !== 'string' || !modeSet.has(/** @type {string} */ (l[modeKey]))) {
     throw new Error(
       `lens.mode must be one of: ${DELIVERY_MODES.join(', ')}`,
     );
   }
-  if (typeof l['suppressExternal'] !== 'boolean') {
+  if (typeof l[suppressKey] !== 'boolean') {
     throw new Error('lens.suppressExternal must be a boolean');
   }
 }

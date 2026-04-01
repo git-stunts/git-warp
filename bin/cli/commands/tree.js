@@ -133,8 +133,10 @@ function renderTreeNode({ nodeId, childMap, propsMap, propKeys, prefix, isLast, 
   const kids = childMap.get(nodeId) ?? [];
   const childPrefix = depth === 0 ? '' : `${prefix}${isLast ? '    ' : '\u2502   '}`;
   for (let i = 0; i < kids.length; i++) {
+    const kid = kids[i];
+    if (!kid) { continue; }
     renderTreeNode({
-      nodeId: kids[i].id,
+      nodeId: kid.id,
       childMap,
       propsMap,
       propKeys,

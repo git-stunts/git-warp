@@ -66,7 +66,9 @@ describe('NodeHttpAdapter error paths', () => {
     const text = await res.text();
     expect(text).toBe('Internal Server Error');
     expect(logger.error).toHaveBeenCalled();
-    expect(logger.error.mock.calls[0][0]).toContain('dispatch error');
+    const firstCall = logger.error.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    expect(firstCall?.[0]).toContain('dispatch error');
   });
 
   it('returns 500 with default noop logger when handler throws', async () => {

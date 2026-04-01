@@ -220,7 +220,7 @@ export async function materialize(options) {
       }
     }
 
-    await this._setMaterializedState(state, { diff });
+    await this._setMaterializedState(state, diff ? { diff } : {});
     this._provenanceDegraded = false;
     this._cachedCeiling = null;
     this._cachedFrontier = null;

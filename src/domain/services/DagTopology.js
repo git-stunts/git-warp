@@ -71,8 +71,9 @@ export default class DagTopology {
     if (shas.length === 0) { return []; }
     const traversal = /** @type {import('./DagTraversal.js').default} */ (this._traversal);
     if (shas.length === 1) {
+      const firstSha = shas[0] ?? '';
       const ancestors = [];
-      for await (const node of traversal.ancestors({ sha: shas[0], maxNodes: maxResults, maxDepth, signal })) {
+      for await (const node of traversal.ancestors({ sha: firstSha, maxNodes: maxResults, maxDepth, ...(signal ? { signal } : {}) })) {
         ancestors.push(node.sha);
       }
       return ancestors;
@@ -87,7 +88,7 @@ export default class DagTopology {
     for (const sha of shas) {
       checkAborted(signal, 'commonAncestors');
       const visited = new Set();
-      for await (const node of traversal.ancestors({ sha, maxDepth, signal })) {
+      for await (const node of traversal.ancestors({ sha, maxDepth, ...(signal ? { signal } : {}) })) {
         if (!visited.has(node.sha)) {
           visited.add(node.sha);
           ancestorCounts.set(node.sha, (/** @type {number} */ (ancestorCounts.get(node.sha)) ?? 0) + 1);

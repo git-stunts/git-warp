@@ -86,7 +86,9 @@ describe('LogicalIndexBuildService', () => {
         existingMeta[shardKey] = defaultCodec.decode(buf);
       }
     }
-    const existingLabels = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(tree1['labels.cbor']));
+    const labelsBlob = tree1['labels.cbor'];
+    expect(labelsBlob).toBeDefined();
+    const existingLabels = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (labelsBlob)));
 
     // Build 2: add node C
     const state2 = buildState({
@@ -108,7 +110,7 @@ describe('LogicalIndexBuildService', () => {
         const meta1 = existingMeta[shardKey];
         if (meta1) {
           // nodeToGlobal is array of [nodeId, globalId] pairs
-          const meta1Map = new Map(meta1.nodeToGlobal);
+          const meta1Map = new Map(meta1['nodeToGlobal']);
           const meta2Map = new Map(meta2['nodeToGlobal']);
           for (const [nodeId, globalId] of meta1Map) {
             if (meta2Map.has(nodeId)) {

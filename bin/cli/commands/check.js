@@ -25,7 +25,7 @@ async function getHealth(persistence) {
  * Collects garbage collection metrics for the graph.
  *
  * @param {WarpGraphInstance} graph - The graph instance
- * @returns {Promise<import('../../../src/domain/services/GCMetrics.js').GCMetrics>}
+ * @returns {Promise<{totalTombstones: number, tombstoneRatio: number} | null>}
  */
 async function getGcMetrics(graph) {
   await graph.materialize();

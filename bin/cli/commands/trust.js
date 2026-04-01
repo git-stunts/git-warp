@@ -79,7 +79,7 @@ export default async function handleTrust({ options, args }) {
   const { pin, source, sourceDetail, status } = resolveTrustPin(trustPin);
   const writerIds = await discoverWriterIds(persistence, graphName);
   const assessment = await verifier.evaluateTrust(graphName, {
-    pin: pin ?? undefined,
+    ...(pin !== undefined && pin !== null ? { pin } : {}),
     mode: mode ?? 'warn',
     writerIds,
     source,

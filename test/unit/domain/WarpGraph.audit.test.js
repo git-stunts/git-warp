@@ -189,7 +189,9 @@ describe('WarpRuntime — audit mode', () => {
 
     // Decode and verify
     const { decode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
-    const receipt = /** @type {Record<string, unknown>} */ (decode(tree['receipt.cbor']));
+    const receiptBlob = tree['receipt.cbor'];
+    expect(receiptBlob).toBeDefined();
+    const receipt = /** @type {Record<string, unknown>} */ (decode(/** @type {Uint8Array} */ (receiptBlob)));
     expect(receipt['version']).toBe(1);
     expect(receipt['graphName']).toBe('events');
     expect(receipt['writerId']).toBe('alice');

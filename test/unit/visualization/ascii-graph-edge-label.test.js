@@ -111,7 +111,6 @@ describe('ASCII graph renderer edge labels', () => {
           id: 'e0',
           source: 'a',
           target: 'b',
-          label: undefined,
           sections: [
             {
               startPoint: { x: 80, y: 20 },

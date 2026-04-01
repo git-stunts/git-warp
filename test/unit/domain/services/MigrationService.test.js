@@ -941,13 +941,17 @@ describe('MigrationService', () => {
         });
 
         // Verify the structural difference that makes mixing incompatible
-        expect(v1Patch.ops[0].type).toBe('NodeAdd');
-        expect(v1Patch.ops[0].dot).toBeUndefined(); // v1 has no dot
+        const v1Op0 = v1Patch.ops[0];
+        expect(v1Op0).toBeDefined();
+        expect(v1Op0?.type).toBe('NodeAdd');
+        expect(v1Op0?.dot).toBeUndefined(); // v1 has no dot
 
-        expect(v2Patch.ops[0].type).toBe('NodeAdd');
-        expect(/** @type {any} */ (v2Patch.ops[0]).dot).toBeDefined(); // v2 has a dot
-        expect(/** @type {any} */ (v2Patch.ops[0]).dot.writerId).toBe('W');
-        expect(/** @type {any} */ (v2Patch.ops[0]).dot.counter).toBe(1);
+        const v2Op0 = v2Patch.ops[0];
+        expect(v2Op0).toBeDefined();
+        expect(v2Op0?.type).toBe('NodeAdd');
+        expect(/** @type {any} */ (v2Op0)?.dot).toBeDefined(); // v2 has a dot
+        expect(/** @type {any} */ (v2Op0)?.dot.writerId).toBe('W');
+        expect(/** @type {any} */ (v2Op0)?.dot.counter).toBe(1);
       });
     });
   });

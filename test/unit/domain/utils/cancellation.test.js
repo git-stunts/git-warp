@@ -217,7 +217,9 @@ describe('Cancellation', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(OperationAbortedError);
         expect(collectedNodes).toHaveLength(1);
-        expect(collectedNodes[0].sha).toBe('sha1');
+        const first = collectedNodes[0];
+        expect(first).toBeDefined();
+        expect(first?.sha).toBe('sha1');
       }
     });
 

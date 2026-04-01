@@ -45,7 +45,7 @@ for (const Port of focusedPorts) {
 
   for (const [name, descriptor] of Object.entries(descriptors)) {
     if (seenNames.has(name)) {
-      const existingPort = seenNames.get(name);
+      const existingPort = /** @type {{ name: string }} */ (seenNames.get(name));
       throw new WarpError(
         `GraphPersistencePort composition collision: "${name}" defined by both ` +
           `${existingPort.name} and ${Port.name}`,

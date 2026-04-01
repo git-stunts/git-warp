@@ -61,6 +61,7 @@ export function wireWarpMethods(Class, methodModules) {
 
   for (let i = 0; i < methodModules.length; i++) {
     const mod = methodModules[i];
+    if (!mod) { continue; }
     for (const [name, fn] of Object.entries(mod)) {
       if (typeof fn !== 'function') {
         continue;

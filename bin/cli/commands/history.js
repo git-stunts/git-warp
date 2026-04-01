@@ -57,7 +57,7 @@ function throwNoPatchesError(writerId, knownWriters) {
  * Formats raw patch entries into output-ready history entries.
  * @param {PatchEntry[]} patches
  * @param {string|null} nodeFilter
- * @returns {Array<{sha: string, schema: number|undefined, lamport: number, opCount: number, opSummary: string|undefined}>}
+ * @returns {Array<{sha: string, schema: number|undefined, lamport: number, opCount: number, opSummary: Record<string, number>|undefined}>}
  */
 function formatEntries(patches, nodeFilter) {
   return patches

@@ -54,7 +54,7 @@ describe('F10 — PROTO_POLLUTION_IDS', () => {
 
   describe('toAdjacencyMaps', () => {
     it('adjacency maps handle proto-like keys safely', () => {
-      const { outgoing, incoming, aliveNodes } = toAdjacencyMaps(F10_PROTO_POLLUTION);
+      const { outgoing, incoming: _incoming, aliveNodes } = toAdjacencyMaps(F10_PROTO_POLLUTION);
 
       // Maps keyed by proto-like strings should work
       expect(outgoing.get('__proto__')).toBeDefined();

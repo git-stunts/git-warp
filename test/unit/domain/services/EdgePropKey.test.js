@@ -349,8 +349,8 @@ describe('EdgePropKey', () => {
         ['very-long-node-id', 'another-long-node-id', 'relationship-type', 'property-name'],
       ];
 
-      for (const [from, to, label, propKey] of cases) {
-        const encoded = encodeEdgePropKey(from, to, label, propKey);
+      for (const c of cases) {
+        const encoded = encodeEdgePropKey(c[0] ?? '', c[1] ?? '', c[2] ?? '', c[3] ?? '');
         expect(encoded[0]).toBe(EDGE_PROP_PREFIX);
       }
     });

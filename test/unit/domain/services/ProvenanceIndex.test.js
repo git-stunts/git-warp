@@ -249,7 +249,7 @@ describe('ProvenanceIndex', () => {
 
       it('throws on unsupported version', async () => {
         const index = new ProvenanceIndex();
-        const buffer = index.serialize();
+        index.serialize(); // validate serialization works
 
         // Manually create a buffer with version 99
         const { encode } = await import('../../../../src/infrastructure/codecs/CborCodec.js');

@@ -99,7 +99,9 @@ export default class LogicalIndexBuildService {
     const propTree = propBuilder.serialize();
     const tree = { ...indexTree, ...propTree };
 
-    const receipt = /** @type {Record<string, unknown>} */ (this._codec.decode(indexTree['receipt.cbor']));
+    const receiptBlob = indexTree['receipt.cbor'];
+    if (!receiptBlob) { throw new Error('Missing receipt.cbor in index tree'); }
+    const receipt = /** @type {Record<string, unknown>} */ (this._codec.decode(receiptBlob));
 
     return { tree, receipt };
   }

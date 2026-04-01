@@ -280,7 +280,7 @@ class ProvenanceIndex {
     /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */
     const obj = /** @type {{ version?: number, entries?: Array<[string, string[]]> }} */ (c.decode(buffer));
     ProvenanceIndex.#validateSerialized(obj);
-    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries));
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(obj.entries ?? []));
   }
 
   /**
@@ -316,7 +316,7 @@ class ProvenanceIndex {
    */
   static fromJSON(json) {
     ProvenanceIndex.#validateSerialized(json);
-    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(json.entries));
+    return new ProvenanceIndex(ProvenanceIndex.#buildIndex(json.entries ?? []));
   }
 
   /**

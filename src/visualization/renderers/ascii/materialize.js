@@ -264,7 +264,10 @@ function renderGraphsDashboard(graphs) {
     if (i > 0) {
       lines.push('', separator, '');
     }
-    lines.push(...renderGraphResult(graphs[i], maxValues));
+    const gr = graphs[i];
+    if (gr) {
+      lines.push(...renderGraphResult(gr, maxValues));
+    }
   }
 
   const successCount = graphs.filter((g) => g.error === undefined).length;

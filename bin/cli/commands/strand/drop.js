@@ -25,7 +25,7 @@ export async function handleStrandSubcommand({ options, args }) {
     throw usageError('Usage: warp-graph strand drop <id>');
   }
 
-  const strandId = positionals[0];
+  const strandId = positionals[0] ?? '';
   const { graph, graphName } = await openGraph(options);
   const dropped = await graph.dropStrand(strandId);
 

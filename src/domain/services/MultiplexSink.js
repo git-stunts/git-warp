@@ -88,7 +88,11 @@ export class MultiplexSink extends EffectSinkPort {
     const observations = [];
     for (const sink of this._sinks) {
       const obs = await sink.deliver(emission, lens);
-      observations.push(obs);
+      if (Array.isArray(obs)) {
+        observations.push(...obs);
+      } else {
+        observations.push(obs);
+      }
     }
     return observations;
   }

@@ -254,7 +254,8 @@ describe('WarpRuntime encryption at rest (B164)', () => {
     expect(patches.length).toBeGreaterThanOrEqual(2);
 
     // loadPatchBySha should work
-    const loaded = await graph.loadPatchBySha(patches[0]);
+    const firstPatch = patches[0] ?? '';
+    const loaded = await graph.loadPatchBySha(firstPatch);
     expect(loaded).toBeTruthy();
     expect(loaded.ops).toBeDefined();
   });

@@ -506,7 +506,7 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
   });
 
   it('empty match set returns zeroes', async () => {
-    setupGraphState(graph, (/** @type {any} */ state) => {
+    setupGraphState(graph, (/** @type {any} */ _state) => {
       // no nodes
     });
 

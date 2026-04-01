@@ -147,7 +147,7 @@ function sampleNodes(allNodes, sampleRate, seed) {
   // the distribution but is acceptable since the sample is only used for
   // layout heuristics.
   if (sampled.length === 0) {
-    sampled.push(allNodes[Math.floor(rng() * allNodes.length)]);
+    sampled.push(/** @type {string} */ (allNodes[Math.floor(rng() * allNodes.length)]));
   }
   return sampled;
 }
@@ -324,7 +324,11 @@ export default class MaterializedViewService {
   async persistIndexTree(tree, persistence) {
     const paths = Object.keys(tree).sort();
     const oids = await Promise.all(
-      paths.map((p) => persistence.writeBlob(tree[p]))
+      paths.map((p) => {
+        const blob = tree[p];
+        if (!blob) { throw new Error(`Missing blob for path: ${p}`); }
+        return persistence.writeBlob(blob);
+      })
     );
 
     const entries = paths.map(

@@ -45,7 +45,7 @@ describe('NodeHttpAdapter', () => {
       body: JSON.stringify({ method: req.method, url: req.url }),
     }));
 
-    const port = await new Promise((resolve) => {
+    await new Promise((resolve) => {
       server.listen(0, function () {
         // 'this' is the underlying Node server inside the listen callback
         // We need a different approach to get the port

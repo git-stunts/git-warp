@@ -36,6 +36,16 @@ import {
   renderStrand,
 } from './text.js';
 
+/**
+ * Reads an environment variable by key (avoids dot-notation ESLint conflict with noPropertyAccessFromIndexSignature).
+ *
+ * @param {string} key
+ * @returns {string | undefined}
+ */
+function getEnv(key) {
+  return process.env[key];
+}
+
 // ── Color control ────────────────────────────────────────────────────────────
 
 /**
@@ -44,7 +54,8 @@ import {
  * @returns {boolean}
  */
 function isForceColorEnabled() {
-  return process.env['FORCE_COLOR'] !== undefined && process.env['FORCE_COLOR'] !== '' && process.env['FORCE_COLOR'] !== '0';
+  const fc = getEnv('FORCE_COLOR');
+  return fc !== undefined && fc !== '' && fc !== '0';
 }
 
 /**
@@ -53,7 +64,7 @@ function isForceColorEnabled() {
  * @returns {boolean}
  */
 function isColorSuppressed() {
-  return process.env['NO_COLOR'] !== undefined || !process.stdout.isTTY || process.env['CI'] !== undefined;
+  return getEnv('NO_COLOR') !== undefined || !process.stdout.isTTY || getEnv('CI') !== undefined;
 }
 
 /**
@@ -63,7 +74,7 @@ function isColorSuppressed() {
  * @returns {boolean}
  */
 export function shouldStripColor() {
-  if (process.env['FORCE_COLOR'] === '0') {
+  if (getEnv('FORCE_COLOR') === '0') {
     return true;
   }
   if (isForceColorEnabled()) {
@@ -243,7 +254,8 @@ function writeTextOutput(payload, command) {
  * @returns {boolean}
  */
 function isErrorPayload(payload) {
-  return payload !== null && payload !== undefined && 'error' in payload && payload['error'] !== undefined;
+  const errorKey = 'error';
+  return payload !== null && payload !== undefined && errorKey in payload && payload[errorKey] !== undefined;
 }
 
 /**
@@ -272,7 +284,7 @@ export function present(payload, { format, command, view }) {
     return;
   }
   if (isViewActive(view)) {
-    presentView(payload, command, view);
+    presentView(payload, command, /** @type {string | boolean} */ (view));
     return;
   }
   writeTextOutput(payload, command);
@@ -294,7 +306,8 @@ function presentView(payload, command, view) {
 
   // query is special: uses pre-rendered _renderedAscii
   if (command === 'query') {
-    const ascii = typeof payload['_renderedAscii'] === 'string' ? payload['_renderedAscii'] : '';
+    const asciiKey = '_renderedAscii';
+    const ascii = typeof payload[asciiKey] === 'string' ? payload[asciiKey] : '';
     writeText(`${ascii}\n`, strip);
     return;
   }

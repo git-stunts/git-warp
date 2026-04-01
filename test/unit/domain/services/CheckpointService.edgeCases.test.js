@@ -175,7 +175,7 @@ describe('CheckpointService edge cases', () => {
         (/** @type {any} */ buffer) => {
           writtenBlobs.push(buffer);
           const names = ['state', 'frontier', 'appliedvv'];
-          return Promise.resolve(makeOid(names[writtenBlobs.length - 1]));
+          return Promise.resolve(makeOid(names[writtenBlobs.length - 1] ?? 'blob'));
         }
       );
       mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));

@@ -111,8 +111,10 @@ describe('PatchBuilderV2.setEdgeProperty', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(4);
-      expect(patch.ops[3].type).toBe('PropSet');
-      expect(/** @type {any} */ (patch.ops[3]).value).toBe('red');
+      const edgePropOp = patch.ops[3];
+      expect(edgePropOp).toBeDefined();
+      expect(edgePropOp?.type).toBe('PropSet');
+      expect(/** @type {any} */ (edgePropOp)?.value).toBe('red');
     });
   });
 

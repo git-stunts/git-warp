@@ -74,7 +74,6 @@ function visibleEdgeRegister(register, birthEvent) {
 }
 
 /**
- * Encodes a visible edge reference into a canonical edge key string.
  * @param {VisibleEdgeRef} edge
  * @returns {string}
  */
@@ -93,24 +92,14 @@ function getNodeContentRegisters(state, nodeId) {
   if (!orsetContains(state.nodeAlive, nodeId)) {
     return null;
   }
-  return extractNodeRegisters(state, nodeId);
-}
-
-/**
- * Extracts content, mime, and size registers for a live node.
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {string} nodeId
- * @returns {{ contentRegister: { eventId: import('../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null }|null}
- */
-function extractNodeRegisters(state, nodeId) {
   const contentRegister = state.prop.get(encodePropKey(nodeId, CONTENT_PROPERTY_KEY));
   if (!contentRegister || typeof contentRegister.value !== 'string') {
     return null;
   }
   return {
     contentRegister: /** @type {{ eventId: import('../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
-    mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) ?? null,
-    sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) ?? null,
+    mimeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_MIME_PROPERTY_KEY)) || null,
+    sizeRegister: state.prop.get(encodePropKey(nodeId, CONTENT_SIZE_PROPERTY_KEY)) || null,
   };
 }
 
@@ -123,65 +112,37 @@ function extractNodeRegisters(state, nodeId) {
  */
 function getEdgeContentRegisters(state, edge) {
   const edgeKey = edgeKeyFromRef(edge);
-  if (!isEdgeFullyAlive(state, edgeKey, edge)) {
+  if (!orsetContains(state.edgeAlive, edgeKey)) {
     return null;
   }
-  return extractEdgeRegisters(state, edge, edgeKey);
-}
+  if (!orsetContains(state.nodeAlive, edge.from) || !orsetContains(state.nodeAlive, edge.to)) {
+    return null;
+  }
 
-/**
- * Returns true when the edge and both its endpoints are alive.
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {string} edgeKey
- * @param {VisibleEdgeRef} edge
- * @returns {boolean}
- */
-function isEdgeFullyAlive(state, edgeKey, edge) {
-  return orsetContains(state.edgeAlive, edgeKey)
-    && orsetContains(state.nodeAlive, edge.from)
-    && orsetContains(state.nodeAlive, edge.to);
-}
-
-/**
- * @typedef {{ state: import('./JoinReducer.js').WarpStateV5, edge: VisibleEdgeRef, birthEvent: import('../utils/EventId.js').EventId|undefined }} EdgeRegisterCtx
- */
-
-/**
- * Resolves a visible edge register against the edge birth event.
- * @param {EdgeRegisterCtx} ctx
- * @param {string} propKey
- * @returns {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null}
- */
-function resolveEdgeRegister(ctx, propKey) {
-  return visibleEdgeRegister(
-    ctx.state.prop.get(encodeEdgePropKey(ctx.edge.from, ctx.edge.to, ctx.edge.label, propKey)),
-    ctx.birthEvent,
-  );
-}
-
-/**
- * Extracts content, mime, and size registers for a live edge.
- * @param {import('./JoinReducer.js').WarpStateV5} state
- * @param {VisibleEdgeRef} edge
- * @param {string} edgeKey
- * @returns {{ contentRegister: { eventId: import('../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null }|null}
- */
-function extractEdgeRegisters(state, edge, edgeKey) {
-  /** @type {EdgeRegisterCtx} */
-  const ctx = { state, edge, birthEvent: state.edgeBirthEvent?.get(edgeKey) };
-  const contentRegister = resolveEdgeRegister(ctx, CONTENT_PROPERTY_KEY);
+  const birthEvent = state.edgeBirthEvent?.get(edgeKey);
+  /**
+   * @param {string} propKey
+   * @returns {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null}
+   */
+  function getRegister(propKey) {
+    return visibleEdgeRegister(
+      state.prop.get(encodeEdgePropKey(edge.from, edge.to, edge.label, propKey)),
+      birthEvent,
+    );
+  }
+  const contentRegister = getRegister(CONTENT_PROPERTY_KEY);
   if (!contentRegister || typeof contentRegister.value !== 'string') {
     return null;
   }
+
   return {
     contentRegister: /** @type {{ eventId: import('../utils/EventId.js').EventId|null, value: string }} */ (contentRegister),
-    mimeRegister: resolveEdgeRegister(ctx, CONTENT_MIME_PROPERTY_KEY),
-    sizeRegister: resolveEdgeRegister(ctx, CONTENT_SIZE_PROPERTY_KEY),
+    mimeRegister: getRegister(CONTENT_MIME_PROPERTY_KEY),
+    sizeRegister: getRegister(CONTENT_SIZE_PROPERTY_KEY),
   };
 }
 
 /**
- * Reads the value of a sibling register when it shares attachment lineage with the content event.
  * @param {import('../utils/EventId.js').EventId|null|undefined} contentEventId
  * @param {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null|undefined} register
  * @returns {unknown}
@@ -194,7 +155,6 @@ function readAttachmentSiblingValue(contentEventId, register) {
 }
 
 /**
- * Coerces an unknown value to a MIME string or null.
  * @param {unknown} value
  * @returns {string|null}
  */
@@ -203,7 +163,6 @@ function coerceMime(value) {
 }
 
 /**
- * Coerces an unknown value to a non-negative integer size or null.
  * @param {unknown} value
  * @returns {number|null}
  */
@@ -228,7 +187,6 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
 }
 
 /**
- * Shallow-clones a property bag.
  * @param {Record<string, unknown>} bag
  * @returns {Record<string, unknown>}
  */
@@ -237,7 +195,6 @@ function cloneBag(bag) {
 }
 
 /**
- * Shallow-clones content metadata, normalising undefined to null.
  * @param {ContentMeta|null|undefined} meta
  * @returns {ContentMeta|null}
  */
@@ -246,7 +203,6 @@ function cloneMeta(meta) {
 }
 
 /**
- * Shallow-clones an array of neighbor entries for safe external consumption.
  * @param {NeighborEntry[]} entries
  * @returns {NeighborEntry[]}
  */
@@ -255,7 +211,6 @@ function cloneNeighbors(entries) {
 }
 
 /**
- * Builds an empty property bag map keyed by node ID.
  * @param {string[]} nodeIds
  * @returns {Map<string, Record<string, unknown>>}
  */
@@ -266,7 +221,6 @@ function createNodePropIndex(nodeIds) {
 }
 
 /**
- * Builds an empty property bag map keyed by encoded edge key.
  * @param {VisibleEdgeRef[]} edges
  * @returns {Map<string, Record<string, unknown>>}
  */
@@ -277,7 +231,6 @@ function createEdgePropIndex(edges) {
 }
 
 /**
- * Builds outgoing and incoming neighbor indexes from edges.
  * @param {string[]} nodeIds
  * @param {VisibleEdgeRef[]} edges
  * @returns {{ outgoingByNode: StateReaderContext['outgoingByNode'], incomingByNode: StateReaderContext['incomingByNode'] }}
@@ -305,50 +258,12 @@ function createNeighborIndex(nodeIds, edges) {
 }
 
 /**
- * Returns true when an edge property register predates the edge birth event.
- * @param {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }} register
- * @param {import('../utils/EventId.js').EventId|undefined} birthEvent
- * @returns {boolean}
- */
-function isEdgePropStale(register, birthEvent) {
-  return Boolean(birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0);
-}
-
-/**
- * @typedef {{ edgePropsByKey: Map<string, Record<string, unknown>>, state: import('./JoinReducer.js').WarpStateV5 }} EdgePropCtx
- */
-
-/**
- * Applies a single edge property register to the edge property bag.
- * @param {EdgePropCtx} ctx
- * @param {string} propKey
- * @param {{ eventId: import('../utils/EventId.js').EventId|null, value: unknown }} register
- * @returns {void}
- */
-function applyEdgeProp(ctx, propKey, register) {
-  const decoded = decodeEdgePropKey(propKey);
-  const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
-  const props = ctx.edgePropsByKey.get(edgeKey);
-  if (props === undefined) {
-    return;
-  }
-  const birthEvent = ctx.state.edgeBirthEvent?.get(edgeKey);
-  if (isEdgePropStale(register, birthEvent)) {
-    return;
-  }
-  props[decoded.propKey] = register.value;
-}
-
-/**
- * Populates node and edge property bags from the materialized property map.
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @param {{ visibleNodeIds: Set<string>, nodePropsById: Map<string, Record<string, unknown>>, edgePropsByKey: Map<string, Record<string, unknown>> }} indexes
  * @returns {void}
  */
 function populateVisibleProps(state, indexes) {
   const { visibleNodeIds, nodePropsById, edgePropsByKey } = indexes;
-  /** @type {EdgePropCtx} */
-  const edgeCtx = { edgePropsByKey, state };
   for (const [propKey, register] of state.prop) {
     if (!isEdgePropKey(propKey)) {
       const { nodeId, propKey: key } = decodePropKey(propKey);
@@ -357,12 +272,20 @@ function populateVisibleProps(state, indexes) {
       }
       continue;
     }
-    applyEdgeProp(edgeCtx, propKey, register);
+
+    const decoded = decodeEdgePropKey(propKey);
+    const edge = { from: decoded.from, to: decoded.to, label: decoded.label };
+    const edgeKey = edgeKeyFromRef(edge);
+    const props = edgePropsByKey.get(edgeKey);
+    const birthEvent = state.edgeBirthEvent?.get(edgeKey);
+    if (!props || (birthEvent && register.eventId && compareEventIds(register.eventId, birthEvent) < 0)) {
+      continue;
+    }
+    props[decoded.propKey] = register.value;
   }
 }
 
 /**
- * Builds edge view objects by merging edge refs with their property bags.
  * @param {VisibleEdgeRef[]} edges
  * @param {Map<string, Record<string, unknown>>} edgePropsByKey
  * @returns {VisibleEdgeView[]}
@@ -375,7 +298,6 @@ function createVisibleEdges(edges, edgePropsByKey) {
 }
 
 /**
- * Builds a map of node content metadata keyed by node ID.
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @param {string[]} nodeIds
  * @returns {Map<string, ContentMeta|null>}
@@ -395,7 +317,6 @@ function createNodeContentMetaIndex(state, nodeIds) {
 }
 
 /**
- * Builds a map of edge content metadata keyed by encoded edge key.
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @param {VisibleEdgeRef[]} edges
  * @returns {Map<string, ContentMeta|null>}
@@ -415,7 +336,6 @@ function createEdgeContentMetaIndex(state, edges) {
 }
 
 /**
- * Deep-clones the projection arrays for safe external consumption.
  * @param {StateReaderContext} context
  * @returns {{ nodes: string[], edges: Array<{ from: string, to: string, label: string }>, props: Array<{ node: string, key: string, value: unknown }> }}
  */
@@ -428,7 +348,6 @@ function cloneProjection(context) {
 }
 
 /**
- * Returns true when a node is present in the visible set.
  * @param {StateReaderContext} context
  * @param {string} nodeId
  * @returns {boolean}
@@ -438,7 +357,6 @@ function hasVisibleNode(context, nodeId) {
 }
 
 /**
- * Returns a copy of all visible node IDs.
  * @param {StateReaderContext} context
  * @returns {string[]}
  */
@@ -447,7 +365,6 @@ function getVisibleNodes(context) {
 }
 
 /**
- * Returns defensive copies of all visible edge views.
  * @param {StateReaderContext} context
  * @returns {VisibleEdgeView[]}
  */
@@ -456,7 +373,6 @@ function getVisibleEdges(context) {
 }
 
 /**
- * Returns a cloned property bag for a visible node, or null if not found.
  * @param {StateReaderContext} context
  * @param {string} nodeId
  * @returns {Record<string, unknown>|null}
@@ -469,7 +385,6 @@ function getVisibleNodeProps(context, nodeId) {
 }
 
 /**
- * Returns a cloned property bag for a visible edge, or null if not found.
  * @param {StateReaderContext} context
  * @param {VisibleEdgeRef} edge
  * @returns {Record<string, unknown>|null}
@@ -480,26 +395,24 @@ function getVisibleEdgeProps(context, edge) {
 }
 
 /**
- * Filters a neighbor list by optional edge label.
- * @param {NeighborEntry[]} entries
- * @param {string|undefined} edgeLabel
+ * @param {StateReaderContext} context
+ * @param {string} nodeId
+ * @param {{ direction?: 'outgoing'|'incoming'|'both', edgeLabel?: string }} [options]
  * @returns {NeighborEntry[]}
  */
-function filterByLabel(entries, edgeLabel) {
-  if (edgeLabel === undefined) {
-    return entries;
+function getVisibleNeighbors(context, nodeId, options = {}) {
+  if (!hasVisibleNode(context, nodeId)) {
+    return [];
   }
-  return entries.filter((entry) => entry.label === edgeLabel);
-}
 
-/**
- * Selects neighbors in the requested direction and clones the result.
- * @param {NeighborEntry[]} outgoing
- * @param {NeighborEntry[]} incoming
- * @param {'outgoing'|'incoming'|'both'} direction
- * @returns {NeighborEntry[]}
- */
-function selectByDirection(outgoing, incoming, direction) {
+  const { direction = 'both', edgeLabel = undefined } = options;
+  const outgoing = (context.outgoingByNode.get(nodeId) ?? []).filter(
+    (entry) => edgeLabel === undefined || entry.label === edgeLabel,
+  );
+  const incoming = (context.incomingByNode.get(nodeId) ?? []).filter(
+    (entry) => edgeLabel === undefined || entry.label === edgeLabel,
+  );
+
   if (direction === 'outgoing') {
     return cloneNeighbors(outgoing);
   }
@@ -510,37 +423,6 @@ function selectByDirection(outgoing, incoming, direction) {
 }
 
 /**
- * Collects raw outgoing and incoming entries for a node, filtered by label.
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @param {string|undefined} edgeLabel
- * @returns {{ outgoing: NeighborEntry[], incoming: NeighborEntry[] }}
- */
-function collectRawNeighbors(context, nodeId, edgeLabel) {
-  return {
-    outgoing: filterByLabel(context.outgoingByNode.get(nodeId) ?? [], edgeLabel),
-    incoming: filterByLabel(context.incomingByNode.get(nodeId) ?? [], edgeLabel),
-  };
-}
-
-/**
- * Returns visible neighbors of a node, filtered by direction and edge label.
- * @param {StateReaderContext} context
- * @param {string} nodeId
- * @param {{ direction?: 'outgoing'|'incoming'|'both', edgeLabel?: string }} [options]
- * @returns {NeighborEntry[]}
- */
-function getVisibleNeighbors(context, nodeId, options = {}) {
-  if (!hasVisibleNode(context, nodeId)) {
-    return [];
-  }
-  const { direction = 'both', edgeLabel = undefined } = options;
-  const raw = collectRawNeighbors(context, nodeId, edgeLabel);
-  return selectByDirection(raw.outgoing, raw.incoming, direction);
-}
-
-/**
- * Returns cloned content metadata for a visible node, or null.
  * @param {StateReaderContext} context
  * @param {string} nodeId
  * @returns {ContentMeta|null}
@@ -553,7 +435,6 @@ function getVisibleNodeContentMeta(context, nodeId) {
 }
 
 /**
- * Returns cloned content metadata for a visible edge, or null.
  * @param {StateReaderContext} context
  * @param {VisibleEdgeRef} edge
  * @returns {ContentMeta|null}
@@ -563,7 +444,6 @@ function getVisibleEdgeContentMeta(context, edge) {
 }
 
 /**
- * Returns an entity-local inspection view of a visible node with all props and neighbors.
  * @param {StateReaderContext} context
  * @param {string} nodeId
  * @returns {{ nodeId: string, props: Record<string, unknown>, outgoing: NeighborEntry[], incoming: NeighborEntry[], content: ContentMeta|null }|null}
@@ -582,50 +462,50 @@ function inspectVisibleNode(context, nodeId) {
 }
 
 /**
- * Builds the graph-structure portion of the reader API.
- * @param {StateReaderContext} ctx
- * @returns {Pick<import('../../../index.js').VisibleStateReaderV5, 'project'|'hasNode'|'getNodes'|'getEdges'|'getNodeProps'|'getEdgeProps'|'neighbors'>}
- */
-function buildStructureMethods(ctx) {
-  return {
-    /** Returns a defensive copy of the state projection. */
-    project() { return cloneProjection(ctx); },
-    /** Checks whether a node is present in the visible set. */
-    hasNode(nodeId) { return hasVisibleNode(ctx, nodeId); },
-    /** Returns all visible node IDs. */
-    getNodes() { return getVisibleNodes(ctx); },
-    /** Returns all visible edge views. */
-    getEdges() { return getVisibleEdges(ctx); },
-    /** Returns the property bag for a visible node. */
-    getNodeProps(nodeId) { return getVisibleNodeProps(ctx, nodeId); },
-    /** Returns the property bag for a visible edge. */
-    getEdgeProps(from, to, label) { return getVisibleEdgeProps(ctx, { from, to, label }); },
-    /** Returns neighbors filtered by direction and label. */
-    neighbors(nodeId, direction, edgeLabel) { return getVisibleNeighbors(ctx, nodeId, { direction, edgeLabel }); },
-  };
-}
-
-/**
- * Assembles the frozen public reader API from a pre-built context.
  * @param {StateReaderContext} context
  * @returns {import('../../../index.js').VisibleStateReaderV5}
  */
 function buildReaderApi(context) {
   /** @type {import('../../../index.js').VisibleStateReaderV5} */
   const reader = {
-    ...buildStructureMethods(context),
-    /** Returns content metadata for a visible node. */
-    getNodeContentMeta(nodeId) { return getVisibleNodeContentMeta(context, nodeId); },
-    /** Returns content metadata for a visible edge. */
-    getEdgeContentMeta(from, to, label) { return getVisibleEdgeContentMeta(context, { from, to, label }); },
-    /** Returns an entity-local inspection view of a visible node. */
-    inspectNode(nodeId) { return inspectVisibleNode(context, nodeId); },
+    project() {
+      return cloneProjection(context);
+    },
+    hasNode(nodeId) {
+      return hasVisibleNode(context, nodeId);
+    },
+    getNodes() {
+      return getVisibleNodes(context);
+    },
+    getEdges() {
+      return getVisibleEdges(context);
+    },
+    getNodeProps(nodeId) {
+      return getVisibleNodeProps(context, nodeId);
+    },
+    getEdgeProps(from, to, label) {
+      return getVisibleEdgeProps(context, { from, to, label });
+    },
+    neighbors(nodeId, direction, edgeLabel) {
+      return getVisibleNeighbors(context, nodeId, {
+        ...(direction !== undefined ? { direction } : {}),
+        ...(edgeLabel !== undefined ? { edgeLabel } : {}),
+      });
+    },
+    getNodeContentMeta(nodeId) {
+      return getVisibleNodeContentMeta(context, nodeId);
+    },
+    getEdgeContentMeta(from, to, label) {
+      return getVisibleEdgeContentMeta(context, { from, to, label });
+    },
+    inspectNode(nodeId) {
+      return inspectVisibleNode(context, nodeId);
+    },
   };
   return Object.freeze(reader);
 }
 
 /**
- * Materialises all reader indexes from raw V5 state.
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @returns {StateReaderContext}
  */

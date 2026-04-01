@@ -255,8 +255,8 @@ describe('Audit Receipt Spec — Positive Vectors', () => {
     });
 
     it('uses 40-char OIDs throughout', () => {
-      expect(receipt.dataCommit).toHaveLength(40);
-      expect(receipt.prevAuditCommit).toHaveLength(40);
+      expect(receipt['dataCommit']).toHaveLength(40);
+      expect(receipt['prevAuditCommit']).toHaveLength(40);
     });
 
     it('passes schema validation', () => {
@@ -321,8 +321,8 @@ describe('Audit Receipt Spec — Positive Vectors', () => {
     });
 
     it('uses 40-char OIDs throughout', () => {
-      expect(receipt.dataCommit).toHaveLength(40);
-      expect(receipt.prevAuditCommit).toHaveLength(40);
+      expect(receipt['dataCommit']).toHaveLength(40);
+      expect(receipt['prevAuditCommit']).toHaveLength(40);
     });
 
     it('passes schema validation', () => {
@@ -448,8 +448,8 @@ describe('Audit Receipt Spec — Positive Vectors', () => {
     });
 
     it('uses 64-char OIDs throughout', () => {
-      expect(receipt.dataCommit).toHaveLength(64);
-      expect(receipt.prevAuditCommit).toHaveLength(64);
+      expect(receipt['dataCommit']).toHaveLength(64);
+      expect(receipt['prevAuditCommit']).toHaveLength(64);
     });
 
     it('passes schema validation', () => {
@@ -527,8 +527,8 @@ describe('Audit Receipt Spec — OID Consistency', () => {
       prevAuditCommit: '0'.repeat(40),
       timestamp: 1768435200000,
     };
-    expect(receipt.dataCommit).toHaveLength(40);
-    expect(receipt.prevAuditCommit).toHaveLength(40);
+    expect(receipt['dataCommit']).toHaveLength(40);
+    expect(receipt['prevAuditCommit']).toHaveLength(40);
     expect(validateReceipt(receipt)).toBeNull();
   });
 
@@ -544,8 +544,8 @@ describe('Audit Receipt Spec — OID Consistency', () => {
       prevAuditCommit: '0'.repeat(64),
       timestamp: 1768435200000,
     };
-    expect(receipt.dataCommit).toHaveLength(64);
-    expect(receipt.prevAuditCommit).toHaveLength(64);
+    expect(receipt['dataCommit']).toHaveLength(64);
+    expect(receipt['prevAuditCommit']).toHaveLength(64);
     expect(validateReceipt(receipt)).toBeNull();
   });
 
@@ -690,7 +690,9 @@ describe('Audit Receipt Spec — Chain Break Dramatization', () => {
 
     // Flip a byte at offset 10
     const corruptedCbor = Buffer.from(originalCbor);
-    corruptedCbor[10] ^= 0xff;
+    if (corruptedCbor[10] !== undefined) {
+      corruptedCbor[10] ^= 0xff;
+    }
 
     // Either CBOR decode fails or the opsDigest mismatches
     let decodeError = null;
