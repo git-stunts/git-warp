@@ -36,12 +36,12 @@ const VERSION_PLACEHOLDER = '__WARP_HOOK_VERSION__';
  * @returns {{ kind: 'none'|'ours'|'foreign', version?: string, appended?: boolean }}
  */
 export function classifyExistingHook(content) {
-  if (!content || content.trim() === '') {
+  if (content === null || content === undefined || content.trim() === '') {
     return { kind: 'none' };
   }
 
   const versionMatch = extractVersion(content);
-  if (versionMatch) {
+  if (versionMatch !== null) {
     const appended = content.includes(DELIMITER_START_PREFIX);
     return { kind: 'ours', version: versionMatch, appended };
   }
@@ -61,7 +61,7 @@ function extractVersion(content) {
     const trimmed = line.trim();
     if (trimmed.startsWith(VERSION_MARKER_PREFIX)) {
       const version = trimmed.slice(VERSION_MARKER_PREFIX.length).trim();
-      if (version && version !== VERSION_PLACEHOLDER) {
+      if (version.length > 0 && version !== VERSION_PLACEHOLDER) {
         return version;
       }
     }
@@ -149,6 +149,8 @@ export class HookInstaller {
   }
 
   /**
+   * Writes a fresh hook file with no pre-existing content.
+   *
    * @param {string} hookPath
    * @param {string} content
    * @private
@@ -164,6 +166,8 @@ export class HookInstaller {
   }
 
   /**
+   * Upgrades an existing warp hook, preserving appended third-party content when possible.
+   *
    * @param {string} hookPath
    * @param {string} stamped
    * @private
@@ -172,7 +176,7 @@ export class HookInstaller {
     const existing = this._readFile(hookPath);
     const classification = classifyExistingHook(existing);
 
-    if (classification.appended) {
+    if (classification.appended === true) {
       const updated = replaceDelimitedSection(/** @type {string} */ (existing), stamped);
       // If delimiters were corrupted, replaceDelimitedSection returns unchanged content — fall back to overwrite
       if (updated === existing) {
@@ -193,12 +197,14 @@ export class HookInstaller {
   }
 
   /**
+   * Appends the warp hook body to an existing third-party hook file.
+   *
    * @param {string} hookPath
    * @param {string} stamped
    * @private
    */
   _appendInstall(hookPath, stamped) {
-    const existing = this._readFile(hookPath) || '';
+    const existing = this._readFile(hookPath) ?? '';
     const body = stripShebang(stamped);
     const appended = buildAppendedContent(existing, body);
     this._fs.writeFileSync(hookPath, appended, { mode: 0o755 });
@@ -211,6 +217,8 @@ export class HookInstaller {
   }
 
   /**
+   * Replaces an existing hook file, creating a backup of the original.
+   *
    * @param {string} hookPath
    * @param {string} stamped
    * @private
@@ -218,7 +226,7 @@ export class HookInstaller {
   _replaceInstall(hookPath, stamped) {
     const existing = this._readFile(hookPath);
     let backupPath;
-    if (existing) {
+    if (existing !== null && existing.length > 0) {
       backupPath = `${hookPath}.backup`;
       this._fs.writeFileSync(backupPath, existing);
       this._fs.chmodSync(backupPath, 0o755);
@@ -234,13 +242,19 @@ export class HookInstaller {
     };
   }
 
-  /** @private */
+  /**
+   * Loads the post-merge hook template from the configured template directory.
+   *
+   * @private
+   */
   _loadTemplate() {
     const templatePath = this._path.join(this._templateDir, 'post-merge.sh');
     return this._fs.readFileSync(templatePath, 'utf8');
   }
 
   /**
+   * Replaces version placeholders in the template with the actual version string.
+   *
    * @param {string} template
    * @private
    */
@@ -249,17 +263,19 @@ export class HookInstaller {
   }
 
   /**
+   * Resolves the hooks directory, respecting core.hooksPath and custom git-dir config.
+   *
    * @param {string} repoPath
    * @private
    */
   _resolveHooksDir(repoPath) {
     const customPath = this._execGitConfig(repoPath, 'core.hooksPath');
-    if (customPath) {
+    if (customPath !== null && customPath.length > 0) {
       return resolveHooksPath(customPath, repoPath, this._path);
     }
 
     const gitDir = this._execGitConfig(repoPath, '--git-dir');
-    if (gitDir) {
+    if (gitDir !== null && gitDir.length > 0) {
       return this._path.join(this._path.resolve(repoPath, gitDir), 'hooks');
     }
 
@@ -267,6 +283,8 @@ export class HookInstaller {
   }
 
   /**
+   * Resolves the full path to the post-merge hook file.
+   *
    * @param {string} repoPath
    * @private
    */
@@ -275,6 +293,8 @@ export class HookInstaller {
   }
 
   /**
+   * Reads a file, returning null if it does not exist or cannot be read.
+   *
    * @param {string} filePath
    * @private
    */
@@ -287,6 +307,8 @@ export class HookInstaller {
   }
 
   /**
+   * Creates the directory if it does not already exist.
+   *
    * @param {string} dirPath
    * @private
    */
@@ -322,7 +344,7 @@ function resolveHooksPath(customPath, repoPath, pathUtils) {
  */
 function stripShebang(content) {
   const lines = content.split('\n');
-  if (lines[0] && lines[0].startsWith('#!')) {
+  if (lines[0] !== undefined && lines[0].startsWith('#!')) {
     return lines.slice(1).join('\n');
   }
   return content;

@@ -28,6 +28,21 @@ import {
   validateKindDiscriminator,
 } from './TrailerValidation.js';
 
+/**
+ * @typedef {{ encode: (msg: {title: string, trailers: Record<string, string>}) => string, decode: (msg: string) => {title: string, trailers: Record<string, string>} }} TrailerCodecLike
+ */
+
+/**
+ * Returns the trailer codec with a locally-resolved type shape.
+ *
+ * @returns {TrailerCodecLike}
+ */
+function resolveCodec() {
+  /** @type {unknown} */
+  const raw = getCodec();
+  return /** @type {TrailerCodecLike} */ (raw);
+}
+
 // -----------------------------------------------------------------------------
 // Encoder
 // -----------------------------------------------------------------------------
@@ -55,7 +70,8 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
   validateOid(indexOid, 'indexOid');
   validateSchema(schema);
 
-  const codec = getCodec();
+  const codec = resolveCodec();
+  /** @type {Record<string, string>} */
   const trailers = {
     [TRAILER_KEYS.kind]: 'checkpoint',
     [TRAILER_KEYS.graph]: graph,
@@ -70,10 +86,7 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
     trailers[TRAILER_KEYS.checkpointVersion] = 'v5';
   }
 
-  return codec.encode({
-    title: MESSAGE_TITLES.checkpoint,
-    trailers,
-  });
+  return codec.encode({ title: MESSAGE_TITLES.checkpoint, trailers });
 }
 
 // -----------------------------------------------------------------------------
@@ -91,9 +104,8 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
  * const { kind, graph, stateHash, frontierOid, indexOid, schema } = decodeCheckpointMessage(message);
  */
 export function decodeCheckpointMessage(message) {
-  const codec = getCodec();
-  const decoded = codec.decode(message);
-  const { trailers } = decoded;
+  const codec = resolveCodec();
+  const { trailers } = codec.decode(message);
 
   validateKindDiscriminator(trailers, 'checkpoint');
   const graph = requireTrailer(trailers, 'graph', 'checkpoint');
@@ -107,7 +119,10 @@ export function decodeCheckpointMessage(message) {
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'checkpoint');
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)
-  const checkpointVersion = trailers[TRAILER_KEYS.checkpointVersion] || null;
+  /** @type {string|undefined} */
+  const rawCpv = trailers[/** @type {string} */ (TRAILER_KEYS.checkpointVersion)];
+  /** @type {string|null} */
+  const checkpointVersion = rawCpv !== undefined && rawCpv !== '' ? rawCpv : null;
 
   return {
     kind: 'checkpoint',

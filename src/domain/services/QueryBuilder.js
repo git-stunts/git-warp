@@ -202,7 +202,7 @@ function sortIds(ids) {
  * @private
  */
 function deepFreeze(obj) {
-  if (!obj || typeof obj !== 'object' || Object.isFrozen(obj)) {
+  if (obj === null || obj === undefined || typeof obj !== 'object' || Object.isFrozen(obj)) {
     return obj;
   }
   Object.freeze(obj);
@@ -242,13 +242,19 @@ function cloneValue(value) {
   }
   if (typeof globalThis.structuredClone === 'function') {
     try {
-      return globalThis.structuredClone(value);
+      /** @type {T} */
+      const cloned = globalThis.structuredClone(value);
+      return cloned;
     } catch {
       // fall through to JSON clone
     }
   }
   try {
-    return JSON.parse(JSON.stringify(value));
+    /** @type {unknown} */
+    const raw = JSON.parse(JSON.stringify(value));
+    /** @type {T} */
+    const result = /** @type {T} */ (raw);
+    return result;
   } catch {
     return value;
   }
@@ -266,7 +272,9 @@ function cloneValue(value) {
  */
 function buildPropsSnapshot(propsRecord) {
   /** @type {Record<string, unknown>} */
-  const props = Object.create(null);
+  const props = {};
+  // Remove inherited prototype methods for a clean property bag
+  Object.setPrototypeOf(props, null);
   const keys = Object.keys(propsRecord).sort();
   for (const key of keys) {
     props[key] = cloneValue(propsRecord[key]);
@@ -393,7 +401,7 @@ function applyHop({ direction, label, strand, adjacency }) {
   for (const nodeId of strand) {
     const edges = source.get(nodeId) || [];
     for (const edge of edges) {
-      if (labelFilter && edge.label !== labelFilter) {
+      if (labelFilter !== null && edge.label !== labelFilter) {
         continue;
       }
       next.add(edge.neighborId);
@@ -421,8 +429,11 @@ function applyMultiHop({ direction, label, strand, adjacency, depth }) {
   const source = direction === 'outgoing' ? adjacency.outgoing : adjacency.incoming;
   const labelFilter = label === undefined ? null : label;
 
+  /** @type {Set<string>} */
   const result = new Set();
+  /** @type {Set<string>} */
   let currentLevel = new Set(strand);
+  /** @type {Set<string>} */
   const visited = new Set(strand);
 
   if (minDepth === 0) {
@@ -432,11 +443,12 @@ function applyMultiHop({ direction, label, strand, adjacency, depth }) {
   }
 
   for (let hop = 1; hop <= maxDepth; hop++) {
+    /** @type {Set<string>} */
     const nextLevel = new Set();
     for (const nodeId of currentLevel) {
       const edges = source.get(nodeId) || [];
       for (const edge of edges) {
-        if (labelFilter && edge.label !== labelFilter) {
+        if (labelFilter !== null && edge.label !== labelFilter) {
           continue;
         }
         const neighbor = edge.neighborId;
@@ -450,7 +462,7 @@ function applyMultiHop({ direction, label, strand, adjacency, depth }) {
         }
       }
     }
-    currentLevel = nextLevel;
+    currentLevel = /** @type {Set<string>} */ (nextLevel);
     if (currentLevel.size === 0) {
       break;
     }
@@ -667,12 +679,23 @@ export default class QueryBuilder {
     // Per-run props memo to avoid redundant getNodeProps calls
     /** @type {Map<string, Record<string, unknown>>} */
     const propsMemo = new Map();
-    const getProps = async (/** @type {string} */ nodeId) => {
+
+    /**
+     * Fetches node properties with memoization.
+     *
+     * @param {string} nodeId - The node to fetch properties for
+     * @returns {Promise<Record<string, unknown>>} The node's properties
+     */
+    const getProps = async (nodeId) => {
       const cached = propsMemo.get(nodeId);
       if (cached !== undefined) {
         return cached;
       }
-      const propsRecord = (await this._graph.getNodeProps(nodeId)) || Object.create(null);
+      const rawResult = await this._graph.getNodeProps(nodeId);
+      /** @type {Record<string, unknown>} */
+      const propsRecord = (rawResult !== null && rawResult !== undefined)
+        ? /** @type {Record<string, unknown>} */ (rawResult)
+        : {};
       propsMemo.set(nodeId, propsRecord);
       return propsRecord;
     };
@@ -684,7 +707,9 @@ export default class QueryBuilder {
       if (op.type === 'where') {
         const snapshots = await batchMap(strand, async (nodeId) => {
           const propsRecord = await getProps(nodeId);
+          /** @type {Array<{label: string, neighborId: string}>} */
           const edgesOut = adjacency.outgoing.get(nodeId) || [];
+          /** @type {Array<{label: string, neighborId: string}>} */
           const edgesIn = adjacency.incoming.get(nodeId) || [];
           return {
             nodeId,
@@ -742,6 +767,7 @@ export default class QueryBuilder {
     const includeProps = !selectFields || selectFields.includes('props');
 
     const nodes = await batchMap(strand, async (nodeId) => {
+      /** @type {{id?: string, props?: Record<string, unknown>}} */
       const entry = {};
       if (includeId) {
         entry.id = nodeId;
@@ -749,7 +775,7 @@ export default class QueryBuilder {
       if (includeProps) {
         const propsRecord = await getProps(nodeId);
         const props = buildPropsSnapshot(propsRecord);
-        if (selectFields || Object.keys(props).length > 0) {
+        if (selectFields !== null || Object.keys(props).length > 0) {
           entry.props = props;
         }
       }
@@ -778,12 +804,12 @@ export default class QueryBuilder {
     const result = { stateHash };
     const specRec = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (spec));
 
-    if (spec.count) {
+    if (spec.count === true) {
       result.count = strand.length;
     }
 
     const numericAggs = ['sum', 'avg', 'min', 'max'];
-    const activeAggs = numericAggs.filter((key) => specRec[key]);
+    const activeAggs = numericAggs.filter((key) => specRec[key] !== undefined && specRec[key] !== null);
 
     if (activeAggs.length > 0) {
       /** @type {Map<string, {segments: string[], values: number[]}>} */
@@ -803,7 +829,7 @@ export default class QueryBuilder {
           /** @type {unknown} */
           let value = propsRecord[segments[0]];
           for (let i = 1; i < segments.length; i++) {
-            if (value && typeof value === 'object') {
+            if (value !== null && value !== undefined && typeof value === 'object') {
               value = /** @type {Record<string, unknown>} */ (value)[segments[i]];
             } else {
               value = undefined;

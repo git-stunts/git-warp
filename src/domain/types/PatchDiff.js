@@ -60,6 +60,39 @@ export function createEmptyDiff() {
  * @param {PatchDiff} b
  * @returns {PatchDiff}
  */
+/**
+ * Produces a unique string key for an edge diff entry.
+ *
+ * @param {EdgeDiffEntry} e - The edge diff entry
+ * @returns {string} Composite key using null-byte separators
+ */
+function edgeKey(e) {
+  return `${e.from}\0${e.to}\0${e.label}`;
+}
+
+/**
+ * Deduplicates property diff entries, keeping the last entry per (nodeId, key).
+ *
+ * @param {PropDiffEntry[]} allProps - Combined property entries
+ * @returns {PropDiffEntry[]} Deduplicated entries
+ */
+function deduplicateProps(allProps) {
+  /** @type {Map<string, PropDiffEntry>} */
+  const propMap = new Map();
+  for (const entry of allProps) {
+    propMap.set(`${entry.nodeId}\0${entry.key}`, entry);
+  }
+  return [...propMap.values()];
+}
+
+/**
+ * Merges two PatchDiff objects into a net diff by cancelling out
+ * contradictory add/remove pairs.
+ *
+ * @param {PatchDiff} a - First diff
+ * @param {PatchDiff} b - Second diff
+ * @returns {PatchDiff} Merged diff with contradictions cancelled
+ */
 export function mergeDiffs(a, b) {
   const allAdded = a.nodesAdded.concat(b.nodesAdded);
   const allRemoved = a.nodesRemoved.concat(b.nodesRemoved);
@@ -68,8 +101,6 @@ export function mergeDiffs(a, b) {
   const nodesAdded = allAdded.filter((id) => !removedSet.has(id));
   const nodesRemoved = allRemoved.filter((id) => !addedSet.has(id));
 
-  /** @param {EdgeDiffEntry} e */
-  const edgeKey = (e) => `${e.from}\0${e.to}\0${e.label}`;
   const allEdgesAdded = a.edgesAdded.concat(b.edgesAdded);
   const allEdgesRemoved = a.edgesRemoved.concat(b.edgesRemoved);
   const edgeRemovedSet = new Set(allEdgesRemoved.map(edgeKey));
@@ -77,14 +108,7 @@ export function mergeDiffs(a, b) {
   const edgesAdded = allEdgesAdded.filter((e) => !edgeRemovedSet.has(edgeKey(e)));
   const edgesRemoved = allEdgesRemoved.filter((e) => !edgeAddedSet.has(edgeKey(e)));
 
-  // For props, deduplicate by keeping the last entry per (nodeId, key).
-  const allProps = a.propsChanged.concat(b.propsChanged);
-  /** @type {Map<string, PropDiffEntry>} */
-  const propMap = new Map();
-  for (const entry of allProps) {
-    propMap.set(`${entry.nodeId}\0${entry.key}`, entry);
-  }
-  const propsChanged = [...propMap.values()];
+  const propsChanged = deduplicateProps(a.propsChanged.concat(b.propsChanged));
 
   return { nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged };
 }

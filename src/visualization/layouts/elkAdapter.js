@@ -61,6 +61,41 @@ function estimateNodeWidth(label) {
 const NODE_HEIGHT = 30;
 
 /**
+ * Builds a single ELK edge from a graph data edge.
+ *
+ * @param {GraphDataEdge} e - Source edge
+ * @param {number} i - Edge index (used for ID generation)
+ * @returns {ElkEdge} ELK-format edge
+ */
+function buildElkEdge(e, i) {
+  /** @type {ElkEdge} */
+  const edge = {
+    id: `e${i}`,
+    sources: [e.from],
+    targets: [e.to],
+  };
+  if (e.label !== undefined && e.label !== '') {
+    edge.labels = [{ text: e.label }];
+  }
+  return edge;
+}
+
+/**
+ * Converts a graph data node into an ELK child node.
+ *
+ * @param {GraphDataNode} n - Source node
+ * @returns {ElkChild} ELK-format child node
+ */
+function buildElkChild(n) {
+  return {
+    id: n.id,
+    width: estimateNodeWidth(n.label),
+    height: NODE_HEIGHT,
+    labels: [{ text: n.label ?? n.id }],
+  };
+}
+
+/**
  * Converts normalised graph data to an ELK graph JSON object.
  *
  * @param {GraphData} graphData
@@ -69,31 +104,27 @@ const NODE_HEIGHT = 30;
  */
 export function toElkGraph(graphData, options = {}) {
   const { type = 'query', layoutOptions } = options;
-
-  const children = (graphData.nodes ?? []).map((n) => ({
-    id: n.id,
-    width: estimateNodeWidth(n.label),
-    height: NODE_HEIGHT,
-    labels: [{ text: n.label ?? n.id }],
-  }));
-
-  const edges = (graphData.edges ?? []).map((e, i) => {
-    /** @type {ElkEdge} */
-    const edge = {
-      id: `e${i}`,
-      sources: [e.from],
-      targets: [e.to],
-    };
-    if (e.label) {
-      edge.labels = [{ text: e.label }];
-    }
-    return edge;
-  });
+  const nodes = graphData.nodes ?? [];
+  const rawEdges = graphData.edges ?? [];
 
   return {
     id: 'root',
-    layoutOptions: layoutOptions ?? getDefaultLayoutOptions(type),
-    children,
-    edges,
+    layoutOptions: resolveLayoutOptions(layoutOptions, type),
+    children: nodes.map(buildElkChild),
+    edges: rawEdges.map((e, i) => buildElkEdge(e, i)),
   };
+}
+
+/**
+ * Resolves layout options, falling back to the preset for the given type.
+ *
+ * @param {Record<string, string>|undefined} explicit - Caller-provided options
+ * @param {'query'|'path'|'slice'} type - Visualization type
+ * @returns {Record<string, string>} Resolved layout options
+ */
+function resolveLayoutOptions(explicit, type) {
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  return getDefaultLayoutOptions(type);
 }

@@ -12,7 +12,11 @@ const BISECT_OPTIONS = {
   test: { type: 'string' },
 };
 
-/** @param {string[]} args */
+/**
+ * Parses and validates bisect CLI arguments.
+ * @param {string[]} args - Raw CLI arguments
+ * @returns {{ good: string, bad: string, test: string }} Validated bisect options
+ */
 function parseBisectArgs(args) {
   const { values } = parseCommandArgs(args, BISECT_OPTIONS, bisectSchema);
   return values;
@@ -40,12 +44,36 @@ function runTestCommand(testCmd, sha, graphName) {
   } catch (/** @type {unknown} */ err) {
     // Non-zero exit (err.status is a number) → test says "bad"
     const asRecord = /** @type {Record<string, unknown>} */ (err);
-    if (err && typeof asRecord.status === 'number') {
+    if (err !== null && err !== undefined && typeof asRecord.status === 'number') {
       return false;
     }
     // Spawn failure (ENOENT, EACCES, etc.) → rethrow so the user sees the real error
     throw err;
   }
+}
+
+/**
+ * Builds the CLI response payload from a bisect result.
+ *
+ * @param {{ result: string, firstBadPatch?: string, writerId?: string, lamport?: number, steps?: number, totalCandidates?: number, message?: string }} result - Bisect service result
+ * @returns {{ payload: unknown, exitCode: number }}
+ */
+function buildBisectResponse(result) {
+  if (result.result === 'range-error') {
+    return {
+      payload: { error: { code: 'E_BISECT_RANGE', message: result.message } },
+      exitCode: EXIT_CODES.NOT_FOUND,
+    };
+  }
+  const payload = {
+    result: 'found',
+    firstBadPatch: result.firstBadPatch,
+    writerId: result.writerId,
+    lamport: result.lamport,
+    steps: result.steps,
+    totalCandidates: result.totalCandidates,
+  };
+  return { payload, exitCode: EXIT_CODES.OK };
 }
 
 /**
@@ -64,28 +92,10 @@ export default async function handleBisect({ options, args }) {
 
   const bisect = new BisectService({ graph });
 
-  const result = await bisect.run({
-    good,
-    bad,
-    writerId,
-    testFn: (_state, sha) => Promise.resolve(runTestCommand(testCmd, sha, graphName)),
-  });
+  /** Bisect test callback that shells out to the user-provided command.
+   * @type {(state: unknown, sha: string) => Promise<boolean>} */
+  const testFn = (_state, sha) => Promise.resolve(runTestCommand(testCmd, sha, graphName));
+  const result = await bisect.run({ good, bad, writerId, testFn });
 
-  if (result.result === 'range-error') {
-    return {
-      payload: { error: { code: 'E_BISECT_RANGE', message: result.message } },
-      exitCode: EXIT_CODES.NOT_FOUND,
-    };
-  }
-
-  const payload = {
-    result: 'found',
-    firstBadPatch: result.firstBadPatch,
-    writerId: result.writerId,
-    lamport: result.lamport,
-    steps: result.steps,
-    totalCandidates: result.totalCandidates,
-  };
-
-  return { payload, exitCode: EXIT_CODES.OK };
+  return buildBisectResponse(result);
 }

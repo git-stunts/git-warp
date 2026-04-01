@@ -44,10 +44,10 @@ export default class IndexRebuildService {
    * @throws {Error} If storage adapter is not provided
    */
   constructor({ graphService, storage, logger = nullLogger, codec, crypto } = /** @type {{ graphService: { iterateNodes: (opts: { ref: string, limit: number }) => AsyncIterable<{ sha: string, parents: string[] }> }, storage: import('../../ports/IndexStoragePort.js').default }} */ ({})) {
-    if (!graphService) {
+    if (graphService === undefined || graphService === null) {
       throw new Error('IndexRebuildService requires a graphService');
     }
-    if (!storage) {
+    if (storage === undefined || storage === null) {
       throw new Error('IndexRebuildService requires a storage adapter');
     }
     this.graphService = graphService;
@@ -333,7 +333,7 @@ export default class IndexRebuildService {
       strict,
     });
 
-    if (autoRebuild && !rebuildRef) {
+    if (autoRebuild && (rebuildRef === undefined || rebuildRef === '')) {
       throw new Error('rebuildRef is required when autoRebuild is true');
     }
 
@@ -352,7 +352,7 @@ export default class IndexRebuildService {
             reason: result.reason,
             hint: 'Rebuild the index or pass autoRebuild: true',
           });
-          if (autoRebuild && rebuildRef) {
+          if (autoRebuild && rebuildRef !== undefined && rebuildRef !== '') {
             const newTreeOid = await this.rebuild(rebuildRef, { frontier: currentFrontier });
             return await this.load(newTreeOid, { strict });
           }

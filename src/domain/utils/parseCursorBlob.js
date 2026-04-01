@@ -32,20 +32,43 @@
  * parseCursorBlob(new TextEncoder().encode('not json'), 'active cursor');
  */
 export function parseCursorBlob(buf, label) {
-  let obj;
+  /** @type {unknown} */
+  let raw;
   try {
-    obj = JSON.parse(new TextDecoder().decode(buf));
+    raw = JSON.parse(new TextDecoder().decode(buf));
   } catch {
     throw new Error(`Corrupted ${label}: blob is not valid JSON`);
   }
 
-  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+  assertPlainObject(raw, label);
+  assertFiniteTick(raw, label);
+
+  return raw;
+}
+
+/**
+ * Asserts that the parsed value is a non-null, non-array object.
+ *
+ * @param {unknown} val - Parsed JSON value
+ * @param {string} label - Label for error messages
+ * @returns {asserts val is Record<string, unknown>}
+ */
+function assertPlainObject(val, label) {
+  if (val === null || typeof val !== 'object' || Array.isArray(val)) {
     throw new Error(`Corrupted ${label}: expected a JSON object`);
   }
+}
 
-  if (typeof obj.tick !== 'number' || !Number.isFinite(obj.tick)) {
+/**
+ * Asserts that the object has a finite numeric `tick` field.
+ *
+ * @param {Record<string, unknown>} obj - The cursor object
+ * @param {string} label - Label for error messages
+ * @returns {asserts obj is { tick: number, [key: string]: unknown }}
+ */
+function assertFiniteTick(obj, label) {
+  const { tick } = obj;
+  if (typeof tick !== 'number' || !Number.isFinite(tick)) {
     throw new Error(`Corrupted ${label}: missing or invalid numeric tick`);
   }
-
-  return obj;
 }

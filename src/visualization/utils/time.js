@@ -21,13 +21,23 @@ export function timeAgo(date) {
 }
 
 /**
+ * Returns true if the value is a valid non-negative duration.
+ *
+ * @param {number} ms - Candidate duration
+ * @returns {boolean} Whether the value is usable
+ */
+function isValidDuration(ms) {
+  return typeof ms === 'number' && !Number.isNaN(ms) && ms >= 0;
+}
+
+/**
  * Formats a duration in milliseconds as a human-readable string (e.g. "150ms", "3s", "2m 30s").
  *
  * @param {number} ms - Duration in milliseconds
  * @returns {string} Formatted duration string
  */
 export function formatDuration(ms) {
-  if (typeof ms !== 'number' || Number.isNaN(ms) || ms < 0) { return 'unknown'; }
+  if (!isValidDuration(ms)) { return 'unknown'; }
   if (ms < 1000) { return `${ms}ms`; }
   const seconds = Math.floor(ms / 1000);
   if (seconds < 60) { return `${seconds}s`; }

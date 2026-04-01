@@ -8,6 +8,25 @@
  * @private
  */
 
+import WarpError from '../../domain/errors/WarpError.js';
+
+/**
+ * Error thrown when a request body exceeds the size limit.
+ * @class PayloadTooLargeError
+ * @extends WarpError
+ */
+class PayloadTooLargeError extends WarpError {
+  /**
+   * Creates a PayloadTooLargeError.
+   * @param {number} totalBytes - Number of bytes received before rejection
+   */
+  constructor(totalBytes) {
+    super('Payload Too Large', 'E_PAYLOAD_TOO_LARGE', { context: { totalBytes } });
+    /** @type {number} */
+    this.status = 413;
+  }
+}
+
 /** Absolute streaming body limit (10 MB). */
 export const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
@@ -23,20 +42,34 @@ export const MAX_BODY_BYTES = 10 * 1024 * 1024;
  */
 export async function readStreamBody(bodyStream) {
   const reader = bodyStream.getReader();
+  /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
+    /** @type {{ done: boolean, value?: Uint8Array }} */
+    const result = await reader.read();
+    if (result.done) {
       break;
     }
-    total += value.byteLength;
+    const chunk = /** @type {Uint8Array} */ (result.value);
+    total += chunk.byteLength;
     if (total > MAX_BODY_BYTES) {
       await reader.cancel();
-      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
+      throw new PayloadTooLargeError(total);
     }
-    chunks.push(value);
+    chunks.push(chunk);
   }
+  return assembleChunks(chunks, total);
+}
+
+/**
+ * Assembles an array of Uint8Array chunks into a single Uint8Array.
+ *
+ * @param {Uint8Array[]} chunks - The collected chunks
+ * @param {number} total - Total byte length
+ * @returns {Uint8Array|undefined} Combined bytes, or undefined if empty
+ */
+function assembleChunks(chunks, total) {
   if (total === 0) {
     return undefined;
   }
@@ -80,16 +113,7 @@ export async function toPortRequest(request) {
     headers[key] = value;
   });
 
-  let body;
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    const cl = headers['content-length'];
-    if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
-      throw Object.assign(new Error('Payload Too Large'), { status: 413 });
-    }
-    if (request.body) {
-      body = await readStreamBody(request.body);
-    }
-  }
+  const body = await readRequestBody(request, headers);
 
   const parsedUrl = new URL(request.url);
   return {
@@ -98,4 +122,35 @@ export async function toPortRequest(request) {
     headers,
     body,
   };
+}
+
+/**
+ * Checks the Content-Length header and throws if it exceeds the limit.
+ *
+ * @param {Record<string, string>} headers - Parsed request headers
+ * @throws {PayloadTooLargeError} If the declared content length exceeds the limit
+ */
+function enforceContentLengthLimit(headers) {
+  const cl = headers['content-length'];
+  if (cl !== undefined && Number(cl) > MAX_BODY_BYTES) {
+    throw new PayloadTooLargeError(Number(cl));
+  }
+}
+
+/**
+ * Reads the request body if the method allows one.
+ *
+ * @param {Request} request - Web API Request
+ * @param {Record<string, string>} headers - Parsed headers
+ * @returns {Promise<Uint8Array|undefined>} The body bytes, or undefined
+ */
+async function readRequestBody(request, headers) {
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return undefined;
+  }
+  enforceContentLengthLimit(headers);
+  if (request.body) {
+    return await readStreamBody(request.body);
+  }
+  return undefined;
 }
