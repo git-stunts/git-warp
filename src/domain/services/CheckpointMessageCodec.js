@@ -55,7 +55,9 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
   validateOid(indexOid, 'indexOid');
   validateSchema(schema);
 
-  const codec = getCodec();
+  /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
+  const codec = /** @type {*} */ (getCodec());
+  /** @type {Record<string, string>} */
   const trailers = {
     [TRAILER_KEYS.kind]: 'checkpoint',
     [TRAILER_KEYS.graph]: graph,
@@ -91,23 +93,32 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
  * const { kind, graph, stateHash, frontierOid, indexOid, schema } = decodeCheckpointMessage(message);
  */
 export function decodeCheckpointMessage(message) {
-  const codec = getCodec();
-  const decoded = codec.decode(message);
-  const { trailers } = decoded;
+  /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
+  const codec = /** @type {*} */ (getCodec());
+  const { trailers: rawTrailers } = codec.decode(message);
+  const trailers = /** @type {Record<string, string>} */ (rawTrailers);
 
   validateKindDiscriminator(trailers, 'checkpoint');
+  /** @type {string} */
   const graph = requireTrailer(trailers, 'graph', 'checkpoint');
   validateGraphName(graph);
+  /** @type {string} */
   const stateHash = requireTrailer(trailers, 'stateHash', 'checkpoint');
   validateSha256(stateHash, 'stateHash');
+  /** @type {string} */
   const frontierOid = requireTrailer(trailers, 'frontierOid', 'checkpoint');
   validateOid(frontierOid, 'frontierOid');
+  /** @type {string} */
   const indexOid = requireTrailer(trailers, 'indexOid', 'checkpoint');
   validateOid(indexOid, 'indexOid');
+  /** @type {number} */
   const schema = parsePositiveIntTrailer(trailers, 'schema', 'checkpoint');
 
   // Extract optional checkpoint version (v5 for schema:2/3/4)
-  const checkpointVersion = trailers[TRAILER_KEYS.checkpointVersion] || null;
+  /** @type {string|undefined} */
+  const cpVersion = /** @type {string|undefined} */ (trailers['eg-checkpoint']);
+  /** @type {string|null} */
+  const checkpointVersion = (cpVersion !== undefined && cpVersion !== '') ? cpVersion : null;
 
   return {
     kind: 'checkpoint',

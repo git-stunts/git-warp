@@ -33,6 +33,7 @@ function edgeCmp(a, b) {
  * @returns {Map<string, Array<{neighborId: string, label: string}>>}
  */
 function sortAdjacencyMap(adjMap) {
+  /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const result = new Map();
   for (const [nodeId, edges] of adjMap) {
     const sorted = edges.slice().sort(edgeCmp);
@@ -50,7 +51,7 @@ function sortAdjacencyMap(adjMap) {
  * @returns {Array<{neighborId: string, label: string}>}
  */
 function filterByLabels(edges, labels) {
-  if (!labels) {
+  if (labels === undefined) {
     return edges;
   }
   return edges.filter((e) => labels.has(e.label));
@@ -64,33 +65,43 @@ function filterByLabels(edges, labels) {
  * @returns {Array<{neighborId: string, label: string}>}
  */
 function mergeSorted(a, b) {
+  /** @type {Array<{neighborId: string, label: string}>} */
   const result = [];
-  let i = 0;
-  let j = 0;
-  while (i < a.length && j < b.length) {
-    const cmp = edgeCmp(a[i], b[j]);
-    if (cmp < 0) {
-      result.push(a[i++]);
-    } else if (cmp > 0) {
-      result.push(b[j++]);
-    } else {
-      // Duplicate — take one, skip both
-      result.push(a[i++]);
-      j++;
-    }
+  const state = { i: 0, j: 0 };
+  /** @type {MergeContext} */
+  const ctx = { result, a, b, state };
+  while (state.i < a.length && state.j < b.length) {
+    mergeNextPair(ctx);
   }
-  while (i < a.length) { result.push(a[i++]); }
-  while (j < b.length) { result.push(b[j++]); }
+  for (let k = state.i; k < a.length; k++) { result.push(a[k]); }
+  for (let k = state.j; k < b.length; k++) { result.push(b[k]); }
   return result;
+}
+
+/**
+ * @typedef {{result: Array<{neighborId: string, label: string}>, a: Array<{neighborId: string, label: string}>, b: Array<{neighborId: string, label: string}>, state: {i: number, j: number}}} MergeContext
+ */
+
+/**
+ * Compares the current elements from both lists and pushes the winner,
+ * advancing the appropriate cursor(s).
+ * @param {MergeContext} ctx - Merge context with result, inputs, and cursors
+ */
+function mergeNextPair(ctx) {
+  const cmp = edgeCmp(ctx.a[ctx.state.i], ctx.b[ctx.state.j]);
+  ctx.result.push(cmp <= 0 ? ctx.a[ctx.state.i] : ctx.b[ctx.state.j]);
+  if (cmp <= 0) { ctx.state.i++; }
+  if (cmp >= 0) { ctx.state.j++; }
 }
 
 export default class AdjacencyNeighborProvider extends NeighborProviderPort {
   /**
+   * Creates an adjacency-backed neighbor provider from pre-built maps.
    * @param {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>, aliveNodes: Set<string> }} params
    */
   constructor({ outgoing, incoming, aliveNodes }) {
     super();
-    if (!aliveNodes) {
+    if (aliveNodes === undefined || aliveNodes === null) {
       throw new Error('AdjacencyNeighborProvider: aliveNodes is required');
     }
     /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
@@ -102,6 +113,7 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
   }
 
   /**
+   * Returns neighbor edges for a node in the given direction, optionally filtered by label.
    * @param {string} nodeId
    * @param {import('../../ports/NeighborProviderPort.js').Direction} direction
    * @param {import('../../ports/NeighborProviderPort.js').NeighborOptions} [options]
@@ -109,20 +121,44 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
    */
   getNeighbors(nodeId, direction, options) {
     const labels = options?.labels;
-    const outEdges = filterByLabels(this._outgoing.get(nodeId) || [], labels);
-    const inEdges = filterByLabels(this._incoming.get(nodeId) || [], labels);
-
-    if (direction === 'out') {
-      return Promise.resolve(outEdges);
-    }
-    if (direction === 'in') {
-      return Promise.resolve(inEdges);
-    }
-    // 'both': merge two pre-sorted lists, dedup by (neighborId, label)
-    return Promise.resolve(mergeSorted(outEdges, inEdges));
+    return Promise.resolve(this._resolveEdges(nodeId, direction, labels));
   }
 
   /**
+   * Fetches and filters edges from a single adjacency map.
+   * @param {Map<string, Array<{neighborId: string, label: string}>>} adjMap - The adjacency map
+   * @param {string} nodeId - Node to look up
+   * @param {Set<string>|undefined} labels - Optional label filter
+   * @returns {Array<{neighborId: string, label: string}>}
+   * @private
+   */
+  _filteredEdges(adjMap, nodeId, labels) {
+    return filterByLabels(adjMap.get(nodeId) ?? [], labels);
+  }
+
+  /**
+   * Synchronously resolves neighbor edges for a node.
+   * @param {string} nodeId - Node to look up
+   * @param {import('../../ports/NeighborProviderPort.js').Direction} direction - Edge direction
+   * @param {Set<string>|undefined} labels - Optional label filter
+   * @returns {Array<{neighborId: string, label: string}>}
+   * @private
+   */
+  _resolveEdges(nodeId, direction, labels) {
+    if (direction === 'out') {
+      return this._filteredEdges(this._outgoing, nodeId, labels);
+    }
+    if (direction === 'in') {
+      return this._filteredEdges(this._incoming, nodeId, labels);
+    }
+    return mergeSorted(
+      this._filteredEdges(this._outgoing, nodeId, labels),
+      this._filteredEdges(this._incoming, nodeId, labels),
+    );
+  }
+
+  /**
+   * Checks whether a node exists in the alive set.
    * @param {string} nodeId
    * @returns {Promise<boolean>}
    */
@@ -130,7 +166,7 @@ export default class AdjacencyNeighborProvider extends NeighborProviderPort {
     return Promise.resolve(this._aliveNodes.has(nodeId));
   }
 
-  /** @returns {'sync'} */
+  /** Indicates synchronous in-memory access. @returns {'sync'} */
   get latencyClass() {
     return 'sync';
   }
