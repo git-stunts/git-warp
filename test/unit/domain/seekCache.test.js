@@ -38,7 +38,7 @@ function setupPersistence(persistence, writerSpecs, graphName = 'test') {
     for (let i = 1; i <= count; i++) {
       shas.push(fakeSha(`${writer}${i}`));
     }
-    writerTips[writer] = shas[0];
+    writerTips[writer] = shas[0] ?? '';
 
     for (let j = 0; j < count; j++) {
       const lamport = count - j;

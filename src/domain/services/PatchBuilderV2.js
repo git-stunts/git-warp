@@ -371,7 +371,10 @@ export class PatchBuilderV2 {
     if (this._onDeleteWithData === 'cascade' && state) {
       const { edges } = findAttachedData(state, nodeId);
       for (const edgeKey of edges) {
-        const [from, to, label] = edgeKey.split('\0');
+        const parts = edgeKey.split('\0');
+        const from = parts[0] ?? '';
+        const to = parts[1] ?? '';
+        const label = parts[2] ?? '';
         const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
         this._ops.push(createEdgeRemoveV2(from, to, label, edgeDots));
         // Provenance: cascade-generated EdgeRemove reads the edge key (to observe its dots)
@@ -566,6 +569,7 @@ export class PatchBuilderV2 {
     return effectId;
   }
 
+  /** @param {string} nodeId @param {string} key @param {unknown} value */
   setProperty(nodeId, key, value) {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');

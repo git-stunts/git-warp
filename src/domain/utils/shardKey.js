@@ -11,7 +11,7 @@ const encoder = new TextEncoder();
 function fnv1aBytes(bytes) {
   let hash = 0x811c9dc5;
   for (let i = 0; i < bytes.length; i++) {
-    hash ^= bytes[i];
+    hash ^= /** @type {number} */ (bytes[i]);
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;

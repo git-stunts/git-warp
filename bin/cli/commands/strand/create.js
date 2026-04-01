@@ -24,13 +24,35 @@ const createStrandSchema = z.object({
   owner: z.string().optional(),
   scope: z.string().optional(),
   'lease-expires-at': z.string().optional(),
-}).strict().transform((val) => ({
-  strandId: val.id,
-  lamportCeiling: val['lamport-ceiling'] ?? null,
-  owner: val.owner,
-  scope: val.scope,
-  leaseExpiresAt: val['lease-expires-at'],
-}));
+}).strict().transform(normalizeStrandValues);
+
+/**
+ * Spreads an optional value into an object if defined.
+ *
+ * @param {string} key
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function optSpread(key, value) {
+  return value !== undefined ? { [key]: value } : {};
+}
+
+/**
+ * Normalizes parsed Zod values into strand create options.
+ *
+ * @param {{ id?: string | undefined, 'lamport-ceiling'?: number | undefined, owner?: string | undefined, scope?: string | undefined, 'lease-expires-at'?: string | undefined }} val
+ * @param {unknown} [_ctx]
+ * @returns {{ strandId?: string, lamportCeiling: number | null, owner?: string, scope?: string, leaseExpiresAt?: string }}
+ */
+function normalizeStrandValues(val, _ctx) {
+  return {
+    ...optSpread('strandId', val.id),
+    lamportCeiling: val['lamport-ceiling'] ?? null,
+    ...optSpread('owner', val.owner),
+    ...optSpread('scope', val.scope),
+    ...optSpread('leaseExpiresAt', val['lease-expires-at']),
+  };
+}
 
 /**
  * Handles the strand create subcommand by parsing arguments and creating a new strand descriptor.

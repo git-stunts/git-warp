@@ -24,7 +24,7 @@ export async function handleStrandSubcommand({ options, args }) {
     throw usageError('Usage: warp-graph strand show <id>');
   }
 
-  const strandId = positionals[0];
+  const strandId = positionals[0] ?? '';
   const { graph, graphName } = await openGraph(options);
   const strand = await graph.getStrand(strandId);
   if (!strand) {

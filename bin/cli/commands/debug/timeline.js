@@ -78,10 +78,11 @@ function numOrNull(value) {
 /**
  * Normalizes parsed Zod values into a timeline coordinate shape.
  *
- * @param {{ strand?: string, 'entity-id'?: string, 'writer-id'?: string, 'lamport-floor'?: number, 'lamport-ceiling'?: number, limit?: number }} val
+ * @param {{ strand?: string | undefined, 'entity-id'?: string | undefined, 'writer-id'?: string | undefined, 'lamport-floor'?: number | undefined, 'lamport-ceiling'?: number | undefined, limit?: number | undefined }} val
+ * @param {unknown} _ctx
  * @returns {{ strandId: string|null, entityId: string|null, writerId: string|null, lamportFloor: number|null, lamportCeiling: number|null, limit: number|null }}
  */
-function normalizeTimelineValues(val) {
+function normalizeTimelineValues(val, _ctx) {
   return {
     strandId: strOrNull(val.strand),
     entityId: strOrNull(val['entity-id']),

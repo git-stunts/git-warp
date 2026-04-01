@@ -12,7 +12,11 @@ export function serializePerWriter(perWriter) {
   /** @type {Record<string, WriterTickInfo>} */
   const result = {};
   for (const [writerId, info] of perWriter) {
-    result[writerId] = { ticks: info.ticks, tipSha: info.tipSha, tickShas: info.tickShas };
+    result[writerId] = {
+      ticks: info.ticks,
+      tipSha: info.tipSha,
+      ...(info.tickShas !== undefined ? { tickShas: info.tickShas } : {}),
+    };
   }
   return result;
 }

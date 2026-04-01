@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 

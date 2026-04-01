@@ -110,7 +110,7 @@ export class HookInstaller {
     const current = classification.version === this._version;
     return {
       installed: true,
-      version: classification.version,
+      ...(classification.version !== undefined ? { version: classification.version } : {}),
       current,
       hookPath,
     };
@@ -230,7 +230,7 @@ export class HookInstaller {
       action: 'replaced',
       hookPath,
       version: this._version,
-      backupPath,
+      ...(backupPath !== undefined ? { backupPath } : {}),
     };
   }
 

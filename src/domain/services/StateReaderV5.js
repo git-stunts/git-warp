@@ -487,7 +487,10 @@ function buildReaderApi(context) {
       return getVisibleEdgeProps(context, { from, to, label });
     },
     neighbors(nodeId, direction, edgeLabel) {
-      return getVisibleNeighbors(context, nodeId, { direction, edgeLabel });
+      return getVisibleNeighbors(context, nodeId, {
+        ...(direction !== undefined ? { direction } : {}),
+        ...(edgeLabel !== undefined ? { edgeLabel } : {}),
+      });
     },
     getNodeContentMeta(nodeId) {
       return getVisibleNodeContentMeta(context, nodeId);

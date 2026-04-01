@@ -20,7 +20,7 @@
 
 /** @type {((algorithm: string) => Hash)|null} */
 let _createHash = null;
-/** @type {((algorithm: string, key: Uint8Array) => Hmac)|null} */
+/** @type {((algorithm: string, key: Uint8Array|string) => Hmac)|null} */
 let _createHmac = null;
 /** @type {((a: Uint8Array, b: Uint8Array) => boolean)|null} */
 let _timingSafeEqual = null;
@@ -28,7 +28,7 @@ let _timingSafeEqual = null;
 try {
   const nodeCrypto = await import('node:crypto');
   _createHash = /** @type {(algorithm: string) => Hash} */ (nodeCrypto.createHash);
-  _createHmac = /** @type {(algorithm: string, key: Uint8Array) => Hmac} */ (nodeCrypto.createHmac);
+  _createHmac = /** @type {(algorithm: string, key: Uint8Array|string) => Hmac} */ (nodeCrypto.createHmac);
   _timingSafeEqual = /** @type {(a: Uint8Array, b: Uint8Array) => boolean} */ (nodeCrypto.timingSafeEqual);
 } catch {
   // Import failed (bundler stub, unsupported runtime, etc.) —
@@ -53,8 +53,8 @@ function hashSync(algorithm, data) {
  * Computes an HMAC and returns the raw bytes.
  *
  * @param {string} algorithm - HMAC algorithm (e.g. 'sha256')
- * @param {Uint8Array} key - HMAC key
- * @param {Uint8Array} data - Data to authenticate
+ * @param {Uint8Array|string} key - HMAC key
+ * @param {Uint8Array|string} data - Data to authenticate
  * @returns {Uint8Array} Raw HMAC bytes
  */
 function hmacSync(algorithm, key, data) {

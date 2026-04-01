@@ -67,7 +67,7 @@ export function createTrustRecordPersistence() {
       const parsed = {};
       for (const line of entries) {
         const match = line.match(/^\d+ blob ([^\t]+)\t(.+)$/);
-        if (match) {
+        if (match && match[2] && match[1]) {
           parsed[match[2]] = match[1];
         }
       }

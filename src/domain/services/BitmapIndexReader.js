@@ -466,7 +466,11 @@ export default class BitmapIndexReader {
    */
   _getShardValidationDetails(err) {
     if (err instanceof ShardValidationError) {
-      return { field: err.field, expected: err.expected, actual: err.actual };
+      return {
+        ...(err.field !== undefined ? { field: err.field } : {}),
+        ...(err.expected !== undefined ? { expected: err.expected } : {}),
+        ...(err.actual !== undefined ? { actual: err.actual } : {}),
+      };
     }
     return {};
   }

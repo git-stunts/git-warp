@@ -246,7 +246,9 @@ describe('buildState — schema validation', () => {
     const invalid = { schemaVersion: 99, recordType: 'BOGUS' };
     const state = buildState([invalid]);
     expect(state.errors.length).toBeGreaterThan(0);
-    expect(state.errors[0].error).toContain('Schema validation failed');
+    const firstErr = state.errors[0];
+    expect(firstErr).toBeDefined();
+    expect(firstErr?.error).toContain('Schema validation failed');
   });
 });
 

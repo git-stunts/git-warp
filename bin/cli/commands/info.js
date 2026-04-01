@@ -121,7 +121,11 @@ export default async function handleInfo({ options }) {
     });
     const activeCursor = await readActiveCursor(persistence, name);
     if (activeCursor) {
-      info.cursor = { active: true, tick: activeCursor.tick, mode: activeCursor.mode };
+      info.cursor = {
+        active: true,
+        tick: activeCursor.tick,
+        ...(activeCursor.mode !== undefined ? { mode: activeCursor.mode } : {}),
+      };
     } else {
       info.cursor = { active: false };
     }

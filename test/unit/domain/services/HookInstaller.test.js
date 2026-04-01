@@ -20,7 +20,7 @@ function makeFs(files = {}) {
 }
 
 function makeExecGitConfig(overrides = /** @type {any} */ ({})) {
-  return vi.fn((repoPath, key) => {
+  return vi.fn((_repoPath, key) => {
     if (key === '--git-dir') return overrides.gitDir || '.git';
     if (key === 'core.hooksPath') return overrides.hooksPath || null;
     return null;

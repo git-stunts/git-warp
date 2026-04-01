@@ -38,7 +38,7 @@ export default class PersistenceError extends WarpError {
    * @param {{ cause?: Error, context?: Record<string, unknown> }} [options={}]
    */
   constructor(message, code, options = {}) {
-    super(message, code, { context: options.context });
+    super(message, code, options.context ? { context: options.context } : {});
     if (options.cause) {
       this.cause = options.cause;
     }

@@ -70,7 +70,7 @@ export async function handleStrandSubcommand({ options, args }) {
     );
   }
 
-  const strandId = positionals[0];
+  const strandId = positionals[0] ?? '';
   const { graph, graphName } = await openGraph(options);
   const transferPlan = await graph.planStrandTransfer(strandId, values.transferOptions);
 

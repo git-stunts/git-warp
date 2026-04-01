@@ -70,7 +70,7 @@ export async function resolveGraphName(persistence, explicitGraph) {
   }
   const graphNames = await listGraphNames(persistence);
   if (graphNames.length === 1) {
-    return graphNames[0];
+    return /** @type {string} */ (graphNames[0]);
   }
   if (graphNames.length === 0) {
     throw notFoundError('No graphs found in repo; specify --graph');

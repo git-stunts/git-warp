@@ -125,7 +125,7 @@ describe('Tamper detection through canonical path', () => {
 
   it('rejects mutated signature bytes', () => {
     const sigBuf = Buffer.from(KEY_ADD_1.signature.sig, 'base64');
-    sigBuf[0] ^= 0xff;
+    if (sigBuf[0] !== undefined) { sigBuf[0] ^= 0xff; }
     const payload = computeSignaturePayload(KEY_ADD_1);
     expect(verifySignature({
       algorithm: 'ed25519',

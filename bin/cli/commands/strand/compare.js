@@ -85,7 +85,7 @@ export async function handleStrandSubcommand({ options, args }) {
     );
   }
 
-  const strandId = positionals[0];
+  const strandId = positionals[0] ?? '';
   const { graph, graphName } = await openGraph(options);
   const comparison = await graph.compareStrand(strandId, values.comparisonOptions);
 

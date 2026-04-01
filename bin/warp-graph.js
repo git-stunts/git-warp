@@ -73,8 +73,9 @@ async function main() {
 
   // Long-running commands may return a `close` function.
   // Wait for SIGINT/SIGTERM instead of exiting immediately.
-  const close = result && typeof result === 'object' && 'close' in /** @type {Record<string, unknown>} */ (result)
-    ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result).close)
+  const closeKey = 'close';
+  const close = result && typeof result === 'object' && closeKey in /** @type {Record<string, unknown>} */ (result)
+    ? /** @type {() => Promise<void>} */ (/** @type {Record<string, unknown>} */ (result)[closeKey])
     : null;
 
   if (close) {

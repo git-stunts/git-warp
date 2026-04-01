@@ -40,8 +40,8 @@ describe('Cancellation', () => {
       const error = new OperationAbortedError('traversal', { context });
 
       expect(error.context).toEqual(context);
-      expect(error.context.visitedCount).toBe(42);
-      expect(error.context.lastSha).toBe('abc123');
+      expect(error.context['visitedCount']).toBe(42);
+      expect(error.context['lastSha']).toBe('abc123');
     });
 
     it('is an instance of Error', () => {
@@ -217,7 +217,9 @@ describe('Cancellation', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(OperationAbortedError);
         expect(collectedNodes).toHaveLength(1);
-        expect(collectedNodes[0].sha).toBe('sha1');
+        const first = collectedNodes[0];
+        expect(first).toBeDefined();
+        expect(first?.sha).toBe('sha1');
       }
     });
 
@@ -392,7 +394,7 @@ describe('Cancellation', () => {
       expect(error.operation).toBe('fullTest');
       expect(error.reason).toBe('User cancelled');
       expect(error.code).toBe('USER_CANCELLED');
-      expect(error.context.userId).toBe(123);
+      expect(error.context['userId']).toBe(123);
     });
   });
 });

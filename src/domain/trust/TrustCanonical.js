@@ -42,5 +42,6 @@ export function computeSignaturePayload(record) {
  * @returns {Promise<boolean>} true if recordId matches computed value
  */
 export async function verifyRecordId(record, { crypto } = {}) {
-  return record.recordId === await computeRecordId(record, { crypto });
+  const idKey = 'recordId';
+  return record[idKey] === await computeRecordId(record, crypto ? { crypto } : {});
 }

@@ -105,11 +105,11 @@ function runPrePushHook(options = {}) {
   };
 
   if (quick) {
-    env.WARP_QUICK_PUSH = '1';
+    env['WARP_QUICK_PUSH'] = '1';
   }
 
   if (failCommand) {
-    env.WARP_FAIL_NPM_CMD = failCommand;
+    env['WARP_FAIL_NPM_CMD'] = failCommand;
   }
 
   const result = spawnSync('sh', [hookPath], {
@@ -195,9 +195,10 @@ describe('scripts/hooks/pre-push', () => {
 
   for (const [failCommand, expectedMessage] of failureCases) {
     it(`reports ${expectedMessage}`, () => {
+      const fc = failCommand ?? '';
       const result = runPrePushHook({
-        quick: failCommand !== 'test:local',
-        failCommand,
+        quick: fc !== 'test:local',
+        failCommand: fc,
       });
 
       expect(result.status).toBe(1);

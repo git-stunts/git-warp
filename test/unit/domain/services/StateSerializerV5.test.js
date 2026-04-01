@@ -560,7 +560,9 @@ describe('StateSerializerV5', () => {
       const bytes = serializeStateV5(state);
       const result = deserializeStateV5(/** @type {Buffer} */ (bytes));
 
-      expect(result.props[0].value).toEqual(complexValue);
+      const firstProp = result.props[0];
+      expect(firstProp).toBeDefined();
+      expect(firstProp?.value).toEqual(complexValue);
     });
   });
 

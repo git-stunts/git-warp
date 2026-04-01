@@ -168,7 +168,7 @@ function resolveTickValue(tickValue, currentTick, ticks, maxTick) {
     const currentIdx = allPoints.indexOf(base);
     const startIdx = currentIdx === -1 ? 0 : currentIdx;
     const targetIdx = Math.max(0, Math.min(allPoints.length - 1, startIdx + delta));
-    return allPoints[targetIdx];
+    return allPoints[targetIdx] ?? 0;
   }
 
   const n = parseInt(tickValue, 10);
