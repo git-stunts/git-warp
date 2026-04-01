@@ -27,7 +27,6 @@ describe('IndexRebuildService Deep DAG Test', () => {
       }
     };
 
-    const _blobOids = new Map();
     let blobCounter = 0;
 
     const mockStorage = {
@@ -53,7 +52,7 @@ describe('IndexRebuildService Deep DAG Test', () => {
     expect(mockStorage.writeTree).toHaveBeenCalledTimes(1);
 
     // Verify tree entries were created for all shards
-    const treeEntries = mockStorage.writeTree.mock.calls[0][0];
+    const treeEntries = /** @type {any[]} */ (/** @type {any[]} */ (mockStorage.writeTree.mock.calls[0])[0]);
     expect(treeEntries.length).toBeGreaterThan(0);
 
     // All entries should be valid tree format

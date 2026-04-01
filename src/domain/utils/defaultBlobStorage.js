@@ -34,9 +34,10 @@ async function contentHash(bytes) {
   let h1 = 0x811c9dc5;
   let h2 = 0xcbf29ce4;
   for (let i = 0; i < bytes.length; i++) {
-    h1 ^= bytes[i];
+    const b = /** @type {number} */ (bytes[i]);
+    h1 ^= b;
     h1 = Math.imul(h1, 0x01000193);
-    h2 ^= bytes[i];
+    h2 ^= b;
     h2 = Math.imul(h2, 0x01000193);
   }
   return (h1 >>> 0).toString(16).padStart(8, '0')

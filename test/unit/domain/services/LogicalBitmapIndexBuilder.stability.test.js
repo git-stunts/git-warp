@@ -96,7 +96,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     expect(ownsId).toBe(1);
 
     const tree1 = builder1.serialize();
-    const labelRegistry = decodeLabelRegistry(tree1['labels.cbor']);
+    const labelRegistry = decodeLabelRegistry(/** @type {Uint8Array} */ (tree1['labels.cbor']));
 
     // Build 2: seed existing labels, add new
     const builder2 = new LogicalBitmapIndexBuilder();
@@ -124,7 +124,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     }
     const seededTree = seedBuilder.serialize();
     const seededMeta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number }} */ (
-      defaultCodec.decode(seededTree['meta_aa.cbor'])
+      defaultCodec.decode(/** @type {Uint8Array} */ (seededTree['meta_aa.cbor']))
     );
 
     const rebuild = new LogicalBitmapIndexBuilder();
@@ -135,7 +135,7 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
 
     const rebuiltTree = rebuild.serialize();
     const rebuiltMeta = /** @type {{ nodeToGlobal: Array<[string, number]> }} */ (
-      defaultCodec.decode(rebuiltTree['meta_aa.cbor'])
+      defaultCodec.decode(/** @type {Uint8Array} */ (rebuiltTree['meta_aa.cbor']))
     );
     const nodeIds = rebuiltMeta.nodeToGlobal.map(([nodeId]) => nodeId);
     const uniqueNodeIds = new Set(nodeIds);

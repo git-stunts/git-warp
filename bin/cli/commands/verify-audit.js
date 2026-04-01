@@ -13,7 +13,8 @@ import { createPersistence, resolveGraphName } from '../shared.js';
  */
 function detectTrustWarning() {
   const sources = [];
-  if (typeof getEnvVar('WARP_TRUSTED_ROOT') === 'string' && getEnvVar('WARP_TRUSTED_ROOT').length > 0) {
+  const trustedRoot = getEnvVar('WARP_TRUSTED_ROOT');
+  if (typeof trustedRoot === 'string' && trustedRoot.length > 0) {
     sources.push('env');
   }
   if (sources.length === 0) {
@@ -66,7 +67,9 @@ export default async function handleVerifyAudit({ options, args }) {
   /** @type {Record<string, unknown>} */
   let payload;
   if (writerFilter !== undefined) {
-    const chain = await verifier.verifyChain(graphName, writerFilter, { since });
+    const chain = await verifier.verifyChain(graphName, writerFilter, {
+      ...(since !== undefined ? { since } : {}),
+    });
     const invalid = chain.status !== 'VALID' && chain.status !== 'PARTIAL' ? 1 : 0;
     payload = {
       graph: graphName,
@@ -81,22 +84,25 @@ export default async function handleVerifyAudit({ options, args }) {
       trustWarning,
     };
   } else {
-    payload = await verifier.verifyAll(graphName, { since, trustWarning });
+    payload = await verifier.verifyAll(graphName, {
+      ...(since !== undefined ? { since } : {}),
+      ...(trustWarning !== null ? { trustWarning } : {}),
+    });
   }
 
   // Attach trust assessment only when explicitly requested via --trust-mode
   if (trustMode) {
     try {
       const trustAssessment = await verifier.evaluateTrust(graphName, {
-        pin: trustPin,
+        ...(trustPin !== undefined ? { pin: trustPin } : {}),
         mode: trustMode,
       });
-      payload.trustAssessment = trustAssessment;
+      /** @type {any} */ (payload).trustAssessment = trustAssessment;
     } catch (err) {
       if (trustMode === 'enforce') {
         throw err;
       }
-      payload.trustAssessment = {
+      /** @type {any} */ (payload).trustAssessment = {
         trustSchemaVersion: 1,
         mode: 'signed_evidence_v1',
         trustVerdict: 'error',

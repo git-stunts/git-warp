@@ -92,7 +92,7 @@ function validateReceiptSchema(receipt) {
   if (receipt === null || receipt === undefined || typeof receipt !== 'object') {
     return 'receipt is not an object';
   }
-  const rec = /** @type {Record<string, unknown>} */ (receipt);
+  const rec = /** @type {{ version?: unknown, graphName?: unknown, writerId?: unknown, dataCommit?: unknown, opsDigest?: unknown, prevAuditCommit?: unknown, tickStart?: unknown, tickEnd?: unknown, timestamp?: unknown }} */ (receipt);
   const keys = Object.keys(rec);
   if (keys.length !== 9) {
     return `expected 9 fields, got ${keys.length}`;
@@ -324,7 +324,9 @@ export class AuditVerifierService {
 
     const chains = [];
     for (const writerId of writerIds.sort()) {
-      const result = await this.verifyChain(graphName, writerId, { since: options.since });
+      const result = await this.verifyChain(graphName, writerId, {
+        ...(options.since !== undefined ? { since: options.since } : {}),
+      });
       chains.push(result);
     }
 
@@ -583,6 +585,11 @@ export class AuditVerifierService {
 
     // Read blob
     const blobOid = treeEntries['receipt.cbor'];
+    if (blobOid === undefined) {
+      this._addError(result, 'MISSING_RECEIPT_BLOB',
+        'receipt.cbor entry missing from audit tree', commitSha);
+      return null;
+    }
     let blobContent;
     try {
       blobContent = await this._persistence.readBlob(blobOid);

@@ -81,7 +81,7 @@ function buildPathLines(path, edges, maxWidth) {
   }
 
   if (path.length === 1) {
-    return [colors.primary(formatNode(path[0]))];
+    return [colors.primary(formatNode(/** @type {string} */ (path[0])))];
   }
 
   const lines = [];
@@ -90,10 +90,10 @@ function buildPathLines(path, edges, maxWidth) {
 
   for (let i = 0; i < path.length; i++) {
     const { segment, width } = createPathSegment({
-      nodeId: path[i],
+      nodeId: /** @type {string} */ (path[i]),
       index: i,
       pathLength: path.length,
-      edges,
+      ...(edges !== undefined ? { edges } : {}),
     });
 
     if (!segmentFits(currentWidth, width, maxWidth)) {
@@ -212,7 +212,7 @@ export function renderPathView(payload, options = {}) {
 
   // Handle "already at destination" case (from === to, length === 0)
   if (length === 0 && path && path.length === 1) {
-    return `${renderSameNode(path[0])}\n`;
+    return `${renderSameNode(/** @type {string} */ (path[0]))}\n`;
   }
 
   // Render the found path

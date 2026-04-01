@@ -693,8 +693,8 @@ describe('GraphTraversal hooks', () => {
       hooks: { onVisit: (nodeId, depth) => visited.push({ nodeId, depth }) },
     });
     expect(visited.map(v => v.nodeId)).toEqual(['a', 'b', 'c', 'd', 'e']);
-    expect(visited[0].depth).toBe(0);
-    expect(visited[4].depth).toBe(4);
+    expect(visited[0]?.depth).toBe(0);
+    expect(visited[4]?.depth).toBe(4);
   });
 
   it('calls onExpand with neighbors', async () => {

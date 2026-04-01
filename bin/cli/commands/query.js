@@ -35,12 +35,12 @@ function extractTraversalSteps(args) {
     if (arg === '--outgoing' || arg === '--incoming') {
       const next = args[i + 1];
       const label = next && !next.startsWith('-') ? next : undefined;
-      steps.push({ type: arg.slice(2), label });
+      steps.push({ type: arg.slice(2), ...(label !== undefined ? { label } : {}) });
       if (label) {
         i += 1;
       }
     } else {
-      remaining.push(arg);
+      remaining.push(/** @type {string} */ (arg));
     }
   }
 
@@ -168,7 +168,7 @@ function buildQueryPayload(graphName, result, edges) {
     const entry = { ...node };
     const nodeEdges = edgeMap.get(node.id);
     if (nodeEdges) {
-      entry.edges = nodeEdges;
+      Object.assign(entry, { edges: nodeEdges });
     }
     return entry;
   });
@@ -219,9 +219,9 @@ export default async function handleQuery({ options, args }) {
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
       if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
-        payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+        /** @type {any} */ (payload)._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
       } else {
-        payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
+        /** @type {any} */ (payload)._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
       }
     }
 

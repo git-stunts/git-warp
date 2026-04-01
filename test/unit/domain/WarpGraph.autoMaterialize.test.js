@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.js';
 
@@ -36,12 +36,12 @@ describe('WarpRuntime autoMaterialize option (AP/LAZY/1)', () => {
   });
 
   it('defaults to true when autoMaterialize is explicitly undefined', async () => {
-    const graph = await WarpRuntime.open({
+    const graph = await WarpRuntime.open(/** @type {any} */ ({
       persistence: createMockPersistence(),
       graphName: 'test',
       writerId: 'writer-1',
       autoMaterialize: undefined,
-    });
+    }));
 
     expect(/** @type {any} */ (graph)._autoMaterialize).toBe(true);
   });

@@ -319,8 +319,8 @@ describe('Structural seek diff (diffStates integration)', () => {
     const diff = diffStates(before, /** @type {*} */ (after));
 
     expect(diff.props.set.length).toBe(1);
-    expect(diff.props.set[0].propKey).toBe('name');
-    expect(diff.props.set[0].oldValue).toBe('Alice');
-    expect(diff.props.set[0].newValue).toBe('Alicia');
+    expect(diff.props.set[0]?.propKey).toBe('name');
+    expect(diff.props.set[0]?.oldValue).toBe('Alice');
+    expect(diff.props.set[0]?.newValue).toBe('Alicia');
   });
 });

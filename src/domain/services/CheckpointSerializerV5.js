@@ -65,7 +65,11 @@ export function serializeFullStateV5(state, { codec } = {}) {
     for (const [key, eventId] of state.edgeBirthEvent) {
       edgeBirthArray.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
     }
-    edgeBirthArray.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    edgeBirthArray.sort((a, b) => {
+      const ak = /** @type {string} */ (a[0]);
+      const bk = /** @type {string} */ (b[0]);
+      return ak < bk ? -1 : ak > bk ? 1 : 0;
+    });
   }
 
   const obj = {
@@ -95,7 +99,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
     return createEmptyStateV5();
   }
 
-  const obj = /** @type {Record<string, unknown>} */ (codec.decode(buffer));
+  const obj = /** @type {{ version?: unknown, nodeAlive?: unknown, edgeAlive?: unknown, prop?: unknown, observedFrontier?: unknown, edgeBirthEvent?: unknown, edgeBirthLamport?: unknown }} */ (codec.decode(buffer));
 
   // Handle null/undefined decoded result: return empty state
   if (obj === null || obj === undefined) {
@@ -210,7 +214,7 @@ function deserializeProps(propArray) {
 
 /**
  * Deserializes edge birth event data, supporting both legacy and current formats.
- * @param {Record<string, unknown>} obj - The decoded checkpoint object
+ * @param {{ edgeBirthEvent?: unknown, edgeBirthLamport?: unknown }} obj - The decoded checkpoint object
  * @returns {Map<string, import('../utils/EventId.js').EventId>}
  */
 function deserializeEdgeBirthEvent(obj) {

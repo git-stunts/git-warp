@@ -70,18 +70,18 @@ async function openDetachedReadGraph(graph) {
     graphName: graph._graphName,
     writerId: graph._writerId,
     gcPolicy: graph._gcPolicy,
-    checkpointPolicy: graph._checkpointPolicy || undefined,
+    ...(graph._checkpointPolicy ? { checkpointPolicy: graph._checkpointPolicy } : {}),
     autoMaterialize: false,
     onDeleteWithData: graph._onDeleteWithData,
-    logger: graph._logger || undefined,
+    ...(graph._logger ? { logger: graph._logger } : {}),
     clock: graph._clock,
     crypto: graph._crypto,
     codec: graph._codec,
-    seekCache: graph._seekCache || undefined,
+    ...(graph._seekCache ? { seekCache: graph._seekCache } : {}),
     audit: false,
-    blobStorage: graph._blobStorage || undefined,
-    patchBlobStorage: graph._patchBlobStorage || undefined,
-    trust: graph._trustConfig,
+    ...(graph._blobStorage ? { blobStorage: graph._blobStorage } : {}),
+    ...(graph._patchBlobStorage ? { patchBlobStorage: graph._patchBlobStorage } : {}),
+    ...(graph._trustConfig !== undefined ? { trust: graph._trustConfig } : {}),
   });
 }
 
@@ -672,7 +672,7 @@ export function verifyIndex(options) {
   return this._viewService.verifyIndex({
     state: this._cachedState,
     logicalIndex: this._logicalIndex,
-    options,
+    ...(options !== undefined ? { options } : {}),
   });
 }
 

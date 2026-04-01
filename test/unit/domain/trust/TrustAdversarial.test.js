@@ -20,8 +20,6 @@ import {
   KEY_ADD_2,
   WRITER_BIND_ADD_ALICE,
   KEY_REVOKE_2,
-  WRITER_BIND_REVOKE_BOB,
-  GOLDEN_CHAIN,
   KEY_ID_1,
   KEY_ID_2,
   PUBLIC_KEY_2,
@@ -78,7 +76,7 @@ describe('Adversarial case 2: Stale key after KEY_REVOKE', () => {
     const assessment = evaluateWriters(['bob'], state, ENFORCE_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
-    expect(assessment.trust.explanations[0].reasonCode).toBe(
+    expect(assessment.trust.explanations[0]?.reasonCode).toBe(
       TRUST_REASON_CODES.WRITER_BOUND_KEY_REVOKED,
     );
   });

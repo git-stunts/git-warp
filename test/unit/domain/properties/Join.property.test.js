@@ -1,10 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.js';
 import {
   createEmptyStateV5,
   joinStates as _joinStates,
-  join,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
@@ -369,7 +368,7 @@ describe('JoinReducer property tests', () => {
           }
 
           // All props from a should be in joined (or superseded by higher eventId)
-          for (const [key, regA] of a.prop) {
+          for (const [key] of a.prop) {
             const regJoined = joined.prop.get(key);
             if (!regJoined) {
               return false;

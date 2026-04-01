@@ -206,7 +206,7 @@ function _parseMktreeEntry(line) {
   }
   const meta = line.slice(0, tabIdx);
   const path = line.slice(tabIdx + 1);
-  const [mode, , oid] = meta.split(' ');
+  const [mode = '', , oid = ''] = meta.split(' ');
   return { mode, path, oid };
 }
 

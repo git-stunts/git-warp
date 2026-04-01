@@ -9,7 +9,21 @@
  * @see docs/specs/TRUST_V1_CRYPTO.md Section 15
  */
 
-/** @type {Readonly<Record<string, string>>} */
+/**
+ * @type {Readonly<{
+ *   WRITER_BOUND_TO_ACTIVE_KEY: string,
+ *   WRITER_HAS_NO_ACTIVE_BINDING: string,
+ *   WRITER_BOUND_KEY_REVOKED: string,
+ *   BINDING_REVOKED: string,
+ *   KEY_UNKNOWN: string,
+ *   TRUST_REF_MISSING: string,
+ *   TRUST_PIN_INVALID: string,
+ *   TRUST_RECORD_SCHEMA_INVALID: string,
+ *   TRUST_SIGNATURE_INVALID: string,
+ *   TRUST_RECORD_CHAIN_INVALID: string,
+ *   TRUST_POLICY_INVALID: string,
+ * }>}
+ */
 export const TRUST_REASON_CODES = Object.freeze({
   // ── Positive ────────────────────────────────────────────────────────────
   /** Writer has at least one active binding to an active key. */
