@@ -42,7 +42,7 @@ vi.mock('../../../../src/domain/services/HttpSyncServer.js', () => ({
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  /** @type {Record<string, import('vitest').Mock>} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
+  /** @type {{ applySyncResponse: import('vitest').Mock, syncNeeded: import('vitest').Mock, processSyncRequest: import('vitest').Mock }} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
 
 /**
  * Creates a mock WarpRuntime host for SyncController tests.
@@ -334,7 +334,9 @@ describe('SyncController', () => {
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
       // Should have passed an empty Map (from createFrontier()) as the frontier arg
-      const calledFrontier = applySyncResponseMock.mock.calls[0][2];
+      const call = applySyncResponseMock.mock.calls[0];
+      if (call == null) { throw new Error('expected at least one call'); }
+      const calledFrontier = call[2];
       expect(calledFrontier).toBeInstanceOf(Map);
       expect(calledFrontier.size).toBe(0);
       expect(host['_lastFrontier']).toBe(newFrontier);
@@ -359,7 +361,9 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
-      const calledFrontier = applySyncResponseMock.mock.calls[0][2];
+      const call2 = applySyncResponseMock.mock.calls[0];
+      if (call2 == null) { throw new Error('expected at least one call'); }
+      const calledFrontier = call2[2];
       // Must be the SHA frontier map, not the VersionVector
       expect(calledFrontier).toBe(lastFrontier);
       expect(calledFrontier.get('alice')).toBe('sha-tip-1');
@@ -486,7 +490,9 @@ describe('SyncController', () => {
         remoteFrontier,
       );
       // Verify local frontier was built correctly
-      const calledLocalFrontier = syncNeededMock.mock.calls[0][0];
+      const syncCall = syncNeededMock.mock.calls[0];
+      if (syncCall == null) { throw new Error('expected at least one call'); }
+      const calledLocalFrontier = syncCall[0];
       expect(calledLocalFrontier.get('alice')).toBe('sha-alice');
     });
   });
@@ -711,7 +717,9 @@ describe('SyncController', () => {
       }));
 
       expect(httpSyncServerMock).toHaveBeenCalledOnce();
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.httpPort).toBe(httpPort);
       expect(args.path).toBe('/custom');
       expect(args.maxRequestBytes).toBe(1024);
@@ -734,7 +742,9 @@ describe('SyncController', () => {
         auth: { keys: { k: 's' } },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
       expect(args.auth.keys).toEqual({ k: 's' });
@@ -750,7 +760,9 @@ describe('SyncController', () => {
         httpPort: { listen: vi.fn() },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.graph).toBe(host);
     });
   });
@@ -930,7 +942,9 @@ describe('SyncController', () => {
       });
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      const fetchHeaders = fetchMock.mock.calls[0][1].headers;
+      const fetchCall = fetchMock.mock.calls[0];
+      if (fetchCall == null) { throw new Error('expected at least one call'); }
+      const fetchHeaders = fetchCall[1].headers;
       // Auth headers should contain x-warp-* prefixed headers
       const authHeaderKeys = Object.keys(fetchHeaders).filter(k => k.startsWith('x-warp-'));
       expect(authHeaderKeys.length).toBeGreaterThan(0);

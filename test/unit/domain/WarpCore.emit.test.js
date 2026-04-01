@@ -28,7 +28,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('notification', { text: 'hello' });
+        effectId = /** @type {*} */ (p).emitEffect('notification', { text: 'hello' });
       });
 
       expect(effectId.startsWith(EFFECT_NODE_PREFIX)).toBe(true);
@@ -43,11 +43,12 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('diagnostic', null);
+        effectId = /** @type {*} */ (p).emitEffect('diagnostic', null);
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
+      if (props == null) { throw new Error('props should not be null'); }
       expect(props['kind']).toBe('diagnostic');
     });
 
@@ -56,11 +57,12 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('test', null);
+        effectId = /** @type {*} */ (p).emitEffect('test', null);
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
+      if (props == null) { throw new Error('props should not be null'); }
       expect(props['writer']).toBe('writer-1');
     });
 
@@ -69,11 +71,12 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('export', { format: 'csv', rows: 100 });
+        effectId = /** @type {*} */ (p).emitEffect('export', { format: 'csv', rows: 100 });
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
+      if (props == null) { throw new Error('props should not be null'); }
       const parsed = JSON.parse(/** @type {string} */ (props['payload']));
       expect(parsed).toEqual({ format: 'csv', rows: 100 });
     });
@@ -83,11 +86,12 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('ping', null);
+        effectId = /** @type {*} */ (p).emitEffect('ping', null);
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
+      if (props == null) { throw new Error('props should not be null'); }
       expect(props['payload']).toBeUndefined();
     });
 
@@ -96,9 +100,9 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string[]} */
       const ids = [];
       await core.patch((p) => {
-        ids.push(p.emitEffect('a', null));
-        ids.push(p.emitEffect('b', null));
-        ids.push(p.emitEffect('c', null));
+        ids.push(/** @type {*} */ (p).emitEffect('a', null));
+        ids.push(/** @type {*} */ (p).emitEffect('b', null));
+        ids.push(/** @type {*} */ (p).emitEffect('c', null));
       });
 
       expect(new Set(ids).size).toBe(3);
@@ -108,7 +112,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       const customId = `${EFFECT_NODE_PREFIX}my-custom-id`;
       await core.patch((p) => {
-        p.emitEffect('test', null, { effectId: customId });
+        /** @type {*} */ (p).emitEffect('test', null, { effectId: customId });
       });
 
       await core.materialize();
@@ -120,7 +124,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       const core = await openCore();
       await expect(
         core.patch((p) => {
-          p.emitEffect('', null);
+          /** @type {*} */ (p).emitEffect('', null);
         }),
       ).rejects.toThrow('emitEffect: kind must be a non-empty string');
     });
@@ -137,7 +141,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       const patchSha = await core.patch((p) => {
         p.addNode('user:alice');
         p.setProperty('user:alice', 'name', 'Alice');
-        effectId = p.emitEffect('user-created', { userId: 'user:alice' });
+        effectId = /** @type {*} */ (p).emitEffect('user-created', { userId: 'user:alice' });
       });
 
       await core.materialize();
@@ -162,11 +166,12 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       /** @type {string} */
       let effectId = '';
       await core.patch((p) => {
-        effectId = p.emitEffect('test', null);
+        effectId = /** @type {*} */ (p).emitEffect('test', null);
       });
 
       await core.materialize();
       const props = await core.getNodeProps(effectId);
+      if (props == null) { throw new Error('props should not be null'); }
       expect(props['timestamp']).toBeUndefined();
     });
 
@@ -182,10 +187,10 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
       const sharedId = `${EFFECT_NODE_PREFIX}determinism-check`;
 
       await core1.patch((p) => {
-        p.emitEffect('test', payload, { effectId: sharedId });
+        /** @type {*} */ (p).emitEffect('test', payload, { effectId: sharedId });
       });
       await core2.patch((p) => {
-        p.emitEffect('test', payload, { effectId: sharedId });
+        /** @type {*} */ (p).emitEffect('test', payload, { effectId: sharedId });
       });
 
       await core1.materialize();
@@ -193,6 +198,7 @@ describe('PatchBuilderV2.emitEffect() — graph entity behavior', () => {
 
       const props1 = await core1.getNodeProps(sharedId);
       const props2 = await core2.getNodeProps(sharedId);
+      if (props1 == null || props2 == null) { throw new Error('props should not be null'); }
       expect(props1['payload']).toBe(props2['payload']);
     });
   });
