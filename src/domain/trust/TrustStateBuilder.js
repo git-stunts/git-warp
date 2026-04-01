@@ -99,12 +99,14 @@ export function buildState(records, options = {}) {
 }
 
 /**
+ * Dispatches a validated trust record to the appropriate handler.
+ *
  * @param {TrustRecord} rec
  * @param {TrustBuildContext} ctx
  */
 function processRecord(rec, ctx) {
   const cryptoError = validateRecordCryptography(rec, ctx.activeKeys, ctx.options);
-  if (cryptoError) {
+  if (typeof cryptoError === 'string' && cryptoError.length > 0) {
     ctx.errors.push({ recordId: rec.recordId, error: cryptoError });
     return;
   }
@@ -164,10 +166,13 @@ function validateRecordCryptography(rec, activeKeys, options) {
   ) {
     issuerPublicKey = rec.subject.publicKey;
   } else {
-    issuerPublicKey = activeKeys.get(rec.issuerKeyId)?.publicKey || null;
+    const found = activeKeys.get(rec.issuerKeyId);
+    issuerPublicKey = typeof found?.publicKey === 'string' && found.publicKey.length > 0
+      ? found.publicKey
+      : null;
   }
 
-  if (!issuerPublicKey) {
+  if (typeof issuerPublicKey !== 'string' || issuerPublicKey.length === 0) {
     return `Unknown issuer key for signature verification: ${rec.issuerKeyId}`;
   }
 
@@ -183,6 +188,8 @@ function validateRecordCryptography(rec, activeKeys, options) {
 }
 
 /**
+ * Processes a KEY_ADD record, adding the key if it is not already active or revoked.
+ *
  * @param {TrustRecord} rec
  * @param {Map<string, {publicKey: string, addedAt: string}>} activeKeys
  * @param {Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>} revokedKeys
@@ -211,6 +218,8 @@ function handleKeyAdd(rec, activeKeys, revokedKeys, errors) {
 }
 
 /**
+ * Processes a KEY_REVOKE record, moving the key from active to revoked.
+ *
  * @param {TrustRecord} rec
  * @param {Map<string, {publicKey: string, addedAt: string}>} activeKeys
  * @param {Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>} revokedKeys
@@ -245,6 +254,8 @@ function handleKeyRevoke(rec, activeKeys, revokedKeys, errors) {
 }
 
 /**
+ * Processes a WRITER_BIND_ADD record, binding a writer to an active key.
+ *
  * @param {TrustRecord} rec
  * @param {Map<string, {publicKey: string, addedAt: string}>} activeKeys
  * @param {Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>} revokedKeys
@@ -275,6 +286,8 @@ function handleBindAdd(rec, activeKeys, revokedKeys, writerBindings, errors) {
 }
 
 /**
+ * Processes a WRITER_BIND_REVOKE record, moving a binding from active to revoked.
+ *
  * @param {TrustRecord} rec
  * @param {Map<string, {keyId: string, boundAt: string}>} writerBindings
  * @param {Map<string, {keyId: string, revokedAt: string, reasonCode: string}>} revokedBindings

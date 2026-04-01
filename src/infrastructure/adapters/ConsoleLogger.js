@@ -27,6 +27,34 @@ const LEVEL_NAMES = Object.freeze({
 });
 
 /**
+ * Resolves a level value (string name or numeric constant) to a numeric LogLevel.
+ *
+ * @param {number|string} level
+ * @returns {number}
+ */
+function resolveLevel(level) {
+  if (typeof level === 'string') {
+    return LEVEL_NAMES[level] ?? LogLevel.INFO;
+  }
+  return level;
+}
+
+/**
+ * Resolves constructor options into normalised internal values.
+ *
+ * @param {{ level?: number|string, context?: Record<string, unknown>, timestampFn?: function(): string }|undefined} options
+ * @returns {{ level: number, context: Readonly<Record<string, unknown>>, timestampFn: function(): string }}
+ */
+function resolveOptions(options) {
+  const { level = LogLevel.INFO, context = {}, timestampFn } = options || {};
+  return {
+    level: resolveLevel(level),
+    context: Object.freeze({ ...context }),
+    timestampFn: timestampFn || (() => new Date().toISOString()),
+  };
+}
+
+/**
  * Console logger adapter with structured JSON output.
  *
  * Provides a production-ready implementation of LoggerPort that outputs
@@ -49,11 +77,11 @@ export default class ConsoleLogger extends LoggerPort {
    * @param {{ level?: number | string, context?: Record<string, unknown>, timestampFn?: function(): string }} [options] - Logger options
    */
   constructor(options = undefined) {
-    const { level = LogLevel.INFO, context = {}, timestampFn } = options || {};
     super();
-    this._level = typeof level === 'string' ? (LEVEL_NAMES[level] ?? LogLevel.INFO) : level;
-    this._context = Object.freeze({ ...context });
-    this._timestampFn = timestampFn || (() => new Date().toISOString());
+    const resolved = resolveOptions(options);
+    this._level = resolved.level;
+    this._context = resolved.context;
+    this._timestampFn = resolved.timestampFn;
   }
 
   /**

@@ -76,6 +76,8 @@ function resolveCandidates(patches, good, bad) {
 
 export default class BisectService {
   /**
+   * Creates a BisectService bound to the given graph for binary-search operations.
+   *
    * @param {{ graph: BisectGraph }} options
    */
   constructor({ graph }) {

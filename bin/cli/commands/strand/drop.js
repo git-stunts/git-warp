@@ -14,6 +14,8 @@ const DROP_OPTIONS = /** @type {Record<string, { type: string, short?: string, d
 const dropStrandSchema = z.object({}).strict();
 
 /**
+ * Handles the `strand drop` CLI subcommand, deleting a strand descriptor by ID.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

@@ -91,7 +91,7 @@ function mapsEqual(a, b) {
  * @returns {string} Normalized path starting with '/'
  */
 function normalizeSyncPath(path) {
-  if (!path) {
+  if (path === undefined || path === null || path === '') {
     return '/sync';
   }
   return path.startsWith('/') ? path : `/${path}`;
@@ -106,8 +106,9 @@ function normalizeSyncPath(path) {
  * @returns {{ isDirectPeer: boolean, targetUrl: URL|null }}
  */
 function resolveSyncTarget(remote, path, hasPathOverride) {
-  const isDirectPeer = remote && typeof remote === 'object' &&
-    typeof remote.processSyncRequest === 'function';
+  const isDirectPeer = remote !== null && remote !== undefined &&
+    typeof remote === 'object' &&
+    typeof (/** @type {Record<string, unknown>} */ (remote)).processSyncRequest === 'function';
   if (isDirectPeer) {
     return { isDirectPeer: true, targetUrl: null };
   }
@@ -141,6 +142,9 @@ function resolveSyncTarget(remote, path, hasPathOverride) {
 }
 
 /**
+ * Resolves the effective SyncTrustGate for a sync operation,
+ * preferring per-call trust overrides when present.
+ *
  * @param {SyncHost} host
  * @param {SyncTrustGate|null} defaultGate
  * @param {{ trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null } }} options
@@ -161,7 +165,7 @@ function resolveSyncTrustGate(host, defaultGate, options) {
  * @returns {Promise<Record<string, string>>}
  */
 async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
-  if (!auth || !auth.secret) {
+  if (auth === undefined || auth.secret === undefined || auth.secret === '') {
     return {};
   }
   const bodyBuf = new TextEncoder().encode(bodyStr);
@@ -172,7 +176,7 @@ async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
       contentType: 'application/json',
       body: bodyBuf,
       secret: auth.secret,
-      keyId: auth.keyId || 'default',
+      keyId: auth.keyId !== undefined && auth.keyId !== '' ? auth.keyId : 'default',
     },
     { crypto },
   );
@@ -185,6 +189,8 @@ async function buildSyncAuthHeaders({ auth, bodyStr, targetUrl, crypto }) {
  */
 export default class SyncController {
   /**
+   * Creates a new SyncController bound to the given host runtime.
+   *
    * @param {SyncHost} host - The WarpRuntime instance (or any object satisfying SyncHost)
    * @param {{ trustGate?: SyncTrustGate }} [options]
    */
@@ -208,7 +214,7 @@ export default class SyncController {
     for (const writerId of writerIds) {
       const writerRef = buildWriterRef(this._host._graphName, writerId);
       const tipSha = await this._host._persistence.readRef(writerRef);
-      if (tipSha) {
+      if (tipSha !== null && tipSha !== undefined && tipSha !== '') {
         updateFrontier(frontier, writerId, tipSha);
       }
     }
@@ -379,7 +385,8 @@ export default class SyncController {
     }
 
     // Extract actual patch authors for trust evaluation (B1)
-    const writersApplied = SyncTrustGate.extractWritersFromPatches(response.patches || []);
+    const patches = Array.isArray(response.patches) ? response.patches : [];
+    const writersApplied = SyncTrustGate.extractWritersFromPatches(patches);
 
     // Evaluate trust BEFORE applying any patches
     if (trustGate && writersApplied.length > 0) {
@@ -457,7 +464,7 @@ export default class SyncController {
     let attempt = 0;
     const trustGate = resolveSyncTrustGate(this._host, this._trustGate, { trust });
     /**
-     *
+     * Emits a status event to the onStatus callback if provided.
      */
     const emit = (/** @type {string} */ type, /** @type {Record<string, unknown>} */ payload = {}) => {
       if (typeof onStatus === 'function') {
@@ -465,7 +472,7 @@ export default class SyncController {
       }
     };
     /**
-     *
+     * Determines whether a failed sync attempt is retryable based on error type.
      */
     const shouldRetry = (/** @type {unknown} */ err) => {
       if (isDirectPeer) { return false; }
@@ -475,7 +482,7 @@ export default class SyncController {
       return err instanceof TimeoutError;
     };
     /**
-     *
+     * Executes a single sync attempt against the remote peer or HTTP endpoint.
      */
     const executeAttempt = async () => {
       checkAborted(signal, 'syncWith');
@@ -546,7 +553,9 @@ export default class SyncController {
         }
 
         try {
-          response = await res.json();
+          /** @type {unknown} */
+          const rawJson = await res.json();
+          response = /** @type {import('./SyncProtocol.js').SyncResponse} */ (rawJson);
         } catch {
           throw new SyncError('Invalid JSON response', {
             code: 'E_SYNC_PROTOCOL',
@@ -576,7 +585,8 @@ export default class SyncController {
 
       const durationMs = this._host._clock.now() - attemptStart;
       emit('complete', { durationMs, applied: result.applied });
-      return { applied: result.applied, attempts: attempt, skippedWriters: result.skippedWriters || [] };
+      const skippedWriters = Array.isArray(result.skippedWriters) ? result.skippedWriters : [];
+      return { applied: result.applied, attempts: attempt, skippedWriters };
     };
 
     try {
@@ -589,7 +599,7 @@ export default class SyncController {
         signal,
         shouldRetry,
         /**
-         *
+         * Forwards retry events to the caller's onStatus callback.
          */
         onRetry: (/** @type {Error} */ error, /** @type {number} */ attemptNumber, /** @type {number} */ delayMs) => {
           if (typeof onStatus === 'function') {
@@ -615,7 +625,7 @@ export default class SyncController {
         throw abortedError;
       }
       if (err instanceof RetryExhaustedError) {
-        const cause = /** @type {Error} */ (err.cause || err);
+        const cause = /** @type {Error} */ (err.cause !== undefined && err.cause !== null ? err.cause : err);
         if (typeof onStatus === 'function') {
           onStatus({ type: 'failed', attempt: err.attempts, error: cause });
         }
@@ -638,10 +648,16 @@ export default class SyncController {
    */
   async serve({ port, host = '127.0.0.1', path = '/sync', maxRequestBytes = DEFAULT_SYNC_SERVER_MAX_BYTES, httpPort, auth } = /** @type {{ port: number, httpPort: import('../../ports/HttpServerPort.js').default }} */ ({})) {
     if (typeof port !== 'number') {
-      throw new Error('serve() requires a numeric port');
+      throw new SyncError('serve() requires a numeric port', {
+        code: 'E_SYNC_SERVE',
+        context: { port },
+      });
     }
-    if (!httpPort) {
-      throw new Error('serve() requires an httpPort adapter');
+    if (httpPort === undefined || httpPort === null) {
+      throw new SyncError('serve() requires an httpPort adapter', {
+        code: 'E_SYNC_SERVE',
+        context: {},
+      });
     }
 
     const authConfig = auth

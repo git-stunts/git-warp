@@ -15,6 +15,32 @@ import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 
 /**
+ * Returns true if the value is null or undefined.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isNullish(value) {
+  return value === null || value === undefined;
+}
+
+/**
+ * Validates that the given state is a valid WarpStateV5 with nodeAlive and edgeAlive fields.
+ *
+ * @param {unknown} state
+ * @throws {Error} If state is null, undefined, or missing required fields
+ */
+function validateWarpState(state) {
+  if (isNullish(state)) {
+    throw new Error('Invalid state: must be a valid WarpStateV5 object');
+  }
+  const s = /** @type {Record<string, unknown>} */ (state);
+  if (isNullish(s.nodeAlive) || isNullish(s.edgeAlive)) {
+    throw new Error('Invalid state: must be a valid WarpStateV5 object');
+  }
+}
+
+/**
  * Builds a bitmap index from materialized WARP state.
  *
  * This is the V7-compliant index builder that operates on logical graph edges
@@ -56,34 +82,50 @@ export default class WarpStateIndexBuilder {
    * const indexTree = await builder.serialize();
    */
   buildFromState(state) {
-    if (!state || !state.nodeAlive || !state.edgeAlive) {
-      throw new Error('Invalid state: must be a valid WarpStateV5 object');
-    }
+    validateWarpState(state);
 
-    let nodeCount = 0;
-    let edgeCount = 0;
-
-    // Register all visible nodes
-    for (const nodeId of orsetElements(state.nodeAlive)) {
-      this._builder.registerNode(nodeId);
-      nodeCount++;
-    }
-
-    // Add edges where both endpoints are visible
-    for (const edgeKey of orsetElements(state.edgeAlive)) {
-      const { from, to } = decodeEdgeKey(edgeKey);
-
-      // Only index edges where both endpoints exist in nodeAlive
-      if (orsetContains(state.nodeAlive, from) && orsetContains(state.nodeAlive, to)) {
-        this._builder.addEdge(from, to);
-        edgeCount++;
-      }
-    }
+    const nodeCount = this._registerNodes(state);
+    const edgeCount = this._indexEdges(state);
 
     return {
       builder: this._builder,
       stats: { nodes: nodeCount, edges: edgeCount },
     };
+  }
+
+  /**
+   * Registers all visible nodes from the state's nodeAlive OR-Set.
+   *
+   * @param {import('./JoinReducer.js').WarpStateV5} state
+   * @returns {number} Number of nodes registered
+   * @private
+   */
+  _registerNodes(state) {
+    let count = 0;
+    for (const nodeId of orsetElements(state.nodeAlive)) {
+      this._builder.registerNode(nodeId);
+      count++;
+    }
+    return count;
+  }
+
+  /**
+   * Indexes edges where both endpoints are visible in nodeAlive.
+   *
+   * @param {import('./JoinReducer.js').WarpStateV5} state
+   * @returns {number} Number of edges indexed
+   * @private
+   */
+  _indexEdges(state) {
+    let count = 0;
+    for (const edgeKey of orsetElements(state.edgeAlive)) {
+      const { from, to } = decodeEdgeKey(edgeKey);
+      if (orsetContains(state.nodeAlive, from) && orsetContains(state.nodeAlive, to)) {
+        this._builder.addEdge(from, to);
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

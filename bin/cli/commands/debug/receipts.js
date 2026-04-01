@@ -33,6 +33,34 @@ const DEBUG_RECEIPT_OPTIONS = {
   limit: { type: 'string' },
 };
 
+/**
+ * Return the value if defined, otherwise null.
+ * @template T
+ * @param {T|undefined} value - Possibly undefined value.
+ * @returns {T|null}
+ */
+function orNull(value) {
+  return value === undefined ? null : value;
+}
+
+/**
+ * Transform raw parsed CLI values into the internal receipt filter shape.
+ * @param {Record<string, unknown>} val - Raw parsed values from Zod schema.
+ * @returns {{strandId: string|null, writerId: string|null, patch: string|null, target: string|null, results: string[], opTypes: string[], lamportCeiling: number|null, limit: number|null}}
+ */
+function transformReceiptValues(val) {
+  return {
+    strandId: orNull(/** @type {string|undefined} */ (val.strand)),
+    writerId: orNull(/** @type {string|undefined} */ (val['writer-id'])),
+    patch: orNull(/** @type {string|undefined} */ (val.patch)),
+    target: orNull(/** @type {string|undefined} */ (val.target)),
+    results: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val.result)),
+    opTypes: normalizeRepeatedOption(/** @type {string|string[]|undefined} */ (val.op)),
+    lamportCeiling: orNull(/** @type {number|undefined} */ (val['lamport-ceiling'])),
+    limit: orNull(/** @type {number|undefined} */ (val.limit)),
+  };
+}
+
 const debugReceiptsSchema = z.object({
   'strand': z.string().optional(),
   'writer-id': z.string().optional(),
@@ -48,30 +76,26 @@ const debugReceiptsSchema = z.object({
   ]).optional(),
   'lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().positive().optional(),
-}).strict().transform((val) => ({
-  strandId: val.strand ?? null,
-  writerId: val['writer-id'] ?? null,
-  patch: val.patch ?? null,
-  target: val.target ?? null,
-  results: normalizeRepeatedOption(val.result),
-  opTypes: normalizeRepeatedOption(val.op),
-  lamportCeiling: val['lamport-ceiling'] ?? null,
-  limit: val.limit ?? null,
-}));
+}).strict().transform(transformReceiptValues);
 
 /**
- * @param {string|string[]|undefined} value
+ * Normalize a CLI option that may be a single string, an array, or undefined into an array.
+ * @param {string|string[]|undefined} value - Raw option value.
  * @returns {string[]}
  */
 function normalizeRepeatedOption(value) {
   if (Array.isArray(value)) {
     return value;
   }
-  return value ? [value] : [];
+  if (value !== undefined && value !== '') {
+    return [value];
+  }
+  return [];
 }
 
 /**
- * @param {TickReceipt[]} receipts
+ * Sort receipts by lamport clock, then writer, then patch SHA for deterministic output.
+ * @param {TickReceipt[]} receipts - Unsorted receipts.
  * @returns {TickReceipt[]}
  */
 function sortReceipts(receipts) {
@@ -89,7 +113,8 @@ function sortReceipts(receipts) {
 }
 
 /**
- * @param {OpOutcome[]} ops
+ * Count occurrences of each result type across all op outcomes.
+ * @param {OpOutcome[]} ops - Op outcomes to summarize.
  * @returns {{applied: number, superseded: number, redundant: number}}
  */
 function summarizeResultCounts(ops) {
@@ -106,7 +131,8 @@ function summarizeResultCounts(ops) {
 }
 
 /**
- * @param {OpOutcome[]} ops
+ * Count occurrences of each op type across all op outcomes.
+ * @param {OpOutcome[]} ops - Op outcomes to summarize.
  * @returns {Record<string, number>}
  */
 function summarizeOpCounts(ops) {
@@ -119,40 +145,55 @@ function summarizeOpCounts(ops) {
 }
 
 /**
- * @param {OpOutcome} op
+ * Check whether a target filter matches the given op.
+ * @param {OpOutcome} op - The op outcome to test.
+ * @param {string|null} target - Target filter value.
+ * @returns {boolean}
+ */
+function matchesTargetFilter(op, target) {
+  return target === null || op.target === target;
+}
+
+/**
+ * Check whether a list filter includes the given value (empty list means no filter).
+ * @param {string[]} allowed - Allowed values (empty = accept all).
+ * @param {string} value - Value to check.
+ * @returns {boolean}
+ */
+function matchesListFilter(allowed, value) {
+  return allowed.length === 0 || allowed.includes(value);
+}
+
+/**
+ * Check whether an op matches all active filters (target, result type, op type).
+ * @param {OpOutcome} op - The op outcome to test.
  * @param {{
  *   target: string|null,
  *   results: string[],
  *   opTypes: string[]
- * }} filters
+ * }} filters - Active filters.
  * @returns {boolean}
  */
 function matchesOpFilters(op, filters) {
-  if (filters.target && op.target !== filters.target) {
-    return false;
-  }
-  if (filters.results.length > 0 && !filters.results.includes(op.result)) {
-    return false;
-  }
-  if (filters.opTypes.length > 0 && !filters.opTypes.includes(op.op)) {
-    return false;
-  }
-  return true;
+  return matchesTargetFilter(op, filters.target) &&
+    matchesListFilter(filters.results, op.result) &&
+    matchesListFilter(filters.opTypes, op.op);
 }
 
 /**
- * @param {TickReceipt} receipt
+ * Filter a receipt by writer, patch SHA, and op-level filters; return null if no ops match.
+ * @param {TickReceipt} receipt - The tick receipt to filter.
  * @param {{
  *   writerId: string|null,
  *   patch: string|null,
  *   target: string|null,
  *   results: string[],
  *   opTypes: string[]
- * }} filters
+ * }} filters - Active filters.
  * @returns {{patchSha: string, writer: string, lamport: number, totalOps: number, matchedOps: number, ops: OpOutcome[]}|null}
  */
 function filterReceipt(receipt, filters) {
-  if (filters.writerId && receipt.writer !== filters.writerId) {
+  if (filters.writerId !== null && receipt.writer !== filters.writerId) {
     return null;
   }
   if (!matchesShaPrefix(receipt.patchSha, filters.patch)) {
@@ -175,11 +216,12 @@ function filterReceipt(receipt, filters) {
 }
 
 /**
+ * Materialize the graph with receipt collection enabled and return the receipts.
  * @param {{
  *   graph: import('../../types.js').WarpGraphInstance,
  *   lamportCeiling: number|null,
  *   strandId: string|null
- * }} params
+ * }} params - Materialization parameters.
  * @returns {Promise<TickReceipt[]>}
  */
 async function loadReceipts({ graph, lamportCeiling, strandId }) {
@@ -194,7 +236,48 @@ async function loadReceipts({ graph, lamportCeiling, strandId }) {
 }
 
 /**
- * @param {{options: CliOptions, args: string[]}} params
+ * Build the JSON payload for the receipts debug topic.
+ * @param {{
+ *   graphName: string,
+ *   values: ReturnType<typeof debugReceiptsSchema.parse>,
+ *   strand: unknown,
+ *   lamportCeiling: number|null,
+ *   sortedReceipts: TickReceipt[],
+ *   returnedReceipts: Array<{ops: OpOutcome[]}>,
+ *   filteredCount: number
+ * }} ctx - Aggregated receipt data.
+ * @returns {Record<string, unknown>}
+ */
+function buildReceiptsPayload(ctx) {
+  const flattenedOps = ctx.returnedReceipts.flatMap((r) => r.ops);
+  return {
+    graph: ctx.graphName,
+    debugTopic: 'receipts',
+    ...(ctx.values.strandId !== null ? { strandId: ctx.values.strandId } : {}),
+    ...(ctx.strand !== null ? { strand: ctx.strand } : {}),
+    lamportCeiling: ctx.lamportCeiling,
+    filters: {
+      writerId: ctx.values.writerId,
+      patch: ctx.values.patch,
+      target: ctx.values.target,
+      results: ctx.values.results,
+      opTypes: ctx.values.opTypes,
+    },
+    totalReceipts: ctx.sortedReceipts.length,
+    matchedReceipts: ctx.filteredCount,
+    returnedReceipts: ctx.returnedReceipts.length,
+    truncated: ctx.returnedReceipts.length < ctx.filteredCount,
+    summary: {
+      results: summarizeResultCounts(flattenedOps),
+      opTypes: summarizeOpCounts(flattenedOps),
+    },
+    receipts: ctx.returnedReceipts,
+  };
+}
+
+/**
+ * Handle the 'receipts' debug topic — load, filter, and format tick receipts.
+ * @param {{options: CliOptions, args: string[]}} params - CLI invocation context.
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
 export async function handleDebugTopic({ options, args }) {
@@ -202,13 +285,11 @@ export async function handleDebugTopic({ options, args }) {
   const values = /** @type {ReturnType<typeof debugReceiptsSchema.parse>} */ (rawValues);
   const { graph, graphName, activeCursor } = await openDebugContext(options);
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
-  const strand = values.strandId
+  const strand = values.strandId !== null
     ? await loadStrandContextForDebug(graph, values.strandId)
     : null;
   const sortedReceipts = sortReceipts(await loadReceipts({
-    graph,
-    lamportCeiling,
-    strandId: values.strandId,
+    graph, lamportCeiling, strandId: values.strandId,
   }));
   const filteredReceipts = sortedReceipts
     .map((receipt) => filterReceipt(receipt, values))
@@ -216,32 +297,12 @@ export async function handleDebugTopic({ options, args }) {
   const returnedReceipts = values.limit === null
     ? filteredReceipts
     : filteredReceipts.slice(0, values.limit);
-  const flattenedOps = returnedReceipts.flatMap((receipt) => receipt.ops);
 
   return {
-    payload: {
-      graph: graphName,
-      debugTopic: 'receipts',
-      ...(values.strandId ? { strandId: values.strandId } : {}),
-      ...(strand ? { strand } : {}),
-      lamportCeiling,
-      filters: {
-        writerId: values.writerId,
-        patch: values.patch,
-        target: values.target,
-        results: values.results,
-        opTypes: values.opTypes,
-      },
-      totalReceipts: sortedReceipts.length,
-      matchedReceipts: filteredReceipts.length,
-      returnedReceipts: returnedReceipts.length,
-      truncated: returnedReceipts.length < filteredReceipts.length,
-      summary: {
-        results: summarizeResultCounts(flattenedOps),
-        opTypes: summarizeOpCounts(flattenedOps),
-      },
-      receipts: returnedReceipts,
-    },
+    payload: buildReceiptsPayload({
+      graphName, values, strand, lamportCeiling,
+      sortedReceipts, returnedReceipts, filteredCount: filteredReceipts.length,
+    }),
     exitCode: EXIT_CODES.OK,
   };
 }

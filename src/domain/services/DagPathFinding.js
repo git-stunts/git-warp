@@ -40,7 +40,7 @@ export default class DagPathFinding {
    * @param {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default }} options
    */
   constructor(/** @type {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger }) {
-    if (!indexReader) {
+    if (indexReader === undefined || indexReader === null) {
       throw new Error('DagPathFinding requires an indexReader');
     }
     this._indexReader = indexReader;
@@ -198,10 +198,13 @@ export default class DagPathFinding {
   }) {
     this._logger.debug('weightedShortestPath started', { from, to, direction });
 
+    /** @type {Map<string, number>} */
     const distances = new Map();
     distances.set(from, 0);
 
+    /** @type {Map<string, string>} */
     const previous = new Map();
+    /** @type {MinHeap<string>} */
     const pq = new MinHeap();
     pq.insert(from, 0);
 
@@ -212,7 +215,7 @@ export default class DagPathFinding {
         checkAborted(signal, 'weightedShortestPath');
       }
 
-      const current = /** @type {string} */ (pq.extractMin());
+      const current = pq.extractMin();
 
       if (visited.has(current)) {
         continue;
@@ -221,7 +224,7 @@ export default class DagPathFinding {
 
       if (current === to) {
         const path = this._reconstructWeightedPath(previous, from, to);
-        const totalCost = distances.get(to);
+        const totalCost = /** @type {number} */ (distances.get(to));
         this._logger.debug('weightedShortestPath found', { pathLength: path.length, totalCost });
         return { path, totalCost };
       }
@@ -237,8 +240,8 @@ export default class DagPathFinding {
         }
 
         const edgeWeight = await weightProvider(current, neighbor);
-        const newDist = distances.get(current) + edgeWeight;
-        const currentDist = distances.has(neighbor) ? distances.get(neighbor) : Infinity;
+        const newDist = /** @type {number} */ (distances.get(current)) + edgeWeight;
+        const currentDist = distances.has(neighbor) ? /** @type {number} */ (distances.get(neighbor)) : Infinity;
 
         if (newDist < currentDist) {
           distances.set(neighbor, newDist);
@@ -271,16 +274,20 @@ export default class DagPathFinding {
   }) {
     this._logger.debug('aStarSearch started', { from, to, direction });
 
+    /** @type {Map<string, number>} */
     const gScore = new Map();
     gScore.set(from, 0);
 
+    /** @type {Map<string, number>} */
     const fScore = new Map();
     const initialH = heuristicProvider(from, to);
     const initialG = 0;
     fScore.set(from, initialH);
 
+    /** @type {Map<string, string>} */
     const previous = new Map();
 
+    /** @type {MinHeap<string>} */
     const pq = new MinHeap();
     pq.insert(from, initialH - EPSILON * initialG);
 
@@ -292,7 +299,7 @@ export default class DagPathFinding {
         checkAborted(signal, 'aStarSearch');
       }
 
-      const current = /** @type {string} */ (pq.extractMin());
+      const current = pq.extractMin();
 
       if (visited.has(current)) {
         continue;
@@ -302,7 +309,7 @@ export default class DagPathFinding {
 
       if (current === to) {
         const path = this._reconstructWeightedPath(previous, from, to);
-        const totalCost = gScore.get(to);
+        const totalCost = /** @type {number} */ (gScore.get(to));
         this._logger.debug('aStarSearch found', { pathLength: path.length, totalCost, nodesExplored });
         return { path, totalCost, nodesExplored };
       }
@@ -318,8 +325,8 @@ export default class DagPathFinding {
         }
 
         const edgeWeight = await weightProvider(current, neighbor);
-        const tentativeG = gScore.get(current) + edgeWeight;
-        const currentG = gScore.has(neighbor) ? gScore.get(neighbor) : Infinity;
+        const tentativeG = /** @type {number} */ (gScore.get(current)) + edgeWeight;
+        const currentG = gScore.has(neighbor) ? /** @type {number} */ (gScore.get(neighbor)) : Infinity;
 
         if (tentativeG < currentG) {
           previous.set(neighbor, current);
@@ -361,19 +368,27 @@ export default class DagPathFinding {
     }
 
     // Forward search state
+    /** @type {Map<string, number>} */
     const fwdGScore = new Map();
     fwdGScore.set(from, 0);
+    /** @type {Map<string, string>} */
     const fwdPrevious = new Map();
+    /** @type {Set<string>} */
     const fwdVisited = new Set();
+    /** @type {MinHeap<string>} */
     const fwdHeap = new MinHeap();
     const fwdInitialH = forwardHeuristic(from, to);
     fwdHeap.insert(from, fwdInitialH);
 
     // Backward search state
+    /** @type {Map<string, number>} */
     const bwdGScore = new Map();
     bwdGScore.set(to, 0);
+    /** @type {Map<string, string>} */
     const bwdNext = new Map();
+    /** @type {Set<string>} */
     const bwdVisited = new Set();
+    /** @type {MinHeap<string>} */
     const bwdHeap = new MinHeap();
     const bwdInitialH = backwardHeuristic(to, from);
     bwdHeap.insert(to, bwdInitialH);

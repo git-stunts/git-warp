@@ -38,27 +38,31 @@ const BOX = {
 
 // ── Grid helpers ─────────────────────────────────────────────────────────────
 
-/** @param {number} px */
+/** Convert a horizontal pixel coordinate to a grid column index.
+ * @param {number} px */
 function toCol(px) {
   return Math.round(px / CELL_W) + MARGIN;
 }
 
-/** @param {number} px */
+/** Convert a vertical pixel coordinate to a grid row index.
+ * @param {number} px */
 function toRow(px) {
   return Math.round(px / CELL_H) + MARGIN;
 }
 
-/** @param {number} px */
+/** Scale a horizontal pixel distance to character columns.
+ * @param {number} px */
 function scaleW(px) {
   return Math.round(px / CELL_W);
 }
 
-/** @param {number} px */
+/** Scale a vertical pixel distance to character rows.
+ * @param {number} px */
 function scaleH(px) {
   return Math.round(px / CELL_H);
 }
 
-/**
+/** Allocate a blank character grid filled with spaces.
  * @param {number} rows
  * @param {number} cols
  * @returns {string[][]}
@@ -72,7 +76,7 @@ function createGrid(rows, cols) {
   return grid;
 }
 
-/**
+/** Write a single character to a grid cell if the coordinates are in bounds.
  * @param {string[][]} grid
  * @param {number} r
  * @param {number} c
@@ -84,7 +88,7 @@ function writeChar(grid, r, c, ch) {
   }
 }
 
-/**
+/** Read a single character from a grid cell, returning a space if out of bounds.
  * @param {string[][]} grid
  * @param {number} r
  * @param {number} c
@@ -97,7 +101,7 @@ function readChar(grid, r, c) {
   return ' ';
 }
 
-/**
+/** Write a string horizontally starting at the given grid position.
  * @param {string[][]} grid
  * @param {number} r
  * @param {number} c
@@ -111,7 +115,7 @@ function writeString(grid, r, c, str) {
 
 // ── Node stamping ────────────────────────────────────────────────────────────
 
-/**
+/** Stamp a box-drawn node with its label onto the character grid.
  * @param {string[][]} grid
  * @param {PositionedNode} node
  */
@@ -152,7 +156,7 @@ function stampNode(grid, node) {
 
 // ── Edge tracing ─────────────────────────────────────────────────────────────
 
-/**
+/** Trace an edge path across the grid, drawing line segments and an arrowhead.
  * @param {string[][]} grid
  * @param {PositionedEdge} edge
  * @param {Set<string>} nodeSet
@@ -176,12 +180,13 @@ function traceEdge(grid, edge, nodeSet) {
   }
 
   // Edge label at midpoint of the longest section segment
-  if (edge.label) {
+  if (edge.label !== undefined && edge.label.length > 0) {
     placeEdgeLabel(grid, sections, edge.label, nodeSet);
   }
 }
 
-/** @param {Section} section @returns {Point[]} */
+/** Collect start, bend, and end points of a section into an ordered array.
+ * @param {Section} section @returns {Point[]} */
 function buildPointList(section) {
   const points = [];
   if (section.startPoint) {
@@ -196,7 +201,7 @@ function buildPointList(section) {
   return points;
 }
 
-/**
+/** Draw consecutive line segments between adjacent points in the list.
  * @param {string[][]} grid
  * @param {Point[]} points
  * @param {Set<string>} nodeSet
@@ -211,7 +216,7 @@ function drawSegments(grid, points, nodeSet) {
   }
 }
 
-/**
+/** Draw a straight or L-shaped line between two grid positions.
  * @param {string[][]} grid
  * @param {number} r1
  * @param {number} c1
@@ -231,7 +236,7 @@ function drawLine(grid, r1, c1, r2, c2, nodeSet) {
   }
 }
 
-/**
+/** Draw a horizontal line between two columns, inserting crossings at intersections.
  * @param {string[][]} grid
  * @param {number} row
  * @param {number} c1
@@ -253,7 +258,7 @@ function drawHorizontal(grid, row, c1, c2, nodeSet) {
   }
 }
 
-/**
+/** Draw a vertical line between two rows, inserting crossings at intersections.
  * @param {string[][]} grid
  * @param {number} col
  * @param {number} r1
@@ -275,7 +280,7 @@ function drawVertical(grid, col, r1, r2, nodeSet) {
   }
 }
 
-/**
+/** Draw a directional arrowhead at the endpoint of an edge section.
  * @param {string[][]} grid
  * @param {Section} section
  * @param {Set<string>} nodeSet
@@ -328,7 +333,7 @@ function drawArrowhead(grid, section, nodeSet) {
   }
 }
 
-/**
+/** Place an edge label at the midpoint of its longest segment.
  * @param {string[][]} grid
  * @param {Section[]} sections
  * @param {string} label
@@ -376,8 +381,10 @@ function placeEdgeLabel(grid, sections, label, nodeSet) {
 
 // ── Node occupancy set ───────────────────────────────────────────────────────
 
-/** @param {PositionedNode[]} nodes @returns {Set<string>} */
+/** Build a set of occupied grid coordinates from all positioned nodes.
+ * @param {PositionedNode[]} nodes @returns {Set<string>} */
 function buildNodeSet(nodes) {
+  /** @type {Set<string>} */
   const set = new Set();
   for (const node of nodes) {
     const r = toRow(node.y);
@@ -393,7 +400,7 @@ function buildNodeSet(nodes) {
   return set;
 }
 
-/**
+/** Check whether a grid cell is occupied by a node box.
  * @param {Set<string>} nodeSet
  * @param {number} r
  * @param {number} c

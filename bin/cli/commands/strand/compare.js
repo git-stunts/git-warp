@@ -17,6 +17,31 @@ const COMPARE_OPTIONS = {
   'against-lamport-ceiling': { type: 'string' },
 };
 
+/**
+ * Parses and resolves the --against flag into a typed comparison target.
+ *
+ * @param {string} rawAgainst - Trimmed value of the --against flag
+ * @param {z.RefinementCtx} ctx - Zod refinement context for issuing validation errors
+ * @returns {'base'|'live'|{ kind: 'strand', strandId: string }|typeof z.NEVER}
+ */
+function resolveAgainstTarget(rawAgainst, ctx) {
+  if (rawAgainst === 'base' || rawAgainst === 'live') {
+    return rawAgainst;
+  }
+  if (rawAgainst.startsWith('strand:') && rawAgainst.length > 'strand:'.length) {
+    return {
+      kind: /** @type {const} */ ('strand'),
+      strandId: rawAgainst.slice('strand:'.length),
+    };
+  }
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['against'],
+    message: 'against must be base, live, or strand:<id>',
+  });
+  return z.NEVER;
+}
+
 const compareStrandSchema = z.object({
   against: z.string().default('base'),
   'target-id': z.string().optional(),
@@ -24,23 +49,7 @@ const compareStrandSchema = z.object({
   'against-lamport-ceiling': z.coerce.number().int().nonnegative().optional(),
 }).strict().transform((val, ctx) => {
   const rawAgainst = val.against.trim();
-  /** @type {'base'|'live'|{ kind: 'strand', strandId: string }} */
-  let against;
-  if (rawAgainst === 'base' || rawAgainst === 'live') {
-    against = rawAgainst;
-  } else if (rawAgainst.startsWith('strand:') && rawAgainst.length > 'strand:'.length) {
-    against = {
-      kind: /** @type {const} */ ('strand'),
-      strandId: rawAgainst.slice('strand:'.length),
-    };
-  } else {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['against'],
-      message: 'against must be base, live, or strand:<id>',
-    });
-    return z.NEVER;
-  }
+  const against = resolveAgainstTarget(rawAgainst, ctx);
 
   const comparisonOptions = /** @type {{
     against?: 'base'|'live'|{ kind: 'strand', strandId: string },
@@ -61,6 +70,8 @@ const compareStrandSchema = z.object({
 });
 
 /**
+ * Handles the `strand compare` CLI subcommand, comparing a strand against a target.
+ *
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

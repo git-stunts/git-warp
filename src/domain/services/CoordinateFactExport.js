@@ -1,5 +1,28 @@
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 
+/**
+ * Returns true if the value is null or undefined.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isNullish(value) {
+  return value === null || value === undefined;
+}
+
+/**
+ * Asserts the value is a non-null, non-array object, throwing TypeError if not.
+ *
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {asserts value is Record<string, unknown>}
+ */
+function requireObject(value, label) {
+  if (isNullish(value) || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object`);
+  }
+}
+
 export const COORDINATE_COMPARISON_FACT_EXPORT_VERSION = 'coordinate-comparison-fact/v1';
 export const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer-plan-fact/v1';
 
@@ -68,6 +91,8 @@ export const COORDINATE_TRANSFER_PLAN_FACT_EXPORT_VERSION = 'coordinate-transfer
  */
 
 /**
+ * Validates that a value is a non-empty string, throwing if not.
+ *
  * @param {unknown} value
  * @param {string} label
  * @returns {string}
@@ -77,6 +102,57 @@ function requireNonEmptyString(value, label) {
     throw new TypeError(`${label} must be a non-empty string`);
   }
   return value;
+}
+
+/**
+ * Serializes an attach_node_content operation to its fact form.
+ *
+ * @param {VisibleStateTransferOperationV1} op
+ * @returns {VisibleStateTransferOperationFactV1}
+ */
+function serializeNodeContentOp(op) {
+  return {
+    op: op.op,
+    nodeId: op.nodeId,
+    contentOid: op.contentOid,
+    mime: op.mime ?? null,
+    size: op.size ?? null,
+  };
+}
+
+/**
+ * Serializes an attach_edge_content operation to its fact form.
+ *
+ * @param {VisibleStateTransferOperationV1} op
+ * @returns {VisibleStateTransferOperationFactV1}
+ */
+function serializeEdgeContentOp(op) {
+  return {
+    op: op.op,
+    from: op.from,
+    to: op.to,
+    label: op.label,
+    contentOid: op.contentOid,
+    mime: op.mime ?? null,
+    size: op.size ?? null,
+  };
+}
+
+/**
+ * Serializes a single transfer operation into its JSON-safe fact form.
+ *
+ * @param {VisibleStateTransferOperationV1} op
+ * @returns {VisibleStateTransferOperationFactV1}
+ */
+function serializeSingleTransferOp(op) {
+  switch (op.op) {
+    case 'attach_node_content':
+      return serializeNodeContentOp(op);
+    case 'attach_edge_content':
+      return serializeEdgeContentOp(op);
+    default:
+      return { ...op };
+  }
 }
 
 /**
@@ -91,30 +167,7 @@ export function serializeTransferOpsForFact(ops) {
     throw new TypeError('ops must be an array');
   }
 
-  return ops.map((op) => {
-    switch (op.op) {
-      case 'attach_node_content':
-        return {
-          op: op.op,
-          nodeId: op.nodeId,
-          contentOid: op.contentOid,
-          mime: op.mime ?? null,
-          size: op.size ?? null,
-        };
-      case 'attach_edge_content':
-        return {
-          op: op.op,
-          from: op.from,
-          to: op.to,
-          label: op.label,
-          contentOid: op.contentOid,
-          mime: op.mime ?? null,
-          size: op.size ?? null,
-        };
-      default:
-        return { ...op };
-    }
-  });
+  return ops.map((op) => serializeSingleTransferOp(op));
 }
 
 /**
@@ -124,9 +177,7 @@ export function serializeTransferOpsForFact(ops) {
  * @returns {CoordinateComparisonFactV1}
  */
 export function buildCoordinateComparisonFact(comparison) {
-  if (!comparison || typeof comparison !== 'object' || Array.isArray(comparison)) {
-    throw new TypeError('comparison must be an object');
-  }
+  requireObject(comparison, 'comparison');
 
   requireNonEmptyString(comparison.comparisonVersion, 'comparison.comparisonVersion');
   return {
@@ -146,9 +197,7 @@ export function buildCoordinateComparisonFact(comparison) {
  * @returns {CoordinateTransferPlanFactV1}
  */
 export function buildCoordinateTransferPlanFact(transferPlan) {
-  if (!transferPlan || typeof transferPlan !== 'object' || Array.isArray(transferPlan)) {
-    throw new TypeError('transferPlan must be an object');
-  }
+  requireObject(transferPlan, 'transferPlan');
 
   requireNonEmptyString(transferPlan.transferVersion, 'transferPlan.transferVersion');
   requireNonEmptyString(transferPlan.comparisonDigest, 'transferPlan.comparisonDigest');

@@ -200,7 +200,10 @@ const ANSI_RED = '\x1b[31m';
 const ANSI_DIM = '\x1b[2m';
 const ANSI_RESET = '\x1b[0m';
 
-/** @param {string} state */
+/**
+ * Wraps a cache-state label in ANSI color codes based on freshness.
+ * @param {string} state
+ */
 function colorCachedState(state) {
   if (state === 'fresh') {
     return `${ANSI_GREEN}${state}${ANSI_RESET}`;
@@ -211,15 +214,18 @@ function colorCachedState(state) {
   return `${ANSI_RED}${ANSI_DIM}${state}${ANSI_RESET}`;
 }
 
-/** @param {HookStatus} hook */
+/**
+ * Produces a human-readable status line describing the git hook state.
+ * @param {HookStatus} hook
+ */
 function formatHookStatusLine(hook) {
-  if (!hook.installed && hook.foreign) {
+  if (!hook.installed && hook.foreign === true) {
     return "Hook: foreign hook present — run 'git warp install-hooks'";
   }
   if (!hook.installed) {
     return "Hook: not installed — run 'git warp install-hooks'";
   }
-  if (hook.current) {
+  if (hook.current === true) {
     return `Hook: installed (v${hook.version}) — up to date`;
   }
   return `Hook: installed (v${hook.version}) — upgrade available, run 'git warp install-hooks'`;
@@ -227,20 +233,23 @@ function formatHookStatusLine(hook) {
 
 // ── Simple renderers ─────────────────────────────────────────────────────────
 
-/** @param {InfoPayload} payload */
+/**
+ * Renders the `info` command output listing all graphs in the repository.
+ * @param {InfoPayload} payload
+ */
 export function renderInfo(payload) {
   const lines = [`Repo: ${payload.repo}`];
   lines.push(`Graphs: ${payload.graphs.length}`);
   for (const graph of payload.graphs) {
-    const writers = graph.writers ? ` writers=${graph.writers.count}` : '';
+    const writers = graph.writers !== null && graph.writers !== undefined ? ` writers=${graph.writers.count}` : '';
     lines.push(`- ${graph.name}${writers}`);
-    if (graph.checkpoint?.sha) {
+    if (typeof graph.checkpoint?.sha === 'string' && graph.checkpoint.sha.length > 0) {
       lines.push(`  checkpoint: ${graph.checkpoint.sha}`);
     }
-    if (graph.coverage?.sha) {
+    if (typeof graph.coverage?.sha === 'string' && graph.coverage.sha.length > 0) {
       lines.push(`  coverage: ${graph.coverage.sha}`);
     }
-    if (graph.cursor?.active) {
+    if (graph.cursor?.active === true) {
       lines.push(`  cursor: tick ${graph.cursor.tick} (${graph.cursor.mode})`);
     }
   }
@@ -265,7 +274,10 @@ function appendNodeEdges(lines, edges) {
   }
 }
 
-/** @param {QueryPayload} payload */
+/**
+ * Renders the `query` command output with matched nodes and their edges.
+ * @param {QueryPayload} payload
+ */
 export function renderQuery(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -287,7 +299,10 @@ export function renderQuery(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {PathPayload} payload */
+/**
+ * Renders the `path` command output showing the shortest path between two nodes.
+ * @param {PathPayload} payload
+ */
 export function renderPath(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -313,7 +328,7 @@ export function renderPath(payload) {
  * @param {CheckPayload} payload
  */
 function appendCheckpointAndWriters(lines, payload) {
-  if (payload.checkpoint?.sha) {
+  if (typeof payload.checkpoint?.sha === 'string' && payload.checkpoint.sha.length > 0) {
     lines.push(`Checkpoint: ${payload.checkpoint.sha}`);
     if (payload.checkpoint.ageSeconds !== null) {
       lines.push(`Checkpoint Age: ${payload.checkpoint.ageSeconds}s`);
@@ -336,7 +351,7 @@ function appendCheckpointAndWriters(lines, payload) {
  * @param {CheckPayload} payload
  */
 function appendCoverageAndExtras(lines, payload) {
-  if (payload.coverage?.sha) {
+  if (typeof payload.coverage?.sha === 'string' && payload.coverage.sha.length > 0) {
     lines.push(`Coverage: ${payload.coverage.sha}`);
     lines.push(`Coverage Missing: ${payload.coverage.missingWriters.length}`);
   } else {
@@ -355,7 +370,10 @@ function appendCoverageAndExtras(lines, payload) {
   }
 }
 
-/** @param {CheckPayload} payload */
+/**
+ * Renders the `check` command output with graph health and writer status.
+ * @param {CheckPayload} payload
+ */
 export function renderCheck(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -374,7 +392,10 @@ export function renderCheck(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {HistoryPayload} payload */
+/**
+ * Renders the `history` command output listing patch entries for a writer.
+ * @param {HistoryPayload} payload
+ */
 export function renderHistory(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -382,7 +403,7 @@ export function renderHistory(payload) {
     `Entries: ${payload.entries.length}`,
   ];
 
-  if (payload.nodeFilter) {
+  if (typeof payload.nodeFilter === 'string' && payload.nodeFilter.length > 0) {
     lines.push(`Node Filter: ${payload.nodeFilter}`);
   }
 
@@ -393,12 +414,18 @@ export function renderHistory(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {ErrorPayload} payload */
+/**
+ * Renders an error payload as a single prefixed message line.
+ * @param {ErrorPayload} payload
+ */
 export function renderError(payload) {
   return `Error: ${payload.error.message}\n`;
 }
 
-/** @param {MaterializePayload} payload */
+/**
+ * Renders the `materialize` command output with per-graph state summaries.
+ * @param {MaterializePayload} payload
+ */
 export function renderMaterialize(payload) {
   if (payload.graphs.length === 0) {
     return 'No graphs found in repo.\n';
@@ -406,7 +433,7 @@ export function renderMaterialize(payload) {
 
   const lines = [];
   for (const entry of payload.graphs) {
-    if (entry.error) {
+    if (typeof entry.error === 'string' && entry.error.length > 0) {
       lines.push(`${entry.graph}: error — ${entry.error}`);
     } else {
       lines.push(`${entry.graph}: ${entry.nodes} nodes, ${entry.edges} edges, checkpoint ${entry.checkpoint}`);
@@ -415,7 +442,10 @@ export function renderMaterialize(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {InstallHooksPayload} payload */
+/**
+ * Renders the `install-hooks` command output with installation status.
+ * @param {InstallHooksPayload} payload
+ */
 export function renderInstallHooks(payload) {
   if (payload.action === 'up-to-date') {
     return `Hook: already up to date (v${payload.version}) at ${payload.hookPath}\n`;
@@ -424,7 +454,7 @@ export function renderInstallHooks(payload) {
     return 'Hook: installation skipped\n';
   }
   const lines = [`Hook: ${payload.action} (v${payload.version})`, `Path: ${payload.hookPath}`];
-  if (payload.backupPath) {
+  if (typeof payload.backupPath === 'string' && payload.backupPath.length > 0) {
     lines.push(`Backup: ${payload.backupPath}`);
   }
   return `${lines.join('\n')}\n`;
@@ -464,9 +494,10 @@ function formatOpSummaryPlain(summary) {
   const parts = [];
   for (const [opType, symbol, label] of order) {
     // Coalesce PropSet + NodePropSet into one bucket
+    /** @type {number | undefined} */
     const n = opType === 'prop'
-      ? (summary?.PropSet || 0) + (summary?.NodePropSet || 0) || undefined
-      : summary?.[opType];
+      ? ((summary?.PropSet ?? 0) + (summary?.NodePropSet ?? 0)) || undefined
+      : /** @type {number | undefined} */ (summary?.[opType]);
     if (typeof n === 'number' && Number.isFinite(n) && n > 0) {
       parts.push(`${symbol}${n}${label}`);
     }
@@ -487,7 +518,7 @@ function appendReceiptSummary(baseLine, payload) {
   }
 
   const entries = Object.entries(tickReceipt)
-    .filter(([writerId, entry]) => writerId && entry && typeof entry === 'object')
+    .filter(([writerId, entry]) => writerId.length > 0 && entry !== null && entry !== undefined && typeof entry === 'object')
     .sort(([a], [b]) => a.localeCompare(b));
 
   if (entries.length === 0) {
@@ -500,7 +531,7 @@ function appendReceiptSummary(baseLine, payload) {
     /** @type {Record<string, unknown>} */
     const rec = /** @type {Record<string, unknown>} */ (entry);
     const sha = typeof rec.sha === 'string' ? rec.sha.slice(0, 7) : '';
-    const opSummary = rec.opSummary && typeof rec.opSummary === 'object'
+    const opSummary = rec.opSummary !== null && rec.opSummary !== undefined && typeof rec.opSummary === 'object'
       ? /** @type {Record<string, number>} */ (rec.opSummary)
       : /** @type {Record<string, number>} */ (rec);
     receiptLines.push(`    ${writerId.padEnd(maxWriterLen)}  ${sha.padEnd(7)}  ${formatOpSummaryPlain(opSummary)}`);
@@ -618,14 +649,20 @@ function renderSeekState(payload) {
 
 // ── Seek main renderer ──────────────────────────────────────────────────────
 
-/** @param {SeekPayload} payload */
+/**
+ * Renders the `seek` command output, dispatching to simple or state renderers.
+ * @param {SeekPayload} payload
+ */
 export function renderSeek(payload) {
   return renderSeekSimple(payload) ?? renderSeekState(payload);
 }
 
 // ── Doctor renderer ──────────────────────────────────────────────────────────
 
-/** @param {string} status */
+/**
+ * Returns a colored unicode icon (check, warning, cross) for a finding severity.
+ * @param {string} status
+ */
 function findingIcon(status) {
   if (status === 'ok') {
     return `${ANSI_GREEN}\u2713${ANSI_RESET}`;
@@ -636,7 +673,10 @@ function findingIcon(status) {
   return `${ANSI_RED}\u2717${ANSI_RESET}`;
 }
 
-/** @param {string} health */
+/**
+ * Wraps a health label in ANSI color codes (green/yellow/red).
+ * @param {string} health
+ */
 function colorHealth(health) {
   if (health === 'ok') {
     return `${ANSI_GREEN}${health}${ANSI_RESET}`;
@@ -647,7 +687,10 @@ function colorHealth(health) {
   return `${ANSI_RED}${health}${ANSI_RESET}`;
 }
 
-/** @param {DoctorPayload} payload */
+/**
+ * Renders the `doctor` command output with health findings and priority actions.
+ * @param {DoctorPayload} payload
+ */
 export function renderDoctor(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -659,7 +702,7 @@ export function renderDoctor(payload) {
 
   for (const f of payload.findings) {
     lines.push(`${findingIcon(f.status)} ${f.id}: ${f.message}`);
-    if (f.fix) {
+    if (typeof f.fix === 'string' && f.fix.length > 0) {
       lines.push(`  fix: ${f.fix}`);
     }
   }
@@ -677,7 +720,10 @@ export function renderDoctor(payload) {
 
 // ── Verify-audit renderer ────────────────────────────────────────────────────
 
-/** @param {string} status */
+/**
+ * Wraps a verification status label in ANSI color (green for valid, red otherwise).
+ * @param {string} status
+ */
 function colorStatus(status) {
   if (status === 'VALID' || status === 'PARTIAL') {
     return `${ANSI_GREEN}${status}${ANSI_RESET}`;
@@ -685,7 +731,10 @@ function colorStatus(status) {
   return `${ANSI_RED}${status}${ANSI_RESET}`;
 }
 
-/** @param {VerifyAuditPayload} payload */
+/**
+ * Renders the `verify-audit` command output with per-chain verification results.
+ * @param {VerifyAuditPayload} payload
+ */
 export function renderVerifyAudit(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -698,7 +747,7 @@ export function renderVerifyAudit(payload) {
     lines.push(`  Writer: ${chain.writerId}`);
     lines.push(`  Status: ${colorStatus(chain.status)}`);
     lines.push(`  Receipts: ${chain.receiptsVerified} verified`);
-    if (chain.since) {
+    if (typeof chain.since === 'string' && chain.since.length > 0) {
       lines.push(`  Since: ${chain.since}`);
     }
     for (const err of chain.errors) {
@@ -719,7 +768,10 @@ export function renderVerifyAudit(payload) {
 
 // ── Trust renderer ────────────────────────────────────────────────────────
 
-/** @param {string} verdict */
+/**
+ * Wraps a trust verdict label in ANSI color based on pass/fail/unconfigured.
+ * @param {string} verdict
+ */
 function colorVerdict(verdict) {
   if (verdict === 'pass') {
     return `${ANSI_GREEN}${verdict}${ANSI_RESET}`;
@@ -730,7 +782,10 @@ function colorVerdict(verdict) {
   return `${ANSI_RED}${verdict}${ANSI_RESET}`;
 }
 
-/** @param {TrustPayload} payload */
+/**
+ * Renders the `trust` command output with key evidence and writer explanations.
+ * @param {TrustPayload} payload
+ */
 export function renderTrust(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -791,7 +846,10 @@ function formatPatchOp(op) {
   return null;
 }
 
-/** @param {PatchShowPayload} payload */
+/**
+ * Renders the `patch show` command output with operation details.
+ * @param {PatchShowPayload} payload
+ */
 export function renderPatchShow(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -805,7 +863,7 @@ export function renderPatchShow(payload) {
 
   for (const op of payload.ops) {
     const line = formatPatchOp(op);
-    if (line) {
+    if (typeof line === 'string') {
       lines.push(line);
     }
   }
@@ -813,14 +871,17 @@ export function renderPatchShow(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {PatchListPayload} payload */
+/**
+ * Renders the `patch list` command output with a tabular patch summary.
+ * @param {PatchListPayload} payload
+ */
 export function renderPatchList(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     `Patches: ${payload.showing}/${payload.total}`,
   ];
 
-  if (payload.writerFilter) {
+  if (typeof payload.writerFilter === 'string' && payload.writerFilter.length > 0) {
     lines.push(`Writer: ${payload.writerFilter}`);
   }
 
@@ -837,6 +898,7 @@ export function renderPatchList(payload) {
 // ── Debug renderer ───────────────────────────────────────────────────────────
 
 /**
+ * Formats a conflict anchor as a compact writer@lamport reference string.
  * @param {import('../../index.js').ConflictAnchor} anchor
  * @returns {string}
  */
@@ -845,12 +907,13 @@ function formatConflictAnchor(anchor) {
 }
 
 /**
+ * Formats a conflict target as a human-readable entity identifier string.
  * @param {import('../../index.js').ConflictTarget} target
  * @returns {string}
  */
 function formatConflictTarget(target) {
   if (target.targetKind === 'node') {
-    return target.entityId || target.targetDigest;
+    return (typeof target.entityId === 'string' && target.entityId.length > 0) ? target.entityId : target.targetDigest;
   }
   if (target.targetKind === 'node_property') {
     return `${target.entityId}.${target.propertyKey}`;
@@ -865,6 +928,7 @@ function formatConflictTarget(target) {
 }
 
 /**
+ * Formats an op-type-to-count map as a sorted inline summary string.
  * @param {Record<string, number>} summary
  * @returns {string}
  */
@@ -877,6 +941,7 @@ function formatOpSummaryInline(summary) {
 }
 
 /**
+ * Produces overlay and braid summary lines for strand debug output.
  * @param {{ overlayHeadPatchSha: string|null, overlayPatchCount: number, baseLamportCeiling: number|null, overlayWritable: boolean, braid?: { braidedStrandIds: string[] } }} strand
  * @returns {string[]}
  */
@@ -888,13 +953,16 @@ function renderStrandDebugContextLines(strand) {
   ];
 }
 
-/** @param {DebugConflictsPayload} payload */
+/**
+ * Renders the debug conflicts topic with full conflict trace details.
+ * @param {DebugConflictsPayload} payload
+ */
 function renderDebugConflicts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     `Topic: conflicts`,
     `Analysis Version: ${payload.analysisVersion}`,
-    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
+    ...(typeof payload.strandId === 'string' && payload.strandId.length > 0 ? [`Strand: ${payload.strandId}`] : []),
     `Coordinate Kind: ${payload.resolvedCoordinate.coordinateKind}`,
     `Lamport Ceiling: ${payload.resolvedCoordinate.lamportCeiling ?? 'head'}`,
     `Frontier Writers: ${Object.keys(payload.resolvedCoordinate.frontier).length}`,
@@ -919,7 +987,7 @@ function renderDebugConflicts(payload) {
     lines.push(`- ${trace.kind} ${formatConflictTarget(trace.target)}`);
     lines.push(`  Winner: ${formatConflictAnchor(trace.winner.anchor)} (${trace.winner.effectDigest.slice(0, 12)})`);
     lines.push(`  Resolution: ${trace.resolution.reducerId} / ${trace.resolution.basis.code} / ${trace.resolution.winnerMode}`);
-    if (trace.resolution.basis.reason) {
+    if (typeof trace.resolution.basis.reason === 'string' && trace.resolution.basis.reason.length > 0) {
       lines.push(`  Why: ${trace.resolution.basis.reason}`);
     }
     lines.push(`  Fingerprint: ${trace.whyFingerprint}`);
@@ -941,7 +1009,10 @@ function renderDebugConflicts(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {DebugCoordinatePayload} payload */
+/**
+ * Renders the debug coordinate topic with per-writer frontier details.
+ * @param {DebugCoordinatePayload} payload
+ */
 function renderDebugCoordinate(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
@@ -962,7 +1033,7 @@ function renderDebugCoordinate(payload) {
   lines.push('');
   lines.push('Per Writer:');
   for (const [writerId, info] of Object.entries(payload.resolvedCoordinate.perWriter)) {
-    const tip = info.tipSha ? info.tipSha.slice(0, 7) : 'none';
+    const tip = typeof info.tipSha === 'string' && info.tipSha.length > 0 ? info.tipSha.slice(0, 7) : 'none';
     lines.push(`- ${writerId}: visible=${info.visiblePatchCount}/${info.totalPatchCount} tip=${tip}`);
   }
 
@@ -977,12 +1048,15 @@ function renderDebugCoordinate(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {DebugProvenancePayload} payload */
+/**
+ * Renders the debug provenance topic with causal patch chain for an entity.
+ * @param {DebugProvenancePayload} payload
+ */
 function renderDebugProvenance(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: provenance',
-    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
+    ...(typeof payload.strandId === 'string' && payload.strandId.length > 0 ? [`Strand: ${payload.strandId}`] : []),
     `Entity: ${payload.entityId}`,
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Patches: ${payload.returnedPatches}/${payload.totalPatches}`,
@@ -1012,25 +1086,28 @@ function renderDebugProvenance(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {DebugReceiptsPayload} payload */
+/**
+ * Renders the debug receipts topic with filtered tick receipt operations.
+ * @param {DebugReceiptsPayload} payload
+ */
 function renderDebugReceipts(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: receipts',
-    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
+    ...(typeof payload.strandId === 'string' && payload.strandId.length > 0 ? [`Strand: ${payload.strandId}`] : []),
     `Lamport Ceiling: ${payload.lamportCeiling ?? 'head'}`,
     `Receipts: ${payload.returnedReceipts}/${payload.matchedReceipts} matched (${payload.totalReceipts} total)`,
     `Results: applied=${payload.summary.results.applied} superseded=${payload.summary.results.superseded} redundant=${payload.summary.results.redundant}`,
   ];
 
   const activeFilters = [];
-  if (payload.filters.writerId) {
+  if (typeof payload.filters.writerId === 'string' && payload.filters.writerId.length > 0) {
     activeFilters.push(`writer=${payload.filters.writerId}`);
   }
-  if (payload.filters.patch) {
+  if (typeof payload.filters.patch === 'string' && payload.filters.patch.length > 0) {
     activeFilters.push(`patch=${payload.filters.patch}`);
   }
-  if (payload.filters.target) {
+  if (typeof payload.filters.target === 'string' && payload.filters.target.length > 0) {
     activeFilters.push(`target=${payload.filters.target}`);
   }
   if (payload.filters.results.length > 0) {
@@ -1054,7 +1131,7 @@ function renderDebugReceipts(payload) {
     lines.push('');
     lines.push(`- ${receipt.patchSha.slice(0, 7)} L${receipt.lamport} ${receipt.writer} (${receipt.matchedOps}/${receipt.totalOps} ops)`);
     for (const op of receipt.ops) {
-      const reason = op.reason ? ` — ${op.reason}` : '';
+      const reason = typeof op.reason === 'string' && op.reason.length > 0 ? ` — ${op.reason}` : '';
       lines.push(`  ${op.result.padEnd(11)} ${op.op.padEnd(14)} ${op.target}${reason}`);
     }
   }
@@ -1062,22 +1139,25 @@ function renderDebugReceipts(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {DebugTimelinePayload} payload */
+/**
+ * Renders the debug timeline topic with lamport-windowed patch entries.
+ * @param {DebugTimelinePayload} payload
+ */
 function renderDebugTimeline(payload) {
   const lines = [
     `Graph: ${payload.graph}`,
     'Topic: timeline',
     `Source: ${payload.coordinateSource}`,
-    ...(payload.strandId ? [`Strand: ${payload.strandId}`] : []),
+    ...(typeof payload.strandId === 'string' && payload.strandId.length > 0 ? [`Strand: ${payload.strandId}`] : []),
     `Lamport Window: ${payload.filters.lamportFloor ?? 0}..${payload.filters.lamportCeiling ?? 'head'}`,
     `Entries: ${payload.returnedEntries}/${payload.totalEntries}`,
   ];
 
   const activeFilters = [];
-  if (payload.filters.entityId) {
+  if (typeof payload.filters.entityId === 'string' && payload.filters.entityId.length > 0) {
     activeFilters.push(`entity=${payload.filters.entityId}`);
   }
-  if (payload.filters.writerId) {
+  if (typeof payload.filters.writerId === 'string' && payload.filters.writerId.length > 0) {
     activeFilters.push(`writer=${payload.filters.writerId}`);
   }
   if (activeFilters.length > 0) {
@@ -1110,7 +1190,10 @@ function renderDebugTimeline(payload) {
   return `${lines.join('\n')}\n`;
 }
 
-/** @param {DebugPayload} payload */
+/**
+ * Dispatches a debug payload to the appropriate topic-specific renderer.
+ * @param {DebugPayload} payload
+ */
 export function renderDebug(payload) {
   if (payload.debugTopic === 'conflicts') {
     return renderDebugConflicts(payload);
@@ -1131,6 +1214,7 @@ export function renderDebug(payload) {
 }
 
 /**
+ * Produces multi-line detail output for a strand descriptor (overlay, braid, lease).
  * @param {import('../../index.js').StrandDescriptor} strand
  * @returns {string[]}
  */
@@ -1152,7 +1236,10 @@ function renderStrandDescriptorLines(strand) {
   ];
 }
 
-/** @param {StrandPayload} payload */
+/**
+ * Renders the `strand` command output, dispatching by strand action type.
+ * @param {StrandPayload} payload
+ */
 export function renderStrand(payload) {
   if (payload.strandAction === 'list') {
     const lines = [

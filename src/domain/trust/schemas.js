@@ -60,6 +60,72 @@ export const WriterBindRevokeSubjectSchema = z.object({
   reasonCode: z.enum(['ACCESS_REMOVED', 'ROTATION', 'KEY_REVOKED']),
 });
 
+// ── Per-type subject refinement helpers ─────────────────────────────────
+
+/**
+ * Validates the subject field of a KEY_ADD record against its schema.
+ *
+ * @param {Record<string, unknown>} subject
+ * @param {import('zod').RefinementCtx} ctx
+ * @param {Record<string, unknown> & {subject: unknown}} record
+ */
+function refineKeyAddSubject(subject, ctx, record) {
+  const r = KeyAddSubjectSchema.safeParse(subject);
+  if (!r.success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid KEY_ADD subject: ${r.error.message}` });
+  } else {
+    record.subject = r.data;
+  }
+}
+
+/**
+ * Validates the subject field of a KEY_REVOKE record against its schema.
+ *
+ * @param {Record<string, unknown>} subject
+ * @param {import('zod').RefinementCtx} ctx
+ * @param {Record<string, unknown> & {subject: unknown}} record
+ */
+function refineKeyRevokeSubject(subject, ctx, record) {
+  const r = KeyRevokeSubjectSchema.safeParse(subject);
+  if (!r.success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid KEY_REVOKE subject: ${r.error.message}` });
+  } else {
+    record.subject = r.data;
+  }
+}
+
+/**
+ * Validates the subject field of a WRITER_BIND_ADD record against its schema.
+ *
+ * @param {Record<string, unknown>} subject
+ * @param {import('zod').RefinementCtx} ctx
+ * @param {Record<string, unknown> & {subject: unknown}} record
+ */
+function refineWriterBindAddSubject(subject, ctx, record) {
+  const r = WriterBindAddSubjectSchema.safeParse(subject);
+  if (!r.success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid WRITER_BIND_ADD subject: ${r.error.message}` });
+  } else {
+    record.subject = r.data;
+  }
+}
+
+/**
+ * Validates the subject field of a WRITER_BIND_REVOKE record against its schema.
+ *
+ * @param {Record<string, unknown>} subject
+ * @param {import('zod').RefinementCtx} ctx
+ * @param {Record<string, unknown> & {subject: unknown}} record
+ */
+function refineWriterBindRevokeSubject(subject, ctx, record) {
+  const r = WriterBindRevokeSubjectSchema.safeParse(subject);
+  if (!r.success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid WRITER_BIND_REVOKE subject: ${r.error.message}` });
+  } else {
+    record.subject = r.data;
+  }
+}
+
 // ── Trust record envelope ───────────────────────────────────────────────
 
 export const TrustRecordSchema = z.object({
@@ -73,49 +139,25 @@ export const TrustRecordSchema = z.object({
   meta: z.record(z.unknown()).optional().default({}),
   signature: TrustSignatureSchema,
 }).superRefine((record, ctx) => {
-  /** @param {string} message */
-  const addIssue = (message) =>
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message });
-
+  /** Dispatches subject validation to the appropriate per-type refiner. */
   switch (record.recordType) {
-    case 'KEY_ADD': {
-      const r = KeyAddSubjectSchema.safeParse(record.subject);
-      if (!r.success) {
-        addIssue(`Invalid KEY_ADD subject: ${r.error.message}`);
-      } else {
-        record.subject = r.data;
-      }
+    case 'KEY_ADD':
+      refineKeyAddSubject(record.subject, ctx, record);
       break;
-    }
-    case 'KEY_REVOKE': {
-      const r = KeyRevokeSubjectSchema.safeParse(record.subject);
-      if (!r.success) {
-        addIssue(`Invalid KEY_REVOKE subject: ${r.error.message}`);
-      } else {
-        record.subject = r.data;
-      }
+    case 'KEY_REVOKE':
+      refineKeyRevokeSubject(record.subject, ctx, record);
       break;
-    }
-    case 'WRITER_BIND_ADD': {
-      const r = WriterBindAddSubjectSchema.safeParse(record.subject);
-      if (!r.success) {
-        addIssue(`Invalid WRITER_BIND_ADD subject: ${r.error.message}`);
-      } else {
-        record.subject = r.data;
-      }
+    case 'WRITER_BIND_ADD':
+      refineWriterBindAddSubject(record.subject, ctx, record);
       break;
-    }
-    case 'WRITER_BIND_REVOKE': {
-      const r = WriterBindRevokeSubjectSchema.safeParse(record.subject);
-      if (!r.success) {
-        addIssue(`Invalid WRITER_BIND_REVOKE subject: ${r.error.message}`);
-      } else {
-        record.subject = r.data;
-      }
+    case 'WRITER_BIND_REVOKE':
+      refineWriterBindRevokeSubject(record.subject, ctx, record);
       break;
-    }
     default:
-      addIssue(`Unsupported recordType: ${/** @type {string} */ (record.recordType)}`);
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Unsupported recordType: ${/** @type {string} */ (record.recordType)}`,
+      });
   }
 });
 

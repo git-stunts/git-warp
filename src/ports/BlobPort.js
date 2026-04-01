@@ -7,6 +7,8 @@
  * @abstract
  * @see GraphPersistencePort - Composite port implementing all five focused ports
  */
+import WarpError from '../domain/errors/WarpError.js';
+
 export default class BlobPort {
   /**
    * Writes content as a Git blob and returns its OID.
@@ -15,7 +17,7 @@ export default class BlobPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async writeBlob(_content) {
-    throw new Error('BlobPort.writeBlob() not implemented');
+    throw new WarpError('BlobPort.writeBlob() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -25,6 +27,6 @@ export default class BlobPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async readBlob(_oid) {
-    throw new Error('BlobPort.readBlob() not implemented');
+    throw new WarpError('BlobPort.readBlob() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

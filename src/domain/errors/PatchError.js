@@ -18,6 +18,8 @@ import WarpError from './WarpError.js';
  */
 export default class PatchError extends WarpError {
   /**
+   * Creates a PatchError with the given message and optional context.
+   *
    * @param {string} message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
    */

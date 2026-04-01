@@ -10,8 +10,21 @@
 import defaultCodec from '../utils/defaultCodec.js';
 import computeShardKey from '../utils/shardKey.js';
 
+/**
+ * Creates a null-prototype object typed as Record<string, unknown>.
+ *
+ * @returns {Record<string, unknown>}
+ */
+function createNullProtoRecord() {
+  /** @type {unknown} */
+  const obj = Object.create(null);
+  return /** @type {Record<string, unknown>} */ (obj);
+}
+
 export default class PropertyIndexBuilder {
   /**
+   * Creates a PropertyIndexBuilder with an optional codec for serialization.
+   *
    * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
    */
   constructor(options = undefined) {
@@ -35,9 +48,11 @@ export default class PropertyIndexBuilder {
       shard = new Map();
       this._shards.set(shardKey, shard);
     }
-    let nodeProps = shard.get(nodeId);
+    let nodeProps = /** @type {Record<string, unknown>|undefined} */ (
+      /** @type {unknown} */ (shard.get(nodeId))
+    );
     if (!nodeProps) {
-      nodeProps = /** @type {Record<string, unknown>} */ (Object.create(null));
+      nodeProps = createNullProtoRecord();
       shard.set(nodeId, nodeProps);
     }
     /** @type {Record<string, unknown>} */ (nodeProps)[key] = value;

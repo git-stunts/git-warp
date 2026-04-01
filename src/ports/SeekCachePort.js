@@ -10,6 +10,8 @@
  *
  * @abstract
  */
+import WarpError from '../domain/errors/WarpError.js';
+
 export default class SeekCachePort {
   /**
    * Retrieves a cached state buffer by key.
@@ -18,7 +20,7 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async get(_key) {
-    throw new Error('SeekCachePort.get() not implemented');
+    throw new WarpError('SeekCachePort.get() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -30,7 +32,7 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async set(_key, _buffer, _options) {
-    throw new Error('SeekCachePort.set() not implemented');
+    throw new WarpError('SeekCachePort.set() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -40,7 +42,7 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async has(_key) {
-    throw new Error('SeekCachePort.has() not implemented');
+    throw new WarpError('SeekCachePort.has() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -50,7 +52,7 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async keys() {
-    throw new Error('SeekCachePort.keys() not implemented');
+    throw new WarpError('SeekCachePort.keys() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -60,7 +62,7 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async delete(_key) {
-    throw new Error('SeekCachePort.delete() not implemented');
+    throw new WarpError('SeekCachePort.delete() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -69,6 +71,6 @@ export default class SeekCachePort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async clear() {
-    throw new Error('SeekCachePort.clear() not implemented');
+    throw new WarpError('SeekCachePort.clear() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }
