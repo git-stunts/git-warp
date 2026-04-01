@@ -94,6 +94,8 @@ export const STRAND_TICK_ID_WIDTH = 4;
 export const STRAND_COUNTERFACTUAL_REASON = 'footprint_overlap';
 
 /**
+ * Lexicographic comparator for deterministic sort ordering.
+ *
  * @param {string} a
  * @param {string} b
  * @returns {number}
@@ -103,6 +105,8 @@ function compareStrings(a, b) {
 }
 
 /**
+ * Zero-pad a numeric sequence to the specified width for lexicographic sorting.
+ *
  * @param {number} value
  * @param {number} width
  * @returns {string}
@@ -112,6 +116,8 @@ function formatSequence(value, width) {
 }
 
 /**
+ * Construct a deterministic intent identifier from strand and sequence number.
+ *
  * @param {string} strandId
  * @param {number} sequence
  * @returns {string}
@@ -121,6 +127,8 @@ function buildIntentId(strandId, sequence) {
 }
 
 /**
+ * Construct a deterministic tick identifier from strand and sequence number.
+ *
  * @param {string} strandId
  * @param {number} sequence
  * @returns {string}
@@ -130,6 +138,8 @@ function buildTickId(strandId, sequence) {
 }
 
 /**
+ * Convert a frontier Map to a sorted plain object for deterministic serialization.
+ *
  * @param {Map<string, string>} frontier
  * @returns {Record<string, string>}
  */
@@ -140,6 +150,8 @@ function frontierToRecord(frontier) {
 }
 
 /**
+ * Validate and trim an optional string field, returning null for absent values.
+ *
  * @param {string|null|undefined} value
  * @param {string} field
  * @returns {string|null}
@@ -165,6 +177,8 @@ function normalizeOptionalString(value, field) {
 }
 
 /**
+ * Validate a Lamport ceiling value, returning null for absent values.
+ *
  * @param {number|null|undefined} value
  * @returns {number|null}
  */
@@ -182,6 +196,8 @@ function normalizeLamportCeiling(value) {
 }
 
 /**
+ * Validate a lease expiration timestamp as ISO-8601, returning null for absent values.
+ *
  * @param {string|null|undefined} value
  * @returns {string|null}
  */
@@ -206,6 +222,8 @@ function normalizeLeaseExpiresAt(value) {
 }
 
 /**
+ * Validate an optional writable flag, returning null for absent values.
+ *
  * @param {boolean|null|undefined} value
  * @returns {boolean|null}
  */
@@ -223,6 +241,8 @@ function normalizeWritable(value) {
 }
 
 /**
+ * Resolve a strand identifier, generating a fresh one if not provided.
+ *
  * @param {string|undefined|null} strandId
  * @returns {string}
  */
@@ -245,6 +265,8 @@ function resolveStrandId(strandId) {
 }
 
 /**
+ * Check whether two frontier records have identical sorted key-value pairs.
+ *
  * @param {Record<string, string>} left
  * @param {Record<string, string>} right
  * @returns {boolean}
@@ -262,6 +284,8 @@ function frontierRecordsEqual(left, right) {
 }
 
 /**
+ * Determine whether two base observations are structurally equivalent.
+ *
  * @param {{
  *   coordinateVersion: string,
  *   frontier: Record<string, string>,
@@ -283,6 +307,8 @@ function baseObservationsEqual(left, right) {
 }
 
 /**
+ * Extract read-only overlay metadata from a full strand descriptor.
+ *
  * @param {StrandDescriptor} descriptor
  * @returns {StrandReadOverlayDescriptor}
  */
@@ -297,24 +323,33 @@ function buildReadOverlayMetadata(descriptor) {
 }
 
 /**
+ * Coerce an unknown value into a sorted array of read-overlay descriptors.
+ *
  * @param {unknown} value
  * @returns {StrandReadOverlayDescriptor[]}
  */
 function normalizeReadOverlays(value) {
-  return Array.isArray(value)
-    ? value
-      .map((overlay) => ({
-        strandId: overlay.strandId,
-        overlayId: overlay.overlayId,
-        kind: overlay.kind,
-        headPatchSha: overlay.headPatchSha ?? null,
-        patchCount: overlay.patchCount,
-      }))
-      .sort((left, right) => compareStrings(left.strandId, right.strandId))
-    : [];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const entries = /** @type {unknown[]} */ (value);
+  return entries
+    .map((entry) => {
+      const overlay = /** @type {Record<string, unknown>} */ (entry);
+      return {
+        strandId: /** @type {string} */ (overlay.strandId),
+        overlayId: /** @type {string} */ (overlay.overlayId),
+        kind: /** @type {string} */ (overlay.kind),
+        headPatchSha: /** @type {string|null} */ (overlay.headPatchSha ?? null),
+        patchCount: /** @type {number} */ (overlay.patchCount),
+      };
+    })
+    .sort((left, right) => compareStrings(left.strandId, right.strandId));
 }
 
 /**
+ * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
+ *
  * @param {unknown} value
  * @param {string} field
  * @returns {string[]}
@@ -330,7 +365,7 @@ function normalizeStringArray(value, field) {
       /** @type {string|null|undefined} */ (entry),
       field,
     );
-    if (maybeString) {
+    if (maybeString !== null) {
       normalized.push(maybeString);
     }
   }
@@ -338,6 +373,8 @@ function normalizeStringArray(value, field) {
 }
 
 /**
+ * Parse and validate an unknown array into typed queued intents, discarding malformed entries.
+ *
  * @param {unknown} value
  * @returns {StrandQueuedIntent[]}
  */
@@ -345,9 +382,11 @@ function normalizeQueuedIntents(value) {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.flatMap((entry) => {
-    const candidate = /** @type {Record<string, unknown>} */ (entry);
-    const { patch } = /** @type {{ patch?: import('../types/WarpTypesV2.js').PatchV2 }} */ (candidate);
+  const entries = /** @type {unknown[]} */ (value);
+  return entries.flatMap((rawEntry) => {
+    const candidate = /** @type {Record<string, unknown>} */ (rawEntry);
+    const { patch: rawPatch } = candidate;
+    const patch = /** @type {import('../types/WarpTypesV2.js').PatchV2|undefined} */ (rawPatch);
     const intentId = normalizeOptionalString(
       /** @type {string|null|undefined} */ (candidate.intentId),
       'intentId',
@@ -356,7 +395,7 @@ function normalizeQueuedIntents(value) {
       /** @type {string|null|undefined} */ (candidate.enqueuedAt),
       'enqueuedAt',
     ) ?? '';
-    if (!patch || intentId.length === 0 || enqueuedAt.length === 0) {
+    if (patch === undefined || intentId.length === 0 || enqueuedAt.length === 0) {
       return [];
     }
     return [{
@@ -371,11 +410,13 @@ function normalizeQueuedIntents(value) {
 }
 
 /**
+ * Coerce an unknown value into a validated intent queue with sequence counter.
+ *
  * @param {unknown} value
  * @returns {StrandIntentQueue}
  */
 function normalizeIntentQueue(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
     return {
       nextIntentSeq: 1,
       intents: [],
@@ -392,6 +433,8 @@ function normalizeIntentQueue(value) {
 }
 
 /**
+ * Parse an unknown array into validated rejected-counterfactual records.
+ *
  * @param {unknown} value
  * @returns {StrandRejectedCounterfactual[]}
  */
@@ -399,8 +442,9 @@ function normalizeRejectedCounterfactuals(value) {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.map((entry) => {
-    const candidate = /** @type {Record<string, unknown>} */ (entry);
+  const entries = /** @type {unknown[]} */ (value);
+  return entries.map((rawEntry) => {
+    const candidate = /** @type {Record<string, unknown>} */ (rawEntry);
     return {
       intentId: normalizeOptionalString(
         /** @type {string|null|undefined} */ (candidate.intentId),
@@ -418,6 +462,8 @@ function normalizeRejectedCounterfactuals(value) {
 }
 
 /**
+ * Validate and normalize a raw last-tick record into a typed tick record.
+ *
  * @param {Record<string, unknown>|null} lastTick
  * @returns {StrandTickRecord|null}
  */
@@ -457,11 +503,13 @@ function normalizeLastTick(lastTick) {
 }
 
 /**
+ * Coerce an unknown value into a validated evolution record with tick count.
+ *
  * @param {unknown} value
  * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
  */
 function normalizeEvolution(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
     return {
       tickCount: 0,
       lastTick: null,
@@ -471,7 +519,7 @@ function normalizeEvolution(value) {
   const tickCount = Number.isInteger(record.tickCount) && /** @type {number} */ (record.tickCount) >= 0
     ? /** @type {number} */ (record.tickCount)
     : 0;
-  const lastTick = record.lastTick && typeof record.lastTick === 'object' && !Array.isArray(record.lastTick)
+  const lastTick = record.lastTick !== null && record.lastTick !== undefined && typeof record.lastTick === 'object' && !Array.isArray(record.lastTick)
     ? /** @type {Record<string, unknown>} */ (record.lastTick)
     : null;
   return {
@@ -481,6 +529,8 @@ function normalizeEvolution(value) {
 }
 
 /**
+ * Merge read and write keys into a single set for overlap detection.
+ *
  * @param {{ reads: string[], writes: string[] }} footprint
  * @returns {Set<string>}
  */
@@ -489,6 +539,8 @@ function footprintToSet(footprint) {
 }
 
 /**
+ * Return true if two sets share at least one common element.
+ *
  * @param {Set<string>} left
  * @param {Set<string>} right
  * @returns {boolean}
@@ -503,6 +555,8 @@ function setsOverlap(left, right) {
 }
 
 /**
+ * Check whether two read-overlay arrays are structurally identical.
+ *
  * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
  * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
  * @returns {boolean}
@@ -524,6 +578,8 @@ function readOverlaysEqual(left, right) {
 }
 
 /**
+ * Return true if descriptor overlay metadata matches the expected values.
+ *
  * @param {StrandDescriptor} descriptor
  * @param {{ headPatchSha: string|null, patchCount: number, writable: boolean }} expected
  * @returns {boolean}
@@ -537,6 +593,8 @@ function overlayMetadataMatches(descriptor, expected) {
 }
 
 /**
+ * Assemble a fully normalized strand descriptor from a parsed blob and braid state.
+ *
  * @param {ReturnType<typeof parseStrandBlob>} descriptor
  * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
  * @param {boolean} writable
@@ -560,6 +618,8 @@ function buildNormalizedStrandDescriptor(descriptor, braidedReadOverlays, writab
 }
 
 /**
+ * Return true if a descriptor's overlay and braid state match expectations.
+ *
  * @param {StrandDescriptor} descriptor
  * @param {StrandReadOverlayDescriptor[]} descriptorReadOverlays
  * @param {{
@@ -577,6 +637,8 @@ function normalizedDescriptorMatches(descriptor, descriptorReadOverlays, options
 }
 
 /**
+ * Return a new descriptor with updated overlay head and patch count.
+ *
  * @param {StrandDescriptor} descriptor
  * @param {{ headPatchSha: string|null, patchCount: number }} overlay
  * @returns {StrandDescriptor}
@@ -593,6 +655,8 @@ function withOverlayMetadata(descriptor, overlay) {
 }
 
 /**
+ * Validate and normalize strand creation options into canonical form.
+ *
  * @param {StrandCreateOptions} options
  * @returns {{
  *   strandId: string,
@@ -613,6 +677,8 @@ function normalizeCreateOptions(options) {
 }
 
 /**
+ * Construct a fresh strand descriptor from validated creation parameters.
+ *
  * @param {{
  *   graphName: string,
  *   now: string,
@@ -671,6 +737,8 @@ function buildStrandDescriptor({ graphName, now, frontierRecord, frontierDigest,
 }
 
 /**
+ * Deep-freeze materialized state for safe public consumption.
+ *
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @returns {import('./JoinReducer.js').WarpStateV5}
  */
@@ -679,6 +747,8 @@ function freezePublicState(state) {
 }
 
 /**
+ * Deep-freeze both materialized state and tick receipts for safe public consumption.
+ *
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @param {import('../types/TickReceipt.js').TickReceipt[]} receipts
  * @returns {{ state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }}
@@ -719,6 +789,8 @@ async function openDetachedReadGraph(graph) {
 }
 
 /**
+ * Find the highest Lamport timestamp across a collection of patches.
+ *
  * @param {Array<{ patch: { lamport?: number } }>} patches
  * @returns {number}
  */
@@ -734,6 +806,8 @@ function maxPatchLamport(patches) {
 }
 
 /**
+ * Return true if a patch references the given entity in its reads or writes.
+ *
  * @param {import('../types/WarpTypesV2.js').PatchV2} patch
  * @param {string} entityId
  * @returns {boolean}
@@ -745,6 +819,8 @@ function patchTouchesEntity(patch, entityId) {
 }
 
 /**
+ * Validate, deduplicate, and sort braided strand identifiers, rejecting self-braids.
+ *
  * @param {unknown} value
  * @param {string} targetStrandId
  * @returns {string[]}
@@ -764,7 +840,7 @@ function normalizeBraidedStrandIds(value, targetStrandId) {
   const seen = new Set();
   for (const entry of value) {
     const normalizedId = normalizeOptionalString(entry, 'braidedStrandIds[]');
-    if (!normalizedId) {
+    if (normalizedId === null) {
       throw new StrandError('braidedStrandIds[] must not be empty', {
         code: 'E_STRAND_INVALID_ARGS',
         context: { field: 'braidedStrandIds[]' },
@@ -810,6 +886,8 @@ function normalizeBraidedStrandIds(value, targetStrandId) {
 
 export default class StrandService {
   /**
+   * Initialize the strand service with a graph runtime reference.
+   *
    * @param {{ graph: WarpRuntime }} options
    */
   constructor({ graph }) {
@@ -817,14 +895,16 @@ export default class StrandService {
   }
 
   /**
+   * Create a new strand pinned to the current graph frontier.
+   *
    * @param {StrandCreateOptions} [options]
- * @returns {Promise<StrandDescriptor>}
- */
+   * @returns {Promise<StrandDescriptor>}
+   */
   async create(options = {}) {
     const normalized = normalizeCreateOptions(options);
     const ref = buildStrandRef(this._graph._graphName, normalized.strandId);
     const existing = await this._graph._persistence.readRef(ref);
-    if (existing) {
+    if (existing !== null && existing !== undefined) {
       throw new StrandError(`Strand '${normalized.strandId}' already exists`, {
         code: 'E_STRAND_ALREADY_EXISTS',
         context: { graphName: this._graph._graphName, strandId: normalized.strandId },
@@ -849,10 +929,12 @@ export default class StrandService {
   }
 
   /**
+   * Configure braid relationships by attaching read-only overlay strands.
+   *
    * @param {string} strandId
    * @param {StrandBraidOptions} [options]
- * @returns {Promise<StrandDescriptor>}
- */
+   * @returns {Promise<StrandDescriptor>}
+   */
   async braid(strandId, options = {}) {
     const target = await this.getOrThrow(strandId);
     const braidedStrandIds = normalizeBraidedStrandIds(
@@ -869,7 +951,7 @@ export default class StrandService {
       updatedAt: this._graph._clock.timestamp(),
       overlay: {
         ...target.overlay,
-        writable: writableOverride ?? (target.overlay.writable ?? true),
+        writable: writableOverride !== null ? writableOverride : target.overlay.writable,
       },
       braid: {
         readOverlays,
@@ -881,13 +963,15 @@ export default class StrandService {
   }
 
   /**
+   * Retrieve a strand descriptor by identifier, returning null if absent.
+   *
    * @param {string} strandId
- * @returns {Promise<StrandDescriptor|null>}
- */
+   * @returns {Promise<StrandDescriptor|null>}
+   */
   async get(strandId) {
     const ref = this._buildRef(strandId);
     const oid = await this._graph._persistence.readRef(ref);
-    if (!oid) {
+    if (oid === null || oid === undefined) {
       return null;
     }
     const descriptor = await this._readDescriptorByOid(oid, strandId);
@@ -895,8 +979,10 @@ export default class StrandService {
   }
 
   /**
- * @returns {Promise<StrandDescriptor[]>}
- */
+   * List all strand descriptors in the current graph, sorted by identifier.
+   *
+   * @returns {Promise<StrandDescriptor[]>}
+   */
   async list() {
     const prefix = buildStrandsPrefix(this._graph._graphName);
     const refs = await this._graph._persistence.listRefs(prefix);
@@ -916,6 +1002,8 @@ export default class StrandService {
   }
 
   /**
+   * Remove a strand and all associated refs, returning true if anything was deleted.
+   *
    * @param {string} strandId
    * @returns {Promise<boolean>}
    */
@@ -926,22 +1014,26 @@ export default class StrandService {
     const oid = await this._graph._persistence.readRef(ref);
     const overlayHeadSha = await this._graph._persistence.readRef(overlayRef);
     const braidRefs = await this._graph._persistence.listRefs(braidPrefix);
-    if (!oid && !overlayHeadSha && braidRefs.length === 0) {
+    const hasOid = oid !== null && oid !== undefined;
+    const hasOverlaySha = overlayHeadSha !== null && overlayHeadSha !== undefined;
+    if (!hasOid && !hasOverlaySha && braidRefs.length === 0) {
       return false;
     }
     for (const braidRef of braidRefs) {
       await this._graph._persistence.deleteRef(braidRef);
     }
-    if (overlayHeadSha) {
+    if (hasOverlaySha) {
       await this._graph._persistence.deleteRef(overlayRef);
     }
-    if (oid) {
+    if (hasOid) {
       await this._graph._persistence.deleteRef(ref);
     }
     return true;
   }
 
   /**
+   * Materialize strand state by replaying all base, braid, and overlay patches.
+   *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
    * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
@@ -952,16 +1044,18 @@ export default class StrandService {
     const descriptor = await detachedService.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
     const { state, receipts } = await detachedService._materializeDescriptor(descriptor, {
-      collectReceipts: !!options.receipts,
+      collectReceipts: options.receipts === true,
       ceiling,
     });
-    if (options.receipts) {
+    if (options.receipts === true) {
       return freezePublicStateWithReceipts(state, receipts);
     }
     return freezePublicState(state);
   }
 
   /**
+   * Create a fluent patch builder wired to the strand's overlay ref.
+   *
    * @param {string} strandId
    * @returns {Promise<PatchBuilderV2>}
    */
@@ -991,9 +1085,19 @@ export default class StrandService {
       targetRefPath: overlayRef,
       lamport: nextLamport,
       versionVector: state.observedFrontier,
+      /**
+       * Return the current cached materialized state.
+       *
+       * @returns {import('./JoinReducer.js').WarpStateV5|null} Cached materialized state.
+       */
       getCurrentState: () => this._graph._cachedState,
       expectedParentSha,
       onDeleteWithData: this._graph._onDeleteWithData,
+      /**
+       * Synchronize the overlay descriptor after a successful commit.
+       *
+       * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result - Committed patch result.
+       */
       onCommitSuccess: async ({ patch, sha }) => {
         await this._syncOverlayDescriptor(descriptor, { patch, sha });
       },
@@ -1005,14 +1109,17 @@ export default class StrandService {
   }
 
   /**
+   * Build and commit a patch within a reentrancy guard.
+   *
    * @param {string} strandId
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
   async patch(strandId, build) {
     if (this._graph._patchInProgress) {
-      throw new Error(
+      throw new StrandError(
         'graph.patchStrand() is not reentrant. Use createStrandPatch() for nested or concurrent patches.',
+        { code: 'E_STRAND_REENTRANT' },
       );
     }
     this._graph._patchInProgress = true;
@@ -1026,6 +1133,8 @@ export default class StrandService {
   }
 
   /**
+   * Enqueue a new intent onto the strand's intent queue for deferred tick processing.
+   *
    * @param {string} strandId
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<{
@@ -1039,8 +1148,9 @@ export default class StrandService {
    */
   async queueIntent(strandId, build) {
     if (this._graph._patchInProgress) {
-      throw new Error(
+      throw new StrandError(
         'graph.queueStrandIntent() is not reentrant. Use queueStrandIntent() from one build callback at a time.',
+        { code: 'E_STRAND_REENTRANT' },
       );
     }
     this._graph._patchInProgress = true;
@@ -1066,6 +1176,8 @@ export default class StrandService {
   }
 
   /**
+   * Return all queued intents for a strand as frozen snapshots.
+   *
    * @param {string} strandId
    * @returns {Promise<Array<{
    *   intentId: string,
@@ -1087,6 +1199,8 @@ export default class StrandService {
   }
 
   /**
+   * Drain the intent queue, classify and commit admitted intents, and record the tick.
+   *
    * @param {string} strandId
    * @returns {Promise<{
    *   tickId: string,
@@ -1141,6 +1255,8 @@ export default class StrandService {
   }
 
   /**
+   * Build a queued intent from a descriptor and user-supplied build callback.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {(p: PatchBuilderV2) => void | Promise<void>} build
@@ -1174,6 +1290,11 @@ export default class StrandService {
       writerId: descriptor.overlay.overlayId,
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
+      /**
+       * Return the snapshot of materialized state for this intent.
+       *
+       * @returns {import('./JoinReducer.js').WarpStateV5} Snapshot of materialized state.
+       */
       getCurrentState: () => state,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       onDeleteWithData: this._graph._onDeleteWithData,
@@ -1185,7 +1306,7 @@ export default class StrandService {
     await build(builder);
     const patch = builder.build();
     if (!Array.isArray(patch.ops) || patch.ops.length === 0) {
-      throw new Error('Cannot queue empty strand intent: no operations added');
+      throw new StrandError('Cannot queue empty strand intent: no operations added', { code: 'E_STRAND_EMPTY_INTENT' });
     }
     return Object.freeze({
       intentId: buildIntentId(descriptor.strandId, intentQueue.nextIntentSeq),
@@ -1198,6 +1319,8 @@ export default class StrandService {
   }
 
   /**
+   * Partition queued intents into admitted (independent) and rejected (overlapping footprints).
+   *
    * @private
    * @param {Array<{
    *   intentId: string,
@@ -1266,6 +1389,8 @@ export default class StrandService {
   }
 
   /**
+   * Sequentially commit all admitted intents to the overlay patch chain.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {Array<{
@@ -1312,6 +1437,8 @@ export default class StrandService {
   }
 
   /**
+   * Persist the tick result by updating the descriptor, Lamport clock, and cache flags.
+   *
    * @private
    * @param {{
    *   descriptor: StrandDescriptor,
@@ -1351,6 +1478,8 @@ export default class StrandService {
   }
 
   /**
+   * Retrieve all patch entries for a strand, optionally bounded by Lamport ceiling.
+   *
    * @param {string} strandId
    * @param {StrandReadOptions} [options]
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -1363,6 +1492,8 @@ export default class StrandService {
   }
 
   /**
+   * Return sorted SHAs of patches that reference a given entity in their reads or writes.
+   *
    * @param {string} strandId
    * @param {string} entityId
    * @param {StrandReadOptions} [options]
@@ -1370,7 +1501,7 @@ export default class StrandService {
    */
   async patchesFor(strandId, entityId, options = {}) {
     const normalizedEntityId = normalizeOptionalString(entityId, 'entityId');
-    if (!normalizedEntityId) {
+    if (normalizedEntityId === null) {
       throw new StrandError('entityId must not be empty', {
         code: 'E_STRAND_INVALID_ARGS',
         context: { field: 'entityId' },
@@ -1384,13 +1515,15 @@ export default class StrandService {
         shas.add(sha);
       }
     }
-    return [...shas].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    return /** @type {string[]} */ ([...shas]).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   }
 
   /**
+   * Retrieve a strand descriptor, throwing if the strand does not exist.
+   *
    * @param {string} strandId
- * @returns {Promise<StrandDescriptor>}
- */
+   * @returns {Promise<StrandDescriptor>}
+   */
   async getOrThrow(strandId) {
     const descriptor = await this.get(strandId);
     if (!descriptor) {
@@ -1403,6 +1536,8 @@ export default class StrandService {
   }
 
   /**
+   * Build the Git ref path for a strand descriptor blob.
+   *
    * @private
    * @param {string} strandId
    * @returns {string}
@@ -1420,6 +1555,8 @@ export default class StrandService {
   }
 
   /**
+   * Build the Git ref path for a strand's overlay patch chain head.
+   *
    * @private
    * @param {string} strandId
    * @returns {string}
@@ -1437,6 +1574,8 @@ export default class StrandService {
   }
 
   /**
+   * Build the Git ref prefix for a strand's braided overlay refs.
+   *
    * @private
    * @param {string} strandId
    * @returns {string}
@@ -1454,6 +1593,8 @@ export default class StrandService {
   }
 
   /**
+   * Build the Git ref path for a specific braided strand overlay.
+   *
    * @private
    * @param {string} strandId
    * @param {string} braidedStrandId
@@ -1473,6 +1614,8 @@ export default class StrandService {
   }
 
   /**
+   * Read and parse a strand descriptor blob from Git object storage.
+   *
    * @private
    * @param {string} oid
    * @param {string} strandId
@@ -1480,7 +1623,7 @@ export default class StrandService {
    */
   async _readDescriptorByOid(oid, strandId) {
     const buf = await this._graph._persistence.readBlob(oid);
-    if (!buf) {
+    if (buf === null || buf === undefined) {
       throw new StrandError(`Strand '${strandId}' points to a missing blob`, {
         code: 'E_STRAND_MISSING_OBJECT',
         context: { graphName: this._graph._graphName, strandId, oid },
@@ -1490,7 +1633,7 @@ export default class StrandService {
     try {
       const descriptor = parseStrandBlob(buf, `strand '${strandId}'`);
       if (descriptor.graphName !== this._graph._graphName) {
-        throw new Error('descriptor graphName does not match the current graph');
+        throw new StrandError('descriptor graphName does not match the current graph', { code: 'E_STRAND_GRAPH_MISMATCH' });
       }
       return descriptor;
     } catch (err) {
@@ -1507,6 +1650,8 @@ export default class StrandService {
   }
 
   /**
+   * Serialize and persist a strand descriptor as a Git blob, then update its ref.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @returns {Promise<void>}
@@ -1520,6 +1665,8 @@ export default class StrandService {
   }
 
   /**
+   * Load and validate read-overlay descriptors for each braided strand.
+   *
    * @private
    * @param {StrandDescriptor} target
    * @param {string[]} braidedStrandIds
@@ -1550,6 +1697,8 @@ export default class StrandService {
   }
 
   /**
+   * Read the current overlay head SHA and patch count from the overlay ref.
+   *
    * @private
    * @param {string} strandId
    * @returns {Promise<{ headPatchSha: string|null, patchCount: number }>}
@@ -1557,7 +1706,7 @@ export default class StrandService {
   async _readOverlayMetadata(strandId) {
     const overlayRef = this._buildOverlayRef(strandId);
     const headPatchSha = await this._graph._persistence.readRef(overlayRef);
-    if (!headPatchSha) {
+    if (headPatchSha === null || headPatchSha === undefined) {
       return { headPatchSha: null, patchCount: 0 };
     }
     const overlayPatches = await this._graph._loadPatchChainFromSha(headPatchSha);
@@ -1568,6 +1717,8 @@ export default class StrandService {
   }
 
   /**
+   * Hydrate a parsed descriptor with live overlay metadata and normalized braid state.
+   *
    * @private
    * @param {ReturnType<typeof parseStrandBlob>} descriptor
    * @returns {Promise<StrandDescriptor>}
@@ -1603,6 +1754,8 @@ export default class StrandService {
   }
 
   /**
+   * Collect all base-observation patches from the pinned frontier writers.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -1616,7 +1769,7 @@ export default class StrandService {
     const allPatches = [];
     for (const writerId of frontier.keys()) {
       const tipSha = frontier.get(writerId);
-      if (!tipSha) {
+      if (tipSha === undefined || tipSha === null || tipSha.length === 0) {
         continue;
       }
       const writerPatches = await this._graph._loadPatchChainFromSha(tipSha);
@@ -1633,18 +1786,22 @@ export default class StrandService {
   }
 
   /**
+   * Collect patches from the strand's own writable overlay chain.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectOverlayPatches(descriptor) {
-    if (!descriptor.overlay.headPatchSha) {
+    if (descriptor.overlay.headPatchSha === null || descriptor.overlay.headPatchSha === undefined) {
       return [];
     }
     return await this._graph._loadPatchChainFromSha(descriptor.overlay.headPatchSha);
   }
 
   /**
+   * Collect patches from all braided read-only overlay chains.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @returns {Promise<Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>>}
@@ -1655,7 +1812,7 @@ export default class StrandService {
       : [];
     const allPatches = [];
     for (const readOverlay of braidedReadOverlays) {
-      if (!readOverlay.headPatchSha) {
+      if (readOverlay.headPatchSha === null || readOverlay.headPatchSha === undefined) {
         continue;
       }
       const overlayPatches = await this._graph._loadPatchChainFromSha(readOverlay.headPatchSha);
@@ -1665,6 +1822,8 @@ export default class StrandService {
   }
 
   /**
+   * Merge base, braid, and overlay patches into a deduplicated list, optionally bounded by ceiling.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {{ ceiling: number|null }} options
@@ -1674,20 +1833,24 @@ export default class StrandService {
     const basePatches = await this._collectBasePatches(descriptor);
     const braidedOverlayPatches = await this._collectBraidedOverlayPatches(descriptor);
     const overlayPatches = await this._collectOverlayPatches(descriptor);
+    /** @type {Map<string, { patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} */
     const deduped = new Map();
     for (const entry of basePatches.concat(braidedOverlayPatches, overlayPatches)) {
       if (!deduped.has(entry.sha)) {
         deduped.set(entry.sha, entry);
       }
     }
+    /** @type {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} */
     const allPatches = [...deduped.values()];
     if (ceiling === null) {
       return allPatches;
     }
-    return allPatches.filter(({ patch }) => (patch.lamport ?? 0) <= ceiling);
+    return allPatches.filter((entry) => (entry.patch.lamport ?? 0) <= ceiling);
   }
 
   /**
+   * Replay all strand patches through the CRDT reducer to produce materialized state.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {{ collectReceipts: boolean, ceiling: number|null }} options
@@ -1745,6 +1908,8 @@ export default class StrandService {
   }
 
   /**
+   * Update the strand descriptor and graph caches after a successful overlay commit.
+   *
    * @private
    * @param {StrandDescriptor} descriptor
    * @param {{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }} result
@@ -1774,6 +1939,8 @@ export default class StrandService {
   }
 
   /**
+   * Encode, persist, and commit a single queued patch to the overlay chain.
+   *
    * @private
    * @param {{
    *   strandId: string,
@@ -1812,7 +1979,7 @@ export default class StrandService {
       schema: committedPatch.schema,
       encrypted: !!this._graph._patchBlobStorage,
     });
-    const parents = parentSha ? [parentSha] : [];
+    const parents = parentSha !== null ? [parentSha] : [];
     const sha = await this._graph._persistence.commitNodeWithTree({
       treeOid,
       parents,
@@ -1826,6 +1993,8 @@ export default class StrandService {
   }
 
   /**
+   * Synchronize braid refs to match the current set of read overlays.
+   *
    * @private
    * @param {string} strandId
    * @param {Array<{
@@ -1845,9 +2014,9 @@ export default class StrandService {
     for (const readOverlay of readOverlays) {
       const ref = this._buildBraidRef(strandId, readOverlay.strandId);
       nextRefs.add(ref);
-      if (readOverlay.headPatchSha) {
+      if (readOverlay.headPatchSha !== null && readOverlay.headPatchSha.length > 0) {
         await this._graph._persistence.updateRef(ref, readOverlay.headPatchSha);
-      } else if (await this._graph._persistence.readRef(ref)) {
+      } else if ((await this._graph._persistence.readRef(ref)) !== null) {
         await this._graph._persistence.deleteRef(ref);
       }
     }

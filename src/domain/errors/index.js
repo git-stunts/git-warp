@@ -25,3 +25,8 @@ export { default as TrustError } from './TrustError.js';
 export { default as StrandError } from './StrandError.js';
 export { default as WriterError } from './WriterError.js';
 export { default as WormholeError } from './WormholeError.js';
+export { default as AdapterValidationError } from './AdapterValidationError.js';
+export { default as CacheError } from './CacheError.js';
+export { default as CrdtError } from './CrdtError.js';
+export { default as CryptoError } from './CryptoError.js';
+export { default as MessageCodecError } from './MessageCodecError.js';

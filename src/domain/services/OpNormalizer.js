@@ -31,10 +31,7 @@ import { isLegacyEdgePropNode, decodeLegacyEdgePropNode, encodeLegacyEdgePropNod
  * @returns {import('../types/WarpTypesV2.js').CanonicalOpV2 | {type: string}}
  */
 export function normalizeRawOp(rawOp) {
-  if (!rawOp || typeof rawOp !== 'object' || typeof rawOp.type !== 'string') {
-    return rawOp;
-  }
-  if (rawOp.type !== 'PropSet') {
+  if (!isPropSetOp(rawOp)) {
     return rawOp;
   }
   const op = /** @type {import('../types/WarpTypesV2.js').OpV2PropSet} */ (rawOp);
@@ -43,6 +40,20 @@ export function normalizeRawOp(rawOp) {
     return createEdgePropSetV2(from, to, label, op.key, op.value);
   }
   return createNodePropSetV2(op.node, op.key, op.value);
+}
+
+/**
+ * Checks whether a raw op is a PropSet that requires normalization.
+ *
+ * @param {unknown} rawOp
+ * @returns {boolean}
+ */
+function isPropSetOp(rawOp) {
+  return rawOp !== null
+    && rawOp !== undefined
+    && typeof rawOp === 'object'
+    && typeof /** @type {{type?: unknown}} */ (rawOp).type === 'string'
+    && /** @type {{type: string}} */ (rawOp).type === 'PropSet';
 }
 
 /**

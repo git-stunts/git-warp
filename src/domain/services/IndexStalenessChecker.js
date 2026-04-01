@@ -4,16 +4,42 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.js';
+import IndexError from '../errors/IndexError.js';
 
 /**
+ * Checks whether a value is a non-null object.
+ *
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isNonNullObject(value) {
+  return value !== null && value !== undefined && typeof value === 'object';
+}
+
+/**
+ * Checks whether an object has the shape of a frontier envelope.
+ *
+ * @param {unknown} envelope
+ * @returns {boolean}
+ */
+function isFrontierEnvelope(envelope) {
+  if (!isNonNullObject(envelope)) {
+    return false;
+  }
+  return 'frontier' in envelope && isNonNullObject(envelope.frontier);
+}
+
+/**
+ * Validates that a decoded frontier envelope has the expected shape.
+ *
  * @param {unknown} envelope
  * @param {string} label
+ * @throws {IndexError} If the envelope is not a valid frontier envelope
  * @private
  */
 function validateEnvelope(envelope, label) {
-  const rec = /** @type {Record<string, unknown>} */ (envelope);
-  if (!rec || typeof rec !== 'object' || !rec.frontier || typeof rec.frontier !== 'object') {
-    throw new Error(`invalid frontier envelope for ${label}`);
+  if (!isFrontierEnvelope(envelope)) {
+    throw new IndexError(`invalid frontier envelope for ${label}`, { code: 'E_INDEX_INVALID_FRONTIER' });
   }
 }
 
@@ -26,24 +52,49 @@ function validateEnvelope(envelope, label) {
  * @returns {Promise<Map<string, string>|null>} Frontier map, or null if not present (legacy index)
  */
 export async function loadIndexFrontier(shardOids, storage, { codec } = {}) {
-  const c = codec || defaultCodec;
-  const cborOid = shardOids['frontier.cbor'];
-  if (cborOid) {
-    const buffer = await storage.readBlob(cborOid);
-    const envelope = /** @type {{ frontier: Record<string, string> }} */ (c.decode(buffer));
-    validateEnvelope(envelope, 'frontier.cbor');
-    return new Map(Object.entries(envelope.frontier));
-  }
+  const c = codec ?? defaultCodec;
+  return await loadCborFrontier(shardOids, storage, c)
+    ?? await loadJsonFrontier(shardOids, storage)
+    ?? null;
+}
 
-  const jsonOid = shardOids['frontier.json'];
-  if (jsonOid) {
-    const buffer = await storage.readBlob(jsonOid);
-    const envelope = /** @type {{ frontier: Record<string, string> }} */ (JSON.parse(new TextDecoder().decode(buffer)));
-    validateEnvelope(envelope, 'frontier.json');
-    return new Map(Object.entries(envelope.frontier));
+/**
+ * Attempts to load frontier from a CBOR blob.
+ *
+ * @param {Record<string, string>} shardOids
+ * @param {import('../../ports/BlobPort.js').default} storage
+ * @param {import('../../ports/CodecPort.js').default} codec
+ * @returns {Promise<Map<string, string>|null>}
+ */
+async function loadCborFrontier(shardOids, storage, codec) {
+  const oid = shardOids['frontier.cbor'];
+  if (typeof oid !== 'string' || oid.length === 0) {
+    return null;
   }
+  const buffer = await storage.readBlob(oid);
+  const envelope = /** @type {{ frontier: Record<string, string> }} */ (codec.decode(buffer));
+  validateEnvelope(envelope, 'frontier.cbor');
+  return new Map(Object.entries(envelope.frontier));
+}
 
-  return null;
+/**
+ * Attempts to load frontier from a JSON blob.
+ *
+ * @param {Record<string, string>} shardOids
+ * @param {import('../../ports/BlobPort.js').default} storage
+ * @returns {Promise<Map<string, string>|null>}
+ */
+async function loadJsonFrontier(shardOids, storage) {
+  const oid = shardOids['frontier.json'];
+  if (typeof oid !== 'string' || oid.length === 0) {
+    return null;
+  }
+  const buffer = await storage.readBlob(oid);
+  const text = new TextDecoder().decode(buffer);
+  const parsed = /** @type {unknown} */ (JSON.parse(text));
+  const envelope = /** @type {{ frontier: Record<string, string> }} */ (parsed);
+  validateEnvelope(envelope, 'frontier.json');
+  return new Map(Object.entries(envelope.frontier));
 }
 
 /**
@@ -56,6 +107,8 @@ export async function loadIndexFrontier(shardOids, storage, { codec } = {}) {
  */
 
 /**
+ * Builds a human-readable staleness reason from the diff categories.
+ *
  * @param {{ stale: boolean, advancedWriters: string[], newWriters: string[], removedWriters: string[] }} opts
  * @private
  */
@@ -84,27 +137,67 @@ function buildReason({ stale, advancedWriters, newWriters, removedWriters }) {
  * @returns {StalenessResult}
  */
 export function checkStaleness(indexFrontier, currentFrontier) {
-  const advancedWriters = [];
-  const newWriters = [];
-  const removedWriters = [];
-
-  for (const [writerId, tipSha] of currentFrontier) {
-    const indexTip = indexFrontier.get(writerId);
-    if (indexTip === undefined) {
-      newWriters.push(writerId);
-    } else if (indexTip !== tipSha) {
-      advancedWriters.push(writerId);
-    }
-  }
-
-  for (const writerId of indexFrontier.keys()) {
-    if (!currentFrontier.has(writerId)) {
-      removedWriters.push(writerId);
-    }
-  }
+  const advancedWriters = findAdvancedWriters(indexFrontier, currentFrontier);
+  const newWriters = findNewWriters(indexFrontier, currentFrontier);
+  const removedWriters = findRemovedWriters(indexFrontier, currentFrontier);
 
   const stale = advancedWriters.length > 0 || newWriters.length > 0 || removedWriters.length > 0;
   const reason = buildReason({ stale, advancedWriters, newWriters, removedWriters });
 
   return { stale, reason, advancedWriters, newWriters, removedWriters };
+}
+
+/**
+ * Finds writers whose tips changed between the index and current frontier.
+ *
+ * @param {Map<string, string>} indexFrontier
+ * @param {Map<string, string>} currentFrontier
+ * @returns {string[]}
+ */
+function findAdvancedWriters(indexFrontier, currentFrontier) {
+  /** @type {string[]} */
+  const result = [];
+  for (const [writerId, tipSha] of currentFrontier) {
+    const indexTip = indexFrontier.get(writerId);
+    if (indexTip !== undefined && indexTip !== tipSha) {
+      result.push(writerId);
+    }
+  }
+  return result;
+}
+
+/**
+ * Finds writers present in current frontier but absent from the index.
+ *
+ * @param {Map<string, string>} indexFrontier
+ * @param {Map<string, string>} currentFrontier
+ * @returns {string[]}
+ */
+function findNewWriters(indexFrontier, currentFrontier) {
+  /** @type {string[]} */
+  const result = [];
+  for (const writerId of currentFrontier.keys()) {
+    if (!indexFrontier.has(writerId)) {
+      result.push(writerId);
+    }
+  }
+  return result;
+}
+
+/**
+ * Finds writers present in the index but absent from the current frontier.
+ *
+ * @param {Map<string, string>} indexFrontier
+ * @param {Map<string, string>} currentFrontier
+ * @returns {string[]}
+ */
+function findRemovedWriters(indexFrontier, currentFrontier) {
+  /** @type {string[]} */
+  const result = [];
+  for (const writerId of indexFrontier.keys()) {
+    if (!currentFrontier.has(writerId)) {
+      result.push(writerId);
+    }
+  }
+  return result;
 }

@@ -159,7 +159,7 @@ async function loadPatchFromCommit(persistence, sha, { codec: codecOpt, patchBlo
   } else {
     patchBuffer = await persistence.readBlob(decoded.patchOid);
   }
-  if (!patchBuffer) {
+  if (patchBuffer === null || patchBuffer === undefined) {
     throw new PersistenceError(
       `Patch blob not found: ${decoded.patchOid}`,
       PersistenceError.E_MISSING_OBJECT,
@@ -229,7 +229,7 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
   }
 
   // If fromSha was specified but we didn't reach it, we have divergence
-  if (fromSha && cur === null) {
+  if (fromSha !== null && fromSha !== undefined && fromSha.length > 0 && cur === null) {
     const err = /** @type {Error & { code: string }} */ (new Error(
       `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`
     ));
@@ -284,7 +284,9 @@ export async function loadPatchRange(persistence, graphName, writerId, fromSha, 
  * // delta.newWritersForRemote: ['w2']
  */
 export function computeSyncDelta(localFrontier, remoteFrontier) {
+  /** @type {Map<string, { from: string | null; to: string }>} */
   const needFromRemote = new Map();
+  /** @type {Map<string, { from: string | null; to: string }>} */
   const needFromLocal = new Map();
   const newWritersForLocal = [];
   const newWritersForRemote = [];
@@ -448,7 +450,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
       // If the persistence layer provides isAncestor, use it to detect
       // divergence early without walking the full commit chain.
       const hasIsAncestor = typeof /** @type {{isAncestor?: (...args: unknown[]) => unknown}} */ (persistence).isAncestor === 'function';
-      if (range.from && hasIsAncestor) {
+      if (range.from !== null && range.from !== undefined && range.from.length > 0 && hasIsAncestor) {
         const isAnc = await /** @type {{isAncestor: (a: string, b: string) => Promise<boolean>}} */ (/** @type {unknown} */ (persistence)).isAncestor(range.from, range.to);
         if (!isAnc) {
           const entry = {
@@ -561,16 +563,19 @@ export function applySyncResponse(response, state, frontier) {
   // re-grouping is defensive — it handles edge cases where patches from
   // multiple writers arrive interleaved (e.g., from a relay that merges
   // streams).
+  /** @type {Map<string, Array<{sha: string, patch: DecodedPatch}>>} */
   const patchesByWriter = new Map();
   for (const { writerId, sha, patch } of response.patches) {
     if (!patchesByWriter.has(writerId)) {
       patchesByWriter.set(writerId, []);
     }
-    patchesByWriter.get(writerId).push({ sha, patch });
+    /** @type {Array<{sha: string, patch: DecodedPatch}>} */
+    const writerList = /** @type {Array<{sha: string, patch: DecodedPatch}>} */ (patchesByWriter.get(writerId));
+    writerList.push({ sha, patch });
   }
 
   // Apply patches for each writer
-  for (const [writerId, writerPatches] of patchesByWriter) {
+  for (const [writerId, /** @type {Array<{sha: string, patch: DecodedPatch}>} */ writerPatches] of patchesByWriter) {
     // Patches should already be in chronological order from processSyncRequest
     for (const { sha, patch } of writerPatches) {
       // Normalize patch context (in case it came from network serialization)

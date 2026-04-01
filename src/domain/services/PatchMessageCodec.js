@@ -23,6 +23,23 @@ import {
   validateKindDiscriminator,
 } from './TrailerValidation.js';
 
+/**
+ * @typedef {{ encode: (msg: {title: string, trailers: Record<string, string>}) => string, decode: (msg: string) => {title: string, trailers: Record<string, string>} }} TrailerCodecLike
+ */
+
+/**
+ * Returns the trailer codec with a locally-resolved type shape.
+ *
+ * @returns {TrailerCodecLike}
+ */
+function resolveCodec() {
+  // getCodec() returns a TrailerCodec from @git-stunts/trailer-codec.
+  // The type is unresolvable by ESLint, so we narrow via this wrapper.
+  /** @type {unknown} */
+  const raw = getCodec();
+  return /** @type {TrailerCodecLike} */ (raw);
+}
+
 // -----------------------------------------------------------------------------
 // Encoder
 // -----------------------------------------------------------------------------
@@ -50,7 +67,7 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
   validateOid(patchOid, 'patchOid');
   validateSchema(schema);
 
-  const codec = getCodec();
+  const codec = resolveCodec();
   /** @type {Record<string, string>} */
   const trailers = {
     [TRAILER_KEYS.kind]: 'patch',
@@ -84,7 +101,7 @@ export function encodePatchMessage({ graph, writer, lamport, patchOid, schema = 
  * const { kind, graph, writer, lamport, patchOid, schema } = decodePatchMessage(message);
  */
 export function decodePatchMessage(message) {
-  const codec = getCodec();
+  const codec = resolveCodec();
   const decoded = codec.decode(message);
   const { trailers } = decoded;
 

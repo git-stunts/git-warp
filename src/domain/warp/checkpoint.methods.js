@@ -8,6 +8,7 @@
  */
 
 import { QueryError, E_NO_STATE_MSG } from './_internal.js';
+import { SchemaUnsupportedError } from '../errors/index.js';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../utils/RefLayout.js';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../services/Frontier.js';
 import { loadCheckpoint, create as createCheckpointCommit } from '../services/CheckpointService.js';
@@ -42,7 +43,7 @@ export async function createCheckpoint() {
     for (const writerId of writers) {
       const writerRef = buildWriterRef(this._graphName, writerId);
       const sha = await this._persistence.readRef(writerRef);
-      if (sha) {
+      if (typeof sha === 'string' && sha.length > 0) {
         updateFrontier(frontier, writerId, sha);
         parents.push(sha);
       }
@@ -63,7 +64,7 @@ export async function createCheckpoint() {
 
     // 4. Reuse cached index tree or rebuild from view service
     let indexTree = this._cachedIndexTree;
-    if (!indexTree && this._viewService) {
+    if ((indexTree === null || indexTree === undefined) && this._viewService !== null && this._viewService !== undefined) {
       try {
         const { tree } = this._viewService.build(state);
         indexTree = tree;
@@ -131,7 +132,7 @@ export async function syncCoverage() {
   for (const writerId of writers) {
     const writerRef = buildWriterRef(this._graphName, writerId);
     const sha = await this._persistence.readRef(writerRef);
-    if (sha) {
+    if (typeof sha === 'string' && sha.length > 0) {
       parents.push(sha);
     }
   }
@@ -161,7 +162,7 @@ export async function _loadLatestCheckpoint() {
   const checkpointRef = buildCheckpointRef(this._graphName);
   const checkpointSha = await this._persistence.readRef(checkpointRef);
 
-  if (!checkpointSha) {
+  if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
     return null;
   }
 
@@ -205,7 +206,7 @@ export async function _loadPatchesSince(checkpoint) {
   const allPatches = [];
 
   for (const writerId of writerIds) {
-    const checkpointSha = checkpoint.frontier?.get(writerId) || null;
+    const checkpointSha = checkpoint.frontier?.get(writerId) ?? null;
     const patches = await this._loadWriterPatches(writerId, checkpointSha);
 
     // Validate ancestry once at the writer tip; chain-order patches are then
@@ -242,9 +243,8 @@ export async function _validateMigrationBoundary() {
 
   const hasSchema1History = await this._hasSchema1Patches();
   if (hasSchema1History) {
-    throw new Error(
-      'Cannot open graph with v1 history. ' +
-      'Run MigrationService.migrate() first to create migration checkpoint.'
+    throw new SchemaUnsupportedError(
+      'Cannot open graph with v1 history. Run MigrationService.migrate() first to create migration checkpoint.',
     );
   }
 }
@@ -269,7 +269,7 @@ export async function _hasSchema1Patches() {
     const writerRef = buildWriterRef(this._graphName, writerId);
     const tipSha = await this._persistence.readRef(writerRef);
 
-    if (!tipSha) {
+    if (typeof tipSha !== 'string' || tipSha.length === 0) {
       continue;
     }
 

@@ -20,6 +20,7 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.js';
+import CryptoError from '../errors/CryptoError.js';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { serializeFullStateV5, deserializeFullStateV5, computeStateHashV5 } from './StateSerializerV5.js';
 
@@ -187,15 +188,25 @@ export async function createBTR(initialState, payload, options) {
  * @throws {Error} If the key is empty or falsy
  */
 function validateHmacKey(key) {
+  if (isHmacKeyEmpty(key)) {
+    throw new CryptoError('Invalid HMAC key: key must not be empty', { code: 'E_INVALID_HMAC_KEY' });
+  }
+}
+
+/**
+ * Checks whether an HMAC key is empty or falsy.
+ *
+ * @param {string|Uint8Array|null|undefined} key
+ * @returns {boolean}
+ */
+function isHmacKeyEmpty(key) {
   if (key === null || key === undefined) {
-    throw new Error('Invalid HMAC key: key must not be empty');
+    return true;
   }
-  if (typeof key === 'string' && key.length === 0) {
-    throw new Error('Invalid HMAC key: key must not be empty');
+  if (typeof key === 'string') {
+    return key.length === 0;
   }
-  if (ArrayBuffer.isView(key) && key.byteLength === 0) {
-    throw new Error('Invalid HMAC key: key must not be empty');
-  }
+  return ArrayBuffer.isView(key) && key.byteLength === 0;
 }
 
 const REQUIRED_FIELDS = ['version', 'h_in', 'h_out', 'U_0', 'P', 't', 'kappa'];
@@ -211,7 +222,16 @@ function validateBTRStructure(btr) {
   if (btr === null || btr === undefined || typeof btr !== 'object') {
     return 'BTR must be an object';
   }
-  const rec = /** @type {Record<string, unknown>} */ (btr);
+  return validateBTRFields(/** @type {Record<string, unknown>} */ (btr));
+}
+
+/**
+ * Validates required fields and version on a BTR record.
+ *
+ * @param {Record<string, unknown>} rec
+ * @returns {string|null} Error message if invalid, null if valid
+ */
+function validateBTRFields(rec) {
   const missingField = findMissingField(rec);
   if (missingField !== null) {
     return `Missing required field: ${missingField}`;
@@ -304,25 +324,33 @@ async function verifyReplayHash(btr, { crypto, codec } = {}) {
  * @returns {Promise<VerificationResult>} Verification result with valid flag and optional reason
  */
 export async function verifyBTR(btr, key, options = {}) {
-  const { crypto, codec } = options;
-
   const structureError = validateBTRStructure(btr);
   if (structureError !== null) {
     return { valid: false, reason: structureError };
   }
 
-  const hmacResult = await verifyHmacSafe(btr, key, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto), codec });
+  const hmacResult = await verifyHmacSafe(btr, key, { crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (options.crypto), codec: options.codec });
   if (hmacResult !== null) {
     return hmacResult;
   }
 
+  return await verifyReplayIfRequested(btr, options);
+}
+
+/**
+ * Optionally verifies replay produces the expected h_out.
+ *
+ * @param {BTR} btr
+ * @param {{ verifyReplay?: boolean, crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} options
+ * @returns {Promise<VerificationResult>}
+ */
+async function verifyReplayIfRequested(btr, options) {
   if (options.verifyReplay === true) {
-    const replayError = await verifyReplayHash(btr, { crypto, codec });
+    const replayError = await verifyReplayHash(btr, { crypto: options.crypto, codec: options.codec });
     if (replayError !== null) {
       return { valid: false, reason: replayError };
     }
   }
-
   return { valid: true };
 }
 
@@ -435,7 +463,7 @@ export function deserializeBTR(bytes, { codec } = {}) {
 
   const missingField = findMissingField(obj);
   if (missingField !== null) {
-    throw new Error(`Invalid BTR: missing field ${missingField}`);
+    throw new CryptoError(`Invalid BTR: missing field ${missingField}`, { code: 'E_BTR_INVALID' });
   }
 
   return /** @type {BTR} */ ({

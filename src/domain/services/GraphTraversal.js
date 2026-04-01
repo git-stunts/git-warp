@@ -106,6 +106,7 @@ function computeTopoHasCycle({
 
 export default class GraphTraversal {
   /**
+   * Creates a new traversal engine bound to the given neighbor provider.
    * @param {{ provider: NeighborProviderPort, logger?: import('../../ports/LoggerPort.js').default, neighborCacheSize?: number }} params
    */
   constructor({ provider, logger = nullLogger, neighborCacheSize = 256 }) {
@@ -605,14 +606,20 @@ export default class GraphTraversal {
       return { path: [start], totalCost: 0, nodesExplored: 1, stats: this._stats(1, rs) };
     }
 
+    /** @type {Map<string, number>} */
     const fwdG = new Map([[start, 0]]);
+    /** @type {Map<string, string>} */
     const fwdPrev = new Map();
+    /** @type {Set<string>} */
     const fwdVisited = new Set();
     const fwdHeap = new MinHeap({ tieBreaker: lexTieBreaker });
     fwdHeap.insert(start, forwardHeuristic(start, goal));
 
+    /** @type {Map<string, number>} */
     const bwdG = new Map([[goal, 0]]);
+    /** @type {Map<string, string>} */
     const bwdNext = new Map();
+    /** @type {Set<string>} */
     const bwdVisited = new Set();
     const bwdHeap = new MinHeap({ tieBreaker: lexTieBreaker });
     bwdHeap.insert(goal, backwardHeuristic(goal, start));
@@ -766,6 +773,7 @@ export default class GraphTraversal {
     const neighborEdgeMap = new Map();
     /** @type {Map<string, number>} */
     const inDegree = new Map();
+    /** @type {Set<string>} */
     const discovered = new Set();
     /** @type {string[]} */
     const queue = [...starts];
@@ -781,7 +789,7 @@ export default class GraphTraversal {
       rs.edgesTraversed += neighbors.length;
 
       for (const { neighborId } of neighbors) {
-        inDegree.set(neighborId, (inDegree.get(neighborId) || 0) + 1);
+        inDegree.set(neighborId, (inDegree.get(neighborId) ?? 0) + 1);
         if (!discovered.has(neighborId)) {
           discovered.add(neighborId);
           queue.push(neighborId);
@@ -807,7 +815,7 @@ export default class GraphTraversal {
     // Phase 2: Kahn's — MinHeap for O(N log N) zero-indegree processing
     const ready = new MinHeap({ tieBreaker: lexTieBreaker });
     for (const nodeId of discovered) {
-      if ((inDegree.get(nodeId) || 0) === 0) {
+      if ((inDegree.get(nodeId) ?? 0) === 0) {
         ready.insert(nodeId, 0);
       }
     }
@@ -848,7 +856,7 @@ export default class GraphTraversal {
         code: 'ERR_GRAPH_HAS_CYCLES',
         context: {
           nodesInCycle: discovered.size - sorted.length,
-          cycleWitness: cycleWitness.from ? cycleWitness : undefined,
+          cycleWitness: typeof cycleWitness.from === 'string' && cycleWitness.from.length > 0 ? cycleWitness : undefined,
         },
       });
     }
@@ -913,7 +921,7 @@ export default class GraphTraversal {
       totalStats.cacheHits += stats.cacheHits;
       totalStats.cacheMisses += stats.cacheMisses;
       for (const a of ancestors) {
-        ancestorCounts.set(a, (ancestorCounts.get(a) || 0) + 1);
+        ancestorCounts.set(a, (ancestorCounts.get(a) ?? 0) + 1);
       }
     }
 
@@ -1148,7 +1156,10 @@ export default class GraphTraversal {
     const rs = this._newRunStats();
     /** @type {Map<string, NeighborEdge[]>} */
     const fetchedSuccessors = new Map();
-    /** @param {string} nodeId */
+    /**
+     * Fetches and caches successor edges for the given node.
+     * @param {string} nodeId
+     */
     const getSuccessorEdges = async (nodeId) => {
       const cached = fetchedSuccessors.get(nodeId);
       if (cached !== undefined) {
@@ -1263,6 +1274,7 @@ export default class GraphTraversal {
       await this._validateStart(s);
     }
 
+    /** @type {Set<string>} */
     const allVisited = new Set();
     /** @type {string[]} */
     const queue = [...starts];
