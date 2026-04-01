@@ -32,10 +32,7 @@ function preprocess(msg) {
   padded.set(msg);
   padded[msg.length] = 0x80;
   const dv = new DataView(padded.buffer);
-  // SHA-1 spec requires 64-bit big-endian message length in the final 8 bytes.
-  // High 32 bits are zero-initialized by the Uint8Array, so we only set the
-  // low 32 bits. msg.length is safe because `bitLen = msg.length * 8` stays
-  // within uint32 range for messages under 512 MB (0x20000000 bytes).
+  // Set low 32 bits of 64-bit big-endian message length (high 32 are zero-init).
   dv.setUint32(totalBytes - 4, bitLen, false);
 
   const blocks = [];
@@ -45,7 +42,11 @@ function preprocess(msg) {
       block[j] = dv.getUint32(i + j * 4, false);
     }
     for (let j = 16; j < 80; j++) {
-      block[j] = rotl(block[j - 3] ^ block[j - 8] ^ block[j - 14] ^ block[j - 16], 1);
+      const b3 = /** @type {number} */ (block[j - 3]);
+      const b8 = /** @type {number} */ (block[j - 8]);
+      const b14 = /** @type {number} */ (block[j - 14]);
+      const b16 = /** @type {number} */ (block[j - 16]);
+      block[j] = rotl(b3 ^ b8 ^ b14 ^ b16, 1);
     }
     blocks.push(block);
   }
@@ -71,9 +72,9 @@ function roundK(i) {
  * @returns {number}
  */
 function roundF(i, vars) {
-  const b = vars[1];
-  const c = vars[2];
-  const d = vars[3];
+  const b = /** @type {number} */ (vars[1]);
+  const c = /** @type {number} */ (vars[2]);
+  const d = /** @type {number} */ (vars[3]);
   if (i < 20) { return (b & c) | (~b & d); }
   if (i < 40) { return b ^ c ^ d; }
   if (i < 60) { return (b & c) | (b & d) | (c & d); }
@@ -87,21 +88,27 @@ function roundF(i, vars) {
  */
 function processBlock(state, w) {
   /** @type {number[]} */
-  const v = [state[0], state[1], state[2], state[3], state[4]];
+  const v = [
+    /** @type {number} */ (state[0]),
+    /** @type {number} */ (state[1]),
+    /** @type {number} */ (state[2]),
+    /** @type {number} */ (state[3]),
+    /** @type {number} */ (state[4]),
+  ];
 
   for (let i = 0; i < 80; i++) {
     const f = roundF(i, v);
     const k = roundK(i);
-    const temp = (rotl(v[0], 5) + f + v[4] + k + w[i]) >>> 0;
-    v[4] = v[3];
-    v[3] = v[2];
-    v[2] = rotl(v[1], 30);
-    v[1] = v[0];
+    const temp = (rotl(/** @type {number} */ (v[0]), 5) + f + /** @type {number} */ (v[4]) + k + /** @type {number} */ (w[i])) >>> 0;
+    v[4] = /** @type {number} */ (v[3]);
+    v[3] = /** @type {number} */ (v[2]);
+    v[2] = rotl(/** @type {number} */ (v[1]), 30);
+    v[1] = /** @type {number} */ (v[0]);
     v[0] = temp;
   }
 
   for (let i = 0; i < 5; i++) {
-    state[i] = (state[i] + v[i]) >>> 0;
+    state[i] = (/** @type {number} */ (state[i]) + /** @type {number} */ (v[i])) >>> 0;
   }
 }
 

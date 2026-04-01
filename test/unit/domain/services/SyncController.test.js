@@ -42,7 +42,7 @@ vi.mock('../../../../src/domain/services/HttpSyncServer.js', () => ({
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  /** @type {Record<string, import('vitest').Mock>} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
+  /** @type {{ applySyncResponse: import('vitest').Mock, syncNeeded: import('vitest').Mock, processSyncRequest: import('vitest').Mock }} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
 
 /**
  * Creates a mock WarpRuntime host for SyncController tests.
@@ -78,11 +78,11 @@ function createMockHost(overrides = {}) {
     ...overrides,
   };
   // Wire default _setMaterializedState after spread so it can reference `host`
-  if (!host._setMaterializedState) {
-    host._setMaterializedState = vi.fn(async (/** @type {unknown} */ state) => {
-      host._cachedState = state;
-      host._stateDirty = false;
-      host._materializedGraph = { state, stateHash: 'mock-hash', adjacency: {} };
+  if (!host['_setMaterializedState']) {
+    host['_setMaterializedState'] = vi.fn(async (/** @type {unknown} */ state) => {
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
+      host['_materializedGraph'] = { state, stateHash: 'mock-hash', adjacency: {} };
     });
   }
   return host;
@@ -111,7 +111,7 @@ describe('SyncController', () => {
 
       expect(frontier).toBeInstanceOf(Map);
       expect(frontier.size).toBe(0);
-      expect(host.discoverWriters).toHaveBeenCalledOnce();
+      expect(host['discoverWriters']).toHaveBeenCalledOnce();
     });
 
     it('calls readRef for each discovered writer', async () => {
@@ -131,7 +131,7 @@ describe('SyncController', () => {
       expect(frontier.size).toBe(2);
       expect(frontier.get('alice')).toBe('sha-alice');
       expect(frontier.get('bob')).toBe('sha-bob');
-      expect(/** @type {*} */ (host._persistence).readRef).toHaveBeenCalledTimes(2);
+      expect(/** @type {*} */ (host['_persistence']).readRef).toHaveBeenCalledTimes(2);
     });
 
     it('skips writers with null tip SHA', async () => {
@@ -304,10 +304,10 @@ describe('SyncController', () => {
       const result = await ctrl.applySyncResponse(response);
 
       expect(result.applied).toBe(3);
-      expect(host._cachedState).toBe(newState);
-      expect(host._lastFrontier).toBe(newFrontier);
-      expect(host._patchesSinceGC).toBe(5);
-      expect(host._stateDirty).toBe(false);
+      expect(host['_cachedState']).toBe(newState);
+      expect(host['_lastFrontier']).toBe(newFrontier);
+      expect(host['_patchesSinceGC']).toBe(5);
+      expect(host['_stateDirty']).toBe(false);
       expect(applySyncResponseMock).toHaveBeenCalledWith(
         response,
         fakeState,
@@ -334,10 +334,12 @@ describe('SyncController', () => {
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
       // Should have passed an empty Map (from createFrontier()) as the frontier arg
-      const calledFrontier = applySyncResponseMock.mock.calls[0][2];
+      const call = applySyncResponseMock.mock.calls[0];
+      if (call == null) { throw new Error('expected at least one call'); }
+      const calledFrontier = call[2];
       expect(calledFrontier).toBeInstanceOf(Map);
       expect(calledFrontier.size).toBe(0);
-      expect(host._lastFrontier).toBe(newFrontier);
+      expect(host['_lastFrontier']).toBe(newFrontier);
     });
 
     it('passes _lastFrontier (not observedFrontier) to applySyncResponseImpl', async () => {
@@ -359,7 +361,9 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
-      const calledFrontier = applySyncResponseMock.mock.calls[0][2];
+      const call2 = applySyncResponseMock.mock.calls[0];
+      if (call2 == null) { throw new Error('expected at least one call'); }
+      const calledFrontier = call2[2];
       // Must be the SHA frontier map, not the VersionVector
       expect(calledFrontier).toBe(lastFrontier);
       expect(calledFrontier.get('alice')).toBe('sha-tip-1');
@@ -383,10 +387,10 @@ describe('SyncController', () => {
 
       await ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] });
 
-      expect(/** @type {import('vitest').Mock} */ (host._setMaterializedState)).toHaveBeenCalledOnce();
-      expect(/** @type {import('vitest').Mock} */ (host._setMaterializedState)).toHaveBeenCalledWith(newState);
+      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
+      expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledWith(newState);
       // _materializedGraph should be rebuilt (not null)
-      expect(host._materializedGraph).not.toBeNull();
+      expect(host['_materializedGraph']).not.toBeNull();
     });
 
     it('does not advance frontier/counters when _setMaterializedState rejects', async () => {
@@ -410,8 +414,8 @@ describe('SyncController', () => {
 
       await expect(ctrl.applySyncResponse({ type: 'sync-response', frontier: {}, patches: [] }))
         .rejects.toThrow('install failed');
-      expect(host._lastFrontier).toBe(previousFrontier);
-      expect(host._patchesSinceGC).toBe(5);
+      expect(host['_lastFrontier']).toBe(previousFrontier);
+      expect(host['_patchesSinceGC']).toBe(5);
     });
 
     it('surfaces skippedWriters from response (B105)', async () => {
@@ -486,7 +490,9 @@ describe('SyncController', () => {
         remoteFrontier,
       );
       // Verify local frontier was built correctly
-      const calledLocalFrontier = syncNeededMock.mock.calls[0][0];
+      const syncCall = syncNeededMock.mock.calls[0];
+      if (syncCall == null) { throw new Error('expected at least one call'); }
+      const calledLocalFrontier = syncCall[0];
       expect(calledLocalFrontier.get('alice')).toBe('sha-alice');
     });
   });
@@ -511,9 +517,9 @@ describe('SyncController', () => {
       expect(processSyncRequestMock).toHaveBeenCalledWith(
         request,
         expect.any(Map),
-        host._persistence,
+        host['_persistence'],
         'test-graph',
-        expect.objectContaining({ codec: host._codec }),
+        expect.objectContaining({ codec: host['_codec'] }),
       );
     });
   });
@@ -558,7 +564,7 @@ describe('SyncController', () => {
       expect(result.applied).toBe(2);
       expect(result.attempts).toBe(1);
       expect(remotePeer.processSyncRequest).toHaveBeenCalledOnce();
-      expect(host._cachedState).toBe(newState);
+      expect(host['_cachedState']).toBe(newState);
     });
 
     it('calls host.materialize() when _cachedState is null before apply', async () => {
@@ -585,14 +591,14 @@ describe('SyncController', () => {
         _lastFrontier: null,
         discoverWriters: vi.fn().mockResolvedValue([]),
         materialize: vi.fn().mockImplementation(async function () {
-          host._cachedState = materializedState;
+          host['_cachedState'] = materializedState;
         }),
       });
       const ctrl = new SyncController(/** @type {*} */ (host));
 
       await ctrl.syncWith(/** @type {*} */ (remotePeer));
 
-      expect(host.materialize).toHaveBeenCalledOnce();
+      expect(host['materialize']).toHaveBeenCalledOnce();
     });
 
     it('returns state when materialize option is true', async () => {
@@ -711,7 +717,9 @@ describe('SyncController', () => {
       }));
 
       expect(httpSyncServerMock).toHaveBeenCalledOnce();
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.httpPort).toBe(httpPort);
       expect(args.path).toBe('/custom');
       expect(args.maxRequestBytes).toBe(1024);
@@ -734,7 +742,9 @@ describe('SyncController', () => {
         auth: { keys: { k: 's' } },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.auth.crypto).toBe(mockCrypto);
       expect(args.auth.logger).toBe(mockLogger);
       expect(args.auth.keys).toEqual({ k: 's' });
@@ -750,7 +760,9 @@ describe('SyncController', () => {
         httpPort: { listen: vi.fn() },
       }));
 
-      const args = httpSyncServerMock.mock.calls[0][0];
+      const httpCall = httpSyncServerMock.mock.calls[0];
+      if (httpCall == null) { throw new Error('expected at least one call'); }
+      const args = httpCall[0];
       expect(args.graph).toBe(host);
     });
   });
@@ -803,7 +815,7 @@ describe('SyncController', () => {
       });
       const newFrontier = new Map([['alice', 'sha-a']]);
       applySyncResponseMock.mockReturnValue({
-        state: host._cachedState,
+        state: host['_cachedState'],
         frontier: newFrontier,
         applied: 5,
       });
@@ -908,7 +920,7 @@ describe('SyncController', () => {
         hash: vi.fn().mockResolvedValue('abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
         hmac: vi.fn().mockResolvedValue('hmac-signature-hex'),
       };
-      host._crypto = mockCrypto;
+      host['_crypto'] = mockCrypto;
 
       const validResponse = {
         type: 'sync-response',
@@ -920,7 +932,7 @@ describe('SyncController', () => {
         json: () => Promise.resolve(validResponse),
       });
       applySyncResponseMock.mockReturnValue({
-        state: host._cachedState,
+        state: host['_cachedState'],
         frontier: new Map(),
         applied: 0,
       });
@@ -930,7 +942,9 @@ describe('SyncController', () => {
       });
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      const fetchHeaders = fetchMock.mock.calls[0][1].headers;
+      const fetchCall = fetchMock.mock.calls[0];
+      if (fetchCall == null) { throw new Error('expected at least one call'); }
+      const fetchHeaders = fetchCall[1].headers;
       // Auth headers should contain x-warp-* prefixed headers
       const authHeaderKeys = Object.keys(fetchHeaders).filter(k => k.startsWith('x-warp-'));
       expect(authHeaderKeys.length).toBeGreaterThan(0);

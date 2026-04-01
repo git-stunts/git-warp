@@ -190,7 +190,7 @@ function serializeMergedShard(envelope) {
 function initBuilderFields(self, { validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec }) {
   self._crypto = crypto ?? defaultCrypto;
   self._codec = codec ?? defaultCodec;
-  self.storage = validatedStorage;
+  self.storage = /** @type {IndexStorage} */ (/** @type {unknown} */ (validatedStorage));
   self.maxMemoryBytes = maxMemoryBytes;
   self.onFlush = onFlush;
   self.logger = logger;
@@ -204,48 +204,63 @@ function initBuilderFields(self, { validatedStorage, maxMemoryBytes, onFlush, lo
   self._RoaringBitmap32 = getRoaringBitmap32();
 }
 
+/**
+ * Builds the options object for initBuilderFields, omitting undefined optional fields.
+ *
+ * @param {{ validatedStorage: import('../../ports/IndexStoragePort.js').default, maxMemoryBytes: number, onFlush: ((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined, logger: import('../../ports/LoggerPort.js').default, crypto: import('../../ports/CryptoPort.js').default|undefined, codec: import('../../ports/CodecPort.js').default|undefined }} raw
+ * @returns {Parameters<typeof initBuilderFields>[1]}
+ */
+function buildInitOpts(raw) {
+  /** @type {Parameters<typeof initBuilderFields>[1]} */
+  const opts = { validatedStorage: raw.validatedStorage, maxMemoryBytes: raw.maxMemoryBytes, logger: raw.logger };
+  if (raw.onFlush !== undefined) { opts.onFlush = raw.onFlush; }
+  if (raw.crypto !== undefined) { opts.crypto = raw.crypto; }
+  if (raw.codec !== undefined) { opts.codec = raw.codec; }
+  return opts;
+}
+
 export default class StreamingBitmapIndexBuilder {
   /** @type {import('../../ports/CryptoPort.js').default} */
-  _crypto;
+  _crypto = /** @type {import('../../ports/CryptoPort.js').default} */ (/** @type {unknown} */ (undefined));
 
   /** @type {import('../../ports/CodecPort.js').default} */
-  _codec;
+  _codec = /** @type {import('../../ports/CodecPort.js').default} */ (/** @type {unknown} */ (undefined));
 
   /** @type {IndexStorage} */
-  storage;
+  storage = /** @type {IndexStorage} */ (/** @type {unknown} */ (undefined));
 
   /** @type {number} */
-  maxMemoryBytes;
+  maxMemoryBytes = 0;
 
   /** @type {((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined} */
   onFlush;
 
   /** @type {import('../../ports/LoggerPort.js').default} */
-  logger;
+  logger = /** @type {import('../../ports/LoggerPort.js').default} */ (/** @type {unknown} */ (undefined));
 
   /** @type {Map<string, number>} */
-  shaToId;
+  shaToId = new Map();
 
   /** @type {string[]} */
-  idToSha;
+  idToSha = [];
 
   /** @type {Map<string, import('../utils/roaring.js').RoaringBitmapSubset>} */
-  bitmaps;
+  bitmaps = new Map();
 
   /** @type {number} */
-  estimatedBitmapBytes;
+  estimatedBitmapBytes = 0;
 
   /** @type {Map<string, string[]>} */
-  flushedChunks;
+  flushedChunks = new Map();
 
   /** @type {number} */
-  totalFlushedBytes;
+  totalFlushedBytes = 0;
 
   /** @type {number} */
-  flushCount;
+  flushCount = 0;
 
   /** @type {typeof import('roaring').RoaringBitmap32} */
-  _RoaringBitmap32;
+  _RoaringBitmap32 = /** @type {typeof import('roaring').RoaringBitmap32} */ (/** @type {unknown} */ (undefined));
 
   /**
    * Creates a new StreamingBitmapIndexBuilder instance.
@@ -254,7 +269,7 @@ export default class StreamingBitmapIndexBuilder {
    */
   constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = nullLogger, crypto, codec }) {
     const validatedStorage = validateBuilderOptions(storage, maxMemoryBytes);
-    initBuilderFields(this, { validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec });
+    initBuilderFields(this, buildInitOpts({ validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec }));
   }
 
   /**
@@ -305,12 +320,12 @@ export default class StreamingBitmapIndexBuilder {
    * Groups bitmaps by type ('fwd' or 'rev') and SHA prefix (first 2 hex chars).
    * Each bitmap is serialized to a portable format and base64-encoded.
    *
-   * @returns {Record<string, Record<string, Record<string, string>>>}
+   * @returns {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }}
    *   Object with 'fwd' and 'rev' keys, each mapping prefix to SHA→base64Bitmap entries
    * @private
    */
   _serializeBitmapsToShards() {
-    /** @type {Record<string, Record<string, Record<string, string>>>} */
+    /** @type {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }} */
     const bitmapShards = { fwd: {}, rev: {} };
     for (const [key, bitmap] of this.bitmaps) {
       const type = key.substring(0, 3);
@@ -318,10 +333,11 @@ export default class StreamingBitmapIndexBuilder {
       const prefix = sha.substring(0, 2);
       const bucket = type === 'fwd' ? bitmapShards.fwd : bitmapShards.rev;
 
-      if (!bucket[prefix]) {
+      if (bucket[prefix] === undefined) {
         bucket[prefix] = {};
       }
-      bucket[prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+      const shard = /** @type {Record<string, string>} */ (bucket[prefix]);
+      shard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
     return bitmapShards;
   }
@@ -333,7 +349,7 @@ export default class StreamingBitmapIndexBuilder {
    * The resulting blob OIDs are tracked in `flushedChunks` for later merging.
    * Writes are performed in parallel for efficiency.
    *
-   * @param {Record<string, Record<string, Record<string, string>>>} bitmapShards
+   * @param {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }} bitmapShards
    *   Object with 'fwd' and 'rev' keys containing prefix-grouped bitmap data
    * @returns {Promise<void>} Resolves when all shards have been written
    * @async
@@ -342,7 +358,7 @@ export default class StreamingBitmapIndexBuilder {
   async _writeShardsToStorage(bitmapShards) {
     const tasks = [];
 
-    for (const type of ['fwd', 'rev']) {
+    for (const type of /** @type {const} */ (['fwd', 'rev'])) {
       for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
         const path = `shards_${type}_${prefix}.json`;
         tasks.push(
@@ -484,7 +500,7 @@ export default class StreamingBitmapIndexBuilder {
     return await Promise.all(
       Array.from(this.flushedChunks.entries()).map(async ([path, oids]) => {
         checkAborted(signal, 'processBitmapShards');
-        const finalOid = oids.length === 1 ? oids[0] : await this._mergeChunks(oids, { signal });
+        const finalOid = oids.length === 1 ? oids[0] : await this._mergeChunks(oids, signal ? { signal } : {});
         return `100644 blob ${finalOid}\t${path}`;
       })
     );
@@ -536,7 +552,7 @@ export default class StreamingBitmapIndexBuilder {
     const metaEntries = await this._writeMetaShards(idShards);
 
     checkAborted(signal, 'finalize');
-    const bitmapEntries = await this._processBitmapShards({ signal });
+    const bitmapEntries = await this._processBitmapShards(signal ? { signal } : {});
     const flatEntries = [...metaEntries, ...bitmapEntries];
 
     if (frontier) {

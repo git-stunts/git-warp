@@ -176,7 +176,7 @@ describe('AuditVerifierService — --since', () => {
 
   it('returns PARTIAL when --since stops mid-chain', async () => {
     const verifier = createVerifier(persistence);
-    const since = auditShas[2]; // commit for tick 3
+    const since = /** @type {string} */ (auditShas[2]); // commit for tick 3
     const result = await verifier.verifyChain('events', 'alice', { since });
 
     expect(result.status).toBe('PARTIAL');
@@ -187,7 +187,7 @@ describe('AuditVerifierService — --since', () => {
 
   it('returns PARTIAL when --since is the tip', async () => {
     const verifier = createVerifier(persistence);
-    const since = auditShas[4]; // tip
+    const since = /** @type {string} */ (auditShas[4]); // tip
     const result = await verifier.verifyChain('events', 'alice', { since });
 
     expect(result.status).toBe('PARTIAL');
@@ -199,7 +199,7 @@ describe('AuditVerifierService — --since', () => {
     const result = await verifier.verifyChain('events', 'alice', { since: 'f'.repeat(40) });
 
     expect(result.status).toBe('ERROR');
-    expect(result.errors[0].code).toBe('SINCE_NOT_FOUND');
+    expect(result.errors[0]?.code).toBe('SINCE_NOT_FOUND');
   });
 });
 
@@ -217,7 +217,7 @@ describe('AuditVerifierService — broken chain', () => {
 
   it('detects chain link broken (Git parent mismatch)', async () => {
     const service = await createAuditService(persistence, 'events', 'alice');
-    const sha1 = await commitReceipt(service, 1);
+    await commitReceipt(service, 1);
     const sha2 = await commitReceipt(service, 2);
 
     // Tamper: rewrite sha2's Git parent to a different commit
@@ -271,16 +271,16 @@ describe('AuditVerifierService — broken chain', () => {
   it('detects tick monotonicity violation', async () => {
     // Build chain manually to create non-monotonic ticks
     const service = await createAuditService(persistence, 'events', 'alice');
-    const sha1 = await commitReceipt(service, 1);
-    const sha2 = await commitReceipt(service, 2);
+    const sha1tick = await commitReceipt(service, 1);
+    await commitReceipt(service, 2);
 
     // Tamper: change tick in sha1's receipt to be >= sha2's tick
-    const commit1 = persistence._commits.get(/** @type {string} */ (sha1));
+    const commit1 = persistence._commits.get(/** @type {string} */ (sha1tick));
     if (commit1) {
       const tree = await persistence.readTree(commit1.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.tickStart = 5;
-      receipt.tickEnd = 5;
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['tickStart'] = 5;
+      receipt['tickEnd'] = 5;
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTreeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -302,7 +302,7 @@ describe('AuditVerifierService — broken chain', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receiptBlob = await persistence.writeBlob(tree['receipt.cbor']);
+      const receiptBlob = await persistence.writeBlob(/** @type {Uint8Array} */ (tree['receipt.cbor']));
       const extraBlob = await persistence.writeBlob(Buffer.from('extra'));
       const newTreeOid = await persistence.writeTree([
         `100644 blob ${receiptBlob}\treceipt.cbor`,
@@ -326,7 +326,7 @@ describe('AuditVerifierService — broken chain', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receiptBlob = await persistence.writeBlob(tree['receipt.cbor']);
+      const receiptBlob = await persistence.writeBlob(/** @type {Uint8Array} */ (tree['receipt.cbor']));
       const newTreeOid = await persistence.writeTree([
         `100644 blob ${receiptBlob}\twrong.cbor`,
       ]);
@@ -361,13 +361,13 @@ describe('AuditVerifierService — data mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       // Re-encode message with wrong dataCommit
       commit.message = encodeAuditMessage({
         graph: 'events',
         writer: 'alice',
         dataCommit: 'b'.repeat(40),
-        opsDigest: receipt.opsDigest,
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -385,11 +385,11 @@ describe('AuditVerifierService — data mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       commit.message = encodeAuditMessage({
         graph: 'events',
         writer: 'alice',
-        dataCommit: receipt.dataCommit,
+        dataCommit: receipt['dataCommit'],
         opsDigest: 'f'.repeat(64),
       });
     }
@@ -408,12 +408,12 @@ describe('AuditVerifierService — data mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       commit.message = encodeAuditMessage({
         graph: 'events',
         writer: 'bob',
-        dataCommit: receipt.dataCommit,
-        opsDigest: receipt.opsDigest,
+        dataCommit: receipt['dataCommit'],
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -431,12 +431,12 @@ describe('AuditVerifierService — data mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       commit.message = encodeAuditMessage({
         graph: 'other',
         writer: 'alice',
-        dataCommit: receipt.dataCommit,
-        opsDigest: receipt.opsDigest,
+        dataCommit: receipt['dataCommit'],
+        opsDigest: receipt['opsDigest'],
       });
     }
 
@@ -486,9 +486,9 @@ describe('AuditVerifierService — OID format', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       // Tamper: uppercase the dataCommit
-      receipt.dataCommit = 'A'.repeat(40);
+      receipt['dataCommit'] = 'A'.repeat(40);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -511,8 +511,8 @@ describe('AuditVerifierService — OID format', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'g'.repeat(40);
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['dataCommit'] = 'g'.repeat(40);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -533,8 +533,8 @@ describe('AuditVerifierService — OID format', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'a'.repeat(32);
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['dataCommit'] = 'a'.repeat(32);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -666,8 +666,8 @@ describe('AuditVerifierService — writer/graph consistency', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.writerId = 'mallory';
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['writerId'] = 'mallory';
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -720,8 +720,8 @@ describe('AuditVerifierService — schema validation', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.version = 99;
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['version'] = 99;
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -756,9 +756,9 @@ describe('AuditVerifierService — OID length mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha2));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
-      receipt.dataCommit = 'a'.repeat(64);
-      receipt.prevAuditCommit = receipt.prevAuditCommit.padEnd(64, '0');
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+      receipt['dataCommit'] = 'a'.repeat(64);
+      receipt['prevAuditCommit'] = receipt['prevAuditCommit'].padEnd(64, '0');
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -778,9 +778,9 @@ describe('AuditVerifierService — OID length mismatch', () => {
     const commit = persistence._commits.get(/** @type {string} */ (sha1));
     if (commit) {
       const tree = await persistence.readTree(commit.treeOid);
-      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(tree['receipt.cbor']));
+      const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
       // dataCommit is 40 chars, make prevAuditCommit 64 chars
-      receipt.prevAuditCommit = '0'.repeat(64);
+      receipt['prevAuditCommit'] = '0'.repeat(64);
       const cborBytes = defaultCodec.encode(receipt);
       const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
@@ -840,8 +840,8 @@ describe('AuditVerifierService — evaluateTrust', () => {
     expect(result.trust.source).toBe('ref');
     expect(result.trustVerdict).toBe('fail');
     expect(result.trust.explanations).toHaveLength(1);
-    expect(result.trust.explanations[0].reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
-    expect(result.trust.explanations[0].reason).toContain('trust storage unavailable');
+    expect(result.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
+    expect(result.trust.explanations[0]?.reason).toContain('trust storage unavailable');
   });
 
   it('verifies signed trust records end-to-end', async () => {
@@ -891,8 +891,8 @@ describe('AuditVerifierService — evaluateTrust', () => {
 
     expect(result.trustVerdict).toBe('fail');
     expect(result.trust.status).toBe('error');
-    expect(result.trust.explanations[0].reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
-    expect(result.trust.explanations[0].reason).toContain('Trust evidence invalid');
+    expect(result.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
+    expect(result.trust.explanations[0]?.reason).toContain('Trust evidence invalid');
   });
 });
 
