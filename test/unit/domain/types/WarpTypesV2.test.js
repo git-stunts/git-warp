@@ -276,10 +276,10 @@ describe('WarpTypesV2', () => {
         expect(result.writer).toBe('writer-1');
         expect(result.lamport).toBe(10);
         expect(result.ops).toHaveLength(4);
-        expect(result.ops[0].type).toBe('NodeAdd');
-        expect(result.ops[1].type).toBe('NodeAdd');
-        expect(result.ops[2].type).toBe('EdgeAdd');
-        expect(result.ops[3].type).toBe('PropSet');
+        expect(result.ops[0]?.type).toBe('NodeAdd');
+        expect(result.ops[1]?.type).toBe('NodeAdd');
+        expect(result.ops[2]?.type).toBe('EdgeAdd');
+        expect(result.ops[3]?.type).toBe('PropSet');
       });
 
       it('creates PatchV2 with empty ops array', () => {
@@ -382,8 +382,8 @@ describe('WarpTypesV2', () => {
         node: 'user:123',
         dot: { writer: 'app-server-1', seq: 1 },
       });
-      expect(patch.ops[1].type).toBe('PropSet');
-      expect(/** @type {any} */ (patch.ops[1]).value).toBe('alice@example.com');
+      expect(patch.ops[1]?.type).toBe('PropSet');
+      expect(/** @type {any} */ (patch.ops[1])?.value).toBe('alice@example.com');
     });
 
     it('creates a social graph patch', () => {
@@ -406,9 +406,9 @@ describe('WarpTypesV2', () => {
       // Verify edge operations have dots
       const edges = patch.ops.filter((op) => op.type === 'EdgeAdd');
       expect(edges).toHaveLength(2);
-      expect(edges[0].label).toBe('follows');
-      expect(/** @type {any} */ (edges[0]).dot.seq).toBe(3);
-      expect(/** @type {any} */ (edges[1]).dot.seq).toBe(4);
+      expect(edges[0]?.label).toBe('follows');
+      expect(/** @type {any} */ (edges[0])?.dot.seq).toBe(3);
+      expect(/** @type {any} */ (edges[1])?.dot.seq).toBe(4);
     });
 
     it('creates a deletion patch with observed dots', () => {
@@ -433,10 +433,10 @@ describe('WarpTypesV2', () => {
       });
 
       expect(patch.ops).toHaveLength(2);
-      expect(patch.ops[0].type).toBe('EdgeRemove');
-      expect(/** @type {any} */ (patch.ops[0]).observedDots).toHaveLength(1);
-      expect(patch.ops[1].type).toBe('NodeRemove');
-      expect(/** @type {any} */ (patch.ops[1]).observedDots).toHaveLength(2);
+      expect(patch.ops[0]?.type).toBe('EdgeRemove');
+      expect(/** @type {any} */ (patch.ops[0])?.observedDots).toHaveLength(1);
+      expect(patch.ops[1]?.type).toBe('NodeRemove');
+      expect(/** @type {any} */ (patch.ops[1])?.observedDots).toHaveLength(2);
     });
 
     it('creates a merge-scenario patch observing multiple writers', () => {

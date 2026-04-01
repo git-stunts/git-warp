@@ -169,7 +169,7 @@ export default tseslint.config(
       }],
       "no-useless-computed-key": "error",
       "no-useless-rename": "error",
-      "dot-notation": "error",
+      "dot-notation": "off",
       "grouped-accessor-pairs": ["error", "getBeforeSet"],
       "accessor-pairs": "error",
 

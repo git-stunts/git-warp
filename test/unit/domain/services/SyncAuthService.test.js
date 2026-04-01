@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import defaultCrypto from '../../../../src/domain/utils/defaultCrypto.js';
 import SyncAuthService, {
@@ -337,7 +337,7 @@ describe('verify() reject paths', () => {
 
     // Build a second request reusing the same nonce but with fresh signature
     const body = req.body;
-    const nonce = req.headers['x-warp-nonce'];
+    const nonce = req.headers['x-warp-nonce'] ?? '';
     const timestamp = String(FIXED_TIME);
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
@@ -352,6 +352,7 @@ describe('verify() reject paths', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
+    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array }} */
     const req2 = {
       method: 'POST',
       url: '/sync',
@@ -483,6 +484,7 @@ describe('verify() happy paths', () => {
     const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
     const signature = Buffer.from(hmacBuf).toString('hex');
 
+    /** @type {{ method: string, url: string, headers: Record<string, string> }} */
     const req = {
       method: 'POST',
       url: '/sync',
@@ -493,7 +495,6 @@ describe('verify() happy paths', () => {
         'x-warp-nonce': nonce,
         'x-warp-signature': signature,
       },
-      body: undefined,
     };
     const result = await svc.verify(req);
     expect(result).toEqual({ ok: true });
@@ -570,22 +571,23 @@ describe('Metrics', () => {
     await svc.verify(req);
 
     // Replay: build a second request with the same nonce
-    const nonce = req.headers['x-warp-nonce'];
-    const body = req.body;
-    const timestamp = String(FIXED_TIME);
-    const bodySha256 = await defaultCrypto.hash('sha256', body);
-    const canonical = buildCanonicalPayload({
+    const replayNonce = req.headers['x-warp-nonce'] ?? '';
+    const replayBody = req.body;
+    const replayTimestamp = String(FIXED_TIME);
+    const replayBodySha = await defaultCrypto.hash('sha256', replayBody);
+    const replayCanonical = buildCanonicalPayload({
       keyId: KEY_ID,
       method: 'POST',
       path: '/sync',
-      timestamp,
-      nonce,
+      timestamp: replayTimestamp,
+      nonce: replayNonce,
       contentType: 'application/json',
-      bodySha256,
+      bodySha256: replayBodySha,
     });
-    const hmacBuf = await defaultCrypto.hmac('sha256', SECRET, canonical);
-    const signature = Buffer.from(hmacBuf).toString('hex');
+    const replayHmac = await defaultCrypto.hmac('sha256', SECRET, replayCanonical);
+    const replaySignature = Buffer.from(replayHmac).toString('hex');
 
+    /** @type {{ method: string, url: string, headers: Record<string, string>, body: Uint8Array }} */
     const req2 = {
       method: 'POST',
       url: '/sync',
@@ -593,11 +595,11 @@ describe('Metrics', () => {
         'content-type': 'application/json',
         'x-warp-sig-version': '1',
         'x-warp-key-id': KEY_ID,
-        'x-warp-timestamp': timestamp,
-        'x-warp-nonce': nonce,
-        'x-warp-signature': signature,
+        'x-warp-timestamp': replayTimestamp,
+        'x-warp-nonce': replayNonce,
+        'x-warp-signature': replaySignature,
       },
-      body,
+      body: replayBody,
     };
     await svc.verify(req2);
     expect(svc.getMetrics().replayRejectCount).toBe(1);
@@ -657,7 +659,7 @@ describe('verify() nonce ordering', () => {
 
     // Build a valid signed request, capture its nonce
     const validReq = await buildSignedRequest();
-    const nonce = validReq.headers['x-warp-nonce'];
+    const nonce = validReq.headers['x-warp-nonce'] ?? '';
 
     // Corrupt the signature — nonce should NOT be consumed
     const badReq = {

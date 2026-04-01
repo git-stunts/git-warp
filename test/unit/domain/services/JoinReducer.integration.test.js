@@ -15,7 +15,6 @@ import { describe, it, expect } from 'vitest';
 // Core v5 reducer
 import {
   reduceV5 as _reduceV5,
-  createEmptyStateV5,
   encodeEdgeKey,
   encodePropKey,
   cloneStateV5,
@@ -129,9 +128,7 @@ import { migrateV4toV5 } from '../../../../src/domain/services/MigrationService.
 import {
   createPatchV2,
   createNodeAddV2,
-  createNodeRemoveV2,
   createEdgeAddV2,
-  createEdgeRemoveV2,
   createPropSetV2,
 } from '../../../../src/domain/types/WarpTypesV2.js';
 
@@ -140,7 +137,6 @@ import {
   createNodeAdd,
   createNodeTombstone,
   createEdgeAdd,
-  createEdgeTombstone,
   createPropSet,
   createInlineValue,
 } from '../../../../src/domain/types/WarpTypes.js';
@@ -171,8 +167,8 @@ function createPatch({ writer, lamport, ops, baseCheckpoint }) {
 }
 
 // CRDT primitives
-import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector, vvIncrement, vvMerge } from '../../../../src/domain/crdt/VersionVector.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createVersionVector, vvMerge } from '../../../../src/domain/crdt/VersionVector.js';
 import { orsetCompact, orsetElements, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 
@@ -216,7 +212,7 @@ function generatePatches(n, options = {}) {
   const writerCounters = new Map();
 
   for (let i = 0; i < n; i++) {
-    const writer = writers[Math.floor(Math.random() * writers.length)];
+    const writer = /** @type {string} */ (writers[Math.floor(Math.random() * writers.length)]);
     const lamport = i + 1;
     // SHA must be hex only, at least 4 chars - no prefix!
     const sha = randomHex(12);
@@ -1231,7 +1227,8 @@ describe('KILLER TEST 6: Chaos Test - 100 Patches, 5 Permutations', () => {
     const firstShas = permutations.map((p) => p[0].sha);
     // At least 2 permutations should have different first elements
     // (statistically extremely likely with 100 patches)
-    const uniqueFirstShas = new Set(firstShas);
+    // uniqueFirstShas intentionally unused — see comment below
+    void new Set(firstShas);
 
     // This test ensures our shuffle is working
     // With 100 patches, probability of all 5 having same first element is (1/100)^4 ≈ 0

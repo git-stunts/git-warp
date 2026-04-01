@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/LogicalIndexReader.js';
 import LogicalIndexBuildService from '../../../../src/domain/services/LogicalIndexBuildService.js';
 import {
@@ -203,7 +203,7 @@ describe('LogicalIndexReader', () => {
       const service = new LogicalIndexBuildService();
       const { tree } = service.build(state);
 
-      const modern = /** @type {Array<[string, number]>} */ (defaultCodec.decode(tree['labels.cbor']));
+      const modern = /** @type {Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor'])));
       const legacyLabels = Object.fromEntries(modern);
       const legacyTree = {
         ...tree,
@@ -227,7 +227,7 @@ describe('LogicalIndexReader', () => {
         if (!path.startsWith('meta_') || !path.endsWith('.cbor')) {
           continue;
         }
-        const meta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (defaultCodec.decode(tree[path]));
+        const meta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree[path])));
         legacyTree[path] = defaultCodec.encode({
           nodeToGlobal: meta.nodeToGlobal,
           nextLocalId: meta.nextLocalId,
@@ -276,8 +276,8 @@ describe('LogicalIndexReader', () => {
 
       const filtered = idx.getEdges('A', 'out', [managesId]);
       expect(filtered.length).toBe(1);
-      expect(filtered[0].label).toBe('manages');
-      expect(filtered[0].neighborId).toBe('B');
+      expect(filtered[0]?.label).toBe('manages');
+      expect(filtered[0]?.neighborId).toBe('B');
     });
 
     it('unfiltered results equal filtered-label union and are sorted by (neighborId, label)', () => {
@@ -305,10 +305,10 @@ describe('LogicalIndexReader', () => {
       const nodes = Array.from({ length: 100 }, (_, i) => `n${String(i).padStart(3, '0')}`);
       const edges = [];
       for (let i = 0; i < 99; i++) {
-        edges.push({ from: nodes[i], to: nodes[i + 1], label: 'next' });
+        edges.push({ from: /** @type {string} */ (nodes[i]), to: /** @type {string} */ (nodes[i + 1]), label: 'next' });
       }
       for (let i = 1; i < 100; i++) {
-        edges.push({ from: nodes[i], to: nodes[0], label: 'loop' });
+        edges.push({ from: /** @type {string} */ (nodes[i]), to: /** @type {string} */ (nodes[0]), label: 'loop' });
       }
 
       const state = fixtureToState({ nodes, edges });
@@ -322,8 +322,8 @@ describe('LogicalIndexReader', () => {
       // n000 should have 1 outgoing edge (next -> n001)
       const n0Out = idx.getEdges('n000', 'out');
       expect(n0Out).toHaveLength(1);
-      expect(n0Out[0].neighborId).toBe('n001');
-      expect(n0Out[0].label).toBe('next');
+      expect(n0Out[0]?.neighborId).toBe('n001');
+      expect(n0Out[0]?.label).toBe('next');
 
       // n050 should have 2 outgoing edges (next -> n051, loop -> n000)
       const n50Out = idx.getEdges('n050', 'out');
@@ -339,8 +339,8 @@ describe('LogicalIndexReader', () => {
       // n099 should have 0 outgoing "next" edges but 1 "loop" edge
       const n99Out = idx.getEdges('n099', 'out');
       expect(n99Out).toHaveLength(1);
-      expect(n99Out[0].label).toBe('loop');
-      expect(n99Out[0].neighborId).toBe('n000');
+      expect(n99Out[0]?.label).toBe('loop');
+      expect(n99Out[0]?.neighborId).toBe('n000');
     });
   });
 });
