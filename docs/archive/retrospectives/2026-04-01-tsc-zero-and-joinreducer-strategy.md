@@ -70,7 +70,7 @@ Key changes:
 - cross-path state equivalence tested: **aligned**
 - dead code removed (5 switch bodies): **aligned**
 
-## Observed Drift
+## Observed Drift (Updated — Honest Accounting)
 
 ### 1. Agent over-refactoring (TSC campaign)
 
@@ -106,7 +106,38 @@ updated to match.
 call `.deliver()` may need to handle the array case.
 
 **Status:** accepted — the widening is correct (multiplex sink fans out to N
-sinks, naturally returns N observations).
+sinks, naturally returns N observations). **But:** shipped without a
+`BREAKING CHANGE` commit footer, violating CLAUDE.md rules. Tracked as B173.
+
+### 4. No design doc for TSC campaign
+
+The CONTRIBUTING.md process says "design docs first." The TSC campaign went
+straight from a prompt file to implementation with no design doc, no hills,
+no explicit non-goals. The JoinReducer work followed the process correctly
+(design doc → failing tests → implementation). The TSC work did not.
+
+**Status:** accepted — the TSC campaign was a mechanical cleanup, not a
+design decision. But the process exception should have been called out
+explicitly, not just skipped silently.
+
+### 5. ESLint `dot-notation` disabled globally (shortcut)
+
+Disabling the rule globally was a shortcut. The proper fix is
+`@typescript-eslint/dot-notation` which respects
+`noPropertyAccessFromIndexSignature`. We're already using the TS-ESLint
+parser, so the switch is straightforward. Tracked as B172.
+
+**Status:** implementation shortcut — accepted for now, tracked for fix.
+
+### 6. 27 agent-authored files merged without line-by-line review
+
+Merge conflicts were resolved via `git checkout --theirs` (take the agent's
+version). Tests caught the 3 egregious regressions, but 27 files have
+agent-authored type fixes that were never audited for subtle semantic drift
+(e.g. changed fallback values, widened types, reordered logic). Tests
+passing does not guarantee absence of drift.
+
+**Status:** **not aligned** — tracked as B171 (high priority audit).
 
 ## Playback
 
