@@ -31,19 +31,26 @@ export function hexEncode(bytes) {
 }
 
 /**
+ * Lookup table mapping character codes to hex values.
+ * Codes outside the hex range map to 0xff (invalid sentinel).
+ * @type {Readonly<Uint8Array>}
+ */
+const HEX_VAL = (() => {
+  const t = new Uint8Array(128).fill(0xff);
+  for (let i = 0; i < 10; i++) { t[0x30 + i] = i; }
+  for (let i = 0; i < 6; i++) { t[0x41 + i] = 10 + i; t[0x61 + i] = 10 + i; }
+  return t;
+})();
+
+/**
  * Returns the numeric value of a hex character code, or -1 if invalid.
  *
  * @param {number} cc - Character code
  * @returns {number} 0–15 or -1
  */
 function hexCharValue(cc) {
-  // 0-9: 0x30–0x39
-  if (cc >= 0x30 && cc <= 0x39) { return cc - 0x30; }
-  // A-F: 0x41–0x46
-  if (cc >= 0x41 && cc <= 0x46) { return cc - 0x41 + 10; }
-  // a-f: 0x61–0x66
-  if (cc >= 0x61 && cc <= 0x66) { return cc - 0x61 + 10; }
-  return -1;
+  const v = cc < 128 ? HEX_VAL[cc] : 0xff;
+  return v === 0xff ? -1 : v;
 }
 
 /**
@@ -53,20 +60,37 @@ function hexCharValue(cc) {
  * @returns {Uint8Array}
  */
 export function hexDecode(hex) {
-  if (hex.length % 2 !== 0) {
-    throw new RangeError(`Invalid hex string (odd length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`);
-  }
+  assertEvenHexLength(hex);
   const len = hex.length >>> 1;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
     const hi = hexCharValue(hex.charCodeAt(i * 2));
     const lo = hexCharValue(hex.charCodeAt(i * 2 + 1));
     if (hi === -1 || lo === -1) {
-      throw new RangeError(`Invalid hex string (length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`);
+      throw new RangeError(hexErrorMessage(hex));
     }
     bytes[i] = (hi << 4) | lo;
   }
   return bytes;
+}
+
+/**
+ * Asserts that a hex string has even length.
+ * @param {string} hex
+ */
+function assertEvenHexLength(hex) {
+  if (hex.length % 2 !== 0) {
+    throw new RangeError(`Invalid hex string (odd length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`);
+  }
+}
+
+/**
+ * Formats an error message for invalid hex strings.
+ * @param {string} hex
+ * @returns {string}
+ */
+function hexErrorMessage(hex) {
+  return `Invalid hex string (length ${hex.length}): ${hex.length > 20 ? `${hex.slice(0, 20)}…` : hex}`;
 }
 
 const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -139,10 +163,40 @@ function validateBase64(b64) {
  */
 export function base64Decode(b64) {
   validateBase64(b64);
+  const len = stripPaddingLength(b64);
+  return decodeBase64Bytes(b64, len);
+}
+
+/**
+ * Returns the effective length of a base64 string after stripping '=' padding.
+ * @param {string} b64
+ * @returns {number}
+ */
+function stripPaddingLength(b64) {
   let len = b64.length;
   if (b64[len - 1] === '=') { len--; }
   if (b64[len - 1] === '=') { len--; }
+  return len;
+}
 
+/**
+ * Looks up a base64 character value at the given index, returning 0 for out-of-range.
+ * @param {string} b64
+ * @param {number} idx
+ * @param {number} len
+ * @returns {number}
+ */
+function b64At(b64, idx, len) {
+  return idx < len ? B64_LOOKUP[b64.charCodeAt(idx)] : 0;
+}
+
+/**
+ * Decodes base64 characters into bytes using the lookup table.
+ * @param {string} b64 - Base64 string
+ * @param {number} len - Effective length (padding stripped)
+ * @returns {Uint8Array}
+ */
+function decodeBase64Bytes(b64, len) {
   const outLen = (len * 3) >>> 2;
   const bytes = new Uint8Array(outLen);
   let j = 0;
@@ -150,8 +204,8 @@ export function base64Decode(b64) {
   for (let i = 0; i < len; i += 4) {
     const a = B64_LOOKUP[b64.charCodeAt(i)];
     const b = B64_LOOKUP[b64.charCodeAt(i + 1)];
-    const c = i + 2 < len ? B64_LOOKUP[b64.charCodeAt(i + 2)] : 0;
-    const d = i + 3 < len ? B64_LOOKUP[b64.charCodeAt(i + 3)] : 0;
+    const c = b64At(b64, i + 2, len);
+    const d = b64At(b64, i + 3, len);
 
     bytes[j++] = (a << 2) | (b >>> 4);
     if (j < outLen) { bytes[j++] = ((b << 4) | (c >>> 2)) & 0xff; }

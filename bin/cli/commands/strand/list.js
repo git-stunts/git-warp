@@ -14,6 +14,7 @@ const LIST_OPTIONS = /** @type {Record<string, { type: string, short?: string, d
 const listStrandSchema = z.object({}).strict();
 
 /**
+ * Lists all strand descriptors for the graph.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

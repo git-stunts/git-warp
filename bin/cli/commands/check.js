@@ -12,7 +12,7 @@ import { openGraph, applyCursorCeiling, emitCursorWarning, readCheckpointDate, c
  * Performs a health check on the graph persistence.
  *
  * @param {Persistence} persistence - The persistence adapter
- * @returns {Promise<import('../../../src/domain/services/HealthCheckService.js').HealthReport>}
+ * @returns {Promise<{status: string, components: {repository: {status: string, latencyMs: number}, index: {status: string, loaded: boolean, shardCount?: number}}, cachedAt?: string}>}
  */
 async function getHealth(persistence) {
   const clock = ClockAdapter.global();
@@ -159,7 +159,7 @@ function buildCheckPayload({
  * Returns the status of WARP git hooks for a repository.
  *
  * @param {string} repoPath - Path to the git repository
- * @returns {import('../shared.js').HookStatus|null}
+ * @returns {{ installed: boolean, version?: string, current?: boolean, foreign?: boolean, hookPath: string }|null}
  */
 function getHookStatusForCheck(repoPath) {
   try {

@@ -32,6 +32,7 @@ export default class PersistenceError extends WarpError {
   static E_REF_IO = 'E_REF_IO';
 
   /**
+   * Constructs a PersistenceError with a code and optional cause/context.
    * @param {string} message - Human-readable error message
    * @param {string} code - One of the E_* constants
    * @param {{ cause?: Error, context?: Record<string, unknown> }} [options={}]

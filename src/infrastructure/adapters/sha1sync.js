@@ -53,47 +53,56 @@ function preprocess(msg) {
 }
 
 /**
+ * Returns the SHA-1 round constant for a given round index.
+ * @param {number} i - Round index (0-79)
+ * @returns {number}
+ */
+function roundK(i) {
+  if (i < 20) { return 0x5A827999; }
+  if (i < 40) { return 0x6ED9EBA1; }
+  if (i < 60) { return 0x8F1BBCDC; }
+  return 0xCA62C1D6;
+}
+
+/**
+ * Computes the SHA-1 round function f(b, c, d) for a given round index.
+ * @param {number} i - Round index (0-79)
+ * @param {number[]} vars - Working variables [a, b, c, d, e]
+ * @returns {number}
+ */
+function roundF(i, vars) {
+  const b = vars[1];
+  const c = vars[2];
+  const d = vars[3];
+  if (i < 20) { return (b & c) | (~b & d); }
+  if (i < 40) { return b ^ c ^ d; }
+  if (i < 60) { return (b & c) | (b & d) | (c & d); }
+  return b ^ c ^ d;
+}
+
+/**
  * Processes a single 512-bit block, updating the hash state in-place.
  * @param {number[]} state - Five-element hash state [h0..h4]
  * @param {Uint32Array} w - 80-word expanded block
  */
 function processBlock(state, w) {
-  let a = state[0];
-  let b = state[1];
-  let c = state[2];
-  let d = state[3];
-  let e = state[4];
+  /** @type {number[]} */
+  const v = [state[0], state[1], state[2], state[3], state[4]];
 
   for (let i = 0; i < 80; i++) {
-    let f;
-    let k;
-    if (i < 20) {
-      f = (b & c) | (~b & d);
-      k = 0x5A827999;
-    } else if (i < 40) {
-      f = b ^ c ^ d;
-      k = 0x6ED9EBA1;
-    } else if (i < 60) {
-      f = (b & c) | (b & d) | (c & d);
-      k = 0x8F1BBCDC;
-    } else {
-      f = b ^ c ^ d;
-      k = 0xCA62C1D6;
-    }
-
-    const temp = (rotl(a, 5) + f + e + k + w[i]) >>> 0;
-    e = d;
-    d = c;
-    c = rotl(b, 30);
-    b = a;
-    a = temp;
+    const f = roundF(i, v);
+    const k = roundK(i);
+    const temp = (rotl(v[0], 5) + f + v[4] + k + w[i]) >>> 0;
+    v[4] = v[3];
+    v[3] = v[2];
+    v[2] = rotl(v[1], 30);
+    v[1] = v[0];
+    v[0] = temp;
   }
 
-  state[0] = (state[0] + a) >>> 0;
-  state[1] = (state[1] + b) >>> 0;
-  state[2] = (state[2] + c) >>> 0;
-  state[3] = (state[3] + d) >>> 0;
-  state[4] = (state[4] + e) >>> 0;
+  for (let i = 0; i < 5; i++) {
+    state[i] = (state[i] + v[i]) >>> 0;
+  }
 }
 
 /**

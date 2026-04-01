@@ -38,7 +38,7 @@ import { openGraph, readActiveCursor, writeActiveCursor, wireSeekCache } from '.
 async function clearActiveCursor(persistence, graphName) {
   const ref = buildCursorActiveRef(graphName);
   const exists = await persistence.readRef(ref);
-  if (exists) {
+  if (typeof exists === 'string' && exists.length > 0) {
     await persistence.deleteRef(ref);
   }
 }
@@ -54,7 +54,7 @@ async function clearActiveCursor(persistence, graphName) {
 async function readSavedCursor(persistence, graphName, name) {
   const ref = buildCursorSavedRef(graphName, name);
   const oid = await persistence.readRef(ref);
-  if (!oid) {
+  if (typeof oid !== 'string' || oid.length === 0) {
     return null;
   }
   const buf = await persistence.readBlob(oid);
@@ -88,7 +88,7 @@ async function writeSavedCursor(persistence, graphName, name, cursor) {
 async function deleteSavedCursor(persistence, graphName, name) {
   const ref = buildCursorSavedRef(graphName, name);
   const exists = await persistence.readRef(ref);
-  if (exists) {
+  if (typeof exists === 'string' && exists.length > 0) {
     await persistence.deleteRef(ref);
   }
 }
@@ -106,9 +106,9 @@ async function listSavedCursors(persistence, graphName) {
   const cursors = [];
   for (const ref of refs) {
     const name = ref.slice(prefix.length);
-    if (name) {
+    if (typeof name === 'string' && name.length > 0) {
       const oid = await persistence.readRef(ref);
-      if (oid) {
+      if (typeof oid === 'string' && oid.length > 0) {
         const buf = await persistence.readBlob(oid);
         const cursor = parseCursorBlob(buf, `saved cursor '${name}'`);
         cursors.push({ name, ...cursor });
@@ -136,6 +136,7 @@ const SEEK_OPTIONS = {
 };
 
 /**
+ * Parses raw CLI args into a validated seek specification.
  * @param {string[]} args
  * @returns {SeekSpec}
  */
@@ -149,6 +150,7 @@ function parseSeekArgs(args) {
 // ============================================================================
 
 /**
+ * Resolves a tick string (absolute or relative delta) to a concrete tick number.
  * @param {string} tickValue
  * @param {number|null} currentTick
  * @param {number[]} ticks
@@ -181,6 +183,7 @@ function resolveTickValue(tickValue, currentTick, ticks, maxTick) {
 // ============================================================================
 
 /**
+ * Extracts node and edge counts from a cursor blob, returning nulls if absent.
  * @param {CursorBlob|null} cursor
  * @returns {{nodes: number|null, edges: number|null}}
  */
@@ -194,6 +197,7 @@ function readSeekCounts(cursor) {
 }
 
 /**
+ * Computes the delta between the previous cursor counts and new counts, if the frontier hash matches.
  * @param {CursorBlob|null} prevCursor
  * @param {{nodes: number, edges: number}} next
  * @param {string} frontierHash
@@ -205,7 +209,7 @@ function computeSeekStateDiff(prevCursor, next, frontierHash) {
     return null;
   }
   const prevFrontierHash = typeof prevCursor?.frontierHash === 'string' ? prevCursor.frontierHash : null;
-  if (!prevFrontierHash || prevFrontierHash !== frontierHash) {
+  if (typeof prevFrontierHash !== 'string' || prevFrontierHash.length === 0 || prevFrontierHash !== frontierHash) {
     return null;
   }
   return {
@@ -215,6 +219,7 @@ function computeSeekStateDiff(prevCursor, next, frontierHash) {
 }
 
 /**
+ * Materializes two tick states and computes the structural diff between them.
  * @param {{graph: WarpGraphInstance, prevTick: number|null, currentTick: number, diffLimit: number}} params
  * @returns {Promise<{structuralDiff: unknown, diffBaseline: string, baselineTick: number|null, truncated: boolean, totalChanges: number, shownChanges: number}>}
  */
@@ -247,6 +252,7 @@ async function computeStructuralDiff({ graph, prevTick, currentTick, diffLimit }
 }
 
 /**
+ * Truncates a structural diff to the specified limit, returning metadata about truncation.
  * @param {StateDiffResult} diff
  * @param {string} diffBaseline
  * @param {number|null} baselineTick
@@ -264,6 +270,7 @@ function applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit) {
   }
 
   let remaining = diffLimit;
+  /** Caps an array to the remaining budget and decrements the budget. */
   const cap = (/** @type {unknown[]} */ arr) => {
     const take = Math.min(arr.length, remaining);
     remaining -= take;
@@ -285,6 +292,7 @@ function applyDiffLimit(diff, diffBaseline, baselineTick, diffLimit) {
 // ============================================================================
 
 /**
+ * Handles the bare `seek` (no action flags) by returning current cursor status.
  * @param {{graph: WarpGraphInstance, graphName: string, persistence: Persistence, activeCursor: CursorBlob|null, ticks: number[], maxTick: number, perWriter: Map<string, WriterTickInfo>, frontierHash: string}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */

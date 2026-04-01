@@ -180,32 +180,61 @@ function validateOpResult(value, i) {
  * @throws {Error} If any parameter is invalid
  */
 export function createTickReceipt({ patchSha, writer, lamport, ops }) {
-  // --- patchSha ---
-  if (typeof patchSha !== 'string' || patchSha.length === 0) {
-    throw new Error('patchSha must be a non-empty string');
-  }
+  assertNonEmptyString(patchSha, 'patchSha');
+  assertNonEmptyString(writer, 'writer');
+  assertNonNegativeInt(lamport);
+  assertOpsArray(ops);
 
-  // --- writer ---
-  if (typeof writer !== 'string' || writer.length === 0) {
-    throw new Error('writer must be a non-empty string');
-  }
+  return Object.freeze({
+    patchSha,
+    writer,
+    lamport,
+    ops: freezeOps(ops),
+  });
+}
 
-  // --- lamport ---
-  if (!Number.isInteger(lamport) || lamport < 0) {
+/**
+ * Asserts that a value is a non-empty string.
+ * @param {unknown} value
+ * @param {string} name - Field name for error messages
+ */
+function assertNonEmptyString(value, name) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${name} must be a non-empty string`);
+  }
+}
+
+/**
+ * Asserts that lamport is a non-negative integer.
+ * @param {unknown} value
+ */
+function assertNonNegativeInt(value) {
+  if (!Number.isInteger(value) || /** @type {number} */ (value) < 0) {
     throw new Error('lamport must be a non-negative integer');
   }
+}
 
-  // --- ops ---
+/**
+ * Asserts that ops is a valid array and validates each entry.
+ * @param {unknown} ops
+ */
+function assertOpsArray(ops) {
   if (!Array.isArray(ops)) {
     throw new Error('ops must be an array');
   }
-
   for (let i = 0; i < ops.length; i++) {
     validateOp(ops[i], i);
   }
+}
 
-  // Build frozen op copies (defensive: don't alias caller's objects)
-  const frozenOps = Object.freeze(
+/**
+ * Builds a frozen, defensively-copied array of operation outcomes.
+ *
+ * @param {OpOutcome[]} ops
+ * @returns {ReadonlyArray<Readonly<OpOutcome>>}
+ */
+function freezeOps(ops) {
+  return Object.freeze(
     ops.map((o) => {
       /** @type {{ op: string, target: string, result: 'applied' | 'superseded' | 'redundant', reason?: string }} */
       const entry = { op: o.op, target: o.target, result: o.result };
@@ -215,13 +244,6 @@ export function createTickReceipt({ patchSha, writer, lamport, ops }) {
       return Object.freeze(entry);
     }),
   );
-
-  return Object.freeze({
-    patchSha,
-    writer,
-    lamport,
-    ops: frozenOps,
-  });
 }
 
 // ============================================================================

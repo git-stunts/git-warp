@@ -3,6 +3,33 @@ import { checkAborted } from '../utils/cancellation.js';
 import { concatBytes, textEncode, textDecode } from '../utils/bytes.js';
 
 /**
+ * Parses a parent-SHAs line into an array.
+ * @param {string | undefined} line
+ * @returns {string[]}
+ */
+function parseParentLine(line) {
+  if (line === undefined || line === '') {
+    return [];
+  }
+  return line.split(' ').filter(Boolean);
+}
+
+/**
+ * Converts a chunk to Uint8Array.
+ * @param {Uint8Array|string} chunk
+ * @returns {Uint8Array}
+ */
+function toBytes(chunk) {
+  if (typeof chunk === 'string') {
+    return textEncode(chunk);
+  }
+  if (chunk instanceof Uint8Array) {
+    return chunk;
+  }
+  return Uint8Array.from(chunk);
+}
+
+/**
  * NUL byte (0x00) - Delimits commit records in git log output.
  *
  * Git commit messages cannot contain NUL bytes - git rejects them at commit time.
@@ -109,46 +136,61 @@ export default class GitLogParser {
 
     for await (const chunk of stream) {
       checkAborted(signal, 'GitLogParser.parse');
-
-      // Convert string chunks to Uint8Array, keep Uint8Array chunks as-is
-      const chunkBytes =
-        typeof chunk === 'string'
-          ? textEncode(chunk)
-          : chunk instanceof Uint8Array
-            ? chunk
-            : Uint8Array.from(chunk);
-
-      // Append to accumulator
+      const chunkBytes = toBytes(chunk);
       buffer = concatBytes(buffer, chunkBytes);
-
-      // Find NUL bytes (0x00) in binary
-      let nullIndex;
-      while ((nullIndex = buffer.indexOf(0)) !== -1) {
-        checkAborted(signal, 'GitLogParser.parse');
-
-        // Extract record bytes and decode to string
-        const recordBytes = buffer.subarray(0, nullIndex);
-        buffer = buffer.subarray(nullIndex + 1);
-
-        // Only decode UTF-8 for complete records
-        const block = textDecode(recordBytes);
-        const node = this.parseNode(block);
-        if (node) {
-          yield node;
-        }
-      }
+      const result = this._drainBuffer(buffer, signal);
+      buffer = result.remaining;
+      yield* result.nodes;
     }
 
     // Process any remaining data (final record without trailing NUL)
-    if (buffer.length > 0) {
-      const block = textDecode(buffer);
-      if (block) {
-        const node = this.parseNode(block);
-        if (node) {
-          yield node;
-        }
+    const trailing = this._parseTrailing(buffer);
+    if (trailing) {
+      yield trailing;
+    }
+  }
+
+  /**
+   * Parses any remaining bytes after the stream ends (final record without trailing NUL).
+   * @param {Uint8Array} buffer
+   * @returns {GraphNode | null}
+   * @private
+   */
+  _parseTrailing(buffer) {
+    if (buffer.length === 0) {
+      return null;
+    }
+    const block = textDecode(buffer);
+    if (block.length === 0) {
+      return null;
+    }
+    return this.parseNode(block);
+  }
+
+  /**
+   * Extracts complete NUL-delimited records from the binary buffer.
+   *
+   * @param {Uint8Array} buffer - Accumulated binary data
+   * @param {AbortSignal} [signal] - Optional cancellation signal
+   * @returns {{ nodes: GraphNode[], remaining: Uint8Array }} Parsed nodes and leftover bytes
+   * @private
+   */
+  _drainBuffer(buffer, signal) {
+    /** @type {GraphNode[]} */
+    const nodes = [];
+    let buf = buffer;
+    let nullIndex;
+    while ((nullIndex = buf.indexOf(0)) !== -1) {
+      checkAborted(signal, 'GitLogParser.parse');
+      const recordBytes = buf.subarray(0, nullIndex);
+      buf = buf.subarray(nullIndex + 1);
+      const block = textDecode(recordBytes);
+      const node = this.parseNode(block);
+      if (node) {
+        nodes.push(node);
       }
     }
+    return { nodes, remaining: buf };
   }
 
   /**
@@ -176,28 +218,26 @@ export default class GitLogParser {
    */
   parseNode(block) {
     const lines = block.split('\n');
-    // Need at least 4 lines: SHA, author, date, parents
-    // Message (lines 4+) may be empty
     if (lines.length < 4) {
       return null;
     }
 
     const sha = lines[0];
-    if (!sha) {
+    if (sha === undefined || sha === '') {
       return null;
     }
 
-    const author = lines[1];
-    const date = lines[2];
-    const parents = lines[3] ? lines[3].split(' ').filter(Boolean) : [];
-    // Preserve message exactly as-is (may be empty, may have leading/trailing whitespace)
     const message = lines.slice(4).join('\n');
-
-    // GraphNode requires non-empty message, return null for empty
-    if (!message) {
+    if (message.length === 0) {
       return null;
     }
 
-    return new GraphNode({ sha, author, date, message, parents });
+    return new GraphNode({
+      sha,
+      author: lines[1],
+      date: lines[2],
+      message,
+      parents: parseParentLine(lines[3]),
+    });
   }
 }

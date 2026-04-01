@@ -20,6 +20,39 @@ const materializeStrandSchema = z.object({
 }).strict();
 
 /**
+ * Builds the summary payload from a materialized strand state.
+ * @param {string} graphName - Name of the graph
+ * @param {unknown} strand - Strand descriptor
+ * @param {unknown} materialized - Raw materialization result (may contain receipts)
+ * @returns {{payload: unknown, exitCode: number}}
+ */
+function buildMaterializePayload(graphName, strand, materialized) {
+  const mat = /** @type {Record<string, unknown>} */ (materialized);
+  const state = /** @type {{ nodeAlive: unknown, edgeAlive: unknown, prop: Map<string, unknown> }} */ (
+    'state' in mat ? mat.state : mat
+  );
+  const receipts = 'state' in mat ? /** @type {unknown[]|undefined} */ (mat.receipts) : undefined;
+
+  return {
+    payload: {
+      graph: graphName,
+      strandAction: 'materialize',
+      strand,
+      state,
+      receipts,
+      summary: {
+        nodeCount: orsetElements(state.nodeAlive).length,
+        edgeCount: orsetElements(state.edgeAlive).length,
+        propertyCount: state.prop.size,
+        receiptCount: receipts?.length ?? 0,
+      },
+    },
+    exitCode: EXIT_CODES.OK,
+  };
+}
+
+/**
+ * Materializes a pinned strand coordinate and returns its state with optional tick receipts.
  * @param {{options: CliOptions, args: string[]}} params
  * @returns {Promise<{payload: unknown, exitCode: number}>}
  */
@@ -40,23 +73,5 @@ export async function handleStrandSubcommand({ options, args }) {
     ? await graph.materializeStrand(strandId, { receipts: true })
     : await graph.materializeStrand(strandId);
 
-  const state = 'state' in materialized ? materialized.state : materialized;
-  const receipts = 'state' in materialized ? materialized.receipts : undefined;
-
-  return {
-    payload: {
-      graph: graphName,
-      strandAction: 'materialize',
-      strand,
-      state,
-      receipts,
-      summary: {
-        nodeCount: orsetElements(state.nodeAlive).length,
-        edgeCount: orsetElements(state.edgeAlive).length,
-        propertyCount: state.prop.size,
-        receiptCount: receipts?.length ?? 0,
-      },
-    },
-    exitCode: EXIT_CODES.OK,
-  };
+  return buildMaterializePayload(graphName, strand, materialized);
 }

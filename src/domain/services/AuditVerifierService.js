@@ -89,7 +89,7 @@ function validateOidFormat(value) {
  * @returns {string|null} Error message or null if valid
  */
 function validateReceiptSchema(receipt) {
-  if (!receipt || typeof receipt !== 'object') {
+  if (receipt === null || receipt === undefined || typeof receipt !== 'object') {
     return 'receipt is not an object';
   }
   const rec = /** @type {Record<string, unknown>} */ (receipt);
@@ -221,8 +221,8 @@ function validateTrailerConsistency(receipt, decoded) {
  */
 function resolveTrustSource(options) {
   return {
-    status: options.status || /** @type {TrustAssessmentStatus} */ (options.pin ? 'pinned' : 'configured'),
-    source: options.source || (options.pin ? 'pinned' : 'ref'),
+    status: (typeof options.status === 'string' && options.status.length > 0) ? options.status : /** @type {TrustAssessmentStatus} */ ((typeof options.pin === 'string' && options.pin.length > 0) ? 'pinned' : 'configured'),
+    source: (typeof options.source === 'string' && options.source.length > 0) ? options.source : ((typeof options.pin === 'string' && options.pin.length > 0) ? 'pinned' : 'ref'),
     sourceDetail: options.sourceDetail ?? options.pin ?? null,
   };
 }
@@ -283,8 +283,13 @@ function buildTrustFailureAssessment({
   };
 }
 
+/**
+ * Verifies tamper-evident audit receipt chains for graph writers.
+ */
 export class AuditVerifierService {
   /**
+   * Creates a new AuditVerifierService.
+   *
    * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/RefPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default, codec: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, trustCrypto?: { verifySignature: (params: { algorithm: string, publicKeyBase64: string, signatureBase64: string, payload: Uint8Array }) => boolean, computeKeyFingerprint: (publicKeyBase64: string) => string } }} options
    */
   constructor({ persistence, codec, logger, trustCrypto }) {
@@ -346,7 +351,7 @@ export class AuditVerifierService {
    */
   async verifyChain(graphName, writerId, options = {}) {
     const ref = buildAuditRef(graphName, writerId);
-    const since = options.since || null;
+    const since = (typeof options.since === 'string' && options.since.length > 0) ? options.since : null;
 
     /** @type {ChainResult} */
     const result = {
@@ -372,7 +377,7 @@ export class AuditVerifierService {
       // ref doesn't exist — no chain to verify
       return result;
     }
-    if (!tip) {
+    if (typeof tip !== 'string' || tip.length === 0) {
       return result;
     }
 
@@ -425,7 +430,7 @@ export class AuditVerifierService {
 
       // Schema validation (before OID checks — catches missing fields early)
       const schemaErr = validateReceiptSchema(receipt);
-      if (schemaErr) {
+      if (typeof schemaErr === 'string' && schemaErr.length > 0) {
         this._addError(result, 'RECEIPT_SCHEMA_INVALID', schemaErr, current);
         return;
       }
@@ -452,7 +457,7 @@ export class AuditVerifierService {
 
       // Trailer consistency
       const trailerErr = validateTrailerConsistency(receipt, decodedTrailers);
-      if (trailerErr) {
+      if (typeof trailerErr === 'string' && trailerErr.length > 0) {
         this._addError(result, 'TRAILER_MISMATCH', trailerErr, current);
         result.status = STATUS_DATA_MISMATCH;
         return;
@@ -482,7 +487,7 @@ export class AuditVerifierService {
       result.receiptsVerified++;
 
       // --since boundary: stop AFTER verifying this commit
-      if (since && current === since) {
+      if (since !== null && current === since) {
         result.stoppedAt = current;
         if (result.errors.length === 0) {
           result.status = STATUS_PARTIAL;
@@ -501,7 +506,7 @@ export class AuditVerifierService {
           return;
         }
         // Reached genesis — if --since was specified but not found, error
-        if (since) {
+        if (since !== null) {
           this._addError(result, 'SINCE_NOT_FOUND',
             `Commit ${since} not found in chain`, null);
           result.status = STATUS_ERROR;
@@ -532,7 +537,7 @@ export class AuditVerifierService {
     }
 
     // If --since was specified but we reached the end without finding it
-    if (since) {
+    if (since !== null) {
       this._addError(result, 'SINCE_NOT_FOUND',
         `Commit ${since} not found in chain`, null);
       result.status = STATUS_ERROR;
@@ -697,7 +702,7 @@ export class AuditVerifierService {
   async _checkTipMoved(ref, result) {
     try {
       const currentTip = await this._persistence.readRef(ref);
-      if (currentTip && currentTip !== result.tipAtStart) {
+      if (typeof currentTip === 'string' && currentTip.length > 0 && currentTip !== result.tipAtStart) {
         result.warnings.push({
           code: 'TIP_MOVED_DURING_VERIFY',
           message: `Ref tip moved from ${result.tipAtStart} to ${currentTip} during verification`,
@@ -717,7 +722,7 @@ export class AuditVerifierService {
    * @private
    */
   _addError(result, code, message, commit) {
-    result.errors.push({ code, message, ...(commit ? { commit } : {}) });
+    result.errors.push({ code, message, ...(typeof commit === 'string' && commit.length > 0 ? { commit } : {}) });
     if (result.status === STATUS_VALID || result.status === STATUS_PARTIAL) {
       result.status = STATUS_ERROR;
     }
@@ -740,7 +745,7 @@ export class AuditVerifierService {
       codec: this._codec,
     });
 
-    const recordsResult = await recordService.readRecords(graphName, options.pin ? { tip: options.pin } : {});
+    const recordsResult = await recordService.readRecords(graphName, (typeof options.pin === 'string' && options.pin.length > 0) ? { tip: options.pin } : {});
     if (!recordsResult.ok) {
       return buildTrustFailureAssessment({
         status: 'error',
@@ -784,11 +789,12 @@ export class AuditVerifierService {
         writerIds: options.writerIds || [],
         recordsScanned: records.length,
         reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
-        reason: `Trust chain invalid: ${chainResult.errors[0]?.error || 'unknown chain error'}`,
+        reason: `Trust chain invalid: ${(typeof chainResult.errors[0]?.error === 'string' && chainResult.errors[0].error.length > 0) ? chainResult.errors[0].error : 'unknown chain error'}`,
       });
     }
 
     const trustState = buildState(records, {
+      /** Verifies a record's cryptographic signature against a public key. */
       signatureVerifier: (record, publicKeyBase64) =>
         this._trustCrypto.verifySignature({
           algorithm: record.signature.alg,
@@ -796,6 +802,7 @@ export class AuditVerifierService {
           signatureBase64: record.signature.sig,
           payload: computeSignaturePayload(record),
         }),
+      /** Computes a fingerprint for a base64-encoded public key. */
       computeKeyFingerprint: (publicKeyBase64) =>
         this._trustCrypto.computeKeyFingerprint(publicKeyBase64),
     });

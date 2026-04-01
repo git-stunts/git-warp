@@ -18,18 +18,27 @@
  * @typedef {{ layout: (graph: ElkGraphInput) => Promise<ElkResult> }} ElkEngine
  */
 
+/** Default node dimensions for missing ELK values. */
+const DEFAULT_WIDTH = 80;
+const DEFAULT_HEIGHT = 40;
+const FALLBACK_GAP = 40;
+const FALLBACK_Y = 20;
+const FALLBACK_X_START = 20;
+
 /** @type {Promise<unknown> | null} */
 let elkPromise = null;
 
 /**
  * Returns (or creates) a singleton ELK instance.
- * @returns {Promise<unknown>} ELK instance
+ * @returns {Promise<ElkEngine>} ELK instance
  */
 function getElk() {
   if (!elkPromise) {
-    elkPromise = import('elkjs/lib/elk.bundled.js').then((mod) => new mod.default());
+    elkPromise = import('elkjs/lib/elk.bundled.js').then(
+      (mod) => /** @type {ElkEngine} */ (new /** @type {{ new(): ElkEngine }} */ (mod.default)()),
+    );
   }
-  return elkPromise;
+  return /** @type {Promise<ElkEngine>} */ (elkPromise);
 }
 
 /**
@@ -42,7 +51,7 @@ export async function runLayout(elkGraph) {
   /** @type {ElkResult | undefined} */
   let result;
   try {
-    const elk = /** @type {ElkEngine} */ (await getElk());
+    const elk = await getElk();
     result = await elk.layout(elkGraph);
   } catch {
     return fallbackLayout(elkGraph);
@@ -51,33 +60,141 @@ export async function runLayout(elkGraph) {
 }
 
 /**
+ * Extracts the first label text from a labels array, or returns the fallback.
+ * @param {Array<{ text: string }> | undefined} labels
+ * @param {string} fallback
+ * @returns {string}
+ */
+function firstLabel(labels, fallback) {
+  if (labels !== undefined && labels !== null && labels.length > 0) {
+    return labels[0].text;
+  }
+  return fallback;
+}
+
+/**
+ * Extracts the first element of an array, or returns the fallback.
+ * @param {string[] | undefined} arr
+ * @param {string} fallback
+ * @returns {string}
+ */
+function firstOrDefault(arr, fallback) {
+  if (arr !== undefined && arr !== null && arr.length > 0) {
+    return arr[0];
+  }
+  return fallback;
+}
+
+/**
+ * Maps an ELK result child to a PosNode.
+ * @param {ElkResultChild} c
+ * @returns {PosNode}
+ */
+function mapChildToNode(c) {
+  return {
+    id: c.id,
+    x: c.x ?? 0,
+    y: c.y ?? 0,
+    width: c.width ?? DEFAULT_WIDTH,
+    height: c.height ?? DEFAULT_HEIGHT,
+    label: firstLabel(c.labels, c.id),
+  };
+}
+
+/**
+ * Maps an ELK result edge to a PosEdge.
+ * @param {ElkResultEdge} e
+ * @returns {PosEdge}
+ */
+function mapResultEdge(e) {
+  return {
+    id: e.id,
+    source: firstOrDefault(e.sources, ''),
+    target: firstOrDefault(e.targets, ''),
+    label: firstLabel(e.labels, undefined),
+    sections: /** @type {LayoutSection[]} */ (e.sections ?? []),
+  };
+}
+
+/**
+ * Returns the children array from an ELK result, defaulting to empty.
+ * @param {ElkResult | undefined} r
+ * @returns {ElkResultChild[]}
+ */
+function resultChildren(r) {
+  return r?.children ?? [];
+}
+
+/**
+ * Returns the edges array from an ELK result, defaulting to empty.
+ * @param {ElkResult | undefined} r
+ * @returns {ElkResultEdge[]}
+ */
+function resultEdges(r) {
+  return r?.edges ?? [];
+}
+
+/**
+ * Returns the width from an ELK result, defaulting to 0.
+ * @param {ElkResult | undefined} r
+ * @returns {number}
+ */
+function resultWidth(r) {
+  return r?.width ?? 0;
+}
+
+/**
+ * Returns the height from an ELK result, defaulting to 0.
+ * @param {ElkResult | undefined} r
+ * @returns {number}
+ */
+function resultHeight(r) {
+  return r?.height ?? 0;
+}
+
+/**
  * Converts ELK output to a PositionedGraph.
  * @param {ElkResult | undefined} result
  * @returns {PositionedGraph}
  */
 function toPositionedGraph(result) {
-  const nodes = (result?.children ?? []).map((c) => ({
-    id: c.id,
-    x: c.x ?? 0,
-    y: c.y ?? 0,
-    width: c.width ?? 80,
-    height: c.height ?? 40,
-    label: c.labels?.[0]?.text ?? c.id,
-  }));
-
-  const edges = (result?.edges ?? []).map((e) => ({
-    id: e.id,
-    source: e.sources?.[0] ?? '',
-    target: e.targets?.[0] ?? '',
-    label: e.labels?.[0]?.text,
-    sections: /** @type {LayoutSection[]} */ (e.sections ?? []),
-  }));
-
   return {
-    nodes,
-    edges,
-    width: result?.width ?? 0,
-    height: result?.height ?? 0,
+    nodes: resultChildren(result).map(mapChildToNode),
+    edges: resultEdges(result).map(mapResultEdge),
+    width: resultWidth(result),
+    height: resultHeight(result),
+  };
+}
+
+/**
+ * Maps a fallback input child to a PosNode with horizontal positioning.
+ * @param {{ id: string, width?: number, height?: number, labels?: Array<{ text: string }> }} c
+ * @param {number} xPos - Horizontal offset for placement
+ * @returns {PosNode}
+ */
+function mapFallbackChild(c, xPos) {
+  return {
+    id: c.id,
+    x: xPos,
+    y: FALLBACK_Y,
+    width: c.width ?? DEFAULT_WIDTH,
+    height: c.height ?? DEFAULT_HEIGHT,
+    label: firstLabel(c.labels, c.id),
+  };
+}
+
+/**
+ * Maps a fallback input edge to a PosEdge.
+ * @param {{ id: string, sources?: string[], targets?: string[], labels?: Array<{ text: string }> }} e
+ * @returns {PosEdge}
+ */
+function mapFallbackEdge(e) {
+  return {
+    id: e.id,
+    source: firstOrDefault(e.sources, ''),
+    target: firstOrDefault(e.targets, ''),
+    label: firstLabel(e.labels, undefined),
+    sections: [],
   };
 }
 
@@ -87,28 +204,14 @@ function toPositionedGraph(result) {
  * @returns {PositionedGraph}
  */
 function fallbackLayout(elkGraph) {
-  let x = 20;
-  const nodes = (elkGraph.children ?? []).map((c) => {
-    const node = {
-      id: c.id,
-      x,
-      y: 20,
-      width: c.width ?? 80,
-      height: c.height ?? 40,
-      label: c.labels?.[0]?.text ?? c.id,
-    };
-    x += (c.width ?? 80) + 40;
+  let x = FALLBACK_X_START;
+  const children = elkGraph.children ?? [];
+  const nodes = children.map((c) => {
+    const node = mapFallbackChild(c, x);
+    x += (c.width ?? DEFAULT_WIDTH) + FALLBACK_GAP;
     return node;
   });
 
-  const edges = (elkGraph.edges ?? []).map((e) => ({
-    id: e.id,
-    source: e.sources?.[0] ?? '',
-    target: e.targets?.[0] ?? '',
-    label: e.labels?.[0]?.text,
-    sections: [],
-  }));
-
-  const totalWidth = x;
-  return { nodes, edges, width: totalWidth, height: 80 };
+  const edges = (elkGraph.edges ?? []).map(mapFallbackEdge);
+  return { nodes, edges, width: x, height: DEFAULT_HEIGHT + FALLBACK_Y + FALLBACK_Y };
 }

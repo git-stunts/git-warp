@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for Git commit operations.
  *
@@ -15,7 +17,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async commitNode(_options) {
-    throw new Error('CommitPort.commitNode() not implemented');
+    throw new WarpError('CommitPort.commitNode() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -25,7 +27,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async showNode(_sha) {
-    throw new Error('CommitPort.showNode() not implemented');
+    throw new WarpError('CommitPort.showNode() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -36,7 +38,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async getNodeInfo(_sha) {
-    throw new Error('CommitPort.getNodeInfo() not implemented');
+    throw new WarpError('CommitPort.getNodeInfo() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -46,7 +48,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async logNodes(_options) {
-    throw new Error('CommitPort.logNodes() not implemented');
+    throw new WarpError('CommitPort.logNodes() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -56,7 +58,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async logNodesStream(_options) {
-    throw new Error('CommitPort.logNodesStream() not implemented');
+    throw new WarpError('CommitPort.logNodesStream() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -66,7 +68,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async countNodes(_ref) {
-    throw new Error('CommitPort.countNodes() not implemented');
+    throw new WarpError('CommitPort.countNodes() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -77,7 +79,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async commitNodeWithTree(_options) {
-    throw new Error('CommitPort.commitNodeWithTree() not implemented');
+    throw new WarpError('CommitPort.commitNodeWithTree() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -87,7 +89,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async nodeExists(_sha) {
-    throw new Error('CommitPort.nodeExists() not implemented');
+    throw new WarpError('CommitPort.nodeExists() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -97,7 +99,7 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async getCommitTree(_sha) {
-    throw new Error('CommitPort.getCommitTree() not implemented');
+    throw new WarpError('CommitPort.getCommitTree() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -106,6 +108,6 @@ export default class CommitPort {
    * @throws {Error} If not implemented by a concrete adapter
    */
   async ping() {
-    throw new Error('CommitPort.ping() not implemented');
+    throw new WarpError('CommitPort.ping() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

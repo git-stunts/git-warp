@@ -28,6 +28,29 @@ const BOX = {
 const MAX_TIMELINE_WIDTH = 40;
 
 /**
+ * Builds the dot-and-line segment of a timeline string.
+ * @param {number} dotCount - Number of dots to render
+ * @param {number} segmentWidth - Character width between dots
+ * @param {number} scaledWidth - Total scaled width
+ * @returns {string} Raw timeline segment with ANSI coloring
+ */
+function buildTimelineSegment(dotCount, segmentWidth, scaledWidth) {
+  let timeline = '';
+  for (let i = 0; i < dotCount; i++) {
+    if (i > 0) {
+      timeline += colors.muted(TIMELINE.line.repeat(segmentWidth));
+    }
+    timeline += colors.primary(TIMELINE.dot);
+  }
+
+  const remaining = scaledWidth - (dotCount * segmentWidth);
+  if (remaining > 0) {
+    timeline += colors.muted(TIMELINE.line.repeat(remaining));
+  }
+  return timeline;
+}
+
+/**
  * Builds a timeline string for a writer based on patch count.
  * @param {number} patchCount - Number of patches
  * @param {number} maxPatches - Maximum patches across all writers (for scaling)
@@ -47,20 +70,7 @@ function buildTimeline(patchCount, maxPatches) {
   // Determine number of dots (max 8 dots for visual clarity)
   const dotCount = Math.min(patchCount, 8);
   const segmentWidth = Math.floor(scaledWidth / dotCount);
-
-  let timeline = '';
-  for (let i = 0; i < dotCount; i++) {
-    if (i > 0) {
-      timeline += colors.muted(TIMELINE.line.repeat(segmentWidth));
-    }
-    timeline += colors.primary(TIMELINE.dot);
-  }
-
-  // Add trailing line
-  const remaining = scaledWidth - (dotCount * segmentWidth);
-  if (remaining > 0) {
-    timeline += colors.muted(TIMELINE.line.repeat(remaining));
-  }
+  const timeline = buildTimelineSegment(dotCount, segmentWidth, scaledWidth);
 
   const patchLabel = patchCount === 1 ? 'patch' : 'patches';
   return `${timeline} ${colors.muted(`(${patchCount} ${patchLabel})`)}`;
@@ -80,6 +90,20 @@ function formatWriterNames(writerIds) {
 }
 
 /**
+ * Builds the writer summary line for a card header.
+ * @param {GraphInfo} graph - Graph info object
+ * @returns {string} Writer summary like "Writers: 3 (alice, bob, carol)"
+ */
+function buildWriterSummaryLine(graph) {
+  const writers = graph.writers ?? { count: 0, ids: [] };
+  const writerCount = writers.count ?? 0;
+  const writerIds = writers.ids ?? [];
+  const writerNames = formatWriterNames(writerIds);
+  const suffix = writerNames.length > 0 ? ` (${writerNames})` : '';
+  return `Writers: ${writerCount}${suffix}`;
+}
+
+/**
  * Renders the header lines for a graph card.
  * @param {GraphInfo} graph - Graph info object
  * @param {number} contentWidth - Available content width
@@ -92,13 +116,7 @@ function renderCardHeader(graph, contentWidth) {
   lines.push(`${BOX.topLeft}${BOX.horizontal.repeat(contentWidth + 2)}${BOX.topRight}`);
   lines.push(`${BOX.vertical} ${padRight(graphName, contentWidth)} ${BOX.vertical}`);
 
-  // Writers summary
-  const writerCount = graph.writers?.count ?? 0;
-  const writerIds = graph.writers?.ids ?? [];
-  const writerNames = formatWriterNames(writerIds);
-  const writerLine = writerNames
-    ? `Writers: ${writerCount} (${writerNames})`
-    : `Writers: ${writerCount}`;
+  const writerLine = buildWriterSummaryLine(graph);
   lines.push(`${BOX.vertical} ${padRight(writerLine, contentWidth)} ${BOX.vertical}`);
 
   return lines;
@@ -136,6 +154,40 @@ function renderWriterTimelines(writerPatches, contentWidth) {
 }
 
 /**
+ * Formats a checkpoint SHA and date into a display string.
+ * @param {string} sha - Full checkpoint SHA
+ * @param {string|Date|undefined} date - Checkpoint date
+ * @returns {string} Formatted checkpoint text with check icon
+ */
+function formatCheckpointPresent(sha, date) {
+  const shortSha = sha.slice(0, 7);
+  const timeStr = date !== null && date !== undefined ? timeAgo(date) : '';
+  const checkIcon = colors.success('\u2713'); // ✓
+  const timePart = typeof timeStr === 'string' && timeStr.length > 0 ? ` (${timeStr})` : '';
+  return `Checkpoint: ${shortSha}${timePart} ${checkIcon}`;
+}
+
+/**
+ * Renders the checkpoint line for a graph card.
+ * @param {GraphInfo} graph - Graph info object
+ * @param {number} contentWidth - Available content width
+ * @returns {string|null} A formatted checkpoint line or null if no checkpoint exists
+ */
+function renderCheckpointLine(graph, contentWidth) {
+  if (!graph.checkpoint) {
+    return null;
+  }
+  const { sha, date } = graph.checkpoint;
+  if (typeof sha === 'string' && sha.length > 0) {
+    const text = formatCheckpointPresent(sha, date);
+    return `${BOX.vertical} ${padRight(text, contentWidth)} ${BOX.vertical}`;
+  }
+  const warnIcon = colors.warning('\u26A0'); // ⚠
+  const noCheckpointLine = `Checkpoint: none ${warnIcon}`;
+  return `${BOX.vertical} ${padRight(noCheckpointLine, contentWidth)} ${BOX.vertical}`;
+}
+
+/**
  * Renders checkpoint and coverage lines for a graph card.
  * @param {GraphInfo} graph - Graph info object
  * @param {number} contentWidth - Available content width
@@ -144,25 +196,13 @@ function renderWriterTimelines(writerPatches, contentWidth) {
 function renderCardStatus(graph, contentWidth) {
   const lines = [];
 
-  // Checkpoint info
-  if (graph.checkpoint) {
-    const { sha, date } = graph.checkpoint;
-    if (sha) {
-      const shortSha = sha.slice(0, 7);
-      const timeStr = date ? timeAgo(date) : '';
-      const checkIcon = colors.success('\u2713'); // ✓
-      const timePart = timeStr ? ` (${timeStr})` : '';
-      const checkpointLine = `Checkpoint: ${shortSha}${timePart} ${checkIcon}`;
-      lines.push(`${BOX.vertical} ${padRight(checkpointLine, contentWidth)} ${BOX.vertical}`);
-    } else {
-      const warnIcon = colors.warning('\u26A0'); // ⚠
-      const noCheckpointLine = `Checkpoint: none ${warnIcon}`;
-      lines.push(`${BOX.vertical} ${padRight(noCheckpointLine, contentWidth)} ${BOX.vertical}`);
-    }
+  const checkpointLine = renderCheckpointLine(graph, contentWidth);
+  if (checkpointLine !== null) {
+    lines.push(checkpointLine);
   }
 
   // Coverage info (if present)
-  if (graph.coverage?.sha) {
+  if (typeof graph.coverage?.sha === 'string' && graph.coverage.sha.length > 0) {
     const shortSha = graph.coverage.sha.slice(0, 7);
     const coverageLine = `Coverage: ${shortSha}`;
     lines.push(`${BOX.vertical} ${padRight(colors.muted(coverageLine), contentWidth)} ${BOX.vertical}`);
@@ -189,59 +229,57 @@ function renderGraphCard(graph, innerWidth) {
 }
 
 /**
+ * Wraps content in a boxen container with the standard WARP GRAPHS styling.
+ * @param {string} content - Content to wrap
+ * @param {string} title - Box title
+ * @returns {string} Boxen-wrapped output with trailing newline
+ */
+function wrapInBox(content, title) {
+  const box = boxen(content, {
+    title,
+    titleAlignment: 'center',
+    padding: 1,
+    borderStyle: 'double',
+    borderColor: 'cyan',
+  });
+  return `${box}\n`;
+}
+
+/**
+ * Builds the card content lines for all graphs.
+ * @param {GraphInfo[]} graphs - Non-empty array of graph info objects
+ * @returns {string} Joined content lines
+ */
+function buildGraphCards(graphs) {
+  const innerWidth = 60;
+  const contentLines = [];
+
+  for (let i = 0; i < graphs.length; i++) {
+    if (i > 0) {
+      contentLines.push('');
+    }
+    contentLines.push(...renderGraphCard(graphs[i], innerWidth));
+  }
+  return contentLines.join('\n');
+}
+
+/**
  * Renders the info view with ASCII box art.
  * @param {{ repo?: string, graphs: GraphInfo[] }} data - Info payload from handleInfo
  * @returns {string} Formatted ASCII output
  */
 export function renderInfoView(data) {
-  if (!data || !data.graphs) {
+  if (data === null || data === undefined || !Array.isArray(data.graphs)) {
     return `${colors.error('No data available')}\n`;
   }
 
   const { graphs } = data;
 
   if (graphs.length === 0) {
-    const content = colors.muted('No WARP graphs found in this repository.');
-    const box = boxen(content, {
-      title: 'WARP GRAPHS',
-      titleAlignment: 'center',
-      padding: 1,
-      borderStyle: 'double',
-      borderColor: 'cyan',
-    });
-    return `${box}\n`;
+    return wrapInBox(colors.muted('No WARP graphs found in this repository.'), 'WARP GRAPHS');
   }
 
-  // Calculate inner width (for consistent card sizing)
-  const innerWidth = 60;
-
-  // Build content
-  const contentLines = [];
-
-  for (let i = 0; i < graphs.length; i++) {
-    const graph = graphs[i];
-    const cardLines = renderGraphCard(graph, innerWidth);
-
-    // Add spacing between cards
-    if (i > 0) {
-      contentLines.push('');
-    }
-
-    contentLines.push(...cardLines);
-  }
-
-  const content = contentLines.join('\n');
-
-  // Wrap in outer box
-  const output = boxen(content, {
-    title: 'WARP GRAPHS IN REPOSITORY',
-    titleAlignment: 'center',
-    padding: 1,
-    borderStyle: 'double',
-    borderColor: 'cyan',
-  });
-
-  return `${output}\n`;
+  return wrapInBox(buildGraphCards(graphs), 'WARP GRAPHS IN REPOSITORY');
 }
 
 export default { renderInfoView };

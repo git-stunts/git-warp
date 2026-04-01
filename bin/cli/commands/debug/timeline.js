@@ -11,6 +11,16 @@ import {
   summarizePatchEntries,
 } from './shared.js';
 
+/**
+ * Returns true if the value is a non-empty string.
+ *
+ * @param {string|null|undefined} value
+ * @returns {value is string}
+ */
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
 /** @typedef {import('../../types.js').CliOptions} CliOptions */
 /** @typedef {import('../../types.js').WarpGraphInstance} WarpGraphInstance */
 /** @typedef {import('../../types.js').CursorBlob} CursorBlob */
@@ -45,6 +55,43 @@ const validateLamportRange = (val) => {
   return Number(floor) <= Number(ceiling);
 };
 
+/**
+ * Coerces an optional string to string or null.
+ *
+ * @param {string|undefined} value
+ * @returns {string|null}
+ */
+function strOrNull(value) {
+  return value ?? null;
+}
+
+/**
+ * Coerces an optional number to number or null.
+ *
+ * @param {number|undefined} value
+ * @returns {number|null}
+ */
+function numOrNull(value) {
+  return value ?? null;
+}
+
+/**
+ * Normalizes parsed Zod values into a timeline coordinate shape.
+ *
+ * @param {{ strand?: string, 'entity-id'?: string, 'writer-id'?: string, 'lamport-floor'?: number, 'lamport-ceiling'?: number, limit?: number }} val
+ * @returns {{ strandId: string|null, entityId: string|null, writerId: string|null, lamportFloor: number|null, lamportCeiling: number|null, limit: number|null }}
+ */
+function normalizeTimelineValues(val) {
+  return {
+    strandId: strOrNull(val.strand),
+    entityId: strOrNull(val['entity-id']),
+    writerId: strOrNull(val['writer-id']),
+    lamportFloor: numOrNull(val['lamport-floor']),
+    lamportCeiling: numOrNull(val['lamport-ceiling']),
+    limit: numOrNull(val.limit),
+  };
+}
+
 const debugTimelineSchema = z.object({
   'strand': z.string().optional(),
   'entity-id': z.string().optional(),
@@ -55,14 +102,7 @@ const debugTimelineSchema = z.object({
 }).strict().refine(validateLamportRange, {
   message: '--lamport-floor must be less than or equal to --lamport-ceiling',
   path: ['lamport-floor'],
-}).transform((val) => ({
-  strandId: val.strand ?? null,
-  entityId: val['entity-id'] ?? null,
-  writerId: val['writer-id'] ?? null,
-  lamportFloor: val['lamport-floor'] ?? null,
-  lamportCeiling: val['lamport-ceiling'] ?? null,
-  limit: val.limit ?? null,
-}));
+}).transform(normalizeTimelineValues);
 
 /**
  * Loads all patches for a specific writer.
@@ -102,21 +142,38 @@ async function loadEntityTimeline({ graph, entityId }) {
  * @returns {Promise<PatchEntry[]>}
  */
 async function loadTimelineEntries({ graph, entityId, writerId }) {
-  if (entityId !== null && entityId !== undefined && entityId !== '') {
+  if (isNonEmptyString(entityId)) {
     const entries = await loadEntityTimeline({ graph, entityId });
-    if (writerId !== null && writerId !== undefined && writerId !== '') {
+    if (isNonEmptyString(writerId)) {
       return entries.filter(({ patch }) => patch.writer === writerId);
     }
     return entries;
   }
 
-  if (writerId !== null && writerId !== undefined && writerId !== '') {
+  if (isNonEmptyString(writerId)) {
     return await loadWriterTimeline({ graph, writerId });
   }
 
   const ids = await graph.discoverWriters();
   const arrays = await Promise.all(ids.map(async (id) => await loadWriterTimeline({ graph, writerId: id })));
   return arrays.flat();
+}
+
+/**
+ * Loads patches for a specific entity within a strand up to an optional ceiling.
+ *
+ * @param {{ graph: WarpGraphInstance, strandId: string, entityId: string, lamportCeiling: number|null }} params
+ * @returns {Promise<PatchEntry[]>}
+ */
+async function loadStrandEntityEntries({ graph, strandId, entityId, lamportCeiling }) {
+  const c = (lamportCeiling !== null && lamportCeiling !== undefined) ? { ceiling: lamportCeiling } : undefined;
+  const shas = await graph.patchesForStrand(strandId, entityId, c);
+  return /** @type {PatchEntry[]} */ (await Promise.all(
+    shas.map(async (sha) => ({
+      sha,
+      patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (await graph.loadPatchBySha(sha)),
+    })),
+  ));
 }
 
 /**
@@ -132,20 +189,10 @@ async function loadTimelineEntries({ graph, entityId, writerId }) {
  * @returns {Promise<PatchEntry[]>}
  */
 async function loadStrandTimelineEntries({ graph, strandId, lamportCeiling, entityId, writerId }) {
-  let entries;
-  if (entityId !== null && entityId !== undefined && entityId !== '') {
-    const c = (lamportCeiling !== null && lamportCeiling !== undefined) ? { ceiling: lamportCeiling } : undefined;
-    const shas = await graph.patchesForStrand(strandId, entityId, c);
-    entries = /** @type {PatchEntry[]} */ (await Promise.all(
-      shas.map(async (sha) => ({
-        sha,
-        patch: /** @type {import('../../../../src/domain/types/WarpTypesV2.js').PatchV2} */ (await graph.loadPatchBySha(sha)),
-      })),
-    ));
-  } else {
-    entries = await getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling);
-  }
-  if (writerId !== null && writerId !== undefined && writerId !== '') {
+  const entries = isNonEmptyString(entityId)
+    ? await loadStrandEntityEntries({ graph, strandId, entityId, lamportCeiling })
+    : await getStrandPatchEntriesForDebug(graph, strandId, lamportCeiling);
+  if (isNonEmptyString(writerId)) {
     return entries.filter(({ patch }) => patch.writer === writerId);
   }
   return entries;
@@ -159,12 +206,41 @@ async function loadStrandTimelineEntries({ graph, strandId, lamportCeiling, enti
  * @returns {PatchEntry[]}
  */
 function filterTimelineEntries(entries, filters) {
-  return entries.filter(({ patch }) => {
-    const lamp = patch.lamport ?? 0;
-    if (filters.lamportFloor !== null && lamp < filters.lamportFloor) { return false; }
-    if (filters.lamportCeiling !== null && lamp > filters.lamportCeiling) { return false; }
-    return true;
-  });
+  return entries.filter(({ patch }) => isWithinLamportRange(patch, filters));
+}
+
+/**
+ * Returns true if the lamport value is at or above the floor.
+ *
+ * @param {number} lamp
+ * @param {number|null} floor
+ * @returns {boolean}
+ */
+function isAboveFloor(lamp, floor) {
+  return floor === null || lamp >= floor;
+}
+
+/**
+ * Returns true if the lamport value is at or below the ceiling.
+ *
+ * @param {number} lamp
+ * @param {number|null} ceiling
+ * @returns {boolean}
+ */
+function isBelowCeiling(lamp, ceiling) {
+  return ceiling === null || lamp <= ceiling;
+}
+
+/**
+ * Checks whether a patch falls within the lamport range.
+ *
+ * @param {{ lamport?: number }} patch
+ * @param {{ lamportFloor: number|null, lamportCeiling: number|null }} filters
+ * @returns {boolean}
+ */
+function isWithinLamportRange(patch, filters) {
+  const lamp = patch.lamport ?? 0;
+  return isAboveFloor(lamp, filters.lamportFloor) && isBelowCeiling(lamp, filters.lamportCeiling);
 }
 
 /**
@@ -217,7 +293,7 @@ function resolveCoordinateSource(ceil, cursor) {
  * @returns {Promise<PatchEntry[]>}
  */
 async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
-  if (values.strandId !== null && values.strandId !== undefined && values.strandId !== '') {
+  if (isNonEmptyString(values.strandId)) {
     return await loadStrandTimelineEntries({
       graph,
       strandId: values.strandId,
@@ -237,7 +313,7 @@ async function resolveTimelineEntries({ graph, values, lamportCeiling }) {
 /**
  * Prepares the payload for the debug timeline result.
  *
- * @param {{ graphName: string, coordinateSource: string, values: any, strand: any, filteredEntries: PatchEntry[], returnedEntries: PatchEntry[], lamportCeiling: number|null }} params
+ * @param {{ graphName: string, coordinateSource: string, values: { strandId: string|null, entityId: string|null, writerId: string|null, lamportFloor: number|null, lamportCeiling: number|null, limit: number|null }, strand: Record<string, unknown>|null, filteredEntries: PatchEntry[], returnedEntries: PatchEntry[], lamportCeiling: number|null }} params
  * @returns {Record<string, unknown>}
  * @private
  */
@@ -246,8 +322,8 @@ function buildDebugTimelinePayload({ graphName, coordinateSource, values, strand
     graph: graphName,
     debugTopic: 'timeline',
     coordinateSource,
-    ...(values.strandId ? { strandId: values.strandId } : {}),
-    ...(strand ? { strand } : {}),
+    ...(isNonEmptyString(values.strandId) ? { strandId: values.strandId } : {}),
+    ...(strand !== null && strand !== undefined ? { strand } : {}),
     filters: {
       entityId: values.entityId,
       writerId: values.writerId,
@@ -274,7 +350,7 @@ export async function handleDebugTopic({ options, args }) {
   const lamportCeiling = resolveLamportCeiling(values.lamportCeiling, activeCursor);
   const entries = await resolveTimelineEntries({ graph, values, lamportCeiling });
 
-  if (entries.length === 0 && values.writerId && !values.strandId) {
+  if (entries.length === 0 && isNonEmptyString(values.writerId) && !isNonEmptyString(values.strandId)) {
     await ensureKnownWriter({ graph, writerId: values.writerId });
   }
 
@@ -286,7 +362,7 @@ export async function handleDebugTopic({ options, args }) {
   );
   const filteredEntries = /** @type {PatchEntry[]} */ (f);
   const returnedEntries = limitTimelineEntries(filteredEntries, values.limit);
-  const strand = (values.strandId) ? await loadStrandContextForDebug(graph, values.strandId) : null;
+  const strand = isNonEmptyString(values.strandId) ? await loadStrandContextForDebug(graph, values.strandId) : null;
 
   return {
     payload: buildDebugTimelinePayload({ graphName, coordinateSource: resolveCoordinateSource(values.lamportCeiling, activeCursor), values, strand, filteredEntries, returnedEntries, lamportCeiling }),

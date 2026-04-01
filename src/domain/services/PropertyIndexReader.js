@@ -10,8 +10,19 @@ import defaultCodec from '../utils/defaultCodec.js';
 import computeShardKey from '../utils/shardKey.js';
 import LRUCache from '../utils/LRUCache.js';
 
+/**
+ * Creates a prototype-less record for safe property storage.
+ * @returns {Record<string, Record<string, unknown>>}
+ */
+function createNullRecord() {
+  /** @type {Record<string, Record<string, unknown>>} */
+  const record = {};
+  return record;
+}
+
 export default class PropertyIndexReader {
   /**
+   * Constructs a PropertyIndexReader with optional storage, codec, and cache size.
    * @param {{ storage?: import('../../ports/IndexStoragePort.js').default, codec?: import('../../ports/CodecPort.js').default, maxCachedShards?: number }} [options]
    */
   constructor({ storage, codec, maxCachedShards = 64 } = /** @type {{ storage?: import('../../ports/IndexStoragePort.js').default, codec?: import('../../ports/CodecPort.js').default, maxCachedShards?: number }} */ ({})) {
@@ -63,6 +74,7 @@ export default class PropertyIndexReader {
   }
 
   /**
+   * Loads and caches a property shard by node ID.
    * @param {string} nodeId
    * @returns {Promise<Record<string, Record<string, unknown>>|null>}
    * @private
@@ -76,29 +88,61 @@ export default class PropertyIndexReader {
       return cached;
     }
 
-    const oid = this._shardOids.get(path);
-    if (!oid) {
+    const oid = this._resolveOid(path);
+    if (oid === null) {
       return null;
     }
 
+    return await this._fetchAndDecode(oid, path);
+  }
+
+  /**
+   * Resolves the blob OID for a shard path, or null if unavailable.
+   * @param {string} path
+   * @returns {string | null}
+   * @private
+   */
+  _resolveOid(path) {
+    const oid = this._shardOids.get(path);
+    if (oid === undefined || oid === null || oid === '') {
+      return null;
+    }
     if (!this._storage) {
       return null;
     }
+    return oid;
+  }
 
+  /**
+   * Fetches a blob by OID, decodes it, and caches the result.
+   * @param {string} oid - Blob OID to read
+   * @param {string} path - Shard path (for error messages and cache key)
+   * @returns {Promise<Record<string, Record<string, unknown>>>}
+   * @private
+   */
+  async _fetchAndDecode(oid, path) {
     const buffer = await /** @type {{ readBlob(oid: string): Promise<Uint8Array|undefined|null> }} */ (this._storage).readBlob(oid);
     if (buffer === null || buffer === undefined) {
       throw new Error(`PropertyIndexReader: missing blob for OID '${oid}' (${path})`);
     }
-    const decoded = this._codec.decode(buffer);
+    const decoded = /** @type {unknown} */ (this._codec.decode(buffer));
+    return this._parseShard(decoded, path);
+  }
 
-    // Shards are stored as array of [nodeId, props] pairs (proto-safe)
+  /**
+   * Parses a decoded shard value into a keyed record and caches it.
+   * @param {unknown} decoded - Decoded CBOR value
+   * @param {string} path - Shard path for cache key and error messages
+   * @returns {Record<string, Record<string, unknown>>}
+   * @private
+   */
+  _parseShard(decoded, path) {
     if (!Array.isArray(decoded)) {
       const shape = decoded === null ? 'null' : typeof decoded;
       throw new Error(`PropertyIndexReader: invalid shard format for '${path}' (expected array, got ${shape})`);
     }
 
-    /** @type {Record<string, Record<string, unknown>>} */
-    const data = Object.create(null);
+    const data = createNullRecord();
     for (const [nid, props] of /** @type {Array<[string, Record<string, unknown>]>} */ (decoded)) {
       data[nid] = props;
     }

@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port for time-related operations.
  *
@@ -11,7 +13,7 @@ export default class ClockPort {
    * @returns {number} Timestamp in milliseconds
    */
   now() {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -20,6 +22,6 @@ export default class ClockPort {
    * @returns {string} ISO 8601 timestamp
    */
   timestamp() {
-    throw new Error('Not implemented');
+    throw new WarpError('Not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

@@ -33,16 +33,36 @@ const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
 /**
- * @typedef {import('../types/WarpTypesV2.js').VisibleStateScopePrefixFilterV1} VisibleStateScopePrefixFilterV1
- * @typedef {import('../types/WarpTypesV2.js').VisibleStateScopeV1} VisibleStateScopeV1
- * @typedef {import('../types/WarpTypesV2.js').VisibleStateReaderV5} VisibleStateReaderV5
- * @typedef {import('../types/WarpTypesV2.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1
- * @typedef {import('../types/WarpTypesV2.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1
- * @typedef {import('../types/WarpTypesV2.js').StrandDescriptorV1} StrandDescriptorV1
- * @typedef {import('../types/WarpTypesV2.js').CoordinateComparisonV1} CoordinateComparisonV1
- * @typedef {import('../types/WarpTypesV2.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
- * @typedef {import('../types/WarpTypesV2.js').InternalCompareCoordinatesOptions} InternalCompareCoordinatesOptions
- * @typedef {import('../types/WarpTypesV2.js').InternalPlanCoordinateTransferOptions} InternalPlanCoordinateTransferOptions
+ * @typedef {import('../../../index.js').VisibleStateScopePrefixFilterV1} VisibleStateScopePrefixFilterV1
+ * @typedef {import('../../../index.js').VisibleStateScopeV1} VisibleStateScopeV1
+ * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
+ * @typedef {import('../../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1
+ * @typedef {import('../../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1
+ * @typedef {import('../../../index.js').StrandDescriptor} StrandDescriptorV1
+ * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
+ * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
+ * @typedef {import('../../../index.js').InternalCompareCoordinatesOptions} InternalCompareCoordinatesOptions
+ * @typedef {import('../../../index.js').InternalPlanCoordinateTransferOptions} InternalPlanCoordinateTransferOptions
+ */
+
+/**
+ * Internal normalized selector shape after validation.
+ *
+ * @typedef {Object} NormalizedSelector
+ * @property {string} kind - Selector kind (live, strand, strand_base, coordinate)
+ * @property {number|null} [ceiling] - Optional lamport ceiling
+ * @property {string} [strandId] - Strand identifier (for strand/strand_base kinds)
+ * @property {Record<string, string>} [frontier] - Frontier record (for coordinate kind)
+ */
+
+/**
+ * Resolved comparison side with state, entries, and metadata.
+ *
+ * @typedef {Object} ResolvedComparisonSide
+ * @property {Record<string, unknown>} requested - Original requested selector
+ * @property {import('../services/JoinReducer.js').WarpStateV5} state - Materialized state
+ * @property {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} patchEntries - Patch entries
+ * @property {Record<string, unknown>} resolved - Resolved metadata with digests
  */
 
 /**
@@ -67,6 +87,18 @@ function normalizeLamportCeiling(value, field) {
   if (value === undefined || value === null) {
     return null;
   }
+  assertValidLamport(value, field);
+  return value;
+}
+
+/**
+ * Asserts that a value is a valid non-negative integer lamport clock.
+ *
+ * @param {unknown} value - Raw value to validate
+ * @param {string} field - Field name for error context
+ * @returns {asserts value is number}
+ */
+function assertValidLamport(value, field) {
   const isInvalid = typeof value !== 'number' || !Number.isInteger(value) || value < 0;
   if (isInvalid) {
     throw new QueryError(`${field} must be a non-negative integer or null`, {
@@ -74,7 +106,6 @@ function normalizeLamportCeiling(value, field) {
       context: { field, value },
     });
   }
-  return value;
 }
 
 /**
@@ -125,9 +156,20 @@ function frontierEntries(frontier) {
   if (frontier instanceof Map) {
     return [...frontier.entries()];
   }
-  const isObject = frontier !== null && frontier !== undefined && typeof frontier === 'object' && !Array.isArray(frontier);
-  if (!isObject) { return null; }
+  if (!isPlainObject(frontier)) {
+    return null;
+  }
   return Object.entries(frontier);
+}
+
+/**
+ * Returns true if value is a non-null, non-array plain object.
+ *
+ * @param {unknown} value - Value to check
+ * @returns {boolean}
+ */
+function isPlainObject(value) {
+  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
@@ -212,6 +254,7 @@ function updateWriterHighestPatch(byWriter, writerId, patchInfo) {
  * @returns {Record<string, string>}
  */
 function patchFrontierFromEntries(entries) {
+  /** @type {Map<string, { lamport: number, sha: string }>} */
   const byWriter = new Map();
   for (const entry of entries) {
     const lamport = entry.patch.lamport ?? 0;
@@ -233,6 +276,7 @@ function patchFrontierFromEntries(entries) {
  * @returns {Record<string, number>}
  */
 function lamportFrontierFromEntries(entries) {
+  /** @type {Map<string, number>} */
   const byWriter = new Map();
   for (const entry of entries) {
     const writerId = entry.patch.writer;
@@ -244,7 +288,7 @@ function lamportFrontierFromEntries(entries) {
   }
 
   const sortedEntries = [...byWriter.entries()].sort(([a], [b]) => compareStrings(a, b));
-  return Object.fromEntries(sortedEntries);
+  return /** @type {Record<string, number>} */ (Object.fromEntries(sortedEntries));
 }
 
 /**
@@ -449,30 +493,74 @@ async function collectPatchEntriesForFrontier(graph, frontierRecord, ceiling) {
  */
 function normalizeSelector(selector, field) {
   const raw = /** @type {Record<string, unknown>} */ (selector);
-  const kind = String(raw?.kind ?? '');
+  const kind = extractSelectorKind(raw);
 
-  if (kind === 'live') {
-    return { kind, ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`) };
+  /** @type {Record<string, (r: Record<string, unknown>, f: string) => Record<string, unknown>>} */
+  const handlers = {
+    live: normalizeLiveSelector,
+    coordinate: normalizeCoordinateSelector,
+  };
+  const handler = handlers[kind];
+  if (handler !== undefined) {
+    return handler(raw, field);
   }
-
   if (kind === 'strand' || kind === 'strand_base') {
-    return {
-      kind,
-      strandId: normalizeRequiredString(raw.strandId, `${field}.strandId`),
-      ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
-    };
+    return normalizeStrandSelector(raw, kind, field);
   }
-
-  if (kind === 'coordinate') {
-    const f = /** @type {Map<string, string>|Record<string, string>} */ (raw.frontier);
-    return {
-      kind,
-      frontier: normalizeFrontierRecord(f, `${field}.frontier`),
-      ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
-    };
-  }
-
   throw new QueryError(`${field}.kind is unsupported`, { code: 'invalid_coordinate', context: { field, kind } });
+}
+
+/**
+ * Extracts the kind string from a raw selector record.
+ *
+ * @param {Record<string, unknown>} raw - Selector record
+ * @returns {string}
+ */
+function extractSelectorKind(raw) {
+  return typeof raw?.kind === 'string' ? raw.kind : '';
+}
+
+/**
+ * Normalizes a 'live' kind selector.
+ *
+ * @param {Record<string, unknown>} raw - Parsed selector record
+ * @param {string} field - Field name for error context
+ * @returns {Record<string, unknown>}
+ */
+function normalizeLiveSelector(raw, field) {
+  return { kind: 'live', ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`) };
+}
+
+/**
+ * Normalizes a 'strand' or 'strand_base' kind selector.
+ *
+ * @param {Record<string, unknown>} raw - Parsed selector record
+ * @param {string} kind - The selector kind
+ * @param {string} field - Field name for error context
+ * @returns {Record<string, unknown>}
+ */
+function normalizeStrandSelector(raw, kind, field) {
+  return {
+    kind,
+    strandId: normalizeRequiredString(raw.strandId, `${field}.strandId`),
+    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+  };
+}
+
+/**
+ * Normalizes a 'coordinate' kind selector.
+ *
+ * @param {Record<string, unknown>} raw - Parsed selector record
+ * @param {string} field - Field name for error context
+ * @returns {Record<string, unknown>}
+ */
+function normalizeCoordinateSelector(raw, field) {
+  const f = /** @type {Map<string, string>|Record<string, string>} */ (raw.frontier);
+  return {
+    kind: 'coordinate',
+    frontier: normalizeFrontierRecord(f, `${field}.frontier`),
+    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+  };
 }
 
 /**
@@ -493,18 +581,18 @@ function optionalCeiling(ceiling) {
  * @returns {Record<string, unknown>}
  */
 function buildStrandMetadata(strandId, descriptor) {
-  const braid = descriptor.braid;
+  const { braid, baseObservation, overlay } = descriptor;
   const readOverlays = braid?.readOverlays ?? [];
 
   return {
     strandId,
-    baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
-    overlayHeadPatchSha: descriptor.overlay.headPatchSha,
-    overlayPatchCount: descriptor.overlay.patchCount,
-    overlayWritable: descriptor.overlay.writable ?? true,
+    baseLamportCeiling: baseObservation.lamportCeiling,
+    overlayHeadPatchSha: overlay.headPatchSha,
+    overlayPatchCount: overlay.patchCount,
+    overlayWritable: overlay.writable ?? true,
     braid: {
       readOverlayCount: readOverlays.length,
-      braidedStrandIds: readOverlays.map((overlay) => overlay.strandId).sort(compareStrings),
+      braidedStrandIds: readOverlays.map((/** @type {{ strandId: string }} */ o) => o.strandId).sort(compareStrings),
     },
   };
 }
@@ -558,7 +646,7 @@ async function finalizeComparisonSide(graph, params, scope) {
  * Resolves the 'live' coordinate side.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @param {Record<string, any>} selector
+ * @param {NormalizedSelector} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<Record<string, unknown>>}
  * @private
@@ -584,7 +672,7 @@ async function resolveLiveComparisonSide(graph, selector, scope) {
  * Resolves an explicit 'coordinate' side.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @param {Record<string, any>} selector
+ * @param {NormalizedSelector} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<Record<string, unknown>>}
  * @private
@@ -608,7 +696,7 @@ async function resolveCoordinateComparisonSide(graph, selector, scope) {
  * Resolves a 'strand' coordinate side.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @param {Record<string, any>} selector
+ * @param {NormalizedSelector} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<Record<string, unknown>>}
  * @private
@@ -640,7 +728,7 @@ async function resolveStrandComparisonSide(graph, selector, scope) {
  * Resolves a 'strand_base' coordinate side.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @param {Record<string, any>} selector
+ * @param {NormalizedSelector} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<Record<string, unknown>>}
  * @private
@@ -674,7 +762,7 @@ async function resolveStrandBaseComparisonSide(graph, selector, scope) {
  * Dispatches coordinate side resolution based on selector kind.
  *
  * @this {import('../WarpRuntime.js').default}
- * @param {Record<string, any>} selector
+ * @param {NormalizedSelector} selector
  * @param {VisibleStateScopeV1|null} scope
  * @returns {Promise<Record<string, unknown>>}
  * @private
@@ -696,10 +784,20 @@ async function resolveComparisonSide(selector, scope = null) {
 }
 
 /**
+ * Checks whether a value is a strand-shaped object with kind 'strand'.
+ *
+ * @param {unknown} value - Value to check
+ * @returns {value is { kind: 'strand', strandId: unknown }}
+ */
+function isStrandObject(value) {
+  return value !== null && typeof value === 'object' && /** @type {Record<string, unknown>} */ (value).kind === 'strand';
+}
+
+/**
  * Normalizes the 'against' option for strand comparison.
  *
  * @param {string} normalizedStrandId
- * @param {any} against
+ * @param {unknown} against
  * @param {number|null} againstCeiling
  * @returns {Record<string, unknown>}
  * @private
@@ -711,9 +809,9 @@ function normalizeAgainstSelector(normalizedStrandId, against, againstCeiling) {
   if (against === 'live') {
     return { kind: 'live', ceiling: againstCeiling };
   }
-  const isStrand = against !== null && typeof against === 'object' && against.kind === 'strand';
-  if (isStrand) {
-    return { kind: 'strand', strandId: normalizeRequiredString(against.strandId, 'against.strandId'), ceiling: againstCeiling };
+  if (isStrandObject(against)) {
+    const obj = /** @type {Record<string, unknown>} */ (against);
+    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'against.strandId'), ceiling: againstCeiling };
   }
   throw new QueryError('against must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }
@@ -772,7 +870,7 @@ async function readContentBlobByOid(graph, oid) {
  * Normalizes the 'into' option for strand transfer.
  *
  * @param {string} normalizedStrandId
- * @param {any} into
+ * @param {unknown} into
  * @param {number|null} intoCeiling
  * @returns {Record<string, unknown>}
  * @private
@@ -784,9 +882,9 @@ function normalizeIntoSelector(normalizedStrandId, into, intoCeiling) {
   if (into === 'live') {
     return { kind: 'live', ceiling: intoCeiling };
   }
-  const isStrand = into !== null && typeof into === 'object' && into.kind === 'strand';
-  if (isStrand) {
-    return { kind: 'strand', strandId: normalizeRequiredString(into.strandId, 'into.strandId'), ceiling: intoCeiling };
+  if (isStrandObject(into)) {
+    const obj = /** @type {Record<string, unknown>} */ (into);
+    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'into.strandId'), ceiling: intoCeiling };
   }
   throw new QueryError('into must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }
@@ -839,8 +937,8 @@ function assertTransferOptions(options) {
  *
  * @param {{
  *   graph: import('../WarpRuntime.js').default,
- *   sourceSide: Record<string, any>,
- *   targetSide: Record<string, any>,
+ *   sourceSide: ResolvedComparisonSide,
+ *   targetSide: ResolvedComparisonSide,
  *   transfer: Awaited<ReturnType<typeof planVisibleStateTransferV5>>,
  *   comparisonDigest: string,
  *   scope: VisibleStateScopeV1|null
@@ -882,8 +980,8 @@ async function finalizeTransferPlan(params) {
  *
  * @this {import('../WarpRuntime.js').default}
  * @param {{
- *   source: Record<string, any>,
- *   target: Record<string, any>,
+ *   source: Record<string, unknown>,
+ *   target: Record<string, unknown>,
  *   scope?: VisibleStateScopeV1|null
  * }} options
  * @returns {Promise<CoordinateTransferPlanV1>}
@@ -894,14 +992,52 @@ export async function planCoordinateTransfer(options) {
   const normalizedSource = normalizeSelector(options.source, 'source');
   const normalizedTarget = normalizeSelector(options.target, 'target');
   const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
-  const comp = await this.compareCoordinates({ left: normalizedSource, right: normalizedTarget, ...(scope ? { scope } : {}) });
-  const sourceSide = await resolveComparisonSide.call(this, normalizedSource, scope);
-  const targetSide = await resolveComparisonSide.call(this, normalizedTarget, scope);
-  const transfer = await planVisibleStateTransferV5(createStateReaderV5(/** @type {any} */ (sourceSide).state), createStateReaderV5(/** @type {any} */ (targetSide).state), {
-    loadNodeContent: async (_nodeId, meta) => await readContentBlobByOid(this, meta.oid),
-    loadEdgeContent: async (_edge, meta) => await readContentBlobByOid(this, meta.oid),
+  const comp = await this.compareCoordinates({ left: normalizedSource, right: normalizedTarget, ...(scope !== null && scope !== undefined ? { scope } : {}) });
+  const sourceSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedSource, scope));
+  const targetSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedTarget, scope));
+  /** Loads node content blob by OID. @type {(nodeId: string, meta: { oid: string }) => Promise<Uint8Array>} */
+  const loadNodeContent = async (_nodeId, meta) => await readContentBlobByOid(this, meta.oid);
+  /** Loads edge content blob by OID. @type {(edge: unknown, meta: { oid: string }) => Promise<Uint8Array>} */
+  const loadEdgeContent = async (_edge, meta) => await readContentBlobByOid(this, meta.oid);
+  const transfer = await planVisibleStateTransferV5(createStateReaderV5(sourceSide.state), createStateReaderV5(targetSide.state), {
+    loadNodeContent,
+    loadEdgeContent,
   });
   return await finalizeTransferPlan({ graph: this, sourceSide, targetSide, transfer, comparisonDigest: comp.comparisonDigest, scope });
+}
+
+/**
+ * Validates and extracts normalized inputs for coordinate comparison.
+ *
+ * @param {{
+ *   left: Record<string, unknown>,
+ *   right: Record<string, unknown>,
+ *   targetId?: string|null,
+ *   scope?: VisibleStateScopeV1|null
+ * }} options - Raw comparison options
+ * @returns {{ normalizedLeft: Record<string, unknown>, normalizedRight: Record<string, unknown>, targetId: string|null, scope: VisibleStateScopeV1|null }}
+ */
+function extractComparisonInputs(options) {
+  assertComparisonOptions(options);
+  return {
+    normalizedLeft: normalizeSelector(options.left, 'left'),
+    normalizedRight: normalizeSelector(options.right, 'right'),
+    targetId: normalizeOptionalString(options.targetId, 'targetId'),
+    scope: normalizeVisibleStateScopeV1(options.scope, 'scope'),
+  };
+}
+
+/**
+ * Asserts that comparison options are a valid object.
+ *
+ * @param {unknown} options - Options to validate
+ * @returns {void}
+ */
+function assertComparisonOptions(options) {
+  const isInvalid = options === null || options === undefined || typeof options !== 'object' || Array.isArray(options);
+  if (isInvalid) {
+    throw new QueryError('compareCoordinates() requires an options object', { code: 'invalid_coordinate' });
+  }
 }
 
 /**
@@ -909,32 +1045,26 @@ export async function planCoordinateTransfer(options) {
  *
  * @this {import('../WarpRuntime.js').default}
  * @param {{
- *   left: Record<string, any>,
- *   right: Record<string, any>,
+ *   left: Record<string, unknown>,
+ *   right: Record<string, unknown>,
  *   targetId?: string|null,
  *   scope?: VisibleStateScopeV1|null
  * }} options
  * @returns {Promise<CoordinateComparisonV1>}
  */
 export async function compareCoordinates(options) {
-  const isInvalid = options === null || options === undefined || typeof options !== 'object' || Array.isArray(options);
-  if (isInvalid) { throw new QueryError('compareCoordinates() requires an options object', { code: 'invalid_coordinate' }); }
+  const { normalizedLeft, normalizedRight, targetId, scope } = extractComparisonInputs(options);
 
-  const normalizedLeft = normalizeSelector(options.left, 'left');
-  const normalizedRight = normalizeSelector(options.right, 'right');
-  const targetId = normalizeOptionalString(options.targetId, 'targetId');
-  const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
-
-  const left = await resolveComparisonSide.call(this, normalizedLeft, scope);
-  const right = await resolveComparisonSide.call(this, normalizedRight, scope);
-  const visiblePatchDivergence = buildPatchDivergence(/** @type {any} */ (left).patchEntries, /** @type {any} */ (right).patchEntries, targetId);
-  const visibleState = compareVisibleStateV5(/** @type {any} */ (left).state, /** @type {any} */ (right).state, { targetId });
+  const left = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedLeft, scope));
+  const right = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedRight, scope));
+  const visiblePatchDivergence = buildPatchDivergence(left.patchEntries, right.patchEntries, targetId);
+  const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
 
   const fact = buildCoordinateComparisonFact({
     comparisonVersion: COORDINATE_COMPARISON_VERSION,
-    ...(scope ? { scope } : {}),
-    left: { requested: /** @type {any} */ (left).requested, resolved: /** @type {any} */ (left).resolved },
-    right: { requested: /** @type {any} */ (right).requested, resolved: /** @type {any} */ (right).resolved },
+    ...(scope !== null && scope !== undefined ? { scope } : {}),
+    left: { requested: left.requested, resolved: left.resolved },
+    right: { requested: right.requested, resolved: right.resolved },
     visiblePatchDivergence,
     visibleState,
   });

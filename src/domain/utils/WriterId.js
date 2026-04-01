@@ -11,10 +11,11 @@
 import { validateWriterId } from './RefLayout.js';
 
 /**
- * Error class for WriterId operations.
+ * Typed error for WriterId generation and resolution failures.
  */
 export class WriterIdError extends Error {
   /**
+   * Constructs a WriterIdError with a code and optional cause.
    * @param {string} code - Error code (e.g., 'CSPRNG_UNAVAILABLE')
    * @param {string} message - Human-readable error message
    * @param {Error} [cause] - Original error that caused this error
@@ -160,35 +161,73 @@ export function generateWriterId({ randomBytes } = {}) {
  * });
  */
 export async function resolveWriterId({ graphName, explicitWriterId, configGet, configSet }) {
-  const key = `warp.writerId.${graphName}`;
-
-  // 1) Explicit wins
   if (explicitWriterId !== null && explicitWriterId !== undefined) {
-    validateWriterId(explicitWriterId); // ref-safe validation
+    validateWriterId(explicitWriterId);
     return explicitWriterId;
   }
 
-  // 2) Load from config
-  let existing;
+  const key = `warp.writerId.${graphName}`;
+  const fromConfig = await loadFromConfig(configGet, key);
+  if (fromConfig !== null) {
+    return fromConfig;
+  }
+
+  return await generateAndPersist(configSet, key);
+}
+
+/**
+ * Attempts to load and validate a writer ID from git config.
+ * Returns the ID if valid, or null if missing/invalid.
+ * @param {(key: string) => Promise<string|null>} configGet
+ * @param {string} key
+ * @returns {Promise<string | null>}
+ */
+async function loadFromConfig(configGet, key) {
+  const existing = await readConfigKey(configGet, key);
+  if (existing === null || existing === undefined || existing === '') {
+    return null;
+  }
+  return tryValidateWriterId(existing) ? existing : null;
+}
+
+/**
+ * Reads a config key, wrapping errors as WriterIdError.
+ * @param {(key: string) => Promise<string|null>} configGet
+ * @param {string} key
+ * @returns {Promise<string|null>}
+ */
+async function readConfigKey(configGet, key) {
   try {
-    existing = await configGet(key);
+    return await configGet(key);
   } catch (e) {
     throw new WriterIdError('CONFIG_READ_FAILED', `Failed to read git config key ${key}`, /** @type {Error|undefined} */ (e));
   }
+}
 
-  if (existing) {
-    try {
-      validateWriterId(existing);
-      return existing;
-    } catch {
-      // Invalid format in config, fall through to regenerate
-    }
+/**
+ * Returns true if the writer ID passes ref-safe validation, false otherwise.
+ * @param {string} id
+ * @returns {boolean}
+ */
+function tryValidateWriterId(id) {
+  try {
+    validateWriterId(id);
+    return true;
+  } catch {
+    return false;
   }
+}
 
-  // 3) Generate & persist
+/**
+ * Generates a fresh writer ID and persists it to config.
+ * @param {(key: string, value: string) => Promise<void>} configSet
+ * @param {string} key
+ * @returns {Promise<string>}
+ */
+async function generateAndPersist(configSet, key) {
   const fresh = generateWriterId();
-  validateWriterId(fresh);           // Should always pass
-  validateWriterIdCanonical(fresh);  // Guaranteed canonical
+  validateWriterId(fresh);
+  validateWriterIdCanonical(fresh);
 
   try {
     await configSet(key, fresh);
