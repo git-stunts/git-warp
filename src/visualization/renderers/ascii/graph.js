@@ -83,8 +83,9 @@ function createGrid(rows, cols) {
  * @param {string} ch
  */
 function writeChar(grid, r, c, ch) {
-  if (r >= 0 && r < grid.length && c >= 0 && c < grid[0].length) {
-    grid[r][c] = ch;
+  const row = grid[r];
+  if (r >= 0 && r < grid.length && row !== undefined && row !== null && c >= 0 && c < row.length) {
+    row[c] = ch;
   }
 }
 
@@ -95,8 +96,9 @@ function writeChar(grid, r, c, ch) {
  * @returns {string}
  */
 function readChar(grid, r, c) {
-  if (r >= 0 && r < grid.length && c >= 0 && c < grid[0].length) {
-    return grid[r][c];
+  const row = grid[r];
+  if (r >= 0 && r < grid.length && row !== undefined && row !== null && c >= 0 && c < row.length) {
+    return row[c] ?? ' ';
   }
   return ' ';
 }
@@ -109,7 +111,7 @@ function readChar(grid, r, c) {
  */
 function writeString(grid, r, c, str) {
   for (let i = 0; i < str.length; i++) {
-    writeChar(grid, r, c + i, str[i]);
+    writeChar(grid, r, c + i, str[i] ?? ' ');
   }
 }
 
@@ -174,8 +176,7 @@ function traceEdge(grid, edge, nodeSet) {
 
   // Arrowhead at the end of the last section
   const lastSection = sections[sections.length - 1];
-  const ep = lastSection.endPoint;
-  if (ep) {
+  if (lastSection !== undefined && lastSection !== null && lastSection.endPoint) {
     drawArrowhead(grid, lastSection, nodeSet);
   }
 
@@ -208,10 +209,12 @@ function buildPointList(section) {
  */
 function drawSegments(grid, points, nodeSet) {
   for (let i = 0; i < points.length - 1; i++) {
-    const r1 = toRow(points[i].y);
-    const c1 = toCol(points[i].x);
-    const r2 = toRow(points[i + 1].y);
-    const c2 = toCol(points[i + 1].x);
+    const p1 = /** @type {Point} */ (points[i]);
+    const p2 = /** @type {Point} */ (points[i + 1]);
+    const r1 = toRow(p1.y);
+    const c1 = toCol(p1.x);
+    const r2 = toRow(p2.y);
+    const c2 = toCol(p2.x);
     drawLine(grid, r1, c1, r2, c2, nodeSet);
   }
 }
@@ -354,10 +357,12 @@ function placeEdgeLabel(grid, sections, label, nodeSet) {
   let midR = 0;
   let midC = 0;
   for (let i = 0; i < allPoints.length - 1; i++) {
-    const r1 = toRow(allPoints[i].y);
-    const c1 = toCol(allPoints[i].x);
-    const r2 = toRow(allPoints[i + 1].y);
-    const c2 = toCol(allPoints[i + 1].x);
+    const ap1 = /** @type {Point} */ (allPoints[i]);
+    const ap2 = /** @type {Point} */ (allPoints[i + 1]);
+    const r1 = toRow(ap1.y);
+    const c1 = toCol(ap1.x);
+    const r2 = toRow(ap2.y);
+    const c2 = toCol(ap2.x);
     const len = Math.abs(r2 - r1) + Math.abs(c2 - c1);
     if (len > bestLen) {
       bestLen = len;
@@ -373,8 +378,9 @@ function placeEdgeLabel(grid, sections, label, nodeSet) {
 
   for (let i = 0; i < trunc.length; i++) {
     const tc = startC + i;
-    if (!isNodeCell(nodeSet, midR, tc)) {
-      writeChar(grid, midR, tc, trunc[i]);
+    const ch = trunc[i];
+    if (ch !== undefined && ch !== null && !isNodeCell(nodeSet, midR, tc)) {
+      writeChar(grid, midR, tc, ch);
     }
   }
 }

@@ -42,6 +42,33 @@ function _assertValidLamport(lamport, commitSha) {
   }
 }
 
+
+/**
+ * @type {ReadonlyArray<[string, string]>}
+ * Maps private Writer fields to PatchBuilderV2 option keys.
+ */
+const _WRITER_OPTIONAL_KEYS = /** @type {const} */ ([
+  ['_codec', 'codec'],
+  ['_logger', 'logger'],
+  ['_onCommitSuccess', 'onCommitSuccess'],
+  ['_blobStorage', 'blobStorage'],
+  ['_patchBlobStorage', 'patchBlobStorage'],
+]);
+
+/**
+ * Copies optional Writer fields to PatchBuilderV2 options.
+ * @param {Record<string, unknown>} writer
+ * @param {Record<string, unknown>} opts
+ */
+function _copyWriterOptionals(writer, opts) {
+  for (const [src, dst] of _WRITER_OPTIONAL_KEYS) {
+    const val = writer[src];
+    if (val !== undefined && val !== null) {
+      opts[dst] = val;
+    }
+  }
+}
+
 /**
  * Writer class for creating and committing patches to a WARP graph.
  *
@@ -55,11 +82,11 @@ export class Writer {
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     validateWriterId(writerId);
-    this._initFields({
+    this._initFields(/** @type {Parameters<Writer['_initFields']>[0]} */ ({
       persistence, graphName, writerId, versionVector,
       getCurrentState, onCommitSuccess, onDeleteWithData,
       codec, logger, blobStorage, patchBlobStorage,
-    });
+    }));
   }
 
   /**
@@ -99,7 +126,7 @@ export class Writer {
    * @returns {string}
    */
   get writerId() {
-    return this._writerId;
+    return /** @type {string} */ (this._writerId);
   }
 
   /**
@@ -107,7 +134,7 @@ export class Writer {
    * @returns {string}
    */
   get graphName() {
-    return this._graphName;
+    return /** @type {string} */ (this._graphName);
   }
 
   /**
@@ -116,8 +143,8 @@ export class Writer {
    * @returns {Promise<string|null>} The tip SHA or null if no commits yet
    */
   async head() {
-    const writerRef = buildWriterRef(this._graphName, this._writerId);
-    return await this._persistence.readRef(writerRef);
+    const writerRef = buildWriterRef(/** @type {string} */ (this._graphName), /** @type {string} */ (this._writerId));
+    return await /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence).readRef(writerRef);
   }
 
   /**
@@ -136,33 +163,35 @@ export class Writer {
    * await patch.commit();
    */
   async beginPatch() {
-    const writerRef = buildWriterRef(this._graphName, this._writerId);
-    const expectedOldHead = await this._persistence.readRef(writerRef);
+    const persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence);
+    const graphName = /** @type {string} */ (this._graphName);
+    const writerId = /** @type {string} */ (this._writerId);
+    const writerRef = buildWriterRef(graphName, writerId);
+    const expectedOldHead = await persistence.readRef(writerRef);
     const lamport = await this._resolveNextLamport(expectedOldHead);
 
-    const builder = new PatchBuilderV2({
-      persistence: this._persistence,
-      graphName: this._graphName,
-      writerId: this._writerId,
-      lamport,
-      versionVector: vvClone(this._versionVector),
-      getCurrentState: this._getCurrentState,
-      expectedParentSha: expectedOldHead,
-      onCommitSuccess: this._onCommitSuccess,
-      onDeleteWithData: this._onDeleteWithData,
-      codec: this._codec,
-      logger: this._logger,
-      blobStorage: this._blobStorage ?? undefined,
-      patchBlobStorage: this._patchBlobStorage ?? undefined,
-    });
+    const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead });
+    const builder = new PatchBuilderV2(builderOpts);
 
-    return new PatchSession({
-      builder,
-      persistence: this._persistence,
-      graphName: this._graphName,
-      writerId: this._writerId,
-      expectedOldHead,
-    });
+    return new PatchSession({ builder, persistence, graphName, writerId, expectedOldHead });
+  }
+
+  /**
+   * Constructs PatchBuilderV2 options from Writer state.
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, expectedParentSha: string|null }} core
+   * @returns {ConstructorParameters<typeof PatchBuilderV2>[0]}
+   * @private
+   */
+  _buildPatchOpts(core) {
+    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
+    const opts = {
+      ...core,
+      versionVector: vvClone(/** @type {import('../crdt/VersionVector.js').VersionVector} */ (this._versionVector)),
+      getCurrentState: /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */ (this._getCurrentState),
+      onDeleteWithData: /** @type {'reject'|'cascade'|'warn'} */ (this._onDeleteWithData),
+    };
+    _copyWriterOptionals(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (this)), opts);
+    return opts;
   }
 
   /**
@@ -175,7 +204,7 @@ export class Writer {
     if (headSha === null || headSha === undefined) {
       return 1;
     }
-    const commitMessage = await this._persistence.showNode(headSha);
+    const commitMessage = await /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (this._persistence).showNode(headSha);
     if (detectMessageKind(commitMessage) !== 'patch') {
       return 1;
     }
