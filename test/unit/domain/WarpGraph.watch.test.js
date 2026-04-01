@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { createGitRepo } from '../../helpers/warpGraphTestUtils.js';
 
@@ -54,7 +54,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toContain('user:alice');
     });
 
@@ -80,7 +80,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toEqual(['user:alice', 'user:bob']);
       expect(diff.nodes.added).not.toContain('order:123');
     });
@@ -105,7 +105,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.removed).toContain('user:alice');
       expect(diff.nodes.removed).not.toContain('order:123');
     });
@@ -124,7 +124,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.edges.added).toContainEqual({
         from: 'user:alice',
         to: 'order:123',
@@ -144,7 +144,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.edges.added).toContainEqual({
         from: 'order:123',
         to: 'user:alice',
@@ -184,7 +184,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.props.set.some((/** @type {any} */ p) => p.nodeId === 'user:alice' && p.propKey === 'name')).toBe(true);
     });
 
@@ -219,7 +219,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('order:123');
     });
@@ -235,7 +235,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toEqual(['user:alice']);
     });
 
@@ -250,7 +250,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toContain('user:alice');
       expect(diff.nodes.added).toContain('order:123');
     });
@@ -267,7 +267,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toEqual(['user:alice:profile']);
     });
 
@@ -283,7 +283,7 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       await graph.materialize();
 
       expect(onChange).toHaveBeenCalledTimes(1);
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toEqual(['user.(test)alice']);
     });
   });
@@ -432,8 +432,8 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       expect(userHandler).toHaveBeenCalledTimes(1);
       expect(orderHandler).toHaveBeenCalledTimes(1);
 
-      const userDiff = userHandler.mock.calls[0][0];
-      const orderDiff = orderHandler.mock.calls[0][0];
+      const userDiff = /** @type {any} */ (userHandler.mock.calls[0])[0];
+      const orderDiff = /** @type {any} */ (orderHandler.mock.calls[0])[0];
 
       expect(userDiff.nodes.added).toEqual(['user:alice']);
       expect(orderDiff.nodes.added).toEqual(['order:123']);
@@ -456,11 +456,11 @@ describe('WarpRuntime.watch() (PL/WATCH/1)', () => {
       expect(subscribeHandler).toHaveBeenCalledTimes(1);
 
       // Watch only sees user
-      const watchDiff = watchHandler.mock.calls[0][0];
+      const watchDiff = /** @type {any} */ (watchHandler.mock.calls[0])[0];
       expect(watchDiff.nodes.added).toEqual(['user:alice']);
 
       // Subscribe sees everything
-      const subscribeDiff = subscribeHandler.mock.calls[0][0];
+      const subscribeDiff = /** @type {any} */ (subscribeHandler.mock.calls[0])[0];
       expect(subscribeDiff.nodes.added).toContain('user:alice');
       expect(subscribeDiff.nodes.added).toContain('order:123');
     });
@@ -725,7 +725,7 @@ describe('WarpRuntime.watch() polling (PL/WATCH/2)', () => {
       expect(hasFrontierChangedSpy).toHaveBeenCalled();
       expect(materializeSpy).toHaveBeenCalled();
       expect(onChange).toHaveBeenCalled();
-      const diff = onChange.mock.calls[0][0];
+      const diff = /** @type {any} */ (onChange.mock.calls[0])[0];
       expect(diff.nodes.added).toContain('user:bob');
 
       unsubscribe();
