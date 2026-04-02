@@ -15,6 +15,7 @@ import WarpError from './WarpError.js';
  * | `E_SYNC_REMOTE` | Remote server returned a 5xx error |
  * | `E_SYNC_PROTOCOL` | Protocol violation: 4xx, invalid JSON, or malformed response |
  * | `E_SYNC_PAYLOAD_INVALID` | Sync payload failed shape/resource-limit validation (B64) |
+ * | `E_SYNC_DIVERGENCE` | Writer chains have diverged (no common ancestor) |
  * | `SYNC_ERROR` | Generic/default sync error |
  *
  * @class SyncError
