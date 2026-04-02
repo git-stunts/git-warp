@@ -117,9 +117,6 @@ describe('GitGraphAdapter coverage', () => {
         `100644 blob cafebabe01234567890123456789012345678901\tfile_b.json\0`
       );
 
-      const mockStream = {
-        collect: vi.fn(),
-      };
       // First call returns content for file_a, second for file_b
       let callCount = 0;
       mockPlumbing.executeStream.mockImplementation(async () => {

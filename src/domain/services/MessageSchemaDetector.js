@@ -165,7 +165,7 @@ export function detectMessageKind(message) {
       /** @type {unknown} */ (getCodec())
     );
     const decoded = codec.decode(message);
-    const trailerKey = /** @type {string} */ (TRAILER_KEYS.kind);
+    const trailerKey = /** @type {string} */ (TRAILER_KEYS['kind']);
     /** @type {string|undefined} */
     const kind = decoded.trailers[trailerKey];
 

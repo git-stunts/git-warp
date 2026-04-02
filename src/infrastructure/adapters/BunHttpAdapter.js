@@ -223,7 +223,11 @@ export default class BunHttpAdapter extends HttpServerPort {
 
     return {
       /** Starts listening on the given port. */
-      listen: (port, host, callback) => bunListenImpl({ state, fetchHandler }, { port, host, callback }),
+      listen: (port, host, callback) => bunListenImpl({ state, fetchHandler }, {
+        port,
+        ...(host !== undefined ? { host } : {}),
+        ...(callback !== undefined ? { callback } : {}),
+      }),
       /** Stops the server. */
       close: (callback) => stopServer(state, callback),
       /** Returns the bound address. */

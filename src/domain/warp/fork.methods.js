@@ -82,7 +82,7 @@ export async function fork({ from, at, forkName, forkWriterId }) {
     const writerRef = buildWriterRef(this._graphName, from);
     const tipSha = await this._persistence.readRef(writerRef);
 
-    if (!tipSha) {
+    if (tipSha === null || tipSha === undefined || tipSha === '') {
       throw new ForkError(`Writer '${from}' has no commits`, {
         code: 'E_FORK_WRITER_NOT_FOUND',
         context: { writerId: from },
@@ -121,7 +121,7 @@ export async function fork({ from, at, forkName, forkWriterId }) {
     }
 
     // 6. Generate or validate fork writer ID
-    const resolvedForkWriterId = forkWriterId || generateWriterId();
+    const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId();
     try {
       validateWriterId(resolvedForkWriterId);
     } catch (err) {
@@ -145,10 +145,10 @@ export async function fork({ from, at, forkName, forkWriterId }) {
       writerId: resolvedForkWriterId,
       gcPolicy: this._gcPolicy,
       adjacencyCacheSize: this._adjacencyCache?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
-      checkpointPolicy: this._checkpointPolicy || undefined,
+      ...(this._checkpointPolicy ? { checkpointPolicy: this._checkpointPolicy } : {}),
       autoMaterialize: this._autoMaterialize,
       onDeleteWithData: this._onDeleteWithData,
-      logger: this._logger || undefined,
+      ...(this._logger ? { logger: this._logger } : {}),
       clock: this._clock,
       crypto: this._crypto,
       codec: this._codec,
@@ -238,10 +238,11 @@ export async function _isAncestor(ancestorSha, descendantSha) {
     return true;
   }
 
+  /** @type {string | null} */
   let cur = descendantSha;
   const MAX_WALK = 100_000;
   let steps = 0;
-  while (cur) {
+  while (cur !== null) {
     if (++steps > MAX_WALK) {
       throw new Error(`_isAncestor: exceeded ${MAX_WALK} steps — possible cycle`);
     }
@@ -291,12 +292,12 @@ export async function _relationToCheckpointHead(ckHead, incomingSha) {
  * @private
  */
 export async function _validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint) {
-  if (!checkpoint || (checkpoint.schema !== 2 && checkpoint.schema !== 3)) {
+  if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== 2 && checkpoint.schema !== 3)) {
     return;
   }
 
   const ckHead = checkpoint.frontier?.get(writerId);
-  if (!ckHead) {
+  if (ckHead === undefined || ckHead === null || ckHead === '') {
     return;  // Checkpoint didn't include this writer
   }
 

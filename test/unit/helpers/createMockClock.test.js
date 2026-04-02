@@ -14,7 +14,7 @@ describe('createMockClock', () => {
     const clock = createMockClock(10);
 
     // Call now() to advance the clock
-    const nowValue = clock.now(); // returns 1000, advances to 1010
+    clock.now(); // returns 1000, advances to 1010
 
     // timestamp() should reflect the current time, NOT the advanced time
     const ts = clock.timestamp();

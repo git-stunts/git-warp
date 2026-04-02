@@ -27,16 +27,14 @@ describe('ASCII graph renderer', () => {
       ],
       edges: [
         {
-          id: 'e0', source: 'a', target: 'b', label: undefined,
-          sections: [{
+          id: 'e0', source: 'a', target: 'b',          sections: [{
             startPoint: { x: 100, y: 40 },
             endPoint: { x: 40, y: 120 },
             bendPoints: [{ x: 100, y: 80 }, { x: 40, y: 80 }],
           }],
         },
         {
-          id: 'e1', source: 'a', target: 'c', label: undefined,
-          sections: [{
+          id: 'e1', source: 'a', target: 'c',          sections: [{
             startPoint: { x: 140, y: 40 },
             endPoint: { x: 200, y: 120 },
             bendPoints: [{ x: 140, y: 80 }, { x: 200, y: 80 }],

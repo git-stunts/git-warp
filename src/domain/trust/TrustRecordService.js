@@ -88,9 +88,9 @@ export class TrustRecordService {
     const ref = buildTrustRecordRef(graphName);
     const { tipSha, recordId: currentTip } = await this._readTip(ref);
 
-    if (record.prev !== currentTip) {
+    if (record['prev'] !== currentTip) {
       throw new TrustError(
-        `Prev-link mismatch: record.prev=${record.prev}, chain tip=${currentTip}`,
+        `Prev-link mismatch: record.prev=${record['prev']}, chain tip=${currentTip}`,
         { code: 'E_TRUST_PREV_MISMATCH' },
       );
     }
@@ -154,7 +154,7 @@ export class TrustRecordService {
         if (info.parents.length === 0) {
           break;
         }
-        current = info.parents[0];
+        current = info.parents[0] ?? '';
       }
 
       return { ok: true, records };
@@ -185,6 +185,9 @@ export class TrustRecordService {
 
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
+      if (record === null || record === undefined) {
+        continue;
+      }
 
       // Schema validation
       const parsed = TrustRecordSchema.safeParse(record);
@@ -199,22 +202,23 @@ export class TrustRecordService {
       }
 
       // Duplicate detection
-      if (seenIds.has(record.recordId)) {
-        errors.push({ index: i, error: `Duplicate recordId: ${record.recordId}` });
+      if (seenIds.has(record['recordId'])) {
+        errors.push({ index: i, error: `Duplicate recordId: ${record['recordId']}` });
       }
-      seenIds.add(record.recordId);
+      seenIds.add(record['recordId']);
 
       // Prev-link check
       if (i === 0) {
-        if (record.prev !== null) {
-          errors.push({ index: i, error: `Genesis record must have prev=null, got ${JSON.stringify(record.prev)}` });
+        if (record['prev'] !== null) {
+          errors.push({ index: i, error: `Genesis record must have prev=null, got ${JSON.stringify(record['prev'])}` });
         }
       } else {
-        const expectedPrev = records[i - 1].recordId;
-        if (record.prev !== expectedPrev) {
+        const prevRecord = records[i - 1];
+        const expectedPrev = prevRecord !== null && prevRecord !== undefined ? prevRecord['recordId'] : null;
+        if (record['prev'] !== expectedPrev) {
           errors.push({
             index: i,
-            error: `Prev-link mismatch: expected ${expectedPrev}, got ${record.prev}`,
+            error: `Prev-link mismatch: expected ${expectedPrev}, got ${record['prev']}`,
           });
         }
       }
@@ -260,7 +264,7 @@ export class TrustRecordService {
         }
 
         // Rebuild: re-read chain tip, update prev pointer
-        const freshTipRecordId = err.context?.actualTipRecordId ?? null;
+        const freshTipRecordId = err.context?.['actualTipRecordId'] ?? null;
 
         // Update prev to the new chain tip's recordId
         currentRecord = { ...currentRecord, prev: freshTipRecordId };
@@ -288,9 +292,9 @@ export class TrustRecordService {
    * @private
    */
   _verifySignatureEnvelope(record) {
-    const sig = /** @type {Record<string, unknown>|undefined} */ (record.signature);
-    const sigField = /** @type {string|undefined} */ (sig?.sig);
-    const algField = /** @type {string|undefined} */ (sig?.alg);
+    const sig = /** @type {Record<string, unknown>|undefined} */ (record['signature']);
+    const sigField = /** @type {string|undefined} */ (sig?.['sig']);
+    const algField = /** @type {string|undefined} */ (sig?.['alg']);
     if (sig === null || sig === undefined || sigField === undefined || algField === undefined) {
       throw new TrustError(
         'Trust record missing or malformed signature',
@@ -324,7 +328,7 @@ export class TrustRecordService {
     }
 
     const record = /** @type {Record<string, unknown>} */ (this._codec.decode(await this._persistence.readBlob(blobOid)));
-    return { tipSha, recordId: /** @type {string|null} */ (record.recordId) ?? null };
+    return { tipSha, recordId: /** @type {string|null} */ (record['recordId']) ?? null };
   }
 
   /**
@@ -352,8 +356,8 @@ export class TrustRecordService {
     const treeOid = await this._persistence.writeTree([`100644 blob ${blobOid}\trecord.cbor`]);
 
     const parents = parentSha !== null && parentSha !== undefined ? [parentSha] : [];
-    const rType = typeof record.recordType === 'string' ? String(record.recordType) : '';
-    const rId = typeof record.recordId === 'string' ? String(record.recordId).slice(0, 12) : '';
+    const rType = typeof record['recordType'] === 'string' ? String(record['recordType']) : '';
+    const rId = typeof record['recordId'] === 'string' ? String(record['recordId']).slice(0, 12) : '';
     const message = `trust: ${rType} ${rId}`;
 
     const commitSha = await this._persistence.commitNodeWithTree({

@@ -92,7 +92,7 @@ function validateReceiptSchema(receipt) {
   if (receipt === null || receipt === undefined || typeof receipt !== 'object') {
     return 'receipt is not an object';
   }
-  const rec = /** @type {Record<string, unknown>} */ (receipt);
+  const rec = /** @type {{ version?: unknown, graphName?: unknown, writerId?: unknown, dataCommit?: unknown, opsDigest?: unknown, prevAuditCommit?: unknown, tickStart?: unknown, tickEnd?: unknown, timestamp?: unknown }} */ (receipt);
   const keys = Object.keys(rec);
   if (keys.length !== 9) {
     return `expected 9 fields, got ${keys.length}`;
@@ -106,35 +106,35 @@ function validateReceiptSchema(receipt) {
       return `missing field: ${k}`;
     }
   }
-  if (rec.version !== 1) {
-    return `unsupported version: ${rec.version}`;
+  if (rec['version'] !== 1) {
+    return `unsupported version: ${rec['version']}`;
   }
-  if (typeof rec.graphName !== 'string' || rec.graphName.length === 0) {
+  if (typeof rec['graphName'] !== 'string' || rec['graphName'].length === 0) {
     return 'graphName must be a non-empty string';
   }
-  if (typeof rec.writerId !== 'string' || rec.writerId.length === 0) {
+  if (typeof rec['writerId'] !== 'string' || rec['writerId'].length === 0) {
     return 'writerId must be a non-empty string';
   }
-  if (typeof rec.dataCommit !== 'string') {
+  if (typeof rec['dataCommit'] !== 'string') {
     return 'dataCommit must be a string';
   }
-  if (typeof rec.opsDigest !== 'string') {
+  if (typeof rec['opsDigest'] !== 'string') {
     return 'opsDigest must be a string';
   }
-  if (typeof rec.prevAuditCommit !== 'string') {
+  if (typeof rec['prevAuditCommit'] !== 'string') {
     return 'prevAuditCommit must be a string';
   }
-  if (!Number.isInteger(rec.tickStart) || /** @type {number} */ (rec.tickStart) < 1) {
-    return `tickStart must be integer >= 1, got ${rec.tickStart}`;
+  if (!Number.isInteger(rec['tickStart']) || /** @type {number} */ (rec['tickStart']) < 1) {
+    return `tickStart must be integer >= 1, got ${rec['tickStart']}`;
   }
-  if (!Number.isInteger(rec.tickEnd) || /** @type {number} */ (rec.tickEnd) < /** @type {number} */ (rec.tickStart)) {
-    return `tickEnd must be integer >= tickStart, got ${rec.tickEnd}`;
+  if (!Number.isInteger(rec['tickEnd']) || /** @type {number} */ (rec['tickEnd']) < /** @type {number} */ (rec['tickStart'])) {
+    return `tickEnd must be integer >= tickStart, got ${rec['tickEnd']}`;
   }
-  if (rec.version === 1 && rec.tickStart !== rec.tickEnd) {
-    return `v1 requires tickStart === tickEnd, got ${rec.tickStart} !== ${rec.tickEnd}`;
+  if (rec['version'] === 1 && rec['tickStart'] !== rec['tickEnd']) {
+    return `v1 requires tickStart === tickEnd, got ${rec['tickStart']} !== ${rec['tickEnd']}`;
   }
-  if (!Number.isInteger(rec.timestamp) || /** @type {number} */ (rec.timestamp) < 0) {
-    return `timestamp must be non-negative integer, got ${rec.timestamp}`;
+  if (!Number.isInteger(rec['timestamp']) || /** @type {number} */ (rec['timestamp']) < 0) {
+    return `timestamp must be non-negative integer, got ${rec['timestamp']}`;
   }
   return null;
 }
@@ -324,7 +324,9 @@ export class AuditVerifierService {
 
     const chains = [];
     for (const writerId of writerIds.sort()) {
-      const result = await this.verifyChain(graphName, writerId, { since: options.since });
+      const result = await this.verifyChain(graphName, writerId, {
+        ...(options.since !== undefined ? { since: options.since } : {}),
+      });
       chains.push(result);
     }
 
@@ -583,6 +585,11 @@ export class AuditVerifierService {
 
     // Read blob
     const blobOid = treeEntries['receipt.cbor'];
+    if (blobOid === undefined) {
+      this._addError(result, 'MISSING_RECEIPT_BLOB',
+        'receipt.cbor entry missing from audit tree', commitSha);
+      return null;
+    }
     let blobContent;
     try {
       blobContent = await this._persistence.readBlob(blobOid);
@@ -751,7 +758,7 @@ export class AuditVerifierService {
         status: 'error',
         source,
         sourceDetail,
-        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
+        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
         reason: `Trust chain read failed: ${recordsResult.error.message}`,
       });
     }
@@ -788,7 +795,7 @@ export class AuditVerifierService {
         sourceDetail,
         writerIds: options.writerIds || [],
         recordsScanned: records.length,
-        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
+        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
         reason: `Trust chain invalid: ${(typeof chainResult.errors[0]?.error === 'string' && chainResult.errors[0].error.length > 0) ? chainResult.errors[0].error : 'unknown chain error'}`,
       });
     }

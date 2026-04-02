@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
-import { createVersionVector, vvClone } from '../../../../src/domain/crdt/VersionVector.js';
+import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
@@ -53,9 +53,10 @@ describe('PatchBuilderV2', () => {
       expect(patch.writer).toBe('writer1');
       expect(patch.lamport).toBe(1);
       expect(patch.ops).toHaveLength(1);
-      expect(patch.ops[0].type).toBe('NodeAdd');
-      expect(/** @type {any} */ (patch.ops[0]).node).toBe('x');
-      expect(/** @type {any} */ (patch.ops[0]).dot).toEqual({ writerId: 'writer1', counter: 1 });
+      const op0 = /** @type {{ type: string, node: string, dot: unknown }} */ (patch.ops[0]);
+      expect(op0.type).toBe('NodeAdd');
+      expect(op0.node).toBe('x');
+      expect(op0.dot).toEqual({ writerId: 'writer1', counter: 1 });
     });
 
     it('returns this for chaining', () => {
@@ -89,10 +90,11 @@ describe('PatchBuilderV2', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      expect(patch.ops[0].type).toBe('NodeRemove');
-      expect(/** @type {any} */ (patch.ops[0]).node).toBe('x');
+      const op0 = /** @type {{ type: string, node: string, observedDots: unknown }} */ (patch.ops[0]);
+      expect(op0.type).toBe('NodeRemove');
+      expect(op0.node).toBe('x');
       // orsetGetDots returns already-encoded dots (strings like "writerId:counter")
-      expect(/** @type {any} */ (patch.ops[0]).observedDots).toEqual(['otherWriter:5']);
+      expect(op0.observedDots).toEqual(['otherWriter:5']);
     });
 
     it('includes multiple observed dots when node has multiple adds', () => {
@@ -144,11 +146,12 @@ describe('PatchBuilderV2', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      expect(patch.ops[0].type).toBe('EdgeAdd');
-      expect(/** @type {any} */ (patch.ops[0]).from).toBe('a');
-      expect(/** @type {any} */ (patch.ops[0]).to).toBe('b');
-      expect(/** @type {any} */ (patch.ops[0]).label).toBe('follows');
-      expect(/** @type {any} */ (patch.ops[0]).dot).toEqual({ writerId: 'writer1', counter: 1 });
+      const op0 = /** @type {{ type: string, from: string, to: string, label: string, dot: unknown }} */ (patch.ops[0]);
+      expect(op0.type).toBe('EdgeAdd');
+      expect(op0.from).toBe('a');
+      expect(op0.to).toBe('b');
+      expect(op0.label).toBe('follows');
+      expect(op0.dot).toEqual({ writerId: 'writer1', counter: 1 });
     });
 
     it('creates EdgeRemove operation with observedDots from state', () => {
@@ -168,12 +171,13 @@ describe('PatchBuilderV2', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      expect(patch.ops[0].type).toBe('EdgeRemove');
-      expect(/** @type {any} */ (patch.ops[0]).from).toBe('a');
-      expect(/** @type {any} */ (patch.ops[0]).to).toBe('b');
-      expect(/** @type {any} */ (patch.ops[0]).label).toBe('follows');
+      const op0 = /** @type {{ type: string, from: string, to: string, label: string, observedDots: unknown }} */ (patch.ops[0]);
+      expect(op0.type).toBe('EdgeRemove');
+      expect(op0.from).toBe('a');
+      expect(op0.to).toBe('b');
+      expect(op0.label).toBe('follows');
       // orsetGetDots returns already-encoded dots (strings like "writerId:counter")
-      expect(/** @type {any} */ (patch.ops[0]).observedDots).toEqual(['otherWriter:3']);
+      expect(op0.observedDots).toEqual(['otherWriter:3']);
     });
 
     it('addEdge returns this for chaining', () => {
@@ -212,12 +216,13 @@ describe('PatchBuilderV2', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(1);
-      expect(patch.ops[0].type).toBe('PropSet');
-      expect(/** @type {any} */ (patch.ops[0]).node).toBe('x');
-      expect(/** @type {any} */ (patch.ops[0]).key).toBe('name');
-      expect(/** @type {any} */ (patch.ops[0]).value).toBe('Alice');
+      const op0 = /** @type {{ type: string, node: string, key: string, value: unknown, dot: unknown }} */ (patch.ops[0]);
+      expect(op0.type).toBe('PropSet');
+      expect(op0.node).toBe('x');
+      expect(op0.key).toBe('name');
+      expect(op0.value).toBe('Alice');
       // PropSet should NOT have a dot field
-      expect(/** @type {any} */ (patch.ops[0]).dot).toBeUndefined();
+      expect(op0.dot).toBeUndefined();
     });
 
     it('does not increment version vector for props', () => {
@@ -476,7 +481,7 @@ describe('PatchBuilderV2', () => {
       builder.addNode('x');
 
       expect(builder.ops).toHaveLength(1);
-      expect(builder.ops[0].type).toBe('NodeAdd');
+      expect(/** @type {{ type: string }} */ (builder.ops[0]).type).toBe('NodeAdd');
     });
 
     it('returns empty array when no operations', () => {
@@ -517,11 +522,11 @@ describe('PatchBuilderV2', () => {
 
       const patch = builder.build();
       expect(patch.ops).toHaveLength(5);
-      expect(patch.ops[0].type).toBe('NodeAdd');
-      expect(patch.ops[1].type).toBe('EdgeAdd');
-      expect(patch.ops[2].type).toBe('PropSet');
-      expect(patch.ops[3].type).toBe('EdgeRemove');
-      expect(patch.ops[4].type).toBe('NodeRemove');
+      expect(/** @type {{ type: string }} */ (patch.ops[0]).type).toBe('NodeAdd');
+      expect(/** @type {{ type: string }} */ (patch.ops[1]).type).toBe('EdgeAdd');
+      expect(/** @type {{ type: string }} */ (patch.ops[2]).type).toBe('PropSet');
+      expect(/** @type {{ type: string }} */ (patch.ops[3]).type).toBe('EdgeRemove');
+      expect(/** @type {{ type: string }} */ (patch.ops[4]).type).toBe('NodeRemove');
     });
 
     it('supports method chaining for all operations', () => {

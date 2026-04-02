@@ -68,7 +68,7 @@ const CONTENT_ANCHOR_BATCH_SIZE = 256;
 async function writeIndexSubtree(indexTree, persistence) {
   const paths = Object.keys(indexTree).sort();
   const oids = await Promise.all(
-    paths.map((p) => persistence.writeBlob(indexTree[p]))
+    paths.map((p) => persistence.writeBlob(/** @type {Uint8Array} */ (indexTree[p])))
   );
 
   const entries = paths.map(
@@ -128,8 +128,8 @@ function mergeSortedUniqueStrings(existing, incoming) {
   let j = 0;
 
   while (i < existing.length && j < incoming.length) {
-    const left = existing[i];
-    const right = incoming[j];
+    const left = /** @type {string} */ (existing[i]);
+    const right = /** @type {string} */ (incoming[j]);
     if (left === right) {
       merged.push(left);
       i++;
@@ -146,10 +146,10 @@ function mergeSortedUniqueStrings(existing, incoming) {
   }
 
   while (i < existing.length) {
-    merged.push(existing[i++]);
+    merged.push(/** @type {string} */ (existing[i++]));
   }
   while (j < incoming.length) {
-    merged.push(incoming[j++]);
+    merged.push(/** @type {string} */ (incoming[j++]));
   }
 
   return merged;
@@ -168,6 +168,7 @@ function collectContentAnchorEntries(propMap) {
   /** @type {Set<string>} */
   let batch = new Set();
 
+  /** Flush the current batch into the sorted anchor list. */
   const flushBatch = () => {
     if (batch.size === 0) {
       return;
@@ -220,7 +221,13 @@ function collectContentAnchorEntries(propMap) {
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto, indexTree }) {
-  return await createV5({ persistence, graphName, state, frontier, parents, compact, provenanceIndex, codec, crypto, indexTree });
+  /** @type {Parameters<typeof createV5>[0]} */
+  const opts = { persistence, graphName, state, frontier, parents, compact };
+  if (provenanceIndex !== undefined && provenanceIndex !== null) { opts.provenanceIndex = provenanceIndex; }
+  if (codec !== undefined && codec !== null) { opts.codec = codec; }
+  if (crypto !== undefined && crypto !== null) { opts.crypto = crypto; }
+  if (indexTree !== undefined && indexTree !== null) { opts.indexTree = indexTree; }
+  return await createV5(opts);
 }
 
 /**
@@ -264,14 +271,15 @@ export async function createV5({
   }
 
   // 3. Serialize full state (AUTHORITATIVE)
-  const stateBuffer = serializeFullStateV5(checkpointState, { codec });
+  const codecOpt = codec !== undefined && codec !== null ? { codec } : {};
+  const stateBuffer = serializeFullStateV5(checkpointState, codecOpt);
 
   // 4. Compute state hash
-  const stateHash = await computeStateHashV5(checkpointState, { codec, crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto) });
+  const stateHash = await computeStateHashV5(checkpointState, { ...codecOpt, crypto: /** @type {import('../../ports/CryptoPort.js').default} */ (crypto) });
 
   // 5. Serialize frontier and appliedVV
-  const frontierBuffer = serializeFrontier(frontier, { codec: /** @type {import('../../ports/CodecPort.js').default} */ (codec) });
-  const appliedVVBuffer = serializeAppliedVV(appliedVV, { codec: /** @type {import('../../ports/CodecPort.js').default} */ (codec) });
+  const frontierBuffer = serializeFrontier(frontier, codecOpt);
+  const appliedVVBuffer = serializeAppliedVV(appliedVV, codecOpt);
 
   // 6. Write blobs to git
   const stateBlobOid = await persistence.writeBlob(stateBuffer);
@@ -281,7 +289,7 @@ export async function createV5({
   // 6b. Optionally serialize and write provenance index
   let provenanceIndexBlobOid = null;
   if (provenanceIndex) {
-    const provenanceIndexBuffer = provenanceIndex.serialize({ codec });
+    const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
     provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
   }
 
@@ -309,12 +317,12 @@ export async function createV5({
   );
 
   // Add provenance index if present
-  if (provenanceIndexBlobOid) {
+  if (provenanceIndexBlobOid !== null) {
     treeEntries.push(`100644 blob ${provenanceIndexBlobOid}\tprovenanceIndex.cbor`);
   }
 
   // Add index subtree if present (schema 4)
-  if (indexSubtreeOid) {
+  if (indexSubtreeOid !== null) {
     treeEntries.push(`040000 tree ${indexSubtreeOid}\tindex`);
   }
 
@@ -379,6 +387,9 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
     );
   }
 
+  // Build codec option object once for exactOptionalPropertyTypes compliance
+  const loadCodecOpt = codec !== undefined && codec !== null ? { codec } : {};
+
   // 3. Read tree entries via the indexOid from the message (points to the tree)
   const rawTreeOids = await persistence.readTreeOids(decoded.indexOid);
 
@@ -387,47 +398,52 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
 
   // 4. Read frontier.cbor blob
   const frontierOid = treeOids['frontier.cbor'];
-  if (!frontierOid) {
+  if (frontierOid === undefined) {
     throw new Error(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
   }
   const frontierBuffer = await persistence.readBlob(frontierOid);
-  const frontier = deserializeFrontier(frontierBuffer, { codec: /** @type {import('../../ports/CodecPort.js').default} */ (codec) });
+  const frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
 
   // 5. Read state.cbor blob and deserialize as V5 full state
   const stateOid = treeOids['state.cbor'];
-  if (!stateOid) {
+  if (stateOid === undefined) {
     throw new Error(`Checkpoint ${checkpointSha} missing state.cbor in tree`);
   }
   const stateBuffer = await persistence.readBlob(stateOid);
 
   // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
-  const state = deserializeFullStateV5(stateBuffer, { codec });
+  const state = deserializeFullStateV5(stateBuffer, loadCodecOpt);
 
   // Load appliedVV if present
   let appliedVV = null;
   const appliedVVOid = treeOids['appliedVV.cbor'];
-  if (appliedVVOid) {
+  if (appliedVVOid !== undefined) {
     const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
-    appliedVV = deserializeAppliedVV(appliedVVBuffer, { codec });
+    appliedVV = deserializeAppliedVV(appliedVVBuffer, loadCodecOpt);
   }
 
   // Load provenanceIndex if present (HG/IO/2)
+  /** @type {import('./ProvenanceIndex.js').ProvenanceIndex | null} */
   let provenanceIndex = null;
   const provenanceIndexOid = treeOids['provenanceIndex.cbor'];
-  if (provenanceIndexOid) {
+  if (provenanceIndexOid !== undefined) {
     const provenanceIndexBuffer = await persistence.readBlob(provenanceIndexOid);
-    provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, { codec });
+    provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, loadCodecOpt);
   }
 
-  return {
+  /** @type {{ state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+  const result = {
     state,
     frontier,
     stateHash: decoded.stateHash,
     schema: decoded.schema,
     appliedVV,
-    provenanceIndex: provenanceIndex || undefined,
     indexShardOids: Object.keys(indexShardOids).length > 0 ? indexShardOids : null,
   };
+  if (provenanceIndex !== null) {
+    result.provenanceIndex = provenanceIndex;
+  }
+  return result;
 }
 
 // ============================================================================
@@ -457,7 +473,7 @@ export async function materializeIncremental({
   codec,
 }) {
   // 1. Load checkpoint state and frontier (schema:2 returns full V5 state)
-  const checkpoint = await loadCheckpoint(persistence, checkpointSha, { codec });
+  const checkpoint = await loadCheckpoint(persistence, checkpointSha, ...(codec !== undefined && codec !== null ? [{ codec }] : []));
   const checkpointFrontier = checkpoint.frontier;
 
   // 2. Use checkpoint state directly (schema:2 stores full V5 state)
@@ -471,7 +487,7 @@ export async function materializeIncremental({
 
     // If writer wasn't in checkpoint frontier, load all their patches up to targetSha
     // If writer was in checkpoint, load patches from checkpoint SHA to target SHA
-    const patches = await patchLoader(writerId, cpSha || null, targetSha);
+    const patches = await patchLoader(writerId, cpSha ?? null, targetSha);
     allPatches.push(...patches);
   }
 
@@ -514,6 +530,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
 
   const nodeAlive = createORSet();
   const edgeAlive = createORSet();
+  /** @type {Map<string, { eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown }>} */
   const prop = new Map();
   const observedFrontier = createVersionVector();
 
@@ -539,6 +556,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
 
   // Reconstruct edgeBirthEvent: synthetic birth at lamport 0
   // so checkpoint-loaded props pass the visibility filter
+  /** @type {Map<string, { lamport: number, writerId: string, patchSha: string, opIndex: number }>} */
   const edgeBirthEvent = new Map();
   for (const edge of edges) {
     const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);

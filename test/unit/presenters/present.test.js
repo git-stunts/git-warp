@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -276,29 +276,29 @@ describe('shouldStripColor', () => {
   });
 
   it('strips when FORCE_COLOR=0', () => {
-    process.env.FORCE_COLOR = '0';
+    process.env['FORCE_COLOR'] = '0';
     expect(shouldStripColor()).toBe(true);
   });
 
   it('keeps color when FORCE_COLOR=1', () => {
-    process.env.FORCE_COLOR = '1';
+    process.env['FORCE_COLOR'] = '1';
     expect(shouldStripColor()).toBe(false);
   });
 
   it('FORCE_COLOR overrides NO_COLOR', () => {
-    process.env.FORCE_COLOR = '1';
-    process.env.NO_COLOR = '';
+    process.env['FORCE_COLOR'] = '1';
+    process.env['NO_COLOR'] = '';
     expect(shouldStripColor()).toBe(false);
   });
 
   it('strips when NO_COLOR is set', () => {
-    process.env.NO_COLOR = '';
+    process.env['NO_COLOR'] = '';
     expect(shouldStripColor()).toBe(true);
   });
 
   it('strips when CI is set (with TTY)', () => {
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
-    process.env.CI = 'true';
+    process.env['CI'] = 'true';
     expect(shouldStripColor()).toBe(true);
     Object.defineProperty(process.stdout, 'isTTY', { value: undefined, configurable: true });
   });

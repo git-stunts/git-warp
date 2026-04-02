@@ -25,7 +25,7 @@ const HEX_TABLE = Object.freeze(
 export function hexEncode(bytes) {
   let hex = '';
   for (let i = 0; i < bytes.length; i++) {
-    hex += HEX_TABLE[bytes[i]];
+    hex += HEX_TABLE[/** @type {number} */ (bytes[i])];
   }
   return hex;
 }
@@ -49,7 +49,7 @@ const HEX_VAL = (() => {
  * @returns {number} 0–15 or -1
  */
 function hexCharValue(cc) {
-  const v = cc < 128 ? HEX_VAL[cc] : 0xff;
+  const v = cc < 128 ? HEX_VAL[cc] ?? 0xff : 0xff;
   return v === 0xff ? -1 : v;
 }
 
@@ -116,18 +116,21 @@ export function base64Encode(bytes) {
   const mainLen = len - remainder;
 
   for (let i = 0; i < mainLen; i += 3) {
-    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-    result += B64_CHARS[(n >>> 18) & 0x3f]
-            + B64_CHARS[(n >>> 12) & 0x3f]
-            + B64_CHARS[(n >>> 6) & 0x3f]
-            + B64_CHARS[n & 0x3f];
+    const b0 = /** @type {number} */ (bytes[i]);
+    const b1 = /** @type {number} */ (bytes[i + 1]);
+    const b2 = /** @type {number} */ (bytes[i + 2]);
+    const n = (b0 << 16) | (b1 << 8) | b2;
+    result += /** @type {string} */ (B64_CHARS[(n >>> 18) & 0x3f])
+            + /** @type {string} */ (B64_CHARS[(n >>> 12) & 0x3f])
+            + /** @type {string} */ (B64_CHARS[(n >>> 6) & 0x3f])
+            + /** @type {string} */ (B64_CHARS[n & 0x3f]);
   }
 
   if (remainder === 1) {
-    const n = bytes[mainLen];
+    const n = /** @type {number} */ (bytes[mainLen]);
     result += `${B64_CHARS[(n >>> 2) & 0x3f]}${B64_CHARS[(n << 4) & 0x3f]}==`;
   } else if (remainder === 2) {
-    const n = (bytes[mainLen] << 8) | bytes[mainLen + 1];
+    const n = (/** @type {number} */ (bytes[mainLen]) << 8) | /** @type {number} */ (bytes[mainLen + 1]);
     result += `${B64_CHARS[(n >>> 10) & 0x3f]}${B64_CHARS[(n >>> 4) & 0x3f]}${B64_CHARS[(n << 2) & 0x3f]}=`;
   }
 
@@ -187,7 +190,7 @@ function stripPaddingLength(b64) {
  * @returns {number}
  */
 function b64At(b64, idx, len) {
-  return idx < len ? B64_LOOKUP[b64.charCodeAt(idx)] : 0;
+  return idx < len ? B64_LOOKUP[b64.charCodeAt(idx)] ?? 0 : 0;
 }
 
 /**
@@ -202,8 +205,8 @@ function decodeBase64Bytes(b64, len) {
   let j = 0;
 
   for (let i = 0; i < len; i += 4) {
-    const a = B64_LOOKUP[b64.charCodeAt(i)];
-    const b = B64_LOOKUP[b64.charCodeAt(i + 1)];
+    const a = b64At(b64, i, len);
+    const b = b64At(b64, i + 1, len);
     const c = b64At(b64, i + 2, len);
     const d = b64At(b64, i + 3, len);
 
@@ -224,13 +227,14 @@ function decodeBase64Bytes(b64, len) {
 export function concatBytes(...arrays) {
   let totalLength = 0;
   for (let i = 0; i < arrays.length; i++) {
-    totalLength += arrays[i].length;
+    totalLength += /** @type {Uint8Array} */ (arrays[i]).length;
   }
   const result = new Uint8Array(totalLength);
   let offset = 0;
   for (let i = 0; i < arrays.length; i++) {
-    result.set(arrays[i], offset);
-    offset += arrays[i].length;
+    const arr = /** @type {Uint8Array} */ (arrays[i]);
+    result.set(arr, offset);
+    offset += arr.length;
   }
   return result;
 }

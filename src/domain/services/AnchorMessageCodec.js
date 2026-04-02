@@ -40,14 +40,15 @@ export function encodeAnchorMessage({ graph, schema = 2 }) {
   validateGraphName(graph);
   validateSchema(schema);
 
-  /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {{ encode(msg: {title: string, trailers: Record<string, string>}): string }} */ (/** @type {unknown} */ (getCodec()));
+  const tk = /** @type {{kind: string, graph: string, schema: string}} */ (TRAILER_KEYS);
+  const mt = /** @type {{anchor: string}} */ (MESSAGE_TITLES);
   return codec.encode({
-    title: MESSAGE_TITLES.anchor,
+    title: mt.anchor,
     trailers: {
-      [TRAILER_KEYS.kind]: 'anchor',
-      [TRAILER_KEYS.graph]: graph,
-      [TRAILER_KEYS.schema]: String(schema),
+      [tk.kind]: 'anchor',
+      [tk.graph]: graph,
+      [tk.schema]: String(schema),
     },
   });
 }
@@ -67,8 +68,7 @@ export function encodeAnchorMessage({ graph, schema = 2 }) {
  * const { kind, graph, schema } = decodeAnchorMessage(message);
  */
 export function decodeAnchorMessage(message) {
-  /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */
-  const codec = /** @type {*} */ (getCodec());
+  const codec = /** @type {{ decode(msg: string): { trailers: Record<string, string> } }} */ (/** @type {unknown} */ (getCodec()));
   const decoded = codec.decode(message);
   const { trailers } = decoded;
 

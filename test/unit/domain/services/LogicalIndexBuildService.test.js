@@ -59,8 +59,8 @@ describe('LogicalIndexBuildService', () => {
     // Must have at least: labels, receipt, some meta/fwd/rev shards
     expect(tree['labels.cbor']).toBeDefined();
     expect(tree['receipt.cbor']).toBeDefined();
-    expect(receipt.nodeCount).toBe(3);
-    expect(receipt.labelCount).toBe(2); // 'knows', 'manages'
+    expect(receipt['nodeCount']).toBe(3);
+    expect(receipt['labelCount']).toBe(2); // 'knows', 'manages'
 
     // Must have at least one props shard
     const propsShards = Object.keys(tree).filter((k) => k.startsWith('props_'));
@@ -86,7 +86,9 @@ describe('LogicalIndexBuildService', () => {
         existingMeta[shardKey] = defaultCodec.decode(buf);
       }
     }
-    const existingLabels = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(tree1['labels.cbor']));
+    const labelsBlob = tree1['labels.cbor'];
+    expect(labelsBlob).toBeDefined();
+    const existingLabels = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (labelsBlob)));
 
     // Build 2: add node C
     const state2 = buildState({
@@ -108,8 +110,8 @@ describe('LogicalIndexBuildService', () => {
         const meta1 = existingMeta[shardKey];
         if (meta1) {
           // nodeToGlobal is array of [nodeId, globalId] pairs
-          const meta1Map = new Map(meta1.nodeToGlobal);
-          const meta2Map = new Map(meta2.nodeToGlobal);
+          const meta1Map = new Map(meta1['nodeToGlobal']);
+          const meta2Map = new Map(meta2['nodeToGlobal']);
           for (const [nodeId, globalId] of meta1Map) {
             if (meta2Map.has(nodeId)) {
               expect(meta2Map.get(nodeId)).toBe(globalId);
@@ -154,7 +156,7 @@ describe('LogicalIndexBuildService', () => {
     const service = new LogicalIndexBuildService();
     const { tree, receipt } = service.build(state);
 
-    expect(receipt.nodeCount).toBe(0);
+    expect(receipt['nodeCount']).toBe(0);
     expect(tree['labels.cbor']).toBeDefined();
     expect(tree['receipt.cbor']).toBeDefined();
   });

@@ -126,6 +126,7 @@ function renderEdgeLabel(label, allPoints) {
   const midIdx = Math.floor((allPoints.length - 1) / 2);
   const a = allPoints[midIdx];
   const b = allPoints[Math.min(midIdx + 1, allPoints.length - 1)];
+  if (a === undefined || b === undefined) { return ''; }
   const midX = (a.x + b.x) / 2;
   const midY = (a.y + b.y) / 2;
   return `  <text class="edge-label" x="${midX}" y="${midY - 6}">${escapeXml(label)}</text>`;

@@ -75,7 +75,8 @@ function buildInMemoryPropertyReader(tree, codec) {
   }
 
   const storage = /** @type {{ readBlob(oid: string): Promise<Uint8Array> }} */ ({
-    readBlob: (oid) => Promise.resolve(tree[oid]),
+    /** Reads a shard blob from the in-memory tree map. */
+    readBlob: (/** @type {string} */ oid) => Promise.resolve(tree[oid]),
   });
 
   const reader = new PropertyIndexReader({ storage, codec });
@@ -146,7 +147,7 @@ function sampleNodes(allNodes, sampleRate, seed) {
   // the distribution but is acceptable since the sample is only used for
   // layout heuristics.
   if (sampled.length === 0) {
-    sampled.push(allNodes[Math.floor(rng() * allNodes.length)]);
+    sampled.push(/** @type {string} */ (allNodes[Math.floor(rng() * allNodes.length)]));
   }
   return sampled;
 }
@@ -158,7 +159,9 @@ function sampleNodes(allNodes, sampleRate, seed) {
  * @returns {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }}
  */
 function buildGroundTruthAdjacency(state) {
+  /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const outgoing = new Map();
+  /** @type {Map<string, Array<{neighborId: string, label: string}>>} */
   const incoming = new Map();
 
   for (const edgeKey of orsetElements(state.edgeAlive)) {
@@ -166,17 +169,27 @@ function buildGroundTruthAdjacency(state) {
     if (!orsetContains(state.nodeAlive, from) || !orsetContains(state.nodeAlive, to)) {
       continue;
     }
-    if (!outgoing.has(from)) {
-      outgoing.set(from, []);
-    }
-    outgoing.get(from).push({ neighborId: to, label });
-    if (!incoming.has(to)) {
-      incoming.set(to, []);
-    }
-    incoming.get(to).push({ neighborId: from, label });
+    pushAdjacencyEntry(outgoing, from, { neighborId: to, label });
+    pushAdjacencyEntry(incoming, to, { neighborId: from, label });
   }
 
   return { outgoing, incoming };
+}
+
+/**
+ * Ensures the adjacency map has an entry for the given key and appends the edge.
+ *
+ * @param {Map<string, Array<{neighborId: string, label: string}>>} map
+ * @param {string} key
+ * @param {{neighborId: string, label: string}} entry
+ */
+function pushAdjacencyEntry(map, key, entry) {
+  let list = map.get(key);
+  if (!list) {
+    list = [];
+    map.set(key, list);
+  }
+  list.push(entry);
 }
 
 /**
@@ -226,8 +239,51 @@ function compareNodeDirection({ nodeId, direction, logicalIndex, truthMap }) {
   return null;
 }
 
+/**
+ * Checks a single sampled node against ground-truth adjacency, collecting errors.
+ *
+ * @param {string} nodeId
+ * @param {LogicalIndex} logicalIndex
+ * @param {{ truth: { outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }, acc: { passed: number, errors: VerifyError[] } }} ctx
+ */
+function verifyOneNode(nodeId, logicalIndex, ctx) {
+  if (!logicalIndex.isAlive(nodeId)) {
+    ctx.acc.errors.push({ nodeId, direction: 'alive', expected: ['true'], actual: ['false'] });
+    return;
+  }
+  for (const direction of ['out', 'in']) {
+    const map = direction === 'out' ? ctx.truth.outgoing : ctx.truth.incoming;
+    const err = compareNodeDirection({ nodeId, direction, logicalIndex, truthMap: map });
+    if (err) {
+      ctx.acc.errors.push(err);
+    } else {
+      ctx.acc.passed++;
+    }
+  }
+}
+
+/**
+ * Iterates sampled nodes and collects verification results.
+ *
+ * @param {string[]} sampled
+ * @param {LogicalIndex} logicalIndex
+ * @param {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }} truth
+ * @returns {{ passed: number, errors: VerifyError[] }}
+ */
+function verifySampledNodes(sampled, logicalIndex, truth) {
+  /** @type {{ passed: number, errors: VerifyError[] }} */
+  const acc = { passed: 0, errors: [] };
+  const ctx = { truth, acc };
+  for (const nodeId of sampled) {
+    verifyOneNode(nodeId, logicalIndex, ctx);
+  }
+  return acc;
+}
+
 export default class MaterializedViewService {
   /**
+   * Creates a MaterializedViewService with optional codec and logger.
+   *
    * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
    */
   constructor(options = undefined) {
@@ -268,7 +324,11 @@ export default class MaterializedViewService {
   async persistIndexTree(tree, persistence) {
     const paths = Object.keys(tree).sort();
     const oids = await Promise.all(
-      paths.map((p) => persistence.writeBlob(tree[p]))
+      paths.map((p) => {
+        const blob = tree[p];
+        if (!blob) { throw new Error(`Missing blob for path: ${p}`); }
+        return persistence.writeBlob(blob);
+      })
     );
 
     const entries = paths.map(
@@ -308,6 +368,7 @@ export default class MaterializedViewService {
    */
   applyDiff({ existingTree, diff, state }) {
     const updater = new IncrementalIndexUpdater({ codec: this._codec });
+    /** Loads a shard buffer from the existing tree by path. */
     const loadShard = (/** @type {string} */ path) => existingTree[path];
     const dirtyShards = updater.computeDirtyShards({ diff, state, loadShard });
     const tree = { ...existingTree, ...dirtyShards };
@@ -347,31 +408,7 @@ export default class MaterializedViewService {
     const sampled = sampleNodes(allNodes, sampleRate, seed);
     const truth = buildGroundTruthAdjacency(state);
 
-    /** @type {VerifyError[]} */
-    const errors = [];
-    let passed = 0;
-
-    for (const nodeId of sampled) {
-      if (!logicalIndex.isAlive(nodeId)) {
-        errors.push({
-          nodeId,
-          direction: 'alive',
-          expected: ['true'],
-          actual: ['false'],
-        });
-        continue;
-      }
-      for (const direction of ['out', 'in']) {
-        const map = direction === 'out' ? truth.outgoing : truth.incoming;
-        const err = compareNodeDirection({ nodeId, direction, logicalIndex, truthMap: map });
-        if (err) {
-          errors.push(err);
-        } else {
-          passed++;
-        }
-      }
-    }
-
+    const { passed, errors } = verifySampledNodes(sampled, logicalIndex, truth);
     return { passed, failed: errors.length, errors, seed };
   }
 }

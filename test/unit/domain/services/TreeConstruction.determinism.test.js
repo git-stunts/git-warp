@@ -93,7 +93,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     orsetAdd(state.nodeAlive, nodeId, createDot('alice', i + 1));
     propItems.push({
       key: encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY),
-      value: makeOid(contentIds[i]),
+      value: makeOid(/** @type {number} */ (contentIds[i])),
       eventId: {
         lamport: i + 1,
         writerId: 'alice',
@@ -106,7 +106,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
   orsetAdd(state.nodeAlive, 'dup', createDot('alice', contentIds.length + 1));
   propItems.push({
     key: encodePropKeyV5('dup', CONTENT_PROPERTY_KEY),
-    value: makeOid(contentIds[0]),
+    value: makeOid(/** @type {number} */ (contentIds[0])),
     eventId: {
       lamport: contentIds.length + 1,
       writerId: 'alice',
@@ -126,7 +126,7 @@ async function createCheckpointTreeOid(contentIds, shuffleSeed) {
     );
     propItems.push({
       key: encodeEdgePropKey(edgeFrom, edgeTo, edgeLabel, CONTENT_PROPERTY_KEY),
-      value: makeOid(contentIds[0]),
+      value: makeOid(/** @type {number} */ (contentIds[0])),
       eventId: {
         lamport: contentIds.length + 2,
         writerId: 'alice',

@@ -258,7 +258,10 @@ function buildGraphCards(graphs) {
     if (i > 0) {
       contentLines.push('');
     }
-    contentLines.push(...renderGraphCard(graphs[i], innerWidth));
+    const gi = graphs[i];
+    if (gi) {
+      contentLines.push(...renderGraphCard(gi, innerWidth));
+    }
   }
   return contentLines.join('\n');
 }

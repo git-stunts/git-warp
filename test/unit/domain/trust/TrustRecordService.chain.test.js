@@ -10,11 +10,6 @@ import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordServ
 import { verifyRecordId } from '../../../../src/domain/trust/TrustCanonical.js';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import {
-  KEY_ADD_1,
-  KEY_ADD_2,
-  WRITER_BIND_ADD_ALICE,
-  KEY_REVOKE_2,
-  WRITER_BIND_REVOKE_BOB,
   GOLDEN_CHAIN,
 } from './fixtures/goldenRecords.js';
 
@@ -43,8 +38,10 @@ describe('Chain integration (B15)', () => {
     expect(records).toHaveLength(GOLDEN_CHAIN.length);
 
     for (let i = 0; i < records.length; i++) {
-      expect(records[i].recordId).toBe(GOLDEN_CHAIN[i].recordId);
-      expect(records[i].recordType).toBe(GOLDEN_CHAIN[i].recordType);
+      const rec = /** @type {NonNullable<typeof records[0]>} */ (records[i]);
+      const golden = /** @type {NonNullable<typeof GOLDEN_CHAIN[0]>} */ (GOLDEN_CHAIN[i]);
+      expect(rec.recordId).toBe(golden.recordId);
+      expect(rec.recordType).toBe(golden.recordType);
     }
   });
 

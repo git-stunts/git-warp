@@ -216,6 +216,9 @@ export default class DagPathFinding {
       }
 
       const current = pq.extractMin();
+      if (current === null || current === undefined) {
+        break;
+      }
 
       if (visited.has(current)) {
         continue;
@@ -224,7 +227,7 @@ export default class DagPathFinding {
 
       if (current === to) {
         const path = this._reconstructWeightedPath(previous, from, to);
-        const totalCost = /** @type {number} */ (distances.get(to));
+        const totalCost = distances.get(to) ?? 0;
         this._logger.debug('weightedShortestPath found', { pathLength: path.length, totalCost });
         return { path, totalCost };
       }
@@ -240,8 +243,8 @@ export default class DagPathFinding {
         }
 
         const edgeWeight = await weightProvider(current, neighbor);
-        const newDist = /** @type {number} */ (distances.get(current)) + edgeWeight;
-        const currentDist = distances.has(neighbor) ? /** @type {number} */ (distances.get(neighbor)) : Infinity;
+        const newDist = (distances.get(current) ?? 0) + edgeWeight;
+        const currentDist = distances.has(neighbor) ? (distances.get(neighbor) ?? Infinity) : Infinity;
 
         if (newDist < currentDist) {
           distances.set(neighbor, newDist);
@@ -300,6 +303,9 @@ export default class DagPathFinding {
       }
 
       const current = pq.extractMin();
+      if (current === null || current === undefined) {
+        break;
+      }
 
       if (visited.has(current)) {
         continue;
@@ -309,7 +315,7 @@ export default class DagPathFinding {
 
       if (current === to) {
         const path = this._reconstructWeightedPath(previous, from, to);
-        const totalCost = /** @type {number} */ (gScore.get(to));
+        const totalCost = gScore.get(to) ?? 0;
         this._logger.debug('aStarSearch found', { pathLength: path.length, totalCost, nodesExplored });
         return { path, totalCost, nodesExplored };
       }
@@ -325,8 +331,8 @@ export default class DagPathFinding {
         }
 
         const edgeWeight = await weightProvider(current, neighbor);
-        const tentativeG = /** @type {number} */ (gScore.get(current)) + edgeWeight;
-        const currentG = gScore.has(neighbor) ? /** @type {number} */ (gScore.get(neighbor)) : Infinity;
+        const tentativeG = (gScore.get(current) ?? 0) + edgeWeight;
+        const currentG = gScore.has(neighbor) ? (gScore.get(neighbor) ?? Infinity) : Infinity;
 
         if (tentativeG < currentG) {
           previous.set(neighbor, current);

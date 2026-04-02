@@ -8,7 +8,6 @@ import {
   isEdgePropKey,
   EDGE_PROP_PREFIX,
   applyOpV2,
-  join,
   joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
@@ -24,11 +23,6 @@ import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 // ---------------------------------------------------------------------------
 // Helpers — mirror the patterns in JoinReducer.test.js
 // ---------------------------------------------------------------------------
-
-/** @param {string} node @param {any} dot */
-function createNodeAddV2(node, dot) {
-  return { type: 'NodeAdd', node, dot };
-}
 
 /** @param {string} from @param {string} to @param {string} label @param {any} dot */
 function createEdgeAddV2(from, to, label, dot) {

@@ -73,7 +73,7 @@ describe('LoggerObservabilityBridge', () => {
       s.end({ chunks: 5 });
 
       expect(logger.debug).toHaveBeenCalledTimes(1);
-      const [msg, meta] = logger.debug.mock.calls[0];
+      const [msg, meta] = logger.debug.mock.calls[0] ?? [];
       expect(msg).toBe('cas:span:restore');
       expect(meta.chunks).toBe(5);
       expect(typeof meta.durationMs).toBe('number');
@@ -87,7 +87,7 @@ describe('LoggerObservabilityBridge', () => {
       const s = bridge.span('store');
       s.end();
 
-      const [msg, meta] = logger.debug.mock.calls[0];
+      const [msg, meta] = logger.debug.mock.calls[0] ?? [];
       expect(msg).toBe('cas:span:store');
       expect(typeof meta.durationMs).toBe('number');
     });

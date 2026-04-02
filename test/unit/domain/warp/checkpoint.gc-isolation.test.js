@@ -7,7 +7,7 @@
  * - Uses deterministic barrier pattern (no timing races)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { _maybeRunGC, runGC } from '../../../../src/domain/warp/checkpoint.methods.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';

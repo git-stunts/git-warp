@@ -13,6 +13,27 @@ function escapeRegex(value) {
 }
 
 /**
+ * Returns a cached RegExp for the given glob pattern, compiling it if needed.
+ *
+ * @param {string} pattern - A glob pattern containing at least one `*`
+ * @returns {RegExp} Compiled regex for the pattern
+ */
+function getGlobRegex(pattern) {
+  let regex = globRegexCache.get(pattern);
+  if (!regex) {
+    regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, '.*')}$`);
+    globRegexCache.set(pattern, regex);
+    // Prevent unbounded cache growth. 1000 entries is generous for typical
+    // usage; a full clear is simpler and cheaper than LRU for a regex cache.
+    if (globRegexCache.size >= 1000) {
+      globRegexCache.clear();
+      globRegexCache.set(pattern, regex);
+    }
+  }
+  return regex;
+}
+
+/**
  * Tests whether a string matches a glob-style pattern or an array of patterns.
  *
  * Supports:
@@ -29,30 +50,14 @@ export function matchGlob(pattern, str) {
   if (Array.isArray(pattern)) {
     return pattern.some((p) => matchGlob(p, str));
   }
-
   if (pattern === '*') {
     return true;
   }
-
   if (typeof pattern !== 'string') {
     return false;
   }
-
   if (!pattern.includes('*')) {
     return pattern === str;
   }
-
-  let regex = globRegexCache.get(pattern);
-  if (!regex) {
-    regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, '.*')}$`);
-    globRegexCache.set(pattern, regex);
-    // Prevent unbounded cache growth. 1000 entries is generous for typical
-    // usage; a full clear is simpler and cheaper than LRU for a regex cache.
-    // Evict after insert so the just-compiled regex survives the clear.
-    if (globRegexCache.size >= 1000) {
-      globRegexCache.clear();
-      globRegexCache.set(pattern, regex);
-    }
-  }
-  return regex.test(str);
+  return getGlobRegex(pattern).test(str);
 }

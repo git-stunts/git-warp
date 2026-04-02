@@ -313,6 +313,7 @@ function extractBaseArgs(argv) {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined || arg === null) { continue; }
 
     if (arg === '--') {
       rest.push(...argv.slice(i + 1));
@@ -322,13 +323,14 @@ function extractBaseArgs(argv) {
     if (BASE_STRING_FLAGS.has(arg)) {
       baseArgs.push(arg);
       if (i + 1 < argv.length) {
-        baseArgs.push(argv[++i]);
+        const next = argv[++i];
+        if (next !== undefined && next !== null) { baseArgs.push(next); }
       }
       continue;
     }
 
     // Handle --flag=value form for string flags
-    if (arg.startsWith('--') && BASE_STRING_FLAGS.has(arg.split('=')[0])) {
+    if (arg.startsWith('--') && BASE_STRING_FLAGS.has(arg.split('=')[0] ?? '')) {
       baseArgs.push(arg);
       continue;
     }
@@ -336,8 +338,10 @@ function extractBaseArgs(argv) {
     // --view has optional-value semantics: consume next only if it looks like a view mode
     if (arg === '--view') {
       baseArgs.push(arg);
-      if (isViewValue(argv[i + 1])) {
-        baseArgs.push(argv[++i]);
+      const peek = argv[i + 1];
+      if (peek !== undefined && peek !== null && isViewValue(peek)) {
+        i++;
+        baseArgs.push(peek);
       }
       continue;
     }
@@ -397,17 +401,19 @@ export function parseArgs(argv) {
     throw usageError(err instanceof Error ? err.message : String(err));
   }
 
-  const { values } = parsed;
+  /** @type {{ values: { repo?: string, json?: boolean, ndjson?: boolean, view?: string, graph?: string, writer?: string, help?: boolean } }} */
+  const typedParsed = parsed;
+  const { values } = typedParsed;
 
   /** @type {CliOptions} */
   const options = {
-    repo: path.resolve(typeof values.repo === 'string' ? values.repo : process.cwd()),
-    json: Boolean(values.json),
-    ndjson: Boolean(values.ndjson),
-    view: typeof values.view === 'string' ? values.view : null,
-    graph: typeof values.graph === 'string' ? values.graph : null,
-    writer: typeof values.writer === 'string' ? values.writer : 'cli',
-    help: Boolean(values.help),
+    repo: path.resolve(typeof values['repo'] === 'string' ? values['repo'] : process.cwd()),
+    json: Boolean(values['json']),
+    ndjson: Boolean(values['ndjson']),
+    view: typeof values['view'] === 'string' ? values['view'] : null,
+    graph: typeof values['graph'] === 'string' ? values['graph'] : null,
+    writer: typeof values['writer'] === 'string' ? values['writer'] : 'cli',
+    help: Boolean(values['help']),
   };
 
   return { options, command, commandArgs };

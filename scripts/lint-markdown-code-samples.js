@@ -97,6 +97,9 @@ function extractMarkdownCodeSamplesWithIssues(markdown, filePath) {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
+    if (line == null) {
+      continue;
+    }
     const anyFenceMatch = line.match(ANY_FENCE_PATTERN);
     const fenceMatch = line.match(OPENING_FENCE_PATTERN);
     if (!activeFence) {
@@ -104,7 +107,7 @@ function extractMarkdownCodeSamplesWithIssues(markdown, filePath) {
         continue;
       }
       if (!fenceMatch) {
-        const language = parseFenceLanguage(anyFenceMatch[2]);
+        const language = parseFenceLanguage(anyFenceMatch[2] ?? '');
         if (language) {
           issues.push(
             createMarkdownCodeSampleIssue(
@@ -117,10 +120,11 @@ function extractMarkdownCodeSamplesWithIssues(markdown, filePath) {
         }
         continue;
       }
+      const marker = fenceMatch[1] ?? '';
       activeFence = {
-        marker: fenceMatch[1][0],
-        markerLength: fenceMatch[1].length,
-        language: parseFenceLanguage(fenceMatch[2]),
+        marker: marker.charAt(0),
+        markerLength: marker.length,
+        language: parseFenceLanguage(fenceMatch[2] ?? ''),
         fenceLine: index + 1,
         codeLines: [],
       };

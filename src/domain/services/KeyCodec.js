@@ -76,8 +76,8 @@ export function encodeEdgeKey(from, to, label) {
  * @see encodeEdgeKey - The inverse operation
  */
 export function decodeEdgeKey(key) {
-  const [from, to, label] = key.split('\0');
-  return { from, to, label };
+  const parts = key.split('\0');
+  return { from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '' };
 }
 
 /**
@@ -100,8 +100,8 @@ export function encodePropKey(nodeId, propKey) {
  * @see encodePropKey - The inverse operation
  */
 export function decodePropKey(key) {
-  const [nodeId, propKey] = key.split('\0');
-  return { nodeId, propKey };
+  const parts = key.split('\0');
+  return { nodeId: parts[0] ?? '', propKey: parts[1] ?? '' };
 }
 
 /**
@@ -193,6 +193,5 @@ export function decodeEdgePropKey(encoded) {
   if (parts.length !== 4) {
     throw new Error('Invalid edge property key: expected 4 segments');
   }
-  const [from, to, label, propKey] = parts;
-  return { from, to, label, propKey };
+  return { from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '', propKey: parts[3] ?? '' };
 }

@@ -8,17 +8,20 @@
 import { colors } from './colors.js';
 
 /**
- * Format seconds as human-readable time (e.g., "2m", "1h", "3d").
- * @param {number|null} seconds
- * @returns {string}
+ * Validates that a value is a finite non-negative number.
+ * @param {unknown} value - The value to validate
+ * @returns {value is number} True if the value is a valid age in seconds
  */
-export function formatAge(seconds) {
-  if (seconds === null || seconds === undefined) {
-    return 'unknown';
-  }
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
-    return 'unknown';
-  }
+function isValidAge(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+/**
+ * Converts validated seconds to a human-readable duration string.
+ * @param {number} seconds - Non-negative finite number of seconds
+ * @returns {string} Formatted duration (e.g., "30s", "5m", "2h", "3d")
+ */
+function formatValidAge(seconds) {
   const secs = Math.floor(seconds);
   if (secs < 60) {
     return `${secs}s`;
@@ -33,6 +36,18 @@ export function formatAge(seconds) {
   }
   const days = Math.floor(hours / 24);
   return `${days}d`;
+}
+
+/**
+ * Format seconds as human-readable time (e.g., "2m", "1h", "3d").
+ * @param {number|null} seconds
+ * @returns {string}
+ */
+export function formatAge(seconds) {
+  if (!isValidAge(seconds)) {
+    return 'unknown';
+  }
+  return formatValidAge(seconds);
 }
 
 /**
@@ -53,7 +68,7 @@ export function formatNumber(n) {
  * @returns {string} Shortened SHA or 'none'
  */
 export function formatSha(sha) {
-  return sha ? colors.muted(sha.slice(0, 7)) : colors.muted('none');
+  return typeof sha === 'string' && sha.length > 0 ? colors.muted(sha.slice(0, 7)) : colors.muted('none');
 }
 
 /**

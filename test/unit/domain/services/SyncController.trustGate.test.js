@@ -14,7 +14,7 @@ vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal
 });
 
 const { applySyncResponse: applySyncResponseMock } =
-  /** @type {Record<string, import('vitest').Mock>} */ (
+  /** @type {{ applySyncResponse: import('vitest').Mock }} */ (
     /** @type {unknown} */ (
       await import('../../../../src/domain/services/SyncProtocol.js')
     )
@@ -53,11 +53,11 @@ function createMockHost(overrides = {}) {
     ...overrides,
   };
   // Wire default _setMaterializedState after spread so it can reference `host`
-  if (!host._setMaterializedState) {
-    host._setMaterializedState = vi.fn(async (/** @type {unknown} */ state) => {
-      host._cachedState = state;
-      host._stateDirty = false;
-      host._materializedGraph = { state, stateHash: 'mock-hash', adjacency: {} };
+  if (!host['_setMaterializedState']) {
+    host['_setMaterializedState'] = vi.fn(async (/** @type {unknown} */ state) => {
+      host['_cachedState'] = state;
+      host['_stateDirty'] = false;
+      host['_materializedGraph'] = { state, stateHash: 'mock-hash', adjacency: {} };
     });
   }
   return host;
@@ -98,9 +98,9 @@ function createTrustEvaluator(trustedWriters) {
 
 /**
  * Sets up applySyncResponseMock to return a plausible result.
- * @param {Record<string, unknown>} host
+ * @param {Record<string, unknown>} _host
  */
-function stubApplySuccess(host) {
+function stubApplySuccess(_host) {
   const newState = createEmptyStateV5();
   const newFrontier = createFrontier();
   updateFrontier(newFrontier, 'applied-writer', 'sha-applied');
@@ -161,10 +161,10 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     });
 
     // Snapshot references before the call
-    const stateBefore = host._cachedState;
-    const frontierBefore = host._lastFrontier;
-    const gcBefore = host._patchesSinceGC;
-    const dirtyBefore = host._stateDirty;
+    const stateBefore = host['_cachedState'];
+    const frontierBefore = host['_lastFrontier'];
+    const gcBefore = host['_patchesSinceGC'];
+    const dirtyBefore = host['_stateDirty'];
 
     const ctrl = new SyncController(/** @type {*} */ (host), { trustGate: gate });
     const response = buildSyncResponse(['evil-writer']);
@@ -176,11 +176,11 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     }
 
     // All host fields must be unchanged
-    expect(host._cachedState).toBe(stateBefore);
-    expect(host._lastFrontier).toBe(frontierBefore);
-    expect(host._patchesSinceGC).toBe(gcBefore);
-    expect(host._stateDirty).toBe(dirtyBefore);
-    expect(host._materializedGraph).toBeNull();
+    expect(host['_cachedState']).toBe(stateBefore);
+    expect(host['_lastFrontier']).toBe(frontierBefore);
+    expect(host['_patchesSinceGC']).toBe(gcBefore);
+    expect(host['_stateDirty']).toBe(dirtyBefore);
+    expect(host['_materializedGraph']).toBeNull();
   });
 
   // ── Test 7: Trust gate modes ──────────────────────────────────────────────
@@ -299,7 +299,7 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
       trust: { mode: 'enforce', pin: 'abc123' },
     })).rejects.toMatchObject({ code: 'E_SYNC_UNTRUSTED_WRITER' });
 
-    expect(host._createSyncTrustGate).toHaveBeenCalledWith({
+    expect(host['_createSyncTrustGate']).toHaveBeenCalledWith({
       mode: 'enforce',
       pin: 'abc123',
     });
@@ -324,8 +324,8 @@ describe('SyncController — trust gate integration (Invariant 2)', () => {
     await ctrl.applySyncResponse(buildSyncResponse(['writer-a']));
 
     // _setMaterializedState should have been called to rebuild caches
-    expect(/** @type {import('vitest').Mock} */ (host._setMaterializedState)).toHaveBeenCalledOnce();
+    expect(/** @type {import('vitest').Mock} */ (host['_setMaterializedState'])).toHaveBeenCalledOnce();
     // _materializedGraph is rebuilt (not null) — the mock sets it
-    expect(host._materializedGraph).not.toBeNull();
+    expect(host['_materializedGraph']).not.toBeNull();
   });
 });

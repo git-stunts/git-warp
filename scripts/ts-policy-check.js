@@ -99,7 +99,7 @@ async function checkSourceFiles() {
       const lines = content.split('\n');
 
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i] ?? '';
         const loc = `${rel}:${i + 1}`;
 
         if (TS_IGNORE_RE.test(line)) {
@@ -153,7 +153,7 @@ export function findDeclarationAnyViolations(content, fileName = 'index.d.ts') {
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
-    const line = stripInlineComments(lines[i]);
+    const line = stripInlineComments(lines[i] ?? '');
     const trimmed = line.trim();
     if (
       trimmed.startsWith('*') ||

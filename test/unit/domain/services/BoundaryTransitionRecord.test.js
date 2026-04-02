@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createBTR,
   verifyBTR,
@@ -29,8 +29,6 @@ const crypto = new NodeCryptoAdapter();
 
 import {
   createNodeAddV2,
-  createEdgeAddV2,
-  createPropSetV2,
   createPatchV2,
   createSamplePatches,
   createDot,

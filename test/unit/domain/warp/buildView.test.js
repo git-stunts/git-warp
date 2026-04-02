@@ -20,7 +20,9 @@ describe('_buildView', () => {
     _buildView.call(/** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash123');
 
     expect(warn).toHaveBeenCalledOnce();
-    expect(warn.mock.calls[0][0]).toContain('index build failed');
+    const firstCall = warn.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    expect(firstCall?.[0]).toContain('index build failed');
     expect(ctx._logicalIndex).toBeNull();
     expect(ctx._propertyReader).toBeNull();
     expect(ctx._cachedIndexTree).toBeNull();

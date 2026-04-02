@@ -65,7 +65,7 @@ describe('ClockAdapter', () => {
     it('delegates to the injected performanceImpl', () => {
       const values = [100, 200, 300];
       let idx = 0;
-      const fake = { now: () => values[idx++] };
+      const fake = { now: () => values[idx++] ?? 0 };
       const clock = new ClockAdapter({ performanceImpl: fake });
 
       expect(clock.now()).toBe(100);

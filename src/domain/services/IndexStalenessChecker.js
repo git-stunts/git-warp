@@ -26,7 +26,7 @@ function isFrontierEnvelope(envelope) {
   if (!isNonNullObject(envelope)) {
     return false;
   }
-  return 'frontier' in envelope && isNonNullObject(envelope.frontier);
+  return 'frontier' in envelope && isNonNullObject(envelope['frontier']);
 }
 
 /**

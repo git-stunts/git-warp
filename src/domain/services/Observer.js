@@ -303,6 +303,8 @@ export default class Observer {
   constructor({ name, config, graph, snapshot, source }) {
     this._initIdentity(name, config);
     this._initBacking(graph, snapshot, source);
+    // Referenced via duck-typing cast (LogicalTraversal, QueryBuilder) — suppress TS6133
+    void this._materializeGraph;
 
     /**
      * Cast safety: LogicalTraversal requires hasNode() and _materializeGraph(),
@@ -354,7 +356,7 @@ export default class Observer {
    * @returns {string}
    */
   get name() {
-    return this._name;
+    return /** @type {string} */ (this._name);
   }
 
   /**
@@ -396,7 +398,7 @@ export default class Observer {
   _buildConfigSnapshot() {
     /** @type {{ match: string|string[], expose?: string[], redact?: string[] }} */
     const config = {
-      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : this._matchPattern,
+      match: Array.isArray(this._matchPattern) ? [...this._matchPattern] : /** @type {string|string[]} */ (this._matchPattern),
     };
     if (this._expose) { config.expose = [...this._expose]; }
     if (this._redact) { config.redact = [...this._redact]; }
@@ -422,7 +424,7 @@ export default class Observer {
       throw new Error('observer seek requires a non-null source');
     }
 
-    return await graph.observer(this._name, config, { source: nextSource });
+    return await graph.observer(/** @type {string} */ (this._name), config, { source: nextSource });
   }
 
   // ===========================================================================
@@ -443,7 +445,7 @@ export default class Observer {
   async _materializeGraph() {
     if (this._snapshot) {
       if (!this._snapshotAdjacency) {
-        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, this._matchPattern);
+        this._snapshotAdjacency = buildAdjacencyFromEdges(this._snapshot.state, /** @type {string|string[]} */ (this._matchPattern));
       }
       return {
         state: this._snapshot.state,
@@ -461,10 +463,10 @@ export default class Observer {
 
     if (materialized.provider) {
       const visibleNodes = orsetElements(state.nodeAlive)
-        .filter((id) => matchGlob(this._matchPattern, id));
+        .filter((id) => matchGlob(/** @type {string|string[]} */ (this._matchPattern), id));
       adjacency = await buildAdjacencyViaProvider(materialized.provider, visibleNodes);
     } else {
-      adjacency = buildAdjacencyFromEdges(state, this._matchPattern);
+      adjacency = buildAdjacencyFromEdges(state, /** @type {string|string[]} */ (this._matchPattern));
     }
 
     return { state, stateHash, adjacency };
@@ -481,7 +483,7 @@ export default class Observer {
    * @returns {Promise<boolean>} True if the node exists and matches the observer pattern
    */
   async hasNode(nodeId) {
-    if (!matchGlob(this._matchPattern, nodeId)) {
+    if (!matchGlob(/** @type {string|string[]} */ (this._matchPattern), nodeId)) {
       return false;
     }
     if (this._stateReader) {
@@ -499,7 +501,7 @@ export default class Observer {
     const allNodes = this._stateReader
       ? this._stateReader.getNodes()
       : await this._requireGraph().getNodes();
-    return allNodes.filter((id) => matchGlob(this._matchPattern, id));
+    return allNodes.filter((id) => matchGlob(/** @type {string|string[]} */ (this._matchPattern), id));
   }
 
   /**
@@ -512,7 +514,7 @@ export default class Observer {
    * @returns {Promise<Record<string, unknown>|null>} Filtered properties object, or null
    */
   async getNodeProps(nodeId) {
-    if (!matchGlob(this._matchPattern, nodeId)) {
+    if (!matchGlob(/** @type {string|string[]} */ (this._matchPattern), nodeId)) {
       return null;
     }
     const propsRecord = this._stateReader
@@ -541,7 +543,7 @@ export default class Observer {
       : await this._requireGraph().getEdges();
     return allEdges
       .filter(
-        (e) => matchGlob(this._matchPattern, e.from) && matchGlob(this._matchPattern, e.to)
+        (e) => matchGlob(/** @type {string|string[]} */ (this._matchPattern), e.from) && matchGlob(/** @type {string|string[]} */ (this._matchPattern), e.to)
       )
       .map((e) => {
         const filtered = filterProps(e.props, this._expose, this._redact);

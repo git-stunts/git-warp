@@ -49,46 +49,59 @@ export const DEFAULT_GC_POLICY = Object.freeze({
 });
 
 /**
+ * Collects reasons why GC should run based on metrics vs policy thresholds.
+ * @param {GCInputMetrics} metrics - Current GC metrics
+ * @param {GCPolicy} policy - GC policy thresholds
+ * @returns {string[]} Array of reasons (empty if no threshold exceeded)
+ */
+function collectGCReasons(metrics, policy) {
+  const reasons = [];
+  if (metrics.tombstoneRatio > policy.tombstoneRatioThreshold) {
+    reasons.push(`Tombstone ratio ${(metrics.tombstoneRatio * 100).toFixed(1)}% exceeds threshold ${(policy.tombstoneRatioThreshold * 100).toFixed(1)}%`);
+  }
+  if (metrics.totalEntries > policy.entryCountThreshold) {
+    reasons.push(`Entry count ${metrics.totalEntries} exceeds threshold ${policy.entryCountThreshold}`);
+  }
+  if (metrics.patchesSinceCompaction > policy.minPatchesSinceCompaction) {
+    reasons.push(`Patches since compaction ${metrics.patchesSinceCompaction} exceeds minimum ${policy.minPatchesSinceCompaction}`);
+  }
+  if (metrics.timeSinceCompaction > policy.maxTimeSinceCompaction) {
+    reasons.push(`Time since compaction ${metrics.timeSinceCompaction}ms exceeds maximum ${policy.maxTimeSinceCompaction}ms`);
+  }
+  return reasons;
+}
+
+/**
  * Determines if GC should run based on metrics and policy.
  * @param {GCInputMetrics} metrics
  * @param {GCPolicy} policy
  * @returns {GCShouldRunResult}
  */
 export function shouldRunGC(metrics, policy) {
-  const reasons = [];
+  const reasons = collectGCReasons(metrics, policy);
+  return { shouldRun: reasons.length > 0, reasons };
+}
 
-  // Check tombstone ratio threshold
-  if (metrics.tombstoneRatio > policy.tombstoneRatioThreshold) {
-    reasons.push(
-      `Tombstone ratio ${(metrics.tombstoneRatio * 100).toFixed(1)}% exceeds threshold ${(policy.tombstoneRatioThreshold * 100).toFixed(1)}%`
+/**
+ * Compacts node and edge ORSets against the applied version vector.
+ * @param {import('./JoinReducer.js').WarpStateV5} state - State to compact (mutated!)
+ * @param {import('../crdt/VersionVector.js').VersionVector} appliedVV - Version vector cutoff
+ * @throws {WarpError} E_GC_COMPACT_FAILED if orsetCompact throws
+ */
+function compactORSets(state, appliedVV) {
+  let nodesDone = false;
+  try {
+    orsetCompact(state.nodeAlive, appliedVV);
+    nodesDone = true;
+    orsetCompact(state.edgeAlive, appliedVV);
+  } catch {
+    const phase = nodesDone ? 'edgeAlive' : 'nodeAlive';
+    throw new WarpError(
+      `GC compaction failed during ${phase} phase`,
+      'E_GC_COMPACT_FAILED',
+      { context: { phase, partialCompaction: nodesDone } },
     );
   }
-
-  // Check entry count threshold
-  if (metrics.totalEntries > policy.entryCountThreshold) {
-    reasons.push(
-      `Entry count ${metrics.totalEntries} exceeds threshold ${policy.entryCountThreshold}`
-    );
-  }
-
-  // Check patches since compaction
-  if (metrics.patchesSinceCompaction > policy.minPatchesSinceCompaction) {
-    reasons.push(
-      `Patches since compaction ${metrics.patchesSinceCompaction} exceeds minimum ${policy.minPatchesSinceCompaction}`
-    );
-  }
-
-  // Check time since compaction
-  if (metrics.timeSinceCompaction > policy.maxTimeSinceCompaction) {
-    reasons.push(
-      `Time since compaction ${metrics.timeSinceCompaction}ms exceeds maximum ${policy.maxTimeSinceCompaction}ms`
-    );
-  }
-
-  return {
-    shouldRun: reasons.length > 0,
-    reasons,
-  };
 }
 
 /**
@@ -111,33 +124,14 @@ export function executeGC(state, appliedVV) {
   }
 
   const startTime = performance.now();
-
-  // Collect metrics before compaction
   const beforeMetrics = collectGCMetrics(state);
-
-  // Compact both ORSets — wrap each phase so partial failure is diagnosable
-  let nodesDone = false;
-  try {
-    orsetCompact(state.nodeAlive, appliedVV);
-    nodesDone = true;
-    orsetCompact(state.edgeAlive, appliedVV);
-  } catch {
-    throw new WarpError(
-      `GC compaction failed during ${nodesDone ? 'edgeAlive' : 'nodeAlive'} phase`,
-      'E_GC_COMPACT_FAILED',
-      { context: { phase: nodesDone ? 'edgeAlive' : 'nodeAlive', partialCompaction: nodesDone } },
-    );
-  }
-
-  // Collect metrics after compaction
+  compactORSets(state, appliedVV);
   const afterMetrics = collectGCMetrics(state);
-
-  const endTime = performance.now();
 
   return {
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
-    durationMs: endTime - startTime,
+    durationMs: performance.now() - startTime,
   };
 }

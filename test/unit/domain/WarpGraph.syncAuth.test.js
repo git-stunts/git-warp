@@ -19,10 +19,10 @@ async function createGraph(writerId = 'writer-1') {
  */
 function mockClientGraph(/** @type {WarpRuntime} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
-  g._cachedState = {};
-  const sc = /** @type {Record<string, unknown>} */ (g._syncController);
-  sc.applySyncResponse = vi.fn().mockResolvedValue({ applied: 0 });
-  sc.createSyncRequest = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
+  g['_cachedState'] = {};
+  const sc = /** @type {Record<string, unknown>} */ (g['_syncController']);
+  sc['applySyncResponse'] = vi.fn().mockResolvedValue({ applied: 0 });
+  sc['createSyncRequest'] = vi.fn().mockResolvedValue({ type: 'sync-request', frontier: {} });
 }
 
 /**
@@ -31,8 +31,8 @@ function mockClientGraph(/** @type {WarpRuntime} */ graph) {
  */
 function mockServerGraph(/** @type {WarpRuntime} */ graph) {
   const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (graph));
-  const sc = /** @type {Record<string, unknown>} */ (g._syncController);
-  sc.processSyncRequest = vi.fn().mockResolvedValue({
+  const sc = /** @type {Record<string, unknown>} */ (g['_syncController']);
+  sc['processSyncRequest'] = vi.fn().mockResolvedValue({
     type: 'sync-response',
     frontier: {},
     patches: [],

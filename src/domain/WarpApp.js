@@ -19,6 +19,7 @@ import {
  */
 export default class WarpApp {
   /**
+   * Wraps a WarpCore instance in the product-facing surface.
    * @param {WarpCore} core
    */
   constructor(core) {
@@ -62,6 +63,7 @@ export default class WarpApp {
   }
 
   /**
+   * Returns the underlying WarpRuntime for internal delegation.
    * @returns {import('./WarpRuntime.js').default}
    * @private
    */
@@ -70,6 +72,7 @@ export default class WarpApp {
   }
 
   /**
+   * Obtains a Writer handle for appending patches to this graph.
    * @returns {Promise<import('./warp/Writer.js').Writer>}
    * @param {string} [writerId]
    */
@@ -78,6 +81,7 @@ export default class WarpApp {
   }
 
   /**
+   * Creates a new uncommitted patch builder for this writer.
    * @returns {Promise<import('./services/PatchBuilderV2.js').PatchBuilderV2>}
    */
   async createPatch() {
@@ -85,6 +89,7 @@ export default class WarpApp {
   }
 
   /**
+   * Builds and commits a single patch in one call.
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<string>}
    */
@@ -93,6 +98,7 @@ export default class WarpApp {
   }
 
   /**
+   * Builds and commits multiple patches sequentially, returning their SHAs.
    * @param {...((patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>)} builds
    * @returns {Promise<string[]>}
    */
@@ -101,6 +107,7 @@ export default class WarpApp {
   }
 
   /**
+   * Synchronises this graph with a remote graph or endpoint.
    * @param {string | WarpApp | WarpCore} remote
    * @param {Parameters<import('./WarpRuntime.js').default['syncWith']>[1]} [options]
    * @returns {ReturnType<import('./WarpRuntime.js').default['syncWith']>}
@@ -116,6 +123,7 @@ export default class WarpApp {
   }
 
   /**
+   * Returns the current worldline snapshot of this graph.
    * @param {Parameters<import('./WarpRuntime.js').default['worldline']>[0]} [options]
    * @returns {ReturnType<import('./WarpRuntime.js').default['worldline']>}
    */
@@ -124,6 +132,7 @@ export default class WarpApp {
   }
 
   /**
+   * Creates an observer that projects the graph through an aperture.
    * @param {string | import('../../index.js').Aperture} nameOrConfig
    * @param {import('../../index.js').Aperture | import('../../index.js').ObserverOptions} [configOrOptions]
    * @param {import('../../index.js').ObserverOptions} [maybeOptions]
@@ -144,6 +153,7 @@ export default class WarpApp {
   }
 
   /**
+   * Computes the directed translation cost between two observer configurations.
    * @param {Parameters<import('./WarpRuntime.js').default['translationCost']>[0]} configA
    * @param {Parameters<import('./WarpRuntime.js').default['translationCost']>[1]} configB
    * @returns {ReturnType<import('./WarpRuntime.js').default['translationCost']>}
@@ -153,6 +163,7 @@ export default class WarpApp {
   }
 
   /**
+   * Subscribes to graph state-change notifications.
    * @param {Parameters<import('./WarpRuntime.js').default['subscribe']>[0]} options
    * @returns {ReturnType<import('./WarpRuntime.js').default['subscribe']>}
    */
@@ -161,6 +172,7 @@ export default class WarpApp {
   }
 
   /**
+   * Watches for changes matching the given node-ID pattern(s).
    * @param {string | string[]} pattern
    * @param {Parameters<import('./WarpRuntime.js').default['watch']>[1]} options
    * @returns {ReturnType<import('./WarpRuntime.js').default['watch']>}
@@ -172,42 +184,50 @@ export default class WarpApp {
   // ── Content attachment reads ──────────────────────────────────────────
   // Imported from query.methods.js and called with the runtime as this binding.
 
-  /** @param {string} nodeId @returns {Promise<Uint8Array|null>} */
+  /** Reads the full content blob attached to a node.
+   * @param {string} nodeId @returns {Promise<Uint8Array|null>} */
   async getContent(nodeId) {
     return await _getContent.call(this._runtime(), nodeId);
   }
 
-  /** @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  /** Returns a streaming reader for the content blob attached to a node.
+   * @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getContentStream(nodeId) {
     return await _getContentStream.call(this._runtime(), nodeId);
   }
 
-  /** @param {string} nodeId @returns {Promise<string|null>} */
+  /** Returns the Git object ID of the content blob attached to a node.
+   * @param {string} nodeId @returns {Promise<string|null>} */
   async getContentOid(nodeId) {
     return await _getContentOid.call(this._runtime(), nodeId);
   }
 
-  /** @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  /** Returns structured content metadata (oid, mime, size) for a node.
+   * @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getContentMeta(nodeId) {
     return await _getContentMeta.call(this._runtime(), nodeId);
   }
 
-  /** @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
+  /** Reads the full content blob attached to an edge.
+   * @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
   async getEdgeContent(from, to, label) {
     return await _getEdgeContent.call(this._runtime(), from, to, label);
   }
 
-  /** @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
+  /** Returns a streaming reader for the content blob attached to an edge.
+   * @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getEdgeContentStream(from, to, label) {
     return await _getEdgeContentStream.call(this._runtime(), from, to, label);
   }
 
-  /** @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
+  /** Returns the Git object ID of the content blob attached to an edge.
+   * @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
   async getEdgeContentOid(from, to, label) {
     return await _getEdgeContentOid.call(this._runtime(), from, to, label);
   }
 
-  /** @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
+  /** Returns structured content metadata (oid, mime, size) for an edge.
+   * @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getEdgeContentMeta(from, to, label) {
     return await _getEdgeContentMeta.call(this._runtime(), from, to, label);
   }
@@ -215,6 +235,7 @@ export default class WarpApp {
   // ── Strands ─────────────────────────────────────────────────────────
 
   /**
+   * Creates a new strand (isolated sub-graph workspace).
    * @param {Parameters<WarpCore['createStrand']>[0]} [options]
    * @returns {ReturnType<WarpCore['createStrand']>}
    */
@@ -223,6 +244,7 @@ export default class WarpApp {
   }
 
   /**
+   * Retrieves a strand by its identifier.
    * @param {string} strandId
    * @returns {ReturnType<WarpCore['getStrand']>}
    */
@@ -231,6 +253,7 @@ export default class WarpApp {
   }
 
   /**
+   * Lists all strands in this graph.
    * @returns {ReturnType<WarpCore['listStrands']>}
    */
   async listStrands() {
@@ -238,6 +261,7 @@ export default class WarpApp {
   }
 
   /**
+   * Merges a strand back into the main graph.
    * @param {string} strandId
    * @param {Parameters<WarpCore['braidStrand']>[1]} [options]
    * @returns {ReturnType<WarpCore['braidStrand']>}
@@ -247,6 +271,7 @@ export default class WarpApp {
   }
 
   /**
+   * Drops (deletes) a strand and its associated refs.
    * @param {string} strandId
    * @returns {ReturnType<WarpCore['dropStrand']>}
    */
@@ -255,6 +280,7 @@ export default class WarpApp {
   }
 
   /**
+   * Creates an uncommitted patch builder scoped to a strand.
    * @param {string} strandId
    * @returns {ReturnType<WarpCore['createStrandPatch']>}
    */
@@ -263,6 +289,7 @@ export default class WarpApp {
   }
 
   /**
+   * Builds and commits a single patch to a strand.
    * @param {string} strandId
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
    * @returns {Promise<string>}
@@ -272,6 +299,7 @@ export default class WarpApp {
   }
 
   /**
+   * Queues a deferred intent on a strand for later application.
    * @param {string} strandId
    * @param {(patch: import('./services/PatchBuilderV2.js').PatchBuilderV2) => void | Promise<void>} build
    * @returns {ReturnType<WarpCore['queueStrandIntent']>}
@@ -281,6 +309,7 @@ export default class WarpApp {
   }
 
   /**
+   * Lists pending intents queued on a strand.
    * @param {string} strandId
    * @returns {ReturnType<WarpCore['listStrandIntents']>}
    */
@@ -289,6 +318,7 @@ export default class WarpApp {
   }
 
   /**
+   * Advances the strand by one tick, applying pending intents.
    * @param {string} strandId
    * @returns {ReturnType<WarpCore['tickStrand']>}
    */

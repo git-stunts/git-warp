@@ -362,9 +362,9 @@ describe('TrustPayloadParity — error path', () => {
     const payload = buildErrorPayload('g', { source: 'cli_pin', sourceDetail: 'bad-sha' });
 
     expect(payload.trust.explanations).toHaveLength(1);
-    expect(payload.trust.explanations[0].reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
-    expect(payload.trust.explanations[0].writerId).toBe('*');
-    expect(payload.trust.explanations[0].trusted).toBe(false);
+    expect(payload.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
+    expect(payload.trust.explanations[0]?.writerId).toBe('*');
+    expect(payload.trust.explanations[0]?.trusted).toBe(false);
   });
 
   it('error payload evidenceSummary has all zero counters', () => {

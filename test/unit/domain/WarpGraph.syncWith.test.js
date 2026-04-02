@@ -55,7 +55,7 @@ describe('WarpRuntime syncWith', () => {
   it('retries on 500 responses and eventually succeeds', async () => {
     let calls = 0;
     const responsePayload = { type: 'sync-response', frontier: {}, patches: [] };
-    const server = createServer((req, res) => {
+    const server = createServer((_req, res) => {
       calls += 1;
       if (calls < 3) {
         res.writeHead(500, { 'content-type': 'application/json' });

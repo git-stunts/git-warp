@@ -24,14 +24,14 @@ export function queryResultToGraphData(payload, edges) {
   const nodes = (payload?.nodes ?? []).map((n) => ({
     id: n.id,
     label: n.id,
-    props: n.props,
+    ...(n.props !== undefined ? { props: n.props } : {}),
   }));
 
   const nodeSet = new Set(nodes.map((n) => n.id));
 
   const filtered = (edges ?? [])
     .filter((e) => nodeSet.has(e.from) && nodeSet.has(e.to))
-    .map((e) => ({ from: e.from, to: e.to, label: e.label }));
+    .map((e) => ({ from: e.from, to: e.to, ...(e.label !== undefined ? { label: e.label } : {}) }));
 
   return { nodes, edges: filtered };
 }
@@ -47,10 +47,13 @@ function buildPathEdges(pathArr, edgeLabels) {
   /** @type {GraphDataEdge[]} */
   const edges = [];
   for (let i = 0; i < pathArr.length - 1; i++) {
+    const from = pathArr[i] ?? '';
+    const to = pathArr[i + 1] ?? '';
+    const label = edgeLabels[i];
     edges.push({
-      from: pathArr[i],
-      to: pathArr[i + 1],
-      label: edgeLabels[i],
+      from,
+      to,
+      ...(label !== undefined ? { label } : {}),
     });
   }
   return edges;
@@ -84,7 +87,7 @@ export function rawGraphToGraphData(nodeIds, edges) {
   const mapped = (edges ?? []).map((e) => ({
     from: e.from,
     to: e.to,
-    label: e.label,
+    ...(e.label !== undefined ? { label: e.label } : {}),
   }));
 
   return { nodes, edges: mapped };

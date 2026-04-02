@@ -30,7 +30,7 @@ describe('elkLayout fallbackLayout', () => {
     expect(result).toHaveProperty('width');
     expect(result).toHaveProperty('height');
     expect(result.nodes).toHaveLength(1);
-    expect(result.nodes[0].id).toBe('a');
+    expect(/** @type {any} */ (result.nodes[0]).id).toBe('a');
   });
 
   it('positions nodes horizontally starting at x=20', async () => {
@@ -45,11 +45,11 @@ describe('elkLayout fallbackLayout', () => {
 
     const result = await runLayout(elkGraph);
 
-    expect(result.nodes[0].x).toBe(20);
-    expect(result.nodes[0].y).toBe(20);
+    expect(/** @type {any} */ (result.nodes[0]).x).toBe(20);
+    expect(/** @type {any} */ (result.nodes[0]).y).toBe(20);
     // Second node: x = 20 + (80 + 40) = 140
-    expect(result.nodes[1].x).toBe(140);
-    expect(result.nodes[1].y).toBe(20);
+    expect(/** @type {any} */ (result.nodes[1]).x).toBe(140);
+    expect(/** @type {any} */ (result.nodes[1]).y).toBe(20);
   });
 
   it('uses default width=80 and height=40 when not specified', async () => {
@@ -61,8 +61,8 @@ describe('elkLayout fallbackLayout', () => {
 
     const result = await runLayout(elkGraph);
 
-    expect(result.nodes[0].width).toBe(80);
-    expect(result.nodes[0].height).toBe(40);
+    expect(/** @type {any} */ (result.nodes[0]).width).toBe(80);
+    expect(/** @type {any} */ (result.nodes[0]).height).toBe(40);
   });
 
   it('uses node id as label when labels are missing', async () => {
@@ -74,7 +74,7 @@ describe('elkLayout fallbackLayout', () => {
 
     const result = await runLayout(elkGraph);
 
-    expect(result.nodes[0].label).toBe('my-node');
+    expect(/** @type {any} */ (result.nodes[0]).label).toBe('my-node');
   });
 
   it('edge sections are always empty arrays', async () => {
@@ -97,10 +97,10 @@ describe('elkLayout fallbackLayout', () => {
     const result = await runLayout(elkGraph);
 
     expect(result.edges).toHaveLength(1);
-    expect(result.edges[0].sections).toEqual([]);
-    expect(result.edges[0].source).toBe('a');
-    expect(result.edges[0].target).toBe('b');
-    expect(result.edges[0].label).toBe('rel');
+    expect(/** @type {any} */ (result.edges[0]).sections).toEqual([]);
+    expect(/** @type {any} */ (result.edges[0]).source).toBe('a');
+    expect(/** @type {any} */ (result.edges[0]).target).toBe('b');
+    expect(/** @type {any} */ (result.edges[0]).label).toBe('rel');
   });
 
   it('returns total accumulated width and height=80', async () => {
@@ -140,8 +140,8 @@ describe('elkLayout fallbackLayout', () => {
 
     const result = await runLayout(elkGraph);
 
-    expect(result.edges[0].source).toBe('');
-    expect(result.edges[0].target).toBe('');
-    expect(result.edges[0].label).toBeUndefined();
+    expect(/** @type {any} */ (result.edges[0]).source).toBe('');
+    expect(/** @type {any} */ (result.edges[0]).target).toBe('');
+    expect(/** @type {any} */ (result.edges[0]).label).toBeUndefined();
   });
 });

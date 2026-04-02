@@ -204,8 +204,9 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
       // Verify warning was logged via logger (not console.warn)
       expect(warnSpy).toHaveBeenCalledOnce();
-      expect(warnSpy.mock.calls[0][0]).toMatch(/Deleting node 'n1'/);
-      expect(warnSpy.mock.calls[0][0]).toMatch(/propert/);
+      const firstCall = warnSpy.mock.calls[0]; if (!firstCall) { throw new Error('expected call'); }
+      expect(firstCall[0]).toMatch(/Deleting node 'n1'/);
+      expect(firstCall[0]).toMatch(/propert/);
     });
 
     it('logs warning via logger when deleting node with edges', async () => {
@@ -233,7 +234,8 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
       expect(typeof sha).toBe('string');
       expect(warnSpy).toHaveBeenCalled();
-      expect(warnSpy.mock.calls[0][0]).toMatch(/edge/);
+      const edgeCall = warnSpy.mock.calls[0]; if (!edgeCall) { throw new Error('expected call'); }
+      expect(edgeCall[0]).toMatch(/edge/);
     });
 
     it('does not warn when deleting node with no attached data', async () => {
@@ -318,7 +320,8 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
 
       expect(typeof sha).toBe('string');
       expect(warnSpy).toHaveBeenCalledOnce();
-      expect(warnSpy.mock.calls[0][0]).toMatch(/propert/);
+      const writerCall = warnSpy.mock.calls[0]; if (!writerCall) { throw new Error('expected call'); }
+      expect(writerCall[0]).toMatch(/propert/);
     });
   });
 

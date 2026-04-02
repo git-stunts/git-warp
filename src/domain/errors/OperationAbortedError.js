@@ -14,11 +14,12 @@ import WarpError from './WarpError.js';
  */
 export default class OperationAbortedError extends WarpError {
   /**
-   * @param {string} operation
-   * @param {{ code?: string, context?: Record<string, unknown>, reason?: string }} [options={}]
+   * Creates an OperationAbortedError with operation name and optional reason.
+   * @param {string} operation - Name of the aborted operation
+   * @param {{ code?: string, context?: Record<string, unknown>, reason?: string }} [options={}] - Error options
    */
   constructor(operation, options = {}) {
-    const reason = options.reason || 'Operation was aborted';
+    const reason = options.reason !== undefined && options.reason !== '' ? options.reason : 'Operation was aborted';
     super(`Operation '${operation}' aborted: ${reason}`, 'OPERATION_ABORTED', options);
     this.operation = operation;
     this.reason = reason;

@@ -29,7 +29,7 @@ class RecordingSink extends EffectSinkPort {
       emissionId: emission.id,
       sinkId: this._id,
       outcome: lens.suppressExternal ? 'suppressed' : 'delivered',
-      reason: lens.suppressExternal ? `suppressed by ${lens.mode} lens` : undefined,
+      ...(lens.suppressExternal ? { reason: `suppressed by ${lens.mode} lens` } : {}),
       timestamp: Date.now(),
       lens,
     });
@@ -59,7 +59,8 @@ describe('EffectPipeline', () => {
       expect(result.emission.payload).toEqual({ text: 'hi' });
       expect(result.emission.timestamp).toBe(42);
       expect(result.observations).toHaveLength(1);
-      expect(result.observations[0].outcome).toBe('delivered');
+      const obs0 = /** @type {{ outcome: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      expect(obs0.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
 
@@ -99,13 +100,15 @@ describe('EffectPipeline', () => {
     it('passes the current lens to sinks', async () => {
       const { pipeline, sink } = setup(LIVE_LENS);
       await pipeline.emit('test', null);
-      expect(sink.delivered[0].lens).toBe(LIVE_LENS);
+      const d0 = /** @type {{ lens: unknown }} */ (sink.delivered[0]);
+      expect(d0.lens).toBe(LIVE_LENS);
     });
 
     it('in replay mode, sink receives replay lens', async () => {
       const { pipeline, sink } = setup(REPLAY_LENS);
       await pipeline.emit('test', null);
-      expect(sink.delivered[0].lens).toBe(REPLAY_LENS);
+      const d0 = /** @type {{ lens: unknown }} */ (sink.delivered[0]);
+      expect(d0.lens).toBe(REPLAY_LENS);
     });
 
     it('lens can be changed after construction', async () => {
@@ -114,8 +117,10 @@ describe('EffectPipeline', () => {
       pipeline.lens = REPLAY_LENS;
       await pipeline.emit('after', null);
 
-      expect(sink.delivered[0].lens.mode).toBe('live');
-      expect(sink.delivered[1].lens.mode).toBe('replay');
+      const d0 = /** @type {{ lens: { mode: string } }} */ (sink.delivered[0]);
+      const d1 = /** @type {{ lens: { mode: string } }} */ (sink.delivered[1]);
+      expect(d0.lens.mode).toBe('live');
+      expect(d1.lens.mode).toBe('replay');
     });
 
     it('exposes the current lens', () => {
@@ -140,8 +145,9 @@ describe('EffectPipeline', () => {
       const { pipeline } = setup(REPLAY_LENS);
       const result = await pipeline.emit('notification', null);
 
-      expect(result.observations[0].outcome).toBe('suppressed');
-      expect(result.observations[0].reason).toContain('replay');
+      const obs0 = /** @type {{ outcome: string, reason: string }} */ (Array.isArray(result.observations) ? result.observations[0] : result.observations);
+      expect(obs0.outcome).toBe('suppressed');
+      expect(obs0.reason).toContain('replay');
     });
   });
 
@@ -201,7 +207,8 @@ describe('EffectPipeline', () => {
       const pipeline = new EffectPipeline({ sink, lens: LIVE_LENS, clock });
       const result = await pipeline.emit('test', null);
 
-      expect(result.observations.outcome).toBe('delivered');
+      const obs = /** @type {{ outcome: string }} */ (result.observations);
+      expect(obs.outcome).toBe('delivered');
       expect(sink.delivered).toHaveLength(1);
     });
   });

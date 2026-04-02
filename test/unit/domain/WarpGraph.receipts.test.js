@@ -11,8 +11,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { createEmptyStateV5, encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
-import { orsetAdd, orsetContains } from '../../../src/domain/crdt/ORSet.js';
+import { encodePropKey, encodeEdgeKey } from '../../../src/domain/services/JoinReducer.js';
+import { orsetContains } from '../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 
@@ -93,8 +93,6 @@ async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {an
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
   const { encodePatchMessage } = await import('../../../src/domain/services/WarpMessageCodec.js');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.js');
-  const { vvSerialize } = await import('../../../src/domain/crdt/VersionVector.js');
-
   const patch = {
     schema: 2,
     writer: writerId,

@@ -164,8 +164,13 @@ export function isKnownOp(op) {
 }
 
 /**
+ * @typedef {{ type: string, [key: string]: unknown }} OpLikeRecord
+ * @typedef {{ type: string, writerId: string, counter: number, [key: string]: unknown }} DotLikeRecord
+ */
+
+/**
  * Asserts that `op[field]` is a string. Throws PatchError if not.
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  * @param {string} field
  */
 function requireString(op, field) {
@@ -179,7 +184,7 @@ function requireString(op, field) {
 
 /**
  * Asserts that `op[field]` is iterable (Array, Set, or any Symbol.iterator).
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  * @param {string} field
  */
 function requireIterable(op, field) {
@@ -199,7 +204,7 @@ function requireIterable(op, field) {
 
 /**
  * Asserts that `op.dot` is an object with writerId (string) and counter (number).
- * @param {Record<string, unknown>} op
+ * @param {OpLikeRecord} op
  */
 function requireDot(op) {
   const { dot } = op;
@@ -209,7 +214,7 @@ function requireDot(op) {
       { context: { opType: op.type, field: 'dot', actual: typeof dot } },
     );
   }
-  const d = /** @type {Record<string, unknown>} */ (dot);
+  const d = /** @type {DotLikeRecord} */ (dot);
   if (typeof d.writerId !== 'string') {
     throw new PatchError(
       `${op.type} op requires 'dot.writerId' to be a string, got ${typeof d.writerId}`,
@@ -224,57 +229,249 @@ function requireDot(op) {
   }
 }
 
-/**
- * Validates that an operation has the required fields for its type.
- * Throws PatchError for malformed ops. Unknown/BlobValue types pass through
- * for forward compatibility.
- *
- * @param {Record<string, unknown>} op
- */
-function validateOp(op) {
-  if (op === null || op === undefined || typeof op.type !== 'string') {
-    throw new PatchError(
-      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op.type}`,
-      { context: { actual: op === null || op === undefined ? String(op) : typeof op.type } },
-    );
-  }
+// validateOp logic now lives in each OpStrategy.validate() method
 
-  switch (op.type) {
-    case 'NodeAdd':
-      requireString(op, 'node');
-      requireDot(op);
-      break;
-    case 'NodeRemove':
-      // node is optional (informational for receipts); observedDots is required for mutation
-      requireIterable(op, 'observedDots');
-      break;
-    case 'EdgeAdd':
-      requireString(op, 'from');
-      requireString(op, 'to');
-      requireString(op, 'label');
-      requireDot(op);
-      break;
-    case 'EdgeRemove':
-      // from/to/label are optional (informational for receipts); observedDots is required for mutation
-      requireIterable(op, 'observedDots');
-      break;
-    case 'PropSet':
-      requireString(op, 'node');
-      requireString(op, 'key');
-      break;
-    case 'NodePropSet':
-      requireString(op, 'node');
-      requireString(op, 'key');
-      break;
-    case 'EdgePropSet':
-      requireString(op, 'from');
-      requireString(op, 'to');
-      requireString(op, 'label');
-      requireString(op, 'key');
-      break;
-    default:
-      // BlobValue and unknown types: no validation (forward-compat)
-      break;
+// ============================================================================
+// OpStrategy Registry — structural coupling of all apply paths
+// ============================================================================
+
+/**
+ * @typedef {Object} OpOutcomeResult
+ * @property {string} target - The entity ID or key affected
+ * @property {'applied'|'superseded'|'redundant'} result - Outcome
+ * @property {string} [reason] - Explanation when superseded
+ */
+
+/**
+ * @typedef {Object} OpStrategy
+ * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => void} mutate
+ * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => OpOutcomeResult} outcome
+ * @property {(state: WarpStateV5, op: OpLike) => SnapshotBeforeOp} snapshot
+ * @property {(diff: import('../types/PatchDiff.js').PatchDiff, state: WarpStateV5, op: OpLike, before: SnapshotBeforeOp) => void} accumulate
+ * @property {(op: OpLikeRecord) => void} validate
+ */
+
+/** @type {OpStrategy} */
+const nodeAddStrategy = {
+  validate(op) { requireString(op, 'node'); requireDot(op); },
+  mutate(state, op) {
+    orsetAdd(state.nodeAlive, /** @type {string} */ (op.node), /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
+  },
+  outcome(state, op) {
+    return nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.js').Dot}} */ (op));
+  },
+  snapshot(state, op) {
+    return { nodeWasAlive: orsetContains(state.nodeAlive, /** @type {string} */ (op.node)) };
+  },
+  accumulate(diff, state, op, before) {
+    if (before.nodeWasAlive !== true && orsetContains(state.nodeAlive, /** @type {string} */ (op.node))) {
+      diff.nodesAdded.push(/** @type {string} */ (op.node));
+    }
+  },
+};
+
+/** @type {OpStrategy} */
+const nodeRemoveStrategy = {
+  validate(op) { requireIterable(op, 'observedDots'); },
+  mutate(state, op) {
+    orsetRemove(state.nodeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
+  },
+  outcome(state, op) {
+    return nodeRemoveOutcome(state.nodeAlive, /** @type {{node?: string, observedDots: string[]}} */ (op));
+  },
+  snapshot(state, op) {
+    const rawDots = /** @type {Iterable<string>} */ (op.observedDots);
+    /** @type {Set<string>} */
+    const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
+    return { aliveBeforeNodes: aliveElementsForDots(state.nodeAlive, nodeDots) };
+  },
+  accumulate(diff, state, _op, before) {
+    collectNodeRemovals(diff, state, before);
+  },
+};
+
+/** @type {OpStrategy} */
+const edgeAddStrategy = {
+  validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireDot(op); },
+  mutate(state, op, eventId) {
+    const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
+    orsetAdd(state.edgeAlive, edgeKey, /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
+    if (state.edgeBirthEvent !== null && state.edgeBirthEvent !== undefined) {
+      const prev = state.edgeBirthEvent.get(edgeKey);
+      if (prev === undefined || compareEventIds(eventId, prev) > 0) {
+        state.edgeBirthEvent.set(edgeKey, eventId);
+      }
+    }
+  },
+  outcome(state, op) {
+    const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
+    return edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} */ (op), edgeKey);
+  },
+  snapshot(state, op) {
+    const ek = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
+    return { edgeWasAlive: orsetContains(state.edgeAlive, ek), edgeKey: ek };
+  },
+  accumulate(diff, state, op, before) {
+    if (before.edgeWasAlive !== true && orsetContains(state.edgeAlive, /** @type {string} */ (before.edgeKey))) {
+      diff.edgesAdded.push({ from: /** @type {string} */ (op.from), to: /** @type {string} */ (op.to), label: /** @type {string} */ (op.label) });
+    }
+  },
+};
+
+/** @type {OpStrategy} */
+const edgeRemoveStrategy = {
+  validate(op) { requireIterable(op, 'observedDots'); },
+  mutate(state, op) {
+    orsetRemove(state.edgeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
+  },
+  outcome(state, op) {
+    return edgeRemoveOutcome(state.edgeAlive, /** @type {{from?: string, to?: string, label?: string, observedDots: string[]}} */ (op));
+  },
+  snapshot(state, op) {
+    const rawEdgeDots = /** @type {Iterable<string>} */ (op.observedDots);
+    /** @type {Set<string>} */
+    const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
+    return { aliveBeforeEdges: aliveElementsForDots(state.edgeAlive, edgeDots) };
+  },
+  accumulate(diff, state, _op, before) {
+    collectEdgeRemovals(diff, state, before);
+  },
+};
+
+/**
+ * Shared mutate logic for node property ops (NodePropSet and legacy PropSet).
+ * @param {WarpStateV5} state
+ * @param {string} propKey
+ * @param {import('../utils/EventId.js').EventId} eventId
+ * @param {unknown} value
+ */
+function mutateProp(state, propKey, eventId, value) {
+  const current = state.prop.get(propKey);
+  state.prop.set(propKey, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, value))));
+}
+
+/**
+ * Shared snapshot for property ops.
+ * @param {WarpStateV5} state
+ * @param {string} propKey
+ * @returns {SnapshotBeforeOp}
+ */
+function snapshotProp(state, propKey) {
+  const reg = state.prop.get(propKey);
+  return { prevPropValue: reg !== null && reg !== undefined ? reg.value : undefined, propKey };
+}
+
+/**
+ * Shared diff accumulator for property ops.
+ * @param {import('../types/PatchDiff.js').PatchDiff} diff
+ * @param {WarpStateV5} state
+ * @param {string} nodeId
+ * @param {string} key
+ * @param {SnapshotBeforeOp} before
+ */
+function accumulatePropDiff(diff, state, nodeId, key, before) {
+  const reg = state.prop.get(/** @type {string} */ (before.propKey));
+  const newVal = reg !== null && reg !== undefined ? reg.value : undefined;
+  if (newVal !== before.prevPropValue) {
+    diff.propsChanged.push({ nodeId, key, value: newVal, prevValue: before.prevPropValue });
+  }
+}
+
+/** @type {OpStrategy} */
+const nodePropSetStrategy = {
+  validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
+  mutate(state, op, eventId) {
+    mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
+  },
+  outcome(state, op, eventId) {
+    return propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
+  },
+  snapshot(state, op) {
+    return snapshotProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)));
+  },
+  accumulate(diff, state, op, before) {
+    accumulatePropDiff(diff, state, /** @type {string} */ (op.node), /** @type {string} */ (op.key), before);
+  },
+};
+
+/** @type {OpStrategy} */
+const edgePropSetStrategy = {
+  validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireString(op, 'key'); },
+  mutate(state, op, eventId) {
+    mutateProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)), eventId, op.value);
+  },
+  outcome(state, op, eventId) {
+    return edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string}} */ (op), eventId);
+  },
+  snapshot(state, op) {
+    return snapshotProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)));
+  },
+  accumulate(diff, state, op, before) {
+    accumulatePropDiff(diff, state, encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label)), /** @type {string} */ (op.key), before);
+  },
+};
+
+/** @type {OpStrategy} */
+const propSetStrategy = {
+  validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
+  mutate(state, op, eventId) {
+    // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
+    if (typeof op.node === 'string' && op.node[0] === EDGE_PROP_PREFIX) {
+      throw new PatchError(
+        'Unnormalized legacy edge-property PropSet reached canonical apply path. ' +
+        'Call normalizeRawOp() at the decode boundary.',
+        { context: { opType: 'PropSet', node: op.node } },
+      );
+    }
+    mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
+  },
+  outcome(state, op, eventId) {
+    return propSetOutcome(state.prop, /** @type {{node: string, key: string}} */ (op), eventId);
+  },
+  snapshot(state, op) {
+    return snapshotProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)));
+  },
+  accumulate(diff, state, op, before) {
+    accumulatePropDiff(diff, state, /** @type {string} */ (op.node), /** @type {string} */ (op.key), before);
+  },
+};
+
+/** @type {OpStrategy} */
+const blobValueStrategy = {
+  validate() { /* no-op: forward-compat */ },
+  mutate() { /* no-op: BlobValue has no state effect */ },
+  outcome(_state, op) {
+    const blobOp = /** @type {{ oid?: string }} */ (op);
+    const blobOid = blobOp.oid;
+    const blobTarget = (typeof blobOid === 'string' && blobOid.length > 0) ? blobOid : '*';
+    return { target: blobTarget, result: /** @type {'applied'} */ ('applied') };
+  },
+  snapshot() { return {}; },
+  accumulate() { /* no-op */ },
+};
+
+/**
+ * Frozen registry mapping canonical op types to their strategy objects.
+ * Adding a new op type requires defining all five strategy methods.
+ * @type {ReadonlyMap<string, OpStrategy>}
+ */
+export const OP_STRATEGIES = Object.freeze(new Map([
+  ['NodeAdd', nodeAddStrategy],
+  ['NodeRemove', nodeRemoveStrategy],
+  ['EdgeAdd', edgeAddStrategy],
+  ['EdgeRemove', edgeRemoveStrategy],
+  ['NodePropSet', nodePropSetStrategy],
+  ['EdgePropSet', edgePropSetStrategy],
+  ['PropSet', propSetStrategy],
+  ['BlobValue', blobValueStrategy],
+]));
+
+// Load-time validation: every strategy must have all five methods
+for (const [type, strategy] of OP_STRATEGIES) {
+  for (const method of ['mutate', 'outcome', 'snapshot', 'accumulate', 'validate']) {
+    if (typeof /** @type {Record<string, unknown>} */ (strategy)[method] !== 'function') {
+      throw new Error(`OpStrategy '${type}' missing required method '${method}'`);
+    }
   }
 }
 
@@ -286,68 +483,16 @@ function validateOp(op) {
  * @param {import('../utils/EventId.js').EventId} eventId - The event ID for LWW ordering
  */
 export function applyOpV2(state, op, eventId) {
-  validateOp(/** @type {Record<string, unknown>} */ (op));
-  switch (op.type) {
-    case 'NodeAdd':
-      orsetAdd(state.nodeAlive, /** @type {string} */ (op.node), /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
-      break;
-    case 'NodeRemove':
-      orsetRemove(state.nodeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
-      break;
-    case 'EdgeAdd': {
-      const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
-      orsetAdd(state.edgeAlive, edgeKey, /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
-      // Track the EventId at which this edge incarnation was born.
-      // On re-add after remove, the greater EventId replaces the old one,
-      // allowing the query layer to filter out stale properties.
-      if (state.edgeBirthEvent !== null && state.edgeBirthEvent !== undefined) {
-        const prev = state.edgeBirthEvent.get(edgeKey);
-        if (prev === undefined || compareEventIds(eventId, prev) > 0) {
-          state.edgeBirthEvent.set(edgeKey, eventId);
-        }
-      }
-      break;
-    }
-    case 'EdgeRemove':
-      orsetRemove(state.edgeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
-      break;
-    case 'NodePropSet': {
-      const key = encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key));
-      const current = state.prop.get(key);
-      state.prop.set(key, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, op.value))));
-      break;
-    }
-    case 'EdgePropSet': {
-      const key = encodeEdgePropKey(
-        /** @type {string} */ (op.from),
-        /** @type {string} */ (op.to),
-        /** @type {string} */ (op.label),
-        /** @type {string} */ (op.key),
-      );
-      const current = state.prop.get(key);
-      state.prop.set(key, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, op.value))));
-      break;
-    }
-    case 'PropSet': {
-      // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
-      // If it does, normalization was skipped.
-      if (typeof op.node === 'string' && op.node[0] === EDGE_PROP_PREFIX) {
-        throw new PatchError(
-          'Unnormalized legacy edge-property PropSet reached canonical apply path. ' +
-          'Call normalizeRawOp() at the decode boundary.',
-          { context: { opType: 'PropSet', node: op.node } },
-        );
-      }
-      // Plain node property (backward-compat for callers that bypass normalization)
-      const key = encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key));
-      const current = state.prop.get(key);
-      state.prop.set(key, /** @type {import('../crdt/LWW.js').LWWRegister<unknown>} */ (lwwMax(current, lwwSet(eventId, op.value))));
-      break;
-    }
-    default:
-      // Unknown op types are silently ignored (forward-compat)
-      break;
+  if (op === null || op === undefined || typeof op.type !== 'string') {
+    throw new PatchError(
+      `Invalid op: expected object with string 'type', got ${op === null || op === undefined ? String(op) : typeof op.type}`,
+      { context: { actual: op === null || op === undefined ? String(op) : typeof op.type } },
+    );
   }
+  const strategy = OP_STRATEGIES.get(op.type);
+  if (!strategy) { return; } // Unknown ops silently ignored (forward-compat)
+  strategy.validate(/** @type {OpLikeRecord} */ (op));
+  strategy.mutate(state, op, eventId);
 }
 
 /**
@@ -488,7 +633,7 @@ function edgeRemoveOutcome(orset, op) {
     && typeof op.to === 'string' && op.to.length > 0
     && typeof op.label === 'string' && op.label.length > 0;
   const target = hasEdgeFields
-    ? encodeEdgeKey(op.from, op.to, op.label)
+    ? encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label))
     : '*';
   return { target, result: effective ? 'applied' : 'redundant' };
 }
@@ -595,8 +740,14 @@ function updateFrontierFromPatch(state, patch) {
  */
 export function applyFast(state, patch, patchSha) {
   for (let i = 0; i < patch.ops.length; i++) {
+    const op = patch.ops[i];
+    if (op === undefined) { continue; }
+    const canonOp = normalizeRawOp(op);
+    const strategy = OP_STRATEGIES.get(canonOp.type);
+    if (!strategy) { continue; }
+    strategy.validate(/** @type {OpLikeRecord} */ (canonOp));
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    applyOpV2(state, normalizeRawOp(patch.ops[i]), eventId);
+    strategy.mutate(state, canonOp, eventId);
   }
   updateFrontierFromPatch(state, patch);
   return state;
@@ -664,117 +815,8 @@ function aliveElementsForDots(orset, observedDots) {
  * @property {Set<string>} [aliveBeforeEdges]
  */
 
-/**
- * Snapshots alive-ness of a node or edge before an op is applied.
- *
- * @param {WarpStateV5} state
- * @param {import('../types/WarpTypesV2.js').OpV2} op
- * @returns {SnapshotBeforeOp}
- */
-function snapshotBeforeOp(state, op) {
-  switch (op.type) {
-    case 'NodeAdd':
-      return { nodeWasAlive: orsetContains(state.nodeAlive, op.node) };
-    case 'NodeRemove': {
-      const rawDots = /** @type {Iterable<string>} */ (op.observedDots);
-      /** @type {Set<string>} */
-      const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
-      const aliveBeforeNodes = aliveElementsForDots(state.nodeAlive, nodeDots);
-      return { aliveBeforeNodes };
-    }
-    case 'EdgeAdd': {
-      const ek = encodeEdgeKey(op.from, op.to, op.label);
-      return { edgeWasAlive: orsetContains(state.edgeAlive, ek), edgeKey: ek };
-    }
-    case 'EdgeRemove': {
-      const rawEdgeDots = /** @type {Iterable<string>} */ (op.observedDots);
-      /** @type {Set<string>} */
-      const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
-      const aliveBeforeEdges = aliveElementsForDots(state.edgeAlive, edgeDots);
-      return { aliveBeforeEdges };
-    }
-    case 'PropSet':
-    case 'NodePropSet': {
-      const pk = encodePropKey(op.node, op.key);
-      const reg = state.prop.get(pk);
-      return { prevPropValue: reg !== null && reg !== undefined ? reg.value : undefined, propKey: pk };
-    }
-    case 'EdgePropSet': {
-      const epk = encodeEdgePropKey(op.from, op.to, op.label, op.key);
-      const ereg = state.prop.get(epk);
-      return { prevPropValue: ereg !== null && ereg !== undefined ? ereg.value : undefined, propKey: epk };
-    }
-    case 'BlobValue':
-      return {};
-    default:
-      return {};
-  }
-}
-
-/**
- * Computes diff entries by comparing pre/post alive-ness after an op.
- *
- * @param {import('../types/PatchDiff.js').PatchDiff} diff
- * @param {WarpStateV5} state
- * @param {import('../types/WarpTypesV2.js').OpV2} op
- * @param {SnapshotBeforeOp} before
- */
-function accumulateOpDiff(diff, state, op, before) {
-  switch (op.type) {
-    case 'NodeAdd': {
-      if (before.nodeWasAlive !== true && orsetContains(state.nodeAlive, op.node)) {
-        diff.nodesAdded.push(op.node);
-      }
-      break;
-    }
-    case 'NodeRemove': {
-      collectNodeRemovals(diff, state, before);
-      break;
-    }
-    case 'EdgeAdd': {
-      if (before.edgeWasAlive !== true && orsetContains(state.edgeAlive, /** @type {string} */ (before.edgeKey))) {
-        const { from, to, label } = op;
-        diff.edgesAdded.push({ from, to, label });
-      }
-      break;
-    }
-    case 'EdgeRemove': {
-      collectEdgeRemovals(diff, state, before);
-      break;
-    }
-    case 'PropSet':
-    case 'NodePropSet': {
-      const reg = state.prop.get(/** @type {string} */ (before.propKey));
-      const newVal = reg !== null && reg !== undefined ? reg.value : undefined;
-      if (newVal !== before.prevPropValue) {
-        diff.propsChanged.push({
-          nodeId: op.node,
-          key: op.key,
-          value: newVal,
-          prevValue: before.prevPropValue,
-        });
-      }
-      break;
-    }
-    case 'EdgePropSet': {
-      const ereg = state.prop.get(/** @type {string} */ (before.propKey));
-      const eNewVal = ereg !== null && ereg !== undefined ? ereg.value : undefined;
-      if (eNewVal !== before.prevPropValue) {
-        diff.propsChanged.push({
-          nodeId: encodeEdgeKey(op.from, op.to, op.label),
-          key: op.key,
-          value: eNewVal,
-          prevValue: before.prevPropValue,
-        });
-      }
-      break;
-    }
-    case 'BlobValue':
-      break;
-    default:
-      break;
-  }
-}
+// snapshotBeforeOp and accumulateOpDiff logic now lives in each OpStrategy's
+// .snapshot() and .accumulate() methods
 
 /**
  * Records removal only for elements that were alive before AND dead after.
@@ -824,12 +866,16 @@ export function applyWithDiff(state, patch, patchSha) {
   const diff = createEmptyDiff();
 
   for (let i = 0; i < patch.ops.length; i++) {
-    const canonOp = /** @type {import('../types/WarpTypesV2.js').CanonicalOpV2} */ (normalizeRawOp(patch.ops[i]));
-    validateOp(/** @type {Record<string, unknown>} */ (canonOp));
+    const rawOp = patch.ops[i];
+    if (rawOp === undefined) { continue; }
+    const canonOp = normalizeRawOp(rawOp);
+    const strategy = OP_STRATEGIES.get(canonOp.type);
+    if (!strategy) { continue; }
+    strategy.validate(/** @type {OpLikeRecord} */ (canonOp));
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
-    const before = snapshotBeforeOp(state, canonOp);
-    applyOpV2(state, canonOp, eventId);
-    accumulateOpDiff(diff, state, canonOp, before);
+    const before = strategy.snapshot(state, canonOp);
+    strategy.mutate(state, canonOp, eventId);
+    strategy.accumulate(diff, state, canonOp, before);
   }
 
   updateFrontierFromPatch(state, patch);
@@ -848,49 +894,19 @@ export function applyWithReceipt(state, patch, patchSha) {
   /** @type {import('../types/TickReceipt.js').OpOutcome[]} */
   const opResults = [];
   for (let i = 0; i < patch.ops.length; i++) {
-    const canonOp = /** @type {import('../types/WarpTypesV2.js').OpV2} */ (normalizeRawOp(patch.ops[i]));
-    validateOp(/** @type {Record<string, unknown>} */ (canonOp));
+    const rawOp = patch.ops[i];
+    if (rawOp === undefined) { continue; }
+    const canonOp = normalizeRawOp(rawOp);
+    const strategy = OP_STRATEGIES.get(canonOp.type);
+    if (!strategy) { continue; }
+    strategy.validate(/** @type {OpLikeRecord} */ (canonOp));
     const eventId = createEventId(patch.lamport, patch.writer, patchSha, i);
 
     // Determine outcome BEFORE applying the op (state is pre-op)
-    /** @type {{target: string, result: string, reason?: string}} */
-    let outcome;
-    switch (canonOp.type) {
-      case 'NodeAdd':
-        outcome = nodeAddOutcome(state.nodeAlive, /** @type {{node: string, dot: import('../crdt/Dot.js').Dot}} */ (canonOp));
-        break;
-      case 'NodeRemove':
-        outcome = nodeRemoveOutcome(state.nodeAlive, /** @type {{node?: string, observedDots: string[]}} */ (canonOp));
-        break;
-      case 'EdgeAdd': {
-        const edgeKey = encodeEdgeKey(canonOp.from, canonOp.to, canonOp.label);
-        outcome = edgeAddOutcome(state.edgeAlive, /** @type {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} */ (canonOp), edgeKey);
-        break;
-      }
-      case 'EdgeRemove':
-        outcome = edgeRemoveOutcome(state.edgeAlive, /** @type {{from?: string, to?: string, label?: string, observedDots: string[]}} */ (canonOp));
-        break;
-      case 'PropSet':
-      case 'NodePropSet':
-        outcome = propSetOutcome(state.prop, /** @type {{node: string, key: string, value: unknown}} */ (canonOp), eventId);
-        break;
-      case 'EdgePropSet':
-        outcome = edgePropSetOutcome(state.prop, /** @type {{from: string, to: string, label: string, key: string, value: unknown}} */ (canonOp), eventId);
-        break;
-      case 'BlobValue': {
-        const blobOp = /** @type {Record<string, string>} */ (canonOp);
-        const blobTarget = (typeof blobOp.oid === 'string' && blobOp.oid.length > 0) ? blobOp.oid : '*';
-        outcome = { target: blobTarget, result: 'applied' };
-        break;
-      }
-      default: {
-        outcome = { target: '*', result: 'applied' };
-        break;
-      }
-    }
+    const outcome = strategy.outcome(state, canonOp, eventId);
 
     // Apply the op (mutates state)
-    applyOpV2(state, canonOp, eventId);
+    strategy.mutate(state, canonOp, eventId);
 
     const mappedOp = /** @type {Record<string, string>} */ (RECEIPT_OP_TYPE)[canonOp.type];
     const receiptOp = (typeof mappedOp === 'string' && mappedOp.length > 0) ? mappedOp : canonOp.type;

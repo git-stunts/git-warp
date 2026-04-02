@@ -221,7 +221,11 @@ export default class DenoHttpAdapter extends HttpServerPort {
 
     return {
       /** Starts listening on the given port. */
-      listen: (port, host, callback) => listenImpl({ state, handler }, { port, host, callback }),
+      listen: (port, host, callback) => listenImpl({ state, handler }, {
+        port,
+        ...(host !== undefined ? { host } : {}),
+        ...(callback !== undefined ? { callback } : {}),
+      }),
       /** Stops the server. */
       close: (callback) => closeImpl(state, callback),
       /** Returns the bound address. */

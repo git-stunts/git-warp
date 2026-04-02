@@ -234,8 +234,8 @@ export default class GitLogParser {
 
     return new GraphNode({
       sha,
-      author: lines[1],
-      date: lines[2],
+      author: /** @type {string} */ (lines[1]),
+      date: /** @type {string} */ (lines[2]),
       message,
       parents: parseParentLine(lines[3]),
     });

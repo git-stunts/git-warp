@@ -23,6 +23,7 @@ import { CODES } from './codes.js';
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * Wrap an unexpected exception as an internal-error finding.
  * @param {string} id
  * @param {unknown} err
  * @returns {DoctorFinding}
@@ -39,7 +40,11 @@ function internalError(id, err) {
 
 // ── repo-accessible ─────────────────────────────────────────────────────────
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding>} */
+/**
+ * Verify the repository is reachable via HealthCheckService.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding>}
+ */
 export async function checkRepoAccessible(ctx) {
   try {
     const clock = ClockAdapter.global();
@@ -63,110 +68,175 @@ export async function checkRepoAccessible(ctx) {
 
 // ── refs-consistent ─────────────────────────────────────────────────────────
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding[]>} */
+/**
+ * Check whether a single ref points to an existing Git object.
+ * @param {{ ref: string, sha: string, label: string }} entry
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding|null>}
+ */
+async function checkSingleRef(entry, ctx) {
+  if (typeof entry.sha !== 'string' || entry.sha.length === 0) {
+    return {
+      id: 'refs-consistent', status: 'fail', code: CODES.REFS_DANGLING_OBJECT,
+      impact: 'data_integrity',
+      message: `Ref ${entry.ref} points to a missing or unreadable object`,
+      fix: `Investigate broken ref for ${entry.label}`, evidence: { ref: entry.ref },
+    };
+  }
+  const exists = await ctx.persistence.nodeExists(entry.sha);
+  if (!exists) {
+    return {
+      id: 'refs-consistent', status: 'fail', code: CODES.REFS_DANGLING_OBJECT,
+      impact: 'data_integrity',
+      message: `Ref ${entry.ref} points to missing object ${entry.sha.slice(0, 7)}`,
+      fix: `Investigate missing object for ${entry.label}`, evidence: { ref: entry.ref, sha: entry.sha },
+    };
+  }
+  return null;
+}
+
+/**
+ * Verify all writer refs point to existing Git objects.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding[]>}
+ */
 export async function checkRefsConsistent(ctx) {
   try {
-    const findings = /** @type {DoctorFinding[]} */ ([]);
     const allRefs = ctx.writerHeads.map((h) => ({
-      ref: h.ref, sha: h.sha, label: `writer ${h.writerId}`,
+      ref: h.ref, sha: h.sha ?? '', label: `writer ${h.writerId}`,
     }));
-    let allOk = true;
-    let checkedCount = 0;
-
-    for (const { ref, sha, label } of allRefs) {
-      if (!sha) {
-        allOk = false;
-        findings.push({
-          id: 'refs-consistent', status: 'fail', code: CODES.REFS_DANGLING_OBJECT,
-          impact: 'data_integrity',
-          message: `Ref ${ref} points to a missing or unreadable object`,
-          fix: `Investigate broken ref for ${label}`, evidence: { ref },
-        });
-        continue;
-      }
-      checkedCount++;
-      const exists = await ctx.persistence.nodeExists(sha);
-      if (!exists) {
-        allOk = false;
-        findings.push({
-          id: 'refs-consistent', status: 'fail', code: CODES.REFS_DANGLING_OBJECT,
-          impact: 'data_integrity',
-          message: `Ref ${ref} points to missing object ${sha.slice(0, 7)}`,
-          fix: `Investigate missing object for ${label}`, evidence: { ref, sha },
-        });
-      }
-    }
-
-    if (allOk) {
-      findings.push({
-        id: 'refs-consistent', status: 'ok', code: CODES.REFS_OK,
-        impact: 'data_integrity', message: `All ${checkedCount} ref(s) point to existing objects`,
-      });
-    }
-    return findings;
+    return await checkAllRefs(allRefs, ctx);
   } catch (err) {
     return [internalError('refs-consistent', err)];
   }
 }
 
+/**
+ * Iterate over all refs, collecting failure findings or a single OK finding.
+ * @param {Array<{ ref: string, sha: string, label: string }>} allRefs
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding[]>}
+ */
+async function checkAllRefs(allRefs, ctx) {
+  const findings = /** @type {DoctorFinding[]} */ ([]);
+  let checkedCount = 0;
+
+  for (const entry of allRefs) {
+    const finding = await checkSingleRef(entry, ctx);
+    if (finding !== null && finding !== undefined) {
+      findings.push(finding);
+    } else {
+      checkedCount++;
+    }
+  }
+
+  if (findings.length === 0) {
+    findings.push({
+      id: 'refs-consistent', status: 'ok', code: CODES.REFS_OK,
+      impact: 'data_integrity', message: `All ${checkedCount} ref(s) point to existing objects`,
+    });
+  }
+  return findings;
+}
+
 // ── coverage-complete ───────────────────────────────────────────────────────
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding>} */
+/**
+ * Collect writer IDs whose heads are not reachable from the coverage anchor.
+ * @param {DoctorContext} ctx
+ * @param {string} coverageSha
+ * @returns {Promise<string[]>}
+ */
+async function findMissingWriters(ctx, coverageSha) {
+  const missing = [];
+  for (const head of ctx.writerHeads) {
+    if (typeof head.sha !== 'string' || head.sha.length === 0) {
+      missing.push(head.writerId);
+      continue;
+    }
+    const reachable = await ctx.persistence.isAncestor(head.sha, coverageSha);
+    if (!reachable) {
+      missing.push(head.writerId);
+    }
+  }
+  return missing;
+}
+
+/**
+ * Verify the coverage octopus anchor includes all writers.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding>}
+ */
 export async function checkCoverageComplete(ctx) {
   try {
     const coverageRef = buildCoverageRef(ctx.graphName);
     const coverageSha = await ctx.persistence.readRef(coverageRef);
 
-    if (!coverageSha) {
-      return {
-        id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_NO_REF,
-        impact: 'operability', message: 'No coverage ref found',
-        fix: 'Run `git warp materialize` to create a coverage anchor',
-      };
+    if (typeof coverageSha !== 'string' || coverageSha.length === 0) {
+      return buildCoverageNoRef();
     }
 
-    const missing = [];
-    for (const head of ctx.writerHeads) {
-      if (!head.sha) {
-        missing.push(head.writerId);
-        continue;
-      }
-      const reachable = await ctx.persistence.isAncestor(head.sha, coverageSha);
-      if (!reachable) {
-        missing.push(head.writerId);
-      }
-    }
-
-    if (missing.length > 0) {
-      return {
-        id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_MISSING_WRITERS,
-        impact: 'operability',
-        message: `Coverage anchor is missing ${missing.length} writer(s): ${missing.join(', ')}`,
-        fix: 'Run `git warp materialize` to update the coverage anchor',
-        evidence: { missingWriters: missing },
-      };
-    }
-
-    return {
-      id: 'coverage-complete', status: 'ok', code: CODES.COVERAGE_OK,
-      impact: 'operability', message: 'Coverage anchor includes all writers',
-    };
+    const missing = await findMissingWriters(ctx, coverageSha);
+    return buildCoverageFinding(missing);
   } catch (err) {
     return internalError('coverage-complete', err);
   }
 }
 
+/**
+ * Build a finding when the coverage ref does not exist.
+ * @returns {DoctorFinding}
+ */
+function buildCoverageNoRef() {
+  return {
+    id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_NO_REF,
+    impact: 'operability', message: 'No coverage ref found',
+    fix: 'Run `git warp materialize` to create a coverage anchor',
+  };
+}
+
+/**
+ * Build a coverage finding based on the set of missing writer IDs.
+ * @param {string[]} missing
+ * @returns {DoctorFinding}
+ */
+function buildCoverageFinding(missing) {
+  if (missing.length > 0) {
+    return {
+      id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_MISSING_WRITERS,
+      impact: 'operability',
+      message: `Coverage anchor is missing ${missing.length} writer(s): ${missing.join(', ')}`,
+      fix: 'Run `git warp materialize` to update the coverage anchor',
+      evidence: { missingWriters: missing },
+    };
+  }
+  return {
+    id: 'coverage-complete', status: 'ok', code: CODES.COVERAGE_OK,
+    impact: 'operability', message: 'Coverage anchor includes all writers',
+  };
+}
+
 // ── checkpoint-fresh ────────────────────────────────────────────────────────
 
 /**
+ * Read the commit date of a checkpoint and compute its age in hours.
  * @param {import('../../types.js').Persistence} persistence
  * @param {string} checkpointSha
  * @returns {Promise<{date: string|null, ageHours: number|null}>}
  */
 async function getCheckpointAge(persistence, checkpointSha) {
   const info = await persistence.getNodeInfo(checkpointSha);
-  const date = info.date || null;
-  if (!date) {
+  const date = typeof info.date === 'string' && info.date.length > 0 ? info.date : null;
+  return parseCheckpointDate(date);
+}
+
+/**
+ * Parse a date string into an age-in-hours value, returning nulls for missing or unparseable dates.
+ * @param {string|null} date
+ * @returns {{date: string|null, ageHours: number|null}}
+ */
+function parseCheckpointDate(date) {
+  if (date === null) {
     return { date: null, ageHours: null };
   }
   const parsed = Date.parse(date);
@@ -176,13 +246,17 @@ async function getCheckpointAge(persistence, checkpointSha) {
   return { date, ageHours: (Date.now() - parsed) / (1000 * 60 * 60) };
 }
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding>} */
+/**
+ * Verify the checkpoint exists and is not stale.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding>}
+ */
 export async function checkCheckpointFresh(ctx) {
   try {
     const ref = buildCheckpointRef(ctx.graphName);
     const sha = await ctx.persistence.readRef(ref);
 
-    if (!sha) {
+    if (typeof sha !== 'string' || sha.length === 0) {
       return {
         id: 'checkpoint-fresh', status: 'warn', code: CODES.CHECKPOINT_MISSING,
         impact: 'operability', message: 'No checkpoint found',
@@ -198,6 +272,7 @@ export async function checkCheckpointFresh(ctx) {
 }
 
 /**
+ * Build a finding from checkpoint age analysis.
  * @param {{sha: string, date: string|null, ageHours: number|null, maxAge: number}} p
  * @returns {DoctorFinding}
  */
@@ -228,48 +303,90 @@ function buildCheckpointFinding({ sha, date, ageHours, maxAge }) {
 // ── audit-consistent ────────────────────────────────────────────────────────
 
 /**
+ * Check individual audit refs for dangling objects.
+ * @param {DoctorContext} ctx
+ * @param {string} ref
+ * @returns {Promise<DoctorFinding|null>}
+ */
+async function probeOneAuditRef(ctx, ref) {
+  const sha = await ctx.persistence.readRef(ref);
+  if (typeof sha !== 'string' || sha.length === 0) {
+    return null;
+  }
+  const exists = await ctx.persistence.nodeExists(sha);
+  if (!exists) {
+    return {
+      id: 'audit-consistent', status: 'warn', code: CODES.AUDIT_DANGLING,
+      impact: 'data_integrity',
+      message: `Audit ref ${ref} points to missing object ${sha.slice(0, 7)}`,
+      evidence: { ref, sha },
+    };
+  }
+  return null;
+}
+
+/**
+ * Detect writers without corresponding audit refs.
+ * @param {DoctorContext} ctx
+ * @param {string[]} auditRefs
+ * @param {string} auditPrefix
+ * @returns {DoctorFinding|null}
+ */
+function detectPartialCoverage(ctx, auditRefs, auditPrefix) {
+  const writerIds = new Set(ctx.writerHeads.map((h) => h.writerId));
+  const auditIdSet = new Set(auditRefs.map((r) => r.slice(auditPrefix.length)).filter((id) => id.length > 0));
+  const missing = [...writerIds].filter((id) => !auditIdSet.has(id));
+
+  if (missing.length > 0 && auditIdSet.size > 0) {
+    return {
+      id: 'audit-consistent', status: 'warn', code: CODES.AUDIT_PARTIAL,
+      impact: 'data_integrity',
+      message: `Audit coverage is partial: writers without audit refs: ${missing.join(', ')}`,
+      fix: 'Run `git warp verify-audit` to verify existing chains',
+      evidence: { writersWithoutAudit: missing },
+    };
+  }
+  return null;
+}
+
+/**
+ * Probe all audit refs for dangling objects and partial coverage.
  * @param {DoctorContext} ctx
  * @param {string[]} auditRefs
  * @param {string} auditPrefix
  * @returns {Promise<DoctorFinding[]>}
  */
 async function probeAuditRefs(ctx, auditRefs, auditPrefix) {
+  const danglingFindings = await probeDanglingAuditRefs(ctx, auditRefs);
+  const partialFinding = detectPartialCoverage(ctx, auditRefs, auditPrefix);
+  if (partialFinding !== null && partialFinding !== undefined) {
+    danglingFindings.push(partialFinding);
+  }
+  return danglingFindings;
+}
+
+/**
+ * Check each audit ref for dangling objects.
+ * @param {DoctorContext} ctx
+ * @param {string[]} auditRefs
+ * @returns {Promise<DoctorFinding[]>}
+ */
+async function probeDanglingAuditRefs(ctx, auditRefs) {
   const findings = /** @type {DoctorFinding[]} */ ([]);
-
   for (const ref of auditRefs) {
-    const sha = await ctx.persistence.readRef(ref);
-    if (!sha) {
-      continue;
-    }
-    const exists = await ctx.persistence.nodeExists(sha);
-    if (!exists) {
-      findings.push({
-        id: 'audit-consistent', status: 'warn', code: CODES.AUDIT_DANGLING,
-        impact: 'data_integrity',
-        message: `Audit ref ${ref} points to missing object ${sha.slice(0, 7)}`,
-        evidence: { ref, sha },
-      });
+    const finding = await probeOneAuditRef(ctx, ref);
+    if (finding !== null && finding !== undefined) {
+      findings.push(finding);
     }
   }
-
-  const writerIds = new Set(ctx.writerHeads.map((h) => h.writerId));
-  const auditIdSet = new Set(auditRefs.map((r) => r.slice(auditPrefix.length)).filter((id) => id.length > 0));
-  const missing = [...writerIds].filter((id) => !auditIdSet.has(id));
-
-  if (missing.length > 0 && auditIdSet.size > 0) {
-    findings.push({
-      id: 'audit-consistent', status: 'warn', code: CODES.AUDIT_PARTIAL,
-      impact: 'data_integrity',
-      message: `Audit coverage is partial: writers without audit refs: ${missing.join(', ')}`,
-      fix: 'Run `git warp verify-audit` to verify existing chains',
-      evidence: { writersWithoutAudit: missing },
-    });
-  }
-
   return findings;
 }
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding[]>} */
+/**
+ * Verify audit refs are consistent and cover all writers.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding[]>}
+ */
 export async function checkAuditConsistent(ctx) {
   try {
     const auditPrefix = buildAuditPrefix(ctx.graphName);
@@ -298,25 +415,65 @@ export async function checkAuditConsistent(ctx) {
 // ── clock-skew ──────────────────────────────────────────────────────────────
 
 /**
+ * Collect parsed commit dates from writer head commits.
  * @param {DoctorContext} ctx
  * @returns {Promise<Array<{writerId: string, ms: number}>>}
  */
 async function collectWriterDates(ctx) {
   const dates = [];
   for (const head of ctx.writerHeads) {
-    if (!head.sha) {
+    if (typeof head.sha !== 'string' || head.sha.length === 0) {
       continue;
     }
-    const info = await ctx.persistence.getNodeInfo(head.sha);
-    const ms = info.date ? Date.parse(info.date) : NaN;
-    if (!Number.isNaN(ms)) {
-      dates.push({ writerId: head.writerId, ms });
+    const entry = await parseWriterDate(ctx.persistence, { writerId: head.writerId, sha: /** @type {string} */ (head.sha) });
+    if (entry !== null) {
+      dates.push(entry);
     }
   }
   return dates;
 }
 
-/** @param {DoctorContext} ctx @returns {Promise<DoctorFinding>} */
+/**
+ * Parse the commit date from a single writer head into a timestamped entry.
+ * @param {import('../../types.js').Persistence} persistence
+ * @param {{ writerId: string, sha: string }} head
+ * @returns {Promise<{writerId: string, ms: number}|null>}
+ */
+async function parseWriterDate(persistence, head) {
+  const info = await persistence.getNodeInfo(head.sha);
+  const raw = typeof info.date === 'string' && info.date.length > 0 ? info.date : '';
+  const ms = raw.length > 0 ? Date.parse(raw) : NaN;
+  return Number.isNaN(ms) ? null : { writerId: head.writerId, ms };
+}
+
+/**
+ * Build the skew finding from the computed spread.
+ * @param {number} spreadMs
+ * @param {DoctorContext} ctx
+ * @returns {DoctorFinding}
+ */
+function buildSkewFinding(spreadMs, ctx) {
+  if (spreadMs > ctx.policy.clockSkewMs) {
+    return {
+      id: 'clock-skew', status: 'warn', code: CODES.CLOCK_SKEW_EXCEEDED,
+      impact: 'operability',
+      message: `Clock skew is ${Math.round(spreadMs / 1000)}s (threshold: ${Math.round(ctx.policy.clockSkewMs / 1000)}s)`,
+      evidence: { spreadMs, thresholdMs: ctx.policy.clockSkewMs },
+    };
+  }
+  return {
+    id: 'clock-skew', status: 'ok', code: CODES.CLOCK_SYNCED,
+    impact: 'operability',
+    message: `Clock skew is within threshold (${Math.round(spreadMs / 1000)}s)`,
+    evidence: { spreadMs },
+  };
+}
+
+/**
+ * Detect excessive clock skew between writer head commits.
+ * @param {DoctorContext} ctx
+ * @returns {Promise<DoctorFinding>}
+ */
 export async function checkClockSkew(ctx) {
   try {
     if (ctx.writerHeads.length < 2) {
@@ -335,21 +492,7 @@ export async function checkClockSkew(ctx) {
     }
 
     const spreadMs = Math.max(...dates.map((d) => d.ms)) - Math.min(...dates.map((d) => d.ms));
-    if (spreadMs > ctx.policy.clockSkewMs) {
-      return {
-        id: 'clock-skew', status: 'warn', code: CODES.CLOCK_SKEW_EXCEEDED,
-        impact: 'operability',
-        message: `Clock skew is ${Math.round(spreadMs / 1000)}s (threshold: ${Math.round(ctx.policy.clockSkewMs / 1000)}s)`,
-        evidence: { spreadMs, thresholdMs: ctx.policy.clockSkewMs },
-      };
-    }
-
-    return {
-      id: 'clock-skew', status: 'ok', code: CODES.CLOCK_SYNCED,
-      impact: 'operability',
-      message: `Clock skew is within threshold (${Math.round(spreadMs / 1000)}s)`,
-      evidence: { spreadMs },
-    };
+    return buildSkewFinding(spreadMs, ctx);
   } catch (err) {
     return internalError('clock-skew', err);
   }
@@ -358,40 +501,39 @@ export async function checkClockSkew(ctx) {
 // ── hooks-installed ─────────────────────────────────────────────────────────
 
 /**
+ * Check whether the warp post-merge hook is installed and current.
  * @param {DoctorContext} ctx
  * @returns {Promise<DoctorFinding>}
  */
-// eslint-disable-next-line @typescript-eslint/require-await -- sync body, async contract
 export async function checkHooksInstalled(ctx) {
   try {
     const installer = createHookInstaller();
     const s = installer.getHookStatus(ctx.repoPath);
-    return buildHookFinding(s);
+    return await Promise.resolve(buildHookFinding(s));
   } catch (err) {
     return internalError('hooks-installed', err);
   }
 }
 
 /**
+ * Build a finding describing the hook installation state.
  * @param {{ installed: boolean, version?: string, current?: boolean, foreign?: boolean, hookPath: string }} s
  * @returns {DoctorFinding}
  */
 function buildHookFinding(s) {
-  if (!s.installed && s.foreign) {
-    return {
-      id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
-      impact: 'hygiene', message: 'Foreign hook present; warp hook not installed',
-      fix: 'Run `git warp install-hooks` (use --force to replace existing hook)',
-    };
-  }
   if (!s.installed) {
-    return {
-      id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
-      impact: 'hygiene', message: 'Post-merge hook is not installed',
-      fix: 'Run `git warp install-hooks`',
-    };
+    return buildUninstalledHookFinding(Boolean(s.foreign));
   }
-  if (!s.current) {
+  return buildInstalledHookFinding(s);
+}
+
+/**
+ * Build a finding for a hook that is installed but may be outdated.
+ * @param {{ version?: string, current?: boolean }} s
+ * @returns {DoctorFinding}
+ */
+function buildInstalledHookFinding(s) {
+  if (s.current !== true) {
     return {
       id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_OUTDATED,
       impact: 'hygiene', message: `Hook is outdated (v${s.version})`,
@@ -402,6 +544,26 @@ function buildHookFinding(s) {
   return {
     id: 'hooks-installed', status: 'ok', code: CODES.HOOKS_OK,
     impact: 'hygiene', message: `Hook is installed and current (v${s.version})`,
+  };
+}
+
+/**
+ * Build a finding for a missing hook, distinguishing foreign hooks.
+ * @param {boolean} isForeign
+ * @returns {DoctorFinding}
+ */
+function buildUninstalledHookFinding(isForeign) {
+  if (isForeign) {
+    return {
+      id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
+      impact: 'hygiene', message: 'Foreign hook present; warp hook not installed',
+      fix: 'Run `git warp install-hooks` (use --force to replace existing hook)',
+    };
+  }
+  return {
+    id: 'hooks-installed', status: 'warn', code: CODES.HOOKS_MISSING,
+    impact: 'hygiene', message: 'Post-merge hook is not installed',
+    fix: 'Run `git warp install-hooks`',
   };
 }
 

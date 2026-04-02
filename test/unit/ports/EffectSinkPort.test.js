@@ -9,6 +9,6 @@ describe('EffectSinkPort', () => {
 
   it('throws on unimplemented deliver()', async () => {
     const port = new EffectSinkPort();
-    await expect(port.deliver({}, {})).rejects.toThrow('not implemented');
+    await expect(port.deliver(/** @type {any} */ ({}), /** @type {any} */ ({}))).rejects.toThrow('not implemented');
   });
 });

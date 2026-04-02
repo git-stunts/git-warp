@@ -29,31 +29,32 @@ const TOMBSTONE_HEALTHY_MAX = 0.15;     // < 15% tombstones = healthy
 const TOMBSTONE_WARNING_MAX = 0.30;     // < 30% tombstones = warning
 const CACHE_STALE_PENALTY = 20;         // Reduce "freshness" score for stale cache
 
+/** @type {Record<string, { percent: number, label: string }>} */
+const CACHE_STATE_MAP = {
+  fresh: { percent: 100, label: 'fresh' },
+  stale: { percent: 100 - CACHE_STALE_PENALTY, label: 'stale' },
+};
+
+/** @type {{ percent: number, label: string }} */
+const CACHE_STATE_NONE = { percent: 0, label: 'none' };
+
 /**
  * Get cache freshness percentage and state.
  * @param {CheckStatus | null} status - The status object from check payload
  * @returns {{ percent: number, label: string }}
  */
 function getCacheFreshness(status) {
-  if (!status) {
-    return { percent: 0, label: 'none' };
+  if (status === null || status === undefined) {
+    return CACHE_STATE_NONE;
   }
-
-  switch (status.cachedState) {
-    case 'fresh':
-      return { percent: 100, label: 'fresh' };
-    case 'stale':
-      return { percent: 100 - CACHE_STALE_PENALTY, label: 'stale' };
-    case 'none':
-    default:
-      return { percent: 0, label: 'none' };
-  }
+  const key = status.cachedState;
+  return (typeof key === 'string' ? CACHE_STATE_MAP[key] : undefined) ?? CACHE_STATE_NONE;
 }
 
 /**
  * Get tombstone health status and color.
  * @param {number} ratio - Tombstone ratio (0-1)
- * @returns {{ status: string, color: Function }}
+ * @returns {{ status: string, color: (s: string) => string }}
  */
 function getTombstoneHealth(ratio) {
   if (ratio < TOMBSTONE_HEALTHY_MAX) {
@@ -105,30 +106,58 @@ function formatWriters(heads) {
 }
 
 /**
+ * Returns a colored checkmark based on age in seconds.
+ * @param {number|null} ageSeconds - Age in seconds or null
+ * @returns {string} Colored checkmark character
+ */
+function checkpointAgeSymbol(ageSeconds) {
+  if (ageSeconds !== null && ageSeconds < 300) {
+    return colors.success('\u2713');
+  }
+  if (ageSeconds !== null && ageSeconds < 3600) {
+    return colors.warning('\u2713');
+  }
+  return colors.muted('\u2713');
+}
+
+/**
+ * Tests whether a checkpoint has a valid SHA string.
+ * @param {CheckpointInfo | null | undefined} checkpoint
+ * @returns {checkpoint is CheckpointInfo & { sha: string }}
+ */
+function hasCheckpointSha(checkpoint) {
+  return checkpoint !== null && checkpoint !== undefined &&
+    typeof checkpoint.sha === 'string' && checkpoint.sha.length > 0;
+}
+
+/**
  * Format checkpoint status line.
  * @param {CheckpointInfo | null} checkpoint - Checkpoint info
  * @returns {string}
  */
 function formatCheckpoint(checkpoint) {
-  if (!checkpoint?.sha) {
+  if (!hasCheckpointSha(checkpoint)) {
     return `${colors.warning('none')}`;
   }
 
   const sha = colors.muted(checkpoint.sha.slice(0, 7));
   const ageSeconds = checkpoint.ageSeconds ?? null;
   const age = formatAge(ageSeconds);
-
-  // Add checkmark for recent checkpoints (< 5 min), warning for older
-  let status;
-  if (ageSeconds !== null && ageSeconds < 300) {
-    status = colors.success('\u2713');
-  } else if (ageSeconds !== null && ageSeconds < 3600) {
-    status = colors.warning('\u2713');
-  } else {
-    status = colors.muted('\u2713');
-  }
+  const status = checkpointAgeSymbol(ageSeconds);
 
   return `${sha} (${age} ago) ${status}`;
+}
+
+/**
+ * Formats a hook that is not installed (distinguishes foreign vs missing).
+ * @param {HookInfo} hook - Hook status with installed === false
+ * @returns {string}
+ */
+function formatUninstalledHook(hook) {
+  if (hook.foreign === true) {
+    return `${colors.warning('\u26A0')} foreign hook present`;
+  }
+  return `${colors.error('\u2717')} not installed`;
 }
 
 /**
@@ -137,23 +166,29 @@ function formatCheckpoint(checkpoint) {
  * @returns {string}
  */
 function formatHook(hook) {
-  if (!hook) {
+  if (hook === null || hook === undefined) {
     return colors.muted('unknown');
   }
 
-  if (!hook.installed && hook.foreign) {
-    return `${colors.warning('\u26A0')} foreign hook present`;
+  if (hook.installed !== true) {
+    return formatUninstalledHook(hook);
   }
 
-  if (!hook.installed) {
-    return `${colors.error('\u2717')} not installed`;
-  }
-
-  if (hook.current) {
+  if (hook.current === true) {
     return `${colors.success('\u2713')} installed (v${hook.version})`;
   }
 
   return `${colors.warning('\u2713')} installed (v${hook.version}) \u2014 upgrade available`;
+}
+
+/**
+ * Tests whether a coverage object has a valid SHA string.
+ * @param {CoverageInfo | null | undefined} coverage
+ * @returns {coverage is CoverageInfo & { sha: string }}
+ */
+function hasCoverageSha(coverage) {
+  return coverage !== null && coverage !== undefined &&
+    typeof coverage.sha === 'string' && coverage.sha.length > 0;
 }
 
 /**
@@ -162,11 +197,11 @@ function formatHook(hook) {
  * @returns {string}
  */
 function formatCoverage(coverage) {
-  if (!coverage?.sha) {
+  if (!hasCoverageSha(coverage)) {
     return colors.muted('none');
   }
 
-  const missing = coverage.missingWriters || [];
+  const missing = coverage.missingWriters ?? [];
   if (missing.length === 0) {
     return `${colors.success('\u2713')} all writers merged`;
   }
@@ -175,30 +210,76 @@ function formatCoverage(coverage) {
   return `${colors.warning('\u26A0')} missing: ${missingList}`;
 }
 
+/** @type {Record<string, { text: string, symbol: string, color: (s: string) => string }>} */
+const HEALTH_STATUS_MAP = {
+  healthy: { text: 'HEALTHY', symbol: '\u2713', color: colors.success },
+  degraded: { text: 'DEGRADED', symbol: '\u26A0', color: colors.warning },
+  unhealthy: { text: 'UNHEALTHY', symbol: '\u2717', color: colors.error },
+};
+
+/** @type {{ text: string, symbol: string, color: (s: string) => string }} */
+const UNKNOWN_HEALTH = { text: 'UNKNOWN', symbol: '?', color: colors.muted };
+
+/**
+ * Looks up health status from the known status map, returning a fallback for unknown values.
+ * @param {string | undefined} status - Status string from health info
+ * @returns {{ text: string, symbol: string, color: (s: string) => string }}
+ */
+function resolveHealthStatus(status) {
+  if (typeof status !== 'string') {
+    return UNKNOWN_HEALTH;
+  }
+  const mapped = HEALTH_STATUS_MAP[status];
+  if (mapped !== undefined) {
+    return mapped;
+  }
+  const label = status.length > 0 ? status.toUpperCase() : 'UNKNOWN';
+  return { text: label, symbol: '?', color: colors.muted };
+}
+
 /**
  * Get overall health status with color and symbol.
  * @param {HealthInfo | null} health - Health object
- * @returns {{ text: string, symbol: string, color: Function }}
+ * @returns {{ text: string, symbol: string, color: (s: string) => string }}
  */
 function getOverallHealth(health) {
-  if (!health) {
-    return { text: 'UNKNOWN', symbol: '?', color: colors.muted };
+  if (health === null || health === undefined) {
+    return UNKNOWN_HEALTH;
   }
+  return resolveHealthStatus(health.status);
+}
 
-  switch (health.status) {
-    case 'healthy':
-      return { text: 'HEALTHY', symbol: '\u2713', color: colors.success };
-    case 'degraded':
-      return { text: 'DEGRADED', symbol: '\u26A0', color: colors.warning };
-    case 'unhealthy':
-      return { text: 'UNHEALTHY', symbol: '\u2717', color: colors.error };
-    default: {
-      const safeStatus = typeof health.status === 'string' && health.status.length
-        ? health.status
-        : 'UNKNOWN';
-      return { text: safeStatus.toUpperCase(), symbol: '?', color: colors.muted };
-    }
-  }
+/**
+ * Formats the tombstone health line including bar and status label.
+ * @param {number} tombstoneRatio - Tombstone ratio (0-1)
+ * @returns {string} Formatted tombstone line
+ */
+function formatTombstoneLine(tombstoneRatio) {
+  const tombstonePercent = Math.round(tombstoneRatio * 100);
+  const tombstoneHealth = getTombstoneHealth(tombstoneRatio);
+  const tBar = tombstoneBar(tombstonePercent, 20);
+  return `  ${padRight('Tombstones:', 12)} ${tBar} ${tombstonePercent}% (${tombstoneHealth.color(tombstoneHealth.status)})`;
+}
+
+/**
+ * Formats the cache freshness line including progress bar and label.
+ * @param {CheckStatus | null} status - Status object
+ * @returns {string} Formatted cache line
+ */
+function formatCacheLine(status) {
+  const cache = getCacheFreshness(status);
+  const cacheBar = progressBar(cache.percent, 20, { showPercent: false });
+  return `  ${padRight('Cache:', 12)} ${cacheBar} ${cache.percent}% ${cache.label}`;
+}
+
+/**
+ * Resolves the tombstone ratio from status or GC metrics.
+ * @param {CheckStatus | null} status - Status object
+ * @param {GCInfo | null} gc - GC metrics
+ * @returns {number}
+ */
+function resolveTombstoneRatio(status, gc) {
+  return status?.tombstoneRatio ?? gc?.tombstoneRatio ?? 0;
 }
 
 /**
@@ -208,16 +289,10 @@ function getOverallHealth(health) {
  * @returns {string[]}
  */
 function buildStateLines(status, gc) {
-  const lines = [];
-  const cache = getCacheFreshness(status);
-  const cacheBar = progressBar(cache.percent, 20, { showPercent: false });
-  lines.push(`  ${padRight('Cache:', 12)} ${cacheBar} ${cache.percent}% ${cache.label}`);
-
-  const tombstoneRatio = status?.tombstoneRatio ?? gc?.tombstoneRatio ?? 0;
-  const tombstonePercent = Math.round(tombstoneRatio * 100);
-  const tombstoneHealth = getTombstoneHealth(tombstoneRatio);
-  const tBar = tombstoneBar(tombstonePercent, 20);
-  lines.push(`  ${padRight('Tombstones:', 12)} ${tBar} ${tombstonePercent}% (${tombstoneHealth.color(tombstoneHealth.status)})`);
+  const lines = [
+    formatCacheLine(status),
+    formatTombstoneLine(resolveTombstoneRatio(status, gc)),
+  ];
 
   if (status?.patchesSinceCheckpoint !== undefined) {
     lines.push(`  ${padRight('Patches:', 12)} ${status.patchesSinceCheckpoint} since checkpoint`);
@@ -241,7 +316,7 @@ function buildMetadataLines({ writers, checkpoint, coverage, hook }) {
 
 /**
  * Determine border color based on health status.
- * @param {{ text: string, symbol: string, color: Function }} overall - Overall health info
+ * @param {{ text: string, symbol: string, color: (s: string) => string }} overall - Overall health info
  * @returns {string}
  */
 function getBorderColor(overall) {

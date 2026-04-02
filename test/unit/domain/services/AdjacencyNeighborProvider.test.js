@@ -141,7 +141,9 @@ describe('AdjacencyNeighborProvider', () => {
       // Caller's original arrays must be unmodified
       expect(outgoing.get('a')).toEqual(originalOutA);
       // Specifically: 'c' was first in the original, if sorted in-place 'b' would be first
-      expect(outA[0].neighborId).toBe('c');
+      const firstOut = outA[0];
+      expect(firstOut).toBeDefined();
+      expect(firstOut?.neighborId).toBe('c');
     });
 
     it('two providers from same source data are independent', async () => {

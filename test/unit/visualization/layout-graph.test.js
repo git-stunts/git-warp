@@ -64,10 +64,11 @@ describe('layoutGraph', () => {
     const result = await layoutGraph(graphData);
 
     expect(result.nodes).toHaveLength(3);
-    expect(result.nodes[0].id).toBe('a');
-    expect(result.nodes[0].label).toBe('A');
-    expect(typeof result.nodes[0].x).toBe('number');
-    expect(typeof result.nodes[0].y).toBe('number');
+    const n0 = /** @type {NonNullable<typeof result.nodes[0]>} */ (result.nodes[0]);
+    expect(n0.id).toBe('a');
+    expect(n0.label).toBe('A');
+    expect(typeof n0.x).toBe('number');
+    expect(typeof n0.y).toBe('number');
   });
 
   it('returns edges with sections from layout engine', async () => {
@@ -82,9 +83,10 @@ describe('layoutGraph', () => {
     const result = await layoutGraph(graphData);
 
     expect(result.edges).toHaveLength(1);
-    expect(result.edges[0].source).toBe('src');
-    expect(result.edges[0].target).toBe('dst');
-    expect(result.edges[0].sections).toHaveLength(1);
+    const e0 = /** @type {NonNullable<typeof result.edges[0]>} */ (result.edges[0]);
+    expect(e0.source).toBe('src');
+    expect(e0.target).toBe('dst');
+    expect(e0.sections).toHaveLength(1);
   });
 
   it('accepts layout options', async () => {

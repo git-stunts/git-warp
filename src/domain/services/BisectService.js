@@ -110,12 +110,12 @@ export default class BisectService {
 
     // Single candidate — it must be the first bad patch
     if (candidates.length === 1) {
-      return foundResult({ writerId, entry: candidates[0], steps: 0, totalCandidates: 1 });
+      return foundResult({ writerId, entry: /** @type {typeof candidates[0] & {}} */ (candidates[0]), steps: 0, totalCandidates: 1 });
     }
 
     // Binary search over the candidate range
     const { index, steps } = await this._binarySearch(candidates, testFn);
-    return foundResult({ writerId, entry: candidates[index], steps, totalCandidates: candidates.length });
+    return foundResult({ writerId, entry: /** @type {typeof candidates[0] & {}} */ (candidates[index]), steps, totalCandidates: candidates.length });
   }
 
   /**
@@ -134,6 +134,7 @@ export default class BisectService {
     while (lo < hi) {
       const mid = Math.floor((lo + hi) / 2);
       const candidate = candidates[mid];
+      if (candidate === undefined) { break; }
       steps++;
 
       const state = await this._graph.materialize({ ceiling: candidate.patch.lamport });

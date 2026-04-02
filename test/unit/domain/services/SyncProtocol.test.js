@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   loadPatchRange,
   computeSyncDelta,
@@ -11,11 +11,10 @@ import {
 import {
   createEmptyStateV5,
   reduceV5 as _reduceV5,
-  encodeEdgeKey,
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
+import { createFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
@@ -30,17 +29,11 @@ import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 const SHA_C = 'c'.repeat(40);
-const SHA_D = 'd'.repeat(40);
-const SHA_E = 'e'.repeat(40);
-const SHA_F = 'f'.repeat(40);
 
 // Valid 40-character hex OIDs for patch blobs
 const OID_A = '1'.repeat(40);
 const OID_B = '2'.repeat(40);
 const OID_C = '3'.repeat(40);
-const OID_D = '4'.repeat(40);
-const OID_E = '5'.repeat(40);
-const OID_F = '6'.repeat(40);
 
 /**
  * Creates a test patch with the given operations.
@@ -218,10 +211,10 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_C);
 
       expect(patches).toHaveLength(2);
-      expect(patches[0].sha).toBe(SHA_B);
-      expect(/** @type {any} */ (patches[0].patch).lamport).toBe(2);
-      expect(patches[1].sha).toBe(SHA_C);
-      expect(/** @type {any} */ (patches[1].patch).lamport).toBe(3);
+      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
+      expect(/** @type {any} */ (patches)[0].patch.lamport).toBe(2);
+      expect(/** @type {any} */ (patches)[1].sha).toBe(SHA_C);
+      expect(/** @type {any} */ (patches)[1].patch.lamport).toBe(3);
     });
 
     it('returns all patches when fromSha is null', async () => {
@@ -240,8 +233,8 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', null, SHA_B);
 
       expect(patches).toHaveLength(2);
-      expect(patches[0].sha).toBe(SHA_A);
-      expect(patches[1].sha).toBe(SHA_B);
+      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_A);
+      expect(/** @type {any} */ (patches)[1].sha).toBe(SHA_B);
     });
 
     it('detects divergence when fromSha is not an ancestor', async () => {
@@ -277,7 +270,7 @@ describe('SyncProtocol', () => {
       const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B);
 
       expect(patches).toHaveLength(1);
-      expect(patches[0].sha).toBe(SHA_B);
+      expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
     });
   });
 
@@ -336,8 +329,8 @@ describe('SyncProtocol', () => {
 
       expect(response.type).toBe('sync-response');
       expect(response.patches).toHaveLength(1);
-      expect(response.patches[0].sha).toBe(SHA_B);
-      expect(response.patches[0].writerId).toBe('w1');
+      expect(/** @type {any} */ (response.patches)[0].sha).toBe(SHA_B);
+      expect(/** @type {any} */ (response.patches)[0].writerId).toBe('w1');
     });
 
     it('includes local frontier in response', async () => {
@@ -369,7 +362,7 @@ describe('SyncProtocol', () => {
       });
       // And should include patch from w2 that requester is missing
       expect(response.patches).toHaveLength(1);
-      expect(response.patches[0].writerId).toBe('w2');
+      expect(/** @type {any} */ (response.patches)[0].writerId).toBe('w2');
     });
 
     it('returns empty patches when already in sync', async () => {

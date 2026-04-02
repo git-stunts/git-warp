@@ -10,7 +10,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import LogicalBitmapIndexBuilder from '../../src/domain/services/LogicalBitmapIndexBuilder.js';
+// LogicalBitmapIndexBuilder reserved for future benchmark expansion
+// import LogicalBitmapIndexBuilder from '../../src/domain/services/LogicalBitmapIndexBuilder.js';
 import LogicalIndexBuildService from '../../src/domain/services/LogicalIndexBuildService.js';
 import PropertyIndexBuilder from '../../src/domain/services/PropertyIndexBuilder.js';
 import PropertyIndexReader from '../../src/domain/services/PropertyIndexReader.js';
@@ -19,7 +20,8 @@ import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../src/domain/utils/EventId.js';
-import defaultCodec from '../../src/domain/utils/defaultCodec.js';
+// defaultCodec reserved for future benchmark expansion
+// import defaultCodec from '../../src/domain/utils/defaultCodec.js';
 
 const WARMUP = 1;
 const RUNS = 3;
@@ -44,7 +46,7 @@ function generateFixture(nodeCount, avgDegree = 5) {
       edges.push({
         from: `node:${i}`,
         to: `node:${target}`,
-        label: labels[j % labels.length],
+        label: labels[j % labels.length] ?? 'knows',
       });
     }
   }

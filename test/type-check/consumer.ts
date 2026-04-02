@@ -252,7 +252,7 @@ const _typeCoverageTuple: [
   queryResultV1,
   weightedCostSelector,
   translationCostBreakdown,
-  publicLens,
+  publicAperture,
   propSet,
   propRemoved,
   valueRef,
@@ -405,7 +405,7 @@ const worldlineObs: Observer = await worldline.observer({ match: '*' });
 const worldlineObsNamed: Observer = await worldline.observer('users', { match: '*' });
 
 // ---- translationCost (instance method) ----
-const costResult: TranslationCostResult = await graph.translationCost(publicLens, legacyObserverConfig);
+const costResult: TranslationCostResult = await graph.translationCost(publicAperture, legacyObserverConfig);
 
 // ---- writer ----
 const w: Writer = await graph.writer();

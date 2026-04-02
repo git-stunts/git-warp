@@ -26,8 +26,9 @@ import WarpError from './WarpError.js';
  */
 export default class SyncError extends WarpError {
   /**
-   * @param {string} message
-   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}]
+   * Creates a SyncError with message and optional error code.
+   * @param {string} message - Human-readable error description
+   * @param {{ code?: string, context?: Record<string, unknown> }} [options={}] - Error options
    */
   constructor(message, options = {}) {
     super(message, 'SYNC_ERROR', options);

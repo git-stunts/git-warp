@@ -9,14 +9,13 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   applySyncResponse,
   processSyncRequest,
-  createSyncRequest,
 } from '../../../../src/domain/services/SyncProtocol.js';
 import {
   createEmptyStateV5,
-  join as joinState,
 } from '../../../../src/domain/services/JoinReducer.js';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createDot } from '../../../../src/domain/crdt/Dot.js';
+// createDot reserved for future test expansion
+// import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -219,7 +218,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
 
     // Every writer present in the original frontier must still be present
     // and their entry must be >= the original value (i.e. not reverted).
-    for (const [writerId, originalSha] of frontier) {
+    for (const [writerId] of frontier) {
       const newSha = result.frontier.get(writerId);
       expect(newSha).toBeDefined();
       // At minimum the entry must not have vanished
@@ -310,7 +309,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
 
     // Logger.warn must have been called
     expect(logger.warn).toHaveBeenCalled();
-    const [warnMsg, warnCtx] = logger.warn.mock.calls[0];
+    const [warnMsg, warnCtx] = logger.warn.mock.calls[0] ?? [];
     expect(warnMsg).toContain('divergence');
     expect(warnCtx.code).toBe('E_SYNC_DIVERGENCE');
     expect(warnCtx.writerId).toBe('w1');

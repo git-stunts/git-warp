@@ -148,7 +148,7 @@ export function projectStateV5(state) {
  */
 export async function computeStateHashV5(state, { crypto, codec } = /** @type {StateHashOptions} */ ({})) {
   const c = crypto || defaultCrypto;
-  const serialized = serializeStateV5(state, { codec });
+  const serialized = serializeStateV5(state, codec ? { codec } : {});
   return await c.hash('sha256', serialized);
 }
 

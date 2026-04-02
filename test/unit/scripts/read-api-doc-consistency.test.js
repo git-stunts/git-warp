@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+// repoRoot removed — unused after readDoc refactor
 
 /**
  * @param {string} relativePath

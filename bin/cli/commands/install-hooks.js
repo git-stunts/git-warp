@@ -148,6 +148,6 @@ export default async function handleInstallHooks({ options, args }) {
     return noOp;
   }
 
-  const result = installer.install(options.repo, { strategy });
+  const result = installer.install(options.repo, { strategy: /** @type {'install'|'upgrade'|'append'|'replace'} */ (strategy) });
   return { payload: result, exitCode: EXIT_CODES.OK };
 }

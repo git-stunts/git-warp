@@ -70,11 +70,11 @@ function validateOp(op, index) {
   }
 
   const entry = /** @type {Record<string, unknown>} */ (op);
-  validateOpType(entry.op, index);
-  validateOpTarget(entry.target, index);
-  validateOpResult(entry.result, index);
+  validateOpType(entry['op'], index);
+  validateOpTarget(entry['target'], index);
+  validateOpResult(entry['result'], index);
 
-  if (entry.reason !== undefined && typeof entry.reason !== 'string') {
+  if (entry['reason'] !== undefined && typeof entry['reason'] !== 'string') {
     throw new Error(`ops[${index}].reason must be a string or undefined`);
   }
 }

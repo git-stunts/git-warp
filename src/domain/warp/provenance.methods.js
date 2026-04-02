@@ -166,7 +166,7 @@ export async function _computeBackwardCone(nodeId) {
   let qi = 0;
 
   while (qi < queue.length) {
-    const entityId = queue[qi++];
+    const entityId = /** @type {string} */ (queue[qi++]);
 
     if (visited.has(entityId)) {
       continue;

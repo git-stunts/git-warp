@@ -12,9 +12,8 @@ import {
   encodeEdgeKey,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { createORSet, orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
+import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
 

@@ -1,3 +1,5 @@
+import WarpError from '../domain/errors/WarpError.js';
+
 /**
  * Port interface for content blob storage operations.
  *
@@ -17,7 +19,7 @@ export default class BlobStoragePort {
    * @abstract
    */
   async store(_content, _options) {
-    throw new Error('BlobStoragePort.store() not implemented');
+    throw new WarpError('BlobStoragePort.store() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -28,7 +30,7 @@ export default class BlobStoragePort {
    * @abstract
    */
   async retrieve(_oid) {
-    throw new Error('BlobStoragePort.retrieve() not implemented');
+    throw new WarpError('BlobStoragePort.retrieve() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -40,7 +42,7 @@ export default class BlobStoragePort {
    * @abstract
    */
   async storeStream(_source, _options) {
-    throw new Error('BlobStoragePort.storeStream() not implemented');
+    throw new WarpError('BlobStoragePort.storeStream() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -51,6 +53,6 @@ export default class BlobStoragePort {
    * @abstract
    */
   retrieveStream(_oid) {
-    throw new Error('BlobStoragePort.retrieveStream() not implemented');
+    throw new WarpError('BlobStoragePort.retrieveStream() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

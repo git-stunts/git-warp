@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Zero-error lint campaign complete** — eliminated all 1,876 ESLint errors across ~180 source files. Every raw `Error` replaced with domain error classes. Every port stub uses `WarpError` with `E_NOT_IMPLEMENTED`. `MessageCodecInternal` type-poisoning from `@git-stunts/trailer-codec` fixed at root via `unknown` intermediary casts. Errors barrel (`src/domain/errors/index.js`) now exports all 27 error classes.
+- **Lint ratchet enforcement** — `npm run lint:ratchet` asserts zero ESLint errors codebase-wide. Added as CI Gate 4b. Pre-push hook (Gate 4) already blocked non-zero exits; ratchet makes the invariant explicit and auditable.
+- **Git hooks wired** — `core.hooksPath` set to `scripts/hooks/` on `npm install`. Pre-commit lints staged JS files. Pre-push runs full 8-gate IRONCLAD firewall.
+
 ### Added
 
 - **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.

@@ -26,8 +26,11 @@ export function isLegacyAnchor(message) {
     return false;
   }
   try {
+    /** @type {unknown} */
     const parsed = JSON.parse(message.trim());
-    return parsed && parsed._type === 'anchor';
+    /** @type {{ _type?: string } | null} */
+    const raw = /** @type {{ _type?: string } | null} */ (parsed);
+    return raw !== null && raw !== undefined && raw._type === 'anchor';
   } catch {
     return false;
   }

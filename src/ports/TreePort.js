@@ -7,25 +7,28 @@
  * @abstract
  * @see GraphPersistencePort - Composite port implementing all five focused ports
  */
+
+import WarpError from '../domain/errors/WarpError.js';
+
 export default class TreePort {
   /**
    * Creates a Git tree from mktree-formatted entries.
    * @param {string[]} _entries - Lines in git mktree format (e.g., "100644 blob <oid>\t<path>")
    * @returns {Promise<string>} The Git OID of the created tree
-   * @throws {Error} If not implemented by a concrete adapter
+   * @throws {WarpError} If not implemented by a concrete adapter
    */
   async writeTree(_entries) {
-    throw new Error('TreePort.writeTree() not implemented');
+    throw new WarpError('TreePort.writeTree() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
    * Reads a tree and returns a map of path to content.
    * @param {string} _treeOid - The tree OID to read
    * @returns {Promise<Record<string, Uint8Array>>} Map of file path to blob content
-   * @throws {Error} If not implemented by a concrete adapter
+   * @throws {WarpError} If not implemented by a concrete adapter
    */
   async readTree(_treeOid) {
-    throw new Error('TreePort.readTree() not implemented');
+    throw new WarpError('TreePort.readTree() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -33,10 +36,10 @@ export default class TreePort {
    * Useful for lazy-loading shards without reading all blob contents.
    * @param {string} _treeOid - The tree OID to read
    * @returns {Promise<Record<string, string>>} Map of file path to blob OID
-   * @throws {Error} If not implemented by a concrete adapter
+   * @throws {WarpError} If not implemented by a concrete adapter
    */
   async readTreeOids(_treeOid) {
-    throw new Error('TreePort.readTreeOids() not implemented');
+    throw new WarpError('TreePort.readTreeOids() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
@@ -46,6 +49,6 @@ export default class TreePort {
    * @readonly
    */
   get emptyTree() {
-    throw new Error('TreePort.emptyTree not implemented');
+    throw new WarpError('TreePort.emptyTree not implemented', 'E_NOT_IMPLEMENTED');
   }
 }

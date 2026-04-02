@@ -3922,7 +3922,7 @@ export class EffectSinkPort {
   deliver(
     emission: EffectEmission,
     lens: ExternalizationPolicy,
-  ): Promise<DeliveryObservation>;
+  ): Promise<DeliveryObservation | DeliveryObservation[]>;
 }
 
 /**

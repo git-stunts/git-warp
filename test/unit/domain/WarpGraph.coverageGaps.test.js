@@ -5,7 +5,6 @@ import { encodePatchMessage } from '../../../src/domain/services/WarpMessageCode
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
 import { createORSet, orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -474,7 +473,7 @@ describe('WarpRuntime coverage gaps', () => {
       });
 
       expect(setStateSpy).toHaveBeenCalledTimes(1);
-      const [, options] = setStateSpy.mock.calls[0];
+      const [, options] = /** @type {unknown[]} */ (setStateSpy.mock.calls[0]);
       expect(options).toEqual({ diff: null });
       expect(commitSpy).toHaveBeenCalledTimes(1);
     });
@@ -505,7 +504,7 @@ describe('WarpRuntime coverage gaps', () => {
       await /** @type {any} */ (graph)._setMaterializedState(state, diff);
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [, , appliedDiff] = buildViewSpy.mock.calls[0];
+      const [, , appliedDiff] = /** @type {unknown[]} */ (buildViewSpy.mock.calls[0]);
       expect(appliedDiff).toBe(diff);
     });
 
@@ -533,7 +532,7 @@ describe('WarpRuntime coverage gaps', () => {
       await /** @type {any} */ (graph)._setMaterializedState(state, { diff });
 
       expect(buildViewSpy).toHaveBeenCalledTimes(1);
-      const [, , appliedDiff] = buildViewSpy.mock.calls[0];
+      const [, , appliedDiff] = /** @type {unknown[]} */ (buildViewSpy.mock.calls[0]);
       expect(appliedDiff).toBe(diff);
     });
   });

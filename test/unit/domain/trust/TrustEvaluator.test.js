@@ -41,9 +41,9 @@ describe('evaluateWriters — trusted writer', () => {
     expect(assessment.trust.evaluatedWriters).toEqual(['alice']);
     expect(assessment.trust.untrustedWriters).toEqual([]);
     expect(assessment.trust.explanations).toHaveLength(1);
-    expect(assessment.trust.explanations[0].trusted).toBe(true);
-    expect(assessment.trust.explanations[0].reasonCode).toBe(
-      TRUST_REASON_CODES.WRITER_BOUND_TO_ACTIVE_KEY,
+    expect(assessment.trust.explanations[0]?.trusted).toBe(true);
+    expect(assessment.trust.explanations[0]?.reasonCode).toBe(
+      TRUST_REASON_CODES['WRITER_BOUND_TO_ACTIVE_KEY'],
     );
   });
 });
@@ -55,8 +55,8 @@ describe('evaluateWriters — untrusted writers', () => {
 
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.untrustedWriters).toEqual(['unknown-writer']);
-    expect(assessment.trust.explanations[0].reasonCode).toBe(
-      TRUST_REASON_CODES.WRITER_HAS_NO_ACTIVE_BINDING,
+    expect(assessment.trust.explanations[0]?.reasonCode).toBe(
+      TRUST_REASON_CODES['WRITER_HAS_NO_ACTIVE_BINDING'],
     );
   });
 
@@ -77,8 +77,8 @@ describe('evaluateWriters — untrusted writers', () => {
     const assessment = evaluateWriters(['bob'], state, VALID_POLICY);
 
     expect(assessment.trustVerdict).toBe('fail');
-    expect(assessment.trust.explanations[0].reasonCode).toBe(
-      TRUST_REASON_CODES.WRITER_BOUND_KEY_REVOKED,
+    expect(assessment.trust.explanations[0]?.reasonCode).toBe(
+      TRUST_REASON_CODES['WRITER_BOUND_KEY_REVOKED'],
     );
   });
 });
@@ -90,8 +90,8 @@ describe('evaluateWriters — policy validation', () => {
 
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.status).toBe('error');
-    expect(assessment.trust.explanations[0].reasonCode).toBe(
-      TRUST_REASON_CODES.TRUST_POLICY_INVALID,
+    expect(assessment.trust.explanations[0]?.reasonCode).toBe(
+      TRUST_REASON_CODES['TRUST_POLICY_INVALID'],
     );
   });
 
@@ -108,9 +108,9 @@ describe('evaluateWriters — deterministic ordering', () => {
     const assessment = evaluateWriters(['zebra', 'alice', 'bob'], state, VALID_POLICY);
 
     expect(assessment.trust.evaluatedWriters).toEqual(['alice', 'bob', 'zebra']);
-    expect(assessment.trust.explanations[0].writerId).toBe('alice');
-    expect(assessment.trust.explanations[1].writerId).toBe('bob');
-    expect(assessment.trust.explanations[2].writerId).toBe('zebra');
+    expect(assessment.trust.explanations[0]?.writerId).toBe('alice');
+    expect(assessment.trust.explanations[1]?.writerId).toBe('bob');
+    expect(assessment.trust.explanations[2]?.writerId).toBe('zebra');
   });
 
   it('sorts explanations consistently', () => {
@@ -168,9 +168,9 @@ describe('evaluateWriters — mixed trusted/untrusted', () => {
     expect(assessment.trustVerdict).toBe('fail');
     expect(assessment.trust.untrustedWriters).toEqual(['mallory']);
 
-    const aliceExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e.writerId === 'alice');
-    const malloryExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e.writerId === 'mallory');
-    expect(/** @type {Record<string, unknown>} */ (aliceExpl).trusted).toBe(true);
-    expect(/** @type {Record<string, unknown>} */ (malloryExpl).trusted).toBe(false);
+    const aliceExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'alice');
+    const malloryExpl = assessment.trust.explanations.find(/** @param {Record<string, unknown>} e */ (e) => e['writerId'] === 'mallory');
+    expect(/** @type {Record<string, unknown>} */ (aliceExpl)['trusted']).toBe(true);
+    expect(/** @type {Record<string, unknown>} */ (malloryExpl)['trusted']).toBe(false);
   });
 });

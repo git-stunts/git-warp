@@ -26,7 +26,7 @@ export function hasErrorCode(err) {
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
-    typeof (/** @type {Record<string, unknown>} */ (err)).code === 'string'
+    typeof (/** @type {Record<string, unknown>} */ (err))['code'] === 'string'
   );
 }
 
@@ -40,6 +40,6 @@ export function hasMessage(err) {
     typeof err === 'object' &&
     err !== null &&
     'message' in err &&
-    typeof (/** @type {Record<string, unknown>} */ (err)).message === 'string'
+    typeof (/** @type {Record<string, unknown>} */ (err))['message'] === 'string'
   );
 }

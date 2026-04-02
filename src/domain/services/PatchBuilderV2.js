@@ -202,7 +202,7 @@ export class PatchBuilderV2 {
     /** @type {string|null} */
     this._expectedParentSha = expectedParentSha;
 
-    /** @type {Function|null} */
+    /** @type {((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null} */
     this._onCommitSuccess = onCommitSuccess;
 
     /** @type {import('../types/WarpTypesV2.js').OpV2[]} */
@@ -371,7 +371,10 @@ export class PatchBuilderV2 {
     if (this._onDeleteWithData === 'cascade' && state) {
       const { edges } = findAttachedData(state, nodeId);
       for (const edgeKey of edges) {
-        const [from, to, label] = edgeKey.split('\0');
+        const parts = edgeKey.split('\0');
+        const from = /** @type {string} */ (parts[0]);
+        const to = /** @type {string} */ (parts[1]);
+        const label = /** @type {string} */ (parts[2]);
         const edgeDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
         this._ops.push(createEdgeRemoveV2(from, to, label, edgeDots));
         // Provenance: cascade-generated EdgeRemove reads the edge key (to observe its dots)
@@ -554,8 +557,9 @@ export class PatchBuilderV2 {
       });
     }
 
-    const effectId = (options && options.effectId)
-      || `${EFFECT_NODE_PREFIX}${this._writerId}-${this._lamport}-${this._ops.length}`;
+    const effectId = (options !== null && options !== undefined && options.effectId !== undefined && options.effectId !== '')
+      ? options.effectId
+      : `${EFFECT_NODE_PREFIX}${this._writerId}-${this._lamport}-${this._ops.length}`;
 
     this.addNode(effectId);
     this.setProperty(effectId, 'kind', kind);
@@ -566,6 +570,13 @@ export class PatchBuilderV2 {
     return effectId;
   }
 
+  /**
+   * Sets a property on a node using LWW semantics.
+   * @param {string} nodeId - Target node ID
+   * @param {string} key - Property key
+   * @param {unknown} value - Property value
+   * @returns {PatchBuilderV2} This builder for chaining
+   */
   setProperty(nodeId, key, value) {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');
@@ -785,6 +796,7 @@ export class PatchBuilderV2 {
   }
 
   /**
+   * Validates that a node exists (added in this patch or in current state) before content attachment.
    * @param {string} nodeId
    * @returns {void}
    * @private
@@ -800,6 +812,7 @@ export class PatchBuilderV2 {
   }
 
   /**
+   * Validates that an edge exists (added in this patch or in current state) before property operations.
    * @param {string} from
    * @param {string} to
    * @param {string} label
@@ -908,7 +921,9 @@ export class PatchBuilderV2 {
       }
 
       // 3. Race detection: check if writer ref has advanced since builder creation
-      const writerRef = this._targetRefPath || buildWriterRef(this._graphName, this._writerId);
+      const writerRef = (this._targetRefPath !== null && this._targetRefPath !== '')
+        ? this._targetRefPath
+        : buildWriterRef(this._graphName, this._writerId);
       const currentRefSha = await this._persistence.readRef(writerRef);
 
       if (currentRefSha !== this._expectedParentSha) {
@@ -929,7 +944,7 @@ export class PatchBuilderV2 {
       let lamport = this._lamport;
       let parentCommit = null;
 
-      if (currentRefSha) {
+      if (currentRefSha !== null && currentRefSha !== undefined && currentRefSha !== '') {
         parentCommit = currentRefSha;
         // Read the current patch commit to get its lamport timestamp and take the max,
         // so the chain stays monotonic even if the ref advanced since createPatch().
@@ -998,7 +1013,7 @@ export class PatchBuilderV2 {
         // the blob via BlobStoragePort instead of reading it directly from Git.
         encrypted: !!this._patchBlobStorage,
       });
-      const parents = parentCommit ? [parentCommit] : [];
+      const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];
       const newCommitSha = await this._persistence.commitNodeWithTree({
         treeOid,
         parents,

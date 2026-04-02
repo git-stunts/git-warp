@@ -41,8 +41,8 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  * @typedef {import('../../../index.js').StrandDescriptor} StrandDescriptorV1
  * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
  * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
- * @typedef {import('../../../index.js').InternalCompareCoordinatesOptions} InternalCompareCoordinatesOptions
- * @typedef {import('../../../index.js').InternalPlanCoordinateTransferOptions} InternalPlanCoordinateTransferOptions
+ * @typedef {{ left: Record<string, unknown>, right: Record<string, unknown>, targetId?: string|null, scope?: VisibleStateScopeV1|null }} InternalCompareCoordinatesOptions
+ * @typedef {{ source: Record<string, unknown>, target: Record<string, unknown>, scope?: VisibleStateScopeV1|null }} InternalPlanCoordinateTransferOptions
  */
 
 /**
@@ -517,7 +517,8 @@ function normalizeSelector(selector, field) {
  * @returns {string}
  */
 function extractSelectorKind(raw) {
-  return typeof raw?.kind === 'string' ? raw.kind : '';
+  const r = /** @type {{ kind?: unknown }} */ (raw);
+  return typeof r.kind === 'string' ? r.kind : '';
 }
 
 /**
@@ -528,7 +529,8 @@ function extractSelectorKind(raw) {
  * @returns {Record<string, unknown>}
  */
 function normalizeLiveSelector(raw, field) {
-  return { kind: 'live', ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`) };
+  const r = /** @type {{ ceiling?: unknown }} */ (raw);
+  return { kind: 'live', ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`) };
 }
 
 /**
@@ -540,10 +542,11 @@ function normalizeLiveSelector(raw, field) {
  * @returns {Record<string, unknown>}
  */
 function normalizeStrandSelector(raw, kind, field) {
+  const r = /** @type {{ strandId?: unknown, ceiling?: unknown }} */ (raw);
   return {
     kind,
-    strandId: normalizeRequiredString(raw.strandId, `${field}.strandId`),
-    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+    strandId: normalizeRequiredString(r.strandId, `${field}.strandId`),
+    ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
   };
 }
 
@@ -555,11 +558,12 @@ function normalizeStrandSelector(raw, kind, field) {
  * @returns {Record<string, unknown>}
  */
 function normalizeCoordinateSelector(raw, field) {
-  const f = /** @type {Map<string, string>|Record<string, string>} */ (raw.frontier);
+  const r = /** @type {{ frontier?: unknown, ceiling?: unknown }} */ (raw);
+  const f = /** @type {Map<string, string>|Record<string, string>} */ (r.frontier);
   return {
     kind: 'coordinate',
     frontier: normalizeFrontierRecord(f, `${field}.frontier`),
-    ceiling: normalizeLamportCeiling(raw.ceiling, `${field}.ceiling`),
+    ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
   };
 }
 
@@ -652,19 +656,20 @@ async function finalizeComparisonSide(graph, params, scope) {
  * @private
  */
 async function resolveLiveComparisonSide(graph, selector, scope) {
+  const ceiling = selector.ceiling ?? null;
   const requestedFrontier = /** @type {Map<string, string>} */ (await graph.getFrontier());
   const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
   const state = await graph.materializeCoordinate({
     frontier: frontierRecordToMap(requestedRecord),
-    ...optionalCeiling(selector.ceiling),
+    ...optionalCeiling(ceiling),
   });
-  const patchEntries = await collectPatchEntriesForFrontier(graph, requestedRecord, selector.ceiling);
+  const patchEntries = await collectPatchEntriesForFrontier(graph, requestedRecord, ceiling);
   return await finalizeComparisonSide(graph, {
-    requested: { kind: 'live', ...optionalCeiling(selector.ceiling) },
+    requested: { kind: 'live', ...optionalCeiling(ceiling) },
     state,
     patchEntries,
     coordinateKind: 'frontier',
-    lamportCeiling: selector.ceiling,
+    lamportCeiling: ceiling,
   }, scope);
 }
 
@@ -678,17 +683,19 @@ async function resolveLiveComparisonSide(graph, selector, scope) {
  * @private
  */
 async function resolveCoordinateComparisonSide(graph, selector, scope) {
+  const ceiling = selector.ceiling ?? null;
+  const frontier = /** @type {Record<string, string>} */ (selector.frontier ?? {});
   const state = await graph.materializeCoordinate({
-    frontier: frontierRecordToMap(selector.frontier),
-    ...optionalCeiling(selector.ceiling),
+    frontier: frontierRecordToMap(frontier),
+    ...optionalCeiling(ceiling),
   });
-  const patchEntries = await collectPatchEntriesForFrontier(graph, selector.frontier, selector.ceiling);
+  const patchEntries = await collectPatchEntriesForFrontier(graph, frontier, ceiling);
   return await finalizeComparisonSide(graph, {
-    requested: { ...buildCoordinateRequest(selector.frontier, selector.ceiling), kind: 'coordinate' },
+    requested: { ...buildCoordinateRequest(frontier, ceiling), kind: 'coordinate' },
     state,
     patchEntries,
     coordinateKind: 'frontier',
-    lamportCeiling: selector.ceiling,
+    lamportCeiling: ceiling,
   }, scope);
 }
 
@@ -702,25 +709,27 @@ async function resolveCoordinateComparisonSide(graph, selector, scope) {
  * @private
  */
 async function resolveStrandComparisonSide(graph, selector, scope) {
+  const ceiling = selector.ceiling ?? null;
+  const strandId = /** @type {string} */ (selector.strandId ?? '');
   const strands = new StrandService({ graph });
-  const descriptor = await strands.getOrThrow(selector.strandId);
+  const descriptor = await strands.getOrThrow(strandId);
   const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
     graph,
     'materializeStrand',
-    selector.strandId,
-    selector.ceiling === null ? undefined : { ceiling: selector.ceiling },
+    strandId,
+    ceiling === null ? undefined : { ceiling },
   ));
   const patchEntries = await strands.getPatchEntries(
-    selector.strandId,
-    selector.ceiling === null ? undefined : { ceiling: selector.ceiling },
+    strandId,
+    ceiling === null ? undefined : { ceiling },
   );
   return await finalizeComparisonSide(graph, {
-    requested: { kind: 'strand', strandId: selector.strandId, ...optionalCeiling(selector.ceiling) },
+    requested: { kind: 'strand', strandId, ...optionalCeiling(ceiling) },
     state,
     patchEntries,
     coordinateKind: 'strand',
-    lamportCeiling: selector.ceiling,
-    strand: buildStrandMetadata(selector.strandId, descriptor),
+    lamportCeiling: ceiling,
+    strand: buildStrandMetadata(strandId, descriptor),
   }, scope);
 }
 
@@ -734,9 +743,11 @@ async function resolveStrandComparisonSide(graph, selector, scope) {
  * @private
  */
 async function resolveStrandBaseComparisonSide(graph, selector, scope) {
+  const ceiling = selector.ceiling ?? null;
+  const strandId = /** @type {string} */ (selector.strandId ?? '');
   const strands = new StrandService({ graph });
-  const descriptor = await strands.getOrThrow(selector.strandId);
-  const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, selector.ceiling);
+  const descriptor = await strands.getOrThrow(strandId);
+  const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, ceiling);
   const state = await graph.materializeCoordinate({
     frontier: descriptor.baseObservation.frontier,
     ...optionalCeiling(effectiveCeiling),
@@ -745,16 +756,16 @@ async function resolveStrandBaseComparisonSide(graph, selector, scope) {
   return await finalizeComparisonSide(graph, {
     requested: {
       kind: 'strand_base',
-      strandId: selector.strandId,
+      strandId,
       frontier: { ...descriptor.baseObservation.frontier },
       baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
-      ...optionalCeiling(selector.ceiling),
+      ...optionalCeiling(ceiling),
     },
     state,
     patchEntries,
     coordinateKind: 'strand_base',
     lamportCeiling: effectiveCeiling,
-    strand: buildStrandMetadata(selector.strandId, /** @type {StrandDescriptorV1} */ (descriptor)),
+    strand: buildStrandMetadata(strandId, /** @type {StrandDescriptorV1} */ (descriptor)),
   }, scope);
 }
 
@@ -790,7 +801,7 @@ async function resolveComparisonSide(selector, scope = null) {
  * @returns {value is { kind: 'strand', strandId: unknown }}
  */
 function isStrandObject(value) {
-  return value !== null && typeof value === 'object' && /** @type {Record<string, unknown>} */ (value).kind === 'strand';
+  return value !== null && typeof value === 'object' && /** @type {{ kind?: unknown }} */ (value).kind === 'strand';
 }
 
 /**
@@ -811,7 +822,8 @@ function normalizeAgainstSelector(normalizedStrandId, against, againstCeiling) {
   }
   if (isStrandObject(against)) {
     const obj = /** @type {Record<string, unknown>} */ (against);
-    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'against.strandId'), ceiling: againstCeiling };
+    const o = /** @type {{ strandId?: unknown }} */ (obj);
+    return { kind: 'strand', strandId: normalizeRequiredString(o.strandId, 'against.strandId'), ceiling: againstCeiling };
   }
   throw new QueryError('against must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }
@@ -884,7 +896,8 @@ function normalizeIntoSelector(normalizedStrandId, into, intoCeiling) {
   }
   if (isStrandObject(into)) {
     const obj = /** @type {Record<string, unknown>} */ (into);
-    return { kind: 'strand', strandId: normalizeRequiredString(obj.strandId, 'into.strandId'), ceiling: intoCeiling };
+    const o = /** @type {{ strandId?: unknown }} */ (obj);
+    return { kind: 'strand', strandId: normalizeRequiredString(o.strandId, 'into.strandId'), ceiling: intoCeiling };
   }
   throw new QueryError('into must be base, live, or { kind: "strand", strandId }', { code: 'invalid_coordinate' });
 }
@@ -953,26 +966,23 @@ async function finalizeTransferPlan(params) {
     target: { requested: targetSide.requested, resolved: targetSide.resolved },
   };
   const fact = buildCoordinateTransferPlanFact({
-    transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
-    comparisonDigest,
-    ...(scope ? { scope } : {}),
-    changed,
-    ...sides,
-    summary: transfer.summary,
-    ops: transfer.ops,
+    transferVersion: COORDINATE_TRANSFER_PLAN_VERSION, comparisonDigest,
+    ...(scope ? { scope } : {}), changed, ...sides,
+    summary: transfer.summary, ops: transfer.ops,
   });
-
   const digest = await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), graph._crypto);
-  return {
+  /** @type {CoordinateTransferPlanV1} */
+  const plan = /** @type {CoordinateTransferPlanV1} */ (/** @type {unknown} */ ({
     transferVersion: COORDINATE_TRANSFER_PLAN_VERSION,
     transferDigest: /** @type {string} */ (digest),
     comparisonDigest,
-    ...(scope ? { scope } : {}),
     changed,
     ...sides,
     summary: transfer.summary,
     ops: transfer.ops,
-  };
+  }));
+  if (scope) { plan.scope = scope; }
+  return plan;
 }
 
 /**
@@ -989,10 +999,14 @@ async function finalizeTransferPlan(params) {
 export async function planCoordinateTransfer(options) {
   assertTransferOptions(options);
 
-  const normalizedSource = normalizeSelector(options.source, 'source');
-  const normalizedTarget = normalizeSelector(options.target, 'target');
+  const normalizedSource = /** @type {NormalizedSelector} */ (normalizeSelector(options.source, 'source'));
+  const normalizedTarget = /** @type {NormalizedSelector} */ (normalizeSelector(options.target, 'target'));
   const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
-  const comp = await this.compareCoordinates({ left: normalizedSource, right: normalizedTarget, ...(scope !== null && scope !== undefined ? { scope } : {}) });
+  const comp = await this.compareCoordinates({
+    left: /** @type {CoordinateComparisonSelectorV1} */ (/** @type {unknown} */ (normalizedSource)),
+    right: /** @type {CoordinateComparisonSelectorV1} */ (/** @type {unknown} */ (normalizedTarget)),
+    ...(scope !== null && scope !== undefined ? { scope } : {}),
+  });
   const sourceSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedSource, scope));
   const targetSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedTarget, scope));
   /** Loads node content blob by OID. @type {(nodeId: string, meta: { oid: string }) => Promise<Uint8Array>} */
@@ -1015,13 +1029,13 @@ export async function planCoordinateTransfer(options) {
  *   targetId?: string|null,
  *   scope?: VisibleStateScopeV1|null
  * }} options - Raw comparison options
- * @returns {{ normalizedLeft: Record<string, unknown>, normalizedRight: Record<string, unknown>, targetId: string|null, scope: VisibleStateScopeV1|null }}
+ * @returns {{ normalizedLeft: NormalizedSelector, normalizedRight: NormalizedSelector, targetId: string|null, scope: VisibleStateScopeV1|null }}
  */
 function extractComparisonInputs(options) {
   assertComparisonOptions(options);
   return {
-    normalizedLeft: normalizeSelector(options.left, 'left'),
-    normalizedRight: normalizeSelector(options.right, 'right'),
+    normalizedLeft: /** @type {NormalizedSelector} */ (normalizeSelector(options.left, 'left')),
+    normalizedRight: /** @type {NormalizedSelector} */ (normalizeSelector(options.right, 'right')),
     targetId: normalizeOptionalString(options.targetId, 'targetId'),
     scope: normalizeVisibleStateScopeV1(options.scope, 'scope'),
   };
@@ -1070,5 +1084,5 @@ export async function compareCoordinates(options) {
   });
   const digest = await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), this._crypto);
 
-  return { ...fact, comparisonDigest: digest };
+  return /** @type {CoordinateComparisonV1} */ ({ ...fact, comparisonDigest: digest });
 }

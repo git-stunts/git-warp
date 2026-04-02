@@ -35,8 +35,8 @@ export default class DagTopology {
    * @param {{ indexReader: import('./BitmapIndexReader.js').default, logger?: import('../../ports/LoggerPort.js').default, traversal?: import('./DagTraversal.js').default }} options
    */
   constructor({ indexReader, logger = nullLogger, traversal }) {
-    if (!indexReader) {
-      throw new Error('DagTopology requires an indexReader');
+    if (indexReader === null || indexReader === undefined) {
+      throw new TraversalError('DagTopology requires an indexReader', { code: 'E_MISSING_INDEX_READER' });
     }
     this._indexReader = indexReader;
     this._logger = logger;
@@ -71,8 +71,9 @@ export default class DagTopology {
     if (shas.length === 0) { return []; }
     const traversal = /** @type {import('./DagTraversal.js').default} */ (this._traversal);
     if (shas.length === 1) {
+      const firstSha = shas[0] ?? '';
       const ancestors = [];
-      for await (const node of traversal.ancestors({ sha: shas[0], maxNodes: maxResults, maxDepth, signal })) {
+      for await (const node of traversal.ancestors({ sha: firstSha, maxNodes: maxResults, maxDepth, ...(signal ? { signal } : {}) })) {
         ancestors.push(node.sha);
       }
       return ancestors;
@@ -80,20 +81,22 @@ export default class DagTopology {
 
     this._logger.debug('commonAncestors started', { shaCount: shas.length, maxDepth });
 
+    /** @type {Map<string, number>} */
     const ancestorCounts = new Map();
     const requiredCount = shas.length;
 
     for (const sha of shas) {
       checkAborted(signal, 'commonAncestors');
       const visited = new Set();
-      for await (const node of traversal.ancestors({ sha, maxDepth, signal })) {
+      for await (const node of traversal.ancestors({ sha, maxDepth, ...(signal ? { signal } : {}) })) {
         if (!visited.has(node.sha)) {
           visited.add(node.sha);
-          ancestorCounts.set(node.sha, (ancestorCounts.get(node.sha) || 0) + 1);
+          ancestorCounts.set(node.sha, (/** @type {number} */ (ancestorCounts.get(node.sha)) ?? 0) + 1);
         }
       }
     }
 
+    /** @type {string[]} */
     const common = [];
     for (const [ancestor, count] of ancestorCounts) {
       if (count === requiredCount) {
@@ -126,8 +129,11 @@ export default class DagTopology {
     this._logger.debug('topologicalSort started', { start, direction, maxNodes });
 
     // Phase 1: Discover all reachable nodes and compute in-degrees
+    /** @type {Map<string, number>} */
     const inDegree = new Map();
+    /** @type {Set<string>} */
     const allNodes = new Set();
+    /** @type {Map<string, string[]>} */
     const edges = new Map();
 
     const queue = [start];
@@ -143,7 +149,7 @@ export default class DagTopology {
       edges.set(sha, neighbors);
 
       for (const neighbor of neighbors) {
-        inDegree.set(neighbor, (inDegree.get(neighbor) || 0) + 1);
+        inDegree.set(neighbor, (/** @type {number} */ (inDegree.get(neighbor)) ?? 0) + 1);
         if (!allNodes.has(neighbor)) {
           allNodes.add(neighbor);
           queue.push(neighbor);
@@ -164,6 +170,7 @@ export default class DagTopology {
     }
 
     let nodesYielded = 0;
+    /** @type {Map<string, number>} */
     const depthMap = new Map([[start, 0]]);
 
     while (ready.length > 0 && nodesYielded < maxNodes) {
@@ -172,12 +179,14 @@ export default class DagTopology {
       }
 
       const sha = /** @type {string} */ (ready.shift());
-      const depth = depthMap.get(sha) || 0;
+      /** @type {number} */
+      const depth = depthMap.get(sha) ?? 0;
 
       nodesYielded++;
       yield { sha, depth, parent: null };
 
-      const neighbors = edges.get(sha) || [];
+      /** @type {string[]} */
+      const neighbors = edges.get(sha) ?? [];
       for (const neighbor of neighbors) {
         const newDegree = /** @type {number} */ (inDegree.get(neighbor)) - 1;
         inDegree.set(neighbor, newDegree);

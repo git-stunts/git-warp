@@ -1,13 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/WarpMessageCodec.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
-import { createORSet, orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';

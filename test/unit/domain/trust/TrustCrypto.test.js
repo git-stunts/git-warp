@@ -60,7 +60,7 @@ describe('verifySignature — tamper detection', () => {
     const payload = Buffer.from('data');
     const sig = signPayload(payload);
     const sigBuf = Buffer.from(sig, 'base64');
-    sigBuf[0] ^= 0xff;
+    if (sigBuf[0] !== undefined) { sigBuf[0] ^= 0xff; }
     expect(
       verifySignature({
         algorithm: 'ed25519',

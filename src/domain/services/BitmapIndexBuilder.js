@@ -20,6 +20,7 @@ export function resetNativeRoaringFlag() {
   _nativeRoaringAvailable = null;
 }
 
+/** Lazily resolves the Roaring bitmap constructor and caches native availability. */
 const ensureRoaringBitmap32 = () => {
   const RoaringBitmap32 = getRoaringBitmap32();
   if (_nativeRoaringAvailable === null) {
@@ -86,7 +87,7 @@ export default class BitmapIndexBuilder {
    * @param {{ crypto?: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} [options] - Configuration options
    */
   constructor(options = undefined) {
-    const { crypto, codec } = options || {};
+    const { crypto, codec } = options ?? {};
     /** @type {import('../../ports/CryptoPort.js').default} */
     this._crypto = crypto || defaultCrypto;
     /** @type {import('../../ports/CodecPort.js').default} */
@@ -143,12 +144,28 @@ export default class BitmapIndexBuilder {
     /** @type {Record<string, Uint8Array>} */
     const tree = {};
 
-    // Serialize ID mappings (sharded by prefix)
+    await this._serializeIdShards(tree);
+    await this._serializeBitmapShards(tree);
+
+    if (frontier !== undefined) {
+      serializeFrontierToTree(frontier, tree, this._codec);
+    }
+
+    return tree;
+  }
+
+  /**
+   * Serializes SHA-to-ID mappings into prefix-sharded JSON entries.
+   * @param {Record<string, Uint8Array>} tree - Target tree to populate
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _serializeIdShards(tree) {
     /** @type {Record<string, Record<string, number>>} */
     const idShards = {};
     for (const [sha, id] of this.shaToId) {
       const prefix = sha.substring(0, 2);
-      if (!idShards[prefix]) {
+      if (idShards[prefix] === undefined) {
         idShards[prefix] = {};
       }
       idShards[prefix][sha] = id;
@@ -156,33 +173,39 @@ export default class BitmapIndexBuilder {
     for (const [prefix, map] of Object.entries(idShards)) {
       tree[`meta_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(map, this._crypto)));
     }
+  }
 
-    // Serialize bitmaps (sharded by prefix, per-node within shard)
-    // Keys are constructed as '${type}_${sha}' by _addToBitmap (e.g., 'fwd_abc123', 'rev_def456')
+  /**
+   * Serializes forward and reverse bitmap shards into JSON entries.
+   * @param {Record<string, Uint8Array>} tree - Target tree to populate
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _serializeBitmapShards(tree) {
     /** @type {Record<string, Record<string, Record<string, string>>>} */
     const bitmapShards = { fwd: {}, rev: {} };
     for (const [key, bitmap] of this.bitmaps) {
-      const [type, sha] = [key.substring(0, 3), key.substring(4)];
+      const type = key.substring(0, 3);
+      const sha = key.substring(4);
       const prefix = sha.substring(0, 2);
 
-      if (!bitmapShards[type][prefix]) {
-        bitmapShards[type][prefix] = {};
+      const typeShard = bitmapShards[type];
+      if (typeShard === undefined) { continue; }
+      if (typeShard[prefix] === undefined) {
+        typeShard[prefix] = {};
       }
-      // Encode bitmap as base64 for JSON storage
-      bitmapShards[type][prefix][sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+      const prefixShard = typeShard[prefix];
+      if (prefixShard === undefined) { continue; }
+      prefixShard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
     }
 
     for (const type of ['fwd', 'rev']) {
-      for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
+      const shardGroup = bitmapShards[type];
+      if (shardGroup === undefined) { continue; }
+      for (const [prefix, shardData] of Object.entries(shardGroup)) {
         tree[`shards_${type}_${prefix}.json`] = textEncode(JSON.stringify(await wrapShard(shardData, this._crypto)));
       }
     }
-
-    if (frontier) {
-      serializeFrontierToTree(frontier, tree, this._codec);
-    }
-
-    return tree;
   }
 
   /**

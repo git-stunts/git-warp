@@ -13,7 +13,7 @@ import {
 } from '../../../../src/domain/services/GCMetrics.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
-import { orsetAdd, orsetRemove, orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
+import { orsetAdd, orsetRemove, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 
 describe('GCPolicy', () => {
@@ -334,7 +334,7 @@ describe('GCMetrics', () => {
       });
 
       // Tombstone 1 of them (25% ratio)
-      orsetRemove(state.nodeAlive, new Set([encodeDot(dots[0])]));
+      orsetRemove(state.nodeAlive, new Set([encodeDot(/** @type {import('../../../../src/domain/crdt/Dot.js').Dot} */ (dots[0]))]));
 
       const metrics = collectGCMetrics(state);
 

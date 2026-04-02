@@ -56,6 +56,32 @@ function boundedString(maxBytes) {
 // ── Frontier Schema ─────────────────────────────────────────────────────────
 
 /**
+ * Converts a Map to a plain object, returning null if any entry is non-string.
+ * @param {Map<unknown, unknown>} map
+ * @returns {Record<string, string>|null}
+ */
+function mapToStringRecord(map) {
+  /** @type {Record<string, string>} */
+  const obj = {};
+  for (const [k, v] of map) {
+    if (typeof k !== 'string' || typeof v !== 'string') {
+      return null;
+    }
+    obj[k] = v;
+  }
+  return obj;
+}
+
+/**
+ * Returns true if value is a non-null, non-array object.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isPlainObject(value) {
+  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
  * Normalizes a frontier value that may be a Map (cbor-x decodes maps)
  * or a plain object into a validated plain object.
  *
@@ -64,17 +90,9 @@ function boundedString(maxBytes) {
  */
 export function normalizeFrontier(value) {
   if (value instanceof Map) {
-    /** @type {Record<string, string>} */
-    const obj = {};
-    for (const [k, v] of value) {
-      if (typeof k !== 'string' || typeof v !== 'string') {
-        return null;
-      }
-      obj[k] = v;
-    }
-    return obj;
+    return mapToStringRecord(value);
   }
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
+  if (isPlainObject(value)) {
     return /** @type {Record<string, string>} */ (value);
   }
   return null;
@@ -176,6 +194,28 @@ export const SyncResponseSchema = createSyncResponseSchema();
 // ── Validation Helpers ──────────────────────────────────────────────────────
 
 /**
+ * Normalizes a Map frontier on a payload object in-place.
+ * Returns an error string if the Map contains non-string entries, null otherwise.
+ * @param {unknown} payload
+ * @returns {string|null} Error message, or null on success
+ */
+function normalizePayloadFrontier(payload) {
+  if (!isPlainObject(payload)) {
+    return null;
+  }
+  const p = /** @type {Record<string, unknown>} */ (payload);
+  if (!(p['frontier'] instanceof Map)) {
+    return null;
+  }
+  const normalized = normalizeFrontier(p['frontier']);
+  if (normalized === null) {
+    return 'Invalid frontier: Map contains non-string entries';
+  }
+  p['frontier'] = normalized;
+  return null;
+}
+
+/**
  * Validates a sync request payload. Returns the parsed value or throws.
  *
  * Handles Map→object normalization for cbor-x compatibility.
@@ -185,16 +225,9 @@ export const SyncResponseSchema = createSyncResponseSchema();
  * @returns {{ ok: true, value: { type: 'sync-request', frontier: Record<string, string> } } | { ok: false, error: string }}
  */
 export function validateSyncRequest(payload, limits = DEFAULT_LIMITS) {
-  // Normalize Map frontier from cbor-x
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const p = /** @type {Record<string, unknown>} */ (payload);
-    if (p.frontier instanceof Map) {
-      const normalized = normalizeFrontier(p.frontier);
-      if (!normalized) {
-        return { ok: false, error: 'Invalid frontier: Map contains non-string entries' };
-      }
-      p.frontier = normalized;
-    }
+  const frontierErr = normalizePayloadFrontier(payload);
+  if (frontierErr !== null) {
+    return { ok: false, error: frontierErr };
   }
 
   const schema = limits === DEFAULT_LIMITS ? SyncRequestSchema : createSyncRequestSchema(limits);
@@ -202,7 +235,10 @@ export function validateSyncRequest(payload, limits = DEFAULT_LIMITS) {
   if (!result.success) {
     return { ok: false, error: result.error.message };
   }
-  return { ok: true, value: /** @type {{ type: 'sync-request', frontier: Record<string, string> }} */ (result.data) };
+  /** @type {unknown} */
+  const raw = result.data;
+  const value = /** @type {{ type: 'sync-request', frontier: Record<string, string> }} */ (raw);
+  return { ok: true, value };
 }
 
 /**
@@ -215,16 +251,9 @@ export function validateSyncRequest(payload, limits = DEFAULT_LIMITS) {
  * @returns {{ ok: true, value: unknown } | { ok: false, error: string }}
  */
 export function validateSyncResponse(payload, limits = DEFAULT_LIMITS) {
-  // Normalize Map frontier from cbor-x
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const p = /** @type {Record<string, unknown>} */ (payload);
-    if (p.frontier instanceof Map) {
-      const normalized = normalizeFrontier(p.frontier);
-      if (!normalized) {
-        return { ok: false, error: 'Invalid frontier: Map contains non-string entries' };
-      }
-      p.frontier = normalized;
-    }
+  const frontierErr = normalizePayloadFrontier(payload);
+  if (frontierErr !== null) {
+    return { ok: false, error: frontierErr };
   }
 
   const schema = limits === DEFAULT_LIMITS ? SyncResponseSchema : createSyncResponseSchema(limits);

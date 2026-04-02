@@ -15,11 +15,12 @@ import WarpError from './WarpError.js';
  */
 export default class CrdtError extends WarpError {
   /**
+   * Constructs a CrdtError with the default code E_CRDT_MALFORMED.
+   *
    * @param {string} message - Descriptive error message
    * @param {{ code?: string, context?: Record<string, unknown> }} [options={}] - Error options
    */
   constructor(message, options = {}) {
-    const opts = options || {};
-    super(message, opts.code || 'E_CRDT_MALFORMED', opts);
+    super(message, 'E_CRDT_MALFORMED', options);
   }
 }

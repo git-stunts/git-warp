@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // We mock elkjs to avoid loading 2.5MB in unit tests.
 // The integration test (below) uses the real engine.
@@ -51,14 +51,14 @@ describe('elkLayout', () => {
       expect(result.width).toBe(200);
       expect(result.height).toBe(100);
       expect(result.nodes).toHaveLength(2);
-      expect(result.nodes[0].id).toBe('a');
-      expect(result.nodes[0].label).toBe('A');
-      expect(typeof result.nodes[0].x).toBe('number');
-      expect(typeof result.nodes[0].y).toBe('number');
+      expect(result.nodes[0]?.id).toBe('a');
+      expect(result.nodes[0]?.label).toBe('A');
+      expect(typeof result.nodes[0]?.x).toBe('number');
+      expect(typeof result.nodes[0]?.y).toBe('number');
       expect(result.edges).toHaveLength(1);
-      expect(result.edges[0].source).toBe('a');
-      expect(result.edges[0].target).toBe('b');
-      expect(result.edges[0].sections).toHaveLength(1);
+      expect(result.edges[0]?.source).toBe('a');
+      expect(result.edges[0]?.target).toBe('b');
+      expect(result.edges[0]?.sections).toHaveLength(1);
     });
 
     it('handles empty graph', async () => {

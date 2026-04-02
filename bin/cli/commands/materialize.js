@@ -63,12 +63,12 @@ export default async function handleMaterialize({ options }) {
     };
   }
 
-  const targets = options.graph
-    ? [options.graph]
-    : graphNames;
+  const graphOpt = options.graph;
+  const hasGraphOpt = typeof graphOpt === 'string' && graphOpt !== '';
+  const targets = hasGraphOpt ? [graphOpt] : graphNames;
 
-  if (options.graph && !graphNames.includes(options.graph)) {
-    throw notFoundError(`Graph not found: ${options.graph}`);
+  if (hasGraphOpt && !graphNames.includes(graphOpt)) {
+    throw notFoundError(`Graph not found: ${graphOpt}`);
   }
 
   const results = [];
@@ -85,7 +85,7 @@ export default async function handleMaterialize({ options }) {
         persistence,
         graphName: name,
         writerId: options.writer,
-        ceiling,
+        ...(ceiling !== undefined ? { ceiling } : {}),
       });
       results.push(result);
     } catch (error) {

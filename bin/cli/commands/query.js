@@ -31,12 +31,12 @@ function extractTraversalSteps(args) {
   const remaining = [];
 
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+    const arg = /** @type {string} */ (args[i]);
     if (arg === '--outgoing' || arg === '--incoming') {
       const next = args[i + 1];
-      const label = next && !next.startsWith('-') ? next : undefined;
-      steps.push({ type: arg.slice(2), label });
-      if (label) {
+      const label = (next !== undefined && next !== null && next !== '' && !next.startsWith('-')) ? next : undefined;
+      steps.push({ type: arg.slice(2), ...(label !== undefined ? { label } : {}) });
+      if (label !== undefined) {
         i += 1;
       }
     } else {
@@ -47,16 +47,22 @@ function extractTraversalSteps(args) {
   return { steps, remaining };
 }
 
-/** @param {string} value */
+/**
+ * Parses a --where-prop value into a filter step.
+ * @param {string} value - A key=value property filter expression
+ */
 function parseWhereProp(value) {
   const [key, ...rest] = value.split('=');
-  if (!key || rest.length === 0) {
+  if (key === undefined || key === '' || rest.length === 0) {
     throw usageError('Expected --where-prop key=value');
   }
   return { type: 'where-prop', key, value: rest.join('=') };
 }
 
-/** @param {string} value */
+/**
+ * Splits a comma-separated select value into trimmed field names.
+ * @param {string} value - Comma-separated list of field names to select
+ */
 function parseSelectFields(value) {
   if (value === '') {
     return [];
@@ -64,7 +70,10 @@ function parseSelectFields(value) {
   return value.split(',').map((field) => field.trim()).filter(Boolean);
 }
 
-/** @param {string[]} args */
+/**
+ * Parses raw CLI arguments into a structured query specification.
+ * @param {string[]} args - Raw CLI arguments for the query command
+ */
 function parseQueryArgs(args) {
   // Extract traversal steps first (optional-value semantics)
   const { steps, remaining } = extractTraversalSteps(args);
@@ -86,6 +95,7 @@ function parseQueryArgs(args) {
 }
 
 /**
+ * Applies all traversal and filter steps to the query builder.
  * @param {QueryBuilderLike} builder
  * @param {Array<{type: string, label?: string, key?: string, value?: string}>} steps
  */
@@ -98,6 +108,7 @@ function applyQuerySteps(builder, steps) {
 }
 
 /**
+ * Applies a single traversal or filter step to the query builder.
  * @param {QueryBuilderLike} builder
  * @param {{type: string, label?: string, key?: string, value?: string}} step
  */
@@ -115,6 +126,7 @@ function applyQueryStep(builder, step) {
 }
 
 /**
+ * Tests whether a node's property matches the given key=value filter.
  * @param {{props?: Record<string, unknown>}} node
  * @param {string} key
  * @param {string} value
@@ -145,16 +157,17 @@ function buildEdgeMap(edges) {
     const fromEntry = edgeMap.get(edge.from);
     const toEntry = edgeMap.get(edge.to);
     if (fromEntry) {
-      fromEntry.outgoing.push({ label: edge.label || '', to: edge.to });
+      fromEntry.outgoing.push({ label: edge.label ?? '', to: edge.to });
     }
     if (toEntry) {
-      toEntry.incoming.push({ label: edge.label || '', from: edge.from });
+      toEntry.incoming.push({ label: edge.label ?? '', from: edge.from });
     }
   }
   return edgeMap;
 }
 
 /**
+ * Builds the structured payload returned by the query command.
  * @param {string} graphName
  * @param {{nodes: Array<{id: string, props?: Record<string, unknown>}>, stateHash?: string}} result
  * @param {Array<{from: string, to: string, label?: string}>} edges
@@ -168,7 +181,7 @@ function buildQueryPayload(graphName, result, edges) {
     const entry = { ...node };
     const nodeEdges = edgeMap.get(node.id);
     if (nodeEdges) {
-      entry.edges = nodeEdges;
+      entry['edges'] = nodeEdges;
     }
     return entry;
   });
@@ -180,12 +193,20 @@ function buildQueryPayload(graphName, result, edges) {
   };
 }
 
-/** @param {unknown} error */
+/**
+ * Maps query-domain errors to CLI usage errors and re-throws.
+ * @param {unknown} error - The error thrown during query execution
+ * @returns {never}
+ */
 function mapQueryError(error) {
-  if (error instanceof Error && /** @type {{code?: string}} */ (error).code?.startsWith('E_QUERY')) {
-    throw usageError(error.message);
+  if (error instanceof Error) {
+    const { code } = /** @type {{code?: string}} */ (error);
+    if (code !== undefined && code.startsWith('E_QUERY')) {
+      throw usageError(error.message);
+    }
+    throw error;
   }
-  throw error;
+  throw usageError(String(error));
 }
 
 /**
@@ -215,13 +236,13 @@ export default async function handleQuery({ options, args }) {
     const edges = await graph.getEdges();
     const payload = buildQueryPayload(graphName, result, edges);
 
-    if (options.view) {
+    if (options.view !== null) {
       const graphData = queryResultToGraphData(payload, edges);
       const positioned = await layoutGraph(graphData, { type: 'query' });
       if (typeof options.view === 'string' && (options.view.startsWith('svg:') || options.view.startsWith('html:'))) {
-        payload._renderedSvg = renderSvg(positioned, { title: `${graphName} query` });
+        payload['_renderedSvg'] = renderSvg(positioned, { title: `${graphName} query` });
       } else {
-        payload._renderedAscii = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
+        payload['_renderedAscii'] = renderGraphView(positioned, { title: `QUERY: ${graphName}` });
       }
     }
 
@@ -230,6 +251,6 @@ export default async function handleQuery({ options, args }) {
       exitCode: EXIT_CODES.OK,
     };
   } catch (error) {
-    throw mapQueryError(error);
+    return mapQueryError(error);
   }
 }

@@ -53,7 +53,8 @@ describe('MinHeap', () => {
       const values = [50, 30, 70, 20, 40, 60, 80, 10, 90, 5];
 
       for (let i = 0; i < values.length; i++) {
-        heap.insert(`item${values[i]}`, values[i]);
+        const v = values[i] ?? 0;
+        heap.insert(`item${v}`, v);
       }
 
       const extracted = [];

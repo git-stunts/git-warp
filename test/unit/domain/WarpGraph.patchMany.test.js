@@ -36,7 +36,7 @@ describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
       expect(shas[0]).toHaveLength(40);
 
       const props = await graph.getNodeProps('n:1');
-      expect(props?.k).toBe('v');
+      expect(props?.['k']).toBe('v');
     } finally {
       await repo.cleanup();
     }
@@ -63,8 +63,8 @@ describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
 
       const edges = await graph.getEdges();
       expect(edges).toHaveLength(1);
-      expect(edges[0].from).toBe('n:1');
-      expect(edges[0].to).toBe('n:2');
+      expect(edges[0]?.from).toBe('n:1');
+      expect(edges[0]?.to).toBe('n:2');
     } finally {
       await repo.cleanup();
     }
@@ -93,7 +93,7 @@ describe('WarpRuntime.patchMany()', { timeout: 30000 }, () => {
       expect(shas).toHaveLength(2);
 
       const props = await graph.getNodeProps('n:1');
-      expect(props?.step).toBe(2);
+      expect(props?.['step']).toBe(2);
     } finally {
       await repo.cleanup();
     }

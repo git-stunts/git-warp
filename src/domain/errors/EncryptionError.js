@@ -15,6 +15,7 @@ import WarpError from './WarpError.js';
  */
 export default class EncryptionError extends WarpError {
   /**
+   * Creates an EncryptionError indicating a patch requires decryption.
    * @param {string} message
    * @param {{ context?: Record<string, unknown> }} [options={}]
    */

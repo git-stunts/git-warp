@@ -25,18 +25,39 @@ import nullLogger from '../utils/nullLogger.js';
  * @property {string} verdict - Human-readable verdict
  */
 
-/** @type {() => TrustGateResult} */
+/**
+ * Returns a passing trust gate result with no untrusted writers.
+ * @type {() => TrustGateResult}
+ */
 const PASS = () => ({ allowed: true, untrustedWriters: [], verdict: 'pass' });
 
+/**
+ * Resolves SyncTrustGate constructor options with defaults.
+ * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../ports/LoggerPort.js').default }|undefined} options
+ * @returns {{ evaluator: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}|null, mode: TrustMode, logger: import('../../ports/LoggerPort.js').default }}
+ */
+function resolveGateOptions(options) {
+  const resolved = options || {};
+  return {
+    evaluator: resolved.trustEvaluator || null,
+    mode: resolved.trustMode || 'off',
+    logger: resolved.logger || nullLogger,
+  };
+}
+
+/**
+ * Encapsulates trust evaluation for sync operations.
+ */
 export default class SyncTrustGate {
   /**
+   * Creates a SyncTrustGate with optional trust evaluator, mode, and logger.
    * @param {{ trustEvaluator?: {evaluateWriters: (writerIds: string[]) => Promise<{trusted: Set<string>}>}, trustMode?: TrustMode, logger?: import('../../ports/LoggerPort.js').default }} [options]
    */
   constructor(options = undefined) {
-    const { trustEvaluator, trustMode = 'off', logger } = options || {};
-    this._evaluator = trustEvaluator || null;
-    this._mode = trustMode;
-    this._logger = logger || nullLogger;
+    const { evaluator, mode, logger } = resolveGateOptions(options);
+    this._evaluator = evaluator;
+    this._mode = mode;
+    this._logger = logger;
   }
 
   /**
@@ -47,20 +68,34 @@ export default class SyncTrustGate {
    * @returns {Promise<TrustGateResult>}
    */
   async evaluate(writerIds, context = {}) {
+    const earlyResult = this._checkEarlyExit(writerIds);
+    if (earlyResult) {
+      return earlyResult;
+    }
+
+    try {
+      const result = await /** @type {NonNullable<typeof this._evaluator>} */ (this._evaluator).evaluateWriters(writerIds);
+      const untrusted = writerIds.filter((id) => !result.trusted.has(id));
+      return this._decide(untrusted, writerIds, context);
+    } catch (err) {
+      return this._handleError(err, writerIds, context);
+    }
+  }
+
+  /**
+   * Returns an early-exit result if evaluation can be skipped, or null.
+   * @param {string[]} writerIds
+   * @returns {TrustGateResult|null}
+   * @private
+   */
+  _checkEarlyExit(writerIds) {
     if (this._mode === 'off' || !this._evaluator) {
       return { allowed: true, untrustedWriters: [], verdict: 'trust_disabled' };
     }
     if (writerIds.length === 0) {
       return { allowed: true, untrustedWriters: [], verdict: 'no_writers' };
     }
-
-    try {
-      const result = await this._evaluator.evaluateWriters(writerIds);
-      const untrusted = writerIds.filter((id) => !result.trusted.has(id));
-      return this._decide(untrusted, writerIds, context);
-    } catch (err) {
-      return this._handleError(err, writerIds, context);
-    }
+    return null;
   }
 
   /**
@@ -131,6 +166,7 @@ export default class SyncTrustGate {
    * @returns {string[]} Deduplicated writer IDs
    */
   static extractWritersFromPatches(patches) {
+    /** @type {Set<string>} */
     const writers = new Set();
     for (const { writerId } of patches) {
       if (writerId) {

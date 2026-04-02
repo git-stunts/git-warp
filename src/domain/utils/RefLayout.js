@@ -575,6 +575,9 @@ function extractValidWriterId(parts) {
     return null;
   }
   const writerId = parts[parts.length - 1];
+  if (writerId === undefined) {
+    return null;
+  }
   try {
     validateWriterId(writerId);
     return writerId;

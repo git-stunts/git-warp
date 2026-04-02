@@ -170,11 +170,30 @@ function renderEntryLines(displayEntries, lamportWidth, extra = {}) {
   /** @type {string[]} */
   const lines = [];
   for (let i = 0; i < displayEntries.length; i++) {
+    const entry = /** @type {PatchEntry} */ (displayEntries[i]);
     const isLast = i === displayEntries.length - 1;
-    const writerStr = extra.useWriterId === true ? displayEntries[i].writerId : undefined;
-    lines.push(renderEntryLine({ entry: displayEntries[i], isLast, lamportWidth, writerStr, maxWriterIdLen: extra.maxWriterIdLen }));
+    const lineArgs = buildLineArgs({ entry, isLast, lamportWidth }, extra);
+    lines.push(renderEntryLine(lineArgs));
   }
   return lines;
+}
+
+/**
+ * Builds the argument object for a single entry line.
+ * @param {{ entry: PatchEntry, isLast: boolean, lamportWidth: number }} base - Core line params
+ * @param {{ useWriterId?: boolean, maxWriterIdLen?: number }} extra - Optional writer info
+ * @returns {{ entry: PatchEntry, isLast: boolean, lamportWidth: number, writerStr?: string, maxWriterIdLen?: number }}
+ */
+function buildLineArgs(base, extra) {
+  /** @type {{ entry: PatchEntry, isLast: boolean, lamportWidth: number, writerStr?: string, maxWriterIdLen?: number }} */
+  const lineArgs = { ...base };
+  if (extra.useWriterId === true) {
+    lineArgs.writerStr = base.entry.writerId ?? '';
+  }
+  if (extra.maxWriterIdLen !== undefined) {
+    lineArgs.maxWriterIdLen = extra.maxWriterIdLen;
+  }
+  return lineArgs;
 }
 
 /**

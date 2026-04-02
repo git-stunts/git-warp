@@ -175,10 +175,6 @@ describe('CasSeekCacheAdapter', () => {
     });
 
     it('resets cached promise on init error so next call retries', async () => {
-      // Temporarily break the mock module to force an init failure
-      const origDefault = (await import('@git-stunts/git-cas')).default;
-      const { default: CASModule } = await import('@git-stunts/git-cas');
-
       // Create a fresh adapter whose _initCas will throw
       /** @type {any} */
       const badAdapter = new CasSeekCacheAdapter({
@@ -516,7 +512,7 @@ describe('CasSeekCacheAdapter', () => {
 
       await adapter.set(SAMPLE_KEY, SAMPLE_BUFFER);
 
-      const storeArg = mockStore.mock.calls[0][0];
+      const storeArg = /** @type {any[]} */ (mockStore.mock.calls[0])[0];
       expect(storeArg.encryptionKey).toBeUndefined();
     });
   });

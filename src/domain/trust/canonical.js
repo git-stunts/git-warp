@@ -29,8 +29,8 @@ export const TRUST_SIGN_DOMAIN = 'git-warp:trust-sign:v1\0';
  */
 export function unsignedRecordForId(record) {
   const out = { ...record };
-  delete out.recordId;
-  delete out.signature;
+  delete out['recordId'];
+  delete out['signature'];
   return out;
 }
 
@@ -43,7 +43,7 @@ export function unsignedRecordForId(record) {
  */
 export function unsignedRecordForSignature(record) {
   const out = { ...record };
-  delete out.signature;
+  delete out['signature'];
   return out;
 }
 

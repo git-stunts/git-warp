@@ -134,14 +134,14 @@ function extractNodeIds(ops) {
   /** @type {Set<string>} */
   const ids = new Set();
   for (const op of ops) {
-    if (typeof op.node === 'string' && op.node.length > 0) {
-      ids.add(op.node);
+    if (typeof op['node'] === 'string' && op['node'].length > 0) {
+      ids.add(op['node']);
     }
-    if (typeof op.from === 'string' && op.from.length > 0) {
-      ids.add(op.from);
+    if (typeof op['from'] === 'string' && op['from'].length > 0) {
+      ids.add(op['from']);
     }
-    if (typeof op.to === 'string' && op.to.length > 0) {
-      ids.add(op.to);
+    if (typeof op['to'] === 'string' && op['to'].length > 0) {
+      ids.add(op['to']);
     }
   }
   return /** @type {string[]} */ ([...ids].sort());

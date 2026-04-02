@@ -83,7 +83,7 @@ function cloneCoordinateSource(value) {
  */
 async function openDetachedReadGraph(graph) {
   const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
-  return await GraphClass.open(buildDetachedOpenOptions(graph));
+  return await GraphClass.open(/** @type {Parameters<typeof GraphClass.open>[0]} */ (buildDetachedOpenOptions(graph)));
 }
 
 /**
@@ -253,6 +253,9 @@ export default class Worldline {
      * implements those by delegating to a cached full-aperture observer.
      */
     this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
+
+    // Prevent TS6133: _materializeGraph is called externally via duck-typed access
+    void this._materializeGraph;
   }
 
   /**

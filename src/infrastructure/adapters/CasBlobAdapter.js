@@ -20,7 +20,7 @@ import { Readable } from 'node:stream';
 
 /**
  * @typedef {object} CasManifest
- * @property {*} [entries]
+ * @property {Record<string, unknown>} [entries]
  */
 
 /**
@@ -122,9 +122,8 @@ export default class CasBlobAdapter extends BlobStoragePort {
    * @returns {Promise<CasStore>}
    */
   async _initCas() {
-    /** @type {{ default: new (opts: unknown) => CasStore, CborCodec: new () => unknown }} */
-    const casModule = await import(
-      /* webpackIgnore: true */ '@git-stunts/git-cas'
+    const casModule = /** @type {{ default: new (opts: unknown) => CasStore, CborCodec: new () => unknown }} */ (
+      /** @type {unknown} */ (await import(/* webpackIgnore: true */ '@git-stunts/git-cas'))
     );
     const { default: ContentAddressableStore, CborCodec } = casModule;
     /** @type {{ plumbing: unknown, codec: unknown, chunking: { strategy: string }, observability?: unknown }} */

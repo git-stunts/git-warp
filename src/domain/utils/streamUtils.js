@@ -145,7 +145,7 @@ export async function collectAsyncIterable(source) {
     totalLength += chunk.byteLength;
   }
   if (chunks.length === 1) {
-    return chunks[0];
+    return /** @type {Uint8Array} */ (chunks[0]);
   }
   const result = new Uint8Array(totalLength);
   let offset = 0;

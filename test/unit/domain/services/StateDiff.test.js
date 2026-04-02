@@ -342,8 +342,8 @@ describe('StateDiff', () => {
         const diff = diffStates(before, after);
 
         expect(diff.props.set).toHaveLength(1);
-        expect(diff.props.set[0].oldValue).toEqual({ age: 25 });
-        expect(diff.props.set[0].newValue).toEqual({ age: 26 });
+        expect(diff.props.set[0]?.oldValue).toEqual({ age: 25 });
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 26 });
       });
 
       it('ignores unchanged object properties', () => {

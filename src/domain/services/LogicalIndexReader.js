@@ -162,7 +162,7 @@ function resolveFilteredEdges(store, ctx) {
  * @returns {LogicalIndex}
  */
 function buildLogicalIndex(maps) {
-  const { n2g, g2n, alive, lr, i2l, fwd, rev, byOwnerFwd, byOwnerRev } = maps;
+  const { n2g, g2n, alive, lr } = maps;
   return {
     /** Maps a node ID to its global numeric identifier. @param {string} nodeId */
     getGlobalId: (nodeId) => n2g.get(nodeId),
@@ -173,11 +173,12 @@ function buildLogicalIndex(maps) {
     /** Checks whether a node is alive in the bitmap index. @param {string} nodeId */
     isAlive: (nodeId) => checkAlive(n2g, alive, nodeId),
     /** Retrieves edges for a node in the given direction.
-     * @param {string} nodeId @param {'in'|'out'} direction @param {number[]} [filterLabelIds] */
+     * @param {string} nodeId @param {string} direction @param {number[]} [filterLabelIds] */
     getEdges(nodeId, direction, filterLabelIds) {
+      const dir = /** @type {'in'|'out'} */ (direction);
       return resolveEdgesForNode(
-        { n2g, i2l, g2n, fwd, rev, byOwnerFwd, byOwnerRev },
-        { nodeId, direction, filterLabelIds },
+        maps,
+        { nodeId, direction: dir, ...(filterLabelIds ? { filterLabelIds } : {}) },
       );
     },
   };
@@ -332,7 +333,7 @@ export default class LogicalIndexReader {
    */
   _decodeMeta(path, buf, Ctor) {
     /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */
-    const meta = /** @type {*} */ (this._codec.decode(buf));
+    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (/** @type {unknown} */ (this._codec.decode(buf)));
     const entries = Array.isArray(meta.nodeToGlobal)
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);

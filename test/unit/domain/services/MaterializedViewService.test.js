@@ -63,7 +63,7 @@ describe('MaterializedViewService', () => {
       expect(logicalIndex.isAlive('Z')).toBe(false);
 
       // receipt has nodeCount
-      expect(receipt.nodeCount).toBe(3);
+      expect(/** @type {{ nodeCount: number }} */ (receipt).nodeCount).toBe(3);
     });
 
     it('builds a working propertyReader from state', async () => {
@@ -128,7 +128,9 @@ describe('MaterializedViewService', () => {
       expect(treeOid).toBe('tree_oid_' + '0'.repeat(31));
 
       // Tree entries are sorted and have correct format
-      const treeEntries = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0][0];
+      const firstCall = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0];
+      if (!firstCall) { throw new Error('expected calls'); }
+      const treeEntries = firstCall[0];
       if (!treeEntries) { throw new Error('expected treeEntries'); }
       for (const entry of treeEntries) {
         expect(entry).toMatch(/^100644 blob [^\s]+\t/);
@@ -181,7 +183,7 @@ describe('MaterializedViewService', () => {
           blobStore.set(oid, buf);
           return Promise.resolve(oid);
         }),
-        writeTree: vi.fn((entries) => {
+        writeTree: vi.fn((_entries) => {
           // Extract OIDs from entries to build shardOids
           return Promise.resolve('tree_' + '0'.repeat(35));
         }),
@@ -191,10 +193,13 @@ describe('MaterializedViewService', () => {
 
       // Build shardOids from writeBlob calls
       /** @type {Record<string, string>} */ const shardOids = {};
-      const treeEntries = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0][0];
+      const firstCall = /** @type {string[][]} */ (mockPersistence.writeTree.mock.calls)[0];
+      if (!firstCall) { throw new Error('expected calls'); }
+      const treeEntries = firstCall[0];
+      if (!treeEntries) { throw new Error('expected treeEntries'); }
       for (const entry of treeEntries) {
         const match = entry.match(/^100644 blob ([^\s]+)\t(.+)$/);
-        if (match) {
+        if (match && match[2] !== undefined && match[1] !== undefined) {
           shardOids[match[2]] = match[1];
         }
       }

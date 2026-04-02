@@ -23,7 +23,7 @@ const _encoder = new TextEncoder();
  * @returns {Promise<string>} hex digest
  */
 async function contentHash(bytes) {
-  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
+  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle !== undefined && globalThis.crypto.subtle !== null) {
     const buf = /** @type {ArrayBuffer} */ (bytes.buffer).slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const digest = await globalThis.crypto.subtle.digest('SHA-256', buf);
     return hexEncode(new Uint8Array(digest));
@@ -34,16 +34,21 @@ async function contentHash(bytes) {
   let h1 = 0x811c9dc5;
   let h2 = 0xcbf29ce4;
   for (let i = 0; i < bytes.length; i++) {
-    h1 ^= bytes[i];
+    const b = /** @type {number} */ (bytes[i]);
+    h1 ^= b;
     h1 = Math.imul(h1, 0x01000193);
-    h2 ^= bytes[i];
+    h2 ^= b;
     h2 = Math.imul(h2, 0x01000193);
   }
   return (h1 >>> 0).toString(16).padStart(8, '0')
     + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
+/**
+ * In-memory content-addressed blob storage for browser and test environments.
+ */
 export default class InMemoryBlobStorageAdapter extends BlobStoragePort {
+  /** Creates an empty in-memory blob store. */
   constructor() {
     super();
     /** @type {Map<string, Uint8Array>} */

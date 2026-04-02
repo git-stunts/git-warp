@@ -84,16 +84,20 @@ export async function signSyncRequest({ method, path, contentType, body, secret,
 }
 
 /**
- * @param {string} reason
- * @param {number} status
- * @returns {{ ok: false, reason: string, status: number }}
+ * Creates a failure result with reason and HTTP status code.
+ *
+ * @param {string} reason - the failure reason code
+ * @param {number} status - the HTTP status code
+ * @returns {{ ok: false, reason: string, status: number }} failure result
  */
 function fail(reason, status) {
   return { ok: false, reason, status };
 }
 
 /**
- * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number, forbiddenWriterRejects: number }}
+ * Returns a zeroed-out metrics snapshot.
+ *
+ * @returns {{ authFailCount: number, replayRejectCount: number, nonceEvictions: number, clockSkewRejects: number, malformedRejects: number, logOnlyPassthroughs: number, forbiddenWriterRejects: number }} fresh metrics
  */
 function _freshMetrics() {
   return {
@@ -132,7 +136,9 @@ function _checkHeaderFormats(timestamp, nonce, signature) {
 }
 
 /**
- * @param {Record<string, string>|undefined} keys
+ * Asserts that the keys map is a non-empty object.
+ *
+ * @param {Record<string, string>|undefined} keys - the HMAC keys map
  * @returns {asserts keys is Record<string, string>}
  */
 function _validateKeys(keys) {
@@ -142,8 +148,10 @@ function _validateKeys(keys) {
 }
 
 /**
- * @param {string[]|undefined} allowedWriters
- * @returns {Set<string>|null}
+ * Validates and converts the allowed writers list into a Set.
+ *
+ * @param {string[]|undefined} allowedWriters - writer IDs to allow, or undefined for no restriction
+ * @returns {Set<string>|null} set of allowed writer IDs, or null if unrestricted
  */
 function _validateAllowedWriters(allowedWriters) {
   if (!allowedWriters) {
@@ -160,7 +168,9 @@ function _validateAllowedWriters(allowedWriters) {
 
 export default class SyncAuthService {
   /**
-   * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', nonceCapacity?: number, maxClockSkewMs?: number, crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }} options
+   * Creates a new SyncAuthService for HMAC-based request verification.
+   *
+   * @param {{ keys: Record<string, string>, mode?: 'enforce'|'log-only', nonceCapacity?: number, maxClockSkewMs?: number, crypto?: import('../../ports/CryptoPort.js').default, logger?: import('../../ports/LoggerPort.js').default, wallClockMs?: () => number, allowedWriters?: string[] }} options - service configuration
    */
   constructor({ keys, mode = 'enforce', nonceCapacity, maxClockSkewMs, crypto, logger, wallClockMs, allowedWriters } = /** @type {{ keys: Record<string, string> }} */ ({})) {
     _validateKeys(keys);
@@ -171,12 +181,16 @@ export default class SyncAuthService {
     // eslint-disable-next-line no-restricted-syntax -- wall-clock fallback for HMAC verification
     this._wallClockMs = wallClockMs || (() => Date.now());
     this._maxClockSkewMs = typeof maxClockSkewMs === 'number' ? maxClockSkewMs : MAX_CLOCK_SKEW_MS;
-    this._nonceCache = new LRUCache(nonceCapacity || DEFAULT_NONCE_CAPACITY);
+    this._nonceCache = new LRUCache(typeof nonceCapacity === 'number' && nonceCapacity > 0 ? nonceCapacity : DEFAULT_NONCE_CAPACITY);
     this._metrics = _freshMetrics();
     this._allowedWriters = _validateAllowedWriters(allowedWriters);
   }
 
-  /** @returns {'enforce'|'log-only'} */
+  /**
+   * Returns the current auth enforcement mode.
+   *
+   * @returns {'enforce'|'log-only'} the mode
+   */
   get mode() {
     return this._mode;
   }
@@ -199,7 +213,7 @@ export default class SyncAuthService {
     const timestamp = headers['x-warp-timestamp'];
     const nonce = headers['x-warp-nonce'];
 
-    if (!keyId || !signature || !timestamp || !nonce) {
+    if (keyId === undefined || keyId === '' || signature === undefined || signature === '' || timestamp === undefined || timestamp === '' || nonce === undefined || nonce === '') {
       return fail('MISSING_AUTH', 401);
     }
 
@@ -259,7 +273,7 @@ export default class SyncAuthService {
    */
   _resolveKey(keyId) {
     const secret = this._keys[keyId];
-    if (!secret) {
+    if (secret === undefined || secret === '') {
       return fail('UNKNOWN_KEY_ID', 401);
     }
     return { ok: true, secret };
@@ -273,14 +287,14 @@ export default class SyncAuthService {
    * @private
    */
   async _verifySignature({ request, secret, keyId, timestamp, nonce }) {
-    const body = request.body || new Uint8Array(0);
+    const body = request.body ?? new Uint8Array(0);
     const bodySha256 = await this._crypto.hash('sha256', body);
-    const contentType = request.headers['content-type'] || '';
-    const path = canonicalizePath(request.url || '/');
+    const contentType = request.headers['content-type'] !== undefined ? request.headers['content-type'] : '';
+    const path = canonicalizePath(request.url);
 
     const canonical = buildCanonicalPayload({
       keyId,
-      method: (request.method || 'POST').toUpperCase(),
+      method: request.method.toUpperCase(),
       path,
       timestamp,
       nonce,
@@ -289,7 +303,7 @@ export default class SyncAuthService {
     });
 
     const expectedBuf = await this._crypto.hmac(HMAC_ALGO, secret, canonical);
-    const receivedHex = request.headers['x-warp-signature'];
+    const receivedHex = request.headers['x-warp-signature'] ?? '';
 
     /** @type {Uint8Array} */
     let receivedBuf;
@@ -327,7 +341,7 @@ export default class SyncAuthService {
    * @returns {Promise<{ ok: true } | { ok: false, reason: string, status: number }>}
    */
   async verify(request) {
-    const headers = request.headers || {};
+    const { headers } = request;
 
     const headerResult = this._validateHeaders(headers);
     if (!headerResult.ok) {

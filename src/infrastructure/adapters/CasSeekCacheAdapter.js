@@ -57,7 +57,7 @@ function _parseIndexBlob(buf) {
   if (
     typeof parsed === 'object' &&
     parsed !== null &&
-    /** @type {Record<string, unknown>} */ (parsed).schemaVersion === INDEX_SCHEMA_VERSION
+    /** @type {{ schemaVersion?: unknown }} */ (parsed).schemaVersion === INDEX_SCHEMA_VERSION
   ) {
     return /** @type {CacheIndex} */ (parsed);
   }
@@ -115,7 +115,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     const { default: ContentAddressableStore, CborCodec } = await import(
       /* webpackIgnore: true */ '@git-stunts/git-cas'
     );
-    /** @type {{ plumbing: unknown, codec: unknown, chunking: { strategy: 'cdc' }, observability?: unknown }} */
+    /** @type {{ plumbing: unknown, codec: unknown, chunking: { strategy: string }, observability?: unknown }} */
     const opts = {
       plumbing: this._plumbing,
       codec: new CborCodec(),
@@ -124,7 +124,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     if (this._logger !== null && this._logger !== undefined) {
       opts.observability = new LoggerObservabilityBridge(this._logger);
     }
-    return /** @type {CasStore} */ (/** @type {unknown} */ (new ContentAddressableStore(opts)));
+    return /** @type {CasStore} */ (/** @type {unknown} */ (new ContentAddressableStore(/** @type {ConstructorParameters<typeof ContentAddressableStore>[0]} */ (/** @type {unknown} */ (opts)))));
   }
 
   // ---------------------------------------------------------------------------
@@ -222,8 +222,11 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
     }
     // Sort by last access (or creation) ascending — evict least recently used
     const sorted = keys.sort((a, b) => {
-      const ta = this._entryTimestamp(index.entries[a]);
-      const tb = this._entryTimestamp(index.entries[b]);
+      const entryA = index.entries[a];
+      const entryB = index.entries[b];
+      if (entryA === undefined || entryB === undefined) { return 0; }
+      const ta = this._entryTimestamp(entryA);
+      const tb = this._entryTimestamp(entryB);
       if (ta < tb) {
         return -1;
       }
@@ -276,7 +279,7 @@ export default class CasSeekCacheAdapter extends SeekCachePort {
       for await (const chunk of stream) {
         chunks.push(chunk);
       }
-      if (chunks.length === 1) {
+      if (chunks.length === 1 && chunks[0] !== undefined) {
         return chunks[0];
       }
       return concatBytes(...chunks);

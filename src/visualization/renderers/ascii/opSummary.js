@@ -60,9 +60,9 @@ export function formatOpSummary(summary, maxWidth = 40) {
   /** @type {OpType[]} */
   const order = ['NodeAdd', 'EdgeAdd', 'PropSet', 'NodeTombstone', 'EdgeTombstone', 'BlobValue'];
   const parts = order
-    .filter((opType) => (/** @type {Record<string, number>} */ (summary))[opType] > 0)
+    .filter((opType) => ((/** @type {Record<string, number>} */ (summary))[opType] ?? 0) > 0)
     .map((opType) => {
-      const display = OP_DISPLAY[opType];
+      const display = OP_DISPLAY[opType] ?? { symbol: '?', label: '', color: 'muted' };
       return { text: `${display.symbol}${(/** @type {Record<string, number>} */ (summary))[opType]}${display.label}`, color: display.color };
     });
 
