@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
 import { textEncode } from '../../src/domain/utils/bytes.js';
@@ -202,10 +203,9 @@ export async function readCheckpointDate(persistence, checkpointSha) {
  * @returns {import('../../src/domain/services/HookInstaller.js').HookInstaller}
  */
 export function createHookInstaller() {
-  const __filename = new URL(import.meta.url).pathname;
-  const __dirname = path.dirname(__filename);
-  const templateDir = path.resolve(__dirname, '..', '..', 'scripts', 'hooks');
-  const rawJson = fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8');
+  const packageRoot = fileURLToPath(new URL('../..', import.meta.url));
+  const templateDir = path.join(packageRoot, 'scripts', 'hooks');
+  const rawJson = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
   const version = readPackageVersion(rawJson);
   return new HookInstaller({
     fs: /** @type {import('../../src/domain/services/HookInstaller.js').FsAdapter} */ (/** @type {unknown} */ (fs)),
