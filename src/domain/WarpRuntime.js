@@ -20,6 +20,7 @@ import LogicalTraversal from './services/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
 import SyncController from './services/SyncController.js';
 import StrandController from './services/StrandController.js';
+import ComparisonController from './services/ComparisonController.js';
 import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
@@ -33,7 +34,6 @@ import * as checkpointMethods from './warp/checkpoint.methods.js';
 import * as patchMethods from './warp/patch.methods.js';
 import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
-import * as comparisonMethods from './warp/comparison.methods.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -311,6 +311,9 @@ export default class WarpRuntime {
 
     /** @type {StrandController} */
     this._strandController = new StrandController(this);
+
+    /** @type {ComparisonController} */
+    this._comparisonController = new ComparisonController(this);
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
@@ -656,7 +659,6 @@ wireWarpMethods(WarpRuntime, [
   patchMethods,
   materializeMethods,
   materializeAdvancedMethods,
-  comparisonMethods,
 ]);
 
 // ── Strand + conflict methods: direct delegation to StrandController ────────
@@ -675,6 +677,28 @@ for (const method of strandDelegates) {
       const raw = this;
       const self = /** @type {WarpRuntime} */ (raw);
       const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._strandController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
+
+// ── Comparison methods: direct delegation to ComparisonController ────────────
+const comparisonDelegates = /** @type {const} */ ([
+  'buildPatchDivergence', 'compareStrand', 'planStrandTransfer',
+  'planCoordinateTransfer', 'compareCoordinates',
+]);
+for (const method of comparisonDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to ComparisonController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._comparisonController));
       const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
       return fn.call(ctrl, ...args);
     },

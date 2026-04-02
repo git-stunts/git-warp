@@ -1,31 +1,28 @@
 /**
- * Comparison methods for substrate-visible coordinate and strand reads.
+ * ComparisonController — substrate-visible coordinate and strand comparison.
  *
- * These helpers compare only deterministic substrate facts:
- * - visible patch-universe divergence
- * - visible node / edge / property deltas
- * - optional node-local target diffs
+ * Extracted from comparison.methods.js. Compares only deterministic
+ * substrate facts: visible patch-universe divergence, visible node/edge/
+ * property deltas, and optional node-local target diffs.
  *
- * They do not introduce application semantics.
- *
- * @module domain/warp/comparison.methods
+ * @module domain/services/ComparisonController
  */
 
 import QueryError from '../errors/QueryError.js';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
-} from '../services/CoordinateFactExport.js';
-import { createStateReaderV5 } from '../services/StateReaderV5.js';
-import { computeStateHashV5 } from '../services/StateSerializerV5.js';
+} from './CoordinateFactExport.js';
+import { createStateReaderV5 } from './StateReaderV5.js';
+import { computeStateHashV5 } from './StateSerializerV5.js';
 import {
   normalizeVisibleStateScopeV1,
   scopeMaterializedStateV5,
   scopePatchEntriesV1,
-} from '../services/VisibleStateScopeV1.js';
-import { compareVisibleStateV5 } from '../services/VisibleStateComparisonV5.js';
-import { planVisibleStateTransferV5 } from '../services/VisibleStateTransferPlannerV5.js';
-import StrandService from '../services/StrandService.js';
+} from './VisibleStateScopeV1.js';
+import { compareVisibleStateV5 } from './VisibleStateComparisonV5.js';
+import { planVisibleStateTransferV5 } from './VisibleStateTransferPlannerV5.js';
+import StrandService from './StrandService.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
@@ -422,7 +419,7 @@ function buildTargetDivergence(leftEntries, rightEntries, targetId) {
  * @param {string|null} targetId
  * @returns {Record<string, unknown>}
  */
-export function buildPatchDivergence(leftEntries, rightEntries, targetId) {
+function buildPatchDivergenceImpl(leftEntries, rightEntries, targetId) {
   const leftShas = uniqueSortedPatchShas(leftEntries);
   const rightShas = uniqueSortedPatchShas(rightEntries);
   const rightSet = new Set(rightShas);
@@ -772,26 +769,26 @@ async function resolveStrandBaseComparisonSide(graph, selector, scope) {
 /**
  * Dispatches coordinate side resolution based on selector kind.
  *
- * @this {import('../WarpRuntime.js').default}
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {NormalizedSelector} selector
- * @param {VisibleStateScopeV1|null} scope
+ * @param {VisibleStateScopeV1|null} [scope]
  * @returns {Promise<Record<string, unknown>>}
  * @private
  */
-async function resolveComparisonSide(selector, scope = null) {
+async function resolveComparisonSide(graph, selector, scope = null) {
   if (selector.kind === 'live') {
-    return await resolveLiveComparisonSide(this, selector, scope);
+    return await resolveLiveComparisonSide(graph, selector, scope);
   }
 
   if (selector.kind === 'coordinate') {
-    return await resolveCoordinateComparisonSide(this, selector, scope);
+    return await resolveCoordinateComparisonSide(graph, selector, scope);
   }
 
   if (selector.kind === 'strand') {
-    return await resolveStrandComparisonSide(this, selector, scope);
+    return await resolveStrandComparisonSide(graph, selector, scope);
   }
 
-  return await resolveStrandBaseComparisonSide(this, selector, scope);
+  return await resolveStrandBaseComparisonSide(graph, selector, scope);
 }
 
 /**
@@ -832,7 +829,7 @@ function normalizeAgainstSelector(normalizedStrandId, against, againstCeiling) {
  * Compares a strand against its base observation, the live frontier, or
  * another strand.
  *
- * @this {import('../WarpRuntime.js').default}
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {string} strandId
  * @param {{
  *   against?: 'base'|'live'|{ kind: 'strand', strandId: string },
@@ -843,7 +840,7 @@ function normalizeAgainstSelector(normalizedStrandId, against, againstCeiling) {
  * }} [options]
  * @returns {Promise<CoordinateComparisonV1>}
  */
-export async function compareStrand(strandId, options = {}) {
+async function compareStrandImpl(graph, strandId, options = {}) {
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const againstCeiling = normalizeLamportCeiling(options.againstCeiling, 'againstCeiling');
@@ -853,7 +850,7 @@ export async function compareStrand(strandId, options = {}) {
   const left = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const right = normalizeAgainstSelector(normalizedStrandId, options.against ?? 'base', againstCeiling);
 
-  return await this.compareCoordinates({
+  return await compareCoordinatesImpl(graph, {
     left: /** @type {CoordinateComparisonSelectorV1} */ (left),
     right: /** @type {CoordinateComparisonSelectorV1} */ (right),
     targetId,
@@ -906,7 +903,7 @@ function normalizeIntoSelector(normalizedStrandId, into, intoCeiling) {
  * Plans a deterministic transfer from one strand into live truth, its
  * pinned base observation, or another strand.
  *
- * @this {import('../WarpRuntime.js').default}
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {string} strandId
  * @param {{
  *   into?: 'base'|'live'|{ kind: 'strand', strandId: string },
@@ -916,7 +913,7 @@ function normalizeIntoSelector(normalizedStrandId, into, intoCeiling) {
  * }} [options]
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
-export async function planStrandTransfer(strandId, options = {}) {
+async function planStrandTransferImpl(graph, strandId, options = {}) {
   const normalizedStrandId = normalizeRequiredString(strandId, 'strandId');
   const ceiling = normalizeLamportCeiling(options.ceiling, 'ceiling');
   const intoCeiling = normalizeLamportCeiling(options.intoCeiling, 'intoCeiling');
@@ -925,7 +922,7 @@ export async function planStrandTransfer(strandId, options = {}) {
   const source = { kind: 'strand', strandId: normalizedStrandId, ceiling };
   const target = normalizeIntoSelector(normalizedStrandId, options.into ?? 'live', intoCeiling);
 
-  return await this.planCoordinateTransfer({
+  return await planCoordinateTransferImpl(graph, {
     source: /** @type {CoordinateTransferPlanSelectorV1} */ (source),
     target: /** @type {CoordinateTransferPlanSelectorV1} */ (target),
     ...(scope ? { scope } : {}),
@@ -988,7 +985,7 @@ async function finalizeTransferPlan(params) {
 /**
  * Plans a deterministic transfer between two substrate observation selectors.
  *
- * @this {import('../WarpRuntime.js').default}
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{
  *   source: Record<string, unknown>,
  *   target: Record<string, unknown>,
@@ -996,28 +993,28 @@ async function finalizeTransferPlan(params) {
  * }} options
  * @returns {Promise<CoordinateTransferPlanV1>}
  */
-export async function planCoordinateTransfer(options) {
+async function planCoordinateTransferImpl(graph, options) {
   assertTransferOptions(options);
 
   const normalizedSource = /** @type {NormalizedSelector} */ (normalizeSelector(options.source, 'source'));
   const normalizedTarget = /** @type {NormalizedSelector} */ (normalizeSelector(options.target, 'target'));
   const scope = normalizeVisibleStateScopeV1(options.scope, 'scope');
-  const comp = await this.compareCoordinates({
+  const comp = await compareCoordinatesImpl(graph, {
     left: /** @type {CoordinateComparisonSelectorV1} */ (/** @type {unknown} */ (normalizedSource)),
     right: /** @type {CoordinateComparisonSelectorV1} */ (/** @type {unknown} */ (normalizedTarget)),
     ...(scope !== null && scope !== undefined ? { scope } : {}),
   });
-  const sourceSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedSource, scope));
-  const targetSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedTarget, scope));
+  const sourceSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide(graph, normalizedSource, scope));
+  const targetSide = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide(graph, normalizedTarget, scope));
   /** Loads node content blob by OID. @type {(nodeId: string, meta: { oid: string }) => Promise<Uint8Array>} */
-  const loadNodeContent = async (_nodeId, meta) => await readContentBlobByOid(this, meta.oid);
+  const loadNodeContent = async (_nodeId, meta) => await readContentBlobByOid(graph, meta.oid);
   /** Loads edge content blob by OID. @type {(edge: unknown, meta: { oid: string }) => Promise<Uint8Array>} */
-  const loadEdgeContent = async (_edge, meta) => await readContentBlobByOid(this, meta.oid);
+  const loadEdgeContent = async (_edge, meta) => await readContentBlobByOid(graph, meta.oid);
   const transfer = await planVisibleStateTransferV5(createStateReaderV5(sourceSide.state), createStateReaderV5(targetSide.state), {
     loadNodeContent,
     loadEdgeContent,
   });
-  return await finalizeTransferPlan({ graph: this, sourceSide, targetSide, transfer, comparisonDigest: comp.comparisonDigest, scope });
+  return await finalizeTransferPlan({ graph, sourceSide, targetSide, transfer, comparisonDigest: comp.comparisonDigest, scope });
 }
 
 /**
@@ -1057,7 +1054,7 @@ function assertComparisonOptions(options) {
 /**
  * Compares two substrate observation selectors.
  *
- * @this {import('../WarpRuntime.js').default}
+ * @param {import('../WarpRuntime.js').default} graph
  * @param {{
  *   left: Record<string, unknown>,
  *   right: Record<string, unknown>,
@@ -1066,12 +1063,12 @@ function assertComparisonOptions(options) {
  * }} options
  * @returns {Promise<CoordinateComparisonV1>}
  */
-export async function compareCoordinates(options) {
+async function compareCoordinatesImpl(graph, options) {
   const { normalizedLeft, normalizedRight, targetId, scope } = extractComparisonInputs(options);
 
-  const left = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedLeft, scope));
-  const right = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide.call(this, normalizedRight, scope));
-  const visiblePatchDivergence = buildPatchDivergence(left.patchEntries, right.patchEntries, targetId);
+  const left = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide(graph, normalizedLeft, scope));
+  const right = /** @type {ResolvedComparisonSide} */ (await resolveComparisonSide(graph, normalizedRight, scope));
+  const visiblePatchDivergence = buildPatchDivergenceImpl(left.patchEntries, right.patchEntries, targetId);
   const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
 
   const fact = buildCoordinateComparisonFact({
@@ -1082,7 +1079,77 @@ export async function compareCoordinates(options) {
     visiblePatchDivergence,
     visibleState,
   });
-  const digest = await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), this._crypto);
+  const digest = await computeChecksum(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (fact)), graph._crypto);
 
   return /** @type {CoordinateComparisonV1} */ ({ ...fact, comparisonDigest: digest });
+}
+
+// ── Controller class ──────────────────────────────────────────────────────────
+
+/**
+ * The host interface that ComparisonController depends on.
+ *
+ * @typedef {import('../WarpRuntime.js').default} ComparisonHost
+ */
+
+export default class ComparisonController {
+  /** @type {ComparisonHost} */
+  _host;
+
+  /**
+   * Creates a ComparisonController bound to a WarpRuntime host.
+   * @param {ComparisonHost} host
+   */
+  constructor(host) {
+    this._host = host;
+  }
+
+  /**
+   * Builds a deterministic patch divergence analysis between two sets of patch entries.
+   * @param {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} leftEntries
+   * @param {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} rightEntries
+   * @param {string|null} [targetId]
+   * @returns {Record<string, unknown>}
+   */
+  buildPatchDivergence(leftEntries, rightEntries, targetId) {
+    return buildPatchDivergenceImpl(leftEntries, rightEntries, targetId ?? null);
+  }
+
+  /**
+   * Compares a strand against its base, live truth, or another strand.
+   * @param {string} strandId
+   * @param {Record<string, unknown>} [options]
+   * @returns {Promise<CoordinateComparisonV1>}
+   */
+  async compareStrand(strandId, options = {}) {
+    return await compareStrandImpl(this._host, strandId, options);
+  }
+
+  /**
+   * Plans a transfer from one strand into another observation point.
+   * @param {string} strandId
+   * @param {Record<string, unknown>} [options]
+   * @returns {Promise<CoordinateTransferPlanV1>}
+   */
+  async planStrandTransfer(strandId, options = {}) {
+    return await planStrandTransferImpl(this._host, strandId, options);
+  }
+
+  /**
+   * Plans a deterministic transfer between two substrate observation selectors.
+   * @param {{ source: Record<string, unknown>, target: Record<string, unknown>, scope?: VisibleStateScopeV1|null }} options
+   * @returns {Promise<CoordinateTransferPlanV1>}
+   */
+  async planCoordinateTransfer(options) {
+    return await planCoordinateTransferImpl(this._host, options);
+  }
+
+  /**
+   * Compares two substrate observation selectors.
+   * @param {{ left: Record<string, unknown>, right: Record<string, unknown>, targetId?: string|null, scope?: VisibleStateScopeV1|null }} options
+   * @returns {Promise<CoordinateComparisonV1>}
+   */
+  async compareCoordinates(options) {
+    return await compareCoordinatesImpl(this._host, options);
+  }
 }
