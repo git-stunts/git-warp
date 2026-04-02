@@ -244,6 +244,7 @@ function requireDot(op) {
 
 /**
  * @typedef {Object} OpStrategy
+ * @property {string} receiptName - The TickReceipt-compatible operation type name (e.g. 'NodeTombstone' for NodeRemove)
  * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => void} mutate
  * @property {(state: WarpStateV5, op: OpLike, eventId: import('../utils/EventId.js').EventId) => OpOutcomeResult} outcome
  * @property {(state: WarpStateV5, op: OpLike) => SnapshotBeforeOp} snapshot
@@ -253,6 +254,7 @@ function requireDot(op) {
 
 /** @type {OpStrategy} */
 const nodeAddStrategy = {
+  receiptName: 'NodeAdd',
   validate(op) { requireString(op, 'node'); requireDot(op); },
   mutate(state, op) {
     orsetAdd(state.nodeAlive, /** @type {string} */ (op.node), /** @type {import('../crdt/Dot.js').Dot} */ (op.dot));
@@ -272,6 +274,7 @@ const nodeAddStrategy = {
 
 /** @type {OpStrategy} */
 const nodeRemoveStrategy = {
+  receiptName: 'NodeTombstone',
   validate(op) { requireIterable(op, 'observedDots'); },
   mutate(state, op) {
     orsetRemove(state.nodeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
@@ -292,6 +295,7 @@ const nodeRemoveStrategy = {
 
 /** @type {OpStrategy} */
 const edgeAddStrategy = {
+  receiptName: 'EdgeAdd',
   validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireDot(op); },
   mutate(state, op, eventId) {
     const edgeKey = encodeEdgeKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label));
@@ -320,6 +324,7 @@ const edgeAddStrategy = {
 
 /** @type {OpStrategy} */
 const edgeRemoveStrategy = {
+  receiptName: 'EdgeTombstone',
   validate(op) { requireIterable(op, 'observedDots'); },
   mutate(state, op) {
     orsetRemove(state.edgeAlive, /** @type {Set<string>} */ (/** @type {unknown} */ (op.observedDots)));
@@ -379,6 +384,7 @@ function accumulatePropDiff(diff, state, nodeId, key, before) {
 
 /** @type {OpStrategy} */
 const nodePropSetStrategy = {
+  receiptName: 'NodePropSet',
   validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
   mutate(state, op, eventId) {
     mutateProp(state, encodePropKey(/** @type {string} */ (op.node), /** @type {string} */ (op.key)), eventId, op.value);
@@ -396,6 +402,7 @@ const nodePropSetStrategy = {
 
 /** @type {OpStrategy} */
 const edgePropSetStrategy = {
+  receiptName: 'EdgePropSet',
   validate(op) { requireString(op, 'from'); requireString(op, 'to'); requireString(op, 'label'); requireString(op, 'key'); },
   mutate(state, op, eventId) {
     mutateProp(state, encodeEdgePropKey(/** @type {string} */ (op.from), /** @type {string} */ (op.to), /** @type {string} */ (op.label), /** @type {string} */ (op.key)), eventId, op.value);
@@ -413,6 +420,7 @@ const edgePropSetStrategy = {
 
 /** @type {OpStrategy} */
 const propSetStrategy = {
+  receiptName: 'PropSet',
   validate(op) { requireString(op, 'node'); requireString(op, 'key'); },
   mutate(state, op, eventId) {
     // Legacy raw PropSet — must NOT carry edge-property encoding at this point.
@@ -438,6 +446,7 @@ const propSetStrategy = {
 
 /** @type {OpStrategy} */
 const blobValueStrategy = {
+  receiptName: 'BlobValue',
   validate() { /* no-op: forward-compat */ },
   mutate() { /* no-op: BlobValue has no state effect */ },
   outcome(_state, op) {
@@ -473,6 +482,9 @@ for (const [type, strategy] of OP_STRATEGIES) {
       throw new Error(`OpStrategy '${type}' missing required method '${method}'`);
     }
   }
+  if (typeof strategy.receiptName !== 'string' || strategy.receiptName.length === 0) {
+    throw new Error(`OpStrategy '${type}' missing required property 'receiptName'`);
+  }
 }
 
 /**
@@ -495,30 +507,6 @@ export function applyOpV2(state, op, eventId) {
   strategy.mutate(state, op, eventId);
 }
 
-/**
- * Maps internal operation type names to TickReceipt-compatible operation type names.
- *
- * The internal representation uses "Remove" for tombstone operations, but the
- * TickReceipt API uses "Tombstone" to be more explicit about CRDT semantics.
- * This mapping ensures receipt consumers see the canonical operation names.
- *
- * Mappings:
- * - NodeRemove -> NodeTombstone (CRDT tombstone semantics)
- * - EdgeRemove -> EdgeTombstone (CRDT tombstone semantics)
- * - All others pass through unchanged
- *
- * @const {Record<string, string>}
- */
-const RECEIPT_OP_TYPE = {
-  NodeAdd: 'NodeAdd',
-  NodeRemove: 'NodeTombstone',
-  EdgeAdd: 'EdgeAdd',
-  EdgeRemove: 'EdgeTombstone',
-  PropSet: 'PropSet',
-  NodePropSet: 'NodePropSet',
-  EdgePropSet: 'EdgePropSet',
-  BlobValue: 'BlobValue',
-};
 
 /**
  * Set of valid receipt op types (from TickReceipt) for fast membership checks.
@@ -908,8 +896,7 @@ export function applyWithReceipt(state, patch, patchSha) {
     // Apply the op (mutates state)
     strategy.mutate(state, canonOp, eventId);
 
-    const mappedOp = /** @type {Record<string, string>} */ (RECEIPT_OP_TYPE)[canonOp.type];
-    const receiptOp = (typeof mappedOp === 'string' && mappedOp.length > 0) ? mappedOp : canonOp.type;
+    const receiptOp = strategy.receiptName;
     // Skip unknown/forward-compatible op types that aren't valid receipt ops
     if (!VALID_RECEIPT_OPS.has(receiptOp)) {
       continue;
