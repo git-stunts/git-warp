@@ -49,6 +49,7 @@ import NoOpLogger from './src/infrastructure/adapters/NoOpLogger.js';
 import ConsoleLogger, { LogLevel } from './src/infrastructure/adapters/ConsoleLogger.js';
 import ClockAdapter from './src/infrastructure/adapters/ClockAdapter.js';
 import {
+  AuditError,
   EncryptionError,
   ForkError,
   IndexError,
@@ -210,6 +211,7 @@ export {
   DenoHttpAdapter,
 
   // Error types for integrity failure handling
+  AuditError,
   EncryptionError,
   PatchError,
   ForkError,

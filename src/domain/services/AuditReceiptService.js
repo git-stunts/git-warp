@@ -10,6 +10,7 @@
  * @see docs/specs/AUDIT_RECEIPT.md
  */
 
+import AuditError from '../errors/AuditError.js';
 import { buildAuditRef } from '../utils/RefLayout.js';
 import { encodeAuditMessage } from './AuditMessageCodec.js';
 
@@ -92,7 +93,7 @@ const OID_HEX_PATTERN = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
  *
  * @param {{ version: number, graphName: string, writerId: string, dataCommit: string, tickStart: number, tickEnd: number, opsDigest: string, prevAuditCommit: string, timestamp: number }} fields
  * @returns {Readonly<Record<string, unknown>>}
- * @throws {Error} If any field is invalid
+ * @throws {AuditError} If any field is invalid (code: E_AUDIT_INVALID)
  */
 export function buildReceiptRecord(fields) {
   const {
@@ -102,66 +103,66 @@ export function buildReceiptRecord(fields) {
 
   // version
   if (version !== 1) {
-    throw new Error(`Invalid version: must be 1, got ${version}`);
+    throw new AuditError(`Invalid version: must be 1, got ${version}`, { context: { version } });
   }
 
   // graphName — validated by RefLayout
   if (typeof graphName !== 'string' || graphName.length === 0) {
-    throw new Error('Invalid graphName: must be a non-empty string');
+    throw new AuditError('Invalid graphName: must be a non-empty string', { context: { graphName } });
   }
 
   // writerId — validated by RefLayout
   if (typeof writerId !== 'string' || writerId.length === 0) {
-    throw new Error('Invalid writerId: must be a non-empty string');
+    throw new AuditError('Invalid writerId: must be a non-empty string', { context: { writerId } });
   }
 
   // dataCommit
   const dc = dataCommit.toLowerCase();
   if (!OID_HEX_PATTERN.test(dc)) {
-    throw new Error(`Invalid dataCommit OID: ${dataCommit}`);
+    throw new AuditError(`Invalid dataCommit OID: ${dataCommit}`, { context: { dataCommit } });
   }
 
   // opsDigest
   const od = opsDigest.toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(od)) {
-    throw new Error(`Invalid opsDigest: must be 64-char lowercase hex, got ${opsDigest}`);
+    throw new AuditError(`Invalid opsDigest: must be 64-char lowercase hex, got ${opsDigest}`, { context: { opsDigest } });
   }
 
   // prevAuditCommit
   const pac = prevAuditCommit.toLowerCase();
   if (!OID_HEX_PATTERN.test(pac)) {
-    throw new Error(`Invalid prevAuditCommit OID: ${prevAuditCommit}`);
+    throw new AuditError(`Invalid prevAuditCommit OID: ${prevAuditCommit}`, { context: { prevAuditCommit } });
   }
 
   // OID length consistency
   const oidLen = dc.length;
   if (pac.length !== oidLen) {
-    throw new Error(`OID length mismatch: dataCommit=${dc.length}, prevAuditCommit=${pac.length}`);
+    throw new AuditError(`OID length mismatch: dataCommit=${dc.length}, prevAuditCommit=${pac.length}`, { context: { dataCommitLen: dc.length, prevAuditCommitLen: pac.length } });
   }
 
   // tick constraints
   if (!Number.isInteger(tickStart) || tickStart < 1) {
-    throw new Error(`Invalid tickStart: must be integer >= 1, got ${tickStart}`);
+    throw new AuditError(`Invalid tickStart: must be integer >= 1, got ${tickStart}`, { context: { tickStart } });
   }
   if (!Number.isInteger(tickEnd) || tickEnd < tickStart) {
-    throw new Error(`Invalid tickEnd: must be integer >= tickStart, got ${tickEnd}`);
+    throw new AuditError(`Invalid tickEnd: must be integer >= tickStart, got ${tickEnd}`, { context: { tickEnd, tickStart } });
   }
   if (version === 1 && tickStart !== tickEnd) {
-    throw new Error(`v1 requires tickStart === tickEnd, got ${tickStart} !== ${tickEnd}`);
+    throw new AuditError(`v1 requires tickStart === tickEnd, got ${tickStart} !== ${tickEnd}`, { context: { tickStart, tickEnd } });
   }
 
   // Zero-hash sentinel only for genesis (tickStart === 1)
   const zeroHash = '0'.repeat(oidLen);
   if (pac === zeroHash && tickStart > 1) {
-    throw new Error('Non-genesis receipt cannot use zero-hash sentinel');
+    throw new AuditError('Non-genesis receipt cannot use zero-hash sentinel', { context: { tickStart, prevAuditCommit: pac } });
   }
 
   // timestamp
   if (!Number.isInteger(timestamp) || timestamp < 0) {
-    throw new Error(`Invalid timestamp: must be non-negative safe integer, got ${timestamp}`);
+    throw new AuditError(`Invalid timestamp: must be non-negative safe integer, got ${timestamp}`, { context: { timestamp } });
   }
   if (!Number.isSafeInteger(timestamp)) {
-    throw new Error(`Invalid timestamp: exceeds Number.MAX_SAFE_INTEGER: ${timestamp}`);
+    throw new AuditError(`Invalid timestamp: exceeds Number.MAX_SAFE_INTEGER: ${timestamp}`, { context: { timestamp } });
   }
 
   // Build with keys in sorted order (canonical for CBOR)
@@ -317,8 +318,9 @@ export class AuditReceiptService {
         actual: writer,
         patchSha,
       });
-      throw new Error(
+      throw new AuditError(
         `Audit writer mismatch: expected '${this._writerId}', got '${writer}'`,
+        { context: { expected: this._writerId, actual: writer, patchSha } },
       );
     }
 
@@ -405,7 +407,7 @@ export class AuditReceiptService {
     } catch {
       if (this._retrying) {
         // Second CAS failure during retry → degrade
-        throw new Error('CAS failed during retry');
+        throw new AuditError('CAS failed during retry', { code: AuditError.E_AUDIT_CAS_FAILED, context: { writerId: this._writerId, ref: this._auditRef } });
       }
       // CAS mismatch — retry once with refreshed tip
       return await this._retryAfterCasConflict(commitSha, tickReceipt);
@@ -450,7 +452,7 @@ export class AuditReceiptService {
         writerId: this._writerId,
         reason: 'second CAS failure',
       });
-      throw new Error('Audit service degraded after second CAS failure');
+      throw new AuditError('Audit service degraded after second CAS failure', { code: AuditError.E_AUDIT_DEGRADED, context: { writerId: this._writerId } });
     } finally {
       this._retrying = false;
     }

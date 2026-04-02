@@ -3,6 +3,9 @@
   "$comment": "M8 IRONCLAD type surface manifest — explicit runtime exports plus type-only declarations for index.d.ts validation",
   "version": 1,
   "exports": {
+    "AuditError": {
+      "kind": "class"
+    },
     "BisectService": {
       "kind": "class"
     },

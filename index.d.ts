@@ -1211,6 +1211,25 @@ export class PatchError extends Error {
 }
 
 /**
+ * Error class for audit receipt validation and persistence failures.
+ */
+export class AuditError extends Error {
+  readonly name: 'AuditError';
+  readonly code: string;
+  readonly context: Record<string, unknown>;
+
+  static readonly E_AUDIT_INVALID: 'E_AUDIT_INVALID';
+  static readonly E_AUDIT_CAS_FAILED: 'E_AUDIT_CAS_FAILED';
+  static readonly E_AUDIT_DEGRADED: 'E_AUDIT_DEGRADED';
+  static readonly E_AUDIT_CHAIN_GAP: 'E_AUDIT_CHAIN_GAP';
+
+  constructor(message: string, options?: {
+    code?: string;
+    context?: Record<string, unknown>;
+  });
+}
+
+/**
  * Error class for sync transport operations.
  */
 export class SyncError extends Error {
