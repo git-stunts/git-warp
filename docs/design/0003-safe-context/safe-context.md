@@ -306,6 +306,36 @@ Recommended template (not enforced, but nudged in error messages):
 The human can read it with `cat`. The agent can load it after
 `/clear` and pick up where it left off.
 
+## `.graftignore`
+
+A gitignore-style file in the project root. Paths matching any
+pattern are always refused by `safe_read` and `read_range`, with
+`reason: "graftignore"`.
+
+```text
+# Secrets
+.env
+.env.*
+credentials.json
+**/secrets/**
+
+# Large generated files
+*.sql.dump
+*.csv
+data/
+
+# Project-specific
+src/generated/**
+```
+
+If `.graftignore` does not exist, only the built-in bans (binary
+extensions, build paths, lockfiles, minified) apply. The file is
+optional — graft works without it.
+
+Uses the same glob syntax as `.gitignore` (via the `ignore` or
+`picomatch` npm package — whichever tree-sitter already pulls in,
+to avoid a new dep).
+
 ## Project root
 
 All paths are resolved relative to the project root. Detection
@@ -339,6 +369,7 @@ All policy decisions use machine-stable enum strings, not prose.
 | `range_exceeds_max_bytes` | read_range output too large |
 | `state_exceeds_max_bytes` | state_save content too large |
 | `path_escapes_root` | Path resolves outside project root |
+| `graftignore` | Path matches `.graftignore` pattern |
 | `missing_file` | File does not exist |
 
 ## Technology
@@ -434,6 +465,7 @@ safe_read("large-class.js")       -> outline (over line threshold)
 safe_read("wide-minified.js")     -> outline (under lines, over bytes)
 safe_read("missing.js")           -> error, reason: missing_file
 safe_read("../../etc/passwd")     -> refused, reason: path_escapes_root
+safe_read(".env")                 -> refused, reason: graftignore (with .graftignore)
 safe_read(bigFile, intent="edit") -> outline (intent does NOT relax policy)
 
 read_range("foo.js", 1, 800)      -> truncated to 250 lines
@@ -619,6 +651,7 @@ state file:        .graft/WORKING_STATE.md (exists, 1.2 KB)
 parser:            tree-sitter (javascript, typescript loaded)
 node version:      v22.3.0
 hooks installed:   yes (Read gate, Bash gate)
+.graftignore:      present (7 patterns)
 .gitignore:        .graft/ present
 ```
 
