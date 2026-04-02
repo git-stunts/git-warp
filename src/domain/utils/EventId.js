@@ -40,9 +40,9 @@ export class EventId {
     }
 
     this.lamport = lamport;
-    this.opIndex = opIndex;
-    this.patchSha = patchSha;
     this.writerId = writerId;
+    this.patchSha = patchSha;
+    this.opIndex = opIndex;
   }
 }
 

@@ -82,8 +82,8 @@ export class Dot {
       throw new Error('counter must be a positive integer');
     }
 
-    this.counter = counter;
     this.writerId = writerId;
+    this.counter = counter;
   }
 }
 
