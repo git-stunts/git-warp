@@ -1,9 +1,16 @@
-# safe-context Phase 1 — The Governor
+# Graft — Phase 1: The Governor
 
 **Cycle:** 0003-safe-context
-**Type:** Feature (new repo: `@git-stunts/safe-context`)
+**Type:** Feature (new repo: `@git-stunts/graft`)
 **Pulled from:** `asap/DX_safe-context-phase-1.md`
 **Prior art:** `docs/design/0002-code-nav-tool/code-nav-tool.md`
+
+**Product:** `graft` — structural reads and context governance for
+coding agents. CLI as `git graft`, MCP as `graft-mcp`.
+
+The name: Git has trees and branches. Grafting is attaching new
+growth onto existing rootstock — semantic eyesight grafted onto
+Git's history substrate.
 
 ## Sponsor human
 
@@ -52,9 +59,9 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 
 ### Human
 
-1. Can I `npm install -g @git-stunts/safe-context` and it works?
+1. Can I `npm install -g @git-stunts/graft` and it works?
    **YES/NO**
-2. Does `safe-context outline src/domain/services/StrandService.js`
+2. Does `git graft outline src/domain/services/StrandService.js`
    return a useful structural skeleton from the CLI? **YES/NO**
 3. Can I point it at any JS/TS project with zero config? **YES/NO**
 4. Can I register it as an MCP server in one line of JSON? **YES/NO**
@@ -220,7 +227,7 @@ This is the escape hatch when the agent knows exactly what it needs.
 {
   "exitCode": 1,
   "tail": "... last 60 lines ...",
-  "logFile": "/tmp/safe-context/capture-1712023456.log",
+  "logFile": "/tmp/graft/capture-1712023456.log",
   "totalLines": 342,
   "truncated": true
 }
@@ -233,7 +240,7 @@ Agent can `read_range` the log file if it needs more.
 **Input (save):** markdown string of session state.
 **Output (load):** the saved content, or null if no state file.
 
-**Storage:** `.safe-context/WORKING_STATE.md` in the project root.
+**Storage:** `.graft/WORKING_STATE.md` in the project root.
 
 This is deliberately simple. A markdown file. No schema, no
 structure enforcement. The agent writes what it needs to remember.
@@ -264,9 +271,9 @@ The human can read it with `cat`.
 ## Project structure
 
 ```text
-safe-context/
+graft/
   bin/
-    safe-context.js            CLI entry point
+    graft.js            CLI entry point
   src/
     policy/
       rules.js                 Ban lists, thresholds
@@ -360,7 +367,7 @@ run_capture("seq 1 500", 5)
 
 ```
 state_save("# Working on X")
-  -> file exists at .safe-context/WORKING_STATE.md
+  -> file exists at .graft/WORKING_STATE.md
   -> content matches
 
 state_load()
