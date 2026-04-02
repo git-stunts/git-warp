@@ -407,13 +407,13 @@ export function parseArgs(argv) {
 
   /** @type {CliOptions} */
   const options = {
-    repo: path.resolve(typeof values['repo'] === 'string' ? values['repo'] : process.cwd()),
-    json: Boolean(values['json']),
-    ndjson: Boolean(values['ndjson']),
-    view: typeof values['view'] === 'string' ? values['view'] : null,
-    graph: typeof values['graph'] === 'string' ? values['graph'] : null,
-    writer: typeof values['writer'] === 'string' ? values['writer'] : 'cli',
-    help: Boolean(values['help']),
+    repo: path.resolve(typeof values.repo === 'string' ? values.repo : process.cwd()),
+    json: Boolean(values.json),
+    ndjson: Boolean(values.ndjson),
+    view: typeof values.view === 'string' ? values.view : null,
+    graph: typeof values.graph === 'string' ? values.graph : null,
+    writer: typeof values.writer === 'string' ? values.writer : 'cli',
+    help: Boolean(values.help),
   };
 
   return { options, command, commandArgs };

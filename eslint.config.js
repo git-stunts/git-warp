@@ -170,8 +170,9 @@ export default tseslint.config(
       }],
       "no-useless-computed-key": "error",
       "no-useless-rename": "error",
-      // dot-notation disabled: conflicts with tsconfig noPropertyAccessFromIndexSignature
+      // Base dot-notation off; type-aware version below respects noPropertyAccessFromIndexSignature
       "dot-notation": "off",
+      "@typescript-eslint/dot-notation": "error",
       "grouped-accessor-pairs": ["error", "getBeforeSet"],
       "accessor-pairs": "error",
 
