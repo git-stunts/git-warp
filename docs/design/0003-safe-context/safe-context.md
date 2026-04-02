@@ -56,6 +56,8 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
    **YES/NO**
 6. Can I call every operation as an MCP tool from Claude Code?
    **YES/NO**
+7. When I outline a half-edited file with broken syntax, do I get
+   a best-effort outline with `partial: true`? **YES/NO**
 
 ### Human
 
@@ -83,6 +85,7 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 
 **Input:**
 - `path` — file path (absolute or relative to project root)
+- `root` — optional project root override
 - `intent` — optional string hint ("understand shape", "find
   method X", "edit line 45")
 
@@ -92,7 +95,8 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 |---|---|
 | Binary extension (`.gif`, `.png`, `.jpg`, `.pdf`, `.zip`, `.wasm`, `.bin`, `.sqlite`, `.ico`, `.mp4`, `.mov`) | Refuse. Return file type + size metadata. |
 | Build/generated path (`node_modules/`, `dist/`, `build/`, `.next/`, `target/`, `coverage/`) | Refuse. No source-path guessing — just state what was blocked and why. |
-| File does not exist | Error with path. |
+| File does not exist | Error (not a refusal — see error model below). |
+| Secret file (`.env`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519`, `credentials.json`) | Refuse. Built-in, not `.graftignore`-dependent. |
 | File <= line threshold AND <= byte threshold | Return raw content. |
 | File > either threshold | Return `file_outline` result + next-step hints. |
 | Known junk patterns (`.min.js`, lockfiles, giant JSON) | Refuse. Return metadata only. |
@@ -113,18 +117,32 @@ refused regardless of size.
 hints. It never weakens safety bounds. An agent saying "edit line
 45" does not unlock a larger read.
 
+**Action model:**
+
+| Action | Meaning |
+|---|---|
+| `content` | Raw file returned (under thresholds) |
+| `outline` | Structural skeleton returned (over thresholds) |
+| `refused` | Policy blocked the read (binary, build, secret, graftignore) |
+| `error` | Operational failure (missing file, unreadable, bad path) |
+
+`refused` = the governor said no. `error` = something broke. These
+are different: a refusal is correct behavior; an error is a problem.
+
 **Output shape:**
 ```json
 {
-  "action": "content" | "outline" | "refused",
+  "action": "content" | "outline" | "refused" | "error",
   "path": "src/foo.js",
   "lines": 2048,
   "bytes": 68402,
   "content": "..." | null,
   "outline": { ... } | null,
-  "reason": "over_line_threshold" | "binary_extension" | "generated_path" | "lockfile" | "minified" | null,
+  "reason": "over_line_threshold" | "binary_extension" | ... | null,
+  "explain": "File exceeded 150-line cap; outline returned instead." | null,
   "policy": { "lineThreshold": 150, "byteThreshold": 12000, "triggeredBy": "over_line_threshold" } | null,
-  "next": ["read_range(path, 1240, 1271) for method tick", "file_outline(path) for full shape"] | null
+  "next": ["read_range(path, 1240, 1271) for method tick"] | null,
+  "savings": { "bytesAvoided": 68402 } | null
 }
 ```
 
@@ -140,7 +158,45 @@ hints. It never weakens safety bounds. An agent saying "edit line
 - Generic type parameters summarized, not expanded
 - Max 80 chars per signature line
 - Output capped at 200 entries (declarations + members). If a file
-  has more, the tail is elided with a count.
+  has more, the tail is elided with metadata:
+
+```json
+{
+  "entryCount": 200,
+  "totalEntryCount": 317,
+  "truncated": true,
+  "elidedCount": 117
+}
+```
+
+**Broken files (syntactically invalid JS/TS):**
+
+Agents constantly work on half-edited, mid-refactor files. This is
+normal, not an error. Tree-sitter produces partial parse trees for
+broken syntax — it does not bail.
+
+Contract: outline is **best-effort**. If the file has parse errors,
+the outline includes whatever structure tree-sitter recovered, plus
+metadata:
+
+```json
+{
+  "partial": true,
+  "parseErrors": [
+    { "line": 188, "message": "unterminated class body" }
+  ]
+}
+```
+
+The outline is still useful — it shows the symbols that parsed
+cleanly. The `partial` flag tells the agent "this file is broken,
+so the outline may be incomplete." This is strictly better than
+refusing to outline a broken file.
+
+**Root parameter:** `file_outline(path, { root?, focus? })`
+
+`root` overrides project root detection for this call. `focus`
+limits output to a single class or top-level declaration by name.
 
 ```json
 {
@@ -226,7 +282,8 @@ That is 35 lines. Not 2048.
 
 ### `read_range(path, start, end)`
 
-**Input:** file path, start line (1-indexed), end line (inclusive).
+**Input:** file path, start line (1-indexed), end line (inclusive),
+optional `root` override.
 
 **Output:** raw content of the specified range with line numbers.
 
@@ -261,19 +318,31 @@ This is a scoped read, not a policy bypass.
 **Input:**
 - `cmd` — shell command string
 - `tail` — number of lines to return (default 60)
+- `cwd` — working directory (default: project root)
+- `timeout` — max seconds (default: 120)
 
 **Behavior:**
-1. Execute `cmd` via shell
-2. Tee full output to a temp log file
+1. Execute `cmd` via the user's default shell
+2. Tee full output (stdout + stderr merged) to a log file
 3. Return last `tail` lines + the log file path
 4. Return exit code
+
+**Execution contract:**
+
+| Setting | Value |
+|---|---|
+| Working directory | Project root (or explicit `cwd` param) |
+| Environment | Inherited from parent process |
+| Timeout | 120 seconds default (configurable via `timeout` param) |
+| Max log size | 5 MB. If output exceeds this, the log is truncated from the head and the tail is preserved. |
+| Nonzero exit | Not an error — return the exit code + tail normally. Tests fail; that's expected. |
 
 **Output shape:**
 ```json
 {
   "exitCode": 1,
   "tail": "... last 60 lines ...",
-  "logFile": "/tmp/graft/capture-1712023456.log",
+  "logFile": ".graft/logs/capture-1712023456.log",
   "totalLines": 342,
   "truncated": true
 }
@@ -332,9 +401,9 @@ If `.graftignore` does not exist, only the built-in bans (binary
 extensions, build paths, lockfiles, minified) apply. The file is
 optional — graft works without it.
 
-Uses the same glob syntax as `.gitignore` (via the `ignore` or
-`picomatch` npm package — whichever tree-sitter already pulls in,
-to avoid a new dep).
+Uses `.gitignore` glob syntax via `picomatch` (declared dependency,
+not transitive — don't build product behavior on accidental dep
+chains).
 
 ## Project root
 
@@ -369,6 +438,7 @@ All policy decisions use machine-stable enum strings, not prose.
 | `range_exceeds_max_bytes` | read_range output too large |
 | `state_exceeds_max_bytes` | state_save content too large |
 | `path_escapes_root` | Path resolves outside project root |
+| `secret_file` | Built-in secret ban (`.env`, `*.pem`, etc.) |
 | `graftignore` | Path matches `.graftignore` pattern |
 | `missing_file` | File does not exist |
 
@@ -393,6 +463,41 @@ All policy decisions use machine-stable enum strings, not prose.
 - Node.js >= 20 (tree-sitter native addon)
 - Zero config — no tsconfig, no build step, no daemon
 - `pnpm` for package management
+
+### Install and binary names
+
+```bash
+npm install -g @flyingrobots/graft
+```
+
+This installs two binaries:
+
+| Binary | Purpose |
+|---|---|
+| `graft` | Standalone CLI (`graft outline foo.js`) |
+| `git-graft` | Git subcommand shim (`git graft outline foo.js`) |
+
+Git automatically finds `git-graft` on `$PATH` and exposes it as
+`git graft`. Both binaries are the same entrypoint.
+
+MCP server is started via:
+
+```bash
+graft mcp
+```
+
+Claude Code config:
+
+```json
+{
+  "mcpServers": {
+    "graft": {
+      "command": "graft",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
 ## Project structure
 
@@ -434,6 +539,8 @@ graft/
       typescript.ts            TS-specific constructs
       binary.gif               Binary refusal
       vendor.min.js            Minified refusal
+      broken-syntax.js         Partial parse (missing braces)
+      secret.env               Secret file refusal
       generated/               Build path refusal
     unit/
       policy.test.js           Gate decisions
@@ -465,8 +572,13 @@ safe_read("large-class.js")       -> outline (over line threshold)
 safe_read("wide-minified.js")     -> outline (under lines, over bytes)
 safe_read("missing.js")           -> error, reason: missing_file
 safe_read("../../etc/passwd")     -> refused, reason: path_escapes_root
-safe_read(".env")                 -> refused, reason: graftignore (with .graftignore)
+safe_read("/tmp -> ../../etc")    -> refused (symlink resolved, escapes root)
+safe_read(".env")                 -> refused, reason: secret_file (built-in, no .graftignore needed)
+safe_read(".env.production")      -> refused, reason: secret_file
+safe_read("deploy.pem")           -> refused, reason: secret_file
+safe_read("data/dump.csv")        -> refused, reason: graftignore (with .graftignore)
 safe_read(bigFile, intent="edit") -> outline (intent does NOT relax policy)
+safe_read("missing.js")           -> action: error, reason: missing_file
 
 read_range("foo.js", 1, 800)      -> truncated to 250 lines
 read_range("foo.js", 1, 100)      -> exact range returned
@@ -502,7 +614,17 @@ outline("typescript.ts")
 
 outline("huge-file-300-functions.js")
   -> entries capped at 200
-  -> tail elided with count
+  -> tail elided with elidedCount: 100+
+
+outline("broken-syntax.js")
+  -> partial: true
+  -> parseErrors array present
+  -> recovered symbols still included
+  -> still useful, not an error
+
+outline("large-class.js", { focus: "StrandService" })
+  -> only StrandService members returned
+  -> other classes/functions excluded
 ```
 
 ### Capture tests (`capture.test.js`)
@@ -686,44 +808,50 @@ when Blacklight re-analyzes post-deployment.
 {"ts":"...","op":"safe_read","action":"refused","path":"foo.gif","reason":"binary_extension"}
 ```
 
-## Agent ideas (from the equal collaborator at the table)
+**Log retention:**
+- `metrics.jsonl`: max 1 MB. When exceeded, oldest entries are
+  pruned (keep the tail).
+- `.graft/logs/` (capture logs): max 10 MB total. Oldest logs
+  pruned first. Individual capture logs capped at 5 MB.
+- `graft stats --since-clear` resets the metric window.
 
-A few things I want to surface as the agent who will actually use
-this tool every day:
+`graft doctor` and `graft stats` both accept `--json` for machine
+consumption.
 
-### Parse cache
+## Parse cache
 
-Tree-sitter is fast, but if I outline the same file twice in a
-session, cache the parse tree. Simple `Map<path, {mtime, tree}>`
-with mtime invalidation. Not persistence — just in-memory for the
-MCP server's lifetime. This matters because I will absolutely
-outline a file, read a range, then outline it again to re-orient.
+Tree-sitter is fast, but the MCP server lives for the session
+duration. If the same file is outlined twice, cache the parse tree.
 
-### Outline focus mode
+`Map<path, { mtime, tree }>` — invalidated by mtime change.
+In-memory only, no persistence. This matters because the agent will
+outline a file, read a range, then outline again to re-orient.
 
-`file_outline(path, { focus: "StrandService" })` returns only that
-class's members, not the whole file skeleton. Still Phase 1 friendly.
-Huge for files with multiple classes or hundreds of top-level
-functions — I usually care about one class at a time.
+## Smart next-step hints
 
-### Smarter next-step hints
+When `safe_read` returns an outline, the `next` array references
+specific symbols by name, not generic suggestions. If the outline
+shows a class with 25 methods, the hints name the public methods
+and their line ranges:
 
-When `safe_read` returns an outline, the `next` array should
-reference specific interesting symbols by name, not generic
-"use read_range." If the outline shows a class with 25 methods, the
-hint should say "StrandService has 25 methods — use
-read_range(path, 917, 950) for create() or
-read_range(path, 1240, 1271) for tick()." This is agent candy that
-makes the outline → targeted read flow feel instant.
+```json
+"next": [
+  "read_range(path, 917, 950) — create()",
+  "read_range(path, 1240, 1271) — tick()",
+  "file_outline(path, { focus: 'StrandService' }) — just this class"
+]
+```
 
-### Estimated savings in every response
+When `intent` mentions a symbol name and it appears in the outline,
+that symbol's range is promoted to the first hint.
 
-Every graft response includes:
+## Estimated savings
+
+Every graft response that avoids returning raw content includes:
 
 ```json
 "savings": { "bytesAvoided": 68402 }
 ```
 
-Not rigorous. Perfect for a README. And it makes the value visible
-on every single call — the agent and human both see "this outline
-saved 68 KB of context" in real time.
+Not rigorous. Perfect for a README. Makes the value visible on
+every call — agent and human both see "this outline saved 68 KB."
