@@ -57,7 +57,7 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  *
  * @typedef {Object} ResolvedComparisonSide
  * @property {Record<string, unknown>} requested - Original requested selector
- * @property {import('../services/JoinReducer.js').WarpStateV5} state - Materialized state
+ * @property {import('./JoinReducer.js').WarpStateV5} state - Materialized state
  * @property {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} patchEntries - Patch entries
  * @property {Record<string, unknown>} resolved - Resolved metadata with digests
  */
@@ -604,7 +604,7 @@ function buildStrandMetadata(strandId, descriptor) {
  * @param {import('../WarpRuntime.js').default} graph
  * @param {{
  *   requested: Record<string, unknown>,
- *   state: import('../services/JoinReducer.js').WarpStateV5,
+ *   state: import('./JoinReducer.js').WarpStateV5,
  *   patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>,
  *   coordinateKind: 'frontier'|'strand'|'strand_base',
  *   lamportCeiling: number|null,
@@ -710,7 +710,7 @@ async function resolveStrandComparisonSide(graph, selector, scope) {
   const strandId = /** @type {string} */ (selector.strandId ?? '');
   const strands = new StrandService({ graph });
   const descriptor = await strands.getOrThrow(strandId);
-  const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
+  const state = /** @type {import('./JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
     graph,
     'materializeStrand',
     strandId,
