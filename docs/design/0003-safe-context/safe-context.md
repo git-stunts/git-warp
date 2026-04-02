@@ -1,7 +1,7 @@
 # Graft — Phase 1: The Governor
 
 **Cycle:** 0003-safe-context
-**Type:** Feature (new repo: `@git-stunts/graft`)
+**Type:** Feature (new repo: `@flyingrobots/graft`)
 **Pulled from:** `asap/DX_safe-context-phase-1.md`
 **Prior art:** `docs/design/0002-code-nav-tool/code-nav-tool.md`
 
@@ -59,7 +59,7 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 
 ### Human
 
-1. Can I `npm install -g @git-stunts/graft` and it works?
+1. Can I `npm install -g @flyingrobots/graft` and it works?
    **YES/NO**
 2. Does `git graft outline src/domain/services/StrandService.js`
    return a useful structural skeleton from the CLI? **YES/NO**
@@ -91,14 +91,27 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 | Condition | Response |
 |---|---|
 | Binary extension (`.gif`, `.png`, `.jpg`, `.pdf`, `.zip`, `.wasm`, `.bin`, `.sqlite`, `.ico`, `.mp4`, `.mov`) | Refuse. Return file type + size metadata. |
-| Build/generated path (`node_modules/`, `dist/`, `build/`, `.next/`, `target/`, `coverage/`) | Refuse. Suggest source path. |
+| Build/generated path (`node_modules/`, `dist/`, `build/`, `.next/`, `target/`, `coverage/`) | Refuse. No source-path guessing — just state what was blocked and why. |
 | File does not exist | Error with path. |
-| File <= threshold (default 150 lines) | Return raw content. |
-| File > threshold | Return `file_outline` result + "use read_range for details". |
+| File <= line threshold AND <= byte threshold | Return raw content. |
+| File > either threshold | Return `file_outline` result + next-step hints. |
+| Known junk patterns (`.min.js`, lockfiles, giant JSON) | Refuse. Return metadata only. |
 
-The threshold is configurable. Default 150 lines balances the data:
-most utility files, configs, and small modules pass through; god
-objects and large services get outlined.
+**Thresholds (configurable):**
+
+| Metric | Default |
+|---|---|
+| Max lines | 150 |
+| Max bytes | 12 KB |
+
+Both must pass for raw content. A 40-line minified atrocity that's
+50 KB still gets outlined. Lockfiles (`package-lock.json`,
+`pnpm-lock.yaml`, `yarn.lock`) and `.min.js` files are always
+refused regardless of size.
+
+**Intent is advisory only.** It may affect messaging and next-step
+hints. It never weakens safety bounds. An agent saying "edit line
+45" does not unlock a larger read.
 
 **Output shape:**
 ```json
@@ -109,7 +122,9 @@ objects and large services get outlined.
   "bytes": 68402,
   "content": "..." | null,
   "outline": { ... } | null,
-  "reason": "..." | null
+  "reason": "over_line_threshold" | "binary_extension" | "generated_path" | "lockfile" | "minified" | null,
+  "policy": { "lineThreshold": 150, "byteThreshold": 12000, "triggeredBy": "over_line_threshold" } | null,
+  "next": ["read_range(path, 1240, 1271) for method tick", "file_outline(path) for full shape"] | null
 }
 ```
 
@@ -118,6 +133,14 @@ objects and large services get outlined.
 **Input:** file path.
 
 **Output:** structural skeleton of the file.
+
+**Formatting bounds:**
+- Parameter strings truncated at 60 chars (ellipsized)
+- Default values and destructuring patterns compacted
+- Generic type parameters summarized, not expanded
+- Max 80 chars per signature line
+- Output capped at 200 entries (declarations + members). If a file
+  has more, the tail is elided with a count.
 
 ```json
 {
@@ -207,8 +230,31 @@ That is 35 lines. Not 2048.
 
 **Output:** raw content of the specified range with line numbers.
 
-No policy interception — the caller already has a precise target.
-This is the escape hatch when the agent knows exactly what it needs.
+**Bounded.** The governor still governs:
+
+| Constraint | Default |
+|---|---|
+| Max line span | 250 lines |
+| Max byte output | 20 KB |
+
+If the requested range exceeds either cap, the response is clipped
+and metadata shows what happened:
+
+```json
+{
+  "path": "src/foo.js",
+  "requested": { "start": 1, "end": 800 },
+  "returned": { "start": 1, "end": 250 },
+  "truncated": true,
+  "reason": "range_exceeds_max_lines",
+  "content": "..."
+}
+```
+
+Binary and build-path bans still apply. `read_range("foo.gif", 1, 10)`
+is still refused.
+
+This is a scoped read, not a policy bypass.
 
 ### `run_capture(cmd, tail?)`
 
@@ -242,9 +288,58 @@ Agent can `read_range` the log file if it needs more.
 
 **Storage:** `.graft/WORKING_STATE.md` in the project root.
 
-This is deliberately simple. A markdown file. No schema, no
-structure enforcement. The agent writes what it needs to remember.
-The human can read it with `cat`.
+**Capped at 8 KB.** If content exceeds the cap, the save is
+rejected with `reason: "state_exceeds_max_bytes"`. The agent must
+be concise. This is a breadcrumb trail, not a second context
+window.
+
+Recommended template (not enforced, but nudged in error messages):
+
+```markdown
+# Task
+# Current hypothesis
+# Files touched
+# Next 3 actions
+# Open questions
+```
+
+The human can read it with `cat`. The agent can load it after
+`/clear` and pick up where it left off.
+
+## Project root
+
+All paths are resolved relative to the project root. Detection
+order:
+
+1. Explicit `--root` flag (CLI) or `root` param (MCP)
+2. Nearest ancestor directory containing `.git/`
+3. Current working directory (fallback)
+
+**Rules:**
+- Symlinks are resolved before path checks
+- Paths that escape the project root are refused
+  (`reason: "path_escapes_root"`)
+- Temp log files from `run_capture` live in `.graft/logs/` inside
+  the project root, not `/tmp/`
+- `.graft/` should be added to `.gitignore`
+
+## Reason codes
+
+All policy decisions use machine-stable enum strings, not prose.
+
+| Code | Trigger |
+|---|---|
+| `binary_extension` | File has banned extension |
+| `generated_path` | Path matches build/generated pattern |
+| `lockfile` | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` |
+| `minified` | `.min.js`, `.min.css` |
+| `over_line_threshold` | Lines exceed safe_read threshold |
+| `over_byte_threshold` | Bytes exceed safe_read threshold |
+| `range_exceeds_max_lines` | read_range span too large |
+| `range_exceeds_max_bytes` | read_range output too large |
+| `state_exceeds_max_bytes` | state_save content too large |
+| `path_escapes_root` | Path resolves outside project root |
+| `missing_file` | File does not exist |
 
 ## Technology
 
@@ -295,9 +390,14 @@ graft/
       json.js                  JSON output formatter
   test/
     fixtures/
-      small.js                 Under threshold (pass-through)
-      large-class.js           Over threshold (outline)
+      small.js                 Under both thresholds (pass-through)
+      large-class.js           Over line threshold (outline)
+      wide-minified.js         Under lines, over bytes (outline)
+      huge-file.js             300+ declarations (outline cap test)
+      plain-functions.js       Top-level functions only
+      typescript.ts            TS-specific constructs
       binary.gif               Binary refusal
+      vendor.min.js            Minified refusal
       generated/               Build path refusal
     unit/
       policy.test.js           Gate decisions
@@ -319,11 +419,26 @@ Tests are the spec. Playback questions map directly to test cases.
 ### Policy tests (`policy.test.js`)
 
 ```
-safe_read("foo.gif")          -> action: "refused"
-safe_read("node_modules/x")   -> action: "refused"
-safe_read("small.js")         -> action: "content" (under threshold)
-safe_read("large-class.js")   -> action: "outline" (over threshold)
-safe_read("missing.js")       -> error
+safe_read("foo.gif")              -> refused, reason: binary_extension
+safe_read("node_modules/x.js")    -> refused, reason: generated_path
+safe_read("dist/bundle.js")       -> refused, reason: generated_path
+safe_read("package-lock.json")    -> refused, reason: lockfile
+safe_read("vendor.min.js")        -> refused, reason: minified
+safe_read("small.js")             -> content (under both thresholds)
+safe_read("large-class.js")       -> outline (over line threshold)
+safe_read("wide-minified.js")     -> outline (under lines, over bytes)
+safe_read("missing.js")           -> error, reason: missing_file
+safe_read("../../etc/passwd")     -> refused, reason: path_escapes_root
+safe_read(bigFile, intent="edit") -> outline (intent does NOT relax policy)
+
+read_range("foo.js", 1, 800)      -> truncated to 250 lines
+read_range("foo.js", 1, 100)      -> exact range returned
+read_range("foo.gif", 1, 10)      -> refused, reason: binary_extension
+
+state_save("# short")             -> saved
+state_save("x".repeat(9000))      -> refused, reason: state_exceeds_max_bytes
+state_load() after save            -> returns saved content
+state_load() with no prior save    -> returns null
 ```
 
 ### Outline tests (`outline.test.js`)
@@ -337,6 +452,8 @@ outline("large-class.js")
   -> private methods (leading _) marked private: true
   -> no function bodies in output
   -> line numbers are accurate (spot-check)
+  -> params truncated at 60 chars when long
+  -> total entries <= 200
 
 outline("plain-functions.js")
   -> has declarations array
@@ -345,6 +462,10 @@ outline("plain-functions.js")
 outline("typescript.ts")
   -> handles interfaces, type aliases, enums
   -> handles decorated classes
+
+outline("huge-file-300-functions.js")
+  -> entries capped at 200
+  -> tail elided with count
 ```
 
 ### Capture tests (`capture.test.js`)
