@@ -59,7 +59,191 @@ full files. The tool runs as both a CLI and an MCP server.
 - Maintaining a persistent index or daemon process
 - Replacing grep for text search — this is structural, not textual
 
-## Core operations
+## Before and after
+
+Real scenarios from working on git-warp. Token counts are estimates
+based on ~3.5 tokens per line of JavaScript.
+
+### Scenario 1: "Understand a god object before decomposing it"
+
+**Task:** Plan the StrandService decomposition. Need to know what
+methods exist, how they group, and which are public vs private.
+
+**Before (today):**
+
+```
+Read StrandService.js (lines 1-100)       →  ~350 tokens (imports, typedefs)
+Read StrandService.js (lines 100-200)     →  ~350 tokens (validation helpers)
+  ... still no class body ...
+Read StrandService.js (lines 900-1070)    →  ~595 tokens (class start, create/braid/get/list/drop)
+Read StrandService.js (lines 1070-1320)   →  ~875 tokens (createPatchBuilder, patch, queueIntent, listIntents)
+Read StrandService.js (lines 1320-1560)   →  ~840 tokens (tick internals, getPatchEntries, patchesFor)
+Read StrandService.js (lines 1560-1930)   →  ~1295 tokens (private helpers, materialization)
+Read StrandService.js (lines 1930-2048)   →  ~413 tokens (commit, sync refs)
+```
+
+**Total: 7 tool calls, ~4718 tokens of context consumed.** And most
+of that is method bodies I don't need yet — I just wanted the shape.
+The 7 sequential reads also cost wall-clock time (~3-5 seconds of
+tool roundtrips).
+
+**After (with code-nav):**
+
+```
+code_outline StrandService.js             →  ~50 lines, ~175 tokens
+```
+
+One call. Every method name, its parameters, and its line number.
+Enough to plan the decomposition. When I need the body of a specific
+method, one more call:
+
+```
+code_show StrandService.tick              →  ~32 lines, ~112 tokens
+```
+
+**Total: 1-2 tool calls, ~175-287 tokens.** That's a **94% reduction
+in context consumed** and the information density is higher — pure
+signal, no noise.
+
+### Scenario 2: "Fix a bug in one method of a large class"
+
+**Task:** `_commitQueuedPatch` in StrandService is using the wrong
+tree structure. Need to read just that method, fix it, and move on.
+
+**Before:**
+
+```
+Grep for '_commitQueuedPatch'             →  1 tool call, get line number (1973)
+Read StrandService.js (lines 1960-2015)   →  ~192 tokens
+  ... but I'm guessing at the method boundary.
+  Did I get the whole thing? Is the JSDoc above line 1960?
+Read StrandService.js (lines 1930-2015)   →  ~297 tokens (re-read with more context)
+```
+
+**Total: 3 tool calls, ~297 tokens used** (with 192 wasted on the
+first imprecise read). And I had to eyeball where the method ends.
+
+**After:**
+
+```
+code_show StrandService._commitQueuedPatch  →  exact method, ~140 tokens
+```
+
+**Total: 1 tool call, ~140 tokens.** Exact boundaries, including
+the JSDoc. No guessing. **53% reduction**, but more importantly:
+zero wasted reads and zero risk of missing the top or bottom of the
+method.
+
+### Scenario 3: "What does this module export? What can I use?"
+
+**Task:** Wire up a new service that needs to import from
+JoinReducer.js. What's available?
+
+**Before:**
+
+```
+Grep for 'export' in JoinReducer.js       →  1 tool call, noisy (matches 'export' in comments too)
+Read JoinReducer.js (lines 1-50)          →  ~175 tokens (hope the exports are at the top)
+  ... they're not all at the top, some are inline ...
+Read JoinReducer.js (lines 280-320)       →  ~140 tokens (found another export)
+Grep for '^export' in JoinReducer.js      →  1 tool call, better but still need context
+```
+
+**Total: 4 tool calls, ~315+ tokens, incomplete picture.**
+
+**After:**
+
+```
+code_exports JoinReducer.js               →  ~8 lines, ~40 tokens
+```
+
+**Total: 1 tool call, ~40 tokens.** Complete, structured, every
+export with its type (function/class/const) and line number.
+**87% reduction.**
+
+### Scenario 4: "Where is this function defined?"
+
+**Task:** `reduceV5` is called in 15 files. I need the definition,
+not the call sites.
+
+**Before:**
+
+```
+Grep for 'reduceV5' (files_with_matches)  →  1 tool call, 15 files
+Grep for 'function reduceV5'              →  1 tool call, maybe finds it
+  ... but what if it's `const reduceV5 = ` or `export { reduceV5 }`?
+Grep for 'reduceV5' with context in likely file  →  1 tool call, ~100 tokens
+```
+
+**Total: 2-3 tool calls, up to ~100 tokens, fragile.** The pattern
+depends on the declaration style.
+
+**After:**
+
+```
+code_find reduceV5                        →  1 line, ~15 tokens
+```
+
+**Total: 1 tool call, ~15 tokens.** Returns only the definition,
+regardless of whether it's `function`, `const`, `class`, or
+re-export. **85% reduction.**
+
+### Scenario 5: "I need to understand 8 files before a refactor"
+
+**Task:** Decompose WarpRuntime. Need the outline of WarpRuntime.js
+(683 LOC), StrandService.js (2048 LOC), SyncController.js (680 LOC),
+WarpGraph.js (800 LOC), Writer.js, PatchSession.js, Observer.js
+(575 LOC), CheckpointService.js (567 LOC).
+
+**Before:**
+
+This is where the compounding cost hits. Reading 8 files at even
+50% coverage:
+
+```
+~5353 total LOC × 0.5 coverage × 3.5 tokens/line = ~9,368 tokens
+~24 tool calls (3 reads per file average)
+```
+
+That's **9,368 tokens of context** before writing a single line of
+code. In a 200K token context window, that's ~5% consumed just on
+orientation. And it compounds — as the conversation continues,
+those 9K tokens of file contents push earlier context (my own
+reasoning, your instructions, test output) toward the compression
+boundary.
+
+**After:**
+
+```
+8 × code_outline calls = 8 tool calls
+8 × ~50 lines × 3.5 tokens/line = ~1,400 tokens
+```
+
+**Total: 8 tool calls, ~1,400 tokens.** Same structural
+understanding. **85% reduction.** The context window stays clean for
+actual work — reasoning, test output, edits.
+
+### Summary
+
+| Scenario | Before (tokens) | After (tokens) | Reduction | Tool calls saved |
+|---|---|---|---|---|
+| Understand god object | ~4,718 | ~175 | 96% | 6 |
+| Fix one method | ~297 | ~140 | 53% | 2 |
+| List module exports | ~315 | ~40 | 87% | 3 |
+| Find a definition | ~100 | ~15 | 85% | 2 |
+| Pre-refactor survey (8 files) | ~9,368 | ~1,400 | 85% | 16 |
+
+**The compounding effect matters most.** A single `outline` call
+saves ~4,500 tokens. But in a real session I do this 5-20 times —
+reading files to understand context before acting. Over a full
+session that's 20,000-90,000 tokens of saved context. That's the
+difference between hitting the compression boundary mid-task (losing
+earlier reasoning) and having room to finish cleanly.
+
+The token savings also translate directly to speed. Fewer tool calls
+= fewer round-trips = faster responses. An 8-file survey drops from
+~24 sequential reads (~10 seconds of tool overhead) to 8 parallel
+outline calls (~1 second).
 
 ### 1. `show <symbol>`
 
