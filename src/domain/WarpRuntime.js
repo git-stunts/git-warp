@@ -22,13 +22,13 @@ import SyncController from './services/SyncController.js';
 import StrandController from './services/StrandController.js';
 import ComparisonController from './services/ComparisonController.js';
 import SubscriptionController from './services/SubscriptionController.js';
+import ProvenanceController from './services/ProvenanceController.js';
 import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 import { wireWarpMethods } from './warp/_wire.js';
 import * as queryMethods from './warp/query.methods.js';
-import * as provenanceMethods from './warp/provenance.methods.js';
 import * as forkMethods from './warp/fork.methods.js';
 import * as checkpointMethods from './warp/checkpoint.methods.js';
 import * as patchMethods from './warp/patch.methods.js';
@@ -317,6 +317,9 @@ export default class WarpRuntime {
 
     /** @type {SubscriptionController} */
     this._subscriptionController = new SubscriptionController(this);
+
+    /** @type {ProvenanceController} */
+    this._provenanceController = new ProvenanceController(/** @type {import('./warp/_internal.js').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
@@ -655,7 +658,6 @@ export default class WarpRuntime {
 // ── Wire extracted method groups onto WarpRuntime.prototype ───────────────────
 wireWarpMethods(WarpRuntime, [
   queryMethods,
-  provenanceMethods,
   forkMethods,
   checkpointMethods,
   patchMethods,
@@ -679,6 +681,28 @@ for (const method of strandDelegates) {
       const raw = this;
       const self = /** @type {WarpRuntime} */ (raw);
       const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._strandController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
+
+// ── Provenance methods: direct delegation to ProvenanceController ────────────
+const provenanceDelegates = /** @type {const} */ ([
+  'patchesFor', 'materializeSlice', '_computeBackwardCone',
+  'loadPatchBySha', '_loadPatchBySha', '_loadPatchesBySha', '_sortPatchesCausally',
+]);
+for (const method of provenanceDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to ProvenanceController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._provenanceController));
       const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
       return fn.call(ctrl, ...args);
     },

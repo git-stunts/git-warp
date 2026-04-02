@@ -241,7 +241,7 @@ export default tseslint.config(
       "src/domain/WarpGraph.js",
       "src/domain/warp/query.methods.js",
       "src/domain/services/SubscriptionController.js",
-      "src/domain/warp/provenance.methods.js",
+      "src/domain/services/ProvenanceController.js",
       "src/domain/warp/fork.methods.js",
       "src/domain/warp/checkpoint.methods.js",
       "src/domain/warp/patch.methods.js",
