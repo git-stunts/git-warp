@@ -19,7 +19,6 @@ import {
  * @typedef {{
  *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
  * }} VisibleStateScopeV1
- * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
  */
 
 /**

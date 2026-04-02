@@ -1,5 +1,3 @@
-/** @import { default as RefPersistence } from '../../ports/RefPort.js' */
-
 /**
  * Role-specific persistence port types.
  *

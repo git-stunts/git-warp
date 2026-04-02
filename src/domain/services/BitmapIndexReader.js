@@ -8,8 +8,6 @@ import { isValidShardOid } from '../utils/validateShardOid.js';
 import { base64Decode } from '../utils/bytes.js';
 
 
-/** @import { default as CryptoPort } from '../../ports/CryptoPort.js' */
-/** @import { default as LoggerPort } from '../../ports/LoggerPort.js' */
 /** @import { RoaringBitmapSubset as BitmapShard } from '../utils/roaring.js' */
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
