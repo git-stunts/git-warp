@@ -38,6 +38,7 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  * @typedef {import('../../../index.js').StrandDescriptor} StrandDescriptorV1
  * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
  * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
+ * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
  * @typedef {{ left: Record<string, unknown>, right: Record<string, unknown>, targetId?: string|null, scope?: VisibleStateScopeV1|null }} InternalCompareCoordinatesOptions
  * @typedef {{ source: Record<string, unknown>, target: Record<string, unknown>, scope?: VisibleStateScopeV1|null }} InternalPlanCoordinateTransferOptions
  */
@@ -57,7 +58,7 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  *
  * @typedef {Object} ResolvedComparisonSide
  * @property {Record<string, unknown>} requested - Original requested selector
- * @property {import('./JoinReducer.js').WarpStateV5} state - Materialized state
+ * @property {WarpStateV5} state - Materialized state
  * @property {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} patchEntries - Patch entries
  * @property {Record<string, unknown>} resolved - Resolved metadata with digests
  */
@@ -604,7 +605,7 @@ function buildStrandMetadata(strandId, descriptor) {
  * @param {import('../WarpRuntime.js').default} graph
  * @param {{
  *   requested: Record<string, unknown>,
- *   state: import('./JoinReducer.js').WarpStateV5,
+ *   state: WarpStateV5,
  *   patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>,
  *   coordinateKind: 'frontier'|'strand'|'strand_base',
  *   lamportCeiling: number|null,
@@ -710,7 +711,7 @@ async function resolveStrandComparisonSide(graph, selector, scope) {
   const strandId = /** @type {string} */ (selector.strandId ?? '');
   const strands = new StrandService({ graph });
   const descriptor = await strands.getOrThrow(strandId);
-  const state = /** @type {import('./JoinReducer.js').WarpStateV5} */ (await callInternalRuntimeMethod(
+  const state = /** @type {WarpStateV5} */ (await callInternalRuntimeMethod(
     graph,
     'materializeStrand',
     strandId,

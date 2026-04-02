@@ -11,10 +11,14 @@ import { diffStates, isEmptyDiff } from './StateDiff.js';
 import { matchGlob } from '../utils/matchGlob.js';
 
 /** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
+/** @typedef {import('./StateDiff.js').StateDiffResult} StateDiffResult */
+/** @typedef {import('./StateDiff.js').EdgeChange} EdgeChange */
+/** @typedef {import('./StateDiff.js').PropSet} PropSet */
+/** @typedef {import('./StateDiff.js').PropRemoved} PropRemoved */
 
 /**
  * @typedef {Object} Subscriber
- * @property {(diff: import('./StateDiff.js').StateDiffResult) => void} onChange
+ * @property {(diff: StateDiffResult) => void} onChange
  * @property {((error: unknown) => void)|undefined} [onError]
  * @property {boolean} pendingReplay
  */
@@ -51,7 +55,7 @@ export default class SubscriptionController {
    * fires `onChange` with a diff from empty state to current state. If
    * `_cachedState` is null, replay is deferred until the first materialize.
    *
-   * @param {{ onChange: (diff: import('./StateDiff.js').StateDiffResult) => void, onError?: (error: unknown) => void, replay?: boolean }} options
+   * @param {{ onChange: (diff: StateDiffResult) => void, onError?: (error: unknown) => void, replay?: boolean }} options
    * @returns {{ unsubscribe: () => void }}
    */
   subscribe({ onChange, onError, replay = false }) {
@@ -104,7 +108,7 @@ export default class SubscriptionController {
    * `hasFrontierChanged()` and auto-materializes if changed.
    *
    * @param {string|string[]} pattern
-   * @param {{ onChange: (diff: import('./StateDiff.js').StateDiffResult) => void, onError?: (error: unknown) => void, poll?: number }} options
+   * @param {{ onChange: (diff: StateDiffResult) => void, onError?: (error: unknown) => void, poll?: number }} options
    * @returns {{ unsubscribe: () => void }}
    */
   watch(pattern, { onChange, onError, poll }) {
@@ -127,7 +131,7 @@ export default class SubscriptionController {
 
     /**
      * Filtered onChange that only passes matching changes.
-     * @param {import('./StateDiff.js').StateDiffResult} diff
+     * @param {StateDiffResult} diff
      */
     const filteredOnChange = (diff) => {
       const filteredDiff = {
@@ -136,12 +140,12 @@ export default class SubscriptionController {
           removed: diff.nodes.removed.filter(matchesPattern),
         },
         edges: {
-          added: diff.edges.added.filter((/** @type {import('./StateDiff.js').EdgeChange} */ e) => matchesPattern(e.from) || matchesPattern(e.to)),
-          removed: diff.edges.removed.filter((/** @type {import('./StateDiff.js').EdgeChange} */ e) => matchesPattern(e.from) || matchesPattern(e.to)),
+          added: diff.edges.added.filter((/** @type {EdgeChange} */ e) => matchesPattern(e.from) || matchesPattern(e.to)),
+          removed: diff.edges.removed.filter((/** @type {EdgeChange} */ e) => matchesPattern(e.from) || matchesPattern(e.to)),
         },
         props: {
-          set: diff.props.set.filter((/** @type {import('./StateDiff.js').PropSet} */ p) => matchesPattern(p.nodeId)),
-          removed: diff.props.removed.filter((/** @type {import('./StateDiff.js').PropRemoved} */ p) => matchesPattern(p.nodeId)),
+          set: diff.props.set.filter((/** @type {PropSet} */ p) => matchesPattern(p.nodeId)),
+          removed: diff.props.removed.filter((/** @type {PropRemoved} */ p) => matchesPattern(p.nodeId)),
         },
       };
 
@@ -214,7 +218,7 @@ export default class SubscriptionController {
    * Handles deferred replay for subscribers added with `replay: true` before
    * cached state was available.
    *
-   * @param {import('./StateDiff.js').StateDiffResult} diff
+   * @param {StateDiffResult} diff
    * @param {WarpStateV5} currentState
    */
   _notifySubscribers(diff, currentState) {

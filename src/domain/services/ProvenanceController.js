@@ -12,6 +12,7 @@ import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 
+/** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
 /** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
 
 /**
@@ -64,7 +65,7 @@ export default class ProvenanceController {
    *
    * @param {string} nodeId
    * @param {{receipts?: boolean}} [options]
-   * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, patchCount: number, receipts?: import('../types/TickReceipt.js').TickReceipt[]}>}
+   * @returns {Promise<{state: WarpStateV5, patchCount: number, receipts?: import('../types/TickReceipt.js').TickReceipt[]}>}
    */
   async materializeSlice(nodeId, options) {
     const host = this._host;
@@ -107,7 +108,7 @@ export default class ProvenanceController {
       host._logTiming('materializeSlice', t0, { metrics: `${sortedPatches.length} patches` });
 
       if (collectReceipts) {
-        const result = /** @type {{state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(sortedPatches, undefined, { receipts: true }));
+        const result = /** @type {{state: WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}} */ (reduceV5(sortedPatches, undefined, { receipts: true }));
         return {
           state: result.state,
           patchCount: sortedPatches.length,
