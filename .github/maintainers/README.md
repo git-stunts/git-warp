@@ -18,8 +18,8 @@ evaluating or using the product API.
 
 ## Related project artifacts
 
-- [Backlog](../../BACKLOG/README.md)
-  Active and promoted work tracked as repo-operating artifacts.
+- [Backlog](../../docs/method/backlog/)
+  Lane-organized backlog items with legend prefixes.
 - [Design notes](../../docs/design/)
   Governing design docs for promoted backlog items and active cycles.
 - [Retrospectives](../../docs/archive/retrospectives/)

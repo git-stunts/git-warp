@@ -206,8 +206,8 @@ That is not a law of physics. It is a good operating default until real measurem
 
 Current design backlog:
 
-- [OG-013 out-of-core materialization and streaming reads](../BACKLOG/OG-013-out-of-core-materialization-and-streaming-reads.md)
-- [OG-014 streaming content attachments](../BACKLOG/OG-014-streaming-content-attachments.md)
+- [Out-of-core materialization](method/backlog/PERF_out-of-core-materialization.md)
+- [Streaming graph traversal](method/backlog/cool-ideas/PERF_streaming-graph-traversal.md)
 
 ## Where next
 
