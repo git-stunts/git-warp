@@ -24,9 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AuditReceiptService uses AuditError** — all 16 raw `Error` throws replaced with typed `AuditError` carrying serializable context and machine-readable error codes (`E_AUDIT_INVALID`, `E_AUDIT_CAS_FAILED`, `E_AUDIT_DEGRADED`).
 - **CLI import.meta.url resolution** — replaced `__dirname` polyfill pattern in CLI with idiomatic `fileURLToPath(new URL('../..', import.meta.url))` for resilient package root resolution.
 
+- **WarpRuntime god class decomposition (NO_DOGS_NO_MASTERS)** — extracted 6 of 11 mixin method groups into independent service controllers, following the SyncController precedent. Each controller receives the runtime host via constructor injection and delegates through `defineProperty` loops on the prototype. Public API surface unchanged — all 100+ methods remain on `WarpRuntime.prototype`. The remaining 4 mixins (checkpoint, patch, materialize, materializeAdvanced) form the core mutation kernel and are deferred to a future cycle.
+  - **`StrandController`** (182 LOC) — strand lifecycle + conflict analysis, cached StrandService instance
+  - **`ComparisonController`** (1,155 LOC) — coordinate/strand comparison, transfer planning
+  - **`SubscriptionController`** (244 LOC) — subscribe, watch, notification dispatch
+  - **`ProvenanceController`** (242 LOC) — patch lookups, backward causal cone, slice materialization
+  - **`ForkController`** (274 LOC) — fork creation, wormhole compression, backfill rejection
+  - **`QueryController`** (964 LOC) — all read queries, observer/worldline factories, content access
+- **`AuditReceipt` promoted to class** — replaced `@typedef {Object}` with a real JavaScript class. Constructor validates and freezes. Fields declared in alphabetical order for canonical CBOR serialization.
+- **WarpApp/WarpCore content methods** — replaced direct function imports from `query.methods.js` with `callInternalRuntimeMethod()` delegation, which correctly resolves dynamically wired prototype methods.
+
 ### Added
 
 - **`AuditError`** — domain error class for audit receipt validation and persistence failures. Exported from package root with four static error codes.
+- **`NO_DOGS_NO_MASTERS` legend** — backlog legend for god object decomposition and typedef-to-class liberation. Code: `NDNM_`.
 
 - **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
 - **`EffectSinkPort`** — abstract port for effect delivery sinks, following the hexagonal architecture pattern.
