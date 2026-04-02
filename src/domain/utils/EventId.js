@@ -8,14 +8,14 @@ export class EventId {
   /** @type {number} Monotonic counter (positive integer) */
   lamport;
 
-  /** @type {number} Operation index within patch (non-negative integer) */
-  opIndex;
+  /** @type {string} Writer identifier (non-empty string) */
+  writerId;
 
   /** @type {string} Patch commit SHA (hex OID, 4-64 chars) */
   patchSha;
 
-  /** @type {string} Writer identifier (non-empty string) */
-  writerId;
+  /** @type {number} Operation index within patch (non-negative integer) */
+  opIndex;
 
   /**
    * Creates a validated EventId.

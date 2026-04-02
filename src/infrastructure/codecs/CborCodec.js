@@ -75,15 +75,30 @@ const encoder = new Encoder({
   mapsAsObjects: true,
 });
 
+/** @type {ReadonlyArray<Function>} */
+const CBOR_NATIVE_TYPES = [Uint8Array, Date, RegExp, Set, Map];
+
 /**
- * Checks if a value is a plain object (constructed via Object or Object.create(null)).
+ * Returns true if the value is a built-in type with its own CBOR encoding.
+ * @param {object} value
+ * @returns {boolean}
+ * @private
+ */
+function isCborNative(value) {
+  return CBOR_NATIVE_TYPES.some((T) => value instanceof T);
+}
+
+/**
+ * Checks if a value should have its keys sorted for canonical CBOR.
+ * Returns true for plain objects AND domain class instances.
+ * Returns false for built-in types with their own CBOR representation.
  *
  * @param {unknown} value - The value to check
- * @returns {boolean} True if value is a plain object
+ * @returns {boolean} True if value's keys should be sorted
  * @private
  */
 function isPlainObject(value) {
-  return typeof value === 'object' && value !== null && (value.constructor === Object || value.constructor === undefined);
+  return typeof value === 'object' && value !== null && !isCborNative(/** @type {object} */ (value));
 }
 
 /**

@@ -55,15 +55,26 @@ function sortMapKeys(map) {
   return sorted;
 }
 
+/** @type {ReadonlyArray<Function>} */
+const CBOR_NATIVE = [Uint8Array, Date, RegExp, Set];
+
 /**
- * Sorts keys of a plain object and recursively sorts nested values.
+ * Returns true if the value is a built-in type with its own CBOR encoding.
+ * @param {object} value
+ * @returns {boolean}
+ */
+function isCborNative(value) {
+  return CBOR_NATIVE.some((T) => value instanceof T);
+}
+
+/**
+ * Sorts keys of any object and recursively sorts nested values.
+ * Skips built-in types that have their own CBOR representation.
  * @param {Record<string, unknown>} obj
  * @returns {Record<string, unknown>}
  */
 function sortObjectKeys(obj) {
-  if (obj.constructor !== Object && obj.constructor !== undefined) {
-    return obj;
-  }
+  if (isCborNative(obj)) { return obj; }
   /** @type {Record<string, unknown>} */
   const sorted = {};
   for (const key of Object.keys(obj).sort()) {

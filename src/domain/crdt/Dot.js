@@ -61,11 +61,11 @@
  * for each CRDT operation.
  */
 export class Dot {
-  /** @type {number} Monotonic counter (positive integer) */
-  counter;
-
   /** @type {string} Writer identifier (non-empty string) */
   writerId;
+
+  /** @type {number} Monotonic counter (positive integer) */
+  counter;
 
   /**
    * Creates a validated Dot.
