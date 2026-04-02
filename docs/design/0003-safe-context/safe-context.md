@@ -382,12 +382,17 @@ graft/
       range.js                 Bounded reads
       capture.js               Shell output tailing
       state.js                 Session state save/load
+    hooks/
+      gate.js                  Hook enforcement (Read gate, Bash gate)
     mcp/
       server.js                MCP server (stdio)
       tools.js                 Tool definitions + handlers
     format/
       text.js                  CLI text formatter
       json.js                  JSON output formatter
+    metrics/
+      logger.js                NDJSON decision logger
+      stats.js                 Summary stats from log
   test/
     fixtures/
       small.js                 Under both thresholds (pass-through)
@@ -502,9 +507,190 @@ state_load() with no prior save
 
 ```
 spawn MCP server via stdio
-  -> server lists all 6 tools
+  -> server lists all tools
   -> safe_read call returns valid response
   -> file_outline call returns valid response
   -> run_capture call returns valid response
   -> state_save + state_load round-trips
 ```
+
+## Enforcement: hooks
+
+The MCP server is voluntary. The agent can still call native `Read`
+and bypass the governor entirely. And it will — not maliciously,
+just because `Read` is familiar and consequences are later.
+
+The research says it plainly:
+
+> Models often "agree and then ignore" instruction-only rules.
+> Enforcement is stronger.
+
+So graft ships **two layers**:
+
+### Layer 1: MCP server (cross-LLM, voluntary)
+
+The tools described above. Works on Claude Code, Gemini CLI,
+Codex CLI. Agent uses these instead of native Read/Bash. Relies on
+project instructions (CLAUDE.md, GEMINI.md) to prefer graft tools.
+
+### Layer 2: Claude Code hooks (enforced)
+
+`PreToolUse` hooks intercept native tool calls and route them
+through graft's policy gate.
+
+**Read hook:**
+
+When the agent calls native `Read`, the hook:
+
+1. Runs the path through graft's policy (binary? build? over
+   threshold?)
+2. If policy says **content** (small, safe): allow the Read through
+   unchanged
+3. If policy says **outline** (too large): block the Read, return
+   the outline as the tool result with next-step hints
+4. If policy says **refused** (binary, build, lockfile): block the
+   Read, return the reason and metadata
+
+The agent never sees the raw 2000-line file. It gets the outline
+and can follow up with `read_range` for specific sections.
+
+**Bash hook (test capture):**
+
+When the agent calls native `Bash` with a command matching known
+test runners (`npm test`, `vitest`, `jest`, `cargo test`, `pytest`,
+`make test`), the hook:
+
+1. Routes through `run_capture` instead
+2. Tees full output to `.graft/logs/`
+3. Returns only the tail
+
+The agent gets the test result without the full dump. The full
+output is on disk if needed.
+
+**Hook configuration:**
+
+Graft ships a `graft hooks install` command that writes the hook
+config. For Claude Code:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "command": "graft gate read"
+      },
+      {
+        "matcher": "Bash",
+        "command": "graft gate bash"
+      }
+    ]
+  }
+}
+```
+
+The `graft gate` subcommands read the tool call input from stdin
+(hook protocol), apply policy, and exit 0 (allow) or exit 2
+(block + replacement output).
+
+**Gemini/Codex:** No equivalent hook mechanism yet. Enforcement is
+MCP-only + project instructions. When those agents add hooks, graft
+adapts.
+
+## Additional commands
+
+### `graft doctor`
+
+Diagnostic command for debugging policy behavior.
+
+```bash
+git graft doctor
+```
+
+```
+project root:     /Users/james/git/git-stunts/git-warp (.git detected)
+line threshold:    150
+byte threshold:    12,000
+range max lines:   250
+range max bytes:   20,000
+state max bytes:   8,192
+log directory:     .graft/logs/ (exists, 3 files, 42 KB)
+state file:        .graft/WORKING_STATE.md (exists, 1.2 KB)
+parser:            tree-sitter (javascript, typescript loaded)
+node version:      v22.3.0
+hooks installed:   yes (Read gate, Bash gate)
+.gitignore:        .graft/ present
+```
+
+Answers "why did my read get blocked?" before anyone has to ask.
+
+### `graft stats`
+
+Minimal decision metrics. Not a dashboard — a quick summary.
+
+```bash
+git graft stats
+```
+
+```
+session decisions (since last clear):
+  content:   12 reads passed through
+  outline:    8 reads downgraded to outline
+  refused:    3 reads blocked (2 binary, 1 generated)
+  ranges:     5 bounded reads
+  captures:   4 shell captures (avg 47 tail lines)
+
+estimated bytes avoided: ~340 KB
+```
+
+Graft logs every decision to `.graft/metrics.jsonl` as append-only
+NDJSON. One line per decision. This is how we prove graft works
+when Blacklight re-analyzes post-deployment.
+
+```json
+{"ts":"...","op":"safe_read","action":"outline","path":"StrandService.js","lines":2048,"bytes":68402,"reason":"over_line_threshold"}
+{"ts":"...","op":"read_range","path":"StrandService.js","start":1240,"end":1271,"truncated":false}
+{"ts":"...","op":"safe_read","action":"refused","path":"foo.gif","reason":"binary_extension"}
+```
+
+## Agent ideas (from the equal collaborator at the table)
+
+A few things I want to surface as the agent who will actually use
+this tool every day:
+
+### Parse cache
+
+Tree-sitter is fast, but if I outline the same file twice in a
+session, cache the parse tree. Simple `Map<path, {mtime, tree}>`
+with mtime invalidation. Not persistence — just in-memory for the
+MCP server's lifetime. This matters because I will absolutely
+outline a file, read a range, then outline it again to re-orient.
+
+### Outline focus mode
+
+`file_outline(path, { focus: "StrandService" })` returns only that
+class's members, not the whole file skeleton. Still Phase 1 friendly.
+Huge for files with multiple classes or hundreds of top-level
+functions — I usually care about one class at a time.
+
+### Smarter next-step hints
+
+When `safe_read` returns an outline, the `next` array should
+reference specific interesting symbols by name, not generic
+"use read_range." If the outline shows a class with 25 methods, the
+hint should say "StrandService has 25 methods — use
+read_range(path, 917, 950) for create() or
+read_range(path, 1240, 1271) for tick()." This is agent candy that
+makes the outline → targeted read flow feel instant.
+
+### Estimated savings in every response
+
+Every graft response includes:
+
+```json
+"savings": { "bytesAvoided": 68402 }
+```
+
+Not rigorous. Perfect for a README. And it makes the value visible
+on every single call — the agent and human both see "this outline
+saved 68 KB of context" in real time.
