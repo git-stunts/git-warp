@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Backlog restructured** — migrated all incomplete ROADMAP items to individual `BACKLOG/B{number}.md` files. Dropped milestone structure in favor of flat backlog. Completed OG-items moved to `BACKLOG/done/`. `docs/ROADMAP.md` retained for reference with migration notice.
+- **The Method** — introduced `METHOD.md` as the development process framework. Filesystem-native backlog (`docs/method/backlog/`) with lane directories (`inbox/`, `asap/`, `up-next/`, `cool-ideas/`, `bad-code/`). Legend-prefixed filenames (`PROTO_`, `TRUST_`, `VIZ_`, `TUI_`, `DX_`, `PERF_`). Sequential cycle numbering (`docs/design/<NNNN-slug>/`). Dual-audience design docs (sponsor human + sponsor agent). Replaced B-number system entirely.
+- **Backlog migration** — all 49 B-number and OG items migrated from `BACKLOG/` to `docs/method/backlog/` lanes. Tech debt journal (`.claude/bad_code.md`) split into 10 individual files in `bad-code/`. Cool ideas journal split into 13 individual files in `cool-ideas/`. `docs/release.md` moved to `docs/method/release.md`. `BACKLOG/` directory removed.
 
 - **Zero-error TypeScript campaign complete** — eliminated all 1,707 `tsc --noEmit` errors across 271 files. Mechanical TS4111 bracket-access sweep (614), null guards for `noUncheckedIndexedAccess`, conditional spreads for `exactOptionalPropertyTypes`, unused variable removal. All 8 pre-push IRONCLAD gates now pass.
 - **JoinReducer OpStrategy registry** — replaced five triplicated switch statements over 8 canonical op types with a frozen `Map<string, OpStrategy>` registry. Each strategy defines `mutate`, `outcome`, `snapshot`, `accumulate`, `validate`. Adding a new op type without all five methods is a hard error at module load time. Cross-path equivalence tests verify `applyFast`, `applyWithReceipt`, and `applyWithDiff` produce identical CRDT state.
