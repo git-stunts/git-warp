@@ -1,14 +1,5 @@
 import WarpCore from './WarpCore.js';
-import {
-  getContent as _getContent,
-  getContentStream as _getContentStream,
-  getContentOid as _getContentOid,
-  getContentMeta as _getContentMeta,
-  getEdgeContent as _getEdgeContent,
-  getEdgeContentStream as _getEdgeContentStream,
-  getEdgeContentOid as _getEdgeContentOid,
-  getEdgeContentMeta as _getEdgeContentMeta,
-} from './warp/query.methods.js';
+import { callInternalRuntimeMethod } from './utils/callInternalRuntimeMethod.js';
 
 /**
  * Curated product-facing WARP surface.
@@ -182,54 +173,52 @@ export default class WarpApp {
   }
 
   // ── Content attachment reads ──────────────────────────────────────────
-  // Imported from query.methods.js and called with the runtime as this binding.
-
   /** Reads the full content blob attached to a node.
    * @param {string} nodeId @returns {Promise<Uint8Array|null>} */
   async getContent(nodeId) {
-    return await _getContent.call(this._runtime(), nodeId);
+    return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getContent', nodeId));
   }
 
   /** Returns a streaming reader for the content blob attached to a node.
    * @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getContentStream(nodeId) {
-    return await _getContentStream.call(this._runtime(), nodeId);
+    return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getContentStream', nodeId));
   }
 
   /** Returns the Git object ID of the content blob attached to a node.
    * @param {string} nodeId @returns {Promise<string|null>} */
   async getContentOid(nodeId) {
-    return await _getContentOid.call(this._runtime(), nodeId);
+    return /** @type {string|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getContentOid', nodeId));
   }
 
   /** Returns structured content metadata (oid, mime, size) for a node.
    * @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getContentMeta(nodeId) {
-    return await _getContentMeta.call(this._runtime(), nodeId);
+    return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getContentMeta', nodeId));
   }
 
   /** Reads the full content blob attached to an edge.
    * @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
   async getEdgeContent(from, to, label) {
-    return await _getEdgeContent.call(this._runtime(), from, to, label);
+    return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getEdgeContent', from, to, label));
   }
 
   /** Returns a streaming reader for the content blob attached to an edge.
    * @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
   async getEdgeContentStream(from, to, label) {
-    return await _getEdgeContentStream.call(this._runtime(), from, to, label);
+    return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getEdgeContentStream', from, to, label));
   }
 
   /** Returns the Git object ID of the content blob attached to an edge.
    * @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
   async getEdgeContentOid(from, to, label) {
-    return await _getEdgeContentOid.call(this._runtime(), from, to, label);
+    return /** @type {string|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getEdgeContentOid', from, to, label));
   }
 
   /** Returns structured content metadata (oid, mime, size) for an edge.
    * @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
   async getEdgeContentMeta(from, to, label) {
-    return await _getEdgeContentMeta.call(this._runtime(), from, to, label);
+    return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this._runtime(), 'getEdgeContentMeta', from, to, label));
   }
 
   // ── Strands ─────────────────────────────────────────────────────────

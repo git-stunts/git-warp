@@ -1,10 +1,10 @@
 /**
- * Query methods for WarpRuntime — pure reads on materialized state.
+ * QueryController — pure reads on materialized state.
  *
- * Every function uses `this` bound to a WarpRuntime instance at runtime
- * via wireWarpMethods().
+ * Extracted from query.methods.js. All methods are read-only queries
+ * against cached CRDT state, indexes, and blob storage.
  *
- * @module domain/warp/query.methods
+ * @module domain/services/QueryController
  */
 
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
@@ -19,17 +19,23 @@ import {
   CONTENT_PROPERTY_KEY,
   CONTENT_MIME_PROPERTY_KEY,
   CONTENT_SIZE_PROPERTY_KEY,
-} from '../services/KeyCodec.js';
+} from './KeyCodec.js';
 import { compareEventIds } from '../utils/EventId.js';
-import { cloneStateV5 } from '../services/JoinReducer.js';
-import { createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
-import QueryBuilder from '../services/QueryBuilder.js';
-import Observer from '../services/Observer.js';
-import Worldline from '../services/Worldline.js';
-import { computeTranslationCost } from '../services/TranslationCost.js';
-import { computeStateHashV5 } from '../services/StateSerializerV5.js';
+import { cloneStateV5 } from './JoinReducer.js';
+import { createImmutableWarpStateV5 } from './ImmutableSnapshot.js';
+import QueryBuilder from './QueryBuilder.js';
+import Observer from './Observer.js';
+import Worldline from './Worldline.js';
+import { computeTranslationCost } from './TranslationCost.js';
+import { computeStateHashV5 } from './StateSerializerV5.js';
 import { toInternalStrandShape } from '../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
+
+/**
+ * The host interface that QueryController depends on.
+ *
+ * @typedef {import('../warp/_internal.js').WarpGraphWithMixins} QueryHost
+ */
 
 /**
  * @typedef {{
@@ -198,33 +204,33 @@ async function resolveObserverSnapshot(graph, options) {
  *
  * **Requires a cached state.** Call materialize() first if not already cached.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<boolean>} True if the node exists in the materialized state
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
  * @throws {import('../errors/QueryError.js').default} If cached state is dirty (code: `E_STALE_STATE`)
+ * @this {QueryController}
  */
-export async function hasNode(nodeId) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function hasNode(nodeId) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   return orsetContains(s.nodeAlive, nodeId);
 }
 
 /**
  * Gets all properties for a node from the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get properties for
  * @returns {Promise<Record<string, unknown>|null>} Object of property key → value, or null if node doesn't exist
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getNodeProps(nodeId) {
-  await this._ensureFreshState();
+async function getNodeProps(nodeId) {
+  await this._host._ensureFreshState();
 
   // ── Indexed fast path (positive results only; stale index falls through) ──
-  if (this._propertyReader !== null && this._propertyReader !== undefined && this._logicalIndex?.isAlive(nodeId) === true) {
+  if (this._host._propertyReader !== null && this._host._propertyReader !== undefined && this._host._logicalIndex?.isAlive(nodeId) === true) {
     try {
-      const record = await this._propertyReader.getNodeProps(nodeId);
+      const record = await this._host._propertyReader.getNodeProps(nodeId);
       if (record !== null) {
         return record;
       }
@@ -235,7 +241,7 @@ export async function getNodeProps(nodeId) {
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
 
   if (!orsetContains(s.nodeAlive, nodeId)) {
     return null;
@@ -256,16 +262,16 @@ export async function getNodeProps(nodeId) {
 /**
  * Gets all properties for an edge from the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<Record<string, unknown>|null>} Object of property key → value, or null if edge doesn't exist
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getEdgeProps(from, to, label) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdgeProps(from, to, label) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
 
   const edgeKey = encodeEdgeKey(from, to, label);
   if (!orsetContains(s.edgeAlive, edgeKey)) {
@@ -311,19 +317,19 @@ function tagDirection(edges, dir) {
 /**
  * Gets neighbors of a node from the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get neighbors for
  * @param {'outgoing' | 'incoming' | 'both'} [direction='both'] - Edge direction to follow
  * @param {string} [edgeLabel] - Optional edge label filter
  * @returns {Promise<Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>>} Array of neighbor info
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
-  await this._ensureFreshState();
+async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
+  await this._host._ensureFreshState();
 
   // ── Indexed fast path (only when node is in index; stale falls through) ──
-  const provider = this._materializedGraph?.provider;
-  if (provider !== null && provider !== undefined && this._logicalIndex?.isAlive(nodeId) === true) {
+  const provider = this._host._materializedGraph?.provider;
+  if (provider !== null && provider !== undefined && this._host._logicalIndex?.isAlive(nodeId) === true) {
     try {
       const opts = typeof edgeLabel === 'string' && edgeLabel.length > 0 ? { labels: new Set([edgeLabel]) } : undefined;
       return await _indexedNeighbors(provider, nodeId, direction, opts);
@@ -333,7 +339,7 @@ export async function neighbors(nodeId, direction = 'both', edgeLabel = undefine
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  return _linearNeighbors(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState), nodeId, direction, edgeLabel);
+  return _linearNeighbors(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState), nodeId, direction, edgeLabel);
 }
 
 /**
@@ -394,43 +400,43 @@ function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
 /**
  * Returns a defensive copy of the current materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5 | null>}
+ * @this {QueryController}
  */
-export async function getStateSnapshot() {
-  if (!this._cachedState && !this._autoMaterialize) {
+async function getStateSnapshot() {
+  if (!this._host._cachedState && !this._host._autoMaterialize) {
     return null;
   }
-  await this._ensureFreshState();
-  if (!this._cachedState) {
+  await this._host._ensureFreshState();
+  if (!this._host._cachedState) {
     return null;
   }
-  return createImmutableWarpStateV5(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState));
+  return createImmutableWarpStateV5(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState));
 }
 
 /**
  * Gets all visible nodes in the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<string[]>} Array of node IDs
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getNodes() {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getNodes() {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   return [...orsetElements(s.nodeAlive)];
 }
 
 /**
  * Gets all visible edges in the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<Array<{from: string, to: string, label: string, props: Record<string, unknown>}>>} Array of edge info
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getEdges() {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdges() {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
 
   /** @type {Map<string, Record<string, unknown>>} */
   const edgePropsByKey = new Map();
@@ -471,36 +477,36 @@ export async function getEdges() {
 /**
  * Returns the number of property entries in the materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @returns {Promise<number>} Number of property entries
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getPropertyCount() {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getPropertyCount() {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   return s.prop.size;
 }
 
 /**
  * Creates a fluent query builder for the logical graph.
  *
- * @this {import('../WarpRuntime.js').default}
  * @returns {import('../services/QueryBuilder.js').default} A fluent query builder
+ * @this {QueryController}
  */
-export function query() {
-  return new QueryBuilder(this);
+function query() {
+  return new QueryBuilder(this._host);
 }
 
 /**
  * Creates a first-class worldline handle over a pinned read source.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {ObserverOptions} [options]
  * @returns {import('../services/Worldline.js').default}
+ * @this {QueryController}
  */
-export function worldline(options = undefined) {
+function worldline(options = undefined) {
   return new Worldline({
-    graph: this,
+    graph: this._host,
     source: cloneObserverSource(options?.source) || { kind: 'live' },
   });
 }
@@ -534,26 +540,26 @@ function normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions) {
 /**
  * Creates a read-only observer over the current materialized state.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string|{ match: string|string[], expose?: string[], redact?: string[] }} nameOrConfig
  *   Observer name or observer configuration
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }|ObserverOptions} [configOrOptions]
  *   Observer configuration when a name is supplied, otherwise observer options
  * @param {ObserverOptions} [maybeOptions] - Optional pinned read source
  * @returns {Promise<import('../services/Observer.js').default>} A read-only observer
+ * @this {QueryController}
  */
-export async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions = undefined) {
+async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions = undefined) {
   const { name, config, options } = normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions);
   /** Validates that a match value is a non-empty string or non-empty string array. @param {unknown} m - Match value to validate @returns {boolean} True if valid */
   const isValidMatch = (m) => typeof m === 'string' || (Array.isArray(m) && m.length > 0 && m.every(/** Checks that an element is a string. @param {unknown} i - Array element @returns {boolean} True if string */ i => typeof i === 'string'));
   if (!config || !isValidMatch(config.match)) {
     throw new Error('observer config.match must be a non-empty string or non-empty array of strings');
   }
-  const snapshot = await resolveObserverSnapshot(this, options);
+  const snapshot = await resolveObserverSnapshot(this._host, options);
   return new Observer({
     name,
     config,
-    graph: this,
+    graph: this._host,
     snapshot,
     source: cloneObserverSource(options?.source) || { kind: 'live' },
   });
@@ -562,14 +568,14 @@ export async function observer(nameOrConfig, configOrOptions = undefined, maybeO
 /**
  * Computes the directed MDL translation cost from observer A to observer B.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configA - Observer configuration for A
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }} configB - Observer configuration for B
  * @returns {Promise<{cost: number, breakdown: {nodeLoss: number, edgeLoss: number, propLoss: number}}>}
+ * @this {QueryController}
  */
-export async function translationCost(configA, configB) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function translationCost(configA, configB) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   return computeTranslationCost(configA, configB, s);
 }
 
@@ -706,14 +712,14 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
 /**
  * Gets the content blob OID for a node, or null if none is attached.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<string|null>} Hex blob OID or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getContentOid(nodeId) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getContentOid(nodeId) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers?.contentRegister.value ?? null;
 }
@@ -721,14 +727,14 @@ export async function getContentOid(nodeId) {
 /**
  * Gets structured content metadata for a node attachment, or null if none is attached.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to check
  * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} Content metadata or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getContentMeta(nodeId) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getContentMeta(nodeId) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -741,41 +747,41 @@ export async function getContentMeta(nodeId) {
  * Returns the raw bytes from `readBlob()`. Consumers wanting text
  * should decode the result with `new TextDecoder().decode(buf)`.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<Uint8Array|null>} Content bytes or null
  * @throws {import('../errors/PersistenceError.js').default} If the referenced
  *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
  *   after repository corruption, aggressive GC, or a partial clone missing the
  *   blob object.
+ * @this {QueryController}
  */
-export async function getContent(nodeId) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getContent(nodeId) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
   }
   const { value: oid } = registers.contentRegister;
-  if (this._blobStorage) {
-    return await this._blobStorage.retrieve(oid);
+  if (this._host._blobStorage) {
+    return await this._host._blobStorage.retrieve(oid);
   }
-  return await this._persistence.readBlob(oid);
+  return await this._host._persistence.readBlob(oid);
 }
 
 /**
  * Gets the content blob OID for an edge, or null if none is attached.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<string|null>} Hex blob OID or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getEdgeContentOid(from, to, label) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdgeContentOid(from, to, label) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers?.contentRegister.value ?? null;
 }
@@ -783,16 +789,16 @@ export async function getEdgeContentOid(from, to, label) {
 /**
  * Gets structured content metadata for an edge attachment, or null if none is attached.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} Content metadata or null
  * @throws {import('../errors/QueryError.js').default} If no cached state exists (code: `E_NO_STATE`)
+ * @this {QueryController}
  */
-export async function getEdgeContentMeta(from, to, label) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdgeContentMeta(from, to, label) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -805,7 +811,6 @@ export async function getEdgeContentMeta(from, to, label) {
  * Returns the raw bytes from `readBlob()`. Consumers wanting text
  * should decode the result with `new TextDecoder().decode(buf)`.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
@@ -814,19 +819,20 @@ export async function getEdgeContentMeta(from, to, label) {
  *   blob OID is not in the object store (code: `E_MISSING_OBJECT`), such as
  *   after repository corruption, aggressive GC, or a partial clone missing the
  *   blob object.
+ * @this {QueryController}
  */
-export async function getEdgeContent(from, to, label) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdgeContent(from, to, label) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;
   }
   const { value: oid } = registers.contentRegister;
-  if (this._blobStorage) {
-    return await this._blobStorage.retrieve(oid);
+  if (this._host._blobStorage) {
+    return await this._host._blobStorage.retrieve(oid);
   }
-  return await this._persistence.readBlob(oid);
+  return await this._host._persistence.readBlob(oid);
 }
 
 /**
@@ -835,23 +841,23 @@ export async function getEdgeContent(from, to, label) {
  * Returns an async iterable of Uint8Array chunks for incremental
  * consumption. Use `getContent()` when you want the full buffer.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} nodeId - The node ID to get content for
  * @returns {Promise<AsyncIterable<Uint8Array>|null>} Async iterable of content chunks, or null
+ * @this {QueryController}
  */
-export async function getContentStream(nodeId) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getContentStream(nodeId) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
   }
   const { value: oid } = registers.contentRegister;
-  if (this._blobStorage && typeof this._blobStorage.retrieveStream === 'function') {
-    return this._blobStorage.retrieveStream(oid);
+  if (this._host._blobStorage && typeof this._host._blobStorage.retrieveStream === 'function') {
+    return this._host._blobStorage.retrieveStream(oid);
   }
   // Fallback: wrap buffered read as single-chunk async iterable
-  const buf = await this._persistence.readBlob(oid);
+  const buf = await this._host._persistence.readBlob(oid);
   return singleChunkAsyncIterable(buf);
 }
 
@@ -861,24 +867,24 @@ export async function getContentStream(nodeId) {
  * Returns an async iterable of Uint8Array chunks for incremental
  * consumption. Use `getEdgeContent()` when you want the full buffer.
  *
- * @this {import('../WarpRuntime.js').default}
  * @param {string} from - Source node ID
  * @param {string} to - Target node ID
  * @param {string} label - Edge label
  * @returns {Promise<AsyncIterable<Uint8Array>|null>} Async iterable of content chunks, or null
+ * @this {QueryController}
  */
-export async function getEdgeContentStream(from, to, label) {
-  await this._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._cachedState);
+async function getEdgeContentStream(from, to, label) {
+  await this._host._ensureFreshState();
+  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;
   }
   const { value: oid } = registers.contentRegister;
-  if (this._blobStorage && typeof this._blobStorage.retrieveStream === 'function') {
-    return this._blobStorage.retrieveStream(oid);
+  if (this._host._blobStorage && typeof this._host._blobStorage.retrieveStream === 'function') {
+    return this._host._blobStorage.retrieveStream(oid);
   }
-  const buf = await this._persistence.readBlob(oid);
+  const buf = await this._host._persistence.readBlob(oid);
   return singleChunkAsyncIterable(buf);
 }
 
@@ -903,4 +909,56 @@ function singleChunkAsyncIterable(buf) {
       };
     },
   };
+}
+
+// ── Controller class ──────────────────────────────────────────────────────────
+
+/**
+ * QueryController — read-only query surface for materialized graph state.
+ *
+ * Each public method delegates to the module-level function above,
+ * bound with `this` as the controller (which carries `_host`).
+ */
+export default class QueryController {
+  /** @type {QueryHost} */
+  _host;
+
+  /**
+   * Creates a QueryController bound to a WarpRuntime host.
+   * @param {QueryHost} host
+   */
+  constructor(host) {
+    this._host = host;
+  }
+}
+
+// Wire all query functions as methods on the controller prototype.
+// The functions use this._host._xxx, so they work when this = controller.
+const queryFunctions = /** @type {const} */ ([
+  'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
+  'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
+  'query', 'worldline', 'observer', 'translationCost',
+  'getContentOid', 'getContentMeta', 'getContent',
+  'getEdgeContentOid', 'getEdgeContentMeta', 'getEdgeContent',
+  'getContentStream', 'getEdgeContentStream',
+]);
+
+/** @type {Record<string, Function>} */
+const fnMap = {
+  hasNode, getNodeProps, getEdgeProps, neighbors,
+  getStateSnapshot, getNodes, getEdges, getPropertyCount,
+  query, worldline, observer, translationCost,
+  getContentOid, getContentMeta, getContent,
+  getEdgeContentOid, getEdgeContentMeta, getEdgeContent,
+  getContentStream, getEdgeContentStream,
+};
+
+for (const name of queryFunctions) {
+  const fn = fnMap[name];
+  Object.defineProperty(QueryController.prototype, name, {
+    value: fn,
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
 }
