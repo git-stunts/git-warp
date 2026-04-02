@@ -124,10 +124,10 @@ async function openDetachedObserverGraph(graph) {
  * Snapshots the current materialized state with a cloned copy and hash.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ * @returns {Promise<{ state: import('./WarpStateV5.js').default, stateHash: string }>}
  */
 async function snapshotCurrentMaterialized(graph) {
-  const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string|null}> }} */ (graph)._materializeGraph();
+  const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: import('./WarpStateV5.js').default, stateHash: string|null}> }} */ (graph)._materializeGraph();
   return {
     state: cloneStateV5(materialized.state),
     stateHash: /** @type {string} */ (materialized.stateHash),
@@ -138,8 +138,8 @@ async function snapshotCurrentMaterialized(graph) {
  * Clones and hashes a returned state for snapshot isolation.
  *
  * @param {import('../WarpRuntime.js').default} graph
- * @param {import('../services/JoinReducer.js').WarpStateV5} state
- * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ * @param {import('./WarpStateV5.js').default} state
+ * @returns {Promise<{ state: import('./WarpStateV5.js').default, stateHash: string }>}
  */
 async function snapshotReturnedState(graph, state) {
   const stateHash = await computeStateHashV5(state, {
@@ -157,7 +157,7 @@ async function snapshotReturnedState(graph, state) {
  *
  * @param {import('../WarpRuntime.js').default} graph
  * @param {ObserverOptions|undefined} options
- * @returns {Promise<{ state: import('../services/JoinReducer.js').WarpStateV5, stateHash: string }>}
+ * @returns {Promise<{ state: import('./WarpStateV5.js').default, stateHash: string }>}
  */
 async function resolveObserverSnapshot(graph, options) {
   const source = cloneObserverSource(options?.source);
@@ -168,7 +168,7 @@ async function resolveObserverSnapshot(graph, options) {
 
   if (source.kind === 'live') {
     const detached = await openDetachedObserverGraph(graph);
-    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materialize({
+    const state = /** @type {import('./WarpStateV5.js').default} */ (await detached.materialize({
       ceiling: source.ceiling ?? null,
     }));
     return await snapshotReturnedState(detached, state);
@@ -176,7 +176,7 @@ async function resolveObserverSnapshot(graph, options) {
 
   if (source.kind === 'coordinate') {
     const detached = await openDetachedObserverGraph(graph);
-    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (await detached.materializeCoordinate({
+    const state = /** @type {import('./WarpStateV5.js').default} */ (await detached.materializeCoordinate({
       frontier: source.frontier,
       ceiling: source.ceiling ?? null,
     }));
@@ -188,7 +188,7 @@ async function resolveObserverSnapshot(graph, options) {
     const internalSource = /** @type {{ strandId: string, ceiling?: number|null }} */ (
       /** @type {unknown} */ (toInternalStrandShape(source))
     );
-    const state = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (
+    const state = /** @type {import('./WarpStateV5.js').default} */ (
       await callInternalRuntimeMethod(detached, 'materializeStrand', internalSource.strandId, {
         ceiling: internalSource.ceiling ?? null,
       })
@@ -212,7 +212,7 @@ async function resolveObserverSnapshot(graph, options) {
  */
 async function hasNode(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   return orsetContains(s.nodeAlive, nodeId);
 }
 
@@ -241,7 +241,7 @@ async function getNodeProps(nodeId) {
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
 
   if (!orsetContains(s.nodeAlive, nodeId)) {
     return null;
@@ -271,7 +271,7 @@ async function getNodeProps(nodeId) {
  */
 async function getEdgeProps(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
 
   const edgeKey = encodeEdgeKey(from, to, label);
   if (!orsetContains(s.edgeAlive, edgeKey)) {
@@ -339,7 +339,7 @@ async function neighbors(nodeId, direction = 'both', edgeLabel = undefined) {
   }
 
   // ── Linear scan fallback ─────────────────────────────────────────────
-  return _linearNeighbors(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState), nodeId, direction, edgeLabel);
+  return _linearNeighbors(/** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState), nodeId, direction, edgeLabel);
 }
 
 /**
@@ -368,14 +368,14 @@ async function _indexedNeighbors(provider, nodeId, direction, opts) {
 /**
  * Linear-scan neighbor lookup from raw CRDT state.
  *
- * @param {import('../services/JoinReducer.js').WarpStateV5} cachedState
+ * @param {import('./WarpStateV5.js').default} cachedState
  * @param {string} nodeId
  * @param {'outgoing' | 'incoming' | 'both'} direction
  * @param {string} [edgeLabel]
  * @returns {Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>}
  */
 function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (cachedState);
   /** @type {Array<{nodeId: string, label: string, direction: 'outgoing' | 'incoming'}>} */
   const result = [];
   const checkOut = direction === 'outgoing' || direction === 'both';
@@ -400,7 +400,7 @@ function _linearNeighbors(cachedState, nodeId, direction, edgeLabel) {
 /**
  * Returns a defensive copy of the current materialized state.
  *
- * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5 | null>}
+ * @returns {Promise<import('./WarpStateV5.js').default | null>}
  * @this {QueryController}
  */
 async function getStateSnapshot() {
@@ -411,7 +411,7 @@ async function getStateSnapshot() {
   if (!this._host._cachedState) {
     return null;
   }
-  return createImmutableWarpStateV5(/** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState));
+  return createImmutableWarpStateV5(/** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState));
 }
 
 /**
@@ -423,7 +423,7 @@ async function getStateSnapshot() {
  */
 async function getNodes() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   return [...orsetElements(s.nodeAlive)];
 }
 
@@ -436,7 +436,7 @@ async function getNodes() {
  */
 async function getEdges() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
 
   /** @type {Map<string, Record<string, unknown>>} */
   const edgePropsByKey = new Map();
@@ -483,14 +483,14 @@ async function getEdges() {
  */
 async function getPropertyCount() {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   return s.prop.size;
 }
 
 /**
  * Creates a fluent query builder for the logical graph.
  *
- * @returns {import('../services/QueryBuilder.js').default} A fluent query builder
+ * @returns {import('./QueryBuilder.js').default} A fluent query builder
  * @this {QueryController}
  */
 function query() {
@@ -501,7 +501,7 @@ function query() {
  * Creates a first-class worldline handle over a pinned read source.
  *
  * @param {ObserverOptions} [options]
- * @returns {import('../services/Worldline.js').default}
+ * @returns {import('./Worldline.js').default}
  * @this {QueryController}
  */
 function worldline(options = undefined) {
@@ -545,7 +545,7 @@ function normalizeObserverArgs(nameOrConfig, configOrOptions, maybeOptions) {
  * @param {{ match: string|string[], expose?: string[], redact?: string[] }|ObserverOptions} [configOrOptions]
  *   Observer configuration when a name is supplied, otherwise observer options
  * @param {ObserverOptions} [maybeOptions] - Optional pinned read source
- * @returns {Promise<import('../services/Observer.js').default>} A read-only observer
+ * @returns {Promise<import('./Observer.js').default>} A read-only observer
  * @this {QueryController}
  */
 async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions = undefined) {
@@ -575,7 +575,7 @@ async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions 
  */
 async function translationCost(configA, configB) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   return computeTranslationCost(configA, configB, s);
 }
 
@@ -621,7 +621,7 @@ function visibleEdgeRegister(register, birthEvent) {
 /**
  * Looks up the current node attachment registers directly from materialized state.
  *
- * @param {import('../services/JoinReducer.js').WarpStateV5} state
+ * @param {import('./WarpStateV5.js').default} state
  * @param {string} nodeId
  * @returns {{ contentRegister: { eventId: import('../utils/EventId.js').EventId|null, value: string }, mimeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null, sizeRegister: { eventId: import('../utils/EventId.js').EventId|null, value: unknown }|null }|null}
  */
@@ -643,7 +643,7 @@ function getNodeContentRegisters(state, nodeId) {
 /**
  * Looks up the current edge attachment registers directly from materialized state.
  *
- * @param {import('../services/JoinReducer.js').WarpStateV5} state
+ * @param {import('./WarpStateV5.js').default} state
  * @param {string} from
  * @param {string} to
  * @param {string} label
@@ -719,7 +719,7 @@ function extractContentMeta(contentRegister, mimeRegister, sizeRegister) {
  */
 async function getContentOid(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers?.contentRegister.value ?? null;
 }
@@ -734,7 +734,7 @@ async function getContentOid(nodeId) {
  */
 async function getContentMeta(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -757,7 +757,7 @@ async function getContentMeta(nodeId) {
  */
 async function getContent(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
@@ -781,7 +781,7 @@ async function getContent(nodeId) {
  */
 async function getEdgeContentOid(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers?.contentRegister.value ?? null;
 }
@@ -798,7 +798,7 @@ async function getEdgeContentOid(from, to, label) {
  */
 async function getEdgeContentMeta(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   return registers
     ? extractContentMeta(registers.contentRegister, registers.mimeRegister, registers.sizeRegister)
@@ -823,7 +823,7 @@ async function getEdgeContentMeta(from, to, label) {
  */
 async function getEdgeContent(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;
@@ -847,7 +847,7 @@ async function getEdgeContent(from, to, label) {
  */
 async function getContentStream(nodeId) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getNodeContentRegisters(s, nodeId);
   if (!registers) {
     return null;
@@ -875,7 +875,7 @@ async function getContentStream(nodeId) {
  */
 async function getEdgeContentStream(from, to, label) {
   await this._host._ensureFreshState();
-  const s = /** @type {import('../services/JoinReducer.js').WarpStateV5} */ (this._host._cachedState);
+  const s = /** @type {import('./WarpStateV5.js').default} */ (this._host._cachedState);
   const registers = getEdgeContentRegisters(s, from, to, label);
   if (!registers) {
     return null;
