@@ -68,6 +68,27 @@ Phase 1 scope: JS/TS only. `safe_read`, `file_outline`,
 3. Can I point it at any JS/TS project with zero config? **YES/NO**
 4. Can I register it as an MCP server in one line of JSON? **YES/NO**
 
+## Internal vocabulary
+
+Graft is WARP optics with a job: derive the smallest lawful view
+of the code that lets the agent act without poisoning its own
+context.
+
+These terms are internal architecture language, not public CLI
+names:
+
+| Term | Meaning |
+|---|---|
+| **projection** | The output mode chosen by policy: content, outline, refusal, error. Not the full file — a lawful reduced view. |
+| **focus** | The targeting mechanism: file, class, method, range, export surface. Bounds what the agent sees. |
+| **residual** | The hidden context not surfaced to the agent. The 1,900 lines of StrandService that the outline doesn't show. Exists, acknowledged, not transmitted. |
+| **receipt** | A structured decision log entry: what was requested, what was returned, why, bytes avoided. |
+| **witness** | (Future) The exact focus chosen, the lines returned, why that focus was selected, what larger whole it came from. "What did the agent see before it made this edit?" |
+
+This vocabulary gives the architecture coherence: policy is not
+arbitrary, projection is not just truncation, focus is not just
+slicing, receipts are not just logs.
+
 ## Non-goals
 
 - Rust support (Phase 2)
