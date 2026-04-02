@@ -8,5 +8,5 @@ Script that counts WarpGraph instance fields (grep `this._` in constructor) and 
 
 ## Notes
 
-- Depends on B143 RFC (exists at `docs/design/warpgraph-decomposition.md`)
+- Depends on `docs/design/warpgraph-decomposition.md`
 - Low urgency — fold into PRs that touch related files

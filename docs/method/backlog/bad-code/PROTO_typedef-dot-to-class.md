@@ -5,5 +5,5 @@
 ## Problem
 
 `src/domain/crdt/Dot.js` defines `Dot` as a `@typedef {Object}` but it
-has factory (`createDot`), encode/decode, and comparison functions. Should
-be a class with those as methods.
+has factory (`createDot`), encode/decode, and comparison functions. It should
+be a class with those behaviors as methods.

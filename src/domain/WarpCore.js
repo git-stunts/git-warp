@@ -168,28 +168,28 @@ export default class WarpCore {
   }
 
   /** Returns a content attachment by node ID. @param {string} nodeId @returns {Promise<Uint8Array|null>} */
-  async getContent(nodeId) { return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this, 'getContent', nodeId)); }
+  async getContent(nodeId) { return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getContent', nodeId)); }
 
   /** Returns a content stream by node ID. @param {string} nodeId @returns {Promise<AsyncIterable<Uint8Array>|null>} */
-  async getContentStream(nodeId) { return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this, 'getContentStream', nodeId)); }
+  async getContentStream(nodeId) { return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getContentStream', nodeId)); }
 
   /** Returns the OID for a content attachment. @param {string} nodeId @returns {Promise<string|null>} */
-  async getContentOid(nodeId) { return /** @type {string|null} */ (await callInternalRuntimeMethod(this, 'getContentOid', nodeId)); }
+  async getContentOid(nodeId) { return /** @type {string|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getContentOid', nodeId)); }
 
   /** Returns content metadata. @param {string} nodeId @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
-  async getContentMeta(nodeId) { return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this, 'getContentMeta', nodeId)); }
+  async getContentMeta(nodeId) { return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getContentMeta', nodeId)); }
 
   /** Returns a content attachment for an edge. @param {string} from @param {string} to @param {string} label @returns {Promise<Uint8Array|null>} */
-  async getEdgeContent(from, to, label) { return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this, 'getEdgeContent', from, to, label)); }
+  async getEdgeContent(from, to, label) { return /** @type {Uint8Array|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getEdgeContent', from, to, label)); }
 
   /** Returns a content stream for an edge. @param {string} from @param {string} to @param {string} label @returns {Promise<AsyncIterable<Uint8Array>|null>} */
-  async getEdgeContentStream(from, to, label) { return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this, 'getEdgeContentStream', from, to, label)); }
+  async getEdgeContentStream(from, to, label) { return /** @type {AsyncIterable<Uint8Array>|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getEdgeContentStream', from, to, label)); }
 
   /** Returns the OID for an edge content attachment. @param {string} from @param {string} to @param {string} label @returns {Promise<string|null>} */
-  async getEdgeContentOid(from, to, label) { return /** @type {string|null} */ (await callInternalRuntimeMethod(this, 'getEdgeContentOid', from, to, label)); }
+  async getEdgeContentOid(from, to, label) { return /** @type {string|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getEdgeContentOid', from, to, label)); }
 
   /** Returns metadata for an edge content attachment. @param {string} from @param {string} to @param {string} label @returns {Promise<{ oid: string, mime: string|null, size: number|null }|null>} */
-  async getEdgeContentMeta(from, to, label) { return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this, 'getEdgeContentMeta', from, to, label)); }
+  async getEdgeContentMeta(from, to, label) { return /** @type {{ oid: string, mime: string|null, size: number|null }|null} */ (await callInternalRuntimeMethod(this._asRuntime(), 'getEdgeContentMeta', from, to, label)); }
 
   // ── Strands ─────────────────────────────────────────────────────────
 

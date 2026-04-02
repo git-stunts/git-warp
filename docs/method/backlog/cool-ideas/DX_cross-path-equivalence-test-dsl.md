@@ -8,5 +8,5 @@ through N code paths and asserts identical output. This generalizes:
 - Sync request/response vs local materialize
 - Incremental vs full reduce
 
-Could be a test DSL:
-`assertPathEquivalence(input, [pathA, pathB, pathC], comparator)`
+A possible test DSL is:
+`assertPathEquivalence(input, [pathA, pathB, pathC], comparator)`.

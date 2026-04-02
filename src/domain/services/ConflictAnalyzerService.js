@@ -945,6 +945,8 @@ function normalizeEffectPayload(_target, opType, canonOp) {
     EdgeAdd: () => ({ dot: canonOp['dot'] ?? null }),
     /** Extracts observed dots from an EdgeTombstone operation. */
     EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
+    /** Extracts the value from a PropSet operation (legacy raw type). */
+    PropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the value from a NodePropSet operation. */
     NodePropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the value from an EdgePropSet operation. */
