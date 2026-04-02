@@ -82,6 +82,46 @@ export async function computeOpsDigest(ops, crypto) {
 }
 
 // ============================================================================
+// Receipt Value Object
+// ============================================================================
+
+/**
+ * Immutable audit receipt value object.
+ *
+ * Instances are frozen after construction. Keys are stored in sorted
+ * order for deterministic CBOR serialization.
+ */
+export class AuditReceipt {
+  /** @type {string} */   dataCommit;
+  /** @type {string} */   graphName;
+  /** @type {string} */   opsDigest;
+  /** @type {string} */   prevAuditCommit;
+  /** @type {number} */   tickEnd;
+  /** @type {number} */   tickStart;
+  /** @type {number} */   timestamp;
+  /** @type {number} */   version;
+  /** @type {string} */   writerId;
+
+  /**
+   * Creates an immutable audit receipt from validated fields.
+   * @param {{ version: number, graphName: string, writerId: string, dataCommit: string, tickStart: number, tickEnd: number, opsDigest: string, prevAuditCommit: string, timestamp: number }} fields
+   */
+  constructor({ version, graphName, writerId, dataCommit, tickStart, tickEnd, opsDigest, prevAuditCommit, timestamp }) {
+    // Alphabetical key order for canonical CBOR
+    this.dataCommit = dataCommit;
+    this.graphName = graphName;
+    this.opsDigest = opsDigest;
+    this.prevAuditCommit = prevAuditCommit;
+    this.tickEnd = tickEnd;
+    this.tickStart = tickStart;
+    this.timestamp = timestamp;
+    this.version = version;
+    this.writerId = writerId;
+    Object.freeze(this);
+  }
+}
+
+// ============================================================================
 // Receipt Construction
 // ============================================================================
 
@@ -92,7 +132,7 @@ const OID_HEX_PATTERN = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
  * Validates and builds a frozen receipt record with keys in sorted order.
  *
  * @param {{ version: number, graphName: string, writerId: string, dataCommit: string, tickStart: number, tickEnd: number, opsDigest: string, prevAuditCommit: string, timestamp: number }} fields
- * @returns {Readonly<Record<string, unknown>>}
+ * @returns {AuditReceipt}
  * @throws {AuditError} If any field is invalid (code: E_AUDIT_INVALID)
  */
 export function buildReceiptRecord(fields) {
@@ -165,17 +205,16 @@ export function buildReceiptRecord(fields) {
     throw new AuditError(`Invalid timestamp: exceeds Number.MAX_SAFE_INTEGER: ${timestamp}`, { context: { timestamp } });
   }
 
-  // Build with keys in sorted order (canonical for CBOR)
-  return Object.freeze({
-    dataCommit: dc,
+  return new AuditReceipt({
+    version,
     graphName,
+    writerId,
+    dataCommit: dc,
+    tickStart,
+    tickEnd,
     opsDigest: od,
     prevAuditCommit: pac,
-    tickEnd,
-    tickStart,
     timestamp,
-    version,
-    writerId,
   });
 }
 
