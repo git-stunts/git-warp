@@ -95,7 +95,7 @@ in one pass. A 2,000-LOC god object with 14 typedef vassals is not.
 
 `NDNM` — for backlog items that belong to this legend.
 
-```
+```text
 NDNM_warpruntime-decomposition.md
 NDNM_typedef-tickreceipt.md
 NDNM_typedef-orset.md

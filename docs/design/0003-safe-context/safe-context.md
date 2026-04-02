@@ -252,7 +252,7 @@ limits output to a single class or top-level declaration by name.
 
 **CLI text output:**
 
-```
+```text
 src/domain/services/StrandService.js (2048 lines, javascript)
 
   exports:
@@ -582,7 +582,7 @@ Tests are the spec. Playback questions map directly to test cases.
 
 ### Policy tests (`policy.test.js`)
 
-```
+```text
 safe_read("foo.gif")              -> refused, reason: binary_extension
 safe_read("node_modules/x.js")    -> refused, reason: generated_path
 safe_read("dist/bundle.js")       -> refused, reason: generated_path
@@ -613,7 +613,7 @@ state_load() with no prior save    -> returns null
 
 ### Outline tests (`outline.test.js`)
 
-```
+```text
 outline("large-class.js")
   -> has exports array
   -> has classes array with members
@@ -650,7 +650,7 @@ outline("large-class.js", { focus: "StrandService" })
 
 ### Capture tests (`capture.test.js`)
 
-```
+```text
 run_capture("echo hello", 10)
   -> exitCode: 0
   -> tail contains "hello"
@@ -666,7 +666,7 @@ run_capture("seq 1 500", 5)
 
 ### State tests (`state.test.js`)
 
-```
+```text
 state_save("# Working on X")
   -> file exists at .graft/WORKING_STATE.md
   -> content matches
@@ -680,7 +680,7 @@ state_load() with no prior save
 
 ### MCP integration tests (`mcp.test.js`)
 
-```
+```text
 spawn MCP server via stdio
   -> server lists all tools
   -> safe_read call returns valid response
@@ -782,7 +782,7 @@ Diagnostic command for debugging policy behavior.
 git graft doctor
 ```
 
-```
+```text
 project root:     /Users/james/git/git-stunts/git-warp (.git detected)
 line threshold:    150
 byte threshold:    12,000
@@ -808,7 +808,7 @@ Minimal decision metrics. Not a dashboard — a quick summary.
 git graft stats
 ```
 
-```
+```text
 session decisions (since last clear):
   content:   12 reads passed through
   outline:    8 reads downgraded to outline

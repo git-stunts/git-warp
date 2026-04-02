@@ -76,7 +76,7 @@ work that matters, but does not currently belong in a named lane.
 
 Legend prefix if applicable. No numeric IDs.
 
-```
+```text
 VIZ_braille-rendering.md
 PROTO_strand-lifecycle.md
 debt-trailer-codec-dts.md
@@ -86,7 +86,7 @@ debt-trailer-codec-dts.md
 
 Pulled into a cycle, a backlog item becomes a design doc:
 
-```
+```text
 backlog/asap/PROTO_strand-lifecycle.md
   → design/<cycle>/strand-lifecycle.md
 ```

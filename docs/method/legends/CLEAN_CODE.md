@@ -86,7 +86,7 @@ legend:
 
 `CC` — for backlog items that belong to this legend.
 
-```
+```text
 CC_strand-service-decomposition.md
 CC_raw-error-purge.md
 CC_max-lines-ratchet.md
