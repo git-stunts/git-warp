@@ -10,11 +10,8 @@
 import { diffStates, isEmptyDiff } from './StateDiff.js';
 import { matchGlob } from '../utils/matchGlob.js';
 
-/** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
-/** @typedef {import('./StateDiff.js').StateDiffResult} StateDiffResult */
-/** @typedef {import('./StateDiff.js').EdgeChange} EdgeChange */
-/** @typedef {import('./StateDiff.js').PropSet} PropSet */
-/** @typedef {import('./StateDiff.js').PropRemoved} PropRemoved */
+/** @import { WarpStateV5 } from './JoinReducer.js' */
+/** @import { StateDiffResult, EdgeChange, PropSet, PropRemoved } from './StateDiff.js' */
 
 /**
  * @typedef {Object} Subscriber

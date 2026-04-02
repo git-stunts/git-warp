@@ -12,8 +12,8 @@ import { createEmptyStateV5, reduceV5 } from './JoinReducer.js';
 import { ProvenancePayload } from './ProvenancePayload.js';
 import { decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
 
-/** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
-/** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
+/** @import { WarpStateV5 } from './JoinReducer.js' */
+/** @import { PatchV2 } from '../types/WarpTypesV2.js' */
 
 /**
  * The host interface that ProvenanceController depends on.

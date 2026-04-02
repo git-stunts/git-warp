@@ -29,16 +29,10 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
+/** @import { VisibleStateScopeV1, VisibleStateReaderV5, CoordinateComparisonSelectorV1, CoordinateTransferPlanSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanV1, StrandDescriptor as StrandDescriptorV1 } from '../../../index.js' */
+/** @import { WarpStateV5 } from './JoinReducer.js' */
+
 /**
- * @typedef {import('../../../index.js').VisibleStateScopePrefixFilterV1} VisibleStateScopePrefixFilterV1
- * @typedef {import('../../../index.js').VisibleStateScopeV1} VisibleStateScopeV1
- * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
- * @typedef {import('../../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1
- * @typedef {import('../../../index.js').StrandDescriptor} StrandDescriptorV1
- * @typedef {import('../../../index.js').CoordinateComparisonV1} CoordinateComparisonV1
- * @typedef {import('../../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1
- * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
  * @typedef {{ left: Record<string, unknown>, right: Record<string, unknown>, targetId?: string|null, scope?: VisibleStateScopeV1|null }} InternalCompareCoordinatesOptions
  * @typedef {{ source: Record<string, unknown>, target: Record<string, unknown>, scope?: VisibleStateScopeV1|null }} InternalPlanCoordinateTransferOptions
  */
