@@ -14,13 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Zero-error TypeScript campaign complete** — eliminated all 1,707 `tsc --noEmit` errors across 271 files. Mechanical TS4111 bracket-access sweep (614), null guards for `noUncheckedIndexedAccess`, conditional spreads for `exactOptionalPropertyTypes`, unused variable removal. All 8 pre-push IRONCLAD gates now pass.
 - **JoinReducer OpStrategy registry** — replaced five triplicated switch statements over 8 canonical op types with a frozen `Map<string, OpStrategy>` registry. Each strategy defines `mutate`, `outcome`, `snapshot`, `accumulate`, `validate`. Adding a new op type without all five methods is a hard error at module load time. Cross-path equivalence tests verify `applyFast`, `applyWithReceipt`, and `applyWithDiff` produce identical CRDT state.
-- **ESLint `dot-notation` disabled** — conflicts with `noPropertyAccessFromIndexSignature` tsconfig flag. The TypeScript flag provides type safety; the ESLint rule is purely stylistic.
+- **ESLint `dot-notation` restored** — re-enabled via `@typescript-eslint/dot-notation` which respects `noPropertyAccessFromIndexSignature`. The type-aware variant correctly allows bracket access on index-signature types while enforcing dot notation elsewhere.
 - `EffectSinkPort.deliver()` return type widened to `DeliveryObservation | DeliveryObservation[]` to match `MultiplexSink` behavior.
 - **Zero-error lint campaign complete** — eliminated all 1,876 ESLint errors across ~180 source files. Every raw `Error` replaced with domain error classes. Every port stub uses `WarpError` with `E_NOT_IMPLEMENTED`. `MessageCodecInternal` type-poisoning from `@git-stunts/trailer-codec` fixed at root via `unknown` intermediary casts. Errors barrel (`src/domain/errors/index.js`) now exports all 27 error classes.
 - **Lint ratchet enforcement** — `npm run lint:ratchet` asserts zero ESLint errors codebase-wide. Added as CI Gate 4b. Pre-push hook (Gate 4) already blocked non-zero exits; ratchet makes the invariant explicit and auditable.
 - **Git hooks wired** — `core.hooksPath` set to `scripts/hooks/` on `npm install`. Pre-commit lints staged JS files. Pre-push runs full 8-gate IRONCLAD firewall.
+- **OpStrategy.receiptName** — each OpStrategy entry now carries its own TickReceipt-compatible operation name, eliminating the redundant `RECEIPT_OP_TYPE` lookup tables in JoinReducer and ConflictAnalyzerService.
+- **SyncProtocol uses SyncError** — `E_SYNC_DIVERGENCE` now throws `SyncError` instead of a raw `Error` with manually attached code property.
+- **AuditReceiptService uses AuditError** — all 16 raw `Error` throws replaced with typed `AuditError` carrying serializable context and machine-readable error codes (`E_AUDIT_INVALID`, `E_AUDIT_CAS_FAILED`, `E_AUDIT_DEGRADED`).
+- **CLI import.meta.url resolution** — replaced `__dirname` polyfill pattern in CLI with idiomatic `fileURLToPath(new URL('../..', import.meta.url))` for resilient package root resolution.
 
 ### Added
+
+- **`AuditError`** — domain error class for audit receipt validation and persistence failures. Exported from package root with four static error codes.
 
 - **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
 - **`EffectSinkPort`** — abstract port for effect delivery sinks, following the hexagonal architecture pattern.
