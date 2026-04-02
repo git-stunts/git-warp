@@ -26,6 +26,8 @@ import StrandService from './StrandService.js';
 import { computeChecksum } from '../utils/checksumUtils.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
+
+/** @import { default as ComparisonHost } from '../WarpRuntime.js' */
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
@@ -1084,7 +1086,7 @@ async function compareCoordinatesImpl(graph, options) {
 /**
  * The host interface that ComparisonController depends on.
  *
- * @typedef {import('../WarpRuntime.js').default} ComparisonHost
+
  */
 
 export default class ComparisonController {

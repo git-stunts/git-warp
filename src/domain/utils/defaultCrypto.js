@@ -1,3 +1,5 @@
+/** @import { Hash, Hmac } from 'node:crypto' */
+
 /**
  * Default crypto implementation for domain services.
  *
@@ -13,10 +15,6 @@
  * @module domain/utils/defaultCrypto
  */
 
-/**
- * @typedef {import('node:crypto').Hash} Hash
- * @typedef {import('node:crypto').Hmac} Hmac
- */
 
 /** @type {((algorithm: string) => Hash)|null} */
 let _createHash = null;

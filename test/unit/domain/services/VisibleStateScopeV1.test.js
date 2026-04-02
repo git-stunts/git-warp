@@ -15,6 +15,7 @@ import {
   normalizeVisibleStateScopeV1,
   scopeMaterializedStateV5,
 } from '../../../../src/domain/services/VisibleStateScopeV1.js';
+import WarpStateV5 from '../../../../src/domain/services/WarpStateV5.js';
 
 function buildScopedFixtureState() {
   const nodeAlive = createORSet();
@@ -31,7 +32,7 @@ function buildScopedFixtureState() {
     [encodeEdgePropKey('task:1', 'comparison-artifact:cmp-1', 'governs', 'via'), lwwSet(createEventId(3, 'alice', 'abc1236', 0), 'control-plane')],
   ]);
 
-  return {
+  return new WarpStateV5({
     nodeAlive,
     edgeAlive,
     prop,
@@ -39,7 +40,7 @@ function buildScopedFixtureState() {
     edgeBirthEvent: new Map([
       [edgeKey, createEventId(3, 'alice', 'abc1236', 0)],
     ]),
-  };
+  });
 }
 
 describe('VisibleStateScopeV1', () => {

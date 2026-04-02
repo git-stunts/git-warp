@@ -9,8 +9,8 @@
  * }
  */
 
-import { createORSet, orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
-import { createVersionVector, vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
+import { orsetAdd, orsetRemove, orsetJoin, orsetContains } from '../crdt/ORSet.js';
+import { vvMerge, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
@@ -19,6 +19,9 @@ import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PR
 import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';
 import PatchError from '../errors/PatchError.js';
+import WarpStateV5 from './WarpStateV5.js';
+
+export { default as WarpStateV5 } from './WarpStateV5.js';
 
 // Re-export key codec functions for backward compatibility
 export {
@@ -31,18 +34,7 @@ export {
 // Re-export op normalization for consumers that operate on raw patches
 export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
 
-/**
- * @typedef {Object} WarpStateV5
- * @property {import('../crdt/ORSet.js').ORSet} nodeAlive - ORSet of alive nodes
- * @property {import('../crdt/ORSet.js').ORSet} edgeAlive - ORSet of alive edges
- * @property {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} prop - Properties with LWW
- * @property {import('../crdt/VersionVector.js').VersionVector} observedFrontier - Observed version vector
- * @property {Map<string, import('../utils/EventId.js').EventId>} edgeBirthEvent - EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility).
- *   Always present at runtime (initialized to empty Map by createEmptyStateV5 and
- *   deserializeFullStateV5). Edge birth events were introduced in a later schema
- *   version; older checkpoints serialize without this field, but the deserializer
- *   always produces an empty Map for them.
- */
+// WarpStateV5 class imported from ./WarpStateV5.js (re-exported above)
 
 /**
  * @typedef {Object} OpLike
@@ -79,13 +71,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @returns {WarpStateV5} A fresh, empty WARP state ready for patch application
  */
 export function createEmptyStateV5() {
-  return {
-    nodeAlive: createORSet(),
-    edgeAlive: createORSet(),
-    prop: new Map(),
-    observedFrontier: createVersionVector(),
-    edgeBirthEvent: new Map(),
-  };
+  return WarpStateV5.empty();
 }
 
 /**
@@ -968,13 +954,13 @@ export function join(state, patch, patchSha, collectReceipts) {
  * @returns {WarpStateV5} New state representing the join of a and b
  */
 export function joinStates(a, b) {
-  return {
+  return new WarpStateV5({
     nodeAlive: orsetJoin(a.nodeAlive, b.nodeAlive),
     edgeAlive: orsetJoin(a.edgeAlive, b.edgeAlive),
     prop: mergeProps(a.prop, b.prop),
     observedFrontier: vvMerge(a.observedFrontier, b.observedFrontier),
     edgeBirthEvent: mergeEdgeBirthEvent(a.edgeBirthEvent, b.edgeBirthEvent),
-  };
+  });
 }
 
 /**
@@ -1102,11 +1088,10 @@ export function reduceV5(patches, initialState, options) {
  * @returns {WarpStateV5} A new state with identical contents but independent data structures
  */
 export function cloneStateV5(state) {
-  return {
-    nodeAlive: orsetClone(state.nodeAlive),
-    edgeAlive: orsetClone(state.edgeAlive),
-    prop: new Map(state.prop),
-    observedFrontier: vvClone(state.observedFrontier),
-    edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
-  };
+  if (!(state instanceof WarpStateV5)) {
+    throw new PatchError('cloneStateV5: expected WarpStateV5 instance', {
+      context: { actual: typeof state },
+    });
+  }
+  return state.clone();
 }

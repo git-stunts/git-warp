@@ -7,6 +7,8 @@ import {
 } from './services/CoordinateFactExport.js';
 import { computeChecksum } from './utils/checksumUtils.js';
 
+
+/** @import { CoordinateComparisonSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanSelectorV1, CoordinateTransferPlanV1, CryptoPort, StrandBraidOptions, StrandCreateOptions, StrandDescriptor, StrandIntentDescriptor, StrandTickRecord, VisibleStateScopeV1 } from '../../index.js' */
 /** @typedef {Parameters<WarpRuntime['braidStrand']>[1]} InternalBraidStrandOptions */
 /** @typedef {Parameters<WarpRuntime['materializeStrand']>[1]} InternalMaterializeStrandOptions */
 /** @typedef {Parameters<WarpRuntime['compareStrand']>[1]} InternalCompareStrandOptions */
@@ -14,17 +16,7 @@ import { computeChecksum } from './utils/checksumUtils.js';
 /** @typedef {Parameters<WarpRuntime['compareCoordinates']>[0]} InternalCompareCoordinatesOptions */
 /** @typedef {Parameters<WarpRuntime['planCoordinateTransfer']>[0]} InternalPlanCoordinateTransferOptions */
 /** @typedef {Parameters<WarpRuntime['analyzeConflicts']>[0]} InternalConflictAnalyzeOptions */
-/** @typedef {import('../../index.js').CoordinateComparisonV1} CoordinateComparisonV1 */
-/** @typedef {import('../../index.js').CoordinateTransferPlanV1} CoordinateTransferPlanV1 */
-/** @typedef {import('../../index.js').CoordinateComparisonSelectorV1} CoordinateComparisonSelectorV1 */
-/** @typedef {import('../../index.js').CoordinateTransferPlanSelectorV1} CoordinateTransferPlanSelectorV1 */
-/** @typedef {import('../../index.js').VisibleStateScopeV1} VisibleStateScopeV1 */
-/** @typedef {import('../../index.js').CryptoPort} CryptoPort */
-/** @typedef {import('../../index.js').StrandCreateOptions} StrandCreateOptions */
-/** @typedef {import('../../index.js').StrandBraidOptions} StrandBraidOptions */
-/** @typedef {import('../../index.js').StrandDescriptor} StrandDescriptor */
-/** @typedef {import('../../index.js').StrandIntentDescriptor} StrandIntentDescriptor */
-/** @typedef {import('../../index.js').StrandTickRecord} StrandTickRecord */
+
 
 /**
  * Refreshes the comparison digest for a coordinate comparison result.

@@ -12,12 +12,14 @@ import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix
 import { generateWriterId } from '../utils/WriterId.js';
 import { createWormhole as createWormholeImpl } from './WormholeService.js';
 
+
+/** @import { default as ForkHost } from '../WarpRuntime.js' */
 const DEFAULT_ADJACENCY_CACHE_SIZE = 3;
 
 /**
  * The host interface that ForkController depends on.
  *
- * @typedef {import('../WarpRuntime.js').default} ForkHost
+
  */
 
 export default class ForkController {

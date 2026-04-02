@@ -5,14 +5,10 @@ import {
 } from './KeyCodec.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 
+
+/** @import { ContentMeta, VisibleStateReaderV5, VisibleStateTransferOperationV1, VisibleStateTransferPlanSummaryV1 } from '../../../index.js' */
 export const VISIBLE_STATE_TRANSFER_PLAN_VERSION = 'visible-state-transfer-plan/v1';
 
-/**
- * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
- * @typedef {import('../../../index.js').ContentMeta} ContentMeta
- * @typedef {import('../../../index.js').VisibleStateTransferOperationV1} VisibleStateTransferOperationV1
- * @typedef {import('../../../index.js').VisibleStateTransferPlanSummaryV1} VisibleStateTransferPlanSummaryV1
- */
 
 const ATTACHMENT_PROPERTY_KEYS = new Set([
   CONTENT_PROPERTY_KEY,

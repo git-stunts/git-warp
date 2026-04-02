@@ -25,6 +25,7 @@ import { createORSet, orsetAdd, orsetCompact } from '../crdt/ORSet.js';
 import { createDot } from '../crdt/Dot.js';
 import { createVersionVector } from '../crdt/VersionVector.js';
 import { cloneStateV5, reduceV5 } from './JoinReducer.js';
+import WarpStateV5 from './WarpStateV5.js';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from './KeyCodec.js';
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 
@@ -563,5 +564,5 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
     edgeBirthEvent.set(edgeKey, { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 });
   }
 
-  return { nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent };
+  return new WarpStateV5({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
 }

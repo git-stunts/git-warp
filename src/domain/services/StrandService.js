@@ -27,8 +27,9 @@ import { createImmutableValue, createImmutableWarpStateV5 } from './ImmutableSna
 import { ProvenanceIndex } from './ProvenanceIndex.js';
 import { encodePatchMessage } from './WarpMessageCodec.js';
 
-/** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
-/** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
+
+/** @import { default as WarpRuntime } from '../WarpRuntime.js' */
+/** @import { PatchV2 } from '../types/WarpTypesV2.js' */
 /**
  * @typedef {{
  *   strandId: string,
@@ -1050,7 +1051,7 @@ export default class StrandService {
    *
    * @param {string} strandId
    * @param {{ receipts?: boolean, ceiling?: number|null }} [options]
-   * @returns {Promise<import('../services/JoinReducer.js').WarpStateV5|{state: import('../services/JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
+   * @returns {Promise<import('./JoinReducer.js').WarpStateV5|{state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[]}>}
    */
   async materialize(strandId, options = {}) {
     const detached = await openDetachedReadGraph(this._graph);

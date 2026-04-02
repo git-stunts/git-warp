@@ -15,8 +15,9 @@ import { createStateReaderV5 } from './StateReaderV5.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import { matchGlob } from '../utils/matchGlob.js';
-/** @typedef {import('../../../index.js').WorldlineSource} WorldlineSource */
 
+
+/** @import { WorldlineSource } from '../../../index.js' */
 /**
  * Clones an observer worldline source descriptor, producing an independent copy.
  * @param {{

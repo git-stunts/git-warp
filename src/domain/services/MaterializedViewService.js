@@ -155,7 +155,7 @@ function sampleNodes(allNodes, sampleRate, seed) {
 /**
  * Builds adjacency maps from state for ground-truth verification.
  *
- * @param {import('../services/JoinReducer.js').WarpStateV5} state
+ * @param {import('./JoinReducer.js').WarpStateV5} state
  * @returns {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }}
  */
 function buildGroundTruthAdjacency(state) {

@@ -42,11 +42,8 @@ import MinHeap from '../utils/MinHeap.js';
 import LRUCache from '../utils/LRUCache.js';
 import { checkAborted } from '../utils/cancellation.js';
 
-/** @typedef {import('../../ports/NeighborProviderPort.js').default} NeighborProviderPort */
-/** @typedef {import('../../ports/NeighborProviderPort.js').Direction} Direction */
-/** @typedef {import('../../ports/NeighborProviderPort.js').NeighborEdge} NeighborEdge */
-/** @typedef {import('../../ports/NeighborProviderPort.js').NeighborOptions} NeighborOptions */
 
+/** @import { Direction, NeighborEdge, NeighborOptions, default as NeighborProviderPort } from '../../ports/NeighborProviderPort.js' */
 /**
  * @typedef {Object} TraversalStats
  * @property {number} nodesVisited

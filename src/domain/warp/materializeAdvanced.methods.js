@@ -23,8 +23,7 @@ import BitmapNeighborProvider from '../services/BitmapNeighborProvider.js';
 import { QueryError } from './_internal.js';
 
 /** @typedef {import('../types/WarpPersistence.js').CorePersistence} CorePersistence */
-/** @typedef {import('../services/JoinReducer.js').WarpStateV5} WarpStateV5 */
-/** @typedef {import('../types/TickReceipt.js').TickReceipt} TickReceipt */
+
 
 /**
  * @typedef {{ outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>> }} AdjacencyMap
@@ -33,6 +32,9 @@ import { QueryError } from './_internal.js';
 
 import { buildWriterRef } from '../utils/RefLayout.js';
 
+
+/** @import { WarpStateV5 } from '../services/JoinReducer.js' */
+/** @import { TickReceipt } from '../types/TickReceipt.js' */
 /**
  * Creates a shallow-frozen public view of materialized state.
  *

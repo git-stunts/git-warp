@@ -1,3 +1,5 @@
+/** @import { default as RefPersistence } from '../../ports/RefPort.js' */
+
 /**
  * Role-specific persistence port types.
  *
@@ -23,7 +25,7 @@
 
 /**
  * Ref-only persistence — ref reads, writes, CAS, listing.
- * @typedef {import('../../ports/RefPort.js').default} RefPersistence
+
  */
 
 /**
