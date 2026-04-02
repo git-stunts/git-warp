@@ -165,32 +165,47 @@ function validateOpResult(value, i) {
  */
 
 /**
- * @typedef {Object} TickReceipt
- * @property {string} patchSha - SHA of the patch commit
- * @property {string} writer - Writer ID that produced the patch
- * @property {number} lamport - Lamport timestamp of the patch
- * @property {ReadonlyArray<Readonly<OpOutcome>>} ops - Per-operation outcomes (frozen)
+ * TickReceipt — immutable record of per-operation outcomes from a single patch.
  */
+export class TickReceipt {
+  /** @type {number} Lamport timestamp of the patch */
+  lamport;
+
+  /** @type {ReadonlyArray<Readonly<OpOutcome>>} Per-operation outcomes (frozen) */
+  ops;
+
+  /** @type {string} SHA of the patch commit */
+  patchSha;
+
+  /** @type {string} Writer ID that produced the patch */
+  writer;
+
+  /**
+   * Creates an immutable TickReceipt.
+   * @param {{ patchSha: string, writer: string, lamport: number, ops: OpOutcome[] }} fields
+   */
+  constructor({ patchSha, writer, lamport, ops }) {
+    assertNonEmptyString(patchSha, 'patchSha');
+    assertNonEmptyString(writer, 'writer');
+    assertNonNegativeInt(lamport);
+    assertOpsArray(ops);
+
+    this.lamport = lamport;
+    this.ops = freezeOps(ops);
+    this.patchSha = patchSha;
+    this.writer = writer;
+    Object.freeze(this);
+  }
+}
 
 /**
  * Creates an immutable TickReceipt.
  *
  * @param {{ patchSha: string, writer: string, lamport: number, ops: OpOutcome[] }} params
- * @returns {Readonly<TickReceipt>} Frozen tick receipt
- * @throws {Error} If any parameter is invalid
+ * @returns {TickReceipt}
  */
 export function createTickReceipt({ patchSha, writer, lamport, ops }) {
-  assertNonEmptyString(patchSha, 'patchSha');
-  assertNonEmptyString(writer, 'writer');
-  assertNonNegativeInt(lamport);
-  assertOpsArray(ops);
-
-  return Object.freeze({
-    patchSha,
-    writer,
-    lamport,
-    ops: freezeOps(ops),
-  });
+  return new TickReceipt({ patchSha, writer, lamport, ops });
 }
 
 /**
