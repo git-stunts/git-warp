@@ -23,14 +23,49 @@ const modeSet = new Set(DELIVERY_MODES);
  */
 
 /**
- * @typedef {Object} DeliveryObservation
- * @property {string} emissionId - Links to the EffectEmission
- * @property {string} sinkId - Which sink/adapter handled it
- * @property {'delivered' | 'suppressed' | 'failed' | 'skipped'} outcome
- * @property {string} [reason] - Why (e.g., "replay mode")
- * @property {number} timestamp - Wall-clock milliseconds
- * @property {Readonly<ExternalizationPolicy>} lens - Execution context at delivery time
+ * DeliveryObservation — trace record of how a sink handled an emitted effect.
  */
+export class DeliveryObservation {
+  /** @type {string} Links to the EffectEmission */
+  emissionId;
+
+  /** @type {string} Which sink/adapter handled it */
+  sinkId;
+
+  /** @type {'delivered' | 'suppressed' | 'failed' | 'skipped'} */
+  outcome;
+
+  /** @type {string | undefined} Why (e.g., "replay mode") */
+  reason;
+
+  /** @type {number} Wall-clock milliseconds */
+  timestamp;
+
+  /** @type {Readonly<ExternalizationPolicy>} Execution context at delivery time */
+  lens;
+
+  /**
+   * Creates an immutable DeliveryObservation.
+   * @param {{ emissionId: string, sinkId: string, outcome: string, reason?: string, timestamp: number, lens: { mode: string, suppressExternal: boolean } }} fields
+   */
+  constructor({ emissionId, sinkId, outcome, reason, timestamp, lens }) {
+    requireNonEmptyString(emissionId, 'emissionId');
+    requireNonEmptyString(sinkId, 'sinkId');
+    validateOutcome(outcome);
+    validateTimestamp(timestamp);
+    validateLens(lens);
+
+    this.emissionId = emissionId;
+    this.sinkId = sinkId;
+    this.outcome = /** @type {'delivered' | 'suppressed' | 'failed' | 'skipped'} */ (outcome);
+    this.timestamp = timestamp;
+    this.lens = freezeLens(lens);
+    if (reason !== undefined) {
+      this.reason = reason;
+    }
+    Object.freeze(this);
+  }
+}
 
 // ============================================================================
 // Validation
@@ -124,34 +159,11 @@ function freezeLens(lens) {
  * }} params
  * @returns {Readonly<DeliveryObservation>}
  */
-export function createDeliveryObservation({
-  emissionId,
-  sinkId,
-  outcome,
-  reason,
-  timestamp,
-  lens,
-}) {
-  requireNonEmptyString(emissionId, 'emissionId');
-  requireNonEmptyString(sinkId, 'sinkId');
-  validateOutcome(outcome);
-  validateTimestamp(timestamp);
-  validateLens(lens);
-
-  /** @type {{ emissionId: string, sinkId: string, outcome: 'delivered' | 'suppressed' | 'failed' | 'skipped', timestamp: number, lens: Readonly<ExternalizationPolicy>, reason?: string }} */
-  const obs = {
-    emissionId,
-    sinkId,
-    outcome: /** @type {'delivered' | 'suppressed' | 'failed' | 'skipped'} */ (outcome),
-    timestamp,
-    lens: freezeLens(lens),
-  };
-
-  if (reason !== undefined) {
-    obs.reason = reason;
-  }
-
-  return Object.freeze(obs);
+export function createDeliveryObservation({ emissionId, sinkId, outcome, reason, timestamp, lens }) {
+  return new DeliveryObservation({
+    emissionId, sinkId, outcome, timestamp, lens,
+    ...(reason !== undefined ? { reason } : {}),
+  });
 }
 
 // ============================================================================

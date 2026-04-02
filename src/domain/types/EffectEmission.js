@@ -22,20 +22,56 @@ export { DELIVERY_MODES, DELIVERY_OUTCOMES };
 // ============================================================================
 
 /**
- * @typedef {Object} EffectCoordinate
- * @property {Record<string, string> | null} frontier - Writer tip SHAs at emission time
- * @property {number | null} ceiling - Lamport ceiling (if capped)
+ * Causal coordinate at emission time.
  */
+export class EffectCoordinate {
+  /** @type {Record<string, string> | null} Writer tip SHAs at emission time */
+  frontier;
+
+  /** @type {number | null} Lamport ceiling (if capped) */
+  ceiling;
+
+  /**
+   * Creates an immutable EffectCoordinate.
+   * @param {{ frontier: Record<string, string> | null, ceiling: number | null }} fields
+   */
+  constructor({ frontier, ceiling }) {
+    this.frontier = frontier ? Object.freeze({ ...frontier }) : null;
+    this.ceiling = ceiling ?? null;
+    Object.freeze(this);
+  }
+}
 
 /**
- * @typedef {Object} EffectEmission
- * @property {string} id - Unique emission ID
- * @property {string} kind - Effect kind (generic string, app chooses meaning)
- * @property {unknown} payload - Opaque effect payload
- * @property {number} timestamp - Wall-clock milliseconds
- * @property {string | null} writer - Writer ID (null if not writer-scoped)
- * @property {Readonly<EffectCoordinate>} coordinate - Causal position
+ * EffectEmission — host-domain trace object for an outbound effect candidate.
  */
+export class EffectEmission {
+  /** @type {string} */  id;
+  /** @type {string} */  kind;
+  /** @type {unknown} */ payload;
+  /** @type {number} */  timestamp;
+  /** @type {string | null} */ writer;
+  /** @type {Readonly<EffectCoordinate>} */ coordinate;
+
+  /**
+   * Creates an immutable EffectEmission.
+   * @param {{ id: string, kind: string, payload: unknown, timestamp: number, writer: string | null, coordinate: { frontier: Record<string, string> | null, ceiling: number | null } }} fields
+   */
+  constructor({ id, kind, payload, timestamp, writer, coordinate }) {
+    requireNonEmptyString(id, 'id');
+    requireNonEmptyString(kind, 'kind');
+    validateTimestamp(timestamp);
+    validateCoordinate(coordinate);
+
+    this.id = id;
+    this.kind = kind;
+    this.payload = payload;
+    this.timestamp = timestamp;
+    this.writer = writer ?? null;
+    this.coordinate = new EffectCoordinate(coordinate);
+    Object.freeze(this);
+  }
+}
 
 // ============================================================================
 // Validation
@@ -96,26 +132,7 @@ function validateCoordinate(value) {
  * @returns {Readonly<EffectEmission>}
  */
 export function createEffectEmission({ id, kind, payload, timestamp, writer, coordinate }) {
-  requireNonEmptyString(id, 'id');
-  requireNonEmptyString(kind, 'kind');
-  validateTimestamp(timestamp);
-  validateCoordinate(coordinate);
-
-  const frozenCoordinate = Object.freeze({
-    frontier: coordinate.frontier
-      ? Object.freeze({ ...coordinate.frontier })
-      : null,
-    ceiling: coordinate.ceiling ?? null,
-  });
-
-  return Object.freeze({
-    id,
-    kind,
-    payload,
-    timestamp,
-    writer: writer ?? null,
-    coordinate: frozenCoordinate,
-  });
+  return new EffectEmission({ id, kind, payload, timestamp, writer, coordinate });
 }
 
 // ============================================================================
