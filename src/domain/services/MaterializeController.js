@@ -503,7 +503,8 @@ export default class MaterializeController {
     if (!h._stateDirty && h._materializedGraph) {
       return h._materializedGraph;
     }
-    const materialized = await this.materialize();
+    // Route through host so test mocks on graph.materialize are respected.
+    const materialized = await h.materialize();
     const state = h._stateDirty
       ? /** @type {WarpStateV5} */ (materialized)
       : (h._cachedState
@@ -626,7 +627,7 @@ export default class MaterializeController {
     if (h._adjacencyCache) {
       adjacency = h._adjacencyCache.get(stateHash);
       if (!adjacency) {
-        adjacency = this._buildAdjacency(state);
+        adjacency = h._buildAdjacency(state);
         h._adjacencyCache.set(stateHash, adjacency);
       }
     } else {
@@ -634,7 +635,7 @@ export default class MaterializeController {
     }
 
     h._materializedGraph = { state, stateHash, adjacency };
-    this._buildView(state, stateHash, diff);
+    h._buildView(state, stateHash, diff);
     return h._materializedGraph;
   }
 
