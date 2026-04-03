@@ -16,18 +16,7 @@
  * @see docs/specs/AUDIT_RECEIPT.md Section 8
  */
 
-/**
- * @typedef {Object} AuditReceipt
- * @property {number} version
- * @property {string} graphName
- * @property {string} writerId
- * @property {string} dataCommit
- * @property {string} opsDigest
- * @property {string} prevAuditCommit
- * @property {number} tickStart
- * @property {number} tickEnd
- * @property {number} timestamp
- */
+/** @typedef {import('./AuditReceiptService.js').AuditReceipt} AuditReceipt */
 
 import { buildAuditPrefix, buildAuditRef } from '../utils/RefLayout.js';
 import { decodeAuditMessage } from './AuditMessageCodec.js';
@@ -92,7 +81,7 @@ function validateReceiptSchema(receipt) {
   if (receipt === null || receipt === undefined || typeof receipt !== 'object') {
     return 'receipt is not an object';
   }
-  const rec = /** @type {{ version?: unknown, graphName?: unknown, writerId?: unknown, dataCommit?: unknown, opsDigest?: unknown, prevAuditCommit?: unknown, tickStart?: unknown, tickEnd?: unknown, timestamp?: unknown }} */ (receipt);
+  const rec = /** @type {Record<string, unknown>} */ (receipt);
   const keys = Object.keys(rec);
   if (keys.length !== 9) {
     return `expected 9 fields, got ${keys.length}`;
@@ -758,7 +747,7 @@ export class AuditVerifierService {
         status: 'error',
         source,
         sourceDetail,
-        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
+        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
         reason: `Trust chain read failed: ${recordsResult.error.message}`,
       });
     }
@@ -795,7 +784,7 @@ export class AuditVerifierService {
         sourceDetail,
         writerIds: options.writerIds || [],
         recordsScanned: records.length,
-        reasonCode: TRUST_REASON_CODES['TRUST_RECORD_CHAIN_INVALID'],
+        reasonCode: TRUST_REASON_CODES.TRUST_RECORD_CHAIN_INVALID,
         reason: `Trust chain invalid: ${(typeof chainResult.errors[0]?.error === 'string' && chainResult.errors[0].error.length > 0) ? chainResult.errors[0].error : 'unknown chain error'}`,
       });
     }

@@ -1,6 +1,7 @@
 import QueryError from '../errors/QueryError.js';
 import { createORSet, orsetContains } from '../crdt/ORSet.js';
 import { vvClone } from '../crdt/VersionVector.js';
+import WarpStateV5 from './WarpStateV5.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import {
   decodeEdgeKey,
@@ -18,7 +19,6 @@ import {
  * @typedef {{
  *   nodeIdPrefixes?: VisibleStateScopePrefixFilterV1
  * }} VisibleStateScopeV1
- * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
  */
 
 /**
@@ -369,13 +369,13 @@ export function scopeMaterializedStateV5(state, scope) {
     state.edgeAlive.tombstones,
   );
 
-  return {
+  return new WarpStateV5({
     nodeAlive: scopedNodeAlive,
     edgeAlive: scopedEdgeAlive,
     prop: collectScopedProps(state, scopedNodeIds, scopedEdgeKeys),
     observedFrontier: vvClone(state.observedFrontier),
     edgeBirthEvent: collectScopedEdgeBirthEvents(state, scopedEdgeKeys),
-  };
+  });
 }
 
 /**

@@ -23,7 +23,7 @@
 
 /**
  * Ref-only persistence — ref reads, writes, CAS, listing.
- * @typedef {import('../../ports/RefPort.js').default} RefPersistence
+
  */
 
 /**

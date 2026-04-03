@@ -26,6 +26,7 @@ export function hasErrorCode(err) {
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
+    // eslint-disable-next-line @typescript-eslint/dot-notation -- Record<string,unknown> requires bracket access (TS4111)
     typeof (/** @type {Record<string, unknown>} */ (err))['code'] === 'string'
   );
 }
@@ -40,6 +41,7 @@ export function hasMessage(err) {
     typeof err === 'object' &&
     err !== null &&
     'message' in err &&
+    // eslint-disable-next-line @typescript-eslint/dot-notation -- Record<string,unknown> requires bracket access (TS4111)
     typeof (/** @type {Record<string, unknown>} */ (err))['message'] === 'string'
   );
 }

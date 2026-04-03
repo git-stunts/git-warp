@@ -42,7 +42,7 @@ when you need that level of detail.
   System structure, public/core boundaries, and internal layering.
 - [Roadmap](ROADMAP.md)
   Current committed release and milestone inventory.
-- [Release Guide](release.md)
+- [Release Guide](method/release.md)
   Release and preflight process.
 - [Trust Migration](trust/TRUST_MIGRATION.md)
   Migration path for signed trust evidence.

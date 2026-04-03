@@ -170,8 +170,9 @@ export default tseslint.config(
       }],
       "no-useless-computed-key": "error",
       "no-useless-rename": "error",
-      // dot-notation disabled: conflicts with tsconfig noPropertyAccessFromIndexSignature
+      // Base dot-notation off; type-aware version below respects noPropertyAccessFromIndexSignature
       "dot-notation": "off",
+      "@typescript-eslint/dot-notation": "error",
       "grouped-accessor-pairs": ["error", "getBeforeSet"],
       "accessor-pairs": "error",
 
@@ -238,10 +239,10 @@ export default tseslint.config(
   {
     files: [
       "src/domain/WarpGraph.js",
-      "src/domain/warp/query.methods.js",
-      "src/domain/warp/subscribe.methods.js",
-      "src/domain/warp/provenance.methods.js",
-      "src/domain/warp/fork.methods.js",
+      "src/domain/services/QueryController.js",
+      "src/domain/services/SubscriptionController.js",
+      "src/domain/services/ProvenanceController.js",
+      "src/domain/services/ForkController.js",
       "src/domain/warp/checkpoint.methods.js",
       "src/domain/warp/patch.methods.js",
       "src/domain/warp/materialize.methods.js",

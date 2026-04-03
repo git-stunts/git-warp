@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const releaseDoc = readFileSync(
-  fileURLToPath(new URL('../../../docs/release.md', import.meta.url)),
+  fileURLToPath(new URL('../../../docs/method/release.md', import.meta.url)),
   'utf8',
 );
 const preflight = readFileSync(

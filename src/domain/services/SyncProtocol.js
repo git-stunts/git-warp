@@ -41,6 +41,7 @@ import nullLogger from '../utils/nullLogger.js';
 import { decodePatchMessage, assertOpsCompatible, SCHEMA_V3 } from './WarpMessageCodec.js';
 import { join, cloneStateV5, isKnownRawOp } from './JoinReducer.js';
 import SchemaUnsupportedError from '../errors/SchemaUnsupportedError.js';
+import SyncError from '../errors/SyncError.js';
 import EncryptionError from '../errors/EncryptionError.js';
 import PersistenceError from '../errors/PersistenceError.js';
 import { cloneFrontier, updateFrontier } from './Frontier.js';
@@ -233,11 +234,10 @@ export async function loadPatchRange(persistence, _graphName, writerId, fromSha,
 
   // If fromSha was specified but we didn't reach it, we have divergence
   if (fromSha !== null && fromSha !== undefined && fromSha.length > 0 && cur === null) {
-    const err = /** @type {Error & { code: string }} */ (new Error(
-      `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`
-    ));
-    err.code = 'E_SYNC_DIVERGENCE';
-    throw err;
+    throw new SyncError(
+      `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
+      { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
+    );
   }
 
   return patches;

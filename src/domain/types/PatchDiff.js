@@ -24,27 +24,57 @@
  */
 
 /**
- * @typedef {Object} PatchDiff
- * @property {string[]} nodesAdded           - Nodes that transitioned not-alive → alive
- * @property {string[]} nodesRemoved         - Nodes that transitioned alive → not-alive
- * @property {EdgeDiffEntry[]} edgesAdded    - Edges that transitioned not-alive → alive
- * @property {EdgeDiffEntry[]} edgesRemoved  - Edges that transitioned alive → not-alive
- * @property {PropDiffEntry[]} propsChanged  - Properties whose LWW winner actually changed
+ * PatchDiff — captures alive-ness transitions during patch application.
  */
+export class PatchDiff {
+  /** @type {EdgeDiffEntry[]} Edges that transitioned not-alive → alive */
+  edgesAdded;
+
+  /** @type {EdgeDiffEntry[]} Edges that transitioned alive → not-alive */
+  edgesRemoved;
+
+  /** @type {string[]} Nodes that transitioned not-alive → alive */
+  nodesAdded;
+
+  /** @type {string[]} Nodes that transitioned alive → not-alive */
+  nodesRemoved;
+
+  /** @type {PropDiffEntry[]} Properties whose LWW winner actually changed */
+  propsChanged;
+
+  /**
+   * Creates a PatchDiff from field values.
+   * @param {{ nodesAdded: string[], nodesRemoved: string[], edgesAdded: EdgeDiffEntry[], edgesRemoved: EdgeDiffEntry[], propsChanged: PropDiffEntry[] }} fields
+   */
+  constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged }) {
+    this.nodesAdded = nodesAdded;
+    this.nodesRemoved = nodesRemoved;
+    this.edgesAdded = edgesAdded;
+    this.edgesRemoved = edgesRemoved;
+    this.propsChanged = propsChanged;
+  }
+
+  /**
+   * Creates an empty PatchDiff.
+   * @returns {PatchDiff}
+   */
+  static empty() {
+    return new PatchDiff({
+      nodesAdded: [],
+      nodesRemoved: [],
+      edgesAdded: [],
+      edgesRemoved: [],
+      propsChanged: [],
+    });
+  }
+}
 
 /**
  * Creates an empty PatchDiff.
- *
  * @returns {PatchDiff}
  */
 export function createEmptyDiff() {
-  return {
-    nodesAdded: [],
-    nodesRemoved: [],
-    edgesAdded: [],
-    edgesRemoved: [],
-    propsChanged: [],
-  };
+  return PatchDiff.empty();
 }
 
 /**
@@ -110,5 +140,5 @@ export function mergeDiffs(a, b) {
 
   const propsChanged = deduplicateProps(a.propsChanged.concat(b.propsChanged));
 
-  return { nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged };
+  return new PatchDiff({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged });
 }

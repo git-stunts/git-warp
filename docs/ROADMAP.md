@@ -1,5 +1,9 @@
 # ROADMAP — @git-stunts/git-warp
 
+> **MIGRATED:** All incomplete items have been migrated to `docs/method/backlog/`.
+> See [METHOD.md](/METHOD.md) for the current process.
+> Completed items remain in `docs/ROADMAP/COMPLETED.md`. This file is kept for reference only.
+
 > **Current release on `main`:** v16.0.0
 > **Next intended release:** v16.0.1
 > **Last reconciled:** 2026-03-29 (v16.0.0 release. OG-014 streaming CAS blob storage, OG-015 JSR docs, deprecated TraversalService and createWriter removed.)
@@ -203,6 +207,17 @@ P1 is complete on `v15`: B36 and B37 landed as the shared test-foundation pass, 
 | B19  | ✅ **CANONICAL SERIALIZATION PROPERTY TESTS** — Seeded `fast-check` coverage now verifies `canonicalStringify()` idempotency and determinism.                                                                                                                                                                                                                              | S      |
 | B22  | ✅ **CANONICAL PARSE DETERMINISM TEST** — Repeated `TrustRecordSchema.parse()` canonicalization is now property-tested for stable output.                                                                                                                                                                                                                                  | S      |
 
+### P1b — TSC Zero Campaign Drift Audit ⚠️ HIGH PRIORITY
+
+The TSC zero campaign (PR #73) eliminated 1,707 type errors but introduced process drift that must be audited before the next release.
+
+| ID   | Item                                                                                                                                                                                                                                                                                                                                                                                              | Effort |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| B171 | **TSC CAMPAIGN AGENT-AUTHORED CODE AUDIT** — 27 files were merged via `checkout --theirs` during worktree conflict resolution without line-by-line review. Tests pass, but test coverage does not guarantee absence of subtle semantic drift (e.g. changed fallback values, widened types, reordered logic). Audit every agent-authored file diff against the pre-campaign baseline. Revert anything suspicious. | L      |
+| B172 | **RESTORE `dot-notation` VIA `@typescript-eslint/dot-notation`** — ESLint `dot-notation` was disabled globally to resolve conflict with `noPropertyAccessFromIndexSignature`. The proper fix is switching to `@typescript-eslint/dot-notation` which respects the tsconfig flag. This restores lint coverage for actual dot-notation misuse while allowing bracket access on index signatures. | S      |
+| B173 | **EFFECTSINKPORT BREAKING CHANGE HYGIENE** — `EffectSinkPort.deliver()` return type was widened from `DeliveryObservation` to `DeliveryObservation \| DeliveryObservation[]` in `index.d.ts`. This is a breaking API surface change that shipped without a `BREAKING CHANGE` commit footer. Assess downstream impact and decide: (a) revert the widening and fix MultiplexSink to unwrap, or (b) accept it and document as a breaking change for the next major version. | S      |
+| B174 | **`@git-stunts/trailer-codec` TYPE DECLARATIONS** — `getCodec()` in `MessageCodecInternal.js` returns an untyped `TrailerCodec`, forcing 6+ downstream files to cast through `unknown` intermediary. Root fix: add `index.d.ts` to the `@git-stunts/trailer-codec` package upstream. | M      |
+
 ### P2 — CI & Tooling (one batch PR)
 
 `B83`, `B85`, `B57`, `B86`, `B87`, and `B168` are now merged on `main`. PR #69 also landed the issue-45 content metadata API and closed the last open GitHub issue. The repo now runs both markdownlint and the Markdown JS/TS code-sample linter in the CI fast gate and the local `scripts/hooks/pre-push` firewall, and the hook's gate labels/quick-mode messaging now have dedicated regression coverage. The tracked backlog now stands at 26 standalone items after adding the native-vs-WASM roaring benchmark slice, and remaining P2 work still starts at B88. B123 is still the largest item and may need to split out if the PR gets too big.
@@ -397,7 +412,7 @@ B158 (P7) ──→ B159 (P7)   CDC seek cache
 | **Milestone (M12)**   | 18                                | B66, B67, B70, B73, B75, B105–B115, B117, B118                                                                                                                                      |
 | **Milestone (M13)**   | 1                                 | B116 (internal: DONE; wire-format: DEFERRED)                                                                                                                                        |
 | **Milestone (M14)**   | 16                                | B130–B145                                                                                                                                                                           |
-| **Standalone**        | 26                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B169–B170                                                      |
+| **Standalone**        | 30                                | B12, B28, B34–B35, B43, B53, B54, B76, B79, B88, B96, B98, B102–B104, B119, B123, B127–B129, B147, B152, B155–B156, B169–B174                                                      |
 | **Standalone (done)** | 62                                | B19, B22, B26, B36–B37, B44, B46, B47, B48–B52, B55, B57, B71, B72, B77, B78, B80–B87, B89–B95, B97, B99–B100, B120–B122, B124, B125, B126, B146, B148–B151, B153, B154, B157–B168 |
 | **Deferred**          | 7                                 | B4, B7, B16, B20, B21, B27, B101                                                                                                                                                    |
 | **Rejected**          | 7                                 | B5, B6, B13, B17, B18, B25, B45                                                                                                                                                     |
@@ -507,9 +522,9 @@ All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13
 
 The active roadmap is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
-Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
-Promotable pre-design intake now lives in `BACKLOG/`. This file remains the
-committed milestone/release inventory.
+Rejected items live in `docs/method/graveyard/`. Resurrections must address the rejection note.
+Promotable pre-design intake lives in `docs/method/backlog/` with lane organization.
+This file remains the committed milestone/release inventory.
 
 ---
 
@@ -700,13 +715,13 @@ Exploratory concepts captured during PR hardening. These are intentionally fully
 - Golden output tests for deterministic summary formatting.
 - Smoke test ensuring script exits non-zero on API/auth failures.
 
-## Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG/`
+## Concern 4 — Documentation Drift: `ROADMAP.md` vs Backlog
 
 The roles are now split explicitly:
 
 - `ROADMAP.md` owns committed milestone/release inventory
-- `BACKLOG/` owns promotable pre-design items
-- `docs/design/` owns active design docs
+- `docs/method/backlog/` owns promotable pre-design items (lane-organized)
+- `docs/design/` owns active cycle design docs
 
 Backlog items should be promoted into `docs/design/` before tests and
 implementation begin.

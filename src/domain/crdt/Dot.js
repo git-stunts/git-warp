@@ -56,13 +56,36 @@
  */
 
 /**
- * Dot - Unique operation identifier for CRDT operations.
- * A dot is a (writerId, counter) pair that uniquely identifies an operation.
- *
- * @typedef {Object} Dot
- * @property {string} writerId - Writer identifier (non-empty string)
- * @property {number} counter - Monotonic counter (positive integer)
+ * Dot — unique operation identity for CRDT semantics.
+ * A (writerId, counter) pair that serves as a "birth certificate"
+ * for each CRDT operation.
  */
+export class Dot {
+  /** @type {string} Writer identifier (non-empty string) */
+  writerId;
+
+  /** @type {number} Monotonic counter (positive integer) */
+  counter;
+
+  /**
+   * Creates a validated Dot.
+   *
+   * @param {string} writerId - Must be non-empty string
+   * @param {number} counter - Must be positive integer (> 0)
+   */
+  constructor(writerId, counter) {
+    if (typeof writerId !== 'string' || writerId.length === 0) {
+      throw new Error('writerId must be a non-empty string');
+    }
+
+    if (!Number.isInteger(counter) || counter <= 0) {
+      throw new Error('counter must be a positive integer');
+    }
+
+    this.writerId = writerId;
+    this.counter = counter;
+  }
+}
 
 /**
  * Creates a validated Dot.
@@ -70,18 +93,9 @@
  * @param {string} writerId - Must be non-empty string
  * @param {number} counter - Must be positive integer (> 0)
  * @returns {Dot}
- * @throws {Error} If validation fails
  */
 export function createDot(writerId, counter) {
-  if (typeof writerId !== 'string' || writerId.length === 0) {
-    throw new Error('writerId must be a non-empty string');
-  }
-
-  if (!Number.isInteger(counter) || counter <= 0) {
-    throw new Error('counter must be a positive integer');
-  }
-
-  return { writerId, counter };
+  return new Dot(writerId, counter);
 }
 
 /**
@@ -136,7 +150,7 @@ export function decodeDot(encoded) {
     throw new Error('Invalid encoded dot format: invalid counter');
   }
 
-  return { writerId, counter };
+  return new Dot(writerId, counter);
 }
 
 /**

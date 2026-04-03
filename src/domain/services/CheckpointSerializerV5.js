@@ -17,6 +17,7 @@ import { orsetSerialize, orsetDeserialize } from '../crdt/ORSet.js';
 import { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
 import { decodeDot } from '../crdt/Dot.js';
 import { createEmptyStateV5 } from './JoinReducer.js';
+import WarpStateV5 from './WarpStateV5.js';
 
 // ============================================================================
 // Full State Serialization (for Checkpoints)
@@ -108,13 +109,13 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
   if (obj['version'] !== undefined && obj['version'] !== 'full-v5') {
     throw new Error(`Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj['version'])}'`);
   }
-  return {
+  return new WarpStateV5({
     nodeAlive: orsetDeserialize(obj['nodeAlive'] ?? {}),
     edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
     prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
     observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
     edgeBirthEvent: /** @type {Map<string, import('../utils/EventId.js').EventId>} */ (deserializeEdgeBirthEvent(obj)),
-  };
+  });
 }
 
 // ============================================================================

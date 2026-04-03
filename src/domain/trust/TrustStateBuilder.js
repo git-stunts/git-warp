@@ -26,14 +26,30 @@ import { TrustRecordSchema } from './schemas.js';
  */
 
 /**
- * @typedef {Object} TrustState
- * @property {Map<string, {publicKey: string, addedAt: string}>} activeKeys - keyId → key info
- * @property {Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>} revokedKeys
- * @property {Map<string, {keyId: string, boundAt: string}>} writerBindings - "writerId\0keyId" → binding
- * @property {Map<string, {keyId: string, revokedAt: string, reasonCode: string}>} revokedBindings
- * @property {Array<{recordId: string, error: string}>} errors
- * @property {number} recordsProcessed - Total number of records fed to the builder
+ * TrustState — frozen aggregate of all trust chain records.
  */
+export class TrustState {
+  /** @type {Map<string, {publicKey: string, addedAt: string}>} */  activeKeys;
+  /** @type {Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>} */  revokedKeys;
+  /** @type {Map<string, {keyId: string, boundAt: string}>} */  writerBindings;
+  /** @type {Map<string, {keyId: string, revokedAt: string, reasonCode: string}>} */  revokedBindings;
+  /** @type {Array<{recordId: string, error: string}>} */  errors;
+  /** @type {number} */  recordsProcessed;
+
+  /**
+   * Creates a frozen TrustState.
+   * @param {{ activeKeys: Map<string, {publicKey: string, addedAt: string}>, revokedKeys: Map<string, {publicKey: string, revokedAt: string, reasonCode: string}>, writerBindings: Map<string, {keyId: string, boundAt: string}>, revokedBindings: Map<string, {keyId: string, revokedAt: string, reasonCode: string}>, errors: Array<{recordId: string, error: string}>, recordsProcessed: number }} fields
+   */
+  constructor(fields) {
+    this.activeKeys = fields.activeKeys;
+    this.revokedKeys = fields.revokedKeys;
+    this.writerBindings = fields.writerBindings;
+    this.revokedBindings = fields.revokedBindings;
+    this.errors = fields.errors;
+    this.recordsProcessed = fields.recordsProcessed;
+    Object.freeze(this);
+  }
+}
 
 /**
  * @typedef {Object} TrustBuildOptions
@@ -89,7 +105,7 @@ export function buildState(records, options = {}) {
     processRecord(rec, ctx);
   }
 
-  return Object.freeze({
+  return new TrustState({
     activeKeys: ctx.activeKeys,
     revokedKeys: ctx.revokedKeys,
     writerBindings: ctx.writerBindings,

@@ -2,162 +2,81 @@
 
 ## Planning Sources Of Truth
 
-Do not duplicate the repo's "active plan" inside `CONTRIBUTING.md`.
-That information drifts too easily here.
+- `docs/method/backlog/` — lane-organized backlog (inbox/, asap/, up-next/, cool-ideas/, bad-code/)
+- `docs/design/<NNNN-slug>/` — active cycle work; backlog item promotes here
+- `CHANGELOG.md` — what has landed
+- `docs/method/retro/<NNNN-slug>/` — closed cycle retrospectives
 
-Instead, use these sources:
+No milestones. No ROADMAP. Cycles are the unit of work.
+See [METHOD.md](../METHOD.md) for the full process.
 
-- `BACKLOG/README.md` for the currently active cycle and promotable pre-design
-  slices
-- `docs/ROADMAP.md` for committed release and milestone inventory
-- `CHANGELOG.md` for what has already landed on the branch or in released
-  versions
-- `docs/design/` for the governing design notes promoted from active backlog
-  items
+## Cycle Process
 
-If these artifacts disagree, reconcile them as part of the cycle close instead
-of letting `CONTRIBUTING.md` become a second planning registry.
+A cycle is one backlog item, start to finish:
 
-## Development Loop
+1. **Pull** — promote a backlog item to `docs/design/<NNNN-slug>/`
+2. **Design** — write the design doc; add hills, playback questions, non-goals
+3. **Spec** — write failing tests as executable spec
+4. **Implement** — make the tests pass
+5. **Close** — retrospective, drift audit, CHANGELOG, tech debt journal,
+   cool ideas
 
-This repo follows the same disciplined cycle used by higher-layer products built
-on git-warp:
+### Retrospectives
 
-1. design docs first
-2. tests as executable spec second
-3. implementation third
-4. playback, retrospective, and reconciliation after the slice lands
+Every closed cycle gets a retrospective in `docs/method/retro/<NNNN-slug>/`.
+At minimum:
 
-Tests are the spec. Design docs define intent and invariants. Implementation
-follows.
+1. Governing design docs and backlog IDs
+2. What actually landed
+3. Design Alignment Audit — label each point as `aligned`, `partially aligned`,
+   or `not aligned`
+4. Observed drift — classify as deliberate tradeoff, implementation shortcut,
+   hidden constraint, test gap, or design ambiguity
+5. Resolution — update design docs, add follow-on backlog item, or fix
+   immediately
 
-When a `BACKLOG/` item is selected for active work, promote it into
-`docs/design/` before writing tests.
-
-For non-trivial work, use IBM Design Thinking style framing:
-
-- sponsor actors
-- hills
-- playbacks
-- explicit non-goals
-
-Keep that vocabulary in the design method. Do not leak it into the runtime
-ontology unless the substrate truly needs a first-class concept.
-
-## Retrospectives
-
-Retrospectives are not optional cleanup. Every closed slice should leave behind
-an explicit retrospective, and that retrospective must audit the landed changes
-against the intended design.
-
-At minimum, every retrospective should include:
-
-1. governing design docs and backlog IDs
-2. what actually landed
-3. a `Design Alignment Audit` section
-4. any observed drift
-5. whether the drift is accepted, rejected, or deferred
-
-The `Design Alignment Audit` should check the implemented slice against the
-intended invariants and label each major point as:
-
-- `aligned`
-- `partially aligned`
-- `not aligned`
-
-If implementation drift occurred, the retrospective must say why:
-
-- deliberate tradeoff
-- implementation shortcut
-- hidden pre-existing constraint
-- test gap
-- design ambiguity
-
-And it must say how the repo resolves that drift:
-
-- update the design docs
-- add a follow-on `BACKLOG/` item
-- immediately fix the implementation in the next slice
-
-Do not treat a passing test suite as proof that the design was honored. The
-retro is where we verify that the code matches the intended architecture, not
-just the executable spec that happened to be written.
-
-## Checkpoints
-
-Most slices should pass through four checkpoints:
-
-1. doctrine
-2. spec
-3. semantic
-4. surface
-
-For git-warp, "surface" often means public API, CLI, or documentation surface
-rather than a GUI.
-
-Local red while iterating is acceptable. Shared branches, pushes intended for
-review, and merge submissions should be green.
+Do not treat a passing test suite as proof that the design was honored.
 
 ## Getting Started
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Set up git hooks: `npm run setup:hooks`
-4. Run tests: `npm test`
+```bash
+git clone git@github.com:git-stunts/git-warp.git
+cd git-warp
+npm install          # installs deps, sets up git hooks
+npm run test:local   # run unit tests
+```
 
 ## Git Hooks
 
-This project uses custom git hooks located in `scripts/hooks/`. Run `npm run setup:hooks` to enable them.
-- Hooks are also auto-configured on `npm install` (no-op if not a git repo).
-- `pre-commit` runs eslint on staged JS files.
-- `pre-push` runs `npm run lint`, `npm test`, `npm run benchmark`, and the Docker bats CLI suite (`git-warp` commands).
+Custom hooks in `scripts/hooks/`, auto-configured on `npm install`.
 
-### Pre-commit Hook
-
-The pre-commit hook runs ESLint on all staged JavaScript files. If linting fails, the commit is blocked.
-
-To fix lint errors:
-```bash
-npx eslint --fix <files>
-```
-
-To bypass temporarily (use sparingly):
-```bash
-git commit --no-verify
-```
+- **pre-commit** — ESLint on staged JS files
+- **pre-push** — 8-gate IRONCLAD firewall (tsc, policy, consumer types,
+  ESLint, ratchet, surface, markdown, tests)
 
 ## Code Style
 
-- ESLint enforces code style. Run `npx eslint .` to check.
-- Use template literals instead of string concatenation
-- Always use curly braces for if/else blocks
-- Keep functions focused and avoid deep nesting
+- ESLint enforces style. Run `npx eslint .` to check.
+- Template literals over concatenation
+- Always use curly braces for if/else
+- Keep functions focused, avoid deep nesting
 
 ## Running Tests
 
 ```bash
-npm test                 # Run all unit tests (Docker)
-npm run test:local       # Run unit tests without Docker
-npm test -- <pattern>    # Run specific tests
-
-# Multi-runtime test matrix (Docker)
-npm run test:node22      # Node 22: unit + integration + BATS CLI
-npm run test:bun         # Bun: API integration tests
-npm run test:deno        # Deno: API integration tests
-npm run test:matrix      # All runtimes in parallel
+npm run test:local       # Unit tests without Docker
+npm test                 # Unit tests (Docker)
+npm run test:matrix      # Full multi-runtime matrix (Docker)
 ```
 
 ### No-Coordination Invariant
 
-The no-coordination regression suite is non-negotiable for multi-writer safety.
-Ensure `test/unit/domain/WarpGraph.noCoordination.test.js` passes before submitting changes.
+`test/unit/domain/WarpGraph.noCoordination.test.js` is non-negotiable for
+multi-writer safety. Must pass before any PR.
 
 ## Pull Requests
 
-1. Create a feature branch from `main`
-2. Make your changes with clear commit messages
-3. Keep commits documentation-atomic: when a change affects shipped behavior, public surface, or backlog status, update `CHANGELOG.md` and the roadmap/backlog docs in the same commit.
-4. When a `BACKLOG/` item becomes active, promote it into `docs/design/` before implementation. When roadmap work completes, reconcile `docs/ROADMAP.md` and `docs/ROADMAP/COMPLETED.md` in the same commit.
-5. Ensure all tests pass: `npm test`
-6. Ensure linting passes: `npx eslint .`
-7. Submit a PR with a clear description
+1. Branch from the latest green branch
+2. Clear commit messages; docs-atomic (CHANGELOG + code in same commit)
+3. All tests pass, all lint gates pass
+4. Submit PR with clear description

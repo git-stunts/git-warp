@@ -9,14 +9,16 @@
  */
 
 import QueryError from '../errors/QueryError.js';
-import { reduceV5, normalizeRawOp } from './JoinReducer.js';
+import { reduceV5, normalizeRawOp, OP_STRATEGIES } from './JoinReducer.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { createEventId } from '../utils/EventId.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 import StrandService from './StrandService.js';
 
+
+/** @import { PatchV2 } from '../types/WarpTypesV2.js' */
 /** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
-/** @typedef {import('../types/WarpTypesV2.js').PatchV2} PatchV2 */
+
 /** @typedef {import('../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../utils/EventId.js').EventId} EventId */
 
@@ -32,20 +34,15 @@ const VALID_TARGET_KINDS = new Set(['node', 'edge', 'node_property', 'edge_prope
 const TARGET_SELECTOR_FIELDS = ['entityId', 'propertyKey', 'from', 'to', 'label'];
 
 /**
- * Receipt op type mapping. Kept local so the analyzer can interpret canonical ops
- * without depending on JoinReducer internals that are not part of the public API.
+ * Resolves a canonical op type to its TickReceipt-compatible name via OP_STRATEGIES.
+ * Returns undefined for unknown/forward-compatible op types.
+ * @param {string} opType
+ * @returns {string|undefined}
  */
-/** @type {Readonly<Record<string, string>>} */
-const RECEIPT_OP_TYPE = Object.freeze({
-  NodeAdd: 'NodeAdd',
-  NodeRemove: 'NodeTombstone',
-  EdgeAdd: 'EdgeAdd',
-  EdgeRemove: 'EdgeTombstone',
-  PropSet: 'PropSet',
-  NodePropSet: 'NodePropSet',
-  EdgePropSet: 'EdgePropSet',
-  BlobValue: 'BlobValue',
-});
+function receiptNameForOp(opType) {
+  const strategy = OP_STRATEGIES.get(opType);
+  return strategy !== undefined ? strategy.receiptName : undefined;
+}
 
 const CLASSIFICATION_NOTES = Object.freeze({
   RECEIPT_SUPERSEDED: 'receipt_superseded',
@@ -950,6 +947,8 @@ function normalizeEffectPayload(_target, opType, canonOp) {
     EdgeAdd: () => ({ dot: canonOp['dot'] ?? null }),
     /** Extracts observed dots from an EdgeTombstone operation. */
     EdgeTombstone: () => ({ observedDots: normalizeObservedDots(canonOp['observedDots']) }),
+    /** Extracts the value from a PropSet operation (legacy raw type). */
+    PropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the value from a NodePropSet operation. */
     NodePropSet: () => ({ value: canonOp['value'] ?? null }),
     /** Extracts the value from an EdgePropSet operation. */
@@ -1517,7 +1516,7 @@ async function analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, 
 async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics }) {
   const rawOp = /** @type {import('../types/WarpTypesV2.js').RawOpV2 | {type: string}} */ (frame.patch.ops[opIndex]);
   const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(rawOp)));
-  const receiptOpType = RECEIPT_OP_TYPE[/** @type {string} */ (canonOp['type'])];
+  const receiptOpType = receiptNameForOp(/** @type {string} */ (canonOp['type']));
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) {
     return null;
   }

@@ -4,6 +4,7 @@
  * @module domain/errors
  */
 
+export { default as AuditError } from './AuditError.js';
 export { default as EmptyMessageError } from './EmptyMessageError.js';
 export { default as EncryptionError } from './EncryptionError.js';
 export { default as PersistenceError } from './PersistenceError.js';

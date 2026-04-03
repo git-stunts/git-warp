@@ -126,21 +126,69 @@ async function computeHmac(fields, key, { crypto, codec }) {
 }
 
 /**
- * @typedef {Object} BTR
- * @property {number} version - BTR format version
- * @property {string} h_in - Hash of input state (hex SHA-256)
- * @property {string} h_out - Hash of output state (hex SHA-256)
- * @property {Uint8Array} U_0 - Serialized initial state (CBOR)
- * @property {Array<unknown>} P - Serialized provenance payload
- * @property {string} t - ISO 8601 timestamp
- * @property {string} kappa - Authentication tag (hex HMAC-SHA256)
+ * BTR — Boundary Transition Record. Tamper-evident package binding
+ * initial state, provenance payload, and output state hash.
  */
+export class BTR {
+  /** @type {string} Hash of input state (hex SHA-256) */
+  h_in;
+
+  /** @type {string} Hash of output state (hex SHA-256) */
+  h_out;
+
+  /** @type {string} Authentication tag (hex HMAC-SHA256) */
+  kappa;
+
+  /** @type {Array<unknown>} Serialized provenance payload */
+  P;
+
+  /** @type {string} ISO 8601 timestamp */
+  t;
+
+  /** @type {Uint8Array} Serialized initial state (CBOR) */
+  U_0;
+
+  /** @type {number} BTR format version */
+  version;
+
+  /**
+   * Creates a BTR from field values.
+   * @param {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string, kappa: string }} fields
+   */
+  constructor({ version, h_in, h_out, U_0, P, t, kappa }) {
+    this.version = version;
+    this.h_in = h_in;
+    this.h_out = h_out;
+    this.U_0 = U_0;
+    this.P = P;
+    this.t = t;
+    this.kappa = kappa;
+    Object.freeze(this);
+  }
+}
 
 /**
- * @typedef {Object} VerificationResult
- * @property {boolean} valid - Whether the BTR is valid
- * @property {string} [reason] - Reason for failure (if invalid)
+ * VerificationResult — outcome of BTR HMAC/replay verification.
  */
+export class VerificationResult {
+  /** @type {boolean} */
+  valid;
+
+  /** @type {string|undefined} Reason for failure (if invalid) */
+  reason;
+
+  /**
+   * Creates a VerificationResult.
+   * @param {boolean} valid
+   * @param {string} [reason]
+   */
+  constructor(valid, reason) {
+    this.valid = valid;
+    if (reason !== undefined) {
+      this.reason = reason;
+    }
+  }
+}
 
 /**
  * Creates a Boundary Transition Record from an initial state and payload.
@@ -197,7 +245,7 @@ export async function createBTR(initialState, payload, options) {
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
   const kappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (deps));
 
-  return { ...fields, kappa };
+  return new BTR({ ...fields, kappa });
 }
 
 /**
@@ -345,7 +393,7 @@ async function verifyReplayHash(btr, deps = {}) {
 export async function verifyBTR(btr, key, options = {}) {
   const structureError = validateBTRStructure(btr);
   if (structureError !== null) {
-    return { valid: false, reason: structureError };
+    return new VerificationResult(false, structureError);
   }
 
   const hmacDeps = /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (buildDeps({ crypto: options.crypto, codec: options.codec }));
@@ -369,10 +417,10 @@ async function verifyReplayIfRequested(btr, options) {
     const replayDeps = buildDeps({ crypto: options.crypto, codec: options.codec });
     const replayError = await verifyReplayHash(btr, replayDeps);
     if (replayError !== null) {
-      return { valid: false, reason: replayError };
+      return new VerificationResult(false, replayError);
     }
   }
-  return { valid: true };
+  return new VerificationResult(true);
 }
 
 /**
@@ -389,12 +437,12 @@ async function verifyHmacSafe(btr, key, deps) {
     hmacValid = await verifyHmac(btr, key, deps);
   } catch (err) {
     if (err instanceof RangeError) {
-      return { valid: false, reason: `Invalid hex in authentication tag: ${err.message}` };
+      return new VerificationResult(false, `Invalid hex in authentication tag: ${err.message}`);
     }
     throw err;
   }
   if (!hmacValid) {
-    return { valid: false, reason: 'Authentication tag mismatch' };
+    return new VerificationResult(false, 'Authentication tag mismatch');
   }
   return null;
 }
@@ -491,15 +539,7 @@ export function deserializeBTR(bytes, { codec } = {}) {
   }
 
   const typed = /** @type {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string, kappa: string }} */ (obj);
-  return /** @type {BTR} */ ({
-    version: typed.version,
-    h_in: typed.h_in,
-    h_out: typed.h_out,
-    U_0: typed.U_0,
-    P: typed.P,
-    t: typed.t,
-    kappa: typed.kappa,
-  });
+  return new BTR(typed);
 }
 
 /**

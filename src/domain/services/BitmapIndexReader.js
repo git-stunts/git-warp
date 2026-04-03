@@ -7,12 +7,14 @@ import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { isValidShardOid } from '../utils/validateShardOid.js';
 import { base64Decode } from '../utils/bytes.js';
 
+
+/** @import { RoaringBitmapSubset as BitmapShard } from '../utils/roaring.js' */
 /** @typedef {import('../../ports/IndexStoragePort.js').default} IndexStoragePort */
 /** @typedef {import('../types/WarpPersistence.js').IndexStorage} IndexStorage */
-/** @typedef {import('../../ports/LoggerPort.js').default} LoggerPort */
-/** @typedef {import('../../ports/CryptoPort.js').default} CryptoPort */
+
+
 /** @typedef {Record<string, string | number>} JsonShard */
-/** @typedef {import('../utils/roaring.js').RoaringBitmapSubset} BitmapShard */
+
 /** @typedef {JsonShard | BitmapShard} LoadedShard */
 
 /**

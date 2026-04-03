@@ -9,11 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The Method** — introduced `METHOD.md` as the development process framework. Filesystem-native backlog (`docs/method/backlog/`) with lane directories (`inbox/`, `asap/`, `up-next/`, `cool-ideas/`, `bad-code/`). Legend-prefixed filenames (`PROTO_`, `TRUST_`, `VIZ_`, `TUI_`, `DX_`, `PERF_`). Sequential cycle numbering (`docs/design/<NNNN-slug>/`). Dual-audience design docs (sponsor human + sponsor agent). Replaced B-number system entirely.
+- **Backlog migration** — all 49 B-number and OG items migrated from `BACKLOG/` to `docs/method/backlog/` lanes. Tech debt journal (`.claude/bad_code.md`) split into 10 individual files in `bad-code/`. Cool ideas journal split into 13 individual files in `cool-ideas/`. `docs/release.md` moved to `docs/method/release.md`. `BACKLOG/` directory removed.
+
+- **Zero-error TypeScript campaign complete** — eliminated all 1,707 `tsc --noEmit` errors across 271 files. Mechanical TS4111 bracket-access sweep (614), null guards for `noUncheckedIndexedAccess`, conditional spreads for `exactOptionalPropertyTypes`, unused variable removal. All 8 pre-push IRONCLAD gates now pass.
+- **JoinReducer OpStrategy registry** — replaced five triplicated switch statements over 8 canonical op types with a frozen `Map<string, OpStrategy>` registry. Each strategy defines `mutate`, `outcome`, `snapshot`, `accumulate`, `validate`. Adding a new op type without all five methods is a hard error at module load time. Cross-path equivalence tests verify `applyFast`, `applyWithReceipt`, and `applyWithDiff` produce identical CRDT state.
+- **ESLint `dot-notation` restored** — re-enabled via `@typescript-eslint/dot-notation` which respects `noPropertyAccessFromIndexSignature`. The type-aware variant correctly allows bracket access on index-signature types while enforcing dot notation elsewhere.
+- `EffectSinkPort.deliver()` return type widened to `DeliveryObservation | DeliveryObservation[]` to match `MultiplexSink` behavior.
 - **Zero-error lint campaign complete** — eliminated all 1,876 ESLint errors across ~180 source files. Every raw `Error` replaced with domain error classes. Every port stub uses `WarpError` with `E_NOT_IMPLEMENTED`. `MessageCodecInternal` type-poisoning from `@git-stunts/trailer-codec` fixed at root via `unknown` intermediary casts. Errors barrel (`src/domain/errors/index.js`) now exports all 27 error classes.
 - **Lint ratchet enforcement** — `npm run lint:ratchet` asserts zero ESLint errors codebase-wide. Added as CI Gate 4b. Pre-push hook (Gate 4) already blocked non-zero exits; ratchet makes the invariant explicit and auditable.
 - **Git hooks wired** — `core.hooksPath` set to `scripts/hooks/` on `npm install`. Pre-commit lints staged JS files. Pre-push runs full 8-gate IRONCLAD firewall.
+- **OpStrategy.receiptName** — each OpStrategy entry now carries its own TickReceipt-compatible operation name, eliminating the redundant `RECEIPT_OP_TYPE` lookup tables in JoinReducer and ConflictAnalyzerService.
+- **SyncProtocol uses SyncError** — `E_SYNC_DIVERGENCE` now throws `SyncError` instead of a raw `Error` with manually attached code property.
+- **AuditReceiptService uses AuditError** — all 16 raw `Error` throws replaced with typed `AuditError` carrying serializable context and machine-readable error codes (`E_AUDIT_INVALID`, `E_AUDIT_CAS_FAILED`, `E_AUDIT_DEGRADED`).
+- **CLI import.meta.url resolution** — replaced `__dirname` polyfill pattern in CLI with idiomatic `fileURLToPath(new URL('../..', import.meta.url))` for resilient package root resolution.
+
+- **WarpRuntime god class decomposition (NO_DOGS_NO_MASTERS)** — extracted 6 of 11 mixin method groups into independent service controllers, following the SyncController precedent. Each controller receives the runtime host via constructor injection and delegates through `defineProperty` loops on the prototype. Public API surface unchanged — all 100+ methods remain on `WarpRuntime.prototype`. The remaining 4 mixins (checkpoint, patch, materialize, materializeAdvanced) form the core mutation kernel and are deferred to a future cycle.
+  - **`StrandController`** (182 LOC) — strand lifecycle + conflict analysis, cached StrandService instance
+  - **`ComparisonController`** (1,155 LOC) — coordinate/strand comparison, transfer planning
+  - **`SubscriptionController`** (244 LOC) — subscribe, watch, notification dispatch
+  - **`ProvenanceController`** (242 LOC) — patch lookups, backward causal cone, slice materialization
+  - **`ForkController`** (274 LOC) — fork creation, wormhole compression, backfill rejection
+  - **`QueryController`** (964 LOC) — all read queries, observer/worldline factories, content access
+- **`AuditReceipt` promoted to class** — replaced `@typedef {Object}` with a real JavaScript class. Constructor validates and freezes.
+- **WarpApp/WarpCore content methods** — replaced direct function imports from `query.methods.js` with `callInternalRuntimeMethod()` delegation, which correctly resolves dynamically wired prototype methods.
+- **11 typedef-to-class promotions (NO_DOGS_NO_MASTERS)** — replaced phantom `@typedef {Object}` shapes with real JavaScript classes: `WarpStateV5`, `Dot`, `EventId`, `EffectEmission`, `EffectCoordinate`, `DeliveryObservation`, `TickReceipt`, `PatchDiff`, `LWWRegister`, `BTR`, `TrustState`. Each class has a constructor, validates inputs where applicable, and supports `instanceof`. Factory functions retained for backward compatibility.
+- **CBOR codec canonical key sorting for class instances** — both `CborCodec` and `defaultCodec` now sort keys for all object types (not just plain objects), using `instanceof` checks to skip built-in CBOR-native types (Uint8Array, Date, Set, Map, RegExp). This decouples class field declaration order from wire format, matching Echo's Rust canonical encoder behavior.
+- **Comparison pipeline class hierarchy** — `NormalizedSelector` is now a base class with 4 subclasses (`LiveSelector`, `CoordinateSelector`, `StrandSelector`, `StrandBaseSelector`), each implementing `resolve()` directly. Eliminates kind-switch dispatch. `ResolvedComparisonSide` promoted to class. Live frontier captured once for consistency across both sides.
+- **OpOutcome subclass hierarchy** — `OpOutcomeResult` base class with `OpApplied`, `OpSuperseded`, `OpRedundant` subclasses. `OpSuperseded` carries the winning `EventId` as a structured field instead of a formatted string. `VerificationResult` promoted to class.
+- **ForkController hardening** — fork ref creation rolls back on `WarpRuntime.open` failure; `_isAncestor` uses visited-Set cycle detection instead of false-positive MAX_WALK counter; backfill rejection throws typed `ForkError` with `E_FORK_BACKFILL_REJECTED` and `E_FORK_WRITER_DIVERGED` codes.
 
 ### Added
+
+- **`AuditError`** — domain error class for audit receipt validation and persistence failures. Exported from package root with four static error codes.
+- **`WarpStateV5` class** — core CRDT materialized state promoted from typedef to its own module (`src/domain/services/WarpStateV5.js`). Provides `static empty()` factory and `clone()` method. Re-exported from `JoinReducer.js` for backward compatibility.
+- **`NO_DOGS_NO_MASTERS` legend** — backlog legend for god object decomposition and typedef-to-class liberation. Code: `NDNM_`.
 
 - **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
 - **`EffectSinkPort`** — abstract port for effect delivery sinks, following the hexagonal architecture pattern.

@@ -1,13 +1,13 @@
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import { createStateReaderV5 } from './StateReaderV5.js';
 
+
+/** @import { VisibleNodeViewV5, VisibleStateComparisonV5, VisibleStateNeighborV5, VisibleStateReaderV5 } from '../../../index.js' */
 export const VISIBLE_STATE_COMPARISON_VERSION = 'visible-state-compare/v1';
 
 /**
- * @typedef {import('../../../index.js').VisibleStateReaderV5} VisibleStateReaderV5
- * @typedef {import('../../../index.js').VisibleNodeViewV5} VisibleNodeViewV5
- * @typedef {import('../../../index.js').VisibleStateNeighborV5} VisibleStateNeighborV5
- * @typedef {import('../../../index.js').VisibleStateComparisonV5} VisibleStateComparisonV5
+
+
  * @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5
  */
 

@@ -38,7 +38,7 @@ import SyncTrustGate from './SyncTrustGate.js';
  * in unit tests.
  *
  * @typedef {Object} SyncHost
- * @property {import('../services/JoinReducer.js').WarpStateV5|null} _cachedState
+ * @property {import('./JoinReducer.js').WarpStateV5|null} _cachedState
  * @property {Map<string, string>|null} _lastFrontier
  * @property {boolean} _stateDirty
  * @property {number} _patchesSinceGC
@@ -52,7 +52,7 @@ import SyncTrustGate from './SyncTrustGate.js';
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
  * @property {(options?: Record<string, unknown>) => Promise<unknown>} materialize
- * @property {(state: import('../services/JoinReducer.js').WarpStateV5) => Promise<unknown>} _setMaterializedState
+ * @property {(state: import('./JoinReducer.js').WarpStateV5) => Promise<unknown>} _setMaterializedState
  * @property {() => Promise<string[]>} discoverWriters
  * @property {((trust: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }|undefined|null) => SyncTrustGate|null)} [_createSyncTrustGate]
  */

@@ -1,48 +1,62 @@
-/**
- * EventId for total ordering of operations (WARP spec Section 7).
- *
- * @typedef {Object} EventId
- * @property {number} lamport - Monotonic counter (positive integer)
- * @property {string} writerId - Writer identifier (non-empty string)
- * @property {string} patchSha - Patch commit SHA (hex OID, 4-64 chars)
- * @property {number} opIndex - Operation index within patch (non-negative integer)
- */
-
 // Regex for validating hex OID (4-64 hex characters)
 const HEX_OID_REGEX = /^[0-9a-f]{4,64}$/;
 
 /**
+ * EventId — total ordering identity for CRDT operations (WARP spec Section 7).
+ */
+export class EventId {
+  /** @type {number} Monotonic counter (positive integer) */
+  lamport;
+
+  /** @type {string} Writer identifier (non-empty string) */
+  writerId;
+
+  /** @type {string} Patch commit SHA (hex OID, 4-64 chars) */
+  patchSha;
+
+  /** @type {number} Operation index within patch (non-negative integer) */
+  opIndex;
+
+  /**
+   * Creates a validated EventId.
+   *
+   * @param {number} lamport - Must be positive integer (> 0)
+   * @param {string} writerId - Must be non-empty string
+   * @param {string} patchSha - Must be valid hex OID (4-64 chars)
+   * @param {number} opIndex - Must be non-negative integer (>= 0)
+   */
+  constructor(lamport, writerId, patchSha, opIndex) {
+    if (!Number.isInteger(lamport) || lamport <= 0) {
+      throw new Error('lamport must be a positive integer');
+    }
+    if (typeof writerId !== 'string' || writerId.length === 0) {
+      throw new Error('writerId must be a non-empty string');
+    }
+    if (typeof patchSha !== 'string' || !HEX_OID_REGEX.test(patchSha)) {
+      throw new Error('patchSha must be a hex string of 4-64 characters');
+    }
+    if (!Number.isInteger(opIndex) || opIndex < 0) {
+      throw new Error('opIndex must be a non-negative integer');
+    }
+
+    this.lamport = lamport;
+    this.writerId = writerId;
+    this.patchSha = patchSha;
+    this.opIndex = opIndex;
+  }
+}
+
+/**
  * Creates a validated EventId.
  *
- * @param {number} lamport - Must be positive integer (> 0)
- * @param {string} writerId - Must be non-empty string
- * @param {string} patchSha - Must be valid hex OID (4-64 chars)
- * @param {number} opIndex - Must be non-negative integer (>= 0)
+ * @param {number} lamport
+ * @param {string} writerId
+ * @param {string} patchSha
+ * @param {number} opIndex
  * @returns {EventId}
- * @throws {Error} If validation fails
  */
 export function createEventId(lamport, writerId, patchSha, opIndex) {
-  // Validate lamport is positive integer
-  if (!Number.isInteger(lamport) || lamport <= 0) {
-    throw new Error('lamport must be a positive integer');
-  }
-
-  // Validate writerId is non-empty string
-  if (typeof writerId !== 'string' || writerId.length === 0) {
-    throw new Error('writerId must be a non-empty string');
-  }
-
-  // Validate patchSha is hex string 4-64 chars
-  if (typeof patchSha !== 'string' || !HEX_OID_REGEX.test(patchSha)) {
-    throw new Error('patchSha must be a hex string of 4-64 characters');
-  }
-
-  // Validate opIndex is non-negative integer
-  if (!Number.isInteger(opIndex) || opIndex < 0) {
-    throw new Error('opIndex must be a non-negative integer');
-  }
-
-  return { lamport, writerId, patchSha, opIndex };
+  return new EventId(lamport, writerId, patchSha, opIndex);
 }
 
 /**
