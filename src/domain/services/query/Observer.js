@@ -425,6 +425,7 @@ export default class Observer {
       throw new Error('observer seek requires a non-null source');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
     return await graph.observer(/** @type {string} */ (this._name), config, { source: nextSource });
   }
 

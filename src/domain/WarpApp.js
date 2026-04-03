@@ -131,12 +131,14 @@ export default class WarpApp {
    */
   async observer(nameOrConfig, configOrOptions, maybeOptions) {
     if (typeof nameOrConfig === 'string') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
       return await this._runtime().observer(
         nameOrConfig,
         /** @type {import('../../index.js').Aperture} */ (configOrOptions),
         maybeOptions,
       );
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
     return await this._runtime().observer(
       nameOrConfig,
       /** @type {import('../../index.js').ObserverOptions | undefined} */ (configOrOptions),
