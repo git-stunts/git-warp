@@ -9,8 +9,8 @@
  * }
  */
 
-import { orsetAdd, orsetRemove, orsetJoin, orsetContains } from '../crdt/ORSet.js';
-import { vvMerge, vvDeserialize } from '../crdt/VersionVector.js';
+import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
+import { vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
@@ -470,6 +470,9 @@ for (const [type, strategy] of OP_STRATEGIES) {
   }
   if (typeof strategy.receiptName !== 'string' || strategy.receiptName.length === 0) {
     throw new Error(`OpStrategy '${type}' missing required property 'receiptName'`);
+  }
+  if (!OP_TYPES.includes(strategy.receiptName)) {
+    throw new Error(`OpStrategy '${type}' receiptName '${strategy.receiptName}' is not in TickReceipt OP_TYPES`);
   }
 }
 
@@ -1088,10 +1091,18 @@ export function reduceV5(patches, initialState, options) {
  * @returns {WarpStateV5} A new state with identical contents but independent data structures
  */
 export function cloneStateV5(state) {
-  if (!(state instanceof WarpStateV5)) {
-    throw new PatchError('cloneStateV5: expected WarpStateV5 instance', {
-      context: { actual: typeof state },
-    });
+  if (state instanceof WarpStateV5) {
+    return state.clone();
   }
-  return state.clone();
+  // Structural fallback: normalize plain/deserialized objects into WarpStateV5.
+  // This handles checkpoint deserialization and test fixtures that construct
+  // state as plain objects.
+  const s = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (state));
+  return new WarpStateV5({
+    nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['nodeAlive'])),
+    edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['edgeAlive'])),
+    prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
+    observedFrontier: vvClone(/** @type {import('../crdt/VersionVector.js').VersionVector} */ (s['observedFrontier'])),
+    edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.js').EventId>} */ (s['edgeBirthEvent'] ?? [])),
+  });
 }

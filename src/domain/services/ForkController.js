@@ -129,20 +129,32 @@ export default class ForkController {
       // Dynamic import to avoid circular dependency
       const { default: WarpRuntime } = await import('../WarpRuntime.js');
 
-      const forkGraph = await WarpRuntime.open({
-        persistence: host._persistence,
-        graphName: resolvedForkName,
-        writerId: resolvedForkWriterId,
-        gcPolicy: host._gcPolicy,
-        adjacencyCacheSize: host._adjacencyCache?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
-        ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
-        autoMaterialize: host._autoMaterialize,
-        onDeleteWithData: host._onDeleteWithData,
-        ...(host._logger ? { logger: host._logger } : {}),
-        clock: host._clock,
-        crypto: host._crypto,
-        codec: host._codec,
-      });
+      /** @type {import('../WarpRuntime.js').default} */
+      let forkGraph;
+      try {
+        forkGraph = await WarpRuntime.open({
+          persistence: host._persistence,
+          graphName: resolvedForkName,
+          writerId: resolvedForkWriterId,
+          gcPolicy: host._gcPolicy,
+          adjacencyCacheSize: host._adjacencyCache?.maxSize ?? DEFAULT_ADJACENCY_CACHE_SIZE,
+          ...(host._checkpointPolicy ? { checkpointPolicy: host._checkpointPolicy } : {}),
+          autoMaterialize: host._autoMaterialize,
+          onDeleteWithData: host._onDeleteWithData,
+          ...(host._logger ? { logger: host._logger } : {}),
+          clock: host._clock,
+          crypto: host._crypto,
+          codec: host._codec,
+        });
+      } catch (openErr) {
+        // Rollback: delete the ref we just created to avoid a dangling fork
+        try {
+          await host._persistence.deleteRef(forkWriterRef);
+        } catch {
+          // Best-effort rollback — log but don't mask the original error
+        }
+        throw openErr;
+      }
 
       host._logTiming('fork', t0, {
         metrics: `from=${from} at=${at.slice(0, 7)} name=${resolvedForkName}`,
@@ -203,12 +215,16 @@ export default class ForkController {
 
     /** @type {string | null} */
     let cur = descendantSha;
-    const MAX_WALK = 100_000;
-    let steps = 0;
+    /** @type {Set<string>} */
+    const visited = new Set();
     while (cur !== null) {
-      if (++steps > MAX_WALK) {
-        throw new Error(`_isAncestor: exceeded ${MAX_WALK} steps — possible cycle`);
+      if (visited.has(cur)) {
+        throw new ForkError('Cycle detected in commit graph', {
+          code: 'E_FORK_CYCLE_DETECTED',
+          context: { sha: cur },
+        });
       }
+      visited.add(cur);
       const nodeInfo = await this._host._persistence.getNodeInfo(cur);
       const parent = nodeInfo.parents?.[0] ?? null;
       if (parent === ancestorSha) {
@@ -260,16 +276,16 @@ export default class ForkController {
     const relation = await this._relationToCheckpointHead(ckHead, incomingSha);
 
     if (relation === 'same' || relation === 'behind') {
-      throw new Error(
-        `Backfill rejected for writer ${writerId}: ` +
-        `incoming patch is ${relation} checkpoint frontier`
+      throw new ForkError(
+        `Backfill rejected for writer ${writerId}: incoming patch is ${relation} checkpoint frontier`,
+        { code: 'E_FORK_BACKFILL_REJECTED', context: { writerId, incomingSha, relation, ckHead } },
       );
     }
 
     if (relation === 'diverged') {
-      throw new Error(
-        `Writer fork detected for ${writerId}: ` +
-        `incoming patch does not extend checkpoint head`
+      throw new ForkError(
+        `Writer fork detected for ${writerId}: incoming patch does not extend checkpoint head`,
+        { code: 'E_FORK_WRITER_DIVERGED', context: { writerId, incomingSha, ckHead } },
       );
     }
   }
