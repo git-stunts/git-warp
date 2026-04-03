@@ -733,7 +733,7 @@ function edgePropSetOutcome(propMap, op, eventId) {
 
 /**
  * Folds a patch's own dot into the observed frontier.
- * @param {Map<string, number>} frontier
+ * @param {import('../crdt/VersionVector.js').default} frontier
  * @param {string} writer
  * @param {number} lamport
  */
@@ -747,7 +747,7 @@ function foldPatchDot(frontier, writer, lamport) {
 /**
  * Merges a patch's context into state and folds the patch dot.
  * @param {WarpStateV5} state
- * @param {{writer: string, lamport: number, context: Map<string, number>|Record<string, number>}} patch
+ * @param {{writer: string, lamport: number, context: import('../crdt/VersionVector.js').default|Record<string, number>}} patch
  */
 function updateFrontierFromPatch(state, patch) {
   const contextVV = patch.context instanceof VersionVector

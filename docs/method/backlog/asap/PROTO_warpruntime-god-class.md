@@ -1,42 +1,22 @@
-# WarpRuntime + warp/ Methods God Class Decomposition
+# WarpRuntime God Class Decomposition
 
-**Effort:** XL
+**Effort:** XL — **Status: MOSTLY COMPLETE**
 
-## Problem
+## Problem (original)
 
-The WarpRuntime class (683 LOC) delegates to 12 method-mixin files in `src/domain/warp/` (5,930 LOC combined = 6,613 LOC total surface). While the SyncController has already been extracted, the class still orchestrates:
+The WarpRuntime class delegated to 12 method-mixin files in `src/domain/warp/` via `wireWarpMethods()` + `_wire.js`, which defeated static analysis and made the API surface invisible.
 
-- Git reference manipulation (via persistence port)
-- Pathfinding queries (via GraphTraversal)
-- Materialization and checkpoint management
-- Temporal state routing (seek, coordinate, strand)
-- Memory GC mechanisms
-- Writer/PatchSession lifecycle
-- Observer creation and management
-- Subscription and watch APIs
-- Effect pipeline integration
-- Trust/audit integration
-- Index management
+## Resolution
 
-This coupling makes the class a merge conflict magnet and prevents new contributors from building a mental model. The `warp/` method mixins are wired dynamically via `Object.defineProperty` in `_wire.js`, which defeats static analysis and makes the API surface invisible without reading the wiring code.
+### PR #74 — Phase 1-3 (6 controllers)
+StrandController, ComparisonController, SubscriptionController, ProvenanceController, ForkController, QueryController. Extracted from independent mixin files.
 
-## Decomposition Direction
+### This PR — Phase 4 (kernel extraction)
+PatchController, CheckpointController, MaterializeController. Extracted from the tightly coupled mutation core (patch.methods.js, checkpoint.methods.js, materialize.methods.js, materializeAdvanced.methods.js).
 
-The existing `warp/` method files already represent a partial decomposition — they just need to become proper service classes instead of method mixins bolted onto one god class. WarpRuntime becomes a thin facade delegating to:
+**`wireWarpMethods()` and `_wire.js` are deleted.** All methods use `defineProperty` delegation through 9 controllers. WarpRuntime is now a thin facade: constructor + delegation loops.
 
-- `MaterializationService` (materialize, checkpoint, incremental)
-- `QueryService` (query builder, getNodes, getNodeProps, getEdges)
-- `TraversalService` (path, traversal algorithms)
-- `TemporalService` (seek, coordinate, strand routing)
-- `SubscriptionService` (watch, subscribe, diff streaming)
-- `WriterService` (writer lifecycle, patch sessions)
+## Remaining work
 
-Each already exists as a `warp/*.methods.js` file — the refactor is promoting them from mixins to injected services.
-
-## Notes
-
-- Existing RFC: B143 (WarpGraph decomposition design) — check if still current
-- SyncController already extracted (M10 era) — good precedent
-- The `_wire.js` dynamic wiring must go — it defeats type checking and IDE navigation
-- 16 ports already exist — the port surface is fine, it's the orchestrator that's too fat
-- `CorePersistence` typedef (`CommitPort & BlobPort & TreePort & RefPort`) is the right pattern — intersection types over a single fat interface
+- **Phase 5 (kernel tightening)**: The 3 kernel controllers still reach into `this._host` for 20+ fields. These field accesses could be narrowed to explicit constructor-injected capabilities. Lower priority — the organizational win is already delivered.
+- The SyncController (extracted in M10 era) predates the defineProperty delegation pattern — could be unified but is not blocking.

@@ -288,7 +288,7 @@ export default class PatchController {
       versionVector: h._versionVector,
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../services/JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
-      onCommitSuccess: /** @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ (/** Post-commit callback. @param {{patch?: import('../types/WarpTypesV2.js').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(resolvedWriterId, opts)),
+      onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
       codec: h._codec,
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
