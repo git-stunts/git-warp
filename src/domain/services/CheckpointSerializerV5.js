@@ -138,7 +138,7 @@ export function computeAppliedVV(state) {
 
   /**
    * Helper to scan all dots from an ORSet and update vv with max counters.
-   * @param {import('../crdt/ORSet.js').ORSet} orset
+   * @param {import('../crdt/ORSet.js').default} orset
    */
   function scanORSet(orset) {
     for (const dots of orset.entries.values()) {

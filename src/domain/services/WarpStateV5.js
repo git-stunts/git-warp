@@ -17,10 +17,10 @@ import { createVersionVector, vvClone } from '../crdt/VersionVector.js';
  * be cloned before handing to consumers that expect isolation.
  */
 export default class WarpStateV5 {
-  /** @type {import('../crdt/ORSet.js').ORSet} */
+  /** @type {import('../crdt/ORSet.js').default} */
   nodeAlive;
 
-  /** @type {import('../crdt/ORSet.js').ORSet} */
+  /** @type {import('../crdt/ORSet.js').default} */
   edgeAlive;
 
   /** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */
@@ -39,8 +39,8 @@ export default class WarpStateV5 {
    * Creates a WarpStateV5 from field values.
    *
    * @param {{
-   *   nodeAlive: import('../crdt/ORSet.js').ORSet,
-   *   edgeAlive: import('../crdt/ORSet.js').ORSet,
+   *   nodeAlive: import('../crdt/ORSet.js').default,
+   *   edgeAlive: import('../crdt/ORSet.js').default,
    *   prop: Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>,
    *   observedFrontier: import('../crdt/VersionVector.js').default,
    *   edgeBirthEvent?: Map<string, import('../utils/EventId.js').EventId>

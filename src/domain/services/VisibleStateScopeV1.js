@@ -244,7 +244,7 @@ export function edgeInVisibleStateScope(edge, scope) {
  * @param {Map<string, Set<string>>} sourceEntries
  * @param {(element: string) => boolean} includeElement
  * @param {Set<string>} tombstones
- * @returns {import('../crdt/ORSet.js').ORSet}
+ * @returns {import('../crdt/ORSet.js').default}
  */
 function cloneScopedOrSet(sourceEntries, includeElement, tombstones) {
   const scoped = createORSet();

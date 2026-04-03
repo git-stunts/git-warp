@@ -73,7 +73,7 @@ export default class IncrementalIndexUpdater {
   constructor(options = undefined) {
     const { codec } = options || {};
     this._codec = codec || defaultCodec;
-    /** @type {WeakMap<import('../crdt/ORSet.js').ORSet, Map<string, Set<string>>>} */
+    /** @type {WeakMap<import('../crdt/ORSet.js').default, Map<string, Set<string>>>} */
     this._edgeAdjacencyCache = new WeakMap();
     /**
      * Cached next label ID — avoids O(L) max-scan per new label.
