@@ -1,6 +1,5 @@
 import QueryError from '../errors/QueryError.js';
 import { createORSet, orsetContains } from '../crdt/ORSet.js';
-import { vvClone } from '../crdt/VersionVector.js';
 import WarpStateV5 from './WarpStateV5.js';
 import { normalizeRawOp } from './OpNormalizer.js';
 import {
@@ -373,7 +372,7 @@ export function scopeMaterializedStateV5(state, scope) {
     nodeAlive: scopedNodeAlive,
     edgeAlive: scopedEdgeAlive,
     prop: collectScopedProps(state, scopedNodeIds, scopedEdgeKeys),
-    observedFrontier: vvClone(state.observedFrontier),
+    observedFrontier: state.observedFrontier.clone(),
     edgeBirthEvent: collectScopedEdgeBirthEvents(state, scopedEdgeKeys),
   });
 }

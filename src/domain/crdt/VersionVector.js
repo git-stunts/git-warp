@@ -374,34 +374,6 @@ export default class VersionVector {
     return true;
   }
 
-  /**
-   * Converts to a plain object with sorted keys for deterministic
-   * serialization.
-   *
-   * @returns {Record<string, number>}
-   * @throws {CrdtError} If any counter is zero (invariant violation)
-   */
-  serialize() {
-    /** @type {Record<string, number>} */
-    const obj = {};
-    const sortedKeys = [...this.#entries.keys()].sort();
-
-    for (const key of sortedKeys) {
-      const val = /** @type {number} */ (this.#entries.get(key));
-      // Invariant assertion — not input validation. Zero counters must never
-      // appear in a VersionVector. They carry no causal information and would
-      // be elided on deserialization, breaking round-trip equality.
-      if (val === 0) {
-        throw new CrdtError(`serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
-          code: 'E_CRDT_ZERO_COUNTER',
-          context: { writerId: key },
-        });
-      }
-      obj[key] = val;
-    }
-
-    return obj;
-  }
 }
 
 // =============================================================================
@@ -486,14 +458,32 @@ export function vvContains(vv, dot) {
 }
 
 /**
- * Serializes a VersionVector to a plain object for CBOR encoding.
+ * Converts a VersionVector to a plain object with sorted keys for
+ * deterministic encoding. This is a codec-layer concern — the domain
+ * type provides iteration, the codec decides the wire format.
  *
- * @deprecated Use {@link VersionVector#serialize}
  * @param {VersionVector | Map<string, number>} vv
  * @returns {Record<string, number>}
+ * @throws {CrdtError} If any counter is zero (invariant violation)
  */
 export function vvSerialize(vv) {
-  return _coerce(vv).serialize();
+  const coerced = _coerce(vv);
+  /** @type {Record<string, number>} */
+  const obj = {};
+  const sortedKeys = [...coerced.keys()].sort();
+
+  for (const key of sortedKeys) {
+    const val = /** @type {number} */ (coerced.get(key));
+    if (val === 0) {
+      throw new CrdtError(`vvSerialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`, {
+        code: 'E_CRDT_ZERO_COUNTER',
+        context: { writerId: key },
+      });
+    }
+    obj[key] = val;
+  }
+
+  return obj;
 }
 
 /**

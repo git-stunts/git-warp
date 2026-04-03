@@ -14,7 +14,7 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import { orsetSerialize, orsetDeserialize } from '../crdt/ORSet.js';
-import VersionVector, { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector, { vvSerialize } from '../crdt/VersionVector.js';
 import { decodeDot } from '../crdt/Dot.js';
 import { createEmptyStateV5 } from './JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
@@ -113,7 +113,7 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
     nodeAlive: orsetDeserialize(obj['nodeAlive'] ?? {}),
     edgeAlive: orsetDeserialize(obj['edgeAlive'] ?? {}),
     prop: deserializeProps(/** @type {[string, unknown][]} */ (obj['prop'])),
-    observedFrontier: vvDeserialize(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
+    observedFrontier: VersionVector.from(/** @type {{[x: string]: number}} */ (obj['observedFrontier'] ?? {})),
     edgeBirthEvent: /** @type {Map<string, import('../utils/EventId.js').EventId>} */ (deserializeEdgeBirthEvent(obj)),
   });
 }
@@ -184,7 +184,7 @@ export function serializeAppliedVV(vv, { codec } = {}) {
 export function deserializeAppliedVV(buffer, { codec } = {}) {
   const c = codec || defaultCodec;
   const obj = /** @type {{ [x: string]: number }} */ (c.decode(buffer));
-  return vvDeserialize(obj);
+  return VersionVector.from(obj);
 }
 
 // ============================================================================

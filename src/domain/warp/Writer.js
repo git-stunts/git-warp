@@ -20,7 +20,6 @@ import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
-import { vvClone } from '../crdt/VersionVector.js';
 import WriterError from '../errors/WriterError.js';
 
 // Re-export for backward compatibility — consumers importing from Writer.js
@@ -186,7 +185,7 @@ export class Writer {
     /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
     const opts = {
       ...core,
-      versionVector: vvClone(/** @type {import('../crdt/VersionVector.js').default} */ (this._versionVector)),
+      versionVector: /** @type {import('../crdt/VersionVector.js').default} */ (this._versionVector).clone(),
       getCurrentState: /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */ (this._getCurrentState),
       onDeleteWithData: /** @type {'reject'|'cascade'|'warn'} */ (this._onDeleteWithData),
     };

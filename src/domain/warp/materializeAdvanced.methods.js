@@ -12,7 +12,6 @@ import { reduceV5, createEmptyStateV5 } from '../services/JoinReducer.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { orsetContains, orsetElements } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from '../services/KeyCodec.js';
-import { vvClone } from '../crdt/VersionVector.js';
 import { computeStateHashV5 } from '../services/StateSerializerV5.js';
 import { ProvenanceIndex } from '../services/ProvenanceIndex.js';
 import { serializeFullStateV5, deserializeFullStateV5 } from '../services/CheckpointSerializerV5.js';
@@ -334,7 +333,7 @@ export async function _setMaterializedState(state, optionsOrDiff) {
   }
   this._cachedState = state;
   this._stateDirty = false;
-  this._versionVector = vvClone(state.observedFrontier);
+  this._versionVector = state.observedFrontier.clone();
 
   const stateHash = await computeStateHashV5(state, { crypto: this._crypto, codec: this._codec });
   let adjacency;

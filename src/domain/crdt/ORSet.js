@@ -1,5 +1,4 @@
 import { encodeDot, decodeDot, compareDots } from './Dot.js';
-import { vvContains } from './VersionVector.js';
 
 /**
  * @fileoverview ORSet - Observed-Remove Set with Add-Wins Semantics
@@ -71,7 +70,7 @@ import { vvContains } from './VersionVector.js';
  *
  * **GC Safety Invariant**: A tombstoned dot may only be compacted if ALL
  * replicas have observed it. This is tracked via the version vector: if
- * vvContains(includedVV, dot) is true for the "included" frontier, then
+ * includedVV.contains(dot) is true for the "included" frontier, then
  * all replicas have seen this dot and its tombstone.
  *
  * **What happens if violated**: If we compact (A,5) before replica B has seen
@@ -386,7 +385,7 @@ function _collectCompactableDots(set, includedVV) {
   for (const [element, dots] of set.entries) {
     for (const encodedDot of dots) {
       const dot = decodeDot(encodedDot);
-      if (set.tombstones.has(encodedDot) && vvContains(includedVV, dot)) {
+      if (set.tombstones.has(encodedDot) && includedVV.contains(dot)) {
         toDelete.push({ element, dot: encodedDot });
       }
     }

@@ -3,7 +3,7 @@
  *
  * Key differences from PatchBuilder:
  * 1. Maintains a VersionVector per writer
- * 2. Assigns dots on add operations using vvIncrement
+ * 2. Assigns dots on add operations using vv.increment()
  * 3. Reads current state to populate observedDots for removes
  * 4. Includes context VersionVector in patch
  *
@@ -13,7 +13,7 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import nullLogger from '../utils/nullLogger.js';
-import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
+import { vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
@@ -185,7 +185,7 @@ export class PatchBuilderV2 {
     this._lamport = lamport;
 
     /** @type {import('../crdt/VersionVector.js').default} */
-    this._vv = vvClone(versionVector); // Clone to track local increments
+    this._vv = versionVector.clone(); // Clone to track local increments
 
     /** @type {() => import('./JoinReducer.js').WarpStateV5 | null} */
     this._getCurrentState = getCurrentState;
@@ -327,7 +327,7 @@ export class PatchBuilderV2 {
   addNode(nodeId) {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');
-    const dot = vvIncrement(this._vv, this._writerId);
+    const dot = this._vv.increment(this._writerId);
     this._ops.push(createNodeAddV2(nodeId, dot));
     this._nodesAdded.add(nodeId);
     // Provenance: NodeAdd writes the node
@@ -449,7 +449,7 @@ export class PatchBuilderV2 {
     _assertNoReservedBytes(from, 'from node ID');
     _assertNoReservedBytes(to, 'to node ID');
     _assertNoReservedBytes(label, 'edge label');
-    const dot = vvIncrement(this._vv, this._writerId);
+    const dot = this._vv.increment(this._writerId);
     this._ops.push(createEdgeAddV2(from, to, label, dot));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);

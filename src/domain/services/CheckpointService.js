@@ -23,7 +23,7 @@ import { serializeFrontier, deserializeFrontier } from './Frontier.js';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from './WarpMessageCodec.js';
 import { createORSet, orsetAdd, orsetCompact } from '../crdt/ORSet.js';
 import { createDot } from '../crdt/Dot.js';
-import { createVersionVector } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 import { cloneStateV5, reduceV5 } from './JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from './KeyCodec.js';
@@ -533,7 +533,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
   const edgeAlive = createORSet();
   /** @type {Map<string, { eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown }>} */
   const prop = new Map();
-  const observedFrontier = createVersionVector();
+  const observedFrontier = VersionVector.empty();
 
   // Reconstruct nodes as ORSet entries
   for (const nodeId of nodes) {

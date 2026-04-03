@@ -12,7 +12,6 @@ import { QueryError, E_NO_STATE_MSG, E_STALE_STATE_MSG } from './_internal.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { joinStates, applyWithDiff, applyWithReceipt } from '../services/JoinReducer.js';
 import { orsetElements } from '../crdt/ORSet.js';
-import { vvIncrement, vvClone } from '../crdt/VersionVector.js';
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../utils/RefLayout.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
 import { Writer } from './Writer.js';
@@ -256,7 +255,7 @@ export async function getWriterPatches(writerId, stopAtSha = null) {
  * @returns {Promise<void>}
  */
 export async function _onPatchCommitted(writerId, { patch: committed, sha } = {}) {
-  vvIncrement(this._versionVector, writerId);
+  this._versionVector.increment(writerId);
   // Keep _maxObservedLamport up to date so _nextLamport() issues globally-monotonic ticks.
   if (committed?.lamport !== undefined && committed.lamport > this._maxObservedLamport) {
     this._maxObservedLamport = committed.lamport;
@@ -553,7 +552,7 @@ export function join(otherState) {
 
   // Install merged state as canonical (B108 — cache coherence fix)
   this._cachedState = mergedState;
-  this._versionVector = vvClone(mergedState.observedFrontier);
+  this._versionVector = mergedState.observedFrontier.clone();
 
   // Build adjacency synchronously (crypto hash deferred to next _buildView)
   const adjacency = this._buildAdjacency(mergedState);

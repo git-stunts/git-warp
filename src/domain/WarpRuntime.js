@@ -9,7 +9,7 @@
  */
 
 import { validateGraphName, validateWriterId } from './utils/RefLayout.js';
-import { createVersionVector } from './crdt/VersionVector.js';
+import VersionVector from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
 import { AuditReceiptService } from './services/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
@@ -187,7 +187,7 @@ export default class WarpRuntime {
     this._writerId = writerId;
 
     /** @type {import('./crdt/VersionVector.js').default} */
-    this._versionVector = createVersionVector();
+    this._versionVector = VersionVector.empty();
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
     this._cachedState = null;

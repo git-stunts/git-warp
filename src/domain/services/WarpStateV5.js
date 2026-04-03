@@ -8,7 +8,7 @@
  */
 
 import { createORSet, orsetClone } from '../crdt/ORSet.js';
-import { createVersionVector, vvClone } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 
 /**
  * The CRDT materialized state for a WARP graph.
@@ -64,7 +64,7 @@ export default class WarpStateV5 {
       nodeAlive: createORSet(),
       edgeAlive: createORSet(),
       prop: new Map(),
-      observedFrontier: createVersionVector(),
+      observedFrontier: VersionVector.empty(),
       edgeBirthEvent: new Map(),
     });
   }
@@ -79,7 +79,7 @@ export default class WarpStateV5 {
       nodeAlive: orsetClone(this.nodeAlive),
       edgeAlive: orsetClone(this.edgeAlive),
       prop: new Map(this.prop),
-      observedFrontier: vvClone(this.observedFrontier),
+      observedFrontier: this.observedFrontier.clone(),
       edgeBirthEvent: new Map(this.edgeBirthEvent),
     });
   }

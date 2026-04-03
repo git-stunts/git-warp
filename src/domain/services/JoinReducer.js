@@ -10,7 +10,7 @@
  */
 
 import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
-import VersionVector, { vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
@@ -752,8 +752,8 @@ function foldPatchDot(frontier, writer, lamport) {
 function updateFrontierFromPatch(state, patch) {
   const contextVV = patch.context instanceof VersionVector
     ? patch.context
-    : vvDeserialize(patch.context ?? {});
-  state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+    : VersionVector.from(patch.context ?? {});
+  state.observedFrontier = state.observedFrontier.merge(contextVV);
   foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
 }
 
@@ -1011,7 +1011,7 @@ export function joinStates(a, b) {
     nodeAlive: orsetJoin(a.nodeAlive, b.nodeAlive),
     edgeAlive: orsetJoin(a.edgeAlive, b.edgeAlive),
     prop: mergeProps(a.prop, b.prop),
-    observedFrontier: vvMerge(a.observedFrontier, b.observedFrontier),
+    observedFrontier: a.observedFrontier.merge(b.observedFrontier),
     edgeBirthEvent: mergeEdgeBirthEvent(a.edgeBirthEvent, b.edgeBirthEvent),
   });
 }
@@ -1152,7 +1152,7 @@ export function cloneStateV5(state) {
     nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['nodeAlive'])),
     edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['edgeAlive'])),
     prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
-    observedFrontier: vvClone(/** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier'])),
+    observedFrontier: /** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier']).clone(),
     edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.js').EventId>} */ (s['edgeBirthEvent'] ?? [])),
   });
 }
