@@ -14,6 +14,11 @@
  * @see WARP v5 Spec
  */
 
+import PatchV2 from './PatchV2.js';
+
+// Re-export PatchV2 class for consumers that import from this module.
+export { PatchV2 };
+
 // ============================================================================
 // Primitive Types
 // ============================================================================
@@ -26,11 +31,6 @@
 /**
  * Dot - causal identifier for an add operation
  * @typedef {import('../crdt/Dot.js').Dot} Dot
- */
-
-/**
- * VersionVector - maps writer IDs to their maximum observed sequence numbers
- * @typedef {Object.<string, number>} VersionVector
  */
 
 // ============================================================================
@@ -138,17 +138,7 @@
 // Patch
 // ============================================================================
 
-/**
- * PatchV2 - A batch of ordered operations from a single writer
- * @typedef {Object} PatchV2
- * @property {2|3} schema - Schema version (2 for node-only, 3 for edge properties)
- * @property {string} writer - Writer ID (identifies the source of the patch)
- * @property {number} lamport - Lamport timestamp for ordering
- * @property {VersionVector} context - Writer's observed frontier (NOT global stability)
- * @property {OpV2[]} ops - Ordered array of operations
- * @property {string[]} [reads] - Node/edge IDs read by this patch (for provenance tracking)
- * @property {string[]} [writes] - Node/edge IDs written by this patch (for provenance tracking)
- */
+// PatchV2 is now a class — see ./PatchV2.js (re-exported above).
 
 // ============================================================================
 // Factory Functions - Operations
@@ -240,25 +230,12 @@ export function createEdgePropSetV2(from, to, label, key, value) {
 // ============================================================================
 
 /**
- * Creates a PatchV2
- * @param {{ schema?: 2|3, writer: string, lamport: number, context: VersionVector, ops: OpV2[], reads?: string[], writes?: string[] }} options - Patch options
- * @returns {PatchV2} PatchV2 object
+ * Creates a PatchV2.
+ *
+ * @deprecated Use `new PatchV2(...)` directly
+ * @param {{ schema?: 2|3, writer: string, lamport: number, context: import('../crdt/VersionVector.js').default | Record<string, number>, ops: OpV2[], reads?: string[], writes?: string[] }} options
+ * @returns {PatchV2}
  */
 export function createPatchV2({ schema = 2, writer, lamport, context, ops, reads, writes }) {
-  /** @type {PatchV2} */
-  const patch = {
-    schema,
-    writer,
-    lamport,
-    context,
-    ops,
-  };
-  // Only include reads/writes if provided (backward compatibility)
-  if (reads && reads.length > 0) {
-    patch.reads = reads;
-  }
-  if (writes && writes.length > 0) {
-    patch.writes = writes;
-  }
-  return patch;
+  return new PatchV2({ schema, writer, lamport, context, ops, reads, writes });
 }
