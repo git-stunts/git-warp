@@ -91,7 +91,7 @@ export default class LogicalTraversal {
   /**
    * Creates a new LogicalTraversal.
    *
-   * @param {import('../WarpRuntime.js').default} graph - The WarpRuntime instance to traverse
+   * @param {import('../../WarpRuntime.js').default} graph - The WarpRuntime instance to traverse
    */
   constructor(graph) {
     this._graph = graph;

@@ -18,7 +18,7 @@ import StrandService from './StrandService.js';
 
 
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @typedef {import('../WarpRuntime.js').default} WarpRuntime */
+/** @typedef {import('../../WarpRuntime.js').default} WarpRuntime */
 
 /** @typedef {import('../../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../../utils/EventId.js').EventId} EventId */

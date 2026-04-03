@@ -31,7 +31,7 @@ import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod
 const COORDINATE_COMPARISON_VERSION = 'coordinate-compare/v1';
 const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
 
-/** @import { VisibleStateScopeV1, VisibleStateReaderV5, CoordinateComparisonSelectorV1, CoordinateTransferPlanSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanV1, StrandDescriptor as StrandDescriptorV1 } from '../../../index.js' */
+/** @import { VisibleStateScopeV1, VisibleStateReaderV5, CoordinateComparisonSelectorV1, CoordinateTransferPlanSelectorV1, CoordinateComparisonV1, CoordinateTransferPlanV1, StrandDescriptor as StrandDescriptorV1 } from '../../../../index.js' */
 /** @import { WarpStateV5 } from '../JoinReducer.js' */
 
 /**

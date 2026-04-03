@@ -36,7 +36,7 @@ const optionsSchema = z.object({
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'httpPort must be a non-null object',
   )),
-  graph: /** @type {z.ZodType<import('../WarpRuntime.js').default>} */ (z.custom(
+  graph: /** @type {z.ZodType<import('../../WarpRuntime.js').default>} */ (z.custom(
     (v) => v !== null && v !== undefined && typeof v === 'object',
     'graph must be a non-null object',
   )),

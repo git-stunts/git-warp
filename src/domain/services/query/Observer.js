@@ -17,7 +17,7 @@ import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.js';
 
 
-/** @import { WorldlineSource } from '../../../index.js' */
+/** @import { WorldlineSource } from '../../../../index.js' */
 /**
  * Clones an observer worldline source descriptor, producing an independent copy.
  * @param {{
@@ -299,7 +299,7 @@ export default class Observer {
   /**
    * Creates a new Observer.
    *
-   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../WarpRuntime.js').default, snapshot?: { state: import('../JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
+   * @param {{ name: string, config: { match: string|string[], expose?: string[], redact?: string[] }, graph?: import('../../WarpRuntime.js').default, snapshot?: { state: import('../JoinReducer.js').WarpStateV5, stateHash: string }, source?: { kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } }} options
    */
   constructor({ name, config, graph, snapshot, source }) {
     this._initIdentity(name, config);
@@ -312,7 +312,7 @@ export default class Observer {
      * both of which Observer implements.
      * @type {LogicalTraversal}
      */
-    this.traverse = new LogicalTraversal(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
+    this.traverse = new LogicalTraversal(/** @type {import('../../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 
   /**
@@ -334,19 +334,19 @@ export default class Observer {
 
   /**
    * Initializes the backing graph, snapshot, and source state.
-   * @param {import('../WarpRuntime.js').default|undefined} graph
+   * @param {import('../../WarpRuntime.js').default|undefined} graph
    * @param {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|undefined} snapshot
    * @param {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | undefined} source
    * @private
    */
   _initBacking(graph, snapshot, source) {
-    /** @type {import('../WarpRuntime.js').default|null} */
+    /** @type {import('../../WarpRuntime.js').default|null} */
     this._graph = graph || null;
     /** @type {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|null} */
     this._snapshot = snapshot || null;
     /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
     this._source = cloneObserverSource(source || { kind: 'live' });
-    /** @type {import('../../../index.js').VisibleStateReaderV5|null} */
+    /** @type {import('../../../../index.js').VisibleStateReaderV5|null} */
     this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
     this._snapshotAdjacency = null;
@@ -381,7 +381,7 @@ export default class Observer {
   /**
    * Returns the live backing graph when this observer was created in delegate mode.
    *
-   * @returns {import('../WarpRuntime.js').default}
+   * @returns {import('../../WarpRuntime.js').default}
    * @private
    */
   _requireGraph() {
@@ -571,6 +571,6 @@ export default class Observer {
      * Observer implements all three: getNodes() at line ~254, getNodeProps() at line ~268,
      * _materializeGraph() at line ~214.
      */
-    return new QueryBuilder(/** @type {import('../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
+    return new QueryBuilder(/** @type {import('../../WarpRuntime.js').default} */ (/** @type {unknown} */ (this)));
   }
 }

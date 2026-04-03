@@ -515,10 +515,10 @@ function inspectVisibleNode(context, nodeId) {
  * Assembles the frozen reader API from a pre-built context.
  *
  * @param {StateReaderContext} context - the reader context
- * @returns {import('../../../index.js').VisibleStateReaderV5} frozen reader
+ * @returns {import('../../../../index.js').VisibleStateReaderV5} frozen reader
  */
 function buildReaderApi(context) {
-  /** @type {import('../../../index.js').VisibleStateReaderV5} */
+  /** @type {import('../../../../index.js').VisibleStateReaderV5} */
   const reader = {
     project() {
       return cloneProjection(context);
@@ -592,7 +592,7 @@ function buildReaderContext(state) {
  * node inspection view without leaking OR-Set internals to higher layers.
  *
  * @param {import('../JoinReducer.js').WarpStateV5} state
- * @returns {import('../../../index.js').VisibleStateReaderV5}
+ * @returns {import('../../../../index.js').VisibleStateReaderV5}
  */
 export function createStateReaderV5(state) {
   return buildReaderApi(buildReaderContext(state));

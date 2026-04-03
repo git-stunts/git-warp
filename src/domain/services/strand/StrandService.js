@@ -28,7 +28,7 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 
 
-/** @import { default as WarpRuntime } from '../WarpRuntime.js' */
+/** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 /**
  * @typedef {{
@@ -780,7 +780,7 @@ function freezePublicStateWithReceipts(state, receipts) {
  * @returns {Promise<WarpRuntime>}
  */
 async function openDetachedReadGraph(graph) {
-  const GraphClass = /** @type {typeof import('../WarpRuntime.js').default} */ (graph.constructor);
+  const GraphClass = /** @type {typeof import('../../WarpRuntime.js').default} */ (graph.constructor);
   /** @type {Parameters<typeof GraphClass.open>[0]} */
   const opts = {
     persistence: graph._persistence,
