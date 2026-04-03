@@ -15,7 +15,7 @@ circular dependencies were found.
 The WarpRuntime delegation targets. Each controller owns a slice of
 the public API surface and delegates to internal services.
 
-```
+```text
 CheckpointController.js     424
 ComparisonController.js    1198
 ForkController.js           293
@@ -41,7 +41,7 @@ the remaining services clearly "internal domain services" vs
 
 Message encoding/decoding for the patch wire format.
 
-```
+```text
 WarpMessageCodec.js         34   (facade)
 PatchMessageCodec.js       137
 CheckpointMessageCodec.js  140
@@ -63,7 +63,7 @@ right sub-codec.
 
 Roaring bitmap index construction, reading, and maintenance.
 
-```
+```text
 BitmapIndexBuilder.js       240
 BitmapIndexReader.js        604
 BitmapNeighborProvider.js   247
@@ -90,7 +90,7 @@ orchestrates them but lives at a higher level.
 
 State serialization, reading, diffing, and checkpoint persistence.
 
-```
+```text
 CheckpointSerializerV5.js   289
 CheckpointService.js        588
 StateReaderV5.js            599
@@ -109,7 +109,7 @@ state. `CheckpointService` is the main entry point.
 
 Multi-writer synchronization protocol.
 
-```
+```text
 SyncProtocol.js             694
 SyncAuthService.js          455
 SyncPayloadSchema.js        265
@@ -129,7 +129,7 @@ protocol with auth, schema validation, and trust gating.
 
 Git commit DAG traversal algorithms.
 
-```
+```text
 CommitDagTraversalService.js 166
 DagPathFinding.js            705
 DagTopology.js               237
@@ -145,7 +145,7 @@ coupling to domain state. Could nearly be its own package.
 
 Provenance tracking, payloads, and boundary transition records.
 
-```
+```text
 ProvenanceIndex.js          336
 ProvenancePayload.js        241
 BoundaryTransitionRecord.js 598
@@ -163,7 +163,7 @@ BTRs, causal indexing.
 
 Query engine, traversal, and observation.
 
-```
+```text
 QueryBuilder.js             852
 GraphTraversal.js          1617
 LogicalTraversal.js         590  (deprecated facade)
@@ -183,7 +183,7 @@ standing-query abstraction.
 
 Strand lifecycle, conflict analysis, and comparison.
 
-```
+```text
 StrandService.js           2049
 ConflictAnalyzerService.js 2582
 ```
@@ -203,7 +203,7 @@ files are god objects and already have `bad-code/` backlog items.
 
 Trust verification and audit receipt generation.
 
-```
+```text
 AuditReceiptService.js      499
 AuditVerifierService.js     824
 ```
@@ -219,7 +219,7 @@ Files that are imported by 3+ clusters and form the shared
 foundation. These stay in `services/` root (or a `kernel/`
 subdirectory — see options below).
 
-```
+```text
 JoinReducer.js             1158   (imported by 8 clusters)
 PatchBuilderV2.js          1103   (imported by strand/, patch controller)
 KeyCodec.js                 197   (imported by 7 clusters)
@@ -235,7 +235,7 @@ MultiplexSink.js             99   (imported by controllers)
 
 Remaining miscellaneous (stay in root):
 
-```
+```text
 Worldline.js                398   (query adjacent)
 TemporalQuery.js            359   (query adjacent)
 TranslationCost.js          336   (query adjacent, Paper IV)
@@ -254,7 +254,7 @@ LegacyAnchorDetector.js      70   (standalone)
 
 ## Dependency direction
 
-```
+```text
 controllers/  →  strand/, query/, sync/, provenance/, state/, index/
 strand/       →  reduce kernel, codec/, state/, provenance/
 query/        →  reduce kernel, state/
