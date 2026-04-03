@@ -21,7 +21,7 @@ and methods it actually needs:
  * }} PatchControllerCapabilities */
 
 class PatchController {
-  constructor(capabilities) { ... }
+  constructor(capabilities) { /* ... */ }
 }
 ```
 
