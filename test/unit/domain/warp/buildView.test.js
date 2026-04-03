@@ -18,7 +18,7 @@ describe('_buildView', () => {
     };
 
     const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
-    MaterializeController.prototype._buildView.call(ctrl, createEmptyStateV5(), 'hash123');
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash123');
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
@@ -44,7 +44,7 @@ describe('_buildView', () => {
 
     const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
     // Should not throw
-    MaterializeController.prototype._buildView.call(ctrl, createEmptyStateV5(), 'hash456');
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash456');
     expect(host._logicalIndex).toBeNull();
   });
 });

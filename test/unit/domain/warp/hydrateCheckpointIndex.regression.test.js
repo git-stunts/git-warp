@@ -106,7 +106,7 @@ describe('materialize stale-checkpoint regression', () => {
     // Patch _setMaterializedState to mimic the real one for this test
     const ctrl = new MaterializeController(host);
     // Override _setMaterializedState to a simplified version that builds index
-    ctrl._setMaterializedState = async (/** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ state) => {
+    /** @type {any} */ (ctrl)._setMaterializedState = async (/** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ state) => {
       const result = host._viewService.build(state);
       host._cachedState = state;
       host._stateDirty = false;

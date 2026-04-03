@@ -41,8 +41,8 @@ function buildMaterializePayload(graphName, strand, materialized) {
       state,
       receipts,
       summary: {
-        nodeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').ORSet} */ (state.nodeAlive)).length,
-        edgeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').ORSet} */ (state.edgeAlive)).length,
+        nodeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').default} */ (state.nodeAlive)).length,
+        edgeCount: orsetElements(/** @type {import('../../../../src/domain/crdt/ORSet.js').default} */ (state.edgeAlive)).length,
         propertyCount: state.prop.size,
         receiptCount: receipts?.length ?? 0,
       },

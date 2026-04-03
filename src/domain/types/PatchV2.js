@@ -79,8 +79,8 @@ export default class PatchV2 {
    *   lamport: number,
    *   context: import('../crdt/VersionVector.js').default | Record<string, number>,
    *   ops: import('./WarpTypesV2.js').OpV2[],
-   *   reads?: string[],
-   *   writes?: string[]
+   *   reads?: string[] | undefined,
+   *   writes?: string[] | undefined
    * }} fields
    */
   constructor({ schema = 2, writer, lamport, context, ops, reads, writes }) {

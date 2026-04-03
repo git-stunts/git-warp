@@ -55,7 +55,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @property {string} writer - Writer ID who created this patch
  * @property {number} lamport - Lamport timestamp of this patch
  * @property {OpLike[]} ops - Ordered array of operations
- * @property {Map<string, number>|Record<string, number>} context - Version vector context
+ * @property {import('../crdt/VersionVector.js').default|Map<string, number>|Record<string, number>} context - Version vector context
  */
 
 /**
@@ -747,7 +747,7 @@ function foldPatchDot(frontier, writer, lamport) {
 /**
  * Merges a patch's context into state and folds the patch dot.
  * @param {WarpStateV5} state
- * @param {{writer: string, lamport: number, context: import('../crdt/VersionVector.js').default|Record<string, number>}} patch
+ * @param {PatchLike} patch
  */
 function updateFrontierFromPatch(state, patch) {
   const contextVV = patch.context instanceof VersionVector

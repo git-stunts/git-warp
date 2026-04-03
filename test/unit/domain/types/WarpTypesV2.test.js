@@ -455,9 +455,10 @@ describe('WarpTypesV2', () => {
         ],
       });
 
-      expect(patch.context['writer-1']).toBe(10);
-      expect(patch.context['writer-2']).toBe(8);
-      expect(patch.context['writer-3']).toBe(0);
+      const ctx = /** @type {Record<string, number>} */ (patch.context);
+      expect(ctx['writer-1']).toBe(10);
+      expect(ctx['writer-2']).toBe(8);
+      expect(ctx['writer-3']).toBe(0);
     });
   });
 

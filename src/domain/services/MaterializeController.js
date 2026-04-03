@@ -371,29 +371,30 @@ export default class MaterializeController {
 
       // If checkpoint exists, use incremental materialization
       if (isV5CheckpointSchema(checkpoint?.schema)) {
-        const patches = await h._loadPatchesSince(checkpoint);
+        const ck = /** @type {NonNullable<typeof checkpoint>} */ (checkpoint);
+        const patches = await h._loadPatchesSince(ck);
         // Update max observed Lamport so _nextLamport() issues globally-monotonic ticks.
         // Read the checkpoint frontier's tip commit messages to capture the pre-checkpoint max,
         // then scan the incremental patches for anything newer.
-        if (checkpoint.frontier instanceof Map) {
-          await scanFrontierForMaxLamport(h, checkpoint.frontier);
+        if (ck.frontier instanceof Map) {
+          await scanFrontierForMaxLamport(h, ck.frontier);
         }
         scanPatchesForMaxLamport(h, patches);
         if (collectReceipts === true) {
-          const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state, { receipts: true }));
+          const result = /** @type {{state: WarpStateV5, receipts: TickReceipt[]}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { receipts: true }));
           state = result.state;
           receipts = result.receipts;
         } else if (wantDiff) {
-          const result = /** @type {{state: WarpStateV5, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state, { trackDiff: true }));
+          const result = /** @type {{state: WarpStateV5, diff: PatchDiff}} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state, { trackDiff: true }));
           state = result.state;
           diff = result.diff;
         } else {
-          state = /** @type {WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), checkpoint.state));
+          state = /** @type {WarpStateV5} */ (reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (patches), ck.state));
         }
         patchCount = patches.length;
 
         // Build provenance index: start from checkpoint index if present, then add new patches
-        const ckPI = /** @type {{provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}} */ (checkpoint).provenanceIndex;
+        const ckPI = /** @type {{provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex}} */ (ck).provenanceIndex;
         h._provenanceIndex = ckPI
           ? ckPI.clone()
           : new ProvenanceIndex();
@@ -496,7 +497,7 @@ export default class MaterializeController {
    * Materializes the graph and returns the materialized graph details.
    *
    * @returns {Promise<object>}
-   * @private
+   * @public — called via host delegation (defineProperty in WarpRuntime)
    */
   async _materializeGraph() {
     const h = this._host;
@@ -648,7 +649,7 @@ export default class MaterializeController {
    * @param {WarpStateV5} state
    * @param {string} stateHash
    * @param {PatchDiff} [diff] - Optional diff for incremental update
-   * @private
+   * @public — called via host delegation (defineProperty in WarpRuntime)
    */
   _buildView(state, stateHash, diff) {
     const h = this._host;
@@ -894,7 +895,7 @@ export default class MaterializeController {
    *
    * @param {string} indexTreeOid - Git tree OID of the bitmap index snapshot
    * @returns {Promise<void>}
-   * @private
+   * @public — called via host delegation (defineProperty in WarpRuntime)
    */
   async _restoreIndexFromCache(indexTreeOid) {
     const h = this._host;

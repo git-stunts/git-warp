@@ -233,7 +233,7 @@ export function createEdgePropSetV2(from, to, label, key, value) {
  * Creates a PatchV2.
  *
  * @deprecated Use `new PatchV2(...)` directly
- * @param {{ schema?: 2|3, writer: string, lamport: number, context: import('../crdt/VersionVector.js').default | Record<string, number>, ops: OpV2[], reads?: string[], writes?: string[] }} options
+ * @param {{ schema?: 2|3, writer: string, lamport: number, context: import('../crdt/VersionVector.js').default | Record<string, number>, ops: OpV2[], reads?: string[] | undefined, writes?: string[] | undefined }} options
  * @returns {PatchV2}
  */
 export function createPatchV2({ schema = 2, writer, lamport, context, ops, reads, writes }) {
