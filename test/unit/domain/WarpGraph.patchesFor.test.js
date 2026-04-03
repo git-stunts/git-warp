@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
-import { encodeCheckpointMessage } from '../../../src/domain/services/WarpMessageCodec.js';
+import { encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encodeEdgeKey, createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
-import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/CheckpointSerializerV5.js';
+import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
-import { ProvenanceIndex } from '../../../src/domain/services/ProvenanceIndex.js';
+import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.js';
 
 // Shared test utilities - generators are designed for parallel-safety
 // (each test gets its own generator instance to avoid cross-test interference)

@@ -91,7 +91,7 @@ async function simulatePatchCommit(/** @type {any} */ persistence, /** @type {an
   context,
 }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
-  const { encodePatchMessage } = await import('../../../src/domain/services/WarpMessageCodec.js');
+  const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.js');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.js');
   const patch = {
     schema: 2,

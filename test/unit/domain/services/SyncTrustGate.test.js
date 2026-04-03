@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import SyncTrustGate from '../../../../src/domain/services/SyncTrustGate.js';
+import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 
 function createMockLogger() {
   return {

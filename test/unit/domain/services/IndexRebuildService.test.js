@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
+import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
@@ -75,7 +75,7 @@ describe('IndexRebuildService', () => {
   // Testing _persistIndex directly to verify shard file creation without full rebuild overhead
   it('persists index from builder to storage', async () => {
     // Create a minimal builder with known data
-    const BitmapIndexBuilder = (await import('../../../../src/domain/services/BitmapIndexBuilder.js')).default;
+    const BitmapIndexBuilder = (await import('../../../../src/domain/services/index/BitmapIndexBuilder.js')).default;
     const builder = new BitmapIndexBuilder();
     builder.registerNode('aabbccdd');
     builder.addEdge('aabbccdd', 'eeffgghh');

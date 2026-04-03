@@ -117,7 +117,7 @@ import {
   nodeVisibleV5,
   edgeVisibleV5,
   serializeStateV5,
-} from '../../../../src/domain/services/StateSerializerV5.js';
+} from '../../../../src/domain/services/state/StateSerializerV5.js';
 
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 

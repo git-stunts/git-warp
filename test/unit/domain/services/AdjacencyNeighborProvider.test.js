@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import AdjacencyNeighborProvider from '../../../../src/domain/services/AdjacencyNeighborProvider.js';
+import AdjacencyNeighborProvider from '../../../../src/domain/services/query/AdjacencyNeighborProvider.js';
 
 /**
  * Helper: build adjacency maps from a list of edges.

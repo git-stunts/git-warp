@@ -16,7 +16,7 @@ import {
   DEFAULT_LIMITS,
   createSyncRequestSchema,
   createSyncResponseSchema,
-} from '../../../../src/domain/services/SyncPayloadSchema.js';
+} from '../../../../src/domain/services/sync/SyncPayloadSchema.js';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);

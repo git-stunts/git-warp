@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import GraphTraversal from '../../../../src/domain/services/GraphTraversal.js';
+import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.js';
 import {
   makeAdjacencyProvider,
   F3_DIAMOND_EQUAL_PATHS,

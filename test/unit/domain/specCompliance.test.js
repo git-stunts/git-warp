@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStateHashV5 } from '../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 import { orsetJoin, createORSet, orsetAdd } from '../../../src/domain/crdt/ORSet.js';
 import { createVersionVector, vvMerge, vvIncrement } from '../../../src/domain/crdt/VersionVector.js';
 import { createEmptyStateV5, join as joinState } from '../../../src/domain/services/JoinReducer.js';

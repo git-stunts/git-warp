@@ -4,7 +4,7 @@ import {
   detectSchemaVersion,
   SCHEMA_V2,
   SCHEMA_V3,
-} from '../../../../src/domain/services/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import SchemaUnsupportedError from '../../../../src/domain/errors/SchemaUnsupportedError.js';
 import { EDGE_PROP_PREFIX } from '../../../../src/domain/services/JoinReducer.js';
 

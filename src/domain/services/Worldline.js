@@ -8,8 +8,8 @@
  * @module domain/services/Worldline
  */
 
-import QueryBuilder from './QueryBuilder.js';
-import LogicalTraversal from './LogicalTraversal.js';
+import QueryBuilder from './query/QueryBuilder.js';
+import LogicalTraversal from './query/LogicalTraversal.js';
 import { toInternalStrandShape } from '../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
 
@@ -245,7 +245,7 @@ export default class Worldline {
     /** @type {WorldlineSource} */
     this._source = cloneWorldlineSource(source);
 
-    /** @type {Promise<import('./Observer.js').default>|null} */
+    /** @type {Promise<import('./query/Observer.js').default>|null} */
     this._delegateObserverPromise = null;
 
     /**
@@ -300,7 +300,7 @@ export default class Worldline {
   /**
    * Resolves the cached full-aperture observer for this worldline.
    *
-   * @returns {Promise<import('./Observer.js').default>}
+   * @returns {Promise<import('./query/Observer.js').default>}
    * @private
    */
   async _delegateObserver() {
@@ -382,7 +382,7 @@ export default class Worldline {
    *
    * @param {string|ObserverConfig} nameOrConfig
    * @param {ObserverConfig} [config]
-   * @returns {Promise<import('./Observer.js').default>}
+   * @returns {Promise<import('./query/Observer.js').default>}
    */
   async observer(nameOrConfig, config = undefined) {
     if (typeof nameOrConfig === 'string') {

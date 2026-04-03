@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { AuditReceiptService } from '../../../../src/domain/services/AuditReceiptService.js';
+import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 

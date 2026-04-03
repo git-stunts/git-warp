@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/WarpStateIndexBuilder.js';
+import WarpStateIndexBuilder, { buildWarpStateIndex } from '../../../../src/domain/services/index/WarpStateIndexBuilder.js';
 import { createEmptyStateV5, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

@@ -4,7 +4,7 @@ import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.j
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
-import { decodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**

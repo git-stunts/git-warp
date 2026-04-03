@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import BitmapIndexBuilder from '../../../../src/domain/services/BitmapIndexBuilder.js';
+import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
 import { decode as cborDecode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**

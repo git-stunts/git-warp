@@ -30,7 +30,7 @@
  * @property {() => {totalTombstones: number, tombstoneRatio: number}} getGCMetrics
  * @property {() => Promise<number>} getPropertyCount
  * @property {() => Promise<import('../../src/domain/services/JoinReducer.js').WarpStateV5 | null>} getStateSnapshot
- * @property {(options?: import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalyzeOptions) => Promise<import('../../src/domain/services/ConflictAnalyzerService.js').ConflictAnalysis>} analyzeConflicts
+ * @property {(options?: import('../../src/domain/services/strand/ConflictAnalyzerService.js').ConflictAnalyzeOptions) => Promise<import('../../src/domain/services/strand/ConflictAnalyzerService.js').ConflictAnalysis>} analyzeConflicts
  * @property {(options?: import('../../index.js').StrandCreateOptions) => Promise<import('../../index.js').StrandDescriptor>} createStrand
  * @property {(strandId: string, options?: import('../../index.js').StrandBraidOptions) => Promise<import('../../index.js').StrandDescriptor>} braidStrand
  * @property {(strandId: string) => Promise<import('../../index.js').StrandDescriptor|null>} getStrand

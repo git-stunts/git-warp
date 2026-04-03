@@ -1,5 +1,5 @@
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
-import { computeStateHashV5 } from '../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 import {
   createDetachedReadBenchmarkPlan,
   DETACHED_READ_BENCHMARK_KINDS,

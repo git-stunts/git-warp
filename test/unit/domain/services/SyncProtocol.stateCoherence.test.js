@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   applySyncResponse,
   processSyncRequest,
-} from '../../../../src/domain/services/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
   createEmptyStateV5,
 } from '../../../../src/domain/services/JoinReducer.js';
@@ -17,7 +17,7 @@ import { createFrontier, updateFrontier } from '../../../../src/domain/services/
 // createDot reserved for future test expansion
 // import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetElements } from '../../../../src/domain/crdt/ORSet.js';
-import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 

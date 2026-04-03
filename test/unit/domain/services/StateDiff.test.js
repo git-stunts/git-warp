@@ -3,7 +3,7 @@ import {
   diffStates,
   isEmptyDiff,
   createEmptyDiff,
-} from '../../../../src/domain/services/StateDiff.js';
+} from '../../../../src/domain/services/state/StateDiff.js';
 import {
   createEmptyStateV5,
   applyOpV2,

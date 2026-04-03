@@ -14,10 +14,10 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import nullLogger from '../utils/nullLogger.js';
-import LogicalIndexBuildService from './LogicalIndexBuildService.js';
-import LogicalIndexReader from './LogicalIndexReader.js';
-import PropertyIndexReader from './PropertyIndexReader.js';
-import IncrementalIndexUpdater from './IncrementalIndexUpdater.js';
+import LogicalIndexBuildService from './index/LogicalIndexBuildService.js';
+import LogicalIndexReader from './index/LogicalIndexReader.js';
+import PropertyIndexReader from './index/PropertyIndexReader.js';
+import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
 
@@ -25,7 +25,7 @@ import { decodeEdgeKey } from './KeyCodec.js';
 const PROPS_PREFIX = 'props_';
 
 /**
- * @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex
+ * @typedef {import('./index/BitmapNeighborProvider.js').LogicalIndex} LogicalIndex
  */
 
 /**

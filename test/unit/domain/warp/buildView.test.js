@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import MaterializeController from '../../../../src/domain/services/MaterializeController.js';
+import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 
 describe('_buildView', () => {

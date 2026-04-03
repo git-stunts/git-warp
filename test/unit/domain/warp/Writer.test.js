@@ -10,7 +10,7 @@ import { Writer, WriterError } from '../../../../src/domain/warp/Writer.js';
 import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
 import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 
 /**
  * Creates a minimal mock persistence adapter.

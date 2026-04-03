@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import GraphTraversal from '../../../../src/domain/services/GraphTraversal.js';
+import GraphTraversal from '../../../../src/domain/services/query/GraphTraversal.js';
 import {
   F14_NODE_WEIGHTED_DAG,
   F14_NODE_WEIGHTS,

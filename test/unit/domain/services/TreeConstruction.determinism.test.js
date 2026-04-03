@@ -4,7 +4,7 @@ import { createRng } from '../../../helpers/seededRng.js';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
-import { createV5 } from '../../../../src/domain/services/CheckpointService.js';
+import { createV5 } from '../../../../src/domain/services/state/CheckpointService.js';
 import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadIndexFrontier, checkStaleness } from '../../../../src/domain/services/IndexStalenessChecker.js';
+import { loadIndexFrontier, checkStaleness } from '../../../../src/domain/services/index/IndexStalenessChecker.js';
 import { encode as cborEncode } from '../../../../src/infrastructure/codecs/CborCodec.js';
-import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
+import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
 
 /**
  * GK/IDX/2 — Detect and report index staleness on load.

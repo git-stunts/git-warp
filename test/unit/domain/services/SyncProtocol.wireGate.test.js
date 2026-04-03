@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applySyncResponse,
-} from '../../../../src/domain/services/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
   createEmptyStateV5,
 } from '../../../../src/domain/services/JoinReducer.js';

@@ -11,10 +11,10 @@
 
 import { describe, it, expect } from 'vitest';
 // LogicalBitmapIndexBuilder reserved for future benchmark expansion
-// import LogicalBitmapIndexBuilder from '../../src/domain/services/LogicalBitmapIndexBuilder.js';
-import LogicalIndexBuildService from '../../src/domain/services/LogicalIndexBuildService.js';
-import PropertyIndexBuilder from '../../src/domain/services/PropertyIndexBuilder.js';
-import PropertyIndexReader from '../../src/domain/services/PropertyIndexReader.js';
+// import LogicalBitmapIndexBuilder from '../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
+import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
+import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexBuilder.js';
+import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';

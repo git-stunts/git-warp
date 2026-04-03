@@ -7,7 +7,7 @@ import {
   exportCoordinateComparisonFact,
   exportCoordinateTransferPlanFact,
 } from '../../../src/domain/services/CoordinateFactExport.js';
-import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
+import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.js';
@@ -112,7 +112,7 @@ async function simulatePatchCommit(persistence, {
   context,
 }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
-  const { encodePatchMessage } = await import('../../../src/domain/services/WarpMessageCodec.js');
+  const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.js');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.js');
 
   const patch = {

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import CheckpointController from '../../../../src/domain/services/CheckpointController.js';
+import CheckpointController from '../../../../src/domain/services/controllers/CheckpointController.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';

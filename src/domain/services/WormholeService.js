@@ -21,11 +21,11 @@
  */
 
 import defaultCodec from '../utils/defaultCodec.js';
-import ProvenancePayload from './ProvenancePayload.js';
+import ProvenancePayload from './provenance/ProvenancePayload.js';
 import WormholeError from '../errors/WormholeError.js';
 import EncryptionError from '../errors/EncryptionError.js';
 import PersistenceError from '../errors/PersistenceError.js';
-import { detectMessageKind, decodePatchMessage } from './WarpMessageCodec.js';
+import { detectMessageKind, decodePatchMessage } from './codec/WarpMessageCodec.js';
 
 /**
  * Validates that a SHA parameter is a non-empty string.
@@ -359,7 +359,7 @@ export function deserializeWormhole(json) {
     toSha: /** @type {string} */ (typedJson['toSha']),
     writerId: /** @type {string} */ (typedJson['writerId']),
     patchCount: /** @type {number} */ (typedJson['patchCount']),
-    payload: ProvenancePayload.fromJSON(/** @type {import('./ProvenancePayload.js').PatchEntry[]} */ (typedJson['payload'])),
+    payload: ProvenancePayload.fromJSON(/** @type {import('./provenance/ProvenancePayload.js').PatchEntry[]} */ (typedJson['payload'])),
   };
 }
 

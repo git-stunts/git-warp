@@ -10,12 +10,12 @@ import {
   encodeEdgePropKey,
   encodePropKey,
 } from '../../../../src/domain/services/KeyCodec.js';
-import { createStateReaderV5 } from '../../../../src/domain/services/StateReaderV5.js';
+import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
 import {
   normalizeVisibleStateScopeV1,
   scopeMaterializedStateV5,
 } from '../../../../src/domain/services/VisibleStateScopeV1.js';
-import WarpStateV5 from '../../../../src/domain/services/WarpStateV5.js';
+import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
 
 function buildScopedFixtureState() {
   const nodeAlive = createORSet();

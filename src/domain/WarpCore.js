@@ -484,11 +484,11 @@ export default class WarpCore {
   /**
    * Analyzes conflicts in the current graph state.
    *
-   * @param {import('./services/ConflictAnalyzerService.js').ConflictAnalyzeOptions} [options]
-   * @returns {Promise<import('./services/ConflictAnalyzerService.js').ConflictAnalysis>}
+   * @param {import('./services/strand/ConflictAnalyzerService.js').ConflictAnalyzeOptions} [options]
+   * @returns {Promise<import('./services/strand/ConflictAnalyzerService.js').ConflictAnalysis>}
    */
   async analyzeConflicts(options) {
-    return /** @type {import('./services/ConflictAnalyzerService.js').ConflictAnalysis} */ (
+    return /** @type {import('./services/strand/ConflictAnalyzerService.js').ConflictAnalysis} */ (
       /** @type {unknown} */ (
         toPublicStrandShape(
           await WarpRuntime.prototype.analyzeConflicts.call(

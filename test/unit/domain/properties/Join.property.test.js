@@ -6,7 +6,7 @@ import {
   joinStates as _joinStates,
   reduceV5 as _reduceV5,
 } from '../../../../src/domain/services/JoinReducer.js';
-import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 as _computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 /** @type {any} */

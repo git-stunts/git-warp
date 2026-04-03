@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import BitmapNeighborProvider from '../../../../src/domain/services/BitmapNeighborProvider.js';
+import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.js';
 
 describe('BitmapNeighborProvider', () => {
   /** @type {*} */

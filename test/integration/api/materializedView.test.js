@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
-import BitmapNeighborProvider from '../../../src/domain/services/BitmapNeighborProvider.js';
+import BitmapNeighborProvider from '../../../src/domain/services/index/BitmapNeighborProvider.js';
 
 describe('API: MaterializedView', () => {
   /** @type {any} */

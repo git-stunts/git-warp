@@ -11,30 +11,30 @@
 import { validateGraphName, validateWriterId } from './utils/RefLayout.js';
 import VersionVector from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
-import { AuditReceiptService } from './services/AuditReceiptService.js';
+import { AuditReceiptService } from './services/audit/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
 import defaultCodec from './utils/defaultCodec.js';
 import defaultCrypto from './utils/defaultCrypto.js';
 import defaultClock from './utils/defaultClock.js';
-import LogicalTraversal from './services/LogicalTraversal.js';
+import LogicalTraversal from './services/query/LogicalTraversal.js';
 import LRUCache from './utils/LRUCache.js';
-import SyncController from './services/SyncController.js';
-import StrandController from './services/StrandController.js';
-import ComparisonController from './services/ComparisonController.js';
-import SubscriptionController from './services/SubscriptionController.js';
-import ProvenanceController from './services/ProvenanceController.js';
-import ForkController from './services/ForkController.js';
-import QueryController from './services/QueryController.js';
-import PatchController from './services/PatchController.js';
-import CheckpointController from './services/CheckpointController.js';
-import SyncTrustGate from './services/SyncTrustGate.js';
-import { AuditVerifierService } from './services/AuditVerifierService.js';
+import SyncController from './services/controllers/SyncController.js';
+import StrandController from './services/controllers/StrandController.js';
+import ComparisonController from './services/controllers/ComparisonController.js';
+import SubscriptionController from './services/controllers/SubscriptionController.js';
+import ProvenanceController from './services/controllers/ProvenanceController.js';
+import ForkController from './services/controllers/ForkController.js';
+import QueryController from './services/controllers/QueryController.js';
+import PatchController from './services/controllers/PatchController.js';
+import CheckpointController from './services/controllers/CheckpointController.js';
+import SyncTrustGate from './services/sync/SyncTrustGate.js';
+import { AuditVerifierService } from './services/audit/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
 // materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
-import MaterializeController from './services/MaterializeController.js';
+import MaterializeController from './services/controllers/MaterializeController.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -144,7 +144,7 @@ function normalizeTrustConfig(trust) {
  * @property {import('./services/JoinReducer.js').WarpStateV5} state
  * @property {string|null} stateHash
  * @property {{outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}} adjacency
- * @property {import('./services/BitmapNeighborProvider.js').default} [provider]
+ * @property {import('./services/index/BitmapNeighborProvider.js').default} [provider]
  */
 
 /**
@@ -253,7 +253,7 @@ export default class WarpRuntime {
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
     this._lastNotifiedState = null;
 
-    /** @type {import('./services/ProvenanceIndex.js').ProvenanceIndex|null} */
+    /** @type {import('./services/provenance/ProvenanceIndex.js').ProvenanceIndex|null} */
     this._provenanceIndex = null;
 
     /** @type {import('./services/TemporalQuery.js').TemporalQuery|null} */
@@ -343,10 +343,10 @@ export default class WarpRuntime {
       ...(this._logger ? { logger: this._logger } : {}),
     });
 
-    /** @type {import('./services/BitmapNeighborProvider.js').LogicalIndex|null} */
+    /** @type {import('./services/index/BitmapNeighborProvider.js').LogicalIndex|null} */
     this._logicalIndex = null;
 
-    /** @type {import('./services/PropertyIndexReader.js').default|null} */
+    /** @type {import('./services/index/PropertyIndexReader.js').default|null} */
     this._propertyReader = null;
 
     /** @type {string|null} */
@@ -657,7 +657,7 @@ export default class WarpRuntime {
    *
    * **Requires a cached state.** Call materialize() first if not already cached.
    *
-   * @returns {import('./services/ProvenanceIndex.js').ProvenanceIndex|null} The provenance index, or null if not materialized
+   * @returns {import('./services/provenance/ProvenanceIndex.js').ProvenanceIndex|null} The provenance index, or null if not materialized
    *
    * @example
    * await graph.materialize();

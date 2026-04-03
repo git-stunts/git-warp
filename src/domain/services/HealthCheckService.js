@@ -52,7 +52,7 @@ export default class HealthCheckService {
     this._clock = clock;
     this._logger = logger;
 
-    /** @type {import('./BitmapIndexReader.js').default|null} */
+    /** @type {import('./index/BitmapIndexReader.js').default|null} */
     this._indexReader = null;
 
     // Health check cache
@@ -72,7 +72,7 @@ export default class HealthCheckService {
    * Sets the index reader for index health checks.
    * Call this when an index is loaded.
    *
-   * @param {import('./BitmapIndexReader.js').default|null} reader - The index reader, or null to clear
+   * @param {import('./index/BitmapIndexReader.js').default|null} reader - The index reader, or null to clear
    * @returns {void}
    */
   setIndexReader(reader) {

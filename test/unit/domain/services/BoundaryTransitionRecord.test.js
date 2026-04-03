@@ -9,8 +9,8 @@ import {
   getBTROutputHash,
   getBTRTimestamp,
   getBTRPayloadLength,
-} from '../../../../src/domain/services/BoundaryTransitionRecord.js';
-import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
+} from '../../../../src/domain/services/provenance/BoundaryTransitionRecord.js';
+import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import {
   createEmptyStateV5,
   reduceV5 as _reduceV5,
@@ -19,7 +19,7 @@ import {
 } from '../../../../src/domain/services/JoinReducer.js';
 /** @type {(...args: any[]) => any} */
 const reduceV5 = _reduceV5;
-import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
