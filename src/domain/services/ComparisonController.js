@@ -40,24 +40,190 @@ const COORDINATE_TRANSFER_PLAN_VERSION = 'coordinate-transfer-plan/v1';
  */
 
 /**
- * Internal normalized selector shape after validation.
- *
- * @typedef {Object} NormalizedSelector
- * @property {string} kind - Selector kind (live, strand, strand_base, coordinate)
- * @property {number|null} [ceiling] - Optional lamport ceiling
- * @property {string} [strandId] - Strand identifier (for strand/strand_base kinds)
- * @property {Record<string, string>} [frontier] - Frontier record (for coordinate kind)
+/**
+ * NormalizedSelector — base class for validated comparison selectors.
+ * Each subclass implements `resolve()` with the resolution logic for
+ * its kind, eliminating dispatch switches.
  */
+class NormalizedSelector {
+  /** @type {string} */
+  kind;
+
+  /** @type {number|null} */
+  ceiling;
+
+  /**
+   * Creates a NormalizedSelector.
+   * @param {string} kind
+   * @param {number|null} ceiling
+   */
+  constructor(kind, ceiling) {
+    this.kind = kind;
+    this.ceiling = ceiling;
+  }
+
+  /**
+   * Resolves this selector into a ResolvedComparisonSide.
+   * @param {import('../WarpRuntime.js').default} _graph
+   * @param {VisibleStateScopeV1|null} _scope
+   * @param {Map<string, string>|null} _liveFrontier
+   * @returns {Promise<ResolvedComparisonSide>}
+   */
+  resolve(_graph, _scope, _liveFrontier) {
+    throw new QueryError(`NormalizedSelector.resolve() must be overridden by ${this.kind} subclass`, { code: 'invalid_coordinate' });
+  }
+}
+
+/** Live frontier selector. */
+class LiveSelector extends NormalizedSelector {
+  /** Creates a LiveSelector.
+   * @param {number|null} ceiling
+   */
+  constructor(ceiling) {
+    super('live', ceiling);
+  }
+
+  /** Resolves live frontier to a comparison side. @param {import('../WarpRuntime.js').default} graph @param {VisibleStateScopeV1|null} scope @param {Map<string, string>|null} liveFrontier @returns {Promise<ResolvedComparisonSide>} */
+  async resolve(graph, scope, liveFrontier) {
+    const requestedFrontier = liveFrontier ?? /** @type {Map<string, string>} */ (await graph.getFrontier());
+    const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
+    const state = await graph.materializeCoordinate({
+      frontier: frontierRecordToMap(requestedRecord),
+      ...optionalCeiling(this.ceiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(graph, requestedRecord, this.ceiling);
+    return await finalizeSide(graph, {
+      requested: { kind: 'live', ...optionalCeiling(this.ceiling) },
+      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: this.ceiling,
+    }, scope);
+  }
+}
+
+/** Explicit coordinate (frontier) selector. */
+class CoordinateSelector extends NormalizedSelector {
+  /** @type {Record<string, string>} */
+  frontier;
+
+  /** Creates a CoordinateSelector.
+   * @param {Record<string, string>} frontier
+   * @param {number|null} ceiling
+   */
+  constructor(frontier, ceiling) {
+    super('coordinate', ceiling);
+    this.frontier = frontier;
+  }
+
+  /** Resolves explicit coordinate frontier to a comparison side. @param {import('../WarpRuntime.js').default} graph @param {VisibleStateScopeV1|null} scope @returns {Promise<ResolvedComparisonSide>} */
+  async resolve(graph, scope) {
+    const state = await graph.materializeCoordinate({
+      frontier: frontierRecordToMap(this.frontier),
+      ...optionalCeiling(this.ceiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(graph, this.frontier, this.ceiling);
+    return await finalizeSide(graph, {
+      requested: { ...buildCoordinateRequest(this.frontier, this.ceiling), kind: 'coordinate' },
+      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: this.ceiling,
+    }, scope);
+  }
+}
+
+/** Strand overlay selector. */
+class StrandSelector extends NormalizedSelector {
+  /** @type {string} */
+  strandId;
+
+  /** Creates a StrandSelector.
+   * @param {string} strandId
+   * @param {number|null} ceiling
+   */
+  constructor(strandId, ceiling) {
+    super('strand', ceiling);
+    this.strandId = strandId;
+  }
+
+  /** Resolves strand overlay to a comparison side. @param {import('../WarpRuntime.js').default} graph @param {VisibleStateScopeV1|null} scope @returns {Promise<ResolvedComparisonSide>} */
+  async resolve(graph, scope) {
+    const strands = new StrandService({ graph });
+    const descriptor = await strands.getOrThrow(this.strandId);
+    const state = /** @type {WarpStateV5} */ (await callInternalRuntimeMethod(
+      graph, 'materializeStrand', this.strandId,
+      this.ceiling === null ? undefined : { ceiling: this.ceiling },
+    ));
+    const patchEntries = await strands.getPatchEntries(
+      this.strandId, this.ceiling === null ? undefined : { ceiling: this.ceiling },
+    );
+    return await finalizeSide(graph, {
+      requested: { kind: 'strand', strandId: this.strandId, ...optionalCeiling(this.ceiling) },
+      state, patchEntries, coordinateKind: 'strand', lamportCeiling: this.ceiling,
+      strand: buildStrandMetadata(this.strandId, descriptor),
+    }, scope);
+  }
+}
+
+/** Strand base observation selector. */
+class StrandBaseSelector extends NormalizedSelector {
+  /** @type {string} */
+  strandId;
+
+  /** Creates a StrandBaseSelector.
+   * @param {string} strandId
+   * @param {number|null} ceiling
+   */
+  constructor(strandId, ceiling) {
+    super('strand_base', ceiling);
+    this.strandId = strandId;
+  }
+
+  /** Resolves strand base observation to a comparison side. @param {import('../WarpRuntime.js').default} graph @param {VisibleStateScopeV1|null} scope @returns {Promise<ResolvedComparisonSide>} */
+  async resolve(graph, scope) {
+    const strands = new StrandService({ graph });
+    const descriptor = await strands.getOrThrow(this.strandId);
+    const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, this.ceiling);
+    const state = await graph.materializeCoordinate({
+      frontier: descriptor.baseObservation.frontier,
+      ...optionalCeiling(effectiveCeiling),
+    });
+    const patchEntries = await collectPatchEntriesForFrontier(graph, descriptor.baseObservation.frontier, effectiveCeiling);
+    return await finalizeSide(graph, {
+      requested: {
+        kind: 'strand_base', strandId: this.strandId,
+        frontier: { ...descriptor.baseObservation.frontier },
+        baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
+        ...optionalCeiling(this.ceiling),
+      },
+      state, patchEntries, coordinateKind: 'strand_base', lamportCeiling: effectiveCeiling,
+      strand: buildStrandMetadata(this.strandId, /** @type {StrandDescriptorV1} */ (descriptor)),
+    }, scope);
+  }
+}
 
 /**
- * Resolved comparison side with state, entries, and metadata.
- *
- * @typedef {Object} ResolvedComparisonSide
- * @property {Record<string, unknown>} requested - Original requested selector
- * @property {WarpStateV5} state - Materialized state
- * @property {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} patchEntries - Patch entries
- * @property {Record<string, unknown>} resolved - Resolved metadata with digests
+ * ResolvedComparisonSide — materialized state + metadata for one side of a comparison.
  */
+class ResolvedComparisonSide {
+  /** @type {Record<string, unknown>} Original requested selector */
+  requested;
+
+  /** @type {Record<string, unknown>} Resolved metadata with digests */
+  resolved;
+
+  /** @type {WarpStateV5} Materialized state */
+  state;
+
+  /** @type {Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>} */
+  patchEntries;
+
+  /**
+   * Creates a ResolvedComparisonSide.
+   * @param {{ requested: Record<string, unknown>, state: WarpStateV5, patchEntries: Array<{ patch: import('../types/WarpTypesV2.js').PatchV2, sha: string }>, resolved: Record<string, unknown> }} fields
+   */
+  constructor({ requested, state, patchEntries, resolved }) {
+    this.requested = requested;
+    this.resolved = resolved;
+    this.state = state;
+    this.patchEntries = patchEntries;
+  }
+}
 
 /**
  * Deterministically compares two strings.
@@ -485,22 +651,19 @@ async function collectPatchEntriesForFrontier(graph, frontierRecord, ceiling) {
  * @param {string} field - Field name for error context
  * @returns {Record<string, unknown>}
  */
+/**
+ * Normalizes a raw selector into a NormalizedSelector.
+ * @param {Record<string, unknown>} selector
+ * @param {string} field
+ * @returns {NormalizedSelector}
+ */
 function normalizeSelector(selector, field) {
   const raw = /** @type {Record<string, unknown>} */ (selector);
   const kind = extractSelectorKind(raw);
 
-  /** @type {Record<string, (r: Record<string, unknown>, f: string) => Record<string, unknown>>} */
-  const handlers = {
-    live: normalizeLiveSelector,
-    coordinate: normalizeCoordinateSelector,
-  };
-  const handler = handlers[kind];
-  if (handler !== undefined) {
-    return handler(raw, field);
-  }
-  if (kind === 'strand' || kind === 'strand_base') {
-    return normalizeStrandSelector(raw, kind, field);
-  }
+  if (kind === 'live') { return normalizeLiveSelector(raw, field); }
+  if (kind === 'coordinate') { return normalizeCoordinateSelector(raw, field); }
+  if (kind === 'strand' || kind === 'strand_base') { return normalizeStrandSelector(raw, kind, field); }
   throw new QueryError(`${field}.kind is unsupported`, { code: 'invalid_coordinate', context: { field, kind } });
 }
 
@@ -522,43 +685,46 @@ function extractSelectorKind(raw) {
  * @param {string} field - Field name for error context
  * @returns {Record<string, unknown>}
  */
+/**
+ * Normalizes a 'live' selector.
+ * @param {Record<string, unknown>} raw
+ * @param {string} field
+ * @returns {LiveSelector}
+ */
 function normalizeLiveSelector(raw, field) {
   const r = /** @type {{ ceiling?: unknown }} */ (raw);
-  return { kind: 'live', ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`) };
+  return new LiveSelector(normalizeLamportCeiling(r.ceiling, `${field}.ceiling`));
 }
 
 /**
- * Normalizes a 'strand' or 'strand_base' kind selector.
- *
- * @param {Record<string, unknown>} raw - Parsed selector record
- * @param {string} kind - The selector kind
- * @param {string} field - Field name for error context
- * @returns {Record<string, unknown>}
+ * Normalizes a 'strand' or 'strand_base' selector.
+ * @param {Record<string, unknown>} raw
+ * @param {string} kind
+ * @param {string} field
+ * @returns {StrandSelector|StrandBaseSelector}
  */
 function normalizeStrandSelector(raw, kind, field) {
   const r = /** @type {{ strandId?: unknown, ceiling?: unknown }} */ (raw);
-  return {
-    kind,
-    strandId: normalizeRequiredString(r.strandId, `${field}.strandId`),
-    ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
-  };
+  const strandId = normalizeRequiredString(r.strandId, `${field}.strandId`);
+  const ceiling = normalizeLamportCeiling(r.ceiling, `${field}.ceiling`);
+  return kind === 'strand_base'
+    ? new StrandBaseSelector(strandId, ceiling)
+    : new StrandSelector(strandId, ceiling);
 }
 
 /**
- * Normalizes a 'coordinate' kind selector.
- *
- * @param {Record<string, unknown>} raw - Parsed selector record
- * @param {string} field - Field name for error context
- * @returns {Record<string, unknown>}
+ * Normalizes a 'coordinate' selector.
+ * @param {Record<string, unknown>} raw
+ * @param {string} field
+ * @returns {CoordinateSelector}
  */
 function normalizeCoordinateSelector(raw, field) {
   const r = /** @type {{ frontier?: unknown, ceiling?: unknown }} */ (raw);
   const f = /** @type {Map<string, string>|Record<string, string>} */ (r.frontier);
-  return {
-    kind: 'coordinate',
-    frontier: normalizeFrontierRecord(f, `${field}.frontier`),
-    ceiling: normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
-  };
+  return new CoordinateSelector(
+    normalizeFrontierRecord(f, `${field}.frontier`),
+    normalizeLamportCeiling(r.ceiling, `${field}.ceiling`),
+  );
 }
 
 /**
@@ -608,9 +774,9 @@ function buildStrandMetadata(strandId, descriptor) {
  *   strand?: Record<string, unknown>
  * }} params
  * @param {VisibleStateScopeV1|null} scope
- * @returns {Promise<Record<string, unknown>>}
+ * @returns {Promise<ResolvedComparisonSide>}
  */
-async function finalizeComparisonSide(graph, params, scope) {
+async function finalizeSide(graph, params, scope) {
   const { requested, state, patchEntries, coordinateKind, lamportCeiling, strand } = params;
   const scopedState = scopeMaterializedStateV5(state, scope);
   const scopedPatchEntries = scopePatchEntriesV1(patchEntries, scope);
@@ -621,7 +787,7 @@ async function finalizeComparisonSide(graph, params, scope) {
   const stateHash = await computeStateHashV5(scopedState, { crypto: graph._crypto, codec: graph._codec });
   const patchShas = uniqueSortedPatchShas(scopedPatchEntries);
 
-  return {
+  return new ResolvedComparisonSide({
     requested,
     state: scopedState,
     patchEntries: scopedPatchEntries,
@@ -637,161 +803,9 @@ async function finalizeComparisonSide(graph, params, scope) {
       summary: summarizeVisibleState(reader, scopedPatchEntries.length),
       ...(strand !== undefined ? { strand } : {}),
     },
-  };
+  });
 }
 
-/**
- * Resolves the 'live' coordinate side.
- *
- * @param {import('../WarpRuntime.js').default} graph
- * @param {NormalizedSelector} selector
- * @param {VisibleStateScopeV1|null} scope
- * @param {{ liveFrontier?: Map<string, string>|null }} [opts] - Resolution options
- * @private
- */
-
-/**
- * Resolves a comparison side for coordinate/strand comparisons.
- *
- * Holds the graph, scope, pre-captured live frontier, and the side's
- * role ('left'/'right'/'source'/'target') as instance state.
- * The role tag prevents accidentally swapping sides in downstream calls.
- */
-class ComparisonSideResolver {
-  /** @type {import('../WarpRuntime.js').default} */
-  _graph;
-
-  /** @type {VisibleStateScopeV1|null} */
-  _scope;
-
-  /** @type {Map<string, string>|null} */
-  _liveFrontier;
-
-  /** @type {string} */
-  role;
-
-  /**
-   * Creates a resolver bound to a graph, scope, and role.
-   * @param {string} role - 'left', 'right', 'source', or 'target'
-   * @param {import('../WarpRuntime.js').default} graph
-   * @param {{ scope: VisibleStateScopeV1|null, liveFrontier?: Map<string, string>|null }} opts
-   */
-  constructor(role, graph, opts) {
-    this.role = role;
-    this._graph = graph;
-    this._scope = opts.scope;
-    this._liveFrontier = opts.liveFrontier ?? null;
-  }
-
-  /**
-   * Dispatches to the appropriate resolver based on selector kind.
-   * @param {NormalizedSelector} selector
-   * @returns {Promise<ResolvedComparisonSide>}
-   */
-  async resolve(selector) {
-    if (selector.kind === 'live') {
-      return await this._resolveLive(selector);
-    }
-    if (selector.kind === 'coordinate') {
-      return await this._resolveCoordinate(selector);
-    }
-    if (selector.kind === 'strand') {
-      return await this._resolveStrand(selector);
-    }
-    return await this._resolveStrandBase(selector);
-  }
-
-  /**
-   * Resolves a 'live' side using the captured or fresh frontier.
-   * @param {NormalizedSelector} selector
-   * @returns {Promise<ResolvedComparisonSide>}
-   */
-  async _resolveLive(selector) {
-    const ceiling = selector.ceiling ?? null;
-    const requestedFrontier = this._liveFrontier ?? /** @type {Map<string, string>} */ (await this._graph.getFrontier());
-    const requestedRecord = normalizeFrontierRecord(requestedFrontier, 'live.frontier');
-    const state = await this._graph.materializeCoordinate({
-      frontier: frontierRecordToMap(requestedRecord),
-      ...optionalCeiling(ceiling),
-    });
-    const patchEntries = await collectPatchEntriesForFrontier(this._graph, requestedRecord, ceiling);
-    return /** @type {ResolvedComparisonSide} */ (await finalizeComparisonSide(this._graph, {
-      requested: { kind: 'live', ...optionalCeiling(ceiling) },
-      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: ceiling,
-    }, this._scope));
-  }
-
-  /**
-   * Resolves an explicit 'coordinate' side.
-   * @param {NormalizedSelector} selector
-   * @returns {Promise<ResolvedComparisonSide>}
-   */
-  async _resolveCoordinate(selector) {
-    const ceiling = selector.ceiling ?? null;
-    const frontier = /** @type {Record<string, string>} */ (selector.frontier ?? {});
-    const state = await this._graph.materializeCoordinate({
-      frontier: frontierRecordToMap(frontier),
-      ...optionalCeiling(ceiling),
-    });
-    const patchEntries = await collectPatchEntriesForFrontier(this._graph, frontier, ceiling);
-    return /** @type {ResolvedComparisonSide} */ (await finalizeComparisonSide(this._graph, {
-      requested: { ...buildCoordinateRequest(frontier, ceiling), kind: 'coordinate' },
-      state, patchEntries, coordinateKind: 'frontier', lamportCeiling: ceiling,
-    }, this._scope));
-  }
-
-  /**
-   * Resolves a 'strand' coordinate side.
-   * @param {NormalizedSelector} selector
-   * @returns {Promise<ResolvedComparisonSide>}
-   */
-  async _resolveStrand(selector) {
-    const ceiling = selector.ceiling ?? null;
-    const strandId = /** @type {string} */ (selector.strandId ?? '');
-    const strands = new StrandService({ graph: this._graph });
-    const descriptor = await strands.getOrThrow(strandId);
-    const state = /** @type {WarpStateV5} */ (await callInternalRuntimeMethod(
-      this._graph, 'materializeStrand', strandId,
-      ceiling === null ? undefined : { ceiling },
-    ));
-    const patchEntries = await strands.getPatchEntries(
-      strandId, ceiling === null ? undefined : { ceiling },
-    );
-    return /** @type {ResolvedComparisonSide} */ (await finalizeComparisonSide(this._graph, {
-      requested: { kind: 'strand', strandId, ...optionalCeiling(ceiling) },
-      state, patchEntries, coordinateKind: 'strand', lamportCeiling: ceiling,
-      strand: buildStrandMetadata(strandId, descriptor),
-    }, this._scope));
-  }
-
-  /**
-   * Resolves a 'strand_base' coordinate side.
-   * @param {NormalizedSelector} selector
-   * @returns {Promise<ResolvedComparisonSide>}
-   */
-  async _resolveStrandBase(selector) {
-    const ceiling = selector.ceiling ?? null;
-    const strandId = /** @type {string} */ (selector.strandId ?? '');
-    const strands = new StrandService({ graph: this._graph });
-    const descriptor = await strands.getOrThrow(strandId);
-    const effectiveCeiling = combineCeilings(descriptor.baseObservation.lamportCeiling, ceiling);
-    const state = await this._graph.materializeCoordinate({
-      frontier: descriptor.baseObservation.frontier,
-      ...optionalCeiling(effectiveCeiling),
-    });
-    const patchEntries = await collectPatchEntriesForFrontier(this._graph, descriptor.baseObservation.frontier, effectiveCeiling);
-    return /** @type {ResolvedComparisonSide} */ (await finalizeComparisonSide(this._graph, {
-      requested: {
-        kind: 'strand_base', strandId,
-        frontier: { ...descriptor.baseObservation.frontier },
-        baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
-        ...optionalCeiling(ceiling),
-      },
-      state, patchEntries, coordinateKind: 'strand_base', lamportCeiling: effectiveCeiling,
-      strand: buildStrandMetadata(strandId, /** @type {StrandDescriptorV1} */ (descriptor)),
-    }, this._scope));
-  }
-}
 
 /**
  * Checks whether a value is a strand-shaped object with kind 'strand'.
@@ -1029,8 +1043,8 @@ async function planCoordinateTransferImpl(graph, options) {
     right: /** @type {CoordinateComparisonSelectorV1} */ (/** @type {unknown} */ (normalizedTarget)),
     ...(scope !== null && scope !== undefined ? { scope } : {}),
   });
-  const sourceSide = await new ComparisonSideResolver('source', graph, { scope, liveFrontier }).resolve(normalizedSource);
-  const targetSide = await new ComparisonSideResolver('target', graph, { scope, liveFrontier }).resolve(normalizedTarget);
+  const sourceSide = await normalizedSource.resolve(graph, scope, liveFrontier);
+  const targetSide = await normalizedTarget.resolve(graph, scope, liveFrontier);
   /** Loads node content blob by OID. @type {(nodeId: string, meta: { oid: string }) => Promise<Uint8Array>} */
   const loadNodeContent = async (_nodeId, meta) => await readContentBlobByOid(graph, meta.oid);
   /** Loads edge content blob by OID. @type {(edge: unknown, meta: { oid: string }) => Promise<Uint8Array>} */
@@ -1095,8 +1109,8 @@ async function compareCoordinatesImpl(graph, options) {
   const liveFrontier = (normalizedLeft.kind === 'live' || normalizedRight.kind === 'live')
     ? /** @type {Map<string, string>} */ (await graph.getFrontier())
     : null;
-  const left = await new ComparisonSideResolver('left', graph, { scope, liveFrontier }).resolve(normalizedLeft);
-  const right = await new ComparisonSideResolver('right', graph, { scope, liveFrontier }).resolve(normalizedRight);
+  const left = await normalizedLeft.resolve(graph, scope, liveFrontier);
+  const right = await normalizedRight.resolve(graph, scope, liveFrontier);
   const visiblePatchDivergence = buildPatchDivergenceImpl(left.patchEntries, right.patchEntries, targetId);
   const visibleState = compareVisibleStateV5(left.state, right.state, { targetId });
 

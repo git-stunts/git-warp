@@ -168,10 +168,27 @@ export class BTR {
 }
 
 /**
- * @typedef {Object} VerificationResult
- * @property {boolean} valid - Whether the BTR is valid
- * @property {string} [reason] - Reason for failure (if invalid)
+ * VerificationResult — outcome of BTR HMAC/replay verification.
  */
+export class VerificationResult {
+  /** @type {boolean} */
+  valid;
+
+  /** @type {string|undefined} Reason for failure (if invalid) */
+  reason;
+
+  /**
+   * Creates a VerificationResult.
+   * @param {boolean} valid
+   * @param {string} [reason]
+   */
+  constructor(valid, reason) {
+    this.valid = valid;
+    if (reason !== undefined) {
+      this.reason = reason;
+    }
+  }
+}
 
 /**
  * Creates a Boundary Transition Record from an initial state and payload.
@@ -376,7 +393,7 @@ async function verifyReplayHash(btr, deps = {}) {
 export async function verifyBTR(btr, key, options = {}) {
   const structureError = validateBTRStructure(btr);
   if (structureError !== null) {
-    return { valid: false, reason: structureError };
+    return new VerificationResult(false, structureError);
   }
 
   const hmacDeps = /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (buildDeps({ crypto: options.crypto, codec: options.codec }));
@@ -400,10 +417,10 @@ async function verifyReplayIfRequested(btr, options) {
     const replayDeps = buildDeps({ crypto: options.crypto, codec: options.codec });
     const replayError = await verifyReplayHash(btr, replayDeps);
     if (replayError !== null) {
-      return { valid: false, reason: replayError };
+      return new VerificationResult(false, replayError);
     }
   }
-  return { valid: true };
+  return new VerificationResult(true);
 }
 
 /**
@@ -420,12 +437,12 @@ async function verifyHmacSafe(btr, key, deps) {
     hmacValid = await verifyHmac(btr, key, deps);
   } catch (err) {
     if (err instanceof RangeError) {
-      return { valid: false, reason: `Invalid hex in authentication tag: ${err.message}` };
+      return new VerificationResult(false, `Invalid hex in authentication tag: ${err.message}`);
     }
     throw err;
   }
   if (!hmacValid) {
-    return { valid: false, reason: 'Authentication tag mismatch' };
+    return new VerificationResult(false, 'Authentication tag mismatch');
   }
   return null;
 }

@@ -222,11 +222,65 @@ function requireDot(op) {
 // ============================================================================
 
 /**
- * @typedef {Object} OpOutcomeResult
- * @property {string} target - The entity ID or key affected
- * @property {'applied'|'superseded'|'redundant'} result - Outcome
- * @property {string} [reason] - Explanation when superseded
+ * OpOutcomeResult — base class for CRDT operation outcomes.
+ * Subclasses carry outcome-specific data instead of fragile reason strings.
  */
+export class OpOutcomeResult {
+  /** @type {string} The entity ID or key affected */
+  target;
+
+  /** @type {'applied'|'superseded'|'redundant'} */
+  result;
+
+  /**
+   * Creates an OpOutcomeResult.
+   * @param {string} target
+   * @param {'applied'|'superseded'|'redundant'} result
+   */
+  constructor(target, result) {
+    this.target = target;
+    this.result = result;
+  }
+}
+
+/** The operation was applied to the state. */
+export class OpApplied extends OpOutcomeResult {
+  /** Creates an OpApplied.
+   * @param {string} target
+   */
+  constructor(target) {
+    super(target, 'applied');
+  }
+}
+
+/** The operation was overridden by a concurrent write with a higher EventId. */
+export class OpSuperseded extends OpOutcomeResult {
+  /** @type {import('../utils/EventId.js').EventId} The winning EventId */
+  winner;
+
+  /** @type {string} Human-readable explanation */
+  reason;
+
+  /** Creates an OpSuperseded.
+   * @param {string} target
+   * @param {import('../utils/EventId.js').EventId} winner
+   */
+  constructor(target, winner) {
+    super(target, 'superseded');
+    this.winner = winner;
+    this.reason = `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`;
+  }
+}
+
+/** The operation had no effect (already present in state). */
+export class OpRedundant extends OpOutcomeResult {
+  /** Creates an OpRedundant.
+   * @param {string} target
+   */
+  constructor(target) {
+    super(target, 'redundant');
+  }
+}
 
 /**
  * @typedef {Object} OpStrategy
@@ -439,7 +493,7 @@ const blobValueStrategy = {
     const blobOp = /** @type {{ oid?: string }} */ (op);
     const blobOid = blobOp.oid;
     const blobTarget = (typeof blobOid === 'string' && blobOid.length > 0) ? blobOid : '*';
-    return { target: blobTarget, result: /** @type {'applied'} */ ('applied') };
+    return new OpApplied(blobTarget);
   },
   snapshot() { return {}; },
   accumulate() { /* no-op */ },
@@ -512,15 +566,15 @@ const VALID_RECEIPT_OPS = new Set(OP_TYPES);
  *
  * @param {import('../crdt/ORSet.js').ORSet} orset - The node OR-Set containing alive nodes
  * @param {{node: string, dot: import('../crdt/Dot.js').Dot}} op - The NodeAdd operation
- * @returns {{target: string, result: 'applied'|'redundant'}} Outcome with node ID as target
+ * @returns {OpApplied|OpRedundant} Outcome with node ID as target
  */
 function nodeAddOutcome(orset, op) {
   const encoded = encodeDot(op.dot);
   const existingDots = orset.entries.get(op.node);
   if (existingDots && existingDots.has(encoded)) {
-    return { target: op.node, result: 'redundant' };
+    return new OpRedundant(op.node);
   }
-  return { target: op.node, result: 'applied' };
+  return new OpApplied(op.node);
 }
 
 /**
@@ -533,7 +587,7 @@ function nodeAddOutcome(orset, op) {
  *
  * @param {import('../crdt/ORSet.js').ORSet} orset - The node OR-Set containing alive nodes
  * @param {{node?: string, observedDots: string[] | Set<string>}} op - The NodeRemove operation
- * @returns {{target: string, result: 'applied'|'redundant'}} Outcome with node ID (or '*') as target
+ * @returns {OpApplied|OpRedundant} Outcome with node ID (or '*') as target
  */
 function nodeRemoveOutcome(orset, op) {
   // Build a reverse index (dot → elementId) for the observed dots to avoid
@@ -564,15 +618,15 @@ function nodeRemoveOutcome(orset, op) {
  * @param {import('../crdt/ORSet.js').ORSet} orset - The edge OR-Set containing alive edges
  * @param {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} op - The EdgeAdd operation
  * @param {string} edgeKey - Pre-encoded edge key (from\0to\0label format)
- * @returns {{target: string, result: 'applied'|'redundant'}} Outcome with encoded edge key as target
+ * @returns {OpApplied|OpRedundant} Outcome with encoded edge key as target
  */
 function edgeAddOutcome(orset, op, edgeKey) {
   const encoded = encodeDot(op.dot);
   const existingDots = orset.entries.get(edgeKey);
   if (existingDots && existingDots.has(encoded)) {
-    return { target: edgeKey, result: 'redundant' };
+    return new OpRedundant(edgeKey);
   }
-  return { target: edgeKey, result: 'applied' };
+  return new OpApplied(edgeKey);
 }
 
 /**
@@ -588,7 +642,7 @@ function edgeAddOutcome(orset, op, edgeKey) {
  *
  * @param {import('../crdt/ORSet.js').ORSet} orset - The edge OR-Set containing alive edges
  * @param {{from?: string, to?: string, label?: string, observedDots: string[] | Set<string>}} op - The EdgeRemove operation
- * @returns {{target: string, result: 'applied'|'redundant'}} Outcome with encoded edge key (or '*') as target
+ * @returns {OpApplied|OpRedundant} Outcome with encoded edge key (or '*') as target
  */
 function edgeRemoveOutcome(orset, op) {
   // Build a reverse index (dot → elementId) for the observed dots to avoid
@@ -632,29 +686,25 @@ function edgeRemoveOutcome(orset, op) {
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap - The properties map keyed by encoded prop keys
  * @param {string} key - Pre-encoded property key (node or edge)
  * @param {import('../utils/EventId.js').EventId} eventId - The event ID for this operation, used for LWW comparison
- * @returns {{target: string, result: 'applied'|'superseded'|'redundant', reason?: string}}
+ * @returns {OpOutcomeResult}
  *          Outcome with encoded prop key as target; includes reason when superseded
  */
 function propOutcomeForKey(propMap, key, eventId) {
   const current = propMap.get(key);
 
   if (!current) {
-    return { target: key, result: 'applied' };
+    return new OpApplied(key);
   }
 
   const cmp = compareEventIds(eventId, current.eventId);
   if (cmp > 0) {
-    return { target: key, result: 'applied' };
+    return new OpApplied(key);
   }
   if (cmp < 0) {
     const winner = current.eventId;
-    return {
-      target: key,
-      result: 'superseded',
-      reason: `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`,
-    };
+    return new OpSuperseded(key, winner);
   }
-  return { target: key, result: 'redundant' };
+  return new OpRedundant(key);
 }
 
 /**
@@ -663,7 +713,7 @@ function propOutcomeForKey(propMap, key, eventId) {
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
  * @param {{node: string, key: string}} op - The PropSet or NodePropSet operation
  * @param {import('../utils/EventId.js').EventId} eventId
- * @returns {{target: string, result: 'applied'|'superseded'|'redundant', reason?: string}}
+ * @returns {OpOutcomeResult}
  */
 function propSetOutcome(propMap, op, eventId) {
   return propOutcomeForKey(propMap, encodePropKey(op.node, op.key), eventId);
@@ -675,7 +725,7 @@ function propSetOutcome(propMap, op, eventId) {
  * @param {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} propMap
  * @param {{from: string, to: string, label: string, key: string}} op - The EdgePropSet operation
  * @param {import('../utils/EventId.js').EventId} eventId
- * @returns {{target: string, result: 'applied'|'superseded'|'redundant', reason?: string}}
+ * @returns {OpOutcomeResult}
  */
 function edgePropSetOutcome(propMap, op, eventId) {
   return propOutcomeForKey(propMap, encodeEdgePropKey(op.from, op.to, op.label, op.key), eventId);
@@ -892,7 +942,7 @@ export function applyWithReceipt(state, patch, patchSha) {
     }
     /** @type {import('../types/TickReceipt.js').OpOutcome} */
     const entry = { op: receiptOp, target: outcome.target, result: /** @type {'applied'|'superseded'|'redundant'} */ (outcome.result) };
-    if (typeof outcome.reason === 'string' && outcome.reason.length > 0) {
+    if (outcome instanceof OpSuperseded && outcome.reason.length > 0) {
       entry.reason = outcome.reason;
     }
     opResults.push(entry);
