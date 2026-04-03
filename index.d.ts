@@ -1663,7 +1663,7 @@ export interface PatchV2 {
   /** Lamport timestamp for ordering */
   lamport: number;
   /** Writer's observed frontier (version vector) */
-  context: Record<string, number>;
+  context: import('./src/domain/crdt/VersionVector.js').default | Record<string, number>;
   /** Ordered array of operations */
   ops: unknown[];
   /** Node/edge IDs read by this patch (provenance tracking) */
