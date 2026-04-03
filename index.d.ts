@@ -1667,9 +1667,9 @@ export interface PatchV2 {
   /** Ordered array of operations */
   ops: unknown[];
   /** Node/edge IDs read by this patch (provenance tracking) */
-  reads?: string[];
+  reads?: string[] | undefined;
   /** Node/edge IDs written by this patch (provenance tracking) */
-  writes?: string[];
+  writes?: string[] | undefined;
 }
 
 /**
