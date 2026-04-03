@@ -4,7 +4,7 @@
  *
  * Extracted from fork.methods.js.
  *
- * @module domain/services/ForkController
+ * @module domain/services/controllers/ForkController
  */
 
 import ForkError from '../../errors/ForkError.js';

@@ -8,7 +8,7 @@
  * Not part of the public API — consumers should import from
  * WarpMessageCodec.js (the facade) or the individual sub-codecs.
  *
- * @module domain/services/MessageCodecInternal
+ * @module domain/services/codec/MessageCodecInternal
  * @private
  */
 

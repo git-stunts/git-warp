@@ -5,7 +5,7 @@
  * substrate facts: visible patch-universe divergence, visible node/edge/
  * property deltas, and optional node-local target diffs.
  *
- * @module domain/services/ComparisonController
+ * @module domain/services/controllers/ComparisonController
  */
 
 import QueryError from '../../errors/QueryError.js';

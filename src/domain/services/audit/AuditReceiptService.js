@@ -6,7 +6,7 @@
  * independent chain per (graphName, writerId) pair, linked via
  * `prevAuditCommit` and Git commit parents.
  *
- * @module domain/services/AuditReceiptService
+ * @module domain/services/audit/AuditReceiptService
  * @see docs/specs/AUDIT_RECEIPT.md
  */
 

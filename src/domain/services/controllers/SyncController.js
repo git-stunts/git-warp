@@ -5,7 +5,7 @@
  * service class. WarpRuntime.prototype delegates directly to this controller
  * via defineProperty loops — no intermediate stub file.
  *
- * @module domain/services/SyncController
+ * @module domain/services/controllers/SyncController
  */
 
 import SyncError from '../../errors/SyncError.js';

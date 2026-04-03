@@ -4,7 +4,7 @@
  * Computes what changed between two materialized WarpStateV5 states.
  * Used by the subscription system to notify handlers of graph changes.
  *
- * @module domain/services/StateDiff
+ * @module domain/services/state/StateDiff
  * @see ROADMAP.md PL/DIFF/1
  */
 

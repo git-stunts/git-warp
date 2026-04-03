@@ -5,7 +5,7 @@
  * DAG. See {@link module:domain/services/WarpMessageCodec} for the facade
  * that re-exports all codec functions.
  *
- * @module domain/services/AnchorMessageCodec
+ * @module domain/services/codec/AnchorMessageCodec
  */
 
 import { validateGraphName } from '../../utils/RefLayout.js';

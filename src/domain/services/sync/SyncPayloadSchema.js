@@ -5,7 +5,7 @@
  * at the trust boundary (HTTP ingress/egress). Prevents malformed or
  * oversized payloads from reaching the CRDT merge engine.
  *
- * @module domain/services/SyncPayloadSchema
+ * @module domain/services/sync/SyncPayloadSchema
  * @see B64 -- Sync ingress payload validation
  */
 

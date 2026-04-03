@@ -5,7 +5,7 @@
  * with property visibility controlled by expose/redact lists.
  * Edges are only visible when both endpoints pass the match filter.
  *
- * @module domain/services/Observer
+ * @module domain/services/query/Observer
  * @see Paper IV, Section 3 -- Observers as resource-bounded functors
  */
 

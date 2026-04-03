@@ -5,7 +5,7 @@
  * CheckpointMessageCodec, and PatchMessageCodec to eliminate
  * duplicate validation patterns (B134, B138).
  *
- * @module domain/services/TrailerValidation
+ * @module domain/services/codec/TrailerValidation
  * @private
  */
 

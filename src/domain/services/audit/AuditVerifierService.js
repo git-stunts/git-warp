@@ -12,7 +12,7 @@
  * - Tree structure (exactly one entry: receipt.cbor)
  * - Genesis/continuation invariants
  *
- * @module domain/services/AuditVerifierService
+ * @module domain/services/audit/AuditVerifierService
  * @see docs/specs/AUDIT_RECEIPT.md Section 8
  */
 

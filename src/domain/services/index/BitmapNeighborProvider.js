@@ -7,7 +7,7 @@
  * 2. **Logical graph** (`logicalIndex`): Wraps CBOR-based logical bitmap index
  *    with labeled edges, per-label bitmap filtering, and alive bitmap checks.
  *
- * @module domain/services/BitmapNeighborProvider
+ * @module domain/services/index/BitmapNeighborProvider
  */
 
 import NeighborProviderPort from '../../../ports/NeighborProviderPort.js';

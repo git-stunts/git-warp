@@ -30,7 +30,7 @@ import { checkAborted } from '../../utils/cancellation.js';
  * On load, the current frontier can be compared to detect if new patches
  * have been written since the index was built.
  *
- * @module domain/services/IndexRebuildService
+ * @module domain/services/index/IndexRebuildService
  * @see BitmapIndexBuilder
  * @see BitmapIndexReader
  * @see StreamingBitmapIndexBuilder

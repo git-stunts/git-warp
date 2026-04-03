@@ -4,7 +4,7 @@
  * Produces `props_XX.cbor` shards keyed by shard key, where each
  * shard maps nodeId → { key: value, ... }.
  *
- * @module domain/services/PropertyIndexBuilder
+ * @module domain/services/index/PropertyIndexBuilder
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

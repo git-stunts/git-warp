@@ -33,7 +33,7 @@
  * - All start-node methods throw `TraversalError` with code `'INVALID_START'`
  *   when the start node does not exist in the provider.
  *
- * @module domain/services/GraphTraversal
+ * @module domain/services/query/GraphTraversal
  */
 
 import nullLogger from '../../utils/nullLogger.js';

@@ -5,7 +5,7 @@
  * Adjacency lists are pre-sorted at construction by (neighborId, label)
  * using strict codepoint comparison. Label filtering via Set.has() in-memory.
  *
- * @module domain/services/AdjacencyNeighborProvider
+ * @module domain/services/query/AdjacencyNeighborProvider
  */
 
 import NeighborProviderPort from '../../../ports/NeighborProviderPort.js';

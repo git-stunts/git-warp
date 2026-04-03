@@ -4,7 +4,7 @@
  * Extracted from checkpoint.methods.js. WarpRuntime delegates to this
  * controller via defineProperty loops on the prototype.
  *
- * @module domain/services/CheckpointController
+ * @module domain/services/controllers/CheckpointController
  */
 
 import { QueryError, E_NO_STATE_MSG } from '../../warp/_internal.js';

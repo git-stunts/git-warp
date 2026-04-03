@@ -4,7 +4,7 @@
  *
  * Split from CommitDagTraversalService as part of the SRP refactor.
  *
- * @module domain/services/DagTraversal
+ * @module domain/services/dag/DagTraversal
  */
 
 import nullLogger from '../../utils/nullLogger.js';
@@ -39,7 +39,7 @@ export default class DagTraversal {
   /**
    * Creates a new DagTraversal service.
    *
-   * @param {{ indexReader: import('../BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
    */
   constructor({ indexReader, logger = nullLogger }) {
     if (indexReader === null || indexReader === undefined) {

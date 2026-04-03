@@ -5,7 +5,7 @@
  * a data commit. See {@link module:domain/services/WarpMessageCodec} for the
  * facade that re-exports all codec functions.
  *
- * @module domain/services/AuditMessageCodec
+ * @module domain/services/codec/AuditMessageCodec
  */
 
 import { validateGraphName, validateWriterId } from '../../utils/RefLayout.js';

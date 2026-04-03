@@ -14,7 +14,7 @@ import defaultCodec from '../../utils/defaultCodec.js';
  * given a target node, we can compute its backward causal cone D(v)
  * by walking the index.
  *
- * @module domain/services/ProvenanceIndex
+ * @module domain/services/provenance/ProvenanceIndex
  */
 
 /**

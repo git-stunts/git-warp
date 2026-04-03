@@ -11,7 +11,7 @@
  *   rev_XX.cbor    — reverse edge bitmaps (all + byLabel)
  *   receipt.cbor   — build metadata
  *
- * @module domain/services/LogicalBitmapIndexBuilder
+ * @module domain/services/index/LogicalBitmapIndexBuilder
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

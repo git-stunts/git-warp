@@ -5,7 +5,7 @@
  * for the sync protocol. All HTTP I/O flows through an HttpServerPort
  * so the domain never touches node:http directly.
  *
- * @module domain/services/HttpSyncServer
+ * @module domain/services/sync/HttpSyncServer
  */
 
 import { z } from 'zod';

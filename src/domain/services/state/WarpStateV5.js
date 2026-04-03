@@ -4,7 +4,7 @@
  * Holds the alive sets (OR-Set for nodes and edges), property registers
  * (LWW), the observed version vector frontier, and edge birth events.
  *
- * @module domain/services/WarpStateV5
+ * @module domain/services/state/WarpStateV5
  */
 
 import { createORSet, orsetClone } from '../../crdt/ORSet.js';

@@ -5,7 +5,7 @@
  * Extracted from test/helpers/fixtureDsl.js so that production code can
  * hydrate indexes stored inside checkpoints (Phase 3).
  *
- * @module domain/services/LogicalIndexReader
+ * @module domain/services/index/LogicalIndexReader
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

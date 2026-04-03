@@ -30,7 +30,7 @@
  *   or corruption), the protocol detects this and skips that writer
  * - Schema compatibility: Patches are validated against known op types before apply
  *
- * @module domain/services/SyncProtocol
+ * @module domain/services/sync/SyncProtocol
  * @see WARP V5 Spec Section 11 (Network Sync)
  * @see JoinReducer - CRDT merge implementation
  * @see Frontier - Frontier manipulation utilities

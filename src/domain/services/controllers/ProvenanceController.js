@@ -4,7 +4,7 @@
  *
  * Extracted from provenance.methods.js.
  *
- * @module domain/services/ProvenanceController
+ * @module domain/services/controllers/ProvenanceController
  */
 
 import QueryError from '../../errors/QueryError.js';

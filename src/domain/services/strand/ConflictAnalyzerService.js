@@ -5,7 +5,7 @@
  * reducer receipts, and current resolved state without mutating graph state,
  * checkpoints, caches, or other durable storage.
  *
- * @module domain/services/ConflictAnalyzerService
+ * @module domain/services/strand/ConflictAnalyzerService
  */
 
 import VersionVector from '../../crdt/VersionVector.js';

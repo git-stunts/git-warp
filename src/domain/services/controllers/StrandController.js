@@ -4,7 +4,7 @@
  * Extracted from strand.methods.js and conflict.methods.js. WarpRuntime
  * delegates directly to this controller via defineProperty loops.
  *
- * @module domain/services/StrandController
+ * @module domain/services/controllers/StrandController
  */
 
 import StrandService from '../strand/StrandService.js';

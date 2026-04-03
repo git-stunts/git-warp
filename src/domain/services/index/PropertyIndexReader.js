@@ -3,7 +3,7 @@
  *
  * Loads `props_XX.cbor` shards on demand via IndexStoragePort.readBlob.
  *
- * @module domain/services/PropertyIndexReader
+ * @module domain/services/index/PropertyIndexReader
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

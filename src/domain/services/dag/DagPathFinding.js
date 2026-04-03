@@ -4,7 +4,7 @@
  *
  * Split from CommitDagTraversalService as part of the SRP refactor.
  *
- * @module domain/services/DagPathFinding
+ * @module domain/services/dag/DagPathFinding
  */
 
 import nullLogger from '../../utils/nullLogger.js';
@@ -37,9 +37,9 @@ export default class DagPathFinding {
   /**
    * Creates a new DagPathFinding service.
    *
-   * @param {{ indexReader: import('../BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
    */
-  constructor(/** @type {{ indexReader: import('../BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger }) {
+  constructor(/** @type {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} */ { indexReader, logger = nullLogger }) {
     if (indexReader === undefined || indexReader === null) {
       throw new Error('DagPathFinding requires an indexReader');
     }

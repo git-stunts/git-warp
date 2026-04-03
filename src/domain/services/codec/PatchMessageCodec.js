@@ -5,7 +5,7 @@
  * single writer. See {@link module:domain/services/WarpMessageCodec} for the
  * facade that re-exports all codec functions.
  *
- * @module domain/services/PatchMessageCodec
+ * @module domain/services/codec/PatchMessageCodec
  */
 
 import { validateGraphName, validateWriterId } from '../../utils/RefLayout.js';

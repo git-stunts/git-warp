@@ -13,7 +13,7 @@
  * - p.concat(identity) === p (right identity)
  * - (a.concat(b)).concat(c) === a.concat(b.concat(c)) (associativity)
  *
- * @module domain/services/ProvenancePayload
+ * @module domain/services/provenance/ProvenancePayload
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.js';

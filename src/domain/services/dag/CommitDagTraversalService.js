@@ -5,7 +5,7 @@
  * into a single backward-compatible API surface. All public methods
  * delegate to the appropriate sub-service.
  *
- * @module domain/services/CommitDagTraversalService
+ * @module domain/services/dag/CommitDagTraversalService
  */
 
 import nullLogger from '../../utils/nullLogger.js';
@@ -35,7 +35,7 @@ export default class CommitDagTraversalService {
   /**
    * Creates a new CommitDagTraversalService.
    *
-   * @param {{ indexReader: import('../BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
+   * @param {{ indexReader: import('../index/BitmapIndexReader.js').default, logger?: import('../../../ports/LoggerPort.js').default }} options
    */
   constructor({ indexReader, logger = nullLogger }) {
     if (indexReader === null || indexReader === undefined) {

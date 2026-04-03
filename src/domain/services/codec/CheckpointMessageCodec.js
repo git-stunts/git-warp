@@ -10,7 +10,7 @@
  * See {@link module:domain/services/CheckpointService} for named constants
  * `CHECKPOINT_SCHEMA_STANDARD` and `CHECKPOINT_SCHEMA_INDEX_TREE`.
  *
- * @module domain/services/CheckpointMessageCodec
+ * @module domain/services/codec/CheckpointMessageCodec
  */
 
 import { validateGraphName } from '../../utils/RefLayout.js';

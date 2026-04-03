@@ -6,7 +6,7 @@
  * WarpRuntime delegates to this controller via defineProperty loops on the
  * prototype.
  *
- * @module domain/services/MaterializeController
+ * @module domain/services/controllers/MaterializeController
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../JoinReducer.js';

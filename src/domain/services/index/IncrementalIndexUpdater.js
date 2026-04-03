@@ -12,7 +12,7 @@
  *   once initialized. Reuse one instance for a single linear state stream;
  *   create a new instance to reset cache state across independent streams.
  *
- * @module domain/services/IncrementalIndexUpdater
+ * @module domain/services/index/IncrementalIndexUpdater
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

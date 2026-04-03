@@ -8,7 +8,7 @@
  * Trust-gates on `writersApplied` (patch authors being ingested), not
  * frontier keys (which are claims, not effects).
  *
- * @module domain/services/SyncTrustGate
+ * @module domain/services/sync/SyncTrustGate
  * @see B1 -- Signed sync ingress
  */
 

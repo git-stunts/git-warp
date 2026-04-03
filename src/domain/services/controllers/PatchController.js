@@ -4,7 +4,7 @@
  * Extracted from patch.methods.js. WarpRuntime delegates to this controller
  * via defineProperty loops on the prototype.
  *
- * @module domain/services/PatchController
+ * @module domain/services/controllers/PatchController
  */
 
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
@@ -49,7 +49,7 @@ export default class PatchController {
       writerId: h._writerId,
       lamport,
       versionVector: h._versionVector,
-      getCurrentState: /** Returns the cached CRDT state. @returns {import('../services/JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
+      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.js').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
@@ -286,7 +286,7 @@ export default class PatchController {
       graphName: h._graphName,
       writerId: resolvedWriterId,
       versionVector: h._versionVector,
-      getCurrentState: /** Returns the cached CRDT state. @returns {import('../services/JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
+      getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
       codec: h._codec,

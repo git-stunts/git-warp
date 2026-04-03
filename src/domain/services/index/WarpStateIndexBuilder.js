@@ -7,7 +7,7 @@
  *
  * The index supports O(1) neighbor lookups by node ID.
  *
- * @module domain/services/WarpStateIndexBuilder
+ * @module domain/services/index/WarpStateIndexBuilder
  */
 
 import BitmapIndexBuilder from './BitmapIndexBuilder.js';

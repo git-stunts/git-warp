@@ -4,7 +4,7 @@
  * Extracts the visible projection (nodes, edges, properties) from materialized
  * state and delegates to LogicalBitmapIndexBuilder + PropertyIndexBuilder.
  *
- * @module domain/services/LogicalIndexBuildService
+ * @module domain/services/index/LogicalIndexBuildService
  */
 
 import defaultCodec from '../../utils/defaultCodec.js';

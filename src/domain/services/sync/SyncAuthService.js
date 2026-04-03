@@ -6,7 +6,7 @@
  * - Request signing (client side)
  * - Request verification with replay protection (server side)
  *
- * @module domain/services/SyncAuthService
+ * @module domain/services/sync/SyncAuthService
  */
 
 import LRUCache from '../../utils/LRUCache.js';

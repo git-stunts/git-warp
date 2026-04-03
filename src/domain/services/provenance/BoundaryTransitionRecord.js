@@ -15,7 +15,7 @@
  * who don't share full history. The HMAC ensures integrity; replay
  * verification ensures correctness.
  *
- * @module domain/services/BoundaryTransitionRecord
+ * @module domain/services/provenance/BoundaryTransitionRecord
  * @see Paper III, Section 4 -- Boundary Transition Records
  */
 

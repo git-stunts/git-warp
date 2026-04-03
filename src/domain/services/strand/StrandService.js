@@ -5,7 +5,7 @@
  * Authoritative truth still lives in patch history and descriptor refs;
  * materialized snapshots remain caches only.
  *
- * @module domain/services/StrandService
+ * @module domain/services/strand/StrandService
  */
 
 import StrandError from '../../errors/StrandError.js';

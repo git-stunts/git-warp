@@ -4,7 +4,7 @@
  * Extracted from subscribe.methods.js. Manages subscriber registration,
  * glob-filtered watches with optional polling, and deferred replay.
  *
- * @module domain/services/SubscriptionController
+ * @module domain/services/controllers/SubscriptionController
  */
 
 import { diffStates, isEmptyDiff } from '../state/StateDiff.js';

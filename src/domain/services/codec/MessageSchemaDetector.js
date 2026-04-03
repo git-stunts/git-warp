@@ -8,7 +8,7 @@
  * See {@link module:domain/services/WarpMessageCodec} for the facade
  * that re-exports all functions from this module.
  *
- * @module domain/services/MessageSchemaDetector
+ * @module domain/services/codec/MessageSchemaDetector
  */
 
 import { EDGE_PROP_PREFIX } from '../KeyCodec.js';

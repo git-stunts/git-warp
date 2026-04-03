@@ -16,7 +16,7 @@
  * - {@link module:domain/services/AuditMessageCodec}
  * - {@link module:domain/services/MessageSchemaDetector}
  *
- * @module domain/services/WarpMessageCodec
+ * @module domain/services/codec/WarpMessageCodec
  */
 
 export { encodePatchMessage, decodePatchMessage } from './PatchMessageCodec.js';

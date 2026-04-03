@@ -4,7 +4,7 @@
  * Extracted from query.methods.js. All methods are read-only queries
  * against cached CRDT state, indexes, and blob storage.
  *
- * @module domain/services/QueryController
+ * @module domain/services/controllers/QueryController
  */
 
 import { orsetContains, orsetElements } from '../../crdt/ORSet.js';
