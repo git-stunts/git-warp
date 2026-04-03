@@ -31,7 +31,7 @@ export function migrateV4toV5(v4State, migrationWriterId) {
 /**
  * Migrates alive nodes and edges from v4 to v5 ORSets with synthetic dots.
  *
- * @param {{ v4State: { nodeAlive: Map<string, {value: boolean}>, edgeAlive: Map<string, {value: boolean}> }, v5State: import('./JoinReducer.js').WarpStateV5, vv: import('../crdt/VersionVector.js').VersionVector, migrationWriterId: string }} opts
+ * @param {{ v4State: { nodeAlive: Map<string, {value: boolean}>, edgeAlive: Map<string, {value: boolean}> }, v5State: import('./JoinReducer.js').WarpStateV5, vv: import('../crdt/VersionVector.js').default, migrationWriterId: string }} opts
  */
 function migrateAliveEntities({ v4State, v5State, vv, migrationWriterId }) {
   for (const [nodeId, reg] of v4State.nodeAlive) {

@@ -11,7 +11,7 @@ const reduceV5 = _reduceV5;
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetAdd, orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector, { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 
 // ---------------------------------------------------------------------------
@@ -454,7 +454,7 @@ describe('JoinReducer diff tracking', () => {
       expect(result.state.nodeAlive).toBeDefined();
       expect(result.state.edgeAlive).toBeDefined();
       expect(result.state.prop).toBeInstanceOf(Map);
-      expect(result.state.observedFrontier).toBeInstanceOf(Map);
+      expect(result.state.observedFrontier).toBeInstanceOf(VersionVector);
       expect(result.diff.nodesAdded).toEqual(['x']);
       expect(result.diff.nodesRemoved).toEqual([]);
       expect(result.diff.edgesAdded).toEqual([]);

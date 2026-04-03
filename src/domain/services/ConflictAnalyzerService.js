@@ -8,6 +8,7 @@
  * @module domain/services/ConflictAnalyzerService
  */
 
+import VersionVector from '../crdt/VersionVector.js';
 import QueryError from '../errors/QueryError.js';
 import { reduceV5, normalizeRawOp, OP_STRATEGIES } from './JoinReducer.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
@@ -385,13 +386,23 @@ function frontierToRecord(frontier) {
 /**
  * Normalizes a context value into a Map of writer clocks, coercing from plain objects or nulls.
  *
- * @param {Map<string, number>|Record<string, number>|undefined|null} context - Raw context input.
+ * @param {VersionVector|Map<string, number>|Record<string, number>|undefined|null} context - Raw context input.
  * @returns {Map<string, number>} Normalized writer-clock map.
  */
 function normalizeContext(context) {
-  if (context instanceof Map) {
+  if (context instanceof VersionVector || context instanceof Map) {
     return new Map(context);
   }
+  return _normalizeContextFromValue(context);
+}
+
+/**
+ * Normalizes a scalar or plain-object context.
+ *
+ * @param {Record<string, number>|undefined|null} context
+ * @returns {Map<string, number>}
+ */
+function _normalizeContextFromValue(context) {
   if (context === null || context === undefined || typeof context !== 'object') {
     return new Map();
   }

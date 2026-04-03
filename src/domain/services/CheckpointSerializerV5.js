@@ -14,7 +14,7 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import { orsetSerialize, orsetDeserialize } from '../crdt/ORSet.js';
-import { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector, { vvSerialize, vvDeserialize } from '../crdt/VersionVector.js';
 import { decodeDot } from '../crdt/Dot.js';
 import { createEmptyStateV5 } from './JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
@@ -131,11 +131,10 @@ export function deserializeFullStateV5(buffer, { codec: codecOpt } = {}) {
  * The appliedVV represents what operations have been applied, not what is visible.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state
- * @returns {Map<string, number>} Map<writerId, maxCounter>
+ * @returns {VersionVector}
  */
 export function computeAppliedVV(state) {
-  /** @type {Map<string, number>} */
-  const vv = new Map();
+  const vv = VersionVector.empty();
 
   /**
    * Helper to scan all dots from an ORSet and update vv with max counters.
@@ -165,7 +164,7 @@ export function computeAppliedVV(state) {
 /**
  * Serializes appliedVV to CBOR format.
  *
- * @param {Map<string, number>} vv - Version vector (Map<writerId, counter>)
+ * @param {VersionVector} vv
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
  * @returns {Uint8Array} CBOR-encoded version vector
  */
@@ -180,7 +179,7 @@ export function serializeAppliedVV(vv, { codec } = {}) {
  *
  * @param {Uint8Array} buffer - CBOR-encoded version vector
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options]
- * @returns {Map<string, number>} Version vector
+ * @returns {VersionVector}
  */
 export function deserializeAppliedVV(buffer, { codec } = {}) {
   const c = codec || defaultCodec;

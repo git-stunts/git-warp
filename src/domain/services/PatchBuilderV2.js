@@ -164,7 +164,7 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
@@ -184,7 +184,7 @@ export class PatchBuilderV2 {
     /** @type {number} */
     this._lamport = lamport;
 
-    /** @type {import('../crdt/VersionVector.js').VersionVector} */
+    /** @type {import('../crdt/VersionVector.js').default} */
     this._vv = vvClone(versionVector); // Clone to track local increments
 
     /** @type {() => import('./JoinReducer.js').WarpStateV5 | null} */
@@ -1066,7 +1066,7 @@ export class PatchBuilderV2 {
    * `addNode` and `addEdge` operation. This tracks the causal context
    * for OR-Set dot generation.
    *
-   * @returns {import('../crdt/VersionVector.js').VersionVector} The version vector as a
+   * @returns {import('../crdt/VersionVector.js').default} The version vector as a
    *   `Map<string, number>` mapping writer IDs to their logical clock values
    */
   get versionVector() {

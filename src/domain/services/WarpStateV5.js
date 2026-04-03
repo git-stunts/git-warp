@@ -26,7 +26,7 @@ export default class WarpStateV5 {
   /** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */
   prop;
 
-  /** @type {import('../crdt/VersionVector.js').VersionVector} */
+  /** @type {import('../crdt/VersionVector.js').default} */
   observedFrontier;
 
   /**
@@ -42,7 +42,7 @@ export default class WarpStateV5 {
    *   nodeAlive: import('../crdt/ORSet.js').ORSet,
    *   edgeAlive: import('../crdt/ORSet.js').ORSet,
    *   prop: Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>,
-   *   observedFrontier: import('../crdt/VersionVector.js').VersionVector,
+   *   observedFrontier: import('../crdt/VersionVector.js').default,
    *   edgeBirthEvent?: Map<string, import('../utils/EventId.js').EventId>
    * }} fields
    */

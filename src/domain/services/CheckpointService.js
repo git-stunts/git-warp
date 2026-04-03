@@ -372,7 +372,7 @@ export async function createV5({
  * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options] - Load options
- * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
+ * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
 export async function loadCheckpoint(persistence, checkpointSha, { codec } = {}) {
@@ -432,7 +432,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
     provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, loadCodecOpt);
   }
 
-  /** @type {{ state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+  /** @type {{ state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
   const result = {
     state,
     frontier,

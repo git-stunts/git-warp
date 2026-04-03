@@ -321,7 +321,7 @@ function unionSets(source, target) {
  * - Therefore B cannot send D as a live add
  *
  * @param {ORSet} set - The ORSet to compact
- * @param {import('./VersionVector.js').VersionVector} includedVV - The stable frontier version vector.
+ * @param {import('./VersionVector.js').default} includedVV - The stable frontier version vector.
  *   All replicas are known to have observed at least this causal context.
  */
 export function orsetCompact(set, includedVV) {
@@ -333,7 +333,7 @@ export function orsetCompact(set, includedVV) {
  * Identifies dots eligible for compaction: tombstoned AND within the stable frontier.
  *
  * @param {ORSet} set
- * @param {import('./VersionVector.js').VersionVector} includedVV
+ * @param {import('./VersionVector.js').default} includedVV
  * @returns {Array<{element: string, dot: string}>}
  */
 function collectCompactableDots(set, includedVV) {

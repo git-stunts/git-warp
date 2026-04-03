@@ -10,7 +10,7 @@
  */
 
 import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
-import { vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector, { vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
@@ -750,7 +750,7 @@ function foldPatchDot(frontier, writer, lamport) {
  * @param {{writer: string, lamport: number, context: Map<string, number>|Record<string, number>}} patch
  */
 function updateFrontierFromPatch(state, patch) {
-  const contextVV = patch.context instanceof Map
+  const contextVV = patch.context instanceof VersionVector
     ? patch.context
     : vvDeserialize(patch.context ?? {});
   state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
@@ -1152,7 +1152,7 @@ export function cloneStateV5(state) {
     nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['nodeAlive'])),
     edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['edgeAlive'])),
     prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
-    observedFrontier: vvClone(/** @type {import('../crdt/VersionVector.js').VersionVector} */ (s['observedFrontier'])),
+    observedFrontier: vvClone(/** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier'])),
     edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.js').EventId>} */ (s['edgeBirthEvent'] ?? [])),
   });
 }

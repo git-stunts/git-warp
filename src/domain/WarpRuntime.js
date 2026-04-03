@@ -186,7 +186,7 @@ export default class WarpRuntime {
     /** @type {string} */
     this._writerId = writerId;
 
-    /** @type {import('./crdt/VersionVector.js').VersionVector} */
+    /** @type {import('./crdt/VersionVector.js').default} */
     this._versionVector = createVersionVector();
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */

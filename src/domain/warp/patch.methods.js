@@ -575,8 +575,8 @@ export function join(otherState) {
  * Compares two version vectors for equality.
  *
  * @this {import('../WarpRuntime.js').default}
- * @param {import('../crdt/VersionVector.js').VersionVector} a
- * @param {import('../crdt/VersionVector.js').VersionVector} b
+ * @param {import('../crdt/VersionVector.js').default} a
+ * @param {import('../crdt/VersionVector.js').default} b
  * @returns {boolean}
  */
 export function _frontierEquals(a, b) {

@@ -19,7 +19,7 @@ import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains, orsetGetDots } from '../../../../src/domain/crdt/ORSet.js';
 import { lwwValue } from '../../../../src/domain/crdt/LWW.js';
-import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import VersionVector, { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createInlineValue } from '../../../../src/domain/types/WarpTypes.js';
 
 // Helper functions to create V2 operations
@@ -70,7 +70,7 @@ describe('JoinReducer', () => {
       expect(state.nodeAlive.tombstones).toBeInstanceOf(Set);
       expect(state.edgeAlive).toBeDefined();
       expect(state.prop).toBeInstanceOf(Map);
-      expect(state.observedFrontier).toBeInstanceOf(Map);
+      expect(state.observedFrontier).toBeInstanceOf(VersionVector);
       expect(state.nodeAlive.entries.size).toBe(0);
       expect(state.edgeAlive.entries.size).toBe(0);
       expect(state.prop.size).toBe(0);
