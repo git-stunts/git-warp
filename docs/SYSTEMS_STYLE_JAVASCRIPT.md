@@ -365,10 +365,11 @@ const result = await replayer.replaySegment(segment, replayPolicy);
 **Cross-realm note:** `instanceof` breaks across realm boundaries (iframes, web workers, multiple module instances). When values cross realms, use branding instead:
 
 ```javascript
-// When values cross realm boundaries, brand instead of instanceof
-static _brand = Symbol.for('flyingrobots.EventId');
-get [EventId._brand]() { return true; }
-static is(v) { return v != null && v[EventId._brand] === true; }
+class EventId {
+  static _brand = Symbol.for('flyingrobots.EventId');
+  get [EventId._brand]() { return true; }
+  static is(v) { return v != null && v[EventId._brand] === true; }
+}
 ```
 
 ### Practices

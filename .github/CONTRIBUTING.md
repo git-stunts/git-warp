@@ -8,7 +8,7 @@
 - `docs/method/retro/<NNNN-slug>/` — closed cycle retrospectives
 
 No milestones. No ROADMAP. Cycles are the unit of work.
-See [METHOD.md](../../METHOD.md) for the full process.
+See [METHOD.md](../METHOD.md) for the full process.
 
 ## Cycle Process
 
