@@ -35,7 +35,7 @@ export class DeliveryObservation {
   /** @type {'delivered' | 'suppressed' | 'failed' | 'skipped'} */
   outcome;
 
-  /** @type {string | undefined} Why (e.g., "replay mode") */
+  /** @type {string | undefined} Why (e.g., "replay mode"). Omitted (not null) when absent. */
   reason;
 
   /** @type {number} Wall-clock milliseconds */

@@ -11,6 +11,7 @@ import WarpError from './WarpError.js';
  * | `E_AUDIT_CAS_FAILED` | Compare-and-swap failed during audit commit |
  * | `E_AUDIT_DEGRADED` | Audit service degraded after exhausting retries |
  * | `E_AUDIT_CHAIN_GAP` | Audit chain has a gap (missing commit in ancestry) |
+ * | `E_AUDIT_WRITER_MISMATCH` | TickReceipt writer does not match the service's writerId |
  *
  * @class AuditError
  * @extends WarpError
@@ -31,6 +32,9 @@ export default class AuditError extends WarpError {
 
   /** Audit chain has a gap (missing commit in ancestry). */
   static E_AUDIT_CHAIN_GAP = 'E_AUDIT_CHAIN_GAP';
+
+  /** TickReceipt writer does not match the service's writerId. */
+  static E_AUDIT_WRITER_MISMATCH = 'E_AUDIT_WRITER_MISMATCH';
 
   /**
    * Creates an AuditError with the given message and error code.

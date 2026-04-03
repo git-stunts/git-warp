@@ -359,7 +359,7 @@ export class AuditReceiptService {
       });
       throw new AuditError(
         `Audit writer mismatch: expected '${this._writerId}', got '${writer}'`,
-        { context: { expected: this._writerId, actual: writer, patchSha } },
+        { code: AuditError.E_AUDIT_WRITER_MISMATCH, context: { expected: this._writerId, actual: writer, patchSha } },
       );
     }
 

@@ -522,9 +522,9 @@ All milestones are complete: M10 → M12 → M13 (internal) → M11 → M14. M13
 
 The active roadmap is **26 standalone items** sorted into **8 priority tiers** (P0–P7) with **6 execution waves**. The GitHub issue queue is clear; Wave 1 is complete, and Wave 2 now starts at B88 in the CI & Tooling pack, with the roaring benchmark investigation queued in the performance lane. See [Execution Order](#execution-order) for the full sequence.
 
-Rejected items live in `GRAVEYARD.md`. Resurrections require an RFC.
-Promotable pre-design intake now lives in `BACKLOG/`. This file remains the
-committed milestone/release inventory.
+Rejected items live in `docs/method/graveyard/`. Resurrections must address the rejection note.
+Promotable pre-design intake lives in `docs/method/backlog/` with lane organization.
+This file remains the committed milestone/release inventory.
 
 ---
 
@@ -715,13 +715,13 @@ Exploratory concepts captured during PR hardening. These are intentionally fully
 - Golden output tests for deterministic summary formatting.
 - Smoke test ensuring script exits non-zero on API/auth failures.
 
-## Concern 4 — Documentation Drift: `ROADMAP.md` vs `BACKLOG/`
+## Concern 4 — Documentation Drift: `ROADMAP.md` vs Backlog
 
 The roles are now split explicitly:
 
 - `ROADMAP.md` owns committed milestone/release inventory
-- `BACKLOG/` owns promotable pre-design items
-- `docs/design/` owns active design docs
+- `docs/method/backlog/` owns promotable pre-design items (lane-organized)
+- `docs/design/` owns active cycle design docs
 
 Backlog items should be promoted into `docs/design/` before tests and
 implementation begin.

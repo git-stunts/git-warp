@@ -38,12 +38,12 @@ docs/
       bad-code/                     tech debt
       *.md                          shaped work not in a named lane
     legends/                        named domains
-    retro/<cycle>/<task>.md         retrospectives
+    retro/<NNNN-slug>/              cycle retrospectives
     graveyard/                      rejected ideas
     process.md                      how cycles run
     release.md                      how releases work
   design/
-    <cycle>/<task>.md               cycle design docs
+    <NNNN-slug>/                    cycle design docs
     *.md                            living documents
 ```
 

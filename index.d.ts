@@ -1222,6 +1222,7 @@ export class AuditError extends Error {
   static readonly E_AUDIT_CAS_FAILED: 'E_AUDIT_CAS_FAILED';
   static readonly E_AUDIT_DEGRADED: 'E_AUDIT_DEGRADED';
   static readonly E_AUDIT_CHAIN_GAP: 'E_AUDIT_CHAIN_GAP';
+  static readonly E_AUDIT_WRITER_MISMATCH: 'E_AUDIT_WRITER_MISMATCH';
 
   constructor(message: string, options?: {
     code?: string;

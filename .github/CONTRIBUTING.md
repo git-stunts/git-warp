@@ -2,20 +2,20 @@
 
 ## Planning Sources Of Truth
 
-- `BACKLOG/` — individual markdown files, one per item (`B{number}.md`)
-- `docs/design/cycles/<cycle>/` — active work; backlog file moves here
+- `docs/method/backlog/` — lane-organized backlog (inbox/, asap/, up-next/, cool-ideas/, bad-code/)
+- `docs/design/<NNNN-slug>/` — active cycle work; backlog item promotes here
 - `CHANGELOG.md` — what has landed
-- `docs/archive/retrospectives/` — closed cycle audits
+- `docs/method/retro/<NNNN-slug>/` — closed cycle retrospectives
 
 No milestones. No ROADMAP. Cycles are the unit of work.
+See [METHOD.md](../../METHOD.md) for the full process.
 
 ## Cycle Process
 
 A cycle is one backlog item, start to finish:
 
-1. **Pull** — move `BACKLOG/B{number}.md` to `docs/design/cycles/<cycle>/`
-2. **Design** — the backlog file becomes the design doc; add hills, non-goals,
-   invariants as needed
+1. **Pull** — promote a backlog item to `docs/design/<NNNN-slug>/`
+2. **Design** — write the design doc; add hills, playback questions, non-goals
 3. **Spec** — write failing tests as executable spec
 4. **Implement** — make the tests pass
 5. **Close** — retrospective, drift audit, CHANGELOG, tech debt journal,
@@ -23,7 +23,7 @@ A cycle is one backlog item, start to finish:
 
 ### Retrospectives
 
-Every closed cycle gets a retrospective in `docs/archive/retrospectives/`.
+Every closed cycle gets a retrospective in `docs/method/retro/<NNNN-slug>/`.
 At minimum:
 
 1. Governing design docs and backlog IDs

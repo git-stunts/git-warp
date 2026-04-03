@@ -183,6 +183,7 @@ export class TickReceipt {
   /**
    * Creates an immutable TickReceipt.
    * @param {{ patchSha: string, writer: string, lamport: number, ops: OpOutcome[] }} fields
+   * @throws {Error} If any field is invalid
    */
   constructor({ patchSha, writer, lamport, ops }) {
     assertNonEmptyString(patchSha, 'patchSha');
