@@ -126,15 +126,46 @@ async function computeHmac(fields, key, { crypto, codec }) {
 }
 
 /**
- * @typedef {Object} BTR
- * @property {number} version - BTR format version
- * @property {string} h_in - Hash of input state (hex SHA-256)
- * @property {string} h_out - Hash of output state (hex SHA-256)
- * @property {Uint8Array} U_0 - Serialized initial state (CBOR)
- * @property {Array<unknown>} P - Serialized provenance payload
- * @property {string} t - ISO 8601 timestamp
- * @property {string} kappa - Authentication tag (hex HMAC-SHA256)
+ * BTR — Boundary Transition Record. Tamper-evident package binding
+ * initial state, provenance payload, and output state hash.
  */
+export class BTR {
+  /** @type {string} Hash of input state (hex SHA-256) */
+  h_in;
+
+  /** @type {string} Hash of output state (hex SHA-256) */
+  h_out;
+
+  /** @type {string} Authentication tag (hex HMAC-SHA256) */
+  kappa;
+
+  /** @type {Array<unknown>} Serialized provenance payload */
+  P;
+
+  /** @type {string} ISO 8601 timestamp */
+  t;
+
+  /** @type {Uint8Array} Serialized initial state (CBOR) */
+  U_0;
+
+  /** @type {number} BTR format version */
+  version;
+
+  /**
+   * Creates a BTR from field values.
+   * @param {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string, kappa: string }} fields
+   */
+  constructor({ version, h_in, h_out, U_0, P, t, kappa }) {
+    this.version = version;
+    this.h_in = h_in;
+    this.h_out = h_out;
+    this.U_0 = U_0;
+    this.P = P;
+    this.t = t;
+    this.kappa = kappa;
+    Object.freeze(this);
+  }
+}
 
 /**
  * @typedef {Object} VerificationResult
@@ -197,7 +228,7 @@ export async function createBTR(initialState, payload, options) {
   const fields = { version: BTR_VERSION, h_in, h_out, U_0, P, t: timestamp };
   const kappa = await computeHmac(fields, key, /** @type {{ crypto: import('../../ports/CryptoPort.js').default, codec?: import('../../ports/CodecPort.js').default }} */ (deps));
 
-  return { ...fields, kappa };
+  return new BTR({ ...fields, kappa });
 }
 
 /**
@@ -491,15 +522,7 @@ export function deserializeBTR(bytes, { codec } = {}) {
   }
 
   const typed = /** @type {{ version: number, h_in: string, h_out: string, U_0: Uint8Array, P: Array<unknown>, t: string, kappa: string }} */ (obj);
-  return /** @type {BTR} */ ({
-    version: typed.version,
-    h_in: typed.h_in,
-    h_out: typed.h_out,
-    U_0: typed.U_0,
-    P: typed.P,
-    t: typed.t,
-    kappa: typed.kappa,
-  });
+  return new BTR(typed);
 }
 
 /**

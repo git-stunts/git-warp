@@ -69,12 +69,26 @@ import { compareEventIds } from '../utils/EventId.js';
  */
 
 /**
- * LWW Register - stores value with EventId for conflict resolution
+ * LWW Register — stores value with EventId for conflict resolution.
  * @template T
- * @typedef {Object} LWWRegister
- * @property {import('../utils/EventId.js').EventId} eventId
- * @property {T} value
  */
+export class LWWRegister {
+  /** @type {import('../utils/EventId.js').EventId} */
+  eventId;
+
+  /** @type {T} */
+  value;
+
+  /**
+   * Creates an LWW register.
+   * @param {import('../utils/EventId.js').EventId} eventId
+   * @param {T} value
+   */
+  constructor(eventId, value) {
+    this.eventId = eventId;
+    this.value = value;
+  }
+}
 
 /**
  * Creates an LWW register with the given EventId and value.
@@ -84,7 +98,7 @@ import { compareEventIds } from '../utils/EventId.js';
  * @returns {LWWRegister<T>}
  */
 export function lwwSet(eventId, value) {
-  return { eventId, value };
+  return new LWWRegister(eventId, value);
 }
 
 /**
