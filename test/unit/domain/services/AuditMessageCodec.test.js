@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   encodeAuditMessage,
   decodeAuditMessage,
-} from '../../../../src/domain/services/AuditMessageCodec.js';
+} from '../../../../src/domain/services/codec/AuditMessageCodec.js';
 
 const VALID_INPUT = {
   graph: 'events',

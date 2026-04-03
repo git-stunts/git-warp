@@ -9,10 +9,10 @@
  */
 
 import { deepStrictEqual } from 'node:assert/strict';
-import AdjacencyNeighborProvider from '../../src/domain/services/AdjacencyNeighborProvider.js';
-import BitmapNeighborProvider from '../../src/domain/services/BitmapNeighborProvider.js';
-import LogicalIndexBuildService from '../../src/domain/services/LogicalIndexBuildService.js';
-import LogicalIndexReader from '../../src/domain/services/LogicalIndexReader.js';
+import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.js';
+import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
+import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
+import LogicalIndexReader from '../../src/domain/services/index/LogicalIndexReader.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../src/domain/utils/EventId.js';
@@ -579,13 +579,13 @@ export function makeNodeWeightFn(weights, defaultWeight = 1) {
  * @param {Object} params
  * @param {GraphFixture} [params.fixture]
  * @param {Array<{name: string, provider: import('../../src/ports/NeighborProviderPort.js').default}>} params.providers
- * @param {(engine: import('../../src/domain/services/GraphTraversal.js').default) => Promise<unknown>} params.run
+ * @param {(engine: import('../../src/domain/services/query/GraphTraversal.js').default) => Promise<unknown>} params.run
  * @param {(result: unknown) => void} params.assert
  */
 export async function runCrossProvider({ providers, run, assert }) {
   const results = [];
   for (const { name, provider } of providers) {
-    const { default: GraphTraversal } = await import('../../src/domain/services/GraphTraversal.js');
+    const { default: GraphTraversal } = await import('../../src/domain/services/query/GraphTraversal.js');
     const engine = new GraphTraversal({ provider });
     try {
       const result = await run(engine);
@@ -734,7 +734,7 @@ export function fixtureToState(fixture) {
  * Delegates to LogicalIndexReader (production code).
  *
  * @param {Record<string, Uint8Array>} tree
- * @returns {import('../../src/domain/services/BitmapNeighborProvider.js').LogicalIndex}
+ * @returns {import('../../src/domain/services/index/BitmapNeighborProvider.js').LogicalIndex}
  * @private
  */
 function _createLogicalIndexFromTree(tree) {

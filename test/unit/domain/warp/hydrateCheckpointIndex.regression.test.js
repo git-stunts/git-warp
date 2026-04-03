@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import MaterializeController from '../../../../src/domain/services/MaterializeController.js';
+import MaterializeController from '../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
-import LogicalIndexBuildService from '../../../../src/domain/services/LogicalIndexBuildService.js';
-import LogicalIndexReader from '../../../../src/domain/services/LogicalIndexReader.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 
 /**

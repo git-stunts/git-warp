@@ -6,7 +6,7 @@ import {
   serializeWormhole,
   deserializeWormhole,
 } from '../../../../src/domain/services/WormholeService.js';
-import ProvenancePayload from '../../../../src/domain/services/ProvenancePayload.js';
+import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.js';
 import WormholeError from '../../../../src/domain/errors/WormholeError.js';
 import {
   reduceV5 as _reduceV5,

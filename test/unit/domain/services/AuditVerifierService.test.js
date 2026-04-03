@@ -8,10 +8,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
-import { AuditReceiptService } from '../../../../src/domain/services/AuditReceiptService.js';
-import { AuditVerifierService } from '../../../../src/domain/services/AuditVerifierService.js';
+import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
+import { AuditVerifierService } from '../../../../src/domain/services/audit/AuditVerifierService.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
-import { encodeAuditMessage } from '../../../../src/domain/services/AuditMessageCodec.js';
+import { encodeAuditMessage } from '../../../../src/domain/services/codec/AuditMessageCodec.js';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
 import {
   KEY_ADD_1,

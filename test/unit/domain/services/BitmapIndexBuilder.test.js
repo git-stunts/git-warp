@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import BitmapIndexBuilder, {
   SHARD_VERSION,
   resetNativeRoaringFlag,
-} from '../../../../src/domain/services/BitmapIndexBuilder.js';
+} from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
 
 describe('BitmapIndexBuilder', () => {
   beforeEach(() => {

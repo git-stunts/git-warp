@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import IndexRebuildService from '../../../../src/domain/services/IndexRebuildService.js';
+import IndexRebuildService from '../../../../src/domain/services/index/IndexRebuildService.js';
 import GraphNode from '../../../../src/domain/entities/GraphNode.js';
 
 describe('IndexRebuildService Deep DAG Test', () => {

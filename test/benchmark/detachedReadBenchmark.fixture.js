@@ -122,7 +122,7 @@ async function simulatePatchCommit(persistence, {
   context,
 }) {
   const { encode } = await import('../../src/infrastructure/codecs/CborCodec.js');
-  const { encodePatchMessage } = await import('../../src/domain/services/WarpMessageCodec.js');
+  const { encodePatchMessage } = await import('../../src/domain/services/codec/WarpMessageCodec.js');
   const { buildWriterRef } = await import('../../src/domain/utils/RefLayout.js');
 
   const patch = {

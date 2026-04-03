@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { processSyncRequest } from '../../../../src/domain/services/SyncProtocol.js';
-import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { processSyncRequest } from '../../../../src/domain/services/sync/SyncProtocol.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 

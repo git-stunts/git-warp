@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import WarpRuntime from '../../../../src/domain/WarpRuntime.js';
-import Observer from '../../../../src/domain/services/Observer.js';
+import Observer from '../../../../src/domain/services/query/Observer.js';
 import { createEmptyStateV5, encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/JoinReducer.js';
 import { orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';

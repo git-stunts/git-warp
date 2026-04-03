@@ -136,7 +136,7 @@ describe('V7 Contract Guards', () => {
         reason: 'Dot notation for unique events',
       },
       {
-        path: 'domain/services/WarpStateIndexBuilder.js',
+        path: 'domain/services/index/WarpStateIndexBuilder.js',
         reason: 'Task 6: Index built from WarpStateV5, not commit DAG',
       },
     ];

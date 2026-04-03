@@ -7,8 +7,8 @@ import {
   serializeStateV5,
   computeStateHashV5,
   deserializeStateV5,
-} from '../../../../src/domain/services/StateSerializerV5.js';
-import { createStateReaderV5 } from '../../../../src/domain/services/StateReaderV5.js';
+} from '../../../../src/domain/services/state/StateSerializerV5.js';
+import { createStateReaderV5 } from '../../../../src/domain/services/state/StateReaderV5.js';
 import { compareVisibleStateV5 } from '../../../../src/domain/services/VisibleStateComparisonV5.js';
 import {
   createEmptyStateV5,

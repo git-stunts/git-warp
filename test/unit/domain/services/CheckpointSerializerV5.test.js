@@ -5,7 +5,7 @@ import {
   computeAppliedVV,
   serializeAppliedVV,
   deserializeAppliedVV,
-} from '../../../../src/domain/services/CheckpointSerializerV5.js';
+} from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import {
   createEmptyStateV5,

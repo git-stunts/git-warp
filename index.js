@@ -34,11 +34,11 @@
 
 import GitGraphAdapter from './src/infrastructure/adapters/GitGraphAdapter.js';
 import GraphNode from './src/domain/entities/GraphNode.js';
-import BitmapIndexBuilder from './src/domain/services/BitmapIndexBuilder.js';
-import BitmapIndexReader from './src/domain/services/BitmapIndexReader.js';
-import IndexRebuildService from './src/domain/services/IndexRebuildService.js';
+import BitmapIndexBuilder from './src/domain/services/index/BitmapIndexBuilder.js';
+import BitmapIndexReader from './src/domain/services/index/BitmapIndexReader.js';
+import IndexRebuildService from './src/domain/services/index/IndexRebuildService.js';
 import HealthCheckService, { HealthStatus } from './src/domain/services/HealthCheckService.js';
-import CommitDagTraversalService from './src/domain/services/CommitDagTraversalService.js';
+import CommitDagTraversalService from './src/domain/services/dag/CommitDagTraversalService.js';
 import GraphPersistencePort from './src/ports/GraphPersistencePort.js';
 import IndexStoragePort from './src/ports/IndexStoragePort.js';
 import LoggerPort from './src/ports/LoggerPort.js';
@@ -91,8 +91,8 @@ import {
   createEventId,
 } from './src/domain/types/WarpTypes.js';
 import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
-import QueryBuilder from './src/domain/services/QueryBuilder.js';
-import Observer from './src/domain/services/Observer.js';
+import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
+import Observer from './src/domain/services/query/Observer.js';
 import Worldline from './src/domain/services/Worldline.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
@@ -109,7 +109,7 @@ import {
 } from './src/domain/types/TickReceipt.js';
 
 // Provenance payload (HOLOGRAM)
-import ProvenancePayload from './src/domain/services/ProvenancePayload.js';
+import ProvenancePayload from './src/domain/services/provenance/ProvenancePayload.js';
 
 // Boundary Transition Records (HOLOGRAM)
 import {
@@ -118,7 +118,7 @@ import {
   replayBTR,
   serializeBTR,
   deserializeBTR,
-} from './src/domain/services/BoundaryTransitionRecord.js';
+} from './src/domain/services/provenance/BoundaryTransitionRecord.js';
 
 // Wormhole compression (HOLOGRAM)
 import {
@@ -155,10 +155,10 @@ import { ChunkEffectSink } from './src/infrastructure/adapters/ChunkEffectSink.j
 import { PatchBuilderV2 } from './src/domain/services/PatchBuilderV2.js';
 import { PatchSession } from './src/domain/warp/PatchSession.js';
 import { Writer } from './src/domain/warp/Writer.js';
-import { ProvenanceIndex } from './src/domain/services/ProvenanceIndex.js';
-import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/WarpStateIndexBuilder.js';
-import { computeStateHashV5, projectStateV5 } from './src/domain/services/StateSerializerV5.js';
-import { createStateReaderV5 } from './src/domain/services/StateReaderV5.js';
+import { ProvenanceIndex } from './src/domain/services/provenance/ProvenanceIndex.js';
+import WarpStateIndexBuilder, { buildWarpStateIndex } from './src/domain/services/index/WarpStateIndexBuilder.js';
+import { computeStateHashV5, projectStateV5 } from './src/domain/services/state/StateSerializerV5.js';
+import { createStateReaderV5 } from './src/domain/services/state/StateReaderV5.js';
 import { compareVisibleStateV5 } from './src/domain/services/VisibleStateComparisonV5.js';
 import {
   normalizeVisibleStateScopeV1,

@@ -10,7 +10,7 @@ import {
   detectSchemaVersion,
   SCHEMA_V2,
   SCHEMA_V3,
-} from '../../../../src/domain/services/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 
 // Test fixtures
 const VALID_OID_SHA1 = 'a'.repeat(40);

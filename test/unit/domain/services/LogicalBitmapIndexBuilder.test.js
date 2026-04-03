@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import LogicalBitmapIndexBuilder from '../../../../src/domain/services/LogicalBitmapIndexBuilder.js';
+import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.js';
 import { F7_MULTILABEL_SAME_NEIGHBOR, F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.js';

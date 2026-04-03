@@ -34,7 +34,7 @@ import {
   EFFECT_NODE_PREFIX,
 } from './KeyCodec.js';
 import { lowerCanonicalOp } from './OpNormalizer.js';
-import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './WarpMessageCodec.js';
+import { encodePatchMessage, decodePatchMessage, detectMessageKind } from './codec/WarpMessageCodec.js';
 import { buildWriterRef } from '../utils/RefLayout.js';
 import WriterError from '../errors/WriterError.js';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';

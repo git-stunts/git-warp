@@ -23,7 +23,7 @@ Plus ~24 shared kernel files remaining in root.
 
 **No.** All inter-group dependencies flow downward:
 
-```
+```text
 controllers → strand, query, sync, provenance, state, index
 strand → kernel, codec, state, provenance
 query → kernel, state

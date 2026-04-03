@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestRepo } from './helpers/setup.js';
-import { computeStateHashV5 } from '../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 } from '../../../src/domain/services/state/StateSerializerV5.js';
 
 describe('API: Multi-Writer', () => {
   /** @type {any} */

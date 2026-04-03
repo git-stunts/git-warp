@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import SyncController from '../../../../src/domain/services/SyncController.js';
-import SyncTrustGate from '../../../../src/domain/services/SyncTrustGate.js';
+import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
+import SyncTrustGate from '../../../../src/domain/services/sync/SyncTrustGate.js';
 import SyncError from '../../../../src/domain/errors/SyncError.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 import { createFrontier, updateFrontier } from '../../../../src/domain/services/Frontier.js';
 
-vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal) => {
+vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
   const original = /** @type {Record<string, unknown>} */ (await importOriginal());
   return {
     ...original,
@@ -16,7 +16,7 @@ vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal
 const { applySyncResponse: applySyncResponseMock } =
   /** @type {{ applySyncResponse: import('vitest').Mock }} */ (
     /** @type {unknown} */ (
-      await import('../../../../src/domain/services/SyncProtocol.js')
+      await import('../../../../src/domain/services/sync/SyncProtocol.js')
     )
   );
 

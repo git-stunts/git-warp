@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StreamingBitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/StreamingBitmapIndexBuilder.js';
+import StreamingBitmapIndexBuilder, { SHARD_VERSION } from '../../../../src/domain/services/index/StreamingBitmapIndexBuilder.js';
 
 /**
  * Helper to create a valid shard envelope with checksum.

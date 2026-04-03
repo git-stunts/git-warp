@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { create, createV5, loadCheckpoint, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/CheckpointService.js';
+import { create, createV5, loadCheckpoint, reconstructStateV5FromCheckpoint } from '../../../../src/domain/services/state/CheckpointService.js';
 import { createFrontier, updateFrontier, serializeFrontier } from '../../../../src/domain/services/Frontier.js';
-import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import {
   serializeFullStateV5,
   deserializeFullStateV5,
   computeAppliedVV,
   serializeAppliedVV,
   deserializeAppliedVV,
-} from '../../../../src/domain/services/CheckpointSerializerV5.js';
+} from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { createEmptyStateV5, encodeEdgeKey as encodeEdgeKeyV5, encodePropKey as encodePropKeyV5 } from '../../../../src/domain/services/JoinReducer.js';
-import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { encodeCheckpointMessage, decodeCheckpointMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { orsetAdd, orsetRemove, orsetContains, orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';

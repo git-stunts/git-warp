@@ -1,5 +1,5 @@
 import { canonicalStringify } from '../utils/canonicalStringify.js';
-import { createStateReaderV5 } from './StateReaderV5.js';
+import { createStateReaderV5 } from './state/StateReaderV5.js';
 
 
 /** @import { VisibleNodeViewV5, VisibleStateComparisonV5, VisibleStateNeighborV5, VisibleStateReaderV5 } from '../../../index.js' */

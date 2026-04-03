@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import LogicalIndexReader from '../../../../src/domain/services/LogicalIndexReader.js';
-import LogicalIndexBuildService from '../../../../src/domain/services/LogicalIndexBuildService.js';
+import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,

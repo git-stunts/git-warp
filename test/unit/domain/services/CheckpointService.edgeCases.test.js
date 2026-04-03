@@ -13,7 +13,7 @@ import {
   reconstructStateV5FromCheckpoint,
   CHECKPOINT_SCHEMA_STANDARD,
   CHECKPOINT_SCHEMA_INDEX_TREE,
-} from '../../../../src/domain/services/CheckpointService.js';
+} from '../../../../src/domain/services/state/CheckpointService.js';
 import {
   createFrontier,
   updateFrontier,
@@ -24,8 +24,8 @@ import {
   deserializeFullStateV5,
   computeAppliedVV,
   serializeAppliedVV,
-} from '../../../../src/domain/services/CheckpointSerializerV5.js';
-import { computeStateHashV5 } from '../../../../src/domain/services/StateSerializerV5.js';
+} from '../../../../src/domain/services/state/CheckpointSerializerV5.js';
+import { computeStateHashV5 } from '../../../../src/domain/services/state/StateSerializerV5.js';
 import {
   createEmptyStateV5,
   encodeEdgeKey as encodeEdgeKeyV5,
@@ -34,7 +34,7 @@ import {
 import {
   encodeCheckpointMessage,
   decodeCheckpointMessage,
-} from '../../../../src/domain/services/WarpMessageCodec.js';
+} from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import {
   orsetAdd,
   orsetRemove,

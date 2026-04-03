@@ -11,7 +11,7 @@ import {
   makeAdjacencyProvider, toAdjacencyMaps,
   F10_PROTO_POLLUTION,
 } from '../../helpers/fixtureDsl.js';
-import GraphTraversal from '../../../src/domain/services/GraphTraversal.js';
+import GraphTraversal from '../../../src/domain/services/query/GraphTraversal.js';
 
 describe('F10 — PROTO_POLLUTION_IDS', () => {
   describe('AdjacencyNeighborProvider', () => {

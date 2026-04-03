@@ -1,0 +1,835 @@
+import defaultCodec from '../../utils/defaultCodec.js';
+import defaultCrypto from '../../utils/defaultCrypto.js';
+import { computeChecksum } from '../../utils/checksumUtils.js';
+import ShardCorruptionError from '../../errors/ShardCorruptionError.js';
+import ShardValidationError from '../../errors/ShardValidationError.js';
+import IndexError from '../../errors/IndexError.js';
+import nullLogger from '../../utils/nullLogger.js';
+import { checkAborted } from '../../utils/cancellation.js';
+import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import { canonicalStringify } from '../../utils/canonicalStringify.js';
+import { SHARD_VERSION } from '../../utils/shardVersion.js';
+import { textEncode, base64Encode, base64Decode } from '../../utils/bytes.js';
+
+/** @typedef {import('../../types/WarpPersistence.js').IndexStorage} IndexStorage */
+
+// Re-export for backwards compatibility
+export { SHARD_VERSION };
+
+/**
+ * Default memory threshold before flushing (50MB).
+ * @const {number}
+ */
+const DEFAULT_MAX_MEMORY_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Estimated bytes per SHA→ID mapping entry.
+ * Accounts for: 40-char string (~80 bytes with overhead) + number (8 bytes) + Map overhead.
+ * @const {number}
+ */
+const BYTES_PER_ID_MAPPING = 120;
+
+/**
+ * Base overhead per RoaringBitmap32 instance (empty bitmap).
+ * @const {number}
+ */
+const BITMAP_BASE_OVERHEAD = 64;
+
+/**
+ * Streaming bitmap index builder with memory-bounded operation.
+ *
+ * Unlike {@link BitmapIndexBuilder}, this builder flushes bitmap data to storage
+ * periodically when memory usage exceeds a threshold. This enables indexing
+ * arbitrarily large graphs without OOM.
+ *
+ * **Memory Model**:
+ * - SHA→ID mappings are kept in memory (required for global ID consistency)
+ * - Bitmap data is flushed to storage when threshold exceeded
+ * - Flushed chunks are merged at finalization
+ *
+ * **Trade-offs**:
+ * - More I/O operations than in-memory builder
+ * - Requires storage adapter (not pure domain)
+ * - Merge step at finalization adds overhead
+ *
+ * @example
+ * const builder = new StreamingBitmapIndexBuilder({
+ *   storage: gitAdapter,
+ *   maxMemoryBytes: 100 * 1024 * 1024, // 100MB
+ * });
+ *
+ * for await (const node of nodes) {
+ *   await builder.registerNode(node.sha);
+ *   for (const parent of node.parents) {
+ *     await builder.addEdge(parent, node.sha);
+ *   }
+ * }
+ *
+ * const treeOid = await builder.finalize();
+ */
+/**
+ * Validates constructor options for StreamingBitmapIndexBuilder.
+ *
+ * @param {import('../../../ports/IndexStoragePort.js').default} storage
+ * @param {number} maxMemoryBytes
+ * @returns {import('../../../ports/IndexStoragePort.js').default} The validated storage adapter
+ */
+function validateBuilderOptions(storage, maxMemoryBytes) {
+  if (storage === null || storage === undefined) {
+    throw new IndexError('StreamingBitmapIndexBuilder requires a storage adapter', {
+      code: 'E_INDEX_INVALID_OPTIONS',
+      context: { field: 'storage' },
+    });
+  }
+  if (typeof maxMemoryBytes !== 'number' || maxMemoryBytes <= 0) {
+    throw new IndexError('maxMemoryBytes must be a positive number', {
+      code: 'E_INDEX_INVALID_OPTIONS',
+      context: { field: 'maxMemoryBytes', value: maxMemoryBytes },
+    });
+  }
+  return /** @type {import('../../../ports/IndexStoragePort.js').default} */ (storage);
+}
+
+/**
+ * @typedef {'fwd'|'rev'} BitmapShardType
+ */
+
+/**
+ * @typedef {{ version: number, checksum: string, data: Record<string, string> }} ShardEnvelope
+ */
+
+/**
+ * Parses a raw buffer into a shard envelope, throwing on invalid JSON.
+ *
+ * @param {Uint8Array} buffer - Raw blob bytes
+ * @param {string} oid - Git blob OID for error context
+ * @returns {ShardEnvelope} Parsed envelope
+ * @throws {ShardCorruptionError} If the buffer is not valid JSON
+ */
+function parseShardEnvelope(buffer, oid) {
+  try {
+    const raw = /** @type {unknown} */ (JSON.parse(new TextDecoder().decode(buffer)));
+    return /** @type {ShardEnvelope} */ (raw);
+  } catch (err) {
+    throw new ShardCorruptionError('Failed to parse shard JSON', {
+      oid,
+      reason: 'invalid_format',
+      context: { originalError: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Validates a shard envelope's version and checksum integrity.
+ *
+ * @param {ShardEnvelope} envelope - Parsed shard envelope
+ * @param {string} oid - Git blob OID for error context
+ * @param {import('../../../ports/CryptoPort.js').default} crypto - Crypto adapter for checksum
+ * @returns {Promise<void>}
+ * @throws {ShardValidationError} If version does not match SHARD_VERSION
+ * @throws {ShardCorruptionError} If checksum does not match
+ */
+async function validateShardEnvelope(envelope, oid, crypto) {
+  if (envelope.version !== SHARD_VERSION) {
+    throw new ShardValidationError('Shard version mismatch', {
+      expected: SHARD_VERSION,
+      actual: envelope.version,
+      field: 'version',
+    });
+  }
+
+  const expectedChecksum = await computeChecksum(envelope.data, crypto);
+  if (envelope.checksum !== expectedChecksum) {
+    throw new ShardCorruptionError('Shard checksum mismatch', {
+      oid,
+      reason: 'invalid_checksum',
+      context: { expected: expectedChecksum, actual: envelope.checksum },
+    });
+  }
+}
+
+/**
+ * Serializes merged bitmaps into SHA→base64 string entries.
+ *
+ * @param {Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>} merged - Merged bitmaps by SHA
+ * @returns {Record<string, string>} SHA→base64Bitmap mappings
+ */
+function serializeMergedBitmaps(merged) {
+  /** @type {Record<string, string>} */
+  const result = {};
+  for (const [sha, bitmap] of Object.entries(merged)) {
+    result[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+  }
+  return result;
+}
+
+/**
+ * Serializes a merged shard envelope to a Uint8Array for storage.
+ *
+ * @param {{ version: number, checksum: string, data: Record<string, string> }} envelope - Versioned envelope
+ * @returns {Uint8Array} Encoded JSON bytes
+ * @throws {ShardCorruptionError} If JSON serialization fails
+ */
+function serializeMergedShard(envelope) {
+  try {
+    return textEncode(JSON.stringify(envelope));
+  } catch (err) {
+    throw new ShardCorruptionError('Failed to serialize merged shard', {
+      reason: 'serialization_error',
+      context: { originalError: err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
+/**
+ * Initializes all mutable fields on a StreamingBitmapIndexBuilder instance.
+ *
+ * @param {StreamingBitmapIndexBuilder} self - Builder instance to initialize
+ * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger: import('../../../ports/LoggerPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} opts - Validated options
+ */
+function initBuilderFields(self, { validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec }) {
+  self._crypto = crypto ?? defaultCrypto;
+  self._codec = codec ?? defaultCodec;
+  self.storage = /** @type {IndexStorage} */ (/** @type {unknown} */ (validatedStorage));
+  self.maxMemoryBytes = maxMemoryBytes;
+  self.onFlush = onFlush;
+  self.logger = logger;
+  self.shaToId = new Map();
+  self.idToSha = [];
+  self.bitmaps = new Map();
+  self.estimatedBitmapBytes = 0;
+  self.flushedChunks = new Map();
+  self.totalFlushedBytes = 0;
+  self.flushCount = 0;
+  self._RoaringBitmap32 = getRoaringBitmap32();
+}
+
+/**
+ * Builds the options object for initBuilderFields, omitting undefined optional fields.
+ *
+ * @param {{ validatedStorage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes: number, onFlush: ((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined, logger: import('../../../ports/LoggerPort.js').default, crypto: import('../../../ports/CryptoPort.js').default|undefined, codec: import('../../../ports/CodecPort.js').default|undefined }} raw
+ * @returns {Parameters<typeof initBuilderFields>[1]}
+ */
+function buildInitOpts(raw) {
+  /** @type {Parameters<typeof initBuilderFields>[1]} */
+  const opts = { validatedStorage: raw.validatedStorage, maxMemoryBytes: raw.maxMemoryBytes, logger: raw.logger };
+  if (raw.onFlush !== undefined) { opts.onFlush = raw.onFlush; }
+  if (raw.crypto !== undefined) { opts.crypto = raw.crypto; }
+  if (raw.codec !== undefined) { opts.codec = raw.codec; }
+  return opts;
+}
+
+export default class StreamingBitmapIndexBuilder {
+  /** @type {import('../../../ports/CryptoPort.js').default} */
+  _crypto = /** @type {import('../../../ports/CryptoPort.js').default} */ (/** @type {unknown} */ (undefined));
+
+  /** @type {import('../../../ports/CodecPort.js').default} */
+  _codec = /** @type {import('../../../ports/CodecPort.js').default} */ (/** @type {unknown} */ (undefined));
+
+  /** @type {IndexStorage} */
+  storage = /** @type {IndexStorage} */ (/** @type {unknown} */ (undefined));
+
+  /** @type {number} */
+  maxMemoryBytes = 0;
+
+  /** @type {((stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void)|undefined} */
+  onFlush;
+
+  /** @type {import('../../../ports/LoggerPort.js').default} */
+  logger = /** @type {import('../../../ports/LoggerPort.js').default} */ (/** @type {unknown} */ (undefined));
+
+  /** @type {Map<string, number>} */
+  shaToId = new Map();
+
+  /** @type {string[]} */
+  idToSha = [];
+
+  /** @type {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+  bitmaps = new Map();
+
+  /** @type {number} */
+  estimatedBitmapBytes = 0;
+
+  /** @type {Map<string, string[]>} */
+  flushedChunks = new Map();
+
+  /** @type {number} */
+  totalFlushedBytes = 0;
+
+  /** @type {number} */
+  flushCount = 0;
+
+  /** @type {typeof import('roaring').RoaringBitmap32} */
+  _RoaringBitmap32 = /** @type {typeof import('roaring').RoaringBitmap32} */ (/** @type {unknown} */ (undefined));
+
+  /**
+   * Creates a new StreamingBitmapIndexBuilder instance.
+   *
+   * @param {{ storage: import('../../../ports/IndexStoragePort.js').default, maxMemoryBytes?: number, onFlush?: (stats: {flushedBytes: number, totalFlushedBytes: number, flushCount: number}) => void, logger?: import('../../../ports/LoggerPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, codec?: import('../../../ports/CodecPort.js').default }} options - Configuration options
+   */
+  constructor({ storage, maxMemoryBytes = DEFAULT_MAX_MEMORY_BYTES, onFlush, logger = nullLogger, crypto, codec }) {
+    const validatedStorage = validateBuilderOptions(storage, maxMemoryBytes);
+    initBuilderFields(this, buildInitOpts({ validatedStorage, maxMemoryBytes, onFlush, logger, crypto, codec }));
+  }
+
+  /**
+   * Registers a node without adding edges.
+   *
+   * This method assigns a numeric ID to the given SHA if it hasn't been
+   * registered before. The ID is used internally for bitmap indexing.
+   * If the node has already been registered, returns the existing ID.
+   *
+   * @param {string} sha - The node's SHA (40-character hex string)
+   * @returns {Promise<number>} The assigned numeric ID (0-indexed, monotonically increasing)
+   */
+  registerNode(sha) {
+    return Promise.resolve(this._getOrCreateId(sha));
+  }
+
+  /**
+   * Adds a directed edge from source to target node.
+   *
+   * Creates or updates bitmap entries for both forward (src → tgt) and
+   * reverse (tgt → src) edge lookups. Both nodes are automatically registered
+   * if not already present.
+   *
+   * May trigger an automatic flush if memory usage exceeds the configured
+   * `maxMemoryBytes` threshold after adding the edge.
+   *
+   * @param {string} srcSha - Source node SHA (parent, 40-character hex string)
+   * @param {string} tgtSha - Target node SHA (child, 40-character hex string)
+   * @returns {Promise<void>} Resolves when edge is added (and flushed if necessary)
+   * @async
+   */
+  async addEdge(srcSha, tgtSha) {
+    const srcId = this._getOrCreateId(srcSha);
+    const tgtId = this._getOrCreateId(tgtSha);
+
+    this._addToBitmap({ sha: srcSha, id: tgtId, type: 'fwd' });
+    this._addToBitmap({ sha: tgtSha, id: srcId, type: 'rev' });
+
+    // Check if we need to flush
+    if (this.estimatedBitmapBytes >= this.maxMemoryBytes) {
+      await this.flush();
+    }
+  }
+
+  /**
+   * Serializes current in-memory bitmaps into a shard structure.
+   *
+   * Groups bitmaps by type ('fwd' or 'rev') and SHA prefix (first 2 hex chars).
+   * Each bitmap is serialized to a portable format and base64-encoded.
+   *
+   * @returns {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }}
+   *   Object with 'fwd' and 'rev' keys, each mapping prefix to SHA→base64Bitmap entries
+   * @private
+   */
+  _serializeBitmapsToShards() {
+    /** @type {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }} */
+    const bitmapShards = { fwd: {}, rev: {} };
+    for (const [key, bitmap] of this.bitmaps) {
+      const type = key.substring(0, 3);
+      const sha = key.substring(4);
+      const prefix = sha.substring(0, 2);
+      const bucket = type === 'fwd' ? bitmapShards.fwd : bitmapShards.rev;
+
+      if (bucket[prefix] === undefined) {
+        bucket[prefix] = {};
+      }
+      const shard = /** @type {Record<string, string>} */ (bucket[prefix]);
+      shard[sha] = base64Encode(new Uint8Array(bitmap.serialize(true)));
+    }
+    return bitmapShards;
+  }
+
+  /**
+   * Writes serialized bitmap shards to storage and tracks their OIDs.
+   *
+   * Each shard is wrapped in a versioned envelope with a checksum before writing.
+   * The resulting blob OIDs are tracked in `flushedChunks` for later merging.
+   * Writes are performed in parallel for efficiency.
+   *
+   * @param {{ fwd: Record<string, Record<string, string>>, rev: Record<string, Record<string, string>> }} bitmapShards
+   *   Object with 'fwd' and 'rev' keys containing prefix-grouped bitmap data
+   * @returns {Promise<void>} Resolves when all shards have been written
+   * @async
+   * @private
+   */
+  async _writeShardsToStorage(bitmapShards) {
+    const tasks = [];
+
+    for (const type of /** @type {const} */ (['fwd', 'rev'])) {
+      for (const [prefix, shardData] of Object.entries(bitmapShards[type])) {
+        const path = `shards_${type}_${prefix}.json`;
+        tasks.push(
+          computeChecksum(shardData, this._crypto).then(async (checksum) => {
+            const envelope = {
+              version: SHARD_VERSION,
+              checksum,
+              data: shardData,
+            };
+            const buffer = textEncode(JSON.stringify(envelope));
+            const oid = await this.storage.writeBlob(buffer);
+            if (!this.flushedChunks.has(path)) {
+              this.flushedChunks.set(path, []);
+            }
+            /** @type {string[]} */ (this.flushedChunks.get(path)).push(oid);
+          })
+        );
+      }
+    }
+
+    await Promise.all(tasks);
+  }
+
+  /**
+   * Flushes current bitmap data to storage.
+   *
+   * Serializes all in-memory bitmaps, writes them as versioned blob chunks,
+   * and clears the bitmap map to free memory. SHA→ID mappings are preserved
+   * in memory as they are required for global ID consistency.
+   *
+   * This method is called automatically when memory usage exceeds
+   * `maxMemoryBytes`, but can also be called manually to force a flush.
+   *
+   * If no bitmaps are in memory (e.g., after a previous flush), this
+   * method returns immediately without performing any I/O.
+   *
+   * Invokes the `onFlush` callback (if configured) after successful flush.
+   *
+   * @returns {Promise<void>} Resolves when flush is complete
+   * @async
+   */
+  async flush() {
+    if (this.bitmaps.size === 0) {
+      return;
+    }
+
+    const flushedBytes = this.estimatedBitmapBytes;
+    const bitmapShards = this._serializeBitmapsToShards();
+    await this._writeShardsToStorage(bitmapShards);
+
+    // Clear bitmaps and reset memory counter
+    this.bitmaps.clear();
+    this.totalFlushedBytes += flushedBytes;
+    this.estimatedBitmapBytes = 0;
+    this.flushCount++;
+
+    this.logger.debug('Flushed bitmap data', {
+      operation: 'flush',
+      flushedBytes,
+      totalFlushedBytes: this.totalFlushedBytes,
+      flushCount: this.flushCount,
+    });
+
+    this._notifyFlush(flushedBytes);
+  }
+
+  /**
+   * Builds meta shards (SHA→ID mappings) grouped by SHA prefix.
+   *
+   * Groups all registered SHA→ID mappings by the first two hex characters
+   * of the SHA. This enables efficient loading of only relevant shards
+   * during index reads.
+   *
+   * @returns {Record<string, Record<string, number>>} Object mapping 2-char hex prefix
+   *   to objects of SHA→numeric ID mappings
+   * @private
+   */
+  _buildMetaShards() {
+    /** @type {Record<string, Record<string, number>>} */
+    const idShards = {};
+    for (const [sha, id] of this.shaToId) {
+      const prefix = sha.substring(0, 2);
+      if (!idShards[prefix]) {
+        idShards[prefix] = {};
+      }
+      idShards[prefix][sha] = id;
+    }
+    return idShards;
+  }
+
+  /**
+   * Writes meta shards to storage in parallel.
+   *
+   * Each shard is wrapped in a versioned envelope with checksum before writing.
+   * Writes are performed in parallel using Promise.all for efficiency.
+   *
+   * @param {Record<string, Record<string, number>>} idShards - Object mapping 2-char hex prefix
+   *   to objects of SHA→numeric ID mappings
+   * @returns {Promise<string[]>} Array of Git tree entry strings in format
+   *   "100644 blob <oid>\tmeta_<prefix>.json"
+   * @async
+   * @private
+   */
+  async _writeMetaShards(idShards) {
+    return await Promise.all(
+      Object.entries(idShards).map(async ([prefix, map]) => {
+        const path = `meta_${prefix}.json`;
+        const envelope = {
+          version: SHARD_VERSION,
+          checksum: await computeChecksum(map, this._crypto),
+          data: map,
+        };
+        const buffer = textEncode(JSON.stringify(envelope));
+        const oid = await this.storage.writeBlob(buffer);
+        return `100644 blob ${oid}\t${path}`;
+      })
+    );
+  }
+
+  /**
+   * Processes bitmap shards, merging multiple chunks if necessary.
+   *
+   * For each shard path, if multiple chunks were flushed during the build,
+   * they are merged by ORing their bitmaps together. Single-chunk shards
+   * are used directly without merging.
+   *
+   * Processing is parallelized across shard paths for efficiency.
+   *
+   * @param {{ signal?: AbortSignal }} [options] - Options
+   * @returns {Promise<string[]>} Array of Git tree entry strings in format
+   *   "100644 blob <oid>\tshards_<type>_<prefix>.json"
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version (from _mergeChunks)
+   * @throws {ShardCorruptionError} If a chunk's checksum is invalid (from _mergeChunks)
+   * @async
+   * @private
+   */
+  async _processBitmapShards({ signal } = {}) {
+    return await Promise.all(
+      Array.from(this.flushedChunks.entries()).map(async ([path, oids]) => {
+        checkAborted(signal, 'processBitmapShards');
+        const finalOid = oids.length === 1 ? oids[0] : await this._mergeChunks(oids, signal ? { signal } : {});
+        return `100644 blob ${finalOid}\t${path}`;
+      })
+    );
+  }
+
+  /**
+   * Finalizes the index and returns the tree OID.
+   *
+   * Performs the following steps:
+   * 1. Flushes any remaining in-memory bitmap data to storage
+   * 2. Builds and writes meta shards (SHA→ID mappings) grouped by prefix
+   * 3. Merges multi-chunk bitmap shards by ORing bitmaps together
+   * 4. Optionally writes frontier metadata for staleness detection
+   * 5. Creates and returns the final Git tree containing all shards
+   *
+   * Meta shards and bitmap shards are processed using Promise.all
+   * since they are independent (prefix-based partitioning).
+   *
+   * The resulting tree structure:
+   * ```
+   * index-tree/
+   *   meta_00.json ... meta_ff.json       # SHA→ID mappings by prefix
+   *   shards_fwd_00.json ... shards_fwd_ff.json  # Forward edge bitmaps
+   *   shards_rev_00.json ... shards_rev_ff.json  # Reverse edge bitmaps
+   *   frontier.cbor                       # Optional: CBOR-encoded frontier
+   *   frontier.json                       # Optional: JSON-encoded frontier
+   * ```
+   *
+   * @param {{ signal?: AbortSignal, frontier?: Map<string, string> }} [options] - Finalization options
+   * @returns {Promise<string>} OID of the created Git tree containing the complete index
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version during merge
+   * @throws {ShardCorruptionError} If a chunk's checksum is invalid during merge
+   * @async
+   */
+  async finalize({ signal, frontier } = {}) {
+    this.logger.debug('Finalizing index', {
+      operation: 'finalize',
+      nodeCount: this.shaToId.size,
+      totalFlushedBytes: this.totalFlushedBytes,
+      flushCount: this.flushCount,
+    });
+
+    checkAborted(signal, 'finalize');
+    await this.flush();
+
+    checkAborted(signal, 'finalize');
+    const idShards = this._buildMetaShards();
+    const metaEntries = await this._writeMetaShards(idShards);
+
+    checkAborted(signal, 'finalize');
+    const bitmapEntries = await this._processBitmapShards(signal ? { signal } : {});
+    const flatEntries = [...metaEntries, ...bitmapEntries];
+
+    if (frontier) {
+      await this._writeFrontierEntries(frontier, flatEntries);
+    }
+
+    return await this._writeAndLogTree(flatEntries);
+  }
+
+  /**
+   * Writes frontier metadata entries for staleness detection.
+   *
+   * @param {Map<string, string>} frontier - Writer→SHA frontier map
+   * @param {string[]} entries - Accumulator for tree entries
+   * @returns {Promise<void>}
+   * @async
+   * @private
+   */
+  async _writeFrontierEntries(frontier, entries) {
+    /** @type {Record<string, string|undefined>} */
+    const sorted = {};
+    for (const key of Array.from(frontier.keys()).sort()) {
+      sorted[key] = frontier.get(key);
+    }
+    const envelope = { version: 1, writerCount: frontier.size, frontier: sorted };
+    const cborOid = await this.storage.writeBlob(this._codec.encode(envelope));
+    entries.push(`100644 blob ${cborOid}\tfrontier.cbor`);
+    const jsonOid = await this.storage.writeBlob(textEncode(canonicalStringify(envelope)));
+    entries.push(`100644 blob ${jsonOid}\tfrontier.json`);
+  }
+
+  /**
+   * Writes the final index tree and logs the result.
+   *
+   * @param {string[]} flatEntries - All tree entries to include
+   * @returns {Promise<string>} OID of the created Git tree
+   * @async
+   * @private
+   */
+  async _writeAndLogTree(flatEntries) {
+    const treeOid = await this.storage.writeTree(flatEntries);
+    this.logger.debug('Index finalized', {
+      operation: 'finalize',
+      treeOid,
+      shardCount: flatEntries.length,
+      nodeCount: this.shaToId.size,
+    });
+    return treeOid;
+  }
+
+  /**
+   * Returns current memory statistics for monitoring and debugging.
+   *
+   * Useful for understanding memory pressure during index building and
+   * tuning the `maxMemoryBytes` threshold.
+   *
+   * @returns {{estimatedBitmapBytes: number, estimatedMappingBytes: number, totalFlushedBytes: number, flushCount: number, nodeCount: number, bitmapCount: number}} Memory statistics object
+   * @property {number} estimatedBitmapBytes - Current estimated size of in-memory bitmaps in bytes.
+   *   This is an approximation based on bitmap operations; actual memory usage may vary.
+   * @property {number} estimatedMappingBytes - Estimated size of SHA→ID mappings in bytes.
+   *   Calculated as nodeCount * BYTES_PER_ID_MAPPING (120 bytes per entry).
+   * @property {number} totalFlushedBytes - Total bytes flushed to storage across all flush operations.
+   * @property {number} flushCount - Number of flush operations performed so far.
+   * @property {number} nodeCount - Total number of unique nodes registered (by SHA).
+   * @property {number} bitmapCount - Number of bitmaps currently held in memory.
+   */
+  getMemoryStats() {
+    return {
+      estimatedBitmapBytes: this.estimatedBitmapBytes,
+      estimatedMappingBytes: this.shaToId.size * BYTES_PER_ID_MAPPING,
+      totalFlushedBytes: this.totalFlushedBytes,
+      flushCount: this.flushCount,
+      nodeCount: this.shaToId.size,
+      bitmapCount: this.bitmaps.size,
+    };
+  }
+
+  /**
+   * Invokes the optional flush callback with the current cumulative counters.
+   *
+   * @param {number} flushedBytes
+   * @returns {void}
+   * @private
+   */
+  _notifyFlush(flushedBytes) {
+    if (this.onFlush !== undefined) {
+      this.onFlush({
+        flushedBytes,
+        totalFlushedBytes: this.totalFlushedBytes,
+        flushCount: this.flushCount,
+      });
+    }
+  }
+
+  /**
+   * Gets or creates a numeric ID for a SHA.
+   *
+   * If the SHA has been seen before, returns its existing ID.
+   * Otherwise, assigns the next available ID (equal to current array length)
+   * and stores the bidirectional mapping.
+   *
+   * IDs are assigned sequentially starting from 0 in the order nodes are first seen.
+   *
+   * @param {string} sha - The SHA to look up or register (40-character hex string)
+   * @returns {number} The numeric ID (0-indexed, monotonically increasing)
+   * @private
+   */
+  _getOrCreateId(sha) {
+    if (this.shaToId.has(sha)) {
+      return /** @type {number} */ (this.shaToId.get(sha));
+    }
+    const id = this.idToSha.length;
+    this.idToSha.push(sha);
+    this.shaToId.set(sha, id);
+    return id;
+  }
+
+  /**
+   * Adds an ID to a node's bitmap and updates memory estimate.
+   *
+   * Creates a new RoaringBitmap32 if this is the first edge for the given
+   * SHA and type combination. Updates the `estimatedBitmapBytes` counter
+   * to track memory usage for automatic flushing.
+   *
+   * Memory estimation:
+   * - New bitmap: adds BITMAP_BASE_OVERHEAD (64 bytes)
+   * - New entry in existing bitmap: adds ~4 bytes (approximation)
+   *
+   * @param {{ sha: string, id: number, type: 'fwd'|'rev' }} opts - Options object
+   * @private
+   */
+  _addToBitmap({ sha, id, type }) {
+    const key = `${type}_${sha}`;
+    if (!this.bitmaps.has(key)) {
+      this.bitmaps.set(key, new this._RoaringBitmap32());
+      this.estimatedBitmapBytes += BITMAP_BASE_OVERHEAD;
+    }
+
+    const bitmap = /** @type {import('../../utils/roaring.js').RoaringBitmapSubset} */ (this.bitmaps.get(key));
+    const sizeBefore = bitmap.size;
+    bitmap.add(id);
+    const sizeAfter = bitmap.size;
+
+    // Estimate ~4 bytes per new entry (approximation; actual Roaring compression varies widely based on data distribution)
+    if (sizeAfter > sizeBefore) {
+      this.estimatedBitmapBytes += 4;
+    }
+  }
+
+  /**
+   * Loads a chunk from storage, parses JSON, and validates version and checksum.
+   *
+   * Performs the following validation steps:
+   * 1. Reads blob from storage by OID
+   * 2. Parses JSON envelope (throws ShardCorruptionError if invalid)
+   * 3. Validates version matches SHARD_VERSION (throws ShardValidationError if mismatch)
+   * 4. Recomputes and validates checksum (throws ShardCorruptionError if mismatch)
+   *
+   * @param {string} oid - Git blob OID of the chunk to load (40-character hex string)
+   * @returns {Promise<Record<string, string>>} The validated chunk data (SHA→base64Bitmap mappings)
+   * @throws {ShardCorruptionError} If the chunk cannot be parsed as JSON or checksum is invalid.
+   *   Error context includes: oid, reason ('invalid_format' or 'invalid_checksum'), originalError
+   * @throws {ShardValidationError} If the chunk has an unsupported version.
+   *   Error context includes: oid, expected version, actual version, field
+   * @async
+   * @private
+   */
+  async _loadAndValidateChunk(oid) {
+    const buffer = await this.storage.readBlob(oid);
+    const envelope = parseShardEnvelope(buffer, oid);
+    await validateShardEnvelope(envelope, oid, this._crypto);
+    return envelope.data;
+  }
+
+  /**
+   * Deserializes a base64-encoded bitmap and merges it into the merged object.
+   *
+   * If no bitmap exists for the SHA in the merged object, the deserialized bitmap
+   * is stored directly. If a bitmap already exists, the new bitmap is ORed into
+   * it using `orInPlace` to combine edge sets.
+   *
+   * @param {{ merged: Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>, sha: string, base64Bitmap: string, oid: string }} opts - Options object
+   * @throws {ShardCorruptionError} If the bitmap cannot be deserialized from base64.
+   *   Error context includes: oid, reason ('invalid_bitmap'), originalError
+   * @private
+   */
+  _mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid }) {
+    let bitmap;
+    try {
+      bitmap = this._RoaringBitmap32.deserialize(base64Decode(base64Bitmap), true);
+    } catch (err) {
+      throw new ShardCorruptionError('Failed to deserialize bitmap', {
+        oid,
+        reason: 'invalid_bitmap',
+        context: { originalError: err instanceof Error ? err.message : String(err) },
+      });
+    }
+
+    if (!merged[sha]) {
+      merged[sha] = bitmap;
+    } else {
+      // OR the bitmaps together
+      merged[sha].orInPlace(bitmap);
+    }
+  }
+
+  /**
+   * Merges multiple shard chunks by ORing their bitmaps together.
+   *
+   * This is called during finalization when a shard path has multiple flushed
+   * chunks that need to be combined. Each chunk is loaded, validated, and its
+   * bitmaps are ORed together by SHA key.
+   *
+   * The merge process:
+   * 1. Iterates through each chunk OID
+   * 2. Loads and validates each chunk (version + checksum)
+   * 3. Deserializes bitmaps and ORs them together by SHA
+   * 4. Serializes the merged result with new checksum
+   * 5. Writes the merged blob to storage
+   *
+   * Supports cancellation via AbortSignal between chunk processing iterations.
+   *
+   * @param {string[]} oids - Git blob OIDs of chunks to merge (40-character hex strings)
+   * @param {{ signal?: AbortSignal }} [options] - Options object
+   * @returns {Promise<string>} Git blob OID of the merged shard (40-character hex string)
+   * @throws {Error} If the operation is aborted via signal
+   * @throws {ShardValidationError} If a chunk has an unsupported version.
+   *   Contains context: oid, expected version, actual version
+   * @throws {ShardCorruptionError} If a chunk's checksum does not match, JSON parsing fails,
+   *   bitmap deserialization fails, or final serialization fails.
+   *   Contains context: oid/reason and relevant details
+   * @async
+   * @private
+   */
+  async _mergeChunks(oids, { signal } = {}) {
+    const merged = await this._loadAndMergeAllChunks(oids, signal);
+    const result = serializeMergedBitmaps(merged);
+    return await this._writeMergedEnvelope(result);
+  }
+
+  /**
+   * Loads all chunk OIDs and merges their bitmaps by SHA.
+   *
+   * @param {string[]} oids - Git blob OIDs of chunks to merge
+   * @param {AbortSignal} [signal] - Optional abort signal
+   * @returns {Promise<Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>>} Merged bitmaps by SHA
+   * @async
+   * @private
+   */
+  async _loadAndMergeAllChunks(oids, signal) {
+    /** @type {Record<string, import('../../utils/roaring.js').RoaringBitmapSubset>} */
+    const merged = {};
+    for (const oid of oids) {
+      checkAborted(signal, 'mergeChunks');
+      const chunk = await this._loadAndValidateChunk(oid);
+      for (const [sha, base64Bitmap] of Object.entries(chunk)) {
+        this._mergeDeserializedBitmap({ merged, sha, base64Bitmap, oid });
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * Wraps a merged result in a versioned envelope with checksum and writes it to storage.
+   *
+   * @param {Record<string, string>} result - SHA→base64Bitmap merged data
+   * @returns {Promise<string>} Git blob OID of the written envelope
+   * @async
+   * @private
+   */
+  async _writeMergedEnvelope(result) {
+    const mergedEnvelope = {
+      version: SHARD_VERSION,
+      checksum: await computeChecksum(result, this._crypto),
+      data: result,
+    };
+    const serialized = serializeMergedShard(mergedEnvelope);
+    return await this.storage.writeBlob(serialized);
+  }
+}

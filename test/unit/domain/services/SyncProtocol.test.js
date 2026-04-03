@@ -7,7 +7,7 @@ import {
   applySyncResponse,
   syncNeeded,
   createEmptySyncResponse,
-} from '../../../../src/domain/services/SyncProtocol.js';
+} from '../../../../src/domain/services/sync/SyncProtocol.js';
 import {
   createEmptyStateV5,
   reduceV5 as _reduceV5,
@@ -18,7 +18,7 @@ import { createFrontier } from '../../../../src/domain/services/Frontier.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
-import { encodePatchMessage } from '../../../../src/domain/services/WarpMessageCodec.js';
+import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 // -----------------------------------------------------------------------------

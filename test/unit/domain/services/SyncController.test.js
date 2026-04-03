@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import SyncController from '../../../../src/domain/services/SyncController.js';
+import SyncController from '../../../../src/domain/services/controllers/SyncController.js';
 import SyncError from '../../../../src/domain/errors/SyncError.js';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.js';
 
@@ -17,7 +17,7 @@ const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
   return { timeoutMock, retryMock, httpSyncServerMock };
 });
 
-vi.mock('../../../../src/domain/services/SyncProtocol.js', async (importOriginal) => {
+vi.mock('../../../../src/domain/services/sync/SyncProtocol.js', async (importOriginal) => {
   const original = /** @type {Record<string, unknown>} */ (await importOriginal());
   return {
     ...original,
@@ -36,13 +36,13 @@ vi.mock('@git-stunts/alfred', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../../src/domain/services/HttpSyncServer.js', () => ({
+vi.mock('../../../../src/domain/services/sync/HttpSyncServer.js', () => ({
   default: httpSyncServerMock,
 }));
 
 // Import after mock setup so we get the mocked versions
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
-  /** @type {{ applySyncResponse: import('vitest').Mock, syncNeeded: import('vitest').Mock, processSyncRequest: import('vitest').Mock }} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/SyncProtocol.js')));
+  /** @type {{ applySyncResponse: import('vitest').Mock, syncNeeded: import('vitest').Mock, processSyncRequest: import('vitest').Mock }} */ (/** @type {unknown} */ (await import('../../../../src/domain/services/sync/SyncProtocol.js')));
 
 /**
  * Creates a mock WarpRuntime host for SyncController tests.

@@ -19,7 +19,7 @@ import nullLogger from '../utils/nullLogger.js';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
-import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
+import { decodePatchMessage, detectMessageKind } from '../services/codec/WarpMessageCodec.js';
 import WriterError from '../errors/WriterError.js';
 
 // Re-export for backward compatibility — consumers importing from Writer.js

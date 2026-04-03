@@ -31,7 +31,7 @@ import { formatOpSummary } from './opSummary.js';
  * @property {Map<string, WriterInfo> | Record<string, WriterInfo>} perWriter
  * @property {{ nodes?: number, edges?: number }} [diff]
  * @property {Record<string, unknown>} [tickReceipt]
- * @property {import('../../../domain/services/StateDiff.js').StateDiffResult | null} [structuralDiff]
+ * @property {import('../../../domain/services/state/StateDiff.js').StateDiffResult | null} [structuralDiff]
  * @property {string} [diffBaseline]
  * @property {number | null} [baselineTick]
  * @property {boolean} [truncated]
@@ -544,7 +544,7 @@ function buildStructuralDiffLines(payload, maxLines) {
 /**
  * Collects formatted node and edge add/remove entries from a structural diff.
  *
- * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @param {import('../../../domain/services/state/StateDiff.js').StateDiffResult} diff - Structural diff
  * @returns {string[]} Formatted entries with +/- prefixes
  */
 function collectNodeEdgeEntries(diff) {
@@ -567,7 +567,7 @@ function collectNodeEdgeEntries(diff) {
 /**
  * Collects formatted property change entries from a structural diff.
  *
- * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @param {import('../../../domain/services/state/StateDiff.js').StateDiffResult} diff - Structural diff
  * @returns {string[]} Formatted entries with ~/- prefixes
  */
 function collectPropEntries(diff) {
@@ -586,7 +586,7 @@ function collectPropEntries(diff) {
 /**
  * Collects formatted diff entries from a structural diff result.
  *
- * @param {import('../../../domain/services/StateDiff.js').StateDiffResult} diff - Structural diff
+ * @param {import('../../../domain/services/state/StateDiff.js').StateDiffResult} diff - Structural diff
  * @returns {string[]} Formatted entries with +/-/~ prefixes
  */
 function collectDiffEntries(diff) {

@@ -6,7 +6,7 @@ import WarpCore from '../../../src/domain/WarpCore.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../src/domain/crdt/VersionVector.js';
 import { encodePropKey } from '../../../src/domain/services/KeyCodec.js';
-import { createStateReaderV5 } from '../../../src/domain/services/StateReaderV5.js';
+import { createStateReaderV5 } from '../../../src/domain/services/state/StateReaderV5.js';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -109,7 +109,7 @@ async function simulatePatchCommit(persistence, {
   context,
 }) {
   const { encode } = await import('../../../src/infrastructure/codecs/CborCodec.js');
-  const { encodePatchMessage } = await import('../../../src/domain/services/WarpMessageCodec.js');
+  const { encodePatchMessage } = await import('../../../src/domain/services/codec/WarpMessageCodec.js');
   const { buildWriterRef } = await import('../../../src/domain/utils/RefLayout.js');
 
   const patch = {

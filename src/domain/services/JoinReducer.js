@@ -19,9 +19,9 @@ import { encodeEdgeKey, decodeEdgeKey, encodePropKey, encodeEdgePropKey, EDGE_PR
 import { normalizeRawOp } from './OpNormalizer.js';
 import { createEmptyDiff, mergeDiffs } from '../types/PatchDiff.js';
 import PatchError from '../errors/PatchError.js';
-import WarpStateV5 from './WarpStateV5.js';
+import WarpStateV5 from './state/WarpStateV5.js';
 
-export { default as WarpStateV5 } from './WarpStateV5.js';
+export { default as WarpStateV5 } from './state/WarpStateV5.js';
 
 // Re-export key codec functions for backward compatibility
 export {

@@ -5,7 +5,7 @@ import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,
   buildCanonicalPayload,
-} from '../../../../src/domain/services/SyncAuthService.js';
+} from '../../../../src/domain/services/sync/SyncAuthService.js';
 
 const SECRET = 'test-secret-key-1234567890';
 const KEY_ID = 'default';

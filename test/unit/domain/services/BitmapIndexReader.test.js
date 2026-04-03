@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'crypto';
-import BitmapIndexReader from '../../../../src/domain/services/BitmapIndexReader.js';
-import BitmapIndexBuilder from '../../../../src/domain/services/BitmapIndexBuilder.js';
+import BitmapIndexReader from '../../../../src/domain/services/index/BitmapIndexReader.js';
+import BitmapIndexBuilder from '../../../../src/domain/services/index/BitmapIndexBuilder.js';
 import { ShardLoadError, ShardCorruptionError, ShardValidationError } from '../../../../src/domain/errors/index.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 

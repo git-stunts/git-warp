@@ -1,11 +1,11 @@
 /**
  * Tests for _readPatchBlob null-guard on readBlob return value.
  *
- * @see src/domain/services/PatchController.js
+ * @see src/domain/services/controllers/PatchController.js
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import PatchController from '../../../../src/domain/services/PatchController.js';
+import PatchController from '../../../../src/domain/services/controllers/PatchController.js';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
 
 /**

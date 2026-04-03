@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import PropertyIndexBuilder from '../../../../src/domain/services/PropertyIndexBuilder.js';
-import PropertyIndexReader from '../../../../src/domain/services/PropertyIndexReader.js';
+import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.js';
+import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.js';
 import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.js';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.js';

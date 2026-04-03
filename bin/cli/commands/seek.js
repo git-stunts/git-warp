@@ -1,4 +1,4 @@
-import { diffStates } from '../../../src/domain/services/StateDiff.js';
+import { diffStates } from '../../../src/domain/services/state/StateDiff.js';
 import { textEncode } from '../../../src/domain/utils/bytes.js';
 import {
   buildCursorActiveRef,
@@ -22,7 +22,7 @@ import { openGraph, readActiveCursor, writeActiveCursor, wireSeekCache } from '.
 /** @typedef {import('../types.js').WriterTickInfo} WriterTickInfo */
 /** @typedef {import('../types.js').CursorBlob} CursorBlob */
 /** @typedef {import('../types.js').SeekSpec} SeekSpec */
-/** @typedef {import('../../../src/domain/services/StateDiff.js').StateDiffResult} StateDiffResult */
+/** @typedef {import('../../../src/domain/services/state/StateDiff.js').StateDiffResult} StateDiffResult */
 
 // ============================================================================
 // Cursor I/O Helpers (seek-only)

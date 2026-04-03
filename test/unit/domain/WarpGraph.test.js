@@ -3,10 +3,10 @@ import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
-import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/WarpMessageCodec.js';
+import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
 import { createEmptyStateV5 } from '../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../src/domain/crdt/Dot.js';
-import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/CheckpointSerializerV5.js';
+import { serializeFullStateV5, serializeAppliedVV, computeAppliedVV } from '../../../src/domain/services/state/CheckpointSerializerV5.js';
 import { serializeFrontier } from '../../../src/domain/services/Frontier.js';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 

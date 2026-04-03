@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import IncrementalIndexUpdater from '../../../../src/domain/services/IncrementalIndexUpdater.js';
-import LogicalIndexBuildService from '../../../../src/domain/services/LogicalIndexBuildService.js';
-import LogicalIndexReader from '../../../../src/domain/services/LogicalIndexReader.js';
+import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
