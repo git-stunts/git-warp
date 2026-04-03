@@ -167,10 +167,14 @@ export default class VersionVector {
    * @returns {VersionVector}
    */
   static _fromMap(source) {
+    const entries = new Map();
     for (const [writerId, counter] of source) {
       _validateEntry(writerId, counter);
+      if (counter > 0) {
+        entries.set(writerId, counter);
+      }
     }
-    return new VersionVector(new Map(source));
+    return new VersionVector(entries);
   }
 
   /**
@@ -214,8 +218,15 @@ export default class VersionVector {
    * @returns {this}
    */
   set(writerId, counter) {
+    if (Object.isFrozen(this)) {
+      throw new TypeError('Cannot mutate a frozen VersionVector');
+    }
     _validateEntry(writerId, counter);
-    this.#entries.set(writerId, counter);
+    if (counter === 0) {
+      this.#entries.delete(writerId);
+    } else {
+      this.#entries.set(writerId, counter);
+    }
     return this;
   }
 
@@ -286,10 +297,13 @@ export default class VersionVector {
    * @returns {Dot} The new dot representing this operation
    */
   increment(writerId) {
-    const current = this.#entries.get(writerId) ?? 0;
-    const newCounter = current + 1;
-    this.#entries.set(writerId, newCounter);
-    return new Dot(writerId, newCounter);
+    if (Object.isFrozen(this)) {
+      throw new TypeError('Cannot mutate a frozen VersionVector');
+    }
+    // Validate before mutating to avoid partial corruption
+    const dot = new Dot(writerId, (this.#entries.get(writerId) ?? 0) + 1);
+    this.#entries.set(dot.writerId, dot.counter);
+    return dot;
   }
 
   /**
@@ -418,7 +432,14 @@ function _coerce(vv) {
  * @returns {Dot}
  */
 export function vvIncrement(vv, writerId) {
-  return _coerce(vv).increment(writerId);
+  if (vv instanceof VersionVector) {
+    return vv.increment(writerId);
+  }
+  // Legacy Map path: mutate the Map directly to preserve caller expectations
+  const current = vv.get(writerId) ?? 0;
+  const newCounter = current + 1;
+  vv.set(writerId, newCounter);
+  return new Dot(writerId, newCounter);
 }
 
 /**

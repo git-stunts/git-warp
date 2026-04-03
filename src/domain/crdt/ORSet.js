@@ -1,4 +1,5 @@
 import { encodeDot, decodeDot, compareDots } from './Dot.js';
+import { vvContains } from './VersionVector.js';
 
 /**
  * @fileoverview ORSet - Observed-Remove Set with Add-Wins Semantics
@@ -385,7 +386,7 @@ function _collectCompactableDots(set, includedVV) {
   for (const [element, dots] of set.entries) {
     for (const encodedDot of dots) {
       const dot = decodeDot(encodedDot);
-      if (set.tombstones.has(encodedDot) && includedVV.contains(dot)) {
+      if (set.tombstones.has(encodedDot) && vvContains(includedVV, dot)) {
         toDelete.push({ element, dot: encodedDot });
       }
     }
