@@ -26,12 +26,13 @@ import ProvenanceController from './services/ProvenanceController.js';
 import ForkController from './services/ForkController.js';
 import QueryController from './services/QueryController.js';
 import PatchController from './services/PatchController.js';
+import CheckpointController from './services/CheckpointController.js';
 import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 import { wireWarpMethods } from './warp/_wire.js';
-import * as checkpointMethods from './warp/checkpoint.methods.js';
+// checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
 import * as materializeMethods from './warp/materialize.methods.js';
 import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
@@ -330,6 +331,9 @@ export default class WarpRuntime {
 
     /** @type {PatchController} */
     this._patchController = new PatchController(this);
+
+    /** @type {CheckpointController} */
+    this._checkpointController = new CheckpointController(this);
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
@@ -667,10 +671,33 @@ export default class WarpRuntime {
 
 // ── Wire extracted method groups onto WarpRuntime.prototype ───────────────────
 wireWarpMethods(WarpRuntime, [
-  checkpointMethods,
   materializeMethods,
   materializeAdvancedMethods,
 ]);
+
+// ── Checkpoint methods: direct delegation to CheckpointController ─────────────
+const checkpointDelegates = /** @type {const} */ ([
+  'createCheckpoint', 'syncCoverage',
+  '_loadLatestCheckpoint', '_loadPatchesSince',
+  '_validateMigrationBoundary', '_hasSchema1Patches',
+  '_maybeRunGC', 'maybeRunGC', 'runGC', 'getGCMetrics',
+]);
+for (const method of checkpointDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to CheckpointController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._checkpointController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
 
 // ── Patch methods: direct delegation to PatchController ───────────────────────
 const patchDelegates = /** @type {const} */ ([

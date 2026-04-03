@@ -246,6 +246,7 @@ export default tseslint.config(
       "src/domain/warp/checkpoint.methods.js",
       "src/domain/warp/patch.methods.js",
       "src/domain/services/PatchController.js",
+      "src/domain/services/CheckpointController.js",
       "src/domain/warp/materialize.methods.js",
       "src/domain/warp/materializeAdvanced.methods.js",
       "src/domain/services/CommitDagTraversalService.js",
