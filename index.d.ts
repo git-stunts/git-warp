@@ -3,6 +3,29 @@
  */
 
 /**
+ * Causality tracking for distributed CRDT systems.
+ * Maps each writer ID to the highest observed operation counter.
+ */
+export class VersionVector {
+  static empty(): VersionVector;
+  static from(source: VersionVector | Map<string, number> | Record<string, number>): VersionVector;
+  get(writerId: string): number | undefined;
+  set(writerId: string, counter: number): this;
+  has(writerId: string): boolean;
+  get size(): number;
+  keys(): IterableIterator<string>;
+  values(): IterableIterator<number>;
+  entries(): IterableIterator<[string, number]>;
+  [Symbol.iterator](): IterableIterator<[string, number]>;
+  increment(writerId: string): { writerId: string; counter: number };
+  merge(other: VersionVector): VersionVector;
+  descends(other: VersionVector): boolean;
+  contains(dot: { writerId: string; counter: number }): boolean;
+  clone(): VersionVector;
+  equals(other: VersionVector): boolean;
+}
+
+/**
  * Result of a ping health check.
  */
 export interface PingResult {
@@ -1663,7 +1686,7 @@ export interface PatchV2 {
   /** Lamport timestamp for ordering */
   lamport: number;
   /** Writer's observed frontier (version vector) */
-  context: import('./src/domain/crdt/VersionVector.js').default | Record<string, number>;
+  context: VersionVector | Record<string, number>;
   /** Ordered array of operations */
   ops: unknown[];
   /** Node/edge IDs read by this patch (provenance tracking) */
