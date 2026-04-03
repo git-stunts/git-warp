@@ -1,303 +1,529 @@
-# Systems-Style JavaScript
+# System-Style JavaScript
 
-How to write JavaScript for infrastructure that lasts.
+**How to write JavaScript infrastructure that lasts.**
 
-This document is the engineering standard for `@git-stunts/git-warp`
-and all `git-stunts` / `flyingrobots` repositories. It is not a style
-guide — it is a set of structural decisions that determine whether the
-code is honest or lying.
+This is the engineering standard for `git-stunts` and all `flyingrobots` repositories. It is not about semicolons, quotes, or formatting trivia. It is a doctrine for writing JavaScript infrastructure code that remains honest under execution, replay, migration, debugging, replication, failure, and time.
 
 ---
 
-## The core premise
+## Rule 0: Runtime Truth Wins
 
-JavaScript is a real programming language. It has classes, inheritance,
-`instanceof`, constructors, and proper encapsulation via module scope.
-It does not need TypeScript's phantom type system to be safe. It needs
-discipline.
+When the program is running, one question matters above all others:
 
-**Every domain concept is a class.** If you're writing a `@typedef`,
-stop. If you're returning a plain object `{ target, result }`, stop.
-If you're writing `normalizeX(unknown)`, stop. You are building a
-class. Build the class.
+> What is actually true right now, in memory, under execution?
+
+If the answer depends on comments, conventions, vanished types, wishful thinking, or editor vibes, the code is lying.
+
+Trusted domain values must be created through runtime construction, parsing, or validation that establishes their invariants. Once established, those invariants must be preserved for as long as the value remains trusted.
+
+This rule outranks documentation, build steps, editor hints, static overlays, compile-time tooling, team folklore, and "but the linter said it was fine."
+
+### What This Means in Practice
+
+Infrastructure cannot afford fake contracts:
+
+- A type that vanishes at runtime is not an authoritative contract.
+- A comment describing a shape is not an authoritative contract.
+- A plain object that "should" have valid fields is not an authoritative contract.
+- An IDE tooltip is not an authoritative contract.
+- A compile step is not an authoritative contract.
+
+These tools can be useful. None of them outrank the runtime.
+
+### Why It Matters Here
+
+Infrastructure code touches persistence, replication, cryptographic verification, conflict resolution, deterministic replay, failure handling, system boundaries, long-lived state, version migration, and auditability. This is not view-layer glue. Mushy assumptions here turn into real bugs with long half-lives.
 
 ---
 
-## The rules
+## The Hierarchy of Truth
 
-### 1. Classes, not typedefs
+When layers disagree, authority flows in this order:
 
-A `@typedef {Object}` is a lie. It exists only at type-check time. It
-provides no runtime validation, no `instanceof`, no constructor, no
-methods. It is a comment pretending to be a contract.
+1. **Runtime domain model** — constructors, invariants, methods, error types
+2. **Boundary schemas and parsers** — Zod, CBOR decoders, protocol validators
+3. **Tests** — the executable specification
+4. **JSDoc and design docs** — human-facing explanations of the runtime model
+5. **IDE and static tooling** — editor navigation, refactoring support
+6. **TypeScript** — useful dialect, not final authority
+
+---
+
+## Scope
+
+This standard is optimized for:
+
+- Infrastructure code with strong invariants
+- Long-lived systems with explicit boundaries
+- Direct execution workflows portable across hosts
+- Browser-capable cores
+- JavaScript-first repositories
+- Code that must be teachable, legible, and publishable
+
+It is not a claim that every JavaScript project should follow this exact approach. It is a claim that, for this family of repositories, runtime-backed domain modeling beats soft shape trust.
+
+---
+
+## Language Policy
+
+### JavaScript Is the Default
+
+JavaScript is chosen deliberately. It is not perfect — parts of it are cursed and deserve open mockery — but it offers a rare combination:
+
+- Fast to write and change
+- Highly portable
+- Backed by a flexible object model
+- Direct to execute
+- Expressive enough for serious infrastructure
+- Widely understood
+
+Many of these projects are built not just to run, but to be read, explained, taught from, and used as reference implementations. JavaScript lowers the barrier to entry for readers in a way few other languages can match. That readability is not a side benefit — it is part of the design.
+
+Fun matters too. A language that feels pleasant to iterate in yields tighter feedback loops, more experiments, and more finished work. That is sound engineering economics.
+
+### TypeScript: Allowed, Not Authoritative
+
+TypeScript is a useful typed dialect that improves editor workflows, refactoring, and external compatibility. What this standard rejects is elevating TypeScript to the role of final authority.
+
+TypeScript may help with editor navigation, consumer ergonomics, and static checks. It does not replace runtime validation, preserve runtime invariants, or excuse weak domain modeling.
+
+The true sources of truth remain the runtime domain types, boundary parsing, and tests. TypeScript is allowed. TypeScript is not king.
+
+Use TypeScript where it helps. Never confuse it with the source of truth.
+
+### Escape Hatch: Rust via WebAssembly
+
+When JavaScript is insufficient — tight CPU-bound loops, memory-sensitive systems, unsafe parsing of hostile binary inputs, cryptographic kernels — use Rust.
+
+Rust provides memory safety without garbage collection, explicit ownership, excellent performance, and strong WebAssembly support. It is the recommended companion when the problem outgrows JavaScript.
+
+**The architecture split:**
+
+| Layer | Language | Role |
+|-------|----------|------|
+| Core domain logic | JavaScript | Default. Portable. Browser-ready. |
+| Performance-critical kernels | Rust → Wasm | When safety/speed constraints justify it |
+| Host adapters | JavaScript | Node, Deno, browser — behind ports |
+| Orchestration | JavaScript | Glue between cores and hosts |
+
+---
+
+## Architecture
+
+### Browser-First Portability
+
+The browser is the most universal deployment platform and the ultimate portability test. Core logic prefers web-platform-friendly primitives:
 
 ```javascript
-// BAD — phantom type, vanishes at runtime
-/** @typedef {Object} Dot
- *  @property {string} writerId
- *  @property {number} counter */
-function createDot(writerId, counter) {
-  return { writerId, counter };
+// ✅ Portable
+const bytes = new TextEncoder().encode(text);
+const arr = new Uint8Array(buffer);
+const url = new URL(path, base);
+
+// ❌ Node-only — belongs in adapters
+const buf = Buffer.from(text, 'utf8');
+const resolved = require('path').resolve(p);
+```
+
+### Hexagonal Architecture Is Mandatory
+
+Core domain logic must never depend directly on Node globals, filesystem APIs, `process`, `Buffer`, or host-specific calls. Those belong behind adapter ports.
+
+```javascript
+// ✅ Core speaks in portable terms
+class ReplicaEngine {
+  constructor(storage, clock, codec) {
+    // storage, clock, codec are ports — capabilities, not implementations
+    this._storage = storage;
+    this._clock = clock;
+    this._codec = codec;
+  }
+
+  async applyOp(op) {
+    const timestamp = this._clock.now();
+    const bytes = this._codec.encode(op);
+    await this._storage.put(op.key, bytes, timestamp);
+  }
 }
 
-// GOOD — real class, validates, exists at runtime
-class Dot {
-  constructor(writerId, counter) {
-    if (typeof writerId !== 'string' || writerId.length === 0) {
-      throw new Error('writerId must be a non-empty string');
-    }
-    if (!Number.isInteger(counter) || counter <= 0) {
-      throw new Error('counter must be a positive integer');
-    }
-    this.writerId = writerId;
-    this.counter = counter;
+// ✅ Adapter implements the port for a specific host
+class NodeFsStorageAdapter {
+  async put(key, bytes, timestamp) {
+    const filePath = path.join(this._root, key);
+    await fs.writeFile(filePath, bytes);
+  }
+}
+
+// ✅ Browser adapter implements the same port
+class IndexedDbStorageAdapter {
+  async put(key, bytes, timestamp) {
+    const tx = this._db.transaction('store', 'readwrite');
+    await tx.objectStore('store').put({ key, bytes, timestamp });
   }
 }
 ```
 
-The class IS the validation. The constructor IS the normalizer. The
-instance IS the proof that the data is good.
+**Core rule:** Core logic should not know that Node exists.
 
-### 2. Validation lives in constructors
+---
 
-If you have a function called `normalizeX()`, `assertX()`, or
-`validateX()` that takes `unknown` and returns a known type — that
-function is a constructor. It validates input, produces a trusted
-output, and the caller uses the output downstream. That is what
-constructors do.
+## The Object Model
+
+System-style JavaScript organizes code around four categories of runtime-backed objects:
+
+### Value Objects — Meaningful domain values with invariants
 
 ```javascript
-// BAD — standalone validator, trusted output is a plain object
-function normalizeLamportCeiling(value, field) {
-  if (value === null || value === undefined) { return null; }
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${field} must be non-negative integer`);
+class ObjectId {
+  constructor(hex) {
+    if (typeof hex !== 'string' || !/^[0-9a-f]{40,64}$/.test(hex)) {
+      throw new InvalidObjectId(hex);
+    }
+    this._hex = hex;
+    Object.freeze(this);
   }
-  return value;
+
+  toString() { return this._hex; }
+  equals(other) { return other instanceof ObjectId && other._hex === this._hex; }
+}
+```
+
+### Entities — Identity and lifecycle
+
+```javascript
+class Replica {
+  constructor(id, clock) {
+    this._id = ReplicaId.from(id);
+    this._clock = clock;
+    this._log = [];
+  }
+
+  append(op) {
+    const validated = Op.from(op); // boundary validation
+    this._log.push(validated);
+    return this._clock.tick();
+  }
+}
+```
+
+### Results and Outcomes — Runtime-backed domain types, not tagged unions
+
+```javascript
+class OpApplied {
+  constructor(op, timestamp) {
+    this.op = op;
+    this.timestamp = timestamp;
+    Object.freeze(this);
+  }
 }
 
-// GOOD — value object, validated on construction
-class LamportCeiling {
+class OpSuperseded {
+  constructor(op, winner) {
+    this.op = op;
+    this.winner = winner;
+    Object.freeze(this);
+  }
+}
+
+// Runtime dispatch — not tag switching
+if (outcome instanceof OpSuperseded) {
+  return outcome.winner;
+}
+```
+
+### Errors — Domain failures are first-class objects
+
+```javascript
+class InvalidObjectId extends DomainError {
   constructor(value) {
-    if (value !== null && (!Number.isInteger(value) || value < 0)) {
-      throw new Error('LamportCeiling must be null or non-negative integer');
-    }
+    super(`Invalid commit hash: ${typeof value === 'string' ? value.slice(0, 16) + '…' : typeof value}`);
+    this.name = 'InvalidObjectId';
     this.value = value;
   }
 }
+
+// ✅ Branch on type
+if (err instanceof InvalidObjectId) { /* ... */ }
+
+// ❌ Never parse messages
+if (err.message.includes('invalid')) { /* raccoon-in-a-dumpster energy */ }
 ```
 
-After `new LamportCeiling(x)` succeeds, you never check the value
-again. The constructor did the work. Every consumer trusts the instance.
+---
 
-### 3. Subclasses, not switches
+## Principles
 
-If you're writing `if (x.kind === 'live') ... else if (x.kind ===
-'strand') ...`, you have a class hierarchy hiding behind a string
-discriminant. The dispatch logic belongs in the class, not in every
-consumer.
+These are the load-bearing architectural commitments. Violating any of these is a design-level issue.
+
+### P1: Domain Concepts Require Runtime-Backed Forms
+
+If a concept has invariants, identity, or behavior, it must have a runtime-backed representation — usually a class. A typedef or plain object is insufficient.
 
 ```javascript
-// BAD — every consumer switches on kind
-function resolve(selector) {
-  if (selector.kind === 'live') {
-    return resolveLive(selector);
-  }
-  if (selector.kind === 'strand') {
-    return resolveStrand(selector);
-  }
-}
+// ❌ Shape trust — nothing enforces this at runtime
+/** @typedef {{ writerId: string, lamport: number }} EventId */
 
-// GOOD — the selector resolves itself
-class LiveSelector extends NormalizedSelector {
-  async resolve(graph, scope, liveFrontier) {
-    // resolution logic lives here
-  }
-}
-
-class StrandSelector extends NormalizedSelector {
-  async resolve(graph, scope) {
-    // resolution logic lives here
+// ✅ Runtime-backed — invariants established on construction
+class EventId {
+  constructor(writerId, lamport) {
+    this._writerId = WriterId.from(writerId);
+    this._lamport = Lamport.from(lamport);
+    Object.freeze(this);
   }
 }
-
-// Consumer just calls:
-const result = await selector.resolve(graph, scope, liveFrontier);
 ```
 
-One call. No switch. The subclass knows what it is. If you add a new
-kind, you add a new subclass — you don't hunt for every switch
-statement in the codebase.
+### P2: Validation Happens at Boundaries and Construction Points
 
-### 4. `instanceof` is the runtime type check
-
-JavaScript has `instanceof`. Use it. It works at runtime. It survives
-serialization boundaries when you reconstruct from the right class. It
-is honest.
+Untrusted input becomes trusted data only through constructors or dedicated parse methods. Constructors establish invariants; they perform no I/O or async work.
 
 ```javascript
-// BAD — checking a string tag
-if (outcome.result === 'superseded') {
-  console.log(outcome.reason);
-}
-
-// GOOD — checking the actual type
-if (outcome instanceof OpSuperseded) {
-  console.log(outcome.winner.writerId);
-}
+// Boundary: raw bytes → validated domain object
+const decoded = cborDecode(bytes);
+const parsed = EventIdSchema.parse(decoded);     // schema rejects malformed input
+const eventId = new EventId(parsed.writerId, parsed.lamport); // constructor establishes invariants
 ```
 
-`instanceof` tells you what the object IS. String comparison tells you
-what the object CLAIMS to be.
+### P3: Behavior Belongs on the Type That Owns It
 
-### 5. `unknown` means you haven't built the class yet
-
-If a function parameter is typed `unknown`, that function is admitting
-it doesn't know what it's working with. At system boundaries (CBOR
-decode, network input, user input), `unknown` is honest. Everywhere
-else, it is a sign that the class hasn't been written yet.
-
-The fix is always the same: define the class, construct it at the
-boundary, and pass the instance downstream.
+Avoid switching on `kind`/`type` tags. Put behavior on the owning type.
 
 ```javascript
-// BAD — unknown flows through the whole pipeline
-function processRecord(record) {  // record is unknown
-  const type = record['recordType'];  // bracket access, no safety
-  const id = record['recordId'];      // more bracket access
-  // ...
+// ❌ External switch on tags
+function describe(outcome) {
+  switch (outcome.type) {
+    case 'applied': return `Applied at ${outcome.timestamp}`;
+    case 'superseded': return `Beaten by ${outcome.winner}`;
+  }
 }
 
-// GOOD — construct at boundary, trust everywhere after
-const record = new TrustRecord(zodParsed.data);  // validates
-processRecord(record);  // record.recordType is a real field
-```
+// ✅ Behavior lives on the type
+class OpApplied {
+  describe() { return `Applied at ${this.timestamp}`; }
+}
 
-### 6. Factory functions are backward-compat shims
-
-If a factory function (`createDot`, `createEventId`) exists alongside
-a class, the factory is a shim for callers that haven't updated yet.
-New code uses the constructor directly. Factories delegate to
-constructors — they never contain logic.
-
-```javascript
-// Factory is a one-liner that delegates
-function createDot(writerId, counter) {
-  return new Dot(writerId, counter);
+class OpSuperseded {
+  describe() { return `Beaten by ${this.winner}`; }
 }
 ```
 
-If the factory contains validation, transformation, or branching that
-the constructor doesn't, the constructor is incomplete.
+### P4: Schemas Belong at Boundaries, Not in the Core
 
-### 7. Serialization is the codec's problem
-
-CBOR key ordering, JSON canonicalization, and wire format concerns do
-not belong in class field declarations. The codec sorts keys at encode
-time. Classes declare fields in whatever order makes domain sense.
+Use schemas (e.g., Zod) to reject malformed input at the edge. Domain types own behavior and invariants inside the boundary.
 
 ```javascript
-// BAD — fields ordered alphabetically for CBOR
-class Dot {
-  counter;   // alphabetical, not logical
-  writerId;  // alphabetical, not logical
-}
-
-// GOOD — fields ordered by domain meaning
-class Dot {
-  writerId;  // who created this operation
-  counter;   // which operation from that writer
-}
-```
-
-The CBOR codec runs `Object.keys(obj).sort()` before encoding. The
-class doesn't know or care about serialization order.
-
-### 8. Structured data, not formatted strings
-
-If a string contains structured information (who won, at what lamport,
-from which writer), that string is a class that got flattened. Extract
-the structure.
-
-```javascript
-// BAD — structured data encoded as a string
-return {
-  target: key,
-  result: 'superseded',
-  reason: `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`,
-};
-
-// GOOD — structured data as fields
-return new OpSuperseded(key, winner);
-// winner is an EventId instance — structured, inspectable, programmatic
-```
-
-Strings are for humans. Fields are for machines. If a machine needs
-to read the data, it should be a field.
-
-### 9. Errors are domain classes
-
-`new Error('something went wrong')` is a raw error. It has no code,
-no context, no machine-readable identity. Domain errors are classes
-that extend `WarpError` with a `code` field, a `context` object, and
-a `name` that supports `instanceof`.
-
-```javascript
-// BAD
-throw new Error('Backfill rejected');
-
-// GOOD
-throw new ForkError('Backfill rejected', {
-  code: 'E_FORK_BACKFILL_REJECTED',
-  context: { writerId, relation, ckHead },
+// ✅ Edge: schema validates untrusted input
+const ReplicaConfigSchema = z.object({
+  id: z.string().uuid(),
+  maxLogSize: z.number().int().positive(),
 });
+
+// ✅ Core: domain type provides behavior
+class ReplicaConfig {
+  constructor(id, maxLogSize) {
+    this._id = ReplicaId.from(id);
+    this._maxLogSize = maxLogSize;
+    Object.freeze(this);
+  }
+
+  allowsAppend(currentSize) {
+    return currentSize < this._maxLogSize;
+  }
+}
+
+// ✅ Boundary glue
+function parseReplicaConfig(raw) {
+  const data = ReplicaConfigSchema.parse(raw);
+  return new ReplicaConfig(data.id, data.maxLogSize);
+}
 ```
 
-Every `new Error()` in domain code is a bug. Every catch site that
-parses `err.message` is a bug. Use the class.
+### P5: Serialization Is the Codec's Problem
 
-### 10. The module is the encapsulation boundary
+The byte layer (CBOR/JSON/etc.) stays separate from the meaning layer. Domain types do not know how they are encoded.
 
-JavaScript doesn't have `private` at the language level (private
-fields `#x` exist but have proxy/testing friction). The module is
-the encapsulation boundary. If a function or class is not exported,
-it is private. If it is exported, it is public.
+```javascript
+// ✅ Codec handles the wire format
+class EventCodec {
+  encode(event) {
+    return cborEncode({
+      writerId: event.writerId.toString(),
+      lamport: event.lamport.value,
+      payload: event.payload,
+    });
+  }
 
-Don't fake privacy with naming conventions (`_privateMethod`) when
-module scope provides it for free. Export what consumers need. Keep
-everything else module-private.
+  decode(bytes) {
+    const raw = cborDecode(bytes);
+    return new Event(
+      WriterId.from(raw.writerId),
+      Lamport.from(raw.lamport),
+      raw.payload
+    );
+  }
+}
+```
+
+### P6: Single Source of Truth
+
+Do not duplicate the same contract across JSDoc, TypeScript, and validators. Define the runtime model first. Everything else derives from or documents it.
+
+### P7: Runtime Dispatch Over Tag Switching
+
+Inside a coherent runtime, `instanceof` is often the correct dispatch mechanism.
+
+```javascript
+// ✅ Direct dispatch
+if (outcome instanceof OpSuperseded) {
+  return outcome.winner;
+}
+
+// ✅ Policy objects instead of option flags
+const replayPolicy = ReplayPolicy.speculativeForkAllowed();
+const result = await replayer.replaySegment(segment, replayPolicy);
+```
+
+**Cross-realm caveat:** `instanceof` breaks across realm boundaries (iframes, web workers, multiple module instances). When values cross realms, use a protocol-based check (e.g., `Symbol.for`-keyed brand, or a static `.is()` method) instead:
+
+```javascript
+class EventId {
+  static _brand = Symbol.for('flyingrobots.EventId');
+
+  get [EventId._brand]() { return true; }
+
+  static is(value) {
+    return value != null && value[EventId._brand] === true;
+  }
+}
+
+// Works across realms
+if (EventId.is(maybeEventId)) { /* ... */ }
+```
 
 ---
 
-## What this eliminates
+## Practices
 
-When every rule is followed, the following patterns disappear from
-the codebase:
+These are concrete coding disciplines. Most are linter-enforceable. Violations should fail CI.
 
-- `@typedef {Object}` for any constructable concept
-- `normalizeX(unknown)` standalone validator functions
-- `assertX(unknown)` standalone guard functions
-- `if (x.kind === 'foo')` dispatch switches (subclasses handle it)
-- `Record<string, unknown>` as a function parameter type
-- `/** @type {X} */ (plainObject)` cast-to-shut-up patterns
-- Raw `new Error()` in domain code
-- Formatted strings carrying structured data
-- Bracket access `obj['field']` on known shapes
+### `any` Is Banished; `unknown` Is Quarantined
 
-What remains is classes, constructors, `instanceof`, and module scope.
-That's JavaScript. That's enough.
+`any` is surrender. `unknown` is acceptable only at raw edges and must be eliminated through parsing immediately.
+
+### Trusted Values Must Preserve Integrity
+
+Use `Object.freeze()`, private fields, or defensive copying to protect invariants after construction.
+
+### Error Type Is Primary; Codes Are Optional Metadata
+
+Use specific error classes. Never branch on `err.message`. Error codes are fine as boundary metadata for consumers, but internal logic dispatches on type.
+
+### Parameter Objects Must Add Semantic Value
+
+Public APIs should not accept anonymous bags of options. If you're reaching for an options object, consider whether it should be a named policy or config type.
+
+```javascript
+// ❌ Options sludge
+await replayer.replay(segment, { allowFork: true, maxRetries: 3, strict: false });
+
+// ✅ Named policy
+const policy = ReplayPolicy.speculativeForkAllowed({ maxRetries: 3 });
+await replayer.replaySegment(segment, policy);
+```
+
+### Raw Objects May Carry Bytes, Not Meaning
+
+Plain objects are for decoded payloads or logging. If something has invariants or behavior, it gets a class.
+
+### Magic Numbers and Strings Are Banished
+
+Give semantic numbers a named constant. Centralize strings used for identifiers, events, or config keys.
+
+```javascript
+// ❌
+if (log.length > 8192) { /* ... */ }
+
+// ✅
+const MAX_LOG_ENTRIES = 8192;
+if (log.length > MAX_LOG_ENTRIES) { /* ... */ }
+```
+
+### Boolean Trap Parameters Are Banished
+
+Use named parameter objects or separate methods instead of positional booleans.
+
+```javascript
+// ❌ What does `true` mean here?
+engine.compact(log, true);
+
+// ✅ Intention is legible
+engine.compact(log, { preserveTombstones: true });
+// or
+engine.compactPreservingTombstones(log);
+```
+
+### Structured Data Stays Structured
+
+Machines must not be forced to parse prose to recover data. If something is structured, keep it structured.
+
+### Module Scope Is the First Privacy Boundary
+
+If it is not exported, it is private. Use module boundaries deliberately.
+
+### JSDoc Documents the Runtime Model; It Does Not Replace It
+
+JSDoc exists to explain the actual runtime behavior and contracts. It must never substitute for runtime-backed types, validation, or invariants.
 
 ---
 
-## This is infrastructure
+## Tooling Discipline
 
-`git-warp` is a multi-writer CRDT graph database. It stores data as
-Git commits. It runs on Node, Bun, and Deno. It handles cryptographic
-verification, distributed replication, and deterministic replay.
+### Lint Is Law
 
-This is not a React component. This is not a REST API handler. This
-is infrastructure. The code must be honest, inspectable, and safe at
-runtime — not just at type-check time.
+- Lint errors fail CI.
+- Suppressions require a documented justification.
+- Enforce hardest on: unsafe coercion, floating promises, raw `Error` objects, and host-specific API leakage into core code.
 
-TypeScript's phantom types vanish at runtime. JavaScript classes exist
-at runtime. For infrastructure, that difference is everything.
+### TypeScript Rules
+
+When TypeScript is used:
+
+- It remains subordinate to runtime validation.
+- It must not be treated as a substitute for domain modeling.
+- `any` is banned. `unknown` at raw edges only, eliminated immediately.
+- Type-only constructs must not create a false sense of safety that the runtime does not back up.
+
+---
+
+## The Anti-Shape-Soup Doctrine
+
+Most bad JavaScript infrastructure stems from weak modeling. The discipline is:
+
+1. **Name** the concept.
+2. **Construct** the concept — with validated invariants.
+3. **Protect** the invariant — freeze, encapsulate, defend.
+4. **Attach** the behavior — on the type that owns it.
+5. **Guard** the boundary — schemas at the edge, domain types inside.
+6. **Separate** the codec — serialization is not the domain's problem.
+7. **Isolate** the host — Node behind adapters, core stays portable.
+8. **Document** the runtime — JSDoc explains what actually exists.
+9. **Test** the truth — executable specification, not wishful coverage.
+
+---
+
+## Review Checklist
+
+Before merging, ask:
+
+- Is this a real domain concept? Where is its runtime-backed form?
+- Where is `unknown` eliminated?
+- Does construction establish trust?
+- Does behavior live on the type that owns it?
+- Is anyone parsing `err.message` like a raccoon in a dumpster?
+- Are there magic numbers or strings?
+- Could this logic run in a browser?
+- Is tooling fiction being mistaken for architecture?
+
+---
+
+This is infrastructure. Code cannot rely on costumes or pretend that comments are contracts. JavaScript is enough — not because it is magical, but because runtime truth beats phantom certainty every time.
