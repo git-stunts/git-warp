@@ -9,7 +9,7 @@
  */
 
 import { validateGraphName, validateWriterId } from './utils/RefLayout.js';
-import { createVersionVector } from './crdt/VersionVector.js';
+import VersionVector from './crdt/VersionVector.js';
 import { DEFAULT_GC_POLICY } from './services/GCPolicy.js';
 import { AuditReceiptService } from './services/AuditReceiptService.js';
 import { TemporalQuery } from './services/TemporalQuery.js';
@@ -25,15 +25,16 @@ import SubscriptionController from './services/SubscriptionController.js';
 import ProvenanceController from './services/ProvenanceController.js';
 import ForkController from './services/ForkController.js';
 import QueryController from './services/QueryController.js';
+import PatchController from './services/PatchController.js';
+import CheckpointController from './services/CheckpointController.js';
 import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
-import { wireWarpMethods } from './warp/_wire.js';
-import * as checkpointMethods from './warp/checkpoint.methods.js';
-import * as patchMethods from './warp/patch.methods.js';
-import * as materializeMethods from './warp/materialize.methods.js';
-import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
+// checkpoint.methods.js replaced by CheckpointController (imported above)
+// patch.methods.js replaced by PatchController (imported above)
+// materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
+import MaterializeController from './services/MaterializeController.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -186,8 +187,8 @@ export default class WarpRuntime {
     /** @type {string} */
     this._writerId = writerId;
 
-    /** @type {import('./crdt/VersionVector.js').VersionVector} */
-    this._versionVector = createVersionVector();
+    /** @type {import('./crdt/VersionVector.js').default} */
+    this._versionVector = VersionVector.empty();
 
     /** @type {import('./services/JoinReducer.js').WarpStateV5|null} */
     this._cachedState = null;
@@ -326,6 +327,15 @@ export default class WarpRuntime {
 
     /** @type {QueryController} */
     this._queryController = new QueryController(/** @type {import('./warp/_internal.js').WarpGraphWithMixins} */ (/** @type {unknown} */ (this)));
+
+    /** @type {PatchController} */
+    this._patchController = new PatchController(this);
+
+    /** @type {CheckpointController} */
+    this._checkpointController = new CheckpointController(this);
+
+    /** @type {MaterializeController} */
+    this._materializeController = new MaterializeController(this);
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
@@ -661,13 +671,80 @@ export default class WarpRuntime {
   }
 }
 
-// ── Wire extracted method groups onto WarpRuntime.prototype ───────────────────
-wireWarpMethods(WarpRuntime, [
-  checkpointMethods,
-  patchMethods,
-  materializeMethods,
-  materializeAdvancedMethods,
+// ── Materialize methods: direct delegation to MaterializeController ─────────
+const materializeDelegates = /** @type {const} */ ([
+  'materialize', '_materializeGraph',
+  '_resolveCeiling', '_buildAdjacency', '_setMaterializedState', '_buildView',
+  'materializeCoordinate', '_materializeWithCeiling', '_materializeWithCoordinate',
+  '_persistSeekCacheEntry', '_restoreIndexFromCache',
+  'materializeAt', 'verifyIndex', 'invalidateIndex',
 ]);
+for (const method of materializeDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to MaterializeController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._materializeController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
+
+// ── Checkpoint methods: direct delegation to CheckpointController ─────────────
+const checkpointDelegates = /** @type {const} */ ([
+  'createCheckpoint', 'syncCoverage',
+  '_loadLatestCheckpoint', '_loadPatchesSince',
+  '_validateMigrationBoundary', '_hasSchema1Patches',
+  '_maybeRunGC', 'maybeRunGC', 'runGC', 'getGCMetrics',
+]);
+for (const method of checkpointDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to CheckpointController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._checkpointController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
+
+// ── Patch methods: direct delegation to PatchController ───────────────────────
+const patchDelegates = /** @type {const} */ ([
+  'createPatch', 'patch', 'patchMany',
+  '_nextLamport', '_loadPatchChainFromSha', '_loadWriterPatches',
+  'getWriterPatches', '_onPatchCommitted', 'writer',
+  '_ensureFreshState', '_readPatchBlob',
+  'discoverWriters', 'discoverTicks',
+  'join', '_frontierEquals',
+]);
+for (const method of patchDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to PatchController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._patchController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
 
 // ── Strand + conflict methods: direct delegation to StrandController ────────
 const strandDelegates = /** @type {const} */ ([

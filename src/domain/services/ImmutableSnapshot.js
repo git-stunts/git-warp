@@ -9,6 +9,8 @@
  * @module domain/services/ImmutableSnapshot
  */
 
+import VersionVector from '../crdt/VersionVector.js';
+
 /** @typedef {import('./JoinReducer.js').WarpStateV5} WarpStateV5 */
 
 const MAP_MUTATORS = new Set(['set', 'delete', 'clear']);
@@ -151,6 +153,14 @@ function cloneImmutableObject(value, seen) {
  * @returns {T}
  */
 function cloneImmutableObjectValue(value, seen) {
+  // VersionVector uses private fields that Object.create cannot replicate.
+  // Clone via its own method and freeze the result.
+  if (value instanceof VersionVector) {
+    const cloned = value.clone();
+    seen.set(value, cloned);
+    return /** @type {typeof value} */ (Object.freeze(cloned));
+  }
+
   if (value instanceof Map) {
     return cloneImmutableMap(value, seen);
   }

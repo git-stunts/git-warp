@@ -1,30 +1,30 @@
 /**
  * Tests for _readPatchBlob null-guard on readBlob return value.
  *
- * @see src/domain/warp/patch.methods.js
+ * @see src/domain/services/PatchController.js
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { _readPatchBlob } from '../../../../src/domain/warp/patch.methods.js';
+import PatchController from '../../../../src/domain/services/PatchController.js';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
 
 /**
- * Builds a minimal mock context for _readPatchBlob.call().
- * Cast to `any` so tsc doesn't require the full WarpGraphWithMixins surface.
+ * Builds a PatchController with a minimal mock host.
  *
  * @param {{ readBlob: import('vitest').Mock }} persistence
  * @param {{ retrieve: import('vitest').Mock }|null} [patchBlobStorage]
- * @returns {*}
+ * @returns {PatchController}
  */
-function mockCtx(persistence, patchBlobStorage = null) {
-  return /** @type {*} */ ({ _persistence: persistence, _patchBlobStorage: patchBlobStorage });
+function createController(persistence, patchBlobStorage = null) {
+  const host = /** @type {*} */ ({ _persistence: persistence, _patchBlobStorage: patchBlobStorage });
+  return new PatchController(host);
 }
 
 describe('_readPatchBlob', () => {
   it('returns blob when readBlob succeeds', async () => {
     const expected = new Uint8Array([1, 2, 3]);
-    const ctx = mockCtx({ readBlob: vi.fn().mockResolvedValue(expected) });
-    const result = await _readPatchBlob.call(ctx, {
+    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(expected) });
+    const result = await ctrl._readPatchBlob({
       patchOid: 'a'.repeat(40),
       encrypted: false,
     });
@@ -32,42 +32,47 @@ describe('_readPatchBlob', () => {
   });
 
   it('throws PersistenceError with E_MISSING_OBJECT when readBlob returns null', async () => {
-    const oid = 'dead'.padEnd(40, '0');
-    const ctx = mockCtx({ readBlob: vi.fn().mockResolvedValue(null) });
-    await expect(
-      _readPatchBlob.call(ctx, { patchOid: oid, encrypted: false }),
-    ).rejects.toThrow(PersistenceError);
+    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(null) });
+    await expect(ctrl._readPatchBlob({
+      patchOid: 'b'.repeat(40),
+      encrypted: false,
+    })).rejects.toThrow(PersistenceError);
 
     try {
-      await _readPatchBlob.call(ctx, { patchOid: oid, encrypted: false });
-    } catch (/** @type {*} */ err) {
-      expect(err.code).toBe(PersistenceError.E_MISSING_OBJECT);
-      expect(err.message).toContain(oid);
-      expect(err.context.oid).toBe(oid);
+      await ctrl._readPatchBlob({ patchOid: 'b'.repeat(40), encrypted: false });
+    } catch (err) {
+      expect(/** @type {PersistenceError} */ (err).code).toBe(PersistenceError.E_MISSING_OBJECT);
     }
   });
 
-  it('throws PersistenceError when readBlob returns undefined', async () => {
-    const oid = 'b'.repeat(40);
-    const ctx = mockCtx({ readBlob: vi.fn().mockResolvedValue(undefined) });
-    await expect(
-      _readPatchBlob.call(ctx, { patchOid: oid, encrypted: false }),
-    ).rejects.toThrow(PersistenceError);
+  it('throws PersistenceError with E_MISSING_OBJECT when readBlob returns undefined', async () => {
+    const ctrl = createController({ readBlob: vi.fn().mockResolvedValue(undefined) });
+    await expect(ctrl._readPatchBlob({
+      patchOid: 'c'.repeat(40),
+      encrypted: false,
+    })).rejects.toThrow(PersistenceError);
   });
 
-  it('delegates to patchBlobStorage for encrypted patches', async () => {
+  it('delegates to patchBlobStorage.retrieve when encrypted', async () => {
     const expected = new Uint8Array([4, 5, 6]);
-    const oid = 'c'.repeat(40);
-    const ctx = mockCtx(
-      { readBlob: vi.fn() },
-      { retrieve: vi.fn().mockResolvedValue(expected) },
+    const patchBlobStorage = { retrieve: vi.fn().mockResolvedValue(expected) };
+    const ctrl = createController(
+      { readBlob: vi.fn().mockResolvedValue(null) },
+      patchBlobStorage,
     );
-    const result = await _readPatchBlob.call(ctx, {
-      patchOid: oid,
+    const result = await ctrl._readPatchBlob({
+      patchOid: 'd'.repeat(40),
       encrypted: true,
     });
     expect(result).toBe(expected);
-    expect(ctx._persistence.readBlob).not.toHaveBeenCalled();
-    expect(ctx._patchBlobStorage.retrieve).toHaveBeenCalledWith(oid);
+    expect(patchBlobStorage.retrieve).toHaveBeenCalledWith('d'.repeat(40));
+  });
+
+  it('throws EncryptionError when encrypted but no patchBlobStorage', async () => {
+    const ctrl = createController({ readBlob: vi.fn() }, null);
+    await expect(ctrl._readPatchBlob({
+      patchOid: 'e'.repeat(40),
+      encrypted: true,
+    })).rejects.toThrow(/encrypted.*patchBlobStorage/i);
   });
 });

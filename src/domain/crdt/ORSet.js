@@ -54,10 +54,10 @@ import { vvContains } from './VersionVector.js';
  *
  * ## Semilattice Properties
  *
- * orsetJoin forms a join-semilattice:
- * - **Commutative**: orsetJoin(a, b) equals orsetJoin(b, a)
- * - **Associative**: orsetJoin(orsetJoin(a, b), c) equals orsetJoin(a, orsetJoin(b, c))
- * - **Idempotent**: orsetJoin(a, a) equals a
+ * join() forms a join-semilattice:
+ * - **Commutative**: a.join(b) equals b.join(a)
+ * - **Associative**: a.join(b).join(c) equals a.join(b.join(c))
+ * - **Idempotent**: a.join(a) equals a
  *
  * The join takes the union of both entries and tombstones. This ensures:
  * - All adds from all replicas are preserved
@@ -66,12 +66,12 @@ import { vvContains } from './VersionVector.js';
  *
  * ## Garbage Collection Safety
  *
- * The orsetCompact function removes tombstoned dots to reclaim memory, but
+ * The compact() method removes tombstoned dots to reclaim memory, but
  * must do so safely to avoid "zombie" resurrections:
  *
  * **GC Safety Invariant**: A tombstoned dot may only be compacted if ALL
  * replicas have observed it. This is tracked via the version vector: if
- * vvContains(includedVV, dot) is true for the "included" frontier, then
+ * includedVV.contains(dot) is true for the "included" frontier, then
  * all replicas have seen this dot and its tombstone.
  *
  * **What happens if violated**: If we compact (A,5) before replica B has seen
@@ -80,53 +80,6 @@ import { vvContains } from './VersionVector.js';
  *
  * @module crdt/ORSet
  */
-
-/**
- * ORSet (Observed-Remove Set) - A CRDT set that supports add and remove operations.
- *
- * This is a GLOBAL OR-Set (one per category, not per element). It tracks:
- * - entries: Map<element, Set<encodedDot>> - elements and the dots that added them
- * - tombstones: Set<encodedDot> - global tombstones for removed dots
- *
- * An element is present if it has at least one non-tombstoned dot.
- *
- * @typedef {Object} ORSet
- * @property {Map<string, Set<string>>} entries - element -> dots that added it
- * @property {Set<string>} tombstones - global tombstones
- */
-
-/**
- * Creates an empty ORSet.
- *
- * @returns {ORSet}
- */
-export function createORSet() {
-  return {
-    entries: new Map(),
-    tombstones: new Set(),
-  };
-}
-
-/**
- * Adds an element to the ORSet with the given dot.
- * Mutates the set.
- *
- * @param {ORSet} set - The ORSet to mutate
- * @param {string} element - The element to add
- * @param {import('./Dot.js').Dot} dot - The dot representing this add operation
- */
-export function orsetAdd(set, element, dot) {
-  assertValidDot(dot);
-  const encoded = encodeDot(dot);
-
-  let dots = set.entries.get(element);
-  if (!dots) {
-    dots = new Set();
-    set.entries.set(element, dots);
-  }
-
-  dots.add(encoded);
-}
 
 /**
  * Throws if the dot is not a well-formed {writerId: string, counter: integer}.
@@ -141,105 +94,241 @@ function assertValidDot(dot) {
 }
 
 /**
- * Removes an element by adding its observed dots to the tombstones.
- * Mutates the set.
+ * ORSet (Observed-Remove Set) — a CRDT set supporting concurrent add
+ * and remove operations with add-wins semantics.
  *
- * @param {ORSet} set - The ORSet to mutate
- * @param {Set<string>} observedDots - The encoded dots to tombstone
- */
-export function orsetRemove(set, observedDots) {
-  for (const encodedDot of observedDots) {
-    set.tombstones.add(encodedDot);
-  }
-}
-
-/**
- * Checks if an element is present in the ORSet.
+ * This is a GLOBAL OR-Set (one per category, not per element). It tracks:
+ * - entries: Map<element, Set<encodedDot>> — elements and the dots that added them
+ * - tombstones: Set<encodedDot> — global tombstones for removed dots
+ *
  * An element is present if it has at least one non-tombstoned dot.
  *
- * @param {ORSet} set - The ORSet to check
- * @param {string} element - The element to check
- * @returns {boolean}
+ * Fields are public because JoinReducer (the merge engine) needs direct
+ * access for performance-critical operations.
  */
-export function orsetContains(set, element) {
-  const dots = set.entries.get(element);
-  if (!dots) {
+export default class ORSet {
+  /**
+   * Element → dots that added it.
+   * @type {Map<string, Set<string>>}
+   */
+  entries;
+
+  /**
+   * Global tombstones for removed dots.
+   * @type {Set<string>}
+   */
+  tombstones;
+
+  /**
+   * Creates an ORSet from existing data structures.
+   *
+   * @param {Map<string, Set<string>>} entries
+   * @param {Set<string>} tombstones
+   */
+  constructor(entries, tombstones) {
+    this.entries = entries;
+    this.tombstones = tombstones;
+  }
+
+  /**
+   * Creates an empty ORSet.
+   *
+   * @returns {ORSet}
+   */
+  static empty() {
+    return new ORSet(new Map(), new Set());
+  }
+
+  /**
+   * Deserializes a plain object back to an ORSet.
+   *
+   * @param {{entries?: Array<[string, string[]]>, tombstones?: string[]}} obj
+   * @returns {ORSet}
+   */
+  static deserialize(obj) {
+    const set = ORSet.empty();
+    _deserializeEntriesInto(obj.entries, set.entries);
+    _deserializeTombstonesInto(obj.tombstones, set.tombstones);
+    return set;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mutation operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Adds an element with the given dot.
+   * Mutates the set.
+   *
+   * @param {string} element - The element to add
+   * @param {import('./Dot.js').Dot} dot - The dot representing this add operation
+   */
+  add(element, dot) {
+    assertValidDot(dot);
+    const encoded = encodeDot(dot);
+
+    let dots = this.entries.get(element);
+    if (!dots) {
+      dots = new Set();
+      this.entries.set(element, dots);
+    }
+
+    dots.add(encoded);
+  }
+
+  /**
+   * Removes an element by adding its observed dots to the tombstones.
+   * Mutates the set.
+   *
+   * @param {Set<string>} observedDots - The encoded dots to tombstone
+   */
+  remove(observedDots) {
+    for (const encodedDot of observedDots) {
+      this.tombstones.add(encodedDot);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Query operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Checks if an element is present.
+   * An element is present if it has at least one non-tombstoned dot.
+   *
+   * @param {string} element
+   * @returns {boolean}
+   */
+  contains(element) {
+    const dots = this.entries.get(element);
+    if (!dots) {
+      return false;
+    }
+
+    for (const encodedDot of dots) {
+      if (!this.tombstones.has(encodedDot)) {
+        return true;
+      }
+    }
+
     return false;
   }
 
-  for (const encodedDot of dots) {
-    if (!set.tombstones.has(encodedDot)) {
-      return true;
+  /**
+   * Returns all present elements.
+   * Only returns elements that have at least one non-tombstoned dot.
+   *
+   * @returns {string[]}
+   */
+  elements() {
+    const result = [];
+    for (const element of this.entries.keys()) {
+      if (this.contains(element)) {
+        result.push(element);
+      }
     }
+    return result;
   }
 
-  return false;
-}
-
-/**
- * Returns all present elements in the ORSet.
- * Only returns elements that have at least one non-tombstoned dot.
- *
- * @param {ORSet} set - The ORSet
- * @returns {string[]} Array of present elements
- */
-export function orsetElements(set) {
-  const result = [];
-
-  for (const element of set.entries.keys()) {
-    if (orsetContains(set, element)) {
-      result.push(element);
+  /**
+   * Returns the non-tombstoned dots for an element.
+   *
+   * @param {string} element
+   * @returns {Set<string>} Set of encoded dots that are not tombstoned
+   */
+  getDots(element) {
+    const dots = this.entries.get(element);
+    if (!dots) {
+      return /** @type {Set<string>} */ (new Set());
     }
-  }
 
-  return result;
-}
-
-/**
- * Returns the non-tombstoned dots for an element.
- *
- * @param {ORSet} set - The ORSet
- * @param {string} element - The element
- * @returns {Set<string>} Set of encoded dots that are not tombstoned
- */
-export function orsetGetDots(set, element) {
-  const dots = set.entries.get(element);
-  if (!dots) {
-    return /** @type {Set<string>} */ (new Set());
-  }
-
-  /** @type {Set<string>} */
-  const result = new Set();
-  for (const encodedDot of dots) {
-    if (!set.tombstones.has(encodedDot)) {
-      result.add(encodedDot);
+    /** @type {Set<string>} */
+    const result = new Set();
+    for (const encodedDot of dots) {
+      if (!this.tombstones.has(encodedDot)) {
+        result.add(encodedDot);
+      }
     }
+
+    return result;
   }
 
-  return result;
+  // ---------------------------------------------------------------------------
+  // CRDT operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Joins with another ORSet by taking the union of entries and tombstones.
+   * Returns a new ORSet; does not mutate either input.
+   *
+   * Properties:
+   * - Commutative: a.join(b) equals b.join(a)
+   * - Associative: a.join(b).join(c) equals a.join(b.join(c))
+   * - Idempotent: a.join(a) equals a
+   *
+   * @param {ORSet} other
+   * @returns {ORSet}
+   */
+  join(other) {
+    const result = ORSet.empty();
+    _copyEntries(this.entries, result.entries);
+    _mergeEntries(other.entries, result.entries);
+    _unionSets(this.tombstones, result.tombstones);
+    _unionSets(other.tombstones, result.tombstones);
+    return result;
+  }
+
+  /**
+   * Compacts the ORSet by removing tombstoned dots that are <= includedVV.
+   * Mutates the set.
+   *
+   * ## GC Safety Invariant
+   *
+   * Only compact dots that ALL replicas have observed. The `includedVV`
+   * parameter represents the "stable frontier" — the version vector that
+   * all known replicas have reached.
+   *
+   * @param {import('./VersionVector.js').default} includedVV - The stable frontier.
+   */
+  compact(includedVV) {
+    const toDelete = _collectCompactableDots(this, includedVV);
+    _applyCompaction(this, toDelete);
+  }
+
+  /**
+   * Creates a deep clone.
+   *
+   * @returns {ORSet}
+   */
+  clone() {
+    const result = ORSet.empty();
+    for (const [element, dots] of this.entries) {
+      result.entries.set(element, new Set(dots));
+    }
+    for (const dot of this.tombstones) {
+      result.tombstones.add(dot);
+    }
+    return result;
+  }
+
+  /**
+   * Serializes to a plain object for CBOR encoding.
+   * Entries are sorted by element; dots within entries are sorted.
+   * Tombstones are sorted.
+   *
+   * @returns {{entries: Array<[string, string[]]>, tombstones: string[]}}
+   */
+  serialize() {
+    return {
+      entries: _serializeEntries(this.entries),
+      tombstones: _sortEncodedDots(this.tombstones),
+    };
+  }
 }
 
-/**
- * Joins two ORSets by taking the union of entries and tombstones.
- * Returns a new ORSet; does not mutate inputs.
- *
- * Properties:
- * - Commutative: orsetJoin(a, b) equals orsetJoin(b, a)
- * - Associative: orsetJoin(orsetJoin(a, b), c) equals orsetJoin(a, orsetJoin(b, c))
- * - Idempotent: orsetJoin(a, a) equals a
- *
- * @param {ORSet} a
- * @param {ORSet} b
- * @returns {ORSet}
- */
-export function orsetJoin(a, b) {
-  const result = createORSet();
-  copyEntries(a.entries, result.entries);
-  mergeEntries(b.entries, result.entries);
-  unionSets(a.tombstones, result.tombstones);
-  unionSets(b.tombstones, result.tombstones);
-  return result;
-}
+// =============================================================================
+// Internal helpers
+// =============================================================================
 
 /**
  * Copies all entries by cloning each dot set into the target map.
@@ -247,7 +336,7 @@ export function orsetJoin(a, b) {
  * @param {Map<string, Set<string>>} source
  * @param {Map<string, Set<string>>} target
  */
-function copyEntries(source, target) {
+function _copyEntries(source, target) {
   for (const [element, dots] of source) {
     target.set(element, new Set(dots));
   }
@@ -259,7 +348,7 @@ function copyEntries(source, target) {
  * @param {Map<string, Set<string>>} source
  * @param {Map<string, Set<string>>} target
  */
-function mergeEntries(source, target) {
+function _mergeEntries(source, target) {
   for (const [element, dots] of source) {
     const existing = target.get(element);
     if (existing !== undefined) {
@@ -278,65 +367,20 @@ function mergeEntries(source, target) {
  * @param {Set<string>} source
  * @param {Set<string>} target
  */
-function unionSets(source, target) {
+function _unionSets(source, target) {
   for (const item of source) {
     target.add(item);
   }
 }
 
 /**
- * Compacts the ORSet by removing tombstoned dots that are <= includedVV.
- * Mutates the set.
- *
- * ## GC Safety Invariant
- *
- * This function implements safe garbage collection for OR-Set tombstones.
- * The invariant is: **only compact dots that ALL replicas have observed**.
- *
- * The `includedVV` parameter represents the "stable frontier" - the version
- * vector that all known replicas have reached. A dot (writerId, counter) is
- * safe to compact if:
- *
- * 1. The dot is TOMBSTONED (it was removed)
- * 2. The dot is <= includedVV (all replicas have seen it)
- *
- * ### Why both conditions?
- *
- * - **Condition 1 (tombstoned)**: Live dots must never be compacted. Removing
- *   a live dot would make the element disappear incorrectly.
- *
- * - **Condition 2 (<= includedVV)**: If a replica hasn't seen this dot yet,
- *   it might send it later. Without the tombstone, we'd have no record that
- *   it was deleted, causing resurrection.
- *
- * ### Correctness Proof Sketch
- *
- * After compaction of dot D:
- * - D is removed from entries (if present)
- * - D is removed from tombstones
- *
- * If replica B later sends D:
- * - Since D <= includedVV, B has already observed D
- * - B's state must also have D tombstoned (or never had it)
- * - Therefore B cannot send D as a live add
- *
- * @param {ORSet} set - The ORSet to compact
- * @param {import('./VersionVector.js').VersionVector} includedVV - The stable frontier version vector.
- *   All replicas are known to have observed at least this causal context.
- */
-export function orsetCompact(set, includedVV) {
-  const toDelete = collectCompactableDots(set, includedVV);
-  applyCompaction(set, toDelete);
-}
-
-/**
  * Identifies dots eligible for compaction: tombstoned AND within the stable frontier.
  *
  * @param {ORSet} set
- * @param {import('./VersionVector.js').VersionVector} includedVV
+ * @param {import('./VersionVector.js').default} includedVV
  * @returns {Array<{element: string, dot: string}>}
  */
-function collectCompactableDots(set, includedVV) {
+function _collectCompactableDots(set, includedVV) {
   /** @type {Array<{element: string, dot: string}>} */
   const toDelete = [];
   for (const [element, dots] of set.entries) {
@@ -356,7 +400,7 @@ function collectCompactableDots(set, includedVV) {
  * @param {ORSet} set
  * @param {Array<{element: string, dot: string}>} toDelete
  */
-function applyCompaction(set, toDelete) {
+function _applyCompaction(set, toDelete) {
   for (const { element, dot: encodedDot } of toDelete) {
     const dots = set.entries.get(element);
     if (dots !== undefined) {
@@ -370,44 +414,12 @@ function applyCompaction(set, toDelete) {
 }
 
 /**
- * Creates a deep clone of an ORSet.
- *
- * @param {ORSet} set - The ORSet to clone
- * @returns {ORSet} A new ORSet with independent data structures
- */
-export function orsetClone(set) {
-  const result = createORSet();
-  for (const [element, dots] of set.entries) {
-    result.entries.set(element, new Set(dots));
-  }
-  for (const dot of set.tombstones) {
-    result.tombstones.add(dot);
-  }
-  return result;
-}
-
-/**
- * Serializes an ORSet to a plain object for CBOR encoding.
- * Entries are sorted by element (stringified), dots within entries are sorted.
- * Tombstones are sorted.
- *
- * @param {ORSet} set
- * @returns {{entries: Array<[string, string[]]>, tombstones: string[]}}
- */
-export function orsetSerialize(set) {
-  return {
-    entries: serializeEntries(set.entries),
-    tombstones: sortEncodedDots(set.tombstones),
-  };
-}
-
-/**
  * Sorts encoded dots by their decoded (writerId, counter) order.
  *
  * @param {Set<string>|Iterable<string>} encodedDots
- * @returns {string[]} Sorted encoded dot strings
+ * @returns {string[]}
  */
-function sortEncodedDots(encodedDots) {
+function _sortEncodedDots(encodedDots) {
   /** @type {Array<{encoded: string, decoded: import('./Dot.js').Dot}>} */
   const pairs = [];
   for (const encoded of encodedDots) {
@@ -423,27 +435,14 @@ function sortEncodedDots(encodedDots) {
  * @param {Map<string, Set<string>>} entries
  * @returns {Array<[string, string[]]>}
  */
-function serializeEntries(entries) {
+function _serializeEntries(entries) {
   /** @type {Array<[string, string[]]>} */
   const result = [];
   for (const [element, dots] of entries) {
-    result.push([element, sortEncodedDots(dots)]);
+    result.push([element, _sortEncodedDots(dots)]);
   }
   result.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   return result;
-}
-
-/**
- * Deserializes a plain object back to an ORSet.
- *
- * @param {{entries?: Array<[string, string[]]>, tombstones?: string[]}} obj
- * @returns {ORSet}
- */
-export function orsetDeserialize(obj) {
-  const set = createORSet();
-  deserializeEntriesInto(obj.entries, set.entries);
-  deserializeTombstonesInto(obj.tombstones, set.tombstones);
-  return set;
 }
 
 /**
@@ -452,7 +451,7 @@ export function orsetDeserialize(obj) {
  * @param {Array<[string, string[]]>|undefined} entries
  * @param {Map<string, Set<string>>} target
  */
-function deserializeEntriesInto(entries, target) {
+function _deserializeEntriesInto(entries, target) {
   if (!Array.isArray(entries)) {
     return;
   }
@@ -469,11 +468,157 @@ function deserializeEntriesInto(entries, target) {
  * @param {string[]|undefined} tombstones
  * @param {Set<string>} target
  */
-function deserializeTombstonesInto(tombstones, target) {
+function _deserializeTombstonesInto(tombstones, target) {
   if (!Array.isArray(tombstones)) {
     return;
   }
   for (const dot of tombstones) {
     target.add(dot);
   }
+}
+
+// =============================================================================
+// Backward-compatibility shims
+//
+// These free functions delegate to the ORSet class. They exist so that
+// existing callers (and the extensive test suite) continue to work without
+// modification. New code should use the class API directly.
+// =============================================================================
+
+/**
+ * Coerces a value to an ORSet. If already an ORSet, returns as-is.
+ * If a plain object with entries/tombstones, wraps it.
+ *
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @returns {ORSet}
+ */
+function _coerce(set) {
+  if (set instanceof ORSet) {
+    return set;
+  }
+  return new ORSet(set.entries, set.tombstones);
+}
+
+/**
+ * Creates an empty ORSet.
+ *
+ * @deprecated Use {@link ORSet.empty}
+ * @returns {ORSet}
+ */
+export function createORSet() {
+  return ORSet.empty();
+}
+
+/**
+ * Adds an element to the ORSet with the given dot.
+ *
+ * @deprecated Use {@link ORSet#add}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @param {string} element
+ * @param {import('./Dot.js').Dot} dot
+ */
+export function orsetAdd(set, element, dot) {
+  _coerce(set).add(element, dot);
+}
+
+/**
+ * Removes an element by adding its observed dots to the tombstones.
+ *
+ * @deprecated Use {@link ORSet#remove}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @param {Set<string>} observedDots
+ */
+export function orsetRemove(set, observedDots) {
+  _coerce(set).remove(observedDots);
+}
+
+/**
+ * Checks if an element is present in the ORSet.
+ *
+ * @deprecated Use {@link ORSet#contains}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @param {string} element
+ * @returns {boolean}
+ */
+export function orsetContains(set, element) {
+  return _coerce(set).contains(element);
+}
+
+/**
+ * Returns all present elements in the ORSet.
+ *
+ * @deprecated Use {@link ORSet#elements}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @returns {string[]}
+ */
+export function orsetElements(set) {
+  return _coerce(set).elements();
+}
+
+/**
+ * Returns the non-tombstoned dots for an element.
+ *
+ * @deprecated Use {@link ORSet#getDots}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @param {string} element
+ * @returns {Set<string>}
+ */
+export function orsetGetDots(set, element) {
+  return _coerce(set).getDots(element);
+}
+
+/**
+ * Joins two ORSets by taking the union of entries and tombstones.
+ *
+ * @deprecated Use {@link ORSet#join}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} a
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} b
+ * @returns {ORSet}
+ */
+export function orsetJoin(a, b) {
+  return _coerce(a).join(_coerce(b));
+}
+
+/**
+ * Compacts the ORSet by removing tombstoned dots <= includedVV.
+ *
+ * @deprecated Use {@link ORSet#compact}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @param {import('./VersionVector.js').default} includedVV
+ */
+export function orsetCompact(set, includedVV) {
+  _coerce(set).compact(includedVV);
+}
+
+/**
+ * Creates a deep clone of an ORSet.
+ *
+ * @deprecated Use {@link ORSet#clone}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @returns {ORSet}
+ */
+export function orsetClone(set) {
+  return _coerce(set).clone();
+}
+
+/**
+ * Serializes an ORSet to a plain object.
+ *
+ * @deprecated Use {@link ORSet#serialize}
+ * @param {ORSet | {entries: Map<string, Set<string>>, tombstones: Set<string>}} set
+ * @returns {{entries: Array<[string, string[]]>, tombstones: string[]}}
+ */
+export function orsetSerialize(set) {
+  return _coerce(set).serialize();
+}
+
+/**
+ * Deserializes a plain object back to an ORSet.
+ *
+ * @deprecated Use {@link ORSet.deserialize}
+ * @param {{entries?: Array<[string, string[]]>, tombstones?: string[]}} obj
+ * @returns {ORSet}
+ */
+export function orsetDeserialize(obj) {
+  return ORSet.deserialize(obj);
 }

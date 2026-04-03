@@ -20,7 +20,6 @@ import { validateWriterId, buildWriterRef } from '../utils/RefLayout.js';
 import { PatchSession } from './PatchSession.js';
 import { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
 import { decodePatchMessage, detectMessageKind } from '../services/WarpMessageCodec.js';
-import { vvClone } from '../crdt/VersionVector.js';
 import WriterError from '../errors/WriterError.js';
 
 // Re-export for backward compatibility — consumers importing from Writer.js
@@ -78,7 +77,7 @@ export class Writer {
   /**
    * Creates a new Writer instance.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, versionVector, getCurrentState, onCommitSuccess, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     validateWriterId(writerId);
@@ -91,7 +90,7 @@ export class Writer {
 
   /**
    * Assigns all Writer instance fields from the validated constructor options.
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} opts
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('../services/JoinReducer.js').WarpStateV5 | null, onCommitSuccess?: (result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>, onDeleteWithData: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} opts
    * @private
    */
   _initFields(opts) {
@@ -101,7 +100,7 @@ export class Writer {
     this._graphName = opts.graphName;
     /** @type {string} */
     this._writerId = opts.writerId;
-    /** @type {import('../crdt/VersionVector.js').VersionVector} */
+    /** @type {import('../crdt/VersionVector.js').default} */
     this._versionVector = opts.versionVector;
     /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */
     this._getCurrentState = opts.getCurrentState;
@@ -186,7 +185,7 @@ export class Writer {
     /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
     const opts = {
       ...core,
-      versionVector: vvClone(/** @type {import('../crdt/VersionVector.js').VersionVector} */ (this._versionVector)),
+      versionVector: /** @type {import('../crdt/VersionVector.js').default} */ (this._versionVector).clone(),
       getCurrentState: /** @type {() => import('../services/JoinReducer.js').WarpStateV5 | null} */ (this._getCurrentState),
       onDeleteWithData: /** @type {'reject'|'cascade'|'warn'} */ (this._onDeleteWithData),
     };

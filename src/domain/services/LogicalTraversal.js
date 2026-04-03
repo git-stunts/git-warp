@@ -112,7 +112,7 @@ export default class LogicalTraversal {
     // Private access: _materializeGraph is a WarpRuntime internal.
     // This coupling will be removed when the LogicalTraversal facade is sunset
     // and callers migrate to GraphTraversal + NeighborProvider directly.
-    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../crdt/ORSet.js').ORSet}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
+    const materialized = await /** @type {{ _materializeGraph: () => Promise<{state: {nodeAlive: import('../crdt/ORSet.js').default}, adjacency: {outgoing: Map<string, Array<{neighborId: string, label: string}>>, incoming: Map<string, Array<{neighborId: string, label: string}>>}}> }} */ (this._graph)._materializeGraph();
 
     const direction = assertDirection(dir);
     const labelSet = normalizeLabelFilter(labelFilter);

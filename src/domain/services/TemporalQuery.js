@@ -154,7 +154,7 @@ function evaluateEventuallyCheckpointBoundary({
  * Attempts to resume from a checkpoint for temporal replay.
  *
  * @param {() => Promise<{state: import('./JoinReducer.js').WarpStateV5, maxLamport: number}|null>} loadCheckpoint
- * @param {Array<{patch: {lamport: number, [k: string]: unknown}, sha: string}>} allPatches
+ * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
  * @param {number} since
  * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
  * @private
@@ -345,7 +345,7 @@ export class TemporalQuery {
    * the remaining same-tick patches. Checkpoint creators MUST guarantee the
    * all-or-nothing inclusion property for any given Lamport tick.
    *
-   * @param {Array<{patch: {lamport: number, [k: string]: unknown}, sha: string}>} allPatches
+   * @param {Array<{patch: {lamport: number}, sha: string}>} allPatches
    * @param {number} since - Minimum Lamport tick
    * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, startIdx: number, checkpointMaxLamport: number|null}>}
    * @private

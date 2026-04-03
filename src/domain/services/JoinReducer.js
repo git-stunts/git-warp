@@ -10,7 +10,7 @@
  */
 
 import { orsetAdd, orsetRemove, orsetJoin, orsetContains, orsetClone } from '../crdt/ORSet.js';
-import { vvMerge, vvClone, vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 import { lwwSet, lwwMax } from '../crdt/LWW.js';
 import { createEventId, compareEventIds } from '../utils/EventId.js';
 import { createTickReceipt, OP_TYPES } from '../types/TickReceipt.js';
@@ -55,7 +55,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @property {string} writer - Writer ID who created this patch
  * @property {number} lamport - Lamport timestamp of this patch
  * @property {OpLike[]} ops - Ordered array of operations
- * @property {Map<string, number>|Record<string, number>} context - Version vector context
+ * @property {import('../crdt/VersionVector.js').default|Map<string, number>|Record<string, number>} context - Version vector context
  */
 
 /**
@@ -564,7 +564,7 @@ const VALID_RECEIPT_OPS = new Set(OP_TYPES);
  * Checks if the node's dot already exists in the OR-Set to determine whether
  * this add operation is effective or redundant (idempotent re-delivery).
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset - The node OR-Set containing alive nodes
+ * @param {import('../crdt/ORSet.js').default} orset - The node OR-Set containing alive nodes
  * @param {{node: string, dot: import('../crdt/Dot.js').Dot}} op - The NodeAdd operation
  * @returns {OpApplied|OpRedundant} Outcome with node ID as target
  */
@@ -585,7 +585,7 @@ function nodeAddOutcome(orset, op) {
  * This implements OR-Set remove semantics where removes only affect dots that were
  * observed at the time the remove was issued.
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset - The node OR-Set containing alive nodes
+ * @param {import('../crdt/ORSet.js').default} orset - The node OR-Set containing alive nodes
  * @param {{node?: string, observedDots: string[] | Set<string>}} op - The NodeRemove operation
  * @returns {OpApplied|OpRedundant} Outcome with node ID (or '*') as target
  */
@@ -615,7 +615,7 @@ function nodeRemoveOutcome(orset, op) {
  * this add operation is effective or redundant (idempotent re-delivery).
  * Unlike nodes, edges are keyed by the composite (from, to, label) tuple.
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset - The edge OR-Set containing alive edges
+ * @param {import('../crdt/ORSet.js').default} orset - The edge OR-Set containing alive edges
  * @param {{from: string, to: string, label: string, dot: import('../crdt/Dot.js').Dot}} op - The EdgeAdd operation
  * @param {string} edgeKey - Pre-encoded edge key (from\0to\0label format)
  * @returns {OpApplied|OpRedundant} Outcome with encoded edge key as target
@@ -640,7 +640,7 @@ function edgeAddOutcome(orset, op, edgeKey) {
  * The target is computed from the operation's (from, to, label) fields if available,
  * otherwise falls back to '*' for wildcard/unknown targets.
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset - The edge OR-Set containing alive edges
+ * @param {import('../crdt/ORSet.js').default} orset - The edge OR-Set containing alive edges
  * @param {{from?: string, to?: string, label?: string, observedDots: string[] | Set<string>}} op - The EdgeRemove operation
  * @returns {OpApplied|OpRedundant} Outcome with encoded edge key (or '*') as target
  */
@@ -733,7 +733,7 @@ function edgePropSetOutcome(propMap, op, eventId) {
 
 /**
  * Folds a patch's own dot into the observed frontier.
- * @param {Map<string, number>} frontier
+ * @param {import('../crdt/VersionVector.js').default} frontier
  * @param {string} writer
  * @param {number} lamport
  */
@@ -747,13 +747,13 @@ function foldPatchDot(frontier, writer, lamport) {
 /**
  * Merges a patch's context into state and folds the patch dot.
  * @param {WarpStateV5} state
- * @param {{writer: string, lamport: number, context: Map<string, number>|Record<string, number>}} patch
+ * @param {PatchLike} patch
  */
 function updateFrontierFromPatch(state, patch) {
-  const contextVV = patch.context instanceof Map
+  const contextVV = patch.context instanceof VersionVector
     ? patch.context
-    : vvDeserialize(patch.context ?? {});
-  state.observedFrontier = vvMerge(state.observedFrontier, contextVV);
+    : VersionVector.from(patch.context ?? {});
+  state.observedFrontier = state.observedFrontier.merge(contextVV);
   foldPatchDot(state.observedFrontier, patch.writer, patch.lamport);
 }
 
@@ -786,7 +786,7 @@ export function applyFast(state, patch, patchSha) {
  * Only includes mappings for dots that appear in the given targetDots set,
  * allowing early termination once all target dots are accounted for.
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset
+ * @param {import('../crdt/ORSet.js').default} orset
  * @param {Set<string>} targetDots - The dots we care about
  * @returns {Map<string, string>} dot → elementId
  */
@@ -814,7 +814,7 @@ function buildDotToElement(orset, targetDots) {
  * OR-Set. Complexity: O(total_dots_in_orset) for index build (with early exit)
  * + O(|targetDots|) for lookups, vs the previous O(N * |targetDots|) full scan.
  *
- * @param {import('../crdt/ORSet.js').ORSet} orset
+ * @param {import('../crdt/ORSet.js').default} orset
  * @param {Set<string>} observedDots
  * @returns {Set<string>} element IDs that were alive and own at least one observed dot
  */
@@ -1011,7 +1011,7 @@ export function joinStates(a, b) {
     nodeAlive: orsetJoin(a.nodeAlive, b.nodeAlive),
     edgeAlive: orsetJoin(a.edgeAlive, b.edgeAlive),
     prop: mergeProps(a.prop, b.prop),
-    observedFrontier: vvMerge(a.observedFrontier, b.observedFrontier),
+    observedFrontier: a.observedFrontier.merge(b.observedFrontier),
     edgeBirthEvent: mergeEdgeBirthEvent(a.edgeBirthEvent, b.edgeBirthEvent),
   });
 }
@@ -1149,10 +1149,10 @@ export function cloneStateV5(state) {
   // state as plain objects.
   const s = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (state));
   return new WarpStateV5({
-    nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['nodeAlive'])),
-    edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').ORSet} */ (s['edgeAlive'])),
+    nodeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['nodeAlive'])),
+    edgeAlive: orsetClone(/** @type {import('../crdt/ORSet.js').default} */ (s['edgeAlive'])),
     prop: new Map(/** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */ (s['prop'])),
-    observedFrontier: vvClone(/** @type {import('../crdt/VersionVector.js').VersionVector} */ (s['observedFrontier'])),
+    observedFrontier: /** @type {import('../crdt/VersionVector.js').default} */ (s['observedFrontier']).clone(),
     edgeBirthEvent: new Map(/** @type {Map<string, import('../utils/EventId.js').EventId>} */ (s['edgeBirthEvent'] ?? [])),
   });
 }

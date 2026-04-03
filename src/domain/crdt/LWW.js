@@ -87,6 +87,7 @@ export class LWWRegister {
   constructor(eventId, value) {
     this.eventId = eventId;
     this.value = value;
+    Object.freeze(this);
   }
 }
 

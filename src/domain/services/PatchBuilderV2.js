@@ -3,7 +3,7 @@
  *
  * Key differences from PatchBuilder:
  * 1. Maintains a VersionVector per writer
- * 2. Assigns dots on add operations using vvIncrement
+ * 2. Assigns dots on add operations using vv.increment()
  * 3. Reads current state to populate observedDots for removes
  * 4. Includes context VersionVector in patch
  *
@@ -13,7 +13,7 @@
 
 import defaultCodec from '../utils/defaultCodec.js';
 import nullLogger from '../utils/nullLogger.js';
-import { vvIncrement, vvClone, vvSerialize } from '../crdt/VersionVector.js';
+import { vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
 import {
   createNodeAddV2,
@@ -164,7 +164,7 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').VersionVector, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
   constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
@@ -184,8 +184,8 @@ export class PatchBuilderV2 {
     /** @type {number} */
     this._lamport = lamport;
 
-    /** @type {import('../crdt/VersionVector.js').VersionVector} */
-    this._vv = vvClone(versionVector); // Clone to track local increments
+    /** @type {import('../crdt/VersionVector.js').default} */
+    this._vv = versionVector.clone(); // Clone to track local increments
 
     /** @type {() => import('./JoinReducer.js').WarpStateV5 | null} */
     this._getCurrentState = getCurrentState;
@@ -327,7 +327,7 @@ export class PatchBuilderV2 {
   addNode(nodeId) {
     this._assertNotCommitted();
     _assertNoReservedBytes(nodeId, 'nodeId');
-    const dot = vvIncrement(this._vv, this._writerId);
+    const dot = this._vv.increment(this._writerId);
     this._ops.push(createNodeAddV2(nodeId, dot));
     this._nodesAdded.add(nodeId);
     // Provenance: NodeAdd writes the node
@@ -449,7 +449,7 @@ export class PatchBuilderV2 {
     _assertNoReservedBytes(from, 'from node ID');
     _assertNoReservedBytes(to, 'to node ID');
     _assertNoReservedBytes(label, 'edge label');
-    const dot = vvIncrement(this._vv, this._writerId);
+    const dot = this._vv.increment(this._writerId);
     this._ops.push(createEdgeAddV2(from, to, label, dot));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);
@@ -1066,7 +1066,7 @@ export class PatchBuilderV2 {
    * `addNode` and `addEdge` operation. This tracks the causal context
    * for OR-Set dot generation.
    *
-   * @returns {import('../crdt/VersionVector.js').VersionVector} The version vector as a
+   * @returns {import('../crdt/VersionVector.js').default} The version vector as a
    *   `Map<string, number>` mapping writer IDs to their logical clock values
    */
   get versionVector() {

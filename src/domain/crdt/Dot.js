@@ -84,6 +84,7 @@ export class Dot {
 
     this.writerId = writerId;
     this.counter = counter;
+    Object.freeze(this);
   }
 }
 

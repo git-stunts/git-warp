@@ -422,7 +422,7 @@ describe('CheckpointSerializerV5', () => {
     it('round-trips empty version vector', () => {
       const vv = new Map();
 
-      const buffer = serializeAppliedVV(vv);
+      const buffer = serializeAppliedVV(/** @type {any} */ (vv));
       const restored = deserializeAppliedVV(buffer);
 
       expect(restored.size).toBe(0);
@@ -434,7 +434,7 @@ describe('CheckpointSerializerV5', () => {
       vv.set('bob', 5);
       vv.set('carol', 1);
 
-      const buffer = serializeAppliedVV(vv);
+      const buffer = serializeAppliedVV(/** @type {any} */ (vv));
       const restored = deserializeAppliedVV(buffer);
 
       expect(restored.size).toBe(3);
@@ -454,8 +454,8 @@ describe('CheckpointSerializerV5', () => {
       vv2.set('bob', 3);
       vv2.set('zoe', 1);
 
-      const buffer1 = serializeAppliedVV(vv1);
-      const buffer2 = serializeAppliedVV(vv2);
+      const buffer1 = serializeAppliedVV(/** @type {any} */ (vv1));
+      const buffer2 = serializeAppliedVV(/** @type {any} */ (vv2));
 
       expect(/** @type {Buffer} */ (buffer1).equals(/** @type {Buffer} */ (buffer2))).toBe(true);
     });

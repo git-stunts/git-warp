@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
+import VersionVector, {
   createVersionVector,
   vvIncrement,
   vvMerge,
@@ -20,7 +20,7 @@ describe('VersionVector', () => {
     it('creates an empty version vector', () => {
       const vv = createVersionVector();
 
-      expect(vv).toBeInstanceOf(Map);
+      expect(vv).toBeInstanceOf(VersionVector);
       expect(vv.size).toBe(0);
     });
   });

@@ -45,7 +45,7 @@ import SyncError from '../errors/SyncError.js';
 import EncryptionError from '../errors/EncryptionError.js';
 import PersistenceError from '../errors/PersistenceError.js';
 import { cloneFrontier, updateFrontier } from './Frontier.js';
-import { vvDeserialize } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 
 /**
  * A decoded patch object after CBOR deserialization.
@@ -77,10 +77,10 @@ import { vvDeserialize } from '../crdt/VersionVector.js';
  * @private
  */
 function normalizePatch(patch) {
-  // Convert context from plain object to Map (VersionVector)
-  // CBOR deserialization returns plain objects, but join() expects a Map
-  if (patch.context && !(patch.context instanceof Map)) {
-    patch.context = vvDeserialize(/** @type {{ [x: string]: number }} */ (patch.context));
+  // Convert context from plain object to VersionVector.
+  // CBOR deserialization returns plain objects, but join() expects a VersionVector
+  if (patch.context && !(patch.context instanceof VersionVector)) {
+    patch.context = VersionVector.from(/** @type {{ [x: string]: number }} */ (patch.context));
   }
   return patch;
 }

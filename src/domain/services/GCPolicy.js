@@ -3,6 +3,7 @@
  */
 
 import { orsetCompact } from '../crdt/ORSet.js';
+import VersionVector from '../crdt/VersionVector.js';
 import { collectGCMetrics } from './GCMetrics.js';
 import WarpError from '../errors/WarpError.js';
 
@@ -85,7 +86,7 @@ export function shouldRunGC(metrics, policy) {
 /**
  * Compacts node and edge ORSets against the applied version vector.
  * @param {import('./JoinReducer.js').WarpStateV5} state - State to compact (mutated!)
- * @param {import('../crdt/VersionVector.js').VersionVector} appliedVV - Version vector cutoff
+ * @param {import('../crdt/VersionVector.js').default} appliedVV - Version vector cutoff
  * @throws {WarpError} E_GC_COMPACT_FAILED if orsetCompact throws
  */
 function compactORSets(state, appliedVV) {
@@ -110,15 +111,15 @@ function compactORSets(state, appliedVV) {
  * a rollback copy (see CheckpointService for the canonical pattern).
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state - State to compact (mutated!)
- * @param {import('../crdt/VersionVector.js').VersionVector} appliedVV - Version vector cutoff
+ * @param {import('../crdt/VersionVector.js').default} appliedVV - Version vector cutoff
  * @returns {GCExecuteResult}
- * @throws {WarpError} E_GC_INVALID_VV if appliedVV is not a Map
+ * @throws {WarpError} E_GC_INVALID_VV if appliedVV is not a VersionVector
  * @throws {WarpError} E_GC_COMPACT_FAILED if orsetCompact throws
  */
 export function executeGC(state, appliedVV) {
-  if (!(appliedVV instanceof Map)) {
+  if (!(appliedVV instanceof VersionVector)) {
     throw new WarpError(
-      'executeGC requires appliedVV to be a Map (VersionVector)',
+      'executeGC requires appliedVV to be a VersionVector',
       'E_GC_INVALID_VV',
     );
   }

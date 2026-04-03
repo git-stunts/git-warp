@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { materialize } from '../../../../src/domain/warp/materialize.methods.js';
+import MaterializeController from '../../../../src/domain/services/MaterializeController.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
@@ -59,12 +59,9 @@ describe('materialize stale-checkpoint regression', () => {
 
     let hydrateCalled = false;
     /** @type {any} */
-    const context = {
+    const host = {
       _clock: { now: () => 0 },
-      _resolveCeiling: () => null,
-      _materializeWithCeiling: async () => {
-        throw new Error('ceiling path should not be used');
-      },
+      _seekCeiling: null,
       _loadLatestCheckpoint: async () => ({
         schema: 4,
         state: latestState,
@@ -75,12 +72,17 @@ describe('materialize stale-checkpoint regression', () => {
       _maxObservedLamport: 0,
       _cachedIndexTree: null,
       _viewService: new MaterializedViewService(),
-      async _setMaterializedState(/** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ state) {
-        const result = this._viewService.build(state);
-        this._cachedState = state;
-        this._logicalIndex = result.logicalIndex;
-        this._cachedIndexTree = result.tree;
-      },
+      _cachedState: null,
+      _stateDirty: false,
+      _versionVector: null,
+      _crypto: null,
+      _codec: null,
+      _adjacencyCache: null,
+      _materializedGraph: null,
+      _cachedViewHash: null,
+      _logicalIndex: null,
+      _propertyReader: null,
+      _indexDegraded: false,
       // Old buggy path invoked this and replaced the fresh index with stale checkpoint data.
       async hydrateCheckpointIndex() {
         hydrateCalled = true;
@@ -101,10 +103,23 @@ describe('materialize stale-checkpoint regression', () => {
       _patchesSinceCheckpoint: 0,
     };
 
-    await /** @type {any} */ (materialize).call(context);
+    // Patch _setMaterializedState to mimic the real one for this test
+    const ctrl = new MaterializeController(host);
+    // Override _setMaterializedState to a simplified version that builds index
+    /** @type {any} */ (ctrl)._setMaterializedState = async (/** @type {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} */ state) => {
+      const result = host._viewService.build(state);
+      host._cachedState = state;
+      host._stateDirty = false;
+      host._logicalIndex = result.logicalIndex;
+      host._cachedIndexTree = result.tree;
+      host._materializedGraph = { state, stateHash: null, adjacency: { outgoing: new Map(), incoming: new Map() } };
+      return host._materializedGraph;
+    };
+
+    await ctrl.materialize();
 
     expect(hydrateCalled).toBe(false);
-    const neighbors = context._logicalIndex
+    const neighbors = host._logicalIndex
       .getEdges('A', 'out')
       .map((/** @type {{neighborId: string}} */ e) => e.neighborId)
       .sort();

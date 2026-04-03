@@ -274,7 +274,7 @@ export function sortPatchEntriesCausally(entries) {
   return [...entries].sort(comparePatchEntries);
 }
 
-/** @typedef {{ writer?: string, lamport?: number, schema?: number, ops?: Array<Record<string, unknown> & { type: string }>, reads?: string[], writes?: string[] }} DebugPatch */
+/** @typedef {{ writer?: string, lamport?: number, schema?: number, ops?: Array<Record<string, unknown> & { type: string }>, reads?: string[] | undefined, writes?: string[] | undefined }} DebugPatch */
 
 /**
  * Safely copies a string array or returns an empty array.

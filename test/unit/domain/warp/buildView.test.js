@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { _buildView } from '../../../../src/domain/warp/materializeAdvanced.methods.js';
+import MaterializeController from '../../../../src/domain/services/MaterializeController.js';
 import { createEmptyStateV5 } from '../../../../src/domain/services/JoinReducer.js';
 
 describe('_buildView', () => {
   it('logs warning when index build fails (H7)', () => {
     const warn = vi.fn();
-    const ctx = {
+    const host = {
       _cachedViewHash: null,
       _viewService: {
         build: () => { throw new Error('test build failure'); },
@@ -17,19 +17,20 @@ describe('_buildView', () => {
       _materializedGraph: {},
     };
 
-    _buildView.call(/** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash123');
+    const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash123');
 
     expect(warn).toHaveBeenCalledOnce();
     const firstCall = warn.mock.calls[0];
     expect(firstCall).toBeDefined();
     expect(firstCall?.[0]).toContain('index build failed');
-    expect(ctx._logicalIndex).toBeNull();
-    expect(ctx._propertyReader).toBeNull();
-    expect(ctx._cachedIndexTree).toBeNull();
+    expect(host._logicalIndex).toBeNull();
+    expect(host._propertyReader).toBeNull();
+    expect(host._cachedIndexTree).toBeNull();
   });
 
   it('does not log when no logger is set (H7 graceful)', () => {
-    const ctx = {
+    const host = {
       _cachedViewHash: null,
       _viewService: {
         build: () => { throw new Error('test build failure'); },
@@ -41,8 +42,9 @@ describe('_buildView', () => {
       _materializedGraph: {},
     };
 
+    const ctrl = /** @type {MaterializeController} */ (/** @type {unknown} */ ({ _host: host }));
     // Should not throw
-    _buildView.call(/** @type {import('../../../../src/domain/WarpRuntime.js').default} */ (/** @type {unknown} */ (ctx)), createEmptyStateV5(), 'hash456');
-    expect(ctx._logicalIndex).toBeNull();
+    /** @type {any} */ (MaterializeController.prototype)._buildView.call(ctrl, createEmptyStateV5(), 'hash456');
+    expect(host._logicalIndex).toBeNull();
   });
 });

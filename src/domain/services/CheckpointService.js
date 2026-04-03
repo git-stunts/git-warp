@@ -23,7 +23,7 @@ import { serializeFrontier, deserializeFrontier } from './Frontier.js';
 import { encodeCheckpointMessage, decodeCheckpointMessage } from './WarpMessageCodec.js';
 import { createORSet, orsetAdd, orsetCompact } from '../crdt/ORSet.js';
 import { createDot } from '../crdt/Dot.js';
-import { createVersionVector } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 import { cloneStateV5, reduceV5 } from './JoinReducer.js';
 import WarpStateV5 from './WarpStateV5.js';
 import { encodeEdgeKey, encodePropKey, CONTENT_PROPERTY_KEY, decodePropKey, isEdgePropKey, decodeEdgePropKey } from './KeyCodec.js';
@@ -41,11 +41,31 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
 export const CHECKPOINT_SCHEMA_STANDARD = 2;
 
 /**
+ * Intermediate V5 checkpoint schema — full state, no index tree.
+ * Produced by older builds that incremented past STANDARD but
+ * predated the index-tree layout.
+ * @type {number}
+ */
+export const CHECKPOINT_SCHEMA_V5_INTERMEDIATE = 3;
+
+/**
  * Index-tree checkpoint schema — full V5 state with bitmap index tree.
  * Distinct from the patch schema namespace (PATCH_SCHEMA_V2/V3).
  * @type {number}
  */
 export const CHECKPOINT_SCHEMA_INDEX_TREE = 4;
+
+/**
+ * Returns true if the schema number identifies a valid V5 checkpoint.
+ *
+ * @param {number | undefined | null} schema
+ * @returns {boolean}
+ */
+export function isV5CheckpointSchema(schema) {
+  return schema === CHECKPOINT_SCHEMA_STANDARD
+    || schema === CHECKPOINT_SCHEMA_V5_INTERMEDIATE
+    || schema === CHECKPOINT_SCHEMA_INDEX_TREE;
+}
 
 /**
  * Number of unique content blob OIDs to hold before folding a batch into the
@@ -372,7 +392,7 @@ export async function createV5({
  * @param {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default} persistence - Git persistence adapter
  * @param {string} checkpointSha - The checkpoint commit SHA to load
  * @param {{ codec?: import('../../ports/CodecPort.js').default }} [options] - Load options
- * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
+ * @returns {Promise<{state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null}>} The loaded checkpoint data
  * @throws {Error} If checkpoint is schema:1 (migration required)
  */
 export async function loadCheckpoint(persistence, checkpointSha, { codec } = {}) {
@@ -381,7 +401,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
   const decoded = /** @type {{ schema: number, stateHash: string, indexOid: string }} */ (decodeCheckpointMessage(message));
 
   // 2. Reject unsupported schemas - migration required for schema:1
-  if (decoded.schema !== 2 && decoded.schema !== 3 && decoded.schema !== 4) {
+  if (!isV5CheckpointSchema(decoded.schema)) {
     throw new Error(
       `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
         `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`
@@ -432,7 +452,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
     provenanceIndex = ProvenanceIndex.deserialize(provenanceIndexBuffer, loadCodecOpt);
   }
 
-  /** @type {{ state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: Map<string, number>|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+  /** @type {{ state: import('./JoinReducer.js').WarpStateV5, frontier: import('./Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('./ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
   const result = {
     state,
     frontier,
@@ -533,7 +553,7 @@ export function reconstructStateV5FromCheckpoint(visibleProjection) {
   const edgeAlive = createORSet();
   /** @type {Map<string, { eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number }, value: unknown }>} */
   const prop = new Map();
-  const observedFrontier = createVersionVector();
+  const observedFrontier = VersionVector.empty();
 
   // Reconstruct nodes as ORSet entries
   for (const nodeId of nodes) {

@@ -1,8 +1,8 @@
 /**
  * TypeScript augmentation for WarpRuntime wired methods.
  *
- * Methods in *.methods.js are wired onto WarpRuntime.prototype at runtime
- * via wireWarpMethods(). This declaration file makes them visible to tsc.
+ * Methods from extracted controllers are wired onto WarpRuntime.prototype
+ * via defineProperty delegation. This declaration file makes them visible to tsc.
  */
 
 import type { PatchBuilderV2 } from '../services/PatchBuilderV2.js';
@@ -617,7 +617,7 @@ declare module '../WarpRuntime.js' {
       allowedWriters?: string[];
     }): Promise<{ close(): Promise<void>; url: string }>;
 
-    // ── checkpoint.methods.js ─────────────────────────────────────────────
+    // ── CheckpointController ──────────────────────────────────────────────
     createCheckpoint(): Promise<string>;
     syncCoverage(): Promise<void>;
     _loadLatestCheckpoint(): Promise<CheckpointData | null>;
@@ -629,7 +629,7 @@ declare module '../WarpRuntime.js' {
     runGC(): GCExecuteResult;
     getGCMetrics(): GCMetrics | null;
 
-    // ── patch.methods.js ──────────────────────────────────────────────────
+    // ── PatchController ──────────────────────────────────────────────────
     createPatch(): Promise<PatchBuilderV2>;
     patch(build: (p: PatchBuilderV2) => void | Promise<void>): Promise<string>;
     patchMany(...builds: Array<(p: PatchBuilderV2) => void | Promise<void>>): Promise<string[]>;
@@ -643,14 +643,14 @@ declare module '../WarpRuntime.js' {
     discoverWriters(): Promise<string[]>;
     discoverTicks(): Promise<{ ticks: number[]; maxTick: number; perWriter: Map<string, { ticks: number[]; tipSha: string | null; tickShas: Record<number, string> }> }>;
     join(otherState: WarpStateV5): { state: WarpStateV5; receipt: JoinReceipt };
-    _frontierEquals(a: Map<string, number>, b: Map<string, number>): boolean;
+    _frontierEquals(a: import('../crdt/VersionVector.js').default, b: import('../crdt/VersionVector.js').default): boolean;
 
-    // ── materialize.methods.js ────────────────────────────────────────────
+    // ── MaterializeController ─────────────────────────────────────────────
     materialize(options: { receipts: true; ceiling?: number | null }): Promise<{ state: WarpStateV5; receipts: TickReceipt[] }>;
     materialize(options?: { receipts?: false; ceiling?: number | null }): Promise<WarpStateV5>;
     _materializeGraph(): Promise<{ state: WarpStateV5; stateHash: string; adjacency: unknown }>;
 
-    // ── materializeAdvanced.methods.js ────────────────────────────────────
+    // ── MaterializeController (advanced) ──────────────────────────────────
     _resolveCeiling(options?: { ceiling?: number | null }): number | null;
     _buildAdjacency(state: WarpStateV5): { outgoing: Map<string, Array<{ neighborId: string; label: string }>>; incoming: Map<string, Array<{ neighborId: string; label: string }>> };
     _buildView(state: WarpStateV5, stateHash: string, diff?: import('../types/PatchDiff.js').PatchDiff): void;

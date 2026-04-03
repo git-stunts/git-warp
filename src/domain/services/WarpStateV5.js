@@ -8,7 +8,7 @@
  */
 
 import { createORSet, orsetClone } from '../crdt/ORSet.js';
-import { createVersionVector, vvClone } from '../crdt/VersionVector.js';
+import VersionVector from '../crdt/VersionVector.js';
 
 /**
  * The CRDT materialized state for a WARP graph.
@@ -17,16 +17,16 @@ import { createVersionVector, vvClone } from '../crdt/VersionVector.js';
  * be cloned before handing to consumers that expect isolation.
  */
 export default class WarpStateV5 {
-  /** @type {import('../crdt/ORSet.js').ORSet} */
+  /** @type {import('../crdt/ORSet.js').default} */
   nodeAlive;
 
-  /** @type {import('../crdt/ORSet.js').ORSet} */
+  /** @type {import('../crdt/ORSet.js').default} */
   edgeAlive;
 
   /** @type {Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>} */
   prop;
 
-  /** @type {import('../crdt/VersionVector.js').VersionVector} */
+  /** @type {import('../crdt/VersionVector.js').default} */
   observedFrontier;
 
   /**
@@ -39,10 +39,10 @@ export default class WarpStateV5 {
    * Creates a WarpStateV5 from field values.
    *
    * @param {{
-   *   nodeAlive: import('../crdt/ORSet.js').ORSet,
-   *   edgeAlive: import('../crdt/ORSet.js').ORSet,
+   *   nodeAlive: import('../crdt/ORSet.js').default,
+   *   edgeAlive: import('../crdt/ORSet.js').default,
    *   prop: Map<string, import('../crdt/LWW.js').LWWRegister<unknown>>,
-   *   observedFrontier: import('../crdt/VersionVector.js').VersionVector,
+   *   observedFrontier: import('../crdt/VersionVector.js').default,
    *   edgeBirthEvent?: Map<string, import('../utils/EventId.js').EventId>
    * }} fields
    */
@@ -64,7 +64,7 @@ export default class WarpStateV5 {
       nodeAlive: createORSet(),
       edgeAlive: createORSet(),
       prop: new Map(),
-      observedFrontier: createVersionVector(),
+      observedFrontier: VersionVector.empty(),
       edgeBirthEvent: new Map(),
     });
   }
@@ -79,7 +79,7 @@ export default class WarpStateV5 {
       nodeAlive: orsetClone(this.nodeAlive),
       edgeAlive: orsetClone(this.edgeAlive),
       prop: new Map(this.prop),
-      observedFrontier: vvClone(this.observedFrontier),
+      observedFrontier: this.observedFrontier.clone(),
       edgeBirthEvent: new Map(this.edgeBirthEvent),
     });
   }
