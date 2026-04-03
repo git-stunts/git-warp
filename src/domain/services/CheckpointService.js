@@ -41,11 +41,31 @@ import { ProvenanceIndex } from './ProvenanceIndex.js';
 export const CHECKPOINT_SCHEMA_STANDARD = 2;
 
 /**
+ * Intermediate V5 checkpoint schema — full state, no index tree.
+ * Produced by older builds that incremented past STANDARD but
+ * predated the index-tree layout.
+ * @type {number}
+ */
+export const CHECKPOINT_SCHEMA_V5_INTERMEDIATE = 3;
+
+/**
  * Index-tree checkpoint schema — full V5 state with bitmap index tree.
  * Distinct from the patch schema namespace (PATCH_SCHEMA_V2/V3).
  * @type {number}
  */
 export const CHECKPOINT_SCHEMA_INDEX_TREE = 4;
+
+/**
+ * Returns true if the schema number identifies a valid V5 checkpoint.
+ *
+ * @param {number | undefined | null} schema
+ * @returns {boolean}
+ */
+export function isV5CheckpointSchema(schema) {
+  return schema === CHECKPOINT_SCHEMA_STANDARD
+    || schema === CHECKPOINT_SCHEMA_V5_INTERMEDIATE
+    || schema === CHECKPOINT_SCHEMA_INDEX_TREE;
+}
 
 /**
  * Number of unique content blob OIDs to hold before folding a batch into the
@@ -381,7 +401,7 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec } = {})
   const decoded = /** @type {{ schema: number, stateHash: string, indexOid: string }} */ (decodeCheckpointMessage(message));
 
   // 2. Reject unsupported schemas - migration required for schema:1
-  if (decoded.schema !== 2 && decoded.schema !== 3 && decoded.schema !== 4) {
+  if (!isV5CheckpointSchema(decoded.schema)) {
     throw new Error(
       `Checkpoint ${checkpointSha} is schema:${decoded.schema}. ` +
         `Only schema:2, schema:3, and schema:4 checkpoints are supported. Please migrate using MigrationService.`

@@ -43,6 +43,7 @@ export class EventId {
     this.writerId = writerId;
     this.patchSha = patchSha;
     this.opIndex = opIndex;
+    Object.freeze(this);
   }
 }
 

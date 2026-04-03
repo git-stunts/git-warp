@@ -7,6 +7,7 @@
  */
 
 import { reduceV5, createEmptyStateV5, cloneStateV5 } from '../services/JoinReducer.js';
+import { isV5CheckpointSchema } from '../services/CheckpointService.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../services/ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../services/ProvenanceIndex.js';
 import { diffStates, isEmptyDiff } from '../services/StateDiff.js';
@@ -155,7 +156,7 @@ export async function materialize(options) {
     const wantDiff = collectReceipts !== true && this._cachedIndexTree !== null && this._cachedIndexTree !== undefined;
 
     // If checkpoint exists, use incremental materialization
-    if (checkpoint?.schema === 2 || checkpoint?.schema === 3 || checkpoint?.schema === 4) {
+    if (isV5CheckpointSchema(checkpoint?.schema)) {
       const patches = await this._loadPatchesSince(checkpoint);
       // Update max observed Lamport so _nextLamport() issues globally-monotonic ticks.
       // Read the checkpoint frontier's tip commit messages to capture the pre-checkpoint max,

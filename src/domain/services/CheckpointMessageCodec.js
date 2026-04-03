@@ -14,6 +14,7 @@
  */
 
 import { validateGraphName } from '../utils/RefLayout.js';
+import { isV5CheckpointSchema } from './CheckpointService.js';
 import {
   getCodec,
   MESSAGE_TITLES,
@@ -75,8 +76,8 @@ export function encodeCheckpointMessage({ graph, stateHash, frontierOid, indexOi
     [tkSchema]: String(schema),
   };
 
-  // Add checkpoint version marker for V5 format (schema:2, schema:3, schema:4)
-  if (schema === 2 || schema === 3 || schema === 4) {
+  // Add checkpoint version marker for V5 format
+  if (isV5CheckpointSchema(schema)) {
     trailers[tkCheckpointVersion] = 'v5';
   }
 

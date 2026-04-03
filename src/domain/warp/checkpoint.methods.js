@@ -11,7 +11,7 @@ import { QueryError, E_NO_STATE_MSG } from './_internal.js';
 import { SchemaUnsupportedError } from '../errors/index.js';
 import { buildWriterRef, buildCheckpointRef, buildCoverageRef } from '../utils/RefLayout.js';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../services/Frontier.js';
-import { loadCheckpoint, create as createCheckpointCommit } from '../services/CheckpointService.js';
+import { loadCheckpoint, create as createCheckpointCommit, isV5CheckpointSchema } from '../services/CheckpointService.js';
 import { decodePatchMessage, detectMessageKind, encodeAnchorMessage } from '../services/WarpMessageCodec.js';
 import { shouldRunGC, executeGC } from '../services/GCPolicy.js';
 import { collectGCMetrics } from '../services/GCMetrics.js';
@@ -238,7 +238,7 @@ export async function _loadPatchesSince(checkpoint) {
  */
 export async function _validateMigrationBoundary() {
   const checkpoint = await this._loadLatestCheckpoint();
-  if (checkpoint?.schema === 2 || checkpoint?.schema === 3 || checkpoint?.schema === 4) {
+  if (isV5CheckpointSchema(checkpoint?.schema)) {
     return;  // Already migrated
   }
 

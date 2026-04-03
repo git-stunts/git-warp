@@ -8,6 +8,7 @@
  */
 
 import ForkError from '../errors/ForkError.js';
+import { CHECKPOINT_SCHEMA_STANDARD, CHECKPOINT_SCHEMA_V5_INTERMEDIATE } from './CheckpointService.js';
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../utils/RefLayout.js';
 import { generateWriterId } from '../utils/WriterId.js';
 import { createWormhole as createWormholeImpl } from './WormholeService.js';
@@ -264,7 +265,7 @@ export default class ForkController {
    * @returns {Promise<void>}
    */
   async _validatePatchAgainstCheckpoint(writerId, incomingSha, checkpoint) {
-    if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== 2 && checkpoint.schema !== 3)) {
+    if (checkpoint === null || checkpoint === undefined || (checkpoint.schema !== CHECKPOINT_SCHEMA_STANDARD && checkpoint.schema !== CHECKPOINT_SCHEMA_V5_INTERMEDIATE)) {
       return;
     }
 
