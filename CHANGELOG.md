@@ -31,12 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`ProvenanceController`** (242 LOC) — patch lookups, backward causal cone, slice materialization
   - **`ForkController`** (274 LOC) — fork creation, wormhole compression, backfill rejection
   - **`QueryController`** (964 LOC) — all read queries, observer/worldline factories, content access
-- **`AuditReceipt` promoted to class** — replaced `@typedef {Object}` with a real JavaScript class. Constructor validates and freezes. Fields declared in alphabetical order for canonical CBOR serialization.
+- **`AuditReceipt` promoted to class** — replaced `@typedef {Object}` with a real JavaScript class. Constructor validates and freezes.
 - **WarpApp/WarpCore content methods** — replaced direct function imports from `query.methods.js` with `callInternalRuntimeMethod()` delegation, which correctly resolves dynamically wired prototype methods.
+- **11 typedef-to-class promotions (NO_DOGS_NO_MASTERS)** — replaced phantom `@typedef {Object}` shapes with real JavaScript classes: `WarpStateV5`, `Dot`, `EventId`, `EffectEmission`, `EffectCoordinate`, `DeliveryObservation`, `TickReceipt`, `PatchDiff`, `LWWRegister`, `BTR`, `TrustState`. Each class has a constructor, validates inputs where applicable, and supports `instanceof`. Factory functions retained for backward compatibility.
+- **CBOR codec canonical key sorting for class instances** — both `CborCodec` and `defaultCodec` now sort keys for all object types (not just plain objects), using `instanceof` checks to skip built-in CBOR-native types (Uint8Array, Date, Set, Map, RegExp). This decouples class field declaration order from wire format, matching Echo's Rust canonical encoder behavior.
 
 ### Added
 
 - **`AuditError`** — domain error class for audit receipt validation and persistence failures. Exported from package root with four static error codes.
+- **`WarpStateV5` class** — core CRDT materialized state promoted from typedef to its own module (`src/domain/services/WarpStateV5.js`). Provides `static empty()` factory and `clone()` method. Re-exported from `JoinReducer.js` for backward compatibility.
 - **`NO_DOGS_NO_MASTERS` legend** — backlog legend for god object decomposition and typedef-to-class liberation. Code: `NDNM_`.
 
 - **Effect emission & delivery observation substrate slice** — new receipt families for outbound effects and their delivery lifecycle. `EffectEmission` records that the system produced an outbound effect candidate at a causal coordinate. `DeliveryObservation` records how a sink handled that emission (delivered, suppressed, failed, skipped). `ExternalizationPolicy` provides execution context (live/replay/inspect) that shapes delivery behavior. Preset lenses `LIVE_LENS`, `REPLAY_LENS`, and `INSPECT_LENS` cover common modes.
