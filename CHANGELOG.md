@@ -24,13 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AuditReceiptService uses AuditError** — all 16 raw `Error` throws replaced with typed `AuditError` carrying serializable context and machine-readable error codes (`E_AUDIT_INVALID`, `E_AUDIT_CAS_FAILED`, `E_AUDIT_DEGRADED`).
 - **CLI import.meta.url resolution** — replaced `__dirname` polyfill pattern in CLI with idiomatic `fileURLToPath(new URL('../..', import.meta.url))` for resilient package root resolution.
 
-- **WarpRuntime god class decomposition (NO_DOGS_NO_MASTERS)** — extracted 6 of 11 mixin method groups into independent service controllers, following the SyncController precedent. Each controller receives the runtime host via constructor injection and delegates through `defineProperty` loops on the prototype. Public API surface unchanged — all 100+ methods remain on `WarpRuntime.prototype`. The remaining 4 mixins (checkpoint, patch, materialize, materializeAdvanced) form the core mutation kernel and are deferred to a future cycle.
+- **WarpRuntime god class decomposition (NO_DOGS_NO_MASTERS)** — extracted all 11 mixin method groups into independent service controllers, following the SyncController precedent. Each controller receives the runtime host via constructor injection and delegates through `defineProperty` loops on the prototype. Public API surface unchanged — all 100+ methods remain on `WarpRuntime.prototype`. `wireWarpMethods` is no longer called from `WarpRuntime.js`.
   - **`StrandController`** (182 LOC) — strand lifecycle + conflict analysis, cached StrandService instance
   - **`ComparisonController`** (1,155 LOC) — coordinate/strand comparison, transfer planning
   - **`SubscriptionController`** (244 LOC) — subscribe, watch, notification dispatch
   - **`ProvenanceController`** (242 LOC) — patch lookups, backward causal cone, slice materialization
   - **`ForkController`** (274 LOC) — fork creation, wormhole compression, backfill rejection
   - **`QueryController`** (964 LOC) — all read queries, observer/worldline factories, content access
+  - **`PatchController`** (500 LOC) — state mutation, writer lifecycle, discovery, CRDT join
+  - **`CheckpointController`** — snapshot lifecycle, GC, coverage anchoring
+  - **`MaterializeController`** — merged `materialize.methods.js` + `materializeAdvanced.methods.js` into a single controller covering full and ceiling-aware materialization, adjacency building, bitmap index management, coordinate materialization, and seek cache
 - **`AuditReceipt` promoted to class** — replaced `@typedef {Object}` with a real JavaScript class. Constructor validates and freezes.
 - **WarpApp/WarpCore content methods** — replaced direct function imports from `query.methods.js` with `callInternalRuntimeMethod()` delegation, which correctly resolves dynamically wired prototype methods.
 - **11 typedef-to-class promotions (NO_DOGS_NO_MASTERS)** — replaced phantom `@typedef {Object}` shapes with real JavaScript classes: `WarpStateV5`, `Dot`, `EventId`, `EffectEmission`, `EffectCoordinate`, `DeliveryObservation`, `TickReceipt`, `PatchDiff`, `LWWRegister`, `BTR`, `TrustState`. Each class has a constructor, validates inputs where applicable, and supports `instanceof`. Factory functions retained for backward compatibility.

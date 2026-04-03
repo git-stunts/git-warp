@@ -31,11 +31,10 @@ import SyncTrustGate from './services/SyncTrustGate.js';
 import { AuditVerifierService } from './services/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
-import { wireWarpMethods } from './warp/_wire.js';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
-import * as materializeMethods from './warp/materialize.methods.js';
-import * as materializeAdvancedMethods from './warp/materializeAdvanced.methods.js';
+// materialize.methods.js + materializeAdvanced.methods.js replaced by MaterializeController
+import MaterializeController from './services/MaterializeController.js';
 
 /** @typedef {import('./types/WarpPersistence.js').CorePersistence} CorePersistence */
 
@@ -334,6 +333,9 @@ export default class WarpRuntime {
 
     /** @type {CheckpointController} */
     this._checkpointController = new CheckpointController(this);
+
+    /** @type {MaterializeController} */
+    this._materializeController = new MaterializeController(this);
 
     /** @type {MaterializedViewService} */
     this._viewService = new MaterializedViewService({
@@ -669,11 +671,30 @@ export default class WarpRuntime {
   }
 }
 
-// ── Wire extracted method groups onto WarpRuntime.prototype ───────────────────
-wireWarpMethods(WarpRuntime, [
-  materializeMethods,
-  materializeAdvancedMethods,
+// ── Materialize methods: direct delegation to MaterializeController ─────────
+const materializeDelegates = /** @type {const} */ ([
+  'materialize', '_materializeGraph',
+  '_resolveCeiling', '_buildAdjacency', '_setMaterializedState', '_buildView',
+  'materializeCoordinate', '_materializeWithCeiling', '_materializeWithCoordinate',
+  '_persistSeekCacheEntry', '_restoreIndexFromCache',
+  'materializeAt', 'verifyIndex', 'invalidateIndex',
 ]);
+for (const method of materializeDelegates) {
+  Object.defineProperty(WarpRuntime.prototype, method, {
+    // eslint-disable-next-line object-shorthand -- function keyword needed for `this` binding
+    value: /** Delegates to MaterializeController. @param {unknown[]} args @returns {unknown} */ function (...args) {
+      /** @type {unknown} */
+      const raw = this;
+      const self = /** @type {WarpRuntime} */ (raw);
+      const ctrl = /** @type {Record<string, Function>} */ (/** @type {unknown} */ (self._materializeController));
+      const fn = /** @type {(...a: unknown[]) => unknown} */ (ctrl[method]);
+      return fn.call(ctrl, ...args);
+    },
+    writable: true,
+    configurable: true,
+    enumerable: false,
+  });
+}
 
 // ── Checkpoint methods: direct delegation to CheckpointController ─────────────
 const checkpointDelegates = /** @type {const} */ ([
