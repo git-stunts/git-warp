@@ -15,9 +15,11 @@ analysis, 10 cohesive groups identified, no circular dependencies.
 
 ## What feels wrong?
 
-- WorldlineSource is still a tagged object, not a subclass hierarchy.
-- `defaultCodec.js` lives in `domain/utils/` but imports `cbor-x`
-  directly — a hexagonal boundary violation.
+- ~~WorldlineSource~~ Shipped as WorldlineSelector hierarchy (cycle 0007).
+- 20 domain services do serialization directly (`codec.encode()`/
+  `codec.decode()`). The fix isn't moving files — it's dissolving
+  serialization into the adapter layer so domain speaks domain
+  objects, not bytes. See `NDNM_defaultcodec-to-infrastructure.md`.
 - The two legends (CLEAN_CODE, NO_DOGS_NO_MASTERS) overlap
   significantly. May need consolidation or clearer boundaries.
 - JoinReducer is imported by 8 of 10 service clusters — it is the

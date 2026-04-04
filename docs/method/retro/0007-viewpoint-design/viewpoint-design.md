@@ -73,13 +73,23 @@ through"), not to understand the problem.
 This is now an L-effort architectural item, not an S-effort file
 move. Backlog item rewritten as
 `NDNM_defaultcodec-to-infrastructure.md` with the full audit of
-20 offending services and a phased approach:
+20 offending services and a phased approach.
 
-1. Delete dead code (canonicalCbor.js)
-2. Audit which services' primary concern IS serialization
-3. Move serialization-primary services to infrastructure
-4. For the rest, delegate serialization to adapters
-5. When no domain service imports defaultCodec, delete it
+**Corrected 2026-04-04:** The original redo plan (below, struck) was
+still wrong — it kept serializer services alive, just in a different
+folder. The real fix: domain services produce domain objects. The
+persistence adapter serializes at the boundary. Serializer services
+dissolve into the adapter layer. Port contracts speak domain types,
+not bytes. `defaultCodec` disappears because nothing in domain needs
+it.
+
+~~1. Delete dead code (canonicalCbor.js)~~
+~~2. Audit which services' primary concern IS serialization~~
+~~3. Move serialization-primary services to infrastructure~~
+~~4. For the rest, delegate serialization to adapters~~
+~~5. When no domain service imports defaultCodec, delete it~~
+
+See updated backlog item for corrected phased approach.
 
 ## Drift check
 
