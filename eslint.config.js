@@ -295,6 +295,7 @@ export default tseslint.config(
       "src/domain/services/state/StateReaderV5.js",
       "src/domain/services/sync/SyncAuthService.js",
       "src/infrastructure/adapters/GitGraphAdapter.js",
+      "src/infrastructure/adapters/CborCheckpointStoreAdapter.js",
       "src/visualization/renderers/ascii/path.js",
       "src/domain/services/strand/StrandService.js",
       "src/domain/services/query/AdjacencyNeighborProvider.js",
