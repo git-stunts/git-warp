@@ -77,11 +77,8 @@ move. Backlog item rewritten as
 
 **Corrected 2026-04-04:** The original redo plan (below, struck) was
 still wrong — it kept serializer services alive, just in a different
-folder. The real fix: domain services produce domain objects. The
-persistence adapter serializes at the boundary. Serializer services
-dissolve into the adapter layer. Port contracts speak domain types,
-not bytes. `defaultCodec` disappears because nothing in domain needs
-it.
+folder. "Dissolve into adapters" was also wrong — it would create a
+god object in GitGraphAdapter.
 
 ~~1. Delete dead code (canonicalCbor.js)~~
 ~~2. Audit which services' primary concern IS serialization~~
@@ -89,7 +86,15 @@ it.
 ~~4. For the rest, delegate serialization to adapters~~
 ~~5. When no domain service imports defaultCodec, delete it~~
 
-See updated backlog item for corrected phased approach.
+The real fix is a two-stage boundary: domain-facing artifact ports
+that speak domain types (PatchJournalPort, CheckpointStorePort, etc.)
+backed by infrastructure adapters that own the codec and talk to the
+raw Git ports. Serializer files that mix domain logic with byte
+encoding get split — projection stays in domain, encoding goes behind
+the adapter. Strangler refactor: patches first, then checkpoints,
+then indexes, then provenance/BTR.
+
+See `NDNM_defaultcodec-to-infrastructure.md` for the full plan.
 
 ## Drift check
 
