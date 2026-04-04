@@ -10,53 +10,72 @@ concrete codec dependency inside the domain layer. This violates P5
 24 domain files import `defaultCodec` as a fallback:
 `const c = codec || defaultCodec;`
 
-## Current State
-
-Two CBOR codecs exist:
-
-| File | Location | Shape |
-|------|----------|-------|
-| `defaultCodec.js` | `domain/utils/` | Plain object literal implementing CodecPort |
-| `CborCodec.js` | `infrastructure/codecs/` | Class extending CodecPort |
-
-Both do the same thing: recursive key sorting + cbor-x encode/decode.
-`CborCodec` is more documented and stricter (validates Map keys).
-`defaultCodec` is simpler but functionally equivalent.
+This is wrong. The domain should speak only through the `CodecPort`
+interface. If a service needs a codec, it receives one via
+constructor injection. The decision of WHICH codec to use belongs
+at the composition root, not scattered across 24 files.
 
 ## Design
 
-**Move the implementation. Leave a re-export shim.**
+**Move the implementation. Kill the import. Inject at the root.**
 
-1. `git mv` `defaultCodec.js` to
-   `infrastructure/codecs/DefaultCodecAdapter.js`
-2. Create a one-line re-export shim at `domain/utils/defaultCodec.js`:
-   ```javascript
-   export { default } from '../../infrastructure/codecs/DefaultCodecAdapter.js';
-   ```
-3. Update module JSDoc and description in the moved file
-4. Update `bin/` and `test/` files that import directly from
-   `domain/utils/defaultCodec.js` to import from the infrastructure
-   path instead (they're outside domain — no need for the shim)
+### Step 1: Move defaultCodec to infrastructure
 
-## Why a shim instead of updating 24 files?
+`git mv src/domain/utils/defaultCodec.js` →
+`src/infrastructure/codecs/DefaultCodecAdapter.js`
 
-- Zero behavioral change — all 24 domain consumers keep their
-  existing import path
-- The shim is a one-line bridge that makes the dependency direction
-  explicit: domain → (shim) → infrastructure
-- Bulk-updating 24 files is mechanical churn that adds risk without
-  adding value
-- The shim can be removed in a future cycle if we decide to inject
-  the codec everywhere
+Update module JSDoc. No re-export shim — the old path dies.
 
-## What about CborCodec?
+### Step 2: Inject codec from the composition root
 
-Keep it. `CborCodec` is the explicit, class-based adapter for
-consumers who want to construct a codec with options.
-`DefaultCodecAdapter` is the pre-configured singleton for the
-fallback pattern. Different use cases, both legitimate.
+`WarpRuntime` already accepts a `codec` option and defaults to
+`defaultCodec` if not provided. This is the composition root.
+Every service that currently does `codec || defaultCodec` should
+instead receive the codec from its caller (ultimately from
+WarpRuntime).
+
+For each of the 24 domain files:
+- Remove `import defaultCodec from '...'`
+- Change `codec || defaultCodec` → just `codec`
+- If the service can receive a null codec, make it a required
+  constructor param or propagate from the caller
+
+### Step 3: Update WarpRuntime to provide the default
+
+`WarpRuntime.open()` already defaults:
+```javascript
+this._codec = codec || defaultCodec;
+```
+
+Change this to:
+```javascript
+import DefaultCodecAdapter from '../infrastructure/codecs/DefaultCodecAdapter.js';
+this._codec = codec || DefaultCodecAdapter;
+```
+
+WarpRuntime is at the domain/infrastructure boundary — it's allowed
+to import infrastructure (it already imports GitGraphAdapter, etc.).
+
+### Step 4: Update bin/ and test/ files
+
+These are outside domain — they import directly from infrastructure:
+```javascript
+import DefaultCodecAdapter from '.../infrastructure/codecs/DefaultCodecAdapter.js';
+```
+
+## Why not a shim?
+
+A re-export shim in `domain/utils/defaultCodec.js` would let the 24
+domain files keep their import. But that's leaving the smell in place
+with a coat of paint. The whole point of P5 is that domain services
+should not know what codec they're using. A shim still makes them
+reach for a specific codec — it just hides the reach behind one
+level of indirection.
+
+The proper fix is injection. The churn is mechanical and the result
+is a clean hexagonal boundary.
 
 ## Breaking changes
 
-None. Import paths unchanged for domain consumers. `bin/` and `test/`
-paths change but those are internal.
+None externally. The codec injection is internal wiring. Public API
+unchanged.
