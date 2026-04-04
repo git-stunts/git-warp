@@ -51,4 +51,21 @@ export default class PatchJournalPort {
   get usesExternalStorage() {
     return false;
   }
+
+  /**
+   * Scans patches in a writer's chain between two SHAs, yielding
+   * PatchEntry instances in chronological order (oldest first).
+   *
+   * This is the unbounded streaming alternative to the legacy
+   * loadPatchRange() which returns a whole array.
+   *
+   * @param {string} _writerId - The writer whose chain to scan
+   * @param {string|null} _fromSha - Start SHA (exclusive), null for all
+   * @param {string} _toSha - End SHA (inclusive)
+   * @returns {import('../domain/stream/WarpStream.js').default<import('../domain/artifacts/PatchEntry.js').default>}
+   * @throws {Error} If not implemented by a concrete adapter
+   */
+  scanPatchRange(_writerId, _fromSha, _toSha) {
+    throw new WarpError('PatchJournalPort.scanPatchRange() not implemented', 'E_NOT_IMPLEMENTED');
+  }
 }

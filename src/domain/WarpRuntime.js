@@ -551,6 +551,7 @@ export default class WarpRuntime {
       graph._patchJournal = new CborPatchJournalAdapter({
         codec: graph._codec,
         blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
+        commitPort: /** @type {import('../ports/CommitPort.js').default} */ (persistence),
         ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { patchBlobStorage } : {}),
       });
     }
