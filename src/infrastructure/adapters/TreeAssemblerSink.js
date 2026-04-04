@@ -1,0 +1,45 @@
+import Sink from '../../domain/stream/Sink.js';
+
+/**
+ * Stream sink that accumulates [path, oid] entries and assembles them
+ * into a Git tree on finalization.
+ *
+ * Consumes: `[string, string]` — path + blob OID
+ * Produces: `string` — the Git tree OID
+ *
+ * @extends {Sink<[string, string], string>}
+ */
+export class TreeAssemblerSink extends Sink {
+  /**
+   * Creates a TreeAssemblerSink.
+   *
+   * @param {import('../../ports/TreePort.js').default} treePort
+   */
+  constructor(treePort) {
+    super();
+    /** @type {import('../../ports/TreePort.js').default} */
+    this._treePort = treePort;
+    /** @type {string[]} mktree-formatted entries */
+    this._entries = [];
+  }
+
+  /**
+   * Accepts a [path, oid] entry and formats it for mktree.
+   *
+   * @param {[string, string]} item
+   */
+  _accept(item) {
+    const [path, oid] = item;
+    this._entries.push(`100644 blob ${oid}\t${path}`);
+  }
+
+  /**
+   * Builds the Git tree from accumulated entries.
+   *
+   * @returns {Promise<string>} The tree OID
+   */
+  async _finalize() {
+    this._entries.sort();
+    return await this._treePort.writeTree(this._entries);
+  }
+}
