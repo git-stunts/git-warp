@@ -10,6 +10,8 @@ import { processSyncRequest } from '../../../../src/domain/services/sync/SyncPro
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -52,6 +54,13 @@ function createMockPersistence(/** @type {Record<string, any>} */ commits = {}, 
   };
 }
 
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+  });
+}
+
 function createMockLogger() {
   return {
     debug: vi.fn(),
@@ -81,7 +90,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { logger },
+      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // Should return empty patches (diverged writer skipped)
@@ -115,7 +124,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { logger },
+      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     expect(response.patches).toHaveLength(1);
@@ -138,7 +147,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_B]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events',
+      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence) },
     );
 
     expect(response.patches).toHaveLength(0);
@@ -162,7 +171,7 @@ describe('B65 — Sync divergence logging', () => {
     const localFrontier = new Map([['w1', SHA_A], ['w2', SHA_C]]);
 
     const response = await processSyncRequest(
-      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { logger },
+      /** @type {*} */ (request), localFrontier, /** @type {any} */ (persistence), 'events', { patchJournal: createPatchJournal(persistence), logger },
     );
 
     // w1 skipped (diverged), w2 returned
