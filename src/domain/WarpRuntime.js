@@ -576,7 +576,7 @@ export default class WarpRuntime {
     }
 
     // Auto-construct StateHashService from codec + crypto (only when crypto is available)
-    if (graph._crypto) {
+    if (graph._crypto !== undefined && graph._crypto !== null) {
       graph._stateHashService = new StateHashService({
         codec: graph._codec,
         crypto: graph._crypto,

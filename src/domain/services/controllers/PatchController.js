@@ -161,9 +161,21 @@ export default class PatchController {
       }
 
       const patchMeta = decodePatchMessage(message);
-      /** @type {import('../../../ports/PatchJournalPort.js').default} */
+      /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
-      const journal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal);
+      const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (h._patchJournal);
+      if (journal === null || journal === undefined) {
+        // Legacy fallback: read the patch blob directly and decode with the codec
+        const raw = await h._persistence.readBlob(patchMeta.patchOid);
+        const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (h._codec.decode(raw));
+        patches.push({ patch: decoded, sha: currentSha });
+        if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
+          currentSha = nodeInfo.parents[0] ?? '';
+        } else {
+          break;
+        }
+        continue;
+      }
       const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (
         await journal.readPatch(patchMeta.patchOid, { encrypted: patchMeta.encrypted })
       );

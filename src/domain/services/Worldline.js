@@ -83,7 +83,7 @@ function buildDetachedOpenOptions(graph) {
  * Collects optional nullable fields, converting null to undefined for .open() compatibility.
  *
  * @param {WarpRuntime} graph
- * @returns {{ checkpointPolicy?: unknown, logger?: unknown, seekCache?: unknown, blobStorage?: unknown, patchBlobStorage?: unknown }}
+ * @returns {{ checkpointPolicy?: unknown, logger?: unknown, seekCache?: unknown, blobStorage?: unknown, patchBlobStorage?: unknown, patchJournal?: unknown, checkpointStore?: unknown }}
  */
 function nullableOpenFields(graph) {
   return {
@@ -92,6 +92,8 @@ function nullableOpenFields(graph) {
     seekCache: orUndefined(graph._seekCache),
     blobStorage: orUndefined(graph._blobStorage),
     patchBlobStorage: orUndefined(graph._patchBlobStorage),
+    patchJournal: orUndefined(graph._patchJournal),
+    checkpointStore: orUndefined(graph._checkpointStore),
   };
 }
 

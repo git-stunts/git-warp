@@ -802,6 +802,7 @@ async function openDetachedReadGraph(graph) {
   if (graph._seekCache !== undefined && graph._seekCache !== null) { opts.seekCache = graph._seekCache; }
   if (graph._blobStorage !== undefined && graph._blobStorage !== null) { opts.blobStorage = graph._blobStorage; }
   if (graph._patchBlobStorage !== undefined && graph._patchBlobStorage !== null) { opts.patchBlobStorage = graph._patchBlobStorage; }
+  if (graph._checkpointStore !== undefined && graph._checkpointStore !== null) { opts.checkpointStore = graph._checkpointStore; }
   return await GraphClass.open(opts);
 }
 
@@ -1979,12 +1980,24 @@ export default class StrandService {
       writer: overlayId,
       lamport,
     };
-    const patchCbor = this._graph._codec.encode(committedPatch);
-    const patchBlobOid = this._graph._patchBlobStorage
-      ? await this._graph._patchBlobStorage.store(patchCbor, {
-        slug: `${this._graph._graphName}/${overlayId}/patch`,
-      })
-      : await this._graph._persistence.writeBlob(patchCbor);
+    /** @type {string} */
+    let patchBlobOid;
+    /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+    const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (this._graph._patchJournal);
+    if (journal !== undefined && journal !== null) {
+      patchBlobOid = await journal.writePatch(
+        /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (committedPatch),
+      );
+    } else {
+      // Legacy fallback: encode + write blob directly
+      const patchCbor = this._graph._codec.encode(committedPatch);
+      patchBlobOid = this._graph._patchBlobStorage
+        ? await this._graph._patchBlobStorage.store(patchCbor, {
+          slug: `${this._graph._graphName}/${overlayId}/patch`,
+        })
+        : await this._graph._persistence.writeBlob(patchCbor);
+    }
 
     const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
     const uniqueBlobOids = [...new Set(contentBlobOids)];

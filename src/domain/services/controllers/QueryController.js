@@ -96,6 +96,9 @@ async function openDetachedObserverGraph(graph) {
     ...(graph._blobStorage ? { blobStorage: graph._blobStorage } : {}),
     ...(graph._patchBlobStorage ? { patchBlobStorage: graph._patchBlobStorage } : {}),
     ...(graph._trustConfig !== undefined && graph._trustConfig !== null ? { trust: graph._trustConfig } : {}),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+    ...(graph._patchJournal !== undefined && graph._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal) } : {}),
+    ...(graph._checkpointStore ? { checkpointStore: graph._checkpointStore } : {}),
   });
 }
 
