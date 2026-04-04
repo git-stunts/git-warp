@@ -1,0 +1,62 @@
+/**
+ * Hex Tripwire Test — Patch Serialization Boundary
+ *
+ * This test enforces P5: "Serialization Is the Codec's Problem."
+ * Domain services must not import defaultCodec, call codec.encode(),
+ * or call codec.decode() for patch persistence.
+ *
+ * When this test fails, it means a domain file is speaking bytes
+ * instead of domain objects. Fix the file, not the test.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, '..', '..', '..');
+
+/**
+ * Files that must be codec-free after the P5 patch dissolution.
+ * Add files here as each artifact family is migrated.
+ */
+const PATCH_FILES = [
+  'src/domain/services/PatchBuilderV2.js',
+  'src/domain/services/sync/SyncProtocol.js',
+  'src/domain/warp/Writer.js',
+];
+
+/**
+ * Forbidden patterns in domain files that handle patch persistence.
+ * Each pattern indicates bytes leaking into the domain layer.
+ */
+const FORBIDDEN_PATTERNS = [
+  { pattern: /import\s+.*defaultCodec/, label: 'imports defaultCodec' },
+  { pattern: /from\s+['"].*defaultCodec/, label: 'imports from defaultCodec module' },
+  { pattern: /['"]cbor-x['"]/, label: 'imports cbor-x directly' },
+  { pattern: /this\._codec\.encode\(/, label: 'calls this._codec.encode()' },
+  { pattern: /this\._codec\.decode\(/, label: 'calls this._codec.decode()' },
+  { pattern: /codec\.encode\(/, label: 'calls codec.encode()' },
+  { pattern: /codec\.decode\(/, label: 'calls codec.decode()' },
+  { pattern: /codecOpt\.encode\(/, label: 'calls codecOpt.encode()' },
+  { pattern: /codecOpt\.decode\(/, label: 'calls codecOpt.decode()' },
+];
+
+describe('P5 tripwire: patch files must not touch codec/bytes', () => {
+  for (const relPath of PATCH_FILES) {
+    describe(relPath, () => {
+      const absPath = resolve(ROOT, relPath);
+      const source = readFileSync(absPath, 'utf-8');
+
+      for (const { pattern, label } of FORBIDDEN_PATTERNS) {
+        it(`must not contain: ${label}`, () => {
+          const matches = source.match(pattern);
+          expect(
+            matches,
+            `${relPath} violates P5: ${label}\nMatch: ${matches?.[0]}`,
+          ).toBeNull();
+        });
+      }
+    });
+  }
+});
