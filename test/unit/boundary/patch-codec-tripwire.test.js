@@ -17,13 +17,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..', '..', '..');
 
 /**
- * Files that must be codec-free after the P5 patch dissolution.
+ * Files that must be codec-free after the P5 dissolution.
  * Add files here as each artifact family is migrated.
  */
 const PATCH_FILES = [
   'src/domain/services/PatchBuilderV2.js',
   'src/domain/services/sync/SyncProtocol.js',
   'src/domain/warp/Writer.js',
+];
+
+const CHECKPOINT_FILES = [
+  'src/domain/services/state/CheckpointService.js',
+  'src/domain/services/state/CheckpointSerializerV5.js',
+  'src/domain/services/state/StateSerializerV5.js',
+  'src/domain/services/Frontier.js',
 ];
 
 /**
@@ -42,21 +49,31 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /codecOpt\.decode\(/, label: 'calls codecOpt.decode()' },
 ];
 
-describe('P5 tripwire: patch files must not touch codec/bytes', () => {
-  for (const relPath of PATCH_FILES) {
-    describe(relPath, () => {
-      const absPath = resolve(ROOT, relPath);
-      const source = readFileSync(absPath, 'utf-8');
+/**
+ * Runs tripwire checks on a list of files.
+ * @param {string} suiteName
+ * @param {string[]} files
+ */
+function tripwireSuite(suiteName, files) {
+  describe(suiteName, () => {
+    for (const relPath of files) {
+      describe(relPath, () => {
+        const absPath = resolve(ROOT, relPath);
+        const source = readFileSync(absPath, 'utf-8');
 
-      for (const { pattern, label } of FORBIDDEN_PATTERNS) {
-        it(`must not contain: ${label}`, () => {
-          const matches = source.match(pattern);
-          expect(
-            matches,
-            `${relPath} violates P5: ${label}\nMatch: ${matches?.[0]}`,
-          ).toBeNull();
-        });
-      }
-    });
-  }
-});
+        for (const { pattern, label } of FORBIDDEN_PATTERNS) {
+          it(`must not contain: ${label}`, () => {
+            const matches = source.match(pattern);
+            expect(
+              matches,
+              `${relPath} violates P5: ${label}\nMatch: ${matches?.[0]}`,
+            ).toBeNull();
+          });
+        }
+      });
+    }
+  });
+}
+
+tripwireSuite('P5 tripwire: patch files must not touch codec/bytes', PATCH_FILES);
+tripwireSuite('P5 tripwire: checkpoint files must not touch codec/bytes', CHECKPOINT_FILES);
