@@ -274,6 +274,89 @@ export default class LogicalBitmapIndexBuilder {
   }
 
   /**
+   * Yields shard entries as `[path, domainObject]` pairs without encoding.
+   *
+   * This is the stream-compatible alternative to `serialize()`. Pipe the
+   * output through a CborEncodeTransform → GitBlobWriteTransform →
+   * TreeAssemblerSink to persist.
+   *
+   * @returns {Generator<[string, unknown]>}
+   */
+  *yieldShards() {
+    const allShardKeys = new Set([...this._shardNextLocal.keys()]);
+
+    // Meta shards
+    for (const shardKey of allShardKeys) {
+      const nodeToGlobal = (this._shardNodes.get(shardKey) ?? [])
+        .slice()
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+      const aliveBitmap = this._aliveBitmaps.get(shardKey);
+      const aliveBytes = aliveBitmap ? aliveBitmap.serialize(true) : new Uint8Array(0);
+
+      yield [`meta_${shardKey}.cbor`, {
+        nodeToGlobal,
+        nextLocalId: this._shardNextLocal.get(shardKey) ?? 0,
+        alive: aliveBytes,
+      }];
+    }
+
+    // Labels registry
+    /** @type {Array<[string, number]>} */
+    const labelRegistry = [];
+    for (const [label, id] of this._labelToId) {
+      labelRegistry.push([label, id]);
+    }
+    yield ['labels.cbor', labelRegistry];
+
+    // Forward/reverse edge shards
+    yield* this._yieldEdgeShards('fwd', this._fwdBitmaps);
+    yield* this._yieldEdgeShards('rev', this._revBitmaps);
+
+    // Receipt
+    yield ['receipt.cbor', {
+      version: 1,
+      nodeCount: this._nodeToGlobal.size,
+      labelCount: this._labelToId.size,
+      shardCount: allShardKeys.size,
+    }];
+  }
+
+  /**
+   * Yields edge shard entries for a direction without encoding.
+   *
+   * @param {string} direction - 'fwd' or 'rev'
+   * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} bitmaps
+   * @returns {Generator<[string, unknown]>}
+   * @private
+   */
+  *_yieldEdgeShards(direction, bitmaps) {
+    /** @type {Map<string, Record<string, Record<string, Uint8Array>>>} */
+    const byShardKey = new Map();
+
+    for (const [key, bitmap] of bitmaps) {
+      const firstColon = key.indexOf(':');
+      const secondColon = key.indexOf(':', firstColon + 1);
+      const shardKey = key.substring(0, firstColon);
+      const bucketName = key.substring(firstColon + 1, secondColon);
+      const globalIdStr = key.substring(secondColon + 1);
+
+      if (!byShardKey.has(shardKey)) {
+        byShardKey.set(shardKey, {});
+      }
+      const shardData = /** @type {Record<string, Record<string, Uint8Array>>} */ (byShardKey.get(shardKey));
+      if (!shardData[bucketName]) {
+        shardData[bucketName] = {};
+      }
+      shardData[bucketName][globalIdStr] = bitmap.serialize(true);
+    }
+
+    for (const [shardKey, shardData] of byShardKey) {
+      yield [`${direction}_${shardKey}.cbor`, shardData];
+    }
+  }
+
+  /**
    * Serializes forward or reverse edge bitmaps into the output tree, grouped by shard.
    *
    * @param {Record<string, Uint8Array>} tree
