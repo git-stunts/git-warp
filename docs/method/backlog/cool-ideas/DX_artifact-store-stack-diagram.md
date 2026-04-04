@@ -2,7 +2,7 @@
 
 A single doc showing the full persistence stack:
 
-```
+```text
 Domain Service
   ↓ domain objects
 Artifact Port (PatchJournalPort, CheckpointStorePort, ...)

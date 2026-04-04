@@ -4,6 +4,7 @@ import WarpStream from '../../domain/stream/WarpStream.js';
 import PatchEntry from '../../domain/artifacts/PatchEntry.js';
 import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';
 import SyncError from '../../domain/errors/SyncError.js';
+import EncryptionError from '../../domain/errors/EncryptionError.js';
 import VersionVector from '../../domain/crdt/VersionVector.js';
 
 /**
@@ -73,6 +74,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     let bytes;
     if (encrypted && this._patchBlobStorage) {
       bytes = await this._patchBlobStorage.retrieve(patchOid);
+    } else if (encrypted) {
+      throw new EncryptionError(
+        `Patch ${patchOid} is encrypted but no patchBlobStorage is configured`,
+      );
     } else {
       bytes = await this._blobPort.readBlob(patchOid);
     }

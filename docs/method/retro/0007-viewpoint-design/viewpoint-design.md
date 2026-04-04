@@ -105,8 +105,8 @@ wasn't understood.
 
 ## New debt
 
-- `canonicalCbor.js` is dead code (imported by nothing, tested but
-  unused). Should be deleted immediately.
+- `canonicalCbor.js` was dead code (imported by nothing, tested but
+  unused). Deleted in this PR.
 
 ## Cool ideas
 

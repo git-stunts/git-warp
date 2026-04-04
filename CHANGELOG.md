@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hex tripwire test** — 36 automated checks scanning domain files for forbidden codec imports/usage. Fails loud if domain touches `defaultCodec`, `cbor-x`, or `codec.encode()`/`codec.decode()`.
 - **Golden fixtures** — known CBOR bytes for patches, checkpoints, VV, frontier, index shards. Wire format stability proven across refactor.
 
+### Fixed
+
+- **CborPatchJournalAdapter.readPatch()** — now throws `EncryptionError` when `encrypted=true` but no `patchBlobStorage` is configured. Previously fell through to the unencrypted `blobPort.readBlob()` path, returning wrong data.
+- **Writer constructor** — `patchJournal` is now a required parameter. Previously optional, which let `beginPatch()` succeed but `commit()` hard-fail with a confusing `PersistenceError` from `PatchBuilderV2`.
+
 ### Changed
 
 - **CheckpointStorePort collapsed** — 7 micro-methods (`writeState`, `readState`, etc.) replaced with 2 semantic operations: `writeCheckpoint(record)` and `readCheckpoint(treeOids)`. A checkpoint is one domain event, not a bag of individual blob writes.

@@ -85,6 +85,16 @@ describe('Writer (WARP schema:2)', () => {
       })).toThrow('Invalid writer ID');
     });
 
+    it('throws when patchJournal is missing', () => {
+      expect(() => new Writer({
+        persistence,
+        graphName: 'events',
+        writerId: 'alice',
+        versionVector,
+        getCurrentState,
+      })).toThrow('patchJournal is required');
+    });
+
     it('accepts valid writerId', () => {
       const writer = new Writer({
         persistence,
@@ -668,17 +678,21 @@ describe('PatchSession operations', () => {
   let versionVector;
   /** @type {any} */
   let getCurrentState;
+  /** @type {CborPatchJournalAdapter} */
+  let patchJournal;
 
   beforeEach(() => {
     persistence = createMockPersistence();
     versionVector = createVersionVector();
     getCurrentState = vi.fn(() => null);
     persistence.readRef.mockResolvedValue(null);
+    patchJournal = createPatchJournal(persistence);
   });
 
   it('addNode creates node-add op', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -697,6 +711,7 @@ describe('PatchSession operations', () => {
   it('removeNode creates node-remove op', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -715,6 +730,7 @@ describe('PatchSession operations', () => {
   it('addEdge creates edge-add op', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -735,6 +751,7 @@ describe('PatchSession operations', () => {
   it('removeEdge creates edge-remove op', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -752,6 +769,7 @@ describe('PatchSession operations', () => {
   it('setProperty creates prop-set op', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
@@ -772,6 +790,7 @@ describe('PatchSession operations', () => {
   it('supports various property value types', async () => {
     const writer = new Writer({
       persistence,
+      patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
