@@ -38,4 +38,17 @@ export default class PatchJournalPort {
   async readPatch(_patchOid, _options) {
     throw new WarpError('PatchJournalPort.readPatch() not implemented', 'E_NOT_IMPLEMENTED');
   }
+
+  /**
+   * Whether this journal uses external blob storage.
+   *
+   * When true, readers must use the `encrypted` flag in the commit
+   * message trailer to retrieve blobs via BlobStoragePort rather than
+   * reading them directly from Git.
+   *
+   * @returns {boolean}
+   */
+  get usesExternalStorage() {
+    return false;
+  }
 }

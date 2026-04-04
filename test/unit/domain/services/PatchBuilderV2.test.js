@@ -6,6 +6,8 @@ import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { decodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { decode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**
  * Creates a mock V5 state for testing.
@@ -33,6 +35,18 @@ function createMockPersistence() {
     commitNodeWithTree: vi.fn().mockResolvedValue('c'.repeat(40)),
     updateRef: vi.fn().mockResolvedValue(undefined),
   };
+}
+
+/**
+ * Creates a CborPatchJournalAdapter wired to the given mock persistence's blob ops.
+ * @param {ReturnType<typeof createMockPersistence>} persistence
+ * @returns {CborPatchJournalAdapter}
+ */
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+  });
 }
 
 describe('PatchBuilderV2', () => {
@@ -667,11 +681,13 @@ describe('PatchBuilderV2', () => {
 
     it('writes patch blob with CBOR encoding', async () => {
       const persistence = createMockPersistence();
+      const patchJournal = createPatchJournal(persistence);
       const vv = createVersionVector();
       vv.set('otherWriter', 3);
 
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal,
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -1215,8 +1231,10 @@ describe('PatchBuilderV2', () => {
     describe('commit() includes reads/writes', () => {
       it('committed patch includes reads/writes arrays', async () => {
         const persistence = createMockPersistence();
+        const patchJournal = createPatchJournal(persistence);
         const builder = new PatchBuilderV2(/** @type {any} */ ({
           persistence,
+          patchJournal,
           graphName: 'test-graph',
           writerId: 'writer1',
           lamport: 1,
@@ -1238,8 +1256,10 @@ describe('PatchBuilderV2', () => {
 
       it('committed patch omits empty reads array', async () => {
         const persistence = createMockPersistence();
+        const patchJournal = createPatchJournal(persistence);
         const builder = new PatchBuilderV2(/** @type {any} */ ({
           persistence,
+          patchJournal,
           graphName: 'test-graph',
           writerId: 'writer1',
           lamport: 1,

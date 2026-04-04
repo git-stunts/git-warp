@@ -11,7 +11,6 @@
  * @see WARP v5 Spec
  */
 
-import defaultCodec from '../utils/defaultCodec.js';
 import nullLogger from '../utils/nullLogger.js';
 import { vvSerialize } from '../crdt/VersionVector.js';
 import { orsetGetDots, orsetContains, orsetElements } from '../crdt/ORSet.js';
@@ -164,9 +163,9 @@ export class PatchBuilderV2 {
   /**
    * Creates a new PatchBuilderV2.
    *
-   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../../ports/BlobStoragePort.js').default }} options
+   * @param {{ persistence: import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default, graphName: string, writerId: string, lamport: number, versionVector: import('../crdt/VersionVector.js').default, getCurrentState: () => import('./JoinReducer.js').WarpStateV5 | null, expectedParentSha?: string|null, targetRefPath?: string, onCommitSuccess?: ((result: {patch: import('../types/WarpTypesV2.js').PatchV2, sha: string}) => void | Promise<void>)|null, onDeleteWithData?: 'reject'|'cascade'|'warn', patchJournal?: import('../../ports/PatchJournalPort.js').default, logger?: import('../../ports/LoggerPort.js').default, blobStorage?: import('../../ports/BlobStoragePort.js').default }} options
    */
-  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', codec, logger, blobStorage, patchBlobStorage }) {
+  constructor({ persistence, graphName, writerId, lamport, versionVector, getCurrentState, expectedParentSha = null, targetRefPath, onCommitSuccess = null, onDeleteWithData = 'warn', patchJournal, logger, blobStorage }) {
     /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */
     this._persistence = /** @type {import('../../ports/CommitPort.js').default & import('../../ports/BlobPort.js').default & import('../../ports/TreePort.js').default & import('../../ports/RefPort.js').default} */ (persistence);
 
@@ -217,8 +216,8 @@ export class PatchBuilderV2 {
     /** @type {'reject'|'cascade'|'warn'} */
     this._onDeleteWithData = onDeleteWithData;
 
-    /** @type {import('../../ports/CodecPort.js').default} */
-    this._codec = codec || defaultCodec;
+    /** @type {import('../../ports/PatchJournalPort.js').default|null} */
+    this._patchJournal = patchJournal || null;
 
     /** @type {import('../../ports/LoggerPort.js').default} */
     this._logger = logger || nullLogger;
@@ -232,9 +231,6 @@ export class PatchBuilderV2 {
 
     /** @type {import('../../ports/BlobStoragePort.js').default|null} */
     this._blobStorage = blobStorage || null;
-
-    /** @type {import('../../ports/BlobStoragePort.js').default|null} */
-    this._patchBlobStorage = patchBlobStorage || null;
 
     /**
      * Observed operands — entities whose current state was consulted to build
@@ -985,11 +981,11 @@ export class PatchBuilderV2 {
         writes: [...this._writes].sort(),
       });
 
-      // 6. Encode patch as CBOR and write as a Git blob (or encrypted CAS asset)
-      const patchCbor = this._codec.encode(patch);
-      const patchBlobOid = this._patchBlobStorage
-        ? await this._patchBlobStorage.store(patchCbor, { slug: `${this._graphName}/${this._writerId}/patch` })
-        : await this._persistence.writeBlob(patchCbor);
+      // 6. Persist patch via PatchJournalPort (adapter owns encoding)
+      //    Falls back to raw blob write when no journal is wired (legacy path).
+      const patchBlobOid = this._patchJournal
+        ? await this._patchJournal.writePatch(patch)
+        : await this._persistence.writeBlob(patch);
 
       // 7. Create tree with the patch blob + any content blobs (deduplicated)
       // Format for mktree: "mode type oid\tpath"
@@ -1011,7 +1007,7 @@ export class PatchBuilderV2 {
         // "encrypted" is a legacy wire name meaning "patch blob stored externally
         // via patchBlobStorage" (see ADR-0002). The flag tells readers to retrieve
         // the blob via BlobStoragePort instead of reading it directly from Git.
-        encrypted: !!this._patchBlobStorage,
+        encrypted: this._patchJournal ? this._patchJournal.usesExternalStorage : false,
       });
       const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];
       const newCommitSha = await this._persistence.commitNodeWithTree({

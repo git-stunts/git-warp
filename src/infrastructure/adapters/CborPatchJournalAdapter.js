@@ -65,4 +65,13 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       this._codec.decode(bytes)
     );
   }
+
+  /**
+   * Whether this journal uses external blob storage.
+   *
+   * @returns {boolean}
+   */
+  get usesExternalStorage() {
+    return this._patchBlobStorage !== null;
+  }
 }
