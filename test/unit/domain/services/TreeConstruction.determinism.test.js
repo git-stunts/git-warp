@@ -12,6 +12,8 @@ import { CONTENT_PROPERTY_KEY, encodeEdgePropKey } from '../../../../src/domain/
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import InMemoryBlobStorageAdapter from '../../../../src/domain/utils/defaultBlobStorage.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 const PROPERTY_TEST_SEED = 4242;
 const FIXED_CLOCK = { now: () => 42 };
@@ -44,6 +46,10 @@ async function createPatchTreeOid(contentIds, shuffleSeed) {
 
   const builder = new PatchBuilderV2(/** @type {any} */ ({
     persistence,
+    patchJournal: new CborPatchJournalAdapter({
+      codec: new CborCodec(),
+      blobPort: persistence,
+    }),
     graphName: 'g',
     writerId: 'alice',
     lamport: 1,

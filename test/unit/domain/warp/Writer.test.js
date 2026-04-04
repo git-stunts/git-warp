@@ -11,6 +11,8 @@ import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
 import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**
  * Creates a minimal mock persistence adapter.
@@ -26,6 +28,18 @@ function createMockPersistence() {
     commitNodeWithTree: vi.fn(),
     readBlob: vi.fn(),
   };
+}
+
+/**
+ * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
+ * @param {ReturnType<typeof createMockPersistence>} persistence
+ * @returns {CborPatchJournalAdapter}
+ */
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+  });
 }
 
 /**
@@ -74,6 +88,7 @@ describe('Writer (WARP schema:2)', () => {
     it('accepts valid writerId', () => {
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -97,6 +112,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -114,6 +130,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -133,6 +150,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -150,6 +168,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -165,6 +184,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -182,6 +202,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -205,6 +226,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -228,6 +250,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -252,6 +275,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -283,6 +307,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -311,6 +336,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -336,6 +362,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -359,6 +386,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -388,6 +416,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -429,6 +458,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -459,6 +489,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -489,6 +520,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -512,6 +544,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -537,6 +570,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -561,6 +595,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,
@@ -586,6 +621,7 @@ describe('Writer (WARP schema:2)', () => {
 
       const writer = new Writer({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'events',
         writerId: 'alice',
         versionVector,

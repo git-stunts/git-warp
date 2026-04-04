@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
 import { WriterError } from '../../../../src/domain/warp/Writer.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**
  * Creates a mock persistence adapter for CAS testing.
@@ -20,6 +22,18 @@ function createMockPersistence(overrides = {}) {
     updateRef: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
+}
+
+/**
+ * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
+ * @param {ReturnType<typeof createMockPersistence>} persistence
+ * @returns {CborPatchJournalAdapter}
+ */
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+  });
 }
 
 describe('PatchBuilderV2 CAS conflict detection', () => {
@@ -193,6 +207,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
 
       const builder = new PatchBuilderV2({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -222,6 +237,7 @@ describe('PatchBuilderV2 CAS conflict detection', () => {
 
       const builder = new PatchBuilderV2({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,

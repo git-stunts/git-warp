@@ -569,6 +569,7 @@ describe('PatchBuilderV2', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -607,6 +608,7 @@ describe('PatchBuilderV2', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -639,6 +641,7 @@ describe('PatchBuilderV2', () => {
 
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1, // Constructor lamport is 1, but commit should use 6
@@ -663,6 +666,7 @@ describe('PatchBuilderV2', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -720,6 +724,7 @@ describe('PatchBuilderV2', () => {
 
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -744,6 +749,7 @@ describe('PatchBuilderV2', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -814,6 +820,7 @@ describe('PatchBuilderV2', () => {
       persistence.readRef.mockImplementation(() => readRefPromise);
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -835,6 +842,7 @@ describe('PatchBuilderV2', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
@@ -858,6 +866,7 @@ describe('PatchBuilderV2', () => {
       persistence.updateRef.mockRejectedValueOnce(new Error('simulated updateRef failure'));
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'test-graph',
         writerId: 'writer1',
         lamport: 1,
