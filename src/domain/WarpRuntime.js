@@ -360,6 +360,9 @@ export default class WarpRuntime {
 
     /** @type {import('./services/EffectPipeline.js').EffectPipeline|null} */
     this._effectPipeline = null;
+
+    /** @type {import('../ports/CheckpointStorePort.js').default|null} */
+    this._checkpointStore = null;
   }
 
   /**
@@ -491,7 +494,7 @@ export default class WarpRuntime {
    */
   // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, patchJournal, trust, effectPipeline, effectSinks, externalizationPolicy }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, patchJournal, checkpointStore, trust, effectPipeline, effectSinks, externalizationPolicy }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -549,6 +552,21 @@ export default class WarpRuntime {
         codec: graph._codec,
         blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
         ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { patchBlobStorage } : {}),
+      });
+    }
+
+    // Auto-construct checkpointStore when none provided: same pattern as patchJournal.
+    if (checkpointStore !== undefined && checkpointStore !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+      graph._checkpointStore = /** @type {import('../ports/CheckpointStorePort.js').default} */ (checkpointStore);
+    } else {
+      const { CborCheckpointStoreAdapter } = await import(
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborCheckpointStoreAdapter.js'
+      );
+      graph._checkpointStore = new CborCheckpointStoreAdapter({
+        codec: graph._codec,
+        blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
+        crypto: graph._crypto,
       });
     }
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CheckpointStorePort wiring (P5 strangler)** — `CheckpointService`, `CheckpointController`, `MaterializeController`, and `WarpRuntime` now accept an optional `checkpointStore` parameter. When provided, checkpoint create/load operations delegate serialization to the port instead of calling serializers directly. Legacy codec-based paths remain as fallback. `WarpRuntime.open()` auto-constructs a `CborCheckpointStoreAdapter` when no explicit store is provided, matching the `patchJournal` auto-construction pattern.
 - **The Method** — introduced `METHOD.md` as the development process framework. Filesystem-native backlog (`docs/method/backlog/`) with lane directories (`inbox/`, `asap/`, `up-next/`, `cool-ideas/`, `bad-code/`). Legend-prefixed filenames (`PROTO_`, `TRUST_`, `VIZ_`, `TUI_`, `DX_`, `PERF_`). Sequential cycle numbering (`docs/design/<NNNN-slug>/`). Dual-audience design docs (sponsor human + sponsor agent). Replaced B-number system entirely.
 - **Backlog migration** — all 49 B-number and OG items migrated from `BACKLOG/` to `docs/method/backlog/` lanes. Tech debt journal (`.claude/bad_code.md`) split into 10 individual files in `bad-code/`. Cool ideas journal split into 13 individual files in `cool-ideas/`. `docs/release.md` moved to `docs/method/release.md`. `BACKLOG/` directory removed.
 

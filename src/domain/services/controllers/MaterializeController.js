@@ -144,6 +144,7 @@ async function openDetachedReadGraph(host) {
     ...(host._blobStorage ? { blobStorage: host._blobStorage } : {}),
     ...(host._patchBlobStorage ? { patchBlobStorage: host._patchBlobStorage } : {}),
     ...(host._trustConfig !== undefined ? { trust: host._trustConfig } : {}),
+    ...(host._checkpointStore ? { checkpointStore: host._checkpointStore } : {}),
   });
 }
 
@@ -622,7 +623,11 @@ export default class MaterializeController {
     h._stateDirty = false;
     h._versionVector = state.observedFrontier.clone();
 
-    const stateHash = await computeStateHashV5(state, { crypto: h._crypto, codec: h._codec });
+    /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
+    const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+    const stateHash = checkpointStore
+      ? await checkpointStore.computeStateHash(state)
+      : await computeStateHashV5(state, { crypto: h._crypto, codec: h._codec });
     let adjacency;
 
     if (h._adjacencyCache) {
