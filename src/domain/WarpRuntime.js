@@ -491,7 +491,7 @@ export default class WarpRuntime {
    */
   // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust, effectPipeline, effectSinks, externalizationPolicy }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, patchJournal, trust, effectPipeline, effectSinks, externalizationPolicy }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -534,6 +534,14 @@ export default class WarpRuntime {
     const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
 
     const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, ...(adjacencyCacheSize !== undefined ? { adjacencyCacheSize } : {}), ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}), ...(autoMaterialize !== undefined ? { autoMaterialize } : {}), ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}), ...(logger !== undefined ? { logger } : {}), ...(clock !== undefined ? { clock } : {}), ...(crypto !== undefined ? { crypto } : {}), ...(codec !== undefined ? { codec } : {}), ...(seekCache !== undefined ? { seekCache } : {}), ...(audit !== undefined ? { audit } : {}), blobStorage: resolvedBlobStorage, ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}), ...(trust !== undefined ? { trust } : {}) });
+
+    // Wire patchJournal after construction (avoids untyped spread in the options object).
+    // The destructured `patchJournal` is implicitly `any` because open() params lack a
+    // full JSDoc typedef. The JSDoc cast narrows it for the field assignment.
+    if (patchJournal !== undefined && patchJournal !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- destructured param is untyped; cast narrows
+      graph._patchJournal = /** @type {import('../ports/PatchJournalPort.js').default} */ (patchJournal);
+    }
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();
