@@ -2,12 +2,18 @@
 
 **Effort:** L
 
-Replace PatchJournalPort.writePatch, CheckpointStorePort.writeState,
-and all serialize() + codec.encode() patterns with the universal
-stream pipeline:
+First streaming wins — the graph-scale liars:
 
-  DomainStream → CborEncodeTransform → GitBlobWriteTransform → TreeAssemblerSink
+1. loadPatchRange() → scanPatchRange() returning WarpStream<PatchEntry>
+2. index serialize() → yieldShards() through WarpStream pipeline
+   (already proven byte-identical for LogicalBitmapIndexBuilder)
+3. Collapse CheckpointStorePort micro-methods into
+   writeCheckpoint(record) — adapter streams artifacts internally
 
-Covers patches, checkpoints, indexes, provenance/BTR.
+Keep PatchJournalPort for bounded single-artifact writes. Add
+scanRange() for unbounded reads. CheckpointStorePort gets surgery
+(collapse, not deletion).
+
+Encode → blobWrite → treeAssemble stays in infrastructure.
 
 See cycle 0008 design doc.

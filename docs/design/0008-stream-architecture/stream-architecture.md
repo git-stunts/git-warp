@@ -9,238 +9,203 @@
 A developer can pipe domain objects through a composable stream
 pipeline where encoding, persistence, and tree assembly are transforms
 and sinks — never called directly by domain code. The pipeline shape
-is identical for patches, checkpoints, indexes, and provenance. The
-system is memory-bounded: a dataset exceeding available heap completes
-without OOM if the pipeline is fully stream-based.
+is identical for all sharded/unbounded artifacts. Semantic ports
+remain for bounded single-artifact operations. The system is
+memory-bounded: a dataset exceeding available heap completes without
+OOM if the pipeline is fully stream-based.
 
 ## Playback Questions
 
-1. Can a developer identify WHAT a stream carries via `instanceof`
-   without inspecting element contents?
-2. Does the pipeline produce byte-identical output to the legacy
+1. Does the pipeline produce byte-identical output to the legacy
    `serialize()` + `codec.encode()` path?
-3. Does a constrained-heap test (`--max-old-space-size=64`) complete
+2. Does a constrained-heap test (`--max-old-space-size=64`) complete
    for a dataset that would otherwise need 512MB?
-4. Is the stream hierarchy honest? Does every subclass add behavior
-   or semantic identity, not just a name?
+3. Do semantic ports still tell you WHAT is being persisted and WHAT
+   lifecycle rules apply?
+4. Is CBOR vocabulary absent from domain nouns?
 
 ## Non-Goals
 
 - Automatic parallelization of pipeline stages
 - Web Streams API compatibility (we use AsyncIterable)
-- Replacing bounded single-artifact reads (`readPatch(oid) → Promise<Patch>`)
-  with streams — those are correctly `Promise<T>` per the two-case rule
+- Replacing bounded single-artifact reads with streams
+- Marker subclasses that don't add flow behavior
+- CborStream or any codec-named class in the domain
 
-## Stream Hierarchy
+## The Synthesis: Ports for Meaning, Streams for Scale
 
-### Base Primitives (domain — `src/domain/stream/`)
+Ports and streams are not competing ideas. They snap together:
+
+- **Ports** = semantic contract. What is being persisted, what
+  lifecycle rules apply, what the caller means.
+- **Streams** = execution substrate. How data flows through the
+  pipeline at scale.
+
+A pipe does not tell you what is being persisted. A port does.
+A port does not tell you how to handle unbounded data. A stream does.
+
+## Architecture
+
+### One Stream Container
 
 ```
-WarpStream<T>                — Composable async iterable
+WarpStream<T>                — domain primitive, composable async iterable
   pipe(transform) → WarpStream<U>
   tee() → [WarpStream<T>, WarpStream<T>]
   mux(...streams) → WarpStream<T>
   demux(classify, keys) → Map<string, WarpStream<T>>
   drain(sink) → Promise<R>
-  reduce(fn, init) → Promise<R>
-  forEach(fn) → Promise<void>
-  collect() → Promise<T[]>     ← poison pill name
+  reduce / forEach / collect
   [Symbol.asyncIterator]()
 ```
 
-### Domain Stream Subclasses (domain — `src/domain/stream/`)
+No domain subclasses of WarpStream. Identity lives on the ELEMENTS
+(artifact records), not the container. `pipe()` returns `WarpStream<U>`
+— subtype identity would evaporate at the first transform anyway.
+
+### Semantic Ports (Bounded Artifacts)
 
 ```
-CborStream<T> extends WarpStream<T>
-  — Marker: elements can be CBOR-encoded. CborEncodeTransform
-    requires this as input type. Subclasses carry domain semantics.
+PatchJournalPort
+  writePatch(patch) → Promise<string>        // one patch, bounded
+  readPatch(oid) → Promise<PatchV2>          // bounded read
+  scanRange(...) → WarpStream<PatchEntry>    // unbounded — NEW
 
-PatchStream extends CborStream<PatchV2>
-  — Yields PatchV2 objects
-  — .normalize(): apply context VV normalization
-  — .filterByWriter(writerId): filter to a single writer
+CheckpointStorePort
+  writeCheckpoint(record) → Promise<CheckpointWriteResult>   // COLLAPSED
+  readCheckpoint(sha) → Promise<CheckpointData>              // bounded read
+  // Internal: adapter fans out state/frontier/vv as stream
 
-StateStream extends CborStream<WarpStateV5>
-  — Yields WarpStateV5 objects
-  — .project(): yield visible state projection
-  — .compact(appliedVV): yield compacted state
+IndexStorePort                               // NEW
+  writeShards(stream) → Promise<string>      // WarpStream<IndexShard> → tree OID
+  scanShards(...) → WarpStream<IndexShard>   // unbounded read
 
-FrontierStream extends CborStream<Frontier>
-  — Yields Frontier maps
-
-AppliedVVStream extends CborStream<VersionVector>
-  — Yields VersionVector objects
-
-IndexShardStream extends CborStream<[string, unknown]>
-  — Yields [path, shardData] entries
-  — .byShardType(): demux into meta/fwd/rev/props/labels sub-streams
+ProvenanceStorePort                          // NEW (Slice 4)
+  scanEntries(...) → WarpStream<ProvenanceEntry>
 ```
 
-### Why Subclasses, Not String Tags
+Ports that deal with bounded single artifacts stay `Promise<T>`.
+Ports that deal with unbounded/sharded data accept or return
+`WarpStream<SemanticUnit>`.
 
+### Artifact Records (Runtime Identity on Elements)
+
+Identity belongs on the streamed ITEMS, not the stream container.
 SSJS P1: domain concepts require runtime-backed forms.
-SSJS P7: `instanceof` dispatch over tag switching.
-
-A stream of patches IS a different concept than a stream of index
-shards. `instanceof PatchStream` replaces `path === 'patch.cbor'`.
-The subclass carries semantic identity that survives runtime dispatch.
-
-Subclasses also carry domain-specific behavior (P3): `PatchStream`
-has `.normalize()`, `IndexShardStream` has `.byShardType()`. These
-methods make sense on their owning type, not on base `WarpStream`.
-
-### Pipeline Stages
-
-After `pipe()`, the stream type reverts to `WarpStream` (the pipeline
-loses the specific subclass, which is correct — after encoding,
-it's no longer a `PatchStream`).
 
 ```
-PatchStream → pipe(cborEncode) → WarpStream<Uint8Array>
-                                  → pipe(blobWrite) → WarpStream<string>
-                                                       → drain(treeSink) → treeOid
+CheckpointArtifact           — discriminated subclass hierarchy
+  CheckpointArtifact.State   — carries WarpStateV5
+  CheckpointArtifact.Frontier — carries Frontier map
+  CheckpointArtifact.AppliedVV — carries VersionVector
+
+IndexShard                   — carries [path, shardData]
+  // Path is semantic (e.g., meta shard vs edge shard)
+  // Adapter maps to Git tree paths at the last responsible moment
+
+PatchEntry                   — carries { patch: PatchV2, sha: string }
+ProvenanceEntry              — carries { nodeId, patchShas }
 ```
 
-The subclass identity exists at the domain boundary (before the
-pipeline). The pipeline itself is generic WarpStream composition.
+The adapter maps artifact records to `[path, bytes]` → `[path, oid]`
+→ tree. Paths belong to Git tree assembly, not to the domain contract.
 
-### Infrastructure Transforms (infrastructure — `src/infrastructure/adapters/`)
+### Infrastructure Transforms
 
 ```
-CborEncodeTransform   [path, obj] → [path, bytes]    (or obj → bytes for non-keyed)
-CborDecodeTransform   [path, bytes] → [path, obj]
+CborEncodeTransform   artifact → [path, bytes]     (adapter knows the path)
+CborDecodeTransform   [path, bytes] → artifact
 GitBlobWriteTransform [path, bytes] → [path, oid]
-GitBlobReadTransform  [path, oid] → [path, bytes]     (future)
 TreeAssemblerSink     [path, oid] → finalize → treeOid
 ```
 
-## Persistence Pipeline — One Shape for Everything
+Encode → blobWrite → treeAssemble stays entirely in infrastructure.
+CBOR is boundary vocabulary — never a domain noun.
 
-### Write
+### CheckpointStorePort Surgery
 
-```js
-// Patches (single artifact)
-PatchStream.of(patch)
-  .pipe(cborEncode)
-  .pipe(blobWrite)
-  .drain(treeAssembler)
+Current: micro-method soup (writeState, writeFrontier, writeAppliedVV,
+computeStateHash) that CheckpointService immediately fans out in
+Promise.all. The port leaks storage decomposition.
 
-// Checkpoints (multiple artifacts)
-new CborStream(async function*() {
-  yield ['state.cbor', state];
-  yield ['frontier.cbor', frontier];
-  yield ['appliedVV.cbor', appliedVV];
-}())
-  .pipe(cborEncode)
-  .pipe(blobWrite)
-  .drain(treeAssembler)
-
-// Indexes (many shards, streaming)
-IndexShardStream.from(builder.yieldShards())
-  .pipe(cborEncode)
-  .pipe(blobWrite)
-  .drain(treeAssembler)
-```
-
-Same pipeline. Different source. `CborEncodeTransform` +
-`GitBlobWriteTransform` + `TreeAssemblerSink` is the universal
-persistence stack.
-
-### Read
+After: `writeCheckpoint(record)` — one domain event with one call.
+The adapter internally streams the checkpoint artifacts through the
+encode → blobWrite → treeAssemble pipeline. The domain doesn't know
+or care about the internal fan-out.
 
 ```js
-// Read tree → decode entries
-WarpStream.from(Object.entries(treeOids))
-  .pipe(blobRead)
-  .pipe(cborDecode)
-  .forEach(([path, obj]) => consumer.ingest(path, obj))
+// Domain:
+const result = await checkpointStore.writeCheckpoint({
+  state: compactedState,
+  frontier,
+  appliedVV,
+  stateHash,
+  provenanceIndex,  // optional
+});
+
+// Adapter internally:
+async writeCheckpoint(record) {
+  const treeOid = await WarpStream.from(this._yieldArtifacts(record))
+    .pipe(this._encodeTransform)
+    .pipe(this._blobWriteTransform)
+    .drain(this._treeAssembler);
+  return { treeOid, stateHash: record.stateHash };
+}
 ```
 
-## What This Replaces
+### First Streaming Wins (Graph-Scale Liars)
 
-| Current (per-artifact ports) | Stream architecture |
-|---|---|
-| `PatchJournalPort.writePatch(patch)` | `PatchStream.of(patch).pipe(encode).pipe(write).drain(sink)` |
-| `PatchJournalPort.readPatch(oid)` | Stays as `Promise<PatchV2>` (bounded single artifact) |
-| `CheckpointStorePort.writeState(state)` | `CborStream` of checkpoint artifacts piped through |
-| `CheckpointStorePort.readState(oid)` | Stays as `Promise<WarpStateV5>` (bounded) |
-| `LogicalBitmapIndexBuilder.serialize()` | `IndexShardStream.from(builder.yieldShards()).pipe(...)` |
-| N/A | Unbounded scans: `scanPatches() → PatchStream` |
+The obvious targets — APIs that return graph-scale aggregates:
 
-Single bounded reads (`readPatch`, `readState`) stay as `Promise<T>`.
-Only the write paths and unbounded reads move to streams.
+1. `loadPatchRange()` → `scanPatchRange()` returning
+   `WarpStream<PatchEntry>`. Currently walks commits and accumulates
+   an array.
 
-## Error Propagation
+2. `LogicalBitmapIndexBuilder.serialize()` → `yieldShards()` returning
+   `WarpStream<IndexShard>`. Already proven byte-identical.
 
-No custom error channel. The async iterator protocol handles it:
+3. Index reader loading — currently decodes all shards eagerly.
+   Can stream via `scanShards()`.
 
-- **Downstream throws** (blob write fails): `for await` stops,
-  JS calls `return()` on upstream iterator, generator's `finally`
-  block runs. Teardown propagates up the whole chain.
-- **Cooperative cancellation**: `AbortSignal` threaded through
-  WarpStream constructor. Checked between yields.
+### Mux() Ordering Warning
 
-## Memory-Bounded Tests (The Killer Witness)
-
-Run with `--max-old-space-size=64` on a dataset that would normally
-need 512MB:
-
-1. Build index with 1M nodes via streaming builder → stream pipeline
-2. Materialize a graph with 100K patches via patch stream → reducer
-3. Checkpoint a large state via CborStream → pipeline
-
-If anything buffers the full dataset, it blows up. The test IS the
-architecture proof.
+`WarpStream.mux()` interleaves by arrival order. Async completion
+timing must not bleed into tree assembly. `TreeAssemblerSink` already
+sorts entries before `writeTree()`. Deterministic Git trees don't
+care which blob write finished first — canonical ordering is restored
+in the finalizer.
 
 ## Migration Plan
 
-### Phase 1 — Subclass hierarchy (this cycle)
+### Phase 1 — Stream the graph-scale liars
 
-- Add CborStream, PatchStream, StateStream, FrontierStream,
-  AppliedVVStream, IndexShardStream to `src/domain/stream/`
-- Tests for each subclass (instanceof, domain methods)
+- `scanPatchRange()` on PatchJournalPort → WarpStream<PatchEntry>
+- `IndexShardStream` via `yieldShards()` → WarpStream<IndexShard>
+  (already proven)
+- Wire `IndexStorePort.writeShards(stream)` through pipeline
 
-### Phase 2 — Write path migration
+### Phase 2 — Collapse CheckpointStorePort
 
-- PatchBuilderV2: pipe patch through PatchStream → pipeline
-  (replaces PatchJournalPort.writePatch)
-- CheckpointService: pipe artifacts through CborStream → pipeline
-  (replaces CheckpointStorePort.writeState/writeFrontier/writeAppliedVV)
-- LogicalBitmapIndexBuilder: already has yieldShards(), wrap in
-  IndexShardStream
-- PropertyIndexBuilder: add yieldShards(), wrap in IndexShardStream
+- `writeCheckpoint(record)` replaces writeState/writeFrontier/writeAppliedVV
+- Adapter internally streams artifacts through pipeline
+- `readCheckpoint()` stays Promise<T> (bounded)
 
-### Phase 3 — Read path migration
+### Phase 3 — Remaining P5 cleanup
 
-- SyncProtocol: scanPatches() → PatchStream (unbounded)
-- IndexReader: decode via CborDecodeTransform pipeline
-- CheckpointService.load: stays Promise<T> (bounded)
-
-### Phase 4 — Cleanup
-
-- Remove PatchJournalPort, CborPatchJournalAdapter
-- Remove CheckpointStorePort, CborCheckpointStoreAdapter
 - Remove defaultCodec from all domain files
 - Delete defaultCodec.js, canonicalCbor.js
 - Expand tripwire to all migrated files
+- Provenance/BTR streaming ports
 
-### Phase 5 — Memory-bounded tests
+### Phase 4 — Memory-bounded witnesses
 
 - Constrained-heap tests for index build, materialization, sync
-- Naming audit: rename slurp APIs to `collect*()` (poison pill)
+- Naming audit: rename slurp APIs
 
 ## Accessibility / Localization / Agent-Inspectability
 
 - **Accessibility**: N/A (internal infrastructure)
 - **Localization**: N/A
-- **Agent-Inspectability**: Stream subclasses are `instanceof`-dispatchable.
-  Agents can introspect pipeline stages. WarpStream carries AbortSignal
-  for cooperative cancellation. Sink.consume() returns a typed result.
-
-## Backlog Items
-
-1. `PERF_stream-subclass-hierarchy` — CborStream + domain subclasses
-2. `PERF_stream-write-migration` — Migrate write paths to stream pipeline
-3. `PERF_stream-read-migration` — Migrate read paths + unbounded scans
-4. `PERF_stream-cleanup` — Remove per-artifact ports + defaultCodec
-5. `PERF_stream-memory-tests` — Constrained-heap witnesses
+- **Agent-Inspectability**: WarpStream carries AbortSignal for
+  cooperative cancellation. Artifact records are `instanceof`-
+  dispatchable. Sink.consume() returns a typed result.
