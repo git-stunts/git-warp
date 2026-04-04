@@ -535,12 +535,21 @@ export default class WarpRuntime {
 
     const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, ...(adjacencyCacheSize !== undefined ? { adjacencyCacheSize } : {}), ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}), ...(autoMaterialize !== undefined ? { autoMaterialize } : {}), ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}), ...(logger !== undefined ? { logger } : {}), ...(clock !== undefined ? { clock } : {}), ...(crypto !== undefined ? { crypto } : {}), ...(codec !== undefined ? { codec } : {}), ...(seekCache !== undefined ? { seekCache } : {}), ...(audit !== undefined ? { audit } : {}), blobStorage: resolvedBlobStorage, ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}), ...(trust !== undefined ? { trust } : {}) });
 
-    // Wire patchJournal after construction (avoids untyped spread in the options object).
-    // The destructured `patchJournal` is implicitly `any` because open() params lack a
-    // full JSDoc typedef. The JSDoc cast narrows it for the field assignment.
+    // Auto-construct patchJournal when none provided: uses the same dynamic import
+    // pattern as autoConstructBlobStorage to keep infrastructure imports out of the
+    // module's top-level scope.
     if (patchJournal !== undefined && patchJournal !== null) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- destructured param is untyped; cast narrows
       graph._patchJournal = /** @type {import('../ports/PatchJournalPort.js').default} */ (patchJournal);
+    } else {
+      const { CborPatchJournalAdapter } = await import(
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborPatchJournalAdapter.js'
+      );
+      graph._patchJournal = new CborPatchJournalAdapter({
+        codec: graph._codec,
+        blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
+        ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { patchBlobStorage } : {}),
+      });
     }
 
     // Validate migration boundary

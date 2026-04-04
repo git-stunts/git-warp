@@ -53,10 +53,10 @@ export default class PatchController {
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.js').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
-      codec: h._codec,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
-      ...(h._patchBlobStorage !== null && h._patchBlobStorage !== undefined ? { patchBlobStorage: h._patchBlobStorage } : {}),
     });
   }
 
@@ -161,8 +161,12 @@ export default class PatchController {
       }
 
       const patchMeta = decodePatchMessage(message);
-      const patchBuffer = await this._readPatchBlob(patchMeta);
-      const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (h._codec.decode(patchBuffer));
+      /** @type {import('../../../ports/PatchJournalPort.js').default} */
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+      const journal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal);
+      const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (
+        await journal.readPatch(patchMeta.patchOid, { encrypted: patchMeta.encrypted })
+      );
 
       patches.push({ patch: decoded, sha: currentSha });
 
@@ -289,10 +293,10 @@ export default class PatchController {
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
-      codec: h._codec,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
+      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
-      ...(h._patchBlobStorage !== null && h._patchBlobStorage !== undefined ? { patchBlobStorage: h._patchBlobStorage } : {}),
     });
   }
 

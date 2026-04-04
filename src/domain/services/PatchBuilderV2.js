@@ -981,11 +981,11 @@ export class PatchBuilderV2 {
         writes: [...this._writes].sort(),
       });
 
-      // 6. Persist patch via PatchJournalPort (adapter owns encoding)
-      //    Falls back to raw blob write when no journal is wired (legacy path).
-      const patchBlobOid = this._patchJournal
-        ? await this._patchJournal.writePatch(patch)
-        : await this._persistence.writeBlob(patch);
+      // 6. Persist patch via PatchJournalPort (adapter owns encoding).
+      if (this._patchJournal === null || this._patchJournal === undefined) {
+        throw new Error('patchJournal is required for committing patches');
+      }
+      const patchBlobOid = await this._patchJournal.writePatch(patch);
 
       // 7. Create tree with the patch blob + any content blobs (deduplicated)
       // Format for mktree: "mode type oid\tpath"
@@ -1007,6 +1007,7 @@ export class PatchBuilderV2 {
         // "encrypted" is a legacy wire name meaning "patch blob stored externally
         // via patchBlobStorage" (see ADR-0002). The flag tells readers to retrieve
         // the blob via BlobStoragePort instead of reading it directly from Git.
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions -- WarpRuntime options are untyped; cast narrows
         encrypted: this._patchJournal ? this._patchJournal.usesExternalStorage : false,
       });
       const parents = (parentCommit !== null && parentCommit !== '') ? [parentCommit] : [];

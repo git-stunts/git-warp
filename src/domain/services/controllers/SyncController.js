@@ -335,7 +335,10 @@ export default class SyncController {
       localFrontier,
       persistence,
       this._host._graphName,
-      /** @type {Record<string, unknown>} */ ({ codec: this._host._codec, logger: this._host._logger || undefined, patchBlobStorage: this._host._patchBlobStorage || undefined })
+      /** @type {Record<string, unknown>} */ ({
+        ...(this._host._patchJournal !== null && this._host._patchJournal !== undefined ? { patchJournal: this._host._patchJournal } : {}),
+        ...(this._host._logger !== null && this._host._logger !== undefined ? { logger: this._host._logger } : {}),
+      })
     );
   }
 
