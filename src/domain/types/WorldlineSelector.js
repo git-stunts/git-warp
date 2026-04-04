@@ -102,15 +102,14 @@ function fromPlainObject(raw) {
   if (!(kind in registry)) {
     throw new TypeError(`unknown worldline selector kind: ${String(kind)}`);
   }
-  /* eslint-disable @typescript-eslint/no-unsafe-return -- registry is populated by trusted subclass modules at import time */
+  const Ctor = /** @type {new (...args: unknown[]) => WorldlineSelector} */ (registry[kind]);
   if (kind === 'live') {
-    return /** @type {WorldlineSelector} */ (new registry[kind](value.ceiling));
+    return new Ctor(value['ceiling']);
   }
   if (kind === 'coordinate') {
-    return /** @type {WorldlineSelector} */ (new registry[kind](value.frontier, value.ceiling));
+    return new Ctor(value['frontier'], value['ceiling']);
   }
-  return /** @type {WorldlineSelector} */ (new registry[kind](value.strandId, value.ceiling));
-  /* eslint-enable @typescript-eslint/no-unsafe-return */
+  return new Ctor(value['strandId'], value['ceiling']);
 }
 
 export { validateCeiling };

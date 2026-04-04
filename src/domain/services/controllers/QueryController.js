@@ -540,7 +540,7 @@ async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions 
     config,
     graph: this._host,
     snapshot,
-    source: toSelector(options?.source) || new LiveSelector(),
+    source: /** @type {import('../../../../index.js').WorldlineSource} */ (/** @type {unknown} */ (toSelector(options?.source) || new LiveSelector())),
   });
 }
 

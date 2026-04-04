@@ -17,7 +17,7 @@ import LiveSelector from '../types/LiveSelector.js';
 import CoordinateSelector from '../types/CoordinateSelector.js';
 
 
-/** @import { ObserverConfig, WorldlineOptions } from '../../../index.js' */
+/** @import { ObserverConfig, WorldlineOptions, WorldlineSource } from '../../../index.js' */
 /** @import { default as WarpRuntime } from '../WarpRuntime.js' */
 /**
 
@@ -38,11 +38,11 @@ import CoordinateSelector from '../types/CoordinateSelector.js';
 /**
  * Converts a raw source descriptor to a WorldlineSelector and clones it.
  *
- * @param {WorldlineSelector|{ kind: string, [key: string]: unknown }|undefined|null} source
- * @returns {WorldlineSelector}
+ * @param {WorldlineSelector|WorldlineSource|{ kind: string, [key: string]: unknown }|undefined|null} source
+ * @returns {import('../types/WorldlineSelector.js').default}
  */
 function toSelector(source) {
-  return WorldlineSelector.from(source).clone();
+  return WorldlineSelector.from(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }|null|undefined} */ (source)).clone();
 }
 
 /**
@@ -182,20 +182,20 @@ async function materializeStrandSource(graph, source, collectReceipts) {
  * Dispatches materialization to the handler for the source's kind.
  *
  * @param {WarpRuntime} graph
- * @param {WorldlineSource} source
+ * @param {import('../types/WorldlineSelector.js').default} source
  * @param {boolean} collectReceipts
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
  */
 async function materializeSource(graph, source, collectReceipts) {
   if (source instanceof LiveSelector) {
-    return await materializeLiveSource(graph, source, collectReceipts);
+    return await materializeLiveSource(graph, /** @type {{ kind: 'live', ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
   }
 
   if (source instanceof CoordinateSelector) {
-    return await materializeCoordinateSource(graph, source, collectReceipts);
+    return await materializeCoordinateSource(graph, /** @type {{ kind: 'coordinate', frontier: Map<string,string>, ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
   }
 
-  return await materializeStrandSource(graph, source, collectReceipts);
+  return await materializeStrandSource(graph, /** @type {{ kind: 'strand', strandId: string, ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
 }
 
 /**
@@ -205,7 +205,7 @@ export default class Worldline {
   /**
    * Creates a Worldline pinned to the given graph and source descriptor.
    *
-   * @param {{ graph: WarpRuntime, source?: WorldlineSource }} options
+   * @param {{ graph: WarpRuntime, source?: import('../types/WorldlineSelector.js').default }} options
    */
   constructor({ graph, source }) {
     /** @type {WarpRuntime} */
@@ -231,10 +231,10 @@ export default class Worldline {
   /**
    * Gets the pinned source for this worldline handle.
    *
-   * @returns {{ kind: string, [key: string]: unknown }}
+   * @returns {WorldlineSource}
    */
   get source() {
-    return this._source.toDTO();
+    return /** @type {WorldlineSource} */ (/** @type {WorldlineSource} */ (this._source.toDTO()));
   }
 
   /**
@@ -276,7 +276,7 @@ export default class Worldline {
     if (!this._delegateObserverPromise) {
       this._delegateObserverPromise = this._graph.observer(
         { match: '*' },
-        { source: this._source.toDTO() },
+        { source: /** @type {WorldlineSource} */ (this._source.toDTO()) },
       );
     }
     return await this._delegateObserverPromise;
@@ -357,13 +357,13 @@ export default class Worldline {
     if (typeof nameOrConfig === 'string') {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
       return await this._graph.observer(nameOrConfig, config, {
-        source: this._source.toDTO(),
+        source: /** @type {WorldlineSource} */ (this._source.toDTO()),
       });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
     return await this._graph.observer(nameOrConfig, {
-      source: this._source.toDTO(),
+      source: /** @type {WorldlineSource} */ (this._source.toDTO()),
     });
   }
 }

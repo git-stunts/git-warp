@@ -252,7 +252,7 @@ export default class Observer {
    * Initializes the backing graph, snapshot, and source state.
    * @param {import('../../WarpRuntime.js').default|undefined} graph
    * @param {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|undefined} snapshot
-   * @param {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | undefined} source
+   * @param {import('../../types/WorldlineSelector.js').default|import('../../../../index.js').WorldlineSource|undefined} source
    * @private
    */
   _initBacking(graph, snapshot, source) {
@@ -261,7 +261,7 @@ export default class Observer {
     /** @type {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|null} */
     this._snapshot = snapshot || null;
     /** @type {WorldlineSelector|null} */
-    this._source = toSelector(source || new LiveSelector());
+    this._source = toSelector(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }} */ (source || new LiveSelector()));
     /** @type {import('../../../../index.js').VisibleStateReaderV5|null} */
     this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
@@ -279,10 +279,10 @@ export default class Observer {
   /**
    * Gets the effective pinned source for this observer.
    *
-   * @returns {{ kind: string, [key: string]: unknown }|null}
+   * @returns {import('../../../../index.js').WorldlineSource|null}
    */
   get source() {
-    return this._source ? this._source.toDTO() : null;
+    return this._source ? /** @type {import('../../../../index.js').WorldlineSource} */ (this._source.toDTO()) : null;
   }
 
   /**
@@ -339,7 +339,7 @@ export default class Observer {
       : new LiveSelector();
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
-    return await graph.observer(/** @type {string} */ (this._name), config, { source: nextSource.toDTO() });
+    return await graph.observer(/** @type {string} */ (this._name), config, { source: /** @type {import('../../../../index.js').WorldlineSource} */ (nextSource.toDTO()) });
   }
 
   // ===========================================================================
