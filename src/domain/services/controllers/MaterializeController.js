@@ -623,10 +623,9 @@ export default class MaterializeController {
     h._stateDirty = false;
     h._versionVector = state.observedFrontier.clone();
 
-    /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
-    const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
-    const stateHash = checkpointStore
-      ? await checkpointStore.computeStateHash(state)
+    const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (h._stateHashService);
+    const stateHash = stateHashService
+      ? await stateHashService.compute(state)
       : await computeStateHashV5(state, { crypto: h._crypto, codec: h._codec });
     let adjacency;
 

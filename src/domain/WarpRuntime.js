@@ -30,6 +30,7 @@ import CheckpointController from './services/controllers/CheckpointController.js
 import SyncTrustGate from './services/sync/SyncTrustGate.js';
 import { AuditVerifierService } from './services/audit/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
+import StateHashService from './services/state/StateHashService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
@@ -363,6 +364,9 @@ export default class WarpRuntime {
 
     /** @type {import('../ports/CheckpointStorePort.js').default|null} */
     this._checkpointStore = null;
+
+    /** @type {StateHashService|null} */
+    this._stateHashService = null;
   }
 
   /**
@@ -570,6 +574,12 @@ export default class WarpRuntime {
         crypto: graph._crypto,
       });
     }
+
+    // Auto-construct StateHashService from codec + crypto
+    graph._stateHashService = new StateHashService({
+      codec: graph._codec,
+      crypto: graph._crypto,
+    });
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();

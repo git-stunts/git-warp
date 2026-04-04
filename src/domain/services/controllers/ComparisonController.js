@@ -762,6 +762,21 @@ function buildStrandMetadata(strandId, descriptor) {
 }
 
 /**
+ * Computes the canonical state hash, preferring StateHashService when available.
+ *
+ * @param {import('../../WarpRuntime.js').default} graph
+ * @param {WarpStateV5} state
+ * @returns {Promise<string>}
+ */
+async function computeStateHashForGraph(graph, state) {
+  const svc = /** @type {import('../state/StateHashService.js').default|null} */ (graph._stateHashService);
+  if (svc) {
+    return await svc.compute(state);
+  }
+  return await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
+}
+
+/**
  * Finalizes one side of a coordinate comparison with digests and summary.
  *
  * @param {import('../../WarpRuntime.js').default} graph
@@ -783,8 +798,7 @@ async function finalizeSide(graph, params, scope) {
   const visiblePatchFrontier = patchFrontierFromEntries(scopedPatchEntries);
   const visibleLamportFrontier = lamportFrontierFromEntries(scopedPatchEntries);
   const reader = createStateReaderV5(scopedState);
-
-  const stateHash = await computeStateHashV5(scopedState, { crypto: graph._crypto, codec: graph._codec });
+  const stateHash = await computeStateHashForGraph(graph, scopedState);
   const patchShas = uniqueSortedPatchShas(scopedPatchEntries);
 
   return new ResolvedComparisonSide({

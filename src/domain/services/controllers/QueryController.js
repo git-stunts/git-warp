@@ -121,10 +121,10 @@ async function snapshotCurrentMaterialized(graph) {
  * @returns {Promise<{ state: import('../state/WarpStateV5.js').default, stateHash: string }>}
  */
 async function snapshotReturnedState(graph, state) {
-  const stateHash = await computeStateHashV5(state, {
-    crypto: graph._crypto,
-    codec: graph._codec,
-  });
+  const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (graph._stateHashService);
+  const stateHash = stateHashService
+    ? await stateHashService.compute(state)
+    : await computeStateHashV5(state, { crypto: graph._crypto, codec: graph._codec });
   return {
     state: cloneStateV5(state),
     stateHash,

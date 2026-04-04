@@ -88,6 +88,7 @@ export default class CheckpointController {
       const persistence = h._persistence;
       /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
       const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+      const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (h._stateHashService);
       const checkpointSha = await createCheckpointCommit({
         persistence,
         graphName: h._graphName,
@@ -99,6 +100,7 @@ export default class CheckpointController {
         codec: h._codec,
         ...(indexTree ? { indexTree } : {}),
         ...(checkpointStore ? { checkpointStore } : {}),
+        ...(stateHashService ? { stateHashService } : {}),
       });
 
       const checkpointRef = buildCheckpointRef(h._graphName);

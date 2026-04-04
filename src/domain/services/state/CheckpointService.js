@@ -238,10 +238,10 @@ function collectContentAnchorEntries(propMap) {
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, state: import('../JoinReducer.js').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.js').default }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, state: import('../JoinReducer.js').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.js').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
-export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto, indexTree, checkpointStore }) {
+export async function create({ persistence, graphName, state, frontier, parents = [], compact = true, provenanceIndex, codec, crypto, indexTree, checkpointStore, stateHashService }) {
   /** @type {Parameters<typeof createV5>[0]} */
   const opts = { persistence, graphName, state, frontier, parents, compact };
   if (provenanceIndex !== undefined && provenanceIndex !== null) { opts.provenanceIndex = provenanceIndex; }
@@ -249,6 +249,7 @@ export async function create({ persistence, graphName, state, frontier, parents 
   if (crypto !== undefined && crypto !== null) { opts.crypto = crypto; }
   if (indexTree !== undefined && indexTree !== null) { opts.indexTree = indexTree; }
   if (checkpointStore !== undefined && checkpointStore !== null) { opts.checkpointStore = checkpointStore; }
+  if (stateHashService !== undefined && stateHashService !== null) { opts.stateHashService = stateHashService; }
   return await createV5(opts);
 }
 
@@ -264,7 +265,7 @@ export async function create({ persistence, graphName, state, frontier, parents 
  * └── provenanceIndex.cbor # Optional: node-to-patchSha index (HG/IO/2)
  * ```
  *
- * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, state: import('../JoinReducer.js').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.js').default }} options - Checkpoint creation options
+ * @param {{ persistence: import('../../../ports/CommitPort.js').default & import('../../../ports/BlobPort.js').default & import('../../../ports/TreePort.js').default, graphName: string, state: import('../JoinReducer.js').WarpStateV5, frontier: import('../Frontier.js').Frontier, parents?: string[], compact?: boolean, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, codec?: import('../../../ports/CodecPort.js').default, crypto?: import('../../../ports/CryptoPort.js').default, indexTree?: Record<string, Uint8Array>, checkpointStore?: import('../../../ports/CheckpointStorePort.js').default, stateHashService?: import('./StateHashService.js').default }} options - Checkpoint creation options
  * @returns {Promise<string>} The checkpoint commit SHA
  */
 export async function createV5({
@@ -279,6 +280,7 @@ export async function createV5({
   crypto,
   indexTree,
   checkpointStore,
+  stateHashService,
 }) {
   // 1. Compute appliedVV from actual state dots
   const appliedVV = computeAppliedVV(state);
@@ -306,14 +308,27 @@ export async function createV5({
   let frontierBlobOid;
   /** @type {string} */
   let appliedVVBlobOid;
+  /** @type {string|null} */
+  let provenanceIndexBlobOid = null;
 
   if (checkpointStore !== undefined && checkpointStore !== null) {
-    [stateBlobOid, stateHash, frontierBlobOid, appliedVVBlobOid] = await Promise.all([
-      checkpointStore.writeState(checkpointState),
-      checkpointStore.computeStateHash(checkpointState),
-      checkpointStore.writeFrontier(frontier),
-      checkpointStore.writeAppliedVV(appliedVV),
-    ]);
+    // Compute stateHash first via StateHashService (preferred) or legacy fallback
+    if (stateHashService !== undefined && stateHashService !== null) {
+      stateHash = await stateHashService.compute(checkpointState);
+    } else {
+      stateHash = await computeStateHashV5(checkpointState, { ...codecOpt, crypto: /** @type {import('../../../ports/CryptoPort.js').default} */ (crypto) });
+    }
+    const writeResult = await checkpointStore.writeCheckpoint({
+      state: checkpointState,
+      frontier,
+      appliedVV,
+      stateHash,
+      ...(provenanceIndex ? { provenanceIndex } : {}),
+    });
+    stateBlobOid = writeResult.stateBlobOid;
+    frontierBlobOid = writeResult.frontierBlobOid;
+    appliedVVBlobOid = writeResult.appliedVVBlobOid;
+    provenanceIndexBlobOid = writeResult.provenanceIndexBlobOid;
   } else {
     // Legacy path: serialize in-process, write raw blobs
     const stateBuffer = serializeFullStateV5(checkpointState, codecOpt);
@@ -323,13 +338,13 @@ export async function createV5({
     stateBlobOid = await persistence.writeBlob(stateBuffer);
     frontierBlobOid = await persistence.writeBlob(frontierBuffer);
     appliedVVBlobOid = await persistence.writeBlob(appliedVVBuffer);
-  }
 
-  // 6b. Optionally serialize and write provenance index
-  let provenanceIndexBlobOid = null;
-  if (provenanceIndex) {
-    const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
-    provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
+    // 6b. Optionally serialize and write provenance index (legacy path only;
+    // when checkpointStore is used, writeCheckpoint already wrote it)
+    if (provenanceIndex) {
+      const provenanceIndexBuffer = provenanceIndex.serialize(codecOpt);
+      provenanceIndexBlobOid = await persistence.writeBlob(provenanceIndexBuffer);
+    }
   }
 
   // 6c. Optionally write index subtree (schema 4)
@@ -435,46 +450,49 @@ export async function loadCheckpoint(persistence, checkpointSha, { codec, checkp
   // 3b. Partition: entries with 'index/' prefix are bitmap index shards
   const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
 
+  if (checkpointStore !== undefined && checkpointStore !== null) {
+    // New collapsed API: one call reads all artifacts
+    const cpData = await checkpointStore.readCheckpoint(treeOids);
+    /** @type {{ state: import('../JoinReducer.js').WarpStateV5, frontier: import('../Frontier.js').Frontier, stateHash: string, schema: number, appliedVV: VersionVector|null, provenanceIndex?: import('../provenance/ProvenanceIndex.js').ProvenanceIndex, indexShardOids: Record<string, string>|null }} */
+    const result = {
+      state: cpData.state,
+      frontier: cpData.frontier,
+      stateHash: decoded.stateHash, // Authoritative: from commit message, not adapter
+      schema: decoded.schema,       // Authoritative: from commit message
+      appliedVV: cpData.appliedVV,
+      indexShardOids: Object.keys(indexShardOids).length > 0 ? indexShardOids : cpData.indexShardOids,
+    };
+    if (cpData.provenanceIndex !== null && cpData.provenanceIndex !== undefined) {
+      result.provenanceIndex = cpData.provenanceIndex;
+    }
+    return result;
+  }
+
+  // Legacy path: read each blob individually
+
   // 4. Read frontier.cbor blob
   const frontierOid = treeOids['frontier.cbor'];
   if (frontierOid === undefined) {
     throw new Error(`Checkpoint ${checkpointSha} missing frontier.cbor in tree`);
   }
-  /** @type {import('../Frontier.js').Frontier} */
-  let frontier;
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    frontier = await checkpointStore.readFrontier(frontierOid);
-  } else {
-    const frontierBuffer = await persistence.readBlob(frontierOid);
-    frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
-  }
+  const frontierBuffer = await persistence.readBlob(frontierOid);
+  const frontier = deserializeFrontier(frontierBuffer, loadCodecOpt);
 
   // 5. Read state.cbor blob and deserialize as V5 full state
   const stateOid = treeOids['state.cbor'];
   if (stateOid === undefined) {
     throw new Error(`Checkpoint ${checkpointSha} missing state.cbor in tree`);
   }
-  /** @type {import('../JoinReducer.js').WarpStateV5} */
-  let state;
-  if (checkpointStore !== undefined && checkpointStore !== null) {
-    // V5: Load AUTHORITATIVE full state via port (NEVER use visible.cbor for resume)
-    state = await checkpointStore.readState(stateOid);
-  } else {
-    const stateBuffer = await persistence.readBlob(stateOid);
-    // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
-    state = deserializeFullStateV5(stateBuffer, loadCodecOpt);
-  }
+  const stateBuffer = await persistence.readBlob(stateOid);
+  // V5: Load AUTHORITATIVE full state from state.cbor (NEVER use visible.cbor for resume)
+  const state = deserializeFullStateV5(stateBuffer, loadCodecOpt);
 
   // Load appliedVV if present
   let appliedVV = null;
   const appliedVVOid = treeOids['appliedVV.cbor'];
   if (appliedVVOid !== undefined) {
-    if (checkpointStore !== undefined && checkpointStore !== null) {
-      appliedVV = await checkpointStore.readAppliedVV(appliedVVOid);
-    } else {
-      const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
-      appliedVV = deserializeAppliedVV(appliedVVBuffer, loadCodecOpt);
-    }
+    const appliedVVBuffer = await persistence.readBlob(appliedVVOid);
+    appliedVV = deserializeAppliedVV(appliedVVBuffer, loadCodecOpt);
   }
 
   // Load provenanceIndex if present (HG/IO/2)

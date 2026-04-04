@@ -1,89 +1,72 @@
 import WarpError from '../domain/errors/WarpError.js';
 
 /**
+ * @typedef {{
+ *   state: import('../domain/services/JoinReducer.js').WarpStateV5,
+ *   frontier: Map<string, string>,
+ *   appliedVV: import('../domain/crdt/VersionVector.js').default,
+ *   stateHash: string,
+ *   provenanceIndex?: import('../domain/services/provenance/ProvenanceIndex.js').ProvenanceIndex | null,
+ * }} CheckpointRecord
+ */
+
+/**
+ * @typedef {{
+ *   treeOid: string,
+ *   stateBlobOid: string,
+ *   frontierBlobOid: string,
+ *   appliedVVBlobOid: string,
+ *   provenanceIndexBlobOid: string | null,
+ * }} CheckpointWriteResult
+ */
+
+/**
+ * @typedef {{
+ *   state: import('../domain/services/JoinReducer.js').WarpStateV5,
+ *   frontier: Map<string, string>,
+ *   appliedVV: import('../domain/crdt/VersionVector.js').default | null,
+ *   stateHash: string,
+ *   schema: number,
+ *   provenanceIndex?: import('../domain/services/provenance/ProvenanceIndex.js').ProvenanceIndex | null,
+ *   indexShardOids: Record<string, string> | null,
+ * }} CheckpointData
+ */
+
+/**
  * Port for checkpoint persistence.
  *
- * Domain-facing port that speaks WarpStateV5, VersionVector, and
- * Frontier domain objects. No bytes cross this boundary. The adapter
- * implementation owns the codec and talks to raw Git ports internally.
- *
- * This is part of the two-stage persistence boundary (P5 compliance):
- *   Domain Service → CheckpointStorePort (domain objects)
- *     → Adapter (codec + raw Git ports) → Git
+ * A checkpoint is one domain event with multiple persistence artifacts.
+ * The port speaks one semantic operation (writeCheckpoint, readCheckpoint),
+ * not individual blob writes. The adapter internally fans artifacts out
+ * through the stream pipeline.
  *
  * @abstract
  * @see CborCheckpointStoreAdapter - Reference implementation
  */
 export default class CheckpointStorePort {
   /**
-   * Persists full V5 state (ORSets + props + VV + edgeBirthEvent)
-   * and returns its storage OID.
+   * Persists a complete checkpoint and returns write results.
    *
-   * @param {import('../domain/services/JoinReducer.js').WarpStateV5} _state
-   * @returns {Promise<string>} The storage OID
+   * The adapter internally encodes and writes state, frontier,
+   * appliedVV (and optionally provenanceIndex) as separate blobs,
+   * assembles a Git tree, and returns the OIDs.
+   *
+   * @param {CheckpointRecord} _record - The checkpoint artifacts to persist
+   * @returns {Promise<CheckpointWriteResult>}
+   * @throws {Error} If not implemented by a concrete adapter
    */
-  async writeState(_state) {
-    throw new WarpError('CheckpointStorePort.writeState() not implemented', 'E_NOT_IMPLEMENTED');
+  async writeCheckpoint(_record) {
+    throw new WarpError('CheckpointStorePort.writeCheckpoint() not implemented', 'E_NOT_IMPLEMENTED');
   }
 
   /**
-   * Reads full V5 state by storage OID.
+   * Reads a checkpoint from a tree of OIDs.
    *
-   * @param {string} _blobOid
-   * @returns {Promise<import('../domain/services/JoinReducer.js').WarpStateV5>}
+   * @param {Record<string, string>} _treeOids - Map of path → blob OID from the checkpoint tree
+   * @returns {Promise<CheckpointData>}
+   * @throws {Error} If not implemented by a concrete adapter
    */
-  async readState(_blobOid) {
-    throw new WarpError('CheckpointStorePort.readState() not implemented', 'E_NOT_IMPLEMENTED');
-  }
-
-  /**
-   * Persists applied version vector and returns its storage OID.
-   *
-   * @param {import('../domain/crdt/VersionVector.js').default} _vv
-   * @returns {Promise<string>} The storage OID
-   */
-  async writeAppliedVV(_vv) {
-    throw new WarpError('CheckpointStorePort.writeAppliedVV() not implemented', 'E_NOT_IMPLEMENTED');
-  }
-
-  /**
-   * Reads applied version vector by storage OID.
-   *
-   * @param {string} _blobOid
-   * @returns {Promise<import('../domain/crdt/VersionVector.js').default>}
-   */
-  async readAppliedVV(_blobOid) {
-    throw new WarpError('CheckpointStorePort.readAppliedVV() not implemented', 'E_NOT_IMPLEMENTED');
-  }
-
-  /**
-   * Persists a frontier (Map<writerId, tipSha>) and returns its
-   * storage OID.
-   *
-   * @param {Map<string, string>} _frontier
-   * @returns {Promise<string>} The storage OID
-   */
-  async writeFrontier(_frontier) {
-    throw new WarpError('CheckpointStorePort.writeFrontier() not implemented', 'E_NOT_IMPLEMENTED');
-  }
-
-  /**
-   * Reads a frontier by storage OID.
-   *
-   * @param {string} _blobOid
-   * @returns {Promise<Map<string, string>>}
-   */
-  async readFrontier(_blobOid) {
-    throw new WarpError('CheckpointStorePort.readFrontier() not implemented', 'E_NOT_IMPLEMENTED');
-  }
-
-  /**
-   * Computes the SHA-256 hash of the canonical visible state projection.
-   *
-   * @param {import('../domain/services/JoinReducer.js').WarpStateV5} _state
-   * @returns {Promise<string>} Hex-encoded SHA-256 hash
-   */
-  async computeStateHash(_state) {
-    throw new WarpError('CheckpointStorePort.computeStateHash() not implemented', 'E_NOT_IMPLEMENTED');
+  async readCheckpoint(_treeOids) {
+    throw new WarpError('CheckpointStorePort.readCheckpoint() not implemented', 'E_NOT_IMPLEMENTED');
   }
 }
