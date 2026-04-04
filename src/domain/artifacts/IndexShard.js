@@ -19,9 +19,9 @@ export class IndexShard {
    * @param {{ shardKey: string, schemaVersion: number }} fields
    */
   constructor({ shardKey, schemaVersion }) {
-    if (typeof shardKey !== 'string') {
+    if (typeof shardKey !== 'string' || shardKey.length === 0) {
       throw new WarpError(
-        `IndexShard shardKey must be a string, got ${typeof shardKey}`,
+        `IndexShard shardKey must be a non-empty string, got ${JSON.stringify(shardKey)}`,
         'E_INVALID_SHARD',
       );
     }

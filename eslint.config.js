@@ -299,6 +299,7 @@ export default tseslint.config(
       "src/infrastructure/adapters/CborPatchJournalAdapter.js",
       "src/infrastructure/adapters/IndexShardEncodeTransform.js",
       "src/domain/stream/WarpStream.js",
+      "src/domain/artifacts/IndexShard.js",
       "src/visualization/renderers/ascii/path.js",
       "src/domain/services/strand/StrandService.js",
       "src/domain/services/query/AdjacencyNeighborProvider.js",

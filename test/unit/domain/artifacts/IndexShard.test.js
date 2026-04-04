@@ -119,7 +119,7 @@ describe('IndexShard family', () => {
     it('rejects non-string shardKey', () => {
       expect(() => new MetaShard({
         shardKey: /** @type {any} */ (42), nodeToGlobal: [], nextLocalId: 0, alive: new Uint8Array(0),
-      })).toThrow('shardKey must be a string');
+      })).toThrow('shardKey must be a non-empty string');
     });
 
     it('rejects invalid schemaVersion', () => {
