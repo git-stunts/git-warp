@@ -310,27 +310,23 @@ async function* _cancelable(source, signal) {
  * @returns {AsyncIterable<T>}
  */
 async function* _muxImpl(streams) {
-  // Create iterators for all sources
   const iterators = streams.map((s) => s[Symbol.asyncIterator]());
-  /** @type {Set<number>} */
-  const active = new Set(iterators.map((_, i) => i));
+  /** @type {Map<number, Promise<{index: number, result: IteratorResult<T>}>>} */
+  const pending = new Map();
 
-  while (active.size > 0) {
-    // Race all active iterators for the next value
-    /** @type {Array<Promise<{index: number, result: IteratorResult<T>}>>} */
-    const races = [];
-    for (const i of active) {
-      const iter = iterators[i];
-      races.push(
-        iter.next().then((result) => ({ index: i, result })),
-      );
-    }
+  // Start initial pull for each iterator
+  for (let i = 0; i < iterators.length; i++) {
+    pending.set(i, iterators[i].next().then((result) => ({ index: i, result })));
+  }
 
-    const { index, result } = await Promise.race(races);
+  while (pending.size > 0) {
+    const { index, result } = await Promise.race(pending.values());
     if (result.done === true) {
-      active.delete(index);
+      pending.delete(index);
     } else {
       yield result.value;
+      // Re-arm this iterator for its next value
+      pending.set(index, iterators[index].next().then((r) => ({ index, result: r })));
     }
   }
 }
@@ -344,65 +340,66 @@ async function* _muxImpl(streams) {
  */
 function _teeImpl(source) {
   const iterator = source[Symbol.asyncIterator]();
-  /** @type {Array<{value: T, done: boolean}>} */
-  const bufferA = [];
-  /** @type {Array<{value: T, done: boolean}>} */
-  const bufferB = [];
+  /** @type {T[]} Shared cache of all items pulled from source. */
+  const cache = [];
   let finished = false;
   /** @type {Error | null} */
   let error = null;
+  /** @type {Promise<IteratorResult<T>> | null} In-flight pull to prevent concurrent pulls. */
+  let inflight = null;
 
   /**
-   * Fetches the next item from the shared source.
-   * @returns {Promise<IteratorResult<T>>}
+   * Ensures the cache has at least `needed` items, or source is done.
+   * Serializes concurrent pulls via the inflight promise.
+   * @param {number} needed
+   * @returns {Promise<void>}
    */
-  async function pullNext() {
-    if (error !== null) {
-      throw error;
-    }
-    if (finished) {
-      return { value: /** @type {T} */ (undefined), done: true };
-    }
-    try {
-      const result = await iterator.next();
-      if (result.done === true) {
-        finished = true;
+  async function ensureCached(needed) {
+    while (cache.length < needed && !finished && error === null) {
+      if (inflight !== null) {
+        await inflight;
+        continue;
       }
-      return result;
-    } catch (err) {
-      error = /** @type {Error} */ (err);
-      finished = true;
-      throw err;
+      inflight = iterator.next();
+      try {
+        const result = await inflight;
+        if (result.done === true) {
+          finished = true;
+        } else {
+          cache.push(result.value);
+        }
+      } catch (err) {
+        error = /** @type {Error} */ (err);
+        finished = true;
+      } finally {
+        inflight = null;
+      }
     }
   }
 
   /**
-   * Creates a branch async iterable backed by a shared buffer.
-   * @param {Array<{value: T, done: boolean}>} myBuffer
-   * @param {Array<{value: T, done: boolean}>} otherBuffer
+   * Creates a branch that reads from the shared cache by index.
    * @returns {AsyncIterable<T>}
    */
-  function makeBranch(myBuffer, otherBuffer) {
+  function makeBranch() {
+    let index = 0;
     return {
       [Symbol.asyncIterator]() {
         return {
           async next() {
-            if (myBuffer.length > 0) {
-              const entry = /** @type {{value: T, done: boolean}} */ (myBuffer.shift());
-              return { value: entry.value, done: entry.done };
+            await ensureCached(index + 1);
+            if (error !== null) { throw error; }
+            if (index >= cache.length) {
+              return { value: /** @type {T} */ (undefined), done: true };
             }
-            const result = await pullNext();
-            if (result.done !== true) {
-              otherBuffer.push({ value: result.value, done: false });
-            }
-            return result;
+            return { value: cache[index++], done: false };
           },
         };
       },
     };
   }
 
-  return [makeBranch(bufferA, bufferB), makeBranch(bufferB, bufferA)];
+  return [makeBranch(), makeBranch()];
 }
 
 /**
