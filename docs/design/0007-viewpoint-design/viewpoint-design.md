@@ -414,7 +414,7 @@ change shape.
 The inbound boundary factory. Accepts plain objects with a `kind`
 discriminant and returns the appropriate class instance:
 
-```javascript
+```text
 WorldlineSelector.from({ kind: 'live' })
   → new LiveSelector()
 
@@ -526,7 +526,7 @@ const selector = WorldlineSelector.from(source).clone();
 
 **Before (materializeSource dispatch):**
 
-```javascript
+```text
 if (source.kind === 'live') { ... }
 if (source.kind === 'coordinate') { ... }
 return await materializeStrandSource(...);
@@ -534,7 +534,7 @@ return await materializeStrandSource(...);
 
 **After:**
 
-```javascript
+```text
 if (source instanceof LiveSelector) { ... }
 if (source instanceof CoordinateSelector) { ... }
 return await materializeStrandSource(...);
@@ -542,7 +542,7 @@ return await materializeStrandSource(...);
 
 **Before (Worldline.source getter):**
 
-```javascript
+```text
 get source() {
   return cloneWorldlineSource(this._source);
 }
@@ -550,7 +550,7 @@ get source() {
 
 **After:**
 
-```javascript
+```text
 get source() {
   return this._source.toDTO();  // plain object for public API
 }
@@ -611,7 +611,7 @@ export {
 Add the selector class declarations. Keep the existing
 `WorldlineSource` type and interfaces unchanged:
 
-```typescript
+```text
 // NEW — selector classes
 export class WorldlineSelector {
   clone(): WorldlineSelector;

@@ -52,7 +52,7 @@ A stream IS a worldline projection:
 A single patch, checkpoint, shard. The semantic object is
 reasonable. The port speaks `Promise<T>`:
 
-```js
+```text
 readPatch(oid) → Promise<Patch>
 writeCheckpoint(record) → Promise<WriteResult>
 ```
@@ -62,7 +62,7 @@ writeCheckpoint(record) → Promise<WriteResult>
 Patch history, index shards, provenance walks. The dataset can
 exceed memory. The API speaks `AsyncIterable<SemanticUnit>`:
 
-```js
+```text
 scanPatchRange(...) → WarpStream<PatchEntry>
 yieldShards() → Generator<IndexShard>
 ```
