@@ -181,9 +181,28 @@ biggest seams before touching the weirder storage families.
 
 - canonicalCbor.js (unused — delete)
 
+## Progress
+
+### Shipped (Slices 1-2)
+
+- **Patches**: PatchJournalPort + CborPatchJournalAdapter. PatchBuilderV2,
+  SyncProtocol, Writer are codec-free. 27 tripwire checks.
+- **Checkpoints**: CheckpointStorePort + CborCheckpointStoreAdapter.
+  CheckpointService routes through port. 9 tripwire checks.
+
+### Remaining (Slices 3-4) → Stream Architecture Cycle
+
+Index files (12) and provenance/BTR files need the stream architecture,
+not more per-artifact ports. Collection APIs that return graph-scale
+aggregates must become `AsyncIterable<SemanticUnit>`. Single bounded
+artifacts (Slices 1-2) are correctly handled by semantic ports.
+
+See `PERF_stream-architecture.md` for the stream cycle proposal.
+
 ## Source
 
 Cycle 0007 defaultCodec migration attempt (failed). Root cause analysis
 identified the P5 violation. Corrected 2026-04-04: the fix is a
 two-stage boundary with artifact-level ports, not file relocation or
-serializer migration.
+serializer migration. Slices 3-4 deferred to stream architecture cycle
+(2026-04-04).
