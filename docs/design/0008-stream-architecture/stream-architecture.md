@@ -40,7 +40,7 @@ Paths are infrastructure.
 
 ### One Stream Container
 
-```
+```text
 WarpStream<T>                — domain primitive
   pipe / tee / mux / demux / drain / reduce / forEach / collect
   [Symbol.asyncIterator]()
@@ -55,27 +55,27 @@ Bounded operations stay `Promise<T>`. Unbounded operations return or
 accept `WarpStream<SemanticUnit>`.
 
 **PatchJournalPort** (keep, extend)
-```
+```text
 writePatch(patch) → Promise<string>              bounded write
 readPatch(oid) → Promise<PatchV2>                bounded read
 scanPatchRange(...) → WarpStream<PatchEntry>     unbounded scan (NEW)
 ```
 
 **CheckpointStorePort** (collapse micro-methods)
-```
+```text
 writeCheckpoint(record) → Promise<CheckpointWriteResult>   one call
 readCheckpoint(sha) → Promise<CheckpointData>              bounded read
 ```
 Adapter internally streams artifacts through the pipeline.
 
 **IndexStorePort** (NEW, streaming)
-```
+```text
 writeShards(stream) → Promise<string>            WarpStream<IndexShard> → tree OID
 scanShards(...) → WarpStream<IndexShard>         unbounded read
 ```
 
 **ProvenanceStorePort** (NEW, separate concept)
-```
+```text
 scanEntries(...) → WarpStream<ProvenanceEntry>
 writeIndex(index) → Promise<string>
 ```
@@ -84,7 +84,7 @@ ownership. Checkpoint = recovery. Provenance = causal/query/verification.
 Different jobs, different lifecycle, different consumers.
 
 **StateHashService** (separate callable, not buried in adapter)
-```
+```text
 compute(state) → Promise<string>
 ```
 Used by verification, comparison, detached checks, AND checkpoint
@@ -95,7 +95,7 @@ creation. Not exclusively inside writeCheckpoint().
 Runtime identity on elements, not containers (P1/P7).
 
 **CheckpointArtifact** — closed subclass family
-```
+```text
 CheckpointArtifact (abstract base)
   common: checkpointRef, schemaVersion
 
@@ -111,7 +111,7 @@ AppliedVVArtifact extends CheckpointArtifact
 No paths. No CBOR. No blob OIDs. No adapter trivia.
 
 **IndexShard** — subtype family (not one generic class)
-```
+```text
 IndexShard (base)
   common: indexFamily, shardId, schemaVersion
 
@@ -140,7 +140,7 @@ with better PR.
 Adapter owns it. Full stop. Domain produces artifact records.
 Adapter maps to Git tree paths at the last responsible moment.
 
-```
+```text
 StateArtifact   → 'state.cbor'
 FrontierArtifact → 'frontier.cbor'
 MetaShard       → 'meta_XX.cbor'
@@ -154,7 +154,7 @@ Domain owns meaning. Adapter owns layout.
 
 ### Infrastructure Transforms
 
-```
+```text
 CborEncodeTransform   artifact → [path, bytes]
 CborDecodeTransform   [path, bytes] → artifact
 GitBlobWriteTransform [path, bytes] → [path, oid]
