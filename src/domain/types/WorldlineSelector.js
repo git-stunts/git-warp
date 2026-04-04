@@ -20,7 +20,7 @@ function validateCeiling(ceiling) {
     return null;
   }
   if (typeof ceiling !== 'number' || !Number.isInteger(ceiling) || ceiling < 0) {
-    throw new TypeError(`ceiling must be null or a non-negative integer, got ${String(ceiling)}`);
+    throw new TypeError(`ceiling must be null or a non-negative integer, got ${typeof ceiling === 'number' ? ceiling : typeof ceiling}`);
   }
   return ceiling;
 }
@@ -28,7 +28,7 @@ function validateCeiling(ceiling) {
 /**
  * Subclass registry — populated by each subclass module on import.
  *
- * @type {{ live?: typeof import('./LiveSelector.js').default, coordinate?: typeof import('./CoordinateSelector.js').default, strand?: typeof import('./StrandSelector.js').default }}
+ * @type {Record<string, Function>}
  */
 const registry = {};
 
@@ -84,35 +84,33 @@ class WorldlineSelector {
     if (raw instanceof WorldlineSelector) {
       return raw;
     }
+    return fromPlainObject(raw);
+  }
+}
 
-    if (raw === null || raw === undefined) {
-      const Live = registry['live'];
-      if (!Live) { throw new Error('LiveSelector not registered'); }
-      return new Live();
-    }
-
-    const kind = raw.kind;
-
-    if (kind === 'live') {
-      const Live = registry['live'];
-      if (!Live) { throw new Error('LiveSelector not registered'); }
-      return new Live(raw.ceiling);
-    }
-
-    if (kind === 'coordinate') {
-      const Coordinate = registry['coordinate'];
-      if (!Coordinate) { throw new Error('CoordinateSelector not registered'); }
-      return new Coordinate(raw.frontier, raw.ceiling);
-    }
-
-    if (kind === 'strand') {
-      const Strand = registry['strand'];
-      if (!Strand) { throw new Error('StrandSelector not registered'); }
-      return new Strand(raw.strandId, raw.ceiling);
-    }
-
+/**
+ * Builds a WorldlineSelector from a plain object or null/undefined.
+ *
+ * Kept separate from the class to reduce static from() complexity.
+ *
+ * @param {{ kind: string, [key: string]: unknown }|null|undefined} raw
+ * @returns {WorldlineSelector}
+ */
+function fromPlainObject(raw) {
+  const value = raw ?? { kind: 'live' };
+  const { kind } = value;
+  if (!(kind in registry)) {
     throw new TypeError(`unknown worldline selector kind: ${String(kind)}`);
   }
+  /* eslint-disable @typescript-eslint/no-unsafe-return -- registry is populated by trusted subclass modules at import time */
+  if (kind === 'live') {
+    return /** @type {WorldlineSelector} */ (new registry[kind](value.ceiling));
+  }
+  if (kind === 'coordinate') {
+    return /** @type {WorldlineSelector} */ (new registry[kind](value.frontier, value.ceiling));
+  }
+  return /** @type {WorldlineSelector} */ (new registry[kind](value.strandId, value.ceiling));
+  /* eslint-enable @typescript-eslint/no-unsafe-return */
 }
 
 export { validateCeiling };

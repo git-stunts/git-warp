@@ -262,6 +262,7 @@ export default tseslint.config(
       "src/domain/warp/PatchSession.js",
       "src/domain/utils/EventId.js",
       "src/domain/types/WarpTypesV2.js",
+      "src/domain/types/WorldlineSelector.js",
       "src/visualization/renderers/ascii/graph.js",
       "src/domain/services/KeyCodec.js",
       "src/domain/services/dag/DagTraversal.js",

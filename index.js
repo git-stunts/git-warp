@@ -94,6 +94,10 @@ import { migrateV4toV5 } from './src/domain/services/MigrationService.js';
 import QueryBuilder from './src/domain/services/query/QueryBuilder.js';
 import Observer from './src/domain/services/query/Observer.js';
 import Worldline from './src/domain/services/Worldline.js';
+import WorldlineSelector from './src/domain/types/WorldlineSelector.js';
+import LiveSelector from './src/domain/types/LiveSelector.js';
+import CoordinateSelector from './src/domain/types/CoordinateSelector.js';
+import StrandSelector from './src/domain/types/StrandSelector.js';
 import { computeTranslationCost } from './src/domain/services/TranslationCost.js';
 import {
   encodeEdgePropKey,
@@ -237,6 +241,10 @@ export {
   WarpApp,
   WarpCore,
   Worldline,
+  WorldlineSelector,
+  LiveSelector,
+  CoordinateSelector,
+  StrandSelector,
   QueryBuilder,
   Observer,
   PatchBuilderV2,

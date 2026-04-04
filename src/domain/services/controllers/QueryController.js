@@ -30,6 +30,10 @@ import { computeTranslationCost } from '../TranslationCost.js';
 import { computeStateHashV5 } from '../state/StateSerializerV5.js';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod.js';
+import WorldlineSelector from '../../types/WorldlineSelector.js';
+import LiveSelector from '../../types/LiveSelector.js';
+import CoordinateSelector from '../../types/CoordinateSelector.js';
+import StrandSelector from '../../types/StrandSelector.js';
 
 /**
  * The host interface that QueryController depends on.
@@ -55,41 +59,16 @@ import { callInternalRuntimeMethod } from '../../utils/callInternalRuntimeMethod
  */
 
 /**
- * Deep-clones an observer source descriptor for defensive copies.
+ * Converts a raw source to a WorldlineSelector, or returns null.
  *
- * @param {ObserverOptions['source']|{
- *   kind: 'strand',
- *   strandId: string,
- *   ceiling?: number|null
- * }|undefined} source
- * @returns {ObserverOptions['source']}
+ * @param {WorldlineSelector|{ kind: string, [key: string]: unknown }|undefined} source
+ * @returns {WorldlineSelector|undefined}
  */
-function cloneObserverSource(source) {
+function toSelector(source) {
   if (!source) {
     return undefined;
   }
-
-  if (source.kind === 'live') {
-    return 'ceiling' in source
-      ? { kind: 'live', ceiling: source.ceiling ?? null }
-      : { kind: 'live' };
-  }
-
-  if (source.kind === 'coordinate') {
-    return {
-      kind: 'coordinate',
-      frontier: source.frontier instanceof Map
-        ? new Map(source.frontier)
-        : { ...source.frontier },
-      ceiling: source.ceiling ?? null,
-    };
-  }
-
-  return {
-    kind: 'strand',
-    strandId: source.strandId,
-    ceiling: source.ceiling ?? null,
-  };
+  return WorldlineSelector.from(source).clone();
 }
 
 /**
@@ -160,13 +139,13 @@ async function snapshotReturnedState(graph, state) {
  * @returns {Promise<{ state: import('../state/WarpStateV5.js').default, stateHash: string }>}
  */
 async function resolveObserverSnapshot(graph, options) {
-  const source = cloneObserverSource(options?.source);
+  const source = toSelector(options?.source);
   if (!source) {
     await graph._ensureFreshState();
     return await snapshotCurrentMaterialized(graph);
   }
 
-  if (source.kind === 'live') {
+  if (source instanceof LiveSelector) {
     const detached = await openDetachedObserverGraph(graph);
     const state = /** @type {import('../state/WarpStateV5.js').default} */ (await detached.materialize({
       ceiling: source.ceiling ?? null,
@@ -174,7 +153,7 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotReturnedState(detached, state);
   }
 
-  if (source.kind === 'coordinate') {
+  if (source instanceof CoordinateSelector) {
     const detached = await openDetachedObserverGraph(graph);
     const state = /** @type {import('../state/WarpStateV5.js').default} */ (await detached.materializeCoordinate({
       frontier: source.frontier,
@@ -183,10 +162,10 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotReturnedState(detached, state);
   }
 
-  if (source.kind === 'strand') {
+  if (source instanceof StrandSelector) {
     const detached = await openDetachedObserverGraph(graph);
     const internalSource = /** @type {{ strandId: string, ceiling?: number|null }} */ (
-      /** @type {unknown} */ (toInternalStrandShape(source))
+      /** @type {unknown} */ (toInternalStrandShape(source.toDTO()))
     );
     const state = /** @type {import('../state/WarpStateV5.js').default} */ (
       await callInternalRuntimeMethod(detached, 'materializeStrand', internalSource.strandId, {
@@ -196,7 +175,7 @@ async function resolveObserverSnapshot(graph, options) {
     return await snapshotReturnedState(detached, state);
   }
 
-  throw new Error(`unknown observer source kind: ${/** @type {{ kind?: unknown }} */ (source).kind}`);
+  throw new Error(`unknown observer source kind: ${source.constructor.name}`);
 }
 
 /**
@@ -507,7 +486,7 @@ function query() {
 function worldline(options = undefined) {
   return new Worldline({
     graph: this._host,
-    source: cloneObserverSource(options?.source) || { kind: 'live' },
+    source: toSelector(options?.source) || new LiveSelector(),
   });
 }
 
@@ -561,7 +540,7 @@ async function observer(nameOrConfig, configOrOptions = undefined, maybeOptions 
     config,
     graph: this._host,
     snapshot,
-    source: cloneObserverSource(options?.source) || { kind: 'live' },
+    source: toSelector(options?.source) || new LiveSelector(),
   });
 }
 
