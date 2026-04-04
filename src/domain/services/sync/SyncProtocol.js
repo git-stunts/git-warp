@@ -459,17 +459,19 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
         }
       }
 
-      const writerPatches = await loadPatchRange(
-        persistence,
-        graphName,
-        writerId,
-        range.from,
-        range.to,
-        { patchJournal },
-      );
-
-      for (const { patch, sha } of writerPatches) {
-        patches.push({ writerId, sha, patch });
+      // Prefer streaming scan when patchJournal supports it; fall back to legacy array load.
+      if (patchJournal !== undefined && patchJournal !== null && typeof patchJournal.scanPatchRange === 'function') {
+        const stream = patchJournal.scanPatchRange(writerId, range.from, range.to);
+        for await (const entry of stream) {
+          patches.push({ writerId, sha: entry.sha, patch: entry.patch });
+        }
+      } else {
+        const writerPatches = await loadPatchRange(
+          persistence, graphName, writerId, range.from, range.to, { patchJournal },
+        );
+        for (const { patch, sha } of writerPatches) {
+          patches.push({ writerId, sha, patch });
+        }
       }
     } catch (err) {
       // If we detect divergence, log and skip this writer (B65).

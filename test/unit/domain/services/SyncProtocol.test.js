@@ -103,6 +103,7 @@ function createPatchJournal(persistence) {
   return new CborPatchJournalAdapter({
     codec: new CborCodec(),
     blobPort: persistence,
+    commitPort: persistence,
   });
 }
 
