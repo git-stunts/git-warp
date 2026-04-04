@@ -1,4 +1,5 @@
 import { projectStateV5 } from './StateSerializerV5.js';
+import WarpError from '../../errors/WarpError.js';
 
 /**
  * Computes canonical state hashes for verification, comparison,
@@ -21,6 +22,12 @@ export default class StateHashService {
    * }} deps
    */
   constructor({ codec, crypto }) {
+    if (codec === undefined || codec === null) {
+      throw new WarpError('StateHashService requires a codec', 'E_MISSING_DEPENDENCY');
+    }
+    if (crypto === undefined || crypto === null) {
+      throw new WarpError('StateHashService requires a crypto adapter', 'E_MISSING_DEPENDENCY');
+    }
     /** @type {import('../../../ports/CodecPort.js').default} */
     this._codec = codec;
     /** @type {import('../../../ports/CryptoPort.js').default} */

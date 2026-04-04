@@ -25,6 +25,9 @@ export default class Sink {
    * @returns {Promise<R>} The accumulated result
    */
   async consume(source) {
+    if (source === null || source === undefined) {
+      throw new WarpError('Sink.consume() requires a source', 'E_INVALID_SOURCE');
+    }
     for await (const item of source) {
       await this._accept(item);
     }

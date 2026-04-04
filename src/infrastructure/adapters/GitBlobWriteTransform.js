@@ -1,4 +1,5 @@
 import Transform from '../../domain/stream/Transform.js';
+import WarpError from '../../domain/errors/WarpError.js';
 
 /**
  * Stream transform that writes the bytes component of [path, bytes] entries
@@ -17,6 +18,9 @@ export class GitBlobWriteTransform extends Transform {
    */
   constructor(blobPort) {
     super();
+    if (blobPort === null || blobPort === undefined) {
+      throw new WarpError('GitBlobWriteTransform requires a blobPort', 'E_INVALID_DEPENDENCY');
+    }
     /** @type {import('../../ports/BlobPort.js').default} */
     this._blobPort = blobPort;
   }

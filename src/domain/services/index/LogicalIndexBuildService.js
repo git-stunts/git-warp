@@ -64,17 +64,21 @@ export default class LogicalIndexBuildService {
   buildStream(state, options = {}) {
     const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
 
+    // Collect shards once — generators yield fresh iterators on each call,
+    // so calling yieldShards() twice would re-iterate all bitmaps.
+    const indexShards = [...indexBuilder.yieldShards()];
+    const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
+    if (!receiptShard) {
+      throw new Error('LogicalIndexBuildService: index builder did not emit a ReceiptShard');
+    }
+
     // Merge both builders' shard streams
     const stream = WarpStream.mux(
-      WarpStream.from(indexBuilder.yieldShards()),
+      WarpStream.from(indexShards),
       WarpStream.from(propBuilder.yieldShards()),
     );
 
-    // Extract receipt from the index builder (it's deterministic, no need to decode)
-    const shards = [...indexBuilder.yieldShards()];
-    const receiptShard = /** @type {ReceiptShard} */ (shards.find((s) => s instanceof ReceiptShard));
-
-    return { stream, receipt: receiptShard };
+    return { stream, receipt: /** @type {ReceiptShard} */ (receiptShard) };
   }
 
   /**

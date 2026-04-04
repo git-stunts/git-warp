@@ -575,11 +575,13 @@ export default class WarpRuntime {
       });
     }
 
-    // Auto-construct StateHashService from codec + crypto
-    graph._stateHashService = new StateHashService({
-      codec: graph._codec,
-      crypto: graph._crypto,
-    });
+    // Auto-construct StateHashService from codec + crypto (only when crypto is available)
+    if (graph._crypto) {
+      graph._stateHashService = new StateHashService({
+        codec: graph._codec,
+        crypto: graph._crypto,
+      });
+    }
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();

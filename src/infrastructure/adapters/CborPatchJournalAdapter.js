@@ -31,6 +31,12 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
    */
   constructor({ codec, blobPort, commitPort, patchBlobStorage }) {
     super();
+    if (codec === null || codec === undefined) {
+      throw new WarpError('CborPatchJournalAdapter requires a codec', 'E_INVALID_DEPENDENCY');
+    }
+    if (blobPort === null || blobPort === undefined) {
+      throw new WarpError('CborPatchJournalAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
+    }
     /** @type {import('../../ports/CodecPort.js').default} */
     this._codec = codec;
     /** @type {import('../../ports/BlobPort.js').default} */

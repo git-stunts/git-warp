@@ -12,7 +12,6 @@ import WarpError from '../domain/errors/WarpError.js';
 
 /**
  * @typedef {{
- *   treeOid: string,
  *   stateBlobOid: string,
  *   frontierBlobOid: string,
  *   appliedVVBlobOid: string,

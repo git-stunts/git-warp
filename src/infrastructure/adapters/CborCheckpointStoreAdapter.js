@@ -26,6 +26,12 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    */
   constructor({ codec, blobPort }) {
     super();
+    if (codec === null || codec === undefined) {
+      throw new WarpError('CborCheckpointStoreAdapter requires a codec', 'E_INVALID_DEPENDENCY');
+    }
+    if (blobPort === null || blobPort === undefined) {
+      throw new WarpError('CborCheckpointStoreAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
+    }
     /** @type {import('../../ports/CodecPort.js').default} */
     this._codec = codec;
     /** @type {import('../../ports/BlobPort.js').default} */
@@ -63,7 +69,6 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const oids = await Promise.all(writes);
     return {
-      treeOid: '', // Caller assembles tree (CheckpointService owns commit creation)
       stateBlobOid: oids[0],
       frontierBlobOid: oids[1],
       appliedVVBlobOid: oids[2],

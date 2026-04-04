@@ -39,6 +39,7 @@ import WriterError from '../errors/WriterError.js';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.js';
 import { canonicalStringify } from '../utils/canonicalStringify.js';
 import PatchError from '../errors/PatchError.js';
+import PersistenceError from '../errors/PersistenceError.js';
 
 /**
  * Inspects materialized state for edges and properties attached to a node.
@@ -983,7 +984,7 @@ export class PatchBuilderV2 {
 
       // 6. Persist patch via PatchJournalPort (adapter owns encoding).
       if (this._patchJournal === null || this._patchJournal === undefined) {
-        throw new Error('patchJournal is required for committing patches');
+        throw new PersistenceError('patchJournal is required for committing patches', 'E_MISSING_JOURNAL');
       }
       const patchBlobOid = await this._patchJournal.writePatch(patch);
 

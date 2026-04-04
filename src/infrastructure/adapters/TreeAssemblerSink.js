@@ -1,4 +1,5 @@
 import Sink from '../../domain/stream/Sink.js';
+import WarpError from '../../domain/errors/WarpError.js';
 
 /**
  * Stream sink that accumulates [path, oid] entries and assembles them
@@ -17,6 +18,9 @@ export class TreeAssemblerSink extends Sink {
    */
   constructor(treePort) {
     super();
+    if (treePort === null || treePort === undefined) {
+      throw new WarpError('TreeAssemblerSink requires a treePort', 'E_INVALID_DEPENDENCY');
+    }
     /** @type {import('../../ports/TreePort.js').default} */
     this._treePort = treePort;
     /** @type {string[]} mktree-formatted entries */
