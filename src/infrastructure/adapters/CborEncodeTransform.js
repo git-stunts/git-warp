@@ -1,4 +1,5 @@
 import Transform from '../../domain/stream/Transform.js';
+import WarpError from '../../domain/errors/WarpError.js';
 
 /**
  * Stream transform that CBOR-encodes the value component of [path, data] entries.
@@ -16,6 +17,9 @@ export class CborEncodeTransform extends Transform {
    */
   constructor(codec) {
     super();
+    if (codec === null || codec === undefined) {
+      throw new WarpError('CborEncodeTransform requires a codec', 'E_INVALID_DEPENDENCY');
+    }
     /** @type {import('../../ports/CodecPort.js').default} */
     this._codec = codec;
   }

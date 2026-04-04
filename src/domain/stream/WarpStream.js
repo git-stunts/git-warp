@@ -296,6 +296,7 @@ async function* _empty() {
  * @returns {AsyncIterable<T>}
  */
 async function* _cancelable(source, signal) {
+  checkAborted(signal);
   for await (const item of source) {
     checkAborted(signal);
     yield item;
@@ -340,22 +341,38 @@ async function* _muxImpl(streams) {
  */
 function _teeImpl(source) {
   const iterator = source[Symbol.asyncIterator]();
-  /** @type {T[]} Shared cache of all items pulled from source. */
+  /** @type {T[]} Shared cache of items pulled from source, trimmed from the front. */
   const cache = [];
+  /** @type {number} Offset: the absolute index of cache[0]. */
+  let cacheOffset = 0;
   let finished = false;
   /** @type {Error | null} */
   let error = null;
   /** @type {Promise<IteratorResult<T>> | null} In-flight pull to prevent concurrent pulls. */
   let inflight = null;
+  /** @type {[number, number]} Absolute consumed index per branch. */
+  const consumed = [0, 0];
 
   /**
-   * Ensures the cache has at least `needed` items, or source is done.
+   * Trims cache entries that both branches have consumed.
+   */
+  function trimCache() {
+    const minConsumed = Math.min(consumed[0], consumed[1]);
+    const trimCount = minConsumed - cacheOffset;
+    if (trimCount > 0) {
+      cache.splice(0, trimCount);
+      cacheOffset += trimCount;
+    }
+  }
+
+  /**
+   * Ensures the cache covers absolute index `needed - 1`, or source is done.
    * Serializes concurrent pulls via the inflight promise.
-   * @param {number} needed
+   * @param {number} needed - Absolute index count needed.
    * @returns {Promise<void>}
    */
   async function ensureCached(needed) {
-    while (cache.length < needed && !finished && error === null) {
+    while (cacheOffset + cache.length < needed && !finished && error === null) {
       if (inflight !== null) {
         await inflight;
         continue;
@@ -378,10 +395,11 @@ function _teeImpl(source) {
   }
 
   /**
-   * Creates a branch that reads from the shared cache by index.
+   * Creates a branch that reads from the shared cache by absolute index.
+   * @param {number} branchId - 0 or 1, identifying this branch for trim tracking.
    * @returns {AsyncIterable<T>}
    */
-  function makeBranch() {
+  function makeBranch(branchId) {
     let index = 0;
     return {
       [Symbol.asyncIterator]() {
@@ -389,17 +407,21 @@ function _teeImpl(source) {
           async next() {
             await ensureCached(index + 1);
             if (error !== null) { throw error; }
-            if (index >= cache.length) {
+            if (index >= cacheOffset + cache.length) {
               return { value: /** @type {T} */ (undefined), done: true };
             }
-            return { value: cache[index++], done: false };
+            const value = cache[index - cacheOffset];
+            index++;
+            consumed[branchId] = index;
+            trimCache();
+            return { value, done: false };
           },
         };
       },
     };
   }
 
-  return [makeBranch(), makeBranch()];
+  return [makeBranch(0), makeBranch(1)];
 }
 
 /**
@@ -412,7 +434,7 @@ function _teeImpl(source) {
  * @returns {Map<string, AsyncIterable<T>>}
  */
 function _demuxImpl(source, classify, keys) {
-  /** @type {Map<string, Array<{resolve: (result: IteratorResult<T>) => void}>>} */
+  /** @type {Map<string, Array<{resolve: (result: IteratorResult<T>) => void, reject: (err: Error) => void}>>} */
   const waiters = new Map();
   /** @type {Map<string, Array<T>>} */
   const buffers = new Map();
@@ -453,7 +475,7 @@ function _demuxImpl(source, classify, keys) {
       for (const [, keyWaiters] of waiters) {
         for (const waiter of keyWaiters) {
           if (pumpError !== null) {
-            waiter.resolve({ value: /** @type {T} */ (undefined), done: true });
+            waiter.reject(pumpError);
           } else {
             waiter.resolve({ value: /** @type {T} */ (undefined), done: true });
           }
@@ -489,8 +511,8 @@ function _demuxImpl(source, classify, keys) {
               return Promise.resolve({ value: /** @type {T} */ (undefined), done: true });
             }
             // Wait for next item routed to this branch
-            return new Promise((resolve) => {
-              /** @type {Array<{resolve: (result: IteratorResult<T>) => void}>} */ (waiters.get(key)).push({ resolve });
+            return new Promise((resolve, reject) => {
+              /** @type {Array<{resolve: (result: IteratorResult<T>) => void, reject: (err: Error) => void}>} */ (waiters.get(key)).push({ resolve, reject });
             });
           },
         };

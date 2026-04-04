@@ -1,4 +1,5 @@
 import PatchJournalPort from '../../ports/PatchJournalPort.js';
+import WarpError from '../../domain/errors/WarpError.js';
 import WarpStream from '../../domain/stream/WarpStream.js';
 import PatchEntry from '../../domain/artifacts/PatchEntry.js';
 import { decodePatchMessage, detectMessageKind } from '../../domain/services/codec/WarpMessageCodec.js';

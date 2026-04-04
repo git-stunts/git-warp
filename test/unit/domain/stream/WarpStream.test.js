@@ -260,6 +260,24 @@ describe('WarpStream', () => {
     it('rejects empty keys array', () => {
       expect(() => WarpStream.of(1).demux(() => 'a', [])).toThrow('requires a non-empty keys');
     });
+
+    it('propagates source errors to waiting branches', async () => {
+      const source = {
+        async *[Symbol.asyncIterator]() {
+          yield { type: 'a', value: 1 };
+          throw new Error('demux-boom');
+        },
+      };
+
+      const branches = new WarpStream(source).demux((item) => item.type, ['a', 'b']);
+
+      await expect(
+        Promise.all([
+          branches.get('a').collect(),
+          branches.get('b').collect(),
+        ]),
+      ).rejects.toThrow('demux-boom');
+    });
   });
 
   // ── Error Propagation ─────────────────────────────────────────────
