@@ -297,6 +297,7 @@ export default tseslint.config(
       "src/infrastructure/adapters/GitGraphAdapter.js",
       "src/infrastructure/adapters/CborCheckpointStoreAdapter.js",
       "src/infrastructure/adapters/CborPatchJournalAdapter.js",
+      "src/infrastructure/adapters/IndexShardEncodeTransform.js",
       "src/domain/stream/WarpStream.js",
       "src/visualization/renderers/ascii/path.js",
       "src/domain/services/strand/StrandService.js",

@@ -18,6 +18,7 @@ import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
 import { ShardIdOverflowError } from '../../errors/index.js';
+import { MetaShard, EdgeShard, LabelShard, ReceiptShard } from '../../artifacts/IndexShard.js';
 
 /** Maximum local IDs per shard (2^24). */
 const MAX_LOCAL_ID = 1 << 24;
@@ -274,13 +275,13 @@ export default class LogicalBitmapIndexBuilder {
   }
 
   /**
-   * Yields shard entries as `[path, domainObject]` pairs without encoding.
+   * Yields IndexShard instances without encoding.
    *
    * This is the stream-compatible alternative to `serialize()`. Pipe the
-   * output through a CborEncodeTransform → GitBlobWriteTransform →
-   * TreeAssemblerSink to persist.
+   * output through the adapter's encode → blobWrite → treeAssemble
+   * pipeline to persist.
    *
-   * @returns {Generator<[string, unknown]>}
+   * @returns {Generator<import('../../artifacts/IndexShard.js').IndexShard>}
    */
   *yieldShards() {
     const allShardKeys = new Set([...this._shardNextLocal.keys()]);
@@ -294,11 +295,12 @@ export default class LogicalBitmapIndexBuilder {
       const aliveBitmap = this._aliveBitmaps.get(shardKey);
       const aliveBytes = aliveBitmap ? aliveBitmap.serialize(true) : new Uint8Array(0);
 
-      yield [`meta_${shardKey}.cbor`, {
+      yield new MetaShard({
+        shardKey,
         nodeToGlobal,
         nextLocalId: this._shardNextLocal.get(shardKey) ?? 0,
         alive: aliveBytes,
-      }];
+      });
     }
 
     // Labels registry
@@ -307,27 +309,27 @@ export default class LogicalBitmapIndexBuilder {
     for (const [label, id] of this._labelToId) {
       labelRegistry.push([label, id]);
     }
-    yield ['labels.cbor', labelRegistry];
+    yield new LabelShard({ labels: labelRegistry });
 
     // Forward/reverse edge shards
     yield* this._yieldEdgeShards('fwd', this._fwdBitmaps);
     yield* this._yieldEdgeShards('rev', this._revBitmaps);
 
     // Receipt
-    yield ['receipt.cbor', {
+    yield new ReceiptShard({
       version: 1,
       nodeCount: this._nodeToGlobal.size,
       labelCount: this._labelToId.size,
       shardCount: allShardKeys.size,
-    }];
+    });
   }
 
   /**
-   * Yields edge shard entries for a direction without encoding.
+   * Yields EdgeShard instances for a direction without encoding.
    *
-   * @param {string} direction - 'fwd' or 'rev'
+   * @param {'fwd'|'rev'} direction
    * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} bitmaps
-   * @returns {Generator<[string, unknown]>}
+   * @returns {Generator<EdgeShard>}
    * @private
    */
   *_yieldEdgeShards(direction, bitmaps) {
@@ -352,7 +354,7 @@ export default class LogicalBitmapIndexBuilder {
     }
 
     for (const [shardKey, shardData] of byShardKey) {
-      yield [`${direction}_${shardKey}.cbor`, shardData];
+      yield new EdgeShard({ shardKey, direction, buckets: shardData });
     }
   }
 

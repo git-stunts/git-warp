@@ -5,8 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
 import WarpStream from '../../../../src/domain/stream/WarpStream.js';
-import { CborEncodeTransform } from '../../../../src/infrastructure/adapters/CborEncodeTransform.js';
+import { IndexShardEncodeTransform } from '../../../../src/infrastructure/adapters/IndexShardEncodeTransform.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { MetaShard, EdgeShard, LabelShard, ReceiptShard, IndexShard } from '../../../../src/domain/artifacts/IndexShard.js';
 
 /**
  * Builds a small index with nodes and edges for testing.
@@ -25,29 +26,37 @@ function buildTestIndex() {
   return builder;
 }
 
-describe('LogicalBitmapIndexBuilder.yieldShards() stream equivalence', () => {
-  it('produces the same paths as serialize()', () => {
+describe('LogicalBitmapIndexBuilder.yieldShards() — IndexShard records', () => {
+  it('yields IndexShard instances', () => {
     const builder = buildTestIndex();
-    const serialized = builder.serialize();
-    const yielded = [...builder.yieldShards()].map(([path]) => path);
-    const serializedPaths = Object.keys(serialized).sort();
-    yielded.sort();
-    expect(yielded).toEqual(serializedPaths);
+    const shards = [...builder.yieldShards()];
+    for (const shard of shards) {
+      expect(shard).toBeInstanceOf(IndexShard);
+    }
   });
 
-  it('produces byte-identical output when piped through CborEncodeTransform', async () => {
+  it('produces MetaShard, LabelShard, EdgeShard, ReceiptShard', () => {
+    const builder = buildTestIndex();
+    const shards = [...builder.yieldShards()];
+    expect(shards.some((s) => s instanceof MetaShard)).toBe(true);
+    expect(shards.some((s) => s instanceof LabelShard)).toBe(true);
+    expect(shards.some((s) => s instanceof EdgeShard)).toBe(true);
+    expect(shards.some((s) => s instanceof ReceiptShard)).toBe(true);
+  });
+
+  it('produces byte-identical output via IndexShardEncodeTransform', async () => {
     const codec = new CborCodec();
     const builder = buildTestIndex();
 
     // Old path: serialize() produces Record<string, Uint8Array>
     const serialized = builder.serialize();
 
-    // New path: yieldShards() → CborEncodeTransform → collect
+    // New path: yieldShards() → IndexShardEncodeTransform → collect
     const streamed = await WarpStream.from(builder.yieldShards())
-      .pipe(new CborEncodeTransform(codec))
+      .pipe(new IndexShardEncodeTransform(codec))
       .collect();
 
-    // Convert to comparable maps
+    // Convert both to hex maps for comparison
     /** @type {Record<string, string>} */
     const serializedHex = {};
     for (const [path, bytes] of Object.entries(serialized)) {
@@ -67,14 +76,23 @@ describe('LogicalBitmapIndexBuilder.yieldShards() stream equivalence', () => {
     expect(streamedHex).toEqual(serializedHex);
   });
 
-  it('yieldShards() includes receipt with correct counts', () => {
+  it('ReceiptShard has correct counts', () => {
     const builder = buildTestIndex();
     const shards = [...builder.yieldShards()];
-    const receipt = shards.find(([path]) => path === 'receipt.cbor');
-    expect(receipt).toBeDefined();
-    const [, data] = /** @type {[string, {version: number, nodeCount: number, labelCount: number}]} */ (receipt);
-    expect(data.version).toBe(1);
-    expect(data.nodeCount).toBe(3);
-    expect(data.labelCount).toBe(2); // 'knows' and 'likes'
+    const receipt = shards.find((s) => s instanceof ReceiptShard);
+    expect(receipt).toBeInstanceOf(ReceiptShard);
+    const r = /** @type {ReceiptShard} */ (receipt);
+    expect(r.version).toBe(1);
+    expect(r.nodeCount).toBe(3);
+    expect(r.labelCount).toBe(2);
+  });
+
+  it('EdgeShards have correct directions', () => {
+    const builder = buildTestIndex();
+    const shards = [...builder.yieldShards()];
+    const edgeShards = shards.filter((s) => s instanceof EdgeShard);
+    const directions = edgeShards.map((s) => /** @type {EdgeShard} */ (s).direction);
+    expect(directions).toContain('fwd');
+    expect(directions).toContain('rev');
   });
 });
