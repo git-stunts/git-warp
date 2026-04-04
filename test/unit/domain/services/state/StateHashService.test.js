@@ -2,10 +2,22 @@ import { describe, it, expect, vi } from 'vitest';
 import StateHashService from '../../../../../src/domain/services/state/StateHashService.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 import { CborCodec } from '../../../../../src/infrastructure/codecs/CborCodec.js';
+import CryptoPort from '../../../../../src/ports/CryptoPort.js';
+
+/**
+ * Creates a mock CryptoPort with a hash spy.
+ * @param {(algo: string, data: Uint8Array) => Promise<string>} [hashImpl]
+ * @returns {CryptoPort}
+ */
+function createMockCrypto(hashImpl) {
+  const mock = new CryptoPort();
+  mock.hash = vi.fn(hashImpl ?? (async () => 'deadbeef'.repeat(8)));
+  return mock;
+}
 
 describe('StateHashService', () => {
   it('computes a hex hash string', async () => {
-    const crypto = { hash: vi.fn().mockResolvedValue('deadbeef'.repeat(8)) };
+    const crypto = createMockCrypto();
     const svc = new StateHashService({ codec: new CborCodec(), crypto });
 
     const hash = await svc.compute(createEmptyStateV5());
@@ -19,12 +31,10 @@ describe('StateHashService', () => {
   it('produces deterministic output for the same state', async () => {
     /** @type {Uint8Array[]} */
     const captured = [];
-    const crypto = {
-      hash: vi.fn(async (/** @type {string} */ _algo, /** @type {Uint8Array} */ data) => {
-        captured.push(data);
-        return 'abc';
-      }),
-    };
+    const crypto = createMockCrypto(async (_algo, data) => {
+      captured.push(data);
+      return 'abc';
+    });
     const svc = new StateHashService({ codec: new CborCodec(), crypto });
 
     await svc.compute(createEmptyStateV5());
@@ -32,6 +42,6 @@ describe('StateHashService', () => {
 
     // Same state → same bytes → same hash
     expect(captured).toHaveLength(2);
-    expect(Array.from(captured[0])).toEqual(Array.from(captured[1]));
+    expect(Array.from(/** @type {Uint8Array} */ (captured[0]))).toEqual(Array.from(/** @type {Uint8Array} */ (captured[1])));
   });
 });

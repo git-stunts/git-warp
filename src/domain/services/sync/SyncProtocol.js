@@ -210,7 +210,7 @@ export async function loadPatchRange(persistence, _graphName, writerId, fromSha,
     const commitInfo = await persistence.getNodeInfo(cur);
 
     // Load patch from commit
-    const patch = await loadPatchFromCommit(persistence, cur, { patchJournal });
+    const patch = await loadPatchFromCommit(persistence, cur, patchJournal !== undefined ? { patchJournal } : {});
     patches.unshift({ patch, sha: cur }); // Prepend for chronological order
 
     // Move to parent (first parent in linear chain)
@@ -467,7 +467,7 @@ export async function processSyncRequest(request, localFrontier, persistence, gr
         }
       } else {
         const writerPatches = await loadPatchRange(
-          persistence, graphName, writerId, range.from, range.to, { patchJournal },
+          persistence, graphName, writerId, range.from, range.to, patchJournal !== undefined ? { patchJournal } : {},
         );
         for (const { patch, sha } of writerPatches) {
           patches.push({ writerId, sha, patch });

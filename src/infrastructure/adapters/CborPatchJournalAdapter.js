@@ -138,7 +138,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 
           /** @type {string | null} */
           const parent = (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0)
-            ? nodeInfo.parents[0]
+            ? /** @type {string} */ (nodeInfo.parents[0])
             : null;
           cur = parent;
         }
@@ -153,12 +153,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 
         // Yield in chronological order (oldest first)
         for (let i = stack.length - 1; i >= 0; i--) {
-          const { sha, patchOid, encrypted } = stack[i];
-          /* eslint-disable @typescript-eslint/no-unsafe-assignment -- PatchV2 types lost in async generator context */
+          const { sha, patchOid, encrypted } = /** @type {{ sha: string, patchOid: string, encrypted: boolean }} */ (stack[i]);
           const raw = await adapter.readPatch(patchOid, { encrypted });
           const patch = _normalizePatch(raw);
           yield new PatchEntry({ patch, sha });
-          /* eslint-enable @typescript-eslint/no-unsafe-assignment */
         }
       })(),
     );
@@ -177,12 +175,9 @@ function _normalizePatch(patch) {
     if (ctx instanceof VersionVector) {
       return patch;
     }
-    /** @type {Map<string, number>} */
-    const map = new Map();
-    for (const [k, v] of Object.entries(/** @type {Record<string, number>} */ (ctx))) {
-      map.set(k, v);
-    }
-    return { ...patch, context: map };
+    /** @type {Record<string, number>} */
+    const record = Object.fromEntries(Object.entries(/** @type {Record<string, number>} */ (ctx)));
+    return { ...patch, context: record };
   }
   return patch;
 }

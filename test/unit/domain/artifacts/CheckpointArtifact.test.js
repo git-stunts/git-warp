@@ -24,7 +24,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects null state', () => {
-      expect(() => new StateArtifact({ schemaVersion: 2, state: null })).toThrow('requires a state');
+      expect(() => new StateArtifact({ schemaVersion: 2, state: /** @type {any} */ (null) })).toThrow('requires a state');
     });
 
     it('rejects invalid schemaVersion', () => {
@@ -41,7 +41,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects non-Map frontier', () => {
-      expect(() => new FrontierArtifact({ schemaVersion: 2, frontier: {} })).toThrow('requires a Map');
+      expect(() => new FrontierArtifact({ schemaVersion: 2, frontier: /** @type {any} */ ({}) })).toThrow('requires a Map');
     });
   });
 
@@ -56,7 +56,7 @@ describe('CheckpointArtifact family', () => {
     });
 
     it('rejects null appliedVV', () => {
-      expect(() => new AppliedVVArtifact({ schemaVersion: 2, appliedVV: null })).toThrow('requires an appliedVV');
+      expect(() => new AppliedVVArtifact({ schemaVersion: 2, appliedVV: /** @type {any} */ (null) })).toThrow('requires an appliedVV');
     });
   });
 

@@ -797,7 +797,6 @@ async function openDetachedReadGraph(graph) {
   if (graph._logger !== undefined && graph._logger !== null) { opts.logger = graph._logger; }
   if (graph._crypto !== undefined && graph._crypto !== null) { opts.crypto = graph._crypto; }
   if (graph._codec !== undefined && graph._codec !== null) { opts.codec = graph._codec; }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
   if (graph._patchJournal !== undefined && graph._patchJournal !== null) { opts.patchJournal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal); }
   if (graph._seekCache !== undefined && graph._seekCache !== null) { opts.seekCache = graph._seekCache; }
   if (graph._blobStorage !== undefined && graph._blobStorage !== null) { opts.blobStorage = graph._blobStorage; }
@@ -1121,10 +1120,9 @@ export default class StrandService {
         await this._syncOverlayDescriptor(descriptor, { patch, sha });
       },
     };
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
-    if (this._graph._patchJournal) { pbOpts.patchJournal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (this._graph._patchJournal); }
-    if (this._graph._logger) { pbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage) { pbOpts.blobStorage = this._graph._blobStorage; }
+    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { pbOpts.patchJournal = this._graph._patchJournal; }
+    if (this._graph._logger !== null && this._graph._logger !== undefined) { pbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { pbOpts.blobStorage = this._graph._blobStorage; }
     return new PatchBuilderV2(pbOpts);
   }
 
@@ -1320,10 +1318,9 @@ export default class StrandService {
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       onDeleteWithData: this._graph._onDeleteWithData,
     };
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
-    if (this._graph._patchJournal) { intentPbOpts.patchJournal = this._graph._patchJournal; }
-    if (this._graph._logger) { intentPbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage) { intentPbOpts.blobStorage = this._graph._blobStorage; }
+    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { intentPbOpts.patchJournal = this._graph._patchJournal; }
+    if (this._graph._logger !== null && this._graph._logger !== undefined) { intentPbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { intentPbOpts.blobStorage = this._graph._blobStorage; }
     const builder = new PatchBuilderV2(intentPbOpts);
     await build(builder);
     const patch = builder.build();
@@ -1983,8 +1980,7 @@ export default class StrandService {
     /** @type {string} */
     let patchBlobOid;
     /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
-    const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (this._graph._patchJournal);
+    const journal = this._graph._patchJournal;
     if (journal !== undefined && journal !== null) {
       patchBlobOid = await journal.writePatch(
         /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (committedPatch),

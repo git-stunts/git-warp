@@ -1,26 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.js';
 import ProvenanceEntry from '../../../../src/domain/artifacts/ProvenanceEntry.js';
+import { PatchV2 } from '../../../../src/domain/types/WarpTypesV2.js';
+
+/** @returns {PatchV2} */
+function minimalPatch() {
+  return new PatchV2({ schema: 2, writer: 'w1', lamport: 1, context: {}, ops: [] });
+}
 
 describe('PatchEntry', () => {
   it('constructs with valid fields', () => {
-    const e = new PatchEntry({ patch: { schema: 2, ops: [] }, sha: 'a'.repeat(40) });
+    const e = new PatchEntry({ patch: minimalPatch(), sha: 'a'.repeat(40) });
     expect(e).toBeInstanceOf(PatchEntry);
     expect(e.patch.schema).toBe(2);
     expect(e.sha).toBe('a'.repeat(40));
   });
 
   it('is frozen', () => {
-    const e = new PatchEntry({ patch: { schema: 2, ops: [] }, sha: 'a'.repeat(40) });
+    const e = new PatchEntry({ patch: minimalPatch(), sha: 'a'.repeat(40) });
     expect(Object.isFrozen(e)).toBe(true);
   });
 
   it('rejects null patch', () => {
-    expect(() => new PatchEntry({ patch: null, sha: 'abc' })).toThrow('requires a patch');
+    expect(() => new PatchEntry({ patch: /** @type {any} */ (null), sha: 'abc' })).toThrow('requires a patch');
   });
 
   it('rejects empty sha', () => {
-    expect(() => new PatchEntry({ patch: { schema: 2, ops: [] }, sha: '' })).toThrow('non-empty sha');
+    expect(() => new PatchEntry({ patch: minimalPatch(), sha: '' })).toThrow('non-empty sha');
   });
 });
 
@@ -42,6 +48,6 @@ describe('ProvenanceEntry', () => {
   });
 
   it('rejects non-Set patchShas', () => {
-    expect(() => new ProvenanceEntry({ entityId: 'x', patchShas: [] })).toThrow('requires a Set');
+    expect(() => new ProvenanceEntry({ entityId: 'x', patchShas: /** @type {any} */ ([]) })).toThrow('requires a Set');
   });
 });

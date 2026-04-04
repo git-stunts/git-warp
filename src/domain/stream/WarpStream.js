@@ -64,10 +64,11 @@ export default class WarpStream {
       return /** @type {WarpStream<V>} */ (iterable);
     }
     // Wrap sync iterables as async
-    if (typeof iterable[Symbol.asyncIterator] === 'function') {
+    const src = /** @type {Record<string | symbol, unknown>} */ (/** @type {unknown} */ (iterable));
+    if (typeof src[Symbol.asyncIterator] === 'function') {
       return new WarpStream(/** @type {AsyncIterable<V>} */ (iterable), options);
     }
-    if (typeof iterable[Symbol.iterator] === 'function') {
+    if (typeof src[Symbol.iterator] === 'function') {
       return new WarpStream(_syncToAsync(/** @type {Iterable<V>} */ (iterable)), options);
     }
     throw new WarpError('WarpStream.from() requires an iterable or async iterable', 'E_INVALID_SOURCE');
@@ -99,7 +100,7 @@ export default class WarpStream {
       return WarpStream.from(/** @type {AsyncIterable<V>} */ (_empty()));
     }
     if (streams.length === 1) {
-      return streams[0];
+      return /** @type {WarpStream<V>} */ (streams[0]);
     }
     return new WarpStream(_muxImpl(streams));
   }
@@ -118,7 +119,7 @@ export default class WarpStream {
       throw new WarpError('pipe() requires a Transform with an apply() method', 'E_INVALID_TRANSFORM');
     }
     const source = this._withCancellation();
-    return new WarpStream(transform.apply(source), { signal: this._signal });
+    return new WarpStream(transform.apply(source), this._signal !== undefined ? { signal: this._signal } : {});
   }
 
   /**
@@ -132,9 +133,11 @@ export default class WarpStream {
   tee() {
     const source = this._withCancellation();
     const [a, b] = _teeImpl(source);
+    /** @type {{ signal?: AbortSignal }} */
+    const opts = this._signal !== undefined ? { signal: this._signal } : {};
     return [
-      new WarpStream(a, { signal: this._signal }),
-      new WarpStream(b, { signal: this._signal }),
+      new WarpStream(a, opts),
+      new WarpStream(b, opts),
     ];
   }
 
@@ -158,10 +161,12 @@ export default class WarpStream {
     }
     const source = this._withCancellation();
     const branches = _demuxImpl(source, classify, keys);
+    /** @type {{ signal?: AbortSignal }} */
+    const demuxOpts = this._signal !== undefined ? { signal: this._signal } : {};
     /** @type {Map<string, WarpStream<T>>} */
     const result = new Map();
     for (const [key, iter] of branches) {
-      result.set(key, new WarpStream(iter, { signal: this._signal }));
+      result.set(key, new WarpStream(iter, demuxOpts));
     }
     return result;
   }
@@ -317,7 +322,8 @@ async function* _muxImpl(streams) {
 
   // Start initial pull for each iterator
   for (let i = 0; i < iterators.length; i++) {
-    pending.set(i, iterators[i].next().then((result) => ({ index: i, result })));
+    const iter = /** @type {AsyncIterator<T>} */ (iterators[i]);
+    pending.set(i, iter.next().then((result) => ({ index: i, result })));
   }
 
   while (pending.size > 0) {
@@ -327,7 +333,8 @@ async function* _muxImpl(streams) {
     } else {
       yield result.value;
       // Re-arm this iterator for its next value
-      pending.set(index, iterators[index].next().then((r) => ({ index, result: r })));
+      const iter = /** @type {AsyncIterator<T>} */ (iterators[index]);
+      pending.set(index, iter.next().then((r) => ({ index, result: r })));
     }
   }
 }
@@ -403,7 +410,7 @@ function _teeImpl(source) {
     let index = 0;
     return {
       [Symbol.asyncIterator]() {
-        return {
+        return /** @type {AsyncIterator<T>} */ ({
           async next() {
             await ensureCached(index + 1);
             if (error !== null) { throw error; }
@@ -416,7 +423,7 @@ function _teeImpl(source) {
             trimCache();
             return { value, done: false };
           },
-        };
+        });
       },
     };
   }

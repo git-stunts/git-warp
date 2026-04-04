@@ -1,13 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { CborCheckpointStoreAdapter } from '../../../../src/infrastructure/adapters/CborCheckpointStoreAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
+import MockBlobPort from '../../../helpers/MockBlobPort.js';
 
 /**
  * Builds a small but representative checkpoint state.
+ * @returns {WarpStateV5}
  */
 function createGoldenState() {
   const nodeAlive = createORSet();
@@ -17,6 +20,7 @@ function createGoldenState() {
   const edgeAlive = createORSet();
   orsetAdd(edgeAlive, 'user:alice\x00user:bob\x00knows', createDot('w1', 3));
 
+  /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
   const prop = new Map();
   prop.set('user:alice\x00name', {
     eventId: { lamport: 1, writerId: 'w1', patchSha: 'a'.repeat(40), opIndex: 0 },
@@ -26,29 +30,15 @@ function createGoldenState() {
   const observedFrontier = createVersionVector();
   observedFrontier.set('w1', 3);
 
-  return { nodeAlive, edgeAlive, prop, observedFrontier };
+  return new WarpStateV5({ nodeAlive, edgeAlive, prop, observedFrontier });
 }
 
 /**
- * Creates an in-memory BlobPort stub.
+ * Creates an in-memory BlobPort backed by MockBlobPort.
+ * @returns {MockBlobPort}
  */
 function createMemoryBlobPort() {
-  /** @type {Map<string, Uint8Array>} */
-  const store = new Map();
-  let counter = 0;
-  return {
-    store,
-    writeBlob: vi.fn(async (/** @type {Uint8Array} */ content) => {
-      const oid = `blob_${String(counter++).padStart(40, '0')}`;
-      store.set(oid, content);
-      return oid;
-    }),
-    readBlob: vi.fn(async (/** @type {string} */ oid) => {
-      const data = store.get(oid);
-      if (!data) { throw new Error(`Blob not found: ${oid}`); }
-      return data;
-    }),
-  };
+  return new MockBlobPort();
 }
 
 describe('CborCheckpointStoreAdapter (collapsed)', () => {
@@ -135,7 +125,7 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       expect(data.state.nodeAlive).toBeDefined();
       expect(data.frontier.get('w1')).toBe('abc123');
       expect(data.appliedVV).not.toBeNull();
-      expect(data.appliedVV.get('w1')).toBe(3);
+      expect(/** @type {NonNullable<typeof data.appliedVV>} */ (data.appliedVV).get('w1')).toBe(3);
     });
 
     it('throws on missing state.cbor', async () => {

@@ -362,6 +362,9 @@ export default class WarpRuntime {
     /** @type {import('./services/EffectPipeline.js').EffectPipeline|null} */
     this._effectPipeline = null;
 
+    /** @type {import('../ports/PatchJournalPort.js').default|null} */
+    this._patchJournal = null;
+
     /** @type {import('../ports/CheckpointStorePort.js').default|null} */
     this._checkpointStore = null;
 
@@ -485,7 +488,7 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, patchJournal?: import('../ports/PatchJournalPort.js').default | null, checkpointStore?: import('../ports/CheckpointStorePort.js').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -546,7 +549,6 @@ export default class WarpRuntime {
     // pattern as autoConstructBlobStorage to keep infrastructure imports out of the
     // module's top-level scope.
     if (patchJournal !== undefined && patchJournal !== null) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- destructured param is untyped; cast narrows
       graph._patchJournal = /** @type {import('../ports/PatchJournalPort.js').default} */ (patchJournal);
     } else {
       const { CborPatchJournalAdapter } = await import(
@@ -562,7 +564,6 @@ export default class WarpRuntime {
 
     // Auto-construct checkpointStore when none provided: same pattern as patchJournal.
     if (checkpointStore !== undefined && checkpointStore !== null) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
       graph._checkpointStore = /** @type {import('../ports/CheckpointStorePort.js').default} */ (checkpointStore);
     } else {
       const { CborCheckpointStoreAdapter } = await import(
@@ -571,7 +572,6 @@ export default class WarpRuntime {
       graph._checkpointStore = new CborCheckpointStoreAdapter({
         codec: graph._codec,
         blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
-        crypto: graph._crypto,
       });
     }
 

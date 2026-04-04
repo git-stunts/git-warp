@@ -53,7 +53,6 @@ export default class PatchController {
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.js').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
       ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
@@ -162,7 +161,6 @@ export default class PatchController {
 
       const patchMeta = decodePatchMessage(message);
       /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
       const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (h._patchJournal);
       if (journal === null || journal === undefined) {
         // Legacy fallback: read the patch blob directly and decode with the codec
@@ -297,7 +295,8 @@ export default class PatchController {
 
     /** @type {CorePersistence} */
     const persistence = h._persistence;
-    return new Writer({
+    /** @type {ConstructorParameters<typeof Writer>[0]} */
+    const writerOpts = {
       persistence,
       graphName: h._graphName,
       writerId: resolvedWriterId,
@@ -305,11 +304,11 @@ export default class PatchController {
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
-      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
-      ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
-      ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
-    });
+      patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal),
+    };
+    if (h._logger !== null && h._logger !== undefined) { writerOpts.logger = h._logger; }
+    if (h._blobStorage !== null && h._blobStorage !== undefined) { writerOpts.blobStorage = h._blobStorage; }
+    return new Writer(writerOpts);
   }
 
   /**

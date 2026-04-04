@@ -69,10 +69,10 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const oids = await Promise.all(writes);
     return {
-      stateBlobOid: oids[0],
-      frontierBlobOid: oids[1],
-      appliedVVBlobOid: oids[2],
-      provenanceIndexBlobOid: oids.length > 3 ? oids[3] : null,
+      stateBlobOid: /** @type {string} */ (oids[0]),
+      frontierBlobOid: /** @type {string} */ (oids[1]),
+      appliedVVBlobOid: /** @type {string} */ (oids[2]),
+      provenanceIndexBlobOid: oids.length > 3 ? /** @type {string} */ (oids[3]) : null,
     };
   }
 
@@ -110,19 +110,19 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
 
     const buffers = await Promise.all(reads);
     let idx = 0;
-    const state = this._decodeFullState(buffers[idx++]);
-    const frontier = this._decodeFrontier(buffers[idx++]);
+    const state = this._decodeFullState(/** @type {Uint8Array} */ (buffers[idx++]));
+    const frontier = this._decodeFrontier(/** @type {Uint8Array} */ (buffers[idx++]));
 
     /** @type {VersionVector | null} */
     let appliedVV = null;
     if (appliedVVOid !== undefined) {
-      appliedVV = this._decodeAppliedVV(buffers[idx++]);
+      appliedVV = this._decodeAppliedVV(/** @type {Uint8Array} */ (buffers[idx++]));
     }
 
     /** @type {ProvenanceIndex | null} */
     let provenanceIndex = null;
     if (provenanceOid !== undefined) {
-      provenanceIndex = ProvenanceIndex.deserialize(buffers[idx++], { codec: this._codec });
+      provenanceIndex = ProvenanceIndex.deserialize(/** @type {Uint8Array} */ (buffers[idx++]), { codec: this._codec });
     }
 
     // Partition index shard OIDs (entries with 'index/' prefix)

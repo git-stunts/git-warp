@@ -42,7 +42,7 @@ describe('LiveSelector', () => {
   });
 
   it('rejects string ceiling', () => {
-    expect(() => new LiveSelector('42')).toThrow(TypeError);
+    expect(() => new LiveSelector(/** @type {any} */ ('42'))).toThrow(TypeError);
   });
 
   it('is frozen', () => {
@@ -122,11 +122,11 @@ describe('CoordinateSelector', () => {
   });
 
   it('rejects null frontier', () => {
-    expect(() => new CoordinateSelector(null)).toThrow(TypeError);
+    expect(() => new CoordinateSelector(/** @type {any} */ (null))).toThrow(TypeError);
   });
 
   it('rejects non-object frontier', () => {
-    expect(() => new CoordinateSelector('bad')).toThrow(TypeError);
+    expect(() => new CoordinateSelector(/** @type {any} */ ('bad'))).toThrow(TypeError);
   });
 
   it('rejects negative ceiling', () => {
@@ -211,11 +211,11 @@ describe('StrandSelector', () => {
   });
 
   it('rejects non-string strandId', () => {
-    expect(() => new StrandSelector(123)).toThrow(TypeError);
+    expect(() => new StrandSelector(/** @type {any} */ (123))).toThrow(TypeError);
   });
 
   it('rejects null strandId', () => {
-    expect(() => new StrandSelector(null)).toThrow(TypeError);
+    expect(() => new StrandSelector(/** @type {any} */ (null))).toThrow(TypeError);
   });
 
   it('rejects negative ceiling', () => {
@@ -255,13 +255,15 @@ describe('WorldlineSelector.from()', () => {
   it('converts { kind: "live" } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live' });
     expect(sel).toBeInstanceOf(LiveSelector);
-    expect(sel.ceiling).toBe(null);
+    const live = /** @type {LiveSelector} */ (sel);
+    expect(live.ceiling).toBe(null);
   });
 
   it('converts { kind: "live", ceiling: 42 } to LiveSelector', () => {
     const sel = WorldlineSelector.from({ kind: 'live', ceiling: 42 });
     expect(sel).toBeInstanceOf(LiveSelector);
-    expect(sel.ceiling).toBe(42);
+    const live = /** @type {LiveSelector} */ (sel);
+    expect(live.ceiling).toBe(42);
   });
 
   it('converts { kind: "coordinate" } to CoordinateSelector', () => {
@@ -271,7 +273,8 @@ describe('WorldlineSelector.from()', () => {
       ceiling: null,
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    expect(sel.frontier.get('alice')).toBe('abc');
+    const coord = /** @type {CoordinateSelector} */ (sel);
+    expect(coord.frontier.get('alice')).toBe('abc');
   });
 
   it('converts { kind: "coordinate" } with plain object frontier', () => {
@@ -280,7 +283,8 @@ describe('WorldlineSelector.from()', () => {
       frontier: { alice: 'abc' },
     });
     expect(sel).toBeInstanceOf(CoordinateSelector);
-    expect(sel.frontier).toBeInstanceOf(Map);
+    const coord = /** @type {CoordinateSelector} */ (sel);
+    expect(coord.frontier).toBeInstanceOf(Map);
   });
 
   it('converts { kind: "strand" } to StrandSelector', () => {
@@ -290,14 +294,16 @@ describe('WorldlineSelector.from()', () => {
       ceiling: 10,
     });
     expect(sel).toBeInstanceOf(StrandSelector);
-    expect(sel.strandId).toBe('strand-abc');
-    expect(sel.ceiling).toBe(10);
+    const strand = /** @type {StrandSelector} */ (sel);
+    expect(strand.strandId).toBe('strand-abc');
+    expect(strand.ceiling).toBe(10);
   });
 
   it('converts null to LiveSelector', () => {
     const sel = WorldlineSelector.from(null);
     expect(sel).toBeInstanceOf(LiveSelector);
-    expect(sel.ceiling).toBe(null);
+    const live = /** @type {LiveSelector} */ (sel);
+    expect(live.ceiling).toBe(null);
   });
 
   it('converts undefined to LiveSelector', () => {
@@ -314,7 +320,8 @@ describe('WorldlineSelector.from()', () => {
     expect(Object.isFrozen(sel)).toBe(true);
     const result = WorldlineSelector.from(sel);
     expect(result).toBe(sel);
-    expect(result.ceiling).toBe(42);
+    const live = /** @type {LiveSelector} */ (result);
+    expect(live.ceiling).toBe(42);
   });
 
   it('throws on unknown kind', () => {

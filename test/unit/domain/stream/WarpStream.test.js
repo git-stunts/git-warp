@@ -5,38 +5,41 @@ import Sink from '../../../../src/domain/stream/Sink.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-/** Creates an async generator that yields the given items. */
+/**
+ * Creates an async generator that yields the given items.
+ * @param {unknown[]} items
+ */
 async function* asyncOf(...items) {
   for (const item of items) {
     yield item;
   }
 }
 
-/** Creates an async generator that yields items with a delay. */
-async function* delayed(items, ms) {
-  for (const item of items) {
-    await new Promise((r) => { setTimeout(r, ms); });
-    yield item;
-  }
-}
-
-/** A simple counting Sink that counts elements and returns the total. */
+/**
+ * A simple counting Sink that counts elements and returns the total.
+ * @extends {Sink<unknown, number>}
+ */
 class CountSink extends Sink {
   constructor() {
     super();
+    /** @type {number} */
     this._count = 0;
   }
   _accept() { this._count++; }
   _finalize() { return this._count; }
 }
 
-/** A collecting Sink that accumulates items into an array. */
+/**
+ * A collecting Sink that accumulates items into an array.
+ * @extends {Sink<unknown, unknown[]>}
+ */
 class ArraySink extends Sink {
   constructor() {
     super();
     /** @type {unknown[]} */
     this._items = [];
   }
+  /** @param {unknown} item */
   _accept(item) { this._items.push(item); }
   _finalize() { return this._items; }
 }
@@ -51,15 +54,15 @@ describe('WarpStream', () => {
     });
 
     it('rejects null source', () => {
-      expect(() => new WarpStream(null)).toThrow('requires an async iterable');
+      expect(() => new WarpStream(/** @type {any} */ (null))).toThrow('requires an async iterable');
     });
 
     it('rejects undefined source', () => {
-      expect(() => new WarpStream(undefined)).toThrow('requires an async iterable');
+      expect(() => new WarpStream(/** @type {any} */ (undefined))).toThrow('requires an async iterable');
     });
 
     it('rejects non-iterable source', () => {
-      expect(() => new WarpStream(42)).toThrow('must implement Symbol.asyncIterator');
+      expect(() => new WarpStream(/** @type {any} */ (42))).toThrow('must implement Symbol.asyncIterator');
     });
   });
 
@@ -80,7 +83,7 @@ describe('WarpStream', () => {
     });
 
     it('rejects non-iterables', () => {
-      expect(() => WarpStream.from(42)).toThrow('requires an iterable');
+      expect(() => WarpStream.from(/** @type {any} */ (42))).toThrow('requires an iterable');
     });
   });
 
@@ -133,7 +136,7 @@ describe('WarpStream', () => {
     });
 
     it('rejects null transform', () => {
-      expect(() => WarpStream.of(1).pipe(null)).toThrow('requires a Transform');
+      expect(() => WarpStream.of(1).pipe(/** @type {any} */ (null))).toThrow('requires a Transform');
     });
   });
 
@@ -151,7 +154,7 @@ describe('WarpStream', () => {
     });
 
     it('rejects null sink', async () => {
-      await expect(WarpStream.of(1).drain(null)).rejects.toThrow('requires a Sink');
+      await expect(WarpStream.of(1).drain(/** @type {any} */ (null))).rejects.toThrow('requires a Sink');
     });
   });
 
@@ -179,6 +182,7 @@ describe('WarpStream', () => {
 
   describe('forEach()', () => {
     it('calls function for each element', async () => {
+      /** @type {unknown[]} */
       const seen = [];
       await WarpStream.of(1, 2, 3).forEach((x) => { seen.push(x); });
       expect(seen).toEqual([1, 2, 3]);
@@ -249,9 +253,11 @@ describe('WarpStream', () => {
         { type: 'a', value: 3 },
       ).demux((item) => item.type, ['a', 'b']);
 
+      const branchA = /** @type {WarpStream<any>} */ (branches.get('a'));
+      const branchB = /** @type {WarpStream<any>} */ (branches.get('b'));
       const [aItems, bItems] = await Promise.all([
-        branches.get('a').collect(),
-        branches.get('b').collect(),
+        branchA.collect(),
+        branchB.collect(),
       ]);
       expect(aItems).toEqual([{ type: 'a', value: 1 }, { type: 'a', value: 3 }]);
       expect(bItems).toEqual([{ type: 'b', value: 2 }]);
@@ -270,11 +276,13 @@ describe('WarpStream', () => {
       };
 
       const branches = new WarpStream(source).demux((item) => item.type, ['a', 'b']);
+      const errBranchA = /** @type {WarpStream<any>} */ (branches.get('a'));
+      const errBranchB = /** @type {WarpStream<any>} */ (branches.get('b'));
 
       await expect(
         Promise.all([
-          branches.get('a').collect(),
-          branches.get('b').collect(),
+          errBranchA.collect(),
+          errBranchB.collect(),
         ]),
       ).rejects.toThrow('demux-boom');
     });
@@ -348,17 +356,22 @@ describe('WarpStream', () => {
 
 describe('Transform', () => {
   it('requires a function or subclass override', () => {
-    expect(() => new Transform(42)).toThrow('requires a function');
+    expect(() => new Transform(/** @type {any} */ (42))).toThrow('requires a function');
   });
 
   it('apply() throws if no function and not overridden', async () => {
     const t = new Transform();
-    const iter = t.apply(asyncOf(1));
+    const iterable = t.apply(asyncOf(1));
+    const iter = iterable[Symbol.asyncIterator]();
     await expect(iter.next()).rejects.toThrow('must be overridden');
   });
 
   it('subclass can override apply()', async () => {
+    /**
+     * @extends {Transform<number, number>}
+     */
     class DoubleTransform extends Transform {
+      /** @param {AsyncIterable<number>} source */
       async *apply(source) {
         for await (const item of source) {
           yield item;

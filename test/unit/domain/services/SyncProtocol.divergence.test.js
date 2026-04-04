@@ -54,7 +54,7 @@ function createMockPersistence(/** @type {Record<string, any>} */ commits = {}, 
   };
 }
 
-function createPatchJournal(persistence) {
+function createPatchJournal(/** @type {any} */ persistence) {
   return new CborPatchJournalAdapter({
     codec: new CborCodec(),
     blobPort: persistence,

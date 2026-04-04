@@ -70,7 +70,7 @@ function stateSignature(/** @type {any} */ state) {
   return { nodes, edges, props };
 }
 
-function createPatchJournal(persistence) {
+function createPatchJournal(/** @type {any} */ persistence) {
   return new CborPatchJournalAdapter({
     codec: new CborCodec(),
     blobPort: persistence,

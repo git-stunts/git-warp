@@ -57,7 +57,7 @@ describe('IndexShard family', () => {
 
     it('rejects invalid direction', () => {
       expect(() => new EdgeShard({
-        shardKey: 'ab', direction: 'up', buckets: {},
+        shardKey: 'ab', direction: /** @type {any} */ ('up'), buckets: {},
       })).toThrow("must be 'fwd' or 'rev'");
     });
   });
@@ -118,7 +118,7 @@ describe('IndexShard family', () => {
   describe('constructor validation', () => {
     it('rejects non-string shardKey', () => {
       expect(() => new MetaShard({
-        shardKey: 42, nodeToGlobal: [], nextLocalId: 0, alive: new Uint8Array(0),
+        shardKey: /** @type {any} */ (42), nodeToGlobal: [], nextLocalId: 0, alive: new Uint8Array(0),
       })).toThrow('shardKey must be a string');
     });
 

@@ -6,6 +6,8 @@ import {
   PropertyShard,
   ReceiptShard,
 } from '../../domain/artifacts/IndexShard.js';
+
+/** @typedef {import('../../domain/artifacts/IndexShard.js').IndexShard} IndexShard */
 import WarpError from '../../domain/errors/WarpError.js';
 
 /**

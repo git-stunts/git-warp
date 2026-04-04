@@ -76,23 +76,23 @@ describe('Writer (WARP schema:2)', () => {
     });
 
     it('throws on invalid writerId', () => {
-      expect(() => new Writer({
+      expect(() => new Writer(/** @type {any} */ ({
         persistence,
         graphName: 'events',
         writerId: 'a/b',
         versionVector,
         getCurrentState,
-      })).toThrow('Invalid writer ID');
+      }))).toThrow('Invalid writer ID');
     });
 
     it('throws when patchJournal is missing', () => {
-      expect(() => new Writer({
+      expect(() => new Writer(/** @type {any} */ ({
         persistence,
         graphName: 'events',
         writerId: 'alice',
         versionVector,
         getCurrentState,
-      })).toThrow('patchJournal is required');
+      }))).toThrow('patchJournal is required');
     });
 
     it('accepts valid writerId', () => {

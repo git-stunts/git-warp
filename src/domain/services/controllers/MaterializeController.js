@@ -145,7 +145,6 @@ async function openDetachedReadGraph(host) {
     ...(host._patchBlobStorage ? { patchBlobStorage: host._patchBlobStorage } : {}),
     ...(host._trustConfig !== undefined ? { trust: host._trustConfig } : {}),
     ...(host._checkpointStore ? { checkpointStore: host._checkpointStore } : {}),
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- WarpRuntime options are untyped; cast narrows
     ...(host._patchJournal !== undefined && host._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (host._patchJournal) } : {}),
   });
 }
