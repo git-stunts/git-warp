@@ -71,10 +71,11 @@ describe('LiveSelector', () => {
     expect(dto.constructor).toBe(Object);
   });
 
-  it('toDTO with null ceiling', () => {
+  it('toDTO with null ceiling omits ceiling key', () => {
     const sel = new LiveSelector();
     const dto = sel.toDTO();
-    expect(dto).toEqual({ kind: 'live', ceiling: null });
+    expect(dto).toEqual({ kind: 'live' });
+    expect('ceiling' in dto).toBe(false);
   });
 });
 
@@ -302,6 +303,18 @@ describe('WorldlineSelector.from()', () => {
   it('converts undefined to LiveSelector', () => {
     const sel = WorldlineSelector.from(undefined);
     expect(sel).toBeInstanceOf(LiveSelector);
+  });
+
+  it('throws on coordinate without frontier', () => {
+    expect(() => WorldlineSelector.from({ kind: 'coordinate' })).toThrow(TypeError);
+  });
+
+  it('returns frozen selector as-is without mutation', () => {
+    const sel = new LiveSelector(42);
+    expect(Object.isFrozen(sel)).toBe(true);
+    const result = WorldlineSelector.from(sel);
+    expect(result).toBe(sel);
+    expect(result.ceiling).toBe(42);
   });
 
   it('throws on unknown kind', () => {

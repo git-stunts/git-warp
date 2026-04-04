@@ -248,9 +248,7 @@ export default class Worldline {
   async seek(options = undefined) {
     return await Promise.resolve(new Worldline({
       graph: this._graph,
-      source: toSelector(
-        toSelector(options?.source || this._source),
-      ),
+      source: toSelector(options?.source || this._source),
     }));
   }
 

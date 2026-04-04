@@ -37,10 +37,15 @@ class LiveSelector extends WorldlineSelector {
   /**
    * Convert to a plain DTO for the public API.
    *
-   * @returns {{ kind: 'live', ceiling: number|null }}
+   * Omits ceiling when null to match the legacy WorldlineSource shape
+   * (consumers may check `'ceiling' in dto`).
+   *
+   * @returns {{ kind: 'live', ceiling?: number|null }}
    */
   toDTO() {
-    return { kind: 'live', ceiling: this.ceiling };
+    return this.ceiling !== null
+      ? { kind: 'live', ceiling: this.ceiling }
+      : { kind: 'live' };
   }
 }
 

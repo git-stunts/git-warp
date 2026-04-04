@@ -67,6 +67,9 @@ class WorldlineSelector {
    * @param {Function} ctor
    */
   static _register(kind, ctor) {
+    if (Object.isFrozen(registry)) {
+      throw new Error('WorldlineSelector registry is frozen — cannot register after first use');
+    }
     registry[kind] = ctor;
   }
 
@@ -84,12 +87,19 @@ class WorldlineSelector {
     if (raw instanceof WorldlineSelector) {
       return raw;
     }
+    // Freeze registry on first use — prevents post-init hijacking
+    if (!Object.isFrozen(registry)) {
+      Object.freeze(registry);
+    }
     return fromPlainObject(raw);
   }
 }
 
 /**
  * Builds a WorldlineSelector from a plain object or null/undefined.
+ *
+ * Note: the kind→constructor-args mapping is hardcoded for the three
+ * known selector kinds. Adding a new kind requires editing this function.
  *
  * Kept separate from the class to reduce static from() complexity.
  *
