@@ -2,6 +2,18 @@
 
 Updated at cycle boundaries. Not mid-cycle.
 
+## Invariants
+
+1. **HEXAGONAL** — domain never imports infrastructure
+2. **DETERMINISTIC** — same patches, any order → same materialized state
+3. **APPEND-ONLY** — Git history never rewritten
+4. **MULTI-WRITER** — each writer owns its own ref, no coordination
+5. **RUNTIME-TRUTH** — domain concepts are classes with validated invariants (SSJS P1)
+6. **BOUNDARY-HONESTY** — untrusted input validated at boundaries
+7. **TRAVERSAL-TRUTH** — unbounded data flows through streams (traversal);
+   bounded truth crosses ports (contracts). Never conflated. Persistence
+   ordering is canonical regardless of stream timing.
+
 ## Where are we going?
 
 Structural decomposition of `domain/services/` — 83 files in a flat
