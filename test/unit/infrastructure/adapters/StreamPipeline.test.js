@@ -71,10 +71,10 @@ describe('Stream Pipeline Integration', () => {
     expect(paths).toContain('receipt.cbor');
 
     // Round-trip: decode a shard and verify contents
-    const metaEntry = /** @type {string} */ (entries.find((e) => e.includes('meta_ab.cbor')));
-    const metaParts = metaEntry.split('\t')[0].split(' ');
-    const metaOid = /** @type {string} */ (metaParts[metaParts.length - 1]);
-    const metaBytes = /** @type {Uint8Array} */ (git.blobs.get(metaOid));
+    const metaEntry = /** @type {string} */ (/** @type {any} */ (entries.find((e) => e.includes('meta_ab.cbor'))));
+    const metaParts = /** @type {string} */ (/** @type {any} */ (metaEntry.split('\t')[0])).split(' ');
+    const metaOid = /** @type {string} */ (/** @type {any} */ (metaParts[metaParts.length - 1]));
+    const metaBytes = /** @type {Uint8Array} */ (/** @type {any} */ (git.blobs.get(metaOid)));
     expect(metaBytes).toBeDefined();
     const decoded = codec.decode(metaBytes);
     expect(decoded).toEqual({ nodeToGlobal: [['user:alice', 0]], nextLocalId: 1 });
