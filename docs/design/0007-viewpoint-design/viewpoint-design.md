@@ -1,4 +1,4 @@
-# Cycle 0007 — WorldlineSource Replacement Design
+# Cycle 0007 — WorldlineSelector Class Hierarchy
 
 ## Sponsor human
 
@@ -10,51 +10,50 @@ Claude
 
 ## Hill
 
-A complete design document exists that James can read, evaluate, and
-approve before any code is written. The document explains what
-the worldline selector is, how it works, what the API looks like, and how the
-migration proceeds.
+`WorldlineSource` is replaced internally by a proper class hierarchy
+(`WorldlineSelector`, `LiveSelector`, `CoordinateSelector`,
+`StrandSelector`) with real inheritance, constructor validation, and
+`instanceof` dispatch. The public API is bridged, not broken.
 
 ## Playback questions
 
 ### Human
 
-- Does the worldline selector concept make sense as the theory-aligned
-  replacement for WorldlineSource?
-- Are the constructor contracts clear and correct?
-- Is the migration path acceptable (backward compat vs breaking)?
-- Is this ready to implement?
+- Does the internal code use `instanceof` dispatch everywhere?
+- Does the public API still accept plain `{ kind }` objects?
+- Do `Worldline.source` / `Observer.source` still return plain DTOs?
+- Are the constructor invariants correct for all three selectors?
 
 ### Agent
 
 - Does the design follow SSJS (P1, P2, P3, P5, P7)?
 - Are all current usage sites accounted for?
-- Is the breaking change surface accurately assessed?
+- Is the Map immutability problem solved honestly?
 
 ## Accessibility / assistive reading posture
 
-Not applicable — documentation only.
+Not applicable — internal structural refactor.
 
 ## Localization / directionality posture
 
-Not applicable — documentation only.
+Not applicable — no user-facing strings.
 
 ## Agent inspectability / explainability posture
 
-The design cites paper concepts, lists every usage site, and shows
-before/after code examples.
+Each class is a separate file. `instanceof` dispatch is greppable.
+The migration is mechanical: find tag switches, replace with
+polymorphic dispatch.
 
 ## Non-goals
 
-- No code changes in this cycle.
-- Not implementing the hierarchy (that's the next cycle).
+- No changes to the public API return types in this cycle.
 - Not renaming `Worldline` class (separate backlog item).
+- Not touching ComparisonController (separate selector family).
+- Not a major version bump.
 
 ---
 
 ## Observer vs Writer — The Conceptual Foundation
-
-Before naming anything, we need the right mental model.
 
 **An Observer is the projection half (π) of an optic.** It picks a
 worldline and a tick, then projects what it sees. It does not rewrite,
@@ -70,9 +69,9 @@ frontier is a writer concern, not an observer concern.
 | Observer | π only | Picks a worldline + tick. Projects. |
 | Writer | Ω = (π, φ, ρ, ω, σ) | Owns frontier. Focuses. Rewrites. Witnesses. Reintegrates. |
 
-This means `WorldlineSource` is not a frontier specification (that
-would make it a writer concept). It is a **worldline selector** — the
-observer's choice of which worldline to observe.
+`WorldlineSource` is not a frontier specification (that would make it
+a writer concept). It is a **worldline selector** — the observer's
+choice of which worldline to observe.
 
 ---
 
@@ -235,7 +234,7 @@ In a multi-writer WARP graph, there are many possible worldlines
 depending on which writers you include and at what points in their
 history. The selector picks one:
 
-### Live (canonical worldline)
+### LiveSelector
 
 "Observe the canonical worldline — all writers merged."
 
@@ -244,11 +243,11 @@ CRDT join. This is the "current state of the graph." The optional
 `ceiling` parameter selects a tick: "observe this worldline at tick N."
 
 ```javascript
-const sel = new Live???();           // canonical worldline, latest tick
-const sel = new Live???(42);         // canonical worldline at tick 42
+const sel = new LiveSelector();           // canonical worldline, latest tick
+const sel = new LiveSelector(42);         // canonical worldline at tick 42
 ```
 
-### Coordinate (hypothetical worldline)
+### CoordinateSelector
 
 "Observe a hypothetical worldline at specific writer tips."
 
@@ -258,13 +257,16 @@ and hypothetical queries — "what would the graph look like if only
 alice and bob existed?"
 
 ```javascript
-const sel = new Coordinate???(
+const sel = new CoordinateSelector(
   new Map([['alice', 'abc123'], ['bob', 'def456']]),
   42  // optional ceiling
 );
+
+// Empty frontier is valid — produces empty materialized state
+const sel = new CoordinateSelector(new Map());
 ```
 
-### Strand (isolated worldline)
+### StrandSelector
 
 "Observe one writer's isolated worldline."
 
@@ -272,66 +274,45 @@ The worldline of a single strand's visible patch universe. Used for
 branch-and-compare workflows — "what does this strand see?"
 
 ```javascript
-const sel = new Strand???('strand-abc123');
-const sel = new Strand???('strand-abc123', 42);  // at tick 42
+const sel = new StrandSelector('strand-abc123');
+const sel = new StrandSelector('strand-abc123', 42);  // at tick 42
 ```
-
-### Naming — Open Question
-
-The concept is clear: these are worldline selectors. The name is not.
-Options considered and rejected:
-
-| Name | Problem |
-|------|---------|
-| `«Base»` | "Weird" (human sponsor feedback) |
-| `Frontier` | Frontiers are a writer concern, not an observer concern |
-| `WorldlineSource` | Current name. "Source" implies origin, not selection. |
-
-Options still on the table:
-
-| Name | Rationale |
-|------|-----------|
-| `WorldlineSelector` | Says exactly what it is. Verbose but honest. |
-| `Observation` | "An observation of the live worldline at tick 42." |
-| `ReadTarget` | What we're targeting for materialization. |
-| `CausalLens` | Optics-informed, but warp-ttd reserves "lens" for the optics formalism. |
-
-**The right name should emerge from the domain, not be forced.**
-This design doc presents the concept; the name is for James to decide.
 
 ---
 
 ## Class Hierarchy
 
 ```text
-<Base> (abstract — name TBD)
-  ├── Live<Base>
-  ├── Coordinate<Base>
-  └── Strand<Base>
+WorldlineSelector (abstract base)
+  ├── LiveSelector
+  ├── CoordinateSelector
+  └── StrandSelector
 ```
 
-All three extend the base class. `instanceof <Base>` works on any
-variant. Each class is frozen after construction (`Object.freeze`).
+All three extend `WorldlineSelector`. `instanceof WorldlineSelector`
+works on any variant. Each class is frozen after construction
+(`Object.freeze`).
 
-### Base class
+### WorldlineSelector (base class)
 
 ```javascript
-class <Base> {
+class WorldlineSelector {
   // Abstract — subclasses override
-  clone() { throw new Error('<Base>.clone() is abstract'); }
+  clone() { throw new Error('WorldlineSelector.clone() is abstract'); }
 
   // Boundary factory — accepts plain { kind } objects or instances
   static from(raw) { /* ... */ }
+
+  // DTO bridge — returns a plain { kind, ... } object for the public API
+  toDTO() { throw new Error('WorldlineSelector.toDTO() is abstract'); }
 }
 ```
 
-The base is the dispatch type. Consumer code uses `instanceof <Base>`
-to verify they have a valid selector, then `instanceof Live<Base>`
-(etc.) for variant dispatch.
-
-`<Base>.from()` is the boundary — it accepts plain `{ kind }` objects
-from the wire format, legacy API callers, and test fixtures. Inside
-the domain, everything is a class instance.
+`WorldlineSelector.from()` is the inbound boundary — it accepts
+plain `{ kind }` objects and returns class instances. `toDTO()` is
+the outbound boundary — it converts class instances back to plain
+objects for the public API surface (`Worldline.source`,
+`Observer.source`).
 
 ### Constructor Contracts
 
@@ -339,13 +320,13 @@ Each constructor validates its arguments and throws `TypeError` on
 invalid input. Constructors establish invariants; they perform no I/O
 (P2).
 
-#### Live«TBD»
+#### LiveSelector
 
 ```javascript
-class Live«TBD» extends «Base» {
+class LiveSelector extends WorldlineSelector {
   constructor(ceiling) {
     // ceiling: undefined (omitted), null, or non-negative integer
-    // Throws TypeError if ceiling is not null/undefined/non-negative integer
+    // Throws TypeError if ceiling is a number but not a non-negative integer
   }
 }
 ```
@@ -354,36 +335,49 @@ class Live«TBD» extends «Base» {
 |-------|------|-----------|
 | `ceiling` | `number \| null` | `null` or non-negative integer |
 
-#### Coordinate«TBD»
+#### CoordinateSelector
 
 ```javascript
-class Coordinate«TBD» extends «Base» {
+class CoordinateSelector extends WorldlineSelector {
+  #frontier;  // private — prevents mutation of inner Map
+
   constructor(frontier, ceiling) {
-    // frontier: Map<string, string> — must be non-empty
-    //   If a plain object is passed, it is converted to Map
-    //   Keys and values must be non-empty strings
-    // ceiling: same rules as Live«TBD»
+    // frontier: Map<string, string> or Record<string, string>
+    //   Normalized to Map at construction
+    //   MAY be empty (empty frontier → empty materialized state)
+    //   Keys and values must be strings
+    // ceiling: same rules as LiveSelector
+  }
+
+  get frontier() {
+    return new Map(this.#frontier);  // defensive copy on read
   }
 }
 ```
 
 | Field | Type | Invariant |
 |-------|------|-----------|
-| `frontier` | `Map<string, string>` | Non-empty. String keys and values. Always a Map (normalized at construction). |
+| `frontier` | `Map<string, string>` (via getter, defensive copy) | String keys and values. May be empty. Stored in private field; reads return a copy. |
 | `ceiling` | `number \| null` | `null` or non-negative integer |
 
-**Design decision: normalize to Map.** The current codebase accepts
-both `Map<string, string>` and `Record<string, string>` for frontier.
-The constructor normalizes `Record` to `Map` at construction.
-This simplifies `clone()` and all downstream code.
+**Empty frontiers are valid.** The current runtime accepts empty
+`Map`/`Record` frontiers. `createFrontier()` starts empty.
+Coordinate materialization returns an empty state when the frontier
+is empty. The constructor does not reject empty frontiers.
 
-#### Strand«TBD»
+**Map immutability is real.** `Object.freeze(this)` does not freeze
+the contents of a Map. The frontier is stored in a private field
+(`#frontier`). The `frontier` getter returns `new Map(this.#frontier)`
+— a defensive copy. Callers cannot mutate the selector's internal
+state. `clone()` also copies through the private field.
+
+#### StrandSelector
 
 ```javascript
-class Strand«TBD» extends «Base» {
+class StrandSelector extends WorldlineSelector {
   constructor(strandId, ceiling) {
     // strandId: non-empty string
-    // ceiling: same rules as Live«TBD»
+    // ceiling: same rules as LiveSelector
   }
 }
 ```
@@ -398,33 +392,46 @@ class Strand«TBD» extends «Base» {
 Each subclass implements `clone()` returning a deep copy of the same
 type:
 
-- `Live«TBD».clone()` → `new Live«TBD»(this.ceiling)`
-- `Coordinate«TBD».clone()` → `new Coordinate«TBD»(new Map(this.frontier), this.ceiling)`
-- `Strand«TBD».clone()` → `new Strand«TBD»(this.strandId, this.ceiling)`
+- `LiveSelector.clone()` → `new LiveSelector(this.ceiling)`
+- `CoordinateSelector.clone()` → `new CoordinateSelector(new Map(this.#frontier), this.ceiling)`
+- `StrandSelector.clone()` → `new StrandSelector(this.strandId, this.ceiling)`
 
-### «Base».from()
+### toDTO()
 
-The boundary factory. Accepts plain objects with a `kind` discriminant
-and returns the appropriate class instance:
+Each subclass implements `toDTO()` returning a plain object matching
+the current `WorldlineSource` shape:
+
+- `LiveSelector.toDTO()` → `{ kind: 'live', ceiling: this.ceiling }`
+- `CoordinateSelector.toDTO()` → `{ kind: 'coordinate', frontier: new Map(this.#frontier), ceiling: this.ceiling }`
+- `StrandSelector.toDTO()` → `{ kind: 'strand', strandId: this.strandId, ceiling: this.ceiling }`
+
+This is the outbound bridge. `Worldline.source` and
+`Observer.source` call `toDTO()` so the public API surface does not
+change shape.
+
+### WorldlineSelector.from()
+
+The inbound boundary factory. Accepts plain objects with a `kind`
+discriminant and returns the appropriate class instance:
 
 ```javascript
-«Base».from({ kind: 'live' })
-  → new Live«TBD»()
+WorldlineSelector.from({ kind: 'live' })
+  → new LiveSelector()
 
-«Base».from({ kind: 'live', ceiling: 42 })
-  → new Live«TBD»(42)
+WorldlineSelector.from({ kind: 'live', ceiling: 42 })
+  → new LiveSelector(42)
 
-«Base».from({ kind: 'coordinate', frontier: { alice: 'abc' }, ceiling: null })
-  → new Coordinate«TBD»(new Map([['alice', 'abc']]), null)
+WorldlineSelector.from({ kind: 'coordinate', frontier: { alice: 'abc' }, ceiling: null })
+  → new CoordinateSelector(new Map([['alice', 'abc']]), null)
 
-«Base».from({ kind: 'strand', strandId: 'strand-abc', ceiling: 10 })
-  → new Strand«TBD»('strand-abc', 10)
+WorldlineSelector.from({ kind: 'strand', strandId: 'strand-abc', ceiling: 10 })
+  → new StrandSelector('strand-abc', 10)
 
-«Base».from(existingSelector)
-  → existingSelector (returned as-is, it's already a class)
+WorldlineSelector.from(existingSelector)
+  → existingSelector (returned as-is, already a class instance)
 
-«Base».from(null)
-  → new Live«TBD»()  (null/undefined defaults to live)
+WorldlineSelector.from(null)
+  → new LiveSelector()  (null/undefined defaults to live)
 ```
 
 ---
@@ -433,31 +440,70 @@ and returns the appropriate class instance:
 
 **No stored `kind` property.** The class identity IS the kind.
 
-- Internal dispatch: `instanceof Live«TBD»`
-- Serialization: the codec inspects `instanceof` and writes a `kind`
-  tag. This is P5 — serialization is the codec's problem.
-- Debugging: `console.log(vp)` shows `Live«TBD» { ceiling: null }`
-  — the class name is more informative than a string tag.
-- Tests: `expect(vp).toBeInstanceOf(Live«TBD»)` instead of
-  `expect(vp.kind).toBe('live')`.
-
-If a consumer genuinely needs a string discriminant (e.g., for
-logging, JSON output, or display), they use `instanceof`:
-
-```javascript
-function viewpointKind(vp) {
-  if (vp instanceof Live«TBD») { return 'live'; }
-  if (vp instanceof Coordinate«TBD») { return 'coordinate'; }
-  if (vp instanceof Strand«TBD») { return 'strand'; }
-}
-```
-
-This function lives on the codec or presenter side, not on the
-domain class.
+- Internal dispatch: `instanceof LiveSelector`
+- Serialization: `toDTO()` produces the `kind` tag for the public API
+- Debugging: `console.log(sel)` shows `LiveSelector { ceiling: null }`
+- Tests: `expect(sel).toBeInstanceOf(LiveSelector)` instead of
+  `expect(sel.kind).toBe('live')`
 
 ---
 
-## How It Changes Consumer Code
+## Migration Strategy
+
+### Internal (this cycle)
+
+Switch all internal code to selector classes:
+
+1. Worldline.js: `WorldlineSelector.from()` replaces all clone
+   functions. `instanceof` replaces tag dispatch in
+   `materializeSource()`.
+2. Observer.js: Five clone functions collapse into
+   `WorldlineSelector.from(source).clone()`. Internal `_source`
+   field becomes a `WorldlineSelector` instance.
+3. QueryController.js: Same pattern — `from()` + `instanceof`.
+
+### External (bridged, not broken)
+
+The public API does NOT change shape in this cycle:
+
+- `Worldline.source` returns a plain DTO (calls `toDTO()`)
+- `Observer.source` returns a plain DTO (calls `toDTO()`)
+- `WorldlineOptions.source` still accepts plain `{ kind }` objects
+  (calls `from()` at the boundary)
+- `WorldlineSource` type in `index.d.ts` stays as the existing union
+  of plain interfaces — no deprecation yet
+
+**What this means:** consumers who pass `{ kind: 'live' }` see no
+change. Consumers who read `.source` get back the same plain object
+shape they always got. The selector classes are internal. Exposing
+them publicly (new `selector` getter, exporting the classes,
+deprecating `WorldlineSource`) is a separate cycle, probably bundled
+with a major version bump.
+
+### Why bridge instead of break
+
+The break surface is bigger than "just removing `.kind`":
+
+1. `Worldline.source` and `Observer.source` currently return plain
+   objects. Switching them to class instances changes `typeof`,
+   `JSON.stringify` behavior, deep-equality checks, and
+   `Object.keys()` enumeration.
+2. The current clone code preserves `Map` vs `Record` frontier shape
+   on readback. `CoordinateSelector` normalizes to `Map`. If
+   `.source` returned a selector, consumers expecting a Record
+   frontier would break.
+3. The `kind` property disappearing from returned objects breaks
+   consumers who read it for display, logging, or serialization.
+4. Some consumers may serialize source descriptors directly (e.g.,
+   `JSON.stringify(observer.source)`). Class instances serialize
+   differently from plain objects.
+
+Bridging with `toDTO()` avoids all of these. The internal code gets
+clean classes; the external API gets stable DTOs.
+
+---
+
+## How It Changes Internal Code
 
 ### Worldline.js
 
@@ -475,128 +521,146 @@ function cloneWorldlineSource(source) {
 **After:**
 
 ```javascript
-// No clone functions needed. «Base».from() + clone() replaces them all.
-const viewpoint = «Base».from(source).clone();
+const selector = WorldlineSelector.from(source).clone();
 ```
 
 **Before (materializeSource dispatch):**
 
 ```javascript
-if (source.kind === 'live') { return await materializeLiveSource(graph, source, collectReceipts); }
-if (source.kind === 'coordinate') { return await materializeCoordinateSource(graph, source, collectReceipts); }
-return await materializeStrandSource(graph, source, collectReceipts);
+if (source.kind === 'live') { ... }
+if (source.kind === 'coordinate') { ... }
+return await materializeStrandSource(...);
 ```
 
 **After:**
 
 ```javascript
-if (source instanceof Live«TBD») { return await materializeLiveSource(graph, source, collectReceipts); }
-if (source instanceof Coordinate«TBD») { return await materializeCoordinateSource(graph, source, collectReceipts); }
-return await materializeStrandSource(graph, source, collectReceipts);
+if (source instanceof LiveSelector) { ... }
+if (source instanceof CoordinateSelector) { ... }
+return await materializeStrandSource(...);
+```
+
+**Before (Worldline.source getter):**
+
+```javascript
+get source() {
+  return cloneWorldlineSource(this._source);
+}
+```
+
+**After:**
+
+```javascript
+get source() {
+  return this._source.toDTO();  // plain object for public API
+}
 ```
 
 ### Observer.js
 
 Five clone functions (`cloneObserverSource`, `cloneNonNullSource`,
 `cloneLiveSource`, `cloneCoordinateSource`, plus strand inline)
-collapse into one call: `«Base».from(source).clone()`.
+collapse into `WorldlineSelector.from(source).clone()`.
+
+The `source` getter calls `toDTO()` for the public API.
 
 ### QueryController.js
 
-Same pattern — `cloneObserverSource()` becomes `«Base».from()`,
-dispatch switches from `source.kind ===` to `instanceof`.
+Same pattern — `cloneObserverSource()` becomes
+`WorldlineSelector.from()`, dispatch switches from `source.kind ===`
+to `instanceof`.
 
 ### Tests
 
-Three test files have `.kind` assertions:
+Internal test assertions change:
 
 ```javascript
 // Before
 expect(worldline.source.kind).toBe('live');
 
-// After
-expect(worldline.source).toBeInstanceOf(Live«TBD»);
+// After — source still returns a DTO, so .kind still works
+expect(worldline.source.kind).toBe('live');
+// But internal dispatch tests use instanceof:
+expect(selector).toBeInstanceOf(LiveSelector);
 ```
+
+Existing tests that check `worldline.source.kind` do NOT break
+because `source` returns a DTO via `toDTO()`.
 
 ---
 
 ## Public API Surface
 
-### index.js exports
+### index.js exports (this cycle)
+
+Export the selector classes for consumers who want to construct
+selectors explicitly:
 
 ```javascript
 export {
-  «Base»,
-  Live«TBD»,
-  Coordinate«TBD»,
-  Strand«TBD»,
+  WorldlineSelector,
+  LiveSelector,
+  CoordinateSelector,
+  StrandSelector,
   // ...
 };
 ```
 
-### index.d.ts
+### index.d.ts (this cycle)
+
+Add the selector class declarations. Keep the existing
+`WorldlineSource` type and interfaces unchanged:
 
 ```typescript
-export class «Base» {
-  clone(): «Base»;
+// NEW — selector classes
+export class WorldlineSelector {
+  clone(): WorldlineSelector;
+  toDTO(): WorldlineSource;
   static from(
-    raw: «Base» | { kind: string; [key: string]: unknown } | null | undefined
-  ): «Base»;
+    raw: WorldlineSelector | WorldlineSource | null | undefined
+  ): WorldlineSelector;
 }
 
-export class Live«TBD» extends «Base» {
+export class LiveSelector extends WorldlineSelector {
   constructor(ceiling?: number | null);
   readonly ceiling: number | null;
-  clone(): Live«TBD»;
+  clone(): LiveSelector;
+  toDTO(): LiveObserverSource;
 }
 
-export class Coordinate«TBD» extends «Base» {
+export class CoordinateSelector extends WorldlineSelector {
   constructor(
     frontier: Map<string, string> | Record<string, string>,
     ceiling?: number | null,
   );
   readonly frontier: Map<string, string>;
   readonly ceiling: number | null;
-  clone(): Coordinate«TBD»;
+  clone(): CoordinateSelector;
+  toDTO(): CoordinateObserverSource;
 }
 
-export class Strand«TBD» extends «Base» {
+export class StrandSelector extends WorldlineSelector {
   constructor(strandId: string, ceiling?: number | null);
   readonly strandId: string;
   readonly ceiling: number | null;
-  clone(): Strand«TBD»;
+  clone(): StrandSelector;
+  toDTO(): StrandObserverSource;
 }
+
+// UNCHANGED — existing interfaces stay for public API compat
+export interface LiveObserverSource { kind: 'live'; ceiling?: number | null; }
+export interface CoordinateObserverSource { ... }
+export interface StrandObserverSource { ... }
+export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | StrandObserverSource;
 ```
 
-### Backward Compatibility
+### Future cycle (major version)
 
-`WorldlineSource` becomes a deprecated type alias:
-
-```typescript
-/** @deprecated Use «Base», Live«TBD», Coordinate«TBD», or Strand«TBD». */
-export type WorldlineSource = «Base»;
-```
-
-`«Base».from()` accepts the old `{ kind: 'live' }` plain objects,
-so existing consumer code that constructs sources as plain objects
-still works — they just need to pass through `from()` at the boundary
-(which the Worldline/Observer/QueryController constructors do
-internally).
-
-The `WorldlineOptions` and `ObserverOptions` interfaces accept both
-`«Base»` instances and plain `{ kind }` objects:
-
-```typescript
-export interface WorldlineOptions {
-  source?: «Base» | { kind: 'live'; ceiling?: number | null }
-    | { kind: 'coordinate'; frontier: Map<string, string> | Record<string, string>; ceiling?: number | null }
-    | { kind: 'strand'; strandId: string; ceiling?: number | null };
-}
-```
-
-This means: no breaking change for consumers who pass plain objects.
-Breaking change only for consumers who read `.kind` on returned
-viewpoints.
+- Add `selector` getter to `Worldline` and `Observer` that returns
+  the class instance directly
+- Deprecate `source` getter
+- Deprecate `WorldlineSource` type
+- Eventually remove the DTO bridge
 
 ---
 
@@ -606,10 +670,10 @@ One type per source file (CLAUDE.md rule):
 
 ```text
 src/domain/types/
-  «Base».js           # Base class + from() factory
-  Live«TBD».js
-  Coordinate«TBD».js
-  Strand«TBD».js
+  WorldlineSelector.js       # Base class + from() factory
+  LiveSelector.js
+  CoordinateSelector.js
+  StrandSelector.js
 ```
 
 ---
@@ -617,25 +681,25 @@ src/domain/types/
 ## What About defaultCodec?
 
 The `defaultCodec.js → infrastructure` move (P5 fix) is a separate
-concern from the worldline selector hierarchy. It should be a separate commit
+concern from the selector hierarchy. It should be a separate commit
 in the same cycle or a separate cycle entirely. It does not depend on
-or interact with the worldline selector work.
+or interact with the selector work.
 
 ---
 
-## Implementation Sequence (for the next cycle)
+## Implementation Sequence
 
 1. **RED**: Write tests for the four new classes — constructor
-   validation, freeze, clone, from, instanceof.
+   validation, freeze, clone, from, instanceof, toDTO.
 2. **GREEN**: Implement the four class files.
-3. **RED**: Update existing tests — `.kind` assertions become
-   `instanceof`.
-4. **GREEN**: Migrate Worldline.js — replace clone functions and
-   dispatch.
-5. **GREEN**: Migrate Observer.js — same pattern.
-6. **GREEN**: Migrate QueryController.js — same pattern.
-7. Update index.d.ts and index.js exports.
-8. Lint, tsc, full test suite.
+3. **Migrate Worldline.js** — replace clone functions and dispatch.
+   `source` getter calls `toDTO()`.
+4. **Migrate Observer.js** — same pattern.
+5. **Migrate QueryController.js** — same pattern.
+6. Update index.d.ts and index.js exports.
+7. Lint, tsc, full test suite.
+8. **Verify**: existing tests that check `.source.kind` still pass
+   (because `source` returns DTO).
 
 ---
 
@@ -643,12 +707,13 @@ or interact with the worldline selector work.
 
 ComparisonController creates `{ kind: 'live' }` and
 `{ kind: 'strand' }` objects, but it also has a `strand_base` variant
-that is NOT a worldline selector — it's an internal comparison selector.
+that is NOT a WorldlineSelector — it's an internal comparison
+selector.
 
 ComparisonController's objects flow into
 `graph.materialize()`/`materializeCoordinate()`/`materializeStrand()`
-directly, not through the worldline selector path. They are a separate type
-hierarchy (identified in the noun audit as a future backlog item:
+directly, not through the WorldlineSelector path. They are a separate
+type hierarchy (identified in the noun audit as a future backlog item:
 `NDNM_comparison-pipeline-class-hierarchy`).
 
 **No changes to ComparisonController in this work.**
@@ -659,48 +724,26 @@ hierarchy (identified in the noun audit as a future backlog item:
 
 The `warp-ttd` debugger (in `~/git/warp-ttd`) already has a
 formalized vocabulary in its glossary (`docs/design/glossary.md`) and
-vision document (`VISION.md`). The worldline selector design must be consistent
+vision document (`VISION.md`). The selector design is consistent
 with TTD's usage of these terms.
 
 ### TTD Glossary Alignment
 
 | TTD term | TTD definition | git-warp alignment |
 |----------|----------------|-------------------|
-| **worldline** | Causal history of a deterministic graph. A lane whose ticks form a linear chain. | git-warp's `Worldline` class is NOT this — it's a read handle. The real worldline is the per-writer patch chain under `refs/warp/<graph>/writers/<writerId>`. TTD is correct; git-warp is misnamed (tracked in R1). |
+| **worldline** | Causal history of a deterministic graph. A lane whose ticks form a linear chain. | git-warp's `Worldline` class is NOT this — it's a read handle. The real worldline is the per-writer patch chain under `refs/warp/<graph>/writers/<writerId>`. TTD is correct; git-warp is misnamed (tracked in R1, separate cycle). |
 | **strand** | Speculative branch forked from a worldline. Writable, forkable. | git-warp's strand concept matches. |
 | **lane** | Generic for worldline or strand. | Not in git-warp vocabulary. Could be useful. |
-| **tick** | Lamport clock value on a single lane. | git-warp uses `ceiling` for this in the selector. Consistent. |
+| **tick** | Lamport clock value on a single lane. | git-warp uses `ceiling` for this in selectors. Consistent. |
 | **aperture** | What an observer preserves/projects. | git-warp's `Aperture` interface matches. TTD notes: "Lens is reserved for the optics formalism." |
-| **receipt** | Structured provenance for a tick transition. | git-warp's `TickReceipt` matches. |
-
-### What TTD Confirms
-
-1. **Worldline is causal history, not a read handle.** TTD's glossary
-   is explicit: "A worldline is a lane whose ticks form a linear chain
-   of causally ordered states." git-warp's `Worldline` class doesn't
-   model this. The worldline selector refactor is correct to NOT name itself
-   after worldlines.
-
-2. **"Lens" is reserved for the optics formalism.** TTD's vocabulary
-   table says "Prefer aperture, avoid lens (for observer projection)."
-   The worldline selector design avoids "lens" — correct.
-
-3. **TTD consumes `WorldlineSource` implicitly** through the git-warp
-   adapter. When git-warp renames `WorldlineSource` → `«Base»`,
-   the TTD adapter will need updating. This is an internal adapter
-   change, not a protocol change — TTD's protocol uses its own types
-   (`Coordinate`, `PlaybackHeadSnapshot`), not git-warp's domain types.
 
 ### Impact on TTD
 
-The worldline selector rename in git-warp is **internal to git-warp's domain**.
-TTD's git-warp adapter (`src/adapters/git-warp/`) imports from
-`@git-stunts/git-warp` but does not directly import `WorldlineSource`
-— it uses the public API (`graph.worldline()`, `graph.observer()`).
-The `source` parameter passed to these methods will continue to accept
-plain `{ kind }` objects via `«Base».from()`, so the adapter should
-not break.
+The selector classes are **internal to git-warp's domain**. TTD's
+git-warp adapter uses the public API (`graph.worldline()`,
+`graph.observer()`). Since `Worldline.source` still returns a plain
+DTO, the adapter does not break.
 
-When git-warp bumps to the next major version with the `Worldline`
-class rename (R1), TTD's adapter will need updating. That's a
-separate concern.
+When git-warp eventually exposes the new `selector` getter and
+deprecates `source` (future major version), TTD's adapter will
+need updating. That's a separate concern.
