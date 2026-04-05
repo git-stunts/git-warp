@@ -24,9 +24,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
    * Creates a new CborPatchJournalAdapter.
    *
    * @param {{
-   *   codec: import('../../ports/CodecPort.js').default,
-   *   blobPort: import('../../ports/BlobPort.js').default,
-   *   commitPort?: import('../../ports/CommitPort.js').default,
+   *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
+   *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
+   *   commitPort?: { getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> },
    *   patchBlobStorage?: import('../../ports/BlobStoragePort.js').default | null,
    * }} options
    */
@@ -38,11 +38,11 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     if (blobPort === null || blobPort === undefined) {
       throw new WarpError('CborPatchJournalAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/CodecPort.js').default} */
+    /** @type {{ encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown }} */
     this._codec = codec;
-    /** @type {import('../../ports/BlobPort.js').default} */
+    /** @type {{ readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
-    /** @type {import('../../ports/CommitPort.js').default | null} */
+    /** @type {{ getNodeInfo(sha: string): Promise<{sha: string, message: string, author: string, date: string, parents: string[]}> } | null} */
     this._commitPort = commitPort ?? null;
     /** @type {import('../../ports/BlobStoragePort.js').default | null} */
     this._patchBlobStorage = patchBlobStorage ?? null;

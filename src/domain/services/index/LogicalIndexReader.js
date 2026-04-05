@@ -107,6 +107,38 @@ function classifyShards(items) {
 }
 
 /**
+ * @typedef {{ meta: Array<{path: string, data: unknown}>, labels: unknown, edges: Array<{path: string, data: unknown}> }} ClassifiedDecoded
+ */
+
+/**
+ * Classifies pre-decoded path/data pairs into meta, labels, and edge buckets.
+ *
+ * @param {Array<{path: string, data: unknown}>} items
+ * @returns {ClassifiedDecoded}
+ */
+function classifyDecoded(items) {
+  /** @type {Array<{path: string, data: unknown}>} */
+  const meta = [];
+  /** @type {unknown} */
+  let labels = null;
+  /** @type {Array<{path: string, data: unknown}>} */
+  const edges = [];
+
+  for (const item of items) {
+    const { path } = item;
+    if (isMetaShard(path)) {
+      meta.push(item);
+    } else if (path === 'labels.cbor') {
+      labels = item.data;
+    } else if (isEdgeShard(path)) {
+      edges.push(item);
+    }
+  }
+
+  return { meta, labels, edges };
+}
+
+/**
  * Checks whether a node is alive in the bitmap index.
  *
  * @param {Map<string, number>} n2g - Node-to-global-ID mapping
@@ -278,10 +310,18 @@ export default class LogicalIndexReader {
   async loadFromOids(shardOids, storage) {
     this._resetState();
     const entries = Object.entries(shardOids);
-    const items = await Promise.all(
-      entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) }))
-    );
-    this._processShards(items);
+    if (this._indexStore) {
+      const indexStore = this._indexStore;
+      const decoded = await Promise.all(
+        entries.map(async ([path, oid]) => ({ path, data: await indexStore.decodeShard(oid) }))
+      );
+      this._processDecoded(decoded);
+    } else {
+      const items = await Promise.all(
+        entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) }))
+      );
+      this._processShards(items);
+    }
     return this;
   }
 
@@ -349,37 +389,65 @@ export default class LogicalIndexReader {
   // ── Private ─────────────────────────────────────────────────────────────────
 
   /**
-   * Processes classified shards in deterministic order.
+   * Processes classified shards in deterministic order (codec path).
    *
    * @param {ShardItem[]} items
    * @private
    */
   _processShards(items) {
-    const Ctor = getRoaringBitmap32();
     const { meta, labels, edges } = classifyShards(items);
+    /** @type {Array<{path: string, data: unknown}>} */
+    const decodedMeta = meta.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
+    const decodedLabels = labels ? this._codec.decode(labels) : null;
+    /** @type {Array<{path: string, data: unknown}>} */
+    const decodedEdges = edges.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
+    this._loadClassified({ meta: decodedMeta, labels: decodedLabels, edges: decodedEdges });
+  }
 
-    for (const { path, buf } of meta) {
-      this._decodeMeta(path, buf, Ctor);
+  /**
+   * Loads classified decoded data into the reader's maps.
+   *
+   * Shared by both the codec path (_processShards) and the
+   * port path (_processDecoded). No codec interaction here.
+   *
+   * @param {ClassifiedDecoded} classified
+   * @private
+   */
+  _loadClassified({ meta, labels, edges }) {
+    const Ctor = getRoaringBitmap32();
+    for (const { path, data } of meta) {
+      this._loadDecodedMeta(path, data, Ctor);
     }
-    if (labels) {
-      this._decodeLabels(labels);
+    if (labels !== null) {
+      this._loadDecodedLabels(labels);
     }
-    for (const { path, buf } of edges) {
-      this._decodeEdgeShard(path.startsWith('fwd_') ? 'fwd' : 'rev', buf, Ctor);
+    for (const { path, data } of edges) {
+      this._loadDecodedEdges(path.startsWith('fwd_') ? 'fwd' : 'rev', data, Ctor);
     }
   }
 
   /**
-   * Decodes a meta shard and populates node-to-global and alive bitmap maps.
+   * Processes pre-decoded shards (port path — no codec needed).
+   *
+   * @param {Array<{path: string, data: unknown}>} items
+   * @private
+   */
+  _processDecoded(items) {
+    const classified = classifyDecoded(items);
+    this._loadClassified(classified);
+  }
+
+  /**
+   * Populates node-to-global and alive bitmap maps from decoded meta data.
    *
    * @param {string} path - Shard file path (e.g. meta_ab.cbor)
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded meta shard data
    * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
-  _decodeMeta(path, buf, Ctor) {
+  _loadDecodedMeta(path, raw, Ctor) {
     /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */
-    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (/** @type {unknown} */ (this._codec.decode(buf)));
+    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (raw);
     const entries = Array.isArray(meta.nodeToGlobal)
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);
@@ -405,13 +473,13 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * Decodes a label registry shard from CBOR into the label maps.
+   * Populates label maps from decoded label data.
    *
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded label shard data
    * @private
    */
-  _decodeLabels(buf) {
-    const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (this._codec.decode(buf));
+  _loadDecodedLabels(raw) {
+    const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (raw);
     const entries = Array.isArray(decoded) ? decoded : Object.entries(decoded);
     for (const [label, id] of entries) {
       this._labelRegistry.set(label, id);
@@ -437,17 +505,17 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * Decodes a forward or reverse edge shard and populates the edge stores.
+   * Populates edge stores from decoded edge shard data.
    *
    * @param {string} dir - 'fwd' or 'rev'
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded edge shard data
    * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
-  _decodeEdgeShard(dir, buf, Ctor) {
+  _loadDecodedEdges(dir, raw, Ctor) {
     const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
     const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
-    const decoded = /** @type {Record<string, Record<string, Uint8Array|ArrayLike<number>>>} */ (this._codec.decode(buf));
+    const decoded = /** @type {Record<string, Record<string, Uint8Array|ArrayLike<number>>>} */ (raw);
     for (const [bucket, entries] of Object.entries(decoded)) {
       for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
         const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);

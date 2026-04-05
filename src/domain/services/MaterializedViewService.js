@@ -289,14 +289,16 @@ function verifySampledNodes(sampled, logicalIndex, truth) {
 
 export default class MaterializedViewService {
   /**
-   * Creates a MaterializedViewService with optional codec and logger.
+   * Creates a MaterializedViewService with optional codec, logger, and indexStore.
    *
-   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
+   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, indexStore?: import('../../ports/IndexStorePort.js').default }} [options]
    */
   constructor(options = undefined) {
-    const { codec, logger } = options || {};
+    const { codec, logger, indexStore } = options || {};
     this._codec = codec || defaultCodec;
     this._logger = logger || nullLogger;
+    /** @type {import('../../ports/IndexStorePort.js').default|null} */
+    this._indexStore = indexStore || null;
   }
 
   /**
@@ -372,13 +374,17 @@ export default class MaterializedViewService {
   async loadFromOids(shardOids, storage) {
     const { indexOids, propOids } = partitionShardOids(shardOids);
 
-    const reader = new LogicalIndexReader({ codec: this._codec });
+    const reader = new LogicalIndexReader({
+      codec: this._codec,
+      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
+    });
     await reader.loadFromOids(indexOids, storage);
     const logicalIndex = reader.toLogicalIndex();
 
     const propertyReader = new PropertyIndexReader({
       storage: /** @type {import('../../ports/IndexStoragePort.js').default} */ (storage),
       codec: this._codec,
+      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
     });
     propertyReader.setup(propOids);
 

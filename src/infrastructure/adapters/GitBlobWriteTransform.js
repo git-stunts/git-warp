@@ -14,14 +14,14 @@ export class GitBlobWriteTransform extends Transform {
   /**
    * Creates a GitBlobWriteTransform.
    *
-   * @param {import('../../ports/BlobPort.js').default} blobPort
+   * @param {{ writeBlob(content: Uint8Array | string): Promise<string> }} blobPort
    */
   constructor(blobPort) {
     super();
     if (blobPort === null || blobPort === undefined) {
       throw new WarpError('GitBlobWriteTransform requires a blobPort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/BlobPort.js').default} */
+    /** @type {{ writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
   }
 

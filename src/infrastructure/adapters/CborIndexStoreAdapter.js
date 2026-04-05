@@ -130,9 +130,9 @@ export class CborIndexStoreAdapter extends IndexStorePort {
    * Creates a CborIndexStoreAdapter.
    *
    * @param {{
-   *   codec: import('../../ports/CodecPort.js').default,
-   *   blobPort: import('../../ports/BlobPort.js').default,
-   *   treePort: import('../../ports/TreePort.js').default,
+   *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
+   *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
+   *   treePort: { readTreeOids(treeOid: string): Promise<Record<string, string>>, writeTree(entries: string[]): Promise<string> },
    * }} options
    */
   constructor({ codec, blobPort, treePort }) {
@@ -140,11 +140,11 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     _requireDep(codec, 'codec');
     _requireDep(blobPort, 'blobPort');
     _requireDep(treePort, 'treePort');
-    /** @type {import('../../ports/CodecPort.js').default} */
+    /** @type {{ encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown }} */
     this._codec = codec;
-    /** @type {import('../../ports/BlobPort.js').default} */
+    /** @type {{ readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
-    /** @type {import('../../ports/TreePort.js').default} */
+    /** @type {{ readTreeOids(treeOid: string): Promise<Record<string, string>>, writeTree(entries: string[]): Promise<string> }} */
     this._treePort = treePort;
   }
 

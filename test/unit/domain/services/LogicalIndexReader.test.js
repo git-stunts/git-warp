@@ -301,6 +301,47 @@ describe('LogicalIndexReader', () => {
     });
   });
 
+  describe('loadFromOids with indexStore (decodeShard path)', () => {
+    it('uses indexStore.decodeShard instead of storage.readBlob + codec', async () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const service = new MaterializedViewService();
+      const { tree } = service.build(state);
+
+      // Build shardOids and a decoded-data map (simulating what decodeShard returns)
+      /** @type {Record<string, string>} */ const shardOids = {};
+      /** @type {Map<string, unknown>} */ const decodedByOid = new Map();
+      let oidCounter = 0;
+      for (const [path, buf] of Object.entries(tree)) {
+        const oid = `oid_${String(oidCounter++).padStart(4, '0')}`;
+        shardOids[path] = oid;
+        decodedByOid.set(oid, defaultCodec.decode(buf));
+      }
+
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+        decodeShard: vi.fn((oid) => Promise.resolve(decodedByOid.get(oid))),
+      }));
+
+      const mockStorage = {
+        readBlob: vi.fn(),
+      };
+
+      const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
+      await reader.loadFromOids(shardOids, mockStorage);
+      const idx = reader.toLogicalIndex();
+
+      // indexStore.decodeShard was used
+      expect(mockIndexStore.decodeShard).toHaveBeenCalled();
+      // storage.readBlob was NOT used
+      expect(mockStorage.readBlob).not.toHaveBeenCalled();
+
+      // Results are correct
+      expect(idx.isAlive('A')).toBe(true);
+      expect(idx.isAlive('B')).toBe(true);
+      const outEdges = idx.getEdges('A', 'out');
+      expect(outEdges.length).toBe(2);
+    });
+  });
+
   describe('loadFromStore (IndexStorePort path)', () => {
     it('hydrates a LogicalIndex via scanShards — codec-free', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);

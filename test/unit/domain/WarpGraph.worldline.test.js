@@ -83,6 +83,7 @@ function createMockPersistence() {
       return sha;
     }),
     nodeExists: vi.fn(async (sha) => commits.has(sha)),
+    readTreeOids: vi.fn(),
   };
 }
 
