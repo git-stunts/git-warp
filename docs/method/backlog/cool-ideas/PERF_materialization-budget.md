@@ -21,7 +21,7 @@ if (result.partial) {
   // plus a continuation token for resuming
   const rest = await graph.materialize({
     continuation: result.continuationToken,
-    budget: { ... },
+    budget: { maxPatches: 50_000, maxMemoryMB: 512 },
   });
 }
 ```
