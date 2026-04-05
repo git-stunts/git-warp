@@ -1,11 +1,11 @@
-# Test Quality Audit — April 2026 (Partial: Domain Core)
+# Test Quality Audit — April 2026
 
 **Date:** 2026-04-05
-**Scope:** test/unit/domain/*.test.js, test/unit/domain/warp/,
-test/unit/domain/types/, test/unit/domain/utils/, test/unit/domain/trust/
+**Scope:** All 372 test files across test/unit/, test/integration/,
+test/benchmark/, test/helpers/
 **Trigger:** 6 unit tests found asserting broken removeNode behavior
 as correct (empty observedDots blessed as valid output)
-**Status:** Partial — domain services and infra/ports agents still running
+**Status:** Complete — all 3 audit agents finished
 
 ---
 
@@ -81,15 +81,87 @@ it('does X', async () => {
 
 ---
 
-## Appendix: Files Reviewed (Clean)
+---
 
-The following files were reviewed and found to have no issues:
-WarpGraph.noCoordination.test.js, WarpGraph.specCompliance.test.js,
-WarpGraph.test.js, WarpGraph.seek.test.js, WarpGraph.seekDiff.test.js,
-WarpGraph.fork.test.js, WarpGraph.timing.test.js,
-WarpGraph.patchCount.test.js, WarpGraph.patchesFor.test.js,
-WarpGraph.frontierChanged.test.js, WarpGraph.invalidation.test.js,
-WarpGraph.lazyMaterialize.test.js, WarpGraph.autoCheckpoint.test.js,
-WarpGraph.subscribe.test.js, WarpGraph.watch.test.js,
-WarpGraph.forkCryptoCodec.test.js, WarpGraph.materializeSlice.test.js,
-all trust/ tests, all types/ tests, all utils/ tests, all warp/ tests.
+## Domain Services Findings (104 files)
+
+### Critical
+
+| File | Test | Issue | Category |
+|------|------|-------|----------|
+| PatchBuilderV2.test.js | "removeNode with empty state returns empty observedDots" | Blesses no-op remove when entity doesn't exist in state (distinct from null-state bug) | BlessesBug |
+| PatchBuilderV2.test.js | "removeEdge with empty state returns empty observedDots" | Same for edges | BlessesBug |
+
+### High
+
+| File | Test | Issue | Category |
+|------|------|-------|----------|
+| JoinReducer.validation.test.js | "accepts NodeRemove without node field" | Blesses NodeRemove with empty observedDots and no node field as valid | BlessesBug |
+| JoinReducer.validation.test.js | "accepts EdgeRemove without from/to/label" | Same for edges | BlessesBug |
+| SyncController.test.js | (all) | 3 module-level vi.mock() calls + 20-property mock host. Real SyncProtocol never exercised. | OverMocked |
+
+### Medium
+
+| File | Test | Issue | Category |
+|------|------|-------|----------|
+| BitmapIndexReader.test.js | "returns empty array when shard contains invalid JSON" | Blesses silent data loss on corruption (empty vs no-neighbors indistinguishable) | BehaviorNotCorrectness |
+| JoinReducer.trackDiff.test.js | (missing) | No test for remove of non-existent entity | MissingCoverage |
+| PatchBuilderV2.test.js | (missing) | No test for remove of already-tombstoned entity | MissingCoverage |
+| Observer.test.js | (missing) | No test for stale observer, seek before graph creation | MissingNegative |
+| CheckpointSerializerV5.test.js | "returns empty state when buffer is null" | Blesses silent empty-state for missing input | BehaviorNotCorrectness |
+| BitmapNeighborProvider.test.js | "returns empty when labels filter..." | Tests a limitation, not correctness | MissingCoverage |
+| WormholeService.test.js | (missing) | No test for overlapping wormhole ranges | MissingCoverage |
+
+---
+
+## Infrastructure / Ports / Viz Findings (161 files)
+
+**No removeNode-style bugs found.** Substantially healthier than domain tests.
+
+### Medium
+
+| File | Test | Issue | Category |
+|------|------|-------|----------|
+| DenoHttpAdapter.test.js | "does not produce unhandled rejection..." | `expect(true).toBe(true)` — literal tautology | VacuousAssertion |
+| HttpServerPort.test.js | "handles a basic request/response cycle" | Only checks interface shape, never makes a request | VacuousAssertion |
+| CasSeekCacheAdapter.test.js | "_parseKey extracts..." | Tests private internals, no malformed-key negative tests | MissingNegative |
+
+### Low
+
+| File | Test | Issue | Category |
+|------|------|-------|----------|
+| NoOpLogger.test.js | "handles large context objects..." | Wall-clock timing (flaky in CI) | BehaviorNotCorrectness |
+| NoOpLogger.test.js | "methods return undefined" | Vacuous — all void fns return undefined | VacuousAssertion |
+| NoOpEffectSink.test.js | "deliver returns..." | Only checks observation object, not actual effect | BehaviorNotCorrectness |
+| CborCodec.test.js | "encodes and returns a Buffer" | Asserts Buffer, should note Uint8Array direction | BehaviorNotCorrectness |
+| trust.exitcode.test.js | exit code matrix | Tests a local reimplementation, not production code | OverMocked |
+| checkpoint.test.js | "materializeAt restores state..." | Doesn't assert on post-checkpoint node n3 | MissingNegative |
+
+---
+
+## Summary Across All 372 Files
+
+| Category | Critical | High | Medium | Low | Total |
+|----------|----------|------|--------|-----|-------|
+| BlessesBug | 2 | 4 | 2 | 0 | 8 |
+| VacuousAssertion | 1 | 2 | 2 | 5 | 10 |
+| MissingCoverage | 0 | 0 | 4 | 1 | 5 |
+| OverMocked | 0 | 1 | 0 | 1 | 2 |
+| MissingNegative | 0 | 0 | 2 | 0 | 2 |
+| BehaviorNotCorrectness | 0 | 0 | 2 | 4 | 6 |
+| **Total** | **3** | **7** | **12** | **11** | **33** |
+
+~85% of test files (320 of 372) are clean with strong assertions.
+
+## Strongest Test Files
+
+- JoinReducer.integration.test.js — permutation testing, multi-writer conflicts
+- JoinReducer.edgeProps.test.js — LWW commutativity proofs
+- JoinReducer.pathEquivalence.test.js — 3-path equivalence across all ops
+- AuditVerifierService.test.js — deep chain integrity, CBOR corruption
+- SyncAuthService.test.js — timing, replay, signature, key-id
+- EdgePropKey.test.js — fuzz with 10K random tuples
+- WormholeService.test.js — monoid properties, associativity
+- WarpGraph.noCoordination.test.js — the gold standard for multi-writer safety
+- CborPatchJournalAdapter.test.js — golden hex wire format stability
+- CborIndexStoreAdapter.test.js — full artifact round-trip, all 5 shard types
