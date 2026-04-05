@@ -1,23 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import PropertyIndexBuilder from '../../../../src/domain/services/index/PropertyIndexBuilder.js';
 import PropertyIndexReader from '../../../../src/domain/services/index/PropertyIndexReader.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import { PropertyShard } from '../../../../src/domain/artifacts/IndexShard.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.js';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.js';
 
+const codec = new CborCodec();
+
 /**
- * Creates an in-memory mock storage from serialized tree.
+ * Creates an in-memory mock storage from PropertyShard instances.
+ * Encodes each shard's entries via CBOR so PropertyIndexReader can decode them.
  */
-/** @param {Record<string, Uint8Array>} tree */
-function mockStorageFromTree(tree) {
+/** @param {Array<PropertyShard>} shards */
+function mockStorageFromShards(shards) {
   const blobs = new Map();
   /** @type {Record<string, string>} */
   const oids = {};
   let oidCounter = 0;
 
-  for (const [path, buf] of Object.entries(tree)) {
+  for (const shard of shards) {
+    const path = `props_${shard.shardKey}.cbor`;
     const oid = `oid_${oidCounter++}`;
-    blobs.set(oid, buf);
+    blobs.set(oid, codec.encode(shard.entries));
     oids[path] = oid;
   }
 
@@ -34,8 +39,8 @@ describe('PropertyIndex', () => {
     builder.addProperty('user:alice', 'age', 30);
     builder.addProperty('user:bob', 'name', 'Bob');
 
-    const tree = builder.serialize();
-    const { storage, oids } = mockStorageFromTree(tree);
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
     reader.setup(oids);
@@ -51,8 +56,8 @@ describe('PropertyIndex', () => {
     const builder = new PropertyIndexBuilder();
     builder.addProperty('user:alice', 'name', 'Alice');
 
-    const tree = builder.serialize();
-    const { storage, oids } = mockStorageFromTree(tree);
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
     reader.setup(oids);
@@ -79,8 +84,8 @@ describe('PropertyIndex', () => {
     builder.addProperty(first, 'x', 1);
     builder.addProperty(second, 'y', 2);
 
-    const tree = builder.serialize();
-    const { storage, oids } = mockStorageFromTree(tree);
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
     reader.setup(oids);
@@ -95,15 +100,15 @@ describe('PropertyIndex', () => {
     builder.addProperty('node:1', 'weight', 42);
     builder.addProperty('node:2', 'color', 'blue');
 
-    const tree = builder.serialize();
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
 
-    // Verify raw CBOR shards are decodable
-    for (const [, buf] of Object.entries(tree)) {
-      const decoded = defaultCodec.decode(buf);
-      expect(typeof decoded).toBe('object');
+    // Verify PropertyShard entries are well-formed objects
+    for (const shard of shards) {
+      expect(shard).toBeInstanceOf(PropertyShard);
+      expect(Array.isArray(shard.entries)).toBe(true);
     }
 
-    const { storage, oids } = mockStorageFromTree(tree);
+    const { storage, oids } = mockStorageFromShards(shards);
     const reader = new PropertyIndexReader({ storage });
     reader.setup(oids);
 
@@ -118,8 +123,8 @@ describe('PropertyIndex', () => {
       builder.addProperty(nodeId, key, value);
     }
 
-    const tree = builder.serialize();
-    const { storage, oids } = mockStorageFromTree(tree);
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+    const { storage, oids } = mockStorageFromShards(shards);
 
     const reader = new PropertyIndexReader({ storage });
     reader.setup(oids);
@@ -143,11 +148,45 @@ describe('PropertyIndex', () => {
     const abNodeId = `ab${'0'.repeat(38)}`;
     const shardPath = `props_${computeShardKey(abNodeId)}.cbor`;
     const reader = new PropertyIndexReader({
-      storage: { readBlob: async () => defaultCodec.encode({ [abNodeId]: { name: 'Alice' } }) },
+      storage: { readBlob: async () => codec.encode({ [abNodeId]: { name: 'Alice' } }) },
     });
     reader.setup({ [shardPath]: 'oid_bad_format' });
 
     await expect(reader.getNodeProps(abNodeId)).rejects.toThrow(/invalid shard format.*expected array.*object/i);
+  });
+
+  it('loads via indexStore.decodeShard — codec-free', async () => {
+    const builder = new PropertyIndexBuilder();
+    builder.addProperty('user:alice', 'name', 'Alice');
+    builder.addProperty('user:alice', 'age', 30);
+    builder.addProperty('user:bob', 'name', 'Bob');
+
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+
+    // Build a mock indexStore that returns decoded shard entries directly
+    const decodedByOid = new Map();
+    /** @type {Record<string, string>} */
+    const oids = {};
+    let oidCounter = 0;
+    for (const shard of shards) {
+      const path = `props_${shard.shardKey}.cbor`;
+      const oid = `oid_${oidCounter++}`;
+      decodedByOid.set(oid, shard.entries);
+      oids[path] = oid;
+    }
+
+    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ ({
+      decodeShard: async (/** @type {string} */ oid) => decodedByOid.get(oid),
+    });
+
+    const reader = new PropertyIndexReader({ indexStore: mockIndexStore });
+    reader.setup(oids);
+
+    const aliceProps = await reader.getNodeProps('user:alice');
+    expect(aliceProps).toEqual({ name: 'Alice', age: 30 });
+
+    const bobName = await reader.getProperty('user:bob', 'name');
+    expect(bobName).toBe('Bob');
   });
 
   it('serializes deterministically for equivalent property sets across op orders', () => {
@@ -163,14 +202,19 @@ describe('PropertyIndex', () => {
     order2.addProperty('node:beta', 'name', 'Bob');
     order2.addProperty('node:alpha', 'name', 'Alice');
 
-    const tree1 = order1.serialize();
-    const tree2 = order2.serialize();
-    expect(Object.keys(tree1).sort()).toEqual(Object.keys(tree2).sort());
+    const shards1 = /** @type {Array<PropertyShard>} */ ([...order1.yieldShards()]);
+    const shards2 = /** @type {Array<PropertyShard>} */ ([...order2.yieldShards()]);
 
-    for (const path of Object.keys(tree1)) {
-      const decoded1 = defaultCodec.decode(/** @type {Uint8Array} */ (tree1[path]));
-      const decoded2 = defaultCodec.decode(/** @type {Uint8Array} */ (tree2[path]));
-      expect(decoded1).toEqual(decoded2);
+    // Same number of shards with same shard keys
+    const keys1 = shards1.map((s) => s.shardKey).sort();
+    const keys2 = shards2.map((s) => s.shardKey).sort();
+    expect(keys1).toEqual(keys2);
+
+    // Same entries per shard key
+    for (const shard1 of shards1) {
+      const shard2 = shards2.find((s) => s.shardKey === shard1.shardKey);
+      expect(shard2).toBeDefined();
+      expect(shard1.entries).toEqual(/** @type {PropertyShard} */ (shard2).entries);
     }
   });
 });

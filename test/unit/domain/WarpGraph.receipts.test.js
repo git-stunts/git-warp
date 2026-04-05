@@ -74,6 +74,8 @@ function createMockPersistence() {
       commits.set(sha, { message, parents: parents || [] });
       return sha;
     }),
+    readTreeOids: vi.fn(),
+    writeTree: vi.fn(),
   };
 }
 

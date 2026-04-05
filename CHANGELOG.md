@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Project invariants** — 15 formal invariants derived from AION Papers I-IV, OG-1, and OG-4, each grounded in specific theorems and mapped to codebase enforcement. Lives in `docs/invariants/`. BEARING.md updated to reference the full set with paper citations.
 - **WarpStream** — composable async stream primitive built on `AsyncIterable<T>`. Domain concept for "data flow over time." Supports `pipe`, `tee`, `mux`, `demux`, `drain`, `reduce`, `forEach`, `collect`. Natural backpressure via `for await`, error propagation via async iterator protocol, cooperative cancellation via `AbortSignal`.
 - **Stream transforms** — `CborEncodeTransform`, `CborDecodeTransform`, `GitBlobWriteTransform`, `TreeAssemblerSink`, `IndexShardEncodeTransform` — composable infrastructure pipeline stages for encode → blobWrite → treeAssemble.
 - **Artifact record classes** — `CheckpointArtifact` family (`StateArtifact`, `FrontierArtifact`, `AppliedVVArtifact`), `IndexShard` family (`MetaShard`, `EdgeShard`, `LabelShard`, `PropertyShard`, `ReceiptShard`), `PatchEntry`, `ProvenanceEntry`. Runtime-backed domain nouns with constructor validation and `instanceof` dispatch.
@@ -18,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`LogicalIndexBuildService.buildStream()`** — returns `WarpStream<IndexShard>` merging both builders via `mux()`.
 - **Hex tripwire test** — 36 automated checks scanning domain files for forbidden codec imports/usage. Fails loud if domain touches `defaultCodec`, `cbor-x`, or `codec.encode()`/`codec.decode()`.
 - **Golden fixtures** — known CBOR bytes for patches, checkpoints, VV, frontier, index shards. Wire format stability proven across refactor.
+- **`IndexStorePort`** — abstract port for reading/writing serialized index shards, decoupling index persistence from any specific codec. `CborIndexStoreAdapter` provides the CBOR-backed implementation.
+- **`LogicalIndexReader.loadFromStore()`** — hydrates bitmap indexes through `IndexStorePort`, removing direct codec dependency from the reader.
+- **`LogicalIndexReader.loadFromShards()`** — codec-free index hydration from pre-decoded `IndexShard` instances.
+- **`requireCapabilities()` module** — runtime capability assertion for adapter port surfaces, replacing cast-to-shut-up patterns in boot paths.
+- **P5 tripwire expanded** — hex tripwire test now covers index builder files (Slice 3), ensuring domain index code never imports codecs directly.
 
 ### Fixed
 
@@ -62,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Comparison pipeline class hierarchy** — `NormalizedSelector` is now a base class with 4 subclasses (`LiveSelector`, `CoordinateSelector`, `StrandSelector`, `StrandBaseSelector`), each implementing `resolve()` directly. Eliminates kind-switch dispatch. `ResolvedComparisonSide` promoted to class. Live frontier captured once for consistency across both sides.
 - **OpOutcome subclass hierarchy** — `OpOutcomeResult` base class with `OpApplied`, `OpSuperseded`, `OpRedundant` subclasses. `OpSuperseded` carries the winning `EventId` as a structured field instead of a formatted string. `VerificationResult` promoted to class.
 - **ForkController hardening** — fork ref creation rolls back on `WarpRuntime.open` failure; `_isAncestor` uses visited-Set cycle detection instead of false-positive MAX_WALK counter; backfill rejection throws typed `ForkError` with `E_FORK_BACKFILL_REJECTED` and `E_FORK_WRITER_DIVERGED` codes.
+- **`WarpRuntime.open()` boot order refactored** — all port adapters are now constructed before the runtime object, replacing ad-hoc lazy wiring. Adapter constructors narrowed to declare only the methods they actually use.
+- **`IndexStorePort` injection in read-side services** — `PropertyIndexReader` and `IndexStalenessChecker` accept `IndexStorePort` for codec-free index access, removing their direct dependency on CBOR infrastructure.
+- **Cast-to-shut-up patterns eliminated in `WarpRuntime.open()`** — replaced with `requireCapabilities()` runtime assertions that verify adapter surfaces before use.
+
+### Removed
+
+- **`serialize()` from `LogicalBitmapIndexBuilder` and `PropertyIndexBuilder`** — replaced by `yieldShards()` generators that produce `IndexShard` record instances.
+- **`build()` from `LogicalIndexBuildService`** — replaced by `buildShards()` (sync generator) and `buildStream()` (async `WarpStream<IndexShard>`).
 
 ### Added
 

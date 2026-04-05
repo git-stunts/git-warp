@@ -12,6 +12,7 @@ import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import toBytes from '../../utils/toBytes.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import { MetaShard, EdgeShard, LabelShard } from '../../artifacts/IndexShard.js';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
 /** @typedef {import('../../utils/roaring.js').RoaringBitmapSubset} Bitmap */
@@ -97,6 +98,38 @@ function classifyShards(items) {
       meta.push(item);
     } else if (path === 'labels.cbor') {
       labels = item.buf;
+    } else if (isEdgeShard(path)) {
+      edges.push(item);
+    }
+  }
+
+  return { meta, labels, edges };
+}
+
+/**
+ * @typedef {{ meta: Array<{path: string, data: unknown}>, labels: unknown, edges: Array<{path: string, data: unknown}> }} ClassifiedDecoded
+ */
+
+/**
+ * Classifies pre-decoded path/data pairs into meta, labels, and edge buckets.
+ *
+ * @param {Array<{path: string, data: unknown}>} items
+ * @returns {ClassifiedDecoded}
+ */
+function classifyDecoded(items) {
+  /** @type {Array<{path: string, data: unknown}>} */
+  const meta = [];
+  /** @type {unknown} */
+  let labels = null;
+  /** @type {Array<{path: string, data: unknown}>} */
+  const edges = [];
+
+  for (const item of items) {
+    const { path } = item;
+    if (isMetaShard(path)) {
+      meta.push(item);
+    } else if (path === 'labels.cbor') {
+      labels = item.data;
     } else if (isEdgeShard(path)) {
       edges.push(item);
     }
@@ -222,13 +255,16 @@ function resolveEdgesForNode(maps, query) {
 
 export default class LogicalIndexReader {
   /**
-   * Constructs a LogicalIndexReader with an optional CBOR codec override.
+   * Constructs a LogicalIndexReader with an optional CBOR codec override
+   * and/or an IndexStorePort for codec-free reads.
    *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options] - Reader options
+   * @param {{ codec?: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} [options] - Reader options
    */
   constructor(options = undefined) {
-    const { codec } = options || {};
+    const { codec, indexStore } = options || {};
     this._codec = codec || defaultCodec;
+    /** @type {import('../../../ports/IndexStorePort.js').default|null} */
+    this._indexStore = indexStore || null;
 
     /** @type {Map<string, number>} */
     this._nodeToGlobal = new Map();
@@ -274,10 +310,60 @@ export default class LogicalIndexReader {
   async loadFromOids(shardOids, storage) {
     this._resetState();
     const entries = Object.entries(shardOids);
-    const items = await Promise.all(
-      entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) }))
-    );
-    this._processShards(items);
+    if (this._indexStore) {
+      const indexStore = this._indexStore;
+      const decoded = await Promise.all(
+        entries.map(async ([path, oid]) => ({ path, data: await indexStore.decodeShard(oid) }))
+      );
+      this._processDecoded(decoded);
+    } else {
+      const items = await Promise.all(
+        entries.map(async ([path, oid]) => ({ path, buf: await storage.readBlob(oid) }))
+      );
+      this._processShards(items);
+    }
+    return this;
+  }
+
+  /**
+   * Populates the reader directly from IndexShard domain objects.
+   *
+   * This is the codec-free alternative to loadFromTree() and loadFromOids().
+   * No CBOR decoding is needed — the shards already carry decoded data.
+   *
+   * @param {Iterable<import('../../artifacts/IndexShard.js').IndexShard>} shards
+   * @returns {this}
+   */
+  loadFromShards(shards) {
+    this._resetState();
+    const Ctor = getRoaringBitmap32();
+    for (const shard of shards) {
+      if (shard instanceof MetaShard) {
+        this._loadMetaShard(shard, Ctor);
+      } else if (shard instanceof LabelShard) {
+        this._loadLabelShard(shard);
+      } else if (shard instanceof EdgeShard) {
+        this._loadEdgeShard(shard, Ctor);
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Loads all shards from an IndexStorePort via scanShards (codec-free).
+   *
+   * The adapter reads, decodes, and classifies blobs into IndexShard
+   * domain objects. The reader consumes them without touching any codec.
+   *
+   * @param {string} treeOid - The index tree OID
+   * @returns {Promise<this>}
+   */
+  async loadFromStore(treeOid) {
+    if (!this._indexStore) {
+      throw new Error('LogicalIndexReader: loadFromStore() requires an indexStore');
+    }
+    const shards = await this._indexStore.scanShards(treeOid).collect();
+    this.loadFromShards(shards);
     return this;
   }
 
@@ -303,37 +389,65 @@ export default class LogicalIndexReader {
   // ── Private ─────────────────────────────────────────────────────────────────
 
   /**
-   * Processes classified shards in deterministic order.
+   * Processes classified shards in deterministic order (codec path).
    *
    * @param {ShardItem[]} items
    * @private
    */
   _processShards(items) {
-    const Ctor = getRoaringBitmap32();
     const { meta, labels, edges } = classifyShards(items);
+    /** @type {Array<{path: string, data: unknown}>} */
+    const decodedMeta = meta.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
+    const decodedLabels = labels ? this._codec.decode(labels) : null;
+    /** @type {Array<{path: string, data: unknown}>} */
+    const decodedEdges = edges.map(({ path, buf }) => ({ path, data: this._codec.decode(buf) }));
+    this._loadClassified({ meta: decodedMeta, labels: decodedLabels, edges: decodedEdges });
+  }
 
-    for (const { path, buf } of meta) {
-      this._decodeMeta(path, buf, Ctor);
+  /**
+   * Loads classified decoded data into the reader's maps.
+   *
+   * Shared by both the codec path (_processShards) and the
+   * port path (_processDecoded). No codec interaction here.
+   *
+   * @param {ClassifiedDecoded} classified
+   * @private
+   */
+  _loadClassified({ meta, labels, edges }) {
+    const Ctor = getRoaringBitmap32();
+    for (const { path, data } of meta) {
+      this._loadDecodedMeta(path, data, Ctor);
     }
-    if (labels) {
-      this._decodeLabels(labels);
+    if (labels !== null) {
+      this._loadDecodedLabels(labels);
     }
-    for (const { path, buf } of edges) {
-      this._decodeEdgeShard(path.startsWith('fwd_') ? 'fwd' : 'rev', buf, Ctor);
+    for (const { path, data } of edges) {
+      this._loadDecodedEdges(path.startsWith('fwd_') ? 'fwd' : 'rev', data, Ctor);
     }
   }
 
   /**
-   * Decodes a meta shard and populates node-to-global and alive bitmap maps.
+   * Processes pre-decoded shards (port path — no codec needed).
+   *
+   * @param {Array<{path: string, data: unknown}>} items
+   * @private
+   */
+  _processDecoded(items) {
+    const classified = classifyDecoded(items);
+    this._loadClassified(classified);
+  }
+
+  /**
+   * Populates node-to-global and alive bitmap maps from decoded meta data.
    *
    * @param {string} path - Shard file path (e.g. meta_ab.cbor)
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded meta shard data
    * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
-  _decodeMeta(path, buf, Ctor) {
+  _loadDecodedMeta(path, raw, Ctor) {
     /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */
-    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (/** @type {unknown} */ (this._codec.decode(buf)));
+    const meta = /** @type {{ nodeToGlobal: Array<[string, number]>|Record<string, number>, alive: Uint8Array|ArrayLike<number> }} */ (raw);
     const entries = Array.isArray(meta.nodeToGlobal)
       ? meta.nodeToGlobal
       : Object.entries(meta.nodeToGlobal);
@@ -359,13 +473,13 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * Decodes a label registry shard from CBOR into the label maps.
+   * Populates label maps from decoded label data.
    *
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded label shard data
    * @private
    */
-  _decodeLabels(buf) {
-    const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (this._codec.decode(buf));
+  _loadDecodedLabels(raw) {
+    const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (raw);
     const entries = Array.isArray(decoded) ? decoded : Object.entries(decoded);
     for (const [label, id] of entries) {
       this._labelRegistry.set(label, id);
@@ -391,17 +505,17 @@ export default class LogicalIndexReader {
   }
 
   /**
-   * Decodes a forward or reverse edge shard and populates the edge stores.
+   * Populates edge stores from decoded edge shard data.
    *
    * @param {string} dir - 'fwd' or 'rev'
-   * @param {Uint8Array} buf - Raw CBOR bytes
+   * @param {unknown} raw - Decoded edge shard data
    * @param {RoaringCtor} Ctor - RoaringBitmap32 constructor
    * @private
    */
-  _decodeEdgeShard(dir, buf, Ctor) {
+  _loadDecodedEdges(dir, raw, Ctor) {
     const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
     const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
-    const decoded = /** @type {Record<string, Record<string, Uint8Array|ArrayLike<number>>>} */ (this._codec.decode(buf));
+    const decoded = /** @type {Record<string, Record<string, Uint8Array|ArrayLike<number>>>} */ (raw);
     for (const [bucket, entries] of Object.entries(decoded)) {
       for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
         const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);
@@ -429,5 +543,55 @@ export default class LogicalIndexReader {
       byOwner.set(gid, list);
     }
     list.push({ labelId: parseInt(bucket, 10), bitmap });
+  }
+
+  // ── loadFromShards helpers (codec-free) ───────────────────────────────────
+
+  /**
+   * Loads a MetaShard's data into the reader's maps.
+   *
+   * @param {MetaShard} shard
+   * @param {RoaringCtor} Ctor
+   * @private
+   */
+  _loadMetaShard(shard, Ctor) {
+    for (const [nodeId, globalId] of shard.nodeToGlobal) {
+      this._nodeToGlobal.set(nodeId, globalId);
+      this._globalToNode.set(globalId, nodeId);
+    }
+    this._loadAliveBitmap(shard.shardKey, shard.alive, Ctor);
+  }
+
+  /**
+   * Loads a LabelShard's data into the reader's label maps.
+   *
+   * @param {LabelShard} shard
+   * @private
+   */
+  _loadLabelShard(shard) {
+    for (const [label, id] of shard.labels) {
+      this._labelRegistry.set(label, id);
+      this._idToLabel.set(id, label);
+    }
+  }
+
+  /**
+   * Loads an EdgeShard's bitmap data into the reader's edge stores.
+   *
+   * @param {EdgeShard} shard
+   * @param {RoaringCtor} Ctor
+   * @private
+   */
+  _loadEdgeShard(shard, Ctor) {
+    const dir = shard.direction;
+    const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
+    const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
+    for (const [bucket, entries] of Object.entries(shard.buckets)) {
+      for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
+        const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);
+        store.set(`${dir}:${bucket}:${gidStr}`, bitmap);
+        this._indexByOwner(byOwner, { bucket, gidStr, bitmap });
+      }
+    }
   }
 }

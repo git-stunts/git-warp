@@ -9,6 +9,11 @@ async function createGraph(writerId = 'writer-1') {
     updateRef: vi.fn().mockResolvedValue(undefined),
     configGet: vi.fn().mockResolvedValue(null),
     configSet: vi.fn().mockResolvedValue(undefined),
+    readBlob: vi.fn(),
+    writeBlob: vi.fn(),
+    getNodeInfo: vi.fn(),
+    readTreeOids: vi.fn(),
+    writeTree: vi.fn(),
   };
   return WarpRuntime.open({ persistence: /** @type {any} */ (mockPersistence), graphName: 'test', writerId });
 }

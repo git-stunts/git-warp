@@ -59,18 +59,14 @@ describe('PatchBuilderV2 snapshot (C4)', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('returns null snapshot when getCurrentState returns null', () => {
+  it('throws E_PATCH_NO_STATE when getCurrentState returns null', () => {
     const spy = vi.fn(() => null);
     const builder = makeBuilder(spy);
 
-    // removeNode with null state should not throw — it simply observes no dots
-    builder.removeNode('nonexistent');
+    // removeNode with null state must throw — can't observe dots without state
+    expect(() => builder.removeNode('nonexistent')).toThrow('must be materialized');
 
     // getCurrentState was called (snapshot attempted)
-    expect(spy).toHaveBeenCalledTimes(1);
-
-    // Second call still doesn't re-invoke getCurrentState (null is cached)
-    builder.removeNode('nonexistent');
     expect(spy).toHaveBeenCalledTimes(1);
   });
 

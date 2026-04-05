@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
@@ -53,8 +53,7 @@ describe('Buffer-free index paths', () => {
       globalRef.Buffer = undefined;
 
       const state = buildState();
-      const buildService = new LogicalIndexBuildService();
-      const { tree } = buildService.build(state);
+      const { tree } = new MaterializedViewService().build(state);
 
       const logicalIndex = new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
       expect(logicalIndex.isAlive('A')).toBe(true);

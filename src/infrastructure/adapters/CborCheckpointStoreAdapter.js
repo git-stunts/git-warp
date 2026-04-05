@@ -20,8 +20,8 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
    * Creates a new CborCheckpointStoreAdapter.
    *
    * @param {{
-   *   codec: import('../../ports/CodecPort.js').default,
-   *   blobPort: import('../../ports/BlobPort.js').default,
+   *   codec: { encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown },
+   *   blobPort: { readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> },
    * }} options
    */
   constructor({ codec, blobPort }) {
@@ -32,9 +32,9 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     if (blobPort === null || blobPort === undefined) {
       throw new WarpError('CborCheckpointStoreAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/CodecPort.js').default} */
+    /** @type {{ encode(value: unknown): Uint8Array, decode(bytes: Uint8Array): unknown }} */
     this._codec = codec;
-    /** @type {import('../../ports/BlobPort.js').default} */
+    /** @type {{ readBlob(oid: string): Promise<Uint8Array>, writeBlob(content: Uint8Array | string): Promise<string> }} */
     this._blobPort = blobPort;
   }
 

@@ -20,6 +20,13 @@ import PropertyIndexReader from './index/PropertyIndexReader.js';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
+import {
+  MetaShard,
+  EdgeShard,
+  LabelShard,
+  PropertyShard,
+  ReceiptShard,
+} from '../artifacts/IndexShard.js';
 
 /** Prefix for property shard paths in the index tree. */
 const PROPS_PREFIX = 'props_';
@@ -282,14 +289,16 @@ function verifySampledNodes(sampled, logicalIndex, truth) {
 
 export default class MaterializedViewService {
   /**
-   * Creates a MaterializedViewService with optional codec and logger.
+   * Creates a MaterializedViewService with optional codec, logger, and indexStore.
    *
-   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default }} [options]
+   * @param {{ codec?: import('../../ports/CodecPort.js').default, logger?: import('../../ports/LoggerPort.js').default, indexStore?: import('../../ports/IndexStorePort.js').default }} [options]
    */
   constructor(options = undefined) {
-    const { codec, logger } = options || {};
+    const { codec, logger, indexStore } = options || {};
     this._codec = codec || defaultCodec;
     this._logger = logger || nullLogger;
+    /** @type {import('../../ports/IndexStorePort.js').default|null} */
+    this._indexStore = indexStore || null;
   }
 
   /**
@@ -300,18 +309,36 @@ export default class MaterializedViewService {
    */
   build(state) {
     const svc = new LogicalIndexBuildService({
-      codec: this._codec,
       logger: this._logger,
     });
-    const { tree, receipt } = svc.build(state);
+    const { shards, receipt } = svc.buildShards(state);
 
-    const logicalIndex = new LogicalIndexReader({ codec: this._codec })
-      .loadFromTree(tree)
+    // P5-LEGACY: encode shards to tree bytes for callers that persist
+    // via persistIndexTree() and for _cachedIndexTree (used by applyDiff).
+    // Will be removed when callers migrate to IndexStorePort.writeShards().
+    const tree = this._encodeShardsToTree(shards);
+
+    // Hydrate index directly from domain objects (no encode→decode roundtrip)
+    const logicalIndex = new LogicalIndexReader()
+      .loadFromShards(shards)
       .toLogicalIndex();
 
+    // P5-LEGACY: property reader still goes through codec roundtrip
+    // because _parseShard has proto-pollution behavior differences
+    // between direct shard entries and CBOR-decoded entries.
     const propertyReader = buildInMemoryPropertyReader(tree, this._codec);
 
-    return { tree, logicalIndex, propertyReader, receipt };
+    return {
+      tree,
+      logicalIndex,
+      propertyReader,
+      receipt: /** @type {Record<string, unknown>} */ ({
+        version: receipt.version,
+        nodeCount: receipt.nodeCount,
+        labelCount: receipt.labelCount,
+        shardCount: receipt.shardCount,
+      }),
+    };
   }
 
   /**
@@ -347,13 +374,17 @@ export default class MaterializedViewService {
   async loadFromOids(shardOids, storage) {
     const { indexOids, propOids } = partitionShardOids(shardOids);
 
-    const reader = new LogicalIndexReader({ codec: this._codec });
+    const reader = new LogicalIndexReader({
+      codec: this._codec,
+      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
+    });
     await reader.loadFromOids(indexOids, storage);
     const logicalIndex = reader.toLogicalIndex();
 
     const propertyReader = new PropertyIndexReader({
       storage: /** @type {import('../../ports/IndexStoragePort.js').default} */ (storage),
       codec: this._codec,
+      ...(this._indexStore ? { indexStore: this._indexStore } : {}),
     });
     propertyReader.setup(propOids);
 
@@ -402,6 +433,7 @@ export default class MaterializedViewService {
    * @returns {VerifyResult}
    */
   verifyIndex({ state, logicalIndex, options = {} }) {
+    // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
     const seed = options.seed ?? (Math.random() * 0x7FFFFFFF >>> 0);
     const sampleRate = options.sampleRate ?? 0.1;
     const allNodes = [...orsetElements(state.nodeAlive)].sort();
@@ -411,4 +443,55 @@ export default class MaterializedViewService {
     const { passed, errors } = verifySampledNodes(sampled, logicalIndex, truth);
     return { passed, failed: errors.length, errors, seed };
   }
+
+  /**
+   * Encodes IndexShard instances to a tree of CBOR bytes.
+   *
+   * P5-LEGACY: This exists to support callers that persist via
+   * persistIndexTree(tree, persistence). Will be removed when callers
+   * migrate to IndexStorePort.writeShards().
+   *
+   * @param {import('../artifacts/IndexShard.js').IndexShard[]} shards
+   * @returns {Record<string, Uint8Array>}
+   * @private
+   */
+  _encodeShardsToTree(shards) {
+    /** @type {Record<string, Uint8Array>} */
+    const tree = {};
+    for (const shard of shards) {
+      const { path, payload } = _shardToEntry(shard);
+      tree[path] = this._codec.encode(payload);
+    }
+    return tree;
+  }
+}
+
+/**
+ * Maps an IndexShard to its tree path and serializable payload.
+ *
+ * P5-LEGACY: Duplicates IndexShardEncodeTransform._encode() in
+ * infrastructure. Exists only to support _encodeShardsToTree() for
+ * the applyDiff() legacy path. Dies when IncrementalIndexUpdater
+ * is migrated to IndexStorePort.
+ *
+ * @param {import('../artifacts/IndexShard.js').IndexShard} shard
+ * @returns {{ path: string, payload: unknown }}
+ */
+function _shardToEntry(shard) {
+  if (shard instanceof MetaShard) {
+    return { path: `meta_${shard.shardKey}.cbor`, payload: { nodeToGlobal: shard.nodeToGlobal, nextLocalId: shard.nextLocalId, alive: shard.alive } };
+  }
+  if (shard instanceof EdgeShard) {
+    return { path: `${shard.direction}_${shard.shardKey}.cbor`, payload: shard.buckets };
+  }
+  if (shard instanceof LabelShard) {
+    return { path: 'labels.cbor', payload: shard.labels };
+  }
+  if (shard instanceof PropertyShard) {
+    return { path: `props_${shard.shardKey}.cbor`, payload: shard.entries };
+  }
+  if (shard instanceof ReceiptShard) {
+    return { path: 'receipt.cbor', payload: { version: shard.version, nodeCount: shard.nodeCount, labelCount: shard.labelCount, shardCount: shard.shardCount } };
+  }
+  throw new Error(`MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`);
 }

@@ -22,6 +22,9 @@ function makeMockPersistence({ hasPlumbing = false } = {}) {
     configSet: vi.fn().mockResolvedValue(undefined),
     readBlob: vi.fn().mockResolvedValue(new Uint8Array()),
     writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)),
+    getNodeInfo: vi.fn().mockResolvedValue({ message: '', parents: [] }),
+    readTreeOids: vi.fn().mockResolvedValue({}),
+    writeTree: vi.fn().mockResolvedValue('a'.repeat(40)),
   };
   if (hasPlumbing) {
     /** @type {any} */ (persistence).plumbing = {};

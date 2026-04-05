@@ -365,7 +365,7 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
   // ---------------------------------------------------------------------------
 
   describe('no cached state', () => {
-    it('reject mode does not throw when no state is available', async () => {
+    it('reject mode throws E_PATCH_NO_STATE when no state is available', async () => {
       repo = await createGitRepo('delguard');
       const graph = await WarpRuntime.open({
         persistence: repo.persistence,
@@ -375,9 +375,9 @@ describe('WarpRuntime deleteGuard enforcement (HS/DELGUARD/2)', { timeout: 15000
       });
 
       // Don't materialize — no cached state
-      // removeNode should not throw because there's no state to check against
+      // removeNode must throw because it can't observe dots without state
       const patch = await graph.createPatch();
-      expect(() => patch.removeNode('n1')).not.toThrow();
+      expect(() => patch.removeNode('n1')).toThrow('must be materialized');
     });
   });
 });

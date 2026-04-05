@@ -124,6 +124,7 @@ export function executeGC(state, appliedVV) {
     );
   }
 
+  // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
   const startTime = performance.now();
   const beforeMetrics = collectGCMetrics(state);
   compactORSets(state, appliedVV);
@@ -133,6 +134,7 @@ export function executeGC(state, appliedVV) {
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
+    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
     durationMs: performance.now() - startTime,
   };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.js';
-import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import { createEmptyStateV5, applyOpV2, encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
@@ -45,8 +45,7 @@ function buildState({ nodes, edges, props }) {
 
 /** @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state */
 function buildTree(state) {
-  const svc = new LogicalIndexBuildService();
-  return svc.build(state).tree;
+  return new MaterializedViewService().build(state).tree;
 }
 
 /** @param {Record<string, Uint8Array>} tree */

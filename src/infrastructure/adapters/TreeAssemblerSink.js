@@ -14,14 +14,14 @@ export class TreeAssemblerSink extends Sink {
   /**
    * Creates a TreeAssemblerSink.
    *
-   * @param {import('../../ports/TreePort.js').default} treePort
+   * @param {{ writeTree(entries: string[]): Promise<string> }} treePort
    */
   constructor(treePort) {
     super();
     if (treePort === null || treePort === undefined) {
       throw new WarpError('TreeAssemblerSink requires a treePort', 'E_INVALID_DEPENDENCY');
     }
-    /** @type {import('../../ports/TreePort.js').default} */
+    /** @type {{ writeTree(entries: string[]): Promise<string> }} */
     this._treePort = treePort;
     /** @type {string[]} mktree-formatted entries */
     this._entries = [];

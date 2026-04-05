@@ -114,7 +114,7 @@ export function createMockPersistence() {
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
+    readTreeOids: vi.fn().mockResolvedValue({}),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
     updateRef: vi.fn(),
@@ -125,6 +125,14 @@ export function createMockPersistence() {
     configSet: vi.fn().mockResolvedValue(undefined),
     nodeExists: vi.fn().mockResolvedValue(true),
     isAncestor: vi.fn().mockResolvedValue(true),
+    logNodes: vi.fn().mockResolvedValue(''),
+    logNodesStream: vi.fn(),
+    countNodes: vi.fn().mockResolvedValue(0),
+    getCommitTree: vi.fn(),
+    readTree: vi.fn().mockResolvedValue({}),
+    get emptyTree() { return '4b825dc642cb6eb9a060e54bf8d69288fbee4904'; },
+    deleteRef: vi.fn(),
+    compareAndSwapRef: vi.fn(),
   };
 }
 

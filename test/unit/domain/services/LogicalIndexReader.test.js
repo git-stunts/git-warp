@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.js';
 import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,
@@ -68,7 +70,7 @@ describe('LogicalIndexReader', () => {
   describe('loadFromTree', () => {
     it('hydrates a LogicalIndex from F7_MULTILABEL tree', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -100,7 +102,7 @@ describe('LogicalIndexReader', () => {
 
     it('returns empty results for nonexistent nodes', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -113,7 +115,7 @@ describe('LogicalIndexReader', () => {
     });
 
     it('resets decoded state when reusing the same reader instance', () => {
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const state1 = fixtureToState(makeFixture({
         nodes: ['A', 'B'],
         edges: [{ from: 'A', to: 'B', label: 'knows' }],
@@ -140,7 +142,7 @@ describe('LogicalIndexReader', () => {
   describe('loadFromOids', () => {
     it('loads shards lazily via mock storage', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       // Simulate OID→buffer mapping
@@ -177,7 +179,7 @@ describe('LogicalIndexReader', () => {
       const protoBefore = Object.getOwnPropertyNames(Object.prototype).sort();
 
       const state = fixtureToState(F10_PROTO_POLLUTION);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -200,7 +202,7 @@ describe('LogicalIndexReader', () => {
   describe('labels format compatibility', () => {
     it('accepts legacy object-form labels.cbor', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const modern = /** @type {Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor'])));
@@ -218,7 +220,7 @@ describe('LogicalIndexReader', () => {
 
     it('accepts meta.alive encoded as a plain number array', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       /** @type {Record<string, Uint8Array>} */
@@ -244,7 +246,7 @@ describe('LogicalIndexReader', () => {
   describe('toLogicalIndex returns a proper LogicalIndex interface', () => {
     it('has all required methods', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -262,7 +264,7 @@ describe('LogicalIndexReader', () => {
   describe('getEdges with label filter', () => {
     it('filters by label IDs', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -282,7 +284,7 @@ describe('LogicalIndexReader', () => {
 
     it('unfiltered results equal filtered-label union and are sorted by (neighborId, label)', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const idx = new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
@@ -299,6 +301,79 @@ describe('LogicalIndexReader', () => {
     });
   });
 
+  describe('loadFromOids with indexStore (decodeShard path)', () => {
+    it('uses indexStore.decodeShard instead of storage.readBlob + codec', async () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const service = new MaterializedViewService();
+      const { tree } = service.build(state);
+
+      // Build shardOids and a decoded-data map (simulating what decodeShard returns)
+      /** @type {Record<string, string>} */ const shardOids = {};
+      /** @type {Map<string, unknown>} */ const decodedByOid = new Map();
+      let oidCounter = 0;
+      for (const [path, buf] of Object.entries(tree)) {
+        const oid = `oid_${String(oidCounter++).padStart(4, '0')}`;
+        shardOids[path] = oid;
+        decodedByOid.set(oid, defaultCodec.decode(buf));
+      }
+
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+        decodeShard: vi.fn((oid) => Promise.resolve(decodedByOid.get(oid))),
+      }));
+
+      const mockStorage = {
+        readBlob: vi.fn(),
+      };
+
+      const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
+      await reader.loadFromOids(shardOids, mockStorage);
+      const idx = reader.toLogicalIndex();
+
+      // indexStore.decodeShard was used
+      expect(mockIndexStore.decodeShard).toHaveBeenCalled();
+      // storage.readBlob was NOT used
+      expect(mockStorage.readBlob).not.toHaveBeenCalled();
+
+      // Results are correct
+      expect(idx.isAlive('A')).toBe(true);
+      expect(idx.isAlive('B')).toBe(true);
+      const outEdges = idx.getEdges('A', 'out');
+      expect(outEdges.length).toBe(2);
+    });
+  });
+
+  describe('loadFromStore (IndexStorePort path)', () => {
+    it('hydrates a LogicalIndex via scanShards — codec-free', async () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const buildService = new LogicalIndexBuildService();
+      const { shards } = buildService.buildShards(state);
+
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+        scanShards: vi.fn(() => WarpStream.from(shards)),
+      }));
+
+      const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
+      await reader.loadFromStore('fake-tree-oid');
+      const idx = reader.toLogicalIndex();
+
+      expect(idx.isAlive('A')).toBe(true);
+      expect(idx.isAlive('B')).toBe(true);
+      expect(idx.isAlive('Z')).toBe(false);
+
+      const outEdges = idx.getEdges('A', 'out');
+      expect(outEdges.length).toBe(2);
+      const labels = outEdges.map((e) => e.label).sort();
+      expect(labels).toEqual(['manages', 'owns']);
+
+      expect(mockIndexStore.scanShards).toHaveBeenCalledWith('fake-tree-oid');
+    });
+
+    it('throws when no indexStore is configured', async () => {
+      const reader = new LogicalIndexReader();
+      await expect(reader.loadFromStore('any-oid')).rejects.toThrow(/indexStore/i);
+    });
+  });
+
   describe('per-owner edge lookup (resolveAllLabels via byOwner index)', () => {
     it('returns correct neighbors for a 100-node graph', () => {
       // Build a state with 100 nodes, each node i -> node i+1 via "next", node i -> node 0 via "loop"
@@ -312,7 +387,7 @@ describe('LogicalIndexReader', () => {
       }
 
       const state = fixtureToState({ nodes, edges });
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
