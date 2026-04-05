@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Project invariants** — 15 formal invariants derived from AION Papers I-IV, OG-1, and OG-4, each grounded in specific theorems and mapped to codebase enforcement. Lives in `docs/invariants/`. BEARING.md updated to reference the full set with paper citations.
 - **WarpStream** — composable async stream primitive built on `AsyncIterable<T>`. Domain concept for "data flow over time." Supports `pipe`, `tee`, `mux`, `demux`, `drain`, `reduce`, `forEach`, `collect`. Natural backpressure via `for await`, error propagation via async iterator protocol, cooperative cancellation via `AbortSignal`.
 - **Stream transforms** — `CborEncodeTransform`, `CborDecodeTransform`, `GitBlobWriteTransform`, `TreeAssemblerSink`, `IndexShardEncodeTransform` — composable infrastructure pipeline stages for encode → blobWrite → treeAssemble.
 - **Artifact record classes** — `CheckpointArtifact` family (`StateArtifact`, `FrontierArtifact`, `AppliedVVArtifact`), `IndexShard` family (`MetaShard`, `EdgeShard`, `LabelShard`, `PropertyShard`, `ReceiptShard`), `PatchEntry`, `ProvenanceEntry`. Runtime-backed domain nouns with constructor validation and `instanceof` dispatch.

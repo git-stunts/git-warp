@@ -10,6 +10,7 @@
 /** @type {import('../../ports/ClockPort.js').default} */
 const defaultClock = {
   now() {
+    // eslint-disable-next-line no-restricted-syntax -- this IS the ClockPort default implementation
     return performance.now();
   },
   timestamp() {

@@ -172,6 +172,7 @@ export default class SubscriptionController {
     let pollIntervalId = null;
     let pollInFlight = false;
     if (poll !== undefined) {
+      // eslint-disable-next-line no-restricted-syntax -- legacy: inject scheduler (tracked in backlog)
       pollIntervalId = setInterval(() => {
         if (pollInFlight) {
           return;

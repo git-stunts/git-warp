@@ -348,22 +348,45 @@ export default tseslint.config(
     },
   },
 
-  // ── Domain purity: ban Date.now(), new Date(), and Date() — use ClockPort ──
+  // ── Domain purity: ban all non-deterministic globals ─────────────────────
+  // The domain layer must be fully deterministic and reproducible.
+  // All external state (time, randomness, I/O scheduling) must flow
+  // through injected ports, never accessed directly.
   {
     files: ["src/domain/**/*.js"],
     rules: {
       "no-restricted-syntax": ["error",
+        // ── Wall clock ──
         {
           "selector": "CallExpression[callee.object.name='Date'][callee.property.name='now']",
-          "message": "Date.now() is banned in domain code. Use ClockPort / ClockAdapter instead.",
+          "message": "Date.now() is banned in domain code. Inject timestamps via ClockPort or parameters.",
         },
         {
           "selector": "NewExpression[callee.name='Date']",
-          "message": "new Date() is banned in domain code. Use ClockPort / ClockAdapter instead.",
+          "message": "new Date() is banned in domain code. Inject timestamps via ClockPort or parameters.",
         },
         {
           "selector": "CallExpression[callee.name='Date']",
-          "message": "Date() is banned in domain code. Use ClockPort / ClockAdapter instead.",
+          "message": "Date() is banned in domain code. Inject timestamps via ClockPort or parameters.",
+        },
+        // ── Randomness ──
+        {
+          "selector": "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          "message": "Math.random() is banned in domain code. Use a seeded PRNG or inject randomness via a port.",
+        },
+        // ── Performance timing ──
+        {
+          "selector": "CallExpression[callee.object.name='performance'][callee.property.name='now']",
+          "message": "performance.now() is banned in domain code. Inject timing via ClockPort.",
+        },
+        // ── Timers ──
+        {
+          "selector": "CallExpression[callee.name='setTimeout']",
+          "message": "setTimeout is banned in domain code. Use async patterns or inject a scheduler.",
+        },
+        {
+          "selector": "CallExpression[callee.name='setInterval']",
+          "message": "setInterval is banned in domain code. Use async patterns or inject a scheduler.",
         },
       ],
     },

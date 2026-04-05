@@ -95,6 +95,7 @@ export default class ForkController {
       }
 
       const resolvedForkName =
+        // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
         forkName ?? `${host._graphName}-fork-${Math.random().toString(36).slice(2, 10).padEnd(8, '0')}`;
       try {
         validateGraphName(resolvedForkName);

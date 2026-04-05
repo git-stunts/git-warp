@@ -111,6 +111,7 @@ export default class IndexRebuildService {
       maxMemoryBytes: maxMemoryBytes ?? null,
     });
 
+    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
     const startTime = performance.now();
 
     try {
@@ -132,6 +133,7 @@ export default class IndexRebuildService {
         treeOid = await this._rebuildInMemory(ref, memOpts);
       }
 
+      // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
       const durationMs = performance.now() - startTime;
       this.logger.info('Index rebuild complete', {
         operation: 'rebuild',
@@ -143,6 +145,7 @@ export default class IndexRebuildService {
 
       return treeOid;
     } catch (err) {
+      // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
       const durationMs = performance.now() - startTime;
       this.logger.error('Index rebuild failed', {
         operation: 'rebuild',
@@ -351,6 +354,7 @@ export default class IndexRebuildService {
       throw new Error('rebuildRef is required when autoRebuild is true');
     }
 
+    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
     const startTime = performance.now();
     const shardOids = await /** @type {import('../../../ports/TreePort.js').default} */ (/** @type {unknown} */ (this.storage)).readTreeOids(treeOid);
     const shardCount = Object.keys(shardOids).length;
@@ -384,6 +388,7 @@ export default class IndexRebuildService {
     const reader = new BitmapIndexReader(readerOpts);
     reader.setup(shardOids);
 
+    // eslint-disable-next-line no-restricted-syntax -- legacy: inject via ClockPort (tracked in backlog)
     const durationMs = performance.now() - startTime;
     this.logger.debug('Index loaded', {
       operation: 'load',

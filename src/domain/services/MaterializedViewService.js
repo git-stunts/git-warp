@@ -433,6 +433,7 @@ export default class MaterializedViewService {
    * @returns {VerifyResult}
    */
   verifyIndex({ state, logicalIndex, options = {} }) {
+    // eslint-disable-next-line no-restricted-syntax -- legacy: use seeded PRNG (tracked in backlog)
     const seed = options.seed ?? (Math.random() * 0x7FFFFFFF >>> 0);
     const sampleRate = options.sampleRate ?? 0.1;
     const allNodes = [...orsetElements(state.nodeAlive)].sort();
