@@ -679,7 +679,7 @@ export default class WarpRuntime {
       checkpointStore: resolvedCheckpointStore,
       indexStore: resolvedIndexStore,
       viewService: resolvedViewService,
-      ...(resolvedStateHashService !== undefined ? { stateHashService: resolvedStateHashService } : {}),
+      stateHashService: resolvedStateHashService,
       ...(resolvedAuditService !== undefined ? { auditService: resolvedAuditService } : {}),
       ...(resolvedEffectPipeline !== undefined && resolvedEffectPipeline !== null ? { effectPipeline: resolvedEffectPipeline } : {}),
     });
