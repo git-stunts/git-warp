@@ -1440,6 +1440,42 @@ export interface StrandObserverSource {
 /** Union of observer source types for worldline creation. */
 export type WorldlineSource = LiveObserverSource | CoordinateObserverSource | StrandObserverSource;
 
+/** Abstract base for worldline selectors. */
+export class WorldlineSelector {
+  /** Deep-clone this selector. */
+  clone(): WorldlineSelector;
+  /** Convert to a plain DTO matching the WorldlineSource shape. */
+  toDTO(): WorldlineSource;
+  /** Normalize a raw source or plain object into a selector instance. */
+  static from(raw: WorldlineSelector | WorldlineSource | null | undefined): WorldlineSelector;
+}
+
+/** Worldline selector for the canonical (live) worldline. */
+export class LiveSelector extends WorldlineSelector {
+  constructor(ceiling?: number | null);
+  readonly ceiling: number | null;
+  clone(): LiveSelector;
+  toDTO(): LiveObserverSource;
+}
+
+/** Worldline selector for a hypothetical worldline at specific writer tips. */
+export class CoordinateSelector extends WorldlineSelector {
+  constructor(frontier: Map<string, string> | Record<string, string>, ceiling?: number | null);
+  readonly frontier: Map<string, string>;
+  readonly ceiling: number | null;
+  clone(): CoordinateSelector;
+  toDTO(): CoordinateObserverSource;
+}
+
+/** Worldline selector for one writer's isolated worldline. */
+export class StrandSelector extends WorldlineSelector {
+  constructor(strandId: string, ceiling?: number | null);
+  readonly strandId: string;
+  readonly ceiling: number | null;
+  clone(): StrandSelector;
+  toDTO(): StrandObserverSource;
+}
+
 /** Options for creating a worldline handle. */
 export interface WorldlineOptions {
   source?: WorldlineSource;

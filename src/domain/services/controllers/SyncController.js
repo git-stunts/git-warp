@@ -48,6 +48,7 @@ import SyncTrustGate from '../sync/SyncTrustGate.js';
  * @property {import('../../../ports/CodecPort.js').default} _codec
  * @property {import('../../../ports/CryptoPort.js').default} _crypto
  * @property {import('../../../ports/LoggerPort.js').default|null} _logger
+ * @property {import('../../../ports/PatchJournalPort.js').default|null} [_patchJournal]
  * @property {import('../../../ports/BlobStoragePort.js').default|null} [_patchBlobStorage]
  * @property {number} _patchesSinceCheckpoint
  * @property {(op: string, t0: number, opts?: {metrics?: string, error?: Error}) => void} _logTiming
@@ -335,7 +336,10 @@ export default class SyncController {
       localFrontier,
       persistence,
       this._host._graphName,
-      /** @type {Record<string, unknown>} */ ({ codec: this._host._codec, logger: this._host._logger || undefined, patchBlobStorage: this._host._patchBlobStorage || undefined })
+      /** @type {Record<string, unknown>} */ ({
+        ...(this._host._patchJournal !== null && this._host._patchJournal !== undefined ? { patchJournal: this._host._patchJournal } : {}),
+        ...(this._host._logger !== null && this._host._logger !== undefined ? { logger: this._host._logger } : {}),
+      })
     );
   }
 

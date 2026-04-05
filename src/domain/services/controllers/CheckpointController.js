@@ -86,6 +86,9 @@ export default class CheckpointController {
 
       /** @type {CorePersistence} */
       const persistence = h._persistence;
+      /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
+      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+      const stateHashService = /** @type {import('../state/StateHashService.js').default|null} */ (h._stateHashService);
       const checkpointSha = await createCheckpointCommit({
         persistence,
         graphName: h._graphName,
@@ -96,6 +99,8 @@ export default class CheckpointController {
         crypto: h._crypto,
         codec: h._codec,
         ...(indexTree ? { indexTree } : {}),
+        ...(checkpointStore ? { checkpointStore } : {}),
+        ...(stateHashService ? { stateHashService } : {}),
       });
 
       const checkpointRef = buildCheckpointRef(h._graphName);
@@ -158,7 +163,9 @@ export default class CheckpointController {
     }
 
     try {
-      return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec });
+      /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */
+      const checkpointStore = /** @type {import('../../../ports/CheckpointStorePort.js').default|null} */ (h._checkpointStore);
+      return await loadCheckpoint(h._persistence, checkpointSha, { codec: h._codec, ...(checkpointStore ? { checkpointStore } : {}) });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (

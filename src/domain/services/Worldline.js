@@ -12,6 +12,9 @@ import QueryBuilder from './query/QueryBuilder.js';
 import LogicalTraversal from './query/LogicalTraversal.js';
 import { toInternalStrandShape } from '../utils/strandPublicShape.js';
 import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js';
+import WorldlineSelector from '../types/WorldlineSelector.js';
+import LiveSelector from '../types/LiveSelector.js';
+import CoordinateSelector from '../types/CoordinateSelector.js';
 
 
 /** @import { ObserverConfig, WorldlineOptions, WorldlineSource } from '../../../index.js' */
@@ -33,47 +36,13 @@ import { callInternalRuntimeMethod } from '../utils/callInternalRuntimeMethod.js
  */
 
 /**
- * Deep-clones a worldline source descriptor, normalizing null/undefined to live.
+ * Converts a raw source descriptor to a WorldlineSelector and clones it.
  *
- * @param {WorldlineSource|{ kind: 'strand', strandId: string, ceiling?: number|null }|undefined|null} source
- * @returns {WorldlineSource}
+ * @param {WorldlineSelector|WorldlineSource|{ kind: string, [key: string]: unknown }|undefined|null} source
+ * @returns {import('../types/WorldlineSelector.js').default}
  */
-function cloneWorldlineSource(source) {
-  const value = source ?? { kind: 'live' };
-
-  if (value.kind === 'live') {
-    return cloneLiveSource(value);
-  }
-  if (value.kind === 'coordinate') {
-    return cloneCoordinateSource(value);
-  }
-  return { kind: 'strand', strandId: value.strandId, ceiling: value.ceiling ?? null };
-}
-
-/**
- * Clones a live source, preserving ceiling only if present.
- *
- * @param {{ kind: 'live', ceiling?: number|null }} value
- * @returns {WorldlineSource}
- */
-function cloneLiveSource(value) {
-  return 'ceiling' in value
-    ? { kind: 'live', ceiling: value.ceiling ?? null }
-    : { kind: 'live' };
-}
-
-/**
- * Clones a coordinate source, deep-copying the frontier.
- *
- * @param {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null }} value
- * @returns {WorldlineSource}
- */
-function cloneCoordinateSource(value) {
-  return {
-    kind: 'coordinate',
-    frontier: value.frontier instanceof Map ? new Map(value.frontier) : { ...value.frontier },
-    ceiling: value.ceiling ?? null,
-  };
+function toSelector(source) {
+  return WorldlineSelector.from(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }|null|undefined} */ (source)).clone();
 }
 
 /**
@@ -114,7 +83,7 @@ function buildDetachedOpenOptions(graph) {
  * Collects optional nullable fields, converting null to undefined for .open() compatibility.
  *
  * @param {WarpRuntime} graph
- * @returns {{ checkpointPolicy?: unknown, logger?: unknown, seekCache?: unknown, blobStorage?: unknown, patchBlobStorage?: unknown }}
+ * @returns {{ checkpointPolicy?: unknown, logger?: unknown, seekCache?: unknown, blobStorage?: unknown, patchBlobStorage?: unknown, patchJournal?: unknown, checkpointStore?: unknown }}
  */
 function nullableOpenFields(graph) {
   return {
@@ -123,6 +92,8 @@ function nullableOpenFields(graph) {
     seekCache: orUndefined(graph._seekCache),
     blobStorage: orUndefined(graph._blobStorage),
     patchBlobStorage: orUndefined(graph._patchBlobStorage),
+    patchJournal: orUndefined(graph._patchJournal),
+    checkpointStore: orUndefined(graph._checkpointStore),
   };
 }
 
@@ -213,20 +184,20 @@ async function materializeStrandSource(graph, source, collectReceipts) {
  * Dispatches materialization to the handler for the source's kind.
  *
  * @param {WarpRuntime} graph
- * @param {WorldlineSource} source
+ * @param {import('../types/WorldlineSelector.js').default} source
  * @param {boolean} collectReceipts
  * @returns {Promise<import('./JoinReducer.js').WarpStateV5 | { state: import('./JoinReducer.js').WarpStateV5, receipts: import('../types/TickReceipt.js').TickReceipt[] }>}
  */
 async function materializeSource(graph, source, collectReceipts) {
-  if (source.kind === 'live') {
-    return await materializeLiveSource(graph, source, collectReceipts);
+  if (source instanceof LiveSelector) {
+    return await materializeLiveSource(graph, /** @type {{ kind: 'live', ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
   }
 
-  if (source.kind === 'coordinate') {
-    return await materializeCoordinateSource(graph, source, collectReceipts);
+  if (source instanceof CoordinateSelector) {
+    return await materializeCoordinateSource(graph, /** @type {{ kind: 'coordinate', frontier: Map<string,string>, ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
   }
 
-  return await materializeStrandSource(graph, source, collectReceipts);
+  return await materializeStrandSource(graph, /** @type {{ kind: 'strand', strandId: string, ceiling?: number|null }} */ (/** @type {unknown} */ (source)), collectReceipts);
 }
 
 /**
@@ -236,14 +207,14 @@ export default class Worldline {
   /**
    * Creates a Worldline pinned to the given graph and source descriptor.
    *
-   * @param {{ graph: WarpRuntime, source?: WorldlineSource }} options
+   * @param {{ graph: WarpRuntime, source?: import('../types/WorldlineSelector.js').default }} options
    */
   constructor({ graph, source }) {
     /** @type {WarpRuntime} */
     this._graph = graph;
 
-    /** @type {WorldlineSource} */
-    this._source = cloneWorldlineSource(source);
+    /** @type {import('../types/WorldlineSelector.js').default} */
+    this._source = toSelector(source);
 
     /** @type {Promise<import('./query/Observer.js').default>|null} */
     this._delegateObserverPromise = null;
@@ -265,7 +236,7 @@ export default class Worldline {
    * @returns {WorldlineSource}
    */
   get source() {
-    return cloneWorldlineSource(this._source);
+    return /** @type {WorldlineSource} */ (/** @type {WorldlineSource} */ (this._source.toDTO()));
   }
 
   /**
@@ -279,9 +250,7 @@ export default class Worldline {
   async seek(options = undefined) {
     return await Promise.resolve(new Worldline({
       graph: this._graph,
-      source: cloneWorldlineSource(
-        cloneWorldlineSource(options?.source || this._source),
-      ),
+      source: toSelector(options?.source || this._source),
     }));
   }
 
@@ -307,7 +276,7 @@ export default class Worldline {
     if (!this._delegateObserverPromise) {
       this._delegateObserverPromise = this._graph.observer(
         { match: '*' },
-        { source: cloneWorldlineSource(this._source) },
+        { source: /** @type {WorldlineSource} */ (this._source.toDTO()) },
       );
     }
     return await this._delegateObserverPromise;
@@ -388,13 +357,13 @@ export default class Worldline {
     if (typeof nameOrConfig === 'string') {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
       return await this._graph.observer(nameOrConfig, config, {
-        source: cloneWorldlineSource(this._source),
+        source: /** @type {WorldlineSource} */ (this._source.toDTO()),
       });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
     return await this._graph.observer(nameOrConfig, {
-      source: cloneWorldlineSource(this._source),
+      source: /** @type {WorldlineSource} */ (this._source.toDTO()),
     });
   }
 }

@@ -30,6 +30,7 @@ import CheckpointController from './services/controllers/CheckpointController.js
 import SyncTrustGate from './services/sync/SyncTrustGate.js';
 import { AuditVerifierService } from './services/audit/AuditVerifierService.js';
 import MaterializedViewService from './services/MaterializedViewService.js';
+import StateHashService from './services/state/StateHashService.js';
 import InMemoryBlobStorageAdapter from './utils/defaultBlobStorage.js';
 // checkpoint.methods.js replaced by CheckpointController (imported above)
 // patch.methods.js replaced by PatchController (imported above)
@@ -360,6 +361,15 @@ export default class WarpRuntime {
 
     /** @type {import('./services/EffectPipeline.js').EffectPipeline|null} */
     this._effectPipeline = null;
+
+    /** @type {import('../ports/PatchJournalPort.js').default|null} */
+    this._patchJournal = null;
+
+    /** @type {import('../ports/CheckpointStorePort.js').default|null} */
+    this._checkpointStore = null;
+
+    /** @type {StateHashService|null} */
+    this._stateHashService = null;
   }
 
   /**
@@ -478,7 +488,7 @@ export default class WarpRuntime {
   /**
    * Opens a multi-writer graph.
    *
-   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
+   * @param {{ persistence: CorePersistence, graphName: string, writerId: string, gcPolicy?: Record<string, unknown>, adjacencyCacheSize?: number, checkpointPolicy?: {every: number}, autoMaterialize?: boolean, onDeleteWithData?: 'reject'|'cascade'|'warn', logger?: import('../ports/LoggerPort.js').default, clock?: import('../ports/ClockPort.js').default, crypto?: import('../ports/CryptoPort.js').default, codec?: import('../ports/CodecPort.js').default, seekCache?: import('../ports/SeekCachePort.js').default, audit?: boolean, blobStorage?: import('../ports/BlobStoragePort.js').default, patchBlobStorage?: import('../ports/BlobStoragePort.js').default, patchJournal?: import('../ports/PatchJournalPort.js').default | null, checkpointStore?: import('../ports/CheckpointStorePort.js').default | null, trust?: { mode?: 'off'|'log-only'|'enforce', pin?: string|null }, effectPipeline?: import('./services/EffectPipeline.js').EffectPipeline, effectSinks?: Array<import('../ports/EffectSinkPort.js').default>, externalizationPolicy?: import('./types/ExternalizationPolicy.js').ExternalizationPolicy }} options
    * @returns {Promise<WarpRuntime>} The opened graph instance
    * @throws {WarpError} If graphName, writerId, checkpointPolicy, or onDeleteWithData is invalid
    *
@@ -491,7 +501,7 @@ export default class WarpRuntime {
    */
   // TODO(OG): split open() validation/bootstrapping; legacy hotspot kept explicit until the API redesign cycle.
   // eslint-disable-next-line max-lines-per-function, complexity
-  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, trust, effectPipeline, effectSinks, externalizationPolicy }) {
+  static async open({ persistence, graphName, writerId, gcPolicy = {}, adjacencyCacheSize, checkpointPolicy, autoMaterialize, onDeleteWithData, logger, clock, crypto, codec, seekCache, audit, blobStorage, patchBlobStorage, patchJournal, checkpointStore, trust, effectPipeline, effectSinks, externalizationPolicy }) {
     // Validate inputs
     validateGraphName(graphName);
     validateWriterId(writerId);
@@ -534,6 +544,44 @@ export default class WarpRuntime {
     const resolvedBlobStorage = blobStorage || await autoConstructBlobStorage(persistence);
 
     const graph = new WarpRuntime({ persistence, graphName, writerId, gcPolicy, ...(adjacencyCacheSize !== undefined ? { adjacencyCacheSize } : {}), ...(checkpointPolicy !== undefined ? { checkpointPolicy } : {}), ...(autoMaterialize !== undefined ? { autoMaterialize } : {}), ...(onDeleteWithData !== undefined ? { onDeleteWithData } : {}), ...(logger !== undefined ? { logger } : {}), ...(clock !== undefined ? { clock } : {}), ...(crypto !== undefined ? { crypto } : {}), ...(codec !== undefined ? { codec } : {}), ...(seekCache !== undefined ? { seekCache } : {}), ...(audit !== undefined ? { audit } : {}), blobStorage: resolvedBlobStorage, ...(patchBlobStorage !== undefined ? { patchBlobStorage } : {}), ...(trust !== undefined ? { trust } : {}) });
+
+    // Auto-construct patchJournal when none provided: uses the same dynamic import
+    // pattern as autoConstructBlobStorage to keep infrastructure imports out of the
+    // module's top-level scope.
+    if (patchJournal !== undefined && patchJournal !== null) {
+      graph._patchJournal = /** @type {import('../ports/PatchJournalPort.js').default} */ (patchJournal);
+    } else {
+      const { CborPatchJournalAdapter } = await import(
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborPatchJournalAdapter.js'
+      );
+      graph._patchJournal = new CborPatchJournalAdapter({
+        codec: graph._codec,
+        blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
+        commitPort: /** @type {import('../ports/CommitPort.js').default} */ (persistence),
+        ...(patchBlobStorage !== undefined && patchBlobStorage !== null ? { patchBlobStorage } : {}),
+      });
+    }
+
+    // Auto-construct checkpointStore when none provided: same pattern as patchJournal.
+    if (checkpointStore !== undefined && checkpointStore !== null) {
+      graph._checkpointStore = /** @type {import('../ports/CheckpointStorePort.js').default} */ (checkpointStore);
+    } else {
+      const { CborCheckpointStoreAdapter } = await import(
+        /* webpackIgnore: true */ '../infrastructure/adapters/CborCheckpointStoreAdapter.js'
+      );
+      graph._checkpointStore = new CborCheckpointStoreAdapter({
+        codec: graph._codec,
+        blobPort: /** @type {import('../ports/BlobPort.js').default} */ (persistence),
+      });
+    }
+
+    // Auto-construct StateHashService from codec + crypto (only when crypto is available)
+    if (graph._crypto !== undefined && graph._crypto !== null) {
+      graph._stateHashService = new StateHashService({
+        codec: graph._codec,
+        crypto: graph._crypto,
+      });
+    }
 
     // Validate migration boundary
     await graph._validateMigrationBoundary();

@@ -1237,6 +1237,18 @@
     "WriterError": {
       "kind": "class"
     },
+    "WorldlineSelector": {
+      "kind": "class"
+    },
+    "LiveSelector": {
+      "kind": "class"
+    },
+    "CoordinateSelector": {
+      "kind": "class"
+    },
+    "StrandSelector": {
+      "kind": "class"
+    },
     "buildWarpStateIndex": {
       "kind": "function",
       "async": true

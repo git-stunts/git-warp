@@ -797,9 +797,11 @@ async function openDetachedReadGraph(graph) {
   if (graph._logger !== undefined && graph._logger !== null) { opts.logger = graph._logger; }
   if (graph._crypto !== undefined && graph._crypto !== null) { opts.crypto = graph._crypto; }
   if (graph._codec !== undefined && graph._codec !== null) { opts.codec = graph._codec; }
+  if (graph._patchJournal !== undefined && graph._patchJournal !== null) { opts.patchJournal = /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal); }
   if (graph._seekCache !== undefined && graph._seekCache !== null) { opts.seekCache = graph._seekCache; }
   if (graph._blobStorage !== undefined && graph._blobStorage !== null) { opts.blobStorage = graph._blobStorage; }
   if (graph._patchBlobStorage !== undefined && graph._patchBlobStorage !== null) { opts.patchBlobStorage = graph._patchBlobStorage; }
+  if (graph._checkpointStore !== undefined && graph._checkpointStore !== null) { opts.checkpointStore = graph._checkpointStore; }
   return await GraphClass.open(opts);
 }
 
@@ -1117,11 +1119,10 @@ export default class StrandService {
       onCommitSuccess: async (/** @type {{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }} */ { patch, sha }) => {
         await this._syncOverlayDescriptor(descriptor, { patch, sha });
       },
-      codec: this._graph._codec,
     };
-    if (this._graph._logger) { pbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage) { pbOpts.blobStorage = this._graph._blobStorage; }
-    if (this._graph._patchBlobStorage) { pbOpts.patchBlobStorage = this._graph._patchBlobStorage; }
+    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { pbOpts.patchJournal = this._graph._patchJournal; }
+    if (this._graph._logger !== null && this._graph._logger !== undefined) { pbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { pbOpts.blobStorage = this._graph._blobStorage; }
     return new PatchBuilderV2(pbOpts);
   }
 
@@ -1316,11 +1317,10 @@ export default class StrandService {
       getCurrentState: () => state,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       onDeleteWithData: this._graph._onDeleteWithData,
-      codec: this._graph._codec,
     };
-    if (this._graph._logger) { intentPbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage) { intentPbOpts.blobStorage = this._graph._blobStorage; }
-    if (this._graph._patchBlobStorage) { intentPbOpts.patchBlobStorage = this._graph._patchBlobStorage; }
+    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { intentPbOpts.patchJournal = this._graph._patchJournal; }
+    if (this._graph._logger !== null && this._graph._logger !== undefined) { intentPbOpts.logger = this._graph._logger; }
+    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { intentPbOpts.blobStorage = this._graph._blobStorage; }
     const builder = new PatchBuilderV2(intentPbOpts);
     await build(builder);
     const patch = builder.build();
@@ -1977,12 +1977,23 @@ export default class StrandService {
       writer: overlayId,
       lamport,
     };
-    const patchCbor = this._graph._codec.encode(committedPatch);
-    const patchBlobOid = this._graph._patchBlobStorage
-      ? await this._graph._patchBlobStorage.store(patchCbor, {
-        slug: `${this._graph._graphName}/${overlayId}/patch`,
-      })
-      : await this._graph._persistence.writeBlob(patchCbor);
+    /** @type {string} */
+    let patchBlobOid;
+    /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
+    const journal = this._graph._patchJournal;
+    if (journal !== undefined && journal !== null) {
+      patchBlobOid = await journal.writePatch(
+        /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (committedPatch),
+      );
+    } else {
+      // Legacy fallback: encode + write blob directly
+      const patchCbor = this._graph._codec.encode(committedPatch);
+      patchBlobOid = this._graph._patchBlobStorage
+        ? await this._graph._patchBlobStorage.store(patchCbor, {
+          slug: `${this._graph._graphName}/${overlayId}/patch`,
+        })
+        : await this._graph._persistence.writeBlob(patchCbor);
+    }
 
     const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
     const uniqueBlobOids = [...new Set(contentBlobOids)];

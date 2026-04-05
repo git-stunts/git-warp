@@ -501,7 +501,9 @@ describe('SyncController', () => {
     it('delegates to SyncProtocol.processSyncRequest with correct args', async () => {
       const mockResponse = { type: 'sync-response', frontier: {}, patches: [] };
       processSyncRequestMock.mockResolvedValue(mockResponse);
+      const mockPatchJournal = { writePatch: vi.fn(), readPatch: vi.fn() };
       const host = createMockHost({
+        _patchJournal: mockPatchJournal,
         discoverWriters: vi.fn().mockResolvedValue(['alice']),
         _persistence: {
           readRef: vi.fn().mockResolvedValue('sha-alice'),
@@ -519,7 +521,7 @@ describe('SyncController', () => {
         expect.any(Map),
         host['_persistence'],
         'test-graph',
-        expect.objectContaining({ codec: host['_codec'] }),
+        expect.objectContaining({ patchJournal: mockPatchJournal }),
       );
     });
   });

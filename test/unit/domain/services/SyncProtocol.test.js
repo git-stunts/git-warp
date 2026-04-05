@@ -20,6 +20,8 @@ import { orsetContains } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 // -----------------------------------------------------------------------------
 // Test Fixtures and Helpers
@@ -90,6 +92,19 @@ function createMockPersistence(commits = /** @type {any} */ ({}), blobs = /** @t
       throw new Error(`Blob not found: ${oid}`);
     }),
   };
+}
+
+/**
+ * Creates a CborPatchJournalAdapter wired to the given mock persistence's blob ops.
+ * @param {ReturnType<typeof createMockPersistence>} persistence
+ * @returns {CborPatchJournalAdapter}
+ */
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+    commitPort: persistence,
+  });
 }
 
 /**
@@ -208,7 +223,7 @@ describe('SyncProtocol', () => {
       const persistence = createMockPersistence(commits, blobs);
 
       // Load from SHA_A (exclusive) to SHA_C (inclusive)
-      const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_C);
+      const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_C, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(2);
       expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
@@ -230,7 +245,7 @@ describe('SyncProtocol', () => {
 
       const persistence = createMockPersistence(commits, blobs);
 
-      const patches = await loadPatchRange(persistence, 'events', 'w1', null, SHA_B);
+      const patches = await loadPatchRange(persistence, 'events', 'w1', null, SHA_B, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(2);
       expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_A);
@@ -250,7 +265,7 @@ describe('SyncProtocol', () => {
 
       const persistence = createMockPersistence(commits, blobs);
 
-      await expect(loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B)).rejects.toThrow(
+      await expect(loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B, { patchJournal: createPatchJournal(persistence) })).rejects.toThrow(
         /Divergence detected/
       );
     });
@@ -267,7 +282,7 @@ describe('SyncProtocol', () => {
 
       const persistence = createMockPersistence(commits, blobs);
 
-      const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B);
+      const patches = await loadPatchRange(persistence, 'events', 'w1', SHA_A, SHA_B, { patchJournal: createPatchJournal(persistence) });
 
       expect(patches).toHaveLength(1);
       expect(/** @type {any} */ (patches)[0].sha).toBe(SHA_B);
@@ -325,7 +340,7 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_B]]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       expect(response.type).toBe('sync-response');
       expect(response.patches).toHaveLength(1);
@@ -353,7 +368,7 @@ describe('SyncProtocol', () => {
         ['w2', SHA_B],
       ]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // Response should include complete local frontier
       expect(response.frontier).toEqual({
@@ -371,7 +386,7 @@ describe('SyncProtocol', () => {
       const request = { type: 'sync-request', frontier: { w1: SHA_A } };
       const localFrontier = new Map([['w1', SHA_A]]);
 
-      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events');
+      const response = await processSyncRequest(/** @type {any} */ (request), localFrontier, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       expect(response.patches).toHaveLength(0);
     });
@@ -602,7 +617,7 @@ describe('SyncProtocol', () => {
 
       // B requests sync from A
       const requestB = createSyncRequest(frontierB);
-      const responseA = await processSyncRequest(requestB, frontierA, persistence, 'events');
+      const responseA = await processSyncRequest(requestB, frontierA, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // B applies response from A
       const resultB = /** @type {any} */ (applySyncResponse(responseA, stateB, frontierB));
@@ -611,7 +626,7 @@ describe('SyncProtocol', () => {
 
       // A requests sync from B
       const requestA = createSyncRequest(frontierA);
-      const responseB = await processSyncRequest(requestA, frontierB, persistence, 'events');
+      const responseB = await processSyncRequest(requestA, frontierB, persistence, 'events', { patchJournal: createPatchJournal(persistence) });
 
       // A applies response from B
       const resultA = /** @type {any} */ (applySyncResponse(responseB, stateA, frontierA));
@@ -658,7 +673,8 @@ describe('SyncProtocol', () => {
         request1,
         new Map([['w1', SHA_A]]),
         persistence,
-        'events'
+        'events',
+        { patchJournal: createPatchJournal(persistence) },
       );
       const result1 = /** @type {any} */ (applySyncResponse(response1, state, frontier));
 
@@ -763,7 +779,7 @@ describe('SyncProtocol', () => {
         localFrontier,
         /** @type {any} */ (persistence),
         'events',
-        { logger },
+        { logger, patchJournal: createPatchJournal(persistence) },
       ));
 
       // w1 should be skipped via isAncestor, no chain walk needed
@@ -806,6 +822,7 @@ describe('SyncProtocol', () => {
         localFrontier,
         /** @type {any} */ (persistence),
         'events',
+        { patchJournal: createPatchJournal(persistence) },
       ));
 
       expect(persistence.isAncestor).toHaveBeenCalledWith(SHA_A, SHA_B);
@@ -833,6 +850,7 @@ describe('SyncProtocol', () => {
         localFrontier,
         /** @type {any} */ (persistence),
         'events',
+        { patchJournal: createPatchJournal(persistence) },
       ));
 
       // Should still work via chain walk

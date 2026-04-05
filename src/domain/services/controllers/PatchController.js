@@ -53,10 +53,9 @@ export default class PatchController {
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @param {{patch?: import('../../types/WarpTypesV2.js').PatchV2, sha?: string}} opts */ (opts) => this._onPatchCommitted(h._writerId, opts),
-      codec: h._codec,
+      ...(h._patchJournal !== null && h._patchJournal !== undefined ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal) } : {}),
       ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
       ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
-      ...(h._patchBlobStorage !== null && h._patchBlobStorage !== undefined ? { patchBlobStorage: h._patchBlobStorage } : {}),
     });
   }
 
@@ -161,8 +160,23 @@ export default class PatchController {
       }
 
       const patchMeta = decodePatchMessage(message);
-      const patchBuffer = await this._readPatchBlob(patchMeta);
-      const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (h._codec.decode(patchBuffer));
+      /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
+      const journal = /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */ (h._patchJournal);
+      if (journal === null || journal === undefined) {
+        // Legacy fallback: read the patch blob directly and decode with the codec
+        const raw = await h._persistence.readBlob(patchMeta.patchOid);
+        const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (h._codec.decode(raw));
+        patches.push({ patch: decoded, sha: currentSha });
+        if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
+          currentSha = nodeInfo.parents[0] ?? '';
+        } else {
+          break;
+        }
+        continue;
+      }
+      const decoded = /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (
+        await journal.readPatch(patchMeta.patchOid, { encrypted: patchMeta.encrypted })
+      );
 
       patches.push({ patch: decoded, sha: currentSha });
 
@@ -281,7 +295,8 @@ export default class PatchController {
 
     /** @type {CorePersistence} */
     const persistence = h._persistence;
-    return new Writer({
+    /** @type {ConstructorParameters<typeof Writer>[0]} */
+    const writerOpts = {
       persistence,
       graphName: h._graphName,
       writerId: resolvedWriterId,
@@ -289,11 +304,11 @@ export default class PatchController {
       getCurrentState: /** Returns the cached CRDT state. @returns {import('../JoinReducer.js').WarpStateV5|null} */ () => h._cachedState,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: /** Post-commit callback. @type {(result: {patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string}) => void} */ ((opts) => this._onPatchCommitted(resolvedWriterId, opts)),
-      codec: h._codec,
-      ...(h._logger !== null && h._logger !== undefined ? { logger: h._logger } : {}),
-      ...(h._blobStorage !== null && h._blobStorage !== undefined ? { blobStorage: h._blobStorage } : {}),
-      ...(h._patchBlobStorage !== null && h._patchBlobStorage !== undefined ? { patchBlobStorage: h._patchBlobStorage } : {}),
-    });
+      patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (h._patchJournal),
+    };
+    if (h._logger !== null && h._logger !== undefined) { writerOpts.logger = h._logger; }
+    if (h._blobStorage !== null && h._blobStorage !== undefined) { writerOpts.blobStorage = h._blobStorage; }
+    return new Writer(writerOpts);
   }
 
   /**

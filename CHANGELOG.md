@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WarpStream** — composable async stream primitive built on `AsyncIterable<T>`. Domain concept for "data flow over time." Supports `pipe`, `tee`, `mux`, `demux`, `drain`, `reduce`, `forEach`, `collect`. Natural backpressure via `for await`, error propagation via async iterator protocol, cooperative cancellation via `AbortSignal`.
+- **Stream transforms** — `CborEncodeTransform`, `CborDecodeTransform`, `GitBlobWriteTransform`, `TreeAssemblerSink`, `IndexShardEncodeTransform` — composable infrastructure pipeline stages for encode → blobWrite → treeAssemble.
+- **Artifact record classes** — `CheckpointArtifact` family (`StateArtifact`, `FrontierArtifact`, `AppliedVVArtifact`), `IndexShard` family (`MetaShard`, `EdgeShard`, `LabelShard`, `PropertyShard`, `ReceiptShard`), `PatchEntry`, `ProvenanceEntry`. Runtime-backed domain nouns with constructor validation and `instanceof` dispatch.
+- **`PatchJournalPort.scanPatchRange()`** — streaming alternative to `loadPatchRange()`. Returns `WarpStream<PatchEntry>` for incremental patch consumption. Commit walking moved from SyncProtocol into the adapter.
+- **`StateHashService`** — standalone canonical state hash computation. Separately callable by checkpoint creation, comparison, materialization, and verification.
+- **Index builder `yieldShards()`** — `LogicalBitmapIndexBuilder` and `PropertyIndexBuilder` yield `IndexShard` record instances via generators. Proven byte-identical to legacy `serialize()` path.
+- **`LogicalIndexBuildService.buildStream()`** — returns `WarpStream<IndexShard>` merging both builders via `mux()`.
+- **Hex tripwire test** — 36 automated checks scanning domain files for forbidden codec imports/usage. Fails loud if domain touches `defaultCodec`, `cbor-x`, or `codec.encode()`/`codec.decode()`.
+- **Golden fixtures** — known CBOR bytes for patches, checkpoints, VV, frontier, index shards. Wire format stability proven across refactor.
+
+### Fixed
+
+- **CborPatchJournalAdapter.readPatch()** — now throws `EncryptionError` when `encrypted=true` but no `patchBlobStorage` is configured. Previously fell through to the unencrypted `blobPort.readBlob()` path, returning wrong data.
+- **Writer constructor** — `patchJournal` is now a required parameter. Previously optional, which let `beginPatch()` succeed but `commit()` hard-fail with a confusing `PersistenceError` from `PatchBuilderV2`.
+
 ### Changed
 
+- **CheckpointStorePort collapsed** — 7 micro-methods (`writeState`, `readState`, etc.) replaced with 2 semantic operations: `writeCheckpoint(record)` and `readCheckpoint(treeOids)`. A checkpoint is one domain event, not a bag of individual blob writes.
+- **SyncProtocol uses stream scan** — `processSyncRequest()` prefers `patchJournal.scanPatchRange()` (streaming) over `loadPatchRange()` (array). Falls back to legacy path when unavailable.
+- **PatchBuilderV2, SyncProtocol, Writer** — codec-free. Patch persistence goes through `PatchJournalPort`; domain never imports `defaultCodec` or calls `codec.encode()`/`codec.decode()`.
+- **CheckpointService** — routes through `CheckpointStorePort` when available. Legacy codec-based paths remain as fallback.
 - **The Method** — introduced `METHOD.md` as the development process framework. Filesystem-native backlog (`docs/method/backlog/`) with lane directories (`inbox/`, `asap/`, `up-next/`, `cool-ideas/`, `bad-code/`). Legend-prefixed filenames (`PROTO_`, `TRUST_`, `VIZ_`, `TUI_`, `DX_`, `PERF_`). Sequential cycle numbering (`docs/design/<NNNN-slug>/`). Dual-audience design docs (sponsor human + sponsor agent). Replaced B-number system entirely.
 - **Backlog migration** — all 49 B-number and OG items migrated from `BACKLOG/` to `docs/method/backlog/` lanes. Tech debt journal (`.claude/bad_code.md`) split into 10 individual files in `bad-code/`. Cool ideas journal split into 13 individual files in `cool-ideas/`. `docs/release.md` moved to `docs/method/release.md`. `BACKLOG/` directory removed.
 

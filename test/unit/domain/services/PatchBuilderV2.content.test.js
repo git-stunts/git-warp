@@ -4,6 +4,8 @@ import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.j
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 /**
  * Creates a mock blob storage with configurable OID return.
@@ -48,6 +50,18 @@ function createMockState() {
     prop: new Map(),
     observedFrontier: createVersionVector(),
   };
+}
+
+/**
+ * Creates a CborPatchJournalAdapter wired to the given persistence's blob ops.
+ * @param {ReturnType<typeof createMockPersistence>} persistence
+ * @returns {CborPatchJournalAdapter}
+ */
+function createPatchJournal(persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+  });
 }
 
 describe('PatchBuilderV2 content attachment', () => {
@@ -687,6 +701,7 @@ describe('PatchBuilderV2 content attachment', () => {
       });
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'g',
         writerId: 'w1',
         lamport: 1,
@@ -711,6 +726,7 @@ describe('PatchBuilderV2 content attachment', () => {
       const persistence = createMockPersistence();
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'g',
         writerId: 'w1',
         lamport: 1,
@@ -742,6 +758,7 @@ describe('PatchBuilderV2 content attachment', () => {
       });
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'g',
         writerId: 'w1',
         lamport: 1,
@@ -773,6 +790,7 @@ describe('PatchBuilderV2 content attachment', () => {
       });
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         persistence,
+        patchJournal: createPatchJournal(persistence),
         graphName: 'g',
         writerId: 'w1',
         lamport: 1,

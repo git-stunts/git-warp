@@ -20,6 +20,8 @@ import { orsetElements } from '../../../../src/domain/crdt/ORSet.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { encode } from '../../../../src/infrastructure/codecs/CborCodec.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
+import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,6 +68,14 @@ function stateSignature(/** @type {any} */ state) {
     .map(([k, reg]) => [k, reg.value])
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return { nodes, edges, props };
+}
+
+function createPatchJournal(/** @type {any} */ persistence) {
+  return new CborPatchJournalAdapter({
+    codec: new CborCodec(),
+    blobPort: persistence,
+    commitPort: persistence,
+  });
 }
 
 function createMockLogger() {
@@ -293,7 +303,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
       localFrontier,
       /** @type {any} */ (persistence),
       'events',
-      { logger },
+      { patchJournal: createPatchJournal(persistence), logger },
     ));
 
     // Patches for diverged writer should be empty

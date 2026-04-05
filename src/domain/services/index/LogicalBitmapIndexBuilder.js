@@ -18,6 +18,7 @@ import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
 import { ShardIdOverflowError } from '../../errors/index.js';
+import { MetaShard, EdgeShard, LabelShard, ReceiptShard } from '../../artifacts/IndexShard.js';
 
 /** Maximum local IDs per shard (2^24). */
 const MAX_LOCAL_ID = 1 << 24;
@@ -271,6 +272,90 @@ export default class LogicalBitmapIndexBuilder {
     tree['receipt.cbor'] = this._codec.encode(receipt).slice();
 
     return tree;
+  }
+
+  /**
+   * Yields IndexShard instances without encoding.
+   *
+   * This is the stream-compatible alternative to `serialize()`. Pipe the
+   * output through the adapter's encode → blobWrite → treeAssemble
+   * pipeline to persist.
+   *
+   * @returns {Generator<import('../../artifacts/IndexShard.js').IndexShard>}
+   */
+  *yieldShards() {
+    const allShardKeys = new Set([...this._shardNextLocal.keys()]);
+
+    // Meta shards
+    for (const shardKey of allShardKeys) {
+      const nodeToGlobal = (this._shardNodes.get(shardKey) ?? [])
+        .slice()
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+      const aliveBitmap = this._aliveBitmaps.get(shardKey);
+      const aliveBytes = aliveBitmap ? aliveBitmap.serialize(true) : new Uint8Array(0);
+
+      yield new MetaShard({
+        shardKey,
+        nodeToGlobal,
+        nextLocalId: this._shardNextLocal.get(shardKey) ?? 0,
+        alive: aliveBytes,
+      });
+    }
+
+    // Labels registry
+    /** @type {Array<[string, number]>} */
+    const labelRegistry = [];
+    for (const [label, id] of this._labelToId) {
+      labelRegistry.push([label, id]);
+    }
+    yield new LabelShard({ labels: labelRegistry });
+
+    // Forward/reverse edge shards
+    yield* this._yieldEdgeShards('fwd', this._fwdBitmaps);
+    yield* this._yieldEdgeShards('rev', this._revBitmaps);
+
+    // Receipt
+    yield new ReceiptShard({
+      version: 1,
+      nodeCount: this._nodeToGlobal.size,
+      labelCount: this._labelToId.size,
+      shardCount: allShardKeys.size,
+    });
+  }
+
+  /**
+   * Yields EdgeShard instances for a direction without encoding.
+   *
+   * @param {'fwd'|'rev'} direction
+   * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} bitmaps
+   * @returns {Generator<EdgeShard>}
+   * @private
+   */
+  *_yieldEdgeShards(direction, bitmaps) {
+    /** @type {Map<string, Record<string, Record<string, Uint8Array>>>} */
+    const byShardKey = new Map();
+
+    for (const [key, bitmap] of bitmaps) {
+      const firstColon = key.indexOf(':');
+      const secondColon = key.indexOf(':', firstColon + 1);
+      const shardKey = key.substring(0, firstColon);
+      const bucketName = key.substring(firstColon + 1, secondColon);
+      const globalIdStr = key.substring(secondColon + 1);
+
+      if (!byShardKey.has(shardKey)) {
+        byShardKey.set(shardKey, {});
+      }
+      const shardData = /** @type {Record<string, Record<string, Uint8Array>>} */ (byShardKey.get(shardKey));
+      if (!shardData[bucketName]) {
+        shardData[bucketName] = {};
+      }
+      shardData[bucketName][globalIdStr] = bitmap.serialize(true);
+    }
+
+    for (const [shardKey, shardData] of byShardKey) {
+      yield new EdgeShard({ shardKey, direction, buckets: shardData });
+    }
   }
 
   /**

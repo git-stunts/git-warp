@@ -17,104 +17,20 @@ import { decodeEdgeKey } from '../KeyCodec.js';
 import { matchGlob } from '../../utils/matchGlob.js';
 
 
-/** @import { WorldlineSource } from '../../../../index.js' */
+import WorldlineSelector from '../../types/WorldlineSelector.js';
+import LiveSelector from '../../types/LiveSelector.js';
+
 /**
- * Clones an observer worldline source descriptor, producing an independent copy.
- * @param {{
- *   kind: 'live',
- *   ceiling?: number|null
- * } | {
- *   kind: 'coordinate',
- *   frontier: Map<string, string>|Record<string, string>,
- *   ceiling?: number|null
- * } | {
- *   kind: 'strand',
- *   strandId: string,
- *   ceiling?: number|null
- * } | {
- *   kind: 'strand',
- *   strandId: string,
- *   ceiling?: number|null
- * } | null | undefined} source
- * @returns {{
- *   kind: 'live',
- *   ceiling?: number|null
- * } | {
- *   kind: 'coordinate',
- *   frontier: Map<string, string>|Record<string, string>,
- *   ceiling?: number|null
- * } | {
- *   kind: 'strand',
- *   strandId: string,
- *   ceiling?: number|null
- * } | null}
+ * Converts a raw source to a WorldlineSelector, or returns null.
+ *
+ * @param {WorldlineSelector|{ kind: string, [key: string]: unknown }|null|undefined} source
+ * @returns {WorldlineSelector|null}
  */
-function cloneObserverSource(source) {
+function toSelector(source) {
   if (source === null || source === undefined) {
     return null;
   }
-  return cloneNonNullSource(source);
-}
-
-/**
- * Clones a live source descriptor.
- * @param {{ ceiling?: number|null }} source
- * @returns {{ kind: 'live', ceiling?: number|null }}
- */
-function cloneLiveSource(source) {
-  return 'ceiling' in source
-    ? { kind: 'live', ceiling: source.ceiling ?? null }
-    : { kind: 'live' };
-}
-
-/**
- * Clones a coordinate source descriptor, deep-copying the frontier.
- * @param {{ frontier?: Map<string, string>|Record<string, string>, ceiling?: number|null }} source
- * @returns {{ kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling: number|null }}
- */
-function cloneCoordinateSource(source) {
-  return {
-    kind: 'coordinate',
-    frontier: source.frontier instanceof Map
-      ? new Map(source.frontier)
-      : { .../** @type {Record<string, string>} */ (source.frontier) },
-    ceiling: source.ceiling ?? null,
-  };
-}
-
-/**
- * Clones a non-null observer source descriptor.
- * @param {{
- *   kind: 'live' | 'coordinate' | 'strand',
- *   ceiling?: number|null,
- *   frontier?: Map<string, string>|Record<string, string>,
- *   strandId?: string
- * }} source
- * @returns {{
- *   kind: 'live',
- *   ceiling?: number|null
- * } | {
- *   kind: 'coordinate',
- *   frontier: Map<string, string>|Record<string, string>,
- *   ceiling?: number|null
- * } | {
- *   kind: 'strand',
- *   strandId: string,
- *   ceiling?: number|null
- * }}
- */
-function cloneNonNullSource(source) {
-  if (source.kind === 'live') {
-    return cloneLiveSource(source);
-  }
-  if (source.kind === 'coordinate') {
-    return cloneCoordinateSource(source);
-  }
-  return {
-    kind: 'strand',
-    strandId: /** @type {string} */ (source.strandId),
-    ceiling: source.ceiling ?? null,
-  };
+  return WorldlineSelector.from(source).clone();
 }
 
 /**
@@ -336,7 +252,7 @@ export default class Observer {
    * Initializes the backing graph, snapshot, and source state.
    * @param {import('../../WarpRuntime.js').default|undefined} graph
    * @param {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|undefined} snapshot
-   * @param {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | undefined} source
+   * @param {import('../../types/WorldlineSelector.js').default|import('../../../../index.js').WorldlineSource|undefined} source
    * @private
    */
   _initBacking(graph, snapshot, source) {
@@ -344,8 +260,8 @@ export default class Observer {
     this._graph = graph || null;
     /** @type {{ state: import('../JoinReducer.js').WarpStateV5, stateHash: string }|null} */
     this._snapshot = snapshot || null;
-    /** @type {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null} */
-    this._source = cloneObserverSource(source || { kind: 'live' });
+    /** @type {WorldlineSelector|null} */
+    this._source = toSelector(/** @type {WorldlineSelector|{ kind: string, [key: string]: unknown }} */ (source || new LiveSelector()));
     /** @type {import('../../../../index.js').VisibleStateReaderV5|null} */
     this._stateReader = snapshot ? createStateReaderV5(snapshot.state) : null;
     /** @type {{ outgoing: Map<string, NeighborEntry[]>, incoming: Map<string, NeighborEntry[]> }|null} */
@@ -363,10 +279,10 @@ export default class Observer {
   /**
    * Gets the effective pinned source for this observer.
    *
-   * @returns {{ kind: 'live', ceiling?: number|null } | { kind: 'coordinate', frontier: Map<string, string>|Record<string, string>, ceiling?: number|null } | { kind: 'strand', strandId: string, ceiling?: number|null } | null}
+   * @returns {import('../../../../index.js').WorldlineSource|null}
    */
   get source() {
-    return cloneObserverSource(this._source);
+    return this._source ? /** @type {import('../../../../index.js').WorldlineSource} */ (this._source.toDTO()) : null;
   }
 
   /**
@@ -417,16 +333,13 @@ export default class Observer {
   async seek(options = undefined) {
     const graph = this._requireGraph();
     const config = this._buildConfigSnapshot();
-    /** @type {WorldlineSource|null} */
+    /** @type {WorldlineSelector} */
     const nextSource = options?.source
-      ? cloneObserverSource(/** @type {WorldlineSource} */ (options.source))
-      : { kind: 'live' };
-    if (nextSource === null) {
-      throw new Error('observer seek requires a non-null source');
-    }
+      ? WorldlineSelector.from(options.source).clone()
+      : new LiveSelector();
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- return through defineProperty delegation; type is declared in @returns
-    return await graph.observer(/** @type {string} */ (this._name), config, { source: nextSource });
+    return await graph.observer(/** @type {string} */ (this._name), config, { source: /** @type {import('../../../../index.js').WorldlineSource} */ (nextSource.toDTO()) });
   }
 
   // ===========================================================================
