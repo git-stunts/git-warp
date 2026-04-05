@@ -95,7 +95,7 @@ describe('Logical Index Benchmarks', () => {
         const service = new LogicalIndexBuildService();
 
         const { median: buildMs } = await runBenchmark(
-          () => { service.build(state); },
+          () => { service.buildShards(state); },
           WARMUP, RUNS,
         );
 

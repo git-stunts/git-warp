@@ -11,7 +11,7 @@
 import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.js';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.js';
-import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
+import MaterializedViewService from '../../src/domain/services/MaterializedViewService.js';
 import LogicalIndexReader from '../../src/domain/services/index/LogicalIndexReader.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
@@ -660,12 +660,9 @@ export function makeLogicalBitmapProvider(fixture) {
   // Build WarpStateV5 from fixture
   const state = fixtureToState(fixture);
 
-  // Build logical index
-  const service = new LogicalIndexBuildService();
-  const { tree } = service.build(state);
-
-  // Create in-memory LogicalIndex adapter from serialized tree
-  const logicalIndex = _createLogicalIndexFromTree(tree);
+  // Build logical index via MaterializedViewService
+  const svc = new MaterializedViewService();
+  const { logicalIndex } = svc.build(state);
 
   return new BitmapNeighborProvider({ logicalIndex });
 }

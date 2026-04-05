@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
-import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
+import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
 import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,
@@ -68,7 +68,7 @@ describe('LogicalIndexReader', () => {
   describe('loadFromTree', () => {
     it('hydrates a LogicalIndex from F7_MULTILABEL tree', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -100,7 +100,7 @@ describe('LogicalIndexReader', () => {
 
     it('returns empty results for nonexistent nodes', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -113,7 +113,7 @@ describe('LogicalIndexReader', () => {
     });
 
     it('resets decoded state when reusing the same reader instance', () => {
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const state1 = fixtureToState(makeFixture({
         nodes: ['A', 'B'],
         edges: [{ from: 'A', to: 'B', label: 'knows' }],
@@ -140,7 +140,7 @@ describe('LogicalIndexReader', () => {
   describe('loadFromOids', () => {
     it('loads shards lazily via mock storage', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       // Simulate OID→buffer mapping
@@ -177,7 +177,7 @@ describe('LogicalIndexReader', () => {
       const protoBefore = Object.getOwnPropertyNames(Object.prototype).sort();
 
       const state = fixtureToState(F10_PROTO_POLLUTION);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -200,7 +200,7 @@ describe('LogicalIndexReader', () => {
   describe('labels format compatibility', () => {
     it('accepts legacy object-form labels.cbor', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const modern = /** @type {Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor'])));
@@ -218,7 +218,7 @@ describe('LogicalIndexReader', () => {
 
     it('accepts meta.alive encoded as a plain number array', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       /** @type {Record<string, Uint8Array>} */
@@ -244,7 +244,7 @@ describe('LogicalIndexReader', () => {
   describe('toLogicalIndex returns a proper LogicalIndex interface', () => {
     it('has all required methods', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -262,7 +262,7 @@ describe('LogicalIndexReader', () => {
   describe('getEdges with label filter', () => {
     it('filters by label IDs', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
@@ -282,7 +282,7 @@ describe('LogicalIndexReader', () => {
 
     it('unfiltered results equal filtered-label union and are sorted by (neighborId, label)', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const idx = new LogicalIndexReader().loadFromTree(tree).toLogicalIndex();
@@ -312,7 +312,7 @@ describe('LogicalIndexReader', () => {
       }
 
       const state = fixtureToState({ nodes, edges });
-      const service = new LogicalIndexBuildService();
+      const service = new MaterializedViewService();
       const { tree } = service.build(state);
 
       const reader = new LogicalIndexReader();
