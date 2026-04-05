@@ -96,6 +96,7 @@ function createMockPersistence() {
       return sha;
     },
     nodeExists: async (/** @type {string} */ sha) => commits.has(sha),
+    readTreeOids: async () => [],
   };
 }
 
