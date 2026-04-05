@@ -12,7 +12,7 @@ type that owns it.
 - **P3 drift**: The function uses `this` but is not a method of the
   class it belongs to.
 - Invisible to readers of either `QueryController` or `WarpRuntime`.
-- Can't be tested through the controller's own interface.
+- It can't be tested through the controller's own interface.
 
 ## Suggested fix
 

@@ -619,11 +619,11 @@ export default class WarpRuntime {
       codec: resolvedCodec, blobPort, treePort,
     });
 
-    // StateHashService (only when crypto is available)
-    /** @type {StateHashService|undefined} */
-    const resolvedStateHashService = (resolvedCrypto !== undefined && resolvedCrypto !== null)
-      ? new StateHashService({ codec: resolvedCodec, crypto: resolvedCrypto })
-      : undefined;
+    // StateHashService — crypto is always resolved (defaultCrypto fallback)
+    const resolvedStateHashService = new StateHashService({
+      codec: resolvedCodec,
+      crypto: resolvedCrypto,
+    });
 
     // ViewService
     const resolvedViewService = new MaterializedViewService({

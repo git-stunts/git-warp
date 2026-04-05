@@ -114,7 +114,7 @@ export function createMockPersistence() {
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     readBlob: vi.fn(),
-    readTreeOids: vi.fn(),
+    readTreeOids: vi.fn().mockResolvedValue({}),
     commitNode: vi.fn(),
     commitNodeWithTree: vi.fn(),
     updateRef: vi.fn(),
