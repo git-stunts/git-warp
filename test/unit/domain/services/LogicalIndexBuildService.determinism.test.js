@@ -3,7 +3,7 @@ import LogicalIndexBuildService from '../../../../src/domain/services/index/Logi
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
+import { MetaShard, LabelShard, EdgeShard } from '../../../../src/domain/artifacts/IndexShard.js';
 
 /**
  * Helper: builds a WarpStateV5 from nodes and edges, applying ops in the
@@ -38,15 +38,16 @@ function buildState(nodes, edges) {
 }
 
 /**
- * Extracts nodeToGlobal mappings from all meta shards in a serialized tree.
- * @param {Record<string, Uint8Array>} tree
+ * Extracts nodeToGlobal mappings from all MetaShards.
+ *
+ * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @returns {Map<string, number>}
  */
-function extractNodeMappings(tree) {
+function extractNodeMappings(shards) {
   const mappings = new Map();
-  for (const [path, buf] of Object.entries(tree)) {
-    if (path.startsWith('meta_') && path.endsWith('.cbor')) {
-      const meta = /** @type {{ nodeToGlobal: Array<[string, number]> }} */ (defaultCodec.decode(buf));
-      for (const [nodeId, globalId] of meta.nodeToGlobal) {
+  for (const shard of shards) {
+    if (shard instanceof MetaShard) {
+      for (const [nodeId, globalId] of shard.nodeToGlobal) {
         mappings.set(nodeId, globalId);
       }
     }
@@ -55,23 +56,29 @@ function extractNodeMappings(tree) {
 }
 
 /**
- * Extracts label registry from a serialized tree.
- * @param {Record<string, Uint8Array>} tree
+ * Extracts label registry from shards.
+ *
+ * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @returns {Array<[string, number]>}
  */
-function extractLabelRegistry(tree) {
-  return defaultCodec.decode(/** @type {Uint8Array} */ (tree['labels.cbor']));
+function extractLabelRegistry(shards) {
+  const labelShard = shards.find((s) => s instanceof LabelShard);
+  if (!labelShard) { return []; }
+  return /** @type {LabelShard} */ (labelShard).labels;
 }
 
 /**
- * Extracts decoded edge shard payloads from a serialized tree.
- * @param {Record<string, Uint8Array>} tree
+ * Extracts edge shard payloads keyed by direction+shardKey.
+ *
+ * @param {import('../../../../src/domain/artifacts/IndexShard.js').IndexShard[]} shards
+ * @returns {Record<string, Record<string, Record<string, Uint8Array>>>}
  */
-function extractEdgeShards(tree) {
-  /** @type {Record<string, unknown>} */
+function extractEdgeShards(shards) {
+  /** @type {Record<string, Record<string, Record<string, Uint8Array>>>} */
   const out = {};
-  for (const [path, buf] of Object.entries(tree)) {
-    if ((path.startsWith('fwd_') || path.startsWith('rev_')) && path.endsWith('.cbor')) {
-      out[path] = defaultCodec.decode(buf);
+  for (const shard of shards) {
+    if (shard instanceof EdgeShard) {
+      out[`${shard.direction}_${shard.shardKey}`] = shard.buckets;
     }
   }
   return out;
@@ -84,18 +91,18 @@ describe('LogicalIndexBuildService determinism', () => {
     { from: 'C', to: 'A', label: 'reports' },
   ];
 
-  it('same state from different node insertion orders produces identical ID assignments', () => {
+  it('same state from different node insertion orders produces identical ID assignments', async () => {
     // Order 1: A, B, C
     const state1 = buildState(['A', 'B', 'C'], edges);
     // Order 2: C, A, B (different insertion order, same final OR-Set)
     const state2 = buildState(['C', 'A', 'B'], edges);
 
     const service = new LogicalIndexBuildService();
-    const { tree: tree1 } = service.build(state1);
-    const { tree: tree2 } = service.build(state2);
+    const shards1 = await service.buildStream(state1).stream.collect();
+    const shards2 = await service.buildStream(state2).stream.collect();
 
-    const mappings1 = extractNodeMappings(tree1);
-    const mappings2 = extractNodeMappings(tree2);
+    const mappings1 = extractNodeMappings(shards1);
+    const mappings2 = extractNodeMappings(shards2);
 
     // Both should have the same nodeId → globalId assignments
     expect(mappings1.size).toBe(3);
@@ -105,7 +112,7 @@ describe('LogicalIndexBuildService determinism', () => {
     }
   });
 
-  it('same state from different edge insertion orders produces identical label assignments', () => {
+  it('same state from different edge insertion orders produces identical label assignments', async () => {
     const edgesOrder1 = [
       { from: 'A', to: 'B', label: 'knows' },
       { from: 'B', to: 'C', label: 'manages' },
@@ -121,17 +128,17 @@ describe('LogicalIndexBuildService determinism', () => {
     const state2 = buildState(['A', 'B', 'C'], edgesOrder2);
 
     const service = new LogicalIndexBuildService();
-    const { tree: tree1 } = service.build(state1);
-    const { tree: tree2 } = service.build(state2);
+    const shards1 = await service.buildStream(state1).stream.collect();
+    const shards2 = await service.buildStream(state2).stream.collect();
 
-    const labels1 = extractLabelRegistry(tree1);
-    const labels2 = extractLabelRegistry(tree2);
+    const labels1 = extractLabelRegistry(shards1);
+    const labels2 = extractLabelRegistry(shards2);
 
     // Both should have the same label → labelId assignments
     expect(labels1).toEqual(labels2);
   });
 
-  it('meta shard nodeToGlobal pairs are sorted by nodeId (forced same-shard IDs)', () => {
+  it('meta shard nodeToGlobal pairs are sorted by nodeId (forced same-shard IDs)', async () => {
     const sameShardNodes = [
       `aa${'0'.repeat(38)}`,
       `aa${'1'.repeat(38)}`,
@@ -141,16 +148,18 @@ describe('LogicalIndexBuildService determinism', () => {
     const state = buildState(sameShardNodes, []);
 
     const service = new LogicalIndexBuildService();
-    const { tree } = service.build(state);
-    const buf = /** @type {Uint8Array} */ (tree['meta_aa.cbor']);
-    expect(buf).toBeDefined();
-    const meta = /** @type {{ nodeToGlobal: Array<[string, number]> }} */ (defaultCodec.decode(buf));
-    const nodeIds = meta.nodeToGlobal.map((/** @type {[string, number]} */ pair) => pair[0]);
+    const shards = await service.buildStream(state).stream.collect();
+
+    const metaAA = shards.find((s) => s instanceof MetaShard && s.shardKey === 'aa');
+    expect(metaAA).toBeDefined();
+    const nodeIds = /** @type {MetaShard} */ (metaAA).nodeToGlobal.map(
+      (/** @type {[string, number]} */ pair) => pair[0],
+    );
     expect(nodeIds.length).toBe(4);
     expect(nodeIds).toEqual([...nodeIds].sort());
   });
 
-  it('same state from different edge insertion orders produces identical edge shard payloads', () => {
+  it('same state from different edge insertion orders produces identical edge shard payloads', async () => {
     const edgesOrder1 = [
       { from: 'A', to: 'B', label: 'knows' },
       { from: 'A', to: 'C', label: 'manages' },
@@ -168,9 +177,9 @@ describe('LogicalIndexBuildService determinism', () => {
     const state2 = buildState(['A', 'B', 'C'], edgesOrder2);
 
     const service = new LogicalIndexBuildService();
-    const { tree: tree1 } = service.build(state1);
-    const { tree: tree2 } = service.build(state2);
+    const shards1 = await service.buildStream(state1).stream.collect();
+    const shards2 = await service.buildStream(state2).stream.collect();
 
-    expect(extractEdgeShards(tree1)).toEqual(extractEdgeShards(tree2));
+    expect(extractEdgeShards(shards1)).toEqual(extractEdgeShards(shards2));
   });
 });

@@ -15,16 +15,18 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.js';
 import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexBuilder.js';
 import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.js';
+import { PropertyShard } from '../../src/domain/artifacts/IndexShard.js';
+import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.js';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.js';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.js';
 import { createEmptyStateV5, applyOpV2 } from '../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../src/domain/utils/EventId.js';
-// defaultCodec reserved for future benchmark expansion
-// import defaultCodec from '../../src/domain/utils/defaultCodec.js';
 
 const WARMUP = 1;
 const RUNS = 3;
+
+const codec = new CborCodec();
 
 /**
  * Generates a random graph fixture with N nodes and ~avgDegree edges per node.
@@ -131,16 +133,17 @@ describe('Logical Index Benchmarks', () => {
         builder.addProperty(`node:${i}`, 'name', `Node ${i}`);
         builder.addProperty(`node:${i}`, 'weight', i);
       }
-      const tree = builder.serialize();
+      const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
 
-      // Create mock storage
+      // Create mock storage by encoding PropertyShard entries via CBOR
       const blobs = new Map();
       /** @type {Record<string, string>} */
       const oids = {};
       let oidCounter = 0;
-      for (const [path, buf] of Object.entries(tree)) {
+      for (const shard of shards) {
+        const path = `props_${shard.shardKey}.cbor`;
         const oid = `oid_${oidCounter++}`;
-        blobs.set(oid, buf);
+        blobs.set(oid, codec.encode(shard.entries));
         oids[path] = oid;
       }
       const storage = { readBlob: async (/** @type {string} */ oid) => blobs.get(oid) };

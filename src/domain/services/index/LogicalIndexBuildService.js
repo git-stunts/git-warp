@@ -7,7 +7,6 @@
  * @module domain/services/index/LogicalIndexBuildService
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
 import nullLogger from '../../utils/nullLogger.js';
 import LogicalBitmapIndexBuilder from './LogicalBitmapIndexBuilder.js';
 import PropertyIndexBuilder from './PropertyIndexBuilder.js';
@@ -19,34 +18,13 @@ import { ReceiptShard } from '../../artifacts/IndexShard.js';
 
 export default class LogicalIndexBuildService {
   /**
-   * Creates a LogicalIndexBuildService with optional codec and logger.
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default, logger?: import('../../../ports/LoggerPort.js').default }} [options] - Service dependencies
+   * Creates a LogicalIndexBuildService with optional logger.
+   *
+   * @param {{ logger?: import('../../../ports/LoggerPort.js').default }} [options]
    */
   constructor(options = undefined) {
-    const { codec, logger } = options || {};
-    this._codec = codec || defaultCodec;
+    const { logger } = options || {};
     this._logger = logger || nullLogger;
-  }
-
-  /**
-   * Builds a complete logical index from materialized state.
-   *
-   * @param {import('../JoinReducer.js').WarpStateV5} state
-   * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
-   * @returns {{ tree: Record<string, Uint8Array>, receipt: Record<string, unknown> }}
-   */
-  build(state, options = {}) {
-    const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
-
-    const indexTree = indexBuilder.serialize();
-    const propTree = propBuilder.serialize();
-    const tree = { ...indexTree, ...propTree };
-
-    const receiptBlob = indexTree['receipt.cbor'];
-    if (!receiptBlob) { throw new Error('Missing receipt.cbor in index tree'); }
-    const receipt = /** @type {Record<string, unknown>} */ (this._codec.decode(receiptBlob));
-
-    return { tree, receipt };
   }
 
   /**
@@ -82,7 +60,7 @@ export default class LogicalIndexBuildService {
   }
 
   /**
-   * Populates both builders from state. Shared between build() and buildStream().
+   * Populates both builders from state. Used by buildStream().
    *
    * @param {import('../JoinReducer.js').WarpStateV5} state
    * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} options
@@ -90,8 +68,8 @@ export default class LogicalIndexBuildService {
    * @private
    */
   _populateBuilders(state, options) {
-    const indexBuilder = new LogicalBitmapIndexBuilder({ codec: this._codec });
-    const propBuilder = new PropertyIndexBuilder({ codec: this._codec });
+    const indexBuilder = new LogicalBitmapIndexBuilder();
+    const propBuilder = new PropertyIndexBuilder();
 
     if (options.existingMeta) {
       for (const [shardKey, meta] of Object.entries(options.existingMeta)) {

@@ -1,24 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.js';
+import { MetaShard, LabelShard } from '../../../../src/domain/artifacts/IndexShard.js';
 import { F12_STABLE_IDS } from '../../../helpers/fixtureDsl.js';
 import computeShardKey from '../../../../src/domain/utils/shardKey.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
-
-/**
- * @param {Uint8Array} buf
- * @returns {Record<string, number>}
- */
-function decodeLabelRegistry(buf) {
-  const decoded = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(buf));
-  const entries = Array.isArray(decoded) ? decoded : Object.entries(decoded);
-  /** @type {Record<string, number>} */
-  const out = {};
-  for (const [label, id] of entries) {
-    out[label] = id;
-  }
-  return out;
-}
 
 describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
   it('existing node IDs are preserved across rebuild', () => {
@@ -31,16 +16,17 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     for (const node of initialNodes) {
       initialIds[node] = builder1.registerNode(node);
     }
-    const tree1 = builder1.serialize();
+    const shards1 = [...builder1.yieldShards()];
 
-    // Extract meta shards for each shardKey used (proto-safe decode)
-    /** @type {Record<string, *>} */
+    // Extract MetaShards keyed by shardKey
+    /** @type {Record<string, { nodeToGlobal: Array<[string, number]>, nextLocalId: number }>} */
     const metaShards = {};
-    for (const [path, buf] of Object.entries(tree1)) {
-      if (path.startsWith('meta_') && path.endsWith('.cbor')) {
-        const shardKey = path.slice(5, 7);
-        const decoded = defaultCodec.decode(buf);
-        metaShards[shardKey] = decoded;
+    for (const shard of shards1) {
+      if (shard instanceof MetaShard) {
+        metaShards[shard.shardKey] = {
+          nodeToGlobal: shard.nodeToGlobal,
+          nextLocalId: shard.nextLocalId,
+        };
       }
     }
 
@@ -95,8 +81,9 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
     expect(managesId).toBe(0);
     expect(ownsId).toBe(1);
 
-    const tree1 = builder1.serialize();
-    const labelRegistry = decodeLabelRegistry(/** @type {Uint8Array} */ (tree1['labels.cbor']));
+    const shards1 = [...builder1.yieldShards()];
+    const labelShard = /** @type {LabelShard} */ (shards1.find((s) => s instanceof LabelShard));
+    const labelRegistry = Object.fromEntries(labelShard.labels);
 
     // Build 2: seed existing labels, add new
     const builder2 = new LogicalBitmapIndexBuilder();
@@ -122,20 +109,23 @@ describe('LogicalBitmapIndexBuilder ID stability (F12)', () => {
       seedBuilder.registerNode(nodeId);
       seedBuilder.markAlive(nodeId);
     }
-    const seededTree = seedBuilder.serialize();
-    const seededMeta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number }} */ (
-      defaultCodec.decode(/** @type {Uint8Array} */ (seededTree['meta_aa.cbor']))
+    const seededShards = [...seedBuilder.yieldShards()];
+    const seededMeta = /** @type {MetaShard} */ (
+      seededShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')
     );
 
     const rebuild = new LogicalBitmapIndexBuilder();
-    rebuild.loadExistingMeta('aa', seededMeta);
+    rebuild.loadExistingMeta('aa', {
+      nodeToGlobal: seededMeta.nodeToGlobal,
+      nextLocalId: seededMeta.nextLocalId,
+    });
     for (const nodeId of shardNodes) {
       rebuild.registerNode(nodeId);
     }
 
-    const rebuiltTree = rebuild.serialize();
-    const rebuiltMeta = /** @type {{ nodeToGlobal: Array<[string, number]> }} */ (
-      defaultCodec.decode(/** @type {Uint8Array} */ (rebuiltTree['meta_aa.cbor']))
+    const rebuiltShards = [...rebuild.yieldShards()];
+    const rebuiltMeta = /** @type {MetaShard} */ (
+      rebuiltShards.find((s) => s instanceof MetaShard && s.shardKey === 'aa')
     );
     const nodeIds = rebuiltMeta.nodeToGlobal.map(([nodeId]) => nodeId);
     const uniqueNodeIds = new Set(nodeIds);

@@ -1,6 +1,6 @@
 /**
- * Tests that LogicalBitmapIndexBuilder.yieldShards() produces output
- * equivalent to serialize() when piped through the encode pipeline.
+ * Tests that LogicalBitmapIndexBuilder.yieldShards() produces
+ * IndexShard instances that can be piped through the encode pipeline.
  */
 import { describe, it, expect } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.js';
@@ -44,36 +44,27 @@ describe('LogicalBitmapIndexBuilder.yieldShards() — IndexShard records', () =>
     expect(shards.some((s) => s instanceof ReceiptShard)).toBe(true);
   });
 
-  it('produces byte-identical output via IndexShardEncodeTransform', async () => {
+  it('yieldShards piped through IndexShardEncodeTransform produces path-bytes pairs', async () => {
     const codec = new CborCodec();
     const builder = buildTestIndex();
 
-    // Old path: serialize() produces Record<string, Uint8Array>
-    const serialized = builder.serialize();
-
-    // New path: yieldShards() → IndexShardEncodeTransform → collect
     const streamed = await WarpStream.from(builder.yieldShards())
       .pipe(new IndexShardEncodeTransform(codec))
       .collect();
 
-    // Convert both to hex maps for comparison
-    /** @type {Record<string, string>} */
-    const serializedHex = {};
-    for (const [path, bytes] of Object.entries(serialized)) {
-      serializedHex[path] = Array.from(bytes).map(
-        (/** @type {number} */ b) => b.toString(16).padStart(2, '0'),
-      ).join('');
-    }
-
-    /** @type {Record<string, string>} */
-    const streamedHex = {};
+    // Every entry should be a [string, Uint8Array] pair
     for (const [path, bytes] of streamed) {
-      streamedHex[path] = Array.from(/** @type {Uint8Array} */ (bytes)).map(
-        (/** @type {number} */ b) => b.toString(16).padStart(2, '0'),
-      ).join('');
+      expect(typeof path).toBe('string');
+      expect(bytes).toBeInstanceOf(Uint8Array);
     }
 
-    expect(streamedHex).toEqual(serializedHex);
+    // Should contain expected path prefixes
+    const paths = streamed.map(([path]) => path);
+    expect(paths.some((p) => p.startsWith('meta_'))).toBe(true);
+    expect(paths.some((p) => p.startsWith('fwd_'))).toBe(true);
+    expect(paths.some((p) => p.startsWith('rev_'))).toBe(true);
+    expect(paths.some((p) => p === 'labels.cbor')).toBe(true);
+    expect(paths.some((p) => p === 'receipt.cbor')).toBe(true);
   });
 
   it('ReceiptShard has correct counts', () => {

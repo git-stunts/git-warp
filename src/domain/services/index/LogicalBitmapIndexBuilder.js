@@ -14,7 +14,6 @@
  * @module domain/services/index/LogicalBitmapIndexBuilder
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
 import { ShardIdOverflowError } from '../../errors/index.js';
@@ -25,14 +24,9 @@ const MAX_LOCAL_ID = 1 << 24;
 
 export default class LogicalBitmapIndexBuilder {
   /**
-   * Creates a LogicalBitmapIndexBuilder with optional codec injection.
-   *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+   * Creates a LogicalBitmapIndexBuilder.
    */
-  constructor(options = undefined) {
-    const { codec } = options || {};
-    this._codec = codec || defaultCodec;
-
+  constructor() {
     /** @type {Map<string, number>} nodeId → globalId */
     this._nodeToGlobal = new Map();
 
@@ -217,67 +211,9 @@ export default class LogicalBitmapIndexBuilder {
   }
 
   /**
-   * Serializes the full index to a Record<string, Uint8Array>.
-   *
-   * @returns {Record<string, Uint8Array>}
-   */
-  serialize() {
-    /** @type {Record<string, Uint8Array>} */
-    const tree = {};
-
-    // Collect all shard keys that have any data
-    const allShardKeys = new Set([
-      ...this._shardNextLocal.keys(),
-    ]);
-
-    // Meta shards
-    for (const shardKey of allShardKeys) {
-      // Use array of [nodeId, globalId] pairs to avoid __proto__ key issues
-      // Sort by nodeId for deterministic output
-      const nodeToGlobal = (this._shardNodes.get(shardKey) ?? [])
-        .slice()
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-
-      const aliveBitmap = this._aliveBitmaps.get(shardKey);
-      const aliveBytes = aliveBitmap ? aliveBitmap.serialize(true) : new Uint8Array(0);
-
-      const shard = {
-        nodeToGlobal,
-        nextLocalId: this._shardNextLocal.get(shardKey) ?? 0,
-        alive: aliveBytes,
-      };
-
-      tree[`meta_${shardKey}.cbor`] = this._codec.encode(shard).slice();
-    }
-
-    // Labels registry
-    /** @type {Array<[string, number]>} */
-    const labelRegistry = [];
-    for (const [label, id] of this._labelToId) {
-      labelRegistry.push([label, id]);
-    }
-    tree['labels.cbor'] = this._codec.encode(labelRegistry).slice();
-
-    // Forward/reverse edge shards
-    this._serializeEdgeShards(tree, 'fwd', this._fwdBitmaps);
-    this._serializeEdgeShards(tree, 'rev', this._revBitmaps);
-
-    // Receipt
-    const receipt = {
-      version: 1,
-      nodeCount: this._nodeToGlobal.size,
-      labelCount: this._labelToId.size,
-      shardCount: allShardKeys.size,
-    };
-    tree['receipt.cbor'] = this._codec.encode(receipt).slice();
-
-    return tree;
-  }
-
-  /**
    * Yields IndexShard instances without encoding.
    *
-   * This is the stream-compatible alternative to `serialize()`. Pipe the
+   * Pipe the
    * output through the adapter's encode → blobWrite → treeAssemble
    * pipeline to persist.
    *
@@ -355,42 +291,6 @@ export default class LogicalBitmapIndexBuilder {
 
     for (const [shardKey, shardData] of byShardKey) {
       yield new EdgeShard({ shardKey, direction, buckets: shardData });
-    }
-  }
-
-  /**
-   * Serializes forward or reverse edge bitmaps into the output tree, grouped by shard.
-   *
-   * @param {Record<string, Uint8Array>} tree
-   * @param {string} direction - 'fwd' or 'rev'
-   * @param {Map<string, import('../../utils/roaring.js').RoaringBitmapSubset>} bitmaps
-   * @private
-   */
-  _serializeEdgeShards(tree, direction, bitmaps) {
-    // Group by shardKey
-    /** @type {Map<string, Record<string, Record<string, Uint8Array>>>} */
-    const byShardKey = new Map();
-
-    for (const [key, bitmap] of bitmaps) {
-      // key: `${shardKey}:${bucketName}:${globalId}`
-      const firstColon = key.indexOf(':');
-      const secondColon = key.indexOf(':', firstColon + 1);
-      const shardKey = key.substring(0, firstColon);
-      const bucketName = key.substring(firstColon + 1, secondColon);
-      const globalIdStr = key.substring(secondColon + 1);
-
-      if (!byShardKey.has(shardKey)) {
-        byShardKey.set(shardKey, {});
-      }
-      const shardData = /** @type {Record<string, Record<string, Uint8Array>>} */ (byShardKey.get(shardKey));
-      if (!shardData[bucketName]) {
-        shardData[bucketName] = {};
-      }
-      shardData[bucketName][globalIdStr] = bitmap.serialize(true);
-    }
-
-    for (const [shardKey, shardData] of byShardKey) {
-      tree[`${direction}_${shardKey}.cbor`] = this._codec.encode(shardData).slice();
     }
   }
 

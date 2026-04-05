@@ -7,7 +7,6 @@
  * @module domain/services/index/PropertyIndexBuilder
  */
 
-import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import { PropertyShard } from '../../artifacts/IndexShard.js';
 
@@ -24,13 +23,9 @@ function createNullProtoRecord() {
 
 export default class PropertyIndexBuilder {
   /**
-   * Creates a PropertyIndexBuilder with an optional codec for serialization.
-   *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+   * Creates a PropertyIndexBuilder.
    */
-  constructor(options = undefined) {
-    const { codec } = options || {};
-    this._codec = codec || defaultCodec;
+  constructor() {
     /** @type {Map<string, Map<string, Record<string, unknown>>>} shardKey → (nodeId → props) */
     this._shards = new Map();
   }
@@ -57,23 +52,6 @@ export default class PropertyIndexBuilder {
       shard.set(nodeId, nodeProps);
     }
     /** @type {Record<string, unknown>} */ (nodeProps)[key] = value;
-  }
-
-  /**
-   * Serializes all property shards.
-   *
-   * @returns {Record<string, Uint8Array>}
-   */
-  serialize() {
-    /** @type {Record<string, Uint8Array>} */
-    const tree = {};
-    for (const [shardKey, shard] of this._shards) {
-      const entries = [...shard.entries()]
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([nodeId, props]) => [nodeId, props]);
-      tree[`props_${shardKey}.cbor`] = this._codec.encode(entries).slice();
-    }
-    return tree;
   }
 
   /**

@@ -3,8 +3,8 @@ import LogicalIndexBuildService from '../../../../src/domain/services/index/Logi
 import { createEmptyStateV5, applyOpV2 } from '../../../../src/domain/services/JoinReducer.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
-import defaultCodec from '../../../../src/domain/utils/defaultCodec.js';
 import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
+import { MetaShard, LabelShard, PropertyShard, ReceiptShard } from '../../../../src/domain/artifacts/IndexShard.js';
 
 /**
  * Helper: builds a WarpStateV5 from a simple fixture definition.
@@ -41,7 +41,7 @@ function buildState({ nodes, edges, props }) {
 }
 
 describe('LogicalIndexBuildService', () => {
-  it('builds from a programmatic WarpStateV5 with all shards present', () => {
+  it('builds from a programmatic WarpStateV5 with all shards present', async () => {
     const state = buildState({
       nodes: ['A', 'B', 'C'],
       edges: [
@@ -54,20 +54,21 @@ describe('LogicalIndexBuildService', () => {
     });
 
     const service = new LogicalIndexBuildService();
-    const { tree, receipt } = service.build(state);
+    const { stream, receipt } = service.buildStream(state);
+    const shards = await stream.collect();
 
-    // Must have at least: labels, receipt, some meta/fwd/rev shards
-    expect(tree['labels.cbor']).toBeDefined();
-    expect(tree['receipt.cbor']).toBeDefined();
-    expect(receipt['nodeCount']).toBe(3);
-    expect(receipt['labelCount']).toBe(2); // 'knows', 'manages'
+    // Must have labels, receipt, meta, edge, and property shards
+    expect(shards.some((s) => s instanceof LabelShard)).toBe(true);
+    expect(shards.some((s) => s instanceof ReceiptShard)).toBe(true);
+    expect(receipt.nodeCount).toBe(3);
+    expect(receipt.labelCount).toBe(2); // 'knows', 'manages'
 
-    // Must have at least one props shard
-    const propsShards = Object.keys(tree).filter((k) => k.startsWith('props_'));
-    expect(propsShards.length).toBeGreaterThan(0);
+    // Must have at least one property shard
+    const propShards = shards.filter((s) => s instanceof PropertyShard);
+    expect(propShards.length).toBeGreaterThan(0);
   });
 
-  it('stable rebuild: existing IDs preserved when new nodes added', () => {
+  it('stable rebuild: existing IDs preserved when new nodes added', async () => {
     const state1 = buildState({
       nodes: ['A', 'B'],
       edges: [{ from: 'A', to: 'B', label: 'x' }],
@@ -75,20 +76,23 @@ describe('LogicalIndexBuildService', () => {
     });
 
     const service = new LogicalIndexBuildService();
-    const { tree: tree1 } = service.build(state1);
+    const { stream: stream1 } = service.buildStream(state1);
+    const shards1 = await stream1.collect();
 
-    // Extract existing meta + labels for seeding (array-of-pairs format)
+    // Extract existing meta + labels for seeding
     /** @type {Record<string, *>} */
     const existingMeta = {};
-    for (const [path, buf] of Object.entries(tree1)) {
-      if (path.startsWith('meta_') && path.endsWith('.cbor')) {
-        const shardKey = path.slice(5, 7);
-        existingMeta[shardKey] = defaultCodec.decode(buf);
+    for (const shard of shards1) {
+      if (shard instanceof MetaShard) {
+        existingMeta[shard.shardKey] = {
+          nodeToGlobal: shard.nodeToGlobal,
+          nextLocalId: shard.nextLocalId,
+        };
       }
     }
-    const labelsBlob = tree1['labels.cbor'];
-    expect(labelsBlob).toBeDefined();
-    const existingLabels = /** @type {Record<string, number>|Array<[string, number]>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (labelsBlob)));
+    const labelShard = shards1.find((s) => s instanceof LabelShard);
+    expect(labelShard).toBeDefined();
+    const existingLabels = /** @type {LabelShard} */ (labelShard).labels;
 
     // Build 2: add node C
     const state2 = buildState({
@@ -100,29 +104,35 @@ describe('LogicalIndexBuildService', () => {
       props: [],
     });
 
-    const { tree: tree2 } = service.build(state2, /** @type {*} */ ({ existingMeta, existingLabels }));
+    const { stream: stream2 } = service.buildStream(state2, /** @type {*} */ ({ existingMeta, existingLabels }));
+    const shards2 = await stream2.collect();
 
     // Verify A and B still have same globalIds
-    for (const [path, buf] of Object.entries(tree2)) {
-      if (path.startsWith('meta_') && path.endsWith('.cbor')) {
-        const shardKey = path.slice(5, 7);
-        const meta2 = /** @type {Record<string, *>} */ (defaultCodec.decode(buf));
-        const meta1 = existingMeta[shardKey];
-        if (meta1) {
-          // nodeToGlobal is array of [nodeId, globalId] pairs
-          const meta1Map = new Map(meta1['nodeToGlobal']);
-          const meta2Map = new Map(meta2['nodeToGlobal']);
-          for (const [nodeId, globalId] of meta1Map) {
-            if (meta2Map.has(nodeId)) {
-              expect(meta2Map.get(nodeId)).toBe(globalId);
-            }
-          }
+    const meta1Map = new Map();
+    for (const s of shards1) {
+      if (s instanceof MetaShard) {
+        for (const [nodeId, globalId] of s.nodeToGlobal) {
+          meta1Map.set(nodeId, globalId);
         }
+      }
+    }
+    const meta2Map = new Map();
+    for (const s of shards2) {
+      if (s instanceof MetaShard) {
+        for (const [nodeId, globalId] of s.nodeToGlobal) {
+          meta2Map.set(nodeId, globalId);
+        }
+      }
+    }
+
+    for (const [nodeId, globalId] of meta1Map) {
+      if (meta2Map.has(nodeId)) {
+        expect(meta2Map.get(nodeId)).toBe(globalId);
       }
     }
   });
 
-  it('property index matches visible projection for all nodes', () => {
+  it('property index matches visible projection for all nodes', async () => {
     const state = buildState({
       nodes: ['X', 'Y'],
       edges: [],
@@ -134,14 +144,14 @@ describe('LogicalIndexBuildService', () => {
     });
 
     const service = new LogicalIndexBuildService();
-    const { tree } = service.build(state);
+    const { stream } = service.buildStream(state);
+    const shards = await stream.collect();
 
-    // Decode all props shards and verify
+    // Collect all property entries
     const allProps = new Map();
-    for (const [path, buf] of Object.entries(tree)) {
-      if (path.startsWith('props_')) {
-        const entries = /** @type {Array<[string, *]>} */ (defaultCodec.decode(buf));
-        for (const [nodeId, props] of entries) {
+    for (const shard of shards) {
+      if (shard instanceof PropertyShard) {
+        for (const [nodeId, props] of shard.entries) {
           allProps.set(nodeId, props);
         }
       }
@@ -151,17 +161,18 @@ describe('LogicalIndexBuildService', () => {
     expect(allProps.get('Y')).toEqual({ color: 'blue' });
   });
 
-  it('empty state produces valid output', () => {
+  it('empty state produces valid output', async () => {
     const state = createEmptyStateV5();
     const service = new LogicalIndexBuildService();
-    const { tree, receipt } = service.build(state);
+    const { stream, receipt } = service.buildStream(state);
+    const shards = await stream.collect();
 
-    expect(receipt['nodeCount']).toBe(0);
-    expect(tree['labels.cbor']).toBeDefined();
-    expect(tree['receipt.cbor']).toBeDefined();
+    expect(receipt.nodeCount).toBe(0);
+    expect(shards.some((s) => s instanceof LabelShard)).toBe(true);
+    expect(shards.some((s) => s instanceof ReceiptShard)).toBe(true);
   });
 
-  it('skips edge-property entries when building node property index', () => {
+  it('skips edge-property entries when building node property index', async () => {
     const state = buildState({
       nodes: ['A', 'B'],
       edges: [{ from: 'A', to: 'B', label: 'knows' }],
@@ -172,13 +183,13 @@ describe('LogicalIndexBuildService', () => {
     state.prop.set(edgePropKey, /** @type {any} */ ({ value: 99 }));
 
     const service = new LogicalIndexBuildService();
-    const { tree } = service.build(state);
+    const { stream } = service.buildStream(state);
+    const shards = await stream.collect();
 
     const allProps = new Map();
-    for (const [path, buf] of Object.entries(tree)) {
-      if (path.startsWith('props_')) {
-        const entries = /** @type {Array<[string, Record<string, unknown>]>} */ (defaultCodec.decode(buf));
-        for (const [nodeId, props] of entries) {
+    for (const shard of shards) {
+      if (shard instanceof PropertyShard) {
+        for (const [nodeId, props] of shard.entries) {
           allProps.set(nodeId, props);
         }
       }
