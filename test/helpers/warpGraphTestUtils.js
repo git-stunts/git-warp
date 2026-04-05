@@ -118,11 +118,11 @@ export function generateOidFromNumber(n) {
  * @returns {Record<string, unknown>} The same mock, mutated
  */
 export function stubCapabilities(mock) {
-  if (!mock.readBlob) { mock.readBlob = vi.fn(); }
-  if (!mock.writeBlob) { mock.writeBlob = vi.fn(); }
-  if (!mock.getNodeInfo) { mock.getNodeInfo = vi.fn(); }
-  if (!mock.readTreeOids) { mock.readTreeOids = vi.fn(); }
-  if (!mock.writeTree) { mock.writeTree = vi.fn(); }
+  if (!mock['readBlob']) { mock['readBlob'] = vi.fn(); }
+  if (!mock['writeBlob']) { mock['writeBlob'] = vi.fn(); }
+  if (!mock['getNodeInfo']) { mock['getNodeInfo'] = vi.fn(); }
+  if (!mock['readTreeOids']) { mock['readTreeOids'] = vi.fn(); }
+  if (!mock['writeTree']) { mock['writeTree'] = vi.fn(); }
   return mock;
 }
 
