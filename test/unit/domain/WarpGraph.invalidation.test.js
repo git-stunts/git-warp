@@ -63,6 +63,7 @@ describe('WarpRuntime dirty flag + eager re-materialize (AP/INVAL/1 + AP/INVAL/2
       persistence,
       graphName: 'test',
       writerId: 'writer-1',
+      autoMaterialize: false,
     });
   });
 

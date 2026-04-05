@@ -92,6 +92,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
       persistence,
       graphName: 'test',
       writerId: 'w1',
+      autoMaterialize: false,
     });
   });
 

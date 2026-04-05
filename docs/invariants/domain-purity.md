@@ -6,6 +6,13 @@ Domain code (`src/domain/`) never imports infrastructure, Node.js
 built-ins, host-specific APIs, or ambient mutable state. The domain
 layer is a pure function of its inputs: patches in, state out.
 
+This invariant is the umbrella. Three sub-invariants enforce the
+specific ambient-state bans:
+- `no-ambient-time.md` — bans Date.now, performance.now
+- `no-ambient-entropy.md` — bans Math.random, crypto.random
+- `no-ambient-scheduling.md` — bans setTimeout, setInterval
+- `causal-time-only.md` — the doctrine: only causal time in domain
+
 ## Why does it matter?
 
 Paper III, Remark 3.4 (Anti-tautology) warns that the holographic
