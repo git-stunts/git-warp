@@ -427,14 +427,22 @@ describe('WarpRuntime.subscribe() with replay option (PL/SUB/2)', () => {
     });
 
     it('deferred replay shows full state, not incremental diff', async () => {
+      // Use autoMaterialize: false to control exactly when materialize fires
+      const localGraph = await WarpRuntime.open({
+        persistence: repo.persistence,
+        graphName: 'test-replay',
+        writerId: 'w1',
+        autoMaterialize: false,
+      });
+
       // Subscribe with replay before any materialize
       const onChange = vi.fn();
-      graph.subscribe({ onChange, replay: true });
+      localGraph.subscribe({ onChange, replay: true });
 
       // Add data and materialize
-      await (await graph.createPatch()).addNode('user:alice').commit();
-      await (await graph.createPatch()).addNode('user:bob').commit();
-      await graph.materialize();
+      await (await localGraph.createPatch()).addNode('user:alice').commit();
+      await (await localGraph.createPatch()).addNode('user:bob').commit();
+      await localGraph.materialize();
 
       // Should receive full state (both nodes as additions)
       expect(onChange).toHaveBeenCalledTimes(1);

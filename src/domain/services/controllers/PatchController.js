@@ -42,7 +42,18 @@ export default class PatchController {
    */
   async createPatch() {
     const h = this._host;
+
+    // Auto-materialize: if autoMaterialize is on and there is no
+    // cached state but there ARE existing patches (parentSha !== null),
+    // materialize now. Without this, removeNode/removeEdge throws
+    // E_PATCH_NO_STATE because the PatchBuilder can't observe OR-Set
+    // dots. We skip materialization for the very first patch (no parent)
+    // since there's nothing to materialize.
     const { lamport, parentSha } = await this._nextLamport();
+    if (h._autoMaterialize && h._cachedState === null && parentSha !== null) {
+      await h.materialize();
+    }
+
     return new PatchBuilderV2({
       persistence: h._persistence,
       graphName: h._graphName,
