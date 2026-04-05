@@ -1,141 +1,117 @@
 import { describe, it, expect } from 'vitest';
+import { Dot } from '../../../../src/domain/crdt/Dot.js';
+import Op from '../../../../src/domain/types/ops/Op.js';
+import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.js';
+import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.js';
+import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.js';
+import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.js';
+import PropSetClass from '../../../../src/domain/types/ops/PropSet.js';
 import {
-  createNodeAddV2 as _createNodeAddV2,
-  createNodeRemoveV2 as _createNodeRemoveV2,
-  createEdgeAddV2 as _createEdgeAddV2,
-  createEdgeRemoveV2 as _createEdgeRemoveV2,
+  createNodeAddV2,
+  createNodeRemoveV2,
+  createEdgeAddV2,
+  createEdgeRemoveV2,
   createPropSetV2,
   createPatchV2,
 } from '../../../../src/domain/types/WarpTypesV2.js';
-
-/** @type {any} */
-const createNodeAddV2 = _createNodeAddV2;
-/** @type {any} */
-const createNodeRemoveV2 = _createNodeRemoveV2;
-/** @type {any} */
-const createEdgeAddV2 = _createEdgeAddV2;
-/** @type {any} */
-const createEdgeRemoveV2 = _createEdgeRemoveV2;
 
 describe('WarpTypesV2', () => {
   describe('Operation Factory Functions', () => {
     describe('createNodeAddV2', () => {
       it('creates NodeAdd operation with dot', () => {
-        const dot = { writer: 'writer-1', seq: 1 };
+        const dot = new Dot('writer-1', 1);
         const result = createNodeAddV2('user:alice', dot);
 
-        expect(result).toEqual({
-          type: 'NodeAdd',
-          node: 'user:alice',
-          dot: { writer: 'writer-1', seq: 1 },
-        });
+        expect(result).toBeInstanceOf(NodeAdd);
+        expect(result.type).toBe('NodeAdd');
+        expect(result.node).toBe('user:alice');
+        expect(result.dot).toBe(dot);
       });
 
       it('creates NodeAdd with UUID-style node ID', () => {
         const nodeId = '550e8400-e29b-41d4-a716-446655440000';
-        const dot = { writer: 'writer-2', seq: 5 };
+        const dot = new Dot('writer-2', 5);
         const result = createNodeAddV2(nodeId, dot);
 
-        expect(result).toEqual({
-          type: 'NodeAdd',
-          node: nodeId,
-          dot: { writer: 'writer-2', seq: 5 },
-        });
+        expect(result).toBeInstanceOf(NodeAdd);
+        expect(result.node).toBe(nodeId);
+        expect(result.dot.counter).toBe(5);
       });
 
-      it('creates NodeAdd with high sequence number', () => {
-        const dot = { writer: 'prolific-writer', seq: 999999 };
+      it('creates NodeAdd with high counter', () => {
+        const dot = new Dot('prolific-writer', 999999);
         const result = createNodeAddV2('node:high-seq', dot);
 
-        expect(result.dot.seq).toBe(999999);
+        expect(result.dot.counter).toBe(999999);
       });
     });
 
     describe('createNodeRemoveV2', () => {
       it('creates NodeRemove operation with single observed dot', () => {
-        const observedDots = [{ writer: 'writer-1', seq: 1 }];
-        const result = createNodeRemoveV2('user:bob', observedDots);
+        const result = createNodeRemoveV2('user:bob', ['writer-1:1']);
 
-        expect(result).toEqual({
-          type: 'NodeRemove',
-          node: 'user:bob',
-          observedDots: [{ writer: 'writer-1', seq: 1 }],
-        });
+        expect(result).toBeInstanceOf(NodeRemove);
+        expect(result.type).toBe('NodeRemove');
+        expect(result.node).toBe('user:bob');
+        expect(result.observedDots).toEqual(['writer-1:1']);
       });
 
       it('creates NodeRemove with multiple observed dots', () => {
-        const observedDots = [
-          { writer: 'writer-1', seq: 1 },
-          { writer: 'writer-2', seq: 3 },
-          { writer: 'writer-1', seq: 5 },
-        ];
+        const observedDots = ['writer-1:1', 'writer-2:3', 'writer-1:5'];
         const result = createNodeRemoveV2('user:charlie', observedDots);
 
         expect(result.observedDots).toHaveLength(3);
-        expect(result.observedDots).toContainEqual({ writer: 'writer-1', seq: 1 });
-        expect(result.observedDots).toContainEqual({ writer: 'writer-2', seq: 3 });
-        expect(result.observedDots).toContainEqual({ writer: 'writer-1', seq: 5 });
+        expect(result.observedDots).toContain('writer-1:1');
+        expect(result.observedDots).toContain('writer-2:3');
+        expect(result.observedDots).toContain('writer-1:5');
       });
 
       it('creates NodeRemove with empty observed dots', () => {
         const result = createNodeRemoveV2('user:unknown', []);
 
-        expect(result).toEqual({
-          type: 'NodeRemove',
-          node: 'user:unknown',
-          observedDots: [],
-        });
+        expect(result).toBeInstanceOf(NodeRemove);
+        expect(result.observedDots).toEqual([]);
       });
     });
 
     describe('createEdgeAddV2', () => {
       it('creates EdgeAdd operation with dot', () => {
-        const dot = { writer: 'writer-1', seq: 2 };
+        const dot = new Dot('writer-1', 2);
         const result = createEdgeAddV2('user:alice', 'user:bob', 'follows', dot);
 
-        expect(result).toEqual({
-          type: 'EdgeAdd',
-          from: 'user:alice',
-          to: 'user:bob',
-          label: 'follows',
-          dot: { writer: 'writer-1', seq: 2 },
-        });
+        expect(result).toBeInstanceOf(EdgeAdd);
+        expect(result.type).toBe('EdgeAdd');
+        expect(result.from).toBe('user:alice');
+        expect(result.to).toBe('user:bob');
+        expect(result.label).toBe('follows');
+        expect(result.dot).toBe(dot);
       });
 
       it('creates EdgeAdd with different label', () => {
-        const dot = { writer: 'writer-2', seq: 10 };
+        const dot = new Dot('writer-2', 10);
         const result = createEdgeAddV2('post:123', 'user:alice', 'authored_by', dot);
 
-        expect(result).toEqual({
-          type: 'EdgeAdd',
-          from: 'post:123',
-          to: 'user:alice',
-          label: 'authored_by',
-          dot: { writer: 'writer-2', seq: 10 },
-        });
+        expect(result).toBeInstanceOf(EdgeAdd);
+        expect(result.from).toBe('post:123');
+        expect(result.to).toBe('user:alice');
+        expect(result.label).toBe('authored_by');
       });
     });
 
     describe('createEdgeRemoveV2', () => {
       it('creates EdgeRemove operation with single observed dot', () => {
-        const observedDots = [{ writer: 'writer-1', seq: 2 }];
-        const result = createEdgeRemoveV2('user:alice', 'user:bob', 'follows', observedDots);
+        const result = createEdgeRemoveV2('user:alice', 'user:bob', 'follows', ['writer-1:2']);
 
-        expect(result).toEqual({
-          type: 'EdgeRemove',
-          from: 'user:alice',
-          to: 'user:bob',
-          label: 'follows',
-          observedDots: [{ writer: 'writer-1', seq: 2 }],
-        });
+        expect(result).toBeInstanceOf(EdgeRemove);
+        expect(result.type).toBe('EdgeRemove');
+        expect(result.from).toBe('user:alice');
+        expect(result.to).toBe('user:bob');
+        expect(result.label).toBe('follows');
+        expect(result.observedDots).toEqual(['writer-1:2']);
       });
 
       it('creates EdgeRemove with multiple observed dots from concurrent adds', () => {
-        const observedDots = [
-          { writer: 'writer-1', seq: 2 },
-          { writer: 'writer-2', seq: 1 },
-        ];
-        const result = createEdgeRemoveV2('user:alice', 'user:bob', 'follows', observedDots);
+        const result = createEdgeRemoveV2('user:alice', 'user:bob', 'follows', ['writer-1:2', 'writer-2:1']);
 
         expect(result.observedDots).toHaveLength(2);
       });
@@ -145,35 +121,24 @@ describe('WarpTypesV2', () => {
       it('creates PropSet operation with string value (no dot)', () => {
         const result = createPropSetV2('user:alice', 'name', 'Alice');
 
-        expect(result).toEqual({
-          type: 'PropSet',
-          node: 'user:alice',
-          key: 'name',
-          value: 'Alice',
-        });
+        expect(result).toBeInstanceOf(PropSetClass);
+        expect(result.type).toBe('PropSet');
+        expect(result.node).toBe('user:alice');
+        expect(result.key).toBe('name');
+        expect(result.value).toBe('Alice');
       });
 
       it('creates PropSet with number value', () => {
         const result = createPropSetV2('user:alice', 'age', 30);
 
-        expect(result).toEqual({
-          type: 'PropSet',
-          node: 'user:alice',
-          key: 'age',
-          value: 30,
-        });
+        expect(result.value).toBe(30);
       });
 
       it('creates PropSet with object value', () => {
         const settings = { theme: 'dark', notifications: true };
         const result = createPropSetV2('user:alice', 'settings', settings);
 
-        expect(result).toEqual({
-          type: 'PropSet',
-          node: 'user:alice',
-          key: 'settings',
-          value: { theme: 'dark', notifications: true },
-        });
+        expect(result.value).toEqual({ theme: 'dark', notifications: true });
       });
 
       it('creates PropSet with array value', () => {
@@ -206,7 +171,7 @@ describe('WarpTypesV2', () => {
   describe('Patch Factory Function', () => {
     describe('createPatchV2', () => {
       it('creates PatchV2 with required fields', () => {
-        const dot = { writer: 'writer-1', seq: 1 };
+        const dot = new Dot('writer-1', 1);
         const ops = [createNodeAddV2('user:alice', dot)];
         const context = { 'writer-1': 0 };
 
@@ -217,13 +182,12 @@ describe('WarpTypesV2', () => {
           ops,
         });
 
-        expect(result).toEqual({
-          schema: 2,
-          writer: 'writer-1',
-          lamport: 1,
-          context: { 'writer-1': 0 },
-          ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { writer: 'writer-1', seq: 1 } }],
-        });
+        expect(result.schema).toBe(2);
+        expect(result.writer).toBe('writer-1');
+        expect(result.lamport).toBe(1);
+        expect(result.ops).toHaveLength(1);
+        expect(result.ops[0]).toBeInstanceOf(NodeAdd);
+        expect(result.ops[0]?.type).toBe('NodeAdd');
       });
 
       it('creates PatchV2 with explicit schema', () => {
@@ -260,9 +224,9 @@ describe('WarpTypesV2', () => {
 
       it('creates PatchV2 with multiple operations', () => {
         const ops = [
-          createNodeAddV2('user:alice', { writer: 'writer-1', seq: 1 }),
-          createNodeAddV2('user:bob', { writer: 'writer-1', seq: 2 }),
-          createEdgeAddV2('user:alice', 'user:bob', 'follows', { writer: 'writer-1', seq: 3 }),
+          createNodeAddV2('user:alice', new Dot('writer-1', 1)),
+          createNodeAddV2('user:bob', new Dot('writer-1', 2)),
+          createEdgeAddV2('user:alice', 'user:bob', 'follows', new Dot('writer-1', 3)),
           createPropSetV2('user:alice', 'name', 'Alice'),
         ];
         const result = createPatchV2({
@@ -290,13 +254,10 @@ describe('WarpTypesV2', () => {
           ops: [],
         });
 
-        expect(result).toEqual({
-          schema: 2,
-          writer: 'writer-1',
-          lamport: 0,
-          context: {},
-          ops: [],
-        });
+        expect(result.schema).toBe(2);
+        expect(result.writer).toBe('writer-1');
+        expect(result.lamport).toBe(0);
+        expect(result.ops).toEqual([]);
       });
 
       it('always sets schema to 2 by default', () => {
@@ -314,10 +275,12 @@ describe('WarpTypesV2', () => {
 
   describe('Type Discriminators', () => {
     it('all operation types have distinct type field', () => {
-      const nodeAdd = createNodeAddV2('n1', { writer: 'w', seq: 1 });
-      const nodeRemove = createNodeRemoveV2('n1', [{ writer: 'w', seq: 1 }]);
-      const edgeAdd = createEdgeAddV2('n1', 'n2', 'rel', { writer: 'w', seq: 2 });
-      const edgeRemove = createEdgeRemoveV2('n1', 'n2', 'rel', [{ writer: 'w', seq: 2 }]);
+      const dot1 = new Dot('w', 1);
+      const dot2 = new Dot('w', 2);
+      const nodeAdd = createNodeAddV2('n1', dot1);
+      const nodeRemove = createNodeRemoveV2('n1', ['w:1']);
+      const edgeAdd = createEdgeAddV2('n1', 'n2', 'rel', dot2);
+      const edgeRemove = createEdgeRemoveV2('n1', 'n2', 'rel', ['w:2']);
       const propSet = createPropSetV2('n1', 'key', 'val');
 
       const types = [
@@ -328,24 +291,23 @@ describe('WarpTypesV2', () => {
         propSet.type,
       ];
 
-      // All types should be unique
       const uniqueTypes = new Set(types);
       expect(uniqueTypes.size).toBe(5);
     });
 
     it('add operations have dot, remove operations have observedDots', () => {
-      const nodeAdd = createNodeAddV2('n1', { writer: 'w', seq: 1 });
-      const nodeRemove = createNodeRemoveV2('n1', [{ writer: 'w', seq: 1 }]);
-      const edgeAdd = createEdgeAddV2('n1', 'n2', 'rel', { writer: 'w', seq: 2 });
-      const edgeRemove = createEdgeRemoveV2('n1', 'n2', 'rel', [{ writer: 'w', seq: 2 }]);
+      const dot1 = new Dot('w', 1);
+      const dot2 = new Dot('w', 2);
+      const nodeAdd = createNodeAddV2('n1', dot1);
+      const nodeRemove = createNodeRemoveV2('n1', ['w:1']);
+      const edgeAdd = createEdgeAddV2('n1', 'n2', 'rel', dot2);
+      const edgeRemove = createEdgeRemoveV2('n1', 'n2', 'rel', ['w:2']);
 
-      // Add operations have dot
       expect(nodeAdd).toHaveProperty('dot');
       expect(edgeAdd).toHaveProperty('dot');
       expect(nodeAdd).not.toHaveProperty('observedDots');
       expect(edgeAdd).not.toHaveProperty('observedDots');
 
-      // Remove operations have observedDots
       expect(nodeRemove).toHaveProperty('observedDots');
       expect(edgeRemove).toHaveProperty('observedDots');
       expect(nodeRemove).not.toHaveProperty('dot');
@@ -362,13 +324,12 @@ describe('WarpTypesV2', () => {
 
   describe('Integration - Building Complete Patches', () => {
     it('creates a realistic patch with mixed operations', () => {
-      // Simulate creating a user and setting properties
       const patch = createPatchV2({
         writer: 'app-server-1',
         lamport: 42,
         context: { 'app-server-1': 0 },
         ops: [
-          createNodeAddV2('user:123', { writer: 'app-server-1', seq: 1 }),
+          createNodeAddV2('user:123', new Dot('app-server-1', 1)),
           createPropSetV2('user:123', 'email', 'alice@example.com'),
           createPropSetV2('user:123', 'name', 'Alice'),
           createPropSetV2('user:123', 'verified', true),
@@ -377,11 +338,8 @@ describe('WarpTypesV2', () => {
 
       expect(patch.schema).toBe(2);
       expect(patch.ops).toHaveLength(4);
-      expect(patch.ops[0]).toEqual({
-        type: 'NodeAdd',
-        node: 'user:123',
-        dot: { writer: 'app-server-1', seq: 1 },
-      });
+      expect(patch.ops[0]).toBeInstanceOf(NodeAdd);
+      expect(patch.ops[0]?.type).toBe('NodeAdd');
       expect(patch.ops[1]?.type).toBe('PropSet');
       expect(/** @type {any} */ (patch.ops[1])?.value).toBe('alice@example.com');
     });
@@ -392,10 +350,10 @@ describe('WarpTypesV2', () => {
         lamport: 100,
         context: { 'social-service': 0, 'user-service': 5 },
         ops: [
-          createNodeAddV2('user:alice', { writer: 'social-service', seq: 1 }),
-          createNodeAddV2('user:bob', { writer: 'social-service', seq: 2 }),
-          createEdgeAddV2('user:alice', 'user:bob', 'follows', { writer: 'social-service', seq: 3 }),
-          createEdgeAddV2('user:bob', 'user:alice', 'follows', { writer: 'social-service', seq: 4 }),
+          createNodeAddV2('user:alice', new Dot('social-service', 1)),
+          createNodeAddV2('user:bob', new Dot('social-service', 2)),
+          createEdgeAddV2('user:alice', 'user:bob', 'follows', new Dot('social-service', 3)),
+          createEdgeAddV2('user:bob', 'user:alice', 'follows', new Dot('social-service', 4)),
           createPropSetV2('user:alice', 'followingCount', 1),
           createPropSetV2('user:bob', 'followingCount', 1),
         ],
@@ -403,16 +361,14 @@ describe('WarpTypesV2', () => {
 
       expect(patch.ops).toHaveLength(6);
 
-      // Verify edge operations have dots
       const edges = patch.ops.filter((op) => op.type === 'EdgeAdd');
       expect(edges).toHaveLength(2);
       expect(edges[0]?.label).toBe('follows');
-      expect(/** @type {any} */ (edges[0])?.dot.seq).toBe(3);
-      expect(/** @type {any} */ (edges[1])?.dot.seq).toBe(4);
+      expect(/** @type {any} */ (edges[0])?.dot.counter).toBe(3);
+      expect(/** @type {any} */ (edges[1])?.dot.counter).toBe(4);
     });
 
     it('creates a deletion patch with observed dots', () => {
-      // Simulate removing items that were added by different writers
       const patch = createPatchV2({
         writer: 'cleanup-job',
         lamport: 200,
@@ -422,13 +378,8 @@ describe('WarpTypesV2', () => {
           'user-service': 10,
         },
         ops: [
-          createEdgeRemoveV2('user:alice', 'user:bob', 'follows', [
-            { writer: 'social-service', seq: 3 },
-          ]),
-          createNodeRemoveV2('user:bob', [
-            { writer: 'social-service', seq: 2 },
-            { writer: 'user-service', seq: 7 }, // concurrent add from another writer
-          ]),
+          createEdgeRemoveV2('user:alice', 'user:bob', 'follows', ['social-service:3']),
+          createNodeRemoveV2('user:bob', ['social-service:2', 'user-service:7']),
         ],
       });
 
@@ -440,7 +391,6 @@ describe('WarpTypesV2', () => {
     });
 
     it('creates a merge-scenario patch observing multiple writers', () => {
-      // Writer-3 has observed state from writer-1 and writer-2
       const patch = createPatchV2({
         writer: 'writer-3',
         lamport: 50,
@@ -450,8 +400,8 @@ describe('WarpTypesV2', () => {
           'writer-3': 0,
         },
         ops: [
-          createNodeAddV2('merged:node', { writer: 'writer-3', seq: 1 }),
-          createEdgeAddV2('node:from-w1', 'node:from-w2', 'links', { writer: 'writer-3', seq: 2 }),
+          createNodeAddV2('merged:node', new Dot('writer-3', 1)),
+          createEdgeAddV2('node:from-w1', 'node:from-w2', 'links', new Dot('writer-3', 2)),
         ],
       });
 
@@ -484,6 +434,23 @@ describe('WarpTypesV2', () => {
       });
 
       expect(patch.schema).toBe(2);
+    });
+  });
+
+  describe('Op class instanceof', () => {
+    it('all factory-created ops are instanceof Op', () => {
+      const dot = new Dot('w', 1);
+      const ops = [
+        createNodeAddV2('n1', dot),
+        createNodeRemoveV2('n1', []),
+        createEdgeAddV2('n1', 'n2', 'r', dot),
+        createEdgeRemoveV2('n1', 'n2', 'r', []),
+        createPropSetV2('n1', 'k', 'v'),
+      ];
+
+      for (const op of ops) {
+        expect(op).toBeInstanceOf(Op);
+      }
     });
   });
 });

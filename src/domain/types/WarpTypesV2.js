@@ -15,6 +15,13 @@
  */
 
 import PatchV2 from './PatchV2.js';
+import NodeAddClass from './ops/NodeAdd.js';
+import NodeRemoveClass from './ops/NodeRemove.js';
+import EdgeAddClass from './ops/EdgeAdd.js';
+import EdgeRemoveClass from './ops/EdgeRemove.js';
+import NodePropSetClass from './ops/NodePropSet.js';
+import EdgePropSetClass from './ops/EdgePropSet.js';
+import PropSetOpClass from './ops/PropSet.js';
 
 // Re-export PatchV2 class for consumers that import from this module.
 export { PatchV2 };
@@ -151,7 +158,7 @@ export { PatchV2 };
  * @returns {OpV2NodeAdd} NodeAdd operation
  */
 export function createNodeAddV2(node, dot) {
-  return { type: 'NodeAdd', node, dot };
+  return new NodeAddClass(node, dot);
 }
 
 /**
@@ -161,7 +168,7 @@ export function createNodeAddV2(node, dot) {
  * @returns {OpV2NodeRemove} NodeRemove operation
  */
 export function createNodeRemoveV2(node, observedDots) {
-  return { type: 'NodeRemove', node, observedDots };
+  return new NodeRemoveClass(node, observedDots);
 }
 
 /**
@@ -173,7 +180,7 @@ export function createNodeRemoveV2(node, observedDots) {
  * @returns {OpV2EdgeAdd} EdgeAdd operation
  */
 export function createEdgeAddV2(from, to, label, dot) {
-  return { type: 'EdgeAdd', from, to, label, dot };
+  return new EdgeAddClass({ from, to, label, dot });
 }
 
 /**
@@ -185,7 +192,7 @@ export function createEdgeAddV2(from, to, label, dot) {
  * @returns {OpV2EdgeRemove} EdgeRemove operation
  */
 export function createEdgeRemoveV2(from, to, label, observedDots) {
-  return { type: 'EdgeRemove', from, to, label, observedDots };
+  return new EdgeRemoveClass({ from, to, label, observedDots });
 }
 
 /**
@@ -198,7 +205,7 @@ export function createEdgeRemoveV2(from, to, label, observedDots) {
  * @returns {OpV2PropSet} PropSet operation
  */
 export function createPropSetV2(node, key, value) {
-  return { type: 'PropSet', node, key, value };
+  return new PropSetOpClass(node, key, value);
 }
 
 /**
@@ -209,7 +216,7 @@ export function createPropSetV2(node, key, value) {
  * @returns {OpV2NodePropSet} NodePropSet operation
  */
 export function createNodePropSetV2(node, key, value) {
-  return { type: 'NodePropSet', node, key, value };
+  return new NodePropSetClass(node, key, value);
 }
 
 /**
@@ -222,7 +229,7 @@ export function createNodePropSetV2(node, key, value) {
  * @returns {OpV2EdgePropSet} EdgePropSet operation
  */
 export function createEdgePropSetV2(from, to, label, key, value) {
-  return { type: 'EdgePropSet', from, to, label, key, value };
+  return new EdgePropSetClass({ from, to, label, key, value });
 }
 
 // ============================================================================
