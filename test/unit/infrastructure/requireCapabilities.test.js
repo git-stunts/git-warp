@@ -95,6 +95,14 @@ describe('requireCapabilities', () => {
       }
     });
 
+    it('throws MissingCapabilityError when readBlob is not a function', () => {
+      expect(() => requireBlobPort({ readBlob: 'nope', writeBlob: vi.fn() })).toThrow(MissingCapabilityError);
+    });
+
+    it('throws MissingCapabilityError when writeBlob is not a function', () => {
+      expect(() => requireBlobPort({ readBlob: vi.fn(), writeBlob: 123 })).toThrow(MissingCapabilityError);
+    });
+
     it('throws when persistence is null', () => {
       expect(() => requireBlobPort(null)).toThrow(MissingCapabilityError);
     });
@@ -144,6 +152,10 @@ describe('requireCapabilities', () => {
           'getNodeInfo',
         );
       }
+    });
+
+    it('throws MissingCapabilityError when getNodeInfo is not a function', () => {
+      expect(() => requireCommitPort({ getNodeInfo: 'nope' })).toThrow(MissingCapabilityError);
     });
   });
 
@@ -207,6 +219,14 @@ describe('requireCapabilities', () => {
           'writeTree',
         );
       }
+    });
+
+    it('throws MissingCapabilityError when readTreeOids is not a function', () => {
+      expect(() => requireTreePort({ readTreeOids: 'nope', writeTree: vi.fn() })).toThrow(MissingCapabilityError);
+    });
+
+    it('throws MissingCapabilityError when writeTree is not a function', () => {
+      expect(() => requireTreePort({ readTreeOids: vi.fn(), writeTree: {} })).toThrow(MissingCapabilityError);
     });
   });
 });
