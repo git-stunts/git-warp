@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.js';
+import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.js';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.js';
+import WarpStream from '../../../../src/domain/stream/WarpStream.js';
 import {
   makeFixture,
   F7_MULTILABEL_SAME_NEIGHBOR,
@@ -296,6 +298,38 @@ describe('LogicalIndexReader', () => {
 
       // Semantics check: unfiltered == union(filtered for each label).
       expect([...union].sort(compareEdges)).toEqual(unfiltered);
+    });
+  });
+
+  describe('loadFromStore (IndexStorePort path)', () => {
+    it('hydrates a LogicalIndex via scanShards — codec-free', async () => {
+      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
+      const buildService = new LogicalIndexBuildService();
+      const { shards } = buildService.buildShards(state);
+
+      const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+        scanShards: vi.fn(() => WarpStream.from(shards)),
+      }));
+
+      const reader = new LogicalIndexReader({ indexStore: mockIndexStore });
+      await reader.loadFromStore('fake-tree-oid');
+      const idx = reader.toLogicalIndex();
+
+      expect(idx.isAlive('A')).toBe(true);
+      expect(idx.isAlive('B')).toBe(true);
+      expect(idx.isAlive('Z')).toBe(false);
+
+      const outEdges = idx.getEdges('A', 'out');
+      expect(outEdges.length).toBe(2);
+      const labels = outEdges.map((e) => e.label).sort();
+      expect(labels).toEqual(['manages', 'owns']);
+
+      expect(mockIndexStore.scanShards).toHaveBeenCalledWith('fake-tree-oid');
+    });
+
+    it('throws when no indexStore is configured', async () => {
+      const reader = new LogicalIndexReader();
+      await expect(reader.loadFromStore('any-oid')).rejects.toThrow(/indexStore/i);
     });
   });
 

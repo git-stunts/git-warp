@@ -48,33 +48,59 @@ function validateEnvelope(envelope, label) {
  *
  * @param {Record<string, string>} shardOids - Map of path → blob OID from readTreeOids
  * @param {import('../../../ports/IndexStoragePort.js').default & import('../../../ports/BlobPort.js').default} storage - Storage adapter
- * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options]
+ * @param {{ codec?: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} [options]
  * @returns {Promise<Map<string, string>|null>} Frontier map, or null if not present (legacy index)
  */
-export async function loadIndexFrontier(shardOids, storage, { codec } = {}) {
-  const c = codec ?? defaultCodec;
-  return await loadCborFrontier(shardOids, storage, c)
+export async function loadIndexFrontier(shardOids, storage, { codec, indexStore } = {}) {
+  const deps = buildCborDeps(storage, codec, indexStore);
+  return await loadCborFrontier(shardOids, deps)
     ?? await loadJsonFrontier(shardOids, storage)
     ?? null;
 }
 
 /**
+ * Builds the dependency bag for loadCborFrontier.
+ *
+ * @param {import('../../../ports/BlobPort.js').default} storage
+ * @param {import('../../../ports/CodecPort.js').default} [codec]
+ * @param {import('../../../ports/IndexStorePort.js').default} [indexStore]
+ * @returns {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }}
+ */
+function buildCborDeps(storage, codec, indexStore) {
+  /** @type {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} */
+  const deps = { storage, codec: codec ?? defaultCodec };
+  if (indexStore) {
+    deps.indexStore = indexStore;
+  }
+  return deps;
+}
+
+/**
  * Attempts to load frontier from a CBOR blob.
  *
+ * When an IndexStorePort is available, delegates read+decode to the
+ * adapter (codec-free from the domain's perspective). Otherwise falls
+ * back to raw storage + codec.
+ *
  * @param {Record<string, string>} shardOids
- * @param {import('../../../ports/BlobPort.js').default} storage
- * @param {import('../../../ports/CodecPort.js').default} codec
+ * @param {{ storage: import('../../../ports/BlobPort.js').default, codec: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} deps
  * @returns {Promise<Map<string, string>|null>}
  */
-async function loadCborFrontier(shardOids, storage, codec) {
+async function loadCborFrontier(shardOids, { storage, codec, indexStore }) {
   const oid = shardOids['frontier.cbor'];
   if (typeof oid !== 'string' || oid.length === 0) {
     return null;
   }
-  const buffer = await storage.readBlob(oid);
-  const envelope = /** @type {{ frontier: Record<string, string> }} */ (codec.decode(buffer));
+  /** @type {unknown} */
+  let envelope;
+  if (indexStore) {
+    envelope = await indexStore.decodeShard(oid);
+  } else {
+    const buffer = await storage.readBlob(oid);
+    envelope = codec.decode(buffer);
+  }
   validateEnvelope(envelope, 'frontier.cbor');
-  return new Map(Object.entries(envelope.frontier));
+  return new Map(Object.entries(/** @type {{ frontier: Record<string, string> }} */ (envelope).frontier));
 }
 
 /**

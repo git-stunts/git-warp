@@ -223,13 +223,16 @@ function resolveEdgesForNode(maps, query) {
 
 export default class LogicalIndexReader {
   /**
-   * Constructs a LogicalIndexReader with an optional CBOR codec override.
+   * Constructs a LogicalIndexReader with an optional CBOR codec override
+   * and/or an IndexStorePort for codec-free reads.
    *
-   * @param {{ codec?: import('../../../ports/CodecPort.js').default }} [options] - Reader options
+   * @param {{ codec?: import('../../../ports/CodecPort.js').default, indexStore?: import('../../../ports/IndexStorePort.js').default }} [options] - Reader options
    */
   constructor(options = undefined) {
-    const { codec } = options || {};
+    const { codec, indexStore } = options || {};
     this._codec = codec || defaultCodec;
+    /** @type {import('../../../ports/IndexStorePort.js').default|null} */
+    this._indexStore = indexStore || null;
 
     /** @type {Map<string, number>} */
     this._nodeToGlobal = new Map();
@@ -303,6 +306,24 @@ export default class LogicalIndexReader {
         this._loadEdgeShard(shard, Ctor);
       }
     }
+    return this;
+  }
+
+  /**
+   * Loads all shards from an IndexStorePort via scanShards (codec-free).
+   *
+   * The adapter reads, decodes, and classifies blobs into IndexShard
+   * domain objects. The reader consumes them without touching any codec.
+   *
+   * @param {string} treeOid - The index tree OID
+   * @returns {Promise<this>}
+   */
+  async loadFromStore(treeOid) {
+    if (!this._indexStore) {
+      throw new Error('LogicalIndexReader: loadFromStore() requires an indexStore');
+    }
+    const shards = await this._indexStore.scanShards(treeOid).collect();
+    this.loadFromShards(shards);
     return this;
   }
 

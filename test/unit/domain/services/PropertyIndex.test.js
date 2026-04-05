@@ -155,6 +155,40 @@ describe('PropertyIndex', () => {
     await expect(reader.getNodeProps(abNodeId)).rejects.toThrow(/invalid shard format.*expected array.*object/i);
   });
 
+  it('loads via indexStore.decodeShard — codec-free', async () => {
+    const builder = new PropertyIndexBuilder();
+    builder.addProperty('user:alice', 'name', 'Alice');
+    builder.addProperty('user:alice', 'age', 30);
+    builder.addProperty('user:bob', 'name', 'Bob');
+
+    const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
+
+    // Build a mock indexStore that returns decoded shard entries directly
+    const decodedByOid = new Map();
+    /** @type {Record<string, string>} */
+    const oids = {};
+    let oidCounter = 0;
+    for (const shard of shards) {
+      const path = `props_${shard.shardKey}.cbor`;
+      const oid = `oid_${oidCounter++}`;
+      decodedByOid.set(oid, shard.entries);
+      oids[path] = oid;
+    }
+
+    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ ({
+      decodeShard: async (/** @type {string} */ oid) => decodedByOid.get(oid),
+    });
+
+    const reader = new PropertyIndexReader({ indexStore: mockIndexStore });
+    reader.setup(oids);
+
+    const aliceProps = await reader.getNodeProps('user:alice');
+    expect(aliceProps).toEqual({ name: 'Alice', age: 30 });
+
+    const bobName = await reader.getProperty('user:bob', 'name');
+    expect(bobName).toBe('Bob');
+  });
+
   it('serializes deterministically for equivalent property sets across op orders', () => {
     const order1 = new PropertyIndexBuilder();
     order1.addProperty('node:alpha', 'name', 'Alice');

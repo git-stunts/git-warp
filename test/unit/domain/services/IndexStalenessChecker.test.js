@@ -34,6 +34,21 @@ describe('loadIndexFrontier', () => {
     expect(/** @type {any} */ (result).get('alice')).toBe('sha-a');
   });
 
+  it('with indexStore → decodes CBOR frontier via port', async () => {
+    const envelope = { version: 1, writerCount: 2, frontier: { alice: 'sha-a', bob: 'sha-b' } };
+    const mockIndexStore = /** @type {import('../../../../src/ports/IndexStorePort.js').default} */ (/** @type {unknown} */ ({
+      decodeShard: vi.fn().mockResolvedValue(envelope),
+    }));
+    const shardOids = { 'frontier.cbor': 'cbor-oid' };
+
+    const result = await loadIndexFrontier(shardOids, /** @type {any} */ ({}), { indexStore: mockIndexStore });
+
+    expect(result).toBeInstanceOf(Map);
+    expect(/** @type {any} */ (result).get('alice')).toBe('sha-a');
+    expect(/** @type {any} */ (result).get('bob')).toBe('sha-b');
+    expect(mockIndexStore.decodeShard).toHaveBeenCalledWith('cbor-oid');
+  });
+
   it('with neither → null', async () => {
     const storage = { readBlob: vi.fn() };
     const result = await loadIndexFrontier({}, /** @type {any} */ (storage));
