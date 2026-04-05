@@ -144,7 +144,7 @@ async function openDetachedReadGraph(host) {
     ...(host._blobStorage ? { blobStorage: host._blobStorage } : {}),
     ...(host._patchBlobStorage ? { patchBlobStorage: host._patchBlobStorage } : {}),
     ...(host._trustConfig !== undefined ? { trust: host._trustConfig } : {}),
-    ...(host._checkpointStore ? { checkpointStore: host._checkpointStore } : {}),
+    ...(host._checkpointStore !== undefined && host._checkpointStore !== null ? { checkpointStore: host._checkpointStore } : {}),
     ...(host._patchJournal !== undefined && host._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (host._patchJournal) } : {}),
   });
 }
