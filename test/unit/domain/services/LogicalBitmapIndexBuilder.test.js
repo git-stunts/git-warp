@@ -70,9 +70,11 @@ describe('LogicalBitmapIndexBuilder', () => {
 
     // The 'all' bitmap for A (by globalA) should contain B's globalId
     const RoaringBitmap32 = getRoaringBitmap32();
-    const allBucket = buckets.all;
+    const allBucket = buckets['all'];
     expect(allBucket).toBeDefined();
-    const bitmapBytes = /** @type {Record<string, Uint8Array>} */ (allBucket)[String(globalA)];
+    const bitmapBytes = /** @type {Uint8Array} */ (
+      /** @type {Record<string, Uint8Array>} */ (allBucket)[String(globalA)]
+    );
     expect(bitmapBytes).toBeDefined();
 
     const allBitmap = RoaringBitmap32.deserialize(
@@ -113,8 +115,8 @@ describe('LogicalBitmapIndexBuilder', () => {
     expect(receipt.nodeCount).toBe(2);
     expect(receipt.labelCount).toBe(2);
     expect(receipt.shardCount).toBeDefined();
-    expect(/** @type {Record<string, unknown>} */ (receipt)).not.toHaveProperty('timestamp');
-    expect(/** @type {Record<string, unknown>} */ (receipt)).not.toHaveProperty('createdAt');
+    expect(/** @type {unknown} */ (receipt)).not.toHaveProperty('timestamp');
+    expect(/** @type {unknown} */ (receipt)).not.toHaveProperty('createdAt');
   });
 
   it('round-trip: serialize → decode each shard → globalId↔nodeId intact', () => {

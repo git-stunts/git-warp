@@ -24,52 +24,89 @@ import { TreeAssemblerSink } from './TreeAssemblerSink.js';
  *
  * @type {ReadonlyArray<{ pattern: RegExp, classify: (match: RegExpMatchArray, data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard }>}
  */
+/**
+ * Classifies a meta shard path.
+ *
+ * @param {RegExpMatchArray} match
+ * @param {unknown} data
+ * @returns {MetaShard}
+ */
+function classifyMeta(match, data) {
+  const d = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (data);
+  return new MetaShard({
+    shardKey: /** @type {string} */ (match[1]),
+    nodeToGlobal: d.nodeToGlobal,
+    nextLocalId: d.nextLocalId,
+    alive: d.alive,
+  });
+}
+
+/**
+ * Classifies an edge shard path.
+ *
+ * @param {RegExpMatchArray} match
+ * @param {unknown} data
+ * @returns {EdgeShard}
+ */
+function classifyEdge(match, data) {
+  return new EdgeShard({
+    shardKey: /** @type {string} */ (match[2]),
+    direction: /** @type {'fwd'|'rev'} */ (match[1]),
+    buckets: /** @type {Record<string, Record<string, Uint8Array>>} */ (data),
+  });
+}
+
+/**
+ * Classifies a label shard path.
+ *
+ * @param {RegExpMatchArray} _match
+ * @param {unknown} data
+ * @returns {LabelShard}
+ */
+function classifyLabel(_match, data) {
+  return new LabelShard({
+    labels: /** @type {Array<[string, number]>} */ (data),
+  });
+}
+
+/**
+ * Classifies a property shard path.
+ *
+ * @param {RegExpMatchArray} match
+ * @param {unknown} data
+ * @returns {PropertyShard}
+ */
+function classifyProperty(match, data) {
+  return new PropertyShard({
+    shardKey: /** @type {string} */ (match[1]),
+    entries: /** @type {Array<[string, Record<string, unknown>]>} */ (data),
+  });
+}
+
+/**
+ * Classifies a receipt shard path.
+ *
+ * @param {RegExpMatchArray} _match
+ * @param {unknown} data
+ * @returns {ReceiptShard}
+ */
+function classifyReceipt(_match, data) {
+  const d = /** @type {{ version: number, nodeCount: number, labelCount: number, shardCount: number }} */ (data);
+  return new ReceiptShard({
+    version: d.version,
+    nodeCount: d.nodeCount,
+    labelCount: d.labelCount,
+    shardCount: d.shardCount,
+  });
+}
+
+/** @type {ReadonlyArray<{ pattern: RegExp, classify: (match: RegExpMatchArray, data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard }>} */
 const SHARD_CLASSIFIERS = Object.freeze([
-  {
-    pattern: /^meta_([0-9a-f]+)\.cbor$/,
-    classify: (match, data) => {
-      const d = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (data);
-      return new MetaShard({
-        shardKey: /** @type {string} */ (match[1]),
-        nodeToGlobal: d.nodeToGlobal,
-        nextLocalId: d.nextLocalId,
-        alive: d.alive,
-      });
-    },
-  },
-  {
-    pattern: /^(fwd|rev)_([0-9a-f]+)\.cbor$/,
-    classify: (match, data) => new EdgeShard({
-      shardKey: /** @type {string} */ (match[2]),
-      direction: /** @type {'fwd'|'rev'} */ (match[1]),
-      buckets: /** @type {Record<string, Record<string, Uint8Array>>} */ (data),
-    }),
-  },
-  {
-    pattern: /^labels\.cbor$/,
-    classify: (_match, data) => new LabelShard({
-      labels: /** @type {Array<[string, number]>} */ (data),
-    }),
-  },
-  {
-    pattern: /^props_([0-9a-f]+)\.cbor$/,
-    classify: (match, data) => new PropertyShard({
-      shardKey: /** @type {string} */ (match[1]),
-      entries: /** @type {Array<[string, Record<string, unknown>]>} */ (data),
-    }),
-  },
-  {
-    pattern: /^receipt\.cbor$/,
-    classify: (_match, data) => {
-      const d = /** @type {{ version: number, nodeCount: number, labelCount: number, shardCount: number }} */ (data);
-      return new ReceiptShard({
-        version: d.version,
-        nodeCount: d.nodeCount,
-        labelCount: d.labelCount,
-        shardCount: d.shardCount,
-      });
-    },
-  },
+  { pattern: /^meta_([0-9a-f]+)\.cbor$/, classify: classifyMeta },
+  { pattern: /^(fwd|rev)_([0-9a-f]+)\.cbor$/, classify: classifyEdge },
+  { pattern: /^labels\.cbor$/, classify: classifyLabel },
+  { pattern: /^props_([0-9a-f]+)\.cbor$/, classify: classifyProperty },
+  { pattern: /^receipt\.cbor$/, classify: classifyReceipt },
 ]);
 
 /**
@@ -100,15 +137,9 @@ export class CborIndexStoreAdapter extends IndexStorePort {
    */
   constructor({ codec, blobPort, treePort }) {
     super();
-    if (codec === null || codec === undefined) {
-      throw new WarpError('CborIndexStoreAdapter requires a codec', 'E_INVALID_DEPENDENCY');
-    }
-    if (blobPort === null || blobPort === undefined) {
-      throw new WarpError('CborIndexStoreAdapter requires a blobPort', 'E_INVALID_DEPENDENCY');
-    }
-    if (treePort === null || treePort === undefined) {
-      throw new WarpError('CborIndexStoreAdapter requires a treePort', 'E_INVALID_DEPENDENCY');
-    }
+    _requireDep(codec, 'codec');
+    _requireDep(blobPort, 'blobPort');
+    _requireDep(treePort, 'treePort');
     /** @type {import('../../ports/CodecPort.js').default} */
     this._codec = codec;
     /** @type {import('../../ports/BlobPort.js').default} */
@@ -197,4 +228,16 @@ function classifyPath(path, data) {
     }
   }
   throw new WarpError(`Unknown index shard path: ${path}`, 'E_UNKNOWN_SHARD');
+}
+
+/**
+ * Validates that a required dependency is present.
+ *
+ * @param {unknown} dep
+ * @param {string} name
+ */
+function _requireDep(dep, name) {
+  if (dep === null || dep === undefined) {
+    throw new WarpError(`CborIndexStoreAdapter requires a ${name}`, 'E_INVALID_DEPENDENCY');
+  }
 }

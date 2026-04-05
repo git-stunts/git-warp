@@ -448,27 +448,39 @@ export default class MaterializedViewService {
     /** @type {Record<string, Uint8Array>} */
     const tree = {};
     for (const shard of shards) {
-      if (shard instanceof MetaShard) {
-        tree[`meta_${shard.shardKey}.cbor`] = this._codec.encode({
-          nodeToGlobal: shard.nodeToGlobal,
-          nextLocalId: shard.nextLocalId,
-          alive: shard.alive,
-        });
-      } else if (shard instanceof EdgeShard) {
-        tree[`${shard.direction}_${shard.shardKey}.cbor`] = this._codec.encode(shard.buckets);
-      } else if (shard instanceof LabelShard) {
-        tree['labels.cbor'] = this._codec.encode(shard.labels);
-      } else if (shard instanceof PropertyShard) {
-        tree[`props_${shard.shardKey}.cbor`] = this._codec.encode(shard.entries);
-      } else if (shard instanceof ReceiptShard) {
-        tree['receipt.cbor'] = this._codec.encode({
-          version: shard.version,
-          nodeCount: shard.nodeCount,
-          labelCount: shard.labelCount,
-          shardCount: shard.shardCount,
-        });
-      }
+      const { path, payload } = _shardToEntry(shard);
+      tree[path] = this._codec.encode(payload);
     }
     return tree;
   }
+}
+
+/**
+ * Maps an IndexShard to its tree path and serializable payload.
+ *
+ * P5-LEGACY: Duplicates IndexShardEncodeTransform._encode() in
+ * infrastructure. Exists only to support _encodeShardsToTree() for
+ * the applyDiff() legacy path. Dies when IncrementalIndexUpdater
+ * is migrated to IndexStorePort.
+ *
+ * @param {import('../artifacts/IndexShard.js').IndexShard} shard
+ * @returns {{ path: string, payload: unknown }}
+ */
+function _shardToEntry(shard) {
+  if (shard instanceof MetaShard) {
+    return { path: `meta_${shard.shardKey}.cbor`, payload: { nodeToGlobal: shard.nodeToGlobal, nextLocalId: shard.nextLocalId, alive: shard.alive } };
+  }
+  if (shard instanceof EdgeShard) {
+    return { path: `${shard.direction}_${shard.shardKey}.cbor`, payload: shard.buckets };
+  }
+  if (shard instanceof LabelShard) {
+    return { path: 'labels.cbor', payload: shard.labels };
+  }
+  if (shard instanceof PropertyShard) {
+    return { path: `props_${shard.shardKey}.cbor`, payload: shard.entries };
+  }
+  if (shard instanceof ReceiptShard) {
+    return { path: 'receipt.cbor', payload: { version: shard.version, nodeCount: shard.nodeCount, labelCount: shard.labelCount, shardCount: shard.shardCount } };
+  }
+  return { path: `unknown_${shard.shardKey}.cbor`, payload: {} };
 }

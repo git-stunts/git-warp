@@ -125,7 +125,9 @@ describe('CborIndexStoreAdapter', () => {
       const shards = createTestShards();
       await adapter.writeShards(WarpStream.from(shards));
 
-      const treeEntries = /** @type {string[]} */ (treePort.writeTree.mock.calls[0][0]);
+      const mock = /** @type {import('vitest').Mock} */ (treePort.writeTree);
+      const firstCall = /** @type {unknown[]} */ (mock.mock.calls[0]);
+      const treeEntries = /** @type {string[]} */ (firstCall[0]);
       const paths = treeEntries.map((e) => e.split('\t')[1]).sort();
 
       expect(paths).toEqual([

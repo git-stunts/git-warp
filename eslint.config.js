@@ -228,6 +228,7 @@ export default tseslint.config(
   {
     files: [
       "src/domain/services/index/IndexRebuildService.js",
+      "src/domain/services/MaterializedViewService.js",
     ],
     rules: {
       "complexity": ["error", 35],
