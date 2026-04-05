@@ -312,14 +312,18 @@ export default class MaterializedViewService {
     const { shards, receipt } = svc.buildShards(state);
 
     // P5-LEGACY: encode shards to tree bytes for callers that persist
-    // via persistIndexTree(). Will be removed when callers migrate to
-    // IndexStorePort.writeShards().
+    // via persistIndexTree() and for _cachedIndexTree (used by applyDiff).
+    // Will be removed when callers migrate to IndexStorePort.writeShards().
     const tree = this._encodeShardsToTree(shards);
 
-    const logicalIndex = new LogicalIndexReader({ codec: this._codec })
-      .loadFromTree(tree)
+    // Hydrate index directly from domain objects (no encode→decode roundtrip)
+    const logicalIndex = new LogicalIndexReader()
+      .loadFromShards(shards)
       .toLogicalIndex();
 
+    // P5-LEGACY: property reader still goes through codec roundtrip
+    // because _parseShard has proto-pollution behavior differences
+    // between direct shard entries and CBOR-decoded entries.
     const propertyReader = buildInMemoryPropertyReader(tree, this._codec);
 
     return {

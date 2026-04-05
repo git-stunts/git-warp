@@ -12,6 +12,7 @@ import defaultCodec from '../../utils/defaultCodec.js';
 import computeShardKey from '../../utils/shardKey.js';
 import toBytes from '../../utils/toBytes.js';
 import { getRoaringBitmap32 } from '../../utils/roaring.js';
+import { MetaShard, EdgeShard, LabelShard } from '../../artifacts/IndexShard.js';
 
 /** @typedef {import('./BitmapNeighborProvider.js').LogicalIndex} LogicalIndex */
 /** @typedef {import('../../utils/roaring.js').RoaringBitmapSubset} Bitmap */
@@ -282,6 +283,30 @@ export default class LogicalIndexReader {
   }
 
   /**
+   * Populates the reader directly from IndexShard domain objects.
+   *
+   * This is the codec-free alternative to loadFromTree() and loadFromOids().
+   * No CBOR decoding is needed — the shards already carry decoded data.
+   *
+   * @param {Iterable<import('../../artifacts/IndexShard.js').IndexShard>} shards
+   * @returns {this}
+   */
+  loadFromShards(shards) {
+    this._resetState();
+    const Ctor = getRoaringBitmap32();
+    for (const shard of shards) {
+      if (shard instanceof MetaShard) {
+        this._loadMetaShard(shard, Ctor);
+      } else if (shard instanceof LabelShard) {
+        this._loadLabelShard(shard);
+      } else if (shard instanceof EdgeShard) {
+        this._loadEdgeShard(shard, Ctor);
+      }
+    }
+    return this;
+  }
+
+  /**
    * Returns a LogicalIndex interface object backed by the decoded shard data.
    *
    * @returns {LogicalIndex}
@@ -429,5 +454,55 @@ export default class LogicalIndexReader {
       byOwner.set(gid, list);
     }
     list.push({ labelId: parseInt(bucket, 10), bitmap });
+  }
+
+  // ── loadFromShards helpers (codec-free) ───────────────────────────────────
+
+  /**
+   * Loads a MetaShard's data into the reader's maps.
+   *
+   * @param {MetaShard} shard
+   * @param {RoaringCtor} Ctor
+   * @private
+   */
+  _loadMetaShard(shard, Ctor) {
+    for (const [nodeId, globalId] of shard.nodeToGlobal) {
+      this._nodeToGlobal.set(nodeId, globalId);
+      this._globalToNode.set(globalId, nodeId);
+    }
+    this._loadAliveBitmap(shard.shardKey, shard.alive, Ctor);
+  }
+
+  /**
+   * Loads a LabelShard's data into the reader's label maps.
+   *
+   * @param {LabelShard} shard
+   * @private
+   */
+  _loadLabelShard(shard) {
+    for (const [label, id] of shard.labels) {
+      this._labelRegistry.set(label, id);
+      this._idToLabel.set(id, label);
+    }
+  }
+
+  /**
+   * Loads an EdgeShard's bitmap data into the reader's edge stores.
+   *
+   * @param {EdgeShard} shard
+   * @param {RoaringCtor} Ctor
+   * @private
+   */
+  _loadEdgeShard(shard, Ctor) {
+    const dir = shard.direction;
+    const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
+    const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
+    for (const [bucket, entries] of Object.entries(shard.buckets)) {
+      for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
+        const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);
+        store.set(`${dir}:${bucket}:${gidStr}`, bitmap);
+        this._indexByOwner(byOwner, { bucket, gidStr, bitmap });
+      }
+    }
   }
 }
