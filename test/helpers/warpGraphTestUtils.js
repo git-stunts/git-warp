@@ -107,25 +107,6 @@ export function generateOidFromNumber(n) {
  * const persistence = createMockPersistence();
  * persistence.readRef.mockResolvedValue('abc123...');
  */
-/**
- * Adds stub blob/tree/commit methods to a partial persistence mock
- * so it satisfies the runtime capability checks in WarpRuntime.open().
- *
- * Safe to call on mocks that already have some or all of these methods —
- * existing methods are preserved.
- *
- * @param {Record<string, unknown>} mock - The partial persistence mock
- * @returns {Record<string, unknown>} The same mock, mutated
- */
-export function stubCapabilities(mock) {
-  if (!mock['readBlob']) { mock['readBlob'] = vi.fn(); }
-  if (!mock['writeBlob']) { mock['writeBlob'] = vi.fn(); }
-  if (!mock['getNodeInfo']) { mock['getNodeInfo'] = vi.fn(); }
-  if (!mock['readTreeOids']) { mock['readTreeOids'] = vi.fn(); }
-  if (!mock['writeTree']) { mock['writeTree'] = vi.fn(); }
-  return mock;
-}
-
 export function createMockPersistence() {
   return {
     readRef: vi.fn(),
