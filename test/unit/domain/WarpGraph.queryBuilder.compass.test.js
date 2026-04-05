@@ -25,6 +25,11 @@ describe('COMPASS — CP/WHERE/1: Object shorthand in where()', () => {
       updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
+      readBlob: vi.fn(),
+      writeBlob: vi.fn(),
+      getNodeInfo: vi.fn(),
+      readTreeOids: vi.fn(),
+      writeTree: vi.fn(),
     };
     graph = await WarpRuntime.open({
       persistence: mockPersistence,
@@ -189,6 +194,11 @@ describe('COMPASS — CP/MULTIHOP/1: Multi-hop traversal', () => {
       updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
+      readBlob: vi.fn(),
+      writeBlob: vi.fn(),
+      getNodeInfo: vi.fn(),
+      readTreeOids: vi.fn(),
+      writeTree: vi.fn(),
     };
     graph = await WarpRuntime.open({
       persistence: mockPersistence,
@@ -393,6 +403,11 @@ describe('COMPASS — CP/AGG/1: Aggregation', () => {
       updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
+      readBlob: vi.fn(),
+      writeBlob: vi.fn(),
+      getNodeInfo: vi.fn(),
+      readTreeOids: vi.fn(),
+      writeTree: vi.fn(),
     };
     graph = await WarpRuntime.open({
       persistence: mockPersistence,

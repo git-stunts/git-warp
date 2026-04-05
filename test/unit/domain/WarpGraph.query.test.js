@@ -29,6 +29,11 @@ describe('WarpRuntime Query API', () => {
       updateRef: vi.fn().mockResolvedValue(undefined),
       configGet: vi.fn().mockResolvedValue(null),
       configSet: vi.fn().mockResolvedValue(undefined),
+      readBlob: vi.fn(),
+      writeBlob: vi.fn(),
+      getNodeInfo: vi.fn(),
+      readTreeOids: vi.fn(),
+      writeTree: vi.fn(),
     };
 
     graph = await WarpRuntime.open({
