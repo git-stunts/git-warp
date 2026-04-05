@@ -48,7 +48,7 @@ describe('WarpRuntime content attachment (query methods)', () => {
       readBlob: vi.fn().mockResolvedValue(new TextEncoder().encode('hello world')),
       writeBlob: vi.fn().mockResolvedValue('a'.repeat(40)),
       getNodeInfo: vi.fn().mockResolvedValue({ message: '', parents: [] }),
-      readTreeOids: vi.fn().mockResolvedValue([]),
+      readTreeOids: vi.fn().mockResolvedValue({}),
       writeTree: vi.fn().mockResolvedValue('a'.repeat(40)),
     };
 

@@ -98,6 +98,7 @@ async function openDetachedObserverGraph(graph) {
     ...(graph._trustConfig !== undefined && graph._trustConfig !== null ? { trust: graph._trustConfig } : {}),
     ...(graph._patchJournal !== undefined && graph._patchJournal !== null ? { patchJournal: /** @type {import('../../../ports/PatchJournalPort.js').default} */ (graph._patchJournal) } : {}),
     ...(graph._checkpointStore !== undefined && graph._checkpointStore !== null ? { checkpointStore: graph._checkpointStore } : {}),
+    ...(graph._indexStore !== undefined && graph._indexStore !== null ? { indexStore: graph._indexStore } : {}),
   });
 }
 

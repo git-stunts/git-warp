@@ -492,5 +492,5 @@ function _shardToEntry(shard) {
   if (shard instanceof ReceiptShard) {
     return { path: 'receipt.cbor', payload: { version: shard.version, nodeCount: shard.nodeCount, labelCount: shard.labelCount, shardCount: shard.shardCount } };
   }
-  return { path: `unknown_${shard.shardKey}.cbor`, payload: {} };
+  throw new Error(`MaterializedViewService: unknown IndexShard type (shardKey=${shard.shardKey})`);
 }

@@ -287,14 +287,14 @@ describe('CborIndexStoreAdapter', () => {
   // ── scanShards classification ───────────────────────────────────
 
   describe('scanShards classification', () => {
-    it('throws on unknown path pattern', async () => {
-      // Manually insert a tree with an unrecognized path
+    it('skips unknown path patterns without throwing', async () => {
+      // Manually insert a tree with an unrecognized path (e.g., frontier.cbor)
       const bytes = defaultCodec.encode({ foo: 'bar' });
       const blobOid = await blobPort.writeBlob(bytes);
       treePort.store.set('tree_unknown', { 'garbage_file.cbor': blobOid });
 
-      await expect(adapter.scanShards('tree_unknown').collect())
-        .rejects.toThrow('Unknown index shard path');
+      const shards = await adapter.scanShards('tree_unknown').collect();
+      expect(shards).toEqual([]);
     });
   });
 });

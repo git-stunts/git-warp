@@ -13,18 +13,6 @@ import { GitBlobWriteTransform } from './GitBlobWriteTransform.js';
 import { TreeAssemblerSink } from './TreeAssemblerSink.js';
 
 /**
- * Regex patterns for classifying index tree paths to IndexShard subclasses.
- *
- * Path format mirrors IndexShardEncodeTransform._encode():
- *   MetaShard    → meta_<shardKey>.cbor
- *   EdgeShard    → fwd_<shardKey>.cbor | rev_<shardKey>.cbor
- *   LabelShard   → labels.cbor
- *   PropertyShard→ props_<shardKey>.cbor
- *   ReceiptShard → receipt.cbor
- *
- * @type {ReadonlyArray<{ pattern: RegExp, classify: (match: RegExpMatchArray, data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard }>}
- */
-/**
  * Classifies a meta shard path.
  *
  * @param {RegExpMatchArray} match
@@ -181,11 +169,14 @@ export class CborIndexStoreAdapter extends IndexStorePort {
       const paths = Object.keys(oids).sort();
 
       for (const path of paths) {
+        const shard = tryClassifyPath(path);
+        if (shard === null) {
+          continue;
+        }
         const blobOid = /** @type {string} */ (oids[path]);
         const bytes = await adapter._blobPort.readBlob(blobOid);
         const data = adapter._codec.decode(bytes);
-        const shard = classifyPath(path, data);
-        yield shard;
+        yield shard(data);
       }
     })());
   }
@@ -213,21 +204,23 @@ export class CborIndexStoreAdapter extends IndexStorePort {
 }
 
 /**
- * Classifies a tree path into the appropriate IndexShard subclass.
+ * Attempts to match a tree path to a shard classifier.
+ *
+ * Returns a factory function that accepts decoded data and produces
+ * an IndexShard, or null if the path is not a recognized shard
+ * (e.g., frontier.cbor, frontier.json).
  *
  * @param {string} path - Git tree path (e.g., "meta_a0.cbor")
- * @param {unknown} data - Decoded shard data
- * @returns {import('../../domain/artifacts/IndexShard.js').IndexShard}
- * @throws {WarpError} If the path doesn't match any known shard pattern
+ * @returns {((data: unknown) => import('../../domain/artifacts/IndexShard.js').IndexShard) | null}
  */
-function classifyPath(path, data) {
+function tryClassifyPath(path) {
   for (const { pattern, classify } of SHARD_CLASSIFIERS) {
     const match = path.match(pattern);
     if (match) {
-      return classify(match, data);
+      return (data) => classify(match, data);
     }
   }
-  throw new WarpError(`Unknown index shard path: ${path}`, 'E_UNKNOWN_SHARD');
+  return null;
 }
 
 /**
