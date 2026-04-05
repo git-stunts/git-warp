@@ -28,6 +28,28 @@ export default class LogicalIndexBuildService {
   }
 
   /**
+   * Builds a complete logical index as a collected array of IndexShard records.
+   *
+   * Synchronous alternative to buildStream() for callers that need all
+   * shards in memory (e.g., MaterializedViewService.build() which hydrates
+   * an in-memory LogicalIndex).
+   *
+   * @param {import('../JoinReducer.js').WarpStateV5} state
+   * @param {{ existingMeta?: Record<string, { nodeToGlobal: Record<string, number>, nextLocalId: number }>, existingLabels?: Record<string, number>|Array<[string, number]> }} [options]
+   * @returns {{ shards: import('../../artifacts/IndexShard.js').IndexShard[], receipt: ReceiptShard }}
+   */
+  buildShards(state, options = {}) {
+    const { indexBuilder, propBuilder } = this._populateBuilders(state, options);
+    const indexShards = [...indexBuilder.yieldShards()];
+    const propShards = [...propBuilder.yieldShards()];
+    const receiptShard = indexShards.find((s) => s instanceof ReceiptShard);
+    if (!receiptShard) {
+      throw new Error('LogicalIndexBuildService: index builder did not emit a ReceiptShard');
+    }
+    return { shards: [...indexShards, ...propShards], receipt: /** @type {ReceiptShard} */ (receiptShard) };
+  }
+
+  /**
    * Builds a complete logical index as a WarpStream of IndexShard records.
    *
    * The stream yields MetaShard, LabelShard, EdgeShard, PropertyShard,

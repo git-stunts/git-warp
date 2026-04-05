@@ -20,6 +20,13 @@ import PropertyIndexReader from './index/PropertyIndexReader.js';
 import IncrementalIndexUpdater from './index/IncrementalIndexUpdater.js';
 import { orsetElements, orsetContains } from '../crdt/ORSet.js';
 import { decodeEdgeKey } from './KeyCodec.js';
+import {
+  MetaShard,
+  EdgeShard,
+  LabelShard,
+  PropertyShard,
+  ReceiptShard,
+} from '../artifacts/IndexShard.js';
 
 /** Prefix for property shard paths in the index tree. */
 const PROPS_PREFIX = 'props_';
@@ -300,10 +307,14 @@ export default class MaterializedViewService {
    */
   build(state) {
     const svc = new LogicalIndexBuildService({
-      codec: this._codec,
       logger: this._logger,
     });
-    const { tree, receipt } = svc.build(state);
+    const { shards, receipt } = svc.buildShards(state);
+
+    // P5-LEGACY: encode shards to tree bytes for callers that persist
+    // via persistIndexTree(). Will be removed when callers migrate to
+    // IndexStorePort.writeShards().
+    const tree = this._encodeShardsToTree(shards);
 
     const logicalIndex = new LogicalIndexReader({ codec: this._codec })
       .loadFromTree(tree)
@@ -311,7 +322,17 @@ export default class MaterializedViewService {
 
     const propertyReader = buildInMemoryPropertyReader(tree, this._codec);
 
-    return { tree, logicalIndex, propertyReader, receipt };
+    return {
+      tree,
+      logicalIndex,
+      propertyReader,
+      receipt: /** @type {Record<string, unknown>} */ ({
+        version: receipt.version,
+        nodeCount: receipt.nodeCount,
+        labelCount: receipt.labelCount,
+        shardCount: receipt.shardCount,
+      }),
+    };
   }
 
   /**
@@ -410,5 +431,44 @@ export default class MaterializedViewService {
 
     const { passed, errors } = verifySampledNodes(sampled, logicalIndex, truth);
     return { passed, failed: errors.length, errors, seed };
+  }
+
+  /**
+   * Encodes IndexShard instances to a tree of CBOR bytes.
+   *
+   * P5-LEGACY: This exists to support callers that persist via
+   * persistIndexTree(tree, persistence). Will be removed when callers
+   * migrate to IndexStorePort.writeShards().
+   *
+   * @param {import('../artifacts/IndexShard.js').IndexShard[]} shards
+   * @returns {Record<string, Uint8Array>}
+   * @private
+   */
+  _encodeShardsToTree(shards) {
+    /** @type {Record<string, Uint8Array>} */
+    const tree = {};
+    for (const shard of shards) {
+      if (shard instanceof MetaShard) {
+        tree[`meta_${shard.shardKey}.cbor`] = this._codec.encode({
+          nodeToGlobal: shard.nodeToGlobal,
+          nextLocalId: shard.nextLocalId,
+          alive: shard.alive,
+        });
+      } else if (shard instanceof EdgeShard) {
+        tree[`${shard.direction}_${shard.shardKey}.cbor`] = this._codec.encode(shard.buckets);
+      } else if (shard instanceof LabelShard) {
+        tree['labels.cbor'] = this._codec.encode(shard.labels);
+      } else if (shard instanceof PropertyShard) {
+        tree[`props_${shard.shardKey}.cbor`] = this._codec.encode(shard.entries);
+      } else if (shard instanceof ReceiptShard) {
+        tree['receipt.cbor'] = this._codec.encode({
+          version: shard.version,
+          nodeCount: shard.nodeCount,
+          labelCount: shard.labelCount,
+          shardCount: shard.shardCount,
+        });
+      }
+    }
+    return tree;
   }
 }
