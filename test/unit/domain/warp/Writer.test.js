@@ -10,6 +10,9 @@ import { Writer, WriterError } from '../../../../src/domain/warp/Writer.js';
 import { PatchSession } from '../../../../src/domain/warp/PatchSession.js';
 import { buildWriterRef, validateWriterId } from '../../../../src/domain/utils/RefLayout.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
+import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
+import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.js';
 import { encodePatchMessage } from '../../../../src/domain/services/codec/WarpMessageCodec.js';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.js';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.js';
@@ -709,13 +712,16 @@ describe('PatchSession operations', () => {
   });
 
   it('removeNode creates node-remove op', async () => {
+    const state = /** @type {any} */ ({ nodeAlive: createORSet(), edgeAlive: createORSet(), prop: new Map(), observedFrontier: createVersionVector() });
+    orsetAdd(state.nodeAlive, 'user:alice', createDot('alice', 1));
+
     const writer = new Writer({
       persistence,
       patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
-      getCurrentState,
+      getCurrentState: () => state,
     });
 
     const patch = await writer.beginPatch();
@@ -749,13 +755,17 @@ describe('PatchSession operations', () => {
   });
 
   it('removeEdge creates edge-remove op', async () => {
+    const state = /** @type {any} */ ({ nodeAlive: createORSet(), edgeAlive: createORSet(), prop: new Map(), observedFrontier: createVersionVector() });
+    const ek = encodeEdgeKey('n1', 'n2', 'links');
+    orsetAdd(state.edgeAlive, ek, createDot('alice', 1));
+
     const writer = new Writer({
       persistence,
       patchJournal,
       graphName: 'events',
       writerId: 'alice',
       versionVector,
-      getCurrentState,
+      getCurrentState: () => state,
     });
 
     const patch = await writer.beginPatch();

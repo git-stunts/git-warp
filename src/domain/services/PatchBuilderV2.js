@@ -408,7 +408,13 @@ export class PatchBuilderV2 {
       }
     }
 
-    const observedDots = state ? [...orsetGetDots(state.nodeAlive, nodeId)] : [];
+    if (!state) {
+      throw new PatchError(
+        `Cannot remove node '${nodeId}': graph must be materialized before removing nodes`,
+        { code: 'E_PATCH_NO_STATE' },
+      );
+    }
+    const observedDots = [...orsetGetDots(state.nodeAlive, nodeId)];
     this._ops.push(createNodeRemoveV2(nodeId, observedDots));
     // Provenance: NodeRemove reads the node (to observe its dots)
     this._observedOperands.add(nodeId);
@@ -487,7 +493,13 @@ export class PatchBuilderV2 {
     // Get observed dots from current state (orsetGetDots returns already-encoded dot strings)
     const state = this._getSnapshotState();
     const edgeKey = encodeEdgeKey(from, to, label);
-    const observedDots = state ? [...orsetGetDots(state.edgeAlive, edgeKey)] : [];
+    if (!state) {
+      throw new PatchError(
+        `Cannot remove edge '${from}->${to}' (${label}): graph must be materialized before removing edges`,
+        { code: 'E_PATCH_NO_STATE' },
+      );
+    }
+    const observedDots = [...orsetGetDots(state.edgeAlive, edgeKey)];
     this._ops.push(createEdgeRemoveV2(from, to, label, observedDots));
     // Provenance: EdgeRemove reads the edge key (to observe its dots)
     this._observedOperands.add(edgeKey);

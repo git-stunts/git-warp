@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilderV2 } from '../../../../src/domain/services/PatchBuilderV2.js';
+import PatchError from '../../../../src/domain/errors/PatchError.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
@@ -135,11 +136,13 @@ describe('PatchBuilderV2', () => {
     });
 
     it('returns this for chaining', () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'x', createDot('w', 1));
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
         versionVector: createVersionVector(),
-        getCurrentState: () => null,
+        getCurrentState: () => state,
       }));
 
       const result = builder.removeNode('x');
@@ -206,11 +209,14 @@ describe('PatchBuilderV2', () => {
     });
 
     it('removeEdge returns this for chaining', () => {
+      const state = createMockState();
+      const ek = encodeEdgeKey('a', 'b', 'rel');
+      orsetAdd(state.edgeAlive, ek, createDot('w', 1));
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
         versionVector: createVersionVector(),
-        getCurrentState: () => null,
+        getCurrentState: () => state,
       }));
 
       expect(builder.removeEdge('a', 'b', 'rel')).toBe(builder);
@@ -385,7 +391,7 @@ describe('PatchBuilderV2', () => {
   });
 
   describe('empty state produces empty observedDots', () => {
-    it('removeNode with null state returns empty observedDots', () => {
+    it('removeNode with null state throws E_PATCH_NO_STATE', () => {
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
@@ -393,10 +399,7 @@ describe('PatchBuilderV2', () => {
         getCurrentState: () => null,
       }));
 
-      builder.removeNode('x');
-
-      const patch = builder.build();
-      expect(/** @type {any} */ (patch.ops[0]).observedDots).toEqual([]);
+      expect(() => builder.removeNode('x')).toThrow(PatchError);
     });
 
     it('removeNode with empty state returns empty observedDots', () => {
@@ -415,7 +418,7 @@ describe('PatchBuilderV2', () => {
       expect(/** @type {any} */ (patch.ops[0]).observedDots).toEqual([]);
     });
 
-    it('removeEdge with null state returns empty observedDots', () => {
+    it('removeEdge with null state throws E_PATCH_NO_STATE', () => {
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
@@ -423,10 +426,7 @@ describe('PatchBuilderV2', () => {
         getCurrentState: () => null,
       }));
 
-      builder.removeEdge('a', 'b', 'rel');
-
-      const patch = builder.build();
-      expect(/** @type {any} */ (patch.ops[0]).observedDots).toEqual([]);
+      expect(() => builder.removeEdge('a', 'b', 'rel')).toThrow(PatchError);
     });
 
     it('removeEdge with empty state returns empty observedDots', () => {
@@ -544,11 +544,16 @@ describe('PatchBuilderV2', () => {
     });
 
     it('supports method chaining for all operations', () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'c', createDot('w', 1));
+      const ek = encodeEdgeKey('x', 'y', 'rel');
+      orsetAdd(state.edgeAlive, ek, createDot('w', 2));
+
       const builder = new PatchBuilderV2(/** @type {any} */ ({
         writerId: 'writer1',
         lamport: 1,
         versionVector: createVersionVector(),
-        getCurrentState: () => null,
+        getCurrentState: () => state,
       }));
 
       const result = builder
@@ -1287,6 +1292,66 @@ describe('PatchBuilderV2', () => {
         expect(patch.writes).toEqual(['x']);
         expect(patch.reads).toBeUndefined();
       });
+    });
+  });
+
+  describe('removeNode / removeEdge without materialized state', () => {
+    it('removeNode throws PatchError when state is null', () => {
+      const vv = createVersionVector();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: vv,
+        getCurrentState: () => null,
+      }));
+
+      expect(() => builder.removeNode('alice')).toThrow(PatchError);
+    });
+
+    it('removeNode error has code E_PATCH_NO_STATE', () => {
+      const vv = createVersionVector();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: vv,
+        getCurrentState: () => null,
+      }));
+
+      expect(() => builder.removeNode('alice')).toThrow(
+        expect.objectContaining({ code: 'E_PATCH_NO_STATE' }),
+      );
+    });
+
+    it('removeEdge throws PatchError when state is null', () => {
+      const vv = createVersionVector();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: vv,
+        getCurrentState: () => null,
+      }));
+
+      expect(() => builder.removeEdge('a', 'b', 'knows')).toThrow(PatchError);
+    });
+
+    it('removeNode works when state is available', () => {
+      const state = createMockState();
+      orsetAdd(state.nodeAlive, 'alice', createDot('writer1', 1));
+
+      const vv = createVersionVector();
+      const builder = new PatchBuilderV2(/** @type {any} */ ({
+        writerId: 'writer1',
+        lamport: 2,
+        versionVector: vv,
+        getCurrentState: () => state,
+      }));
+
+      builder.removeNode('alice');
+      const patch = builder.build();
+      expect(patch.ops).toHaveLength(1);
+      const op = /** @type {{ type: string, observedDots: string[] }} */ (patch.ops[0]);
+      expect(op.type).toBe('NodeRemove');
+      expect(op.observedDots.length).toBeGreaterThan(0);
     });
   });
 });
