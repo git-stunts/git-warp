@@ -14,7 +14,7 @@ A script — `scripts/audit-invariants.js` — that:
 
 The output:
 
-```
+```text
 INVARIANT AUDIT
   tick-confluence .............. PASS (7/7 tests)
   no-ambient-time ............. FAIL (3 unsuppressed violations)

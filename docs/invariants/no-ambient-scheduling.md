@@ -38,7 +38,7 @@ a `setInterval` callback mutating domain state.
 ## How do you check?
 
 1. **ESLint gate (enforced on every commit)**:
-   ```
+   ```text
    no-restricted-syntax rules in eslint.config.js ban:
    - setTimeout
    - setInterval

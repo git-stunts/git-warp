@@ -40,7 +40,7 @@ Ambient entropy violates this by definition.
 ## How do you check?
 
 1. **ESLint gate (enforced on every commit)**:
-   ```
+   ```text
    no-restricted-syntax rules in eslint.config.js ban:
    - Math.random()
    ```
