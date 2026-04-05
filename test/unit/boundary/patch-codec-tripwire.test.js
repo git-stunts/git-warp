@@ -78,5 +78,19 @@ function tripwireSuite(suiteName, files) {
   });
 }
 
+/**
+ * Index files that are codec-free after the Slice 3 dissolution.
+ * LogicalBitmapIndexBuilder, PropertyIndexBuilder: serialize() deleted,
+ * only yieldShards() remains (returns IndexShard domain objects).
+ * LogicalIndexBuildService: build() deleted, only buildStream()/buildShards()
+ * remain (return IndexShard domain objects).
+ */
+const INDEX_FILES = [
+  'src/domain/services/index/LogicalBitmapIndexBuilder.js',
+  'src/domain/services/index/PropertyIndexBuilder.js',
+  'src/domain/services/index/LogicalIndexBuildService.js',
+];
+
 tripwireSuite('P5 tripwire: patch files must not touch codec/bytes', PATCH_FILES);
 tripwireSuite('P5 tripwire: checkpoint files must not touch codec/bytes', CHECKPOINT_FILES);
+tripwireSuite('P5 tripwire: index builder files must not touch codec/bytes', INDEX_FILES);
