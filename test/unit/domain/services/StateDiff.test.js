@@ -9,6 +9,7 @@ import {
   applyOpV2,
   encodePropKey,
 } from '../../../../src/domain/services/JoinReducer.js';
+import { encodeEdgePropKey } from '../../../../src/domain/services/KeyCodec.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
 import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.js';
@@ -359,6 +360,63 @@ describe('StateDiff', () => {
         expect(diff.props.set).toEqual([]);
       });
 
+      it('detects changed array element values', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        const propKey = encodePropKey('user:alice', 'tags');
+        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
+        after.prop.set(propKey, lwwSet(makeEventId(2), ['a', 'c']));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.oldValue).toEqual(['a', 'b']);
+        expect(diff.props.set[0]?.newValue).toEqual(['a', 'c']);
+      });
+
+      it('detects changed object key sets', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25 }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, city: 'SF' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 25, city: 'SF' });
+      });
+
+      it('detects changed object keys when shapes differ at equal length', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), { age: 25, city: 'SF' }));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { age: 25, role: 'admin' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+        expect(diff.props.set[0]?.oldValue).toEqual({ age: 25, city: 'SF' });
+        expect(diff.props.set[0]?.newValue).toEqual({ age: 25, role: 'admin' });
+      });
+
+      it('treats array and object values as different even when contents look similar', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        const propKey = encodePropKey('user:alice', 'meta');
+        before.prop.set(propKey, lwwSet(makeEventId(1), ['a', 'b']));
+        after.prop.set(propKey, lwwSet(makeEventId(2), { 0: 'a', 1: 'b' }));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toHaveLength(1);
+      });
+
       it('returns sorted properties', () => {
         const before = createEmptyStateV5();
         const after = createEmptyStateV5();
@@ -374,6 +432,20 @@ describe('StateDiff', () => {
           encodePropKey('a', 'name'),
           encodePropKey('z', 'name'),
         ]);
+      });
+
+      it('ignores edge properties in property diffs', () => {
+        const before = createEmptyStateV5();
+        const after = createEmptyStateV5();
+
+        const edgePropKey = encodeEdgePropKey('a', 'b', 'link', 'weight');
+        before.prop.set(edgePropKey, lwwSet(makeEventId(1), 1));
+        after.prop.set(edgePropKey, lwwSet(makeEventId(2), 2));
+
+        const diff = diffStates(before, after);
+
+        expect(diff.props.set).toEqual([]);
+        expect(diff.props.removed).toEqual([]);
       });
     });
 

@@ -774,6 +774,60 @@ describe('CheckpointService', () => {
         expect(contentEntries[0]).toBe(`040000 tree ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
         expect(contentEntries[299]).toBe(`040000 tree ${makeSequentialOid(299)}\t_content_${makeSequentialOid(299)}`);
       });
+
+      it('merges reversed content-anchor batches into sorted unique output', async () => {
+        const state = createEmptyStateV5();
+        const frontier = createFrontier();
+        updateFrontier(frontier, 'alice', makeOid('sha1'));
+
+        for (let i = 0; i < 256; i++) {
+          const nodeId = `high-${i}`;
+          orsetAdd(state.nodeAlive, nodeId, createDot('alice', i + 1));
+          const contentOid = makeSequentialOid(300 + i);
+          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+            eventId: {
+              lamport: i + 1,
+              writerId: 'alice',
+              patchSha: makeOid(`high${String(i).padStart(3, '0')}`),
+              opIndex: 0,
+            },
+            value: contentOid,
+          });
+        }
+
+        for (let i = 0; i < 10; i++) {
+          const nodeId = `low-${i}`;
+          orsetAdd(state.nodeAlive, nodeId, createDot('alice', 400 + i));
+          const contentOid = makeSequentialOid(i);
+          state.prop.set(encodePropKeyV5(nodeId, CONTENT_PROPERTY_KEY), {
+            eventId: {
+              lamport: 400 + i,
+              writerId: 'alice',
+              patchSha: makeOid(`low${String(i).padStart(3, '0')}`),
+              opIndex: 0,
+            },
+            value: contentOid,
+          });
+        }
+
+        mockPersistence.writeBlob.mockResolvedValue(makeOid('blob'));
+        mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+        mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+        await createV5({
+          persistence: mockPersistence,
+          graphName: 'test',
+          state,
+          frontier,
+          crypto,
+        });
+
+        const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
+        const contentEntries = treeEntries.filter((/** @type {string} */ entry) => entry.includes('\t_content_'));
+        expect(contentEntries[0]).toBe(`040000 tree ${makeSequentialOid(0)}\t_content_${makeSequentialOid(0)}`);
+        expect(contentEntries[9]).toBe(`040000 tree ${makeSequentialOid(9)}\t_content_${makeSequentialOid(9)}`);
+        expect(contentEntries[10]).toBe(`040000 tree ${makeSequentialOid(300)}\t_content_${makeSequentialOid(300)}`);
+      });
     });
 
     describe('loadCheckpoint for V5', () => {
