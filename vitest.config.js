@@ -23,5 +23,18 @@ export default defineConfig({
         external: [/roaring/],
       },
     },
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      exclude: [
+        'src/visualization/index.js',
+        'src/visualization/renderers/ascii/index.js',
+        'src/visualization/renderers/browser/index.js',
+      ],
+      thresholds: {
+        lines: 92.12,
+        autoUpdate: true,
+      },
+    },
   },
 });
