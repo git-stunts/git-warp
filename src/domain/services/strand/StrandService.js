@@ -308,47 +308,6 @@ function baseObservationsEqual(left, right) {
 }
 
 /**
- * Extract read-only overlay metadata from a full strand descriptor.
- *
- * @param {StrandDescriptor} descriptor
- * @returns {StrandReadOverlayDescriptor}
- */
-function buildReadOverlayMetadata(descriptor) {
-  return {
-    strandId: descriptor.strandId,
-    overlayId: descriptor.overlay.overlayId,
-    kind: descriptor.overlay.kind,
-    headPatchSha: descriptor.overlay.headPatchSha,
-    patchCount: descriptor.overlay.patchCount,
-  };
-}
-
-/**
- * Coerce an unknown value into a sorted array of read-overlay descriptors.
- *
- * @param {unknown} value
- * @returns {StrandReadOverlayDescriptor[]}
- */
-function normalizeReadOverlays(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const entries = /** @type {unknown[]} */ (value);
-  return entries
-    .map((entry) => {
-      const overlay = /** @type {Record<string, unknown>} */ (entry);
-      return {
-        strandId: /** @type {string} */ (overlay['strandId']),
-        overlayId: /** @type {string} */ (overlay['overlayId']),
-        kind: /** @type {string} */ (overlay['kind']),
-        headPatchSha: /** @type {string|null} */ (overlay['headPatchSha'] ?? null),
-        patchCount: /** @type {number} */ (overlay['patchCount']),
-      };
-    })
-    .sort((left, right) => compareStrings(left.strandId, right.strandId));
-}
-
-/**
  * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
  *
  * @param {unknown} value
@@ -558,109 +517,6 @@ function setsOverlap(left, right) {
     }
   }
   return false;
-}
-
-/**
- * Check whether two read-overlay arrays are structurally identical.
- *
- * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} left
- * @param {Array<{ strandId: string, overlayId: string, kind: string, headPatchSha: string|null, patchCount: number }>} right
- * @returns {boolean}
- */
-function readOverlaysEqual(left, right) {
-  return (
-    left.length === right.length &&
-    left.every((overlay, index) => {
-      const candidate = right[index];
-      if (candidate === null || candidate === undefined) {
-        return false;
-      }
-      return (
-        overlay.strandId === candidate.strandId &&
-        overlay.overlayId === candidate.overlayId &&
-        overlay.kind === candidate.kind &&
-        overlay.headPatchSha === candidate.headPatchSha &&
-        overlay.patchCount === candidate.patchCount
-      );
-    })
-  );
-}
-
-/**
- * Return true if descriptor overlay metadata matches the expected values.
- *
- * @param {StrandDescriptor} descriptor
- * @param {{ headPatchSha: string|null, patchCount: number, writable: boolean }} expected
- * @returns {boolean}
- */
-function overlayMetadataMatches(descriptor, expected) {
-  return (
-    descriptor.overlay.headPatchSha === expected.headPatchSha &&
-    descriptor.overlay.patchCount === expected.patchCount &&
-    descriptor.overlay.writable === expected.writable
-  );
-}
-
-/**
- * Assemble a fully normalized strand descriptor from a parsed blob and braid state.
- *
- * @param {ReturnType<typeof parseStrandBlobFn>} descriptor
- * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
- * @param {boolean} writable
- * @returns {StrandDescriptor}
- */
-function buildNormalizedStrandDescriptor(descriptor, braidedReadOverlays, writable) {
-  const intentQueue = normalizeIntentQueue(descriptor['intentQueue']);
-  const evolution = normalizeEvolution(descriptor['evolution']);
-  return {
-    ...descriptor,
-    overlay: {
-      ...descriptor.overlay,
-      writable,
-    },
-    braid: {
-      readOverlays: braidedReadOverlays,
-    },
-    intentQueue,
-    evolution,
-  };
-}
-
-/**
- * Return true if a descriptor's overlay and braid state match expectations.
- *
- * @param {StrandDescriptor} descriptor
- * @param {StrandReadOverlayDescriptor[]} descriptorReadOverlays
- * @param {{
- *   braidedReadOverlays: StrandReadOverlayDescriptor[],
- *   expected: { headPatchSha: string|null, patchCount: number, writable: boolean }
- * }} options
- * @returns {boolean}
- */
-function normalizedDescriptorMatches(descriptor, descriptorReadOverlays, options) {
-  const { braidedReadOverlays, expected } = options;
-  return (
-    overlayMetadataMatches(descriptor, expected) &&
-    readOverlaysEqual(descriptorReadOverlays, braidedReadOverlays)
-  );
-}
-
-/**
- * Return a new descriptor with updated overlay head and patch count.
- *
- * @param {StrandDescriptor} descriptor
- * @param {{ headPatchSha: string|null, patchCount: number }} overlay
- * @returns {StrandDescriptor}
- */
-function withOverlayMetadata(descriptor, overlay) {
-  return {
-    ...descriptor,
-    overlay: {
-      ...descriptor.overlay,
-      headPatchSha: overlay.headPatchSha,
-      patchCount: overlay.patchCount,
-    },
-  };
 }
 
 /**
@@ -909,7 +765,8 @@ export default class StrandService {
       graph,
       loadStrandOrThrow: this.getOrThrow.bind(this),
       baseObservationsEqual,
-      buildReadOverlayMetadata,
+      normalizeIntentQueue,
+      normalizeEvolution,
     });
   }
 
@@ -1654,33 +1511,7 @@ export default class StrandService {
    * @returns {Promise<StrandDescriptor>}
    */
   async _hydrateOverlayMetadata(descriptor) {
-    const braidedReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
-    const writable = descriptor.overlay.writable ?? true;
-    const normalizedDescriptor = buildNormalizedStrandDescriptor(
-      descriptor,
-      braidedReadOverlays,
-      writable,
-    );
-    const descriptorReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
-    const overlay = await this._readOverlayMetadata(descriptor.strandId);
-    if (normalizedDescriptorMatches(
-      normalizedDescriptor,
-      descriptorReadOverlays,
-      {
-        braidedReadOverlays,
-        expected: {
-          headPatchSha: overlay.headPatchSha,
-          patchCount: overlay.patchCount,
-          writable,
-        },
-      },
-    )) {
-      return normalizedDescriptor;
-    }
-    return withOverlayMetadata(normalizedDescriptor, {
-      headPatchSha: overlay.headPatchSha,
-      patchCount: overlay.patchCount,
-    });
+    return await this._descriptorStore.hydrateDescriptor(descriptor);
   }
 
   /**

@@ -69,6 +69,93 @@ import { textEncode } from '../../utils/bytes.js';
  * }} StrandDescriptor
  */
 
+/**
+ * Lexicographic comparator for deterministic sort ordering.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function compareStrings(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+const READ_OVERLAY_FIELDS = /** @type {const} */ ([
+  'strandId',
+  'overlayId',
+  'kind',
+  'headPatchSha',
+  'patchCount',
+]);
+
+/**
+ * Coerce an unknown value into a sorted array of read-overlay descriptors.
+ *
+ * @param {unknown} value
+ * @returns {StrandReadOverlayDescriptor[]}
+ */
+function normalizeReadOverlays(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const entries = /** @type {unknown[]} */ (value);
+  return entries
+    .map((entry) => {
+      const overlay = /** @type {Record<string, unknown>} */ (entry);
+      return {
+        strandId: /** @type {string} */ (overlay['strandId']),
+        overlayId: /** @type {string} */ (overlay['overlayId']),
+        kind: /** @type {string} */ (overlay['kind']),
+        headPatchSha: /** @type {string|null} */ (overlay['headPatchSha'] ?? null),
+        patchCount: /** @type {number} */ (overlay['patchCount']),
+      };
+    })
+    .sort((left, right) => compareStrings(left.strandId, right.strandId));
+}
+
+/**
+ * Check whether two read-overlay arrays are structurally identical.
+ *
+ * @param {StrandReadOverlayDescriptor[]} left
+ * @param {StrandReadOverlayDescriptor[]} right
+ * @returns {boolean}
+ */
+function readOverlaysEqual(left, right) {
+  return (
+    left.length === right.length &&
+    left.every((overlay, index) => readOverlayEqual(overlay, right[index]))
+  );
+}
+
+/**
+ * Check whether two read-overlay descriptors are structurally identical.
+ *
+ * @param {StrandReadOverlayDescriptor} overlay
+ * @param {StrandReadOverlayDescriptor|undefined} candidate
+ * @returns {boolean}
+ */
+function readOverlayEqual(overlay, candidate) {
+  if (candidate === null || candidate === undefined) {
+    return false;
+  }
+  return READ_OVERLAY_FIELDS.every((field) => overlay[field] === candidate[field]);
+}
+
+/**
+ * Return true if descriptor overlay metadata matches the expected values.
+ *
+ * @param {StrandDescriptor} descriptor
+ * @param {{ headPatchSha: string|null, patchCount: number, writable: boolean }} expected
+ * @returns {boolean}
+ */
+function overlayMetadataMatches(descriptor, expected) {
+  return (
+    descriptor.overlay.headPatchSha === expected.headPatchSha &&
+    descriptor.overlay.patchCount === expected.patchCount &&
+    descriptor.overlay.writable === expected.writable
+  );
+}
+
 export default class StrandDescriptorStore {
   /**
    * Create a descriptor-store boundary over strand refs and descriptor blobs.
@@ -80,14 +167,16 @@ export default class StrandDescriptorStore {
    *     left: StrandDescriptor['baseObservation'],
    *     right: StrandDescriptor['baseObservation']
    *   ) => boolean,
-   *   buildReadOverlayMetadata: (descriptor: StrandDescriptor) => StrandReadOverlayDescriptor,
+   *   normalizeIntentQueue: (value: unknown) => StrandIntentQueue,
+   *   normalizeEvolution: (value: unknown) => StrandDescriptor['evolution'],
    * }} options
    */
-  constructor({ graph, loadStrandOrThrow, baseObservationsEqual, buildReadOverlayMetadata }) {
+  constructor({ graph, loadStrandOrThrow, baseObservationsEqual, normalizeIntentQueue, normalizeEvolution }) {
     this._graph = graph;
     this._loadStrandOrThrow = loadStrandOrThrow;
     this._baseObservationsEqual = baseObservationsEqual;
-    this._buildReadOverlayMetadata = buildReadOverlayMetadata;
+    this._normalizeIntentQueue = normalizeIntentQueue;
+    this._normalizeEvolution = normalizeEvolution;
   }
 
   /**
@@ -241,9 +330,25 @@ export default class StrandDescriptorStore {
           },
         );
       }
-      readOverlays.push(this._buildReadOverlayMetadata(braided));
+      readOverlays.push(this.buildReadOverlayMetadata(braided));
     }
     return readOverlays;
+  }
+
+  /**
+   * Extract read-only overlay metadata from a full strand descriptor.
+   *
+   * @param {StrandDescriptor} descriptor
+   * @returns {StrandReadOverlayDescriptor}
+   */
+  buildReadOverlayMetadata(descriptor) {
+    return {
+      strandId: descriptor.strandId,
+      overlayId: descriptor.overlay.overlayId,
+      kind: descriptor.overlay.kind,
+      headPatchSha: descriptor.overlay.headPatchSha,
+      patchCount: descriptor.overlay.patchCount,
+    };
   }
 
   /**
@@ -262,6 +367,84 @@ export default class StrandDescriptorStore {
     return {
       headPatchSha,
       patchCount: overlayPatches.length,
+    };
+  }
+
+  /**
+   * Hydrate a parsed descriptor with live overlay metadata and normalized braid state.
+   *
+   * @param {ReturnType<typeof parseStrandBlob>} descriptor
+   * @returns {Promise<StrandDescriptor>}
+   */
+  async hydrateDescriptor(descriptor) {
+    const braidedReadOverlays = normalizeReadOverlays(descriptor.braid?.readOverlays);
+    const normalizedDescriptor = this._buildNormalizedDescriptor(descriptor, braidedReadOverlays);
+    const overlay = await this.readOverlayMetadata(descriptor.strandId);
+    if (this._matchesHydratedDescriptor(normalizedDescriptor, braidedReadOverlays, overlay)) {
+      return normalizedDescriptor;
+    }
+    return this._withOverlayMetadata(normalizedDescriptor, overlay);
+  }
+
+  /**
+   * Normalize one parsed descriptor into the runtime form StrandService expects.
+   *
+   * @private
+   * @param {ReturnType<typeof parseStrandBlob>} descriptor
+   * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
+   * @returns {StrandDescriptor}
+   */
+  _buildNormalizedDescriptor(descriptor, braidedReadOverlays) {
+    return {
+      ...descriptor,
+      overlay: {
+        ...descriptor.overlay,
+        writable: descriptor.overlay.writable ?? true,
+      },
+      braid: {
+        readOverlays: braidedReadOverlays,
+      },
+      intentQueue: this._normalizeIntentQueue(descriptor['intentQueue']),
+      evolution: this._normalizeEvolution(descriptor['evolution']),
+    };
+  }
+
+  /**
+   * Return true if the descriptor already reflects live overlay metadata.
+   *
+   * @private
+   * @param {StrandDescriptor} descriptor
+   * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
+   * @param {{ headPatchSha: string|null, patchCount: number }} overlay
+   * @returns {boolean}
+   */
+  _matchesHydratedDescriptor(descriptor, braidedReadOverlays, overlay) {
+    return (
+      overlayMetadataMatches(descriptor, {
+        headPatchSha: overlay.headPatchSha,
+        patchCount: overlay.patchCount,
+        writable: descriptor.overlay.writable,
+      }) &&
+      readOverlaysEqual(descriptor.braid.readOverlays, braidedReadOverlays)
+    );
+  }
+
+  /**
+   * Return a normalized descriptor with refreshed live overlay metadata.
+   *
+   * @private
+   * @param {StrandDescriptor} descriptor
+   * @param {{ headPatchSha: string|null, patchCount: number }} overlay
+   * @returns {StrandDescriptor}
+   */
+  _withOverlayMetadata(descriptor, overlay) {
+    return {
+      ...descriptor,
+      overlay: {
+        ...descriptor.overlay,
+        headPatchSha: overlay.headPatchSha,
+        patchCount: overlay.patchCount,
+      },
     };
   }
 
