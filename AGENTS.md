@@ -22,6 +22,9 @@
 
 - Read [METHOD.md](METHOD.md) and follow it.
 - Backlog lives in `docs/method/backlog/` with lanes `inbox/`, `asap/`, `up-next/`, `cool-ideas/`, and `bad-code/`.
+- As you work, feel free to file concrete jank, stank, or correctness smells under `docs/method/backlog/bad-code/`.
+- As you work, feel free to file speculative improvements or design sparks under `docs/method/backlog/cool-ideas/`.
+- Prefer small, precise backlog notes over leaving useful discoveries only in chat.
 - Cycles live in `docs/design/<NNNN-slug>/`.
 - Retros live in `docs/method/retro/<NNNN-slug>/`.
 - Signposts are `docs/BEARING.md` and `docs/VISION.md`; update them at cycle boundaries, not mid-cycle.

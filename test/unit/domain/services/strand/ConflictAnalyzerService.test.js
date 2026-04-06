@@ -5,9 +5,11 @@ import { ConflictAnalyzerService,
   CONFLICT_TRUNCATION_POLICY,
   CONFLICT_REDUCER_ID,
 } from '../../../../../src/domain/services/strand/ConflictAnalyzerService.js';
+import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../../../src/domain/errors/QueryError.js';
 import { textEncode } from '../../../../../src/domain/utils/bytes.js';
 import { createHash } from 'node:crypto';
+import StrandService from '../../../../../src/domain/services/strand/StrandService.js';
 
 // ── Deterministic helpers ─────────────────────────────────────────────────────
 
@@ -465,10 +467,60 @@ describe('ConflictAnalyzerService', () => {
       }
     });
 
+    it('filters by writerId when the selected writer is the winner', async () => {
+      const result = await analyzer.analyze({ writerId: 'w2' });
+
+      expect(result.conflicts.length).toBeGreaterThan(0);
+      for (const c of result.conflicts) {
+        expect(c.winner.anchor.writerId).toBe('w2');
+      }
+    });
+
     it('filters by entityId', async () => {
       const result = await analyzer.analyze({ entityId: 'n1' });
 
       // All conflicts should relate to entity n1
+      expect(result.conflicts.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('filters by entityId through edge endpoints', async () => {
+      const edgeGraph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [
+                  { type: 'EdgeAdd', from: 'left', to: 'right', label: 'rel', dot: { writerId: 'w1', counter: 1 } },
+                ],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+          w2: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w2',
+                lamport: 2,
+                ops: [
+                  { type: 'EdgeAdd', from: 'left', to: 'right', label: 'rel', dot: { writerId: 'w2', counter: 1 } },
+                ],
+                context: {},
+              },
+              sha: 'b'.repeat(40),
+            },
+          ],
+        },
+      });
+      const edgeAnalyzer = new ConflictAnalyzerService({ graph: edgeGraph });
+
+      const result = await edgeAnalyzer.analyze({ entityId: 'left' });
+
+      expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
       expect(result.conflicts.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -480,6 +532,22 @@ describe('ConflictAnalyzerService', () => {
       for (const c of result.conflicts) {
         expect(c.target.targetKind).toBe('node_property');
       }
+    });
+
+    it('returns no conflicts when target selector does not match target kind', async () => {
+      const result = await analyzer.analyze({
+        target: { targetKind: 'edge', from: 'n1', to: 'n2', label: 'rel' },
+      });
+
+      expect(result.conflicts).toEqual([]);
+    });
+
+    it('returns no conflicts when target selector field values do not match', async () => {
+      const result = await analyzer.analyze({
+        target: { targetKind: 'node_property', entityId: 'n1', propertyKey: 'missing' },
+      });
+
+      expect(result.conflicts).toEqual([]);
     });
 
     it('applies lamport ceiling', async () => {
@@ -532,6 +600,11 @@ describe('ConflictAnalyzerService', () => {
         .rejects.toThrow(QueryError);
     });
 
+    it('rejects empty kind arrays', async () => {
+      await expect(analyzer.analyze({ kind: [] }))
+        .rejects.toThrow(QueryError);
+    });
+
     it('rejects invalid evidence level', async () => {
       await expect(analyzer.analyze({ evidence: 'verbose' }))
         .rejects.toThrow(QueryError);
@@ -557,6 +630,11 @@ describe('ConflictAnalyzerService', () => {
         .rejects.toThrow(QueryError);
     });
 
+    it('rejects non-object target selectors', async () => {
+      await expect(analyzer.analyze({ target: /** @type {any} */ ('node:n1') }))
+        .rejects.toThrow(QueryError);
+    });
+
     it('rejects node target without entityId', async () => {
       await expect(analyzer.analyze({ target: { targetKind: 'node' } }))
         .rejects.toThrow(QueryError);
@@ -579,6 +657,21 @@ describe('ConflictAnalyzerService', () => {
           target: { targetKind: 'edge_property', from: 'a', to: 'b', label: 'l' },
         }),
       ).rejects.toThrow(QueryError);
+    });
+
+    it('rejects empty writerId filters', async () => {
+      await expect(analyzer.analyze({ writerId: '' }))
+        .rejects.toThrow(QueryError);
+    });
+
+    it('rejects empty entityId filters', async () => {
+      await expect(analyzer.analyze({ entityId: '' }))
+        .rejects.toThrow(QueryError);
+    });
+
+    it('rejects empty strandId filters', async () => {
+      await expect(analyzer.analyze({ strandId: '' }))
+        .rejects.toThrow(QueryError);
     });
 
     it('accepts null options', async () => {
@@ -661,6 +754,72 @@ describe('ConflictAnalyzerService', () => {
       const result = await analyzer.analyze();
 
       expect(result.resolvedCoordinate.lamportCeiling).toBeNull();
+    });
+
+    it('resolves strand coordinates through StrandService metadata', async () => {
+      const graph = createMockGraph();
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const getOrThrowSpy = vi.spyOn(StrandService.prototype, 'getOrThrow').mockResolvedValue({
+        strandId: 'alpha',
+        baseObservation: {
+          lamportCeiling: 5,
+          frontierDigest: 'frontier-digest',
+          frontier: { zeta: 'z'.repeat(40), alpha: 'a'.repeat(40) },
+        },
+        overlay: {
+          headPatchSha: 'f'.repeat(40),
+          patchCount: 2,
+          writable: true,
+        },
+        braid: {
+          readOverlays: [{ strandId: 'gamma' }, { strandId: 'beta' }],
+        },
+      });
+      const getPatchEntriesSpy = vi.spyOn(StrandService.prototype, 'getPatchEntries').mockResolvedValue([
+        {
+          patch: {
+            schema: 2,
+            writer: 'w1',
+            lamport: 1,
+            ops: [{ type: 'PropSet', node: 'n1', key: 'k', value: 'a' }],
+            context: {},
+          },
+          sha: 'a'.repeat(40),
+        },
+        {
+          patch: {
+            schema: 2,
+            writer: 'w2',
+            lamport: 2,
+            ops: [{ type: 'PropSet', node: 'n1', key: 'k', value: 'b' }],
+            context: {},
+          },
+          sha: 'b'.repeat(40),
+        },
+      ]);
+
+      try {
+        const result = await analyzer.analyze({ strandId: 'alpha', at: { lamportCeiling: 5 } });
+
+        expect(getOrThrowSpy).toHaveBeenCalledWith('alpha');
+        expect(getPatchEntriesSpy).toHaveBeenCalledWith('alpha', { ceiling: 5 });
+        expect(result.resolvedCoordinate.coordinateKind).toBe('strand');
+        expect(result.resolvedCoordinate.strand).toEqual({
+          strandId: 'alpha',
+          baseLamportCeiling: 5,
+          overlayHeadPatchSha: 'f'.repeat(40),
+          overlayPatchCount: 2,
+          overlayWritable: true,
+          braid: {
+            readOverlayCount: 2,
+            braidedStrandIds: ['beta', 'gamma'],
+          },
+        });
+        expect(Object.keys(result.resolvedCoordinate.frontier)).toEqual(['alpha', 'zeta']);
+      } finally {
+        getOrThrowSpy.mockRestore();
+        getPatchEntriesSpy.mockRestore();
+      }
     });
   });
 
@@ -946,6 +1105,222 @@ describe('ConflictAnalyzerService', () => {
       if (result.diagnostics) {
         expect(result.diagnostics.length).toBeGreaterThan(0);
       }
+    });
+
+    it('emits receipt_unavailable when reducer receipts are missing an op outcome', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'PropSet', node: 'n1', key: 'k', value: 'v1' }],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: 'a'.repeat(40),
+          writer: 'w1',
+          lamport: 1,
+          ops: [],
+        }],
+      });
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'receipt_unavailable')).toBe(true);
+      } finally {
+        reduceSpy.mockRestore();
+      }
+    });
+
+    it('emits anchor_incomplete when a NodeRemove has no node identity', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'NodeRemove', observedDots: new Set() }],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze();
+
+      expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+    });
+
+    it('emits anchor_incomplete when an EdgeRemove has no edge identity', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'EdgeRemove', observedDots: new Set() }],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze();
+
+      expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+    });
+
+    it('emits digest_unavailable when effect digest generation returns an empty string', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'PropSet', node: 'n1', key: 'k', value: 'v1' }],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const originalHash = analyzer._hash.bind(analyzer);
+      const hashSpy = vi.spyOn(analyzer, '_hash').mockImplementation(async (payload) => {
+        if (
+          payload !== null &&
+          typeof payload === 'object' &&
+          'opType' in payload &&
+          payload['opType'] === 'NodePropSet'
+        ) {
+          return '';
+        }
+        return await originalHash(payload);
+      });
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).toBe(true);
+      } finally {
+        hashSpy.mockRestore();
+      }
+    });
+
+    it('skips unknown forward-compatible ops without failing analysis', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'FutureOpV99', payload: 'mystery' }],
+                context: null,
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze();
+
+      expect(result.conflicts).toEqual([]);
+      expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+    });
+
+    it('processes node and edge tombstones through effect normalization', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [
+                  { type: 'NodeAdd', node: 'n1', dot: { writerId: 'w1', counter: 1 } },
+                  { type: 'EdgeAdd', from: 'n1', to: 'n2', label: 'rel', dot: { writerId: 'w1', counter: 2 } },
+                  { type: 'NodeRemove', node: 'n1', observedDots: new Set() },
+                  { type: 'EdgeRemove', from: 'n1', to: 'n2', label: 'rel', observedDots: new Set() },
+                ],
+                context: new Map([['w0', 0]]),
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze({ evidence: 'full' });
+
+      expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+      expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).not.toBe(true);
+    });
+
+    it('includes ordered loser notes at full evidence when the winner observed the loser', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'alpha',
+                lamport: 1,
+                ops: [{ type: 'PropSet', node: 'n1', key: 'status', value: 'draft' }],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'beta',
+                lamport: 2,
+                ops: [{ type: 'PropSet', node: 'n1', key: 'status', value: 'published' }],
+                context: { alpha: 1 },
+              },
+              sha: 'b'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze({ evidence: 'full', kind: 'eventual_override' });
+
+      expect(result.conflicts.length).toBeGreaterThan(0);
+      expect(result.conflicts[0]?.losers[0]?.notes).toContain('ordered_before_winner');
     });
   });
 
