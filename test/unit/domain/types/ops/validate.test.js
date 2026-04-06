@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertNonEmptyString, assertNoBannedBytes, assertArray } from '../../../../../src/domain/types/ops/validate.js';
+import { assertNonEmptyString, assertNoReservedBytes, assertArray } from '../../../../../src/domain/types/ops/validate.js';
 
 describe('assertNonEmptyString', () => {
   it('accepts a non-empty string', () => {
@@ -19,18 +19,25 @@ describe('assertNonEmptyString', () => {
   });
 });
 
-describe('assertNoBannedBytes', () => {
+describe('assertNoReservedBytes', () => {
   it('accepts a clean string', () => {
-    expect(() => assertNoBannedBytes('user:alice', 'Test', 'node')).not.toThrow();
+    expect(() => assertNoReservedBytes('user:alice', 'Test', 'node')).not.toThrow();
   });
 
   it('throws on NUL byte', () => {
-    expect(() => assertNoBannedBytes('user\x00alice', 'TestOp', 'node')).toThrow("TestOp 'node' must not contain NUL");
+    expect(() => assertNoReservedBytes('user\x00alice', 'TestOp', 'node')).toThrow("TestOp 'node' must not contain NUL");
   });
 
-  it('accepts strings with other special characters', () => {
-    expect(() => assertNoBannedBytes('user\x01alice', 'Test', 'node')).not.toThrow();
-    expect(() => assertNoBannedBytes('user:alice:bob', 'Test', 'node')).not.toThrow();
+  it('throws on \\x01 prefix', () => {
+    expect(() => assertNoReservedBytes('\x01user:alice', 'TestOp', 'node')).toThrow("TestOp 'node' must not start with reserved prefix \\x01");
+  });
+
+  it('accepts \\x01 in non-prefix position', () => {
+    expect(() => assertNoReservedBytes('user\x01alice', 'Test', 'node')).not.toThrow();
+  });
+
+  it('accepts strings with colons and other special characters', () => {
+    expect(() => assertNoReservedBytes('user:alice:bob', 'Test', 'node')).not.toThrow();
   });
 });
 

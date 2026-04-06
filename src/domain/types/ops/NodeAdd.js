@@ -6,7 +6,7 @@
 
 import { Dot } from '../../crdt/Dot.js';
 import Op from './Op.js';
-import { assertNonEmptyString, assertNoBannedBytes } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes } from './validate.js';
 
 /**
  * Adds a node to the graph's OR-Set with a unique dot.
@@ -27,7 +27,7 @@ export default class NodeAdd extends Op {
   constructor(node, dot) {
     super('NodeAdd');
     assertNonEmptyString(node, 'NodeAdd', 'node');
-    assertNoBannedBytes(node, 'NodeAdd', 'node');
+    assertNoReservedBytes(node, 'NodeAdd', 'node');
     if (!(dot instanceof Dot)) {
       throw new Error('NodeAdd requires dot to be a Dot instance');
     }

@@ -1,6 +1,7 @@
 # Cycle 0009 — Op Type Class Hierarchy
 
-**Status:** DESIGN
+**Status:** HILL MET
+
 **Date:** 2026-04-05
 
 ## Sponsors
@@ -56,6 +57,20 @@ dispatch — eliminating all string-based tag switching.
 | `bin/presenters/text.js` | `instanceof` checks replace string comparisons. |
 | `src/domain/services/PatchBuilderV2.js` | Builds canonical op class instances internally. `build()`/`commit()` lower via `lowerCanonicalOp`. |
 | CBOR decode boundary | `CborCodec` or `CborPatchJournalAdapter` hydrates plain objects into op classes. |
+
+### Delivered vs. Deferred
+
+| Component | Status |
+|---|---|
+| `src/domain/types/ops/` | **Delivered** — 9 classes + validate.js |
+| `src/domain/types/WarpTypesV2.js` | **Delivered** — factory functions delegate to constructors |
+| `src/domain/services/OpNormalizer.js` | **Delivered** — returns class instances via factory functions |
+| `src/domain/services/JoinReducer.js` | **Deferred** — OP_STRATEGIES still string-keyed (works with class instances via .type). See `PROTO_op-consumer-instanceof-migration` |
+| `src/domain/types/TickReceipt.js` | **Deferred** — See `PROTO_op-consumer-instanceof-migration` |
+| `src/domain/services/codec/MessageSchemaDetector.js` | **Deferred** — See `PROTO_op-consumer-instanceof-migration` |
+| `bin/presenters/text.js` | **Deferred** — See `PROTO_op-consumer-instanceof-migration` |
+| `src/domain/services/PatchBuilderV2.js` | **Not needed** — already uses factory functions which now produce class instances |
+| CBOR decode boundary | **Deferred** — See `PROTO_cbor-op-hydration` |
 
 ### What does NOT change
 

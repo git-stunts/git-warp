@@ -5,7 +5,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString, assertArray } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.js';
 
 /**
  * Removes a directed edge from the graph's OR-Set by tombstoning observed dots.
@@ -33,6 +33,9 @@ export default class EdgeRemove extends Op {
     assertNonEmptyString(from, 'EdgeRemove', 'from');
     assertNonEmptyString(to, 'EdgeRemove', 'to');
     assertNonEmptyString(label, 'EdgeRemove', 'label');
+    assertNoReservedBytes(from, 'EdgeRemove', 'from');
+    assertNoReservedBytes(to, 'EdgeRemove', 'to');
+    assertNoReservedBytes(label, 'EdgeRemove', 'label');
     assertArray(observedDots, 'EdgeRemove', 'observedDots');
     this.from = from;
     this.to = to;

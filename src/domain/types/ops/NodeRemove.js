@@ -5,7 +5,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString, assertArray } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.js';
 
 /**
  * Removes a node from the graph's OR-Set by tombstoning observed dots.
@@ -26,6 +26,7 @@ export default class NodeRemove extends Op {
   constructor(node, observedDots) {
     super('NodeRemove');
     assertNonEmptyString(node, 'NodeRemove', 'node');
+    assertNoReservedBytes(node, 'NodeRemove', 'node');
     assertArray(observedDots, 'NodeRemove', 'observedDots');
     this.node = node;
     this.observedDots = Object.freeze([...observedDots]);

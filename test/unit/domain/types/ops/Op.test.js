@@ -87,6 +87,11 @@ describe('NodeAdd', () => {
     const dot = new Dot('alice', 1);
     expect(() => new NodeAdd('user\x00alice', dot)).toThrow();
   });
+
+  it('rejects nodeId starting with \\x01 prefix', () => {
+    const dot = new Dot('alice', 1);
+    expect(() => new NodeAdd('\x01user:alice', dot)).toThrow(/reserved prefix/);
+  });
 });
 
 describe('NodeRemove', () => {
@@ -126,6 +131,14 @@ describe('NodeRemove', () => {
   it('accepts empty observedDots array', () => {
     const op = new NodeRemove('user:alice', []);
     expect(op.observedDots).toEqual([]);
+  });
+
+  it('rejects nodeId containing NUL byte', () => {
+    expect(() => new NodeRemove('user\x00alice', [])).toThrow(/NUL/);
+  });
+
+  it('rejects nodeId starting with \\x01 prefix', () => {
+    expect(() => new NodeRemove('\x01user:alice', [])).toThrow(/reserved prefix/);
   });
 });
 
@@ -180,6 +193,13 @@ describe('EdgeAdd', () => {
     expect(() => new EdgeAdd({ from: 'n1', to: 'n\x002', label: 'rel', dot })).toThrow();
     expect(() => new EdgeAdd({ from: 'n1', to: 'n2', label: 'r\x00l', dot })).toThrow();
   });
+
+  it('rejects from/to/label starting with \\x01 prefix', () => {
+    const dot = new Dot('alice', 1);
+    expect(() => new EdgeAdd({ from: '\x01n1', to: 'n2', label: 'rel', dot })).toThrow(/reserved prefix/);
+    expect(() => new EdgeAdd({ from: 'n1', to: '\x01n2', label: 'rel', dot })).toThrow(/reserved prefix/);
+    expect(() => new EdgeAdd({ from: 'n1', to: 'n2', label: '\x01rel', dot })).toThrow(/reserved prefix/);
+  });
 });
 
 describe('EdgeRemove', () => {
@@ -223,6 +243,18 @@ describe('EdgeRemove', () => {
 
   it('throws when observedDots is not an array', () => {
     expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'rel', observedDots: /** @type {any} */ ('w:1') })).toThrow();
+  });
+
+  it('rejects from/to/label containing NUL byte', () => {
+    expect(() => new EdgeRemove({ from: 'n\x001', to: 'n2', label: 'rel', observedDots: [] })).toThrow(/NUL/);
+    expect(() => new EdgeRemove({ from: 'n1', to: 'n\x002', label: 'rel', observedDots: [] })).toThrow(/NUL/);
+    expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'r\x00l', observedDots: [] })).toThrow(/NUL/);
+  });
+
+  it('rejects from/to/label starting with \\x01 prefix', () => {
+    expect(() => new EdgeRemove({ from: '\x01n1', to: 'n2', label: 'rel', observedDots: [] })).toThrow(/reserved prefix/);
+    expect(() => new EdgeRemove({ from: 'n1', to: '\x01n2', label: 'rel', observedDots: [] })).toThrow(/reserved prefix/);
+    expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: '\x01rel', observedDots: [] })).toThrow(/reserved prefix/);
   });
 });
 
@@ -271,6 +303,18 @@ describe('NodePropSet', () => {
     const op = new NodePropSet('n1', 'age', 42);
     expect(op.value).toBe(42);
   });
+
+  it('rejects node containing NUL byte', () => {
+    expect(() => new NodePropSet('n\x001', 'k', 'v')).toThrow(/NUL/);
+  });
+
+  it('rejects key containing NUL byte', () => {
+    expect(() => new NodePropSet('n1', 'k\x00ey', 'v')).toThrow(/NUL/);
+  });
+
+  it('rejects node starting with \\x01 prefix', () => {
+    expect(() => new NodePropSet('\x01n1', 'k', 'v')).toThrow(/reserved prefix/);
+  });
 });
 
 describe('EdgePropSet', () => {
@@ -317,6 +361,20 @@ describe('EdgePropSet', () => {
   it('accepts null value', () => {
     const op = new EdgePropSet({ from: 'n1', to: 'n2', label: 'rel', key: 'k', value: null });
     expect(op.value).toBeNull();
+  });
+
+  it('rejects from/to/label/key containing NUL byte', () => {
+    expect(() => new EdgePropSet({ from: 'n\x001', to: 'n2', label: 'rel', key: 'k', value: 'v' })).toThrow(/NUL/);
+    expect(() => new EdgePropSet({ from: 'n1', to: 'n\x002', label: 'rel', key: 'k', value: 'v' })).toThrow(/NUL/);
+    expect(() => new EdgePropSet({ from: 'n1', to: 'n2', label: 'r\x00l', key: 'k', value: 'v' })).toThrow(/NUL/);
+    expect(() => new EdgePropSet({ from: 'n1', to: 'n2', label: 'rel', key: 'k\x00ey', value: 'v' })).toThrow(/NUL/);
+  });
+
+  it('rejects from/to/label/key starting with \\x01 prefix', () => {
+    expect(() => new EdgePropSet({ from: '\x01n1', to: 'n2', label: 'rel', key: 'k', value: 'v' })).toThrow(/reserved prefix/);
+    expect(() => new EdgePropSet({ from: 'n1', to: '\x01n2', label: 'rel', key: 'k', value: 'v' })).toThrow(/reserved prefix/);
+    expect(() => new EdgePropSet({ from: 'n1', to: 'n2', label: '\x01rel', key: 'k', value: 'v' })).toThrow(/reserved prefix/);
+    expect(() => new EdgePropSet({ from: 'n1', to: 'n2', label: 'rel', key: '\x01k', value: 'v' })).toThrow(/reserved prefix/);
   });
 });
 
@@ -388,6 +446,14 @@ describe('BlobValue', () => {
 
   it('throws on non-string oid', () => {
     expect(() => new BlobValue('n1', /** @type {any} */ (42))).toThrow();
+  });
+
+  it('rejects node containing NUL byte', () => {
+    expect(() => new BlobValue('n\x001', 'oid123')).toThrow(/NUL/);
+  });
+
+  it('rejects node starting with \\x01 prefix', () => {
+    expect(() => new BlobValue('\x01n1', 'oid123')).toThrow(/reserved prefix/);
   });
 });
 

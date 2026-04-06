@@ -5,7 +5,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes } from './validate.js';
 
 /**
  * Sets a property on a node using LWW semantics.
@@ -32,6 +32,8 @@ export default class NodePropSet extends Op {
     super('NodePropSet');
     assertNonEmptyString(node, 'NodePropSet', 'node');
     assertNonEmptyString(key, 'NodePropSet', 'key');
+    assertNoReservedBytes(node, 'NodePropSet', 'node');
+    assertNoReservedBytes(key, 'NodePropSet', 'key');
     this.node = node;
     this.key = key;
     this.value = value;

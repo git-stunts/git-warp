@@ -51,7 +51,7 @@ identity, constructor validation, and `instanceof` dispatch.
 
 ## Stats
 
-- 9 new source files (710 LOC)
+- 10 new source files (710 LOC)
 - 4 new test files (97 tests)
 - 35 existing tests updated
 - 5504 total tests passing

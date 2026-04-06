@@ -5,7 +5,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes } from './validate.js';
 
 /**
  * References an external blob attached to a node.
@@ -28,6 +28,7 @@ export default class BlobValue extends Op {
     super('BlobValue');
     assertNonEmptyString(node, 'BlobValue', 'node');
     assertNonEmptyString(oid, 'BlobValue', 'oid');
+    assertNoReservedBytes(node, 'BlobValue', 'node');
     this.node = node;
     this.oid = oid;
     Object.freeze(this);

@@ -5,7 +5,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes } from './validate.js';
 
 /**
  * Sets a property on an edge using LWW semantics.
@@ -38,6 +38,10 @@ export default class EdgePropSet extends Op {
     assertNonEmptyString(to, 'EdgePropSet', 'to');
     assertNonEmptyString(label, 'EdgePropSet', 'label');
     assertNonEmptyString(key, 'EdgePropSet', 'key');
+    assertNoReservedBytes(from, 'EdgePropSet', 'from');
+    assertNoReservedBytes(to, 'EdgePropSet', 'to');
+    assertNoReservedBytes(label, 'EdgePropSet', 'label');
+    assertNoReservedBytes(key, 'EdgePropSet', 'key');
     this.from = from;
     this.to = to;
     this.label = label;

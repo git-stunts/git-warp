@@ -21,7 +21,7 @@ import EdgeAddClass from './ops/EdgeAdd.js';
 import EdgeRemoveClass from './ops/EdgeRemove.js';
 import NodePropSetClass from './ops/NodePropSet.js';
 import EdgePropSetClass from './ops/EdgePropSet.js';
-import PropSetOpClass from './ops/PropSet.js';
+import PropSetClass from './ops/PropSet.js';
 
 // Re-export PatchV2 class for consumers that import from this module.
 export { PatchV2 };
@@ -205,7 +205,7 @@ export function createEdgeRemoveV2(from, to, label, observedDots) {
  * @returns {OpV2PropSet} PropSet operation
  */
 export function createPropSetV2(node, key, value) {
-  return new PropSetOpClass(node, key, value);
+  return new PropSetClass(node, key, value);
 }
 
 /**
