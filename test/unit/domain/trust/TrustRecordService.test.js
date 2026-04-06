@@ -7,6 +7,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrustRecordService } from '../../../../src/domain/trust/TrustRecordService.js';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.js';
+import TrustError from '../../../../src/domain/errors/TrustError.js';
 import { createJsonCodec, createTrustRecordPersistence } from '../../../helpers/trustTestUtils.js';
 import {
   KEY_ADD_1,
@@ -36,6 +38,12 @@ describe('TrustRecordService.appendRecord', () => {
     });
     expect(result.commitSha).toMatch(/^commit-/);
     expect(result.ref).toBe('refs/warp/test-graph/trust/records');
+  });
+
+  it('verifies the signature envelope when skipSignatureVerify is omitted', async () => {
+    const result = await service.appendRecord('test-graph', KEY_ADD_1);
+
+    expect(result.commitSha).toMatch(/^commit-/);
   });
 
   it('appends second record after genesis', async () => {
@@ -126,6 +134,16 @@ describe('TrustRecordService.readRecords', () => {
     expect(result.records).toEqual([]);
   });
 
+  it('returns ok=true when the trust ref is missing by typed persistence error', async () => {
+    persistence.readRef = async () => {
+      throw new PersistenceError('ref missing', PersistenceError.E_REF_NOT_FOUND);
+    };
+
+    const result = await service.readRecords('test-graph');
+
+    expect(result).toEqual({ ok: true, records: [] });
+  });
+
   it('returns ok=false when trust ref read fails', async () => {
     persistence.readRef = async () => {
       throw new Error('permission denied');
@@ -169,6 +187,39 @@ describe('TrustRecordService.readRecords', () => {
     expect(records[0].recordType).toBe('KEY_ADD');
     expect(records[1].recordType).toBe('KEY_ADD');
     expect(records[2].recordType).toBe('WRITER_BIND_ADD');
+  });
+
+  it('stops cleanly when a trust commit tree has no record blob', async () => {
+    const tree = await persistence.writeTree([]);
+    const commit = await persistence.commitNodeWithTree({
+      treeOid: tree,
+      parents: [],
+      message: 'trust: empty',
+    });
+
+    const result = await service.readRecords('test-graph', { tip: commit });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw result.error;
+    }
+    expect(result.records).toEqual([]);
+  });
+
+  it('wraps non-Error read failures into an Error result', async () => {
+    await service.appendRecord('test-graph', KEY_ADD_1, { skipSignatureVerify: true });
+    persistence.getNodeInfo = async () => {
+      throw 'boom';
+    };
+
+    const result = await service.readRecords('test-graph');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected readRecords to fail');
+    }
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error.message).toBe('boom');
   });
 });
 
@@ -221,5 +272,83 @@ describe('TrustRecordService.verifyChain', () => {
   it('validates full golden chain', async () => {
     const result = await service.verifyChain(GOLDEN_CHAIN);
     expect(result.valid).toBe(true);
+  });
+
+  it('skips null records without introducing chain errors', async () => {
+    const result = await service.verifyChain([null]);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('reports schema validation errors directly', async () => {
+    const result = await service.verifyChain([{ nope: true }]);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]?.error).toContain('Schema:');
+  });
+});
+
+describe('TrustRecordService private helpers', () => {
+  /** @type {*} */
+  let persistence;
+  /** @type {*} */
+  let service;
+
+  beforeEach(() => {
+    persistence = createTrustRecordPersistence();
+    service = new TrustRecordService({
+      persistence,
+      codec: createJsonCodec(),
+    });
+  });
+
+  it('throws when the signature envelope is missing', () => {
+    expect(() => service._verifySignatureEnvelope({ ...KEY_ADD_1, signature: undefined })).toThrow(TrustError);
+  });
+
+  it('returns null tip info when ref reads fail', async () => {
+    const ref = 'refs/warp/test-graph/trust/records';
+    persistence.readRef = async () => {
+      throw new Error('ref read failed');
+    };
+
+    const result = await service._readTip(ref);
+
+    expect(result).toEqual({ tipSha: null, recordId: null });
+  });
+
+  it('returns null recordId when the tip commit has no record blob', async () => {
+    const tree = await persistence.writeTree([]);
+    const commit = await persistence.commitNodeWithTree({
+      treeOid: tree,
+      parents: [],
+      message: 'trust: empty',
+    });
+    const ref = 'refs/warp/test-graph/trust/records';
+    persistence.refs.set(ref, commit);
+
+    const result = await service._readTip(ref);
+
+    expect(result).toEqual({ tipSha: commit, recordId: null });
+  });
+});
+
+describe('TrustRecordService.appendRecordWithRetry', () => {
+  /** @type {*} */
+  let persistence;
+  /** @type {*} */
+  let service;
+
+  beforeEach(() => {
+    persistence = createTrustRecordPersistence();
+    service = new TrustRecordService({
+      persistence,
+      codec: createJsonCodec(),
+    });
+  });
+
+  it('rethrows non-CAS failures without retrying', async () => {
+    await expect(
+      service.appendRecordWithRetry('test-graph', { schemaVersion: 99 }),
+    ).rejects.toThrow('schema validation failed');
   });
 });
