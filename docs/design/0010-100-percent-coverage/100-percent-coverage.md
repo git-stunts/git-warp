@@ -1,6 +1,6 @@
 # Cycle 0010 — 100% Code Coverage
 
-**Status:** DESIGN
+**Status:** PARTIAL
 
 **Date:** 2026-04-05
 
@@ -128,3 +128,33 @@ test file documents the behavior contract of the service it covers.
 - noCoordination suite: 7/7
 - Existing test suite: all passing
 - No `/* v8 ignore */` suppressions
+
+## Result (2026-04-06)
+
+| Metric | Baseline | Final |
+|--------|----------|-------|
+| Lines | 85.46% | 97.66% |
+| Branches | 75.03% | 87.45% |
+| Functions | 88.93% | 96.57% |
+| Statements | 85.14% | 97.25% |
+
+### What shipped
+
+- FULL-COVERAGE invariant established in `docs/invariants/full-coverage.md`
+- Coverage ratchet installed and later corrected so it only updates on
+  global `npm run test:coverage`
+- Controllers covered end-to-end
+- StrandService, ConflictAnalyzerService, WarpApp, WarpCore, and
+  WarpRuntime all materially covered
+- Multiple remaining residue clusters were backlogged explicitly instead
+  of hidden behind `/* v8 ignore */`
+
+### End state
+
+The cycle reached a natural break at 97.66% line coverage.
+
+The ratchet and the tests are honest. The remaining gap is now mostly:
+
+- import-time / environment-coupled fallback machinery
+- defensive tails after normalization or exhaustive loops
+- visualization/rendering code that is now a likely product-surface cut
