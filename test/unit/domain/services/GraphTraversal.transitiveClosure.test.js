@@ -188,4 +188,57 @@ describe('GraphTraversal.transitiveClosure()', () => {
       expect(stats.edgesTraversed).toBeGreaterThan(0);
     });
   });
+
+  describe('_prepareTransitiveClosure', () => {
+    it('stops expanding once the maxNodes budget is exceeded', async () => {
+      const fixture = makeFixture({
+        nodes: ['root', 'A', 'B', 'C', 'AA'],
+        edges: [
+          { from: 'root', to: 'A' },
+          { from: 'root', to: 'B' },
+          { from: 'root', to: 'C' },
+          { from: 'A', to: 'AA' },
+        ],
+      });
+      const provider = makeAdjacencyProvider(fixture);
+      const engine = new GraphTraversal({ provider });
+
+      const result = await engine._prepareTransitiveClosure({
+        start: 'root',
+        direction: 'out',
+        maxNodes: 3,
+        rs: engine._newRunStats(),
+        opName: 'transitiveClosure',
+      });
+
+      expect(result.nodeList).toEqual(['A', 'B', 'C', 'root']);
+      expect(result.nodeList).not.toContain('AA');
+    });
+
+    it('checks AbortSignal every thousand discovered nodes', async () => {
+      const nodes = ['root'];
+      const edges = [];
+      for (let i = 0; i < 999; i += 1) {
+        const child = `N${String(i).padStart(3, '0')}`;
+        nodes.push(child);
+        edges.push({ from: 'root', to: child });
+      }
+
+      const provider = makeAdjacencyProvider(makeFixture({ nodes, edges }));
+      const engine = new GraphTraversal({ provider });
+      const ac = new AbortController();
+      ac.abort();
+
+      await expect(
+        engine._prepareTransitiveClosure({
+          start: 'root',
+          direction: 'out',
+          maxNodes: 5000,
+          signal: ac.signal,
+          rs: engine._newRunStats(),
+          opName: 'transitiveClosure',
+        }),
+      ).rejects.toThrow(/aborted/i);
+    });
+  });
 });
