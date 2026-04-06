@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { shouldAutoUpdateCoverageRatchet } from './scripts/coverage-ratchet.js';
 
 export default defineConfig({
   // Externalize the roaring native module from Vite's transform pipeline.
@@ -32,8 +33,8 @@ export default defineConfig({
         'src/visualization/renderers/browser/index.js',
       ],
       thresholds: {
-        lines: 94.5,
-        autoUpdate: true,
+        lines: 94.87,
+        autoUpdate: shouldAutoUpdateCoverageRatchet(),
       },
     },
   },
