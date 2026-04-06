@@ -550,6 +550,12 @@ describe('ConflictAnalyzerService', () => {
       expect(result.conflicts).toEqual([]);
     });
 
+    it('treats a null target selector as an unfiltered analysis', async () => {
+      const result = await analyzer.analyze({ target: null });
+
+      expect(result.conflicts.length).toBeGreaterThan(0);
+    });
+
     it('applies lamport ceiling', async () => {
       const result = await analyzer.analyze({ at: { lamportCeiling: 1 } });
 
@@ -874,6 +880,55 @@ describe('ConflictAnalyzerService', () => {
 
       expect(r1.analysisSnapshotHash).not.toBe(r2.analysisSnapshotHash);
     });
+
+    it('orders equal-lamport frames deterministically when writer ids are absent', async () => {
+      const makeGraph = () => createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                lamport: 1,
+                ops: [],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                lamport: 1,
+                ops: [],
+                context: {},
+              },
+              sha: 'b'.repeat(40),
+            },
+          ],
+        },
+      });
+
+      const analyzeOnce = async () => {
+        const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
+        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+          receipts: [
+            { patchSha: 'a'.repeat(40), writer: '', lamport: 1, ops: [] },
+            { patchSha: 'b'.repeat(40), writer: '', lamport: 1, ops: [] },
+          ],
+        });
+        try {
+          return await analyzer.analyze();
+        } finally {
+          reduceSpy.mockRestore();
+        }
+      };
+
+      const r1 = await analyzeOnce();
+      const r2 = await analyzeOnce();
+
+      expect(r1.analysisSnapshotHash).toBe(r2.analysisSnapshotHash);
+    });
   });
 
   // ── analyze: multi-writer complex scenarios ─────────────────────────────
@@ -983,6 +1038,58 @@ describe('ConflictAnalyzerService', () => {
 
       // Both writers add same edge — valid analysis
       expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+    });
+
+    it('filters edge-property conflicts by endpoint entityId', async () => {
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [
+                  { type: 'NodeAdd', node: 'left', dot: { writerId: 'w1', counter: 1 } },
+                  { type: 'NodeAdd', node: 'right', dot: { writerId: 'w1', counter: 2 } },
+                  { type: 'EdgeAdd', from: 'left', to: 'right', label: 'rel', dot: { writerId: 'w1', counter: 3 } },
+                  { type: 'EdgePropSet', from: 'left', to: 'right', label: 'rel', key: 'weight', value: 1 },
+                ],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+          w2: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w2',
+                lamport: 2,
+                ops: [
+                  { type: 'NodeAdd', node: 'left', dot: { writerId: 'w2', counter: 1 } },
+                  { type: 'NodeAdd', node: 'right', dot: { writerId: 'w2', counter: 2 } },
+                  { type: 'EdgeAdd', from: 'left', to: 'right', label: 'rel', dot: { writerId: 'w2', counter: 3 } },
+                  { type: 'EdgePropSet', from: 'left', to: 'right', label: 'rel', key: 'weight', value: 2 },
+                ],
+                context: {},
+              },
+              sha: 'b'.repeat(40),
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+
+      const result = await analyzer.analyze({ entityId: 'right' });
+      const edgePropertyConflicts = result.conflicts.filter(
+        (trace) => trace.target.targetKind === 'edge_property',
+      );
+
+      expect(edgePropertyConflicts.length).toBeGreaterThan(0);
+      for (const trace of edgePropertyConflicts) {
+        expect([trace.target.from, trace.target.to]).toContain('right');
+      }
     });
 
     it('handles causally ordered writes', async () => {
@@ -1191,6 +1298,155 @@ describe('ConflictAnalyzerService', () => {
       expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
     });
 
+    it('uses receipt target fallback to identify edge tombstones when op fields are absent', async () => {
+      const sha = 'a'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'EdgeRemove' }],
+                context: {},
+              },
+              sha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: sha,
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ result: 'applied', target: 'left\0right\0rel' }],
+        }],
+      });
+
+      try {
+        const result = await analyzer.analyze({ evidence: 'full' });
+
+        expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).not.toBe(true);
+      } finally {
+        reduceSpy.mockRestore();
+      }
+    });
+
+    it('emits anchor_incomplete when an edge receipt target cannot be decoded', async () => {
+      const sha = 'a'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'EdgeRemove' }],
+                context: {},
+              },
+              sha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: sha,
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ result: 'applied', target: 'left\0right' }],
+        }],
+      });
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+      } finally {
+        reduceSpy.mockRestore();
+      }
+    });
+
+    it('emits anchor_incomplete when a NodePropSet is missing node identity fields', async () => {
+      const sha = 'a'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'NodePropSet', value: 'draft' }],
+                context: {},
+              },
+              sha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: sha,
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ result: 'applied', target: 'n1\0status' }],
+        }],
+      });
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+      } finally {
+        reduceSpy.mockRestore();
+      }
+    });
+
+    it('emits anchor_incomplete when an EdgePropSet is missing edge identity fields', async () => {
+      const sha = 'a'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'EdgePropSet', value: 'draft' }],
+                context: {},
+              },
+              sha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: sha,
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ result: 'applied', target: 'left\0right\0rel' }],
+        }],
+      });
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
+      } finally {
+        reduceSpy.mockRestore();
+      }
+    });
+
     it('emits digest_unavailable when effect digest generation returns an empty string', async () => {
       const graph = createMockGraph({
         writerPatches: {
@@ -1228,6 +1484,50 @@ describe('ConflictAnalyzerService', () => {
         expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).toBe(true);
       } finally {
         hashSpy.mockRestore();
+      }
+    });
+
+    it('emits digest_unavailable when a receipt name has no effect normalizer', async () => {
+      const sha = 'a'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          w1: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'w1',
+                lamport: 1,
+                ops: [{ type: 'NodeAdd', node: 'n1', dot: { writerId: 'w1', counter: 1 } }],
+                context: {},
+              },
+              sha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const nodeAddStrategy = JoinReducer.OP_STRATEGIES.get('NodeAdd');
+      const originalReceiptName = nodeAddStrategy?.receiptName;
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [{
+          patchSha: sha,
+          writer: 'w1',
+          lamport: 1,
+          ops: [{ result: 'applied', target: 'n1' }],
+        }],
+      });
+      if (nodeAddStrategy === undefined || originalReceiptName === undefined) {
+        throw new Error('NodeAdd strategy is unavailable');
+      }
+      nodeAddStrategy.receiptName = 'UnsupportedEffect';
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).toBe(true);
+      } finally {
+        nodeAddStrategy.receiptName = originalReceiptName;
+        reduceSpy.mockRestore();
       }
     });
 
@@ -1284,6 +1584,136 @@ describe('ConflictAnalyzerService', () => {
 
       expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
       expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).not.toBe(true);
+    });
+
+    it('supports legacy PropSet receipt names for node-property effects', async () => {
+      const alphaSha = 'a'.repeat(40);
+      const betaSha = 'b'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'alpha',
+                lamport: 1,
+                ops: [{ type: 'NodePropSet', node: 'n1', key: 'status', value: 'draft' }],
+                context: {},
+              },
+              sha: alphaSha,
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'beta',
+                lamport: 2,
+                ops: [{ type: 'NodePropSet', node: 'n1', key: 'status', value: 'published' }],
+                context: {},
+              },
+              sha: betaSha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const nodePropStrategy = JoinReducer.OP_STRATEGIES.get('NodePropSet');
+      const originalReceiptName = nodePropStrategy?.receiptName;
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [
+          {
+            patchSha: alphaSha,
+            writer: 'alpha',
+            lamport: 1,
+            ops: [{ result: 'applied', target: 'n1\0status' }],
+          },
+          {
+            patchSha: betaSha,
+            writer: 'beta',
+            lamport: 2,
+            ops: [{ result: 'applied', target: 'n1\0status' }],
+          },
+        ],
+      });
+      if (nodePropStrategy === undefined || originalReceiptName === undefined) {
+        throw new Error('NodePropSet strategy is unavailable');
+      }
+      nodePropStrategy.receiptName = 'PropSet';
+
+      try {
+        const result = await analyzer.analyze();
+
+        expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
+        expect(result.diagnostics?.some((d) => d.code === 'digest_unavailable')).not.toBe(true);
+      } finally {
+        nodePropStrategy.receiptName = originalReceiptName;
+        reduceSpy.mockRestore();
+      }
+    });
+
+    it('builds replay-equivalent redundancy traces for identical property effects', async () => {
+      const alphaSha = 'a'.repeat(40);
+      const betaSha = 'b'.repeat(40);
+      const graph = createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'alpha',
+                lamport: 1,
+                ops: [{ type: 'NodePropSet', node: 'n1', key: 'status', value: 'draft' }],
+                context: {},
+              },
+              sha: alphaSha,
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'beta',
+                lamport: 2,
+                ops: [{ type: 'NodePropSet', node: 'n1', key: 'status', value: 'draft' }],
+                context: {},
+              },
+              sha: betaSha,
+            },
+          ],
+        },
+      });
+      const analyzer = new ConflictAnalyzerService({ graph });
+      const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+        receipts: [
+          {
+            patchSha: alphaSha,
+            writer: 'alpha',
+            lamport: 1,
+            ops: [{ result: 'applied', target: 'n1\0status' }],
+          },
+          {
+            patchSha: betaSha,
+            writer: 'beta',
+            lamport: 2,
+            ops: [{ result: 'redundant', target: 'n1\0status' }],
+          },
+        ],
+      });
+
+      try {
+        const result = await analyzer.analyze({ evidence: 'full' });
+        const redundancy = result.conflicts.find((trace) => trace.kind === 'redundancy');
+
+        expect(redundancy).toBeDefined();
+        expect(redundancy?.resolution.comparator).toEqual({ type: 'effect_digest' });
+        expect(redundancy?.losers[0]?.causalRelationToWinner).toBe('replay_equivalent');
+        expect(redundancy?.losers[0]?.structurallyDistinctAlternative).toBe(false);
+        expect(redundancy?.losers[0]?.notes).toContain('receipt_redundant');
+        expect(redundancy?.losers[0]?.notes).toContain('replay_equivalent_effect');
+      } finally {
+        reduceSpy.mockRestore();
+      }
     });
 
     it('includes ordered loser notes at full evidence when the winner observed the loser', async () => {
@@ -1453,6 +1883,144 @@ describe('ConflictAnalyzerService', () => {
           expect(loser.causalRelationToWinner).toBeDefined();
         }
       }
+    });
+
+    it('sorts multiple conflict traces deterministically when several targets conflict', async () => {
+      const makeGraph = () => createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'alpha',
+                lamport: 1,
+                ops: [
+                  { type: 'PropSet', node: 'n1', key: 'status', value: 'draft' },
+                  { type: 'PropSet', node: 'n2', key: 'status', value: 'draft' },
+                ],
+                context: {},
+              },
+              sha: 'a'.repeat(40),
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'beta',
+                lamport: 2,
+                ops: [
+                  { type: 'PropSet', node: 'n1', key: 'status', value: 'published' },
+                  { type: 'PropSet', node: 'n2', key: 'status', value: 'archived' },
+                ],
+                context: {},
+              },
+              sha: 'b'.repeat(40),
+            },
+          ],
+        },
+      });
+
+      const result1 = await new ConflictAnalyzerService({ graph: makeGraph() }).analyze();
+      const result2 = await new ConflictAnalyzerService({ graph: makeGraph() }).analyze();
+
+      expect(result1.conflicts.length).toBeGreaterThan(1);
+      expect(result1.conflicts.map((trace) => trace.conflictId)).toEqual(
+        result2.conflicts.map((trace) => trace.conflictId),
+      );
+    });
+
+    it('sorts mixed conflict kinds deterministically', async () => {
+      const alphaSha = 'a'.repeat(40);
+      const betaSha = 'b'.repeat(40);
+      const gammaSha = 'c'.repeat(40);
+
+      const makeGraph = () => createMockGraph({
+        writerPatches: {
+          alpha: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'alpha',
+                lamport: 1,
+                ops: [
+                  { type: 'NodePropSet', node: 'n1', key: 'status', value: 'draft' },
+                  { type: 'NodePropSet', node: 'n2', key: 'status', value: 'draft' },
+                ],
+                context: {},
+              },
+              sha: alphaSha,
+            },
+          ],
+          beta: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'beta',
+                lamport: 2,
+                ops: [{ type: 'NodePropSet', node: 'n1', key: 'status', value: 'draft' }],
+                context: {},
+              },
+              sha: betaSha,
+            },
+          ],
+          gamma: [
+            {
+              patch: {
+                schema: 2,
+                writer: 'gamma',
+                lamport: 3,
+                ops: [{ type: 'NodePropSet', node: 'n2', key: 'status', value: 'published' }],
+                context: {},
+              },
+              sha: gammaSha,
+            },
+          ],
+        },
+      });
+
+      const analyzeOnce = async () => {
+        const analyzer = new ConflictAnalyzerService({ graph: makeGraph() });
+        const reduceSpy = vi.spyOn(JoinReducer, 'reduceV5').mockReturnValue({
+          receipts: [
+            {
+              patchSha: alphaSha,
+              writer: 'alpha',
+              lamport: 1,
+              ops: [
+                { result: 'applied', target: 'n1\0status' },
+                { result: 'applied', target: 'n2\0status' },
+              ],
+            },
+            {
+              patchSha: betaSha,
+              writer: 'beta',
+              lamport: 2,
+              ops: [{ result: 'redundant', target: 'n1\0status' }],
+            },
+            {
+              patchSha: gammaSha,
+              writer: 'gamma',
+              lamport: 3,
+              ops: [{ result: 'applied', target: 'n2\0status' }],
+            },
+          ],
+        });
+        try {
+          return await analyzer.analyze({ evidence: 'full' });
+        } finally {
+          reduceSpy.mockRestore();
+        }
+      };
+
+      const result1 = await analyzeOnce();
+      const result2 = await analyzeOnce();
+
+      expect(result1.conflicts.map((trace) => trace.kind)).toContain('redundancy');
+      expect(result1.conflicts.map((trace) => trace.kind)).toContain('eventual_override');
+      expect(result1.conflicts.map((trace) => trace.conflictId)).toEqual(
+        result2.conflicts.map((trace) => trace.conflictId),
+      );
     });
   });
 });
