@@ -10,26 +10,22 @@
 
 import StrandError from '../../errors/StrandError.js';
 import {
-  buildStrandBraidRef,
-  buildStrandBraidsPrefix,
-  buildStrandRef,
-  buildStrandOverlayRef,
-  buildStrandsPrefix,
   validateWriterId,
+  buildStrandsPrefix,
 } from '../../utils/RefLayout.js';
 import { generateWriterId } from '../../utils/WriterId.js';
-import { textEncode } from '../../utils/bytes.js';
-import { parseStrandBlob } from '../../utils/parseStrandBlob.js';
 import { computeChecksum } from '../../utils/checksumUtils.js';
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
 import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
+import StrandDescriptorStore from './StrandDescriptorStore.js';
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
+/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
 /**
  * @typedef {{
  *   strandId: string,
@@ -79,8 +75,8 @@ import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
  * }} StrandIntentQueue
  */
 /**
- * @typedef {ReturnType<typeof parseStrandBlob> & {
- *   overlay: ReturnType<typeof parseStrandBlob>['overlay'] & { writable: boolean },
+ * @typedef {ReturnType<typeof parseStrandBlobFn> & {
+ *   overlay: ReturnType<typeof parseStrandBlobFn>['overlay'] & { writable: boolean },
  *   braid: { readOverlays: StrandReadOverlayDescriptor[] },
  *   intentQueue: StrandIntentQueue,
  *   evolution: { tickCount: number, lastTick: StrandTickRecord|null }
@@ -608,7 +604,7 @@ function overlayMetadataMatches(descriptor, expected) {
 /**
  * Assemble a fully normalized strand descriptor from a parsed blob and braid state.
  *
- * @param {ReturnType<typeof parseStrandBlob>} descriptor
+ * @param {ReturnType<typeof parseStrandBlobFn>} descriptor
  * @param {StrandReadOverlayDescriptor[]} braidedReadOverlays
  * @param {boolean} writable
  * @returns {StrandDescriptor}
@@ -909,6 +905,12 @@ export default class StrandService {
    */
   constructor({ graph }) {
     this._graph = graph;
+    this._descriptorStore = new StrandDescriptorStore({
+      graph,
+      loadStrandOrThrow: this.getOrThrow.bind(this),
+      baseObservationsEqual,
+      buildReadOverlayMetadata,
+    });
   }
 
   /**
@@ -919,7 +921,7 @@ export default class StrandService {
    */
   async create(options = {}) {
     const normalized = normalizeCreateOptions(options);
-    const ref = buildStrandRef(this._graph._graphName, normalized.strandId);
+    const ref = this._descriptorStore.buildRef(normalized.strandId);
     const existing = await this._graph._persistence.readRef(ref);
     if (existing !== null && existing !== undefined) {
       throw new StrandError(`Strand '${normalized.strandId}' already exists`, {
@@ -940,8 +942,7 @@ export default class StrandService {
       normalized,
     });
 
-    const oid = await this._graph._persistence.writeBlob(textEncode(JSON.stringify(descriptor)));
-    await this._graph._persistence.updateRef(ref, oid);
+    await this._descriptorStore.writeDescriptor(descriptor);
     return descriptor;
   }
 
@@ -959,9 +960,9 @@ export default class StrandService {
       target.strandId,
     );
     const writableOverride = normalizeWritable(options.writable);
-    const readOverlays = await this._loadBraidedReadOverlays(target, braidedStrandIds);
+    const readOverlays = await this._descriptorStore.loadBraidedReadOverlays(target, braidedStrandIds);
 
-    await this._syncBraidRefs(target.strandId, readOverlays);
+    await this._descriptorStore.syncBraidRefs(target.strandId, readOverlays);
 
     const nextDescriptor = {
       ...target,
@@ -975,7 +976,7 @@ export default class StrandService {
       },
     };
 
-    await this._writeDescriptor(nextDescriptor);
+    await this._descriptorStore.writeDescriptor(nextDescriptor);
     return nextDescriptor;
   }
 
@@ -991,7 +992,7 @@ export default class StrandService {
     if (oid === null || oid === undefined) {
       return null;
     }
-    const descriptor = await this._readDescriptorByOid(oid, strandId);
+    const descriptor = await this._descriptorStore.readDescriptorByOid(oid, strandId);
     return await this._hydrateOverlayMetadata(descriptor);
   }
 
@@ -1562,15 +1563,7 @@ export default class StrandService {
    * @returns {string}
    */
   _buildRef(strandId) {
-    try {
-      validateWriterId(strandId);
-    } catch (err) {
-      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_STRAND_ID_INVALID',
-        context: { strandId },
-      });
-    }
-    return buildStrandRef(this._graph._graphName, strandId);
+    return this._descriptorStore.buildRef(strandId);
   }
 
   /**
@@ -1581,15 +1574,7 @@ export default class StrandService {
    * @returns {string}
    */
   _buildOverlayRef(strandId) {
-    try {
-      validateWriterId(strandId);
-    } catch (err) {
-      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_STRAND_ID_INVALID',
-        context: { strandId },
-      });
-    }
-    return buildStrandOverlayRef(this._graph._graphName, strandId);
+    return this._descriptorStore.buildOverlayRef(strandId);
   }
 
   /**
@@ -1600,15 +1585,7 @@ export default class StrandService {
    * @returns {string}
    */
   _buildBraidPrefix(strandId) {
-    try {
-      validateWriterId(strandId);
-    } catch (err) {
-      throw new StrandError(`Invalid strand id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_STRAND_ID_INVALID',
-        context: { strandId },
-      });
-    }
-    return buildStrandBraidsPrefix(this._graph._graphName, strandId);
+    return this._descriptorStore.buildBraidPrefix(strandId);
   }
 
   /**
@@ -1620,16 +1597,7 @@ export default class StrandService {
    * @returns {string}
    */
   _buildBraidRef(strandId, braidedStrandId) {
-    try {
-      validateWriterId(strandId);
-      validateWriterId(braidedStrandId);
-    } catch (err) {
-      throw new StrandError(`Invalid strand braid id: ${/** @type {Error} */ (err).message}`, {
-        code: 'E_STRAND_ID_INVALID',
-        context: { strandId, braidedStrandId },
-      });
-    }
-    return buildStrandBraidRef(this._graph._graphName, strandId, braidedStrandId);
+    return this._descriptorStore.buildBraidRef(strandId, braidedStrandId);
   }
 
   /**
@@ -1638,34 +1606,10 @@ export default class StrandService {
    * @private
    * @param {string} oid
    * @param {string} strandId
-   * @returns {Promise<ReturnType<typeof parseStrandBlob>>}
+   * @returns {Promise<ReturnType<typeof parseStrandBlobFn>>}
    */
   async _readDescriptorByOid(oid, strandId) {
-    const buf = await this._graph._persistence.readBlob(oid);
-    if (buf === null || buf === undefined) {
-      throw new StrandError(`Strand '${strandId}' points to a missing blob`, {
-        code: 'E_STRAND_MISSING_OBJECT',
-        context: { graphName: this._graph._graphName, strandId, oid },
-      });
-    }
-
-    try {
-      const descriptor = parseStrandBlob(buf, `strand '${strandId}'`);
-      if (descriptor.graphName !== this._graph._graphName) {
-        throw new StrandError('descriptor graphName does not match the current graph', { code: 'E_STRAND_GRAPH_MISMATCH' });
-      }
-      return descriptor;
-    } catch (err) {
-      throw new StrandError(`Strand '${strandId}' is corrupt`, {
-        code: 'E_STRAND_CORRUPT',
-        context: {
-          graphName: this._graph._graphName,
-          strandId,
-          oid,
-          cause: /** @type {Error} */ (err).message,
-        },
-      });
-    }
+    return await this._descriptorStore.readDescriptorByOid(oid, strandId);
   }
 
   /**
@@ -1676,11 +1620,7 @@ export default class StrandService {
    * @returns {Promise<void>}
    */
   async _writeDescriptor(descriptor) {
-    const ref = this._buildRef(descriptor.strandId);
-    const oid = await this._graph._persistence.writeBlob(
-      textEncode(JSON.stringify(descriptor)),
-    );
-    await this._graph._persistence.updateRef(ref, oid);
+    await this._descriptorStore.writeDescriptor(descriptor);
   }
 
   /**
@@ -1692,27 +1632,7 @@ export default class StrandService {
    * @returns {Promise<StrandReadOverlayDescriptor[]>}
    */
   async _loadBraidedReadOverlays(target, braidedStrandIds) {
-    /** @type {StrandReadOverlayDescriptor[]} */
-    const readOverlays = [];
-    for (const braidedStrandId of braidedStrandIds) {
-      const braided = await this.getOrThrow(braidedStrandId);
-      if (!baseObservationsEqual(braided.baseObservation, target.baseObservation)) {
-        throw new StrandError(
-          `Strand '${braidedStrandId}' cannot be braided onto '${target.strandId}' because their pinned base observations differ`,
-          {
-            code: 'E_STRAND_COORDINATE_INVALID',
-            context: {
-              strandId: target.strandId,
-              braidedStrandId,
-              targetBaseObservation: target.baseObservation,
-              braidedBaseObservation: braided.baseObservation,
-            },
-          },
-        );
-      }
-      readOverlays.push(buildReadOverlayMetadata(braided));
-    }
-    return readOverlays;
+    return await this._descriptorStore.loadBraidedReadOverlays(target, braidedStrandIds);
   }
 
   /**
@@ -1723,23 +1643,14 @@ export default class StrandService {
    * @returns {Promise<{ headPatchSha: string|null, patchCount: number }>}
    */
   async _readOverlayMetadata(strandId) {
-    const overlayRef = this._buildOverlayRef(strandId);
-    const headPatchSha = await this._graph._persistence.readRef(overlayRef);
-    if (headPatchSha === null || headPatchSha === undefined) {
-      return { headPatchSha: null, patchCount: 0 };
-    }
-    const overlayPatches = await this._graph._loadPatchChainFromSha(headPatchSha);
-    return {
-      headPatchSha,
-      patchCount: overlayPatches.length,
-    };
+    return await this._descriptorStore.readOverlayMetadata(strandId);
   }
 
   /**
    * Hydrate a parsed descriptor with live overlay metadata and normalized braid state.
    *
    * @private
-   * @param {ReturnType<typeof parseStrandBlob>} descriptor
+   * @param {ReturnType<typeof parseStrandBlobFn>} descriptor
    * @returns {Promise<StrandDescriptor>}
    */
   async _hydrateOverlayMetadata(descriptor) {
@@ -2037,24 +1948,6 @@ export default class StrandService {
    * @returns {Promise<void>}
    */
   async _syncBraidRefs(strandId, readOverlays) {
-    const prefix = this._buildBraidPrefix(strandId);
-    const existingRefs = await this._graph._persistence.listRefs(prefix);
-    const nextRefs = new Set();
-
-    for (const readOverlay of readOverlays) {
-      const ref = this._buildBraidRef(strandId, readOverlay.strandId);
-      nextRefs.add(ref);
-      if (readOverlay.headPatchSha !== null && readOverlay.headPatchSha.length > 0) {
-        await this._graph._persistence.updateRef(ref, readOverlay.headPatchSha);
-      } else if ((await this._graph._persistence.readRef(ref)) !== null) {
-        await this._graph._persistence.deleteRef(ref);
-      }
-    }
-
-    for (const existingRef of existingRefs) {
-      if (!nextRefs.has(existingRef)) {
-        await this._graph._persistence.deleteRef(existingRef);
-      }
-    }
+    await this._descriptorStore.syncBraidRefs(strandId, readOverlays);
   }
 }
