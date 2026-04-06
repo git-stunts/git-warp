@@ -33,7 +33,7 @@ export default defineConfig({
         'src/visualization/renderers/browser/index.js',
       ],
       thresholds: {
-        lines: 96.66,
+        lines: 96.75,
         autoUpdate: shouldAutoUpdateCoverageRatchet(),
       },
     },
