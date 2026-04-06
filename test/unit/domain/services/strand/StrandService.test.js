@@ -275,6 +275,30 @@ describe('StrandService', () => {
       await expect(service.create({ strandId: '' }))
         .rejects.toThrow(StrandError);
     });
+
+    it('throws E_STRAND_INVALID_ARGS for non-string owner', async () => {
+      await expect(
+        service.create({ strandId: 'alpha', owner: /** @type {any} */ (17) }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
+
+    it('throws E_STRAND_COORDINATE_INVALID for invalid lamportCeiling', async () => {
+      await expect(
+        service.create({ strandId: 'alpha', lamportCeiling: -1 }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_COORDINATE_INVALID' });
+    });
+
+    it('throws E_STRAND_INVALID_ARGS for non-string leaseExpiresAt', async () => {
+      await expect(
+        service.create({ strandId: 'alpha', leaseExpiresAt: /** @type {any} */ (123) }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
+
+    it('throws E_STRAND_INVALID_ARGS for malformed leaseExpiresAt timestamps', async () => {
+      await expect(
+        service.create({ strandId: 'alpha', leaseExpiresAt: 'definitely-not-iso' }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
   });
 
   // ── get ───────────────────────────────────────────────────────────────────
@@ -304,6 +328,35 @@ describe('StrandService', () => {
 
       expect(result.overlay).toBeDefined();
       expect(result.overlay.writable).toBe(true);
+    });
+
+    it('sorts braided read overlays from persisted descriptors', async () => {
+      const desc = buildValidDescriptor({
+        strandId: 'alpha',
+        braid: {
+          readOverlays: [
+            {
+              strandId: 'zeta',
+              overlayId: 'zeta',
+              kind: STRAND_OVERLAY_KIND,
+              headPatchSha: 'zeta-head',
+              patchCount: 1,
+            },
+            {
+              strandId: 'beta',
+              overlayId: 'beta',
+              kind: STRAND_OVERLAY_KIND,
+              headPatchSha: 'beta-head',
+              patchCount: 2,
+            },
+          ],
+        },
+      });
+      storeDescriptor(desc);
+
+      const result = await service.get('alpha');
+
+      expect(result.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
     });
 
     it('throws E_STRAND_ID_INVALID for invalid strandId', async () => {
@@ -460,6 +513,26 @@ describe('StrandService', () => {
       ).rejects.toThrow(StrandError);
     });
 
+    it('throws when braided strands have different frontier cardinality', async () => {
+      const target = buildValidDescriptor({ strandId: 'target' });
+      storeDescriptor(target);
+
+      const support = buildValidDescriptor({
+        strandId: 'support',
+        baseObservation: {
+          coordinateVersion: STRAND_COORDINATE_VERSION,
+          frontier: { writer1: 'tip-sha-1', writer2: 'tip-sha-2' },
+          frontierDigest: 'different-digest',
+          lamportCeiling: null,
+        },
+      });
+      storeDescriptor(support);
+
+      await expect(
+        service.braid('target', { braidedStrandIds: ['support'] }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_COORDINATE_INVALID' });
+    });
+
     it('overrides writable flag when provided', async () => {
       const target = buildValidDescriptor({ strandId: 'target' });
       storeDescriptor(target);
@@ -499,6 +572,33 @@ describe('StrandService', () => {
 
       expect(result.braid.readOverlays).toHaveLength(1);
     });
+
+    it('throws E_STRAND_INVALID_ARGS for non-array braidedStrandIds', async () => {
+      const target = buildValidDescriptor({ strandId: 'target' });
+      storeDescriptor(target);
+
+      await expect(
+        service.braid('target', { braidedStrandIds: /** @type {any} */ ('support') }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
+
+    it('throws E_STRAND_INVALID_ARGS for empty braided strand ids', async () => {
+      const target = buildValidDescriptor({ strandId: 'target' });
+      storeDescriptor(target);
+
+      await expect(
+        service.braid('target', { braidedStrandIds: ['   '] }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
+
+    it('throws E_STRAND_INVALID_ARGS for non-boolean writable overrides', async () => {
+      const target = buildValidDescriptor({ strandId: 'target' });
+      storeDescriptor(target);
+
+      await expect(
+        service.braid('target', { writable: /** @type {any} */ ('yes') }),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
+    });
   });
 
   // ── materialize ───────────────────────────────────────────────────────────
@@ -511,6 +611,7 @@ describe('StrandService', () => {
 
     /** @type {ReturnType<typeof createMockGraph>} */
     let detachedGraph;
+    let openSpy;
 
     beforeEach(() => {
       // Create a mock class constructor with static open()
@@ -522,7 +623,8 @@ describe('StrandService', () => {
       detachedGraph._loadPatchChainFromSha = graph._loadPatchChainFromSha;
 
       function MockGraphClass() {}
-      MockGraphClass.open = vi.fn(async () => detachedGraph);
+      openSpy = vi.fn(async () => detachedGraph);
+      MockGraphClass.open = openSpy;
       Object.setPrototypeOf(graph, MockGraphClass.prototype);
       Object.defineProperty(graph, 'constructor', { value: MockGraphClass });
     });
@@ -584,6 +686,28 @@ describe('StrandService', () => {
 
       expect(Object.isFrozen(result)).toBe(true);
     });
+
+    it('forwards detached graph runtime options from the host graph', async () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      storeDescriptor(desc);
+      const checkpointPolicy = { mode: 'aggressive' };
+      const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+      const seekCache = { get: vi.fn(), set: vi.fn(), clear: vi.fn() };
+      const patchBlobStorage = { store: vi.fn(), load: vi.fn() };
+      graph._checkpointPolicy = checkpointPolicy;
+      graph._logger = logger;
+      graph._seekCache = seekCache;
+      graph._patchBlobStorage = patchBlobStorage;
+
+      await service.materialize('alpha');
+
+      expect(openSpy).toHaveBeenCalledWith(expect.objectContaining({
+        checkpointPolicy,
+        logger,
+        seekCache,
+        patchBlobStorage,
+      }));
+    });
   });
 
   // ── createPatchBuilder ────────────────────────────────────────────────────
@@ -624,6 +748,20 @@ describe('StrandService', () => {
       expect(builder).toBeDefined();
       expect(typeof builder.addNode).toBe('function');
       expect(typeof builder.commit).toBe('function');
+    });
+
+    it('passes logger and cached state through to the patch builder', async () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      storeDescriptor(desc);
+      const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+      const cachedState = createEmptyStateV5();
+      graph._logger = logger;
+      graph._cachedState = cachedState;
+
+      const builder = await service.createPatchBuilder('alpha');
+
+      expect(builder._logger).toBe(logger);
+      expect(builder._getCurrentState()).toBe(cachedState);
     });
   });
 
@@ -777,6 +915,31 @@ describe('StrandService', () => {
       });
 
       expect(graph._cachedViewHash).toBeNull();
+    });
+
+    it('builds queued intents with snapshot state and logger wiring', async () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      storeDescriptor(desc);
+      const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+      const snapshotState = createEmptyStateV5();
+      graph._logger = logger;
+      vi.spyOn(service, '_materializeDescriptor').mockResolvedValue({
+        state: snapshotState,
+        allPatches: [],
+      });
+
+      /** @type {unknown} */
+      let seenState = null;
+      /** @type {unknown} */
+      let seenLogger = null;
+      await service.queueIntent('alpha', (builder) => {
+        seenState = builder._getCurrentState();
+        seenLogger = builder._logger;
+        builder.addNode('node:test');
+      });
+
+      expect(seenState).toBe(snapshotState);
+      expect(seenLogger).toBe(logger);
     });
   });
 
@@ -1137,6 +1300,15 @@ describe('StrandService', () => {
         expect(err).toBeInstanceOf(StrandError);
         expect(err.code).toBe('E_STRAND_INVALID_ARGS');
       }
+    });
+
+    it('throws E_STRAND_INVALID_ARGS for null entityId', async () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      storeDescriptor(desc);
+
+      await expect(
+        service.patchesFor('alpha', /** @type {any} */ (null)),
+      ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
 
     it('returns results sorted lexicographically', async () => {
