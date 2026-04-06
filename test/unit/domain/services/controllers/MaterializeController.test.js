@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
+import { orsetAdd } from '../../../../../src/domain/crdt/ORSet.js';
 import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/ProvenanceIndex.js';
+import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.js';
+import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.js';
 import QueryError from '../../../../../src/domain/errors/QueryError.js';
 
 // ── Mock factories ──────────────────────────────────────────────────────────
@@ -301,6 +304,17 @@ describe('MaterializeController', () => {
       expect(result.nodeAlive).toBeDefined();
       expect(result).not.toHaveProperty('receipts');
     });
+
+    it('returns empty receipts when writers exist but have no patches', async () => {
+      const { ctrl, host } = setup();
+      host.discoverWriters.mockResolvedValue(['w1']);
+      host._loadWriterPatches.mockResolvedValue([]);
+
+      const result = await ctrl.materialize({ receipts: true });
+
+      expect(result).toHaveProperty('receipts');
+      expect(result.receipts).toEqual([]);
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -342,6 +356,64 @@ describe('MaterializeController', () => {
       await ctrl.materialize();
 
       expect(host._persistence.showNode).toHaveBeenCalledWith('tip1');
+    });
+
+    it('updates max Lamport from checkpoint frontier patch messages', async () => {
+      const { ctrl, host } = setup();
+      host._maxObservedLamport = 3;
+      const checkpoint = {
+        schema: 2,
+        state: emptyState(),
+        frontier: new Map([['w1', 'tip1']]),
+      };
+      host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
+      host._loadPatchesSince.mockResolvedValue([]);
+      host._persistence.showNode.mockResolvedValue(
+        encodePatchMessage({
+          graph: 'test',
+          writer: 'w1',
+          lamport: 11,
+          patchOid: 'a'.repeat(40),
+        }),
+      );
+
+      await ctrl.materialize();
+
+      expect(host._maxObservedLamport).toBe(11);
+    });
+
+    it('returns receipts from incremental checkpoint materialization', async () => {
+      const { ctrl, host } = setup();
+      const checkpoint = {
+        schema: 2,
+        state: emptyState(),
+        frontier: new Map(),
+      };
+      host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
+      host._loadPatchesSince.mockResolvedValue([fakePatchEntry({ sha: 'sha1' })]);
+
+      const result = await ctrl.materialize({ receipts: true });
+
+      expect(result).toHaveProperty('receipts');
+      expect(Array.isArray(result.receipts)).toBe(true);
+    });
+
+    it('uses incremental diff tracking when a cached index tree exists', async () => {
+      const { ctrl, host } = setup({
+        _cachedIndexTree: { existing: 'tree' },
+      });
+      const checkpoint = {
+        schema: 2,
+        state: emptyState(),
+        frontier: new Map(),
+      };
+      host._loadLatestCheckpoint.mockResolvedValue(checkpoint);
+      host._loadPatchesSince.mockResolvedValue([fakePatchEntry({ sha: 'sha1' })]);
+
+      await ctrl.materialize();
+
+      expect(host._viewService.applyDiff).toHaveBeenCalled();
+      expect(host._viewService.build).not.toHaveBeenCalled();
     });
 
     it('builds provenance index from checkpoint provenanceIndex + new patches', async () => {
@@ -630,6 +702,19 @@ describe('MaterializeController', () => {
 
       expect(host.materialize).toHaveBeenCalled();
     });
+
+    it('returns the existing graph value when materialize yields no state', async () => {
+      const { ctrl, host } = setup({
+        _stateDirty: false,
+        _cachedState: null,
+        _materializedGraph: null,
+      });
+      host.materialize.mockResolvedValue(null);
+
+      const result = await ctrl._materializeGraph();
+
+      expect(result).toBeNull();
+    });
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -644,6 +729,26 @@ describe('MaterializeController', () => {
 
       expect(adj.outgoing.size).toBe(0);
       expect(adj.incoming.size).toBe(0);
+    });
+
+    it('sorts same-neighbor edges by label for deterministic output', () => {
+      const { ctrl } = setup();
+      const state = emptyState();
+      orsetAdd(state.nodeAlive, 'node:a', { writerId: 'w1', counter: 1 });
+      orsetAdd(state.nodeAlive, 'node:b', { writerId: 'w1', counter: 2 });
+      orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'zebra'), { writerId: 'w1', counter: 3 });
+      orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'alpha'), { writerId: 'w1', counter: 4 });
+
+      const adj = ctrl._buildAdjacency(state);
+
+      expect(adj.outgoing.get('node:a')).toEqual([
+        { neighborId: 'node:b', label: 'alpha' },
+        { neighborId: 'node:b', label: 'zebra' },
+      ]);
+      expect(adj.incoming.get('node:b')).toEqual([
+        { neighborId: 'node:a', label: 'alpha' },
+        { neighborId: 'node:a', label: 'zebra' },
+      ]);
     });
   });
 
@@ -799,6 +904,44 @@ describe('MaterializeController', () => {
       await expect(
         ctrl.materializeCoordinate({ frontier: new Map([['w1', 'sha1']]), ceiling: 1.5 }),
       ).rejects.toThrow(QueryError);
+    });
+
+    it('opens a detached graph and forwards normalized coordinate reads', async () => {
+      const { ctrl, host } = setup();
+      const detached = {
+        _clock: { now: vi.fn(() => 123) },
+        _materializeWithCoordinate: vi.fn().mockResolvedValue({ detached: true }),
+      };
+      const open = vi.fn().mockResolvedValue(detached);
+      host.constructor = { open };
+
+      const result = await ctrl.materializeCoordinate({
+        frontier: new Map([
+          ['w2', 'sha2'],
+          ['w1', 'sha1'],
+        ]),
+        ceiling: 5,
+      });
+
+      expect(result).toEqual({ detached: true });
+      expect(open).toHaveBeenCalledWith(expect.objectContaining({
+        persistence: host._persistence,
+        graphName: host._graphName,
+        writerId: host._writerId,
+        autoMaterialize: false,
+        audit: false,
+        clock: host._clock,
+        crypto: host._crypto,
+        codec: host._codec,
+      }));
+      const [frontier, ceiling, collectReceipts, t0] = detached._materializeWithCoordinate.mock.calls[0];
+      expect([...frontier]).toEqual([
+        ['w1', 'sha1'],
+        ['w2', 'sha2'],
+      ]);
+      expect(ceiling).toBe(5);
+      expect(collectReceipts).toBe(false);
+      expect(t0).toBe(123);
     });
   });
 
@@ -980,6 +1123,50 @@ describe('MaterializeController', () => {
       await ctrl.materialize();
 
       expect(host._maxObservedLamport).toBe(0);
+    });
+  });
+
+  describe('_materializeWithCoordinate()', () => {
+    it('bypasses cached state when frontier tips differ', async () => {
+      const { ctrl, host } = setup({
+        _cachedState: emptyState(),
+        _stateDirty: false,
+        _cachedCeiling: 5,
+        _cachedFrontier: new Map([['w1', 'old-sha']]),
+      });
+      host._loadPatchChainFromSha.mockResolvedValue([]);
+
+      await ctrl._materializeWithCoordinate(new Map([['w1', 'new-sha']]), 5, false, 0);
+
+      expect(host._loadPatchChainFromSha).toHaveBeenCalledWith('new-sha');
+    });
+
+    it('skips empty frontier tips when collecting coordinate patches', async () => {
+      const { ctrl, host } = setup();
+      host._loadPatchChainFromSha.mockResolvedValue([]);
+
+      await ctrl._materializeWithCoordinate(
+        new Map([
+          ['w1', ''],
+          ['w2', 'sha2'],
+        ]),
+        5,
+        false,
+        0,
+      );
+
+      expect(host._loadPatchChainFromSha).toHaveBeenCalledTimes(1);
+      expect(host._loadPatchChainFromSha).toHaveBeenCalledWith('sha2');
+    });
+
+    it('returns empty receipts when coordinate materialization short-circuits', async () => {
+      const { ctrl, host } = setup();
+      host.getFrontier.mockResolvedValue(new Map([['w1', 'sha1']]));
+
+      const result = await ctrl.materialize({ ceiling: 0, receipts: true });
+
+      expect(result).toHaveProperty('receipts');
+      expect(result.receipts).toEqual([]);
     });
   });
 });
