@@ -1536,6 +1536,128 @@ describe('StrandService', () => {
     });
   });
 
+  // ── descriptor boundary helpers ──────────────────────────────────────────
+
+  describe('_readOverlayMetadata', () => {
+    it('returns null head and zero patches when no overlay ref exists', async () => {
+      const metadata = await service._readOverlayMetadata('alpha');
+
+      expect(metadata).toEqual({ headPatchSha: null, patchCount: 0 });
+    });
+
+    it('returns live overlay head and patch count from the overlay chain', async () => {
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
+      patchChains.set('overlay-head', [
+        { patch: { lamport: 2, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+        { patch: { lamport: 3, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-2' },
+      ]);
+
+      const metadata = await service._readOverlayMetadata('alpha');
+
+      expect(metadata).toEqual({ headPatchSha: 'overlay-head', patchCount: 2 });
+    });
+  });
+
+  describe('_hydrateOverlayMetadata', () => {
+    it('normalizes braid overlays and preserves matching live overlay metadata', async () => {
+      const descriptor = buildValidDescriptor({
+        strandId: 'alpha',
+        overlay: {
+          overlayId: 'alpha',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: 'overlay-head',
+          patchCount: 2,
+          writable: true,
+        },
+        braid: {
+          readOverlays: [
+            {
+              strandId: 'zeta',
+              overlayId: 'zeta',
+              kind: STRAND_OVERLAY_KIND,
+              headPatchSha: null,
+              patchCount: 0,
+            },
+            {
+              strandId: 'beta',
+              overlayId: 'beta',
+              kind: STRAND_OVERLAY_KIND,
+              headPatchSha: null,
+              patchCount: 0,
+            },
+          ],
+        },
+      });
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
+      patchChains.set('overlay-head', [
+        { patch: { lamport: 2, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+        { patch: { lamport: 3, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-2' },
+      ]);
+
+      const hydrated = await service._hydrateOverlayMetadata(descriptor);
+
+      expect(hydrated.overlay.headPatchSha).toBe('overlay-head');
+      expect(hydrated.overlay.patchCount).toBe(2);
+      expect(hydrated.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
+    });
+
+    it('replaces stale persisted overlay metadata with live overlay state', async () => {
+      const descriptor = buildValidDescriptor({
+        strandId: 'alpha',
+        overlay: {
+          overlayId: 'alpha',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: null,
+          patchCount: 0,
+          writable: true,
+        },
+      });
+      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'live-head');
+      patchChains.set('live-head', [
+        { patch: { lamport: 4, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+      ]);
+
+      const hydrated = await service._hydrateOverlayMetadata(descriptor);
+
+      expect(hydrated.overlay.headPatchSha).toBe('live-head');
+      expect(hydrated.overlay.patchCount).toBe(1);
+    });
+  });
+
+  describe('_loadBraidedReadOverlays', () => {
+    it('returns live overlay metadata for matching braided strands', async () => {
+      const target = buildValidDescriptor({ strandId: 'target' });
+      const support = buildValidDescriptor({
+        strandId: 'support',
+        overlay: {
+          overlayId: 'support',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: null,
+          patchCount: 0,
+          writable: true,
+        },
+      });
+      storeDescriptor(support);
+      refs.set('refs/warp/test-graph/strand-overlays/support', 'support-head');
+      patchChains.set('support-head', [
+        { patch: { lamport: 5, writer: 'support', schema: 2, ops: [] }, sha: 'support-1' },
+        { patch: { lamport: 6, writer: 'support', schema: 2, ops: [] }, sha: 'support-2' },
+      ]);
+
+      const readOverlays = await service._loadBraidedReadOverlays(target, ['support']);
+
+      expect(readOverlays).toEqual([
+        {
+          strandId: 'support',
+          overlayId: 'support',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: 'support-head',
+          patchCount: 2,
+        },
+      ]);
+    });
+  });
+
   // ── _collectBasePatches ───────────────────────────────────────────────────
 
   describe('_collectBasePatches', () => {
@@ -1620,6 +1742,95 @@ describe('StrandService', () => {
 
       await service._collectBasePatches(desc);
       expect(callOrder).toEqual(['tipA', 'tipZ']);
+    });
+  });
+
+  describe('_collectPatchEntries', () => {
+    it('deduplicates duplicate SHAs by first-seen source order', async () => {
+      const desc = buildValidDescriptor({
+        strandId: 'alpha',
+        baseObservation: {
+          coordinateVersion: STRAND_COORDINATE_VERSION,
+          frontier: { writer1: 'base-tip' },
+          frontierDigest: 'digest',
+          lamportCeiling: null,
+        },
+        overlay: {
+          overlayId: 'alpha',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: 'overlay-head',
+          patchCount: 1,
+          writable: true,
+        },
+        braid: {
+          readOverlays: [{
+            strandId: 'support',
+            overlayId: 'support',
+            kind: STRAND_OVERLAY_KIND,
+            headPatchSha: 'support-head',
+            patchCount: 1,
+          }],
+        },
+      });
+
+      patchChains.set('base-tip', [
+        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'shared-sha' },
+      ]);
+      patchChains.set('support-head', [
+        { patch: { lamport: 9, writer: 'support', schema: 2, ops: [] }, sha: 'shared-sha' },
+      ]);
+      patchChains.set('overlay-head', [
+        { patch: { lamport: 10, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-sha' },
+      ]);
+
+      const entries = await service._collectPatchEntries(desc, { ceiling: null });
+
+      expect(entries).toHaveLength(2);
+      expect(entries.find((entry) => entry.sha === 'shared-sha')?.patch.lamport).toBe(1);
+      expect(entries.map((entry) => entry.sha)).toEqual(['shared-sha', 'overlay-sha']);
+    });
+
+    it('applies explicit ceiling after merging base, braid, and overlay patches', async () => {
+      const desc = buildValidDescriptor({
+        strandId: 'alpha',
+        baseObservation: {
+          coordinateVersion: STRAND_COORDINATE_VERSION,
+          frontier: { writer1: 'base-tip' },
+          frontierDigest: 'digest',
+          lamportCeiling: null,
+        },
+        overlay: {
+          overlayId: 'alpha',
+          kind: STRAND_OVERLAY_KIND,
+          headPatchSha: 'overlay-head',
+          patchCount: 1,
+          writable: true,
+        },
+        braid: {
+          readOverlays: [{
+            strandId: 'support',
+            overlayId: 'support',
+            kind: STRAND_OVERLAY_KIND,
+            headPatchSha: 'support-head',
+            patchCount: 1,
+          }],
+        },
+      });
+
+      patchChains.set('base-tip', [
+        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'base-1' },
+      ]);
+      patchChains.set('support-head', [
+        { patch: { lamport: 4, writer: 'support', schema: 2, ops: [] }, sha: 'support-1' },
+      ]);
+      patchChains.set('overlay-head', [
+        { patch: { lamport: 8, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+      ]);
+
+      const entries = await service._collectPatchEntries(desc, { ceiling: 4 });
+
+      expect(entries.map((entry) => entry.sha)).toEqual(['base-1', 'support-1']);
+      expect(entries.every((entry) => entry.patch.lamport <= 4)).toBe(true);
     });
   });
 

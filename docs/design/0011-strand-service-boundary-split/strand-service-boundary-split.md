@@ -61,6 +61,33 @@ The key Systems-Style problem is not just size. The file contains too
 many shape-trusted records and too much boundary parsing mixed into
 business logic and orchestration.
 
+## Seam map
+
+The current test surface already pins most of the future split, but the
+ownership lines need to stay explicit during extraction:
+
+- `StrandDescriptorStore`
+  - public witnesses: `create`, `get`, `list`, `drop`, `braid`
+  - helper witnesses: `_readDescriptorByOid`, `_writeDescriptor`,
+    `_readOverlayMetadata`, `_hydrateOverlayMetadata`,
+    `_loadBraidedReadOverlays`, ref builders, `_syncBraidRefs`
+- `StrandMaterializer`
+  - public witnesses: `materialize`, `getPatchEntries`, `patchesFor`
+  - helper witnesses: `_collectBasePatches`, `_collectOverlayPatches`,
+    `_collectBraidedOverlayPatches`, `_collectPatchEntries`,
+    `_materializeDescriptor`
+- `StrandPatchService`
+  - public witnesses: `createPatchBuilder`, `patch`
+  - helper witnesses: `_commitQueuedPatch`, `_syncOverlayDescriptor`
+- `StrandIntentService`
+  - public witnesses: `queueIntent`, `listIntents`, `tick`
+  - helper witnesses: `_classifyQueuedIntents`,
+    `_commitAdmittedQueuedIntents`, `_persistTickResult`
+
+Cycle 0011 should treat this map as the extraction guardrail. If a move
+does not make one of these ownership lines clearer, it is probably just
+shuffling helpers around.
+
 ## Strategy
 
 ### Phase 1 — Lock the boundary
