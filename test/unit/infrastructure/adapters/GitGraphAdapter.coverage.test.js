@@ -104,6 +104,18 @@ describe('GitGraphAdapter coverage', () => {
         args: ['log', '-10000000', 'HEAD'],
       });
     });
+
+    it('wraps ref-not-found errors as PersistenceError', async () => {
+      const err = /** @type {any} */ (new Error('fatal: bad revision refs/warp/missing'));
+      err.details = { code: 128, stderr: 'fatal: bad revision refs/warp/missing' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.logNodes({ ref: 'refs/warp/missing' }))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_REF_NOT_FOUND,
+          message: 'Ref not found: refs/warp/missing',
+        });
+    });
   });
 
   // ── readTree ────────────────────────────────────────────────────────
@@ -216,6 +228,100 @@ describe('GitGraphAdapter coverage', () => {
     it('rejects empty OID', async () => {
       await expect(adapter.readTreeOids(''))
         .rejects.toThrow(/non-empty string/);
+    });
+
+    it('wraps missing tree errors as PersistenceError', async () => {
+      const treeOid = 'aabb' + '0'.repeat(36);
+      const err = /** @type {any} */ (new Error(`fatal: bad object ${treeOid}`));
+      err.details = { code: 128, stderr: `fatal: bad object ${treeOid}` };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.readTreeOids(treeOid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: `Missing Git object: ${treeOid}`,
+        });
+    });
+  });
+
+  describe('getCommitTree()', () => {
+    it('returns the trimmed tree OID for a commit', async () => {
+      const commitOid = 'a'.repeat(40);
+      const treeOid = 'b'.repeat(40);
+      mockPlumbing.execute.mockResolvedValue(`${treeOid}\n`);
+
+      const result = await adapter.getCommitTree(commitOid);
+
+      expect(result).toBe(treeOid);
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['rev-parse', `${commitOid}^{tree}`],
+      });
+    });
+
+    it('wraps missing commit errors as PersistenceError', async () => {
+      const commitOid = 'a'.repeat(40);
+      const err = /** @type {any} */ (new Error(`fatal: bad object ${commitOid}`));
+      err.details = { code: 128, stderr: `fatal: bad object ${commitOid}` };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.getCommitTree(commitOid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_MISSING_OBJECT,
+          message: `Missing Git object: ${commitOid}`,
+        });
+    });
+  });
+
+  describe('updateRef()', () => {
+    it('wraps ref lock failures as PersistenceError', async () => {
+      const ref = 'refs/warp/test/writers/alice';
+      const oid = 'a'.repeat(40);
+      const err = /** @type {any} */ (new Error('fatal: permission denied'));
+      err.details = { code: 128, stderr: 'fatal: permission denied' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.updateRef(ref, oid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_REF_IO,
+          message: `Ref I/O error: ${ref}`,
+        });
+    });
+  });
+
+  describe('compareAndSwapRef()', () => {
+    it('uses the zero OID when expectedOid is null', async () => {
+      const ref = 'refs/warp/test/writers/alice';
+      const oid = 'a'.repeat(40);
+      mockPlumbing.execute.mockResolvedValue('');
+
+      await adapter.compareAndSwapRef(ref, oid, null);
+
+      expect(mockPlumbing.execute).toHaveBeenCalledWith({
+        args: ['update-ref', ref, oid, '0'.repeat(40)],
+      });
+    });
+
+    it('validates expectedOid when provided', async () => {
+      await expect(
+        adapter.compareAndSwapRef('refs/warp/test/writers/alice', 'a'.repeat(40), 'bad!oid'),
+      ).rejects.toThrow(/Invalid OID format/);
+
+      expect(mockPlumbing.execute).not.toHaveBeenCalled();
+    });
+
+    it('wraps CAS failures with ref context', async () => {
+      const ref = 'refs/warp/test/writers/alice';
+      const oid = 'a'.repeat(40);
+      const expectedOid = 'b'.repeat(40);
+      const err = /** @type {any} */ (new Error('fatal: cannot lock ref'));
+      err.details = { code: 128, stderr: 'fatal: cannot lock ref' };
+      mockPlumbing.execute.mockRejectedValue(err);
+
+      await expect(adapter.compareAndSwapRef(ref, oid, expectedOid))
+        .rejects.toMatchObject({
+          code: PersistenceError.E_REF_IO,
+          message: `Ref I/O error: ${ref}`,
+        });
     });
   });
 
