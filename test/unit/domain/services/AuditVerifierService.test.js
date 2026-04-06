@@ -5,7 +5,7 @@
  * then verifies chain integrity, tamper detection, and edge cases.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import InMemoryGraphAdapter from '../../../../src/infrastructure/adapters/InMemoryGraphAdapter.js';
 import { AuditReceiptService } from '../../../../src/domain/services/audit/AuditReceiptService.js';
@@ -81,6 +81,41 @@ function createVerifier(persistence) {
 }
 
 /**
+ * Mutates the decoded receipt stored in an audit commit and rewrites the tree.
+ * @param {InMemoryGraphAdapter} persistence
+ * @param {string} commitSha
+ * @param {(receipt: Record<string, *>) => void} mutate
+ * @returns {Promise<Record<string, *>>}
+ */
+async function mutateReceipt(persistence, commitSha, mutate) {
+  const commit = persistence._commits.get(commitSha);
+  if (!commit) {
+    throw new Error(`missing commit ${commitSha}`);
+  }
+  const tree = await persistence.readTree(commit.treeOid);
+  const receipt = /** @type {Record<string, *>} */ (defaultCodec.decode(/** @type {Uint8Array} */ (tree['receipt.cbor'])));
+  mutate(receipt);
+  const cborBytes = defaultCodec.encode(receipt);
+  const blobOid = await persistence.writeBlob(Buffer.from(cborBytes));
+  commit.treeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
+  return receipt;
+}
+
+/**
+ * Rewrites the audit commit message.
+ * @param {InMemoryGraphAdapter} persistence
+ * @param {string} commitSha
+ * @param {(message: string) => string} mutate
+ */
+function mutateCommitMessage(persistence, commitSha, mutate) {
+  const commit = persistence._commits.get(commitSha);
+  if (!commit) {
+    throw new Error(`missing commit ${commitSha}`);
+  }
+  commit.message = mutate(commit.message);
+}
+
+/**
  * Seeds a trust chain into the in-memory repo.
  * @param {InMemoryGraphAdapter} persistence
  * @param {string} graphName
@@ -147,6 +182,19 @@ describe('AuditVerifierService — valid chains', () => {
   it('returns empty result for non-existent writer', async () => {
     const verifier = createVerifier(persistence);
     const result = await verifier.verifyChain('events', 'nobody');
+
+    expect(result.status).toBe('VALID');
+    expect(result.receiptsVerified).toBe(0);
+    expect(result.tipCommit).toBeNull();
+  });
+
+  it('returns an empty result when the audit ref cannot be read', async () => {
+    persistence.readRef = async () => {
+      throw new Error('ref storage unavailable');
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
 
     expect(result.status).toBe('VALID');
     expect(result.receiptsVerified).toBe(0);
@@ -465,6 +513,36 @@ describe('AuditVerifierService — data mismatch', () => {
     expect(result.status).toBe('ERROR');
     expect(result.errors.some((e) => e.code === 'CBOR_DECODE_FAILED')).toBe(true);
   });
+
+  it('detects trailer decode failure', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+
+    mutateCommitMessage(persistence, /** @type {string} */ (sha1), () => 'not an audit receipt');
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('DATA_MISMATCH');
+    expect(result.errors.some((e) => e.code === 'TRAILER_MISMATCH')).toBe(true);
+  });
+
+  it('detects trailer schema mismatch with receipt metadata', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+
+    mutateCommitMessage(
+      persistence,
+      /** @type {string} */ (sha1),
+      (message) => message.replace(/eg-schema:\s*1/, 'eg-schema: 2'),
+    );
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('DATA_MISMATCH');
+    expect(result.errors.some((e) => e.code === 'TRAILER_MISMATCH')).toBe(true);
+  });
 });
 
 // ============================================================================
@@ -540,6 +618,21 @@ describe('AuditVerifierService — OID format', () => {
       const newTree = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
       commit.treeOid = newTree;
     }
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('BROKEN_CHAIN');
+    expect(result.errors.some((e) => e.code === 'OID_FORMAT_INVALID')).toBe(true);
+  });
+
+  it('detects invalid prevAuditCommit format', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+
+    await mutateReceipt(persistence, /** @type {string} */ (sha1), (receipt) => {
+      receipt['prevAuditCommit'] = 'g'.repeat(40);
+    });
 
     const verifier = createVerifier(persistence);
     const result = await verifier.verifyChain('events', 'alice');
@@ -679,6 +772,108 @@ describe('AuditVerifierService — writer/graph consistency', () => {
 
     expect(result.errors.length).toBeGreaterThan(0);
   });
+
+  it('detects writer mismatch against the requested writer when trailers agree', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1, undefined, 'alice');
+
+    const receipt = await mutateReceipt(persistence, /** @type {string} */ (sha1), (receipt) => {
+      receipt['writerId'] = 'mallory';
+    });
+    mutateCommitMessage(
+      persistence,
+      /** @type {string} */ (sha1),
+      () => encodeAuditMessage({
+        graph: /** @type {string} */ (receipt['graphName']),
+        writer: /** @type {string} */ (receipt['writerId']),
+        dataCommit: /** @type {string} */ (receipt['dataCommit']),
+        opsDigest: /** @type {string} */ (receipt['opsDigest']),
+      }),
+    );
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('BROKEN_CHAIN');
+    expect(result.errors.some((e) => e.code === 'WRITER_CONSISTENCY')).toBe(true);
+  });
+
+  it('detects graph mismatch against the requested graph when trailers agree', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1, undefined, 'alice');
+
+    const receipt = await mutateReceipt(persistence, /** @type {string} */ (sha1), (receipt) => {
+      receipt['graphName'] = 'other-events';
+    });
+    mutateCommitMessage(
+      persistence,
+      /** @type {string} */ (sha1),
+      () => encodeAuditMessage({
+        graph: /** @type {string} */ (receipt['graphName']),
+        writer: /** @type {string} */ (receipt['writerId']),
+        dataCommit: /** @type {string} */ (receipt['dataCommit']),
+        opsDigest: /** @type {string} */ (receipt['opsDigest']),
+      }),
+    );
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('BROKEN_CHAIN');
+    expect(result.errors.some((e) => e.code === 'WRITER_CONSISTENCY')).toBe(true);
+  });
+
+  it('detects writer changes between linked receipts', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1, undefined, 'alice');
+    await commitReceipt(service, 2, undefined, 'alice');
+
+    const receipt = await mutateReceipt(persistence, /** @type {string} */ (sha1), (receipt) => {
+      receipt['writerId'] = 'mallory';
+    });
+    mutateCommitMessage(
+      persistence,
+      /** @type {string} */ (sha1),
+      () => encodeAuditMessage({
+        graph: /** @type {string} */ (receipt['graphName']),
+        writer: /** @type {string} */ (receipt['writerId']),
+        dataCommit: /** @type {string} */ (receipt['dataCommit']),
+        opsDigest: /** @type {string} */ (receipt['opsDigest']),
+      }),
+    );
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('BROKEN_CHAIN');
+    expect(result.errors.some((e) => e.code === 'WRITER_CONSISTENCY')).toBe(true);
+  });
+
+  it('detects graph changes between linked receipts', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1, undefined, 'alice');
+    await commitReceipt(service, 2, undefined, 'alice');
+
+    const receipt = await mutateReceipt(persistence, /** @type {string} */ (sha1), (receipt) => {
+      receipt['graphName'] = 'other-events';
+    });
+    mutateCommitMessage(
+      persistence,
+      /** @type {string} */ (sha1),
+      () => encodeAuditMessage({
+        graph: /** @type {string} */ (receipt['graphName']),
+        writer: /** @type {string} */ (receipt['writerId']),
+        dataCommit: /** @type {string} */ (receipt['dataCommit']),
+        opsDigest: /** @type {string} */ (receipt['opsDigest']),
+      }),
+    );
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('BROKEN_CHAIN');
+    expect(result.errors.some((e) => e.code === 'WRITER_CONSISTENCY')).toBe(true);
+  });
 });
 
 // ============================================================================
@@ -733,6 +928,47 @@ describe('AuditVerifierService — schema validation', () => {
 
     expect(result.errors.some((e) => e.code === 'RECEIPT_SCHEMA_INVALID')).toBe(true);
   });
+
+  it('detects non-object receipts', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+
+    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    if (commit) {
+      const blobOid = await persistence.writeBlob(Buffer.from(defaultCodec.encode('not-an-object')));
+      commit.treeOid = await persistence.writeTree([`100644 blob ${blobOid}\treceipt.cbor`]);
+    }
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.errors.some((e) => e.code === 'RECEIPT_SCHEMA_INVALID')).toBe(true);
+  });
+
+  for (const [name, mutate] of [
+    ['detects missing required fields with a full 9-field object', (receipt) => { delete receipt['writerId']; receipt['extra'] = 'filler'; }],
+    ['detects empty graphName', (receipt) => { receipt['graphName'] = ''; }],
+    ['detects empty writerId', (receipt) => { receipt['writerId'] = ''; }],
+    ['detects non-string dataCommit', (receipt) => { receipt['dataCommit'] = 42; }],
+    ['detects non-string opsDigest', (receipt) => { receipt['opsDigest'] = 42; }],
+    ['detects non-string prevAuditCommit', (receipt) => { receipt['prevAuditCommit'] = 42; }],
+    ['detects tickStart below 1', (receipt) => { receipt['tickStart'] = 0; }],
+    ['detects tickEnd below tickStart', (receipt) => { receipt['tickEnd'] = 0; }],
+    ['detects v1 receipts with tickStart != tickEnd', (receipt) => { receipt['tickEnd'] = 2; }],
+    ['detects negative timestamps', (receipt) => { receipt['timestamp'] = -1; }],
+  ]) {
+    it(name, async () => {
+      const service = await createAuditService(persistence, 'events', 'alice');
+      const sha1 = await commitReceipt(service, 1);
+
+      await mutateReceipt(persistence, /** @type {string} */ (sha1), /** @type {(receipt: Record<string, *>) => void} */ (mutate));
+
+      const verifier = createVerifier(persistence);
+      const result = await verifier.verifyChain('events', 'alice');
+
+      expect(result.errors.some((e) => e.code === 'RECEIPT_SCHEMA_INVALID')).toBe(true);
+    });
+  }
 });
 
 // ============================================================================
@@ -844,6 +1080,41 @@ describe('AuditVerifierService — evaluateTrust', () => {
     expect(result.trust.explanations[0]?.reason).toContain('trust storage unavailable');
   });
 
+  it('returns not_configured when no trust records exist', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    const verifier = createVerifier(persistence);
+    const result = await verifier.evaluateTrust('events');
+
+    expect(result.trustVerdict).toBe('not_configured');
+    expect(result.trust.status).toBe('not_configured');
+    expect(result.trust.explanations).toEqual([]);
+  });
+
+  it('fails closed when trust-chain verification fails structurally', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    const verifyChainSpy = vi.spyOn(TrustRecordService.prototype, 'verifyChain')
+      .mockResolvedValue({ valid: false, errors: [{ error: 'broken trust chain' }] });
+
+    try {
+      await seedTrustChain(persistence, 'events', [
+        KEY_ADD_1,
+        KEY_ADD_2,
+      ]);
+
+      const verifier = createVerifier(persistence);
+      const result = await verifier.evaluateTrust('events', {
+        writerIds: ['alice'],
+      });
+
+      expect(result.trustVerdict).toBe('fail');
+      expect(result.trust.status).toBe('error');
+      expect(result.trust.explanations[0]?.writerId).toBe('alice');
+      expect(result.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
+    } finally {
+      verifyChainSpy.mockRestore();
+    }
+  });
+
   it('verifies signed trust records end-to-end', async () => {
     const persistence = new InMemoryGraphAdapter();
     await seedTrustChain(persistence, 'events', [
@@ -893,6 +1164,116 @@ describe('AuditVerifierService — evaluateTrust', () => {
     expect(result.trust.status).toBe('error');
     expect(result.trust.explanations[0]?.reasonCode).toBe('TRUST_RECORD_CHAIN_INVALID');
     expect(result.trust.explanations[0]?.reason).toContain('Trust evidence invalid');
+  });
+
+  it('defaults trust policy mode to warn when mode is omitted', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    await seedTrustChain(persistence, 'events', [
+      KEY_ADD_1,
+      KEY_ADD_2,
+      WRITER_BIND_ADD_ALICE,
+    ]);
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.evaluateTrust('events', {
+      writerIds: ['alice'],
+    });
+
+    expect(result.mode).toBe('signed_evidence_v1');
+    expect(result.trust.status).toBe('configured');
+    expect(result.trust.source).toBe('ref');
+    expect(result.trustVerdict).toBe('pass');
+  });
+});
+
+describe('AuditVerifierService — storage failure paths', () => {
+  /** @type {InMemoryGraphAdapter} */
+  let persistence;
+
+  beforeEach(() => {
+    persistence = new InMemoryGraphAdapter();
+  });
+
+  it('detects unreadable commit metadata', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    await commitReceipt(service, 1);
+    persistence.getNodeInfo = async () => {
+      throw new Error('commit missing');
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('ERROR');
+    expect(result.errors.some((e) => e.code === 'MISSING_RECEIPT_BLOB')).toBe(true);
+  });
+
+  it('detects unreadable commit tree', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+    const originalGetCommitTree = persistence.getCommitTree.bind(persistence);
+    persistence.getCommitTree = async (commitSha) => {
+      if (commitSha === sha1) {
+        throw new Error('tree lookup failed');
+      }
+      return originalGetCommitTree(commitSha);
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('ERROR');
+    expect(result.errors.some((e) => e.code === 'MISSING_RECEIPT_BLOB')).toBe(true);
+  });
+
+  it('detects unreadable tree entries', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    await commitReceipt(service, 1);
+    persistence.readTreeOids = async () => {
+      throw new Error('tree decode failed');
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('ERROR');
+    expect(result.errors.some((e) => e.code === 'RECEIPT_TREE_INVALID')).toBe(true);
+  });
+
+  it('detects missing receipt blob entries even when the tree shape is otherwise correct', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    await commitReceipt(service, 1);
+    persistence.readTreeOids = async () => ({ 'receipt.cbor': undefined });
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('ERROR');
+    expect(result.errors.some((e) => e.code === 'MISSING_RECEIPT_BLOB')).toBe(true);
+  });
+
+  it('detects unreadable receipt blobs', async () => {
+    const service = await createAuditService(persistence, 'events', 'alice');
+    const sha1 = await commitReceipt(service, 1);
+    const originalReadBlob = persistence.readBlob.bind(persistence);
+    const commit = persistence._commits.get(/** @type {string} */ (sha1));
+    if (!commit) {
+      throw new Error('missing audit commit');
+    }
+    const treeOids = await persistence.readTreeOids(commit.treeOid);
+    const receiptBlob = treeOids['receipt.cbor'];
+    persistence.readBlob = async (oid) => {
+      if (oid === receiptBlob) {
+        throw new Error('blob read failed');
+      }
+      return originalReadBlob(oid);
+    };
+
+    const verifier = createVerifier(persistence);
+    const result = await verifier.verifyChain('events', 'alice');
+
+    expect(result.status).toBe('ERROR');
+    expect(result.errors.some((e) => e.code === 'MISSING_RECEIPT_BLOB')).toBe(true);
   });
 });
 
