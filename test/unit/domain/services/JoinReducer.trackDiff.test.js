@@ -371,6 +371,21 @@ describe('JoinReducer diff tracking', () => {
       expect(diff.nodesRemoved).toEqual([]);
       expect(diff.edgesRemoved).toEqual([]);
     });
+
+    it('skips undefined ops while still tracking later transitions', () => {
+      const state = createEmptyStateV5();
+
+      const { diff } = applyWithDiff(state, makePatch({
+        ops: [
+          /** @type {any} */ (undefined),
+          nodeAdd('n1', createDot('w1', 1)),
+        ],
+      }), 'fff00002');
+
+      expect(diff.nodesAdded).toEqual(['n1']);
+      expect(diff.edgesAdded).toEqual([]);
+      expect(diff.propsChanged).toEqual([]);
+    });
   });
 
   // =========================================================================

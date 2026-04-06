@@ -5,6 +5,7 @@ import CheckpointStorePort from '../../../../src/ports/CheckpointStorePort.js';
 import { createORSet, orsetAdd } from '../../../../src/domain/crdt/ORSet.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import { createDot } from '../../../../src/domain/crdt/Dot.js';
+import { createEventId } from '../../../../src/domain/utils/EventId.js';
 import WarpStateV5 from '../../../../src/domain/services/state/WarpStateV5.js';
 import MockBlobPort from '../../../helpers/MockBlobPort.js';
 
@@ -47,6 +48,22 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
       codec: new CborCodec(), blobPort: createMemoryBlobPort(),
     });
     expect(adapter).toBeInstanceOf(CheckpointStorePort);
+  });
+
+  it('requires codec and blobPort dependencies', () => {
+    expect(() =>
+      new CborCheckpointStoreAdapter({
+        codec: /** @type {any} */ (null),
+        blobPort: createMemoryBlobPort(),
+      })
+    ).toThrow('requires a codec');
+
+    expect(() =>
+      new CborCheckpointStoreAdapter({
+        codec: new CborCodec(),
+        blobPort: /** @type {any} */ (null),
+      })
+    ).toThrow('requires a blobPort');
   });
 
   describe('writeCheckpoint', () => {
@@ -133,6 +150,177 @@ describe('CborCheckpointStoreAdapter (collapsed)', () => {
         codec: new CborCodec(), blobPort: createMemoryBlobPort(),
       });
       await expect(adapter.readCheckpoint({})).rejects.toThrow('missing state.cbor');
+    });
+
+    it('throws on missing frontier.cbor', async () => {
+      const blobPort = createMemoryBlobPort();
+      const adapter = new CborCheckpointStoreAdapter({
+        codec: new CborCodec(), blobPort,
+      });
+
+      const stateOid = await blobPort.writeBlob(new Uint8Array([1, 2, 3]));
+
+      await expect(adapter.readCheckpoint({ 'state.cbor': stateOid })).rejects.toThrow('missing frontier.cbor');
+    });
+
+    it('returns stripped index shard oids when index artifacts are present', async () => {
+      const blobPort = createMemoryBlobPort();
+      const codec = new CborCodec();
+      const adapter = new CborCheckpointStoreAdapter({ codec, blobPort });
+
+      const vv = createVersionVector();
+      const writeResult = await adapter.writeCheckpoint({
+        state: createGoldenState(),
+        frontier: new Map(),
+        appliedVV: vv,
+        stateHash: 'deadbeef',
+      });
+
+      const data = await adapter.readCheckpoint({
+        'state.cbor': writeResult.stateBlobOid,
+        'frontier.cbor': writeResult.frontierBlobOid,
+        'appliedVV.cbor': writeResult.appliedVVBlobOid,
+        'index/meta_aa.cbor': 'oid-meta',
+        'index/props_aa.cbor': 'oid-props',
+      });
+
+      expect(data.indexShardOids).toEqual({
+        'meta_aa.cbor': 'oid-meta',
+        'props_aa.cbor': 'oid-props',
+      });
+    });
+  });
+
+  describe('state encoding helpers', () => {
+    it('returns empty state when the full-state buffer or payload is absent', () => {
+      const adapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
+        codec: new CborCodec(),
+        blobPort: createMemoryBlobPort(),
+      }));
+
+      const emptyFromNullBuffer = adapter._decodeFullState(null);
+      expect(emptyFromNullBuffer).toBeInstanceOf(WarpStateV5);
+      expect(emptyFromNullBuffer.nodeAlive.entries.size).toBe(0);
+
+      const nullDecodingAdapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
+        codec: {
+          encode(value) {
+            return /** @type {Uint8Array} */ (value);
+          },
+          decode() {
+            return null;
+          },
+        },
+        blobPort: createMemoryBlobPort(),
+      }));
+
+      const emptyFromNullPayload = nullDecodingAdapter._decodeFullState(new Uint8Array([1]));
+      expect(emptyFromNullPayload).toBeInstanceOf(WarpStateV5);
+      expect(emptyFromNullPayload.edgeAlive.entries.size).toBe(0);
+    });
+
+    it('rejects unsupported full-state versions', () => {
+      const adapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
+        codec: {
+          encode(value) {
+            return /** @type {Uint8Array} */ (value);
+          },
+          decode() {
+            return { version: 'full-v4' };
+          },
+        },
+        blobPort: createMemoryBlobPort(),
+      }));
+
+      expect(() => adapter._decodeFullState(new Uint8Array([1]))).toThrow('Unsupported full state version');
+    });
+
+    it('sorts props and edge birth events, skips null registers, and round-trips birth metadata', () => {
+      const codec = new CborCodec();
+      const adapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
+        codec,
+        blobPort: createMemoryBlobPort(),
+      }));
+
+      /** @type {Map<string, import('../../../../src/domain/crdt/LWW.js').LWWRegister<unknown>>} */
+      const prop = new Map([
+        ['user:z\x00name', {
+          eventId: createEventId(3, 'w3', 'c'.repeat(40), 2),
+          value: 'Zed',
+        }],
+        ['user:a\x00name', {
+          eventId: createEventId(1, 'w1', 'a'.repeat(40), 0),
+          value: 'Ada',
+        }],
+        ['user:skip\x00name', /** @type {any} */ (null)],
+      ]);
+
+      const edgeBirthEvent = new Map([
+        ['user:z\x00user:y\x00likes', createEventId(9, 'w9', 'f'.repeat(40), 2)],
+        ['user:a\x00user:b\x00knows', createEventId(1, 'w1', 'e'.repeat(40), 0)],
+      ]);
+
+      const state = new WarpStateV5({
+        nodeAlive: createORSet(),
+        edgeAlive: createORSet(),
+        prop,
+        observedFrontier: createVersionVector(),
+        edgeBirthEvent,
+      });
+
+      const bytes = adapter._encodeFullState(state);
+      const raw = /** @type {{
+        prop: Array<[string, unknown]>,
+        edgeBirthEvent: Array<[string, unknown]>,
+      }} */ (codec.decode(bytes));
+
+      expect(raw.prop.map(([key]) => key)).toEqual([
+        'user:a\x00name',
+        'user:skip\x00name',
+        'user:z\x00name',
+      ]);
+      expect(raw.edgeBirthEvent.map(([key]) => key)).toEqual([
+        'user:a\x00user:b\x00knows',
+        'user:z\x00user:y\x00likes',
+      ]);
+
+      const decoded = adapter._decodeFullState(bytes);
+      expect(decoded.prop.has('user:skip\x00name')).toBe(false);
+      expect(decoded.prop.get('user:a\x00name')?.value).toBe('Ada');
+      expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
+        lamport: 1,
+        writerId: 'w1',
+        patchSha: 'e'.repeat(40),
+        opIndex: 0,
+      });
+    });
+
+    it('accepts legacy numeric edge birth data when decoding full state', () => {
+      const adapter = /** @type {any} */ (new CborCheckpointStoreAdapter({
+        codec: {
+          encode(value) {
+            return /** @type {Uint8Array} */ (value);
+          },
+          decode() {
+            return {
+              nodeAlive: {},
+              edgeAlive: {},
+              prop: [],
+              observedFrontier: {},
+              edgeBirthLamport: [['user:a\x00user:b\x00knows', 7]],
+            };
+          },
+        },
+        blobPort: createMemoryBlobPort(),
+      }));
+
+      const decoded = adapter._decodeFullState(new Uint8Array([1]));
+      expect(decoded.edgeBirthEvent.get('user:a\x00user:b\x00knows')).toEqual({
+        lamport: 7,
+        writerId: '',
+        patchSha: '0000',
+        opIndex: 0,
+      });
     });
   });
 });
