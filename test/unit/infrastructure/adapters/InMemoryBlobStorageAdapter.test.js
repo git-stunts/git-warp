@@ -124,6 +124,27 @@ describe('InMemoryBlobStorageAdapter', () => {
       const result = await adapter.retrieve(oid);
       expect(new TextDecoder().decode(result)).toBe('stream write');
     });
+
+    it('uses the fallback hash path when web crypto is unavailable', async () => {
+      const adapter = new InMemoryBlobStorageAdapter();
+      const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+
+      Object.defineProperty(globalThis, 'crypto', {
+        value: undefined,
+        configurable: true,
+      });
+
+      try {
+        const oid = await adapter.store('fallback-hash');
+        expect(oid).toMatch(/^[0-9a-f]{16}$/);
+      } finally {
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis, 'crypto', originalDescriptor);
+        } else {
+          Reflect.deleteProperty(globalThis, 'crypto');
+        }
+      }
+    });
   });
 
   describe('error cases', () => {
