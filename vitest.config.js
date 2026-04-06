@@ -32,7 +32,7 @@ export default defineConfig({
         'src/visualization/renderers/browser/index.js',
       ],
       thresholds: {
-        lines: 92.12,
+        lines: 92.86,
         autoUpdate: true,
       },
     },
