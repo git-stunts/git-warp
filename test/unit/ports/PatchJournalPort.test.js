@@ -11,4 +11,14 @@ describe('PatchJournalPort', () => {
     const port = new PatchJournalPort();
     await expect(port.readPatch('abc123')).rejects.toThrow('not implemented');
   });
+
+  it('defaults usesExternalStorage to false', () => {
+    const port = new PatchJournalPort();
+    expect(port.usesExternalStorage).toBe(false);
+  });
+
+  it('throws on direct call to scanPatchRange()', () => {
+    const port = new PatchJournalPort();
+    expect(() => port.scanPatchRange('alice', null, 'head-sha')).toThrow('not implemented');
+  });
 });
