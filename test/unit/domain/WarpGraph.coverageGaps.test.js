@@ -1067,6 +1067,53 @@ describe('WarpRuntime coverage gaps', () => {
       const result = await graph.temporal.always('user:ghost', () => true);
       expect(result).toBe(false);
     });
+
+    it('temporal checkpoint loader returns null when no checkpoint exists', async () => {
+      persistence.listRefs.mockResolvedValue([]);
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+        autoMaterialize: false,
+      });
+
+      const loadLatestCheckpointSpy = vi
+        .spyOn(/** @type {any} */ (graph), '_loadLatestCheckpoint')
+        .mockResolvedValue(null);
+
+      const result = await graph.temporal.always('user:ghost', () => true, { since: 1 });
+
+      expect(result).toBe(false);
+      expect(loadLatestCheckpointSpy).toHaveBeenCalledOnce();
+    });
+
+    it('temporal checkpoint loader computes maxLamport when a checkpoint exists', async () => {
+      persistence.listRefs.mockResolvedValue([]);
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+        autoMaterialize: false,
+      });
+
+      const checkpointState = createEmptyStateV5();
+      const loadLatestCheckpointSpy = vi
+        .spyOn(/** @type {any} */ (graph), '_loadLatestCheckpoint')
+        .mockResolvedValue({ state: checkpointState });
+      const maxLamportSpy = vi
+        .spyOn(/** @type {any} */ (graph), '_maxLamportFromState')
+        .mockReturnValue(1);
+
+      const result = await graph.temporal.always('user:ghost', () => true, { since: 1 });
+
+      expect(result).toBe(false);
+      expect(loadLatestCheckpointSpy).toHaveBeenCalledOnce();
+      expect(maxLamportSpy).toHaveBeenCalledWith(checkpointState);
+    });
   });
 
   // --------------------------------------------------------------------------
