@@ -333,167 +333,6 @@ function normalizeStringArray(value, field) {
 }
 
 /**
- * Parse and validate an unknown array into typed queued intents, discarding malformed entries.
- *
- * @param {unknown} value
- * @returns {StrandQueuedIntent[]}
- */
-function normalizeQueuedIntents(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const entries = /** @type {unknown[]} */ (value);
-  return entries.flatMap((rawEntry) => {
-    const candidate = /** @type {Record<string, unknown>} */ (rawEntry);
-    const { patch: rawPatch } = candidate;
-    const patch = /** @type {import('../../types/WarpTypesV2.js').PatchV2|undefined} */ (rawPatch);
-    const intentId = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (candidate['intentId']),
-      'intentId',
-    ) ?? '';
-    const enqueuedAt = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (candidate['enqueuedAt']),
-      'enqueuedAt',
-    ) ?? '';
-    if (patch === undefined || intentId.length === 0 || enqueuedAt.length === 0) {
-      return [];
-    }
-    return [{
-      intentId,
-      enqueuedAt,
-      patch,
-      reads: normalizeStringArray(candidate['reads'] ?? patch.reads, 'reads[]'),
-      writes: normalizeStringArray(candidate['writes'] ?? patch.writes, 'writes[]'),
-      contentBlobOids: normalizeStringArray(candidate['contentBlobOids'], 'contentBlobOids[]'),
-    }];
-  }).sort((left, right) => compareStrings(left.intentId, right.intentId));
-}
-
-/**
- * Coerce an unknown value into a validated intent queue with sequence counter.
- *
- * @param {unknown} value
- * @returns {StrandIntentQueue}
- */
-function normalizeIntentQueue(value) {
-  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
-    return {
-      nextIntentSeq: 1,
-      intents: [],
-    };
-  }
-  const record = /** @type {Record<string, unknown>} */ (value);
-  const rawSeq = record['nextIntentSeq'];
-  const nextIntentSeq = Number.isInteger(rawSeq) && /** @type {number} */ (rawSeq) > 0
-    ? /** @type {number} */ (rawSeq)
-    : 1;
-  return {
-    nextIntentSeq,
-    intents: normalizeQueuedIntents(record['intents']),
-  };
-}
-
-/**
- * Parse an unknown array into validated rejected-counterfactual records.
- *
- * @param {unknown} value
- * @returns {StrandRejectedCounterfactual[]}
- */
-function normalizeRejectedCounterfactuals(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const entries = /** @type {unknown[]} */ (value);
-  return entries.map((rawEntry) => {
-    const candidate = /** @type {Record<string, unknown>} */ (rawEntry);
-    return {
-      intentId: normalizeOptionalString(
-        /** @type {string|null|undefined} */ (candidate['intentId']),
-        'intentId',
-      ) ?? '',
-      reason: normalizeOptionalString(
-        /** @type {string|null|undefined} */ (candidate['reason']),
-        'reason',
-      ) ?? '',
-      conflictsWith: normalizeStringArray(candidate['conflictsWith'], 'conflictsWith[]'),
-      reads: normalizeStringArray(candidate['reads'], 'reads[]'),
-      writes: normalizeStringArray(candidate['writes'], 'writes[]'),
-    };
-  });
-}
-
-/**
- * Validate and normalize a raw last-tick record into a typed tick record.
- *
- * @param {Record<string, unknown>|null} lastTick
- * @returns {StrandTickRecord|null}
- */
-function normalizeLastTick(lastTick) {
-  if (!lastTick) {
-    return null;
-  }
-  const rawTickIndex = lastTick['tickIndex'];
-  const rawDrained = lastTick['drainedIntentCount'];
-  return {
-    tickId: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick['tickId']),
-      'tickId',
-    ) ?? '',
-    strandId: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick['strandId']),
-      'strandId',
-    ) ?? '',
-    tickIndex: Number.isInteger(rawTickIndex) ? /** @type {number} */ (rawTickIndex) : 0,
-    createdAt: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick['createdAt']),
-      'createdAt',
-    ) ?? '',
-    drainedIntentCount: Number.isInteger(rawDrained)
-      ? /** @type {number} */ (rawDrained)
-      : 0,
-    admittedIntentIds: normalizeStringArray(lastTick['admittedIntentIds'], 'admittedIntentIds[]'),
-    rejected: normalizeRejectedCounterfactuals(lastTick['rejected']),
-    baseOverlayHeadPatchSha: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick['baseOverlayHeadPatchSha']),
-      'baseOverlayHeadPatchSha',
-    ),
-    overlayHeadPatchSha: normalizeOptionalString(
-      /** @type {string|null|undefined} */ (lastTick['overlayHeadPatchSha']),
-      'overlayHeadPatchSha',
-    ),
-    overlayPatchShas: normalizeStringArray(lastTick['overlayPatchShas'], 'overlayPatchShas[]'),
-  };
-}
-
-/**
- * Coerce an unknown value into a validated evolution record with tick count.
- *
- * @param {unknown} value
- * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
- */
-function normalizeEvolution(value) {
-  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
-    return {
-      tickCount: 0,
-      lastTick: null,
-    };
-  }
-  const record = /** @type {Record<string, unknown>} */ (value);
-  const rawTickCount = record['tickCount'];
-  const tickCount = Number.isInteger(rawTickCount) && /** @type {number} */ (rawTickCount) >= 0
-    ? /** @type {number} */ (rawTickCount)
-    : 0;
-  const rawLastTick = record['lastTick'];
-  const lastTick = rawLastTick !== null && rawLastTick !== undefined && typeof rawLastTick === 'object' && !Array.isArray(rawLastTick)
-    ? /** @type {Record<string, unknown>} */ (rawLastTick)
-    : null;
-  return {
-    tickCount,
-    lastTick: normalizeLastTick(lastTick),
-  };
-}
-
-/**
  * Merge read and write keys into a single set for overlap detection.
  *
  * @param {{ reads: string[], writes: string[] }} footprint
@@ -765,8 +604,6 @@ export default class StrandService {
       graph,
       loadStrandOrThrow: this.getOrThrow.bind(this),
       baseObservationsEqual,
-      normalizeIntentQueue,
-      normalizeEvolution,
     });
   }
 
@@ -1033,7 +870,7 @@ export default class StrandService {
     try {
       const descriptor = await this.getOrThrow(strandId);
       const queuedIntent = await this._buildQueuedIntent(descriptor, build);
-      const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+      const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
       const now = this._graph._clock.timestamp();
       const nextDescriptor = {
         ...descriptor,
@@ -1066,7 +903,7 @@ export default class StrandService {
    */
   async listIntents(strandId) {
     const descriptor = await this.getOrThrow(strandId);
-    return normalizeIntentQueue(descriptor.intentQueue).intents.map((intent) => Object.freeze({
+    return this._normalizeIntentQueue(descriptor.intentQueue).intents.map((intent) => Object.freeze({
       ...intent,
       reads: [...intent.reads],
       writes: [...intent.writes],
@@ -1099,8 +936,8 @@ export default class StrandService {
    */
   async tick(strandId) {
     const descriptor = await this.getOrThrow(strandId);
-    const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
-    const evolution = normalizeEvolution(descriptor.evolution);
+    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
+    const evolution = this._normalizeEvolution(descriptor.evolution);
     const queuedIntents = [...intentQueue.intents].sort((left, right) => compareStrings(left.intentId, right.intentId));
     const tickIndex = evolution.tickCount + 1;
     const now = this._graph._clock.timestamp();
@@ -1155,7 +992,7 @@ export default class StrandService {
         },
       );
     }
-    const intentQueue = normalizeIntentQueue(descriptor.intentQueue);
+    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
     const { state, allPatches } = await this._materializeDescriptor(descriptor, {
       collectReceipts: false,
       ceiling: null,
@@ -1512,6 +1349,28 @@ export default class StrandService {
    */
   async _hydrateOverlayMetadata(descriptor) {
     return await this._descriptorStore.hydrateDescriptor(descriptor);
+  }
+
+  /**
+   * Normalize one raw intent queue from persisted descriptor state.
+   *
+   * @private
+   * @param {unknown} value
+   * @returns {StrandIntentQueue}
+   */
+  _normalizeIntentQueue(value) {
+    return this._descriptorStore.normalizeIntentQueue(value);
+  }
+
+  /**
+   * Normalize one raw evolution record from persisted descriptor state.
+   *
+   * @private
+   * @param {unknown} value
+   * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
+   */
+  _normalizeEvolution(value) {
+    return this._descriptorStore.normalizeEvolution(value);
   }
 
   /**

@@ -89,6 +89,112 @@ const READ_OVERLAY_FIELDS = /** @type {const} */ ([
 ]);
 
 /**
+ * Validate and trim an optional string field, returning null for absent values.
+ *
+ * @param {string|null|undefined} value
+ * @param {string} field
+ * @returns {string|null}
+ */
+function normalizeOptionalString(value, field) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    throw new StrandError(`${field} must be a string`, {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field, valueType: typeof value },
+    });
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new StrandError(`${field} must not be empty`, {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { field },
+    });
+  }
+  return trimmed;
+}
+
+/**
+ * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
+ *
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {string[]}
+ */
+function normalizeStringArray(value, field) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  /** @type {string[]} */
+  const normalized = [];
+  for (const entry of value) {
+    const maybeString = normalizeOptionalString(
+      /** @type {string|null|undefined} */ (entry),
+      field,
+    );
+    if (maybeString !== null) {
+      normalized.push(maybeString);
+    }
+  }
+  return [...new Set(normalized)].sort(compareStrings);
+}
+
+/**
+ * Narrow an unknown value to a plain record, returning null when the shape does not match.
+ *
+ * @param {unknown} value
+ * @returns {Record<string, unknown>|null}
+ */
+function asRecord(value) {
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return /** @type {Record<string, unknown>} */ (value);
+}
+
+/**
+ * Normalize a raw integer into a positive sequence number with fallback.
+ *
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function normalizePositiveInteger(value, fallback) {
+  return Number.isInteger(value) && /** @type {number} */ (value) > 0
+    ? /** @type {number} */ (value)
+    : fallback;
+}
+
+/**
+ * Normalize a raw integer into a non-negative count with fallback.
+ *
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function normalizeNonNegativeInteger(value, fallback) {
+  return Number.isInteger(value) && /** @type {number} */ (value) >= 0
+    ? /** @type {number} */ (value)
+    : fallback;
+}
+
+/**
+ * Normalize one required string field from a record, defaulting to empty string.
+ *
+ * @param {Record<string, unknown>} record
+ * @param {string} key
+ * @param {string} field
+ * @returns {string}
+ */
+function normalizeRequiredString(record, key, field) {
+  return normalizeOptionalString(
+    /** @type {string|null|undefined} */ (record[key]),
+    field,
+  ) ?? '';
+}
+
+/**
  * Coerce an unknown value into a sorted array of read-overlay descriptors.
  *
  * @param {unknown} value
@@ -167,16 +273,12 @@ export default class StrandDescriptorStore {
    *     left: StrandDescriptor['baseObservation'],
    *     right: StrandDescriptor['baseObservation']
    *   ) => boolean,
-   *   normalizeIntentQueue: (value: unknown) => StrandIntentQueue,
-   *   normalizeEvolution: (value: unknown) => StrandDescriptor['evolution'],
    * }} options
    */
-  constructor({ graph, loadStrandOrThrow, baseObservationsEqual, normalizeIntentQueue, normalizeEvolution }) {
+  constructor({ graph, loadStrandOrThrow, baseObservationsEqual }) {
     this._graph = graph;
     this._loadStrandOrThrow = loadStrandOrThrow;
     this._baseObservationsEqual = baseObservationsEqual;
-    this._normalizeIntentQueue = normalizeIntentQueue;
-    this._normalizeEvolution = normalizeEvolution;
   }
 
   /**
@@ -404,8 +506,8 @@ export default class StrandDescriptorStore {
       braid: {
         readOverlays: braidedReadOverlays,
       },
-      intentQueue: this._normalizeIntentQueue(descriptor['intentQueue']),
-      evolution: this._normalizeEvolution(descriptor['evolution']),
+      intentQueue: this.normalizeIntentQueue(descriptor['intentQueue']),
+      evolution: this.normalizeEvolution(descriptor['evolution']),
     };
   }
 
@@ -445,6 +547,46 @@ export default class StrandDescriptorStore {
         headPatchSha: overlay.headPatchSha,
         patchCount: overlay.patchCount,
       },
+    };
+  }
+
+  /**
+   * Coerce an unknown value into a validated intent queue with sequence counter.
+   *
+   * @param {unknown} value
+   * @returns {StrandIntentQueue}
+   */
+  normalizeIntentQueue(value) {
+    const record = asRecord(value);
+    if (record === null) {
+      return {
+        nextIntentSeq: 1,
+        intents: [],
+      };
+    }
+    return {
+      nextIntentSeq: normalizePositiveInteger(record['nextIntentSeq'], 1),
+      intents: this._normalizeQueuedIntents(record['intents']),
+    };
+  }
+
+  /**
+   * Coerce an unknown value into a validated evolution record with tick count.
+   *
+   * @param {unknown} value
+   * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
+   */
+  normalizeEvolution(value) {
+    const record = asRecord(value);
+    if (record === null) {
+      return {
+        tickCount: 0,
+        lastTick: null,
+      };
+    }
+    return {
+      tickCount: normalizeNonNegativeInteger(record['tickCount'], 0),
+      lastTick: this._normalizeLastTick(asRecord(record['lastTick'])),
     };
   }
 
@@ -490,5 +632,122 @@ export default class StrandDescriptorStore {
     if ((await this._graph._persistence.readRef(ref)) !== null) {
       await this._graph._persistence.deleteRef(ref);
     }
+  }
+
+  /**
+   * Parse and validate an unknown array into typed queued intents, discarding malformed entries.
+   *
+   * @private
+   * @param {unknown} value
+   * @returns {StrandQueuedIntent[]}
+   */
+  _normalizeQueuedIntents(value) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const entries = /** @type {unknown[]} */ (value);
+    return entries
+      .flatMap((rawEntry) => this._normalizeQueuedIntentEntry(rawEntry))
+      .sort((left, right) => compareStrings(left.intentId, right.intentId));
+  }
+
+  /**
+   * Parse an unknown array into validated rejected-counterfactual records.
+   *
+   * @private
+   * @param {unknown} value
+   * @returns {StrandRejectedCounterfactual[]}
+   */
+  _normalizeRejectedCounterfactuals(value) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const entries = /** @type {unknown[]} */ (value);
+    return entries.map((rawEntry) => {
+      const candidate = asRecord(rawEntry) ?? {};
+      return {
+        intentId: normalizeRequiredString(candidate, 'intentId', 'intentId'),
+        reason: normalizeRequiredString(candidate, 'reason', 'reason'),
+        conflictsWith: normalizeStringArray(candidate['conflictsWith'], 'conflictsWith[]'),
+        reads: normalizeStringArray(candidate['reads'], 'reads[]'),
+        writes: normalizeStringArray(candidate['writes'], 'writes[]'),
+      };
+    });
+  }
+
+  /**
+   * Validate and normalize a raw last-tick record into a typed tick record.
+   *
+   * @private
+   * @param {Record<string, unknown>|null} lastTick
+   * @returns {StrandTickRecord|null}
+   */
+  _normalizeLastTick(lastTick) {
+    if (!lastTick) {
+      return null;
+    }
+    return {
+      tickId: normalizeRequiredString(lastTick, 'tickId', 'tickId'),
+      strandId: normalizeRequiredString(lastTick, 'strandId', 'strandId'),
+      tickIndex: normalizeNonNegativeInteger(lastTick['tickIndex'], 0),
+      createdAt: normalizeRequiredString(lastTick, 'createdAt', 'createdAt'),
+      drainedIntentCount: normalizeNonNegativeInteger(lastTick['drainedIntentCount'], 0),
+      admittedIntentIds: normalizeStringArray(lastTick['admittedIntentIds'], 'admittedIntentIds[]'),
+      rejected: this._normalizeRejectedCounterfactuals(lastTick['rejected']),
+      baseOverlayHeadPatchSha: normalizeOptionalString(
+        /** @type {string|null|undefined} */ (lastTick['baseOverlayHeadPatchSha']),
+        'baseOverlayHeadPatchSha',
+      ),
+      overlayHeadPatchSha: normalizeOptionalString(
+        /** @type {string|null|undefined} */ (lastTick['overlayHeadPatchSha']),
+        'overlayHeadPatchSha',
+      ),
+      overlayPatchShas: normalizeStringArray(lastTick['overlayPatchShas'], 'overlayPatchShas[]'),
+    };
+  }
+
+  /**
+   * Parse one queued-intent entry, dropping malformed records.
+   *
+   * @private
+   * @param {unknown} rawEntry
+   * @returns {StrandQueuedIntent[]}
+   */
+  _normalizeQueuedIntentEntry(rawEntry) {
+    const candidate = asRecord(rawEntry);
+    if (candidate === null) {
+      return [];
+    }
+    const identity = this._resolveQueuedIntentIdentity(candidate);
+    if (identity === null) {
+      return [];
+    }
+    const { patch, intentId, enqueuedAt } = identity;
+    return [{
+      intentId,
+      enqueuedAt,
+      patch,
+      reads: normalizeStringArray(candidate['reads'] ?? patch.reads, 'reads[]'),
+      writes: normalizeStringArray(candidate['writes'] ?? patch.writes, 'writes[]'),
+      contentBlobOids: normalizeStringArray(candidate['contentBlobOids'], 'contentBlobOids[]'),
+    }];
+  }
+
+  /**
+   * Resolve the required identity fields for one queued-intent record.
+   *
+   * @private
+   * @param {Record<string, unknown>} candidate
+   * @returns {{ patch: import('../../types/WarpTypesV2.js').PatchV2, intentId: string, enqueuedAt: string }|null}
+   */
+  _resolveQueuedIntentIdentity(candidate) {
+    const { patch: rawPatch } = candidate;
+    const patch = /** @type {import('../../types/WarpTypesV2.js').PatchV2|undefined} */ (rawPatch);
+    const intentId = normalizeRequiredString(candidate, 'intentId', 'intentId');
+    const enqueuedAt = normalizeRequiredString(candidate, 'enqueuedAt', 'enqueuedAt');
+    if (patch === undefined || intentId.length === 0 || enqueuedAt.length === 0) {
+      return null;
+    }
+    return { patch, intentId, enqueuedAt };
   }
 }

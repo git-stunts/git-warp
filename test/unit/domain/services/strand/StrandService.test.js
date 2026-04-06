@@ -177,6 +177,88 @@ describe('StrandService', () => {
     it('stores the graph reference', () => {
       expect(service._graph).toBe(graph);
     });
+
+    it('wires a descriptor store boundary', () => {
+      expect(service._descriptorStore).toBeTruthy();
+    });
+  });
+
+  describe('descriptor store seam', () => {
+    it('reads overlay metadata directly from the descriptor store', async () => {
+      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
+
+      expect(metadata).toEqual({ headPatchSha: null, patchCount: 0 });
+    });
+
+    it('normalizes missing queue and evolution records to empty defaults', () => {
+      expect(service._descriptorStore.normalizeIntentQueue(null)).toEqual({
+        nextIntentSeq: 1,
+        intents: [],
+      });
+      expect(service._descriptorStore.normalizeEvolution(undefined)).toEqual({
+        tickCount: 0,
+        lastTick: null,
+      });
+    });
+
+    it('drops malformed queued intent entries at the descriptor boundary', () => {
+      expect(service._descriptorStore._normalizeQueuedIntentEntry(null)).toEqual([]);
+      expect(service._descriptorStore._normalizeQueuedIntentEntry({
+        intentId: 'alpha.intent.0001',
+        enqueuedAt: '2026-04-06T00:00:00.000Z',
+      })).toEqual([]);
+      expect(service._descriptorStore._resolveQueuedIntentIdentity({
+        intentId: 'alpha.intent.0001',
+        enqueuedAt: '2026-04-06T00:00:00.000Z',
+      })).toBeNull();
+    });
+
+    it('returns empty collections for non-array descriptor fields', () => {
+      expect(service._descriptorStore._normalizeQueuedIntents(null)).toEqual([]);
+      expect(service._descriptorStore._normalizeRejectedCounterfactuals(undefined)).toEqual([]);
+    });
+
+    it('treats missing braid overlays as an empty normalized list', async () => {
+      const hydrated = await service._descriptorStore.hydrateDescriptor(buildValidDescriptor({
+        strandId: 'alpha',
+        braid: /** @type {unknown} */ ({}),
+      }));
+
+      expect(hydrated.braid.readOverlays).toEqual([]);
+    });
+
+    it('returns false when hydrated overlay comparison sees a sparse candidate slot', () => {
+      const descriptor = buildValidDescriptor({
+        strandId: 'alpha',
+        braid: {
+          readOverlays: [{
+            strandId: 'beta',
+            overlayId: 'beta',
+            kind: STRAND_OVERLAY_KIND,
+            headPatchSha: null,
+            patchCount: 0,
+          }],
+        },
+      });
+
+      expect(service._descriptorStore._matchesHydratedDescriptor(
+        descriptor,
+        new Array(1),
+        { headPatchSha: null, patchCount: 0 },
+      )).toBe(false);
+    });
+
+    it('throws boundary validation errors for invalid descriptor field types', () => {
+      expect(() => service._descriptorStore._normalizeRejectedCounterfactuals([{
+        intentId: 42,
+        reason: 'conflict',
+      }])).toThrow(StrandError);
+
+      expect(() => service._descriptorStore._normalizeRejectedCounterfactuals([{
+        intentId: 'alpha.intent.0001',
+        reason: '   ',
+      }])).toThrow(StrandError);
+    });
   });
 
   // ── create ──────────────────────────────────────────────────────────���─────
