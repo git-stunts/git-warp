@@ -1017,5 +1017,177 @@ describe('WarpRuntime coverage gaps', () => {
 
       expect(temporal1).toBe(temporal2);
     });
+
+    it('temporal.eventually exercises loadAllPatches callback', async () => {
+      const patchOid = 'e'.repeat(40);
+      const sha1 = 'a'.repeat(40);
+
+      const mockPatch = createMockPatch({
+        sha: sha1,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        lamport: 1,
+        patchOid,
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: createDot('writer-1', 1) }],
+      });
+
+      persistence.listRefs.mockResolvedValue(['refs/warp/test-graph/writers/writer-1']);
+      persistence.readRef.mockResolvedValue(sha1);
+      persistence.getNodeInfo
+        .mockResolvedValueOnce(mockPatch.nodeInfo)
+        .mockResolvedValueOnce({ ...mockPatch.nodeInfo, parents: [] });
+      persistence.readBlob.mockResolvedValue(mockPatch.patchBuffer);
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+        autoMaterialize: false,
+      });
+
+      // Eventually: did user:alice ever exist?
+      const result = await graph.temporal.eventually('user:alice', () => true);
+      expect(result).toBe(true);
+    });
+
+    it('temporal.always exercises loadAllPatches and returns false for empty history', async () => {
+      persistence.listRefs.mockResolvedValue([]);
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+        autoMaterialize: false,
+      });
+
+      // Always: does a non-existent node satisfy the predicate?
+      // With no patches, always returns false (node never exists)
+      const result = await graph.temporal.always('user:ghost', () => true);
+      expect(result).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 12. _extractTrustedWriters
+  // --------------------------------------------------------------------------
+  describe('_extractTrustedWriters', () => {
+    it('extracts trusted writer IDs from assessment', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const assessment = {
+        trust: {
+          explanations: [
+            { writerId: 'alice', trusted: true },
+            { writerId: 'bob', trusted: false },
+            { writerId: 'charlie', trusted: true },
+          ],
+        },
+      };
+
+      const result = /** @type {any} */ (graph)._extractTrustedWriters(assessment);
+
+      expect(result.trusted).toBeInstanceOf(Set);
+      expect(result.trusted.size).toBe(2);
+      expect(result.trusted.has('alice')).toBe(true);
+      expect(result.trusted.has('charlie')).toBe(true);
+      expect(result.trusted.has('bob')).toBe(false);
+    });
+
+    it('returns empty set when no writers are trusted', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const assessment = {
+        trust: {
+          explanations: [
+            { writerId: 'alice', trusted: false },
+            { writerId: 'bob', trusted: false },
+          ],
+        },
+      };
+
+      const result = /** @type {any} */ (graph)._extractTrustedWriters(assessment);
+
+      expect(result.trusted.size).toBe(0);
+    });
+
+    it('returns empty set for empty explanations', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const result = /** @type {any} */ (graph)._extractTrustedWriters({
+        trust: { explanations: [] },
+      });
+
+      expect(result.trusted.size).toBe(0);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 13. _maxLamportFromState
+  // --------------------------------------------------------------------------
+  describe('_maxLamportFromState', () => {
+    it('returns 0 for empty frontier', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const state = createEmptyStateV5();
+      const result = /** @type {any} */ (graph)._maxLamportFromState(state);
+
+      expect(result).toBe(0);
+    });
+
+    it('returns the maximum Lamport value from the frontier', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const state = createEmptyStateV5();
+      state.observedFrontier.set('w1', 3);
+      state.observedFrontier.set('w2', 10);
+      state.observedFrontier.set('w3', 7);
+
+      const result = /** @type {any} */ (graph)._maxLamportFromState(state);
+
+      expect(result).toBe(10);
+    });
+
+    it('handles single writer frontier', async () => {
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'test-graph',
+        writerId: 'writer-1',
+        crypto,
+      });
+
+      const state = createEmptyStateV5();
+      state.observedFrontier.set('w1', 42);
+
+      const result = /** @type {any} */ (graph)._maxLamportFromState(state);
+
+      expect(result).toBe(42);
+    });
   });
 });
