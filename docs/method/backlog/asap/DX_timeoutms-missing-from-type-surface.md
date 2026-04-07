@@ -3,7 +3,7 @@
 `timeoutMs` is accepted at runtime by `WarpApp.open()` but is not
 declared in `index.d.ts`. TypeScript rejects it:
 
-```
+```text
 error TS2353: Object literal may only specify known properties,
 and 'timeoutMs' does not exist in type '{ graphName: string;
 persistence: GraphPersistencePort; writerId: string; ... }'.
