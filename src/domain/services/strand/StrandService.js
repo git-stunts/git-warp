@@ -16,11 +16,10 @@ import {
 import { generateWriterId } from '../../utils/WriterId.js';
 import { computeChecksum } from '../../utils/checksumUtils.js';
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
-import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
-import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 import StrandDescriptorStore from './StrandDescriptorStore.js';
+import StrandMaterializer from './StrandMaterializer.js';
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
@@ -605,6 +604,7 @@ export default class StrandService {
       loadStrandOrThrow: this.getOrThrow.bind(this),
       baseObservationsEqual,
     });
+    this._materializer = new StrandMaterializer({ graph });
   }
 
   /**
@@ -1381,28 +1381,7 @@ export default class StrandService {
    * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectBasePatches(descriptor) {
-    const frontier = new Map(
-      Object.entries(descriptor.baseObservation.frontier).sort((a, b) =>
-        a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
-      ),
-    );
-    const allPatches = [];
-    for (const writerId of frontier.keys()) {
-      const tipSha = frontier.get(writerId);
-      if (tipSha === undefined || tipSha === null || tipSha.length === 0) {
-        continue;
-      }
-      const writerPatches = await this._graph._loadPatchChainFromSha(tipSha);
-      for (const entry of writerPatches) {
-        if (
-          descriptor.baseObservation.lamportCeiling === null ||
-          entry.patch.lamport <= descriptor.baseObservation.lamportCeiling
-        ) {
-          allPatches.push(entry);
-        }
-      }
-    }
-    return allPatches;
+    return await this._materializer.collectBasePatches(descriptor);
   }
 
   /**
@@ -1413,10 +1392,7 @@ export default class StrandService {
    * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectOverlayPatches(descriptor) {
-    if (descriptor.overlay.headPatchSha === null || descriptor.overlay.headPatchSha === undefined) {
-      return [];
-    }
-    return await this._graph._loadPatchChainFromSha(descriptor.overlay.headPatchSha);
+    return await this._materializer.collectOverlayPatches(descriptor);
   }
 
   /**
@@ -1427,18 +1403,7 @@ export default class StrandService {
    * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectBraidedOverlayPatches(descriptor) {
-    const braidedReadOverlays = Array.isArray(descriptor.braid?.readOverlays)
-      ? descriptor.braid.readOverlays
-      : [];
-    const allPatches = [];
-    for (const readOverlay of braidedReadOverlays) {
-      if (readOverlay.headPatchSha === null || readOverlay.headPatchSha === undefined) {
-        continue;
-      }
-      const overlayPatches = await this._graph._loadPatchChainFromSha(readOverlay.headPatchSha);
-      allPatches.push(...overlayPatches);
-    }
-    return allPatches;
+    return await this._materializer.collectBraidedOverlayPatches(descriptor);
   }
 
   /**
@@ -1450,22 +1415,7 @@ export default class StrandService {
    * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
    */
   async _collectPatchEntries(descriptor, { ceiling }) {
-    const basePatches = await this._collectBasePatches(descriptor);
-    const braidedOverlayPatches = await this._collectBraidedOverlayPatches(descriptor);
-    const overlayPatches = await this._collectOverlayPatches(descriptor);
-    /** @type {Map<string, { patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>} */
-    const deduped = new Map();
-    for (const entry of basePatches.concat(braidedOverlayPatches, overlayPatches)) {
-      if (!deduped.has(entry.sha)) {
-        deduped.set(entry.sha, entry);
-      }
-    }
-    /** @type {Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>} */
-    const allPatches = [...deduped.values()];
-    if (ceiling === null) {
-      return allPatches;
-    }
-    return allPatches.filter((entry) => (entry.patch.lamport ?? 0) <= ceiling);
+    return await this._materializer.collectPatchEntries(descriptor, { ceiling });
   }
 
   /**
@@ -1481,50 +1431,10 @@ export default class StrandService {
    * }>}
    */
   async _materializeDescriptor(descriptor, { collectReceipts, ceiling }) {
-    const allPatches = await this._collectPatchEntries(descriptor, { ceiling });
-
-    /** @type {import('../JoinReducer.js').WarpStateV5} */
-    let state;
-    /** @type {import('../../types/TickReceipt.js').TickReceipt[]} */
-    let receipts = [];
-
-    if (allPatches.length === 0) {
-      state = createEmptyStateV5();
-    } else if (collectReceipts) {
-      const result = /** @type {{ state: import('../JoinReducer.js').WarpStateV5, receipts: import('../../types/TickReceipt.js').TickReceipt[] }} */ (
-        reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches), undefined, {
-          receipts: true,
-        })
-      );
-      state = result.state;
-      receipts = result.receipts;
-    } else {
-      state = /** @type {import('../JoinReducer.js').WarpStateV5} */ (
-        reduceV5(/** @type {Parameters<typeof reduceV5>[0]} */ (allPatches))
-      );
-    }
-
-    const maxLamport = maxPatchLamport(allPatches);
-    if (maxLamport > this._graph._maxObservedLamport) {
-      this._graph._maxObservedLamport = maxLamport;
-    }
-
-    this._graph._provenanceIndex = new ProvenanceIndex();
-    for (const { patch, sha } of allPatches) {
-      this._graph._provenanceIndex.addPatch(
-        sha,
-        /** @type {string[]|undefined} */ (patch.reads),
-        /** @type {string[]|undefined} */ (patch.writes),
-      );
-    }
-    this._graph._provenanceDegraded = false;
-
-    await this._graph._setMaterializedState(state);
-    this._graph._cachedCeiling = null;
-    this._graph._cachedFrontier = null;
-    this._graph._lastFrontier = await this._graph.getFrontier();
-
-    return { state, receipts, allPatches };
+    return await this._materializer.materializeDescriptor(descriptor, {
+      collectReceipts,
+      ceiling,
+    });
   }
 
   /**
