@@ -33,6 +33,7 @@
 ## Engineering Doctrine
 
 - Read `docs/SYSTEMS_STYLE_JAVASCRIPT.md` before making design-level changes.
+- Prefer one file per class, type, or object. If a file accumulates peer concepts, split it.
 - Runtime truth wins. If something has invariants, identity, or behavior, it should exist as a runtime-backed type.
 - Validate at boundaries and constructors. Constructors establish invariants and do no I/O.
 - Prefer `instanceof` dispatch over tag switching.
@@ -42,6 +43,20 @@
 - Hexagonal architecture is mandatory. `src/domain/` does not import host APIs or Node-specific globals.
 - Wall clock is banned from `src/domain/`. Time must enter through a port or parameter.
 - Domain bytes are `Uint8Array`; `Buffer` stays in infrastructure adapters.
+- Public APIs should be heavily JSDoc'd. If a public surface changes, update its JSDoc in the same slice.
+- No sludge. Do not leave helper corridors, fake shape trust, or transitional duplication behind at the end of a slice.
+
+## Refactor Gates
+
+- For any refactor slice, touched code must reach `100%` test coverage before the slice is considered done.
+- Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
+  - runtime-backed forms for new concepts
+  - boundary validation stays at boundaries
+  - behavior lives on the owning type/module
+  - no message parsing for behaviorally significant branching
+  - no ambient time or ambient entropy in domain code
+  - no fake shape trust or cast-cosplay
+- End each substantial slice with a journal-style progress report that states what moved, what is still ugly, and what comes next.
 
 ## Repo Context
 
