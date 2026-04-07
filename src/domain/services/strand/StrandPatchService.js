@@ -1,6 +1,10 @@
 import StrandError from '../../errors/StrandError.js';
 import { PatchBuilderV2 } from '../PatchBuilderV2.js';
 import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
+import {
+  maxPatchLamport,
+  normalizeStringArray,
+} from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import VersionVector from '../crdt/VersionVector.js' */
@@ -68,86 +72,6 @@ import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
  *   onCommitSuccess?: PatchCommitSuccessHandler,
  * }} PatchBuilderOptionsParams
  */
-
-/**
- * Validate and trim an optional string field, returning null for absent values.
- *
- * @param {string|null|undefined} value
- * @param {string} field
- * @returns {string|null}
- */
-function normalizeOptionalString(value, field) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'string') {
-    throw new StrandError(`${field} must be a string`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field, valueType: typeof value },
-    });
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new StrandError(`${field} must not be empty`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field },
-    });
-  }
-  return trimmed;
-}
-
-/**
- * Lexicographic comparator for deterministic sort ordering.
- *
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-function compareStrings(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
-/**
- * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {string[]}
- */
-function normalizeStringArray(value, field) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  /** @type {string[]} */
-  const normalized = [];
-  for (const entry of value) {
-    const maybeString = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (entry),
-      field,
-    );
-    if (maybeString !== null) {
-      normalized.push(maybeString);
-    }
-  }
-  return [...new Set(normalized)].sort(compareStrings);
-}
-
-/**
- * Find the highest Lamport timestamp across a collection of patches.
- *
- * @param {Array<{ patch: { lamport?: number } }>} patches
- * @returns {number}
- */
-function maxPatchLamport(patches) {
-  let max = 0;
-  for (const { patch } of patches) {
-    const lamport = patch.lamport ?? 0;
-    if (lamport > max) {
-      max = lamport;
-    }
-  }
-  return max;
-}
 
 export default class StrandPatchService {
   /**

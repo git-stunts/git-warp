@@ -20,6 +20,18 @@ import StrandDescriptorStore from './StrandDescriptorStore.js';
 import StrandMaterializer from './StrandMaterializer.js';
 import StrandPatchService from './StrandPatchService.js';
 import StrandIntentService from './StrandIntentService.js';
+import {
+  STRAND_COUNTERFACTUAL_REASON,
+  buildIntentId,
+  buildTickId,
+  compareStrings,
+  normalizeOptionalString,
+} from './strandShared.js';
+export {
+  STRAND_COUNTERFACTUAL_REASON,
+  STRAND_INTENT_ID_WIDTH,
+  STRAND_TICK_ID_WIDTH,
+} from './strandShared.js';
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
@@ -86,54 +98,6 @@ import StrandIntentService from './StrandIntentService.js';
 export const STRAND_SCHEMA_VERSION = 1;
 export const STRAND_COORDINATE_VERSION = 'frontier-lamport/v1';
 export const STRAND_OVERLAY_KIND = 'patch-log';
-export const STRAND_INTENT_ID_WIDTH = 4;
-export const STRAND_TICK_ID_WIDTH = 4;
-export const STRAND_COUNTERFACTUAL_REASON = 'footprint_overlap';
-
-/**
- * Lexicographic comparator for deterministic sort ordering.
- *
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-function compareStrings(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
-/**
- * Zero-pad a numeric sequence to the specified width for lexicographic sorting.
- *
- * @param {number} value
- * @param {number} width
- * @returns {string}
- */
-function formatSequence(value, width) {
-  return String(value).padStart(width, '0');
-}
-
-/**
- * Construct a deterministic intent identifier from strand and sequence number.
- *
- * @param {string} strandId
- * @param {number} sequence
- * @returns {string}
- */
-function buildIntentId(strandId, sequence) {
-  return `${strandId}.intent.${formatSequence(sequence, STRAND_INTENT_ID_WIDTH)}`;
-}
-
-/**
- * Construct a deterministic tick identifier from strand and sequence number.
- *
- * @param {string} strandId
- * @param {number} sequence
- * @returns {string}
- */
-function buildTickId(strandId, sequence) {
-  return `${strandId}.tick.${formatSequence(sequence, STRAND_TICK_ID_WIDTH)}`;
-}
-
 /**
  * Convert a frontier Map to a sorted plain object for deterministic serialization.
  *
@@ -144,33 +108,6 @@ function frontierToRecord(frontier) {
   return Object.fromEntries(
     [...frontier.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
   );
-}
-
-/**
- * Validate and trim an optional string field, returning null for absent values.
- *
- * @param {string|null|undefined} value
- * @param {string} field
- * @returns {string|null}
- */
-function normalizeOptionalString(value, field) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'string') {
-    throw new StrandError(`${field} must be a string`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field, valueType: typeof value },
-    });
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new StrandError(`${field} must not be empty`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field },
-    });
-  }
-  return trimmed;
 }
 
 /**

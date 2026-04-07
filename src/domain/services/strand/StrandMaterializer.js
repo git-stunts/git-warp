@@ -1,5 +1,6 @@
 import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
+import { maxPatchLamport } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
@@ -49,23 +50,6 @@ import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
  *   }
  * }} StrandDescriptor
  */
-
-/**
- * Find the highest Lamport timestamp across a collection of patches.
- *
- * @param {Array<{ patch: { lamport?: number } }>} patches
- * @returns {number}
- */
-function maxPatchLamport(patches) {
-  let max = 0;
-  for (const { patch } of patches) {
-    const lamport = patch.lamport ?? 0;
-    if (lamport > max) {
-      max = lamport;
-    }
-  }
-  return max;
-}
 
 export default class StrandMaterializer {
   /**

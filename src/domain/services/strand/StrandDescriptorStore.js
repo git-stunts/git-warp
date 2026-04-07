@@ -8,6 +8,11 @@ import {
 } from '../../utils/RefLayout.js';
 import { parseStrandBlob } from '../../utils/parseStrandBlob.js';
 import { textEncode } from '../../utils/bytes.js';
+import {
+  compareStrings,
+  normalizeOptionalString,
+  normalizeStringArray,
+} from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
@@ -69,17 +74,6 @@ import { textEncode } from '../../utils/bytes.js';
  * }} StrandDescriptor
  */
 
-/**
- * Lexicographic comparator for deterministic sort ordering.
- *
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-function compareStrings(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
 const READ_OVERLAY_FIELDS = /** @type {const} */ ([
   'strandId',
   'overlayId',
@@ -87,58 +81,6 @@ const READ_OVERLAY_FIELDS = /** @type {const} */ ([
   'headPatchSha',
   'patchCount',
 ]);
-
-/**
- * Validate and trim an optional string field, returning null for absent values.
- *
- * @param {string|null|undefined} value
- * @param {string} field
- * @returns {string|null}
- */
-function normalizeOptionalString(value, field) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'string') {
-    throw new StrandError(`${field} must be a string`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field, valueType: typeof value },
-    });
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new StrandError(`${field} must not be empty`, {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: { field },
-    });
-  }
-  return trimmed;
-}
-
-/**
- * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {string[]}
- */
-function normalizeStringArray(value, field) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  /** @type {string[]} */
-  const normalized = [];
-  for (const entry of value) {
-    const maybeString = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (entry),
-      field,
-    );
-    if (maybeString !== null) {
-      normalized.push(maybeString);
-    }
-  }
-  return [...new Set(normalized)].sort(compareStrings);
-}
 
 /**
  * Narrow an unknown value to a plain record, returning null when the shape does not match.

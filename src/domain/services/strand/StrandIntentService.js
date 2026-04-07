@@ -1,4 +1,9 @@
 import StrandError from '../../errors/StrandError.js';
+import {
+  STRAND_COUNTERFACTUAL_REASON,
+  compareStrings,
+  maxPatchLamport,
+} from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
@@ -78,34 +83,6 @@ import StrandError from '../../errors/StrandError.js';
  */
 
 /**
- * Lexicographic comparator for deterministic sort ordering.
- *
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-function compareStrings(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-
-/**
- * Find the highest Lamport timestamp across a collection of patches.
- *
- * @param {Array<{ patch: { lamport?: number } }>} patches
- * @returns {number}
- */
-function maxPatchLamport(patches) {
-  let max = 0;
-  for (const { patch } of patches) {
-    const lamport = patch.lamport ?? 0;
-    if (lamport > max) {
-      max = lamport;
-    }
-  }
-  return max;
-}
-
-/**
  * Merge read and write keys into a single set for overlap detection.
  *
  * @param {{ reads: string[], writes: string[] }} footprint
@@ -155,9 +132,8 @@ export default class StrandIntentService {
    *     options: { ceiling: number|null }
    *   ) => Promise<Array<{ patch: PatchV2, sha: string }>>,
    *   buildTickId: (strandId: string, sequence: number) => string,
-   *   counterfactualReason: string,
-   * }} options
-   */
+ * }} options
+ */
   constructor({
     graph,
     loadStrandOrThrow,
@@ -168,7 +144,6 @@ export default class StrandIntentService {
     commitQueuedPatch,
     collectPatchEntries,
     buildTickId,
-    counterfactualReason,
   }) {
     this._graph = graph;
     this._loadStrandOrThrow = loadStrandOrThrow;
@@ -179,7 +154,7 @@ export default class StrandIntentService {
     this._commitQueuedPatch = commitQueuedPatch;
     this._collectPatchEntries = collectPatchEntries;
     this._buildTickId = buildTickId;
-    this._counterfactualReason = counterfactualReason;
+    this._counterfactualReason = STRAND_COUNTERFACTUAL_REASON;
   }
 
   /**
