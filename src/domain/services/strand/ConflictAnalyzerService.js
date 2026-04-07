@@ -8,8 +8,7 @@
  * @module domain/services/strand/ConflictAnalyzerService
  */
 
-import VersionVector from '../../crdt/VersionVector.js';
-import { reduceV5, normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
+import { normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
 import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
@@ -17,26 +16,30 @@ import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.js';
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
 import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.js';
 import ConflictParticipant from '../../types/conflict/ConflictParticipant.js';
-import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.js';
 import ConflictResolution from '../../types/conflict/ConflictResolution.js';
 import ConflictTarget from '../../types/conflict/ConflictTarget.js';
 import ConflictTrace from '../../types/conflict/ConflictTrace.js';
 import ConflictWinner from '../../types/conflict/ConflictWinner.js';
 import { compareStrings } from '../../types/conflict/validation.js';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
-import StrandService from './StrandService.js';
-
+import {
+  resolveAnalysisContext,
+  attachReceipts,
+  PatchFrame,
+  ScanWindow,
+  CONFLICT_ANALYSIS_VERSION,
+  CONFLICT_TRAVERSAL_ORDER,
+  CONFLICT_TRUNCATION_POLICY,
+} from './ConflictFrameLoader.js';
 
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @typedef {import('../../WarpRuntime.js').default} WarpRuntime */
-/** @typedef {import('./ConflictAnalysisRequest.js').ConflictAnalyzeOptions} ConflictAnalyzeOptions */
+/** @import { TickReceipt } from '../../types/TickReceipt.js' */
+/** @import { EventId } from '../../utils/EventId.js' */
+/** @import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.js' */
+/** @import WarpRuntime from '../../WarpRuntime.js' */
+/** @import { ConflictAnalyzeOptions } from './ConflictAnalysisRequest.js' */
 
-/** @typedef {import('../../types/TickReceipt.js').TickReceipt} TickReceipt */
-/** @typedef {import('../../utils/EventId.js').EventId} EventId */
-
-export const CONFLICT_ANALYSIS_VERSION = 'conflict-analyzer/v2';
-export const CONFLICT_TRAVERSAL_ORDER = 'lamport_desc_writer_desc_patch_desc';
-export const CONFLICT_TRUNCATION_POLICY = 'scan_budget_max_patches_reverse_causal';
+export { CONFLICT_ANALYSIS_VERSION, CONFLICT_TRAVERSAL_ORDER, CONFLICT_TRUNCATION_POLICY, PatchFrame };
 export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
 
 /**
@@ -74,15 +77,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
  * }} ConflictCandidate
  */
 
-/**
- * @typedef {{
- *   patch: PatchV2,
- *   sha: string,
- *   receipt: TickReceipt,
- *   patchOrder: number,
- *   context: Map<string, number>
- * }} PatchFrame
- */
 
 /**
  * @typedef {{
@@ -123,132 +117,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
  * }} ConflictCollector
  */
 
-/**
- * @typedef {{
- *   reverseCausalFrames: PatchFrame[],
- *   scannedFrames: PatchFrame[],
- *   scannedPatchShas: Set<string>,
- *   truncated: boolean
- * }} ScanWindow
- */
-
-
-/**
- * Numeric comparison returning standard sort-compatible result.
- *
- * @param {number} a - First number to compare.
- * @param {number} b - Second number to compare.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function compareNumbers(a, b) {
-  return a === b ? 0 : (a < b ? -1 : 1);
-}
-
-
-/**
- * Compares two patch frames in reverse-causal order (highest lamport first).
- *
- * @param {PatchFrame} a - First patch frame.
- * @param {PatchFrame} b - Second patch frame.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function comparePatchFramesReverseCausal(a, b) {
-  return compareByLamportThenWriterThenSha(b, a);
-}
-
-/**
- * Compares two patch frames by lamport, then writer, then SHA in ascending order.
- *
- * @param {PatchFrame} first - The frame to rank higher on tie-break.
- * @param {PatchFrame} second - The frame to rank lower on tie-break.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function compareByLamportThenWriterThenSha(first, second) {
-  const lamportCmp = compareNumbers(safeLamport(first), safeLamport(second));
-  if (lamportCmp !== 0) {
-    return lamportCmp;
-  }
-  const writerCmp = compareStrings(safeWriter(first), safeWriter(second));
-  return writerCmp !== 0 ? writerCmp : compareStrings(first.sha, second.sha);
-}
-
-/**
- * Extracts the lamport clock from a patch frame, defaulting to zero if absent.
- *
- * @param {PatchFrame} frame - The patch frame.
- * @returns {number} The lamport clock value.
- */
-function safeLamport(frame) {
-  return frame.patch.lamport ?? 0;
-}
-
-/**
- * Extracts the writer ID from a patch frame, defaulting to empty string if absent.
- *
- * @param {PatchFrame} frame - The patch frame.
- * @returns {string} The writer ID.
- */
-function safeWriter(frame) {
-  return frame.patch.writer ?? '';
-}
-
-/**
- * Converts a frontier map into a plain record for serialization.
- *
- * @param {Map<string, string>} frontier - Writer-to-SHA frontier map.
- * @returns {Record<string, string>} Sorted key-value record.
- */
-function frontierToRecord(frontier) {
-  /** @type {Record<string, string>} */
-  const record = {};
-  for (const [writerId, sha] of [...frontier.entries()].sort(([a], [b]) => compareStrings(a, b))) {
-    record[writerId] = sha;
-  }
-  return record;
-}
-
-/**
- * Normalizes a context value into a Map of writer clocks, coercing from plain objects or nulls.
- *
- * @param {VersionVector|Map<string, number>|Record<string, number>|undefined|null} context - Raw context input.
- * @returns {Map<string, number>} Normalized writer-clock map.
- */
-function normalizeContext(context) {
-  if (context instanceof VersionVector || context instanceof Map) {
-    return new Map(context);
-  }
-  return _normalizeContextFromValue(context);
-}
-
-/**
- * Normalizes a scalar or plain-object context.
- *
- * @param {Record<string, number>|undefined|null} context
- * @returns {Map<string, number>}
- */
-function _normalizeContextFromValue(context) {
-  if (context === null || context === undefined || typeof context !== 'object') {
-    return new Map();
-  }
-  return buildContextMapFromEntries(context);
-}
-
-/**
- * Builds a context map from a plain object by filtering valid non-negative integer entries.
- *
- * @param {Record<string, number>} obj - Plain object with writer clock entries.
- * @returns {Map<string, number>} Filtered writer-clock map.
- */
-function buildContextMapFromEntries(obj) {
-  /** @type {Map<string, number>} */
-  const map = new Map();
-  for (const [writerId, value] of Object.entries(obj)) {
-    if (Number.isInteger(value) && value >= 0) {
-      map.set(writerId, value);
-    }
-  }
-  return map;
-}
 
 /**
  * Determines the causal relationship between a winning and losing op record.
@@ -365,85 +233,6 @@ function cloneObject(raw) {
   return /** @type {Record<string, unknown>} */ ({ ...raw });
 }
 
-/**
- * Returns a human-readable description of a lamport ceiling, using 'head' for null.
- *
- * @param {number|null} lamportCeiling - The ceiling value, or null for head.
- * @returns {string} Human-readable ceiling label.
- */
-function describeLamportCeiling(lamportCeiling) {
-  return lamportCeiling === null ? 'head' : String(lamportCeiling);
-}
-
-/**
- * Builds the resolved coordinate metadata describing the analysis scope and budget.
- *
- * @param {{
- *   frontier: Map<string, string>,
- *   lamportCeiling: number|null,
- *   maxPatches: number|null,
- *   frontierDigest: string,
- *   coordinateKind?: 'frontier'|'strand',
- *   strand?: {
- *     strandId: string,
- *     baseLamportCeiling: number|null,
- *     overlayHeadPatchSha: string|null,
- *     overlayPatchCount: number,
- *     overlayWritable: boolean,
- *     braid?: {
- *       readOverlayCount: number,
- *       braidedStrandIds: string[]
- *     }
- *   }
- * }} options - Coordinate construction parameters.
- * @returns {ConflictResolvedCoordinate} The resolved coordinate.
- */
-function buildResolvedCoordinate({
-  frontier,
-  lamportCeiling,
-  maxPatches,
-  frontierDigest,
-  coordinateKind = 'frontier',
-  strand,
-}) {
-  return new ConflictResolvedCoordinate({
-    analysisVersion: CONFLICT_ANALYSIS_VERSION,
-    coordinateKind,
-    frontier: frontierToRecord(frontier),
-    frontierDigest,
-    lamportCeiling,
-    scanBudgetApplied: { maxPatches },
-    truncationPolicy: CONFLICT_TRUNCATION_POLICY,
-    strand,
-  });
-}
-
-/**
- * Builds strand metadata for the resolved coordinate from a strand descriptor.
- *
- * @param {{
- *   strandId: string,
- *   baseObservation: { lamportCeiling: number|null },
- *   overlay: { headPatchSha: string|null, patchCount: number, writable: boolean },
- *   braid: { readOverlays: Array<{ strandId: string }> }
- * }} descriptor - The strand descriptor to extract metadata from.
- * @returns {NonNullable<ConflictResolvedCoordinate['strand']>} Strand metadata.
- */
-function buildResolvedStrandMetadata(descriptor) {
-  return {
-    strandId: descriptor.strandId,
-    baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
-    overlayHeadPatchSha: descriptor.overlay.headPatchSha,
-    overlayPatchCount: descriptor.overlay.patchCount,
-    overlayWritable: descriptor.overlay.writable,
-    braid: {
-      readOverlayCount: descriptor.braid.readOverlays.length,
-      braidedStrandIds: descriptor.braid.readOverlays
-        .map((overlay) => overlay.strandId)
-        .sort(compareStrings),
-    },
-  };
-}
 
 /**
  * Appends a diagnostic entry to the diagnostics array with optional severity and data.
@@ -776,149 +565,6 @@ function normalizeNoteCodes(noteCodes) {
  */
 function diagnosticCodes(diagnostics) {
   return diagnostics.map((diagnostic) => diagnostic.code).sort(compareStrings);
-}
-
-/**
- * Converts raw patch entries into ordered PatchFrame objects with receipt placeholders.
- *
- * @param {Array<{ patch: PatchV2, sha: string }>} entries - Raw patch entries.
- * @returns {PatchFrame[]} Ordered patch frames.
- */
-function buildPatchFrames(entries) {
-  /** @type {PatchFrame[]} */
-  const patchFrames = [];
-  for (const entry of entries) {
-    patchFrames.push(buildPatchFrame(entry, patchFrames.length));
-  }
-  return patchFrames;
-}
-
-/**
- * Loads all writer patches up to a lamport ceiling and converts them to patch frames.
- *
- * @param {WarpRuntime} graph - The warp runtime instance.
- * @param {number|null} lamportCeiling - Maximum lamport clock value, or null for unbounded.
- * @returns {Promise<{ frontier: Map<string, string>, patchFrames: PatchFrame[] }>} Frontier and frames.
- */
-async function loadFrontierPatchFrames(graph, lamportCeiling) {
-  const frontier = await graph.getFrontier();
-  const writerIds = [...frontier.keys()].sort(compareStrings);
-  /** @type {Array<{ patch: PatchV2, sha: string }>} */
-  const entries = [];
-  /** @type {PatchFrame[]} */
-  for (const writerId of writerIds) {
-    const writerEntries = await graph._loadWriterPatches(writerId);
-    for (const entry of writerEntries) {
-      if (lamportCeiling !== null && entry.patch.lamport > lamportCeiling) {
-        continue;
-      }
-      entries.push(entry);
-    }
-  }
-  return { frontier, patchFrames: buildPatchFrames(entries) };
-}
-
-/**
- * Constructs a single PatchFrame from a raw entry and its position in the sequence.
- *
- * @param {{ patch: PatchV2, sha: string }} entry - Raw patch entry.
- * @param {number} patchOrder - Zero-based position in the patch sequence.
- * @returns {PatchFrame} The constructed patch frame.
- */
-function buildPatchFrame(entry, patchOrder) {
-  return {
-    patch: entry.patch,
-    sha: entry.sha,
-    receipt: emptyReceipt(),
-    patchOrder,
-    context: normalizeContext(entry.patch.context),
-  };
-}
-
-/**
- * Creates a placeholder empty receipt for use before reducer replay.
- *
- * @returns {TickReceipt} An empty receipt with default values.
- */
-function emptyReceipt() {
-  return /** @type {TickReceipt} */ ({ patchSha: '', writer: '', lamport: 0, ops: [] });
-}
-
-/**
- * Replays all patches through the reducer and attaches the resulting receipts to each frame.
- *
- * @param {PatchFrame[]} patchFrames - The frames to attach receipts to (mutated in place).
- * @returns {void}
- */
-function attachReceipts(patchFrames) {
-  const reduced = /** @type {{ receipts: TickReceipt[] }} */ (
-    reduceV5(
-      patchFrames.map(({ patch, sha }) => ({ patch, sha })),
-      undefined,
-      { receipts: true },
-    )
-  );
-  for (let i = 0; i < patchFrames.length; i++) {
-    const frame = /** @type {PatchFrame} */ (patchFrames[i]);
-    const receipt = /** @type {TickReceipt} */ (reduced.receipts[i]);
-    frame.receipt = receipt;
-  }
-}
-
-/**
- * Builds a scan window by sorting frames in reverse-causal order and applying the budget limit.
- *
- * @param {{
- *   patchFrames: PatchFrame[],
- *   maxPatches: number|null,
- *   lamportCeiling: number|null,
- *   diagnostics: ConflictDiagnostic[]
- * }} options - Scan window construction parameters.
- * @returns {ScanWindow} The constructed scan window.
- */
-function buildScanWindow({ patchFrames, maxPatches, lamportCeiling, diagnostics }) {
-  const reverseCausalFrames = [...patchFrames].sort(comparePatchFramesReverseCausal);
-  const scannedFrames = maxPatches === null
-    ? reverseCausalFrames
-    : reverseCausalFrames.slice(0, maxPatches);
-  const truncated = maxPatches !== null && reverseCausalFrames.length > maxPatches;
-  if (truncated) {
-    emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamportCeiling });
-  }
-  return {
-    reverseCausalFrames,
-    scannedFrames,
-    scannedPatchShas: new Set(scannedFrames.map((frame) => frame.sha)),
-    truncated,
-  };
-}
-
-/**
- * Emits a diagnostic warning when the scan window was truncated by budget limits.
- *
- * @param {{
- *   diagnostics: ConflictDiagnostic[],
- *   scannedFrames: PatchFrame[],
- *   maxPatches: number|null,
- *   lamportCeiling: number|null
- * }} options - Truncation diagnostic parameters.
- * @returns {void}
- */
-function emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamportCeiling }) {
-  const lastScanned = scannedFrames[scannedFrames.length - 1];
-  if (lastScanned === null || lastScanned === undefined) {
-    return;
-  }
-  pushDiagnostic(diagnostics, {
-    code: 'budget_truncated',
-    message: `Conflict analysis truncated to ${String(maxPatches)} patches at ceiling ${describeLamportCeiling(lamportCeiling)}`,
-    severity: 'warning',
-    data: {
-      traversalOrder: CONFLICT_TRAVERSAL_ORDER,
-      scannedPatchCount: scannedFrames.length,
-      lastScannedAnchor: ConflictAnchor.fromFrame(lastScanned),
-    },
-  });
 }
 
 
@@ -1823,73 +1469,6 @@ async function buildEmptySnapshotHash(service, { resolvedCoordinate, request }) 
   });
 }
 
-/**
- * Resolves the analysis context by loading patch frames from either a strand or the frontier.
- *
- * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {ConflictAnalysisRequest} request - The normalized request.
- * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
- */
-async function resolveAnalysisContext(service, request) {
-  if (request.usesStrandCoordinate()) {
-    return await resolveStrandContext(service, request);
-  }
-  return await resolveFrontierContext(service, request);
-}
-
-/**
- * Resolves the analysis context from a strand, loading its patches and building the coordinate.
- *
- * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {ConflictAnalysisRequest} request - The normalized request with strandId.
- * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
- */
-async function resolveStrandContext(service, request) {
-  const strands = new StrandService({ graph: service._graph });
-  const descriptor = await strands.getOrThrow(/** @type {string} */ (request.strandId));
-  const entries = await strands.getPatchEntries(/** @type {string} */ (request.strandId), {
-    ceiling: request.lamportCeiling,
-  });
-  const frontier = new Map(
-    Object.entries(descriptor.baseObservation.frontier).sort(([a], [b]) => compareStrings(a, b)),
-  );
-  return {
-    patchFrames: buildPatchFrames(entries),
-    resolvedCoordinate: buildResolvedCoordinate({
-      coordinateKind: 'strand',
-      frontier,
-      lamportCeiling: request.lamportCeiling,
-      maxPatches: request.maxPatches,
-      frontierDigest: descriptor.baseObservation.frontierDigest,
-      strand: buildResolvedStrandMetadata(descriptor),
-    }),
-  };
-}
-
-/**
- * Resolves the analysis context from the frontier, loading all writer patches.
- *
- * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {ConflictAnalysisRequest} request - The normalized request.
- * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
- */
-async function resolveFrontierContext(service, request) {
-  const { frontier, patchFrames } = await loadFrontierPatchFrames(
-    service._graph,
-    request.lamportCeiling,
-  );
-  const frontierDigest = await service._hash(frontierToRecord(frontier));
-  return {
-    patchFrames,
-    resolvedCoordinate: buildResolvedCoordinate({
-      coordinateKind: 'frontier',
-      frontier,
-      lamportCeiling: request.lamportCeiling,
-      maxPatches: request.maxPatches,
-      frontierDigest,
-    }),
-  };
-}
 
 /**
  * Assembles the final ConflictAnalysis result object from its component parts.
@@ -1998,7 +1577,7 @@ async function buildEmptyAnalysis(service, { resolvedCoordinate, request, diagno
  */
 async function runFullAnalysis(service, { patchFrames, resolvedCoordinate, request, diagnostics }) {
   attachReceipts(patchFrames);
-  const scanWindow = buildScanWindow({
+  const scanWindow = new ScanWindow({
     patchFrames, maxPatches: request.maxPatches, lamportCeiling: request.lamportCeiling, diagnostics,
   });
   const collector = await collectConflictData(service, {
