@@ -15,7 +15,6 @@ import { compareStrings } from '../../types/conflict/validation.js';
 import { reduceV5 } from '../JoinReducer.js';
 import StrandService from './StrandService.js';
 
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 
 /**
  * A loaded patch with its receipt and causal context.
@@ -192,33 +191,18 @@ function emptyReceipt() {
 }
 
 /**
- * Constructs a single PatchFrame from a raw entry and its sequence position.
+ * Converts raw patch entries into PatchFrame objects with receipt placeholders.
  *
- * @param {{ patch: PatchV2, sha: string }} entry - Raw patch entry.
- * @param {number} patchOrder - Zero-based position in the patch sequence.
- * @returns {PatchFrame} The constructed patch frame.
- */
-function buildPatchFrame(entry, patchOrder) {
-  return new PatchFrame({
-    patch: entry.patch,
-    sha: entry.sha,
-    patchOrder,
-    context: normalizeContext(entry.patch.context),
-  });
-}
-
-/**
- * Converts raw patch entries into ordered PatchFrame objects with receipt placeholders.
- *
- * @param {Array<{ patch: PatchV2, sha: string }>} entries - Raw patch entries.
+ * @param {Array<{ patch: unknown, sha: string }>} entries - Raw patch entries.
  * @returns {PatchFrame[]} Ordered patch frames.
  */
 function buildPatchFrames(entries) {
-  const patchFrames = [];
-  for (const entry of entries) {
-    patchFrames.push(buildPatchFrame(entry, patchFrames.length));
-  }
-  return patchFrames;
+  return entries.map((entry, i) => new PatchFrame({
+    patch: entry.patch,
+    sha: entry.sha,
+    patchOrder: i,
+    context: normalizeContext(entry.patch.context),
+  }));
 }
 
 // ── Receipt attachment ──────────────────────────────────────────────

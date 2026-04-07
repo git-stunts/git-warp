@@ -418,15 +418,6 @@ async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, 
 
 // ── Resolution building ─────────────────────────────────────────────
 
-/**
- * Builds a ConflictResolution from candidate parameters via the class factory.
- *
- * @param {{ kind: string, code: string, winner: OpRecord, loser: OpRecord }} options
- * @returns {ConflictResolution}
- */
-function buildResolution({ kind, code, winner, loser }) {
-  return ConflictResolution.fromCandidate({ reducerId: CONFLICT_REDUCER_ID, kind, code, winner, loser });
-}
 
 /**
  * Infers a classification note describing the causal relation between winner and loser.
@@ -457,7 +448,7 @@ function maybeAddSupersessionCandidate(collector, record, currentPropertyWinner)
   collector.candidates.push(new ConflictCandidate({
     kind: 'supersession',
     target: record.target, winner: currentPropertyWinner, loser: record,
-    resolution: buildResolution({ kind: 'supersession', code: 'receipt_superseded', winner: currentPropertyWinner, loser: record }),
+    resolution: ConflictResolution.fromCandidate({ reducerId: CONFLICT_REDUCER_ID, kind: 'supersession', code: 'receipt_superseded', winner: currentPropertyWinner, loser: record }),
     noteCodes: normalizeNoteCodes([
       CLASSIFICATION_NOTES.RECEIPT_SUPERSEDED, CLASSIFICATION_NOTES.SAME_TARGET,
       record.writerId !== currentPropertyWinner.writerId ? CLASSIFICATION_NOTES.DIFFERENT_WRITER : '',
@@ -480,7 +471,7 @@ function maybeAddRedundancyCandidate(collector, record, priorEquivalent) {
   collector.candidates.push(new ConflictCandidate({
     kind: 'redundancy',
     target: record.target, winner: priorEquivalent, loser: record,
-    resolution: buildResolution({ kind: 'redundancy', code: 'receipt_redundant', winner: priorEquivalent, loser: record }),
+    resolution: ConflictResolution.fromCandidate({ reducerId: CONFLICT_REDUCER_ID, kind: 'redundancy', code: 'receipt_redundant', winner: priorEquivalent, loser: record }),
     noteCodes: normalizeNoteCodes([
       CLASSIFICATION_NOTES.RECEIPT_REDUNDANT, CLASSIFICATION_NOTES.SAME_TARGET,
       CLASSIFICATION_NOTES.REPLAY_EQUIVALENT_EFFECT,
@@ -546,7 +537,7 @@ function emitEventualOverridesForTarget(collector, { history, finalWinner, scann
     collector.candidates.push(new ConflictCandidate({
       kind: 'eventual_override',
       target: finalWinner.target, winner: finalWinner, loser,
-      resolution: buildResolution({ kind: 'eventual_override', code: 'effective_state_override', winner: finalWinner, loser }),
+      resolution: ConflictResolution.fromCandidate({ reducerId: CONFLICT_REDUCER_ID, kind: 'eventual_override', code: 'effective_state_override', winner: finalWinner, loser }),
       noteCodes: normalizeNoteCodes([
         CLASSIFICATION_NOTES.SAME_TARGET, CLASSIFICATION_NOTES.DIFFERENT_WRITER,
         CLASSIFICATION_NOTES.DIGEST_DIFFERS, CLASSIFICATION_NOTES.EFFECTIVE_THEN_LOST,
