@@ -181,6 +181,10 @@ describe('StrandService', () => {
     it('wires a descriptor store boundary', () => {
       expect(service._descriptorStore).toBeTruthy();
     });
+
+    it('wires a patch service boundary', () => {
+      expect(service._patchService).toBeTruthy();
+    });
   });
 
   describe('descriptor store seam', () => {
@@ -258,6 +262,78 @@ describe('StrandService', () => {
         intentId: 'alpha.intent.0001',
         reason: '   ',
       }])).toThrow(StrandError);
+    });
+  });
+
+  describe('patch service seam', () => {
+    it('builds queued intents through the patch service boundary', async () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      storeDescriptor(desc);
+
+      const intent = await service._patchService.buildQueuedIntent(desc, (builder) => {
+        builder.addNode('node:test');
+      });
+
+      expect(intent.intentId).toBe('alpha.intent.0001');
+      expect(Object.isFrozen(intent)).toBe(true);
+    });
+
+    it('normalizes sparse queued intent arrays through the patch service boundary', () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+
+      const intent = service._patchService._freezeQueuedIntent(
+        desc,
+        { nextIntentSeq: 1, intents: [] },
+        {
+          build: () => ({
+            schema: 2,
+            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+            reads: [undefined, 'node:b', 'node:a'],
+            writes: [null, 'node:c', 'node:a'],
+          }),
+          _contentBlobs: [undefined, 'blob:b', 'blob:a'],
+        },
+      );
+
+      expect(intent.reads).toEqual(['node:a', 'node:b']);
+      expect(intent.writes).toEqual(['node:a', 'node:c']);
+      expect(intent.contentBlobOids).toEqual(['blob:a', 'blob:b']);
+    });
+
+    it('rejects non-string queued intent footprint entries at the patch service boundary', () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+
+      expect(() => service._patchService._freezeQueuedIntent(
+        desc,
+        { nextIntentSeq: 1, intents: [] },
+        {
+          build: () => ({
+            schema: 2,
+            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+            reads: [42],
+            writes: [],
+          }),
+          _contentBlobs: [],
+        },
+      )).toThrow(StrandError);
+    });
+
+    it('rejects blank queued intent footprint entries at the patch service boundary', () => {
+      const desc = buildValidDescriptor({ strandId: 'alpha' });
+
+      expect(() => service._patchService._freezeQueuedIntent(
+        desc,
+        { nextIntentSeq: 1, intents: [] },
+        {
+          build: () => ({
+            schema: 2,
+            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+            reads: ['   '],
+            writes: [],
+          }),
+          _contentBlobs: [],
+        },
+      )).toThrow(StrandError);
     });
   });
 

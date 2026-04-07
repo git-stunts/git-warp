@@ -15,14 +15,14 @@ import {
 } from '../../utils/RefLayout.js';
 import { generateWriterId } from '../../utils/WriterId.js';
 import { computeChecksum } from '../../utils/checksumUtils.js';
-import { PatchBuilderV2 } from '../PatchBuilderV2.js';
 import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSnapshot.js';
-import { encodePatchMessage } from '../codec/WarpMessageCodec.js';
 import StrandDescriptorStore from './StrandDescriptorStore.js';
 import StrandMaterializer from './StrandMaterializer.js';
+import StrandPatchService from './StrandPatchService.js';
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
+/** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 /** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
 /**
@@ -307,31 +307,6 @@ function baseObservationsEqual(left, right) {
 }
 
 /**
- * Coerce an unknown value into a deduplicated, sorted array of non-empty strings.
- *
- * @param {unknown} value
- * @param {string} field
- * @returns {string[]}
- */
-function normalizeStringArray(value, field) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  /** @type {string[]} */
-  const normalized = [];
-  for (const entry of value) {
-    const maybeString = normalizeOptionalString(
-      /** @type {string|null|undefined} */ (entry),
-      field,
-    );
-    if (maybeString !== null) {
-      normalized.push(maybeString);
-    }
-  }
-  return [...new Set(normalized)].sort(compareStrings);
-}
-
-/**
  * Merge read and write keys into a single set for overlap detection.
  *
  * @param {{ reads: string[], writes: string[] }} footprint
@@ -605,6 +580,57 @@ export default class StrandService {
       baseObservationsEqual,
     });
     this._materializer = new StrandMaterializer({ graph });
+    this._patchService = new StrandPatchService({
+      graph,
+      /**
+       * Resolve one strand descriptor through the service facade at call time.
+       *
+       * @param {string} strandId
+       * @returns {Promise<StrandDescriptor>}
+       */
+      loadStrandOrThrow: async (strandId) => await this.getOrThrow(strandId),
+      /**
+       * Materialize one strand descriptor through the current service seam.
+       *
+       * @param {StrandDescriptor} descriptor
+       * @param {{ collectReceipts: boolean, ceiling: number|null }} options
+       * @returns {Promise<{
+       *   state: import('../JoinReducer.js').WarpStateV5,
+       *   receipts: import('../../types/TickReceipt.js').TickReceipt[],
+       *   allPatches: Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>
+       * }>}
+       */
+      materializeDescriptor: async (descriptor, options) => await this._materializeDescriptor(descriptor, options),
+      /**
+       * Persist one normalized strand descriptor through the current descriptor seam.
+       *
+       * @param {StrandDescriptor} descriptor
+       * @returns {Promise<void>}
+       */
+      writeDescriptor: async (descriptor) => await this._writeDescriptor(descriptor),
+      /**
+       * Build the overlay ref path through the current descriptor seam.
+       *
+       * @param {string} strandId
+       * @returns {string}
+       */
+      buildOverlayRef: (strandId) => this._buildOverlayRef(strandId),
+      /**
+       * Normalize one intent queue through the current descriptor seam.
+       *
+       * @param {unknown} value
+       * @returns {StrandIntentQueue}
+       */
+      normalizeIntentQueue: (value) => this._normalizeIntentQueue(value),
+      /**
+       * Build a deterministic queued intent identifier.
+       *
+       * @param {string} strandId
+       * @param {number} sequence
+       * @returns {string}
+       */
+      buildIntentId: (strandId, sequence) => buildIntentId(strandId, sequence),
+    });
   }
 
   /**
@@ -772,53 +798,7 @@ export default class StrandService {
    * @returns {Promise<PatchBuilderV2>}
    */
   async createPatchBuilder(strandId) {
-    const descriptor = await this.getOrThrow(strandId);
-    if (!descriptor.overlay.writable) {
-      throw new StrandError(
-        `Strand '${strandId}' has no active writable overlay in its current braid configuration`,
-        {
-          code: 'E_STRAND_INVALID_ARGS',
-          context: { strandId, writable: false },
-        },
-      );
-    }
-    const { state, allPatches } = await this._materializeDescriptor(descriptor, {
-      collectReceipts: false,
-      ceiling: null,
-    });
-    const overlayRef = this._buildOverlayRef(strandId);
-    const nextLamport = maxPatchLamport(allPatches) + 1;
-    const expectedParentSha = descriptor.overlay.headPatchSha ?? null;
-
-    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
-    const pbOpts = {
-      persistence: this._graph._persistence,
-      graphName: this._graph._graphName,
-      writerId: descriptor.overlay.overlayId,
-      targetRefPath: overlayRef,
-      lamport: nextLamport,
-      versionVector: state.observedFrontier,
-      /**
-       * Return the current cached materialized state.
-       *
-       * @returns {import('../JoinReducer.js').WarpStateV5|null} Cached materialized state.
-       */
-      getCurrentState: () => this._graph._cachedState,
-      expectedParentSha,
-      onDeleteWithData: this._graph._onDeleteWithData,
-      /**
-       * Synchronize the overlay descriptor after a successful commit.
-       *
-       * @param {{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }} result - Committed patch result.
-       */
-      onCommitSuccess: async (/** @type {{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }} */ { patch, sha }) => {
-        await this._syncOverlayDescriptor(descriptor, { patch, sha });
-      },
-    };
-    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { pbOpts.patchJournal = this._graph._patchJournal; }
-    if (this._graph._logger !== null && this._graph._logger !== undefined) { pbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { pbOpts.blobStorage = this._graph._blobStorage; }
-    return new PatchBuilderV2(pbOpts);
+    return await this._patchService.createPatchBuilder(strandId);
   }
 
   /**
@@ -829,20 +809,7 @@ export default class StrandService {
    * @returns {Promise<string>}
    */
   async patch(strandId, build) {
-    if (this._graph._patchInProgress) {
-      throw new StrandError(
-        'graph.patchStrand() is not reentrant. Use createStrandPatch() for nested or concurrent patches.',
-        { code: 'E_STRAND_REENTRANT' },
-      );
-    }
-    this._graph._patchInProgress = true;
-    try {
-      const builder = await this.createPatchBuilder(strandId);
-      await build(builder);
-      return await builder.commit();
-    } finally {
-      this._graph._patchInProgress = false;
-    }
+    return await this._patchService.patch(strandId, build);
   }
 
   /**
@@ -983,53 +950,7 @@ export default class StrandService {
    * }>}
    */
   async _buildQueuedIntent(descriptor, build) {
-    if (!descriptor.overlay.writable) {
-      throw new StrandError(
-        `Strand '${descriptor.strandId}' has no active writable overlay in its current braid configuration`,
-        {
-          code: 'E_STRAND_INVALID_ARGS',
-          context: { strandId: descriptor.strandId, writable: false },
-        },
-      );
-    }
-    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
-    const { state, allPatches } = await this._materializeDescriptor(descriptor, {
-      collectReceipts: false,
-      ceiling: null,
-    });
-    /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */
-    const intentPbOpts = {
-      persistence: this._graph._persistence,
-      graphName: this._graph._graphName,
-      writerId: descriptor.overlay.overlayId,
-      lamport: maxPatchLamport(allPatches) + 1,
-      versionVector: state.observedFrontier,
-      /**
-       * Return the snapshot of materialized state for this intent.
-       *
-       * @returns {import('../JoinReducer.js').WarpStateV5} Snapshot of materialized state.
-       */
-      getCurrentState: () => state,
-      expectedParentSha: descriptor.overlay.headPatchSha ?? null,
-      onDeleteWithData: this._graph._onDeleteWithData,
-    };
-    if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) { intentPbOpts.patchJournal = this._graph._patchJournal; }
-    if (this._graph._logger !== null && this._graph._logger !== undefined) { intentPbOpts.logger = this._graph._logger; }
-    if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) { intentPbOpts.blobStorage = this._graph._blobStorage; }
-    const builder = new PatchBuilderV2(intentPbOpts);
-    await build(builder);
-    const patch = builder.build();
-    if (!Array.isArray(patch.ops) || patch.ops.length === 0) {
-      throw new StrandError('Cannot queue empty strand intent: no operations added', { code: 'E_STRAND_EMPTY_INTENT' });
-    }
-    return Object.freeze({
-      intentId: buildIntentId(descriptor.strandId, intentQueue.nextIntentSeq),
-      enqueuedAt: this._graph._clock.timestamp(),
-      patch,
-      reads: normalizeStringArray(patch.reads, 'reads[]'),
-      writes: normalizeStringArray(patch.writes, 'writes[]'),
-      contentBlobOids: normalizeStringArray(builder._contentBlobs, 'contentBlobOids[]'),
-    });
+    return await this._patchService.buildQueuedIntent(descriptor, build);
   }
 
   /**
@@ -1446,26 +1367,7 @@ export default class StrandService {
    * @returns {Promise<void>}
    */
   async _syncOverlayDescriptor(descriptor, { patch, sha }) {
-    const now = this._graph._clock.timestamp();
-    const nextDescriptor = {
-      ...descriptor,
-      updatedAt: now,
-      overlay: {
-        ...descriptor.overlay,
-        headPatchSha: sha,
-        patchCount: descriptor.overlay.patchCount + 1,
-      },
-    };
-
-    await this._writeDescriptor(nextDescriptor);
-
-    if (patch.lamport > this._graph._maxObservedLamport) {
-      this._graph._maxObservedLamport = patch.lamport;
-    }
-    this._graph._stateDirty = true;
-    this._graph._cachedViewHash = null;
-    this._graph._cachedCeiling = null;
-    this._graph._cachedFrontier = null;
+    await this._patchService.syncOverlayDescriptor(descriptor, { patch, sha });
   }
 
   /**
@@ -1483,54 +1385,14 @@ export default class StrandService {
    * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.js').PatchV2 }>}
    */
   async _commitQueuedPatch({ strandId, overlayId, parentSha, patch, contentBlobOids, lamport }) {
-    const committedPatch = {
-      ...patch,
-      writer: overlayId,
+    return await this._patchService.commitQueuedPatch({
+      strandId,
+      overlayId,
+      parentSha,
+      patch,
+      contentBlobOids,
       lamport,
-    };
-    /** @type {string} */
-    let patchBlobOid;
-    /** @type {import('../../../ports/PatchJournalPort.js').default | null | undefined} */
-    const journal = this._graph._patchJournal;
-    if (journal !== undefined && journal !== null) {
-      patchBlobOid = await journal.writePatch(
-        /** @type {import('../../types/WarpTypesV2.js').PatchV2} */ (committedPatch),
-      );
-    } else {
-      // Legacy fallback: encode + write blob directly
-      const patchCbor = this._graph._codec.encode(committedPatch);
-      patchBlobOid = this._graph._patchBlobStorage
-        ? await this._graph._patchBlobStorage.store(patchCbor, {
-          slug: `${this._graph._graphName}/${overlayId}/patch`,
-        })
-        : await this._graph._persistence.writeBlob(patchCbor);
-    }
-
-    const treeEntries = [`100644 blob ${patchBlobOid}\tpatch.cbor`];
-    const uniqueBlobOids = [...new Set(contentBlobOids)];
-    for (const blobOid of uniqueBlobOids) {
-      treeEntries.push(`100644 blob ${blobOid}\t_content_${blobOid}`);
-    }
-    const treeOid = await this._graph._persistence.writeTree(treeEntries);
-    const commitMessage = encodePatchMessage({
-      graph: this._graph._graphName,
-      writer: overlayId,
-      lamport,
-      patchOid: patchBlobOid,
-      schema: committedPatch.schema,
-      encrypted: !!this._graph._patchBlobStorage,
     });
-    const parents = parentSha !== null ? [parentSha] : [];
-    const sha = await this._graph._persistence.commitNodeWithTree({
-      treeOid,
-      parents,
-      message: commitMessage,
-    });
-    await this._graph._persistence.updateRef(this._buildOverlayRef(strandId), sha);
-    return {
-      sha,
-      patch: committedPatch,
-    };
   }
 
   /**
