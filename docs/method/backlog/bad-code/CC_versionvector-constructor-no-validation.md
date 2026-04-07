@@ -14,11 +14,13 @@ should reject missing or non-Map arguments per P2 (boundary validation).
 Add validation to the constructor:
 
 ```js
-constructor(entries) {
-  if (!(entries instanceof Map)) {
-    throw new CrdtError('VersionVector requires a Map<string, number>');
+class VersionVector {
+  constructor(entries) {
+    if (!(entries instanceof Map)) {
+      throw new CrdtError('VersionVector requires a Map<string, number>');
+    }
+    this.#entries = entries;
   }
-  this.#entries = entries;
 }
 ```
 
