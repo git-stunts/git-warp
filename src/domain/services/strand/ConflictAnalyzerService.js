@@ -14,6 +14,7 @@ import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
+import ConflictTarget from '../../types/conflict/ConflictTarget.js';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import StrandService from './StrandService.js';
 
@@ -397,55 +398,6 @@ function isCausallyOrdered(winner, loser) {
   return (loser.context.get(winner.writerId) ?? -1) >= winner.lamport;
 }
 
-/**
- * Checks whether a conflict target references the given entity by id, source, or destination.
- *
- * @param {ConflictTarget} target - The conflict target to inspect.
- * @param {string} entityId - The entity identifier to match.
- * @returns {boolean} True if the target touches the entity.
- */
-function targetTouchesEntity(target, entityId) {
-  if (target.entityId === entityId) {
-    return true;
-  }
-  return target.from === entityId || target.to === entityId;
-}
-
-/**
- * Tests whether a conflict target matches a user-supplied target selector filter.
- *
- * @param {ConflictTarget} target - The conflict target to test.
- * @param {import('./ConflictAnalysisRequest.js').ConflictTargetSelector|null|undefined} selector - The filter selector, or undefined to match all.
- * @returns {boolean} True if the target satisfies all selector constraints.
- */
-function matchesTargetSelector(target, selector) {
-  if (selector === undefined || selector === null) {
-    return true;
-  }
-  if (target.targetKind !== selector.targetKind) {
-    return false;
-  }
-  return targetSelectorFieldsMatch(target, selector);
-}
-
-/**
- * Checks that every specified selector field matches the target.
- *
- * @param {ConflictTarget} target - The conflict target.
- * @param {import('./ConflictAnalysisRequest.js').ConflictTargetSelector} selector - The selector with fields to check.
- * @returns {boolean} True if all specified fields match.
- */
-function targetSelectorFieldsMatch(target, selector) {
-  /** @type {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} */
-  const selectorFields = ['entityId', 'propertyKey', 'from', 'to', 'label'];
-  for (const field of selectorFields) {
-    const selectorValue = selector[field];
-    if (selectorValue !== undefined && target[field] !== selectorValue) {
-      return false;
-    }
-  }
-  return true;
-}
 
 /**
  * Checks whether a conflict trace involves the specified writer as winner or loser.
@@ -1341,10 +1293,10 @@ async function buildConflictTarget(service, { canonOp, receiptTarget }) {
   if (targetIdentity === null || targetIdentity === undefined) {
     return null;
   }
-  return {
+  return new ConflictTarget({
     ...targetIdentity,
     targetDigest: await service._hash(targetIdentity),
-  };
+  });
 }
 
 /**
@@ -1946,7 +1898,7 @@ function matchesEntityFilter(trace, request) {
   if (typeof request.entityId !== 'string' || request.entityId.length === 0) {
     return true;
   }
-  return targetTouchesEntity(trace.target, request.entityId);
+  return trace.target.touchesEntity(request.entityId);
 }
 
 /**
@@ -1960,7 +1912,7 @@ function matchesTargetFilter(trace, request) {
   if (request.target === null || request.target === undefined) {
     return true;
   }
-  return matchesTargetSelector(trace.target, request.target);
+  return trace.target.matchesSelector(request.target);
 }
 
 /**

@@ -103,25 +103,12 @@ export default class ConflictAnchor {
    * }} fields - Anchor identity fields.
    */
   constructor({ patchSha, writerId, lamport, opIndex, receiptPatchSha, receiptLamport, receiptOpIndex }) {
-    /** @type {string} Hex SHA of the patch containing this operation. */
     this.patchSha = requireNonEmptyString(patchSha, 'patchSha');
-
-    /** @type {string} Writer that authored the patch. */
     this.writerId = requireNonEmptyString(writerId, 'writerId');
-
-    /** @type {number} Lamport clock of the patch. */
     this.lamport = requireNonNegativeInt(lamport, 'lamport');
-
-    /** @type {number} Zero-based index of the operation within the patch. */
     this.opIndex = requireNonNegativeInt(opIndex, 'opIndex');
-
-    /** @type {string|undefined} Receipt-time patch SHA, if available. */
     this.receiptPatchSha = optionalSha(receiptPatchSha, 'receiptPatchSha');
-
-    /** @type {number|undefined} Receipt-time lamport, if available. */
     this.receiptLamport = optionalNonNegativeInt(receiptLamport, 'receiptLamport');
-
-    /** @type {number|undefined} Receipt-time op index, if available. */
     this.receiptOpIndex = optionalNonNegativeInt(receiptOpIndex, 'receiptOpIndex');
 
     Object.freeze(this);
