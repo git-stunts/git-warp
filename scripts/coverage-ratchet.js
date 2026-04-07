@@ -15,6 +15,5 @@
  * @returns {boolean}
  */
 export function shouldAutoUpdateCoverageRatchet(env = process.env) {
-  return env.GIT_WARP_UPDATE_COVERAGE_RATCHET === '1';
+  return env['GIT_WARP_UPDATE_COVERAGE_RATCHET'] === '1';
 }
-

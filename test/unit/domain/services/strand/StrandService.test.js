@@ -1506,9 +1506,9 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _classifyQueuedIntents (footprint overlap algorithm) ──────────────────
+  // ── intent service seam (footprint overlap algorithm) ────────────────────
 
-  describe('_classifyQueuedIntents', () => {
+  describe('intent service seam', () => {
     it('admits all intents when footprints are disjoint', () => {
       const intents = [
         { intentId: 'i1', reads: ['a'], writes: ['a'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
@@ -1516,7 +1516,7 @@ describe('StrandService', () => {
         { intentId: 'i3', reads: ['c'], writes: ['c'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
       ];
 
-      const { admitted, rejected } = service._classifyQueuedIntents(intents);
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
 
       expect(admitted).toHaveLength(3);
       expect(rejected).toHaveLength(0);
@@ -1528,7 +1528,7 @@ describe('StrandService', () => {
         { intentId: 'i2', reads: [], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
       ];
 
-      const { admitted, rejected } = service._classifyQueuedIntents(intents);
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
 
       expect(admitted).toHaveLength(1);
       expect(admitted[0].intentId).toBe('i1');
@@ -1544,7 +1544,7 @@ describe('StrandService', () => {
         { intentId: 'i2', reads: ['y'], writes: ['z'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
       ];
 
-      const { admitted, rejected } = service._classifyQueuedIntents(intents);
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
 
       // i1 footprint = {x, y}, i2 footprint = {y, z} — overlap on 'y'
       expect(admitted).toHaveLength(1);
@@ -1559,7 +1559,7 @@ describe('StrandService', () => {
         { intentId: 'i3', reads: ['shared', 'b'], writes: [], patch: {}, enqueuedAt: '', contentBlobOids: [] },
       ];
 
-      const { admitted, rejected } = service._classifyQueuedIntents(intents);
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
 
       // i1 admitted (footprint: a, shared)
       // i2 admitted (footprint: b — disjoint)
@@ -1572,7 +1572,7 @@ describe('StrandService', () => {
     });
 
     it('handles empty intent queue', () => {
-      const { admitted, rejected } = service._classifyQueuedIntents([]);
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents([]);
 
       expect(admitted).toEqual([]);
       expect(rejected).toEqual([]);
@@ -1584,14 +1584,14 @@ describe('StrandService', () => {
         { intentId: 'i2', reads: ['b'], writes: ['c'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
       ];
 
-      const { rejected } = service._classifyQueuedIntents(intents);
+      const { rejected } = service._intentService.classifyQueuedIntents(intents);
 
       expect(rejected[0].reads).toEqual(['b']);
       expect(rejected[0].writes).toEqual(['c']);
     });
   });
 
-  // ── _buildRef / _buildOverlayRef / _buildBraidPrefix / _buildBraidRef ────
+  // ── descriptor ref building ───────────────────────────────────────────────
 
   describe('ref building', () => {
     it('_buildRef returns correct ref path', () => {
@@ -1614,8 +1614,8 @@ describe('StrandService', () => {
       expect(prefix).toContain('braids');
     });
 
-    it('_buildBraidRef returns correct ref path', () => {
-      const ref = service._buildBraidRef('alpha', 'beta');
+    it('descriptor store buildBraidRef returns correct ref path', () => {
+      const ref = service._descriptorStore.buildBraidRef('alpha', 'beta');
       expect(ref).toContain('test-graph');
       expect(ref).toContain('alpha');
       expect(ref).toContain('beta');
@@ -1633,30 +1633,30 @@ describe('StrandService', () => {
       expect(() => service._buildBraidPrefix('')).toThrow(StrandError);
     });
 
-    it('_buildBraidRef throws E_STRAND_ID_INVALID for empty strandId', () => {
-      expect(() => service._buildBraidRef('', 'beta')).toThrow(StrandError);
+    it('descriptor store buildBraidRef throws E_STRAND_ID_INVALID for empty strandId', () => {
+      expect(() => service._descriptorStore.buildBraidRef('', 'beta')).toThrow(StrandError);
     });
 
-    it('_buildBraidRef throws E_STRAND_ID_INVALID for empty braidedStrandId', () => {
-      expect(() => service._buildBraidRef('alpha', '')).toThrow(StrandError);
+    it('descriptor store buildBraidRef throws E_STRAND_ID_INVALID for empty braidedStrandId', () => {
+      expect(() => service._descriptorStore.buildBraidRef('alpha', '')).toThrow(StrandError);
     });
   });
 
-  // ── _readDescriptorByOid ──────────────────────────────────────────────────
+  // ── descriptor store seam ─────────────────────────────────────────────────
 
-  describe('_readDescriptorByOid', () => {
+  describe('descriptor store seam', () => {
     it('parses valid descriptor blob', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       const oid = nextOid();
       blobs.set(oid, textEncode(JSON.stringify(desc)));
 
-      const result = await service._readDescriptorByOid(oid, 'alpha');
+      const result = await service._descriptorStore.readDescriptorByOid(oid, 'alpha');
       expect(result.strandId).toBe('alpha');
     });
 
     it('throws E_STRAND_MISSING_OBJECT for missing blob', async () => {
       try {
-        await service._readDescriptorByOid('nonexistent', 'ghost');
+        await service._descriptorStore.readDescriptorByOid('nonexistent', 'ghost');
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(StrandError);
@@ -1669,7 +1669,7 @@ describe('StrandService', () => {
       blobs.set(oid, textEncode('not json'));
 
       try {
-        await service._readDescriptorByOid(oid, 'broken');
+        await service._descriptorStore.readDescriptorByOid(oid, 'broken');
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(StrandError);
@@ -1683,7 +1683,7 @@ describe('StrandService', () => {
       blobs.set(oid, textEncode(JSON.stringify(desc)));
 
       try {
-        await service._readDescriptorByOid(oid, 'alpha');
+        await service._descriptorStore.readDescriptorByOid(oid, 'alpha');
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(err).toBeInstanceOf(StrandError);
@@ -1713,9 +1713,9 @@ describe('StrandService', () => {
 
   // ── descriptor boundary helpers ──────────────────────────────────────────
 
-  describe('_readOverlayMetadata', () => {
+  describe('descriptor store readOverlayMetadata', () => {
     it('returns null head and zero patches when no overlay ref exists', async () => {
-      const metadata = await service._readOverlayMetadata('alpha');
+      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
 
       expect(metadata).toEqual({ headPatchSha: null, patchCount: 0 });
     });
@@ -1727,7 +1727,7 @@ describe('StrandService', () => {
         { patch: { lamport: 3, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-2' },
       ]);
 
-      const metadata = await service._readOverlayMetadata('alpha');
+      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
 
       expect(metadata).toEqual({ headPatchSha: 'overlay-head', patchCount: 2 });
     });
@@ -1799,7 +1799,7 @@ describe('StrandService', () => {
     });
   });
 
-  describe('_loadBraidedReadOverlays', () => {
+  describe('descriptor store loadBraidedReadOverlays', () => {
     it('returns live overlay metadata for matching braided strands', async () => {
       const target = buildValidDescriptor({ strandId: 'target' });
       const support = buildValidDescriptor({
@@ -1819,7 +1819,7 @@ describe('StrandService', () => {
         { patch: { lamport: 6, writer: 'support', schema: 2, ops: [] }, sha: 'support-2' },
       ]);
 
-      const readOverlays = await service._loadBraidedReadOverlays(target, ['support']);
+      const readOverlays = await service._descriptorStore.loadBraidedReadOverlays(target, ['support']);
 
       expect(readOverlays).toEqual([
         {
@@ -1833,9 +1833,9 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _collectBasePatches ───────────────────────────────────────────────────
+  // ── materializer seam ─────────────────────────────────────────────────────
 
-  describe('_collectBasePatches', () => {
+  describe('materializer seam', () => {
     it('collects patches from all frontier writers', async () => {
       const desc = buildValidDescriptor({
         strandId: 'alpha',
@@ -1854,7 +1854,7 @@ describe('StrandService', () => {
         { patch: { lamport: 2, writer: 'w2', schema: 2, ops: [] }, sha: 'p2' },
       ]);
 
-      const patches = await service._collectBasePatches(desc);
+      const patches = await service._materializer.collectBasePatches(desc);
       expect(patches).toHaveLength(2);
     });
 
@@ -1874,7 +1874,7 @@ describe('StrandService', () => {
         { patch: { lamport: 7, writer: 'w1', schema: 2, ops: [] }, sha: 'p2' },
       ]);
 
-      const patches = await service._collectBasePatches(desc);
+      const patches = await service._materializer.collectBasePatches(desc);
       expect(patches).toHaveLength(1);
       expect(patches[0].sha).toBe('p1');
     });
@@ -1894,7 +1894,7 @@ describe('StrandService', () => {
         { patch: { lamport: 1, writer: 'w2', schema: 2, ops: [] }, sha: 'p1' },
       ]);
 
-      const patches = await service._collectBasePatches(desc);
+      const patches = await service._materializer.collectBasePatches(desc);
       expect(patches).toHaveLength(1);
     });
 
@@ -1915,7 +1915,7 @@ describe('StrandService', () => {
         return [];
       });
 
-      await service._collectBasePatches(desc);
+      await service._materializer.collectBasePatches(desc);
       expect(callOrder).toEqual(['tipA', 'tipZ']);
     });
   });
@@ -2009,12 +2009,12 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _collectOverlayPatches ────────────────────────────────────────────────
+  // ── materializer collectOverlayPatches ────────────────────────────────────
 
-  describe('_collectOverlayPatches', () => {
+  describe('materializer collectOverlayPatches', () => {
     it('returns empty for null headPatchSha', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
-      const patches = await service._collectOverlayPatches(desc);
+      const patches = await service._materializer.collectOverlayPatches(desc);
       expect(patches).toEqual([]);
     });
 
@@ -2034,17 +2034,17 @@ describe('StrandService', () => {
         { patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] }, sha: 'op1' },
       ]);
 
-      const patches = await service._collectOverlayPatches(desc);
+      const patches = await service._materializer.collectOverlayPatches(desc);
       expect(patches).toHaveLength(1);
     });
   });
 
-  // ── _collectBraidedOverlayPatches ─────────────────────────────────────────
+  // ── materializer collectBraidedOverlayPatches ─────────────────────────────
 
-  describe('_collectBraidedOverlayPatches', () => {
+  describe('materializer collectBraidedOverlayPatches', () => {
     it('returns empty for no braided overlays', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
-      const patches = await service._collectBraidedOverlayPatches(desc);
+      const patches = await service._materializer.collectBraidedOverlayPatches(desc);
       expect(patches).toEqual([]);
     });
 
@@ -2066,7 +2066,7 @@ describe('StrandService', () => {
         { patch: { lamport: 4, writer: 'o2', schema: 2, ops: [] }, sha: 'bp2' },
       ]);
 
-      const patches = await service._collectBraidedOverlayPatches(desc);
+      const patches = await service._materializer.collectBraidedOverlayPatches(desc);
       expect(patches).toHaveLength(2);
     });
 
@@ -2080,7 +2080,7 @@ describe('StrandService', () => {
         },
       });
 
-      const patches = await service._collectBraidedOverlayPatches(desc);
+      const patches = await service._materializer.collectBraidedOverlayPatches(desc);
       expect(patches).toEqual([]);
     });
   });
@@ -2230,9 +2230,9 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _syncOverlayDescriptor ────────────────────────────────────────────────
+  // ── patch service seam ────────────────────────────────────────────────────
 
-  describe('_syncOverlayDescriptor', () => {
+  describe('patch service seam', () => {
     it('updates descriptor with new head SHA and incremented patch count', async () => {
       const desc = buildValidDescriptor({
         strandId: 'alpha',
@@ -2245,7 +2245,7 @@ describe('StrandService', () => {
         },
       });
 
-      await service._syncOverlayDescriptor(desc, {
+      await service._patchService.syncOverlayDescriptor(desc, {
         patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] },
         sha: 'new-head-sha',
       });
@@ -2258,7 +2258,7 @@ describe('StrandService', () => {
       graph._maxObservedLamport = 3;
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
-      await service._syncOverlayDescriptor(desc, {
+      await service._patchService.syncOverlayDescriptor(desc, {
         patch: { lamport: 10, writer: 'alpha', schema: 2, ops: [] },
         sha: 'sha1',
       });
@@ -2270,7 +2270,7 @@ describe('StrandService', () => {
       graph._maxObservedLamport = 20;
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
-      await service._syncOverlayDescriptor(desc, {
+      await service._patchService.syncOverlayDescriptor(desc, {
         patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] },
         sha: 'sha1',
       });
@@ -2285,7 +2285,7 @@ describe('StrandService', () => {
       graph._cachedFrontier = new Map();
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
-      await service._syncOverlayDescriptor(desc, {
+      await service._patchService.syncOverlayDescriptor(desc, {
         patch: { lamport: 1, writer: 'alpha', schema: 2, ops: [] },
         sha: 'sha1',
       });
@@ -2442,15 +2442,15 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _syncBraidRefs ────────────────────────────────────────────────────────
+  // ── descriptor braid seam ─────────────────────────────────────────────────
 
-  describe('_syncBraidRefs', () => {
+  describe('descriptor braid seam', () => {
     it('creates refs for braided overlays with head SHAs', async () => {
       const readOverlays = [
         { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: 'head-1', patchCount: 1 },
       ];
 
-      await service._syncBraidRefs('alpha', readOverlays);
+      await service._descriptorStore.syncBraidRefs('alpha', readOverlays);
 
       expect(graph._persistence.updateRef).toHaveBeenCalledWith(
         expect.stringContaining('braids'),
@@ -2460,32 +2460,32 @@ describe('StrandService', () => {
 
     it('deletes refs for braided overlays with null head SHAs', async () => {
       // Pre-seed a braid ref
-      const braidRef = service._buildBraidRef('alpha', 's1');
+      const braidRef = service._descriptorStore.buildBraidRef('alpha', 's1');
       refs.set(braidRef, 'old-sha');
 
       const readOverlays = [
         { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: null, patchCount: 0 },
       ];
 
-      await service._syncBraidRefs('alpha', readOverlays);
+      await service._descriptorStore.syncBraidRefs('alpha', readOverlays);
 
       expect(graph._persistence.deleteRef).toHaveBeenCalledWith(braidRef);
     });
 
     it('deletes stale braid refs not in current overlays', async () => {
       // Pre-seed a stale braid ref
-      const staleRef = service._buildBraidRef('alpha', 'removed');
+      const staleRef = service._descriptorStore.buildBraidRef('alpha', 'removed');
       refs.set(staleRef, 'old-sha');
 
-      await service._syncBraidRefs('alpha', []);
+      await service._descriptorStore.syncBraidRefs('alpha', []);
 
       expect(graph._persistence.deleteRef).toHaveBeenCalledWith(staleRef);
     });
   });
 
-  // ── _commitAdmittedQueuedIntents ──────────────────────────────────────────
+  // ── intent commit seam ────────────────────────────────────────────────────
 
-  describe('_commitAdmittedQueuedIntents', () => {
+  describe('intent commit seam', () => {
     it('returns baseline values when no intents are admitted', async () => {
       const desc = buildValidDescriptor({
         strandId: 'alpha',
@@ -2498,7 +2498,7 @@ describe('StrandService', () => {
         },
       });
 
-      const result = await service._commitAdmittedQueuedIntents(desc, []);
+      const result = await service._intentService.commitAdmittedQueuedIntents(desc, []);
 
       expect(result.overlayHeadPatchSha).toBe('existing-head');
       expect(result.overlayPatchCount).toBe(3);
@@ -2540,7 +2540,7 @@ describe('StrandService', () => {
         },
       ];
 
-      const result = await service._commitAdmittedQueuedIntents(desc, admitted);
+      const result = await service._intentService.commitAdmittedQueuedIntents(desc, admitted);
 
       expect(result.overlayPatchShas).toHaveLength(2);
       expect(result.overlayPatchCount).toBe(2);
@@ -2548,9 +2548,9 @@ describe('StrandService', () => {
     });
   });
 
-  // ── _persistTickResult ────────────────────────────────────────────────────
+  // ── intent persistence seam ───────────────────────────────────────────────
 
-  describe('_persistTickResult', () => {
+  describe('intent persistence seam', () => {
     it('updates descriptor and clears graph caches', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       graph._stateDirty = false;
@@ -2571,7 +2571,7 @@ describe('StrandService', () => {
         overlayPatchShas: [],
       });
 
-      await service._persistTickResult({
+      await service._intentService.persistTickResult({
         descriptor: desc,
         intentQueue: { nextIntentSeq: 1, intents: [] },
         tickIndex: 1,
@@ -2590,7 +2590,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
       graph._maxObservedLamport = 5;
 
-      await service._persistTickResult({
+      await service._intentService.persistTickResult({
         descriptor: desc,
         intentQueue: { nextIntentSeq: 1, intents: [] },
         tickIndex: 1,

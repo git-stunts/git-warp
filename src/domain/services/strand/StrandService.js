@@ -799,91 +799,6 @@ export default class StrandService {
   }
 
   /**
-   * Partition queued intents into admitted (independent) and rejected (overlapping footprints).
-   *
-   * @private
-   * @param {Array<{
-   *   intentId: string,
-   *   enqueuedAt: string,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
-   *   reads: string[],
-   *   writes: string[],
-   *   contentBlobOids: string[]
-   * }>} queuedIntents
-   * @returns {{
-   *   admitted: Array<{
-   *     intentId: string,
-   *     enqueuedAt: string,
-   *     patch: import('../../types/WarpTypesV2.js').PatchV2,
-   *     reads: string[],
-   *     writes: string[],
-   *     contentBlobOids: string[],
-   *     footprint: Set<string>
-   *   }>,
-   *   rejected: Array<{
-   *     intentId: string,
-   *     reason: string,
-   *     conflictsWith: string[],
-   *     reads: string[],
-   *     writes: string[]
-   *   }>
-   * }}
-   */
-  _classifyQueuedIntents(queuedIntents) {
-    return this._intentService.classifyQueuedIntents(queuedIntents);
-  }
-
-  /**
-   * Sequentially commit all admitted intents to the overlay patch chain.
-   *
-   * @private
-   * @param {StrandDescriptor} descriptor
-   * @param {Array<{
-   *   intentId: string,
-   *   enqueuedAt: string,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
-   *   reads: string[],
-   *   writes: string[],
-   *   contentBlobOids: string[],
-   *   footprint: Set<string>
-   * }>} admitted
-   * @returns {Promise<{
-   *   overlayHeadPatchSha: string|null,
-   *   overlayPatchCount: number,
-   *   overlayPatchShas: string[],
-   *   maxLamport: number
-   * }>}
-   */
-  async _commitAdmittedQueuedIntents(descriptor, admitted) {
-    return await this._intentService.commitAdmittedQueuedIntents(descriptor, admitted);
-  }
-
-  /**
-   * Persist the tick result by updating the descriptor, Lamport clock, and cache flags.
-   *
-   * @private
-   * @param {{
-   *   descriptor: StrandDescriptor,
-   *   intentQueue: StrandIntentQueue,
-   *   tickIndex: number,
-   *   now: string,
-   *   committed: { overlayHeadPatchSha: string|null, overlayPatchCount: number, overlayPatchShas: string[], maxLamport: number },
-   *   tickRecord: StrandTickRecord
-   * }} params
-   * @returns {Promise<void>}
-   */
-  async _persistTickResult({ descriptor, intentQueue, tickIndex, now, committed, tickRecord }) {
-    await this._intentService.persistTickResult({
-      descriptor,
-      intentQueue,
-      tickIndex,
-      now,
-      committed,
-      tickRecord,
-    });
-  }
-
-  /**
    * Retrieve all patch entries for a strand, optionally bounded by Lamport ceiling.
    *
    * @param {string} strandId
@@ -975,30 +890,6 @@ export default class StrandService {
   }
 
   /**
-   * Build the Git ref path for a specific braided strand overlay.
-   *
-   * @private
-   * @param {string} strandId
-   * @param {string} braidedStrandId
-   * @returns {string}
-   */
-  _buildBraidRef(strandId, braidedStrandId) {
-    return this._descriptorStore.buildBraidRef(strandId, braidedStrandId);
-  }
-
-  /**
-   * Read and parse a strand descriptor blob from Git object storage.
-   *
-   * @private
-   * @param {string} oid
-   * @param {string} strandId
-   * @returns {Promise<ParsedStrandBlob>}
-   */
-  async _readDescriptorByOid(oid, strandId) {
-    return await this._descriptorStore.readDescriptorByOid(oid, strandId);
-  }
-
-  /**
    * Serialize and persist a strand descriptor as a Git blob, then update its ref.
    *
    * @private
@@ -1007,29 +898,6 @@ export default class StrandService {
    */
   async _writeDescriptor(descriptor) {
     await this._descriptorStore.writeDescriptor(descriptor);
-  }
-
-  /**
-   * Load and validate read-overlay descriptors for each braided strand.
-   *
-   * @private
-   * @param {StrandDescriptor} target
-   * @param {string[]} braidedStrandIds
-   * @returns {Promise<StrandReadOverlayDescriptor[]>}
-   */
-  async _loadBraidedReadOverlays(target, braidedStrandIds) {
-    return await this._descriptorStore.loadBraidedReadOverlays(target, braidedStrandIds);
-  }
-
-  /**
-   * Read the current overlay head SHA and patch count from the overlay ref.
-   *
-   * @private
-   * @param {string} strandId
-   * @returns {Promise<{ headPatchSha: string|null, patchCount: number }>}
-   */
-  async _readOverlayMetadata(strandId) {
-    return await this._descriptorStore.readOverlayMetadata(strandId);
   }
 
   /**
@@ -1066,39 +934,6 @@ export default class StrandService {
   }
 
   /**
-   * Collect all base-observation patches from the pinned frontier writers.
-   *
-   * @private
-   * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
-   */
-  async _collectBasePatches(descriptor) {
-    return await this._materializer.collectBasePatches(descriptor);
-  }
-
-  /**
-   * Collect patches from the strand's own writable overlay chain.
-   *
-   * @private
-   * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
-   */
-  async _collectOverlayPatches(descriptor) {
-    return await this._materializer.collectOverlayPatches(descriptor);
-  }
-
-  /**
-   * Collect patches from all braided read-only overlay chains.
-   *
-   * @private
-   * @param {StrandDescriptor} descriptor
-   * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
-   */
-  async _collectBraidedOverlayPatches(descriptor) {
-    return await this._materializer.collectBraidedOverlayPatches(descriptor);
-  }
-
-  /**
    * Merge base, braid, and overlay patches into a deduplicated list, optionally bounded by ceiling.
    *
    * @private
@@ -1130,18 +965,6 @@ export default class StrandService {
   }
 
   /**
-   * Update the strand descriptor and graph caches after a successful overlay commit.
-   *
-   * @private
-   * @param {StrandDescriptor} descriptor
-   * @param {{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }} result
-   * @returns {Promise<void>}
-   */
-  async _syncOverlayDescriptor(descriptor, { patch, sha }) {
-    await this._patchService.syncOverlayDescriptor(descriptor, { patch, sha });
-  }
-
-  /**
    * Encode, persist, and commit a single queued patch to the overlay chain.
    *
    * @private
@@ -1166,21 +989,4 @@ export default class StrandService {
     });
   }
 
-  /**
-   * Synchronize braid refs to match the current set of read overlays.
-   *
-   * @private
-   * @param {string} strandId
-   * @param {Array<{
-   *   strandId: string,
-   *   overlayId: string,
-   *   kind: string,
-   *   headPatchSha: string|null,
-   *   patchCount: number
-   * }>} readOverlays
-   * @returns {Promise<void>}
-   */
-  async _syncBraidRefs(strandId, readOverlays) {
-    await this._descriptorStore.syncBraidRefs(strandId, readOverlays);
-  }
 }
