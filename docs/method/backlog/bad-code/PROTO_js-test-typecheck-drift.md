@@ -22,9 +22,11 @@ source tree.
 
 ## Current mitigation
 
-CI and release-preflight now gate on `npm run typecheck:src` instead of the
-whole-repo `npm run typecheck`. Runtime tests, lint, policy checks, consumer
-surface checks, and coverage still run as merge gates.
+CI and release-preflight gate required status checks on `npm run
+typecheck:src` instead of the whole-repo `npm run typecheck`. The main CI
+workflow also runs an advisory `npm run typecheck:test` lane so the drift stays
+visible while runtime tests, lint, policy checks, consumer surface checks, and
+coverage remain merge gates.
 
 ## Follow-up
 

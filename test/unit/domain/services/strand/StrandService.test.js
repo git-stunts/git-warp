@@ -11,6 +11,13 @@ import StrandError from '../../../../../src/domain/errors/StrandError.js';
 import { textEncode, textDecode } from '../../../../../src/domain/utils/bytes.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 
+/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
+/** @typedef {import('../../../../../src/domain/services/strand/strandTypes.js').StrandTickRecord} StrandTickRecord */
+/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.js').PatchV2} PatchV2 */
+
 // ── Deterministic OID generator ───────────────────────────────────────────────
 
 let oidCounter = 0;
@@ -36,12 +43,191 @@ let blobs;
 /** @type {Map<string, Array<{patch: object, sha: string}>>} sha -> patch chain */
 let patchChains;
 
+const DERIVED_CACHE_AUTHORITY = /** @type {'derived'} */ ('derived');
+const COORDINATE_VERSION = /** @type {'frontier-lamport/v1'} */ (STRAND_COORDINATE_VERSION);
+const OVERLAY_KIND = /** @type {'patch-log'} */ (STRAND_OVERLAY_KIND);
+
+/**
+ * @typedef {{
+ *   _normalizeQueuedIntentEntry(rawEntry: unknown): StrandQueuedIntent[],
+ *   _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: PatchV2, intentId: string, enqueuedAt: string }|null,
+ *   _normalizeQueuedIntents(value: unknown): StrandQueuedIntent[],
+ *   _normalizeRejectedCounterfactuals(value: unknown): Array<{ intentId: string, reason: string, conflictsWith: string[], reads: string[], writes: string[] }>,
+ *   _matchesHydratedDescriptor(
+ *     descriptor: StrandDescriptor,
+ *     braidedReadOverlays: StrandDescriptor['braid']['readOverlays'],
+ *     overlay: { headPatchSha: string|null, patchCount: number }
+ *   ): boolean
+ * }} DescriptorStorePrivate
+ */
+
+/**
+ * @typedef {{
+ *   _freezeQueuedIntent(
+ *     descriptor: StrandDescriptor,
+ *     intentQueue: StrandDescriptor['intentQueue'],
+ *     builder: { build(): PatchV2, _contentBlobs: unknown[] }
+ *   ): StrandQueuedIntent
+ * }} PatchServicePrivate
+ */
+
+/**
+ * @typedef {{
+ *   _buildRef(strandId: string): string,
+ *   _buildOverlayRef(strandId: string): string,
+ *   _buildBraidPrefix(strandId: string): string,
+ *   _writeDescriptor(descriptor: StrandDescriptor): Promise<void>,
+ *   _hydrateOverlayMetadata(descriptor: ParsedStrandBlob): Promise<StrandDescriptor>,
+ *   _collectPatchEntries(
+ *     descriptor: StrandDescriptor,
+ *     options: { ceiling: number|null }
+ *   ): Promise<Array<{ patch: PatchV2, sha: string }>>,
+ *   _materializeDescriptor(
+ *     descriptor: StrandDescriptor,
+ *     options: { collectReceipts: boolean, ceiling: number|null }
+ *   ): Promise<{
+ *     state: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5,
+ *     receipts: import('../../../../../src/domain/types/TickReceipt.js').TickReceipt[],
+ *     allPatches: Array<{ patch: PatchV2, sha: string }>
+ *   }>,
+ *   _commitQueuedPatch(params: {
+ *     strandId: string,
+ *     overlayId: string,
+ *     parentSha: string|null,
+ *     patch: PatchV2,
+ *     contentBlobOids: string[],
+ *     lamport: number
+ *   }): Promise<{ sha: string, patch: PatchV2 }>
+ * }} StrandServicePrivate
+ */
+
+/**
+ * Narrow a value to the descriptor-store private test seam.
+ *
+ * @param {unknown} value
+ * @returns {DescriptorStorePrivate}
+ */
+function descriptorStorePrivate(value) {
+  return /** @type {DescriptorStorePrivate} */ (value);
+}
+
+/**
+ * Narrow a value to the patch-service private test seam.
+ *
+ * @param {unknown} value
+ * @returns {PatchServicePrivate}
+ */
+function patchServicePrivate(value) {
+  return /** @type {PatchServicePrivate} */ (value);
+}
+
+/**
+ * Narrow a value to the StrandService private test seam.
+ *
+ * @param {unknown} value
+ * @returns {StrandServicePrivate}
+ */
+function strandServicePrivate(value) {
+  return /** @type {StrandServicePrivate} */ (value);
+}
+
+/**
+ * Assert that a value is present and return it.
+ *
+ * @template T
+ * @param {T | null | undefined} value
+ * @returns {T}
+ */
+function requirePresent(value) {
+  expect(value).toBeDefined();
+  expect(value).not.toBeNull();
+  return /** @type {T} */ (value);
+}
+
+/**
+ * Assert that an unknown thrown value is a StrandError.
+ *
+ * @param {unknown} err
+ * @returns {StrandError}
+ */
+function requireStrandError(err) {
+  expect(err).toBeInstanceOf(StrandError);
+  return /** @type {StrandError} */ (err);
+}
+
+/**
+ * Build a Dot object in the schema expected by PatchV2 ops.
+ *
+ * @param {string} writerId
+ * @param {number} counter
+ * @returns {{ writerId: string, counter: number }}
+ */
+function makeDot(writerId, counter) {
+  return { writerId, counter };
+}
+
+/**
+ * Build a canonical NodeAdd op for PatchV2 fixtures.
+ *
+ * @param {string} nodeId
+ * @param {string} writerId
+ * @param {number} counter
+ * @returns {PatchV2['ops'][number]}
+ */
+function makeNodeAddOp(nodeId, writerId, counter) {
+  return {
+    type: 'NodeAdd',
+    node: nodeId,
+    dot: makeDot(writerId, counter),
+  };
+}
+
+/**
+ * Build a minimal PatchV2 for tests.
+ *
+ * @param {Partial<PatchV2>} [overrides]
+ * @returns {PatchV2}
+ */
+function makePatch(overrides = {}) {
+  return {
+    schema: 2,
+    writer: 'writer1',
+    lamport: 1,
+    context: {},
+    ops: [],
+    reads: [],
+    writes: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Build a minimal queued intent for tests.
+ *
+ * @param {Partial<StrandQueuedIntent>} [overrides]
+ * @returns {StrandQueuedIntent}
+ */
+function makeQueuedIntent(overrides = {}) {
+  return {
+    intentId: 'alpha.intent.0001',
+    enqueuedAt: '2026-04-06T00:00:00.000Z',
+    patch: makePatch(),
+    reads: [],
+    writes: [],
+    contentBlobOids: [],
+    ...overrides,
+  };
+}
+
 /**
  * Build a descriptor JSON that parseStrandBlob will accept.
+ *
+ * @param {Partial<StrandDescriptor>} [overrides]
+ * @returns {StrandDescriptor}
  */
 function buildValidDescriptor(overrides = {}) {
-  return {
-    schemaVersion: 1,
+  return /** @type {StrandDescriptor} */ ({
+    schemaVersion: /** @type {1} */ (1),
     strandId: 'test-strand',
     graphName: 'test-graph',
     createdAt: '2026-04-06T00:00:00.000Z',
@@ -50,24 +236,28 @@ function buildValidDescriptor(overrides = {}) {
     scope: null,
     lease: { expiresAt: null },
     baseObservation: {
-      coordinateVersion: STRAND_COORDINATE_VERSION,
+      coordinateVersion: COORDINATE_VERSION,
       frontier: { writer1: 'tip-sha-1' },
       frontierDigest: 'digest-abc',
       lamportCeiling: null,
     },
     overlay: {
       overlayId: 'test-strand',
-      kind: STRAND_OVERLAY_KIND,
+      kind: OVERLAY_KIND,
       headPatchSha: null,
       patchCount: 0,
       writable: true,
     },
     braid: { readOverlays: [] },
-    materialization: { cacheAuthority: 'derived' },
+    materialization: { cacheAuthority: DERIVED_CACHE_AUTHORITY },
     ...overrides,
-  };
+  });
 }
 
+/**
+ * @param {StrandDescriptor} descriptor
+ * @returns {string}
+ */
 function storeDescriptor(descriptor) {
   const oid = nextOid();
   blobs.set(oid, textEncode(JSON.stringify(descriptor)));
@@ -76,6 +266,45 @@ function storeDescriptor(descriptor) {
   return oid;
 }
 
+/**
+ * @returns {{
+ *   _graphName: string,
+ *   _persistence: {
+ *     readRef: ReturnType<typeof vi.fn>,
+ *     updateRef: ReturnType<typeof vi.fn>,
+ *     deleteRef: ReturnType<typeof vi.fn>,
+ *     writeBlob: ReturnType<typeof vi.fn>,
+ *     readBlob: ReturnType<typeof vi.fn>,
+ *     listRefs: ReturnType<typeof vi.fn>,
+ *     writeTree: ReturnType<typeof vi.fn>,
+ *     commitNodeWithTree: ReturnType<typeof vi.fn>,
+ *   },
+ *   _crypto: { hash: ReturnType<typeof vi.fn> },
+ *   _clock: { timestamp: ReturnType<typeof vi.fn> },
+ *   _cachedState: import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5|null,
+ *   _patchInProgress: boolean,
+ *   _maxObservedLamport: number,
+ *   _stateDirty: boolean,
+ *   _cachedViewHash: string|null,
+ *   _cachedCeiling: number|null,
+ *   _cachedFrontier: Map<string, string>|null,
+ *   _provenanceIndex: unknown,
+ *   _provenanceDegraded: boolean,
+ *   _patchJournal: { writePatch(patch: PatchV2): Promise<string> }|null,
+ *   _logger: { info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null,
+ *   _blobStorage: unknown,
+ *   _patchBlobStorage: { store(data: Uint8Array, options: { slug: string }): Promise<string> }|null,
+ *   _codec: { encode: ReturnType<typeof vi.fn> },
+ *   _onDeleteWithData: unknown,
+ *   _lastFrontier: Map<string, string>,
+ *   _writerId: string,
+ *   _checkpointPolicy?: unknown,
+ *   _seekCache?: unknown,
+ *   getFrontier: ReturnType<typeof vi.fn>,
+ *   _loadPatchChainFromSha: ReturnType<typeof vi.fn>,
+ *   _setMaterializedState: ReturnType<typeof vi.fn>,
+ * }}
+ */
 function createMockGraph() {
   refs = new Map();
   blobs = new Map();
@@ -111,15 +340,15 @@ function createMockGraph() {
     _patchInProgress: false,
     _maxObservedLamport: 0,
     _stateDirty: false,
-    _cachedViewHash: null,
-    _cachedCeiling: null,
-    _cachedFrontier: null,
+    _cachedViewHash: /** @type {string|null} */ (null),
+    _cachedCeiling: /** @type {number|null} */ (null),
+    _cachedFrontier: /** @type {Map<string, string>|null} */ (null),
     _provenanceIndex: null,
     _provenanceDegraded: true,
-    _patchJournal: null,
-    _logger: null,
+    _patchJournal: /** @type {{ writePatch(patch: PatchV2): Promise<string> }|null} */ (null),
+    _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
     _blobStorage: null,
-    _patchBlobStorage: null,
+    _patchBlobStorage: /** @type {{ store(data: Uint8Array, options: { slug: string }): Promise<string> }|null} */ (null),
     _codec: { encode: vi.fn((patch) => textEncode(JSON.stringify(patch))) },
     _onDeleteWithData: undefined,
     _lastFrontier: new Map(),
@@ -140,7 +369,7 @@ describe('StrandService', () => {
 
   beforeEach(() => {
     graph = createMockGraph();
-    service = new StrandService({ graph });
+    service = new StrandService({ graph: /** @type {WarpRuntime} */ (/** @type {unknown} */ (graph)) });
   });
 
   // ── Exported constants ────────────────────────────────────────────────────
@@ -210,32 +439,45 @@ describe('StrandService', () => {
     });
 
     it('drops malformed queued intent entries at the descriptor boundary', () => {
-      expect(service._descriptorStore._normalizeQueuedIntentEntry(null)).toEqual([]);
-      expect(service._descriptorStore._normalizeQueuedIntentEntry({
+      const privateStore = descriptorStorePrivate(service._descriptorStore);
+      expect(privateStore._normalizeQueuedIntentEntry(null)).toEqual([]);
+      expect(privateStore._normalizeQueuedIntentEntry({
         intentId: 'alpha.intent.0001',
         enqueuedAt: '2026-04-06T00:00:00.000Z',
       })).toEqual([]);
-      expect(service._descriptorStore._resolveQueuedIntentIdentity({
+      expect(privateStore._resolveQueuedIntentIdentity({
         intentId: 'alpha.intent.0001',
         enqueuedAt: '2026-04-06T00:00:00.000Z',
       })).toBeNull();
     });
 
     it('returns empty collections for non-array descriptor fields', () => {
-      expect(service._descriptorStore._normalizeQueuedIntents(null)).toEqual([]);
-      expect(service._descriptorStore._normalizeRejectedCounterfactuals(undefined)).toEqual([]);
+      const privateStore = descriptorStorePrivate(service._descriptorStore);
+      expect(privateStore._normalizeQueuedIntents(null)).toEqual([]);
+      expect(privateStore._normalizeRejectedCounterfactuals(undefined)).toEqual([]);
     });
 
     it('treats missing braid overlays as an empty normalized list', async () => {
-      const hydrated = await service._descriptorStore.hydrateDescriptor(buildValidDescriptor({
-        strandId: 'alpha',
-        braid: /** @type {unknown} */ ({}),
-      }));
+      const hydrated = await service._descriptorStore.hydrateDescriptor(
+        /** @type {ParsedStrandBlob} */ (
+          /** @type {unknown} */ (
+            buildValidDescriptor(
+              /** @type {Partial<StrandDescriptor>} */ (
+                /** @type {unknown} */ ({
+                  strandId: 'alpha',
+                  braid: {},
+                })
+              ),
+            )
+          )
+        ),
+      );
 
       expect(hydrated.braid.readOverlays).toEqual([]);
     });
 
     it('returns false when hydrated overlay comparison sees a sparse candidate slot', () => {
+      const privateStore = descriptorStorePrivate(service._descriptorStore);
       const descriptor = buildValidDescriptor({
         strandId: 'alpha',
         braid: {
@@ -249,7 +491,7 @@ describe('StrandService', () => {
         },
       });
 
-      expect(service._descriptorStore._matchesHydratedDescriptor(
+      expect(privateStore._matchesHydratedDescriptor(
         descriptor,
         new Array(1),
         { headPatchSha: null, patchCount: 0 },
@@ -257,12 +499,13 @@ describe('StrandService', () => {
     });
 
     it('throws boundary validation errors for invalid descriptor field types', () => {
-      expect(() => service._descriptorStore._normalizeRejectedCounterfactuals([{
+      const privateStore = descriptorStorePrivate(service._descriptorStore);
+      expect(() => privateStore._normalizeRejectedCounterfactuals([{
         intentId: 42,
         reason: 'conflict',
       }])).toThrow(StrandError);
 
-      expect(() => service._descriptorStore._normalizeRejectedCounterfactuals([{
+      expect(() => privateStore._normalizeRejectedCounterfactuals([{
         intentId: 'alpha.intent.0001',
         reason: '   ',
       }])).toThrow(StrandError);
@@ -284,17 +527,19 @@ describe('StrandService', () => {
 
     it('normalizes sparse queued intent arrays through the patch service boundary', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const privatePatchService = patchServicePrivate(service._patchService);
 
-      const intent = service._patchService._freezeQueuedIntent(
+      const intent = privatePatchService._freezeQueuedIntent(
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => ({
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ ({
+            ...makePatch({
+              ops: [makeNodeAddOp('node:test', 'alpha', 1)],
+            }),
             reads: [undefined, 'node:b', 'node:a'],
             writes: [null, 'node:c', 'node:a'],
-          }),
+          })),
           _contentBlobs: [undefined, 'blob:b', 'blob:a'],
         },
       );
@@ -306,17 +551,19 @@ describe('StrandService', () => {
 
     it('rejects non-string queued intent footprint entries at the patch service boundary', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const privatePatchService = patchServicePrivate(service._patchService);
 
-      expect(() => service._patchService._freezeQueuedIntent(
+      expect(() => privatePatchService._freezeQueuedIntent(
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => ({
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ ({
+            ...makePatch({
+              ops: [makeNodeAddOp('node:test', 'alpha', 1)],
+            }),
             reads: [42],
             writes: [],
-          }),
+          })),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -324,17 +571,17 @@ describe('StrandService', () => {
 
     it('rejects blank queued intent footprint entries at the patch service boundary', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const privatePatchService = patchServicePrivate(service._patchService);
 
-      expect(() => service._patchService._freezeQueuedIntent(
+      expect(() => privatePatchService._freezeQueuedIntent(
         desc,
         { nextIntentSeq: 1, intents: [] },
         {
-          build: () => ({
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'node:test', dot: ['alpha', 1] }],
+          build: () => /** @type {PatchV2} */ (/** @type {unknown} */ (makePatch({
+            ops: [makeNodeAddOp('node:test', 'alpha', 1)],
             reads: ['   '],
             writes: [],
-          }),
+          }))),
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
@@ -344,13 +591,13 @@ describe('StrandService', () => {
   describe('intent service seam', () => {
     it('classifies overlapping intents through the intent service boundary', () => {
       const { admitted, rejected } = service._intentService.classifyQueuedIntents([
-        { intentId: 'i1', reads: ['a'], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: ['shared'], writes: ['b'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', reads: ['a'], writes: ['shared'] }),
+        makeQueuedIntent({ intentId: 'i2', reads: ['shared'], writes: ['b'] }),
       ]);
 
       expect(admitted).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect(rejected[0].conflictsWith).toEqual(['i1']);
+      expect(requirePresent(rejected[0]).conflictsWith).toEqual(['i1']);
     });
   });
 
@@ -378,7 +625,7 @@ describe('StrandService', () => {
 
       expect(graph._persistence.writeBlob).toHaveBeenCalledTimes(1);
       expect(graph._persistence.updateRef).toHaveBeenCalledTimes(1);
-      const refPath = graph._persistence.updateRef.mock.calls[0][0];
+      const refPath = requirePresent(graph._persistence.updateRef.mock.calls[0])[0];
       expect(refPath).toContain('strands/alpha');
     });
 
@@ -399,7 +646,7 @@ describe('StrandService', () => {
       try {
         await service.create({ strandId: 'existing' });
       } catch (err) {
-        expect(err.code).toBe('E_STRAND_ALREADY_EXISTS');
+        expect(requireStrandError(err).code).toBe('E_STRAND_ALREADY_EXISTS');
       }
     });
 
@@ -453,7 +700,7 @@ describe('StrandService', () => {
 
     it('throws E_STRAND_INVALID_ARGS for non-string owner', async () => {
       await expect(
-        service.create({ strandId: 'alpha', owner: /** @type {any} */ (17) }),
+        Reflect.apply(service.create, service, [{ strandId: 'alpha', owner: 17 }]),
       ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
 
@@ -465,7 +712,7 @@ describe('StrandService', () => {
 
     it('throws E_STRAND_INVALID_ARGS for non-string leaseExpiresAt', async () => {
       await expect(
-        service.create({ strandId: 'alpha', leaseExpiresAt: /** @type {any} */ (123) }),
+        Reflect.apply(service.create, service, [{ strandId: 'alpha', leaseExpiresAt: 123 }]),
       ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
 
@@ -485,8 +732,7 @@ describe('StrandService', () => {
 
       const result = await service.get('alpha');
 
-      expect(result).not.toBeNull();
-      expect(result.strandId).toBe('alpha');
+      expect(requirePresent(result).strandId).toBe('alpha');
     });
 
     it('returns null when strand does not exist', async () => {
@@ -501,8 +747,7 @@ describe('StrandService', () => {
 
       const result = await service.get('alpha');
 
-      expect(result.overlay).toBeDefined();
-      expect(result.overlay.writable).toBe(true);
+      expect(requirePresent(result).overlay.writable).toBe(true);
     });
 
     it('sorts braided read overlays from persisted descriptors', async () => {
@@ -531,7 +776,7 @@ describe('StrandService', () => {
 
       const result = await service.get('alpha');
 
-      expect(result.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
+      expect(requirePresent(result).braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
     });
 
     it('throws E_STRAND_ID_INVALID for invalid strandId', async () => {
@@ -579,8 +824,7 @@ describe('StrandService', () => {
         await service.getOrThrow('missing');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_NOT_FOUND');
+        expect(requireStrandError(err).code).toBe('E_STRAND_NOT_FOUND');
       }
     });
   });
@@ -596,9 +840,9 @@ describe('StrandService', () => {
       const result = await service.list();
 
       expect(result).toHaveLength(3);
-      expect(result[0].strandId).toBe('alpha');
-      expect(result[1].strandId).toBe('bravo');
-      expect(result[2].strandId).toBe('charlie');
+      expect(requirePresent(result[0]).strandId).toBe('alpha');
+      expect(requirePresent(result[1]).strandId).toBe('bravo');
+      expect(requirePresent(result[2]).strandId).toBe('charlie');
     });
 
     it('returns empty array when no strands exist', async () => {
@@ -665,7 +909,7 @@ describe('StrandService', () => {
       });
 
       expect(result.braid.readOverlays).toHaveLength(1);
-      expect(result.braid.readOverlays[0].strandId).toBe('support');
+      expect(requirePresent(result.braid.readOverlays[0]).strandId).toBe('support');
     });
 
     it('throws E_STRAND_COORDINATE_INVALID for mismatched base observations', async () => {
@@ -729,8 +973,7 @@ describe('StrandService', () => {
         await service.braid('target', { braidedStrandIds: ['target'] });
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_INVALID_ARGS');
+        expect(requireStrandError(err).code).toBe('E_STRAND_INVALID_ARGS');
       }
     });
 
@@ -753,7 +996,7 @@ describe('StrandService', () => {
       storeDescriptor(target);
 
       await expect(
-        service.braid('target', { braidedStrandIds: /** @type {any} */ ('support') }),
+        Reflect.apply(service.braid, service, ['target', { braidedStrandIds: 'support' }]),
       ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
 
@@ -771,7 +1014,7 @@ describe('StrandService', () => {
       storeDescriptor(target);
 
       await expect(
-        service.braid('target', { writable: /** @type {any} */ ('yes') }),
+        Reflect.apply(service.braid, service, ['target', { writable: 'yes' }]),
       ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
   });
@@ -786,6 +1029,7 @@ describe('StrandService', () => {
 
     /** @type {ReturnType<typeof createMockGraph>} */
     let detachedGraph;
+    /** @type {ReturnType<typeof vi.fn>} */
     let openSpy;
 
     beforeEach(() => {
@@ -811,7 +1055,11 @@ describe('StrandService', () => {
       const result = await service.materialize('alpha');
 
       expect(result).toBeDefined();
-      expect(result.nodeAlive).toBeDefined();
+      if ('nodeAlive' in result) {
+        expect(result.nodeAlive).toBeDefined();
+      } else {
+        expect.unreachable('expected bare WarpStateV5 result');
+      }
     });
 
     it('returns state + receipts when receipts option is true', async () => {
@@ -820,9 +1068,13 @@ describe('StrandService', () => {
 
       const result = await service.materialize('alpha', { receipts: true });
 
-      expect(result.state).toBeDefined();
-      expect(result.receipts).toBeDefined();
-      expect(Array.isArray(result.receipts)).toBe(true);
+      if ('state' in result) {
+        expect(result.state).toBeDefined();
+        expect(result.receipts).toBeDefined();
+        expect(Array.isArray(result.receipts)).toBe(true);
+      } else {
+        expect.unreachable('expected state+receipts materialize result');
+      }
     });
 
     it('applies lamport ceiling filter', async () => {
@@ -839,9 +1091,9 @@ describe('StrandService', () => {
 
       // Set up patch chain with patches at different lamport values
       patchChains.set('tip-sha-1', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'p1' },
-        { patch: { lamport: 5, writer: 'writer1', schema: 2, ops: [] }, sha: 'p2' },
-        { patch: { lamport: 10, writer: 'writer1', schema: 2, ops: [] }, sha: 'p3' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'p1' },
+        { patch: makePatch({ lamport: 5, writer: 'writer1' }), sha: 'p2' },
+        { patch: makePatch({ lamport: 10, writer: 'writer1' }), sha: 'p3' },
       ]);
 
       // Ceiling of 5 should exclude the lamport=10 patch
@@ -909,8 +1161,7 @@ describe('StrandService', () => {
         await service.createPatchBuilder('readonly');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_INVALID_ARGS');
+        expect(requireStrandError(err).code).toBe('E_STRAND_INVALID_ARGS');
       }
     });
 
@@ -950,8 +1201,7 @@ describe('StrandService', () => {
         await service.patch('alpha', () => {});
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_REENTRANT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_REENTRANT');
       }
     });
 
@@ -995,8 +1245,7 @@ describe('StrandService', () => {
         await service.queueIntent('alpha', () => {});
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_REENTRANT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_REENTRANT');
       }
     });
 
@@ -1020,8 +1269,7 @@ describe('StrandService', () => {
         });
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_EMPTY_INTENT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_EMPTY_INTENT');
       }
     });
 
@@ -1044,8 +1292,7 @@ describe('StrandService', () => {
         });
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_INVALID_ARGS');
+        expect(requireStrandError(err).code).toBe('E_STRAND_INVALID_ARGS');
       }
     });
 
@@ -1075,7 +1322,7 @@ describe('StrandService', () => {
       });
 
       // Should have written updated descriptor
-      const updatedDesc = await service.get('alpha');
+      const updatedDesc = requirePresent(await service.get('alpha'));
       expect(updatedDesc.intentQueue.intents).toHaveLength(1);
       expect(updatedDesc.intentQueue.nextIntentSeq).toBe(2);
     });
@@ -1098,7 +1345,7 @@ describe('StrandService', () => {
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       const snapshotState = createEmptyStateV5();
       graph._logger = logger;
-      vi.spyOn(service, '_materializeDescriptor').mockResolvedValue({
+      vi.spyOn(service._patchService, '_materializeDescriptor').mockResolvedValue({
         state: snapshotState,
         allPatches: [],
       });
@@ -1137,7 +1384,7 @@ describe('StrandService', () => {
           intents: [{
             intentId: 'alpha.intent.0001',
             enqueuedAt: '2026-04-06T00:00:00.000Z',
-            patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 1] }] },
+            patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
             reads: ['n1'],
             writes: ['n1'],
             contentBlobOids: [],
@@ -1149,8 +1396,8 @@ describe('StrandService', () => {
       const intents = await service.listIntents('alpha');
 
       expect(intents).toHaveLength(1);
-      expect(intents[0].intentId).toBe('alpha.intent.0001');
-      expect(Object.isFrozen(intents[0])).toBe(true);
+      expect(requirePresent(intents[0]).intentId).toBe('alpha.intent.0001');
+      expect(Object.isFrozen(requirePresent(intents[0]))).toBe(true);
     });
 
     it('throws E_STRAND_NOT_FOUND for missing strand', async () => {
@@ -1199,7 +1446,7 @@ describe('StrandService', () => {
             {
               intentId: 'alpha.intent.0001',
               enqueuedAt: '2026-04-06T00:00:01.000Z',
-              patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 1] }] },
+              patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
               reads: ['n1'],
               writes: ['n1'],
               contentBlobOids: [],
@@ -1207,7 +1454,7 @@ describe('StrandService', () => {
             {
               intentId: 'alpha.intent.0002',
               enqueuedAt: '2026-04-06T00:00:02.000Z',
-              patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 2] }] },
+              patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 2)] }),
               reads: ['n1'],
               writes: ['n1'],
               contentBlobOids: [],
@@ -1215,7 +1462,7 @@ describe('StrandService', () => {
             {
               intentId: 'alpha.intent.0003',
               enqueuedAt: '2026-04-06T00:00:03.000Z',
-              patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n2', dot: ['w1', 3] }] },
+              patch: makePatch({ ops: [makeNodeAddOp('n2', 'w1', 3)] }),
               reads: ['n2'],
               writes: ['n2'],
               contentBlobOids: [],
@@ -1232,9 +1479,9 @@ describe('StrandService', () => {
       expect(tickRecord.admittedIntentIds).toContain('alpha.intent.0003');
       expect(tickRecord.admittedIntentIds).toHaveLength(2);
       expect(tickRecord.rejected).toHaveLength(1);
-      expect(tickRecord.rejected[0].intentId).toBe('alpha.intent.0002');
-      expect(tickRecord.rejected[0].reason).toBe(STRAND_COUNTERFACTUAL_REASON);
-      expect(tickRecord.rejected[0].conflictsWith).toContain('alpha.intent.0001');
+      expect(requirePresent(tickRecord.rejected[0]).intentId).toBe('alpha.intent.0002');
+      expect(requirePresent(tickRecord.rejected[0]).reason).toBe(STRAND_COUNTERFACTUAL_REASON);
+      expect(requirePresent(tickRecord.rejected[0]).conflictsWith).toContain('alpha.intent.0001');
     });
 
     it('clears the intent queue after tick', async () => {
@@ -1245,7 +1492,7 @@ describe('StrandService', () => {
           intents: [{
             intentId: 'alpha.intent.0001',
             enqueuedAt: '2026-04-06T00:00:01.000Z',
-            patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 1] }] },
+            patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
             reads: ['n1'],
             writes: ['n1'],
             contentBlobOids: [],
@@ -1256,7 +1503,7 @@ describe('StrandService', () => {
 
       await service.tick('alpha');
 
-      const updatedDesc = await service.get('alpha');
+      const updatedDesc = requirePresent(await service.get('alpha'));
       expect(updatedDesc.intentQueue.intents).toHaveLength(0);
     });
 
@@ -1298,8 +1545,8 @@ describe('StrandService', () => {
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'patch-1' },
-        { patch: { lamport: 2, writer: 'writer1', schema: 2, ops: [] }, sha: 'patch-2' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'patch-1' },
+        { patch: makePatch({ lamport: 2, writer: 'writer1' }), sha: 'patch-2' },
       ]);
 
       const entries = await service.getPatchEntries('alpha');
@@ -1319,9 +1566,9 @@ describe('StrandService', () => {
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'patch-1' },
-        { patch: { lamport: 5, writer: 'writer1', schema: 2, ops: [] }, sha: 'patch-2' },
-        { patch: { lamport: 10, writer: 'writer1', schema: 2, ops: [] }, sha: 'patch-3' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'patch-1' },
+        { patch: makePatch({ lamport: 5, writer: 'writer1' }), sha: 'patch-2' },
+        { patch: makePatch({ lamport: 10, writer: 'writer1' }), sha: 'patch-3' },
       ]);
 
       const entries = await service.getPatchEntries('alpha', { ceiling: 5 });
@@ -1341,7 +1588,7 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
 
-      const sharedPatch = { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'shared-sha' };
+      const sharedPatch = { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'shared-sha' };
       patchChains.set('tip-sha-1', [sharedPatch]);
       patchChains.set('tip-sha-2', [sharedPatch]);
 
@@ -1365,10 +1612,10 @@ describe('StrandService', () => {
       refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
 
       patchChains.set('tip-sha-1', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'base-1' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: { lamport: 2, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
       ]);
 
       const entries = await service.getPatchEntries('alpha');
@@ -1391,10 +1638,10 @@ describe('StrandService', () => {
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'base-1' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('support-head', [
-        { patch: { lamport: 3, writer: 'overlay-support', schema: 2, ops: [] }, sha: 'support-1' },
+        { patch: makePatch({ lamport: 3, writer: 'overlay-support' }), sha: 'support-1' },
       ]);
 
       const entries = await service.getPatchEntries('alpha');
@@ -1416,23 +1663,25 @@ describe('StrandService', () => {
       patchChains.set('tip-sha-1', [
         {
           patch: {
-            lamport: 1,
-            writer: 'writer1',
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'user:alice', dot: ['writer1', 1] }],
-            reads: ['user:alice'],
-            writes: ['user:alice'],
+            ...makePatch({
+              lamport: 1,
+              writer: 'writer1',
+              ops: [makeNodeAddOp('user:alice', 'writer1', 1)],
+              reads: ['user:alice'],
+              writes: ['user:alice'],
+            }),
           },
           sha: 'sha-bbb',
         },
         {
           patch: {
-            lamport: 2,
-            writer: 'writer1',
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'user:bob', dot: ['writer1', 2] }],
-            reads: ['user:bob'],
-            writes: ['user:bob'],
+            ...makePatch({
+              lamport: 2,
+              writer: 'writer1',
+              ops: [makeNodeAddOp('user:bob', 'writer1', 2)],
+              reads: ['user:bob'],
+              writes: ['user:bob'],
+            }),
           },
           sha: 'sha-aaa',
         },
@@ -1449,12 +1698,10 @@ describe('StrandService', () => {
       patchChains.set('tip-sha-1', [
         {
           patch: {
-            lamport: 1,
-            writer: 'writer1',
-            schema: 2,
-            ops: [],
-            reads: [],
-            writes: [],
+            ...makePatch({
+              lamport: 1,
+              writer: 'writer1',
+            }),
           },
           sha: 'sha-1',
         },
@@ -1472,8 +1719,7 @@ describe('StrandService', () => {
         await service.patchesFor('alpha', '');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_INVALID_ARGS');
+        expect(requireStrandError(err).code).toBe('E_STRAND_INVALID_ARGS');
       }
     });
 
@@ -1482,7 +1728,7 @@ describe('StrandService', () => {
       storeDescriptor(desc);
 
       await expect(
-        service.patchesFor('alpha', /** @type {any} */ (null)),
+        Reflect.apply(service.patchesFor, service, ['alpha', null]),
       ).rejects.toMatchObject({ code: 'E_STRAND_INVALID_ARGS' });
     });
 
@@ -1492,11 +1738,11 @@ describe('StrandService', () => {
 
       patchChains.set('tip-sha-1', [
         {
-          patch: { lamport: 1, writer: 'w1', schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'user:alice', dot: ['w1', 1] }], reads: ['user:alice'], writes: ['user:alice'] },
+          patch: makePatch({ lamport: 1, writer: 'w1', ops: [makeNodeAddOp('user:alice', 'w1', 1)], reads: ['user:alice'], writes: ['user:alice'] }),
           sha: 'zzz',
         },
         {
-          patch: { lamport: 2, writer: 'w1', schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'user:alice', dot: ['w1', 2] }], reads: ['user:alice'], writes: ['user:alice'] },
+          patch: makePatch({ lamport: 2, writer: 'w1', ops: [makeNodeAddOp('user:alice', 'w1', 2)], reads: ['user:alice'], writes: ['user:alice'] }),
           sha: 'aaa',
         },
       ]);
@@ -1511,9 +1757,9 @@ describe('StrandService', () => {
   describe('intent service seam', () => {
     it('admits all intents when footprints are disjoint', () => {
       const intents = [
-        { intentId: 'i1', reads: ['a'], writes: ['a'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: ['b'], writes: ['b'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i3', reads: ['c'], writes: ['c'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', reads: ['a'], writes: ['a'] }),
+        makeQueuedIntent({ intentId: 'i2', reads: ['b'], writes: ['b'] }),
+        makeQueuedIntent({ intentId: 'i3', reads: ['c'], writes: ['c'] }),
       ];
 
       const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
@@ -1524,24 +1770,24 @@ describe('StrandService', () => {
 
     it('rejects intents with overlapping writes', () => {
       const intents = [
-        { intentId: 'i1', reads: [], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: [], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', writes: ['shared'] }),
+        makeQueuedIntent({ intentId: 'i2', writes: ['shared'] }),
       ];
 
       const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
 
       expect(admitted).toHaveLength(1);
-      expect(admitted[0].intentId).toBe('i1');
+      expect(requirePresent(admitted[0]).intentId).toBe('i1');
       expect(rejected).toHaveLength(1);
-      expect(rejected[0].intentId).toBe('i2');
-      expect(rejected[0].reason).toBe(STRAND_COUNTERFACTUAL_REASON);
-      expect(rejected[0].conflictsWith).toEqual(['i1']);
+      expect(requirePresent(rejected[0]).intentId).toBe('i2');
+      expect(requirePresent(rejected[0]).reason).toBe(STRAND_COUNTERFACTUAL_REASON);
+      expect(requirePresent(rejected[0]).conflictsWith).toEqual(['i1']);
     });
 
     it('rejects intents with overlapping reads and writes', () => {
       const intents = [
-        { intentId: 'i1', reads: ['x'], writes: ['y'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: ['y'], writes: ['z'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', reads: ['x'], writes: ['y'] }),
+        makeQueuedIntent({ intentId: 'i2', reads: ['y'], writes: ['z'] }),
       ];
 
       const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
@@ -1549,14 +1795,14 @@ describe('StrandService', () => {
       // i1 footprint = {x, y}, i2 footprint = {y, z} — overlap on 'y'
       expect(admitted).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect(rejected[0].conflictsWith).toEqual(['i1']);
+      expect(requirePresent(rejected[0]).conflictsWith).toEqual(['i1']);
     });
 
     it('reports multiple conflicting intents in conflictsWith', () => {
       const intents = [
-        { intentId: 'i1', reads: ['a'], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: ['b'], writes: [], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i3', reads: ['shared', 'b'], writes: [], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', reads: ['a'], writes: ['shared'] }),
+        makeQueuedIntent({ intentId: 'i2', reads: ['b'] }),
+        makeQueuedIntent({ intentId: 'i3', reads: ['shared', 'b'] }),
       ];
 
       const { admitted, rejected } = service._intentService.classifyQueuedIntents(intents);
@@ -1566,9 +1812,9 @@ describe('StrandService', () => {
       // i3 rejected (footprint: shared, b — overlaps with both i1 and i2)
       expect(admitted).toHaveLength(2);
       expect(rejected).toHaveLength(1);
-      expect(rejected[0].intentId).toBe('i3');
-      expect(rejected[0].conflictsWith).toContain('i1');
-      expect(rejected[0].conflictsWith).toContain('i2');
+      expect(requirePresent(rejected[0]).intentId).toBe('i3');
+      expect(requirePresent(rejected[0]).conflictsWith).toContain('i1');
+      expect(requirePresent(rejected[0]).conflictsWith).toContain('i2');
     });
 
     it('handles empty intent queue', () => {
@@ -1580,14 +1826,14 @@ describe('StrandService', () => {
 
     it('preserves reads and writes in rejected counterfactuals', () => {
       const intents = [
-        { intentId: 'i1', reads: ['a'], writes: ['b'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
-        { intentId: 'i2', reads: ['b'], writes: ['c'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        makeQueuedIntent({ intentId: 'i1', reads: ['a'], writes: ['b'] }),
+        makeQueuedIntent({ intentId: 'i2', reads: ['b'], writes: ['c'] }),
       ];
 
       const { rejected } = service._intentService.classifyQueuedIntents(intents);
 
-      expect(rejected[0].reads).toEqual(['b']);
-      expect(rejected[0].writes).toEqual(['c']);
+      expect(requirePresent(rejected[0]).reads).toEqual(['b']);
+      expect(requirePresent(rejected[0]).writes).toEqual(['c']);
     });
   });
 
@@ -1595,20 +1841,20 @@ describe('StrandService', () => {
 
   describe('ref building', () => {
     it('_buildRef returns correct ref path', () => {
-      const ref = service._buildRef('alpha');
+      const ref = strandServicePrivate(service)._buildRef('alpha');
       expect(ref).toContain('test-graph');
       expect(ref).toContain('alpha');
     });
 
     it('_buildOverlayRef returns correct ref path', () => {
-      const ref = service._buildOverlayRef('alpha');
+      const ref = strandServicePrivate(service)._buildOverlayRef('alpha');
       expect(ref).toContain('test-graph');
       expect(ref).toContain('alpha');
       expect(ref).toContain('overlay');
     });
 
     it('_buildBraidPrefix returns correct prefix', () => {
-      const prefix = service._buildBraidPrefix('alpha');
+      const prefix = strandServicePrivate(service)._buildBraidPrefix('alpha');
       expect(prefix).toContain('test-graph');
       expect(prefix).toContain('alpha');
       expect(prefix).toContain('braids');
@@ -1622,15 +1868,15 @@ describe('StrandService', () => {
     });
 
     it('_buildRef throws E_STRAND_ID_INVALID for empty strandId', () => {
-      expect(() => service._buildRef('')).toThrow(StrandError);
+      expect(() => strandServicePrivate(service)._buildRef('')).toThrow(StrandError);
     });
 
     it('_buildOverlayRef throws E_STRAND_ID_INVALID for empty strandId', () => {
-      expect(() => service._buildOverlayRef('')).toThrow(StrandError);
+      expect(() => strandServicePrivate(service)._buildOverlayRef('')).toThrow(StrandError);
     });
 
     it('_buildBraidPrefix throws E_STRAND_ID_INVALID for empty strandId', () => {
-      expect(() => service._buildBraidPrefix('')).toThrow(StrandError);
+      expect(() => strandServicePrivate(service)._buildBraidPrefix('')).toThrow(StrandError);
     });
 
     it('descriptor store buildBraidRef throws E_STRAND_ID_INVALID for empty strandId', () => {
@@ -1659,8 +1905,7 @@ describe('StrandService', () => {
         await service._descriptorStore.readDescriptorByOid('nonexistent', 'ghost');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_MISSING_OBJECT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_MISSING_OBJECT');
       }
     });
 
@@ -1672,8 +1917,7 @@ describe('StrandService', () => {
         await service._descriptorStore.readDescriptorByOid(oid, 'broken');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
-        expect(err.code).toBe('E_STRAND_CORRUPT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_CORRUPT');
       }
     });
 
@@ -1686,9 +1930,8 @@ describe('StrandService', () => {
         await service._descriptorStore.readDescriptorByOid(oid, 'alpha');
         expect.unreachable('should have thrown');
       } catch (err) {
-        expect(err).toBeInstanceOf(StrandError);
         // Wraps the graph mismatch as corrupt since the inner error is re-thrown
-        expect(err.code).toBe('E_STRAND_CORRUPT');
+        expect(requireStrandError(err).code).toBe('E_STRAND_CORRUPT');
       }
     });
   });
@@ -1699,13 +1942,13 @@ describe('StrandService', () => {
     it('serializes descriptor as JSON blob and updates ref', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
-      await service._writeDescriptor(desc);
+      await strandServicePrivate(service)._writeDescriptor(desc);
 
       expect(graph._persistence.writeBlob).toHaveBeenCalledTimes(1);
       expect(graph._persistence.updateRef).toHaveBeenCalledTimes(1);
 
       // Verify the written blob is valid JSON
-      const writtenData = graph._persistence.writeBlob.mock.calls[0][0];
+      const writtenData = requirePresent(graph._persistence.writeBlob.mock.calls[0])[0];
       const parsed = JSON.parse(textDecode(writtenData));
       expect(parsed.strandId).toBe('alpha');
     });
@@ -1723,8 +1966,8 @@ describe('StrandService', () => {
     it('returns live overlay head and patch count from the overlay chain', async () => {
       refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
       patchChains.set('overlay-head', [
-        { patch: { lamport: 2, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
-        { patch: { lamport: 3, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-2' },
+        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 3, writer: 'alpha' }), sha: 'overlay-2' },
       ]);
 
       const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
@@ -1765,11 +2008,11 @@ describe('StrandService', () => {
       });
       refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
       patchChains.set('overlay-head', [
-        { patch: { lamport: 2, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
-        { patch: { lamport: 3, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-2' },
+        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 3, writer: 'alpha' }), sha: 'overlay-2' },
       ]);
 
-      const hydrated = await service._hydrateOverlayMetadata(descriptor);
+      const hydrated = await strandServicePrivate(service)._hydrateOverlayMetadata(descriptor);
 
       expect(hydrated.overlay.headPatchSha).toBe('overlay-head');
       expect(hydrated.overlay.patchCount).toBe(2);
@@ -1789,10 +2032,10 @@ describe('StrandService', () => {
       });
       refs.set('refs/warp/test-graph/strand-overlays/alpha', 'live-head');
       patchChains.set('live-head', [
-        { patch: { lamport: 4, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 4, writer: 'alpha' }), sha: 'overlay-1' },
       ]);
 
-      const hydrated = await service._hydrateOverlayMetadata(descriptor);
+      const hydrated = await strandServicePrivate(service)._hydrateOverlayMetadata(descriptor);
 
       expect(hydrated.overlay.headPatchSha).toBe('live-head');
       expect(hydrated.overlay.patchCount).toBe(1);
@@ -1815,8 +2058,8 @@ describe('StrandService', () => {
       storeDescriptor(support);
       refs.set('refs/warp/test-graph/strand-overlays/support', 'support-head');
       patchChains.set('support-head', [
-        { patch: { lamport: 5, writer: 'support', schema: 2, ops: [] }, sha: 'support-1' },
-        { patch: { lamport: 6, writer: 'support', schema: 2, ops: [] }, sha: 'support-2' },
+        { patch: makePatch({ lamport: 5, writer: 'support' }), sha: 'support-1' },
+        { patch: makePatch({ lamport: 6, writer: 'support' }), sha: 'support-2' },
       ]);
 
       const readOverlays = await service._descriptorStore.loadBraidedReadOverlays(target, ['support']);
@@ -1848,10 +2091,10 @@ describe('StrandService', () => {
       });
 
       patchChains.set('tip1', [
-        { patch: { lamport: 1, writer: 'w1', schema: 2, ops: [] }, sha: 'p1' },
+        { patch: makePatch({ lamport: 1, writer: 'w1' }), sha: 'p1' },
       ]);
       patchChains.set('tip2', [
-        { patch: { lamport: 2, writer: 'w2', schema: 2, ops: [] }, sha: 'p2' },
+        { patch: makePatch({ lamport: 2, writer: 'w2' }), sha: 'p2' },
       ]);
 
       const patches = await service._materializer.collectBasePatches(desc);
@@ -1870,13 +2113,13 @@ describe('StrandService', () => {
       });
 
       patchChains.set('tip1', [
-        { patch: { lamport: 3, writer: 'w1', schema: 2, ops: [] }, sha: 'p1' },
-        { patch: { lamport: 7, writer: 'w1', schema: 2, ops: [] }, sha: 'p2' },
+        { patch: makePatch({ lamport: 3, writer: 'w1' }), sha: 'p1' },
+        { patch: makePatch({ lamport: 7, writer: 'w1' }), sha: 'p2' },
       ]);
 
       const patches = await service._materializer.collectBasePatches(desc);
       expect(patches).toHaveLength(1);
-      expect(patches[0].sha).toBe('p1');
+      expect(requirePresent(patches[0]).sha).toBe('p1');
     });
 
     it('skips writers with empty tip SHA', async () => {
@@ -1891,7 +2134,7 @@ describe('StrandService', () => {
       });
 
       patchChains.set('tip2', [
-        { patch: { lamport: 1, writer: 'w2', schema: 2, ops: [] }, sha: 'p1' },
+        { patch: makePatch({ lamport: 1, writer: 'w2' }), sha: 'p1' },
       ]);
 
       const patches = await service._materializer.collectBasePatches(desc);
@@ -1909,6 +2152,7 @@ describe('StrandService', () => {
         },
       });
 
+      /** @type {string[]} */
       const callOrder = [];
       graph._loadPatchChainFromSha.mockImplementation(async (sha) => {
         callOrder.push(sha);
@@ -1949,16 +2193,16 @@ describe('StrandService', () => {
       });
 
       patchChains.set('base-tip', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'shared-sha' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'shared-sha' },
       ]);
       patchChains.set('support-head', [
-        { patch: { lamport: 9, writer: 'support', schema: 2, ops: [] }, sha: 'shared-sha' },
+        { patch: makePatch({ lamport: 9, writer: 'support' }), sha: 'shared-sha' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: { lamport: 10, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-sha' },
+        { patch: makePatch({ lamport: 10, writer: 'alpha' }), sha: 'overlay-sha' },
       ]);
 
-      const entries = await service._collectPatchEntries(desc, { ceiling: null });
+      const entries = await strandServicePrivate(service)._collectPatchEntries(desc, { ceiling: null });
 
       expect(entries).toHaveLength(2);
       expect(entries.find((entry) => entry.sha === 'shared-sha')?.patch.lamport).toBe(1);
@@ -1993,16 +2237,16 @@ describe('StrandService', () => {
       });
 
       patchChains.set('base-tip', [
-        { patch: { lamport: 1, writer: 'writer1', schema: 2, ops: [] }, sha: 'base-1' },
+        { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('support-head', [
-        { patch: { lamport: 4, writer: 'support', schema: 2, ops: [] }, sha: 'support-1' },
+        { patch: makePatch({ lamport: 4, writer: 'support' }), sha: 'support-1' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: { lamport: 8, writer: 'alpha', schema: 2, ops: [] }, sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 8, writer: 'alpha' }), sha: 'overlay-1' },
       ]);
 
-      const entries = await service._collectPatchEntries(desc, { ceiling: 4 });
+      const entries = await strandServicePrivate(service)._collectPatchEntries(desc, { ceiling: 4 });
 
       expect(entries.map((entry) => entry.sha)).toEqual(['base-1', 'support-1']);
       expect(entries.every((entry) => entry.patch.lamport <= 4)).toBe(true);
@@ -2031,7 +2275,7 @@ describe('StrandService', () => {
       });
 
       patchChains.set('overlay-head', [
-        { patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] }, sha: 'op1' },
+        { patch: makePatch({ lamport: 5, writer: 'alpha' }), sha: 'op1' },
       ]);
 
       const patches = await service._materializer.collectOverlayPatches(desc);
@@ -2060,10 +2304,10 @@ describe('StrandService', () => {
       });
 
       patchChains.set('braid-head-1', [
-        { patch: { lamport: 3, writer: 'o1', schema: 2, ops: [] }, sha: 'bp1' },
+        { patch: makePatch({ lamport: 3, writer: 'o1' }), sha: 'bp1' },
       ]);
       patchChains.set('braid-head-2', [
-        { patch: { lamport: 4, writer: 'o2', schema: 2, ops: [] }, sha: 'bp2' },
+        { patch: makePatch({ lamport: 4, writer: 'o2' }), sha: 'bp2' },
       ]);
 
       const patches = await service._materializer.collectBraidedOverlayPatches(desc);
@@ -2099,7 +2343,7 @@ describe('StrandService', () => {
         },
       });
 
-      const { state, receipts, allPatches } = await service._materializeDescriptor(desc, {
+      const { state, receipts, allPatches } = await strandServicePrivate(service)._materializeDescriptor(desc, {
         collectReceipts: false,
         ceiling: null,
       });
@@ -2122,17 +2366,16 @@ describe('StrandService', () => {
 
       patchChains.set('chain-head', [
         {
-          patch: {
+          patch: makePatch({
             lamport: 1,
             writer: 'writer1',
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'user:alice', dot: ['writer1', 1] }],
-          },
-          sha: 'p1',
+            ops: [makeNodeAddOp('user:alice', 'writer1', 1)],
+          }),
+          sha: 'a1b2',
         },
       ]);
 
-      const { state, allPatches } = await service._materializeDescriptor(desc, {
+      const { state, allPatches } = await strandServicePrivate(service)._materializeDescriptor(desc, {
         collectReceipts: false,
         ceiling: null,
       });
@@ -2155,17 +2398,16 @@ describe('StrandService', () => {
 
       patchChains.set('chain-head', [
         {
-          patch: {
+          patch: makePatch({
             lamport: 1,
             writer: 'writer1',
-            schema: 2,
-            ops: [{ op: 'NodeAdd', nodeId: 'user:alice', dot: ['writer1', 1] }],
-          },
-          sha: 'p1',
+            ops: [makeNodeAddOp('user:alice', 'writer1', 1)],
+          }),
+          sha: 'a1b2',
         },
       ]);
 
-      const { receipts } = await service._materializeDescriptor(desc, {
+      const { receipts } = await strandServicePrivate(service)._materializeDescriptor(desc, {
         collectReceipts: true,
         ceiling: null,
       });
@@ -2184,12 +2426,10 @@ describe('StrandService', () => {
         },
       });
 
-      patchChains.set('chain-head', [
-        { patch: { lamport: 42, writer: 'w1', schema: 2, ops: [] }, sha: 'p1' },
-      ]);
+      patchChains.set('chain-head', [{ patch: makePatch({ lamport: 42, writer: 'w1' }), sha: 'p1' }]);
 
       graph._maxObservedLamport = 0;
-      await service._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
+      await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
       expect(graph._maxObservedLamport).toBe(42);
     });
@@ -2199,12 +2439,12 @@ describe('StrandService', () => {
 
       patchChains.set('tip-sha-1', [
         {
-          patch: { lamport: 1, writer: 'w1', schema: 2, ops: [], reads: ['node:a'], writes: ['node:a'] },
+          patch: makePatch({ lamport: 1, writer: 'w1', reads: ['node:a'], writes: ['node:a'] }),
           sha: 'p1',
         },
       ]);
 
-      await service._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
+      await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
       expect(graph._provenanceIndex).not.toBeNull();
       expect(graph._provenanceDegraded).toBe(false);
@@ -2213,7 +2453,7 @@ describe('StrandService', () => {
     it('calls _setMaterializedState on graph', async () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
-      await service._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
+      await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
       expect(graph._setMaterializedState).toHaveBeenCalledTimes(1);
     });
@@ -2223,7 +2463,7 @@ describe('StrandService', () => {
       graph._cachedFrontier = new Map();
 
       const desc = buildValidDescriptor({ strandId: 'alpha' });
-      await service._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
+      await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
       expect(graph._cachedCeiling).toBeNull();
       expect(graph._cachedFrontier).toBeNull();
@@ -2246,7 +2486,7 @@ describe('StrandService', () => {
       });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] },
+        patch: makePatch({ lamport: 5, writer: 'alpha' }),
         sha: 'new-head-sha',
       });
 
@@ -2259,7 +2499,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: { lamport: 10, writer: 'alpha', schema: 2, ops: [] },
+        patch: makePatch({ lamport: 10, writer: 'alpha' }),
         sha: 'sha1',
       });
 
@@ -2271,7 +2511,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: { lamport: 5, writer: 'alpha', schema: 2, ops: [] },
+        patch: makePatch({ lamport: 5, writer: 'alpha' }),
         sha: 'sha1',
       });
 
@@ -2286,7 +2526,7 @@ describe('StrandService', () => {
       const desc = buildValidDescriptor({ strandId: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: { lamport: 1, writer: 'alpha', schema: 2, ops: [] },
+        patch: makePatch({ lamport: 1, writer: 'alpha' }),
         sha: 'sha1',
       });
 
@@ -2306,11 +2546,11 @@ describe('StrandService', () => {
       };
       graph._patchJournal = mockJournal;
 
-      const result = await service._commitQueuedPatch({
+      const result = await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 1] }] },
+        patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
         contentBlobOids: [],
         lamport: 5,
       });
@@ -2326,11 +2566,11 @@ describe('StrandService', () => {
     it('falls back to codec + writeBlob when no journal', async () => {
       graph._patchJournal = null;
 
-      const result = await service._commitQueuedPatch({
+      const result = await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: [],
         lamport: 3,
       });
@@ -2346,11 +2586,11 @@ describe('StrandService', () => {
         store: vi.fn(async () => 'b'.repeat(40)),
       };
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: [],
         lamport: 1,
       });
@@ -2361,83 +2601,83 @@ describe('StrandService', () => {
     it('creates tree with content blob entries', async () => {
       graph._patchJournal = null;
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: ['blob-1', 'blob-2'],
         lamport: 1,
       });
 
-      const treeEntries = graph._persistence.writeTree.mock.calls[0][0];
+      const treeEntries = /** @type {string[]} */ (requirePresent(graph._persistence.writeTree.mock.calls[0])[0]);
       expect(treeEntries).toHaveLength(3); // patch.cbor + 2 content blobs
-      expect(treeEntries.some((e) => e.includes('_content_blob-1'))).toBe(true);
-      expect(treeEntries.some((e) => e.includes('_content_blob-2'))).toBe(true);
+      expect(treeEntries.some((entry) => entry.includes('_content_blob-1'))).toBe(true);
+      expect(treeEntries.some((entry) => entry.includes('_content_blob-2'))).toBe(true);
     });
 
     it('deduplicates content blob OIDs', async () => {
       graph._patchJournal = null;
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: ['blob-1', 'blob-1', 'blob-1'],
         lamport: 1,
       });
 
-      const treeEntries = graph._persistence.writeTree.mock.calls[0][0];
+      const treeEntries = requirePresent(graph._persistence.writeTree.mock.calls[0])[0];
       expect(treeEntries).toHaveLength(2); // patch.cbor + 1 unique content blob
     });
 
     it('sets parent commit when parentSha is provided', async () => {
       graph._patchJournal = null;
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: 'parent-sha-abc',
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: [],
         lamport: 1,
       });
 
-      const commitArgs = graph._persistence.commitNodeWithTree.mock.calls[0][0];
+      const commitArgs = requirePresent(graph._persistence.commitNodeWithTree.mock.calls[0])[0];
       expect(commitArgs.parents).toEqual(['parent-sha-abc']);
     });
 
     it('uses empty parents when parentSha is null', async () => {
       graph._patchJournal = null;
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: [],
         lamport: 1,
       });
 
-      const commitArgs = graph._persistence.commitNodeWithTree.mock.calls[0][0];
+      const commitArgs = requirePresent(graph._persistence.commitNodeWithTree.mock.calls[0])[0];
       expect(commitArgs.parents).toEqual([]);
     });
 
     it('updates overlay ref after commit', async () => {
       graph._patchJournal = null;
 
-      await service._commitQueuedPatch({
+      await strandServicePrivate(service)._commitQueuedPatch({
         strandId: 'alpha',
         overlayId: 'alpha',
         parentSha: null,
-        patch: { schema: 2, ops: [] },
+        patch: makePatch(),
         contentBlobOids: [],
         lamport: 1,
       });
 
       expect(graph._persistence.updateRef).toHaveBeenCalled();
-      const refCall = graph._persistence.updateRef.mock.calls[0];
+      const refCall = requirePresent(graph._persistence.updateRef.mock.calls[0]);
       expect(refCall[0]).toContain('overlay');
     });
   });
@@ -2523,7 +2763,7 @@ describe('StrandService', () => {
         {
           intentId: 'i1',
           enqueuedAt: '',
-          patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n1', dot: ['w1', 1] }] },
+          patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
           reads: ['n1'],
           writes: ['n1'],
           contentBlobOids: [],
@@ -2532,7 +2772,7 @@ describe('StrandService', () => {
         {
           intentId: 'i2',
           enqueuedAt: '',
-          patch: { schema: 2, ops: [{ op: 'NodeAdd', nodeId: 'n2', dot: ['w1', 2] }] },
+          patch: makePatch({ ops: [makeNodeAddOp('n2', 'w1', 2)] }),
           reads: ['n2'],
           writes: ['n2'],
           contentBlobOids: [],

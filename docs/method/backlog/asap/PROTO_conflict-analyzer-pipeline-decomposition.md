@@ -73,4 +73,3 @@ Recommended order:
 
 - `docs/method/backlog/bad-code/CC_conflict-analyzer-god-object.md`
 - `docs/method/backlog/bad-code/PROTO_conflict-analyzer-dead-branches.md`
-

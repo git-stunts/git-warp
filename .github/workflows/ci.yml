@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm install
+      - run: npm ci
       - name: 'Gate 1: TypeScript compiler (strict source mode)'
         run: npm run typecheck:src
       - name: 'Gate 2: IRONCLAD policy checker (any/wildcard/ts-ignore ban)'
@@ -44,6 +44,20 @@ jobs:
       - name: 'Gate 8: Security audit (runtime deps, advisory)'
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
+
+  typecheck-test-advisory:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: 'Advisory: JS test checkJs surface'
+        run: npm run typecheck:test
 
   test-node:
     runs-on: ubuntu-latest
@@ -78,6 +92,6 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm install
+      - run: npm ci
       - name: 'Gate 9: Unit coverage threshold'
         run: npm run test:coverage:ci

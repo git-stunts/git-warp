@@ -1,6 +1,6 @@
 # Strand model still lives as a typedef corridor across collaborator files
 
-**Severity:** medium  
+**Severity:** medium
 **Category:** bad-code
 
 ## Problem
