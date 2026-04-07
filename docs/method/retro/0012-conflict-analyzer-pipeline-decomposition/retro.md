@@ -79,14 +79,40 @@ still allowed; it's just not king.
 - Phase 6 (facade cleanup) not yet done — the analyzer orchestrator is already
   thin at 151 lines, but a final pass may find remaining dead code or
   opportunities to simplify the pipeline wiring.
-- The 2000+ `@type` cast annotations across `src/` are now optional noise.
-  They can be pruned incrementally — not a cycle-blocking concern.
-- `GroupedConflict` in the trace assembler is still a typedef. It's a transient
-  grouping structure with no invariants worth protecting. Acceptable.
+- The 2000+ `@type` cast annotations across the broader `src/` are now
+  optional noise. They can be pruned incrementally in future cycles.
+
+## Sludge report
+
+### Before (start of cycle)
+- **15 phantom typedefs** in ConflictAnalyzerService.js — no runtime backing
+- **2000+ `@type` casts** across `src/` — hand-holding tsc through JSDoc
+- **28 `no-unsafe-*` false positives** — 70% of all lint errors
+- **0 runtime-backed conflict domain classes**
+
+### After (end of cycle, our files only)
+- **2 boundary typedefs** remaining — `ConflictTargetSelector` and
+  `ConflictAnalyzeOptions` in ConflictAnalysisRequest.js. These document
+  raw caller input at the public API boundary (SSJS P4). Not domain types.
+- **0 `@type` casts** in any file we touched
+- **0 `@typedef` phantoms** for domain concepts
+- **0 lint errors** in `src/`
+- **11 runtime-backed conflict domain classes** with constructor validation
+- **4 `no-unsafe-*` rules** disabled — documented decision, not tech debt
+
+### What the sludge was costing
+Every `@type` cast was a lie: "I know the type, tsc doesn't." Every
+`@typedef` was a phantom: "This shape exists in comments, not at
+runtime." Every `no-unsafe-*` error was a false positive: "tsc can't
+prove this is safe across a module boundary, but the constructor
+already did." The cumulative effect was that every new file, every
+refactor, every extraction required placating a type system that was
+wrong about the code it was checking.
 
 ## What comes next
 
-- Final facade cleanup pass (phase 6)
-- Consider pruning unnecessary `@type` casts in files touched by future cycles
-- The `no-unsafe-*` decision should be recorded in `SYSTEMS_STYLE_JAVASCRIPT.md`
+- Phase 6 facade cleanup (ConflictAnalyzerService is already 151 lines —
+  may not need a dedicated pass)
+- Consider pruning `@type` casts in files touched by future cycles
+- Record the `no-unsafe-*` decision in `SYSTEMS_STYLE_JAVASCRIPT.md`
   as standing policy
