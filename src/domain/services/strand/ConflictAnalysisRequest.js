@@ -12,30 +12,7 @@ import QueryError from '../../errors/QueryError.js';
 const VALID_KINDS = new Set(['supersession', 'eventual_override', 'redundancy']);
 const VALID_EVIDENCE_LEVELS = new Set(['summary', 'standard', 'full']);
 const VALID_TARGET_KINDS = new Set(['node', 'edge', 'node_property', 'edge_property']);
-/** @type {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} */
 const TARGET_SELECTOR_FIELDS = ['entityId', 'propertyKey', 'from', 'to', 'label'];
-/**
- * Required selector fields for each supported target kind.
- *
- * @type {{
- *   node: {
- *     fields: Array<'entityId'|'propertyKey'|'from'|'to'|'label'>,
- *     message: string
- *   },
- *   edge: {
- *     fields: Array<'entityId'|'propertyKey'|'from'|'to'|'label'>,
- *     message: string
- *   },
- *   node_property: {
- *     fields: Array<'entityId'|'propertyKey'|'from'|'to'|'label'>,
- *     message: string
- *   },
- *   edge_property: {
- *     fields: Array<'entityId'|'propertyKey'|'from'|'to'|'label'>,
- *     message: string
- *   }
- * }}
- */
 const TARGET_REQUIREMENTS = Object.freeze({
   node: { fields: ['entityId'], message: 'node target selector requires entityId' },
   edge: { fields: ['from', 'to', 'label'], message: 'edge target selector requires from, to, and label' },
@@ -54,18 +31,6 @@ const TARGET_REQUIREMENTS = Object.freeze({
  * }} ConflictTargetSelector
  */
 
-/**
- * Snapshot-safe serialized target selector used in analysis hashes.
- *
- * @typedef {{
- *   targetKind: 'node'|'edge'|'node_property'|'edge_property',
- *   entityId?: string,
- *   propertyKey?: string,
- *   from?: string,
- *   to?: string,
- *   label?: string
- * }} ConflictSnapshotTarget
- */
 
 /**
  * Raw user-supplied analysis options accepted at the public API boundary.
@@ -82,45 +47,11 @@ const TARGET_REQUIREMENTS = Object.freeze({
  * }} ConflictAnalyzeOptions
  */
 
-/**
- * Deterministic filter record used in snapshot hash construction.
- *
- * @typedef {{
- *   entityId: string|null,
- *   target: ConflictSnapshotTarget|null,
- *   kind: ReadonlyArray<string>|null,
- *   writerId: string|null
- * }} ConflictSnapshotFilterRecord
- */
 
 /**
  * Runtime-backed normalized request for analyzer execution.
  */
 export default class ConflictAnalysisRequest {
-  /** @type {number|null} */
-  lamportCeiling;
-
-  /** @type {string|null} */
-  strandId;
-
-  /** @type {string|null} */
-  entityId;
-
-  /** @type {ConflictTargetSelector|null} */
-  target;
-
-  /** @type {ReadonlyArray<string>|null} */
-  kinds;
-
-  /** @type {string|null} */
-  writerId;
-
-  /** @type {'summary'|'standard'|'full'} */
-  evidence;
-
-  /** @type {number|null} */
-  maxPatches;
-
   /**
    * Creates a normalized immutable conflict analysis request.
    *
@@ -281,7 +212,7 @@ export default class ConflictAnalysisRequest {
         context: { target },
       });
     }
-    const selector = /** @type {ConflictTargetSelector} */ ({ ...target });
+    const selector = { ...target };
     ConflictAnalysisRequest._validateTarget(selector);
     return selector;
   }
@@ -350,7 +281,7 @@ export default class ConflictAnalysisRequest {
         context: { evidence },
       });
     }
-    return /** @type {'summary'|'standard'|'full'} */ (normalized);
+    return normalized;
   }
 
   /**
@@ -386,7 +317,6 @@ export default class ConflictAnalysisRequest {
     if (selector === null) {
       return null;
     }
-    /** @type {ConflictSnapshotTarget} */
     const result = { targetKind: selector.targetKind };
     for (const field of TARGET_SELECTOR_FIELDS) {
       if (selector[field] !== undefined) {
