@@ -13,8 +13,16 @@ import { reduceV5, normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
 import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
+import ConflictAnalysis from '../../types/conflict/ConflictAnalysis.js';
 import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
+import ConflictDiagnostic from '../../types/conflict/ConflictDiagnostic.js';
+import ConflictParticipant from '../../types/conflict/ConflictParticipant.js';
+import ConflictResolvedCoordinate from '../../types/conflict/ConflictResolvedCoordinate.js';
+import ConflictResolution from '../../types/conflict/ConflictResolution.js';
 import ConflictTarget from '../../types/conflict/ConflictTarget.js';
+import ConflictTrace from '../../types/conflict/ConflictTrace.js';
+import ConflictWinner from '../../types/conflict/ConflictWinner.js';
+import { compareStrings } from '../../types/conflict/validation.js';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import StrandService from './StrandService.js';
 
@@ -54,121 +62,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
   ORDERED_BEFORE_WINNER: 'ordered_before_winner',
 });
 
-/**
- * @typedef {{
- *   patchSha: string,
- *   writerId: string,
- *   lamport: number,
- *   opIndex: number,
- *   receiptPatchSha?: string,
- *   receiptLamport?: number,
- *   receiptOpIndex?: number
- * }} ConflictAnchor
- */
-
-/**
- * @typedef {{
- *   targetKind: 'node'|'edge'|'node_property'|'edge_property',
- *   targetDigest: string,
- *   entityId?: string,
- *   propertyKey?: string,
- *   from?: string,
- *   to?: string,
- *   label?: string,
- *   edgeKey?: string
- * }} ConflictTarget
- */
-
-/**
- * @typedef {{
- *   anchor: ConflictAnchor,
- *   effectDigest: string
- * }} ConflictWinner
- */
-
-/**
- * @typedef {{
- *   anchor: ConflictAnchor,
- *   effectDigest: string,
- *   causalRelationToWinner?: 'concurrent'|'ordered'|'replay_equivalent'|'reducer_collapsed',
- *   structurallyDistinctAlternative: boolean,
- *   replayableFromAnchors: boolean,
- *   notes?: string[]
- * }} ConflictParticipant
- */
-
-/**
- * @typedef {{
- *   reducerId: string,
- *   basis: { code: string, reason?: string },
- *   winnerMode: 'immediate'|'eventual',
- *   comparator?: {
- *     type: 'event_id'|'effect_digest',
- *     winnerEventId?: { lamport: number, writerId: string, patchSha: string, opIndex: number },
- *     loserEventId?: { lamport: number, writerId: string, patchSha: string, opIndex: number }
- *   }
- * }} ConflictResolution
- */
-
-/**
- * @typedef {{
- *   conflictId: string,
- *   kind: 'supersession'|'eventual_override'|'redundancy',
- *   target: ConflictTarget,
- *   winner: ConflictWinner,
- *   losers: ConflictParticipant[],
- *   resolution: ConflictResolution,
- *   whyFingerprint: string,
- *   classificationNotes?: string[],
- *   evidence: {
- *     level: 'summary'|'standard'|'full',
- *     patchRefs: string[],
- *     receiptRefs: Array<{ patchSha: string, lamport: number, opIndex: number }>
- *   }
- * }} ConflictTrace
- */
-
-/**
- * @typedef {{
- *   code: string,
- *   severity: 'warning'|'error',
- *   message: string,
- *   data?: Record<string, unknown>
- * }} ConflictDiagnostic
- */
-
-/**
- * @typedef {{
- *   analysisVersion: string,
- *   coordinateKind: 'frontier'|'strand',
- *   frontier: Record<string, string>,
- *   frontierDigest: string,
- *   lamportCeiling: number|null,
- *   scanBudgetApplied: { maxPatches: number|null },
- *   truncationPolicy: string,
- *   strand?: {
- *     strandId: string,
- *     baseLamportCeiling: number|null,
- *     overlayHeadPatchSha: string|null,
- *     overlayPatchCount: number,
- *     overlayWritable: boolean,
- *     braid?: {
- *       readOverlayCount: number,
- *       braidedStrandIds: string[]
- *     }
- *   }
- * }} ConflictResolvedCoordinate
- */
-
-/**
- * @typedef {{
- *   analysisVersion: string,
- *   resolvedCoordinate: ConflictResolvedCoordinate,
- *   analysisSnapshotHash: string,
- *   diagnostics?: ConflictDiagnostic[],
- *   conflicts: ConflictTrace[]
- * }} ConflictAnalysis
- */
 
 /**
  * @typedef {{
@@ -239,19 +132,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
  * }} ScanWindow
  */
 
-/**
- * Lexicographic compare using explicit byte/hex-safe ordering.
- *
- * @param {string} a - First string to compare.
- * @param {string} b - Second string to compare.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function compareStrings(a, b) {
-  if (a === b) {
-    return 0;
-  }
-  return a < b ? -1 : 1;
-}
 
 /**
  * Numeric comparison returning standard sort-compatible result.
@@ -399,19 +279,6 @@ function isCausallyOrdered(winner, loser) {
 }
 
 
-/**
- * Checks whether a conflict trace involves the specified writer as winner or loser.
- *
- * @param {ConflictTrace} trace - The conflict trace to inspect.
- * @param {string} writerId - The writer identifier to match.
- * @returns {boolean} True if the writer participated in the conflict.
- */
-function traceTouchesWriter(trace, writerId) {
-  if (trace.winner.anchor.writerId === writerId) {
-    return true;
-  }
-  return trace.losers.some((loser) => loser.anchor.writerId === writerId);
-}
 
 /**
  * Computes a SHA-256 digest of the canonical JSON serialization of a payload, with caching.
@@ -539,18 +406,16 @@ function buildResolvedCoordinate({
   coordinateKind = 'frontier',
   strand,
 }) {
-  return {
+  return new ConflictResolvedCoordinate({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     coordinateKind,
     frontier: frontierToRecord(frontier),
     frontierDigest,
     lamportCeiling,
-    scanBudgetApplied: {
-      maxPatches,
-    },
+    scanBudgetApplied: { maxPatches },
     truncationPolicy: CONFLICT_TRUNCATION_POLICY,
-    ...(strand !== undefined && strand !== null ? { strand } : {}),
-  };
+    strand,
+  });
 }
 
 /**
@@ -597,12 +462,7 @@ function pushDiagnostic(diagnostics, {
   severity = 'warning',
   data,
 }) {
-  diagnostics.push({
-    code,
-    severity,
-    message,
-    ...(data !== undefined && data !== null ? { data } : {}),
-  });
+  diagnostics.push(new ConflictDiagnostic({ code, severity, message, data }));
 }
 
 /**
@@ -845,16 +705,12 @@ function buildResolution({
   const comparatorType = kind === 'redundancy' ? 'effect_digest' : 'event_id';
   const basis = buildResolutionBasis(code, reason);
   const comparator = buildResolutionComparator(comparatorType, winner, loser);
-  /** @type {ConflictResolution} */
-  const resolution = {
+  return new ConflictResolution({
     reducerId: CONFLICT_REDUCER_ID,
     basis,
     winnerMode,
-  };
-  if (comparator !== null && comparator !== undefined) {
-    resolution.comparator = comparator;
-  }
-  return resolution;
+    comparator,
+  });
 }
 
 /**
@@ -1611,29 +1467,10 @@ async function buildConflictTraces(service, { grouped, evidence, resolvedCoordin
   for (const group of grouped) {
     traces.push(await buildConflictTrace(service, { group, evidence, resolvedCoordinate }));
   }
-  traces.sort(compareConflictTraces);
+  traces.sort((a, b) => ConflictTrace.compare(a, b));
   return traces;
 }
 
-/**
- * Compares two conflict traces for deterministic ordering by kind, target, winner, then id.
- *
- * @param {ConflictTrace} a - First trace.
- * @param {ConflictTrace} b - Second trace.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function compareConflictTraces(a, b) {
-  const kindCmp = compareStrings(a.kind, b.kind);
-  if (kindCmp !== 0) {
-    return kindCmp;
-  }
-  const targetCmp = compareStrings(a.target.targetDigest, b.target.targetDigest);
-  if (targetCmp !== 0) {
-    return targetCmp;
-  }
-  const winnerCmp = ConflictAnchor.compare(a.winner.anchor, b.winner.anchor);
-  return winnerCmp !== 0 ? winnerCmp : compareStrings(a.conflictId, b.conflictId);
-}
 
 /**
  * Builds a single ConflictTrace from a grouped conflict, computing IDs and fingerprints.
@@ -1651,7 +1488,7 @@ async function buildConflictTrace(service, { group, evidence, resolvedCoordinate
   const losers = buildLosers(group, evidence);
   const whyFingerprint = await service._hash(buildWhyFingerprintInput(group, losers));
   const conflictId = await service._hash(buildConflictIdInput({ group, winner, losers, resolvedCoordinate }));
-  return {
+  return new ConflictTrace({
     conflictId,
     kind: group.kind,
     target: group.target,
@@ -1659,9 +1496,9 @@ async function buildConflictTrace(service, { group, evidence, resolvedCoordinate
     losers,
     resolution: group.resolution,
     whyFingerprint,
-    ...(evidence === 'full' ? { classificationNotes: [...group.noteCodes].sort(compareStrings) } : {}),
+    classificationNotes: evidence === 'full' ? [...group.noteCodes].sort(compareStrings) : undefined,
     evidence: buildTraceEvidence(group, evidence),
-  };
+  });
 }
 
 /**
@@ -1671,10 +1508,10 @@ async function buildConflictTrace(service, { group, evidence, resolvedCoordinate
  * @returns {ConflictWinner} The conflict winner.
  */
 function buildWinner(winner) {
-  return {
+  return new ConflictWinner({
     anchor: ConflictAnchor.fromRecord(winner),
     effectDigest: winner.effectDigest,
-  };
+  });
 }
 
 /**
@@ -1703,20 +1540,15 @@ function buildLosers(group, evidence) {
  */
 function buildLoserParticipant({ winner, loser, kind, evidence }) {
   const relation = inferCausalRelation(winner, loser);
-  const participant = {
+  const notes = evidence === 'full' ? buildLoserNotes({ winner, loser, kind, relation }) : undefined;
+  return new ConflictParticipant({
     anchor: ConflictAnchor.fromRecord(loser),
     effectDigest: loser.effectDigest,
-    ...(relation !== undefined ? { causalRelationToWinner: relation } : {}),
+    causalRelationToWinner: relation,
     structurallyDistinctAlternative: loser.effectDigest !== winner.effectDigest,
     replayableFromAnchors: true,
-  };
-  if (evidence !== 'full') {
-    return participant;
-  }
-  return {
-    ...participant,
-    notes: buildLoserNotes({ winner, loser, kind, relation }),
-  };
+    notes,
+  });
 }
 
 
@@ -1926,7 +1758,7 @@ function matchesWriterFilter(trace, request) {
   if (typeof request.writerId !== 'string' || request.writerId.length === 0) {
     return true;
   }
-  return traceTouchesWriter(trace, request.writerId);
+  return trace.touchesWriter(request.writerId);
 }
 
 /**
@@ -2076,13 +1908,13 @@ function buildConflictAnalysisResult({
   diagnostics,
   conflicts,
 }) {
-  return {
+  return new ConflictAnalysis({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
     analysisSnapshotHash,
-    ...(diagnostics.length > 0 ? { diagnostics } : {}),
+    diagnostics,
     conflicts,
-  };
+  });
 }
 
 /**
