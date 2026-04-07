@@ -9,16 +9,17 @@
  */
 
 import VersionVector from '../../crdt/VersionVector.js';
-import QueryError from '../../errors/QueryError.js';
 import { reduceV5, normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
 import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
+import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import StrandService from './StrandService.js';
 
 
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 /** @typedef {import('../../WarpRuntime.js').default} WarpRuntime */
+/** @typedef {import('./ConflictAnalysisRequest.js').ConflictAnalyzeOptions} ConflictAnalyzeOptions */
 
 /** @typedef {import('../../types/TickReceipt.js').TickReceipt} TickReceipt */
 /** @typedef {import('../../utils/EventId.js').EventId} EventId */
@@ -27,12 +28,6 @@ export const CONFLICT_ANALYSIS_VERSION = 'conflict-analyzer/v2';
 export const CONFLICT_TRAVERSAL_ORDER = 'lamport_desc_writer_desc_patch_desc';
 export const CONFLICT_TRUNCATION_POLICY = 'scan_budget_max_patches_reverse_causal';
 export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
-
-const VALID_KINDS = new Set(['supersession', 'eventual_override', 'redundancy']);
-const VALID_EVIDENCE_LEVELS = new Set(['summary', 'standard', 'full']);
-const VALID_TARGET_KINDS = new Set(['node', 'edge', 'node_property', 'edge_property']);
-/** @type {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} */
-const TARGET_SELECTOR_FIELDS = ['entityId', 'propertyKey', 'from', 'to', 'label'];
 
 /**
  * Resolves a canonical op type to its TickReceipt-compatible name via OP_STRATEGIES.
@@ -56,39 +51,6 @@ const CLASSIFICATION_NOTES = Object.freeze({
   CONCURRENT_TO_WINNER: 'concurrent_to_winner',
   ORDERED_BEFORE_WINNER: 'ordered_before_winner',
 });
-
-/**
- * @typedef {{
- *   at?: { lamportCeiling?: number|null },
- *   strandId?: string,
- *   entityId?: string,
- *   target?: {
- *     targetKind: 'node'|'edge'|'node_property'|'edge_property',
- *     entityId?: string,
- *     propertyKey?: string,
- *     from?: string,
- *     to?: string,
- *     label?: string
- *   },
- *   kind?: string|string[],
- *   writerId?: string,
- *   evidence?: 'summary'|'standard'|'full',
- *   scanBudget?: { maxPatches?: number }
- * }} ConflictAnalyzeOptions
- */
-
-/**
- * @typedef {{
- *   lamportCeiling: number|null,
- *   strandId: string|null,
- *   entityId: string|null,
- *   target: ConflictAnalyzeOptions['target']|null,
- *   kinds: string[]|null,
- *   writerId: string|null,
- *   evidence: 'summary'|'standard'|'full',
- *   maxPatches: number|null
- * }} NormalizedConflictAnalyzeOptions
- */
 
 /**
  * @typedef {{
@@ -472,7 +434,7 @@ function targetTouchesEntity(target, entityId) {
  * Tests whether a conflict target matches a user-supplied target selector filter.
  *
  * @param {ConflictTarget} target - The conflict target to test.
- * @param {ConflictAnalyzeOptions['target']} selector - The filter selector, or undefined to match all.
+ * @param {import('./ConflictAnalysisRequest.js').ConflictTargetSelector|null|undefined} selector - The filter selector, or undefined to match all.
  * @returns {boolean} True if the target satisfies all selector constraints.
  */
 function matchesTargetSelector(target, selector) {
@@ -489,11 +451,13 @@ function matchesTargetSelector(target, selector) {
  * Checks that every specified selector field matches the target.
  *
  * @param {ConflictTarget} target - The conflict target.
- * @param {NonNullable<ConflictAnalyzeOptions['target']>} selector - The selector with fields to check.
+ * @param {import('./ConflictAnalysisRequest.js').ConflictTargetSelector} selector - The selector with fields to check.
  * @returns {boolean} True if all specified fields match.
  */
 function targetSelectorFieldsMatch(target, selector) {
-  for (const field of TARGET_SELECTOR_FIELDS) {
+  /** @type {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} */
+  const selectorFields = ['entityId', 'propertyKey', 'from', 'to', 'label'];
+  for (const field of selectorFields) {
     const selectorValue = selector[field];
     if (selectorValue !== undefined && target[field] !== selectorValue) {
       return false;
@@ -609,224 +573,6 @@ function cloneObject(raw) {
  */
 function describeLamportCeiling(lamportCeiling) {
   return lamportCeiling === null ? 'head' : String(lamportCeiling);
-}
-
-/**
- * Validates and normalizes an optional string field, returning null for absent values.
- *
- * @param {string} field - The field name for error messages.
- * @param {unknown} value - The raw value to normalize.
- * @returns {string|null} The validated string or null.
- */
-function normalizeOptionalString(field, value) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new QueryError(`analyzeConflicts(): ${field} must be a non-empty string when provided`, {
-      code: 'unsupported_target_selector',
-      context: { [field]: value },
-    });
-  }
-  return value;
-}
-
-/**
- * Validates and normalizes a lamport ceiling to a non-negative integer or null.
- *
- * @param {unknown} lamportCeiling - The raw ceiling value.
- * @returns {number|null} Validated ceiling or null for unbounded.
- */
-function normalizeLamportCeiling(lamportCeiling) {
-  if (lamportCeiling === undefined || lamportCeiling === null) {
-    return null;
-  }
-  if (!isValidLamportCeiling(lamportCeiling)) {
-    throw new QueryError('analyzeConflicts(): at.lamportCeiling must be a non-negative integer or null', {
-      code: 'invalid_coordinate',
-      context: { lamportCeiling },
-    });
-  }
-  return /** @type {number} */ (lamportCeiling);
-}
-
-/**
- * Checks whether a value is a valid lamport ceiling (non-negative integer).
- *
- * @param {unknown} value - The value to check.
- * @returns {boolean} True if the value is a valid ceiling.
- */
-function isValidLamportCeiling(value) {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
-/**
- * Validates and normalizes a target filter, delegating to per-kind validators.
- *
- * @param {ConflictAnalyzeOptions['target']} target - The raw target filter.
- * @returns {ConflictAnalyzeOptions['target']|null} Validated target or null.
- */
-function normalizeTargetFilter(target) {
-  if (target === undefined || target === null) {
-    return null;
-  }
-  if (typeof target !== 'object') {
-    throw new QueryError('analyzeConflicts(): target selector must be an object', {
-      code: 'unsupported_target_selector',
-      context: { target },
-    });
-  }
-  validateTargetByKind(target);
-  return target;
-}
-
-/**
- * Dispatches target validation to the appropriate kind-specific validator.
- *
- * @param {NonNullable<ConflictAnalyzeOptions['target']>} target - The target to validate.
- * @returns {void}
- */
-function validateTargetByKind(target) {
-  const { targetKind } = target;
-  if (!VALID_TARGET_KINDS.has(targetKind)) {
-    throw new QueryError('analyzeConflicts(): target.targetKind is unsupported', {
-      code: 'unsupported_target_selector',
-      context: { targetKind },
-    });
-  }
-  /** @type {Record<string, () => void>} */
-  const validators = {
-    /** Validates that node targets include entityId. */
-    node: () => validateTargetFields(target, ['entityId'], 'node target selector requires entityId'),
-    /** Validates that edge targets include from, to, and label. */
-    edge: () => validateTargetFields(target, ['from', 'to', 'label'], 'edge target selector requires from, to, and label'),
-    /** Validates that node property targets include entityId and propertyKey. */
-    node_property: () => validateTargetFields(target, ['entityId', 'propertyKey'], 'node_property selector requires entityId and propertyKey'),
-    /** Validates that edge property targets include from, to, label, and propertyKey. */
-    edge_property: () => validateTargetFields(target, ['from', 'to', 'label', 'propertyKey'], 'edge_property selector requires from, to, label, and propertyKey'),
-  };
-  const validator = validators[targetKind];
-  if (validator !== null && validator !== undefined) {
-    validator();
-  }
-}
-
-/**
- * Validates that specified fields are non-empty strings on a target selector.
- *
- * @param {ConflictAnalyzeOptions['target']} target - The target to validate.
- * @param {Array<'entityId'|'propertyKey'|'from'|'to'|'label'>} fields - Required field names.
- * @param {string} message - Error message if validation fails.
- * @returns {void}
- */
-function validateTargetFields(target, fields, message) {
-  const valid = fields.every((field) => typeof target?.[field] === 'string' && target[field].length > 0);
-  if (!valid) {
-    throw new QueryError(`analyzeConflicts(): ${message}`, {
-      code: 'unsupported_target_selector',
-      context: { target },
-    });
-  }
-}
-
-/**
- * Validates and normalizes a conflict kind filter into a sorted deduplicated array.
- *
- * @param {ConflictAnalyzeOptions['kind']} kind - The raw kind filter.
- * @returns {string[]|null} Normalized array of valid kinds or null.
- */
-function normalizeKinds(kind) {
-  if (kind === undefined) {
-    return null;
-  }
-  const values = Array.isArray(kind) ? kind : [kind];
-  if (values.length === 0) {
-    throw new QueryError('analyzeConflicts(): kind filter must not be empty', {
-      code: 'unsupported_target_selector',
-      context: { kind },
-    });
-  }
-  validateKindValues(values, kind);
-  return [...new Set(values)].sort(compareStrings);
-}
-
-/**
- * Validates that all kind values are recognized strings.
- *
- * @param {string[]} values - The kind values to check.
- * @param {ConflictAnalyzeOptions['kind']} kind - The original kind input for error context.
- * @returns {void}
- */
-function validateKindValues(values, kind) {
-  for (const value of values) {
-    if (typeof value !== 'string' || !VALID_KINDS.has(value)) {
-      throw new QueryError('analyzeConflicts(): kind filter contains an unsupported value', {
-        code: 'unsupported_target_selector',
-        context: { kind },
-      });
-    }
-  }
-}
-
-/**
- * Validates and normalizes the evidence level to one of the three valid tiers.
- *
- * @param {unknown} evidence - The raw evidence level.
- * @returns {'summary'|'standard'|'full'} Validated evidence level.
- */
-function normalizeEvidence(evidence) {
-  const normalized = evidence === undefined || evidence === null ? 'standard' : evidence;
-  if (typeof normalized !== 'string' || !VALID_EVIDENCE_LEVELS.has(normalized)) {
-    throw new QueryError('analyzeConflicts(): evidence must be summary, standard, or full', {
-      code: 'unsupported_target_selector',
-      context: { evidence },
-    });
-  }
-  return /** @type {'summary'|'standard'|'full'} */ (normalized);
-}
-
-/**
- * Validates and normalizes the scan budget maxPatches to a positive integer or null.
- *
- * @param {unknown} maxPatches - The raw maxPatches value.
- * @returns {number|null} Validated positive integer or null for unbounded.
- */
-function normalizeMaxPatches(maxPatches) {
-  if (maxPatches === undefined) {
-    return null;
-  }
-  if (
-    typeof maxPatches !== 'number' ||
-    !Number.isInteger(maxPatches) ||
-    maxPatches < 1
-  ) {
-    throw new QueryError('analyzeConflicts(): scanBudget.maxPatches must be a positive integer', {
-      code: 'unsupported_target_selector',
-      context: { maxPatches },
-    });
-  }
-  return maxPatches;
-}
-
-/**
- * Normalizes raw analysis options into a validated internal representation with defaults applied.
- *
- * @param {ConflictAnalyzeOptions|undefined} options - Raw user-supplied options.
- * @returns {NormalizedConflictAnalyzeOptions} Fully normalized options.
- */
-function normalizeOptions(options) {
-  const raw = options ?? {};
-  const normalizedStrandId = normalizeOptionalString('strandId', raw.strandId ?? raw.strandId);
-  return {
-    lamportCeiling: normalizeLamportCeiling(raw.at?.lamportCeiling),
-    strandId: normalizedStrandId,
-    entityId: normalizeOptionalString('entityId', raw.entityId),
-    target: normalizeTargetFilter(raw.target),
-    kinds: normalizeKinds(raw.kind),
-    writerId: normalizeOptionalString('writerId', raw.writerId),
-    evidence: normalizeEvidence(raw.evidence),
-    maxPatches: normalizeMaxPatches(raw.scanBudget?.maxPatches),
-  };
 }
 
 /**
@@ -1231,52 +977,6 @@ function buildResolutionComparator(comparatorType, winner, loser) {
  */
 function normalizeNoteCodes(noteCodes) {
   return [...new Set(noteCodes)].sort(compareStrings);
-}
-
-/**
- * Normalizes a target selector into a plain record for inclusion in snapshot hashes.
- *
- * @param {ConflictAnalyzeOptions['target']|null|undefined} selector - The target selector.
- * @returns {Record<string, unknown>|null} Plain record or null.
- */
-function normalizeTargetSelector(selector) {
-  if (selector === undefined || selector === null) {
-    return null;
-  }
-  /** @type {Record<string, unknown>} */
-  const result = { targetKind: selector.targetKind };
-  copyDefinedSelectorFields(result, selector);
-  return result;
-}
-
-/**
- * Copies defined selector fields into the result record for snapshot hashing.
- *
- * @param {Record<string, unknown>} result - The target record to populate.
- * @param {NonNullable<ConflictAnalyzeOptions['target']>} selector - The source selector.
- * @returns {void}
- */
-function copyDefinedSelectorFields(result, selector) {
-  for (const field of TARGET_SELECTOR_FIELDS) {
-    if (selector[field] !== undefined) {
-      result[field] = selector[field];
-    }
-  }
-}
-
-/**
- * Builds the filter record from normalized options for inclusion in snapshot hashes.
- *
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized analysis options.
- * @returns {Record<string, unknown>} Filter record for hashing.
- */
-function snapshotFilterRecord(normalized) {
-  return {
-    entityId: normalized.entityId,
-    target: normalizeTargetSelector(normalized.target),
-    kind: normalized.kinds,
-    writerId: normalized.writerId,
-  };
 }
 
 /**
@@ -2263,78 +1963,78 @@ function compareReceiptRefs(a, b) {
  * Tests whether a conflict trace passes all user-supplied filters (kind, entity, target, writer).
  *
  * @param {ConflictTrace} trace - The trace to test.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized filter options.
+ * @param {ConflictAnalysisRequest} request - The normalized filter request.
  * @returns {boolean} True if the trace passes all filters.
  */
-function matchesFilters(trace, normalized) {
-  return matchesKindFilter(trace, normalized)
-    && matchesEntityFilter(trace, normalized)
-    && matchesTargetFilter(trace, normalized)
-    && matchesWriterFilter(trace, normalized);
+function matchesFilters(trace, request) {
+  return matchesKindFilter(trace, request)
+    && matchesEntityFilter(trace, request)
+    && matchesTargetFilter(trace, request)
+    && matchesWriterFilter(trace, request);
 }
 
 /**
  * Checks whether a trace passes the kind filter.
  *
  * @param {ConflictTrace} trace - The trace to test.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @param {ConflictAnalysisRequest} request - The filter request.
  * @returns {boolean} True if the trace passes.
  */
-function matchesKindFilter(trace, normalized) {
-  return normalized.kinds === null || normalized.kinds.includes(trace.kind);
+function matchesKindFilter(trace, request) {
+  return request.kinds === null || request.kinds.includes(trace.kind);
 }
 
 /**
  * Checks whether a trace passes the entity filter.
  *
  * @param {ConflictTrace} trace - The trace to test.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @param {ConflictAnalysisRequest} request - The filter request.
  * @returns {boolean} True if the trace passes.
  */
-function matchesEntityFilter(trace, normalized) {
-  if (typeof normalized.entityId !== 'string' || normalized.entityId.length === 0) {
+function matchesEntityFilter(trace, request) {
+  if (typeof request.entityId !== 'string' || request.entityId.length === 0) {
     return true;
   }
-  return targetTouchesEntity(trace.target, normalized.entityId);
+  return targetTouchesEntity(trace.target, request.entityId);
 }
 
 /**
  * Checks whether a trace passes the target selector filter.
  *
  * @param {ConflictTrace} trace - The trace to test.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @param {ConflictAnalysisRequest} request - The filter request.
  * @returns {boolean} True if the trace passes.
  */
-function matchesTargetFilter(trace, normalized) {
-  if (normalized.target === null || normalized.target === undefined) {
+function matchesTargetFilter(trace, request) {
+  if (request.target === null || request.target === undefined) {
     return true;
   }
-  return matchesTargetSelector(trace.target, normalized.target);
+  return matchesTargetSelector(trace.target, request.target);
 }
 
 /**
  * Checks whether a trace passes the writer filter.
  *
  * @param {ConflictTrace} trace - The trace to test.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The filter options.
+ * @param {ConflictAnalysisRequest} request - The filter request.
  * @returns {boolean} True if the trace passes.
  */
-function matchesWriterFilter(trace, normalized) {
-  if (typeof normalized.writerId !== 'string' || normalized.writerId.length === 0) {
+function matchesWriterFilter(trace, request) {
+  if (typeof request.writerId !== 'string' || request.writerId.length === 0) {
     return true;
   }
-  return traceTouchesWriter(trace, normalized.writerId);
+  return traceTouchesWriter(trace, request.writerId);
 }
 
 /**
  * Filters an array of conflict traces against the normalized analysis options.
  *
  * @param {ConflictTrace[]} traces - The traces to filter.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized filter options.
+ * @param {ConflictAnalysisRequest} request - The normalized filter request.
  * @returns {ConflictTrace[]} Traces that match all filters.
  */
-function filterTraces(traces, normalized) {
-  return traces.filter((trace) => matchesFilters(trace, normalized));
+function filterTraces(traces, request) {
+  return traces.filter((trace) => matchesFilters(trace, request));
 }
 
 /**
@@ -2343,7 +2043,7 @@ function filterTraces(traces, normalized) {
  * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
- *   normalized: NormalizedConflictAnalyzeOptions,
+ *   request: ConflictAnalysisRequest,
  *   truncated: boolean,
  *   diagnostics: ConflictDiagnostic[],
  *   traces: ConflictTrace[]
@@ -2352,7 +2052,7 @@ function filterTraces(traces, normalized) {
  */
 async function buildAnalysisSnapshotHash(service, {
   resolvedCoordinate,
-  normalized,
+  request,
   truncated,
   diagnostics,
   traces,
@@ -2360,7 +2060,7 @@ async function buildAnalysisSnapshotHash(service, {
   return await service._hash({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
-    filters: snapshotFilterRecord(normalized),
+    filters: request.toSnapshotFilterRecord(),
     truncation: truncated,
     conflictIds: traces.map((trace) => trace.conflictId).sort(compareStrings),
     diagnosticCodes: diagnosticCodes(diagnostics),
@@ -2373,15 +2073,15 @@ async function buildAnalysisSnapshotHash(service, {
  * @param {ConflictAnalyzerService} service - The analyzer service for hashing.
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
- *   normalized: NormalizedConflictAnalyzeOptions
+ *   request: ConflictAnalysisRequest
  * }} options - Empty snapshot inputs.
  * @returns {Promise<string>} Hex-encoded snapshot hash.
  */
-async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized }) {
+async function buildEmptySnapshotHash(service, { resolvedCoordinate, request }) {
   return await service._hash({
     analysisVersion: CONFLICT_ANALYSIS_VERSION,
     resolvedCoordinate,
-    filters: snapshotFilterRecord(normalized),
+    filters: request.toSnapshotFilterRecord(),
     truncation: false,
     conflictIds: [],
     diagnosticCodes: [],
@@ -2392,28 +2092,28 @@ async function buildEmptySnapshotHash(service, { resolvedCoordinate, normalized 
  * Resolves the analysis context by loading patch frames from either a strand or the frontier.
  *
  * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options.
+ * @param {ConflictAnalysisRequest} request - The normalized request.
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
  */
-async function resolveAnalysisContext(service, normalized) {
-  if (typeof normalized.strandId === 'string' && normalized.strandId.length > 0) {
-    return await resolveStrandContext(service, normalized);
+async function resolveAnalysisContext(service, request) {
+  if (request.usesStrandCoordinate()) {
+    return await resolveStrandContext(service, request);
   }
-  return await resolveFrontierContext(service, normalized);
+  return await resolveFrontierContext(service, request);
 }
 
 /**
  * Resolves the analysis context from a strand, loading its patches and building the coordinate.
  *
  * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options with strandId.
+ * @param {ConflictAnalysisRequest} request - The normalized request with strandId.
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
  */
-async function resolveStrandContext(service, normalized) {
+async function resolveStrandContext(service, request) {
   const strands = new StrandService({ graph: service._graph });
-  const descriptor = await strands.getOrThrow(/** @type {string} */ (normalized.strandId));
-  const entries = await strands.getPatchEntries(/** @type {string} */ (normalized.strandId), {
-    ceiling: normalized.lamportCeiling,
+  const descriptor = await strands.getOrThrow(/** @type {string} */ (request.strandId));
+  const entries = await strands.getPatchEntries(/** @type {string} */ (request.strandId), {
+    ceiling: request.lamportCeiling,
   });
   const frontier = new Map(
     Object.entries(descriptor.baseObservation.frontier).sort(([a], [b]) => compareStrings(a, b)),
@@ -2423,8 +2123,8 @@ async function resolveStrandContext(service, normalized) {
     resolvedCoordinate: buildResolvedCoordinate({
       coordinateKind: 'strand',
       frontier,
-      lamportCeiling: normalized.lamportCeiling,
-      maxPatches: normalized.maxPatches,
+      lamportCeiling: request.lamportCeiling,
+      maxPatches: request.maxPatches,
       frontierDigest: descriptor.baseObservation.frontierDigest,
       strand: buildResolvedStrandMetadata(descriptor),
     }),
@@ -2435,13 +2135,13 @@ async function resolveStrandContext(service, normalized) {
  * Resolves the analysis context from the frontier, loading all writer patches.
  *
  * @param {ConflictAnalyzerService} service - The analyzer service.
- * @param {NormalizedConflictAnalyzeOptions} normalized - The normalized options.
+ * @param {ConflictAnalysisRequest} request - The normalized request.
  * @returns {Promise<{ patchFrames: PatchFrame[], resolvedCoordinate: ConflictResolvedCoordinate }>} Context.
  */
-async function resolveFrontierContext(service, normalized) {
+async function resolveFrontierContext(service, request) {
   const { frontier, patchFrames } = await loadFrontierPatchFrames(
     service._graph,
-    normalized.lamportCeiling,
+    request.lamportCeiling,
   );
   const frontierDigest = await service._hash(frontierToRecord(frontier));
   return {
@@ -2449,8 +2149,8 @@ async function resolveFrontierContext(service, normalized) {
     resolvedCoordinate: buildResolvedCoordinate({
       coordinateKind: 'frontier',
       frontier,
-      lamportCeiling: normalized.lamportCeiling,
-      maxPatches: normalized.maxPatches,
+      lamportCeiling: request.lamportCeiling,
+      maxPatches: request.maxPatches,
       frontierDigest,
     }),
   };
@@ -2514,18 +2214,18 @@ export class ConflictAnalyzerService {
   /**
    * Performs a full conflict analysis over the patch history, returning all detected traces.
    *
-   * @param {ConflictAnalyzeOptions} [options] - Optional analysis filters and budget.
-   * @returns {Promise<ConflictAnalysis>} The complete analysis result.
-   */
+ * @param {ConflictAnalyzeOptions} [options] - Optional analysis filters and budget.
+  * @returns {Promise<ConflictAnalysis>} The complete analysis result.
+  */
   async analyze(options) {
-    const normalized = normalizeOptions(options);
+    const request = ConflictAnalysisRequest.from(options);
     /** @type {ConflictDiagnostic[]} */
     const diagnostics = [];
-    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, normalized);
+    const { patchFrames, resolvedCoordinate } = await resolveAnalysisContext(this, request);
     if (patchFrames.length === 0) {
-      return await buildEmptyAnalysis(this, { resolvedCoordinate, normalized, diagnostics });
+      return await buildEmptyAnalysis(this, { resolvedCoordinate, request, diagnostics });
     }
-    return await runFullAnalysis(this, { patchFrames, resolvedCoordinate, normalized, diagnostics });
+    return await runFullAnalysis(this, { patchFrames, resolvedCoordinate, request, diagnostics });
   }
 }
 
@@ -2535,15 +2235,15 @@ export class ConflictAnalyzerService {
  * @param {ConflictAnalyzerService} service - The analyzer service.
  * @param {{
  *   resolvedCoordinate: ConflictResolvedCoordinate,
- *   normalized: NormalizedConflictAnalyzeOptions,
+ *   request: ConflictAnalysisRequest,
  *   diagnostics: ConflictDiagnostic[]
  * }} options - Empty analysis parameters.
  * @returns {Promise<ConflictAnalysis>} The empty analysis result.
  */
-async function buildEmptyAnalysis(service, { resolvedCoordinate, normalized, diagnostics }) {
+async function buildEmptyAnalysis(service, { resolvedCoordinate, request, diagnostics }) {
   return buildConflictAnalysisResult({
     resolvedCoordinate,
-    analysisSnapshotHash: await buildEmptySnapshotHash(service, { resolvedCoordinate, normalized }),
+    analysisSnapshotHash: await buildEmptySnapshotHash(service, { resolvedCoordinate, request }),
     diagnostics,
     conflicts: [],
   });
@@ -2556,25 +2256,25 @@ async function buildEmptyAnalysis(service, { resolvedCoordinate, normalized, dia
  * @param {{
  *   patchFrames: PatchFrame[],
  *   resolvedCoordinate: ConflictResolvedCoordinate,
- *   normalized: NormalizedConflictAnalyzeOptions,
+ *   request: ConflictAnalysisRequest,
  *   diagnostics: ConflictDiagnostic[]
  * }} options - Full analysis parameters.
  * @returns {Promise<ConflictAnalysis>} The complete analysis result.
  */
-async function runFullAnalysis(service, { patchFrames, resolvedCoordinate, normalized, diagnostics }) {
+async function runFullAnalysis(service, { patchFrames, resolvedCoordinate, request, diagnostics }) {
   attachReceipts(patchFrames);
   const scanWindow = buildScanWindow({
-    patchFrames, maxPatches: normalized.maxPatches, lamportCeiling: normalized.lamportCeiling, diagnostics,
+    patchFrames, maxPatches: request.maxPatches, lamportCeiling: request.lamportCeiling, diagnostics,
   });
   const collector = await collectConflictData(service, {
     patchFrames, scannedPatchShas: scanWindow.scannedPatchShas, diagnostics,
   });
   const traces = await buildConflictTraces(service, {
-    grouped: groupCandidates(collector.candidates).values(), evidence: normalized.evidence, resolvedCoordinate,
+    grouped: groupCandidates(collector.candidates).values(), evidence: request.evidence, resolvedCoordinate,
   });
-  const conflicts = filterTraces(traces, normalized);
+  const conflicts = filterTraces(traces, request);
   const analysisSnapshotHash = await buildAnalysisSnapshotHash(service, {
-    resolvedCoordinate, normalized, truncated: scanWindow.truncated, diagnostics, traces: conflicts,
+    resolvedCoordinate, request, truncated: scanWindow.truncated, diagnostics, traces: conflicts,
   });
   return buildConflictAnalysisResult({ resolvedCoordinate, analysisSnapshotHash, diagnostics, conflicts });
 }
