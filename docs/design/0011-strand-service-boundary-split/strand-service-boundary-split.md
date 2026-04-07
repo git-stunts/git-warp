@@ -1,6 +1,6 @@
 # Cycle 0011 — StrandService Boundary Split
 
-**Status:** DESIGN
+**Status:** IMPLEMENTED
 
 **Date:** 2026-04-06
 
@@ -157,6 +157,48 @@ behavior under the existing tests.
 - noCoordination suite remains green
 - no fake runtime modeling: avoid typedef cosplay and tag-switching
   disguised as decomposition
+
+## Result (2026-04-06)
+
+### What shipped
+
+- extracted `StrandDescriptorStore`
+- extracted `StrandMaterializer`
+- extracted `StrandPatchService`
+- extracted `StrandIntentService`
+- extracted shared helper support into `strandShared.js`
+- centralized the strand typedef corridor into `strandTypes.js`
+- removed dead seam-wrapper methods from `StrandService` and pointed
+  seam tests at the real collaborators
+- restored merge-readiness by making `npm run lint`,
+  `npm run typecheck:src`, and `npm run test:coverage` all green on the
+  branch
+
+### End state
+
+`StrandService` is now materially thinner and acts as a façade over the
+four explicit collaborator seams named in the hill.
+
+Approximate source size movement during the cycle:
+
+| File | Final LOC |
+|------|-----------|
+| `StrandService.js` | `1186` |
+| `StrandDescriptorStore.js` | `643` |
+| `StrandPatchService.js` | `484` |
+| `StrandIntentService.js` | `456` |
+| `StrandMaterializer.js` | `215` |
+| `strandShared.js` | `128` |
+| `strandTypes.js` | `88` |
+
+The remaining residue is now explicit and smaller in scope:
+
+- `StrandService` still carries some domain-level helper logic for
+  strand creation, braid option normalization, and public façade shape
+- the strand model is still typedef-backed rather than constructor-backed
+  runtime nouns
+- those remaining model concerns are backlogged explicitly instead of
+  being hidden inside one god object
 
 ## Related
 
