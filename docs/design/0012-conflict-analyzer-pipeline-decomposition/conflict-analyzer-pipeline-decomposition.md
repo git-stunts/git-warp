@@ -47,8 +47,8 @@ guardrails.
 
 ## Baseline
 
-`ConflictAnalyzerService.js` is still the largest source file in the
-repo at roughly `2582` LOC.
+`ConflictAnalyzerService.js` started at roughly `2582` LOC. After
+phases 1–2 it is down to `2017` LOC with 9 domain types extracted.
 
 It currently mixes at least these concern families:
 
@@ -98,26 +98,48 @@ against this checklist and all items must be green:
 
 ## Phases
 
-### Phase 1 — Lock the behavior
+### Phase 1 — Extract request normalization ✅
 
-- re-read current analyzer tests
-- add seam-lock tests only where extraction risk is not already pinned
+- extracted `ConflictAnalysisRequest` as runtime-backed class
+- 100% coverage on the new class
 
-### Phase 2 — Extract request and frame loading
+### Phase 2 — Runtime-backed conflict domain types ✅
 
-- isolate request normalization
+- converted 9 phantom typedefs to frozen, validated classes under
+  `src/domain/types/conflict/`: ConflictAnchor, ConflictTarget,
+  ConflictDiagnostic, ConflictResolution, ConflictWinner,
+  ConflictParticipant, ConflictResolvedCoordinate, ConflictTrace,
+  ConflictAnalysis
+- shared validation utilities in `validation.js`
+- absorbed homeless helper functions onto owning types
+  (anchorString, compareAnchors, targetTouchesEntity,
+  matchesTargetSelector, traceTouchesWriter, compareConflictTraces)
+- wired all construction sites in `ConflictAnalyzerService`
+- removed 265 lines of dead typedefs and absorbed functions
+- 100% coverage on all 10 new files (135 tests)
+- 6 internal pipeline typedefs deferred (PatchFrame, OpRecord,
+  ConflictCandidate, GroupedConflict, ConflictCollector, ScanWindow)
+  — these become classes when their owning modules are extracted
+
+### Phase 3 — Extract frame loading
+
 - isolate frontier and strand context loading
+- isolate receipt attachment and scan windowing
+- target collaborator: `ConflictFrameLoader`
 
-### Phase 3 — Extract record and candidate building
+### Phase 4 — Extract record and candidate building
 
 - isolate receipt-to-record and target construction
 - isolate candidate collection and classification
+- target collaborators: `ConflictRecordBuilder`,
+  `ConflictCandidateCollector`
 
-### Phase 4 — Extract trace assembly
+### Phase 5 — Extract trace assembly
 
 - isolate grouping, notes, filtering, and snapshot hashing
+- target collaborator: `ConflictTraceAssembler`
 
-### Phase 5 — Clean the facade
+### Phase 6 — Clean the facade
 
 - reduce `ConflictAnalyzerService` to orchestration
 - remove duplicate normalization and dead helper corridors
