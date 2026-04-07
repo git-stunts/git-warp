@@ -2,6 +2,8 @@ node_modules/
 .DS_Store
 .vite/
 .claude/
+.codex/
+.mcp.json
 coverage/
 CLAUDE.md
 TASKS-DO-NOT-CHECK-IN.md
