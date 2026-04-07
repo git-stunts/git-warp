@@ -128,6 +128,10 @@ describe('NodeRemove', () => {
     expect(() => new NodeRemove('n1', /** @type {any} */ ('alice:1'))).toThrow();
   });
 
+  it('throws when observedDots contains an empty string', () => {
+    expect(() => new NodeRemove('n1', [''])).toThrow(/observedDots\[0\]/);
+  });
+
   it('accepts empty observedDots array', () => {
     const op = new NodeRemove('user:alice', []);
     expect(op.observedDots).toEqual([]);
@@ -243,6 +247,10 @@ describe('EdgeRemove', () => {
 
   it('throws when observedDots is not an array', () => {
     expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'rel', observedDots: /** @type {any} */ ('w:1') })).toThrow();
+  });
+
+  it('throws when observedDots contains an empty string', () => {
+    expect(() => new EdgeRemove({ from: 'n1', to: 'n2', label: 'rel', observedDots: [''] })).toThrow(/observedDots\[0\]/);
   });
 
   it('rejects from/to/label containing NUL byte', () => {
@@ -407,6 +415,10 @@ describe('PropSet (raw/wire format)', () => {
 
   it('throws on empty key', () => {
     expect(() => new PropSet('n1', '', 'v')).toThrow();
+  });
+
+  it('rejects key containing NUL byte', () => {
+    expect(() => new PropSet('n1', 'k\x00ey', 'v')).toThrow(/NUL/);
   });
 
   it('accepts edge-property encoded node (\\x01 prefix)', () => {

@@ -28,6 +28,9 @@ export default class NodeRemove extends Op {
     assertNonEmptyString(node, 'NodeRemove', 'node');
     assertNoReservedBytes(node, 'NodeRemove', 'node');
     assertArray(observedDots, 'NodeRemove', 'observedDots');
+    for (let i = 0; i < observedDots.length; i += 1) {
+      assertNonEmptyString(observedDots[i], 'NodeRemove', `observedDots[${i}]`);
+    }
     this.node = node;
     this.observedDots = Object.freeze([...observedDots]);
     Object.freeze(this);

@@ -9,7 +9,7 @@
  */
 
 import Op from './Op.js';
-import { assertNonEmptyString } from './validate.js';
+import { assertNonEmptyString, assertNoReservedBytes } from './validate.js';
 
 /**
  * Sets a property on a node (raw wire format).
@@ -36,6 +36,7 @@ export default class PropSet extends Op {
     super('PropSet');
     assertNonEmptyString(node, 'PropSet', 'node');
     assertNonEmptyString(key, 'PropSet', 'key');
+    assertNoReservedBytes(key, 'PropSet', 'key');
     this.node = node;
     this.key = key;
     this.value = value;

@@ -37,6 +37,9 @@ export default class EdgeRemove extends Op {
     assertNoReservedBytes(to, 'EdgeRemove', 'to');
     assertNoReservedBytes(label, 'EdgeRemove', 'label');
     assertArray(observedDots, 'EdgeRemove', 'observedDots');
+    for (let i = 0; i < observedDots.length; i += 1) {
+      assertNonEmptyString(observedDots[i], 'EdgeRemove', `observedDots[${i}]`);
+    }
     this.from = from;
     this.to = to;
     this.label = label;
