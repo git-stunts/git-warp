@@ -419,30 +419,13 @@ async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, 
 // ── Resolution building ─────────────────────────────────────────────
 
 /**
- * Builds a ConflictResolution from candidate parameters.
+ * Builds a ConflictResolution from candidate parameters via the class factory.
  *
  * @param {{ kind: string, code: string, winner: OpRecord, loser: OpRecord }} options
  * @returns {ConflictResolution}
  */
 function buildResolution({ kind, code, winner, loser }) {
-  const comparatorType = kind === 'redundancy' ? 'effect_digest' : 'event_id';
-  const basis = { code };
-  if (typeof loser.receiptReason === 'string' && loser.receiptReason.length > 0) {
-    /** @type {{ code: string, reason?: string }} */ (basis).reason = loser.receiptReason;
-  }
-  const comparator = comparatorType !== 'event_id'
-    ? { type: comparatorType }
-    : {
-      type: comparatorType,
-      winnerEventId: { lamport: winner.eventId.lamport, writerId: winner.eventId.writerId, patchSha: winner.eventId.patchSha, opIndex: winner.eventId.opIndex },
-      loserEventId: { lamport: loser.eventId.lamport, writerId: loser.eventId.writerId, patchSha: loser.eventId.patchSha, opIndex: loser.eventId.opIndex },
-    };
-  return new ConflictResolution({
-    reducerId: CONFLICT_REDUCER_ID,
-    basis,
-    winnerMode: kind === 'eventual_override' ? 'eventual' : 'immediate',
-    comparator,
-  });
+  return ConflictResolution.fromCandidate({ reducerId: CONFLICT_REDUCER_ID, kind, code, winner, loser });
 }
 
 /**
@@ -554,7 +537,7 @@ function isEventualOverrideLoser(loser, finalWinner, scannedPatchShas) {
  * @param {OpRecord} finalWinner
  * @param {Set<string>} scannedPatchShas
  */
-function emitEventualOverridesForTarget(collector, history, finalWinner, scannedPatchShas) {
+function emitEventualOverridesForTarget(collector, { history, finalWinner, scannedPatchShas }) {
   for (const loser of history) {
     if (!isEventualOverrideLoser(loser, finalWinner, scannedPatchShas)) {
       continue;
@@ -585,7 +568,7 @@ function addEventualOverrideCandidates(collector, scannedPatchShas) {
     if (finalWinner === undefined) {
       continue;
     }
-    emitEventualOverridesForTarget(collector, history, finalWinner, scannedPatchShas);
+    emitEventualOverridesForTarget(collector, { history, finalWinner, scannedPatchShas });
   }
 }
 
@@ -597,7 +580,7 @@ function addEventualOverrideCandidates(collector, scannedPatchShas) {
  * @param {string} sha
  * @param {Set<string>} scannedPatchShas
  */
-function processAnalyzedRecord(collector, record, sha, scannedPatchShas) {
+function processAnalyzedRecord(collector, { record, sha, scannedPatchShas }) {
   const currentPropertyWinner = collector.propertyWinnerByTarget.get(record.targetKey) ?? null;
   const priorEquivalent = collector.equivalentWinnerByTargetEffect.get(effectKey(record.target, record.effectDigest)) ?? null;
   if (scannedPatchShas.has(sha)) {
@@ -619,7 +602,7 @@ function processAnalyzedRecord(collector, record, sha, scannedPatchShas) {
  * @param {ConflictCandidateCollector} collector
  * @returns {Promise<void>}
  */
-async function analyzeFrameOps(service, frame, scannedPatchShas, diagnostics, collector) {
+async function analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, collector }) {
   const { patch, receipt, sha } = frame;
   let receiptOpIndex = 0;
   for (let opIndex = 0; opIndex < patch.ops.length; opIndex++) {
@@ -631,7 +614,7 @@ async function analyzeFrameOps(service, frame, scannedPatchShas, diagnostics, co
     if (result.record === null) {
       continue;
     }
-    processAnalyzedRecord(collector, result.record, sha, scannedPatchShas);
+    processAnalyzedRecord(collector, { record: result.record, sha, scannedPatchShas });
   }
 }
 
@@ -643,6 +626,9 @@ async function analyzeFrameOps(service, frame, scannedPatchShas, diagnostics, co
  * Use the static `collect` factory to build a fully populated instance.
  */
 export class ConflictCandidateCollector {
+  /**
+   * Creates an empty collector. Use `ConflictCandidateCollector.collect()` to populate.
+   */
   constructor() {
     this.propertyWinnerByTarget = new Map();
     this.propertyAppliedHistory = new Map();
@@ -664,7 +650,7 @@ export class ConflictCandidateCollector {
   static async collect(service, { patchFrames, scannedPatchShas, diagnostics }) {
     const collector = new ConflictCandidateCollector();
     for (const frame of patchFrames) {
-      await analyzeFrameOps(service, frame, scannedPatchShas, diagnostics, collector);
+      await analyzeFrameOps(service, { frame, scannedPatchShas, diagnostics, collector });
     }
     addEventualOverrideCandidates(collector, scannedPatchShas);
     return collector;

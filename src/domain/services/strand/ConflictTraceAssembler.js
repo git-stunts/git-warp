@@ -14,20 +14,7 @@ import {
   CONFLICT_ANALYSIS_VERSION,
 } from './ConflictFrameLoader.js';
 
-import ConflictCandidate from './ConflictCandidate.js';
-import OpRecord from './OpRecord.js';
 
-const CLASSIFICATION_NOTES = Object.freeze({
-  RECEIPT_SUPERSEDED: 'receipt_superseded',
-  RECEIPT_REDUNDANT: 'receipt_redundant',
-  SAME_TARGET: 'same_target',
-  DIFFERENT_WRITER: 'different_writer',
-  DIGEST_DIFFERS: 'digest_differs',
-  EFFECTIVE_THEN_LOST: 'effective_then_lost',
-  REPLAY_EQUIVALENT_EFFECT: 'replay_equivalent_effect',
-  CONCURRENT_TO_WINNER: 'concurrent_to_winner',
-  ORDERED_BEFORE_WINNER: 'ordered_before_winner',
-});
 
 // ── Grouping ────────────────────────────────────────────────────────
 
@@ -96,41 +83,6 @@ export function groupCandidates(candidates) {
 // ── Winner/loser building ───────────────────────────────────────────
 
 /**
- * Wraps a winning OpRecord into a ConflictWinner.
- *
- * @param {OpRecord} winner - The winning operation record.
- * @returns {ConflictWinner}
- */
-function buildWinner(winner) {
-  return new ConflictWinner({
-    anchor: ConflictAnchor.fromRecord(winner),
-    effectDigest: winner.effectDigest,
-  });
-}
-
-/**
- * Builds a ConflictParticipant for a single loser.
- *
- * @param {OpRecord} winner - The winning operation record.
- * @param {OpRecord} loser - The losing operation record.
- * @param {'supersession'|'eventual_override'|'redundancy'} kind - The conflict kind.
- * @param {'summary'|'standard'|'full'} evidence - The evidence level.
- * @returns {ConflictParticipant}
- */
-function buildLoserParticipant(winner, loser, kind, evidence) {
-  const relation = inferCausalRelation(winner, loser);
-  const notes = evidence === 'full' ? buildLoserNotes(winner, loser, kind, relation) : undefined;
-  return new ConflictParticipant({
-    anchor: ConflictAnchor.fromRecord(loser),
-    effectDigest: loser.effectDigest,
-    causalRelationToWinner: relation,
-    structurallyDistinctAlternative: loser.effectDigest !== winner.effectDigest,
-    replayableFromAnchors: true,
-    notes,
-  });
-}
-
-/**
  * Builds the sorted array of ConflictParticipant losers from a grouped conflict.
  *
  * @param {GroupedConflict} group - The grouped conflict.
@@ -139,60 +91,8 @@ function buildLoserParticipant(winner, loser, kind, evidence) {
  */
 function buildLosers(group, evidence) {
   return group.losers
-    .map((loser) => buildLoserParticipant(group.winner, loser, group.kind, evidence))
+    .map((loser) => ConflictParticipant.fromRecord({ winner: group.winner, loser, kind: group.kind, evidence, inferCausalRelation }))
     .sort((a, b) => ConflictAnchor.compare(a.anchor, b.anchor));
-}
-
-/**
- * Builds detailed classification notes for a loser participant.
- *
- * @param {OpRecord} winner
- * @param {OpRecord} loser
- * @param {'supersession'|'eventual_override'|'redundancy'} kind
- * @param {ConflictParticipant['causalRelationToWinner']} relation
- * @returns {string[]}
- */
-function buildLoserNotes(winner, loser, kind, relation) {
-  const notes = [CLASSIFICATION_NOTES.SAME_TARGET];
-  appendKindNotes(notes, kind);
-  appendRelationNotes(notes, relation);
-  if (loser.writerId !== winner.writerId) {
-    notes.push(CLASSIFICATION_NOTES.DIFFERENT_WRITER);
-  }
-  return [...new Set(notes)].sort(compareStrings);
-}
-
-/**
- * Appends kind-specific classification notes.
- *
- * @param {string[]} notes
- * @param {'supersession'|'eventual_override'|'redundancy'} kind
- */
-function appendKindNotes(notes, kind) {
-  if (kind === 'supersession') {
-    notes.push(CLASSIFICATION_NOTES.RECEIPT_SUPERSEDED);
-  }
-  if (kind === 'redundancy') {
-    notes.push(CLASSIFICATION_NOTES.RECEIPT_REDUNDANT, CLASSIFICATION_NOTES.REPLAY_EQUIVALENT_EFFECT);
-  }
-  if (kind === 'eventual_override') {
-    notes.push(CLASSIFICATION_NOTES.EFFECTIVE_THEN_LOST, CLASSIFICATION_NOTES.DIGEST_DIFFERS);
-  }
-}
-
-/**
- * Appends causal-relation classification notes.
- *
- * @param {string[]} notes
- * @param {ConflictParticipant['causalRelationToWinner']} relation
- */
-function appendRelationNotes(notes, relation) {
-  if (relation === 'concurrent') {
-    notes.push(CLASSIFICATION_NOTES.CONCURRENT_TO_WINNER);
-  }
-  if (relation === 'ordered') {
-    notes.push(CLASSIFICATION_NOTES.ORDERED_BEFORE_WINNER);
-  }
 }
 
 // ── Trace building ──────────────────────────────────────────────────
@@ -277,7 +177,7 @@ function buildConflictIdInput({ group, winner, losers, resolvedCoordinate }) {
  * @returns {Promise<ConflictTrace>}
  */
 async function buildConflictTrace(service, { group, evidence, resolvedCoordinate }) {
-  const winner = buildWinner(group.winner);
+  const winner = ConflictWinner.fromRecord(group.winner);
   const losers = buildLosers(group, evidence);
   const whyFingerprint = await service._hash(buildWhyFingerprintInput(group, losers));
   const conflictId = await service._hash(buildConflictIdInput({ group, winner, losers, resolvedCoordinate }));
@@ -319,21 +219,7 @@ export async function buildConflictTraces(service, { grouped, evidence, resolved
  * @returns {ConflictTrace[]}
  */
 export function filterTraces(traces, request) {
-  return traces.filter((trace) => {
-    if (request.kinds !== null && !request.kinds.includes(trace.kind)) {
-      return false;
-    }
-    if (typeof request.entityId === 'string' && request.entityId.length > 0 && !trace.target.touchesEntity(request.entityId)) {
-      return false;
-    }
-    if (request.target !== null && request.target !== undefined && !trace.target.matchesSelector(request.target)) {
-      return false;
-    }
-    if (typeof request.writerId === 'string' && request.writerId.length > 0 && !trace.touchesWriter(request.writerId)) {
-      return false;
-    }
-    return true;
-  });
+  return traces.filter((trace) => request.matchesTrace(trace));
 }
 
 // ── Snapshot hashing ────────────────────────────────────────────────

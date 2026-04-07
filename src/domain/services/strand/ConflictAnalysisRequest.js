@@ -190,6 +190,33 @@ export default class ConflictAnalysisRequest {
    *
    * @returns {ConflictSnapshotFilterRecord}
    */
+  /**
+   * Tests whether a conflict trace passes all filters in this request.
+   *
+   * @param {{ kind: string, target: { touchesEntity: Function, matchesSelector: Function }, touchesWriter: Function }} trace - The trace to test.
+   * @returns {boolean} True if the trace matches all criteria.
+   */
+  matchesTrace(trace) {
+    if (this.kinds !== null && !this.kinds.includes(trace.kind)) {
+      return false;
+    }
+    if (typeof this.entityId === 'string' && this.entityId.length > 0 && !trace.target.touchesEntity(this.entityId)) {
+      return false;
+    }
+    if (this.target !== null && this.target !== undefined && !trace.target.matchesSelector(this.target)) {
+      return false;
+    }
+    if (typeof this.writerId === 'string' && this.writerId.length > 0 && !trace.touchesWriter(this.writerId)) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns a serializable record of the active filters for snapshot hashing.
+   *
+   * @returns {Record<string, unknown>}
+   */
   toSnapshotFilterRecord() {
     return {
       entityId: this.entityId,

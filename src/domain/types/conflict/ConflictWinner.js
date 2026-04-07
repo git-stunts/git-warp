@@ -31,4 +31,17 @@ export default class ConflictWinner {
     this.effectDigest = requireNonEmptyString(effectDigest, 'effectDigest', CTX);
     Object.freeze(this);
   }
+
+  /**
+   * Creates a ConflictWinner from an OpRecord.
+   *
+   * @param {{ patchSha: string, writerId: string, lamport: number, opIndex: number, receiptOpIndex: number, effectDigest: string }} record - The winning operation record.
+   * @returns {ConflictWinner}
+   */
+  static fromRecord(record) {
+    return new ConflictWinner({
+      anchor: ConflictAnchor.fromRecord(record),
+      effectDigest: record.effectDigest,
+    });
+  }
 }

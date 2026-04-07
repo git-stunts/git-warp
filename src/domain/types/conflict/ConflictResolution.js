@@ -101,4 +101,36 @@ export default class ConflictResolution {
     this.comparator = freezeComparator(comparator);
     Object.freeze(this);
   }
+
+  /**
+   * Builds a ConflictResolution from conflict candidate parameters.
+   *
+   * @param {{
+   *   reducerId: string,
+   *   kind: string,
+   *   code: string,
+   *   winner: { eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number } },
+   *   loser: { receiptReason?: string, eventId: { lamport: number, writerId: string, patchSha: string, opIndex: number } }
+   * }} options - Candidate resolution parameters.
+   * @returns {ConflictResolution}
+   */
+  static fromCandidate({ reducerId, kind, code, winner, loser }) {
+    const basis = { code };
+    if (typeof loser.receiptReason === 'string' && loser.receiptReason.length > 0) {
+      /** @type {{ code: string, reason?: string }} */ (basis).reason = loser.receiptReason;
+    }
+    const comparator = kind === 'redundancy'
+      ? { type: 'effect_digest' }
+      : {
+        type: 'event_id',
+        winnerEventId: { ...winner.eventId },
+        loserEventId: { ...loser.eventId },
+      };
+    return new ConflictResolution({
+      reducerId,
+      basis,
+      winnerMode: kind === 'eventual_override' ? 'eventual' : 'immediate',
+      comparator,
+    });
+  }
 }
