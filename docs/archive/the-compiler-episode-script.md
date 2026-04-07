@@ -2,13 +2,15 @@
 
 ## Logline
 
-George gives up on TypeScript, switches back to plain JavaScript, and is
-accidentally hailed as a visionary craftsman. Drunk on that one specific win,
-he tries to repeat the move by pitching Objective-C over Swift and later COBOL
-as "financial punk rock." Meanwhile, Newman enters an Obfuscated C contest,
-Kramer tries to beat him, accidentally submits ASCII art Tux with a reply-all
-artist statement, briefly wins, and then has the award publicly transferred to
-Newman when the judges discover that Newman's monstrosity actually compiles.
+George gives up on TypeScript, switches back to plain JavaScript, and mistakes
+one exhausted office's relief for a visionary breakthrough. Drunk on that one
+specific win, he tries to repeat the move by pitching Objective-C over Swift,
+only to learn that management did not see a fearless craftsman. They saw the
+one lunatic willing to inherit the haunted legacy JavaScript pile. Meanwhile,
+Newman enters an Obfuscated C contest, Kramer tries to beat him, accidentally
+submits ASCII art Tux with a reply-all artist statement, briefly wins, and
+then has the award publicly transferred to Newman when the judges discover
+that Newman's monstrosity actually compiles.
 
 ## Cast
 
@@ -144,7 +146,7 @@ where it matters. No theatrical performance of safety.
 **KRAMER**  
 That's good, George. That's the opposite.
 
-**JERRY**  
+**JERRY**\
 No.
 
 **GEORGE**  
@@ -322,7 +324,7 @@ They think you're some kind of cave monk.
 **GEORGE**  
 This changes everything. Maybe the opposite is the truth.
 
-**JERRY**  
+**JERRY**\
 No.
 
 **GEORGE**  
@@ -475,7 +477,7 @@ to an international mailing list.
 **GEORGE**  
 Wait a minute. This could help him.
 
-**ELAINE**  
+**ELAINE**\
 No.
 
 **GEORGE**  
@@ -861,186 +863,216 @@ Sure it wasn't.
 **ELAINE**  
 You weren't misunderstood. You were over-understood.
 
-### Scene 7: The Final Wrong Lesson
+### Scene 7: George Learns What They Really Heard
 
-**INT. MONK'S - LATE AFTERNOON**
+**INT. OFFICE - LATE AFTERNOON**
 
-Jerry, Elaine, and Kramer are in a booth. Kramer stirs his coffee with the
-bleak dignity of a man recently reclassified as "visual enthusiasm." His
-placard sticks out of his jacket pocket.
+George walks in carrying coffee and a notebook with the smug calm of a man who
+believes he has altered the trajectory of software engineering.
 
-George bursts in with a legal pad.
+A manager waves him in.
 
-**GEORGE**  
-I've got it.
+**MANAGER**\
+George, come in. Sit down.
 
-**JERRY**  
+George sits, trying to look casually brilliant.
+
+**GEORGE**\
+I've been thinking a lot about developer velocity.
+
+**MANAGER**\
+Great.
+
+George nods as if this confirms his ascent.
+
+**MANAGER**\
+First, I just want to say: yesterday was incredibly helpful.
+
+**GEORGE**\
+Thank you.
+
+**MANAGER**\
+Really. Very clarifying.
+
+**GEORGE**\
+I just felt someone had to say it.
+
+**MANAGER**\
+Exactly.
+
+The manager slides a thick folder across the desk.
+
+The label reads:
+
+`LEGACY JS TRANSITION OWNERSHIP`
+
+George's smile twitches.
+
+**GEORGE**\
+What's this?
+
+**MANAGER**\
+After your comments, it became obvious that you're uniquely aligned with our
+oldest JavaScript surfaces.
+
+**GEORGE**\
+...oldest?
+
+**MANAGER**\
+The billing admin panel, the report generator, the pre-module auth flow, the
+old widget bootstrapper, and the internationalization utility nobody fully
+understands.
+
+**GEORGE**\
 No.
 
-**ELAINE**  
-Absolutely not.
+**MANAGER**\
+There's also a date parser that seems to have formed beliefs.
 
-George slides into the booth.
+**GEORGE**\
+No no no, I think there's been a misunderstanding.
 
-**GEORGE**  
-COBOL.
+**MANAGER**\
+Oh?
 
-Silence.
+**GEORGE**\
+I wasn't volunteering to own old JavaScript. I was making a broader
+philosophical point about runtime truth and human-readable systems.
 
-**ELAINE**  
-You went with COBOL.
+The manager nods with sympathetic management menace.
 
-**GEORGE**  
-Not "went with." Returned to.
+**MANAGER**\
+Right. And that's exactly why you're the right person.
 
-**JERRY**  
-You've never been there.
+**GEORGE**\
+No, I think you think I'm one kind of person, and I'm actually another kind of
+person.
 
-George flips his legal pad:
+**MANAGER**\
+You're the person who said, "Why am I writing TypeScript? I'm just going back
+to regular JavaScript."
 
-`COBOL = FINANCIAL PUNK ROCK`
+**GEORGE**\
+Yes, but in a strategic sense.
 
-**GEORGE**  
-Think about it. Everybody's chasing modernity. Frameworks, types, compile
-steps, abstractions. Meanwhile, the entire global economy is being held
-together by beige rage and fixed-width fields.
+**MANAGER**\
+And we thought, "Great. This lunatic will maintain the old JavaScript nobody
+wants."
 
-**ELAINE**  
-That's not punk rock. That's elder care.
+George freezes.
 
-**GEORGE**  
-No. That's exactly why it's punk rock.
+**GEORGE**\
+You said "lunatic"?
+
+**MANAGER**\
+Not in the meeting.
+
+George opens the folder. It is horrifyingly thick.
+
+**GEORGE**\
+How much JavaScript is this?
+
+**MANAGER**\
+Going by lines or emotional burden?
+
+**GEORGE**\
+Lines.
+
+**MANAGER**\
+Hard to say. Some of it generates itself.
+
+George closes the folder instantly.
+
+**GEORGE**\
+I thought people saw me as... bold.
+
+**MANAGER**\
+No.
+
+Beat.
+
+**MANAGER**\
+We saw you as available.
+
+George stares, spiritually vaporized.
+
+**GEORGE**\
+I don't want to be available.
+
+**MANAGER**\
+Nobody does.
+
+The manager stands.
+
+**MANAGER**\
+Anyway, welcome aboard. The first bug is timezone-related, but only in French.
 
 ---
 
 ## Tag
 
-### Scene 8: George Tries Again
+### Scene 8: Back at Monk's
 
-**INT. HOTEL CONFERENCE ROOM - NIGHT**
+**INT. MONK'S - EVENING**
 
-A banner reads:
+Jerry and Elaine are in the booth. Kramer is there too, subdued, still
+carrying the emotional debris of being reclassified as "visual enthusiasm."
+His placard sticks out of his jacket pocket. George arrives and drops the
+giant folder on the table with a dead thud.
 
-`Regional Financial Systems Modernization Roundtable`
+**GEORGE**\
+They didn't think I was a visionary.
 
-George stands before a room of exhausted professionals.
-
-**GEORGE**  
-...and that's why I'm saying you shouldn't migrate away from COBOL. You should
-lean in.
-
-A woman with a badge reading `Director of Core Systems` raises her hand.
-
-**DIRECTOR**  
-Who are you?
-
-**GEORGE**  
-An outside perspective.
-
-**DIRECTOR**  
-Do you work in banking?
-
-**GEORGE**  
-Not directly.
-
-**DIRECTOR**  
-Do you work in mainframes?
-
-**GEORGE**  
-Not technically.
-
-**DIRECTOR**  
-Do you know COBOL?
-
-**GEORGE**  
-Philosophically, yes.
-
-The room goes cold.
-
-A man at the end of the table removes his glasses.
-
-**MAINFRAME GUY**  
-What does `PIC 9(7)V99` mean?
-
-**GEORGE**  
-It means... commitment.
-
-**DIRECTOR**  
-Security?
-
-A Hotel Staffer appears at the door.
-
-**HOTEL STAFFER**  
-Sir?
-
-**GEORGE**  
-I'm making a point.
-
-**MAINFRAME GUY**  
-No. You're making a nuisance.
-
-**DIRECTOR**  
-We're trying to retire thirty-year-old systems without losing payroll. You're
-calling it punk rock.
-
-**GEORGE**  
-Exactly. That's the spirit.
-
-**MAINFRAME GUY**  
-No. That's the opposite of the spirit.
-
-**HOTEL STAFFER**  
-Sir, I'm going to have to ask you to leave the modernization roundtable.
-
-George is gently but firmly removed.
-
-### Scene 9: Back at Monk's
-
-George returns to the booth, defeated.
-
-**GEORGE**  
-Maintenance burden. That's what she said to me. Like I was trying to
-romanticize dry rot.
-
-**JERRY**  
-You were.
-
-**ELAINE**  
-You tried to give subcultural meaning to batch processing.
-
-**GEORGE**  
-I don't understand. Why did JavaScript work?
-
-Jerry leans in.
-
-**JERRY**  
-Because JavaScript was real. You were exhausted, you told the truth, and for
-one brief shining moment honesty looked innovative.
-
-**ELAINE**  
-Then you took that one tiny useful insight and turned it into a traveling
-religion.
-
-**JERRY**  
-You're not a prophet of the opposite. You just got lucky in one very specific
-argument.
-
-George absorbs this. Beat.
-
-**GEORGE**  
-What about Perl?
-
-**ELAINE**  
+**JERRY**\
 No.
+
+**ELAINE**\
+No.
+
+**GEORGE**\
+They didn't think I was brave.
 
 **JERRY**  
 No.
 
-**KRAMER**  
-Perl's got mystery.
+**ELAINE**  
+No.
+
+**GEORGE**\
+They thought, "Great, this lunatic will maintain the old JavaScript nobody
+wants."
+
+Jerry nods.
+
+**JERRY**\
+That's actually the most believable part of the whole story.
 
 **ELAINE**  
-You. Shut up.
+You made yourself sound like a rescue animal for legacy systems.
+
+**GEORGE**\
+I thought I was rejecting the burden.
+
+**JERRY**  
+No. You identified yourself as the burden-bearer.
+
+George opens the folder and reads in horror.
+
+**GEORGE**\
+`PaymentWidgetLegacyV2Final_old.js`
+
+He looks up.
+
+**GEORGE**\
+They contradicted themselves inside the filename.
+
+**ELAINE**  
+That means there's a newer old one somewhere.
+
+George slumps.
+
+**GEORGE**\
+I tried to escape TypeScript and somehow got sentenced to 2014.
 
 Kramer half-pulls the panel placard from his jacket.
 
@@ -1051,5 +1083,15 @@ Jerry nods.
 
 **JERRY**  
 The silhouette was very strong.
+
+Beat.
+
+**GEORGE**\
+I thought I was making a statement.
+
+Jerry sips his coffee.
+
+**JERRY**\
+Turns out you were filling a vacancy.
 
 **FADE OUT**
