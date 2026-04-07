@@ -15,64 +15,12 @@ import {
 } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-
-/**
- * @typedef {{
- *   strandId: string,
- *   overlayId: string,
- *   kind: string,
- *   headPatchSha: string|null,
- *   patchCount: number
- * }} StrandReadOverlayDescriptor
- */
-/**
- * @typedef {{
- *   intentId: string,
- *   enqueuedAt: string,
- *   patch: PatchV2,
- *   reads: string[],
- *   writes: string[],
- *   contentBlobOids: string[]
- * }} StrandQueuedIntent
- */
-/**
- * @typedef {{
- *   intentId: string,
- *   reason: string,
- *   conflictsWith: string[],
- *   reads: string[],
- *   writes: string[]
- * }} StrandRejectedCounterfactual
- */
-/**
- * @typedef {{
- *   tickId: string,
- *   strandId: string,
- *   tickIndex: number,
- *   createdAt: string,
- *   drainedIntentCount: number,
- *   admittedIntentIds: string[],
- *   rejected: StrandRejectedCounterfactual[],
- *   baseOverlayHeadPatchSha: string|null,
- *   overlayHeadPatchSha: string|null,
- *   overlayPatchShas: string[]
- * }} StrandTickRecord
- */
-/**
- * @typedef {{
- *   nextIntentSeq: number,
- *   intents: StrandQueuedIntent[]
- * }} StrandIntentQueue
- */
-/**
- * @typedef {ReturnType<typeof parseStrandBlob> & {
- *   overlay: ReturnType<typeof parseStrandBlob>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: StrandReadOverlayDescriptor[] },
- *   intentQueue: StrandIntentQueue,
- *   evolution: { tickCount: number, lastTick: StrandTickRecord|null }
- * }} StrandDescriptor
- */
+/** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
+/** @typedef {import('./strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
+/** @typedef {import('./strandTypes.js').StrandReadOverlayDescriptor} StrandReadOverlayDescriptor */
+/** @typedef {import('./strandTypes.js').StrandRejectedCounterfactual} StrandRejectedCounterfactual */
+/** @typedef {import('./strandTypes.js').StrandTickRecord} StrandTickRecord */
 
 const READ_OVERLAY_FIELDS = /** @type {const} */ ([
   'strandId',

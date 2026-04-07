@@ -116,3 +116,13 @@ export function maxPatchLamport(patches) {
   }
   return max;
 }
+
+/**
+ * Return true when a value is a non-empty string.
+ *
+ * @param {string|null|undefined} value
+ * @returns {value is string}
+ */
+export function isNonEmptyString(value) {
+  return typeof value === 'string' && value.length > 0;
+}

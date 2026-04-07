@@ -1,55 +1,11 @@
 import { createEmptyStateV5, reduceV5 } from '../JoinReducer.js';
 import { ProvenanceIndex } from '../provenance/ProvenanceIndex.js';
-import { maxPatchLamport } from './strandShared.js';
+import { isNonEmptyString, maxPatchLamport } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 /** @import { TickReceipt } from '../../types/TickReceipt.js' */
-/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
-/**
- * @typedef {ReturnType<typeof parseStrandBlobFn> & {
- *   overlay: ReturnType<typeof parseStrandBlobFn>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: Array<{
- *     strandId: string,
- *     overlayId: string,
- *     kind: string,
- *     headPatchSha: string|null,
- *     patchCount: number
- *   }> },
- *   intentQueue: {
- *     nextIntentSeq: number,
- *     intents: Array<{
- *       intentId: string,
- *       enqueuedAt: string,
- *       patch: PatchV2,
- *       reads: string[],
- *       writes: string[],
- *       contentBlobOids: string[]
- *     }>
- *   },
- *   evolution: {
- *     tickCount: number,
- *     lastTick: {
- *       tickId: string,
- *       strandId: string,
- *       tickIndex: number,
- *       createdAt: string,
- *       drainedIntentCount: number,
- *       admittedIntentIds: string[],
- *       rejected: Array<{
- *         intentId: string,
- *         reason: string,
- *         conflictsWith: string[],
- *         reads: string[],
- *         writes: string[]
- *       }>,
- *       baseOverlayHeadPatchSha: string|null,
- *       overlayHeadPatchSha: string|null,
- *       overlayPatchShas: string[]
- *     }|null
- *   }
- * }} StrandDescriptor
- */
+/** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 
 export default class StrandMaterializer {
   /**
@@ -198,7 +154,7 @@ export default class StrandMaterializer {
       : [];
     return braidedReadOverlays
       .map((readOverlay) => readOverlay.headPatchSha)
-      .filter((headPatchSha) => typeof headPatchSha === 'string' && headPatchSha.length > 0);
+      .filter((headPatchSha) => isNonEmptyString(headPatchSha));
   }
 
   /**

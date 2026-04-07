@@ -8,46 +8,11 @@ import {
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
-/**
- * @typedef {{
- *   intentId: string,
- *   enqueuedAt: string,
- *   patch: PatchV2,
- *   reads: string[],
- *   writes: string[],
- *   contentBlobOids: string[]
- * }} StrandQueuedIntent
- */
-/**
- * @typedef {{
- *   intentId: string,
- *   reason: string,
- *   conflictsWith: string[],
- *   reads: string[],
- *   writes: string[]
- * }} StrandRejectedCounterfactual
- */
-/**
- * @typedef {{
- *   tickId: string,
- *   strandId: string,
- *   tickIndex: number,
- *   createdAt: string,
- *   drainedIntentCount: number,
- *   admittedIntentIds: string[],
- *   rejected: StrandRejectedCounterfactual[],
- *   baseOverlayHeadPatchSha: string|null,
- *   overlayHeadPatchSha: string|null,
- *   overlayPatchShas: string[]
- * }} StrandTickRecord
- */
-/**
- * @typedef {{
- *   nextIntentSeq: number,
- *   intents: StrandQueuedIntent[]
- * }} StrandIntentQueue
- */
+/** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
+/** @typedef {import('./strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
+/** @typedef {import('./strandTypes.js').StrandRejectedCounterfactual} StrandRejectedCounterfactual */
+/** @typedef {import('./strandTypes.js').StrandTickRecord} StrandTickRecord */
 /**
  * @typedef {{
  *   overlayHeadPatchSha: string|null,
@@ -67,21 +32,6 @@ import {
  *   footprint: Set<string>
  * }} StrandAdmittedIntent
  */
-/**
- * @typedef {ReturnType<typeof parseStrandBlobFn> & {
- *   overlay: ReturnType<typeof parseStrandBlobFn>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: Array<{
- *     strandId: string,
- *     overlayId: string,
- *     kind: string,
- *     headPatchSha: string|null,
- *     patchCount: number
- *   }> },
- *   intentQueue: StrandIntentQueue,
- *   evolution: { tickCount: number, lastTick: StrandTickRecord|null }
- * }} StrandDescriptor
- */
-
 /**
  * Merge read and write keys into a single set for overlap detection.
  *

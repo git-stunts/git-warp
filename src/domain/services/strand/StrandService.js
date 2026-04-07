@@ -21,7 +21,6 @@ import StrandMaterializer from './StrandMaterializer.js';
 import StrandPatchService from './StrandPatchService.js';
 import StrandIntentService from './StrandIntentService.js';
 import {
-  STRAND_COUNTERFACTUAL_REASON,
   buildIntentId,
   buildTickId,
   compareStrings,
@@ -36,64 +35,13 @@ export {
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
 /** @import { PatchBuilderV2 } from '../PatchBuilderV2.js' */
-/** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
-/**
- * @typedef {{
- *   strandId: string,
- *   overlayId: string,
- *   kind: string,
- *   headPatchSha: string|null,
- *   patchCount: number
- * }} StrandReadOverlayDescriptor
- */
-/**
- * @typedef {{
- *   intentId: string,
- *   enqueuedAt: string,
- *   patch: PatchV2,
- *   reads: string[],
- *   writes: string[],
- *   contentBlobOids: string[]
- * }} StrandQueuedIntent
- */
-/**
- * @typedef {{
- *   intentId: string,
- *   reason: string,
- *   conflictsWith: string[],
- *   reads: string[],
- *   writes: string[]
- * }} StrandRejectedCounterfactual
- */
-/**
- * @typedef {{
- *   tickId: string,
- *   strandId: string,
- *   tickIndex: number,
- *   createdAt: string,
- *   drainedIntentCount: number,
- *   admittedIntentIds: string[],
- *   rejected: StrandRejectedCounterfactual[],
- *   baseOverlayHeadPatchSha: string|null,
- *   overlayHeadPatchSha: string|null,
- *   overlayPatchShas: string[]
- * }} StrandTickRecord
- */
-/**
- * @typedef {{
- *   nextIntentSeq: number,
- *   intents: StrandQueuedIntent[]
- * }} StrandIntentQueue
- */
-/**
- * @typedef {ReturnType<typeof parseStrandBlobFn> & {
- *   overlay: ReturnType<typeof parseStrandBlobFn>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: StrandReadOverlayDescriptor[] },
- *   intentQueue: StrandIntentQueue,
- *   evolution: { tickCount: number, lastTick: StrandTickRecord|null }
- * }} StrandDescriptor
- */
+/** @typedef {import('./strandTypes.js').ParsedStrandBlob} ParsedStrandBlob */
+/** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
+/** @typedef {import('./strandTypes.js').StrandIntentQueue} StrandIntentQueue */
+/** @typedef {import('./strandTypes.js').StrandQueuedIntent} StrandQueuedIntent */
+/** @typedef {import('./strandTypes.js').StrandReadOverlayDescriptor} StrandReadOverlayDescriptor */
+/** @typedef {import('./strandTypes.js').StrandRejectedCounterfactual} StrandRejectedCounterfactual */
+/** @typedef {import('./strandTypes.js').StrandTickRecord} StrandTickRecord */
 
 export const STRAND_SCHEMA_VERSION = 1;
 export const STRAND_COORDINATE_VERSION = 'frontier-lamport/v1';
@@ -594,7 +542,6 @@ export default class StrandService {
        * @returns {string}
        */
       buildTickId: (strandId, sequence) => buildTickId(strandId, sequence),
-      counterfactualReason: STRAND_COUNTERFACTUAL_REASON,
     });
   }
 
@@ -799,14 +746,7 @@ export default class StrandService {
    * Return all queued intents for a strand as frozen snapshots.
    *
    * @param {string} strandId
-   * @returns {Promise<Array<{
-   *   intentId: string,
-   *   enqueuedAt: string,
-   *   patch: import('../../types/WarpTypesV2.js').PatchV2,
-   *   reads: string[],
-   *   writes: string[],
-   *   contentBlobOids: string[]
-   * }>>}
+   * @returns {Promise<ReadonlyArray<StrandQueuedIntent>>}
    */
   async listIntents(strandId) {
     return await this._intentService.listIntents(strandId);
@@ -1052,7 +992,7 @@ export default class StrandService {
    * @private
    * @param {string} oid
    * @param {string} strandId
-   * @returns {Promise<ReturnType<typeof parseStrandBlobFn>>}
+   * @returns {Promise<ParsedStrandBlob>}
    */
   async _readDescriptorByOid(oid, strandId) {
     return await this._descriptorStore.readDescriptorByOid(oid, strandId);
@@ -1096,7 +1036,7 @@ export default class StrandService {
    * Hydrate a parsed descriptor with live overlay metadata and normalized braid state.
    *
    * @private
-   * @param {ReturnType<typeof parseStrandBlobFn>} descriptor
+   * @param {ParsedStrandBlob} descriptor
    * @returns {Promise<StrandDescriptor>}
    */
   async _hydrateOverlayMetadata(descriptor) {

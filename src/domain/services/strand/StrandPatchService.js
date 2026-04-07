@@ -7,54 +7,10 @@ import {
 } from './strandShared.js';
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
-/** @import VersionVector from '../crdt/VersionVector.js' */
+/** @import VersionVector from '../../crdt/VersionVector.js' */
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
 /** @import { TickReceipt } from '../../types/TickReceipt.js' */
-/** @import { parseStrandBlob as parseStrandBlobFn } from '../../utils/parseStrandBlob.js' */
-/**
- * @typedef {ReturnType<typeof parseStrandBlobFn> & {
- *   overlay: ReturnType<typeof parseStrandBlobFn>['overlay'] & { writable: boolean },
- *   braid: { readOverlays: Array<{
- *     strandId: string,
- *     overlayId: string,
- *     kind: string,
- *     headPatchSha: string|null,
- *     patchCount: number
- *   }> },
- *   intentQueue: {
- *     nextIntentSeq: number,
- *     intents: Array<{
- *       intentId: string,
- *       enqueuedAt: string,
- *       patch: PatchV2,
- *       reads: string[],
- *       writes: string[],
- *       contentBlobOids: string[]
- *     }>
- *   },
- *   evolution: {
- *     tickCount: number,
- *     lastTick: {
- *       tickId: string,
- *       strandId: string,
- *       tickIndex: number,
- *       createdAt: string,
- *       drainedIntentCount: number,
- *       admittedIntentIds: string[],
- *       rejected: Array<{
- *         intentId: string,
- *         reason: string,
- *         conflictsWith: string[],
- *         reads: string[],
- *         writes: string[]
- *       }>,
- *       baseOverlayHeadPatchSha: string|null,
- *       overlayHeadPatchSha: string|null,
- *       overlayPatchShas: string[]
- *     }|null
- *   }
- * }} StrandDescriptor
- */
+/** @typedef {import('./strandTypes.js').StrandDescriptor} StrandDescriptor */
 /**
  * @typedef {{ patch: PatchV2, sha: string }} CommittedPatchResult
  */
@@ -284,10 +240,10 @@ export default class StrandPatchService {
       onDeleteWithData: this._graph._onDeleteWithData,
     };
     if (targetRefPath !== undefined) {
-      pbOpts.targetRefPath = targetRefPath;
+      pbOpts['targetRefPath'] = targetRefPath;
     }
     if (onCommitSuccess !== undefined) {
-      pbOpts.onCommitSuccess = onCommitSuccess;
+      pbOpts['onCommitSuccess'] = onCommitSuccess;
     }
     this._attachOptionalPatchBuilderDeps(pbOpts);
     return /** @type {ConstructorParameters<typeof PatchBuilderV2>[0]} */ (pbOpts);
@@ -496,7 +452,7 @@ export default class StrandPatchService {
    */
   _attachOptionalPatchJournal(pbOpts) {
     if (this._graph._patchJournal !== null && this._graph._patchJournal !== undefined) {
-      pbOpts.patchJournal = this._graph._patchJournal;
+      pbOpts['patchJournal'] = this._graph._patchJournal;
     }
   }
 
@@ -509,7 +465,7 @@ export default class StrandPatchService {
    */
   _attachOptionalLogger(pbOpts) {
     if (this._graph._logger !== null && this._graph._logger !== undefined) {
-      pbOpts.logger = this._graph._logger;
+      pbOpts['logger'] = this._graph._logger;
     }
   }
 
@@ -522,7 +478,7 @@ export default class StrandPatchService {
    */
   _attachOptionalBlobStorage(pbOpts) {
     if (this._graph._blobStorage !== null && this._graph._blobStorage !== undefined) {
-      pbOpts.blobStorage = this._graph._blobStorage;
+      pbOpts['blobStorage'] = this._graph._blobStorage;
     }
   }
 }

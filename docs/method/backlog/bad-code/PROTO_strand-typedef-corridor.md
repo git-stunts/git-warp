@@ -5,15 +5,17 @@
 
 ## Problem
 
-Cycle 0011 pulled `StrandService` apart into explicit collaborators:
+Cycle 0011 pulled `StrandService` apart into explicit collaborators and
+later centralized the shared typedefs in `strandTypes.js`:
 
 - `StrandDescriptorStore`
 - `StrandMaterializer`
 - `StrandPatchService`
 - `StrandIntentService`
 
-That fixed the ownership problem, but the core strand concepts are still
-mostly shared as repeated JSDoc typedef shapes across those files:
+That fixed the ownership problem and removed the repeated declaration
+sludge, but the core strand concepts are still typedef-backed rather
+than runtime-backed:
 
 - `StrandDescriptor`
 - `StrandIntentQueue`
@@ -28,8 +30,8 @@ but the runtime model remains mostly phantom.
 
 - Invariants are still enforced indirectly by normalization helpers
   instead of constructors or a single boundary-owned representation.
-- Multiple files repeat the same shape definitions, so drift remains
-  possible even after the service split.
+- The shapes are now centralized, but they are still phantom contracts
+  enforced by parsers and helper logic instead of constructors.
 - The collaborators are more honest now, but they still speak through a
   typedef dialect instead of a single runtime-backed model.
 
@@ -41,8 +43,9 @@ Follow the post-split cleanup with one of these approaches:
    definition site for descriptor/queue/tick concepts.
 2. Promote the highest-value strand concepts to runtime-backed forms,
    starting with `StrandDescriptor` and `StrandTickRecord`.
-3. Keep pure normalization at the descriptor boundary and stop repeating
-   shape declarations inside each collaborator.
+3. Keep pure normalization at the descriptor boundary and treat
+   `strandTypes.js` as the temporary canonical shape boundary until the
+   runtime model exists.
 
 ## Scope note
 
