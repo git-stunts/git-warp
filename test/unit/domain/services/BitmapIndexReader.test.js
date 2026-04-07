@@ -73,6 +73,12 @@ describe('BitmapIndexReader', () => {
       const readerWithCustom = new BitmapIndexReader(/** @type {any} */ ({ storage: mockStorage, maxCachedShards: 50 }));
       expect(readerWithCustom.maxCachedShards).toBe(50);
     });
+
+    it('creates an empty bitmap shard for bitmap format requests', () => {
+      const emptyShard = /** @type {any} */ (reader)._createEmptyShard('bitmap');
+      expect(typeof emptyShard.toArray).toBe('function');
+      expect(emptyShard.toArray()).toEqual([]);
+    });
   });
 
   describe('OID validation in setup()', () => {
@@ -439,6 +445,45 @@ describe('BitmapIndexReader', () => {
       // Verify storage was only called once (not on second access)
       expect(mockStorage.readBlob).toHaveBeenCalledTimes(1);
     });
+
+    it('returns empty array when bitmap deserialization fails in non-strict mode', async () => {
+      const mockLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      };
+      const lenientReader = new BitmapIndexReader(/** @type {any} */ ({
+        storage: mockStorage,
+        strict: false,
+        logger: mockLogger,
+      }));
+      const sha = 'abcd123400000000000000000000000000000000';
+      const metaShard = createV1Shard({ [sha]: 1 });
+      const edgeShard = createV1Shard({ [sha]: Buffer.from('definitely-not-a-roaring-bitmap').toString('base64') });
+
+      mockStorage.readBlob.mockImplementation(async (/** @type {string} */ oid) => {
+        if (oid === '1111222200000000000000000000000000000000') {
+          return Buffer.from(JSON.stringify(metaShard));
+        }
+        if (oid === '2222333300000000000000000000000000000000') {
+          return Buffer.from(JSON.stringify(edgeShard));
+        }
+        throw new Error(`Unexpected oid: ${oid}`);
+      });
+
+      lenientReader.setup({
+        'meta_ab.json': '1111222200000000000000000000000000000000',
+        'shards_fwd_ab.json': '2222333300000000000000000000000000000000',
+      });
+
+      const children = await lenientReader.getChildren(sha);
+      expect(children).toEqual([]);
+      expect(mockLogger.warn).toHaveBeenCalledWith('Shard validation warning', expect.objectContaining({
+        shardPath: 'shards_fwd_ab.json',
+        code: 'SHARD_CORRUPTION_ERROR',
+      }));
+    });
   });
 
   describe('shard versioning', () => {
@@ -676,6 +721,51 @@ describe('BitmapIndexReader', () => {
       expect(smallCacheReader.loadedShards.has('meta_bb.json')).toBe(false);
       // 'cc' should be in cache
       expect(smallCacheReader.loadedShards.has('meta_cc.json')).toBe(true);
+    });
+  });
+
+  describe('internal edge cases', () => {
+    it('returns cached id-to-sha mapping without repopulating', async () => {
+      /** @type {any} */ (reader)._idToShaCache = ['sha0'];
+      const result = await /** @type {any} */ (reader)._buildIdToShaMapping();
+      expect(result).toBe(/** @type {any} */ (reader)._idToShaCache);
+    });
+
+    it('warns when id-to-sha cache grows beyond the warning threshold', () => {
+      const warn = vi.fn();
+      const noisyReader = new BitmapIndexReader(/** @type {any} */ ({
+        storage: mockStorage,
+        logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+      }));
+      /** @type {any} */ (noisyReader)._warnLargeIdCache(1_000_001);
+      expect(warn).toHaveBeenCalledWith('ID-to-SHA cache has high memory usage', expect.objectContaining({
+        operation: '_buildIdToShaMapping',
+        entryCount: 1_000_001,
+      }));
+    });
+
+    it('rejects null shard envelopes before deeper validation', async () => {
+      await expect(/** @type {any} */ (reader)._validateShard(null, 'meta_ab.json', 'abc123')).rejects.toBeInstanceOf(ShardCorruptionError);
+    });
+
+    it('returns null for non-Error values in _tryHandleShardError', () => {
+      const handled = /** @type {any} */ (reader)._tryHandleShardError('boom', {
+        path: 'meta_ab.json',
+        oid: 'abc123',
+        format: 'json',
+      });
+      expect(handled).toBeNull();
+    });
+
+    it('rethrows non-handleable parse errors from _getOrLoadShard', async () => {
+      const anyReader = /** @type {any} */ (reader);
+      anyReader.setup({ 'meta_ab.json': '3333444400000000000000000000000000000000' });
+      mockStorage.readBlob.mockResolvedValue(Buffer.from('{}'));
+      anyReader._parseAndValidateShard = vi.fn(async () => {
+        throw new RangeError('unexpected parse failure');
+      });
+
+      await expect(anyReader._getOrLoadShard('meta_ab.json', 'json')).rejects.toThrow(RangeError);
     });
   });
 });

@@ -460,12 +460,226 @@ describe('Observer', () => {
     });
   });
 
+  describe('live-backed observer internals', () => {
+    it('seek clones filter config and defaults to a live source', async () => {
+      const graphStub = {
+        observer: vi.fn().mockResolvedValue('next-observer'),
+      };
+
+      const view = new Observer({
+        name: 'focused',
+        config: {
+          match: ['user:*'],
+          expose: ['name'],
+          redact: ['secret'],
+        },
+        graph: /** @type {any} */ (graphStub),
+        source: {
+          kind: 'coordinate',
+          frontier: { 'writer-1': 'abc123' },
+          ceiling: 7,
+        },
+      });
+
+      const result = await view.seek();
+
+      expect(result).toBe('next-observer');
+      expect(graphStub.observer).toHaveBeenCalledTimes(1);
+
+      const [name, config, options] = graphStub.observer.mock.calls[0];
+      expect(name).toBe('focused');
+      expect(config).toEqual({
+        match: ['user:*'],
+        expose: ['name'],
+        redact: ['secret'],
+      });
+      expect(options).toEqual({ source: { kind: 'live' } });
+      expect(config.match).not.toBe(/** @type {any} */ (view)._matchPattern);
+      expect(config.expose).not.toBe(/** @type {any} */ (view)._expose);
+      expect(config.redact).not.toBe(/** @type {any} */ (view)._redact);
+    });
+
+    it('throws when a live backing graph is required but absent', () => {
+      const state = createEmptyStateV5();
+      const view = new Observer({
+        name: 'snapshot',
+        config: { match: '*' },
+        snapshot: { state, stateHash: 'hash-1' },
+      });
+
+      expect(() => /** @type {any} */ (view)._requireGraph())
+        .toThrow('Observer has no live backing graph');
+    });
+
+    it('materializes adjacency by scanning edges when no provider is available', async () => {
+      const state = createEmptyStateV5();
+      addNode(state, 'user:alice', 1);
+      addNode(state, 'user:bob', 2);
+      addNode(state, 'user:carol', 3);
+      addNode(state, 'team:eng', 4);
+      addEdge(state, 'user:alice', 'user:carol', 'z-last', 5);
+      addEdge(state, 'user:alice', 'user:bob', 'z-after', 6);
+      addEdge(state, 'user:alice', 'user:bob', 'a-first', 7);
+      addEdge(state, 'team:eng', 'user:bob', 'hidden', 8);
+
+      const graphStub = {
+        _materializeGraph: vi.fn().mockResolvedValue({
+          state,
+          stateHash: 'live-hash',
+          adjacency: { outgoing: new Map(), incoming: new Map() },
+        }),
+      };
+
+      const view = new Observer({
+        name: 'fallback',
+        config: { match: 'user:*' },
+        graph: /** @type {any} */ (graphStub),
+      });
+
+      const materialized = await /** @type {any} */ (view)._materializeGraph();
+
+      expect(graphStub._materializeGraph).toHaveBeenCalledTimes(1);
+      expect(materialized.stateHash).toBe('live-hash');
+      expect(materialized.adjacency.outgoing.get('user:alice')).toEqual([
+        { neighborId: 'user:bob', label: 'a-first' },
+        { neighborId: 'user:bob', label: 'z-after' },
+        { neighborId: 'user:carol', label: 'z-last' },
+      ]);
+      expect(materialized.adjacency.incoming.get('user:bob')).toEqual([
+        { neighborId: 'user:alice', label: 'a-first' },
+        { neighborId: 'user:alice', label: 'z-after' },
+      ]);
+      expect(materialized.adjacency.outgoing.has('team:eng')).toBe(false);
+    });
+
+    it('builds filtered adjacency through the provider and sorts incoming neighbors', async () => {
+      const state = createEmptyStateV5();
+      addNode(state, 'user:alice', 1);
+      addNode(state, 'user:bob', 2);
+      addNode(state, 'user:carol', 3);
+      addNode(state, 'team:eng', 4);
+
+      const provider = {
+        getNeighbors: vi.fn(async (nodeId) => {
+          if (nodeId === 'user:alice') {
+            return [
+              { neighborId: 'user:carol', label: 'z-last' },
+              { neighborId: 'user:carol', label: 'a-first' },
+              { neighborId: 'user:carol', label: 'a-first' },
+              { neighborId: 'team:eng', label: 'filtered-out' },
+            ];
+          }
+          if (nodeId === 'user:bob') {
+            return [{ neighborId: 'user:carol', label: 'middle' }];
+          }
+          return [{ neighborId: 'team:eng', label: 'hidden' }];
+        }),
+      };
+
+      const graphStub = {
+        _materializeGraph: vi.fn().mockResolvedValue({
+          state,
+          stateHash: 'provider-hash',
+          provider,
+          adjacency: { outgoing: new Map(), incoming: new Map() },
+        }),
+      };
+
+      const view = new Observer({
+        name: 'provider',
+        config: { match: 'user:*' },
+        graph: /** @type {any} */ (graphStub),
+      });
+
+      const materialized = await /** @type {any} */ (view)._materializeGraph();
+
+      expect(provider.getNeighbors).toHaveBeenCalledTimes(3);
+      expect(provider.getNeighbors).toHaveBeenCalledWith('user:alice', 'out');
+      expect(provider.getNeighbors).toHaveBeenCalledWith('user:bob', 'out');
+      expect(provider.getNeighbors).toHaveBeenCalledWith('user:carol', 'out');
+      expect(materialized.adjacency.outgoing.get('user:alice')).toEqual([
+        { neighborId: 'user:carol', label: 'z-last' },
+        { neighborId: 'user:carol', label: 'a-first' },
+        { neighborId: 'user:carol', label: 'a-first' },
+      ]);
+      expect(materialized.adjacency.outgoing.has('user:carol')).toBe(false);
+      expect(materialized.adjacency.incoming.get('user:carol')).toEqual([
+        { neighborId: 'user:alice', label: 'a-first' },
+        { neighborId: 'user:alice', label: 'a-first' },
+        { neighborId: 'user:alice', label: 'z-last' },
+        { neighborId: 'user:bob', label: 'middle' },
+      ]);
+    });
+
+    it('delegates live-backed node and edge reads through the graph', async () => {
+      const graphStub = {
+        hasNode: vi.fn().mockResolvedValue(true),
+        getNodes: vi.fn().mockResolvedValue(['team:eng', 'user:bob', 'user:alice']),
+        getNodeProps: vi.fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ name: 'Alice', secret: 'hidden' }),
+        getEdges: vi.fn().mockResolvedValue([
+          { from: 'team:eng', to: 'user:alice', label: 'manages', props: { ignored: true } },
+          { from: 'user:alice', to: 'user:bob', label: 'follows', props: { name: 'visible', secret: 'hidden' } },
+        ]),
+      };
+
+      const view = new Observer({
+        name: 'live',
+        config: {
+          match: 'user:*',
+          expose: ['name'],
+          redact: ['secret'],
+        },
+        graph: /** @type {any} */ (graphStub),
+      });
+
+      expect(await view.hasNode('user:alice')).toBe(true);
+      expect(graphStub.hasNode).toHaveBeenCalledWith('user:alice');
+
+      expect(await view.getNodes()).toEqual(['user:bob', 'user:alice']);
+
+      expect(await view.getNodeProps('user:missing')).toBeNull();
+      expect(await view.getNodeProps('user:alice')).toEqual({ name: 'Alice' });
+
+      expect(await view.getEdges()).toEqual([
+        {
+          from: 'user:alice',
+          to: 'user:bob',
+          label: 'follows',
+          props: { name: 'visible' },
+        },
+      ]);
+    });
+  });
+
   describe('observer name', () => {
     it('exposes the observer name', async () => {
       setupGraphState(graph, () => {});
 
       const view = await graph.observer('myObserver', { match: '*' });
       expect(view.name).toBe('myObserver');
+    });
+
+    it('exposes pinned source and snapshot hash metadata', () => {
+      const state = createEmptyStateV5();
+      const view = new Observer({
+        name: 'snapshotMeta',
+        config: { match: '*' },
+        snapshot: { state, stateHash: 'snapshot-hash' },
+        source: {
+          kind: 'coordinate',
+          frontier: { 'writer-1': 'abc123' },
+          ceiling: 4,
+        },
+      });
+
+      expect(view.source).toEqual({
+        kind: 'coordinate',
+        frontier: new Map([['writer-1', 'abc123']]),
+        ceiling: 4,
+      });
+      expect(view.stateHash).toBe('snapshot-hash');
     });
 
     it('defaults the observer name when created without an explicit label', async () => {

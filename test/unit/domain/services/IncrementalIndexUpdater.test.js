@@ -290,6 +290,51 @@ describe('IncrementalIndexUpdater', () => {
       ).toBeUndefined();
     });
 
+    it('skips re-add restoration when the diff already includes the same edge', () => {
+      const state = buildState({
+        nodes: ['A', 'B'],
+        edges: [{ from: 'A', to: 'B', label: 'knows' }],
+        props: [],
+      });
+      const tree1 = buildTree(state);
+      const updater = new IncrementalIndexUpdater();
+
+      orsetRemove(state.nodeAlive, orsetGetDots(state.nodeAlive, 'B'));
+      const removed = updater.computeDirtyShards({
+        diff: {
+          nodesAdded: [],
+          nodesRemoved: ['B'],
+          edgesAdded: [],
+          edgesRemoved: [],
+          propsChanged: [],
+        },
+        state,
+        loadShard: (path) => tree1[path],
+      });
+      const tree2 = { ...tree1, ...removed };
+
+      applyOpV2(state, { type: 'NodeAdd', node: 'B', dot: createDot('w1', 300) }, createEventId(300, 'w1', 'a'.repeat(40), 300));
+
+      const readded = updater.computeDirtyShards({
+        diff: {
+          nodesAdded: ['B'],
+          nodesRemoved: [],
+          edgesAdded: [{ from: 'A', to: 'B', label: 'knows' }],
+          edgesRemoved: [],
+          propsChanged: [],
+        },
+        state,
+        loadShard: (path) => tree2[path],
+      });
+      const tree3 = { ...tree2, ...readded };
+      const index3 = readIndex(tree3);
+
+      expect(index3.isAlive('B')).toBe(true);
+      expect(
+        index3.getEdges('A', 'out').find((e) => e.neighborId === 'B' && e.label === 'knows'),
+      ).toBeDefined();
+    });
+
     it('throws ShardIdOverflowError when shard exceeds 2^24 local IDs', () => {
       // Pick two nodeIds that hash to the same shard
       const nodeA = 'A';
@@ -681,6 +726,157 @@ describe('IncrementalIndexUpdater', () => {
       });
 
       expect(Object.keys(dirtyShards).length).toBe(0);
+    });
+  });
+
+  describe('internal guard paths', () => {
+    it('no-ops node removal when the node has no allocated global id', () => {
+      const state = buildState({ nodes: ['A'], edges: [], props: [] });
+      const tree = buildTree(state);
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const metaCache = new Map();
+
+      updater._handleNodeRemove('ghost', metaCache, (path) => tree[path]);
+
+      expect(metaCache.has(computeShardKey('ghost'))).toBe(true);
+      expect(() => updater._flushMeta(metaCache, {})).not.toThrow();
+    });
+
+    it('returns early when purging edges for a node with no allocated global id', () => {
+      const state = buildState({ nodes: ['A'], edges: [], props: [] });
+      const tree = buildTree(state);
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+
+      expect(() =>
+        updater._purgeNodeEdges(
+          'ghost',
+          new Map(),
+          new Map(),
+          new Map(),
+          {},
+          (path) => tree[path],
+        )
+      ).not.toThrow();
+    });
+
+    it('skips edge add and remove when endpoint global ids are missing', () => {
+      const state = buildState({ nodes: ['A'], edges: [], props: [] });
+      const tree = buildTree(state);
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const metaCache = new Map();
+      const fwdCache = new Map();
+      const revCache = new Map();
+
+      updater._handleEdgeAdd(
+        { from: 'A', to: 'B', label: 'rel' },
+        { rel: 0 },
+        metaCache,
+        fwdCache,
+        revCache,
+        (path) => tree[path],
+      );
+      updater._handleEdgeRemove(
+        { from: 'A', to: 'B', label: 'rel' },
+        { rel: 0 },
+        metaCache,
+        fwdCache,
+        revCache,
+        (path) => tree[path],
+      );
+
+      expect(fwdCache.size).toBe(0);
+      expect(revCache.size).toBe(0);
+    });
+
+    it('ignores non-matching cache prefixes when flushing edge shards', () => {
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const out = {};
+      const cache = new Map([
+        ['rev_aa', { all: { '1': new Uint8Array([1]) } }],
+        ['fwd_bb', { all: { '2': new Uint8Array([2]) } }],
+      ]);
+
+      updater._flushEdgeShards(cache, 'fwd', out);
+
+      expect(Object.keys(out)).toEqual(['fwd_bb.cbor']);
+    });
+
+    it('returns a null-prototype label registry when labels.cbor is absent', () => {
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+
+      const labels = updater._loadLabels(() => undefined);
+
+      expect(Object.getPrototypeOf(labels)).toBe(null);
+      expect(Object.keys(labels)).toEqual([]);
+    });
+
+    it('reconciles adjacency cache only for edges that actually changed alive membership', () => {
+      const state = buildState({
+        nodes: ['A', 'B', 'C'],
+        edges: [{ from: 'A', to: 'B', label: 'rel' }],
+        props: [],
+      });
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const emptyDiff = {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [],
+      };
+
+      updater._getOrBuildAliveEdgeAdjacency(state, emptyDiff);
+      const adjacency = updater._getOrBuildAliveEdgeAdjacency(state, {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [{ from: 'A', to: 'C', label: 'ghost' }],
+        edgesRemoved: [{ from: 'A', to: 'B', label: 'rel' }],
+        propsChanged: [],
+      });
+
+      expect([.../** @type {Set<string>} */ (adjacency.get('A'))]).toEqual([encodeEdgeKey('A', 'B', 'rel')]);
+      expect(adjacency.get('C')).toBeUndefined();
+    });
+
+    it('adds diff edges into a cached adjacency map only when the edge is alive in the ORSet', () => {
+      const state = buildState({
+        nodes: ['A', 'B', 'C'],
+        edges: [{ from: 'A', to: 'B', label: 'rel' }],
+        props: [],
+      });
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      const edgeKey = encodeEdgeKey('A', 'C', 'rel');
+
+      updater._getOrBuildAliveEdgeAdjacency(state, {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [],
+        edgesRemoved: [],
+        propsChanged: [],
+      });
+
+      applyOpV2(state, { type: 'EdgeAdd', from: 'A', to: 'C', label: 'rel', dot: createDot('w1', 301) }, createEventId(301, 'w1', 'a'.repeat(40), 301));
+
+      const adjacency = updater._getOrBuildAliveEdgeAdjacency(state, {
+        nodesAdded: [],
+        nodesRemoved: [],
+        edgesAdded: [{ from: 'A', to: 'C', label: 'rel' }],
+        edgesRemoved: [],
+        propsChanged: [],
+      });
+
+      expect(/** @type {Set<string>} */ (adjacency.get('A'))?.has(edgeKey)).toBe(true);
+      expect(/** @type {Set<string>} */ (adjacency.get('C'))?.has(edgeKey)).toBe(true);
+    });
+
+    it('ignores missing adjacency sets when removing an edge key', () => {
+      const updater = /** @type {any} */ (new IncrementalIndexUpdater());
+      /** @type {Map<string, Set<string>>} */
+      const adjacency = new Map();
+
+      updater._removeEdgeKeyFromAdjacency(adjacency, 'ghost', encodeEdgeKey('A', 'B', 'rel'));
+
+      expect(adjacency.size).toBe(0);
     });
   });
 

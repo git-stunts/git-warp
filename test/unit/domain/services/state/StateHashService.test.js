@@ -16,6 +16,20 @@ function createMockCrypto(hashImpl) {
 }
 
 describe('StateHashService', () => {
+  it('requires a codec dependency', () => {
+    const crypto = createMockCrypto();
+    expect(() => new StateHashService({ codec: null, crypto })).toThrow(
+      'StateHashService requires a codec',
+    );
+  });
+
+  it('requires a crypto dependency', () => {
+    expect(() => new StateHashService({
+      codec: new CborCodec(),
+      crypto: null,
+    })).toThrow('StateHashService requires a crypto adapter');
+  });
+
   it('computes a hex hash string', async () => {
     const crypto = createMockCrypto();
     const svc = new StateHashService({ codec: new CborCodec(), crypto });

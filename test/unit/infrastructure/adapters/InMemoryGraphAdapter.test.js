@@ -60,6 +60,18 @@ describe('InMemoryGraphAdapter specifics', () => {
       .rejects.toThrow(/Blob not found/);
   });
 
+  it('writeBlob accepts Uint8Array content', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    const oid = await adapter.writeBlob(new TextEncoder().encode('bytes'));
+    await expect(adapter.readBlob(oid)).resolves.toEqual(new TextEncoder().encode('bytes'));
+  });
+
+  it('writeBlob rejects unsupported input types', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    await expect(adapter.writeBlob(/** @type {any} */ (42)))
+      .rejects.toThrow(/Expected string or Uint8Array/);
+  });
+
   it('readTreeOids throws for missing tree', async () => {
     const adapter = new InMemoryGraphAdapter();
     await expect(adapter.readTreeOids('abcd' + '0'.repeat(36)))
@@ -178,5 +190,79 @@ describe('InMemoryGraphAdapter specifics', () => {
       'refs/warp/g/w1',
       'refs/warp/g/w2',
     ]);
+  });
+
+  it('getNodeInfo throws for missing commit', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    await expect(adapter.getNodeInfo('abcd' + '0'.repeat(36)))
+      .rejects.toThrow(/Commit not found/);
+  });
+
+  it('getCommitTree throws for missing commit', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    await expect(adapter.getCommitTree('abcd' + '0'.repeat(36)))
+      .rejects.toThrow(/Commit not found/);
+  });
+
+  it('logNodes uses default commit formatting when format is empty', async () => {
+    const adapter = new InMemoryGraphAdapter({ author: 'Alice <alice@test>' });
+    const sha = await adapter.commitNode({ message: 'hello' });
+    await adapter.updateRef('refs/warp/test/writers/main', sha);
+
+    const log = await adapter.logNodes({
+      ref: 'refs/warp/test/writers/main',
+      limit: 10,
+      format: '',
+    });
+
+    expect(log).toContain(`commit ${sha}`);
+    expect(log).toContain('Author: Alice <alice@test>');
+    expect(log).toContain('hello');
+  });
+
+  it('logNodes returns NUL-separated records when a format string is provided', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    const sha = await adapter.commitNode({ message: 'formatted' });
+    await adapter.updateRef('refs/warp/test/writers/main', sha);
+
+    const log = await adapter.logNodes({
+      ref: 'refs/warp/test/writers/main',
+      limit: 10,
+      format: '%H',
+    });
+
+    expect(log.startsWith(`${sha}\n`)).toBe(true);
+    expect(log.endsWith('\0')).toBe(true);
+  });
+
+  it('_resolveRef returns a raw SHA when the commit exists', async () => {
+    const adapter = new InMemoryGraphAdapter();
+    const sha = await adapter.commitNode({ message: 'raw-ref' });
+    expect(/** @type {any} */ (adapter)._resolveRef(sha)).toBe(sha);
+  });
+
+  it('_walkLog returns empty array when the ref cannot be resolved', () => {
+    const adapter = new InMemoryGraphAdapter();
+    expect(/** @type {any} */ (adapter)._walkLog('refs/warp/missing', 10)).toEqual([]);
+  });
+
+  it('_enqueueCommit ignores missing commit SHAs', () => {
+    const adapter = new InMemoryGraphAdapter();
+    const ctx = { all: [], visited: new Set(), queue: [] };
+    /** @type {any} */ (adapter)._enqueueCommit('abcd' + '0'.repeat(36), ctx);
+    expect(ctx.all).toEqual([]);
+    expect(ctx.queue).toEqual([]);
+  });
+
+  it('_countReachable does not double-count duplicated parent paths', async () => {
+    let t = 2000;
+    const clock = { now: () => t++ };
+    const adapter = new InMemoryGraphAdapter({ clock });
+    const root = await adapter.commitNode({ message: 'root' });
+    const left = await adapter.commitNode({ message: 'left', parents: [root] });
+    const right = await adapter.commitNode({ message: 'right', parents: [root] });
+    const merge = await adapter.commitNode({ message: 'merge', parents: [left, right] });
+
+    expect(/** @type {any} */ (adapter)._countReachable(merge)).toBe(4);
   });
 });

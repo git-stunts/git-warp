@@ -42,6 +42,7 @@ import {
   orsetElements,
 } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
+import { ProvenanceIndex } from '../../../../src/domain/services/provenance/ProvenanceIndex.js';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.js';
 
 const crypto = new NodeCryptoAdapter();
@@ -426,6 +427,82 @@ describe('CheckpointService edge cases', () => {
       // No patches loaded, returns checkpoint state as-is
       expect(orsetContains(result.nodeAlive, 'y')).toBe(true);
     });
+
+    it('applies newly loaded patches on top of checkpoint state', async () => {
+      const state = createEmptyStateV5();
+      orsetAdd(state.nodeAlive, 'base', createDot('w1', 1));
+
+      const checkpointFrontier = createFrontier();
+      updateFrontier(checkpointFrontier, 'w1', makeOid('sha1'));
+
+      const targetFrontier = createFrontier();
+      updateFrontier(targetFrontier, 'w1', makeOid('sha1'));
+      updateFrontier(targetFrontier, 'w2', makeOid('sha2'));
+
+      const stateBuffer = serializeFullStateV5(state);
+      const frontierBuffer = serializeFrontier(checkpointFrontier);
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
+      const stateHash = await computeStateHashV5(state, { crypto });
+
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash,
+        frontierOid: makeOid('frontier'),
+        indexOid: makeOid('tree'),
+        schema: 2,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state.cbor': makeOid('state'),
+        'frontier.cbor': makeOid('frontier'),
+        'appliedVV.cbor': makeOid('appliedvv'),
+      });
+      mockPersistence.readBlob.mockImplementation(
+        (/** @type {string} */ oid) => {
+          if (oid === makeOid('state')) {
+            return Promise.resolve(stateBuffer);
+          }
+          if (oid === makeOid('frontier')) {
+            return Promise.resolve(frontierBuffer);
+          }
+          if (oid === makeOid('appliedvv')) {
+            return Promise.resolve(appliedVVBuffer);
+          }
+          throw new Error(`Unknown oid: ${oid}`);
+        }
+      );
+
+      const patchLoader = vi.fn(async () => [
+        {
+          sha: makeOid('patch'),
+          patch: {
+            writer: 'w2',
+            lamport: 1,
+            ops: [
+              {
+                type: 'NodeAdd',
+                node: 'new-node',
+                dot: createDot('w2', 1),
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = await materializeIncremental({
+        persistence: mockPersistence,
+        graphName: 'test',
+        checkpointSha: makeOid('checkpoint'),
+        targetFrontier,
+        patchLoader,
+      });
+
+      expect(orsetContains(result.nodeAlive, 'base')).toBe(true);
+      expect(orsetContains(result.nodeAlive, 'new-node')).toBe(true);
+      expect(patchLoader).toHaveBeenCalledWith('w1', makeOid('sha1'), makeOid('sha1'));
+      expect(patchLoader).toHaveBeenCalledWith('w2', null, makeOid('sha2'));
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -682,6 +759,122 @@ describe('CheckpointService edge cases', () => {
         makeOid('checkpoint')
       );
       expect(result.provenanceIndex).toBeUndefined();
+    });
+  });
+
+  describe('provenanceIndex present', () => {
+    it('loads provenanceIndex from checkpoint tree when blob is present', async () => {
+      const state = createEmptyStateV5();
+      orsetAdd(state.nodeAlive, 'a', createDot('w1', 1));
+
+      const provenanceIndex = new ProvenanceIndex();
+      provenanceIndex.addPatch(makeOid('patch1'), ['a'], ['a']);
+
+      const stateBuffer = serializeFullStateV5(state);
+      const frontierBuffer = serializeFrontier(createFrontier());
+      const appliedVVBuffer = serializeAppliedVV(computeAppliedVV(state));
+      const provenanceBuffer = provenanceIndex.serialize();
+      const stateHash = await computeStateHashV5(state, { crypto });
+
+      const message = encodeCheckpointMessage({
+        graph: 'test',
+        stateHash,
+        frontierOid: makeOid('frontier'),
+        indexOid: makeOid('tree'),
+        schema: 2,
+      });
+
+      mockPersistence.showNode.mockResolvedValue(message);
+      mockPersistence.readTreeOids.mockResolvedValue({
+        'state.cbor': makeOid('state'),
+        'frontier.cbor': makeOid('frontier'),
+        'appliedVV.cbor': makeOid('appliedvv'),
+        'provenanceIndex.cbor': makeOid('prov'),
+      });
+      mockPersistence.readBlob.mockImplementation(
+        (/** @type {string} */ oid) => {
+          if (oid === makeOid('state')) {
+            return Promise.resolve(stateBuffer);
+          }
+          if (oid === makeOid('frontier')) {
+            return Promise.resolve(frontierBuffer);
+          }
+          if (oid === makeOid('appliedvv')) {
+            return Promise.resolve(appliedVVBuffer);
+          }
+          if (oid === makeOid('prov')) {
+            return Promise.resolve(provenanceBuffer);
+          }
+          throw new Error(`Unknown oid: ${oid}`);
+        }
+      );
+
+      const result = await loadCheckpoint(
+        mockPersistence,
+        makeOid('checkpoint')
+      );
+
+      expect(result.provenanceIndex).toBeDefined();
+      expect(result.provenanceIndex?.patchesFor('a')).toEqual([makeOid('patch1')]);
+    });
+  });
+
+  describe('createV5 with checkpointStore and provenance index', () => {
+    it('computes stateHash for checkpointStore when no stateHashService is provided', async () => {
+      const state = createEmptyStateV5();
+      orsetAdd(state.nodeAlive, 'n', createDot('w1', 1));
+      const frontier = createFrontier();
+      const checkpointStore = {
+        writeCheckpoint: vi.fn(async () => ({
+          stateBlobOid: makeOid('state'),
+          frontierBlobOid: makeOid('frontier'),
+          appliedVVBlobOid: makeOid('appliedvv'),
+          provenanceIndexBlobOid: null,
+        })),
+      };
+
+      mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+      mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+      await create({
+        persistence: mockPersistence,
+        graphName: 'test',
+        state,
+        frontier,
+        checkpointStore: /** @type {any} */ (checkpointStore),
+        crypto,
+      });
+
+      expect(checkpointStore.writeCheckpoint).toHaveBeenCalledWith(expect.objectContaining({
+        stateHash: await computeStateHashV5(state, { crypto }),
+      }));
+    });
+
+    it('writes provenanceIndex blob in the legacy checkpoint path', async () => {
+      const state = createEmptyStateV5();
+      orsetAdd(state.nodeAlive, 'n', createDot('w1', 1));
+      const frontier = createFrontier();
+      const provenanceIndex = new ProvenanceIndex();
+      provenanceIndex.addPatch(makeOid('patch1'), ['n'], ['n']);
+
+      let blobIndex = 0;
+      const blobOids = [makeOid('state'), makeOid('frontier'), makeOid('appliedvv'), makeOid('prov')];
+      mockPersistence.writeBlob.mockImplementation(() => Promise.resolve(blobOids[blobIndex++]));
+      mockPersistence.writeTree.mockResolvedValue(makeOid('tree'));
+      mockPersistence.commitNodeWithTree.mockResolvedValue(makeOid('checkpoint'));
+
+      await create({
+        persistence: mockPersistence,
+        graphName: 'test',
+        state,
+        frontier,
+        provenanceIndex,
+        crypto,
+      });
+
+      expect(mockPersistence.writeBlob).toHaveBeenCalledTimes(4);
+      const treeEntries = mockPersistence.writeTree.mock.calls[0][0];
+      expect(treeEntries).toContain(`100644 blob ${makeOid('prov')}\tprovenanceIndex.cbor`);
     });
   });
 });

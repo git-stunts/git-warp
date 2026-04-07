@@ -241,6 +241,36 @@ describe('AuditReceiptService — buildReceiptRecord', () => {
     f.tickEnd = 0;
     expect(() => buildReceiptRecord(f)).toThrow('tickStart');
   });
+
+  it('rejects empty graphName', () => {
+    const f = validFields();
+    f.graphName = '';
+    expect(() => buildReceiptRecord(f)).toThrow('Invalid graphName');
+  });
+
+  it('rejects empty writerId', () => {
+    const f = validFields();
+    f.writerId = '';
+    expect(() => buildReceiptRecord(f)).toThrow('Invalid writerId');
+  });
+
+  it('rejects invalid opsDigest', () => {
+    const f = validFields();
+    f.opsDigest = 'abc123';
+    expect(() => buildReceiptRecord(f)).toThrow('Invalid opsDigest');
+  });
+
+  it('rejects invalid prevAuditCommit OID', () => {
+    const f = validFields();
+    f.prevAuditCommit = 'g'.repeat(40);
+    expect(() => buildReceiptRecord(f)).toThrow('Invalid prevAuditCommit OID');
+  });
+
+  it('rejects timestamps above Number.MAX_SAFE_INTEGER', () => {
+    const f = validFields();
+    f.timestamp = Number.MAX_SAFE_INTEGER + 1;
+    expect(() => buildReceiptRecord(f)).toThrow('exceeds Number.MAX_SAFE_INTEGER');
+  });
 });
 
 // ============================================================================
@@ -263,6 +293,52 @@ describe('AuditReceiptService — commit flow', () => {
       crypto: testCrypto,
     });
     await service.init();
+  });
+
+  it('init adopts the existing audit ref tip when present', async () => {
+    const persistence = /** @type {any} */ ({
+      readRef: vi.fn(async () => 'a'.repeat(40)),
+    });
+    const service = new AuditReceiptService({
+      persistence,
+      graphName: 'events',
+      writerId: 'alice',
+      codec: defaultCodec,
+      crypto: testCrypto,
+    });
+
+    await service.init();
+
+    expect(/** @type {any} */ (service)._prevAuditCommit).toBe('a'.repeat(40));
+    expect(/** @type {any} */ (service)._expectedOldRef).toBe('a'.repeat(40));
+  });
+
+  it('init logs and resets state when reading the audit ref fails', async () => {
+    const logger = { warn: vi.fn() };
+    const persistence = /** @type {any} */ ({
+      readRef: vi.fn(async () => {
+        throw new Error('ref read failed');
+      }),
+    });
+    const service = new AuditReceiptService({
+      persistence,
+      graphName: 'events',
+      writerId: 'alice',
+      codec: defaultCodec,
+      crypto: testCrypto,
+      logger: /** @type {any} */ (logger),
+    });
+    /** @type {any} */ (service)._prevAuditCommit = 'f'.repeat(40);
+    /** @type {any} */ (service)._expectedOldRef = 'f'.repeat(40);
+
+    await service.init();
+
+    expect(logger.warn).toHaveBeenCalledWith('[warp:audit]', expect.objectContaining({
+      code: 'AUDIT_INIT_READ_FAILED',
+      writerId: 'alice',
+    }));
+    expect(/** @type {any} */ (service)._prevAuditCommit).toBeNull();
+    expect(/** @type {any} */ (service)._expectedOldRef).toBeNull();
   });
 
   function makeTickReceipt(lamport = 1, patchSha = 'a'.repeat(40)) {

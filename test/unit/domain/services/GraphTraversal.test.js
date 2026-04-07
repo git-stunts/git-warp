@@ -93,6 +93,24 @@ describe('GraphTraversal.bfs', () => {
     expect(nodes).toEqual(['a', 'b', 'c']);
   });
 
+  it('breaks mid-level once maxNodes is reached', async () => {
+    const provider = buildProvider([
+      { from: 'root', to: 'c' },
+      { from: 'root', to: 'a' },
+      { from: 'root', to: 'b' },
+    ]);
+    const engine = new GraphTraversal({ provider });
+    const { nodes } = await engine.bfs({ start: 'root', maxNodes: 2 });
+    expect(nodes).toEqual(['root', 'a']);
+  });
+
+  it('skips nodes deeper than maxDepth before visit', async () => {
+    const engine = new GraphTraversal({ provider: chainProvider() });
+    const { nodes, stats } = await engine.bfs({ start: 'a', maxDepth: -1 });
+    expect(nodes).toEqual([]);
+    expect(stats.nodesVisited).toBe(0);
+  });
+
   it('follows "in" direction', async () => {
     const engine = new GraphTraversal({ provider: diamondProvider() });
     const { nodes } = await engine.bfs({ start: 'd', direction: 'in' });
@@ -176,6 +194,40 @@ describe('GraphTraversal.dfs', () => {
     const { nodes } = await engine.dfs({ start: 'a' });
     expect(nodes).toEqual(['a', 'b', 'c', 'd']);
   });
+
+  it('skips duplicate stack entries once a node is visited', async () => {
+    const provider = buildProvider([
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ]);
+    const engine = new GraphTraversal({ provider });
+    const { nodes } = await engine.dfs({ start: 'a' });
+    expect(nodes).toEqual(['a', 'b', 'c']);
+  });
+
+  it('skips nodes deeper than maxDepth before visit', async () => {
+    const engine = new GraphTraversal({ provider: chainProvider() });
+    const { nodes, stats } = await engine.dfs({ start: 'a', maxDepth: -1 });
+    expect(nodes).toEqual([]);
+    expect(stats.nodesVisited).toBe(0);
+  });
+
+  it('calls DFS hooks for visits and expansions', async () => {
+    const visited = [];
+    const expanded = [];
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    await engine.dfs({
+      start: 'a',
+      hooks: {
+        onVisit: (nodeId, depth) => visited.push({ nodeId, depth }),
+        onExpand: (nodeId, neighbors) => expanded.push({ nodeId, count: neighbors.length }),
+      },
+    });
+
+    expect(visited.map(({ nodeId }) => nodeId)).toEqual(['a', 'b', 'd', 'c']);
+    expect(expanded).toContainEqual({ nodeId: 'a', count: 2 });
+  });
 });
 
 // ==== shortestPath Tests ====
@@ -212,6 +264,39 @@ describe('GraphTraversal.shortestPath', () => {
     expect(result.path).toEqual(['a', 'b', 'c', 'd', 'e']);
     expect(result.length).toBe(4);
   });
+
+  it('skips duplicate neighbors already marked visited', async () => {
+    const provider = buildProvider([
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ]);
+    const engine = new GraphTraversal({ provider });
+    const result = await engine.shortestPath({ start: 'a', goal: 'c' });
+    expect(result.path).toEqual(['a', 'b', 'c']);
+    expect(result.length).toBe(2);
+  });
+
+  it('returns not found when maxDepth blocks all expansion', async () => {
+    const engine = new GraphTraversal({ provider: chainProvider() });
+    const result = await engine.shortestPath({ start: 'a', goal: 'b', maxDepth: 0 });
+    expect(result.found).toBe(false);
+    expect(result.path).toEqual([]);
+  });
+
+  it('checks AbortSignal every thousand visited nodes', async () => {
+    const edges = [];
+    for (let i = 0; i < 999; i += 1) {
+      edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
+    }
+    const ac = new AbortController();
+    ac.abort();
+    const engine = new GraphTraversal({ provider: buildProvider(edges) });
+
+    await expect(
+      engine.shortestPath({ start: 'root', goal: 'never', signal: ac.signal }),
+    ).rejects.toThrow(/aborted/i);
+  });
 });
 
 // ==== isReachable Tests ====
@@ -233,6 +318,20 @@ describe('GraphTraversal.isReachable', () => {
     const engine = new GraphTraversal({ provider: diamondProvider() });
     const { reachable } = await engine.isReachable({ start: 'd', goal: 'a' });
     expect(reachable).toBe(false);
+  });
+
+  it('checks AbortSignal every thousand visited nodes', async () => {
+    const edges = [];
+    for (let i = 0; i < 999; i += 1) {
+      edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
+    }
+    const ac = new AbortController();
+    ac.abort();
+    const engine = new GraphTraversal({ provider: buildProvider(edges) });
+
+    await expect(
+      engine.isReachable({ start: 'root', goal: 'never', signal: ac.signal }),
+    ).rejects.toThrow(/aborted/i);
   });
 });
 
@@ -274,6 +373,34 @@ describe('GraphTraversal.weightedShortestPath', () => {
     expect(result.path).toEqual(['a', 'b', 'd']);
     expect(result.totalCost).toBe(2);
   });
+
+  it('skips stale heap entries and already visited neighbors', async () => {
+    const provider = buildProvider([
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'c' },
+      { from: 'c', to: 'b' },
+      { from: 'b', to: 'c' },
+      { from: 'b', to: 'd' },
+      { from: 'c', to: 'd' },
+    ]);
+    const weights = new Map([
+      ['a\0b', 5],
+      ['a\0c', 1],
+      ['c\0b', 1],
+      ['b\0c', 1],
+      ['b\0d', 1],
+      ['c\0d', 10],
+    ]);
+    const engine = new GraphTraversal({ provider });
+    const result = await engine.weightedShortestPath({
+      start: 'a',
+      goal: 'd',
+      weightFn: (from, to) => weights.get(`${from}\0${to}`) ?? 1,
+    });
+
+    expect(result.path).toEqual(['a', 'c', 'b', 'd']);
+    expect(result.totalCost).toBe(3);
+  });
 });
 
 // ==== A* Tests ====
@@ -306,6 +433,35 @@ describe('GraphTraversal.aStarSearch', () => {
     await expect(
       engine.aStarSearch({ start: 'd', goal: 'a' })
     ).rejects.toThrow(/NO_PATH|No path/);
+  });
+
+  it('skips stale heap entries and already visited neighbors', async () => {
+    const provider = buildProvider([
+      { from: 'a', to: 'b' },
+      { from: 'a', to: 'c' },
+      { from: 'c', to: 'b' },
+      { from: 'b', to: 'c' },
+      { from: 'b', to: 'd' },
+      { from: 'c', to: 'd' },
+    ]);
+    const weights = new Map([
+      ['a\0b', 5],
+      ['a\0c', 1],
+      ['c\0b', 1],
+      ['b\0c', 1],
+      ['b\0d', 1],
+      ['c\0d', 10],
+    ]);
+    const engine = new GraphTraversal({ provider });
+    const result = await engine.aStarSearch({
+      start: 'a',
+      goal: 'd',
+      heuristicFn: () => 0,
+      weightFn: (from, to) => weights.get(`${from}\0${to}`) ?? 1,
+    });
+
+    expect(result.path).toEqual(['a', 'c', 'b', 'd']);
+    expect(result.totalCost).toBe(3);
   });
 });
 
@@ -504,6 +660,20 @@ describe('GraphTraversal.topologicalSort', () => {
     expect(hasCycle).toBe(false);
     expect(sorted).toEqual(['a']);
   });
+
+  it('checks AbortSignal during discovery every thousand nodes', async () => {
+    const edges = [];
+    for (let i = 0; i < 999; i += 1) {
+      edges.push({ from: 'root', to: `n${String(i).padStart(3, '0')}` });
+    }
+    const ac = new AbortController();
+    ac.abort();
+    const engine = new GraphTraversal({ provider: buildProvider(edges) });
+
+    await expect(
+      engine.topologicalSort({ start: 'root', signal: ac.signal }),
+    ).rejects.toThrow(/aborted/i);
+  });
 });
 
 // ==== commonAncestors Tests ====
@@ -555,6 +725,12 @@ describe('GraphTraversal.commonAncestors', () => {
     expect(stats.edgesTraversed).toBe(2);
     expect(stats.cacheHits).toBe(0);
     expect(stats.cacheMisses).toBe(0);
+  });
+
+  it('respects maxResults when collecting the sorted intersection', async () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    const { ancestors } = await engine.commonAncestors({ nodes: ['d'], maxResults: 2 });
+    expect(ancestors).toEqual(['a', 'b']);
   });
 });
 
@@ -609,6 +785,51 @@ describe('GraphTraversal.weightedLongestPath', () => {
     await expect(
       engine.weightedLongestPath({ start: 'a', goal: 'd' })
     ).rejects.toThrow(/NO_PATH|No path/);
+  });
+
+  it('skips sorted nodes outside the reachable DP frontier', async () => {
+    const engine = new GraphTraversal({
+      provider: buildProvider([{ from: 'a', to: 'b' }]),
+    });
+    engine.topologicalSort = async () => ({
+      sorted: ['a', 'x', 'b'],
+      hasCycle: false,
+      stats: {
+        nodesVisited: 3,
+        edgesTraversed: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+      },
+      _neighborEdgeMap: new Map([
+        ['a', [{ neighborId: 'b', label: '' }]],
+        ['x', [{ neighborId: 'y', label: '' }]],
+        ['b', []],
+      ]),
+    });
+
+    const result = await engine.weightedLongestPath({ start: 'a', goal: 'b' });
+    expect(result.path).toEqual(['a', 'b']);
+    expect(result.totalCost).toBe(1);
+  });
+
+  it('falls back to provider neighbors when topo sort does not return adjacency state', async () => {
+    const engine = new GraphTraversal({
+      provider: buildProvider([{ from: 'a', to: 'b' }]),
+    });
+    engine.topologicalSort = async () => ({
+      sorted: ['a', 'b'],
+      hasCycle: false,
+      stats: {
+        nodesVisited: 2,
+        edgesTraversed: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
+      },
+    });
+
+    const result = await engine.weightedLongestPath({ start: 'a', goal: 'b' });
+    expect(result.path).toEqual(['a', 'b']);
+    expect(result.totalCost).toBe(1);
   });
 });
 
@@ -706,5 +927,124 @@ describe('GraphTraversal hooks', () => {
       hooks: { onExpand: (nodeId, neighbors) => expanded.push({ nodeId, count: neighbors.length }) },
     });
     expect(expanded[0]).toEqual({ nodeId: 'a', count: 2 });
+  });
+});
+
+describe('GraphTraversal private helpers', () => {
+  it('_findTopoCycleWitness skips sorted nodes and returns a live witness', async () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    const witness = await engine._findTopoCycleWitness({
+      discovered: new Set(['sorted', 'u']),
+      sorted: ['sorted'],
+      getNeighborIds: async (nodeId) => (nodeId === 'u' ? ['v'] : ['u']),
+    });
+
+    expect(witness).toEqual({ from: 'u', to: 'v' });
+  });
+
+  it('_findTopoCycleWitness returns an empty object when no witness remains', async () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    const witness = await engine._findTopoCycleWitness({
+      discovered: new Set(['u']),
+      sorted: [],
+      getNeighborIds: async () => [],
+    });
+
+    expect(witness).toEqual({});
+  });
+
+  it('_biAStarExpand returns immediately for stale heap entries', async () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    const result = await engine._biAStarExpand({
+      heap: {
+        extractMin: () => 'a',
+        insert: () => {},
+      },
+      visited: new Set(['a']),
+      gScore: new Map([['a', 0]]),
+      predMap: new Map(),
+      otherVisited: new Set(),
+      otherG: new Map(),
+      weightFn: () => 1,
+      heuristicFn: () => 0,
+      target: 'z',
+      directionForNeighbors: 'out',
+      mu: 7,
+      meeting: 'm',
+      rs: engine._newRunStats(),
+    });
+
+    expect(result).toEqual({ explored: 0, mu: 7, meeting: 'm' });
+  });
+
+  it('_biAStarExpand updates the meeting node when the current node closes the best path', async () => {
+    const engine = new GraphTraversal({
+      provider: buildProvider([{ from: 'a', to: 'b' }]),
+    });
+    const result = await engine._biAStarExpand({
+      heap: {
+        extractMin: () => 'a',
+        insert: () => {},
+      },
+      visited: new Set(),
+      gScore: new Map([['a', 2]]),
+      predMap: new Map(),
+      otherVisited: new Set(['a']),
+      otherG: new Map([['a', 3]]),
+      weightFn: () => 1,
+      heuristicFn: () => 0,
+      target: 'z',
+      directionForNeighbors: 'out',
+      mu: Infinity,
+      meeting: null,
+      rs: engine._newRunStats(),
+    });
+
+    expect(result).toEqual({ explored: 1, mu: 5, meeting: 'a' });
+  });
+
+  it('_biAStarExpand skips neighbors that are already visited on this side', async () => {
+    const inserts = [];
+    const engine = new GraphTraversal({
+      provider: buildProvider([
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+      ]),
+    });
+    const predMap = new Map();
+    const result = await engine._biAStarExpand({
+      heap: {
+        extractMin: () => 'a',
+        insert: (nodeId, priority) => inserts.push({ nodeId, priority }),
+      },
+      visited: new Set(['b']),
+      gScore: new Map([['a', 0]]),
+      predMap,
+      otherVisited: new Set(),
+      otherG: new Map(),
+      weightFn: () => 1,
+      heuristicFn: () => 0,
+      target: 'z',
+      directionForNeighbors: 'out',
+      mu: Infinity,
+      meeting: null,
+      rs: engine._newRunStats(),
+    });
+
+    expect(result.explored).toBe(1);
+    expect(predMap.has('b')).toBe(false);
+    expect(predMap.get('c')).toBe('a');
+    expect(inserts).toEqual([{ nodeId: 'c', priority: 1 }]);
+  });
+
+  it('_reconstructPath stops when a predecessor chain is incomplete', () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    const path = engine._reconstructPath(new Map([['c', 'b']]), 'a', 'c');
+    expect(path).toEqual(['b', 'c']);
+  });
+
+  it('_shouldUpdatePredecessor prefers the first predecessor when none is set', () => {
+    const engine = new GraphTraversal({ provider: diamondProvider() });
+    expect(engine._shouldUpdatePredecessor(new Map(), 'd', 'b')).toBe(true);
   });
 });

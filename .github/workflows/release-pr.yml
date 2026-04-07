@@ -27,7 +27,7 @@ jobs:
         run: npm run lint --if-present
 
       - name: TypeScript
-        run: npm run typecheck
+        run: npm run typecheck:src
 
       - name: TS policy
         run: npm run typecheck:policy

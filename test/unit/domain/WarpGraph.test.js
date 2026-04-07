@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import WarpRuntime from '../../../src/domain/WarpRuntime.js';
 import { PatchBuilderV2 } from '../../../src/domain/services/PatchBuilderV2.js';
+import { AuditVerifierService } from '../../../src/domain/services/audit/AuditVerifierService.js';
+import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectSink.js';
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.js';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/domain/services/codec/WarpMessageCodec.js';
@@ -182,6 +184,103 @@ describe('WarpRuntime', () => {
         });
         expect(graph.writerId).toBe(writerId);
       }
+    });
+
+    it('rejects non-object trust config', async () => {
+      const persistence = createMockPersistence();
+
+      await expect(
+        WarpRuntime.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          trust: /** @type {any} */ ('log-only'),
+        })
+      ).rejects.toThrow('trust must be an object');
+    });
+
+    it('rejects invalid trust mode', async () => {
+      const persistence = createMockPersistence();
+
+      await expect(
+        WarpRuntime.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          trust: /** @type {any} */ ({ mode: 'bogus' }),
+        })
+      ).rejects.toThrow('trust.mode must be one of: off, log-only, enforce');
+    });
+
+    it('rejects non-string trust pins', async () => {
+      const persistence = createMockPersistence();
+
+      await expect(
+        WarpRuntime.open({
+          persistence,
+          graphName: 'events',
+          writerId: 'node-1',
+          trust: /** @type {any} */ ({ pin: 123 }),
+        })
+      ).rejects.toThrow('trust.pin must be a string');
+    });
+
+    it('auto-constructs an effect pipeline with LIVE_LENS when effect sinks are provided', async () => {
+      const persistence = createMockPersistence();
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'events',
+        writerId: 'node-1',
+        effectSinks: [new NoOpEffectSink()],
+      });
+
+      expect(/** @type {any} */ (graph)._effectPipeline).toBeDefined();
+      expect(/** @type {any} */ (graph)._effectPipeline.lens.mode).toBe('live');
+      expect(/** @type {any} */ (graph)._effectPipeline.lens.suppressExternal).toBe(false);
+    });
+
+    it('creates trust gates that forward pin and mode to audit verification', async () => {
+      const persistence = createMockPersistence();
+      const logger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      };
+      const evaluateTrustSpy = vi.spyOn(AuditVerifierService.prototype, 'evaluateTrust')
+        .mockResolvedValue({
+          trust: {
+            explanations: [
+              { writerId: 'alice', trusted: true },
+              { writerId: 'bob', trusted: false },
+            ],
+          },
+        });
+
+      const graph = await WarpRuntime.open({
+        persistence,
+        graphName: 'events',
+        writerId: 'node-1',
+        logger: /** @type {any} */ (logger),
+        trust: { mode: 'enforce', pin: 'pin-123' },
+      });
+
+      const gate = /** @type {any} */ (graph)._createSyncTrustGate();
+      const result = await gate.evaluate(['alice', 'bob']);
+
+      expect(evaluateTrustSpy).toHaveBeenCalledWith('events', {
+        pin: 'pin-123',
+        mode: 'enforce',
+        writerIds: ['alice', 'bob'],
+      });
+      expect(result).toEqual({
+        allowed: false,
+        untrustedWriters: ['bob'],
+        verdict: 'rejected',
+      });
+
+      evaluateTrustSpy.mockRestore();
     });
   });
 
