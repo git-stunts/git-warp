@@ -13,6 +13,7 @@ import { reduceV5, normalizeRawOp, OP_STRATEGIES } from '../JoinReducer.js';
 import { canonicalStringify } from '../../utils/canonicalStringify.js';
 import { createEventId } from '../../utils/EventId.js';
 import { decodeEdgeKey } from '../KeyCodec.js';
+import ConflictAnchor from '../../types/conflict/ConflictAnchor.js';
 import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import StrandService from './StrandService.js';
 
@@ -262,26 +263,6 @@ function compareNumbers(a, b) {
   return a === b ? 0 : (a < b ? -1 : 1);
 }
 
-/**
- * Serializes a conflict anchor into a deterministic padded string for sorting.
- *
- * @param {ConflictAnchor} anchor - The anchor to serialize.
- * @returns {string} Deterministic string representation.
- */
-function anchorString(anchor) {
-  return `${anchor.writerId}:${String(anchor.lamport).padStart(16, '0')}:${anchor.patchSha}:${String(anchor.opIndex).padStart(8, '0')}`;
-}
-
-/**
- * Compares two conflict anchors using their deterministic string representations.
- *
- * @param {ConflictAnchor} a - First anchor to compare.
- * @param {ConflictAnchor} b - Second anchor to compare.
- * @returns {number} Negative, zero, or positive for ordering.
- */
-function compareAnchors(a, b) {
-  return compareStrings(anchorString(a), anchorString(b));
-}
 
 /**
  * Compares two patch frames in reverse-causal order (highest lamport first).
@@ -526,12 +507,12 @@ function candidateGroupKey({ target, kind, winner, resolution }) {
   return [
     kind,
     target.targetDigest,
-    anchorString({
+    new ConflictAnchor({
       patchSha: winner.patchSha,
       writerId: winner.writerId,
       lamport: winner.lamport,
       opIndex: winner.opIndex,
-    }),
+    }).toString(),
     resolution.reducerId,
     resolution.basis.code,
     resolution.winnerMode,
@@ -1127,25 +1108,11 @@ function emitTruncationDiagnostic({ diagnostics, scannedFrames, maxPatches, lamp
     data: {
       traversalOrder: CONFLICT_TRAVERSAL_ORDER,
       scannedPatchCount: scannedFrames.length,
-      lastScannedAnchor: buildTraversalAnchor(lastScanned),
+      lastScannedAnchor: ConflictAnchor.fromFrame(lastScanned),
     },
   });
 }
 
-/**
- * Builds a traversal anchor from a patch frame for diagnostic output.
- *
- * @param {PatchFrame} frame - The patch frame to extract an anchor from.
- * @returns {ConflictAnchor} The traversal anchor.
- */
-function buildTraversalAnchor(frame) {
-  return {
-    patchSha: frame.sha,
-    writerId: frame.patch.writer,
-    lamport: frame.patch.lamport,
-    opIndex: 0,
-  };
-}
 
 /**
  * Creates an empty conflict collector to accumulate candidates during analysis.
@@ -1712,7 +1679,7 @@ function compareConflictTraces(a, b) {
   if (targetCmp !== 0) {
     return targetCmp;
   }
-  const winnerCmp = compareAnchors(a.winner.anchor, b.winner.anchor);
+  const winnerCmp = ConflictAnchor.compare(a.winner.anchor, b.winner.anchor);
   return winnerCmp !== 0 ? winnerCmp : compareStrings(a.conflictId, b.conflictId);
 }
 
@@ -1753,7 +1720,7 @@ async function buildConflictTrace(service, { group, evidence, resolvedCoordinate
  */
 function buildWinner(winner) {
   return {
-    anchor: buildRecordAnchor(winner),
+    anchor: ConflictAnchor.fromRecord(winner),
     effectDigest: winner.effectDigest,
   };
 }
@@ -1768,7 +1735,7 @@ function buildWinner(winner) {
 function buildLosers(group, evidence) {
   return group.losers
     .map((loser) => buildLoserParticipant({ winner: group.winner, loser, kind: group.kind, evidence }))
-    .sort((a, b) => compareAnchors(a.anchor, b.anchor));
+    .sort((a, b) => ConflictAnchor.compare(a.anchor, b.anchor));
 }
 
 /**
@@ -1785,7 +1752,7 @@ function buildLosers(group, evidence) {
 function buildLoserParticipant({ winner, loser, kind, evidence }) {
   const relation = inferCausalRelation(winner, loser);
   const participant = {
-    anchor: buildRecordAnchor(loser),
+    anchor: ConflictAnchor.fromRecord(loser),
     effectDigest: loser.effectDigest,
     ...(relation !== undefined ? { causalRelationToWinner: relation } : {}),
     structurallyDistinctAlternative: loser.effectDigest !== winner.effectDigest,
@@ -1800,23 +1767,7 @@ function buildLoserParticipant({ winner, loser, kind, evidence }) {
   };
 }
 
-/**
- * Converts an OpRecord into a ConflictAnchor with receipt cross-references.
- *
- * @param {OpRecord} record - The operation record.
- * @returns {ConflictAnchor} The record anchor.
- */
-function buildRecordAnchor(record) {
-  return {
-    patchSha: record.patchSha,
-    writerId: record.writerId,
-    lamport: record.lamport,
-    opIndex: record.opIndex,
-    receiptPatchSha: record.patchSha,
-    receiptLamport: record.lamport,
-    receiptOpIndex: record.receiptOpIndex,
-  };
-}
+
 
 /**
  * Builds detailed classification notes for a loser participant at full evidence level.
@@ -1911,8 +1862,8 @@ function buildConflictIdInput({ group, winner, losers, resolvedCoordinate }) {
     kind: group.kind,
     targetDigest: group.target.targetDigest,
     reducerId: group.resolution.reducerId,
-    winnerAnchor: anchorString(winner.anchor),
-    loserAnchors: losers.map((loser) => anchorString(loser.anchor)),
+    winnerAnchor: winner.anchor.toString(),
+    loserAnchors: losers.map((loser) => loser.anchor.toString()),
   };
 }
 
