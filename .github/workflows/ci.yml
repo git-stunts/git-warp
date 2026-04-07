@@ -68,3 +68,16 @@ jobs:
       - uses: actions/checkout@v6
       - name: Run Deno integration tests
         run: docker compose -f docker-compose.test.yml run --rm test-deno
+
+  coverage-threshold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm install
+      - name: 'Gate 9: Unit coverage threshold'
+        run: npm run test:coverage:ci
