@@ -31,14 +31,12 @@ const NOTES = Object.freeze({
  * @param {string|undefined} relation - The causal relation.
  * @returns {string[]} Sorted deduplicated notes.
  */
-/** @type {Record<string, string[]>} */
 const KIND_NOTES = Object.freeze({
   supersession: [NOTES.RECEIPT_SUPERSEDED],
   redundancy: [NOTES.RECEIPT_REDUNDANT, NOTES.REPLAY_EQUIVALENT_EFFECT],
   eventual_override: [NOTES.EFFECTIVE_THEN_LOST, NOTES.DIGEST_DIFFERS],
 });
 
-/** @type {Record<string, string>} */
 const RELATION_NOTES = Object.freeze({
   concurrent: NOTES.CONCURRENT_TO_WINNER,
   ordered: NOTES.ORDERED_BEFORE_WINNER,

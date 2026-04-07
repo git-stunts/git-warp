@@ -28,10 +28,10 @@ export function requireNonEmptyString(value, name, context) {
  * @returns {number} The validated integer.
  */
 export function requireNonNegativeInt(value, name, context) {
-  if (!Number.isInteger(value) || /** @type {number} */ (value) < 0) {
+  if (!Number.isInteger(value) || value < 0) {
     throw new TypeError(`${context}: ${name} must be a non-negative integer`);
   }
-  return /** @type {number} */ (value);
+  return value;
 }
 
 /**
@@ -58,10 +58,10 @@ export function requireBoolean(value, name, context) {
  * @returns {string} The validated enum value.
  */
 export function requireEnum(value, allowed, { name, context }) {
-  if (!allowed.has(/** @type {string} */ (value))) {
+  if (!allowed.has(value)) {
     throw new TypeError(`${context}: ${name} must be one of ${[...allowed].join(', ')}`);
   }
-  return /** @type {string} */ (value);
+  return value;
 }
 
 /**
@@ -104,7 +104,7 @@ export function freezeOptionalObject(value) {
   if (value === undefined || value === null) {
     return undefined;
   }
-  return Object.freeze(/** @type {Record<string, unknown>} */ ({ ...value }));
+  return Object.freeze({ ...value });
 }
 
 /**
@@ -117,7 +117,7 @@ export function freezeStringArray(value) {
   if (!Array.isArray(value)) {
     return Object.freeze([]);
   }
-  return Object.freeze(/** @type {string[]} */ (value).slice());
+  return Object.freeze(value.slice());
 }
 
 /**

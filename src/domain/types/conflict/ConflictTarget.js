@@ -7,11 +7,9 @@
  * @module domain/types/conflict/ConflictTarget
  */
 
-/** @typedef {import('../../../domain/services/strand/ConflictAnalysisRequest.js').ConflictTargetSelector} ConflictTargetSelector */
 
 const VALID_TARGET_KINDS = new Set(['node', 'edge', 'node_property', 'edge_property']);
 
-/** @type {ReadonlyArray<'entityId'|'propertyKey'|'from'|'to'|'label'>} */
 const SELECTOR_FIELDS = Object.freeze(['entityId', 'propertyKey', 'from', 'to', 'label']);
 
 /**

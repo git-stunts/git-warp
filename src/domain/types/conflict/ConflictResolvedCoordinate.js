@@ -45,11 +45,11 @@ function freezeStrand(strand) {
   if (strand === undefined || strand === null) {
     return undefined;
   }
-  const raw = /** @type {{ braid?: { readOverlayCount: number, braidedStrandIds: string[] }, [k: string]: unknown }} */ (strand);
+  const raw = strand;
   const { braid, ...rest } = raw;
   const frozen = { ...rest };
   if (braid !== undefined && braid !== null) {
-    /** @type {Record<string, unknown>} */ (frozen).braid = Object.freeze({
+    frozen.braid = Object.freeze({
       readOverlayCount: braid.readOverlayCount,
       braidedStrandIds: Object.freeze(braid.braidedStrandIds.slice()),
     });

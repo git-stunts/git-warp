@@ -32,10 +32,10 @@ function requireNonEmptyString(value, name) {
  * @returns {number} The validated integer.
  */
 function requireNonNegativeInt(value, name) {
-  if (!Number.isInteger(value) || /** @type {number} */ (value) < 0) {
+  if (!Number.isInteger(value) || value < 0) {
     throw new TypeError(`ConflictAnchor: ${name} must be a non-negative integer`);
   }
-  return /** @type {number} */ (value);
+  return value;
 }
 
 /**

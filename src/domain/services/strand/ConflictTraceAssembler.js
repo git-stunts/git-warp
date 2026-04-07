@@ -40,16 +40,6 @@ function candidateGroupKey(candidate) {
   ].join('|');
 }
 
-/**
- * @typedef {{
- *   target: import('../../types/conflict/ConflictTarget.js').default,
- *   kind: 'supersession'|'eventual_override'|'redundancy',
- *   winner: OpRecord,
- *   losers: OpRecord[],
- *   resolution: import('../../types/conflict/ConflictResolution.js').default,
- *   noteCodes: Set<string>
- * }} GroupedConflict
- */
 
 /**
  * Groups conflict candidates by their deterministic group key.

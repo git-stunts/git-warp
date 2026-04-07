@@ -50,7 +50,7 @@ export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
 async function hashPayload({ digestCache, crypto, payload }) {
   const canonical = canonicalStringify(payload);
   if (digestCache.has(canonical)) {
-    return /** @type {string} */ (digestCache.get(canonical));
+    return digestCache.get(canonical);
   }
   const digest = await crypto.hash('sha256', canonical);
   digestCache.set(canonical, digest);
@@ -94,7 +94,6 @@ export class ConflictAnalyzerService {
    */
   constructor({ graph }) {
     this._graph = graph;
-    /** @type {Map<string, string>} */
     this._digestCache = new Map();
   }
 

@@ -16,9 +16,6 @@ import { reduceV5 } from '../JoinReducer.js';
 import StrandService from './StrandService.js';
 
 /** @import { PatchV2 } from '../../types/WarpTypesV2.js' */
-/** @typedef {import('../../types/TickReceipt.js').TickReceipt} TickReceipt */
-/** @typedef {import('./ConflictAnalysisRequest.js').default} ConflictAnalysisRequest */
-/** @typedef {import('../../WarpRuntime.js').default} WarpRuntime */
 
 /**
  * A loaded patch with its receipt and causal context.
@@ -148,7 +145,6 @@ function normalizeContextFromValue(context) {
  * @returns {Map<string, number>} Filtered writer-clock map.
  */
 function buildContextMapFromEntries(obj) {
-  /** @type {Map<string, number>} */
   const map = new Map();
   for (const [writerId, value] of Object.entries(obj)) {
     if (Number.isInteger(value) && value >= 0) {
@@ -167,7 +163,6 @@ function buildContextMapFromEntries(obj) {
  * @returns {Record<string, string>} Sorted key-value record.
  */
 function frontierToRecord(frontier) {
-  /** @type {Record<string, string>} */
   const record = {};
   for (const [writerId, sha] of [...frontier.entries()].sort(([a], [b]) => compareStrings(a, b))) {
     record[writerId] = sha;
@@ -193,7 +188,7 @@ function describeLamportCeiling(lamportCeiling) {
  * @returns {TickReceipt} An empty receipt with default values.
  */
 function emptyReceipt() {
-  return /** @type {TickReceipt} */ ({ patchSha: '', writer: '', lamport: 0, ops: [] });
+  return { patchSha: '', writer: '', lamport: 0, ops: [] };
 }
 
 /**
@@ -219,7 +214,6 @@ function buildPatchFrame(entry, patchOrder) {
  * @returns {PatchFrame[]} Ordered patch frames.
  */
 function buildPatchFrames(entries) {
-  /** @type {PatchFrame[]} */
   const patchFrames = [];
   for (const entry of entries) {
     patchFrames.push(buildPatchFrame(entry, patchFrames.length));
@@ -235,16 +229,14 @@ function buildPatchFrames(entries) {
  * @param {PatchFrame[]} patchFrames - The frames to attach receipts to (mutated in place).
  */
 function attachReceipts(patchFrames) {
-  const reduced = /** @type {{ receipts: TickReceipt[] }} */ (
-    reduceV5(
+  const reduced = reduceV5(
       patchFrames.map(({ patch, sha }) => ({ patch, sha })),
       undefined,
       { receipts: true },
-    )
-  );
+    );
   for (let i = 0; i < patchFrames.length; i++) {
-    const frame = /** @type {PatchFrame} */ (patchFrames[i]);
-    const receipt = /** @type {TickReceipt} */ (reduced.receipts[i]);
+    const frame = patchFrames[i];
+    const receipt = reduced.receipts[i];
     frame.receipt = receipt;
   }
 }
@@ -384,8 +376,8 @@ function buildResolvedCoordinate({
  */
 async function resolveStrandContext(service, request) {
   const strands = new StrandService({ graph: service._graph });
-  const descriptor = await strands.getOrThrow(/** @type {string} */ (request.strandId));
-  const entries = await strands.getPatchEntries(/** @type {string} */ (request.strandId), {
+  const descriptor = await strands.getOrThrow(request.strandId);
+  const entries = await strands.getPatchEntries(request.strandId, {
     ceiling: request.lamportCeiling,
   });
   const frontier = new Map(
@@ -439,7 +431,6 @@ async function resolveFrontierContext(service, request) {
 async function loadFrontierPatchFrames(graph, lamportCeiling) {
   const frontier = await graph.getFrontier();
   const writerIds = [...frontier.keys()].sort(compareStrings);
-  /** @type {Array<{ patch: PatchV2, sha: string }>} */
   const entries = [];
   for (const writerId of writerIds) {
     const writerEntries = await graph._loadWriterPatches(writerId);

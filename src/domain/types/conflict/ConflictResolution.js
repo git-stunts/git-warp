@@ -50,7 +50,7 @@ function freezeEventId(eventId) {
   if (eventId === undefined || eventId === null) {
     return undefined;
   }
-  return Object.freeze({ .../** @type {object} */ (eventId) });
+  return Object.freeze({ ...eventId });
 }
 
 /**
@@ -63,12 +63,11 @@ function freezeComparator(comparator) {
   if (comparator === undefined || comparator === null) {
     return undefined;
   }
-  const raw = /** @type {{ type: unknown, winnerEventId?: unknown, loserEventId?: unknown }} */ (comparator);
+  const raw = comparator;
   requireNonEmptyString(raw.type, 'comparator.type', CTX);
   const winnerEventId = freezeEventId(raw.winnerEventId);
   const loserEventId = freezeEventId(raw.loserEventId);
-  /** @type {{ type: string, winnerEventId?: Readonly<Record<string, unknown>>, loserEventId?: Readonly<Record<string, unknown>> }} */
-  const frozen = { type: /** @type {string} */ (raw.type) };
+  const frozen = { type: raw.type };
   if (winnerEventId !== undefined) {
     frozen.winnerEventId = winnerEventId;
   }
@@ -117,7 +116,7 @@ export default class ConflictResolution {
   static fromCandidate({ reducerId, kind, code, winner, loser }) {
     const basis = { code };
     if (typeof loser.receiptReason === 'string' && loser.receiptReason.length > 0) {
-      /** @type {{ code: string, reason?: string }} */ (basis).reason = loser.receiptReason;
+      basis.reason = loser.receiptReason;
     }
     const comparator = kind === 'redundancy'
       ? { type: 'effect_digest' }

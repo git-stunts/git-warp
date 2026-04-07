@@ -51,7 +51,7 @@ function receiptNameForOp(opType) {
  * @returns {Record<string, unknown>} A shallow copy.
  */
 function cloneObject(raw) {
-  return /** @type {Record<string, unknown>} */ ({ ...raw });
+  return { ...raw };
 }
 
 /**
@@ -139,7 +139,7 @@ function normalizeObservedDots(observedDots) {
   if (observedDots === null || observedDots === undefined) {
     return [];
   }
-  return [.../** @type {Iterable<string>} */ (observedDots)].sort(compareStrings);
+  return [...observedDots].sort(compareStrings);
 }
 
 /**
@@ -293,7 +293,7 @@ function buildTargetIdentity(canonOp, receiptTarget) {
     /** Builds target identity for EdgePropSet. */
     EdgePropSet: () => buildEdgePropertyTargetIdentity(canonOp),
   };
-  const builder = targetBuilders[/** @type {string} */ (canonOp['type'])];
+  const builder = targetBuilders[canonOp['type']];
   return builder !== undefined ? builder() : null;
 }
 
@@ -397,8 +397,8 @@ async function buildOpRecord(service, { frame, opIndex, receiptOpIndex, canonOp,
  */
 async function analyzeOneOp(service, { frame, opIndex, receiptOpIndex, receipt, diagnostics }) {
   const rawOp = frame.patch.ops[opIndex];
-  const canonOp = cloneObject(/** @type {Record<string, unknown>} */ (normalizeRawOp(rawOp)));
-  const receiptOpType = receiptNameForOp(/** @type {string} */ (canonOp['type']));
+  const canonOp = cloneObject(normalizeRawOp(rawOp));
+  const receiptOpType = receiptNameForOp(canonOp['type']);
   if (typeof receiptOpType !== 'string' || receiptOpType.length === 0) {
     return null;
   }
