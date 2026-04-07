@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConflictAnalyzerService,
   CONFLICT_ANALYSIS_VERSION,
-  CONFLICT_TRAVERSAL_ORDER,
-  CONFLICT_TRUNCATION_POLICY,
-  CONFLICT_REDUCER_ID,
 } from '../../../../../src/domain/services/strand/ConflictAnalyzerService.js';
 import * as JoinReducer from '../../../../../src/domain/services/JoinReducer.js';
 import QueryError from '../../../../../src/domain/errors/QueryError.js';
@@ -85,18 +82,6 @@ describe('ConflictAnalyzerService', () => {
   describe('exported constants', () => {
     it('exports CONFLICT_ANALYSIS_VERSION', () => {
       expect(CONFLICT_ANALYSIS_VERSION).toBe('conflict-analyzer/v2');
-    });
-
-    it('exports CONFLICT_TRAVERSAL_ORDER', () => {
-      expect(CONFLICT_TRAVERSAL_ORDER).toBe('lamport_desc_writer_desc_patch_desc');
-    });
-
-    it('exports CONFLICT_TRUNCATION_POLICY', () => {
-      expect(CONFLICT_TRUNCATION_POLICY).toBe('scan_budget_max_patches_reverse_causal');
-    });
-
-    it('exports CONFLICT_REDUCER_ID', () => {
-      expect(CONFLICT_REDUCER_ID).toBe('join-reducer-v5');
     });
   });
 

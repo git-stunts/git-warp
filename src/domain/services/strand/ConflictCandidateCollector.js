@@ -17,7 +17,7 @@ import { compareStrings } from '../../types/conflict/validation.js';
 import ConflictCandidate from './ConflictCandidate.js';
 import OpRecord from './OpRecord.js';
 
-export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
+const CONFLICT_REDUCER_ID = 'join-reducer-v5';
 
 const CLASSIFICATION_NOTES = Object.freeze({
   RECEIPT_SUPERSEDED: 'receipt_superseded',

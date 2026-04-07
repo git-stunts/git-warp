@@ -13,11 +13,8 @@ import ConflictAnalysisRequest from './ConflictAnalysisRequest.js';
 import {
   resolveAnalysisContext,
   attachReceipts,
-  PatchFrame,
   ScanWindow,
   CONFLICT_ANALYSIS_VERSION,
-  CONFLICT_TRAVERSAL_ORDER,
-  CONFLICT_TRUNCATION_POLICY,
 } from './ConflictFrameLoader.js';
 import { ConflictCandidateCollector } from './ConflictCandidateCollector.js';
 import {
@@ -28,8 +25,7 @@ import {
   buildEmptySnapshotHash,
 } from './ConflictTraceAssembler.js';
 
-export { CONFLICT_ANALYSIS_VERSION, CONFLICT_TRAVERSAL_ORDER, CONFLICT_TRUNCATION_POLICY, PatchFrame };
-export const CONFLICT_REDUCER_ID = 'join-reducer-v5';
+export { CONFLICT_ANALYSIS_VERSION };
 
 /**
  * ConflictAnalyzerService analyzes read-only patch history for conflict traces.
