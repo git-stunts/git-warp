@@ -97,6 +97,7 @@
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
     "test:node20": "docker compose -f docker-compose.test.yml --profile node20 run --build --rm test-node20",
     "test:node22": "docker compose -f docker-compose.test.yml --profile node22 run --build --rm test-node22",
+    "test:node22:ci": "GIT_STUNTS_DOCKER=1 sh -c 'npx vitest run test/unit test/integration && bats test/bats/'",
     "test:bun": "docker compose -f docker-compose.test.yml --profile bun run --build --rm test-bun",
     "test:deno": "docker compose -f docker-compose.test.yml --profile deno run --build --rm test-deno",
     "test:matrix": "docker compose -f docker-compose.test.yml --profile full up --build --abort-on-container-exit",

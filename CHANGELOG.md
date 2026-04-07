@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Op type class hierarchy** — 8 operation types (`NodeAdd`, `NodeRemove`, `EdgeAdd`, `EdgeRemove`, `NodePropSet`, `EdgePropSet`, `PropSet`, `BlobValue`) promoted from `@typedef` plain objects to frozen classes with constructor validation and `instanceof` dispatch. Base `Op` class provides shared runtime identity. Factory functions in `WarpTypesV2.js` now delegate to class constructors. 97 new tests across 4 test files.
 - **Auto-materialize on remove** — `createPatch()` now auto-materializes when `autoMaterialize` is true, `_cachedState` is null, and existing patches exist. Users no longer need to call `materialize()` explicitly before patches that include `removeNode`/`removeEdge`.
 
 ### Fixed

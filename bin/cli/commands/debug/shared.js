@@ -197,6 +197,8 @@ export function compareNumbers(a, b) {
   return a === b ? 0 : (a < b ? -1 : 1);
 }
 
+/** @typedef {{ type: string, node?: string, from?: string, to?: string }} DebugOpLike */
+
 /**
  * Adds a string field from an op to the set if it is a non-empty string.
  *
@@ -212,7 +214,7 @@ function addIfNonEmptyString(ids, value) {
 /**
  * Collects unique node/edge endpoint IDs referenced by patch operations.
  *
- * @param {Array<Record<string, unknown> & { type: string }>|undefined} ops - Raw patch operations
+ * @param {DebugOpLike[]|undefined} ops - Raw patch operations
  * @returns {string[]} Sorted unique identifiers
  */
 export function collectTouchedIds(ops) {
@@ -223,9 +225,9 @@ export function collectTouchedIds(ops) {
   /** @type {Set<string>} */
   const ids = new Set();
   for (const op of ops) {
-    addIfNonEmptyString(ids, op['node']);
-    addIfNonEmptyString(ids, op['from']);
-    addIfNonEmptyString(ids, op['to']);
+    addIfNonEmptyString(ids, op.node);
+    addIfNonEmptyString(ids, op.from);
+    addIfNonEmptyString(ids, op.to);
   }
 
   return /** @type {string[]} */ ([...ids].sort(compareStrings));
@@ -274,7 +276,7 @@ export function sortPatchEntriesCausally(entries) {
   return [...entries].sort(comparePatchEntries);
 }
 
-/** @typedef {{ writer?: string, lamport?: number, schema?: number, ops?: Array<Record<string, unknown> & { type: string }>, reads?: string[] | undefined, writes?: string[] | undefined }} DebugPatch */
+/** @typedef {{ writer?: string, lamport?: number, schema?: number, ops?: DebugOpLike[], reads?: string[] | undefined, writes?: string[] | undefined }} DebugPatch */
 
 /**
  * Safely copies a string array or returns an empty array.

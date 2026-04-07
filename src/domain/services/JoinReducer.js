@@ -41,7 +41,7 @@ export { normalizeRawOp, lowerCanonicalOp } from './OpNormalizer.js';
  * @property {string} type - Operation type discriminator
  * @property {string} [node] - Node ID (for NodeAdd, NodeRemove, PropSet)
  * @property {import('../crdt/Dot.js').Dot} [dot] - Dot identifier (for NodeAdd, EdgeAdd)
- * @property {string[]} [observedDots] - Encoded dots to remove (for NodeRemove, EdgeRemove)
+ * @property {ReadonlyArray<string>|string[]} [observedDots] - Encoded dots to remove (for NodeRemove, EdgeRemove)
  * @property {string} [from] - Source node ID (for EdgeAdd, EdgeRemove)
  * @property {string} [to] - Target node ID (for EdgeAdd, EdgeRemove)
  * @property {string} [label] - Edge label (for EdgeAdd, EdgeRemove)

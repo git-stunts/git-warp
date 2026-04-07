@@ -15,6 +15,15 @@
  */
 
 import PatchV2 from './PatchV2.js';
+import NodeAddClass from './ops/NodeAdd.js';
+import NodeRemoveClass from './ops/NodeRemove.js';
+import EdgeAddClass from './ops/EdgeAdd.js';
+import EdgeRemoveClass from './ops/EdgeRemove.js';
+import NodePropSetClass from './ops/NodePropSet.js';
+import EdgePropSetClass from './ops/EdgePropSet.js';
+import PropSetClass from './ops/PropSet.js';
+
+/** @typedef {import('./ops/BlobValue.js').default} BlobValueClass */
 
 // Re-export PatchV2 class for consumers that import from this module.
 export { PatchV2 };
@@ -38,39 +47,23 @@ export { PatchV2 };
 // ============================================================================
 
 /**
- * Node add operation - creates a new node with a dot
- * @typedef {Object} OpV2NodeAdd
- * @property {'NodeAdd'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to add
- * @property {Dot} dot - Causal identifier for this add
+ * Node add operation - creates a new node with a dot.
+ * @typedef {NodeAddClass} OpV2NodeAdd
  */
 
 /**
- * Node remove operation - removes a node by observed dots
- * @typedef {Object} OpV2NodeRemove
- * @property {'NodeRemove'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to remove
- * @property {string[]} observedDots - Encoded dot strings being removed (add events observed)
+ * Node remove operation - removes a node by observed dots.
+ * @typedef {NodeRemoveClass} OpV2NodeRemove
  */
 
 /**
- * Edge add operation - creates a new edge with a dot
- * @typedef {Object} OpV2EdgeAdd
- * @property {'EdgeAdd'} type - Operation type discriminator
- * @property {NodeId} from - Source node ID
- * @property {NodeId} to - Target node ID
- * @property {string} label - Edge label/type
- * @property {Dot} dot - Causal identifier for this add
+ * Edge add operation - creates a new edge with a dot.
+ * @typedef {EdgeAddClass} OpV2EdgeAdd
  */
 
 /**
- * Edge remove operation - removes an edge by observed dots
- * @typedef {Object} OpV2EdgeRemove
- * @property {'EdgeRemove'} type - Operation type discriminator
- * @property {NodeId} from - Source node ID
- * @property {NodeId} to - Target node ID
- * @property {string} label - Edge label/type
- * @property {string[]} observedDots - Encoded dot strings being removed (add events observed)
+ * Edge remove operation - removes an edge by observed dots.
+ * @typedef {EdgeRemoveClass} OpV2EdgeRemove
  */
 
 /**
@@ -81,39 +74,22 @@ export { PatchV2 };
  * field carrying a \x01-prefixed edge identity. See {@link OpV2NodePropSet}
  * and {@link OpV2EdgePropSet} for the canonical (internal) representations.
  *
- * @typedef {Object} OpV2PropSet
- * @property {'PropSet'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to set property on (may contain \x01 prefix for edge props)
- * @property {string} key - Property key
- * @property {unknown} value - Property value (any JSON-serializable type)
+ * @typedef {PropSetClass} OpV2PropSet
  */
 
 /**
  * Canonical node property set operation (internal only — never persisted).
- * @typedef {Object} OpV2NodePropSet
- * @property {'NodePropSet'} type - Operation type discriminator
- * @property {NodeId} node - Node ID to set property on
- * @property {string} key - Property key
- * @property {unknown} value - Property value (any JSON-serializable type)
+ * @typedef {NodePropSetClass} OpV2NodePropSet
  */
 
 /**
  * Canonical edge property set operation (internal only — never persisted).
- * @typedef {Object} OpV2EdgePropSet
- * @property {'EdgePropSet'} type - Operation type discriminator
- * @property {NodeId} from - Source node ID
- * @property {NodeId} to - Target node ID
- * @property {string} label - Edge label
- * @property {string} key - Property key
- * @property {unknown} value - Property value (any JSON-serializable type)
+ * @typedef {EdgePropSetClass} OpV2EdgePropSet
  */
 
 /**
  * Blob value reference operation.
- * @typedef {Object} OpV2BlobValue
- * @property {'BlobValue'} type - Operation type discriminator
- * @property {string} node - Node ID the blob is attached to
- * @property {string} oid - Blob object ID in the Git object store
+ * @typedef {BlobValueClass} OpV2BlobValue
  */
 
 /**
@@ -148,20 +124,20 @@ export { PatchV2 };
  * Creates a NodeAdd operation with a dot
  * @param {NodeId} node - Node ID to add
  * @param {Dot} dot - Causal identifier for this add
- * @returns {OpV2NodeAdd} NodeAdd operation
+ * @returns {NodeAddClass} NodeAdd operation
  */
 export function createNodeAddV2(node, dot) {
-  return { type: 'NodeAdd', node, dot };
+  return new NodeAddClass(node, dot);
 }
 
 /**
  * Creates a NodeRemove operation with observed dots
  * @param {NodeId} node - Node ID to remove
  * @param {string[]} observedDots - Encoded dot strings being removed
- * @returns {OpV2NodeRemove} NodeRemove operation
+ * @returns {NodeRemoveClass} NodeRemove operation
  */
 export function createNodeRemoveV2(node, observedDots) {
-  return { type: 'NodeRemove', node, observedDots };
+  return new NodeRemoveClass(node, observedDots);
 }
 
 /**
@@ -170,10 +146,10 @@ export function createNodeRemoveV2(node, observedDots) {
  * @param {NodeId} to - Target node ID
  * @param {string} label - Edge label
  * @param {Dot} dot - Causal identifier for this add
- * @returns {OpV2EdgeAdd} EdgeAdd operation
+ * @returns {EdgeAddClass} EdgeAdd operation
  */
 export function createEdgeAddV2(from, to, label, dot) {
-  return { type: 'EdgeAdd', from, to, label, dot };
+  return new EdgeAddClass({ from, to, label, dot });
 }
 
 /**
@@ -182,10 +158,10 @@ export function createEdgeAddV2(from, to, label, dot) {
  * @param {NodeId} to - Target node ID
  * @param {string} label - Edge label
  * @param {string[]} observedDots - Encoded dot strings being removed
- * @returns {OpV2EdgeRemove} EdgeRemove operation
+ * @returns {EdgeRemoveClass} EdgeRemove operation
  */
 export function createEdgeRemoveV2(from, to, label, observedDots) {
-  return { type: 'EdgeRemove', from, to, label, observedDots };
+  return new EdgeRemoveClass({ from, to, label, observedDots });
 }
 
 /**
@@ -195,10 +171,10 @@ export function createEdgeRemoveV2(from, to, label, observedDots) {
  * @param {NodeId} node - Node ID to set property on
  * @param {string} key - Property key
  * @param {unknown} value - Property value (any JSON-serializable type)
- * @returns {OpV2PropSet} PropSet operation
+ * @returns {PropSetClass} PropSet operation
  */
 export function createPropSetV2(node, key, value) {
-  return { type: 'PropSet', node, key, value };
+  return new PropSetClass(node, key, value);
 }
 
 /**
@@ -206,10 +182,10 @@ export function createPropSetV2(node, key, value) {
  * @param {NodeId} node - Node ID to set property on
  * @param {string} key - Property key
  * @param {unknown} value - Property value (any JSON-serializable type)
- * @returns {OpV2NodePropSet} NodePropSet operation
+ * @returns {NodePropSetClass} NodePropSet operation
  */
 export function createNodePropSetV2(node, key, value) {
-  return { type: 'NodePropSet', node, key, value };
+  return new NodePropSetClass(node, key, value);
 }
 
 /**
@@ -219,10 +195,10 @@ export function createNodePropSetV2(node, key, value) {
  * @param {string} label - Edge label
  * @param {string} key - Property key
  * @param {unknown} value - Property value (any JSON-serializable type)
- * @returns {OpV2EdgePropSet} EdgePropSet operation
+ * @returns {EdgePropSetClass} EdgePropSet operation
  */
 export function createEdgePropSetV2(from, to, label, key, value) {
-  return { type: 'EdgePropSet', from, to, label, key, value };
+  return new EdgePropSetClass({ from, to, label, key, value });
 }
 
 // ============================================================================
