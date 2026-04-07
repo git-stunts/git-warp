@@ -52,8 +52,17 @@ jobs:
         node: [22]
     steps:
       - uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '${{ matrix.node }}'
+          cache: 'npm'
+      - name: Install BATS
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Install dependencies
+        run: npm ci
       - name: Run unit + integration tests
-        run: docker compose -f docker-compose.test.yml run --rm test-node${{ matrix.node }}
+        run: npm run test:node22:ci
 
   test-bun:
     runs-on: ubuntu-latest
