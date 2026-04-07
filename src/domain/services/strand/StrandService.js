@@ -19,6 +19,7 @@ import { createImmutableValue, createImmutableWarpStateV5 } from '../ImmutableSn
 import StrandDescriptorStore from './StrandDescriptorStore.js';
 import StrandMaterializer from './StrandMaterializer.js';
 import StrandPatchService from './StrandPatchService.js';
+import StrandIntentService from './StrandIntentService.js';
 
 
 /** @import { default as WarpRuntime } from '../../WarpRuntime.js' */
@@ -307,32 +308,6 @@ function baseObservationsEqual(left, right) {
 }
 
 /**
- * Merge read and write keys into a single set for overlap detection.
- *
- * @param {{ reads: string[], writes: string[] }} footprint
- * @returns {Set<string>}
- */
-function footprintToSet(footprint) {
-  return new Set([...footprint.reads, ...footprint.writes]);
-}
-
-/**
- * Return true if two sets share at least one common element.
- *
- * @param {Set<string>} left
- * @param {Set<string>} right
- * @returns {boolean}
- */
-function setsOverlap(left, right) {
-  for (const value of left) {
-    if (right.has(value)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Validate and normalize strand creation options into canonical form.
  *
  * @param {StrandCreateOptions} options
@@ -468,23 +443,6 @@ async function openDetachedReadGraph(graph) {
   if (graph._patchBlobStorage !== undefined && graph._patchBlobStorage !== null) { opts.patchBlobStorage = graph._patchBlobStorage; }
   if (graph._checkpointStore !== undefined && graph._checkpointStore !== null) { opts.checkpointStore = graph._checkpointStore; }
   return await GraphClass.open(opts);
-}
-
-/**
- * Find the highest Lamport timestamp across a collection of patches.
- *
- * @param {Array<{ patch: { lamport?: number } }>} patches
- * @returns {number}
- */
-function maxPatchLamport(patches) {
-  let max = 0;
-  for (const { patch } of patches) {
-    const lamport = patch.lamport ?? 0;
-    if (lamport > max) {
-      max = lamport;
-    }
-  }
-  return max;
 }
 
 /**
@@ -630,6 +588,76 @@ export default class StrandService {
        * @returns {string}
        */
       buildIntentId: (strandId, sequence) => buildIntentId(strandId, sequence),
+    });
+    this._intentService = new StrandIntentService({
+      graph,
+      /**
+       * Resolve one strand descriptor through the service facade at call time.
+       *
+       * @param {string} strandId
+       * @returns {Promise<StrandDescriptor>}
+       */
+      loadStrandOrThrow: async (strandId) => await this.getOrThrow(strandId),
+      /**
+       * Build one queued intent through the current patch seam.
+       *
+       * @param {StrandDescriptor} descriptor
+       * @param {(p: PatchBuilderV2) => void | Promise<void>} build
+       * @returns {Promise<StrandQueuedIntent>}
+       */
+      buildQueuedIntent: async (descriptor, build) => await this._buildQueuedIntent(descriptor, build),
+      /**
+       * Normalize one intent queue through the current descriptor seam.
+       *
+       * @param {unknown} value
+       * @returns {StrandIntentQueue}
+       */
+      normalizeIntentQueue: (value) => this._normalizeIntentQueue(value),
+      /**
+       * Normalize one evolution record through the current descriptor seam.
+       *
+       * @param {unknown} value
+       * @returns {{ tickCount: number, lastTick: StrandTickRecord|null }}
+       */
+      normalizeEvolution: (value) => this._normalizeEvolution(value),
+      /**
+       * Persist one normalized strand descriptor through the current descriptor seam.
+       *
+       * @param {StrandDescriptor} descriptor
+       * @returns {Promise<void>}
+       */
+      writeDescriptor: async (descriptor) => await this._writeDescriptor(descriptor),
+      /**
+       * Commit one overlay patch through the current patch seam.
+       *
+       * @param {{
+       *   strandId: string,
+       *   overlayId: string,
+       *   parentSha: string|null,
+       *   patch: import('../../types/WarpTypesV2.js').PatchV2,
+       *   contentBlobOids: string[],
+       *   lamport: number
+       * }} params
+       * @returns {Promise<{ sha: string, patch: import('../../types/WarpTypesV2.js').PatchV2 }>}
+       */
+      commitQueuedPatch: async (params) => await this._commitQueuedPatch(params),
+      /**
+       * Collect visible patch entries through the current materialization seam.
+       *
+       * @param {StrandDescriptor} descriptor
+       * @param {{ ceiling: number|null }} options
+       * @returns {Promise<Array<{ patch: import('../../types/WarpTypesV2.js').PatchV2, sha: string }>>}
+       */
+      collectPatchEntries: async (descriptor, options) => await this._collectPatchEntries(descriptor, options),
+      /**
+       * Build a deterministic tick identifier.
+       *
+       * @param {string} strandId
+       * @param {number} sequence
+       * @returns {string}
+       */
+      buildTickId: (strandId, sequence) => buildTickId(strandId, sequence),
+      counterfactualReason: STRAND_COUNTERFACTUAL_REASON,
     });
   }
 
@@ -827,32 +855,7 @@ export default class StrandService {
    * }>}
    */
   async queueIntent(strandId, build) {
-    if (this._graph._patchInProgress) {
-      throw new StrandError(
-        'graph.queueStrandIntent() is not reentrant. Use queueStrandIntent() from one build callback at a time.',
-        { code: 'E_STRAND_REENTRANT' },
-      );
-    }
-    this._graph._patchInProgress = true;
-    try {
-      const descriptor = await this.getOrThrow(strandId);
-      const queuedIntent = await this._buildQueuedIntent(descriptor, build);
-      const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
-      const now = this._graph._clock.timestamp();
-      const nextDescriptor = {
-        ...descriptor,
-        updatedAt: now,
-        intentQueue: {
-          nextIntentSeq: intentQueue.nextIntentSeq + 1,
-          intents: [...intentQueue.intents, queuedIntent].sort((left, right) => compareStrings(left.intentId, right.intentId)),
-        },
-      };
-      await this._writeDescriptor(nextDescriptor);
-      this._graph._cachedViewHash = null;
-      return queuedIntent;
-    } finally {
-      this._graph._patchInProgress = false;
-    }
+    return await this._intentService.queueIntent(strandId, build);
   }
 
   /**
@@ -869,13 +872,7 @@ export default class StrandService {
    * }>>}
    */
   async listIntents(strandId) {
-    const descriptor = await this.getOrThrow(strandId);
-    return this._normalizeIntentQueue(descriptor.intentQueue).intents.map((intent) => Object.freeze({
-      ...intent,
-      reads: [...intent.reads],
-      writes: [...intent.writes],
-      contentBlobOids: [...intent.contentBlobOids],
-    }));
+    return await this._intentService.listIntents(strandId);
   }
 
   /**
@@ -902,36 +899,7 @@ export default class StrandService {
    * }>}
    */
   async tick(strandId) {
-    const descriptor = await this.getOrThrow(strandId);
-    const intentQueue = this._normalizeIntentQueue(descriptor.intentQueue);
-    const evolution = this._normalizeEvolution(descriptor.evolution);
-    const queuedIntents = [...intentQueue.intents].sort((left, right) => compareStrings(left.intentId, right.intentId));
-    const tickIndex = evolution.tickCount + 1;
-    const now = this._graph._clock.timestamp();
-    const tickId = buildTickId(strandId, tickIndex);
-    const { admitted, rejected } = this._classifyQueuedIntents(queuedIntents);
-    const committed = await this._commitAdmittedQueuedIntents(descriptor, admitted);
-    const tickRecord = Object.freeze({
-      tickId,
-      strandId,
-      tickIndex,
-      createdAt: now,
-      drainedIntentCount: queuedIntents.length,
-      admittedIntentIds: admitted.map((intent) => intent.intentId),
-      rejected,
-      baseOverlayHeadPatchSha: descriptor.overlay.headPatchSha ?? null,
-      overlayHeadPatchSha: committed.overlayHeadPatchSha,
-      overlayPatchShas: committed.overlayPatchShas,
-    });
-    await this._persistTickResult({
-      descriptor,
-      intentQueue,
-      tickIndex,
-      now,
-      committed,
-      tickRecord,
-    });
-    return tickRecord;
+    return await this._intentService.tick(strandId);
   }
 
   /**
@@ -985,42 +953,7 @@ export default class StrandService {
    * }}
    */
   _classifyQueuedIntents(queuedIntents) {
-    /** @type {Array<{
-     *   intentId: string,
-     *   enqueuedAt: string,
-     *   patch: import('../../types/WarpTypesV2.js').PatchV2,
-     *   reads: string[],
-     *   writes: string[],
-     *   contentBlobOids: string[],
-     *   footprint: Set<string>
-     * }>} */
-    const admitted = [];
-    /** @type {Array<{
-     *   intentId: string,
-     *   reason: string,
-     *   conflictsWith: string[],
-     *   reads: string[],
-     *   writes: string[]
-     * }>} */
-    const rejected = [];
-    for (const intent of queuedIntents) {
-      const footprint = footprintToSet(intent);
-      const conflictsWith = admitted
-        .filter((candidate) => setsOverlap(candidate.footprint, footprint))
-        .map((candidate) => candidate.intentId);
-      if (conflictsWith.length > 0) {
-        rejected.push({
-          intentId: intent.intentId,
-          reason: STRAND_COUNTERFACTUAL_REASON,
-          conflictsWith,
-          reads: [...intent.reads],
-          writes: [...intent.writes],
-        });
-      } else {
-        admitted.push({ ...intent, footprint });
-      }
-    }
-    return { admitted, rejected };
+    return this._intentService.classifyQueuedIntents(queuedIntents);
   }
 
   /**
@@ -1045,30 +978,7 @@ export default class StrandService {
    * }>}
    */
   async _commitAdmittedQueuedIntents(descriptor, admitted) {
-    let overlayHeadPatchSha = descriptor.overlay.headPatchSha ?? null;
-    let overlayPatchCount = descriptor.overlay.patchCount;
-    let maxLamport = maxPatchLamport(await this._collectPatchEntries(descriptor, { ceiling: null }));
-    const overlayPatchShas = [];
-    for (const intent of admitted) {
-      maxLamport += 1;
-      const committed = await this._commitQueuedPatch({
-        strandId: descriptor.strandId,
-        overlayId: descriptor.overlay.overlayId,
-        parentSha: overlayHeadPatchSha,
-        patch: intent.patch,
-        contentBlobOids: intent.contentBlobOids,
-        lamport: maxLamport,
-      });
-      overlayHeadPatchSha = committed.sha;
-      overlayPatchCount += 1;
-      overlayPatchShas.push(committed.sha);
-    }
-    return {
-      overlayHeadPatchSha,
-      overlayPatchCount,
-      overlayPatchShas,
-      maxLamport,
-    };
+    return await this._intentService.commitAdmittedQueuedIntents(descriptor, admitted);
   }
 
   /**
@@ -1086,30 +996,14 @@ export default class StrandService {
    * @returns {Promise<void>}
    */
   async _persistTickResult({ descriptor, intentQueue, tickIndex, now, committed, tickRecord }) {
-    await this._writeDescriptor({
-      ...descriptor,
-      updatedAt: now,
-      overlay: {
-        ...descriptor.overlay,
-        headPatchSha: committed.overlayHeadPatchSha,
-        patchCount: committed.overlayPatchCount,
-      },
-      intentQueue: {
-        nextIntentSeq: intentQueue.nextIntentSeq,
-        intents: [],
-      },
-      evolution: {
-        tickCount: tickIndex,
-        lastTick: tickRecord,
-      },
+    await this._intentService.persistTickResult({
+      descriptor,
+      intentQueue,
+      tickIndex,
+      now,
+      committed,
+      tickRecord,
     });
-    if (committed.maxLamport > this._graph._maxObservedLamport) {
-      this._graph._maxObservedLamport = committed.maxLamport;
-    }
-    this._graph._stateDirty = true;
-    this._graph._cachedViewHash = null;
-    this._graph._cachedCeiling = null;
-    this._graph._cachedFrontier = null;
   }
 
   /**

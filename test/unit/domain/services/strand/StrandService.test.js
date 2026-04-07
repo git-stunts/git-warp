@@ -185,6 +185,10 @@ describe('StrandService', () => {
     it('wires a patch service boundary', () => {
       expect(service._patchService).toBeTruthy();
     });
+
+    it('wires an intent service boundary', () => {
+      expect(service._intentService).toBeTruthy();
+    });
   });
 
   describe('descriptor store seam', () => {
@@ -334,6 +338,19 @@ describe('StrandService', () => {
           _contentBlobs: [],
         },
       )).toThrow(StrandError);
+    });
+  });
+
+  describe('intent service seam', () => {
+    it('classifies overlapping intents through the intent service boundary', () => {
+      const { admitted, rejected } = service._intentService.classifyQueuedIntents([
+        { intentId: 'i1', reads: ['a'], writes: ['shared'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+        { intentId: 'i2', reads: ['shared'], writes: ['b'], patch: {}, enqueuedAt: '', contentBlobOids: [] },
+      ]);
+
+      expect(admitted).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].conflictsWith).toEqual(['i1']);
     });
   });
 
