@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import MaterializeController from '../../../../../src/domain/services/controllers/MaterializeController.js';
 import { createEmptyStateV5 } from '../../../../../src/domain/services/JoinReducer.js';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.js';
@@ -7,6 +7,78 @@ import { ProvenanceIndex } from '../../../../../src/domain/services/provenance/P
 import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.js';
 import { encodePatchMessage } from '../../../../../src/domain/services/codec/WarpMessageCodec.js';
 import QueryError from '../../../../../src/domain/errors/QueryError.js';
+
+/** @import WarpRuntime from '../../../../../src/domain/WarpRuntime.js' */
+/** @typedef {import('../../../../../src/domain/services/JoinReducer.js').WarpStateV5} WarpStateV5 */
+/** @typedef {import('../../../../../src/domain/types/TickReceipt.js').TickReceipt} TickReceipt */
+/** @typedef {import('../../../../../src/domain/types/WarpTypesV2.js').PatchV2} PatchV2 */
+
+/**
+ * @typedef {{
+ *   outgoing: Map<string, Array<{ neighborId: string, label: string }>>,
+ *   incoming: Map<string, Array<{ neighborId: string, label: string }>>
+ * }} AdjacencyMap
+ */
+
+/**
+ * @typedef {{
+ *   state: WarpStateV5,
+ *   stateHash: string,
+ *   adjacency: AdjacencyMap
+ * }} MaterializedGraph
+ */
+
+/**
+ * @typedef {WarpStateV5 | { state: WarpStateV5, receipts: TickReceipt[] }} MaterializeResult
+ */
+
+/**
+ * @typedef {{ pendingReplay?: boolean }} MaterializeSubscriber
+ */
+
+/**
+ * @typedef {{
+ *   get?(key: string): Promise<{ buffer: Uint8Array, indexTreeOid?: string }|null>,
+ *   set(key: string, buffer: Uint8Array, meta?: { indexTreeOid?: string }): Promise<void>,
+ *   delete?(key: string): Promise<void>
+ * }} SeekCacheLike
+ */
+
+/**
+ * @typedef {{
+ *   _setMaterializedState(state: WarpStateV5, optionsOrDiff?: unknown): Promise<MaterializedGraph>,
+ *   _buildView(state: WarpStateV5, stateHash: string, diff?: unknown): void,
+ *   _buildAdjacency(state: WarpStateV5): AdjacencyMap,
+ *   _restoreIndexFromCache(treeOid: string): Promise<void>,
+ *   _materializeGraph(): Promise<object|null>,
+ *   _resolveCeiling(options?: { ceiling?: number|null }): number|null,
+ *   _persistSeekCacheEntry(key: string, buf: Uint8Array, state: WarpStateV5): Promise<void>,
+ *   _materializeWithCoordinate(frontier: Map<string, string>, ceiling: number|null, collectReceipts: boolean, t0: number): Promise<MaterializeResult>
+ * }} MaterializeControllerPrivate
+ */
+
+/**
+ * Narrow a controller to its private seam for tests.
+ *
+ * @param {unknown} value
+ * @returns {MaterializeControllerPrivate}
+ */
+function controllerPrivate(value) {
+  return /** @type {MaterializeControllerPrivate} */ (value);
+}
+
+/**
+ * Calls materializeCoordinate through an unknown-typed seam for negative-input tests.
+ *
+ * @param {MaterializeController} ctrl
+ * @param {unknown} options
+ * @returns {Promise<unknown>}
+ */
+function callMaterializeCoordinate(ctrl, options) {
+  return /** @type {{ materializeCoordinate(options: unknown): Promise<unknown> }} */ (
+    /** @type {unknown} */ (ctrl)
+  ).materializeCoordinate(options);
+}
 
 // ── Mock factories ──────────────────────────────────────────────────────────
 
@@ -20,131 +92,198 @@ function emptyState() {
 }
 
 /**
+ * Build a canonical PatchV2 test fixture.
+ *
+ * @param {Partial<PatchV2>} [overrides]
+ * @returns {PatchV2}
+ */
+function makePatch(overrides = {}) {
+  return {
+    schema: 2,
+    writer: 'w1',
+    lamport: 1,
+    context: {},
+    ops: [],
+    reads: [],
+    writes: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Require a plain-state materialize result.
+ *
+ * @param {MaterializeResult} result
+ * @returns {WarpStateV5}
+ */
+function requirePlainState(result) {
+  expect('nodeAlive' in result).toBe(true);
+  return /** @type {WarpStateV5} */ (result);
+}
+
+/**
+ * Require a state+receipts materialize result.
+ *
+ * @param {MaterializeResult} result
+ * @returns {{ state: WarpStateV5, receipts: TickReceipt[] }}
+ */
+function requireStateWithReceipts(result) {
+  expect('receipts' in result).toBe(true);
+  return /** @type {{ state: WarpStateV5, receipts: TickReceipt[] }} */ (result);
+}
+
+/**
  * Creates a fake patch entry for use in mock return values.
  *
  * @param {{ lamport?: number, sha?: string, writer?: string, reads?: string[], writes?: string[] }} [opts]
- * @returns {{ patch: { lamport: number, writer: string, reads?: string[], writes?: string[], ops: unknown[] }, sha: string }}
+ * @returns {{ patch: PatchV2, sha: string }}
  */
 function fakePatchEntry(opts = {}) {
   return {
-    patch: {
+    patch: makePatch({
       lamport: opts.lamport ?? 1,
       writer: opts.writer ?? 'w1',
-      reads: opts.reads,
-      writes: opts.writes,
-      ops: [],
-    },
+      ...(opts.reads ? { reads: opts.reads } : {}),
+      ...(opts.writes ? { writes: opts.writes } : {}),
+    }),
     sha: opts.sha ?? 'abc123',
   };
 }
 
 /**
- * Creates a mock host with all the fields and methods MaterializeController
- * touches on the WarpRuntime instance.
- *
- * @param {Record<string, unknown>} [overrides]
- * @returns {Record<string, unknown>}
+ * Mock host class for MaterializeController tests.
  */
-function createMockHost(overrides = {}) {
-  const state = emptyState();
-  const host = {
-    // ── Fields ──
-    _persistence: {
-      showNode: vi.fn().mockResolvedValue(''),
-      readRef: vi.fn().mockResolvedValue(''),
-      readTreeOids: vi.fn().mockResolvedValue({}),
-    },
-    _graphName: 'test',
-    _writerId: 'w1',
-    _clock: { now: vi.fn(() => 0) },
-    _crypto: { hash: vi.fn().mockResolvedValue('mock-hash-abc') },
-    _codec: { encode: vi.fn(() => new Uint8Array([1])), decode: vi.fn(() => ({})) },
-    _logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
-    _seekCache: null,
-    _seekCeiling: null,
-    _gcPolicy: null,
-    _checkpointPolicy: null,
-    _checkpointing: false,
-    _onDeleteWithData: 'tombstone',
-    _blobStorage: null,
-    _patchBlobStorage: null,
-    _trustConfig: undefined,
-    _checkpointStore: undefined,
-    _patchJournal: undefined,
-    _indexStore: undefined,
-    _cachedState: null,
-    _cachedCeiling: null,
-    _cachedFrontier: null,
-    _cachedIndexTree: null,
-    _cachedViewHash: null,
-    _stateDirty: true,
-    _maxObservedLamport: 0,
-    _patchesSinceCheckpoint: 0,
-    _provenanceIndex: null,
-    _provenanceDegraded: false,
-    _lastFrontier: null,
-    _lastNotifiedState: null,
-    _materializedGraph: null,
-    _logicalIndex: null,
-    _propertyReader: null,
-    _indexDegraded: false,
-    _subscribers: [],
-    _versionVector: VersionVector.empty(),
-    _adjacencyCache: null,
-    _stateHashService: null,
+class MockMaterializeHost {
+  /**
+   * @param {Partial<MockMaterializeHost>} [overrides]
+   */
+  constructor(overrides = {}) {
+    Object.assign(this, overrides);
+  }
 
-    // ── Methods ──
-    _loadLatestCheckpoint: vi.fn().mockResolvedValue(null),
-    _loadPatchesSince: vi.fn().mockResolvedValue([]),
-    _loadWriterPatches: vi.fn().mockResolvedValue([]),
-    _loadPatchChainFromSha: vi.fn().mockResolvedValue([]),
-    discoverWriters: vi.fn().mockResolvedValue([]),
-    getFrontier: vi.fn().mockResolvedValue(new Map()),
-    _logTiming: vi.fn(),
-    _maybeRunGC: vi.fn(),
-    _notifySubscribers: vi.fn(),
-    createCheckpoint: vi.fn().mockResolvedValue(undefined),
-    _setMaterializedState: vi.fn().mockResolvedValue({ state, stateHash: 'hash1', adjacency: { outgoing: new Map(), incoming: new Map() } }),
-    _buildView: vi.fn(),
-    _buildAdjacency: vi.fn().mockReturnValue({ outgoing: new Map(), incoming: new Map() }),
-    _restoreIndexFromCache: vi.fn().mockResolvedValue(undefined),
-    materialize: vi.fn(),
-    _viewService: {
-      build: vi.fn().mockReturnValue({
-        logicalIndex: {},
-        propertyReader: {},
-        tree: {},
-      }),
-      applyDiff: vi.fn().mockReturnValue({
-        logicalIndex: {},
-        propertyReader: {},
-        tree: {},
-      }),
-      persistIndexTree: vi.fn().mockResolvedValue('tree-oid-1'),
-      loadFromOids: vi.fn().mockResolvedValue({ logicalIndex: {}, propertyReader: {} }),
-      verifyIndex: vi.fn().mockReturnValue({ passed: 10, failed: 0, errors: [] }),
-    },
-
-    ...overrides,
+  _persistence = {
+    showNode: vi.fn().mockResolvedValue(''),
+    readRef: vi.fn().mockResolvedValue(''),
+    readTreeOids: vi.fn().mockResolvedValue({}),
   };
 
-  return host;
+  _graphName = 'test';
+  _writerId = 'w1';
+  _clock = { now: vi.fn(() => 0) };
+  _crypto = { hash: vi.fn().mockResolvedValue('mock-hash-abc') };
+  _codec = { encode: vi.fn(() => new Uint8Array([1])), decode: vi.fn(() => ({})) };
+  _logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+  /** @type {SeekCacheLike|null} */
+  _seekCache = null;
+  /** @type {number|null} */
+  _seekCeiling = null;
+  _gcPolicy = null;
+  /** @type {{ every: number }|null} */
+  _checkpointPolicy = null;
+  _checkpointing = false;
+  _onDeleteWithData = 'tombstone';
+  _blobStorage = null;
+  _patchBlobStorage = null;
+  _trustConfig = undefined;
+  _checkpointStore = undefined;
+  _patchJournal = undefined;
+  _indexStore = undefined;
+  /** @type {WarpStateV5|null} */
+  _cachedState = null;
+  /** @type {number|null} */
+  _cachedCeiling = null;
+  /** @type {Map<string, string>|null} */
+  _cachedFrontier = null;
+  /** @type {object|null} */
+  _cachedIndexTree = null;
+  /** @type {string|null} */
+  _cachedViewHash = null;
+  _stateDirty = true;
+  _maxObservedLamport = 0;
+  _patchesSinceCheckpoint = 0;
+  /** @type {ProvenanceIndex|null} */
+  _provenanceIndex = null;
+  _provenanceDegraded = false;
+  /** @type {Map<string, string>|null} */
+  _lastFrontier = null;
+  /** @type {WarpStateV5|null} */
+  _lastNotifiedState = null;
+  /** @type {MaterializedGraph|null} */
+  _materializedGraph = null;
+  /** @type {object|null} */
+  _logicalIndex = null;
+  /** @type {object|null} */
+  _propertyReader = null;
+  _indexDegraded = false;
+  /** @type {MaterializeSubscriber[]} */
+  _subscribers = [];
+  _versionVector = VersionVector.empty();
+  /** @type {Map<WarpStateV5, AdjacencyMap>|null} */
+  _adjacencyCache = null;
+  _stateHashService = null;
+
+  _loadLatestCheckpoint = vi.fn().mockResolvedValue(null);
+  _loadPatchesSince = vi.fn().mockResolvedValue([]);
+  _loadWriterPatches = vi.fn().mockResolvedValue([]);
+  _loadPatchChainFromSha = vi.fn().mockResolvedValue([]);
+  discoverWriters = vi.fn().mockResolvedValue([]);
+  getFrontier = vi.fn().mockResolvedValue(new Map());
+  _logTiming = vi.fn();
+  _maybeRunGC = vi.fn();
+  _notifySubscribers = vi.fn();
+  createCheckpoint = vi.fn().mockResolvedValue(undefined);
+  /** @type {(state: WarpStateV5, optionsOrDiff?: unknown) => Promise<MaterializedGraph>} */
+  _setMaterializedState = vi.fn().mockResolvedValue({
+    state: emptyState(),
+    stateHash: 'hash1',
+    adjacency: { outgoing: new Map(), incoming: new Map() },
+  });
+  /** @type {(state: WarpStateV5, stateHash: string, diff?: unknown) => void} */
+  _buildView = vi.fn();
+  /** @type {(state: WarpStateV5) => AdjacencyMap} */
+  _buildAdjacency = vi.fn().mockReturnValue({ outgoing: new Map(), incoming: new Map() });
+  /** @type {(treeOid: string) => Promise<void>} */
+  _restoreIndexFromCache = vi.fn().mockResolvedValue(undefined);
+  materialize = vi.fn();
+  _viewService = {
+    build: vi.fn().mockReturnValue({
+      logicalIndex: {},
+      propertyReader: {},
+      tree: {},
+    }),
+    applyDiff: vi.fn().mockReturnValue({
+      logicalIndex: {},
+      propertyReader: {},
+      tree: {},
+    }),
+    persistIndexTree: vi.fn().mockResolvedValue('tree-oid-1'),
+    loadFromOids: vi.fn().mockResolvedValue({ logicalIndex: {}, propertyReader: {} }),
+    verifyIndex: vi.fn().mockReturnValue({ passed: 10, failed: 0, errors: [] }),
+  };
+}
+
+/**
+ * @param {Partial<MockMaterializeHost>} [overrides]
+ * @returns {MockMaterializeHost}
+ */
+function createMockHost(overrides = {}) {
+  return new MockMaterializeHost(overrides);
 }
 
 /**
  * Creates a MaterializeController wired to a mock host.
  *
- * @param {Record<string, unknown>} [hostOverrides]
- * @returns {{ ctrl: MaterializeController, host: ReturnType<typeof createMockHost> }}
+ * @param {Partial<MockMaterializeHost>} [hostOverrides]
+ * @returns {{ ctrl: MaterializeController, host: MockMaterializeHost }}
  */
 function setup(hostOverrides = {}) {
   const host = createMockHost(hostOverrides);
-  const ctrl = new MaterializeController(host);
+  const ctrl = new MaterializeController(/** @type {WarpRuntime} */ (/** @type {unknown} */ (host)));
   // Wire _setMaterializedState and _buildView on the controller (host delegates to controller)
-  host._setMaterializedState = ctrl._setMaterializedState.bind(ctrl);
-  host._buildView = ctrl._buildView.bind(ctrl);
-  host._buildAdjacency = ctrl._buildAdjacency.bind(ctrl);
-  host._restoreIndexFromCache = ctrl._restoreIndexFromCache.bind(ctrl);
+  host._setMaterializedState = controllerPrivate(ctrl)._setMaterializedState.bind(ctrl);
+  host._buildView = controllerPrivate(ctrl)._buildView.bind(ctrl);
+  host._buildAdjacency = controllerPrivate(ctrl)._buildAdjacency.bind(ctrl);
+  host._restoreIndexFromCache = controllerPrivate(ctrl)._restoreIndexFromCache.bind(ctrl);
   return { ctrl, host };
 }
 
@@ -162,7 +301,7 @@ describe('MaterializeController', () => {
       const result = await ctrl.materialize();
 
       expect(result).toBeDefined();
-      expect(result.nodeAlive).toBeDefined();
+      expect(requirePlainState(result).nodeAlive).toBeDefined();
       expect(Object.isFrozen(result)).toBe(true);
       expect(host._provenanceDegraded).toBe(false);
     });
@@ -290,7 +429,7 @@ describe('MaterializeController', () => {
 
       expect(result).toHaveProperty('state');
       expect(result).toHaveProperty('receipts');
-      expect(result.receipts).toEqual([]);
+      expect(requireStateWithReceipts(result).receipts).toEqual([]);
       expect(Object.isFrozen(result)).toBe(true);
     });
 
@@ -301,7 +440,7 @@ describe('MaterializeController', () => {
       const result = await ctrl.materialize();
 
       // Plain state has nodeAlive directly on it, not nested under .state
-      expect(result.nodeAlive).toBeDefined();
+      expect(requirePlainState(result).nodeAlive).toBeDefined();
       expect(result).not.toHaveProperty('receipts');
     });
 
@@ -313,7 +452,7 @@ describe('MaterializeController', () => {
       const result = await ctrl.materialize({ receipts: true });
 
       expect(result).toHaveProperty('receipts');
-      expect(result.receipts).toEqual([]);
+      expect(requireStateWithReceipts(result).receipts).toEqual([]);
     });
   });
 
@@ -395,7 +534,7 @@ describe('MaterializeController', () => {
       const result = await ctrl.materialize({ receipts: true });
 
       expect(result).toHaveProperty('receipts');
-      expect(Array.isArray(result.receipts)).toBe(true);
+      expect(Array.isArray(requireStateWithReceipts(result).receipts)).toBe(true);
     });
 
     it('uses incremental diff tracking when a cached index tree exists', async () => {
@@ -563,25 +702,25 @@ describe('MaterializeController', () => {
     it('returns null when no options and no instance ceiling', () => {
       const { ctrl, host } = setup();
       host._seekCeiling = null;
-      expect(ctrl._resolveCeiling()).toBeNull();
+      expect(controllerPrivate(ctrl)._resolveCeiling()).toBeNull();
     });
 
     it('returns instance _seekCeiling when options omit ceiling key', () => {
       const { ctrl, host } = setup();
       host._seekCeiling = 42;
-      expect(ctrl._resolveCeiling({})).toBe(42);
+      expect(controllerPrivate(ctrl)._resolveCeiling({})).toBe(42);
     });
 
     it('returns explicit ceiling from options, overriding instance ceiling', () => {
       const { ctrl, host } = setup();
       host._seekCeiling = 42;
-      expect(ctrl._resolveCeiling({ ceiling: 10 })).toBe(10);
+      expect(controllerPrivate(ctrl)._resolveCeiling({ ceiling: 10 })).toBe(10);
     });
 
     it('returns null when options explicitly set ceiling to null', () => {
       const { ctrl, host } = setup();
       host._seekCeiling = 42;
-      expect(ctrl._resolveCeiling({ ceiling: null })).toBeNull();
+      expect(controllerPrivate(ctrl)._resolveCeiling({ ceiling: null })).toBeNull();
     });
   });
 
@@ -675,13 +814,17 @@ describe('MaterializeController', () => {
   // ────────────────────────────────────────────────────────────────────────
   describe('_materializeGraph()', () => {
     it('returns cached graph when state is clean and graph exists', async () => {
-      const cached = { state: emptyState(), stateHash: 'h1', adjacency: {} };
+      const cached = {
+        state: emptyState(),
+        stateHash: 'h1',
+        adjacency: { outgoing: new Map(), incoming: new Map() },
+      };
       const { ctrl, host } = setup({
         _stateDirty: false,
         _materializedGraph: cached,
       });
 
-      const result = await ctrl._materializeGraph();
+      const result = await controllerPrivate(ctrl)._materializeGraph();
 
       expect(result).toBe(cached);
       expect(host.materialize).not.toHaveBeenCalled();
@@ -698,7 +841,7 @@ describe('MaterializeController', () => {
       // because the mock doesn't change it; the controller handles it
       // in _setMaterializedState
 
-      const result = await ctrl._materializeGraph();
+      await controllerPrivate(ctrl)._materializeGraph();
 
       expect(host.materialize).toHaveBeenCalled();
     });
@@ -711,7 +854,7 @@ describe('MaterializeController', () => {
       });
       host.materialize.mockResolvedValue(null);
 
-      const result = await ctrl._materializeGraph();
+      const result = await controllerPrivate(ctrl)._materializeGraph();
 
       expect(result).toBeNull();
     });
@@ -725,7 +868,7 @@ describe('MaterializeController', () => {
       const { ctrl } = setup();
       const state = emptyState();
 
-      const adj = ctrl._buildAdjacency(state);
+      const adj = controllerPrivate(ctrl)._buildAdjacency(state);
 
       expect(adj.outgoing.size).toBe(0);
       expect(adj.incoming.size).toBe(0);
@@ -739,7 +882,7 @@ describe('MaterializeController', () => {
       orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'zebra'), { writerId: 'w1', counter: 3 });
       orsetAdd(state.edgeAlive, encodeEdgeKey('node:a', 'node:b', 'alpha'), { writerId: 'w1', counter: 4 });
 
-      const adj = ctrl._buildAdjacency(state);
+      const adj = controllerPrivate(ctrl)._buildAdjacency(state);
 
       expect(adj.outgoing.get('node:a')).toEqual([
         { neighborId: 'node:b', label: 'alpha' },
@@ -761,7 +904,7 @@ describe('MaterializeController', () => {
       host._stateDirty = true;
       const state = emptyState();
 
-      await ctrl._setMaterializedState(state);
+      await controllerPrivate(ctrl)._setMaterializedState(state);
 
       expect(host._cachedState).toBe(state);
       expect(host._stateDirty).toBe(false);
@@ -771,7 +914,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       const state = emptyState();
 
-      await ctrl._setMaterializedState(state);
+      await controllerPrivate(ctrl)._setMaterializedState(state);
 
       expect(host._versionVector).toBeInstanceOf(VersionVector);
     });
@@ -780,7 +923,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       const state = emptyState();
 
-      const result = await ctrl._setMaterializedState(state);
+      const result = await controllerPrivate(ctrl)._setMaterializedState(state);
 
       expect(result).toHaveProperty('state', state);
       expect(result).toHaveProperty('stateHash');
@@ -789,16 +932,25 @@ describe('MaterializeController', () => {
     });
 
     it('uses adjacency cache when available', async () => {
-      const adjCache = new Map();
+      const adjCache = /** @type {Map<WarpStateV5, AdjacencyMap>} */ (new Map());
       const { ctrl, host } = setup({ _adjacencyCache: adjCache });
       const state = emptyState();
 
       // First call populates cache
-      await ctrl._setMaterializedState(state);
-      const firstAdj = host._materializedGraph.adjacency;
+      await controllerPrivate(ctrl)._setMaterializedState(state);
+      const firstGraph = host._materializedGraph;
+      expect(firstGraph).not.toBeNull();
+      if (!firstGraph) {
+        return;
+      }
+      const firstAdj = firstGraph.adjacency;
 
       // Second call should retrieve from cache
-      await ctrl._setMaterializedState(state);
+      await controllerPrivate(ctrl)._setMaterializedState(state);
+      expect(host._materializedGraph).not.toBeNull();
+      if (!host._materializedGraph) {
+        return;
+      }
       expect(host._materializedGraph.adjacency).toBe(firstAdj);
     });
   });
@@ -810,7 +962,7 @@ describe('MaterializeController', () => {
     it('skips rebuild when stateHash matches cached hash', () => {
       const { ctrl, host } = setup({ _cachedViewHash: 'hash1' });
 
-      ctrl._buildView(emptyState(), 'hash1');
+      controllerPrivate(ctrl)._buildView(emptyState(), 'hash1');
 
       expect(host._viewService.build).not.toHaveBeenCalled();
     });
@@ -818,7 +970,7 @@ describe('MaterializeController', () => {
     it('builds from scratch when no cached index tree', () => {
       const { ctrl, host } = setup({ _cachedViewHash: null, _cachedIndexTree: null });
 
-      ctrl._buildView(emptyState(), 'hash2');
+      controllerPrivate(ctrl)._buildView(emptyState(), 'hash2');
 
       expect(host._viewService.build).toHaveBeenCalled();
       expect(host._cachedViewHash).toBe('hash2');
@@ -833,7 +985,7 @@ describe('MaterializeController', () => {
       });
       const diff = { nodesAdded: [], nodesRemoved: [], edgesAdded: [], edgesRemoved: [] };
 
-      ctrl._buildView(emptyState(), 'hash3', diff);
+      controllerPrivate(ctrl)._buildView(emptyState(), 'hash3', diff);
 
       expect(host._viewService.applyDiff).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -849,7 +1001,7 @@ describe('MaterializeController', () => {
         throw new Error('build failed');
       });
 
-      ctrl._buildView(emptyState(), 'hash4');
+      controllerPrivate(ctrl)._buildView(emptyState(), 'hash4');
 
       expect(host._indexDegraded).toBe(true);
       expect(host._logicalIndex).toBeNull();
@@ -865,13 +1017,13 @@ describe('MaterializeController', () => {
     it('throws QueryError when options is null', async () => {
       const { ctrl } = setup();
 
-      await expect(ctrl.materializeCoordinate(null)).rejects.toThrow(QueryError);
+      await expect(callMaterializeCoordinate(ctrl, null)).rejects.toThrow(QueryError);
     });
 
     it('throws QueryError when options is undefined', async () => {
       const { ctrl } = setup();
 
-      await expect(ctrl.materializeCoordinate(undefined)).rejects.toThrow(QueryError);
+      await expect(callMaterializeCoordinate(ctrl, undefined)).rejects.toThrow(QueryError);
     });
 
     it('throws QueryError when frontier has empty string values', async () => {
@@ -886,7 +1038,7 @@ describe('MaterializeController', () => {
       const { ctrl } = setup();
 
       await expect(
-        ctrl.materializeCoordinate({ frontier: [['w1', 'sha1']] }),
+        callMaterializeCoordinate(ctrl, { frontier: [['w1', 'sha1']] }),
       ).rejects.toThrow(QueryError);
     });
 
@@ -913,7 +1065,9 @@ describe('MaterializeController', () => {
         _materializeWithCoordinate: vi.fn().mockResolvedValue({ detached: true }),
       };
       const open = vi.fn().mockResolvedValue(detached);
-      host.constructor = { open };
+      Object.defineProperty(host, 'constructor', {
+        value: /** @type {typeof WarpRuntime} */ (/** @type {unknown} */ ({ open })),
+      });
 
       const result = await ctrl.materializeCoordinate({
         frontier: new Map([
@@ -950,7 +1104,7 @@ describe('MaterializeController', () => {
   // ────────────────────────────────────────────────────────────────────────
   describe('verifyIndex()', () => {
     it('throws QueryError when graph is not materialized', () => {
-      const { ctrl, host } = setup({
+      const { ctrl } = setup({
         _logicalIndex: null,
         _cachedState: null,
       });
@@ -1021,7 +1175,7 @@ describe('MaterializeController', () => {
         propertyReader: 'restored-reader',
       });
 
-      await ctrl._restoreIndexFromCache('tree-oid-abc');
+      await controllerPrivate(ctrl)._restoreIndexFromCache('tree-oid-abc');
 
       expect(host._persistence.readTreeOids).toHaveBeenCalledWith('tree-oid-abc');
       expect(host._logicalIndex).toBe('restored-index');
@@ -1033,7 +1187,7 @@ describe('MaterializeController', () => {
       host._persistence.readTreeOids.mockRejectedValue(new Error('read failed'));
 
       // Should not throw
-      await ctrl._restoreIndexFromCache('bad-oid');
+      await controllerPrivate(ctrl)._restoreIndexFromCache('bad-oid');
 
       // Original index unchanged
       expect(host._logicalIndex).toBeNull();
@@ -1051,7 +1205,7 @@ describe('MaterializeController', () => {
       host._viewService.persistIndexTree.mockResolvedValue('tree-oid-2');
 
       const buf = new Uint8Array([1, 2, 3]);
-      await ctrl._persistSeekCacheEntry('key1', buf, emptyState());
+      await controllerPrivate(ctrl)._persistSeekCacheEntry('key1', buf, emptyState());
 
       expect(seekCache.set).toHaveBeenCalledWith('key1', buf, { indexTreeOid: 'tree-oid-2' });
     });
@@ -1064,7 +1218,7 @@ describe('MaterializeController', () => {
       });
 
       const buf = new Uint8Array([1, 2, 3]);
-      await ctrl._persistSeekCacheEntry('key1', buf, emptyState());
+      await controllerPrivate(ctrl)._persistSeekCacheEntry('key1', buf, emptyState());
 
       expect(seekCache.set).toHaveBeenCalledWith('key1', buf, {});
     });
@@ -1074,7 +1228,7 @@ describe('MaterializeController', () => {
       host._viewService.build.mockReturnValue({ tree: { t: 1 } });
 
       // Should not throw
-      await ctrl._persistSeekCacheEntry('key1', new Uint8Array(), emptyState());
+      await controllerPrivate(ctrl)._persistSeekCacheEntry('key1', new Uint8Array(), emptyState());
     });
   });
 
@@ -1136,7 +1290,7 @@ describe('MaterializeController', () => {
       });
       host._loadPatchChainFromSha.mockResolvedValue([]);
 
-      await ctrl._materializeWithCoordinate(new Map([['w1', 'new-sha']]), 5, false, 0);
+      await controllerPrivate(ctrl)._materializeWithCoordinate(new Map([['w1', 'new-sha']]), 5, false, 0);
 
       expect(host._loadPatchChainFromSha).toHaveBeenCalledWith('new-sha');
     });
@@ -1145,7 +1299,7 @@ describe('MaterializeController', () => {
       const { ctrl, host } = setup();
       host._loadPatchChainFromSha.mockResolvedValue([]);
 
-      await ctrl._materializeWithCoordinate(
+      await controllerPrivate(ctrl)._materializeWithCoordinate(
         new Map([
           ['w1', ''],
           ['w2', 'sha2'],
@@ -1166,7 +1320,7 @@ describe('MaterializeController', () => {
       const result = await ctrl.materialize({ ceiling: 0, receipts: true });
 
       expect(result).toHaveProperty('receipts');
-      expect(result.receipts).toEqual([]);
+      expect(requireStateWithReceipts(result).receipts).toEqual([]);
     });
   });
 });
